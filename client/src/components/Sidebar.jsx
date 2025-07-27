@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faComments,
@@ -10,6 +10,11 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 
 export default function Sidebar({ onLogout }) {
+  const location = useLocation();
+
+  // Helper to check if path is active (starts with)
+  const isActivePath = (path) => location.pathname.startsWith(path);
+
   return (
     <div
       className="sidebar d-flex flex-column align-items-center"
@@ -19,42 +24,30 @@ export default function Sidebar({ onLogout }) {
         <img src="/logo.svg" alt="Voicaw Logo" style={{ width: '32px', height: '32px' }} />
       </NavLink>
 
-      <div className="nav-item my-3">
+      <div className={`nav-item my-3 ${isActivePath('/dm') ? 'active' : ''}`}>
         <span className="dot"></span>
-        <NavLink
-          to="/dm"
-          className={({ isActive }) => `nav-icon${isActive ? ' active' : ''}`}
-        >
+        <NavLink to="/dm" className="nav-icon">
           <FontAwesomeIcon icon={faComments} />
         </NavLink>
       </div>
 
-      <div className="nav-item my-3">
+      <div className={`nav-item my-3 ${isActivePath('/plaza') ? 'active' : ''}`}>
         <span className="dot"></span>
-        <NavLink
-          to="/plaza"
-          className={({ isActive }) => `nav-icon${isActive ? ' active' : ''}`}
-        >
+        <NavLink to="/plaza" className="nav-icon">
           <FontAwesomeIcon icon={faUsers} />
         </NavLink>
       </div>
 
-      <div className="nav-item my-3">
+      <div className={`nav-item my-3 ${isActivePath('/calendar') ? 'active' : ''}`}>
         <span className="dot"></span>
-        <NavLink
-          to="/calendar"
-          className={({ isActive }) => `nav-icon${isActive ? ' active' : ''}`}
-        >
+        <NavLink to="/calendar" className="nav-icon">
           <FontAwesomeIcon icon={faCalendarAlt} />
         </NavLink>
       </div>
 
-      <div className="nav-item my-3">
+      <div className={`nav-item my-3 ${isActivePath('/settings') ? 'active' : ''}`}>
         <span className="dot"></span>
-        <NavLink
-          to="/settings"
-          className={({ isActive }) => `nav-icon${isActive ? ' active' : ''}`}
-        >
+        <NavLink to="/settings" className="nav-icon">
           <FontAwesomeIcon icon={faCog} />
         </NavLink>
       </div>
