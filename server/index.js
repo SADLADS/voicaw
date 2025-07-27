@@ -131,6 +131,32 @@ app.get('/api/dms-list', (req, res) => {
   });
 });
 
+app.get('/api/dm-messages/:otherUserId', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+
+  const loggedInUserId = req.session.user.id;
+  const otherUserId = parseInt(req.params.otherUserId, 10);
+  if (isNaN(otherUserId)) return res.status(400).json({ error: 'Invalid user ID' });
+
+  db.all(
+    `SELECT id, sender_id, recipient_id, content, timestamp
+     FROM direct_messages
+     WHERE
+       (sender_id = ? AND recipient_id = ?)
+       OR
+       (sender_id = ? AND recipient_id = ?)
+     ORDER BY timestamp ASC`,
+    [loggedInUserId, otherUserId, otherUserId, loggedInUserId],
+    (err, rows) => {
+      if (err) {
+        console.error('Failed to fetch DM messages:', err);
+        return res.status(500).json({ error: 'Server error' });
+      }
+      res.json(rows);
+    }
+  );
+});
+
 
 
 function getRecentDmsForUser(loggedInUserId, callback) {
