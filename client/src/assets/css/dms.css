@@ -143,3 +143,9 @@ html, body {
   #dm-chat-form .btn:hover {
     background-color: var(--vc-purple-darker);
   }
+
+  .chat-recipient-header {
+    margin:0px;
+    padding-bottom:5px;
+    border-bottom: 1px solid var(--vc-grey-light);
+  }

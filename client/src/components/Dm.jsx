@@ -62,18 +62,14 @@ export default function Dm({ user }) {
       const res = await fetch('/api/dm-send', {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           recipient_id: chatUser.id,
           content: inputValue.trim(),
         }),
       });
 
-      if (!res.ok) {
-        throw new Error('Failed to send message');
-      }
+      if (!res.ok) throw new Error('Failed to send message');
 
       setInputValue(''); // clear input after sending
 
@@ -89,60 +85,33 @@ export default function Dm({ user }) {
     }
   };
 
-
   return (
-    <div className="dm-container" style={{ display: 'flex', height: '100vh' }}>
+    <div className="dm-container">
       <DmSidebar users={users} />
       <div
         id="dm-main"
         data-current-user-id={user?.id}
         data-other-user-id={chatUser?.id}
-        style={{ flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column', height: '100vh' }}
       >
-        {errorUsers && <p style={{ color: 'red' }}>Error loading users: {errorUsers}</p>}
+        {errorUsers && <p className="error-text">Error loading users: {errorUsers}</p>}
         {users.length === 0 && !errorUsers && <p>No recent conversations found.</p>}
 
         {id ? (
           <>
-            <h4>Chat with {chatUser?.username || 'User'}</h4>
+            <h4 class="chat-recipient-header">Chat with {chatUser?.username || 'User'}</h4>
 
-            <ul
-              id="dm-messages"
-              className="list-group flex-grow-1"
-              style={{ overflowY: 'auto', flexGrow: 1, marginBottom: '1rem', padding: 0, listStyle: 'none' }}
-            >
-              {errorMessages && <li style={{ color: 'red' }}>Error loading messages: {errorMessages}</li>}
+            <ul id="dm-messages" className="list-group">
+              {errorMessages && <li className="error-text">Error loading messages: {errorMessages}</li>}
               {!errorMessages && messages.length === 0 && (
-                <li
-                  style={{
-                    color: '#ccc',
-                    fontStyle: 'italic',
-                    marginTop: 'auto',
-                    marginBottom: 'auto',
-                  }}
-                >
-                  No messages yet.
-                </li>
+                <li className="no-messages">No messages yet.</li>
               )}
               {messages.map(msg => (
                 <li
                   key={msg.id}
                   className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}
-                  style={{
-                    backgroundColor: msg.sender_id === user.id ? '#005f73' : '#0a9396',
-                    color: 'white',
-                    padding: '0.5rem 1rem',
-                    borderRadius: '10px',
-                    marginBottom: '0.5rem',
-                    alignSelf: msg.sender_id === user.id ? 'flex-end' : 'flex-start',
-                    maxWidth: '70%',
-                    wordBreak: 'break-word',
-                  }}
                 >
                   <strong>{msg.sender_id === user.id ? user.username : chatUser?.username}</strong>{' '}
-                  <small style={{ fontSize: '0.75rem', opacity: 0.7 }}>
-                    {new Date(msg.timestamp * 1000).toLocaleString()}
-                  </small>
+                  <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
                   <br />
                   <span>{msg.content}</span>
                 </li>
@@ -153,12 +122,11 @@ export default function Dm({ user }) {
               <input
                 id="dm-input"
                 type="text"
-                className="form-control me-2"
+                className="form-control"
                 placeholder="Type a message..."
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 autoComplete="off"
-                style={{ flexGrow: 1 }}
               />
               <button className="btn btn-primary" type="submit">
                 Send
