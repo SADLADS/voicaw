@@ -15,7 +15,6 @@ export function connectWebSocket(currentUserId) {
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
     if (data.type === 'new_dm') {
-      console.log('New DM event:', data.message);
       listeners.forEach((cb) => cb(data.message));
     }
   };

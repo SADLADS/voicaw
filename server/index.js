@@ -212,7 +212,12 @@ app.post('/api/dm-send', async (req, res) => {
 
             // Notify recipient - just console.log for now
             console.log(`User ${recipient_id} received a new DM from user ${sender_id}: "${content.trim()}"`);
-            const recipientSocket = clients.get(recipient_id);
+            const recipientSocket = clients.get(recipient_id.toString());
+
+            console.log('Clients keys:', [...clients.keys()]);
+            console.log('Recipient ID:', recipient_id);
+            console.log(recipientSocket)
+            console.log(clients)
             if (recipientSocket && recipientSocket.readyState === WebSocket.OPEN) {
               console.log("socket is open")
               recipientSocket.send(JSON.stringify({
@@ -276,25 +281,25 @@ function getRecentDmsForUser(loggedInUserId, callback) {
 
 // WEBSOCKETS
 
-wss.on('connection', (ws, req) => {
-  console.log("ws connection")
-  // You can parse the session cookie or a token here to identify the user
-  // For simplicity, let’s say client sends userId right after connecting
-  ws.on('message', (message) => {
-    try {
-      const data = JSON.parse(message);
-      if (data.type === 'identify' && data.userId) {
-        clients.set(data.userId, ws);
-        ws.userId = data.userId;
-      }
-    } catch (e) {
-      // Ignore malformed messages
-    }
-  });
+wss.on('connection', (ws) => {
+  console.log('New connection');
 
-  ws.on('close', () => {
-    if (ws.userId) {
-      clients.delete(ws.userId);
+  ws.on('message', (msg) => {
+    try {
+      const data = JSON.parse(msg);
+      if (data.type === 'identify') {
+        const { userId } = data;
+        console.log(`User identified as ${userId}`);
+        clients.set(userId, ws);
+
+        ws.on('close', () => {
+          clients.delete(userId);
+        });
+      }
+
+      // Other types (e.g., new_dm)
+    } catch (err) {
+      console.error('Invalid message', err);
     }
   });
 });
