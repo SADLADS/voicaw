@@ -58,7 +58,7 @@ a {
   height: 48px;
 }
 
-.nav-icon i {
+.nav-icon svg {
   font-size: 1.8rem;
   color: var(--vc-white);
   transition: color 0.2s;
