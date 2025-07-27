@@ -1,6 +1,8 @@
 const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
+const session = require('express-session');
+
 require('dotenv').config();
 
 const db = require('./db');
@@ -23,6 +25,17 @@ app.use(cors({
   credentials: true
 }));
 
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'defaultsecretkey', // replace with env var in prod
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', // true in prod with HTTPS
+    sameSite: 'lax', // adjust as needed
+    maxAge: 1000 * 60 * 60 * 24 // 1 day session
+  }
+}));
 
 const saltRounds = 10;
 
@@ -38,7 +51,8 @@ app.post('/api/login', (req, res) => {
       if (err) return res.status(500).json({ error: 'Error checking password' });
       if (!result) return res.status(401).json({ error: 'Invalid credentials' });
 
-      // Login success: return minimal user info (or JWT/session if you add that)
+      req.session.user = { id: user.id, username: user.username };
+
       res.json({ id: user.id, username: user.username });
     });
   });
@@ -93,6 +107,54 @@ app.get('/api/profile', (req, res) => {
   // No real auth yet, so just send dummy response
   res.json({ message: 'Logged in successfully!' });
 });
+
+
+app.get('/api/dms-list', (req, res) => {
+  console.log("recent-dms")
+  console.log(req.session)
+  if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+
+  const loggedInUserId = req.session.user.id;
+  console.log(loggedInUserId)
+  getRecentDmsForUser(loggedInUserId, (err, users) => {
+    if (err) {
+      console.error("Failed to fetch recent DMs:", err);
+      return res.status(500).json({ error: 'Server error' });
+    }
+
+    res.json(users);
+  });
+});
+
+
+
+function getRecentDmsForUser(loggedInUserId, callback) {
+  db.all(
+    `
+    SELECT u.id, u.username,
+           MAX(m.timestamp) as last_timestamp
+    FROM users u
+    LEFT JOIN direct_messages m
+      ON (
+        (m.sender_id = ? AND m.recipient_id = u.id)
+        OR
+        (m.recipient_id = ? AND m.sender_id = u.id)
+      )
+    GROUP BY u.id
+    ORDER BY last_timestamp DESC NULLS LAST, u.id = ? DESC
+    `,
+    [loggedInUserId, loggedInUserId, loggedInUserId],
+    (err, rows) => {
+      if (err) return callback(err);
+      callback(null, rows);
+    }
+  );
+}
+
+
+
+
+
 
 const PORT = process.env.PORT || 3000;
 console.log(PORT)
