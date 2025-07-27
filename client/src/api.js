@@ -5,7 +5,7 @@ const api = axios.create({
   withCredentials: true,
 });
 
-console.log('API Base URL:', import.meta.env.VITE_API_BASE_URL); // ✅ confirm it's defined
+console.log('API Base URL:', import.meta.env.VITE_API_BASE_URL);
 
 
 export default api;
