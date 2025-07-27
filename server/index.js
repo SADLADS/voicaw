@@ -224,6 +224,21 @@ app.post('/api/dm-send', async (req, res) => {
   }
 });
 
+app.post('/api/logout', (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      return res.status(500).json({ error: 'Logout failed' });
+    }
+    res.clearCookie('connect.sid', { domain: '.voicaw.com', path: '/' });
+    res.json({ message: 'Logged out' });
+  });
+});
+
+
+
+
+
+// FUNCTIONS
 
 function getRecentDmsForUser(loggedInUserId, callback) {
   db.all(
@@ -248,15 +263,7 @@ function getRecentDmsForUser(loggedInUserId, callback) {
   );
 }
 
-app.post('/api/logout', (req, res) => {
-  req.session.destroy(err => {
-    if (err) {
-      return res.status(500).json({ error: 'Logout failed' });
-    }
-    res.clearCookie('connect.sid', { domain: '.voicaw.com', path: '/' });
-    res.json({ message: 'Logged out' });
-  });
-});
+
 
 
 // WEBSOCKETS
