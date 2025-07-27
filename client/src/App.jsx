@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth, AuthProvider } from './AuthProvider.jsx';
 
@@ -10,9 +10,21 @@ import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
 
 import api from './api';
+import { connectWebSocket, onNewDm } from './ws-client';
 
 export default function App() {
   const { user, setUser, loading } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      connectWebSocket(user.id);
+      const unsubscribe = onNewDm((message) => {
+        console.log('Received new DM:', message);
+        // Here you can update global state, notify user, etc.
+      });
+      return () => unsubscribe();
+    }
+  }, [user]);
 
   if (loading) return <div>Loading...</div>;
 

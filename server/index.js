@@ -212,6 +212,14 @@ app.post('/api/dm-send', async (req, res) => {
 
             // Notify recipient - just console.log for now
             console.log(`User ${recipient_id} received a new DM from user ${sender_id}: "${content.trim()}"`);
+            const recipientSocket = clients.get(recipient_id);
+            if (recipientSocket && recipientSocket.readyState === WebSocket.OPEN) {
+              console.log("socket is open")
+              recipientSocket.send(JSON.stringify({
+                type: 'new_dm',
+                message: message, // the inserted DM
+              }));
+            }
 
             res.status(201).json(message);
           }
@@ -269,6 +277,7 @@ function getRecentDmsForUser(loggedInUserId, callback) {
 // WEBSOCKETS
 
 wss.on('connection', (ws, req) => {
+  console.log("ws connection")
   // You can parse the session cookie or a token here to identify the user
   // For simplicity, let’s say client sends userId right after connecting
   ws.on('message', (message) => {
