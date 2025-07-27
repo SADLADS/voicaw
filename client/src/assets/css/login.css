@@ -1,0 +1,37 @@
+body {
+    background-color: var(--vc-grey-dark);
+  }
+
+  /* Login Page */
+.form-container {
+    max-width: 400px;
+    margin: 10vh auto;
+    background: var(--vc-grey-medium);
+    padding: 2rem;
+    border-radius: 8px;
+  }
+  
+  .btn-vc {
+    background-color: var(--vc-purple);
+    color: var(--vc-white);
+  }
+  
+  .btn-vc:hover {
+    background-color: var(--vc-purple-darker);
+  }
+
+  .login-header{
+    color: var(--vc-white);
+  }
+
+  .btn-secondary {
+    background-color: var(--vc-yellow);
+    color: var(--vc-grey-dark);
+    border:1px solid var(--vc-yellow);
+  }
+
+  .btn-secondary:hover {
+    background-color: var(--vc-yellow-darker);
+    color: var(--vc-grey-dark);
+    border:1px solid var(--vc-yellow-darker);
+  }
