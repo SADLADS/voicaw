@@ -33,6 +33,7 @@ html, body {
 }
 
 #dm-main {
+  background-color: var(--vc-grey-medium);
   display: flex;
   flex-direction: column;
   height: 100vh;

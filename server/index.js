@@ -118,12 +118,9 @@ app.get('/api/profile', (req, res) => {
 
 
 app.get('/api/dms-list', (req, res) => {
-  console.log("recent-dms")
-  console.log(req.session)
   if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
 
   const loggedInUserId = req.session.user.id;
-  console.log(loggedInUserId)
   getRecentDmsForUser(loggedInUserId, (err, users) => {
     if (err) {
       console.error("Failed to fetch recent DMs:", err);
