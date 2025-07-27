@@ -54,12 +54,41 @@ export default function Dm({ user }) {
 
   const chatUser = users.find(u => u.id.toString() === id);
 
-  const handleSendMessage = e => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
-    // Sending message to backend not implemented yet
-    setInputValue('');
+    if (!inputValue.trim() || !chatUser) return;
+
+    try {
+      const res = await fetch('/api/dm-send', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipient_id: chatUser.id,
+          content: inputValue.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      setInputValue(''); // clear input after sending
+
+      // Refresh messages from backend
+      const updatedRes = await fetch(`/api/dm-messages/${chatUser.id}`, { credentials: 'include' });
+      if (updatedRes.ok) {
+        const data = await updatedRes.json();
+        setMessages(data);
+        setErrorMessages(null);
+      }
+    } catch (error) {
+      setErrorMessages(error.message);
+    }
   };
+
 
   return (
     <div className="dm-container" style={{ display: 'flex', height: '100vh' }}>

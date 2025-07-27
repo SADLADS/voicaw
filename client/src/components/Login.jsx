@@ -1,46 +1,38 @@
 import React, { useState } from 'react';
 import '../assets/css/login.css';
+import api from '../api';
 
 export default function Login({ onLoginSuccess }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [registerData, setRegisterData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
 
-  async function handleLogin(e) {
-    e.preventDefault();
-    setError('');
-    try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',   // <--- IMPORTANT
-        body: JSON.stringify(loginData),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
-      onLoginSuccess(data);  // this sets user in context
-    } catch (err) {
-      setError(err.message);
-    }
+async function handleLogin(e) {
+  e.preventDefault();
+  setError('');
+  try {
+    const { data } = await api.post('/login', loginData);
+    // axios responses don’t have `ok` property,
+    // just check if `data` has error or not
+    if (data.error) throw new Error(data.error || 'Login failed');
+    onLoginSuccess(data);
+  } catch (err) {
+    setError(err.message);
   }
+}
 
-
-  async function handleRegister(e) {
-    e.preventDefault();
-    setError('');
-    try {
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(registerData),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Registration failed');
-      alert('Registered! You can now log in.');
-    } catch (err) {
-      setError(err.message);
-    }
+async function handleRegister(e) {
+  e.preventDefault();
+  setError('');
+  try {
+    const { data } = await api.post('/register', registerData);
+    if (data.error) throw new Error(data.error || 'Registration failed');
+    alert('Registered! You can now log in.');
+  } catch (err) {
+    setError(err.message);
   }
+}
+
 
   return (
     <div className="form-container">

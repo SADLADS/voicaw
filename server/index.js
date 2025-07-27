@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
+const WebSocket = require('ws');
 
 require('dotenv').config();
 
@@ -14,9 +15,11 @@ const cors = require('cors');
 
 const allowedOrigins = ['https://test.voicaw.com', 'https://voicaw.com'];
 
+const saltRounds = 10;
+
 app.use(cors({
   origin: function(origin, callback){
-    if (!origin) return callback(null, true); // Allow non-browser tools like Postman or curl
+    if (!origin) return callback(null, true);
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -34,6 +37,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
+    domain: '.voicaw.com',
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -41,9 +45,23 @@ app.use(session({
   }
 }));
 
-const saltRounds = 10;
+const PORT = process.env.PORT || 3000;
+console.log(PORT)
+const server = app.listen(PORT, (err) => {
+  if (err) {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  }
+  console.log(`Server running on port ${PORT}`);
+});
+
+const wss = new WebSocket.Server({ server });
+
+const clients = new Map();
+
 
 app.post('/api/login', (req, res) => {
+  console.log("login")
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
 
@@ -54,7 +72,6 @@ app.post('/api/login', (req, res) => {
     bcrypt.compare(password, user.password, (err, result) => {
       if (err) return res.status(500).json({ error: 'Error checking password' });
       if (!result) return res.status(401).json({ error: 'Invalid credentials' });
-
       req.session.user = { id: user.id, username: user.username };
 
       res.json({ id: user.id, username: user.username });
@@ -64,6 +81,7 @@ app.post('/api/login', (req, res) => {
 
 // Register route
 app.post('/api/register', (req, res) => {
+  console.log("register")
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
 
@@ -157,6 +175,55 @@ app.get('/api/dm-messages/:otherUserId', (req, res) => {
   );
 });
 
+app.post('/api/dm-send', async (req, res) => {
+  console.log("dm-send!");
+  const sender_id = req.session.user?.id;
+  const { recipient_id, content } = req.body;
+
+  if (!sender_id) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!recipient_id || !content || !content.trim()) {
+    return res.status(400).json({ error: 'Missing recipient or content' });
+  }
+
+  try {
+    db.run(
+      `INSERT INTO direct_messages (sender_id, recipient_id, content, timestamp)
+       VALUES (?, ?, ?, strftime('%s','now'))`,
+      [sender_id, recipient_id, content.trim()],
+      function (err) {
+        if (err) {
+          console.error('Failed to insert DM:', err);
+          return res.status(500).json({ error: 'Failed to send message' });
+        }
+
+        const insertedId = this.lastID;
+
+        // Fetch the inserted message to return it
+        db.get(
+          `SELECT id, sender_id, recipient_id, content, timestamp FROM direct_messages WHERE id = ?`,
+          [insertedId],
+          (err, message) => {
+            if (err) {
+              console.error('Failed to fetch inserted DM:', err);
+              return res.status(500).json({ error: 'Failed to send message' });
+            }
+
+            // Notify recipient - just console.log for now
+            console.log(`User ${recipient_id} received a new DM from user ${sender_id}: "${content.trim()}"`);
+
+            res.status(201).json(message);
+          }
+        );
+      }
+    );
+  } catch (err) {
+    console.error('Failed to insert DM:', err);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
 
 
 function getRecentDmsForUser(loggedInUserId, callback) {
@@ -183,16 +250,26 @@ function getRecentDmsForUser(loggedInUserId, callback) {
 }
 
 
+// WEBSOCKETS
 
+wss.on('connection', (ws, req) => {
+  // You can parse the session cookie or a token here to identify the user
+  // For simplicity, let’s say client sends userId right after connecting
+  ws.on('message', (message) => {
+    try {
+      const data = JSON.parse(message);
+      if (data.type === 'identify' && data.userId) {
+        clients.set(data.userId, ws);
+        ws.userId = data.userId;
+      }
+    } catch (e) {
+      // Ignore malformed messages
+    }
+  });
 
-
-
-const PORT = process.env.PORT || 3000;
-console.log(PORT)
-app.listen(PORT, (err) => {
-  if (err) {
-    console.error('Failed to start server:', err);
-    process.exit(1);
-  }
-  console.log(`Server running on port ${PORT}`);
+  ws.on('close', () => {
+    if (ws.userId) {
+      clients.delete(ws.userId);
+    }
+  });
 });
