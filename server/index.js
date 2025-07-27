@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 
 require('dotenv').config();
 
@@ -26,14 +27,17 @@ app.use(cors({
 }));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'defaultsecretkey', // replace with env var in prod
+  store: new SQLiteStore({
+    db: 'sessions.sqlite',
+  }),
+  secret: process.env.SESSION_SECRET || 'defaultsecretkey',
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // true in prod with HTTPS
-    sameSite: 'lax', // adjust as needed
-    maxAge: 1000 * 60 * 60 * 24 // 1 day session
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 * 24,
   }
 }));
 
@@ -104,9 +108,13 @@ app.post('/api/register', (req, res) => {
 
 // Minimal protected route example
 app.get('/api/profile', (req, res) => {
-  // No real auth yet, so just send dummy response
-  res.json({ message: 'Logged in successfully!' });
+  if (req.session.user) {
+    res.json({ user: req.session.user });
+  } else {
+    res.json({ user: null });
+  }
 });
+
 
 
 app.get('/api/dms-list', (req, res) => {

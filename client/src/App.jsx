@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useAuth } from './AuthProvider.jsx';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 import Login from './components/Login.jsx';
@@ -10,30 +10,18 @@ import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
 
 export default function App() {
-  const [user, setUser] = useState(null);
+  const { user, setUser, loading } = useAuth();
 
-  // On mount, check localStorage for user
-  useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) setUser(JSON.parse(savedUser));
-  }, []);
-
-  // Save user to localStorage when user state changes
-  useEffect(() => {
-    if (user) localStorage.setItem('user', JSON.stringify(user));
-    else localStorage.removeItem('user');
-  }, [user]);
+  if (loading) return <div>Loading...</div>;
 
   return (
     <Router>
       <Routes>
-        {/* Public login route */}
         <Route
           path="/"
           element={user ? <Navigate to="/dashboard" replace /> : <Login onLoginSuccess={setUser} />}
         />
 
-        {/* Private routes with sidebar layout */}
         {user && (
           <Route element={<Layout user={user} onLogout={() => setUser(null)} />}>
             <Route path="/dashboard" element={<Dashboard user={user} />} />
@@ -44,7 +32,6 @@ export default function App() {
           </Route>
         )}
 
-        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

@@ -13,15 +13,17 @@ export default function Login({ onLoginSuccess }) {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',   // <--- IMPORTANT
         body: JSON.stringify(loginData),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Login failed');
-      onLoginSuccess(data);
+      onLoginSuccess(data);  // this sets user in context
     } catch (err) {
       setError(err.message);
     }
   }
+
 
   async function handleRegister(e) {
     e.preventDefault();
