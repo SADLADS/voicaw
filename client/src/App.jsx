@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 import Login from './components/Login.jsx';
 import Layout from './components/Layout.jsx';
-import Dashboard from './components/Dashboard.jsx';
 import Plaza from './components/Plaza.jsx';
 import Calendar from './components/Calendar.jsx';
 import Settings from './components/Settings.jsx';
@@ -19,12 +18,11 @@ export default function App() {
       <Routes>
         <Route
           path="/"
-          element={user ? <Navigate to="/dashboard" replace /> : <Login onLoginSuccess={setUser} />}
+          element={user ? <Navigate to="/plaza" replace /> : <Login onLoginSuccess={setUser} />}
         />
 
         {user && (
           <Route element={<Layout user={user} onLogout={() => setUser(null)} />}>
-            <Route path="/dashboard" element={<Dashboard user={user} />} />
             <Route path="/plaza" element={<Plaza user={user} />} />
             <Route path="/calendar" element={<Calendar user={user} />} />
             <Route path="/settings" element={<Settings user={user} />} />
