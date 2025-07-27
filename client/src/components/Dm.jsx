@@ -98,7 +98,7 @@ export default function Dm({ user }) {
 
         {id ? (
           <>
-            <h4 class="chat-recipient-header">Chat with {chatUser?.username || 'User'}</h4>
+            <h4 className="chat-recipient-header">Chat with {chatUser?.username || 'User'}</h4>
 
             <ul id="dm-messages" className="list-group">
               {errorMessages && <li className="error-text">Error loading messages: {errorMessages}</li>}

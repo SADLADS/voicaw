@@ -292,14 +292,26 @@ wss.on('connection', (ws) => {
         console.log(`User identified as ${userId}`);
         clients.set(userId, ws);
 
-        ws.on('close', () => {
+        ws.on('close', (code, reason) => {
+          console.log(`WebSocket closed for user ${userId}. Code: ${code}, Reason: ${reason.toString()}`);
           clients.delete(userId);
         });
-      }
 
-      // Other types (e.g., new_dm)
+        ws.on('error', (error) => {
+          console.error(`WebSocket error for user ${userId}:`, error);
+        });
+      }
     } catch (err) {
       console.error('Invalid message', err);
     }
+  });
+
+  // Also add error and close handlers outside identify, for any socket (if identify not yet received)
+  ws.on('close', (code, reason) => {
+    console.log(`WebSocket closed. Code: ${code}, Reason: ${reason.toString()}`);
+  });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
   });
 });
