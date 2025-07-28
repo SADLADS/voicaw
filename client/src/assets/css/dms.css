@@ -36,13 +36,13 @@ body {
 #dm-main {
   background-color: var(--vc-grey-medium);
   display: flex;
+  flex-grow: 1;
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  padding: 1rem;
+  padding: 0rem;
   box-sizing: border-box;
 }
-
 
 .dm-user {
   padding: 8px;
@@ -83,13 +83,6 @@ body {
   overflow-y: auto;
 }
 
-#dm-main {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 1rem;
-}
-
 #dm-chat-box {
   flex-grow: 1;
   display: flex;
@@ -100,7 +93,7 @@ body {
 #dm-messages {
   flex-grow: 1;
   overflow-y: auto;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0rem;
   scrollbar-color: var(--vc-grey-light) var(--vc-grey-medium);
 }
 
@@ -148,6 +141,6 @@ small {
 
 .chat-recipient-header {
   margin: 0px;
-  padding-bottom: 5px;
+  padding: 5px;
   border-bottom: 1px solid var(--vc-grey-light);
 }
