@@ -31,7 +31,7 @@ export default function App() {
       <Routes>
         <Route
           path="/"
-          element={user ? <Navigate to="/plaza" replace /> : <Login onLoginSuccess={setUser} />}
+          element={user ? <Navigate to="/dm" replace /> : <Login onLoginSuccess={setUser} />}
         />
 
         {user && (
