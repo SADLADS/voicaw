@@ -107,7 +107,7 @@ export default function Dm({ user }) {
       const currentChatUserId = chatUser.id.toString();
     
       if (fromId === currentChatUserId || toId === currentChatUserId) {
-        const shouldScroll = isScrolledToBottom(); // ✅ Check BEFORE updating messages
+        const shouldScroll = isScrolledToBottom();
         const updatedMessages = await fetchDmMessages(currentChatUserId);
         setMessages(updatedMessages);
     
