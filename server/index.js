@@ -45,7 +45,6 @@ app.use(session({
 }));
 
 const PORT = process.env.PORT || 3000;
-console.log(PORT)
 const server = app.listen(PORT, (err) => {
   if (err) {
     console.error('Failed to start server:', err);
@@ -132,8 +131,6 @@ app.get('/api/profile', (req, res) => {
   }
 });
 
-
-
 app.get('/api/dms-list', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
 
@@ -216,8 +213,6 @@ app.post('/api/dm-send', async (req, res) => {
 
             console.log('Clients keys:', [...clients.keys()]);
             console.log('Recipient ID:', recipient_id);
-            console.log(recipientSocket)
-            console.log(clients)
             if (recipientSocket && recipientSocket.readyState === WebSocket.OPEN) {
               console.log("socket is open")
               recipientSocket.send(JSON.stringify({
@@ -249,8 +244,6 @@ app.post('/api/logout', (req, res) => {
 
 
 
-
-
 // FUNCTIONS
 
 function getRecentDmsForUser(loggedInUserId, callback) {
@@ -275,7 +268,6 @@ function getRecentDmsForUser(loggedInUserId, callback) {
     }
   );
 }
-
 
 
 
