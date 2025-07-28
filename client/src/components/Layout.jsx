@@ -12,6 +12,7 @@ export default function Layout({ user, onLogout }) {
       connectWebSocket(user.id);
 
       const unsubscribe = onNewDm((message) => {
+        console.log("[message]", message)
         const dmMatch = location.pathname.match(/^\/dm\/(\d+)/);
         const currentDmId = dmMatch ? dmMatch[1] : null;
 

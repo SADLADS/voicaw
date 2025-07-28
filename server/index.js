@@ -217,9 +217,9 @@ app.post('/api/dm-send', async (req, res) => {
               console.error('Failed to fetch inserted DM:', err);
               return res.status(500).json({ error: 'Failed to send message' });
             }
-        
+
             console.log(`User ${message.recipient_id} received a new DM from ${message.sender_name}: "${message.content.trim()}"`);
-            
+
             db.run(
               `
               INSERT INTO dm_unread (user_id, from_user_id, count)
@@ -236,18 +236,18 @@ app.post('/api/dm-send', async (req, res) => {
             );
 
             const recipientSocket = clients.get(message.recipient_id.toString());
-        
+
             if (recipientSocket && recipientSocket.readyState === WebSocket.OPEN) {
               recipientSocket.send(JSON.stringify({
                 type: 'new_dm',
                 message: message,
               }));
             }
-        
+
             res.status(201).json(message);
           }
         );
-        
+
       }
     );
   } catch (err) {
@@ -264,6 +264,34 @@ app.post('/api/logout', (req, res) => {
     res.clearCookie('connect.sid', { domain: '.voicaw.com', path: '/' });
     res.json({ message: 'Logged out' });
   });
+});
+
+app.post('/api/dm-mark-read/:fromUserId', (req, res) => {
+  console.log(`attempt to mark read`);
+  const userId = req.session.user?.id;
+  const fromUserId = parseInt(req.params.fromUserId, 10);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (isNaN(fromUserId)) {
+    return res.status(400).json({ error: 'Invalid fromUserId' });
+  }
+
+  db.run(
+    `DELETE FROM dm_unread WHERE user_id = ? AND from_user_id = ?`,
+    [userId, fromUserId],
+    function (err) {
+      if (err) {
+        console.error('Failed to mark messages as read:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+
+      console.log(`Marked DMs from user ${fromUserId} as read for user ${userId}`);
+      res.json({ success: true });
+    }
+  );
 });
 
 

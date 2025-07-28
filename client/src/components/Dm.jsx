@@ -99,9 +99,17 @@ export default function Dm({ user }) {
   const chatUser = users.find(u => u.id.toString() === id);
 
   useEffect(() => {
+    if (!chatUser?.id) return;
+  
+    markRead();
+  }, [chatUser?.id]);
+  
+
+  useEffect(() => {
     if (!user?.id || !chatUser?.id) return;
 
     const unsubscribe = onNewDm(async (message) => {
+      markRead();
       const fromId = message.sender_id.toString();
       const toId = message.recipient_id?.toString?.();
       const currentChatUserId = chatUser.id.toString();
@@ -121,6 +129,15 @@ export default function Dm({ user }) {
     return () => unsubscribe();
   }, [chatUser?.id, user?.id]);
 
+  const markRead = async (e) =>{
+    fetch(`/api/dm-mark-read/${chatUser.id}`, {
+      method: 'POST',
+      credentials: 'include'
+    }).catch(err => {
+      console.warn('Failed to mark messages as read', err);
+    });
+  }
+    
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputValue.trim() || !chatUser) return;
