@@ -101,6 +101,7 @@ body {
   flex-grow: 1;
   overflow-y: auto;
   margin-bottom: 0.5rem;
+  scrollbar-color: var(--vc-grey-light) var(--vc-grey-medium);
 }
 
 small {
