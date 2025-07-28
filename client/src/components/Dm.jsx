@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DmSidebar from './DmSidebar';
 import '../assets/css/dms.css';
 import { fetchDmMessages } from '../utils/dm-api';
-import { connectWebSocket, onNewDm } from '../utils/ws-client';
+import { onNewDm } from '../utils/ws-client';
 
 export default function Dm({ user }) {
   const { id } = useParams();
@@ -16,6 +16,49 @@ export default function Dm({ user }) {
   const [errorMessages, setErrorMessages] = useState(null);
 
   const [inputValue, setInputValue] = useState('');
+  const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
+
+  const messageListRef = useRef(null);
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = (behavior = 'auto') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  };
+
+  const isScrolledToBottom = () => {
+    const el = messageListRef.current;
+    if (!el) return false;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    return Math.abs(distance) <= 1;
+  };
+
+  // Update scroll state on scroll
+  useEffect(() => {
+    const el = messageListRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      const atBottom = isScrolledToBottom();
+      setUserHasScrolledUp(!atBottom);
+    };
+
+    el.addEventListener('scroll', handleScroll);
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const initialLoad = useRef(true);
+  useEffect(() => {
+    if (initialLoad.current) {
+      scrollToBottom();         // Always scroll on first message load
+      initialLoad.current = false;
+      return;
+    }
+  
+    if (!userHasScrolledUp) {
+      scrollToBottom('smooth'); // Scroll only if user hasn't scrolled up
+    }
+  }, [messages]);
+  
 
   useEffect(() => {
     async function fetchUsers() {
@@ -47,7 +90,6 @@ export default function Dm({ user }) {
         setErrorMessages(null);
       } catch (e) {
         setErrorMessages(e.message);
-        // keep old messages intact on error
       }
     }
 
@@ -60,20 +102,24 @@ export default function Dm({ user }) {
     if (!user?.id || !chatUser?.id) return;
 
     const unsubscribe = onNewDm(async (message) => {
-      // Only refresh if message is from the current chat user or to you from them
       const fromId = message.sender_id.toString();
       const toId = message.recipient_id?.toString?.();
       const currentChatUserId = chatUser.id.toString();
-
+    
       if (fromId === currentChatUserId || toId === currentChatUserId) {
+        const shouldScroll = isScrolledToBottom(); // ✅ Check BEFORE updating messages
         const updatedMessages = await fetchDmMessages(currentChatUserId);
         setMessages(updatedMessages);
+    
+        if (shouldScroll) {
+          setTimeout(() => scrollToBottom('smooth'), 0);
+        }
       }
     });
+    
 
     return () => unsubscribe();
   }, [chatUser?.id, user?.id]);
-
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -97,6 +143,9 @@ export default function Dm({ user }) {
       const updatedMessages = await fetchDmMessages(chatUser.id);
       setMessages(updatedMessages);
       setErrorMessages(null);
+
+      // Always scroll after user sends a message
+      setTimeout(() => scrollToBottom('smooth'), 0);
     } catch (error) {
       setErrorMessages(error.message);
     }
@@ -117,7 +166,7 @@ export default function Dm({ user }) {
           <>
             <h4 className="chat-recipient-header">{chatUser?.username || 'User'}</h4>
 
-            <ul id="dm-messages" className="list-group">
+            <ul id="dm-messages" className="list-group" ref={messageListRef}>
               {errorMessages && <li className="error-text">Error loading messages: {errorMessages}</li>}
               {!errorMessages && messages.length === 0 && (
                 <li className="no-messages">No messages yet.</li>
@@ -133,6 +182,7 @@ export default function Dm({ user }) {
                   <span>{msg.content}</span>
                 </li>
               ))}
+              <div ref={messagesEndRef} />
             </ul>
 
             <form id="dm-chat-form" className="d-flex" onSubmit={handleSendMessage}>
