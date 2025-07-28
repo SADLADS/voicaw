@@ -9,22 +9,11 @@ import Calendar from './components/Calendar.jsx';
 import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
 
-import api from './api';
-import { connectWebSocket, onNewDm } from './ws-client';
+import api from './utils/api.js';
+import { connectWebSocket, onNewDm } from './utils/ws-client.js';
 
 export default function App() {
   const { user, setUser, loading } = useAuth();
-
-  useEffect(() => {
-    if (user) {
-      connectWebSocket(user.id);
-      const unsubscribe = onNewDm((message) => {
-        console.log('Received new DM:', message);
-        // Here you can update global state, notify user, etc.
-      });
-      return () => unsubscribe();
-    }
-  }, [user]);
 
   if (loading) return <div>Loading...</div>;
 

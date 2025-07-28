@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DmSidebar from './DmSidebar';
 import '../assets/css/dms.css';
+import { fetchDmMessages } from '../utils/dm-api';
+import { connectWebSocket, onNewDm } from '../utils/ws-client';
 
 export default function Dm({ user }) {
   const { id } = useParams();
@@ -54,6 +56,25 @@ export default function Dm({ user }) {
 
   const chatUser = users.find(u => u.id.toString() === id);
 
+  useEffect(() => {
+    if (!user?.id || !chatUser?.id) return;
+
+    const unsubscribe = onNewDm(async (message) => {
+      // Only refresh if message is from the current chat user or to you from them
+      const fromId = message.sender_id.toString();
+      const toId = message.recipient_id?.toString?.();
+      const currentChatUserId = chatUser.id.toString();
+
+      if (fromId === currentChatUserId || toId === currentChatUserId) {
+        const updatedMessages = await fetchDmMessages(currentChatUserId);
+        setMessages(updatedMessages);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [chatUser?.id, user?.id]);
+
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputValue.trim() || !chatUser) return;
@@ -71,15 +92,11 @@ export default function Dm({ user }) {
 
       if (!res.ok) throw new Error('Failed to send message');
 
-      setInputValue(''); // clear input after sending
+      setInputValue('');
 
-      // Refresh messages from backend
-      const updatedRes = await fetch(`/api/dm-messages/${chatUser.id}`, { credentials: 'include' });
-      if (updatedRes.ok) {
-        const data = await updatedRes.json();
-        setMessages(data);
-        setErrorMessages(null);
-      }
+      const updatedMessages = await fetchDmMessages(chatUser.id);
+      setMessages(updatedMessages);
+      setErrorMessages(null);
     } catch (error) {
       setErrorMessages(error.message);
     }

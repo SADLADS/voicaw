@@ -18,7 +18,7 @@ const allowedOrigins = ['https://test.voicaw.com', 'https://voicaw.com'];
 const saltRounds = 10;
 
 app.use(cors({
-  origin: function(origin, callback){
+  origin: function (origin, callback) {
     if (!origin) return callback(null, true);
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
@@ -280,9 +280,17 @@ function getRecentDmsForUser(loggedInUserId, callback) {
 
 
 // WEBSOCKETS
+function noop() { }
+function heartbeat() {
+  this.isAlive = true;
+}
 
+// -- Set up WebSocket Server --
 wss.on('connection', (ws) => {
   console.log('New connection');
+
+  ws.isAlive = true;
+  ws.on('pong', heartbeat);
 
   ws.on('message', (msg) => {
     try {
@@ -291,27 +299,38 @@ wss.on('connection', (ws) => {
         const { userId } = data;
         console.log(`User identified as ${userId}`);
         clients.set(userId, ws);
-
-        ws.on('close', (code, reason) => {
-          console.log(`WebSocket closed for user ${userId}. Code: ${code}, Reason: ${reason.toString()}`);
-          clients.delete(userId);
-        });
-
-        ws.on('error', (error) => {
-          console.error(`WebSocket error for user ${userId}:`, error);
-        });
+        ws.userId = userId; // Save userId for cleanup
       }
     } catch (err) {
       console.error('Invalid message', err);
     }
   });
 
-  // Also add error and close handlers outside identify, for any socket (if identify not yet received)
   ws.on('close', (code, reason) => {
-    console.log(`WebSocket closed. Code: ${code}, Reason: ${reason.toString()}`);
+    const id = ws.userId || 'unknown';
+    console.log(`WebSocket closed for user ${id}. Code: ${code}, Reason: ${reason?.toString() || 'No reason'}`);
+    clients.delete(id);
   });
 
-  ws.on('error', (error) => {
-    console.error('WebSocket error:', error);
+  ws.on('error', (err) => {
+    const id = ws.userId || 'unknown';
+    console.error(`WebSocket error for user ${id}:`, err);
   });
+});
+
+// -- Global heartbeat check every 30s --
+const interval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      console.warn('Terminating stale connection');
+      return ws.terminate();
+    }
+    ws.isAlive = false;
+    ws.ping(noop);
+  });
+}, 30000);
+
+// Optional: Clean up interval when server shuts down
+wss.on('close', () => {
+  clearInterval(interval);
 });

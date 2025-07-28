@@ -1,35 +1,36 @@
-html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
-  }
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
 
 .dm-container {
-    display: flex;
-    height: 100vh;
+  display: flex;
+  height: 100vh;
 }
 
 #dm-sidebar {
-    position: relative;
-    width: 250px;
-    min-width: 100px;
-    max-width: 400px;
-    background-color: var(--vc-grey-dark);
-    color: var(--vc-grey-white);
-    padding: 1rem;
-    overflow-y: auto;
+  position: relative;
+  width: 250px;
+  min-width: 100px;
+  max-width: 400px;
+  background-color: var(--vc-grey-dark);
+  color: var(--vc-grey-white);
+  padding: 1rem;
+  overflow-y: auto;
 }
 
 #dm-sidebar::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 4px;
-    height: 100%;
-    background-color: transparent;
-    cursor: ew-resize;
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  background-color: transparent;
+  cursor: ew-resize;
 }
 
 #dm-main {
@@ -44,12 +45,12 @@ html, body {
 
 
 .dm-user {
-    padding: 8px;
-    border-radius: 8px;
-    color: white;
-    text-decoration: none;
-    display: block;
-    border: 1px solid var(--vc-grey-dark);
+  padding: 8px;
+  border-radius: 8px;
+  color: white;
+  text-decoration: none;
+  display: block;
+  border: 1px solid var(--vc-grey-dark);
 }
 
 .dm-user.active {
@@ -57,15 +58,15 @@ html, body {
 }
 
 .dm-user:hover {
-    background-color: var(--vc-grey-medium);
+  background-color: var(--vc-grey-medium);
 }
 
 .dm-message {
-    border-radius: 0;
-    background-color: var(--vc-grey-medium);
-    color: var(--vc-white);
-    border: none;
-    padding: 10px;
+  border-radius: 0;
+  background-color: var(--vc-grey-medium);
+  color: var(--vc-white);
+  border: none;
+  padding: 10px;
 }
 
 .dm-message:hover {
@@ -73,79 +74,79 @@ html, body {
 }
 
 .dm-container {
-    display: flex;
-    height: 100vh;
-  }
-  
-  #dm-sidebar {
-    width: 250px;
-    overflow-y: auto;
-  }
-  
-  #dm-main {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 1rem;
-  }
-  
-  #dm-chat-box {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  
-  #dm-messages {
-    flex-grow: 1;
-    overflow-y: auto;
-    margin-bottom: 0.5rem;
-  }
-  
-  small {
-    font-size: 10px;
-    padding-left: 5px;
-  }
+  display: flex;
+  height: 100vh;
+}
+
+#dm-sidebar {
+  width: 250px;
+  overflow-y: auto;
+}
+
+#dm-main {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+#dm-chat-box {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#dm-messages {
+  flex-grow: 1;
+  overflow-y: auto;
+  margin-bottom: 0.5rem;
+}
+
+small {
+  font-size: 10px;
+  padding-left: 5px;
+}
 
 
-  #dm-chat-form {
-    padding: 0.5rem;
-    background-color: var(--vc-grey-medium);
-    border-top: 1px solid var(--vc-grey-light);
-  }
-  
-  #dm-input {
-    background-color: var(--vc-grey-light);
-    color: var(--vc-white);
-    border: none;
-    border-radius: 8px;
-    outline: none;
-    box-shadow: none;
-    transition: border 0.2s ease;
-  }
-  
-  #dm-input:focus {
-    box-shadow: none;
-  }
-  
-  #dm-input::placeholder {
-    color: var(--vc-white);
-  }
-  
-  #dm-chat-form .btn {
-    background-color: var(--vc-purple);
-    border: none;
-    color: var(--vc-white);
-    border-radius: 8px;
-    transition: background-color 0.2s ease;
-  }
-  
-  #dm-chat-form .btn:hover {
-    background-color: var(--vc-purple-darker);
-  }
+#dm-chat-form {
+  padding: 0.5rem;
+  background-color: var(--vc-grey-medium);
+  border-top: 1px solid var(--vc-grey-light);
+}
 
-  .chat-recipient-header {
-    margin:0px;
-    padding-bottom:5px;
-    border-bottom: 1px solid var(--vc-grey-light);
-  }
+#dm-input {
+  background-color: var(--vc-grey-light);
+  color: var(--vc-white);
+  border: none;
+  border-radius: 8px;
+  outline: none;
+  box-shadow: none;
+  transition: border 0.2s ease;
+}
+
+#dm-input:focus {
+  box-shadow: none;
+}
+
+#dm-input::placeholder {
+  color: var(--vc-white);
+}
+
+#dm-chat-form .btn {
+  background-color: var(--vc-purple);
+  border: none;
+  color: var(--vc-white);
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+
+#dm-chat-form .btn:hover {
+  background-color: var(--vc-purple-darker);
+}
+
+.chat-recipient-header {
+  margin: 0px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--vc-grey-light);
+}

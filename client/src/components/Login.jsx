@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import '../assets/css/login.css';
-import api from '../api';
+import api from '../utils/api';
 
 export default function Login({ onLoginSuccess }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
