@@ -7,6 +7,23 @@ import { connectWebSocket, onNewDm } from '../utils/ws-client';
 export default function Layout({ user, onLogout }) {
   const location = useLocation();
 
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchUnreadMessages();
+    }
+    async function fetchUnreadMessages() {
+      try {
+        const res = await fetch(`/api/dm-get-unread/`, { credentials: 'include' });
+        if (!res.ok) throw new Error('Failed to fetch messages');
+        const data = await res.json();
+        console.log(data);
+      } catch (e) {
+        console.log(e.message);
+      }
+    }
+  }, [user?.id]);
+
   useEffect(() => {
     if (user?.id) {
       connectWebSocket(user.id);

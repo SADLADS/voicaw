@@ -303,7 +303,7 @@ app.get('/api/dm-get-unread/', (req, res) => {
   }
 
     db.all(
-      `SELECT FROM dm_unread WHERE user_id = ?`,
+      `SELECT * FROM dm_unread WHERE user_id = ?`,
       [userId],
       (err, rows) => {
         if (err) {
