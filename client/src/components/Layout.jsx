@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { Outlet } from 'react-router-dom';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
 
 export default function Layout({ user, onLogout }) {
+  const [hasUnreadDms, setHasUnreadDms] = useState(false);
   const location = useLocation();
 
 
@@ -18,6 +19,7 @@ export default function Layout({ user, onLogout }) {
         if (!res.ok) throw new Error('Failed to fetch messages');
         const data = await res.json();
         console.log(data);
+        setHasUnreadDms(data.length > 0);
       } catch (e) {
         console.log(e.message);
       }
@@ -57,7 +59,7 @@ export default function Layout({ user, onLogout }) {
 
   return (
     <div className="d-flex">
-      <Sidebar user={user} onLogout={onLogout} />
+      <Sidebar user={user} onLogout={onLogout} hasUnreadDms={hasUnreadDms} />
       <div style={{ flex: 1 }}>
         <Outlet />
       </div>

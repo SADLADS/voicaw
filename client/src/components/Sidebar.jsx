@@ -9,7 +9,7 @@ import {
   faSignOutAlt
 } from '@fortawesome/free-solid-svg-icons';
 
-export default function Sidebar({ onLogout }) {
+export default function Sidebar({ onLogout, hasUnreadDms }) {
   const location = useLocation();
 
   // Helper to check if path is active (starts with)
@@ -25,7 +25,7 @@ export default function Sidebar({ onLogout }) {
       </NavLink>
 
       <div className={`nav-item my-3 ${isActivePath('/dm') ? 'active' : ''}`}>
-        <span className="dot"></span>
+      <span className={`dot${hasUnreadDms ? ' visible' : ''}`}></span>
         <NavLink to="/dm" className="nav-icon">
           <FontAwesomeIcon icon={faComments} />
         </NavLink>
