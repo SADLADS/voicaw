@@ -160,3 +160,7 @@ small {
   transition: all 0.2s ease;
   margin-left:-15px
 }
+
+.userdot.active{
+  opacity: 1;
+}

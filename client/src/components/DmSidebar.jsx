@@ -12,9 +12,11 @@ export default function DmSidebar({ users }) {
           key={id}
           to={`/dm/${id}`}
           className={`dm-user ${id.toString() === activeId ? 'active' : ''}`}
-          id={`dm-user-${id.toString()}`}
         >
-          <span className="userdot" />
+          <span
+            className="userdot"
+            id={`user-dot-${id.toString()}`}
+          />
           <div class={'dm-user-container'}>
             {username}
           </div>
