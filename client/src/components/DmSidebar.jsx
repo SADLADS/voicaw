@@ -6,7 +6,7 @@ export default function DmSidebar({ users }) {
 
   return (
     <div id="dm-sidebar">
-      <h5>Direct Messages</h5>
+      <h5 class="direct-messages-header">Direct Messages</h5>
       {users.map(({ id, username }) => (
         <Link
           key={id}

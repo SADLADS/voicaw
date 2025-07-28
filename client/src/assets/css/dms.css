@@ -18,7 +18,7 @@ body {
   max-width: 400px;
   background-color: var(--vc-grey-dark);
   color: var(--vc-grey-white);
-  padding: 1rem;
+  padding: 0rem;
   overflow-y: auto;
 }
 
@@ -76,11 +76,6 @@ body {
 .dm-container {
   display: flex;
   height: 100vh;
-}
-
-#dm-sidebar {
-  width: 250px;
-  overflow-y: auto;
 }
 
 #dm-chat-box {
@@ -143,4 +138,8 @@ small {
   margin: 0px;
   padding: 5px;
   border-bottom: 1px solid var(--vc-grey-light);
+}
+
+.direct-messages-header{
+  padding: 0.5rem;
 }
