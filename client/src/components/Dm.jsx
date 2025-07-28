@@ -151,7 +151,7 @@ export default function Dm({ user }) {
             </form>
           </>
         ) : (
-          <p>Select a user to chat with.</p>
+          <p></p>
         )}
       </div>
     </div>
