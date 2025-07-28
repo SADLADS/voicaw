@@ -93,10 +93,14 @@ a {
 }
 
 .sidebar{
+  overflow-y: auto;
   background-color: var(--vc-grey-dark);
   border-right: 2px solid var(--vc-grey-medium);
 }
-
+.sidebar::-webkit-scrollbar {
+  width: 0px;
+  background: transparent; /* make scrollbar transparent */
+}
 
 
 
