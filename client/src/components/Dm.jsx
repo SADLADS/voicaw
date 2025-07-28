@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DmSidebar from './DmSidebar';
 import '../assets/css/dms.css';
 import { fetchDmMessages } from '../utils/dm-api';
 import { onNewDm } from '../utils/ws-client';
+import { LayoutContext } from './Layout';
 
 export default function Dm({ user }) {
   const { id } = useParams();
@@ -129,14 +130,20 @@ export default function Dm({ user }) {
     return () => unsubscribe();
   }, [chatUser?.id, user?.id]);
 
-  const markRead = async (e) =>{
-    fetch(`/api/dm-mark-read/${chatUser.id}`, {
-      method: 'POST',
-      credentials: 'include'
-    }).catch(err => {
+  const { fetchUnreadMessages } = useContext(LayoutContext);
+
+  const markRead = async () => {
+    try {
+      await fetch(`/api/dm-mark-read/${chatUser.id}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      fetchUnreadMessages?.();
+    } catch (err) {
       console.warn('Failed to mark messages as read', err);
-    });
-  }
+    }
+  };
+  
     
   const handleSendMessage = async (e) => {
     e.preventDefault();
