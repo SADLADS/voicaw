@@ -107,4 +107,16 @@ CREATE TABLE IF NOT EXISTS message_reactions (
 );
 `);
 
+// UNREAD DMS
+db.run(`
+CREATE TABLE IF NOT EXISTS dm_unread (
+  user_id INTEGER NOT NULL,
+  from_user_id INTEGER NOT NULL,
+  count INTEGER DEFAULT 0 NOT NULL,
+  PRIMARY KEY (user_id, from_user_id),
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (from_user_id) REFERENCES users(id)
+);
+`);
+
 module.exports = db;

@@ -219,7 +219,22 @@ app.post('/api/dm-send', async (req, res) => {
             }
         
             console.log(`User ${message.recipient_id} received a new DM from ${message.sender_name}: "${message.content.trim()}"`);
-        
+            
+            db.run(
+              `
+              INSERT INTO dm_unread (user_id, from_user_id, count)
+              VALUES (?, ?, 1)
+              ON CONFLICT(user_id, from_user_id)
+              DO UPDATE SET count = count + 1
+              `,
+              [message.recipient_id, message.sender_id],
+              (err) => {
+                if (err) {
+                  console.error('Failed to update unread count:', err);
+                }
+              }
+            );
+
             const recipientSocket = clients.get(message.recipient_id.toString());
         
             if (recipientSocket && recipientSocket.readyState === WebSocket.OPEN) {
