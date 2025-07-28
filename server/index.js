@@ -199,31 +199,40 @@ app.post('/api/dm-send', async (req, res) => {
 
         // Fetch the inserted message to return it
         db.get(
-          `SELECT id, sender_id, recipient_id, content, timestamp FROM direct_messages WHERE id = ?`,
+          `
+          SELECT 
+            dm.id, 
+            dm.sender_id, 
+            dm.recipient_id, 
+            dm.content, 
+            dm.timestamp,
+            u.username AS sender_name
+          FROM direct_messages dm
+          JOIN users u ON dm.sender_id = u.id
+          WHERE dm.id = ?
+          `,
           [insertedId],
           (err, message) => {
             if (err) {
               console.error('Failed to fetch inserted DM:', err);
               return res.status(500).json({ error: 'Failed to send message' });
             }
-
-            // Notify recipient - just console.log for now
-            console.log(`User ${recipient_id} received a new DM from user ${sender_id}: "${content.trim()}"`);
-            const recipientSocket = clients.get(recipient_id.toString());
-
-            console.log('Clients keys:', [...clients.keys()]);
-            console.log('Recipient ID:', recipient_id);
+        
+            console.log(`User ${message.recipient_id} received a new DM from ${message.sender_name}: "${message.content.trim()}"`);
+        
+            const recipientSocket = clients.get(message.recipient_id.toString());
+        
             if (recipientSocket && recipientSocket.readyState === WebSocket.OPEN) {
-              console.log("socket is open")
               recipientSocket.send(JSON.stringify({
                 type: 'new_dm',
-                message: message, // the inserted DM
+                message: message,
               }));
             }
-
+        
             res.status(201).json(message);
           }
         );
+        
       }
     );
   } catch (err) {
