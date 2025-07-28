@@ -294,6 +294,27 @@ app.post('/api/dm-mark-read/:fromUserId', (req, res) => {
   );
 });
 
+app.get('/api/dm-get-unread/', (req, res) => {
+  console.log(`attempt to get unread`);
+  const userId = req.session.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+    db.all(
+      `SELECT FROM dm_unread WHERE user_id = ?`,
+      [userId],
+      (err, rows) => {
+        if (err) {
+          console.error('Failed to fetch unread messages:', err);
+          return res.status(500).json({ error: 'Server error' });
+        }
+        res.json(rows);
+      }
+    );
+});
+
 
 
 // FUNCTIONS
