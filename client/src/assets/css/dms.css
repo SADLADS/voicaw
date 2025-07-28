@@ -45,12 +45,15 @@ body {
 }
 
 .dm-user {
+  position: relative;
   padding: 8px;
   border-radius: 8px;
   color: white;
   text-decoration: none;
   display: block;
   border: 1px solid var(--vc-grey-dark);
+  margin-left:10px;
+  margin-right:10px;
 }
 
 .dm-user.active {
@@ -142,4 +145,18 @@ small {
 
 .direct-messages-header{
   padding: 0.5rem;
+}
+
+.userdot {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: var(--vc-white);
+  border-radius: 4px;
+  width: 8px;
+  height: 8px;
+  opacity: 0;
+  transition: all 0.2s ease;
+  margin-left:-15px
 }
