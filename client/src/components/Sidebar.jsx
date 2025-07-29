@@ -21,7 +21,7 @@ export default function Sidebar({ onLogout, hasUnreadDms }) {
       style={{ width: '72px', height: '100vh' }}
     >
       <NavLink to="/" className="my-3" style={{ display: 'block' }}>
-        <img src="/logo.svg" alt="Voicaw Logo" style={{ width: '32px', height: '32px' }} />
+        <img src="/logo-white.svg" alt="Voicaw Logo" style={{ width: '50px', height: '50px' }} />
       </NavLink>
 
       <div className={`nav-item my-3 ${isActivePath('/dm') ? 'active' : ''}`}>

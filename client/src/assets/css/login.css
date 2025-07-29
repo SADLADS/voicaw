@@ -1,37 +1,37 @@
 body {
-    background-color: var(--vc-grey-dark);
+    background-color: var(--vc-bg-base);
   }
 
   /* Login Page */
 .form-container {
     max-width: 400px;
     margin: 10vh auto;
-    background: var(--vc-grey-medium);
+    background: var(--vc-bg-subtle);
     padding: 2rem;
     border-radius: 8px;
   }
   
   .btn-vc {
-    background-color: var(--vc-purple);
-    color: var(--vc-white);
+    background-color: var(--vc-accent);
+    color: var(--vc-fg);
   }
   
   .btn-vc:hover {
-    background-color: var(--vc-purple-darker);
+    background-color: var(--vc-accent-hover);
   }
 
   .login-header{
-    color: var(--vc-white);
+    color: var(--vc-fg);
   }
 
   .btn-secondary {
-    background-color: var(--vc-yellow);
-    color: var(--vc-grey-dark);
-    border:1px solid var(--vc-yellow);
+    background-color: var(--vc-action);
+    color: var(--vc-bg-base);
+    border:1px solid var(--vc-action);
   }
 
   .btn-secondary:hover {
-    background-color: var(--vc-yellow-darker);
-    color: var(--vc-grey-dark);
-    border:1px solid var(--vc-yellow-darker);
+    background-color: var(--vc-action-hover);
+    color: var(--vc-bg-base);
+    border:1px solid var(--vc-action-hover);
   }

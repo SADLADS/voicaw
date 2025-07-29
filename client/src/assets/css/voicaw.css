@@ -1,24 +1,31 @@
 :root {
-  --vc-purple: #7851A9;
-  --vc-purple-darker: #67419a;
-  --vc-yellow: #F4C430;
-  --vc-yellow-darker: #c49f25;
-  --vc-teal: #1C9A8C;
-  --vc-red: #E94F37;
-  --vc-grey-dark: #1E1E1E;
-  --vc-grey-medium: #303030;
-  --vc-grey-light: #444444;
-  --vc-white: #E6E8EB;
+  --vc-accent: #66558c;
+  --vc-accent-hover: #5a4e7a;
+
+  --vc-action: #F4C430;
+  --vc-action-hover: #c49f25;
+
+  --vc-accent-alt: #1C9A8C;
+  --vc-danger: #E94F37;
+
+  --vc-bg-base: #1a1a1f;
+  --vc-bg-subtle: #232329;
+  --vc-bg-elevated: #2d2d34;
+  --vc-bg-hover: #35353d;
+  --vc-border: #3a3a42;
+
+  --vc-fg: #F0F0F0;
+  --vc-fg-muted: #E6E8EB;
 }
 
 body {
-  background-color: var(--vc-grey-medium);
-  color: var(--vc-white)
+  background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg)
 }
 
 /* Chat Page */
 .navbar {
-  background-color: var(--vc-purple);
+  background-color: var(--vc-accent);
   min-height: 64px;
   font-size: 64px;
 }
@@ -34,7 +41,7 @@ body {
 }
 
 .message-user {
-  color: var(--vc-purple);
+  color: var(--vc-accent);
   font-weight: bold;
 }
 
@@ -60,7 +67,7 @@ a {
 
 .nav-icon svg {
   font-size: 1.8rem;
-  color: var(--vc-white);
+  color: var(--vc-fg);
   transition: color 0.2s;
 }
 
@@ -69,7 +76,7 @@ a {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  background-color: var(--vc-white);
+  background-color: var(--vc-fg);
   border-radius: 4px;
   width: 8px;
   height: 8px;
@@ -94,8 +101,8 @@ a {
 
 .sidebar{
   overflow-y: auto;
-  background-color: var(--vc-grey-dark);
-  border-right: 2px solid var(--vc-grey-medium);
+  background-color: var(--vc-bg-base);
+  border-right: 2px solid var(--vc-bg-subtle);
 }
 .sidebar::-webkit-scrollbar {
   width: 0px;
@@ -105,9 +112,9 @@ a {
 
 
 .form-control {
-  background-color: var(--vc-grey-light);
-  color: var(--vc-white);
-  border: 1px solid var(--vc-grey-light);
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  border: 1px solid var(--vc-bg-elevated);
   border-radius: 8px;
   outline: none;
   box-shadow: none;
@@ -115,12 +122,16 @@ a {
 }
 
 .form-control:focus {
-  color: var(--vc-white);
+  color: var(--vc-fg);
   box-shadow: none;
-  background-color: var(--vc-grey-light);
-  border: 1px solid var(--vc-white)
+  background-color: var(--vc-bg-elevated);
+  border: 1px solid var(--vc-fg)
 }
 
 .form-control::placeholder {
-  color: var(--vc-white);
+  color: var(--vc-fg);
+}
+
+.btn-danger{
+  background-color: var(--vc-danger);
 }

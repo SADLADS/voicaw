@@ -16,7 +16,7 @@ body {
   width: 250px;
   min-width: 100px;
   max-width: 400px;
-  background-color: var(--vc-grey-dark);
+  background-color: var(--vc-bg-base);
   color: var(--vc-grey-white);
   padding: 0rem;
   overflow-y: auto;
@@ -34,7 +34,7 @@ body {
 }
 
 #dm-main {
-  background-color: var(--vc-grey-medium);
+  background-color: var(--vc-bg-subtle);
   display: flex;
   flex-grow: 1;
   flex-direction: column;
@@ -51,29 +51,29 @@ body {
   color: white;
   text-decoration: none;
   display: block;
-  border: 1px solid var(--vc-grey-dark);
+  border: 1px solid var(--vc-bg-base);
   margin-left:10px;
   margin-right:10px;
 }
 
 .dm-user.active {
-  background-color: var(--vc-grey-light);
+  background-color: var(--vc-bg-elevated);
 }
 
 .dm-user:hover {
-  background-color: var(--vc-grey-medium);
+  background-color: var(--vc-bg-subtle);
 }
 
 .dm-message {
   border-radius: 0;
-  background-color: var(--vc-grey-medium);
-  color: var(--vc-white);
+  background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg);
   border: none;
   padding: 10px;
 }
 
 .dm-message:hover {
-  background-color: var(--vc-grey-light);
+  background-color: var(--vc-bg-elevated);
 }
 
 .dm-container {
@@ -92,7 +92,7 @@ body {
   flex-grow: 1;
   overflow-y: auto;
   margin-bottom: 0rem;
-  scrollbar-color: var(--vc-grey-light) var(--vc-grey-medium);
+  scrollbar-color: var(--vc-bg-elevated) var(--vc-bg-subtle);
 }
 
 small {
@@ -103,13 +103,13 @@ small {
 
 #dm-chat-form {
   padding: 0.5rem;
-  background-color: var(--vc-grey-medium);
-  border-top: 1px solid var(--vc-grey-light);
+  background-color: var(--vc-bg-subtle);
+  border-top: 1px solid var(--vc-bg-elevated);
 }
 
 #dm-input {
-  background-color: var(--vc-grey-light);
-  color: var(--vc-white);
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
   border: none;
   border-radius: 8px;
   outline: none;
@@ -122,25 +122,25 @@ small {
 }
 
 #dm-input::placeholder {
-  color: var(--vc-white);
+  color: var(--vc-fg);
 }
 
 #dm-chat-form .btn {
-  background-color: var(--vc-purple);
+  background-color: var(--vc-accent);
   border: none;
-  color: var(--vc-white);
+  color: var(--vc-fg);
   border-radius: 8px;
   transition: background-color 0.2s ease;
 }
 
 #dm-chat-form .btn:hover {
-  background-color: var(--vc-purple-darker);
+  background-color: var(--vc-accent-hover);
 }
 
 .chat-recipient-header {
   margin: 0px;
   padding: 5px;
-  border-bottom: 1px solid var(--vc-grey-light);
+  border-bottom: 1px solid var(--vc-bg-elevated);
 }
 
 .direct-messages-header{
@@ -152,7 +152,7 @@ small {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  background-color: var(--vc-white);
+  background-color: var(--vc-fg);
   border-radius: 4px;
   width: 8px;
   height: 8px;
