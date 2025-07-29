@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DmSidebar from './DmSidebar';
 import '../assets/css/dms.css';
-import { fetchDmMessages } from '../utils/dm-api';
 import { onNewDm } from '../utils/ws-client';
 import { LayoutContext } from './Layout';
 import { fetchUsersList, fetchMessagesForUser, sendMessageToUser, markMessagesRead, } from '../services/dmService';
@@ -108,7 +107,7 @@ export default function Dm({ user }) {
       const currentChatUserId = chatUser.id.toString();
       if (fromId === currentChatUserId || toId === currentChatUserId) {
         const shouldScroll = isScrolledToBottom();
-        const updatedMessages = await fetchDmMessages(currentChatUserId);
+        const updatedMessages = await fetchMessagesForUser(currentChatUserId);
         setMessages(updatedMessages);
         if (shouldScroll) {
           setTimeout(() => scrollToBottom('smooth'), 0);
