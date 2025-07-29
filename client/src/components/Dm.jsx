@@ -160,7 +160,7 @@ export default function Dm({ user }) {
         {errorUsers && <p className="error-text">Error loading users: {errorUsers}</p>}
         {users.length === 0 && !errorUsers && <p>No recent conversations found.</p>}
 
-        {id ? (
+        {id && (
           <>
             <h4 className="chat-recipient-header">{chatUser?.username || 'User'}</h4>
 
@@ -198,8 +198,6 @@ export default function Dm({ user }) {
               </button>
             </form>
           </>
-        ) : (
-          <p></p>
         )}
       </div>
     </div>
