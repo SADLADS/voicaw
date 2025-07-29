@@ -96,6 +96,10 @@ export default function Dm({ user }) {
   useEffect(() => {
     if (!chatUser?.id) return;
     markRead();
+    const dot = document.getElementById(`user-dot-${chatUser?.id}`);
+    if (dot) {
+      dot.classList.remove('active');
+    }
   }, [chatUser?.id]);
 
   useEffect(() => {
@@ -120,7 +124,10 @@ export default function Dm({ user }) {
 
         markRead();
       } else {
-        // do user dot stuff
+        const dot = document.getElementById(`user-dot-${fromId}`);
+        if (dot) {
+          dot.classList.add('active');
+        }
       }
     });
 
