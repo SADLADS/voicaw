@@ -24,6 +24,8 @@ export default function Dm({ user }) {
   const messageListRef = useRef(null);
   const messagesEndRef = useRef(null);
 
+  const inputRef = useRef(null);
+
   const scrollToBottom = (behavior = 'auto') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   };
@@ -70,6 +72,11 @@ useEffect(() => {
 
   const initialLoad = useRef(true);
   useEffect(() => {
+    const input = document.getElementById('dm-input');
+    if(input){
+      setInputValue('');
+      input.select();
+    }
     if (initialLoad.current) {
       scrollToBottom();         // Always scroll on first message load
       initialLoad.current = false;
@@ -231,6 +238,7 @@ useEffect(() => {
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 autoComplete="off"
+                ref={inputRef}
               />
               <button className="btn btn-primary" type="submit">
                 Send
