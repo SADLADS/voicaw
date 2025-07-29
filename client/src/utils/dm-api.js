@@ -12,9 +12,3 @@ export async function fetchDmMessages(userId) {
         throw error;
     }
 }
-
-Notification.requestPermission().then(permission => {
-    if (permission === 'granted') {
-        console.log('Notifications enabled');
-    }
-});

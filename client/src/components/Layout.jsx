@@ -6,6 +6,14 @@ import { connectWebSocket, onNewDm } from '../utils/ws-client';
 
 export const LayoutContext = createContext();
 
+export function requestNotificationPermission() {
+  Notification.requestPermission().then(permission => {
+    if (permission === 'granted') {
+      console.log('Notifications enabled');
+    }
+  });
+}
+
 export default function Layout({ user, onLogout }) {
   const [hasUnreadDms, setHasUnreadDms] = useState(false);
 
@@ -23,6 +31,7 @@ export default function Layout({ user, onLogout }) {
 
   useEffect(() => {
     if (user?.id) {
+      requestNotificationPermission();
       fetchUnreadMessages();
     }
   }, [user?.id]);

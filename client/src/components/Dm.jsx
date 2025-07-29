@@ -5,6 +5,7 @@ import '../assets/css/dms.css';
 import { fetchDmMessages } from '../utils/dm-api';
 import { onNewDm } from '../utils/ws-client';
 import { LayoutContext } from './Layout';
+import { fetchUsersList, fetchMessagesForUser, sendMessageToUser, markMessagesRead, } from '../services/dmService';
 
 export default function Dm({ user }) {
   const { id } = useParams();
@@ -54,19 +55,16 @@ export default function Dm({ user }) {
       initialLoad.current = false;
       return;
     }
-  
+
     if (!userHasScrolledUp) {
       scrollToBottom('smooth'); // Scroll only if user hasn't scrolled up
     }
   }, [messages]);
-  
 
   useEffect(() => {
     async function fetchUsers() {
       try {
-        const res = await fetch('/api/dms-list', { credentials: 'include' });
-        if (!res.ok) throw new Error('Failed to fetch users');
-        const data = await res.json();
+        const data = await fetchUsersList();
         setUsers(data);
         if (!id && data.length > 0) {
           navigate(`/dm/${data[0].id}`, { replace: true });
@@ -84,9 +82,7 @@ export default function Dm({ user }) {
 
     async function fetchMessages() {
       try {
-        const res = await fetch(`/api/dm-messages/${id}`, { credentials: 'include' });
-        if (!res.ok) throw new Error('Failed to fetch messages');
-        const data = await res.json();
+        const data = await fetchMessagesForUser(id);
         setMessages(data);
         setErrorMessages(null);
       } catch (e) {
@@ -98,82 +94,61 @@ export default function Dm({ user }) {
   }, [id]);
 
   const chatUser = users.find(u => u.id.toString() === id);
-
   useEffect(() => {
     if (!chatUser?.id) return;
-  
     markRead();
   }, [chatUser?.id]);
-  
 
   useEffect(() => {
     if (!user?.id || !chatUser?.id) return;
-
     const unsubscribe = onNewDm(async (message) => {
       markRead();
       const fromId = message.sender_id.toString();
       const toId = message.recipient_id?.toString?.();
       const currentChatUserId = chatUser.id.toString();
-    
       if (fromId === currentChatUserId || toId === currentChatUserId) {
         const shouldScroll = isScrolledToBottom();
         const updatedMessages = await fetchDmMessages(currentChatUserId);
         setMessages(updatedMessages);
-    
         if (shouldScroll) {
           setTimeout(() => scrollToBottom('smooth'), 0);
         }
       }
     });
-    
-
     return () => unsubscribe();
   }, [chatUser?.id, user?.id]);
+
 
   const { fetchUnreadMessages } = useContext(LayoutContext);
 
   const markRead = async () => {
     try {
-      await fetch(`/api/dm-mark-read/${chatUser.id}`, {
-        method: 'POST',
-        credentials: 'include'
-      });
+      await markMessagesRead(chatUser.id);
       fetchUnreadMessages?.();
     } catch (err) {
       console.warn('Failed to mark messages as read', err);
     }
   };
-  
-    
+
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputValue.trim() || !chatUser) return;
 
     try {
-      const res = await fetch('/api/dm-send', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipient_id: chatUser.id,
-          content: inputValue.trim(),
-        }),
-      });
-
-      if (!res.ok) throw new Error('Failed to send message');
-
+      await sendMessageToUser(chatUser.id, inputValue.trim());
       setInputValue('');
 
-      const updatedMessages = await fetchDmMessages(chatUser.id);
+      const updatedMessages = await fetchMessagesForUser(chatUser.id);
       setMessages(updatedMessages);
       setErrorMessages(null);
 
-      // Always scroll after user sends a message
       setTimeout(() => scrollToBottom('smooth'), 0);
     } catch (error) {
       setErrorMessages(error.message);
     }
   };
+
 
   return (
     <div className="dm-container">
