@@ -6,6 +6,7 @@ import { connectWebSocket, onNewDm } from '../utils/ws-client';
 
 export const LayoutContext = createContext();
 
+// ask the user for consent to show notifications
 export function requestNotificationPermission() {
   Notification.requestPermission().then(permission => {
     if (permission === 'granted') {

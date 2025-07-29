@@ -102,10 +102,14 @@ export default function Dm({ user }) {
     if (!user?.id || !chatUser?.id) return;
     const unsubscribe = onNewDm((message) => {
       const fromId = message.sender_id.toString();
-      const toId = message.recipient_id?.toString?.();
       const currentChatUserId = chatUser.id.toString();
+      const currentUserId = user.id.toString();
 
-      if (fromId === currentChatUserId || toId === currentChatUserId) {
+      const isIncomingFromCurrentChatUser = fromId === currentChatUserId;
+      const isOutgoingFromSelf = fromId === currentUserId;
+
+      // scroll if you just got a message from the selected chat's user, or if you sent a message
+      if (isIncomingFromCurrentChatUser || isOutgoingFromSelf) {
         const shouldScroll = isScrolledToBottom();
 
         setMessages(prev => [...prev, message]);
@@ -115,6 +119,8 @@ export default function Dm({ user }) {
         }
 
         markRead();
+      } else {
+        // do user dot stuff
       }
     });
 
