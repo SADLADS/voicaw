@@ -100,20 +100,25 @@ export default function Dm({ user }) {
 
   useEffect(() => {
     if (!user?.id || !chatUser?.id) return;
-    const unsubscribe = onNewDm(async (message) => {
-      markRead();
+    const unsubscribe = onNewDm((message) => {
       const fromId = message.sender_id.toString();
       const toId = message.recipient_id?.toString?.();
       const currentChatUserId = chatUser.id.toString();
+
       if (fromId === currentChatUserId || toId === currentChatUserId) {
         const shouldScroll = isScrolledToBottom();
-        const updatedMessages = await fetchMessagesForUser(currentChatUserId);
-        setMessages(updatedMessages);
+
+        setMessages(prev => [...prev, message]);
+
         if (shouldScroll) {
-          setTimeout(() => scrollToBottom('smooth'), 0);
+          requestAnimationFrame(() => scrollToBottom('smooth'));
         }
+
+        markRead();
       }
     });
+
+
     return () => unsubscribe();
   }, [chatUser?.id, user?.id]);
 
