@@ -18,7 +18,7 @@ export default function Sidebar({ onLogout, hasUnreadDms }) {
   return (
     <div
       className="sidebar d-flex flex-column align-items-center"
-      style={{ width: '72px', height: '100vh', backgroundColor: '#222' }}
+      style={{ width: '72px', height: '100vh' }}
     >
       <NavLink to="/" className="my-3" style={{ display: 'block' }}>
         <img src="/logo.svg" alt="Voicaw Logo" style={{ width: '32px', height: '32px' }} />
