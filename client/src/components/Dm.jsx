@@ -74,7 +74,7 @@ useEffect(() => {
   useEffect(() => {
     const input = document.getElementById('dm-input');
     if(input){
-      setInputValue('');
+      setInputValue(''); // maybe save it per dm so is not lost?
       input.select();
     }
     if (initialLoad.current) {
