@@ -17,14 +17,16 @@ export function requestNotificationPermission() {
 
 export default function Layout({ user, onLogout }) {
   const [hasUnreadDms, setHasUnreadDms] = useState(false);
+  const [unreadDms, setUnreadDms] = useState([]);
 
   async function fetchUnreadMessages() {
     try {
       const res = await fetch(`/api/dm-get-unread/`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch messages');
       const data = await res.json();
-      console.log(data);
+      console.log("data",data);
       setHasUnreadDms(data.length > 0);
+      setUnreadDms(data)
     } catch (e) {
       console.log(e.message);
     }
@@ -33,9 +35,12 @@ export default function Layout({ user, onLogout }) {
   useEffect(() => {
     if (user?.id) {
       requestNotificationPermission();
-      fetchUnreadMessages();
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    fetchUnreadMessages();
+  }, []);
 
   useEffect(() => {
     if (user?.id) {
@@ -67,7 +72,7 @@ export default function Layout({ user, onLogout }) {
   }, [user?.id, location]);
 
   return (
-    <LayoutContext.Provider value={{ fetchUnreadMessages }}>
+    <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms }}>
       <div className="d-flex">
         <Sidebar user={user} onLogout={onLogout} hasUnreadDms={hasUnreadDms} />
         <div style={{ flex: 1 }}>

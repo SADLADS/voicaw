@@ -7,6 +7,8 @@ import { LayoutContext } from './Layout';
 import { fetchUsersList, fetchMessagesForUser, sendMessageToUser, markMessagesRead, } from '../services/dmService';
 
 export default function Dm({ user }) {
+  const { unreadDms } = useContext(LayoutContext);
+
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -46,6 +48,25 @@ export default function Dm({ user }) {
     el.addEventListener('scroll', handleScroll);
     return () => el.removeEventListener('scroll', handleScroll);
   }, []);
+
+useEffect(() => {
+  if (!unreadDms) return;
+
+  const frame = requestAnimationFrame(() => {
+    unreadDms.forEach(dm => {
+      const dot = document.querySelector(`#user-dot-${dm.from_user_id}`);
+      console.log(`.user-dot-${dm.from_user_id}`, dot);
+      if (dot) {
+        dot.classList.add("active");
+      }
+    });
+  });
+
+  return () => cancelAnimationFrame(frame);
+}, [unreadDms]);
+
+
+
 
   const initialLoad = useRef(true);
   useEffect(() => {
