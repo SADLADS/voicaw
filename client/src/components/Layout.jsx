@@ -51,9 +51,9 @@ export default function Layout({ user, onLogout }) {
 
         const dmMatch = location.pathname.match(/^\/dm\/(\d+)/);
         const currentDmId = dmMatch ? dmMatch[1] : null;
-
-        if (currentDmId && currentDmId === message.sender_id.toString()) return;
-
+        
+        if (currentDmId && currentDmId === message.sender_id.toString() && document.hasFocus()) return;
+        
         if (Notification.permission === 'granted') {
           const audio = new Audio('/public/sounds/notification.mp3');
           audio.play().catch(err => {
