@@ -22,7 +22,7 @@ export default function Sidebar({ onLogout, hasUnreadDms }) {
     >
       <div className={`nav-item }`}>
       <NavLink to="/" className="" style={{ display: 'block' }}>
-        <img src="/logo-white.svg" alt="Voicaw Logo" style={{ width: '50px', height: '50px' }} />
+        <img src="../../public/logo-no-border.svg" alt="Voicaw Logo" style={{ width: '50px', height: '50px' }} />
       </NavLink>
       </div>
 

@@ -55,13 +55,13 @@ export default function Layout({ user, onLogout }) {
         if (currentDmId && currentDmId === message.sender_id.toString() && document.hasFocus()) return;
         
         if (Notification.permission === 'granted') {
-          const audio = new Audio('/public/sounds/notification.mp3');
+          const audio = new Audio('../../public/sounds/notification.mp3');
           audio.play().catch(err => {
             console.warn('Autoplay failed:', err);
           });
           const notif = new Notification(`${message.sender_name || 'User'}`, {
             body: message.content,
-            icon: '/logo.svg',
+            icon: '../../public/logo.svg',
             silent: true
           });
           notif.onclick = () => {

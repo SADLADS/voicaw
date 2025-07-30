@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth, AuthProvider } from './AuthProvider.jsx';
 
 import Login from './components/Login.jsx';
@@ -15,7 +15,7 @@ import { connectWebSocket, onNewDm } from './utils/ws-client.js';
 export default function App() {
   const { user, setUser, loading } = useAuth();
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div></div>;
 
   async function handleLogout() {
     try {
