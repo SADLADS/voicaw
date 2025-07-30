@@ -1,0 +1,14 @@
+{
+  "name": "voicaw",
+  "private": true,
+  "workspaces": ["client", "server", "electron"],
+  "scripts": {
+    "dev": "npm run dev --workspace=client",
+    "build": "npm run build --workspace=client",
+    "start:server": "npm run start --workspace=server",
+    "start:electron": "npm run build && electron electron/main.js"
+  },
+  "devDependencies": {
+    "electron": "^37.2.4"
+  }
+}
