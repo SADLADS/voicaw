@@ -3,6 +3,7 @@ import { useLocation, useParams } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { Outlet } from 'react-router-dom';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
+import api from '../utils/api';
 
 export const LayoutContext = createContext();
 
@@ -21,12 +22,11 @@ export default function Layout({ user, onLogout }) {
 
   async function fetchUnreadMessages() {
     try {
-      const res = await fetch(`/api/dm-get-unread/`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch messages');
-      const data = await res.json();
+      const res = await api.get('/dm-get-unread');
+      const data = res.data;
       console.log("data", data);
       setHasUnreadDms(data.length > 0);
-      setUnreadDms(data)
+      setUnreadDms(data);
     } catch (e) {
       console.log(e.message);
     }

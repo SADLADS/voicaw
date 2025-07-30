@@ -1,5 +1,6 @@
 // AuthProvider.jsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import api from './utils/api';
 
 const AuthContext = createContext();
 
@@ -9,10 +10,9 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Try to fetch current user session from backend
-    fetch('/api/profile', { credentials: 'include' }) 
-      .then(res => res.json())
-      .then(data => {
-        if (data.user) setUser(data.user);
+    api.get('/profile')
+      .then(res => {
+        if (res.data.user) setUser(res.data.user);
         else setUser(null);
       })
       .catch(() => setUser(null))

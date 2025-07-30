@@ -5,8 +5,8 @@ import path from 'path';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
-  console.log('🧪 Loaded ENV for mode:', mode);
-  console.log('👉 VITE_API_BASE_URL:', env.VITE_API_BASE_URL);
+  console.log('Loaded ENV for mode:', mode);
+  console.log('VITE_API_BASE_URL:', env.VITE_API_BASE_URL);
 
   const isElectron = env.ELECTRON === 'true';
 
