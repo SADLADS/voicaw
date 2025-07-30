@@ -106,7 +106,7 @@ a {
 .sidebar{
   overflow-y: auto;
   background-color: var(--vc-bg-base);
-  border-right: 2px solid var(--vc-bg-subtle);
+  border-right: 1px solid var(--vc-border);
 }
 .sidebar::-webkit-scrollbar {
   width: 0px;

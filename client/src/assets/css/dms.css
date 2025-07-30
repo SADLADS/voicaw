@@ -78,11 +78,6 @@ body {
   background-color: var(--vc-bg-elevated);
 }
 
-.dm-container {
-  display: flex;
-  height: 100vh;
-}
-
 #dm-chat-box {
   flex-grow: 1;
   display: flex;
@@ -145,12 +140,17 @@ small {
 
 .chat-recipient-header {
   margin: 0px;
-  padding: 5px;
-  border-bottom: 1px solid var(--vc-bg-elevated);
+  padding: 0.5rem;
+  border-top: 1px solid var(--vc-border);
+  border-bottom: 1px solid var(--vc-border);
+  padding-left: 1.25rem;
 }
 
 .direct-messages-header{
+  margin:0;
   padding: 0.5rem;
+  border-bottom: 1px solid var(--vc-border);
+  border-top: 1px solid var(--vc-border);
 }
 
 .userdot {
