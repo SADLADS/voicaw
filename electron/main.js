@@ -2,24 +2,27 @@ const path = require('path');
 const { app, BrowserWindow } = require('electron');
 
 function createWindow() {
-  const win = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-	  webSecurity: false,
-    },
-  });
+    const win = new BrowserWindow({
+        icon: path.join(__dirname, 'assets', 'icon.png'),
+        width: 1200,
+        height: 800,
+        webPreferences: {
+            contextIsolation: true,
+            nodeIntegration: false,
+            webSecurity: false,
+        },
+    });
 
-  win.loadFile(path.join(__dirname, '../build/index.html'));
+    win.loadFile(path.join(__dirname, '../build/index.html'));
+    win.setMenuBarVisibility(false);  // Hide menu bar
+    win.removeMenu();                 // Remove default "File/Edit/View"
 
-  // Optionally open devtools
-  // win.webContents.openDevTools();
+    // Optionally open devtools
+    // win.webContents.openDevTools();
 }
 
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+    if (process.platform !== 'darwin') app.quit();
 });
