@@ -113,8 +113,6 @@ a {
   background: transparent;
 }
 
-
-
 .form-control {
   background-color: var(--vc-bg-elevated);
   color: var(--vc-fg);
@@ -138,4 +136,14 @@ a {
 
 .btn-danger{
   background-color: var(--vc-danger);
+}
+
+.auto-resize-textarea {
+  resize: none;
+  overflow-y: auto;
+  max-height: 200px;
+  line-height: 1.5;
+  padding: 0.5rem;
+  transition: height 0.1s ease-in-out;
+  scrollbar-color: var(--vc-bg-subtle) var(--vc-bg-elevated);
 }

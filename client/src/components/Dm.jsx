@@ -51,21 +51,21 @@ export default function Dm({ user }) {
     return () => el.removeEventListener('scroll', handleScroll);
   }, []);
 
-useEffect(() => {
-  if (!unreadDms) return;
+  useEffect(() => {
+    if (!unreadDms) return;
 
-  const frame = requestAnimationFrame(() => {
-    unreadDms.forEach(dm => {
-      const dot = document.querySelector(`#user-dot-${dm.from_user_id}`);
-      console.log(`.user-dot-${dm.from_user_id}`, dot);
-      if (dot) {
-        dot.classList.add("active");
-      }
+    const frame = requestAnimationFrame(() => {
+      unreadDms.forEach(dm => {
+        const dot = document.querySelector(`#user-dot-${dm.from_user_id}`);
+        console.log(`.user-dot-${dm.from_user_id}`, dot);
+        if (dot) {
+          dot.classList.add("active");
+        }
+      });
     });
-  });
 
-  return () => cancelAnimationFrame(frame);
-}, [unreadDms]);
+    return () => cancelAnimationFrame(frame);
+  }, [unreadDms]);
 
 
 
@@ -73,7 +73,7 @@ useEffect(() => {
   const initialLoad = useRef(true);
   useEffect(() => {
     const input = document.getElementById('dm-input');
-    if(input){
+    if (input) {
       setInputValue(''); // maybe save it per dm so is not lost?
       input.select();
     }
@@ -163,6 +163,13 @@ useEffect(() => {
     return () => unsubscribe();
   }, [chatUser?.id, user?.id]);
 
+  useEffect(() => {
+    const textarea = inputRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [inputValue]);
 
   const { fetchUnreadMessages } = useContext(LayoutContext);
 
@@ -228,23 +235,37 @@ useEffect(() => {
               ))}
               <div ref={messagesEndRef} />
             </ul>
-            <div class="dm-chat-wrapper">
-              <form id="dm-chat-form" className="d-flex" onSubmit={handleSendMessage}>
-                <input
+            <div className="dm-chat-wrapper">
+              <form
+                id="dm-chat-form"
+                className="d-flex flex-grow-1"
+                onSubmit={e => {
+                  e.preventDefault();
+                  handleSendMessage(e);
+                }}
+              >
+                <textarea
                   id="dm-input"
-                  type="text"
-                  className="form-control"
+                  className="form-control auto-resize-textarea"
                   placeholder="Type a message..."
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage(e);
+                    }
+                  }}
                   autoComplete="off"
                   ref={inputRef}
+                  rows={1}
                 />
                 <button className="btn btn-primary" type="submit">
                   Send
                 </button>
               </form>
             </div>
+
           </>
         )}
       </div>

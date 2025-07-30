@@ -127,10 +127,6 @@ small {
   transition: border 0.2s ease;
 }
 
-#dm-input:focus {
-  box-shadow: none;
-}
-
 #dm-input::placeholder {
   color: var(--vc-fg);
 }
