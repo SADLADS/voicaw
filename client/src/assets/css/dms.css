@@ -17,7 +17,7 @@ body {
   min-width: 100px;
   max-width: 400px;
   background-color: var(--vc-bg-base);
-  color: var(--vc-grey-white);
+  color: var(--vc-fg);
   padding: 0rem;
   overflow-y: auto;
 }
@@ -70,6 +70,8 @@ body {
   color: var(--vc-fg);
   border: none;
   padding: 10px;
+  margin-right: .75rem;
+  border-radius: 8px;
 }
 
 .dm-message:hover {
@@ -92,7 +94,9 @@ body {
   flex-grow: 1;
   overflow-y: auto;
   margin-bottom: 0rem;
-  scrollbar-color: var(--vc-bg-elevated) var(--vc-bg-subtle);
+  scrollbar-color: var(--vc-fg-muted) var(--vc-bg-subtle);
+  margin-left: 0.75rem;
+
 }
 
 small {
@@ -102,16 +106,22 @@ small {
 
 
 #dm-chat-form {
-  padding: 0.5rem;
-  background-color: var(--vc-bg-subtle);
-  border-top: 1px solid var(--vc-bg-elevated);
+  margin: 0.5rem;
+}
+
+.dm-chat-wrapper{
+  border-radius: 8px;
+  margin: 0.75rem;
+  margin-top:0;
+  border: 1px solid var(--vc-border);
+  background-color: var(--vc-bg-elevated);
 }
 
 #dm-input {
   background-color: var(--vc-bg-elevated);
   color: var(--vc-fg);
   border: none;
-  border-radius: 8px;
+  border-radius: 0;
   outline: none;
   box-shadow: none;
   transition: border 0.2s ease;
@@ -162,4 +172,8 @@ small {
 
 .userdot.active{
   opacity: 1;
+}
+
+.list-group{
+  border-radius: 0;
 }

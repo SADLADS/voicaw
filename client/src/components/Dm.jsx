@@ -228,22 +228,23 @@ useEffect(() => {
               ))}
               <div ref={messagesEndRef} />
             </ul>
-
-            <form id="dm-chat-form" className="d-flex" onSubmit={handleSendMessage}>
-              <input
-                id="dm-input"
-                type="text"
-                className="form-control"
-                placeholder="Type a message..."
-                value={inputValue}
-                onChange={e => setInputValue(e.target.value)}
-                autoComplete="off"
-                ref={inputRef}
-              />
-              <button className="btn btn-primary" type="submit">
-                Send
-              </button>
-            </form>
+            <div class="dm-chat-wrapper">
+              <form id="dm-chat-form" className="d-flex" onSubmit={handleSendMessage}>
+                <input
+                  id="dm-input"
+                  type="text"
+                  className="form-control"
+                  placeholder="Type a message..."
+                  value={inputValue}
+                  onChange={e => setInputValue(e.target.value)}
+                  autoComplete="off"
+                  ref={inputRef}
+                />
+                <button className="btn btn-primary" type="submit">
+                  Send
+                </button>
+              </form>
+            </div>
           </>
         )}
       </div>

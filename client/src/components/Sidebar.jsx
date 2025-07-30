@@ -20,32 +20,34 @@ export default function Sidebar({ onLogout, hasUnreadDms }) {
       className="sidebar d-flex flex-column align-items-center"
       style={{ width: '72px', height: '100vh' }}
     >
-      <NavLink to="/" className="my-3" style={{ display: 'block' }}>
+      <div className={`nav-item }`}>
+      <NavLink to="/" className="" style={{ display: 'block' }}>
         <img src="/logo-white.svg" alt="Voicaw Logo" style={{ width: '50px', height: '50px' }} />
       </NavLink>
+      </div>
 
-      <div className={`nav-item my-3 ${isActivePath('/dm') ? 'active' : ''}`}>
+      <div className={`nav-item ${isActivePath('/dm') ? 'active' : ''}`}>
       <span className={`dot${hasUnreadDms ? ' visible' : ''}`}></span>
         <NavLink to="/dm" className="nav-icon">
           <FontAwesomeIcon icon={faComments} />
         </NavLink>
       </div>
 
-      <div className={`nav-item my-3 ${isActivePath('/plaza') ? 'active' : ''}`}>
+      <div className={`nav-item ${isActivePath('/plaza') ? 'active' : ''}`}>
         <span className="dot"></span>
         <NavLink to="/plaza" className="nav-icon">
           <FontAwesomeIcon icon={faUsers} />
         </NavLink>
       </div>
 
-      <div className={`nav-item my-3 ${isActivePath('/calendar') ? 'active' : ''}`}>
-        <span className="dot"></span>
+      <div className={`nav-item ${isActivePath('/calendar') ? 'active' : ''}`}>
         <NavLink to="/calendar" className="nav-icon">
+        <span className="dot"></span>
           <FontAwesomeIcon icon={faCalendarAlt} />
         </NavLink>
       </div>
 
-      <div className={`nav-item my-3 ${isActivePath('/settings') ? 'active' : ''}`}>
+      <div className={`nav-item ${isActivePath('/settings') ? 'active' : ''}`}>
         <span className="dot"></span>
         <NavLink to="/settings" className="nav-icon">
           <FontAwesomeIcon icon={faCog} />
