@@ -8,10 +8,11 @@ function createWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+	  webSecurity: false,
     },
   });
 
-  win.loadFile(path.join(__dirname, '../client/dist/index.html'));
+  win.loadFile(path.join(__dirname, '../build/index.html'));
 
   // Optionally open devtools
   // win.webContents.openDevTools();
