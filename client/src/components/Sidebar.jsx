@@ -8,6 +8,7 @@ import {
   faCog,
   faSignOutAlt
 } from '@fortawesome/free-solid-svg-icons';
+import logo from '../assets/images/logo-no-border.svg';
 
 export default function Sidebar({ onLogout, hasUnreadDms }) {
   const location = useLocation();
@@ -22,7 +23,8 @@ export default function Sidebar({ onLogout, hasUnreadDms }) {
     >
       <div className={`nav-item }`}>
       <NavLink to="/" className="" style={{ display: 'block' }}>
-        <img src="../../public/logo-no-border.svg" alt="Voicaw Logo" style={{ width: '50px', height: '50px' }} />
+      <img src={logo} alt="Voicaw Logo" style={{ width: '50px', height: '50px' }} />
+
       </NavLink>
       </div>
 
