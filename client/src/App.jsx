@@ -19,7 +19,7 @@ export default function App() {
 
   async function handleLogout() {
     try {
-      await api.post('/logout');
+      localStorage.removeItem('token');
       setUser(null);
     } catch (err) {
       console.error('Logout failed', err);
