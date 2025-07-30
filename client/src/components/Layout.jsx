@@ -24,7 +24,7 @@ export default function Layout({ user, onLogout }) {
       const res = await fetch(`/api/dm-get-unread/`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch messages');
       const data = await res.json();
-      console.log("data",data);
+      console.log("data", data);
       setHasUnreadDms(data.length > 0);
       setUnreadDms(data)
     } catch (e) {
@@ -55,11 +55,15 @@ export default function Layout({ user, onLogout }) {
         if (currentDmId && currentDmId === message.sender_id.toString()) return;
 
         if (Notification.permission === 'granted') {
+          const audio = new Audio('/public/sounds/notification.mp3');
+          audio.play().catch(err => {
+            console.warn('Autoplay failed:', err);
+          });
           const notif = new Notification(`${message.sender_name || 'User'}`, {
             body: message.content,
             icon: '/logo.svg',
+            silent: true
           });
-
           notif.onclick = () => {
             window.focus();
             window.location.href = `/dm/${message.sender_id}`;
