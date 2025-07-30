@@ -1,21 +1,19 @@
 const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
-const session = require('express-session');
-const SQLiteStore = require('connect-sqlite3')(session);
 const WebSocket = require('ws');
+const jwt = require('jsonwebtoken');
 
 require('dotenv').config();
 
 const db = require('./db');
 const app = express();
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 app.use(express.json());
 
 const cors = require('cors');
 
 const allowedOrigins = ['https://test.voicaw.com', 'https://voicaw.com'];
-
-const saltRounds = 10;
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -27,21 +25,6 @@ app.use(cors({
     }
   },
   credentials: true
-}));
-
-app.use(session({
-  store: new SQLiteStore({
-    db: 'sessions.sqlite',
-  }),
-  secret: process.env.SESSION_SECRET || 'defaultsecretkey',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 1000 * 60 * 60 * 24,
-  }
 }));
 
 const PORT = process.env.PORT || 3000;
@@ -70,16 +53,16 @@ app.post('/api/login', (req, res) => {
     bcrypt.compare(password, user.password, (err, result) => {
       if (err) return res.status(500).json({ error: 'Error checking password' });
       if (!result) return res.status(401).json({ error: 'Invalid credentials' });
-      req.session.user = { id: user.id, username: user.username };
+      const token = generateToken(user);
+      res.json({ token, id: user.id, username: user.username });
 
-      res.json({ id: user.id, username: user.username });
     });
   });
 });
 
 // Register route
 app.post('/api/register', (req, res) => {
-  console.log("register")
+  console.log("register");
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
 
@@ -117,24 +100,29 @@ app.post('/api/register', (req, res) => {
           }
           return res.status(500).json({ error: 'DB error' });
         }
-        res.status(201).json({ id: this.lastID, username });
+
+        // Generate JWT with new user info
+        const user = { id: this.lastID, username };
+        const token = generateToken(user);
+
+        // Return token and user info
+        res.status(201).json({ token, id: user.id, username: user.username });
       });
   });
 });
 
 // Minimal protected route example
-app.get('/api/profile', (req, res) => {
-  if (req.session.user) {
-    res.json({ user: req.session.user });
+app.get('/api/profile', authenticateJWT, (req, res) => {
+  if (req.user) {
+    res.json({ user: req.user });
   } else {
     res.json({ user: null });
   }
 });
 
-app.get('/api/dms-list', (req, res) => {
-  if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+app.get('/api/dms-list', authenticateJWT, (req, res) => {
+  const loggedInUserId = req.user.id;
 
-  const loggedInUserId = req.session.user.id;
   getRecentDmsForUser(loggedInUserId, (err, users) => {
     if (err) {
       console.error("Failed to fetch recent DMs:", err);
@@ -145,10 +133,10 @@ app.get('/api/dms-list', (req, res) => {
   });
 });
 
-app.get('/api/dm-messages/:otherUserId', (req, res) => {
-  if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
 
-  const loggedInUserId = req.session.user.id;
+app.get('/api/dm-messages/:otherUserId',authenticateJWT, (req, res) => {
+
+  const loggedInUserId = req.user.id;
   const otherUserId = parseInt(req.params.otherUserId, 10);
   if (isNaN(otherUserId)) return res.status(400).json({ error: 'Invalid user ID' });
 
@@ -171,9 +159,9 @@ app.get('/api/dm-messages/:otherUserId', (req, res) => {
   );
 });
 
-app.post('/api/dm-send', async (req, res) => {
+app.post('/api/dm-send', authenticateJWT, async (req, res) => {
   console.log("dm-send!");
-  const sender_id = req.session.user?.id;
+  const sender_id = req.user?.id;
   const { recipient_id, content } = req.body;
 
   if (!sender_id) {
@@ -256,19 +244,10 @@ app.post('/api/dm-send', async (req, res) => {
   }
 });
 
-app.post('/api/logout', (req, res) => {
-  req.session.destroy(err => {
-    if (err) {
-      return res.status(500).json({ error: 'Logout failed' });
-    }
-    res.clearCookie('connect.sid', { domain: '.voicaw.com', path: '/' });
-    res.json({ message: 'Logged out' });
-  });
-});
 
-app.post('/api/dm-mark-read/:fromUserId', (req, res) => {
+app.post('/api/dm-mark-read/:fromUserId',authenticateJWT, (req, res) => {
   console.log(`attempt to mark read`);
-  const userId = req.session.user?.id;
+  const userId = req.user?.id;
   const fromUserId = parseInt(req.params.fromUserId, 10);
 
   if (!userId) {
@@ -294,25 +273,25 @@ app.post('/api/dm-mark-read/:fromUserId', (req, res) => {
   );
 });
 
-app.get('/api/dm-get-unread/', (req, res) => {
+app.get('/api/dm-get-unread/', authenticateJWT, (req, res) => {
   console.log(`attempt to get unread`);
-  const userId = req.session.user?.id;
+  const userId = req.user?.id;
 
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-    db.all(
-      `SELECT * FROM dm_unread WHERE user_id = ?`,
-      [userId],
-      (err, rows) => {
-        if (err) {
-          console.error('Failed to fetch unread messages:', err);
-          return res.status(500).json({ error: 'Server error' });
-        }
-        res.json(rows);
+  db.all(
+    `SELECT * FROM dm_unread WHERE user_id = ?`,
+    [userId],
+    (err, rows) => {
+      if (err) {
+        console.error('Failed to fetch unread messages:', err);
+        return res.status(500).json({ error: 'Server error' });
       }
-    );
+      res.json(rows);
+    }
+  );
 });
 
 
@@ -342,7 +321,32 @@ function getRecentDmsForUser(loggedInUserId, callback) {
   );
 }
 
+function generateToken(user) {
+  // Payload can contain minimal user info
+  const payload = {
+    id: user.id,
+    username: user.username,
+  };
+  // Token expires in 1 day
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
+}
 
+
+function authenticateJWT(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Invalid token' });
+    req.user = user;
+    next();
+  });
+}
 
 // WEBSOCKETS
 function noop() { }
@@ -361,15 +365,22 @@ wss.on('connection', (ws) => {
     try {
       const data = JSON.parse(msg);
       if (data.type === 'identify') {
-        const { userId } = data;
-        console.log(`User identified as ${userId}`);
-        clients.set(userId, ws);
-        ws.userId = userId; // Save userId for cleanup
+        const token = data.token;
+        jwt.verify(token, JWT_SECRET, (err, user) => {
+          if (err) {
+            ws.close(1008, 'Invalid token'); // Policy Violation
+            return;
+          }
+          clients.set(user.id.toString(), ws);
+          ws.userId = user.id.toString();
+          console.log(`User identified as ${user.id}`);
+        });
       }
     } catch (err) {
       console.error('Invalid message', err);
     }
   });
+  
 
   ws.on('close', (code, reason) => {
     const id = ws.userId || 'unknown';

@@ -1,14 +1,18 @@
 let ws;
-let userId;
-const listeners = new Set(); // all subscribed components will receive every new message
+let token;
+const listeners = new Set();
 
-export function connectWebSocket(currentUserId) {
+export function connectWebSocket() {
   if (ws && ws.readyState === WebSocket.OPEN) {
     console.warn('[WS] Already connected');
     return;
   }
 
-  if (currentUserId) userId = currentUserId.toString();
+  token = localStorage.getItem('token');
+  if (!token) {
+    console.warn('[WS] No JWT token found, not connecting');
+    return;
+  }
 
   const url = import.meta.env.VITE_WS_URL;
   console.log("Connecting to WebSocket:", url);
@@ -16,7 +20,8 @@ export function connectWebSocket(currentUserId) {
 
   ws.onopen = () => {
     console.log('[WS] Connection opened');
-    ws.send(JSON.stringify({ type: 'identify', userId }));
+    // Identify using JWT token
+    ws.send(JSON.stringify({ type: 'identify', token }));
   };
 
   ws.onmessage = (event) => {
@@ -33,10 +38,10 @@ export function connectWebSocket(currentUserId) {
   ws.onclose = (event) => {
     console.warn(`[WS] Connection closed. Code: ${event.code}, Reason: "${event.reason || 'No reason'}"`);
 
-    // Reconnect after delay
+    // Try to reconnect after short delay
     setTimeout(() => {
       console.log('[WS] Attempting reconnect...');
-      connectWebSocket(userId);
+      connectWebSocket(); // uses token from localStorage
     }, 3000);
   };
 
@@ -45,8 +50,7 @@ export function connectWebSocket(currentUserId) {
   };
 }
 
-// Subscribe to new DM messages (global event)
 export function onNewDm(callback) {
   listeners.add(callback);
-  return () => listeners.delete(callback); // unsubscribe
+  return () => listeners.delete(callback);
 }

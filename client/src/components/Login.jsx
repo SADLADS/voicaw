@@ -7,38 +7,48 @@ export default function Login({ onLoginSuccess }) {
   const [registerData, setRegisterData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
 
-async function handleLogin(e) {
-  e.preventDefault();
-  setError('');
-  try {
-    const { data } = await api.post('/login', loginData);
-    // axios responses don’t have `ok` property,
-    // just check if `data` has error or not
-    if (data.error) throw new Error(data.error || 'Login failed');
-    onLoginSuccess(data);
-  } catch (err) {
-    setError(err.message);
-  }
-}
+  async function handleLogin(e) {
+    e.preventDefault();
+    setError('');
+    try {
+      const { data } = await api.post('/login', loginData);
+      if (data.error) throw new Error(data.error || 'Login failed');
 
-async function handleRegister(e) {
-  e.preventDefault();
-  setError('');
-  try {
-    const { data } = await api.post('/register', registerData);
-    if (data.error) throw new Error(data.error || 'Registration failed');
-    alert('Registered! You can now log in.');
-  } catch (err) {
-    setError(err.message);
+      if (data.token) {
+        localStorage.setItem('token', data.token); // Save JWT
+        onLoginSuccess(data); // Pass user info to parent
+      } else {
+        throw new Error('No token received');
+      }
+    } catch (err) {
+      setError(err.message);
+    }
   }
-}
+
+  async function handleRegister(e) {
+    e.preventDefault();
+    setError('');
+    try {
+      const { data } = await api.post('/register', registerData);
+      if (data.error) throw new Error(data.error || 'Registration failed');
+
+      if (data.token) {
+        localStorage.setItem('token', data.token); // Save JWT
+        onLoginSuccess(data); // Optionally auto-login after register
+      } else {
+        alert('Registered! You can now log in.');
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
 
   return (
     <div className="form-container">
       <h3 className="login-header text-center mb-3">Voicaw Login</h3>
 
-      {error && <div style={{color:'red', marginBottom:'1rem'}}>{error}</div>}
+      {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 
       <form onSubmit={handleLogin} className="mb-3">
         <input
