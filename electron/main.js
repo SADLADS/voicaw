@@ -17,8 +17,8 @@ function createWindow() {
     win.setMenuBarVisibility(false);  // Hide menu bar
     win.removeMenu();                 // Remove default "File/Edit/View"
 
-    // Optionally open devtools
-    // win.webContents.openDevTools();
+    // open devtools
+    win.webContents.openDevTools();
 }
 
 app.whenReady().then(createWindow);

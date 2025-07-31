@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useContext } from 'react';
+import React, { useEffect, useRef, useState, useContext, useLayoutEffect  } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DmSidebar from './DmSidebar';
 import '../assets/css/dms.css';
@@ -71,20 +71,12 @@ export default function Dm({ user }) {
 
 
   const initialLoad = useRef(true);
-  useEffect(() => {
-    const input = document.getElementById('dm-input');
-    if (input) {
-      setInputValue(''); // maybe save it per dm so is not lost?
-      input.select();
-    }
+  useLayoutEffect(() => {
     if (initialLoad.current) {
-      scrollToBottom();         // Always scroll on first message load
+      scrollToBottom("auto");
       initialLoad.current = false;
-      return;
-    }
-
-    if (!userHasScrolledUp) {
-      scrollToBottom('smooth'); // Scroll only if user hasn't scrolled up
+    } else if (!userHasScrolledUp) { // userHasScrolledUp is broken at the moment
+      scrollToBottom();
     }
   }, [messages]);
 
@@ -147,7 +139,7 @@ export default function Dm({ user }) {
         setMessages(prev => [...prev, message]);
 
         if (shouldScroll) {
-          requestAnimationFrame(() => scrollToBottom('smooth'));
+          requestAnimationFrame(() => scrollToBottom());
         }
 
         markRead();
@@ -195,7 +187,7 @@ export default function Dm({ user }) {
       setMessages(updatedMessages);
       setErrorMessages(null);
 
-      setTimeout(() => scrollToBottom('smooth'), 0);
+      setTimeout(() => scrollToBottom(), 0);
     } catch (error) {
       setErrorMessages(error.message);
     }
