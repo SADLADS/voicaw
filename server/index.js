@@ -141,13 +141,14 @@ app.get('/api/dm-messages/:otherUserId',authenticateJWT, (req, res) => {
   if (isNaN(otherUserId)) return res.status(400).json({ error: 'Invalid user ID' });
 
   db.all(
-    `SELECT id, sender_id, recipient_id, content, timestamp
-     FROM direct_messages
+    `SELECT dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, u.username AS sender_username
+     FROM direct_messages dm
+     JOIN users u ON dm.sender_id = u.id
      WHERE
-       (sender_id = ? AND recipient_id = ?)
+       (dm.sender_id = ? AND dm.recipient_id = ?)
        OR
-       (sender_id = ? AND recipient_id = ?)
-     ORDER BY timestamp ASC`,
+       (dm.sender_id = ? AND dm.recipient_id = ?)
+     ORDER BY dm.timestamp ASC`,
     [loggedInUserId, otherUserId, otherUserId, loggedInUserId],
     (err, rows) => {
       if (err) {

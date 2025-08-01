@@ -217,7 +217,7 @@ export default function Dm({ user }) {
                   key={msg.id}
                   className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}
                 >
-                  <strong>{msg.sender_id === user.id ? user.username : chatUser?.username}</strong>{' '}
+                  <strong>{msg.sender_username}</strong>{' '}
                   <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
                   <br />
                   <span>{msg.content}</span>
