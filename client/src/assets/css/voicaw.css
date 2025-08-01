@@ -147,3 +147,26 @@ a {
   transition: height 0.1s ease-in-out;
   scrollbar-color: var(--vc-bg-subtle) var(--vc-bg-elevated);
 }
+
+/* stuff shrink stuff in smaller screens */
+pre code {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.dm-message img {
+  max-width: 100%;
+  height: auto;
+  width: auto;
+  display: block;
+}
+
+/* message input placeholder text */
+
+.auto-resize-textarea::placeholder {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
