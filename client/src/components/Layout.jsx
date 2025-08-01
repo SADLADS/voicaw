@@ -1,11 +1,13 @@
 import { useEffect, useState, createContext } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { Outlet } from 'react-router-dom';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import api from '../utils/api';
 
 export const LayoutContext = createContext();
+
+
 
 // ask the user for consent to show notifications
 export function requestNotificationPermission() {
@@ -17,6 +19,7 @@ export function requestNotificationPermission() {
 }
 
 export default function Layout({ user, onLogout }) {
+  const navigate = useNavigate();
   const [hasUnreadDms, setHasUnreadDms] = useState(false);
   const [unreadDms, setUnreadDms] = useState([]);
 
@@ -64,9 +67,15 @@ export default function Layout({ user, onLogout }) {
             icon: '../assets/images/logo.svg',
             silent: true
           });
-          notif.onclick = () => {
-            window.focus();
-            window.location.href = `/dm/${message.sender_id}`;
+          notif.onclick = async () => {
+            try {
+              window.focus();
+              await api.post(`/dm-mark-read/${message.sender_id}`);
+              navigate(`/dm/${message.sender_id}`);
+            } catch (err) {
+              console.error("Failed to mark DM as read:", err);
+              navigate(`/dm/${message.sender_id}`);
+            }
           };
         }
       });
