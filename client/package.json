@@ -16,10 +16,12 @@
     "@fortawesome/react-fontawesome": "^0.2.3",
     "axios": "^1.11.0",
     "bootstrap": "^5.3.7",
+    "highlight.js": "^11.11.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.7.1",
+    "rehype-highlight": "^7.0.2",
     "remark-breaks": "^4.0.0",
     "remark-emoji": "^5.0.1",
     "remark-gfm": "^4.0.1"

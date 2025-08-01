@@ -9,7 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
-
+import rehypeHighlight from 'rehype-highlight';
 
 export default function Dm({ user }) {
   const { unreadDms } = useContext(LayoutContext);
@@ -225,7 +225,10 @@ export default function Dm({ user }) {
                   <strong>{msg.sender_username}</strong>{' '}
                   <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
                   <br />
-                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
+                    rehypePlugins={[rehypeHighlight]}
+                  >
                     {msg.content}
                   </ReactMarkdown>
                 </li>

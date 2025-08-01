@@ -6,7 +6,7 @@ import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import api from '../utils/api';
 import notificationSound from '../assets/sounds/notification.mp3';
 import logoIcon from '../assets/images/logo.svg';
-
+import 'highlight.js/styles/atom-one-dark.css'; // will have to mess with this after adding light theme
 export const LayoutContext = createContext();
 
 
