@@ -173,6 +173,7 @@ small {
 }
 
 .dm-message-wrapper{
+  flex-grow: 1;
   overflow: auto;
   scrollbar-color: var(--vc-fg-muted) var(--vc-bg-subtle);
 }
