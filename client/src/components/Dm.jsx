@@ -8,6 +8,7 @@ import { fetchUsersList, fetchMessagesForUser, sendMessageToUser, markMessagesRe
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
+import remarkEmoji from 'remark-emoji';
 
 
 export default function Dm({ user }) {
@@ -224,7 +225,7 @@ export default function Dm({ user }) {
                   <strong>{msg.sender_username}</strong>{' '}
                   <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
                   <br />
-                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}>
                     {msg.content}
                   </ReactMarkdown>
                 </li>
