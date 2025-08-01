@@ -4,6 +4,8 @@ import Sidebar from './Sidebar';
 import { Outlet } from 'react-router-dom';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import api from '../utils/api';
+import notificationSound from '../assets/sounds/notification.mp3';
+import logoIcon from '../assets/images/logo.svg';
 
 export const LayoutContext = createContext();
 
@@ -54,17 +56,17 @@ export default function Layout({ user, onLogout }) {
 
         const dmMatch = location.pathname.match(/^\/dm\/(\d+)/);
         const currentDmId = dmMatch ? dmMatch[1] : null;
-        
+
         if (currentDmId && currentDmId === message.sender_id.toString() && document.hasFocus()) return;
-        
+
         if (Notification.permission === 'granted') {
-          const audio = new Audio('../assets/sounds/notification.mp3');
+          const audio = new Audio(notificationSound);
           audio.play().catch(err => {
             console.warn('Autoplay failed:', err);
           });
           const notif = new Notification(`${message.sender_name || 'User'}`, {
             body: message.content,
-            icon: '../assets/images/logo.svg',
+            icon: logoIcon,
             silent: true
           });
           notif.onclick = async () => {
