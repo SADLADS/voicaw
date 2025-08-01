@@ -357,7 +357,7 @@ function heartbeat() {
 
 // -- Set up WebSocket Server --
 wss.on('connection', (ws) => {
-  console.log('New connection');
+  // console.log('New connection');
 
   ws.isAlive = true;
   ws.on('pong', heartbeat);
@@ -385,7 +385,7 @@ wss.on('connection', (ws) => {
 
   ws.on('close', (code, reason) => {
     const id = ws.userId || 'unknown';
-    console.log(`WebSocket closed for user ${id}. Code: ${code}, Reason: ${reason?.toString() || 'No reason'}`);
+    // console.log(`WebSocket closed for user ${id}. Code: ${code}, Reason: ${reason?.toString() || 'No reason'}`);
     clients.delete(id);
   });
 
