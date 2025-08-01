@@ -1,10 +1,14 @@
-import React, { useEffect, useRef, useState, useContext, useLayoutEffect  } from 'react';
+import React, { useEffect, useRef, useState, useContext, useLayoutEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DmSidebar from './DmSidebar';
 import '../assets/css/dms.css';
 import { onNewDm } from '../utils/ws-client';
 import { LayoutContext } from './Layout';
 import { fetchUsersList, fetchMessagesForUser, sendMessageToUser, markMessagesRead, } from '../services/dmService';
+import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
+import remarkGfm from 'remark-gfm';
+
 
 export default function Dm({ user }) {
   const { unreadDms } = useContext(LayoutContext);
@@ -220,9 +224,12 @@ export default function Dm({ user }) {
                   <strong>{msg.sender_username}</strong>{' '}
                   <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
                   <br />
-                  <span>{msg.content}</span>
+                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                    {msg.content}
+                  </ReactMarkdown>
                 </li>
               ))}
+
               <div ref={messagesEndRef} />
             </ul>
             <div className="dm-chat-wrapper">
