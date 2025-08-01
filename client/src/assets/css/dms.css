@@ -14,7 +14,7 @@ body {
 #dm-sidebar {
   position: relative;
   width: 250px;
-  min-width: 100px;
+  min-width: 250px;
   max-width: 400px;
   background-color: var(--vc-bg-base);
   color: var(--vc-fg);
@@ -30,7 +30,6 @@ body {
   width: 4px;
   height: 100%;
   background-color: transparent;
-  cursor: ew-resize;
 }
 
 #dm-main {
@@ -87,9 +86,8 @@ body {
 
 #dm-messages {
   flex-grow: 1;
-  overflow-y: auto;
+  overflow: hidden;
   margin-bottom: 0rem;
-  scrollbar-color: var(--vc-fg-muted) var(--vc-bg-subtle);
   margin-left: 0.75rem;
 
 }
@@ -172,4 +170,9 @@ small {
 
 .list-group{
   border-radius: 0;
+}
+
+.dm-message-wrapper{
+  overflow: auto;
+  scrollbar-color: var(--vc-fg-muted) var(--vc-bg-subtle);
 }

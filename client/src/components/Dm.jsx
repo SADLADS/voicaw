@@ -211,31 +211,32 @@ export default function Dm({ user }) {
         {id && (
           <>
             <h4 className="chat-recipient-header">{chatUser?.username || 'User'}</h4>
-
-            <ul id="dm-messages" className="list-group" ref={messageListRef}>
-              {errorMessages && <li className="error-text">Error loading messages: {errorMessages}</li>}
-              {!errorMessages && messages.length === 0 && (
-                <li className="no-messages">No messages yet.</li>
-              )}
-              {messages.map(msg => (
-                <li
-                  key={msg.id}
-                  className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}
-                >
-                  <strong>{msg.sender_username}</strong>{' '}
-                  <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
-                  <br />
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
-                    rehypePlugins={[rehypeHighlight]}
+            <div class="dm-message-wrapper">
+              <ul id="dm-messages" className="list-group" ref={messageListRef}>
+                {errorMessages && <li className="error-text">Error loading messages: {errorMessages}</li>}
+                {!errorMessages && messages.length === 0 && (
+                  <li className="no-messages">No messages yet.</li>
+                )}
+                {messages.map(msg => (
+                  <li
+                    key={msg.id}
+                    className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}
                   >
-                    {msg.content}
-                  </ReactMarkdown>
-                </li>
-              ))}
+                    <strong>{msg.sender_username}</strong>{' '}
+                    <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
+                    <br />
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
+                      rehypePlugins={[rehypeHighlight]}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  </li>
+                ))}
 
-              <div ref={messagesEndRef} />
-            </ul>
+                <div ref={messagesEndRef} />
+              </ul>
+            </div>
             <div className="dm-chat-wrapper">
               <form
                 id="dm-chat-form"
