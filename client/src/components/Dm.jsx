@@ -58,7 +58,7 @@ export default function Dm({ user }) {
       unreadDms.forEach(dm => {
         const dot = document.querySelector(`#user-dot-${dm.from_user_id}`);
         console.log(`.user-dot-${dm.from_user_id}`, dot);
-        if (dot) {
+        if (dot && dm.from_user_id != chatUser.id) {
           dot.classList.add("active");
         }
       });
@@ -66,8 +66,6 @@ export default function Dm({ user }) {
 
     return () => cancelAnimationFrame(frame);
   }, [unreadDms]);
-
-
 
 
   const initialLoad = useRef(true);
