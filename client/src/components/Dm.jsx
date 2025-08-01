@@ -249,7 +249,7 @@ export default function Dm({ user }) {
                 <textarea
                   id="dm-input"
                   className="form-control auto-resize-textarea"
-                  placeholder="Type a message..."
+                  placeholder={`Message ${chatUser?.username || "User"}...`}
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
                   onKeyDown={e => {
