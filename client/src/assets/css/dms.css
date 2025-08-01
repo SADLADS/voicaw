@@ -106,7 +106,7 @@ small {
   border-radius: 8px;
   margin: 0.75rem;
   margin-top:0;
-  border: 1px solid var(--vc-border);
+  border: 1px solid var(--vc-border-light);
   background-color: var(--vc-bg-elevated);
 }
 
@@ -139,16 +139,16 @@ small {
 .chat-recipient-header {
   margin: 0px;
   padding: 0.5rem;
-  border-top: 1px solid var(--vc-border);
-  border-bottom: 1px solid var(--vc-border);
+  border-top: 1px solid var(--vc-border-light);
+  border-bottom: 1px solid var(--vc-border-light);
   padding-left: 1.25rem;
 }
 
 .direct-messages-header{
   margin:0;
   padding: 0.5rem;
-  border-bottom: 1px solid var(--vc-border);
-  border-top: 1px solid var(--vc-border);
+  border-bottom: 1px solid var(--vc-border-light);
+  border-top: 1px solid var(--vc-border-light);
 }
 
 .userdot {
