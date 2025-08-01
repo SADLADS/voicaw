@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth, AuthProvider } from './AuthProvider.jsx';
+import React from 'react';
+import { HashRouter, BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './AuthProvider.jsx';
 
 import Login from './components/Login.jsx';
 import Layout from './components/Layout.jsx';
@@ -9,13 +9,15 @@ import Calendar from './components/Calendar.jsx';
 import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
 
-import api from './utils/api.js';
-import { connectWebSocket, onNewDm } from './utils/ws-client.js';
-
 export default function App() {
   const { user, setUser, loading } = useAuth();
 
   if (loading) return <div></div>;
+
+  const isElectron = () => {
+    return typeof window !== 'undefined' && window.navigator.userAgent.toLowerCase().includes('electron');
+  };
+
 
   async function handleLogout() {
     try {
@@ -25,6 +27,7 @@ export default function App() {
       console.error('Logout failed', err);
     }
   }
+  const Router = isElectron() ? HashRouter : BrowserRouter;
 
   return (
     <Router>
