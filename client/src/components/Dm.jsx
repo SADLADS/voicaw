@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState, useContext, useLayoutEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import DmSidebar from './DmSidebar';
 import '../assets/css/dms.css';
 import { onNewDm } from '../utils/ws-client';
 import { LayoutContext } from './Layout';
-import { fetchUsersList, fetchMessagesForUser, sendMessageToUser, markMessagesRead, } from '../services/dmService';
+import { fetchMessagesForUser, sendMessageToUser, markMessagesRead, } from '../services/dmService';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
@@ -12,13 +11,8 @@ import remarkEmoji from 'remark-emoji';
 import rehypeHighlight from 'rehype-highlight';
 
 export default function Dm({ user }) {
-  const { unreadDms } = useContext(LayoutContext);
-
+  const { unreadDms, users, errorUsers, fetchUnreadMessages } = useContext(LayoutContext);
   const { id } = useParams();
-  const navigate = useNavigate();
-
-  const [users, setUsers] = useState([]);
-  const [errorUsers, setErrorUsers] = useState(null);
 
   const [messages, setMessages] = useState([]);
   const [errorMessages, setErrorMessages] = useState(null);
@@ -28,7 +22,6 @@ export default function Dm({ user }) {
 
   const messageListRef = useRef(null);
   const messagesEndRef = useRef(null);
-
   const inputRef = useRef(null);
 
   const scrollToBottom = (behavior = 'auto') => {
@@ -62,8 +55,7 @@ export default function Dm({ user }) {
     const frame = requestAnimationFrame(() => {
       unreadDms.forEach(dm => {
         const dot = document.querySelector(`#user-dot-${dm.from_user_id}`);
-        console.log(`.user-dot-${dm.from_user_id}`, dot);
-        if (dot && dm.from_user_id != chatUser.id) {
+        if (dot && dm.from_user_id != chatUser?.id) {
           dot.classList.add("active");
         }
       });
@@ -81,23 +73,8 @@ export default function Dm({ user }) {
     } else if (!userHasScrolledUp) { // userHasScrolledUp is broken at the moment
       scrollToBottom();
     }
-  }, [messages]);
+  }, [messages, userHasScrolledUp]);
 
-  useEffect(() => {
-    async function fetchUsers() {
-      try {
-        const data = await fetchUsersList();
-        setUsers(data);
-        if (!id && data.length > 0) {
-          navigate(`/dm/${data[0].id}`, { replace: true });
-        }
-        setErrorUsers(null);
-      } catch (e) {
-        setErrorUsers(e.message);
-      }
-    }
-    fetchUsers();
-  }, [navigate, id]);
 
   useEffect(() => {
     if (!id) return;
@@ -133,19 +110,19 @@ export default function Dm({ user }) {
       const currentUserId = user.id.toString();
 
       const isIncomingFromCurrentChatUser = fromId === currentChatUserId;
-      const isOutgoingFromSelf = fromId === currentUserId;
+      const isOutgoingFromSelf = fromId === currentUserId && message.recipient_id.toString() === currentChatUserId;
 
-      // scroll if you just got a message from the selected chat's user, or if you sent a message
       if (isIncomingFromCurrentChatUser || isOutgoingFromSelf) {
         const shouldScroll = isScrolledToBottom();
-
         setMessages(prev => [...prev, message]);
 
         if (shouldScroll) {
-          requestAnimationFrame(() => scrollToBottom());
+          requestAnimationFrame(() => scrollToBottom('smooth'));
         }
 
-        markRead();
+        if (isIncomingFromCurrentChatUser) {
+           markRead();
+        }
       } else {
         const dot = document.getElementById(`user-dot-${fromId}`);
         if (dot) {
@@ -153,7 +130,6 @@ export default function Dm({ user }) {
         }
       }
     });
-
 
     return () => unsubscribe();
   }, [chatUser?.id, user?.id]);
@@ -166,10 +142,9 @@ export default function Dm({ user }) {
     }
   }, [inputValue]);
 
-  const { fetchUnreadMessages } = useContext(LayoutContext);
-
   const markRead = async () => {
     try {
+      if (!chatUser) return;
       await markMessagesRead(chatUser.id);
       fetchUnreadMessages?.();
     } catch (err) {
@@ -185,9 +160,6 @@ export default function Dm({ user }) {
     try {
       await sendMessageToUser(chatUser.id, inputValue.trim());
       setInputValue('');
-
-      const updatedMessages = await fetchMessagesForUser(chatUser.id);
-      setMessages(updatedMessages);
       setErrorMessages(null);
 
       setTimeout(() => scrollToBottom(), 0);
@@ -198,79 +170,72 @@ export default function Dm({ user }) {
 
 
   return (
-    <div className="dm-container">
-      <DmSidebar users={users} />
-      <div
-        id="dm-main"
-        data-current-user-id={user?.id}
-        data-other-user-id={chatUser?.id}
-      >
-        {errorUsers && <p className="error-text">Error loading users: {errorUsers}</p>}
-        {users.length === 0 && !errorUsers && <p>No recent conversations found.</p>}
+    <div
+      id="dm-main"
+      data-current-user-id={user?.id}
+      data-other-user-id={chatUser?.id}
+    >
+      {errorUsers && <p className="error-text">Error loading users: {errorUsers}</p>}
+      {users.length === 0 && !errorUsers && !id && <p>No recent conversations found.</p>}
 
-        {id && (
-          <>
-            <h4 className="chat-recipient-header">{chatUser?.username || 'User'}</h4>
-            <div className="dm-message-wrapper">
-              <ul id="dm-messages" className="list-group" ref={messageListRef}>
-                {errorMessages && <li className="error-text">Error loading messages: {errorMessages}</li>}
-                {!errorMessages && messages.length === 0 && (
-                  <li className="no-messages">No messages yet.</li>
-                )}
-                {messages.map(msg => (
-                  <li
-                    key={msg.id}
-                    className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}
+      {id && (
+        <>
+          <h4 className="chat-recipient-header">{chatUser?.username || 'User'}</h4>
+          <div className="dm-message-wrapper">
+            <ul id="dm-messages" className="list-group" ref={messageListRef}>
+              {errorMessages && <li className="error-text">Error loading messages: {errorMessages}</li>}
+              {!errorMessages && messages.length === 0 && (
+                <li className="no-messages">No messages yet.</li>
+              )}
+              {messages.map(msg => (
+                <li
+                  key={msg.id}
+                  className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}
+                >
+                  <strong>{msg.sender_username}</strong>{' '}
+                  <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
+                  <br />
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
+                    rehypePlugins={[rehypeHighlight]}
                   >
-                    <strong>{msg.sender_username}</strong>{' '}
-                    <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
-                    <br />
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
-                      rehypePlugins={[rehypeHighlight]}
-                    >
-                      {msg.content}
-                    </ReactMarkdown>
-                  </li>
-                ))}
+                    {msg.content}
+                  </ReactMarkdown>
+                </li>
+              ))}
 
-                <div ref={messagesEndRef} />
-              </ul>
-            </div>
-            <div className="dm-chat-wrapper">
-              <form
-                id="dm-chat-form"
-                className="d-flex flex-grow-1"
-                onSubmit={e => {
-                  e.preventDefault();
-                  handleSendMessage(e);
+              <div ref={messagesEndRef} />
+            </ul>
+          </div>
+          <div className="dm-chat-wrapper">
+            <form
+              id="dm-chat-form"
+              className="d-flex flex-grow-1"
+              onSubmit={handleSendMessage}
+            >
+              <textarea
+                id="dm-input"
+                className="form-control auto-resize-textarea"
+                placeholder={`Message ${chatUser?.username || "User"}...`}
+                value={inputValue}
+                onChange={e => setInputValue(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(e);
+                  }
                 }}
-              >
-                <textarea
-                  id="dm-input"
-                  className="form-control auto-resize-textarea"
-                  placeholder={`Message ${chatUser?.username || "User"}...`}
-                  value={inputValue}
-                  onChange={e => setInputValue(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage(e);
-                    }
-                  }}
-                  autoComplete="off"
-                  ref={inputRef}
-                  rows={1}
-                />
-                <button className="btn btn-primary" type="submit">
-                  Send
-                </button>
-              </form>
-            </div>
-
-          </>
-        )}
-      </div>
+                autoComplete="off"
+                ref={inputRef}
+                rows={1}
+              />
+              <button className="btn btn-primary" type="submit">
+                Send
+              </button>
+            </form>
+          </div>
+        </>
+      )}
     </div>
   );
 }
