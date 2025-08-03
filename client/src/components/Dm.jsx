@@ -211,7 +211,7 @@ export default function Dm({ user }) {
         {id && (
           <>
             <h4 className="chat-recipient-header">{chatUser?.username || 'User'}</h4>
-            <div class="dm-message-wrapper">
+            <div className="dm-message-wrapper">
               <ul id="dm-messages" className="list-group" ref={messageListRef}>
                 {errorMessages && <li className="error-text">Error loading messages: {errorMessages}</li>}
                 {!errorMessages && messages.length === 0 && (
