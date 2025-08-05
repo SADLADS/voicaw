@@ -3,12 +3,40 @@ import { useParams, useNavigate } from 'react-router-dom';
 import '../assets/css/dms.css';
 import { onNewDm } from '../utils/ws-client';
 import { LayoutContext } from './Layout';
-import { fetchMessagesForUser, sendMessageToUser, markMessagesRead, } from '../services/dmService';
+import { fetchMessagesForUser, sendMessageToUser, markMessagesRead } from '../services/dmService';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import rehypeHighlight from 'rehype-highlight';
+
+const MessageList = React.memo(function MessageList({ messages, user, errorMessages, messageListRef, messagesEndRef }) {
+  return (
+    <ul id="dm-messages" className="list-group" ref={messageListRef}>
+      {errorMessages && <li className="error-text">Error loading messages: {errorMessages}</li>}
+      {!errorMessages && messages.length === 0 && (
+        <li className="no-messages">No messages yet.</li>
+      )}
+      {messages.map(msg => (
+        <li
+          key={msg.id}
+          className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}
+        >
+          <strong>{msg.sender_username}</strong>{' '}
+          <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
+          <br />
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
+            rehypePlugins={[rehypeHighlight]}
+          >
+            {msg.content}
+          </ReactMarkdown>
+        </li>
+      ))}
+      <div ref={messagesEndRef} />
+    </ul>
+  );
+});
 
 export default function Dm({ user }) {
   const { unreadDms, users, errorUsers, fetchUnreadMessages } = useContext(LayoutContext);
@@ -121,7 +149,7 @@ export default function Dm({ user }) {
         }
 
         if (isIncomingFromCurrentChatUser) {
-           markRead();
+          markRead();
         }
       } else {
         const dot = document.getElementById(`user-dot-${fromId}`);
@@ -182,30 +210,13 @@ export default function Dm({ user }) {
         <>
           <h4 className="chat-recipient-header">{chatUser?.username || 'User'}</h4>
           <div className="dm-message-wrapper">
-            <ul id="dm-messages" className="list-group" ref={messageListRef}>
-              {errorMessages && <li className="error-text">Error loading messages: {errorMessages}</li>}
-              {!errorMessages && messages.length === 0 && (
-                <li className="no-messages">No messages yet.</li>
-              )}
-              {messages.map(msg => (
-                <li
-                  key={msg.id}
-                  className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}
-                >
-                  <strong>{msg.sender_username}</strong>{' '}
-                  <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
-                  <br />
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
-                    rehypePlugins={[rehypeHighlight]}
-                  >
-                    {msg.content}
-                  </ReactMarkdown>
-                </li>
-              ))}
-
-              <div ref={messagesEndRef} />
-            </ul>
+            <MessageList
+              messages={messages}
+              user={user}
+              errorMessages={errorMessages}
+              messageListRef={messageListRef}
+              messagesEndRef={messagesEndRef}
+            />
           </div>
           <div className="dm-chat-wrapper">
             <form
