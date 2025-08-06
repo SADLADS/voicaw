@@ -195,7 +195,7 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
             dm.recipient_id, 
             dm.content, 
             dm.timestamp,
-            u.username AS sender_name
+            u.username AS sender_username
           FROM direct_messages dm
           JOIN users u ON dm.sender_id = u.id
           WHERE dm.id = ?

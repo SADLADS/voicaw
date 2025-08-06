@@ -23,7 +23,7 @@ const MessageList = React.memo(function MessageList({ messages, user, errorMessa
           key={msg.id}
           className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}
         >
-          <strong>{msg.sender_name}</strong>{' '}
+          <strong>{msg.sender_username}</strong>{' '}
           <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
           <br />
           <ReactMarkdown
@@ -110,17 +110,6 @@ export default function Dm({ user }) {
 
   useEffect(() => {
     if (!id) return;
-
-    async function fetchMessages() {
-      try {
-        const data = await fetchMessagesForUser(id);
-        setMessages(data);
-        setErrorMessages(null);
-      } catch (e) {
-        setErrorMessages(e.message);
-      }
-    }
-
     fetchMessages();
   }, [id]);
 
@@ -196,12 +185,24 @@ export default function Dm({ user }) {
       await sendMessageToUser(chatUser.id, inputValue.trim());
       setInputValue('');
       setErrorMessages(null);
-
+      await fetchMessages()
       setTimeout(() => scrollToBottom(), 0);
     } catch (error) {
       setErrorMessages(error.message);
     }
   };
+
+
+  async function fetchMessages() {
+    try {
+      const data = await fetchMessagesForUser(id);
+      console.log(data)
+      setMessages(data);
+      setErrorMessages(null);
+    } catch (e) {
+      setErrorMessages(e.message);
+    }
+  }
 
 
   return (
