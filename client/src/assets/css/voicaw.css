@@ -172,6 +172,9 @@ pre code {
   display: block;
 }
 
+.main-content-wrapper{
+  width: 100%;
+}
 
 @media (max-width: 768px) {
   body, html {
