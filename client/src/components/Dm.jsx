@@ -22,7 +22,7 @@ const MessageList = React.memo(function MessageList({ messages, user, errorMessa
           key={msg.id}
           className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}
         >
-          <strong>{msg.sender_username}</strong>{' '}
+          <strong>{msg.sender_name}</strong>{' '}
           <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
           <br />
           <ReactMarkdown
@@ -161,6 +161,7 @@ export default function Dm({ user }) {
 
     return () => unsubscribe();
   }, [chatUser?.id, user?.id]);
+
 
   useEffect(() => {
     const textarea = inputRef.current;
