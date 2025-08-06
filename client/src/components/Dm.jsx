@@ -10,6 +10,7 @@ import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import rehypeHighlight from 'rehype-highlight';
 
+
 const MessageList = React.memo(function MessageList({ messages, user, errorMessages, messageListRef, messagesEndRef }) {
   return (
     <ul id="dm-messages" className="list-group" ref={messageListRef}>
@@ -38,6 +39,7 @@ const MessageList = React.memo(function MessageList({ messages, user, errorMessa
   );
 });
 
+
 export default function Dm({ user }) {
   const { unreadDms, users, errorUsers, fetchUnreadMessages } = useContext(LayoutContext);
   const { id } = useParams();
@@ -63,6 +65,7 @@ export default function Dm({ user }) {
     return Math.abs(distance) <= 1;
   };
 
+
   // Update scroll state on scroll
   useEffect(() => {
     const el = messageListRef.current;
@@ -76,6 +79,7 @@ export default function Dm({ user }) {
     el.addEventListener('scroll', handleScroll);
     return () => el.removeEventListener('scroll', handleScroll);
   }, []);
+
 
   useEffect(() => {
     if (!unreadDms) return;
@@ -120,6 +124,7 @@ export default function Dm({ user }) {
     fetchMessages();
   }, [id]);
 
+
   const chatUser = users.find(u => u.id.toString() === id);
   useEffect(() => {
     if (!chatUser?.id) return;
@@ -129,6 +134,7 @@ export default function Dm({ user }) {
       dot.classList.remove('active');
     }
   }, [chatUser?.id]);
+
 
   useEffect(() => {
     if (!user?.id || !chatUser?.id) return;
