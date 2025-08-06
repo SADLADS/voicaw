@@ -196,7 +196,6 @@ export default function Dm({ user }) {
   async function fetchMessages() {
     try {
       const data = await fetchMessagesForUser(id);
-      console.log(data)
       setMessages(data);
       setErrorMessages(null);
     } catch (e) {
