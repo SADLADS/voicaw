@@ -14,11 +14,11 @@ body {
 #dm-sidebar {
   position: relative;
   width: 300px;
-  min-width: 300px;
-  max-width: 300px;
   background-color: var(--vc-bg-base);
   color: var(--vc-fg);
-  padding: 0rem;
+  padding: 0;
+  margin:0;
+  border:0;
   display: flex;
   flex-direction: column;
   height: 100dvh;
@@ -185,4 +185,10 @@ small {
   flex-grow: 1;
   min-height: 0;
   scrollbar-color: var(--vc-fg-muted) var(--vc-bg-base);
+}
+
+@media (max-width: 768px) {
+  #dm-sidebar{
+    width:calc(100% - 72px);
+  }
 }
