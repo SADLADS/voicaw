@@ -127,7 +127,7 @@ export default function Layout({ user, onLogout }) {
         </SidebarWrapper>
 
         {/* The main page content */}
-        <div className='main-content-wrapper' style={{ flex: 1, overflowY: 'auto', height: '100vh' }}>
+        <div className='main-content-wrapper'>
           <Outlet />
         </div>
       </div>

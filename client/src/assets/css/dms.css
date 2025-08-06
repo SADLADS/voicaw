@@ -8,7 +8,7 @@ body {
 
 .dm-container {
   display: flex;
-  height: 100vh;
+  height: 100dvh;
 }
 
 #dm-sidebar {
@@ -21,7 +21,7 @@ body {
   padding: 0rem;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
 }
 
 #dm-sidebar::after {
@@ -39,7 +39,7 @@ body {
   display: flex;
   flex-grow: 1;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   padding: 0rem;
   box-sizing: border-box;
