@@ -139,7 +139,7 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
   const otherUserId = parseInt(req.params.otherUserId, 10);
   const beforeId = req.query.before;
   const params = [loggedInUserId, otherUserId, otherUserId, loggedInUserId];
-  const limit = 10;
+  const limit = 20;
   if (isNaN(otherUserId)) return res.status(400).json({ error: 'Invalid user ID' });
   var query = `
     SELECT dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, u.username AS sender_username

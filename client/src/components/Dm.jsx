@@ -12,12 +12,13 @@ import rehypeHighlight from 'rehype-highlight';
 import { Virtuoso } from 'react-virtuoso';
 
 
-function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages }) {
+function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, firstItemIndex }) {
   return (
     <Virtuoso
       style={{ height: '100%', width: '100%' }}
       data={messages}
-      initialTopMostItemIndex={0} // start scrolled to bottom
+      firstItemIndex={firstItemIndex}
+      initialTopMostItemIndex={messages.length - 1}
       startReached={hasMore ? loadMoreMessages : undefined}
       itemContent={(index, msg) => (
         <div className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}>
@@ -33,12 +34,18 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages }) {
         </div>
       )}
       followOutput="auto"
+      increaseViewportBy={300}
     />
   );
 }
 
 
+
 export default function Dm({ user }) {
+  const INITIAL_INDEX = 100000;
+
+  const [firstItemIndex, setFirstItemIndex] = useState(INITIAL_INDEX);
+
   const { unreadDms, users, errorUsers, fetchUnreadMessages } = useContext(LayoutContext);
   const { id } = useParams();
 
@@ -118,12 +125,20 @@ export default function Dm({ user }) {
   }
 
   const loadMoreMessages = async () => {
+    const prevLength = messages.length;
     const oldest = messages[0];
-    console.log("loadmore", hasMore, oldest.id)
-    if (oldest) {
-      await fetchMessages(oldest.id);
+    if (!oldest) return;
+
+    const newMessages = await fetchMessagesForUser(id, { before: oldest.id });
+
+    if (newMessages.length > 0) {
+      setMessages((prev) => [...newMessages, ...prev]);
+      setFirstItemIndex((prev) => prev - newMessages.length);
     }
+
+    setHasMore(newMessages.length > 0);
   };
+
 
   const markRead = async () => {
     try {
@@ -169,6 +184,8 @@ export default function Dm({ user }) {
               user={user}
               hasMore={hasMore}
               loadMoreMessages={loadMoreMessages}
+              firstItemIndex={firstItemIndex}
+              initialTopMostItemIndex={firstItemIndex + messages.length - 1}
             />
           </div>
 
