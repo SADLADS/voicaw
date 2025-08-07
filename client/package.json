@@ -21,6 +21,7 @@
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.7.1",
+    "react-virtuoso": "^4.13.0",
     "rehype-highlight": "^7.0.2",
     "remark-breaks": "^4.0.0",
     "remark-emoji": "^5.0.1",
