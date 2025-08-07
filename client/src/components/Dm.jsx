@@ -60,9 +60,13 @@ export default function Dm({ user }) {
   const chatUser = users.find((u) => u.id.toString() === id);
 
   useEffect(() => {
+    setFirstItemIndex(INITIAL_INDEX);
+    setMessages([]);
+    setHasMore(true);
     if (!id) return;
     fetchMessages();
   }, [id]);
+
 
   useEffect(() => {
     if (!chatUser?.id) return;
@@ -180,6 +184,7 @@ export default function Dm({ user }) {
 
           <div className="dm-message-wrapper">
             <VirtuosoMessageList
+              key={id}
               messages={messages}
               user={user}
               hasMore={hasMore}
