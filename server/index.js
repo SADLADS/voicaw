@@ -138,6 +138,7 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
   const loggedInUserId = req.user.id;
   const otherUserId = parseInt(req.params.otherUserId, 10);
   const beforeId = req.query.before;
+  console.log("before",beforeId)
   const params = [loggedInUserId, otherUserId, otherUserId, loggedInUserId];
   const limit = 20;
   if (isNaN(otherUserId)) return res.status(400).json({ error: 'Invalid user ID' });
@@ -146,9 +147,9 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
     FROM direct_messages dm
     JOIN users u ON dm.sender_id = u.id
     WHERE
-      (dm.sender_id = ? AND dm.recipient_id = ?)
+      ((dm.sender_id = ? AND dm.recipient_id = ?)
       OR
-      (dm.sender_id = ? AND dm.recipient_id = ?)
+      (dm.sender_id = ? AND dm.recipient_id = ?))
   `
 
   if (beforeId){
@@ -161,7 +162,7 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
   LIMIT ?
   `
   params.push(limit)
-
+  console.log(query)
   db.all(query
     ,
     params,
@@ -170,6 +171,7 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
         console.error('Failed to fetch DM messages:', err);
         return res.status(500).json({ error: 'Server error' });
       }
+      console.log(rows)
       res.json(rows.reverse());
     }
   );
