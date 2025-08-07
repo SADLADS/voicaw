@@ -134,22 +134,37 @@ app.get('/api/dms-list', authenticateJWT, (req, res) => {
 });
 
 
-app.get('/api/dm-messages/:otherUserId',authenticateJWT, (req, res) => {
-
+app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
   const loggedInUserId = req.user.id;
   const otherUserId = parseInt(req.params.otherUserId, 10);
+  const beforeId = req.query.before;
+  const params = [loggedInUserId, otherUserId, otherUserId, loggedInUserId];
+  const limit = 10;
   if (isNaN(otherUserId)) return res.status(400).json({ error: 'Invalid user ID' });
+  var query = `
+    SELECT dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, u.username AS sender_username
+    FROM direct_messages dm
+    JOIN users u ON dm.sender_id = u.id
+    WHERE
+      (dm.sender_id = ? AND dm.recipient_id = ?)
+      OR
+      (dm.sender_id = ? AND dm.recipient_id = ?)
+  `
 
-  db.all(
-    `SELECT dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, u.username AS sender_username
-     FROM direct_messages dm
-     JOIN users u ON dm.sender_id = u.id
-     WHERE
-       (dm.sender_id = ? AND dm.recipient_id = ?)
-       OR
-       (dm.sender_id = ? AND dm.recipient_id = ?)
-     ORDER BY dm.timestamp ASC`,
-    [loggedInUserId, otherUserId, otherUserId, loggedInUserId],
+  if (beforeId){
+    query += `AND dm.id < ?`
+    params.push(beforeId)
+  }
+
+  query += `
+  ORDER BY dm.timestamp ASC
+  LIMIT ?
+  `
+  params.push(limit)
+  
+  db.all(query
+    ,
+    params,
     (err, rows) => {
       if (err) {
         console.error('Failed to fetch DM messages:', err);
@@ -246,7 +261,7 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
 });
 
 
-app.post('/api/dm-mark-read/:fromUserId',authenticateJWT, (req, res) => {
+app.post('/api/dm-mark-read/:fromUserId', authenticateJWT, (req, res) => {
   console.log(`attempt to mark read`);
   const userId = req.user?.id;
   const fromUserId = parseInt(req.params.fromUserId, 10);
@@ -381,7 +396,7 @@ wss.on('connection', (ws) => {
       console.error('Invalid message', err);
     }
   });
-  
+
 
   ws.on('close', (code, reason) => {
     const id = ws.userId || 'unknown';
