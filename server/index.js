@@ -157,11 +157,11 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
   }
 
   query += `
-  ORDER BY dm.timestamp ASC
+  ORDER BY dm.id DESC
   LIMIT ?
   `
   params.push(limit)
-  
+
   db.all(query
     ,
     params,
@@ -170,7 +170,7 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
         console.error('Failed to fetch DM messages:', err);
         return res.status(500).json({ error: 'Server error' });
       }
-      res.json(rows);
+      res.json(rows.reverse());
     }
   );
 });
