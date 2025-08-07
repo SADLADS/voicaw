@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useContext, useLayoutEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import '../assets/css/dms.css';
 import { onNewDm } from '../utils/ws-client';
 import { LayoutContext } from './Layout';
@@ -9,20 +9,18 @@ import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import rehypeHighlight from 'rehype-highlight';
+import { Virtuoso } from 'react-virtuoso';
 
 
-const MessageList = React.memo(function MessageList({ messages, user, errorMessages, messageListRef, messagesEndRef }) {
+function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages }) {
   return (
-    <ul id="dm-messages" className="list-group" ref={messageListRef}>
-      {errorMessages && <li className="error-text">Error loading messages: {errorMessages}</li>}
-      {!errorMessages && messages.length === 0 && (
-        <li className="no-messages">No messages yet.</li>
-      )}
-      {messages.map(msg => (
-        <li
-          key={msg.id}
-          className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}
-        >
+    <Virtuoso
+      style={{ height: '100%', width: '100%' }}
+      data={messages}
+      initialTopMostItemIndex={0} // start scrolled to bottom
+      startReached={hasMore ? loadMoreMessages : undefined}
+      itemContent={(index, msg) => (
+        <div className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}>
           <strong>{msg.sender_username}</strong>{' '}
           <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
           <br />
@@ -32,12 +30,12 @@ const MessageList = React.memo(function MessageList({ messages, user, errorMessa
           >
             {msg.content}
           </ReactMarkdown>
-        </li>
-      ))}
-      <div ref={messagesEndRef} />
-    </ul>
+        </div>
+      )}
+      followOutput="auto"
+    />
   );
-});
+}
 
 
 export default function Dm({ user }) {
@@ -46,75 +44,19 @@ export default function Dm({ user }) {
 
   const [messages, setMessages] = useState([]);
   const [errorMessages, setErrorMessages] = useState(null);
-
   const [inputValue, setInputValue] = useState('');
-  const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
-  const messageListRef = useRef(null);
-  const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-
-  const scrollToBottom = (behavior = 'auto') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
-  };
-
-  const isScrolledToBottom = () => {
-    const el = messageListRef.current;
-    if (!el) return false;
-    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    return Math.abs(distance) <= 1;
-  };
-
-
-  // Update scroll state on scroll
-  useEffect(() => {
-    const el = messageListRef.current;
-    if (!el) return;
-
-    const handleScroll = () => {
-      const atBottom = isScrolledToBottom();
-      setUserHasScrolledUp(!atBottom);
-    };
-
-    el.addEventListener('scroll', handleScroll);
-    return () => el.removeEventListener('scroll', handleScroll);
-  }, []);
-
-
-  useEffect(() => {
-    if (!unreadDms) return;
-
-    const frame = requestAnimationFrame(() => {
-      unreadDms.forEach(dm => {
-        const dot = document.querySelector(`#user-dot-${dm.from_user_id}`);
-        if (dot && dm.from_user_id != chatUser?.id) {
-          dot.classList.add("active");
-        }
-      });
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [unreadDms]);
-
-
   const initialLoad = useRef(true);
-  useLayoutEffect(() => {
-    if (initialLoad.current) {
-      scrollToBottom("auto");
-      initialLoad.current = false;
-    } else if (!userHasScrolledUp) { // userHasScrolledUp is broken at the moment
-      scrollToBottom();
-    }
-  }, [messages, userHasScrolledUp]);
 
+  const chatUser = users.find((u) => u.id.toString() === id);
 
   useEffect(() => {
     if (!id) return;
     fetchMessages();
   }, [id]);
 
-
-  const chatUser = users.find(u => u.id.toString() === id);
   useEffect(() => {
     if (!chatUser?.id) return;
     markRead();
@@ -124,25 +66,20 @@ export default function Dm({ user }) {
     }
   }, [chatUser?.id]);
 
-
   useEffect(() => {
     if (!user?.id || !chatUser?.id) return;
+
     const unsubscribe = onNewDm((message) => {
       const fromId = message.sender_id.toString();
       const currentChatUserId = chatUser.id.toString();
       const currentUserId = user.id.toString();
 
       const isIncomingFromCurrentChatUser = fromId === currentChatUserId;
-      const isOutgoingFromSelf = fromId === currentUserId && message.recipient_id.toString() === currentChatUserId;
+      const isOutgoingFromSelf =
+        fromId === currentUserId && message.recipient_id.toString() === currentChatUserId;
 
       if (isIncomingFromCurrentChatUser || isOutgoingFromSelf) {
-        const shouldScroll = isScrolledToBottom();
-        setMessages(prev => [...prev, message]);
-
-        if (shouldScroll) {
-          requestAnimationFrame(() => scrollToBottom('smooth'));
-        }
-
+        setMessages((prev) => [...prev, message]);
         if (isIncomingFromCurrentChatUser) {
           markRead();
         }
@@ -157,14 +94,36 @@ export default function Dm({ user }) {
     return () => unsubscribe();
   }, [chatUser?.id, user?.id]);
 
-
   useEffect(() => {
     const textarea = inputRef.current;
     if (textarea) {
-      textarea.style.height = "auto";
+      textarea.style.height = 'auto';
       textarea.style.height = `${textarea.scrollHeight}px`;
     }
   }, [inputValue]);
+
+  async function fetchMessages(beforeId = null) {
+    try {
+      const data = await fetchMessagesForUser(id, { before: beforeId });
+      if (beforeId) {
+        setMessages((prev) => [...data, ...prev]);
+      } else {
+        setMessages(data);
+      }
+      setHasMore(data.length > 0);
+      setErrorMessages(null);
+    } catch (e) {
+      setErrorMessages(e.message);
+    }
+  }
+
+  const loadMoreMessages = async () => {
+    const oldest = messages[0];
+    console.log("loadmore", hasMore, oldest.id)
+    if (oldest) {
+      await fetchMessages(oldest.id);
+    }
+  };
 
   const markRead = async () => {
     try {
@@ -176,33 +135,20 @@ export default function Dm({ user }) {
     }
   };
 
-
   const handleSendMessage = async (e) => {
     e.preventDefault();
+    console.log(messages[0].id, hasMore)
     if (!inputValue.trim() || !chatUser) return;
 
     try {
       await sendMessageToUser(chatUser.id, inputValue.trim());
       setInputValue('');
       setErrorMessages(null);
-      await fetchMessages()
-      setTimeout(() => scrollToBottom(), 0);
+      await fetchMessages();
     } catch (error) {
       setErrorMessages(error.message);
     }
   };
-
-
-  async function fetchMessages() {
-    try {
-      const data = await fetchMessagesForUser(id);
-      setMessages(data);
-      setErrorMessages(null);
-    } catch (e) {
-      setErrorMessages(e.message);
-    }
-  }
-
 
   return (
     <div
@@ -216,15 +162,16 @@ export default function Dm({ user }) {
       {id && (
         <>
           <h4 className="chat-recipient-header">{chatUser?.username || 'User'}</h4>
+
           <div className="dm-message-wrapper">
-            <MessageList
+            <VirtuosoMessageList
               messages={messages}
               user={user}
-              errorMessages={errorMessages}
-              messageListRef={messageListRef}
-              messagesEndRef={messagesEndRef}
+              hasMore={hasMore}
+              loadMoreMessages={loadMoreMessages}
             />
           </div>
+
           <div className="dm-chat-wrapper">
             <form
               id="dm-chat-form"
@@ -234,11 +181,11 @@ export default function Dm({ user }) {
               <textarea
                 id="dm-input"
                 className="form-control auto-resize-textarea"
-                placeholder={`Message ${chatUser?.username || "User"}...`}
+                placeholder={`Message ${chatUser?.username || 'User'}...`}
                 value={inputValue}
-                onChange={e => setInputValue(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter" && !e.shiftKey) {
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     handleSendMessage(e);
                   }

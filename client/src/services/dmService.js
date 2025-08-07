@@ -5,10 +5,12 @@ export async function fetchUsersList() {
     return res.data;
   }
   
-  export async function fetchMessagesForUser(userId) {
-    const res = await api.get(`/dm-messages/${userId}`);
+  export async function fetchMessagesForUser(userId, params = {}) {
+    console.log("fetchMessagesForUser", params)
+    const res = await api.get(`/dm-messages/${userId}`, { params });
     return res.data;
   }
+
   
   export async function sendMessageToUser(recipientId, content) {
     await api.post('/dm-send', {
