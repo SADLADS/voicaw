@@ -14,11 +14,13 @@ export const LayoutContext = createContext();
 
 // ask the user for consent to show notifications
 export function requestNotificationPermission() {
-  Notification.requestPermission().then(permission => {
-    if (permission === 'granted') {
-      console.log('Notifications enabled');
-    }
-  });
+  if (typeof Notification !== 'undefined' && Notification.requestPermission) {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        console.log('Notifications enabled');
+      }
+    });
+  }
 }
 
 export default function Layout({ user, onLogout }) {
@@ -88,7 +90,7 @@ export default function Layout({ user, onLogout }) {
 
         if (currentDmId && currentDmId === message.sender_id.toString() && document.hasFocus()) return;
 
-        if (Notification.permission === 'granted') {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           const audio = new Audio(notificationSound);
           audio.play().catch(err => {
             console.warn('Autoplay failed:', err);
