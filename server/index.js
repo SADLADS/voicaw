@@ -13,7 +13,7 @@ app.use(express.json());
 
 const cors = require('cors');
 
-const allowedOrigins = ['https://test.voicaw.com', 'https://voicaw.com'];
+const allowedOrigins = ['https://test.voicaw.com', 'https://voicaw.com', "http://test.voicaw.com", "http://voicaw.com"];
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -21,7 +21,7 @@ app.use(cors({
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error(`Origin ${origin} Not allowed by CORS`));
     }
   },
   credentials: true
