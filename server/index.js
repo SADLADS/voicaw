@@ -3,17 +3,17 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const WebSocket = require('ws');
 const jwt = require('jsonwebtoken');
-import * as opaque from "@serenity-kit/opaque";
-
+const opaque = require('@serenity-kit/opaque');
+const db = require('./db');
+const cors = require('cors');
 
 require('dotenv').config();
 
-const db = require('./db');
+
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 app.use(express.json());
 
-const cors = require('cors');
 
 const allowedOrigins = ['https://test.voicaw.com', 'https://voicaw.com', "http://test.voicaw.com", "http://voicaw.com"];
 
@@ -43,11 +43,15 @@ const wss = new WebSocket.Server({ server });
 const clients = new Map();
 
 
+let serverSetup;
+(async () => {
+  await opaque.ready;
+  serverSetup = process.env.OPAQUE_SERVER_SETUP || opaque.server.createSetup();
+  console.log("Server setup created:", serverSetup);
+})();
 
-const serverSetup = process.env.OPAQUE_SERVER_SETUP;
 
-
-
+// Login route
 app.post('/api/login', (req, res) => {
   console.log("login")
   const { username, password } = req.body;
@@ -62,61 +66,52 @@ app.post('/api/login', (req, res) => {
       if (!result) return res.status(401).json({ error: 'Invalid credentials' });
       const token = generateToken(user);
       res.json({ token, id: user.id, username: user.username });
-
     });
   });
 });
+
+
+// Initiate Register route
+app.post('/api/initiateregister', (req, res) => {
+  const { userIdentifier, registrationRequest } = req.body;
+  // Check that all data is here
+  if (!userIdentifier || !registrationRequest) return res.status(400).json({ error: 'Missing username or registrationRequest' });
+  // generate registration response
+  const { registrationResponse } = opaque.server.createRegistrationResponse({
+    serverSetup,
+    userIdentifier,
+    registrationRequest,
+  });
+  return res.status(201).json({ registrationResponse });
+});
+
 
 // Register route
 app.post('/api/register', (req, res) => {
-  console.log("register");
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
-
-  bcrypt.hash(password, 10, (err, passwordHash) => {
-    if (err) return res.status(500).json({ error: 'Error hashing password' });
-
-    // Generate RSA keypair (2048 bits)
-    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
-      modulusLength: 2048,
-      publicKeyEncoding: { type: 'spki', format: 'pem' },
-      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
-    });
-
-    // Derive encryption key from password (PBKDF2)
-    const salt = crypto.randomBytes(16);
-    const key = crypto.pbkdf2Sync(password, salt, 100_000, 32, 'sha256');
-
-    // Encrypt private key using AES-256-GCM
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-    const encrypted = Buffer.concat([
-      cipher.update(privateKey, 'utf8'),
-      cipher.final()
-    ]);
-    const tag = cipher.getAuthTag();
-
-    // Store base64 encoded combined salt + iv + tag + encryptedPrivateKey
-    const encryptedPrivateKey = Buffer.concat([salt, iv, tag, encrypted]).toString('base64');
-
-    db.run(`INSERT INTO users (username, password, public_key, private_key) VALUES (?, ?, ?, ?)`,
-      [username, passwordHash, publicKey, encryptedPrivateKey], function (err) {
-        if (err) {
-          if (err.message.includes('UNIQUE constraint failed')) {
-            return res.status(409).json({ error: 'Username already exists' });
-          }
-          return res.status(500).json({ error: 'DB error' });
+  const { registrationRecord, userIdentifier, publicKey, encryptedPrivateKey } = req.body;
+  // Check that all data is here
+  if (!userIdentifier || !registrationRecord) return res.status(400).json({ error: 'Missing username or registrationRecord' });
+  if (!publicKey || !encryptedPrivateKey) return res.status(400).json({ error: 'Missing public key or private key' });
+  // Attempt to insert user into DB
+  db.run(`INSERT INTO users (username, password, public_key, private_key) VALUES (?, ?, ?, ?)`,
+    [userIdentifier, registrationRecord, publicKey, encryptedPrivateKey], function (err) {
+      if (err) {
+        // If username already exists, return 409
+        if (err.message.includes('UNIQUE constraint failed')) {
+          return res.status(409).json({ error: 'Username already exists' });
         }
+        return res.status(500).json({ error: 'DB error' });
+      }
 
-        // Generate JWT with new user info
-        const user = { id: this.lastID, username };
-        const token = generateToken(user);
-
-        // Return token and user info
-        res.status(201).json({ token, id: user.id, username: user.username });
-      });
-  });
+      // Generate JWT
+      const user = { id: this.lastID, userIdentifier };
+      const token = generateToken(user);
+      console.log("token",{ token, id: user.id, username: user.userIdentifier })
+      // Return token and user info
+      res.status(201).json({ token, id: user.id, username: user.userIdentifier });
+    });
 });
+
 
 // Minimal protected route example
 app.get('/api/profile', authenticateJWT, (req, res) => {
@@ -158,7 +153,7 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
       (dm.sender_id = ? AND dm.recipient_id = ?))
   `
 
-  if (beforeId){
+  if (beforeId) {
     query += `AND dm.id < ?`
     params.push(beforeId)
   }
