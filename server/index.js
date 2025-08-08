@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const WebSocket = require('ws');
 const jwt = require('jsonwebtoken');
+import * as opaque from "@serenity-kit/opaque";
+
 
 require('dotenv').config();
 
@@ -39,6 +41,11 @@ const server = app.listen(PORT, (err) => {
 const wss = new WebSocket.Server({ server });
 
 const clients = new Map();
+
+
+
+const serverSetup = process.env.OPAQUE_SERVER_SETUP;
+
 
 
 app.post('/api/login', (req, res) => {
