@@ -51,22 +51,66 @@ let serverSetup;
 })();
 
 
-// Login route
-app.post('/api/login', (req, res) => {
-  console.log("login")
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
+// Initial Login route
+app.post('/api/initiatelogin', (req, res) => {
+  const { clientLoginState, startLoginRequest, userIdentifier } = req.body;
+  if (!clientLoginState || !startLoginRequest) return res.status(400).json({ error: 'Missing clientLoginState or startLoginRequest' });
 
-  db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
+  db.get('SELECT password FROM users WHERE username = ?', [userIdentifier], (err, user) => {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const registrationRecord = user.password;
+    const { serverLoginState, loginResponse } = opaque.server.startLogin({
+      serverSetup,
+      userIdentifier,
+      registrationRecord,
+      startLoginRequest,
+    });
+
+    const expiresInSeconds = 300;
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAt = now + expiresInSeconds;
+
+    db.run(`
+    INSERT INTO login_states (user_name, server_login_state, expires_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(user_name) DO UPDATE SET
+      server_login_state = excluded.server_login_state,
+      expires_at = excluded.expires_at
+  `,
+      [userIdentifier, JSON.stringify(serverLoginState), expiresAt],
+      function (err) {
+        if (err) {
+          console.error("Failed to store login state:", err);
+          return res.status(500).json({ error: 'Internal server error' });
+        }
+        res.json({ loginResponse });
+      });
+  });
+});
+
+
+// Final Login route
+app.post('/api/finaliselogin', (req, res) => {
+  const { finishLoginRequest, clientSessionKey, userIdentifier } = req.body;
+  console.log("finishLoginRequest", finishLoginRequest, clientSessionKey, userIdentifier)
+  if (!finishLoginRequest || !clientSessionKey || !userIdentifier) return res.status(400).json({ error: 'Missing data' });
+  db.get('SELECT * FROM login_states WHERE user_name = ?', [userIdentifier], (err, user) => {
     if (err) return res.status(500).json({ error: 'DB error' });
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    if (Math.floor(Date.now() / 1000) > user.expires_at) return res.status(401).json({ error: 'Login state expired' });
 
-    bcrypt.compare(password, user.password, (err, result) => {
-      if (err) return res.status(500).json({ error: 'Error checking password' });
-      if (!result) return res.status(401).json({ error: 'Invalid credentials' });
-      const token = generateToken(user);
-      res.json({ token, id: user.id, username: user.username });
+    const serverLoginState = JSON.parse(user.server_login_state);
+    const { sessionKey } = opaque.server.finishLogin({
+      finishLoginRequest,
+      serverLoginState,
     });
+    if (!sessionKey || sessionKey !== clientSessionKey) {
+      return res.status(401).json({ error: 'Login failed' });
+    } else {
+      const token = generateToken(user);
+      res.json({ token });
+    }
   });
 });
 
@@ -87,7 +131,7 @@ app.post('/api/initiateregister', (req, res) => {
 
 
 // Register route
-app.post('/api/register', (req, res) => {
+app.post('/api/finaliseregister', (req, res) => {
   const { registrationRecord, userIdentifier, publicKey, encryptedPrivateKey } = req.body;
   // Check that all data is here
   if (!userIdentifier || !registrationRecord) return res.status(400).json({ error: 'Missing username or registrationRecord' });
@@ -106,7 +150,7 @@ app.post('/api/register', (req, res) => {
       // Generate JWT
       const user = { id: this.lastID, userIdentifier };
       const token = generateToken(user);
-      console.log("token",{ token, id: user.id, username: user.userIdentifier })
+      console.log("token", { token, id: user.id, username: user.userIdentifier })
       // Return token and user info
       res.status(201).json({ token, id: user.id, username: user.userIdentifier });
     });
