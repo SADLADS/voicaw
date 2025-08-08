@@ -13,12 +13,34 @@ export default function Login({ onLoginSuccess }) {
     e.preventDefault();
     setError('');
     try {
-      const { data } = await api.post('/login', loginData);
-      if (data.error) throw new Error(data.error || 'Login failed');
+      const password = loginData.password;
+      const username = loginData.username;
+      if (!username || !password) {
+        throw new Error('Username and password are required');
+      }
+      const { clientLoginState, startLoginRequest } = opaque.client.startLogin({
+        password,
+      });
 
-      if (data.token) {
-        localStorage.setItem('token', data.token); // Save JWT
-        onLoginSuccess(data); // Pass user info to parent
+      const response1 = await api.post('/initiatelogin', { clientLoginState, startLoginRequest, userIdentifier: username });
+      const loginResponse = response1.data.loginResponse;
+      const loginResult = opaque.client.finishLogin({
+        clientLoginState,
+        loginResponse,
+        password,
+      });
+      if (!loginResult) {
+        throw new Error("Login failed");
+      }
+      const { finishLoginRequest, sessionKey } = loginResult;
+
+      const response2 = await api.post('/finaliselogin', { finishLoginRequest, clientSessionKey: sessionKey, userIdentifier: username });
+
+      if (response2.data.error) throw new Error(response2.data.error || 'Login failed');
+
+      if (response2.data.token) {
+        localStorage.setItem('token', response2.data.token); // Save JWT
+        onLoginSuccess(response2.data); // Pass user info to parent
       } else {
         throw new Error('No token received');
       }
@@ -33,13 +55,15 @@ export default function Login({ onLoginSuccess }) {
     try {
       const password = registerData.password;
       const username = registerData.username;
+      if (!username || !password) {
+        throw new Error('Username and password are required');
+      }
       const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
-
-      var { data } = await api.post('/initiateregister', { userIdentifier: username, registrationRequest: registrationRequest });
-
-      if (data.error) throw new Error(data.error || 'Registration failed');
-      console.log("Registration response:", data);
-      const registrationResponse = data.registrationResponse;
+      const response1 = await api.post('/initiateregister', { userIdentifier: username, registrationRequest: registrationRequest });
+      console.log(response1)
+      if (response1.data.error) throw new Error(response1.data.error || 'Registration failed');
+      console.log("Registration response:", response1.data);
+      const registrationResponse = response1.data.registrationResponse;
       const { registrationRecord } = opaque.client.finishRegistration({
         clientRegistrationState,
         registrationResponse,
@@ -50,13 +74,13 @@ export default function Login({ onLoginSuccess }) {
       const publicKey = "asd"; // Replace with actual key generation logic
       const encryptedPrivateKey = "asd"; // Replace with actual key generation logic
 
-      var { data } = await api.post('/register', { registrationRecord, userIdentifier: username, publicKey, encryptedPrivateKey });
-      
-      console.log("Token data:", data);
+      const response2 = await api.post('/finaliseregister', { registrationRecord, userIdentifier: username, publicKey, encryptedPrivateKey });
 
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        onLoginSuccess(data);
+      console.log("Token data:", response2.data);
+
+      if (response2.data.token) {
+        localStorage.setItem('token', response2.data.token);
+        onLoginSuccess(response2.data);
       } else {
         alert('Registered! You can now log in.');
       }
