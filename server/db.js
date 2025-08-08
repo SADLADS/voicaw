@@ -119,4 +119,16 @@ CREATE TABLE IF NOT EXISTS dm_unread (
 );
 `);
 
+// LOGIN STATES
+db.run(`
+CREATE TABLE IF NOT EXISTS login_states (
+  user_name TEXT NOT NULL,
+  server_login_state TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s','now')),
+  PRIMARY KEY (user_name),
+  FOREIGN KEY (user_name) REFERENCES users(username)
+);
+`);
+
 module.exports = db;
