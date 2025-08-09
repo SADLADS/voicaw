@@ -98,6 +98,12 @@ app.post('/api/finaliselogin', (req, res) => {
   db.get('SELECT * FROM login_states WHERE user_name = ?', [userIdentifier], (err, user) => {
     if (err) return res.status(500).json({ error: 'DB error' });
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    db.run(`DELETE FROM login_states WHERE user_name = ?`, [userIdentifier], (err) => {
+      if (err) {
+        console.error("Failed to delete login state:", err);
+      }
+    });
+
     if (Math.floor(Date.now() / 1000) > user.expires_at) return res.status(401).json({ error: 'Login state expired' });
 
     const serverLoginState = JSON.parse(user.server_login_state);
@@ -132,13 +138,14 @@ app.post('/api/initiateregister', (req, res) => {
 
 // Register route
 app.post('/api/finaliseregister', (req, res) => {
-  const { registrationRecord, userIdentifier, publicKey, encryptedPrivateKey } = req.body;
+  const { registrationRecord, userIdentifier, publicKey, encryptedPrivateKey, salt, iv } = req.body;
+
   // Check that all data is here
   if (!userIdentifier || !registrationRecord) return res.status(400).json({ error: 'Missing username or registrationRecord' });
   if (!publicKey || !encryptedPrivateKey) return res.status(400).json({ error: 'Missing public key or private key' });
   // Attempt to insert user into DB
-  db.run(`INSERT INTO users (username, password, public_key, private_key) VALUES (?, ?, ?, ?)`,
-    [userIdentifier, registrationRecord, publicKey, encryptedPrivateKey], function (err) {
+  db.run(`INSERT INTO users (username, password, public_key, private_key, salt, iv) VALUES (?, ?, ?, ?, ?, ?)`,
+    [userIdentifier, registrationRecord, publicKey, encryptedPrivateKey, salt, iv], function (err) {
       if (err) {
         // If username already exists, return 409
         if (err.message.includes('UNIQUE constraint failed')) {
