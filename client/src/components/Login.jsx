@@ -37,12 +37,13 @@ export default function Login({ onLoginSuccess }) {
       const response2 = await api.post('/finaliselogin', { finishLoginRequest, clientSessionKey: sessionKey, userIdentifier: username });
 
       if (response2.data.error) throw new Error(response2.data.error || 'Login failed');
-
-      if (response2.data.token) {
+      if (response2.data.token && response2.data.private_key && response2.data.salt && response2.data.iv) {
+        const privateKey = await decryptPrivateKey(base64ToArrayBuffer(response2.data.private_key), password, base64ToArrayBuffer(response2.data.salt), base64ToArrayBuffer(response2.data.iv));
+        localStorage.setItem('privateKey', arrayBufferToBase64(privateKey)); // Save decrypted private key - fix this later
         localStorage.setItem('token', response2.data.token); // Save JWT
         onLoginSuccess(response2.data); // Pass user info to parent
       } else {
-        throw new Error('No token received');
+        throw new Error('No token or private key received');
       }
     } catch (err) {
       setError(err.message);
