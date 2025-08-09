@@ -72,9 +72,9 @@ app.post('/api/initiatelogin', (req, res) => {
     const expiresAt = now + expiresInSeconds;
 
     db.run(`
-    INSERT INTO login_states (user_name, server_login_state, expires_at)
+    INSERT INTO login_states (username, server_login_state, expires_at)
     VALUES (?, ?, ?)
-    ON CONFLICT(user_name) DO UPDATE SET
+    ON CONFLICT(username) DO UPDATE SET
       server_login_state = excluded.server_login_state,
       expires_at = excluded.expires_at
   `,
@@ -95,7 +95,7 @@ app.post('/api/finaliselogin', (req, res) => {
   const { finishLoginRequest, clientSessionKey, userIdentifier } = req.body;
   console.log("finishLoginRequest", finishLoginRequest, clientSessionKey, userIdentifier)
   if (!finishLoginRequest || !clientSessionKey || !userIdentifier) return res.status(400).json({ error: 'Missing data' });
-  db.get('SELECT * FROM login_states WHERE user_name = ?', [userIdentifier], (err, user) => { // maybe do a join with users table to get key data?
+  db.get('SELECT * FROM login_states WHERE username = ?', [userIdentifier], (err, user) => { // maybe do a join with users table to get key data?
     if (err) return res.status(500).json({ error: 'DB error' });
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
@@ -110,7 +110,7 @@ app.post('/api/finaliselogin', (req, res) => {
       return res.status(401).json({ error: 'Login failed' });
     } else {
       // delete login state on successful login
-      db.run(`DELETE FROM login_states WHERE user_name = ?`, [userIdentifier], (err) => {
+      db.run(`DELETE FROM login_states WHERE username = ?`, [userIdentifier], (err) => {
         if (err) {
           console.error("Failed to delete login state:", err);
         }
