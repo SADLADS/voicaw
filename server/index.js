@@ -375,7 +375,7 @@ app.get('/api/dm-get-unread/', authenticateJWT, (req, res) => {
 function getRecentDmsForUser(loggedInUserId, callback) {
   db.all(
     `
-    SELECT u.id, u.username,
+    SELECT u.id, u.username, u.public_key,
            MAX(m.timestamp) as last_timestamp
     FROM users u
     LEFT JOIN direct_messages m
