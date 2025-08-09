@@ -115,11 +115,11 @@ app.post('/api/finaliselogin', (req, res) => {
           console.error("Failed to delete login state:", err);
         }
       });
-      db.get('SELECT salt, iv, private_key FROM users WHERE username = ?', [userIdentifier], (err, userKeyData) => {
+      db.get('SELECT id, salt, iv, private_key FROM users WHERE username = ?', [userIdentifier], (err, userKeyData) => {
         if (err) return res.status(500).json({ error: 'DB error' });
         if (!userKeyData) return res.status(404).json({ error: 'User not found' });
         const { salt, iv, private_key } = userKeyData;
-        const token = generateToken(user);
+        const token = generateToken({id: userKeyData.id, username: userIdentifier});
         res.json({ token, id: user.id, salt, iv, private_key });
       });
     }
@@ -401,6 +401,7 @@ function generateToken(user) {
     id: user.id,
     username: user.username,
   };
+  console.log("Generating token for user:", payload);
   // Token expires in 1 day
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
 }
