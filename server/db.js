@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
   password TEXT NOT NULL,
+  salt TEXT NOT NULL,
+  iv TEXT NOT NULL,
   avatar TEXT,
   description TEXT,
   last_online INTEGER DEFAULT (strftime('%s','now')),
