@@ -156,7 +156,6 @@ export default function Dm({ user }) {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    console.log(messages[0].id, hasMore)
     if (!inputValue.trim() || !chatUser) return;
 
     try {
