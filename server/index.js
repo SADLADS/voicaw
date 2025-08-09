@@ -95,14 +95,9 @@ app.post('/api/finaliselogin', (req, res) => {
   const { finishLoginRequest, clientSessionKey, userIdentifier } = req.body;
   console.log("finishLoginRequest", finishLoginRequest, clientSessionKey, userIdentifier)
   if (!finishLoginRequest || !clientSessionKey || !userIdentifier) return res.status(400).json({ error: 'Missing data' });
-  db.get('SELECT * FROM login_states WHERE user_name = ?', [userIdentifier], (err, user) => {
+  db.get('SELECT * FROM login_states WHERE user_name = ?', [userIdentifier], (err, user) => { // maybe do a join with users table to get key data?
     if (err) return res.status(500).json({ error: 'DB error' });
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-    db.run(`DELETE FROM login_states WHERE user_name = ?`, [userIdentifier], (err) => {
-      if (err) {
-        console.error("Failed to delete login state:", err);
-      }
-    });
 
     if (Math.floor(Date.now() / 1000) > user.expires_at) return res.status(401).json({ error: 'Login state expired' });
 
@@ -114,8 +109,19 @@ app.post('/api/finaliselogin', (req, res) => {
     if (!sessionKey || sessionKey !== clientSessionKey) {
       return res.status(401).json({ error: 'Login failed' });
     } else {
-      const token = generateToken(user);
-      res.json({ token });
+      // delete login state on successful login
+      db.run(`DELETE FROM login_states WHERE user_name = ?`, [userIdentifier], (err) => {
+        if (err) {
+          console.error("Failed to delete login state:", err);
+        }
+      });
+      db.get('SELECT salt, iv, private_key FROM users WHERE username = ?', [userIdentifier], (err, userKeyData) => {
+        if (err) return res.status(500).json({ error: 'DB error' });
+        if (!userKeyData) return res.status(404).json({ error: 'User not found' });
+        const { salt, iv, private_key } = userKeyData;
+        const token = generateToken(user);
+        res.json({ token, id: user.id, salt, iv, private_key });
+      });
     }
   });
 });
