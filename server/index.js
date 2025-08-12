@@ -342,6 +342,23 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
               }));
             }
 
+            db.get('SELECT subscription FROM push_subscriptions WHERE user_id = ?', [recipient_id], (err, row) => {
+              if (err || !row) return;
+
+              const subscription = JSON.parse(row.subscription);
+
+              const payload = JSON.stringify({
+                title: 'New Message',
+                body: `From ${req.user.username}: ${content.trim()}`,
+                url: `/dm/${req.user.id}`
+              });
+
+              webpush.sendNotification(subscription, payload).catch(error => {
+                console.error('Push notification error:', error);
+                // delete subscription if 410 error here
+              });
+            });
+
             res.status(201).json(message);
           }
         );
