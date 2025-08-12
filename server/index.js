@@ -6,8 +6,15 @@ const jwt = require('jsonwebtoken');
 const opaque = require('@serenity-kit/opaque');
 const db = require('./db');
 const cors = require('cors');
+const webpush = require('web-push');
 
 require('dotenv').config();
+
+webpush.setVapidDetails(
+  process.env.VAPID_EMAIL,
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+);
 
 
 const app = express();
@@ -194,6 +201,31 @@ app.get('/api/dms-list', authenticateJWT, (req, res) => {
     res.json(users);
   });
 });
+
+
+app.post('/api/save-subscription', authenticateJWT, (req, res) => {
+  const userId = req.user.id;
+  const subscription = req.body.subscription;
+
+  if (!subscription) {
+    return res.status(400).json({ error: 'Missing subscription' });
+  }
+
+  const subString = JSON.stringify(subscription);
+
+  db.run(`
+    INSERT INTO push_subscriptions (user_id, subscription)
+    VALUES (?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET subscription=excluded.subscription
+  `, [userId, subString], (err) => {
+    if (err) {
+      console.error('Failed to save subscription:', err);
+      return res.status(500).json({ error: 'Failed to save subscription' });
+    }
+    res.json({ success: true });
+  });
+});
+
 
 
 app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
