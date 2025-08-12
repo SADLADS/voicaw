@@ -98,17 +98,23 @@ export default function Dm({ user }) {
   useEffect(() => {
     if (!user?.id || !chatUser?.id) return;
 
-    const unsubscribe = onNewDm((message) => {
-      const fromId = message.sender_id.toString();
+    const unsubscribe = onNewDm(async (message) => {
+
+      const plaintext = message.plaintext || await decryptMessage(message.content, sharedKey);
+
+      console.log(plaintext)
+      const decryptedNewMessage =  { ...message, plaintext };
+
+      const fromId = decryptedNewMessage.sender_id.toString();
       const currentChatUserId = chatUser.id.toString();
       const currentUserId = user.id.toString();
 
       const isIncomingFromCurrentChatUser = fromId === currentChatUserId;
       const isOutgoingFromSelf =
-        fromId === currentUserId && message.recipient_id.toString() === currentChatUserId;
+        fromId === currentUserId && decryptedNewMessage.recipient_id.toString() === currentChatUserId;
 
       if (isIncomingFromCurrentChatUser || isOutgoingFromSelf) {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => [...prev, decryptedNewMessage]);
         if (isIncomingFromCurrentChatUser) {
           markRead();
         }
