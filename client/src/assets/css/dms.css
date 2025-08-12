@@ -46,12 +46,13 @@ body {
 }
 
 .dm-user {
+  align-items: center;
   position: relative;
   padding: 8px;
   border-radius: 8px;
   color: white;
   text-decoration: none;
-  display: block;
+  display: flex;
   border: 1px solid var(--vc-bg-base);
   margin-left:10px;
   margin-right:10px;
@@ -191,4 +192,20 @@ small {
   #dm-sidebar{
     width:calc(100% - 72px);
   }
+}
+
+.online-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  transform: rotate(45deg); /* makes a square into a diamond */
+}
+
+.online-dot.online {
+  background-color: var(--vc-online);
+}
+
+.online-dot.offline {
+  background-color: var(--vc-border-light); /* muted grey from your palette */
 }

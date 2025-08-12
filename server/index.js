@@ -119,7 +119,7 @@ app.post('/api/finaliselogin', (req, res) => {
         if (err) return res.status(500).json({ error: 'DB error' });
         if (!userKeyData) return res.status(404).json({ error: 'User not found' });
         const { private_key } = userKeyData;
-        const token = generateToken({id: userKeyData.id, username: userIdentifier});
+        const token = generateToken({ id: userKeyData.id, username: userIdentifier });
         res.json({ token, id: user.id, private_key });
       });
     }
@@ -153,7 +153,7 @@ app.post('/api/finaliseregister', (req, res) => {
   db.run(`INSERT INTO users (username, password, public_key, private_key) VALUES (?, ?, ?, ?)`,
     [userIdentifier, registrationRecord, publicKey, encryptedPrivateKey], function (err) {
       if (err) {
-        console.log("ERROR",err)
+        console.log("ERROR", err)
         // If username already exists, return 409
         if (err.message.includes('UNIQUE constraint failed')) {
           return res.status(409).json({ error: 'Username already exists' });
@@ -392,7 +392,11 @@ function getRecentDmsForUser(loggedInUserId, callback) {
     [loggedInUserId, loggedInUserId, loggedInUserId],
     (err, rows) => {
       if (err) return callback(err);
-      callback(null, rows);
+      const enhancedRows = rows.map(user => ({
+        ...user,
+        online: clients.has(user.id.toString())
+      }));
+      callback(null, enhancedRows);
     }
   );
 }
