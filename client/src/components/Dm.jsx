@@ -10,6 +10,7 @@ import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import rehypeHighlight from 'rehype-highlight';
 import { Virtuoso } from 'react-virtuoso';
+import { encryptMessage, decryptMessage, deriveSharedKey } from '../services/encryptionService';
 
 function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, firstItemIndex }) {
   return (
@@ -28,7 +29,7 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, firstI
             remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
             rehypePlugins={[rehypeHighlight]}
           >
-            {msg.content}
+            {msg.plaintext}
           </ReactMarkdown>
         </div>
       )}
@@ -64,7 +65,7 @@ export default function Dm({ user }) {
     setHasMore(true);
     if (!id) return;
     fetchMessages();
-  }, [id]);
+  }, [id, chatUser]);
 
 
   useEffect(() => {
@@ -115,10 +116,28 @@ export default function Dm({ user }) {
   async function fetchMessages(beforeId = null) {
     try {
       const data = await fetchMessagesForUser(id, { before: beforeId });
+
+      const privatePEM = localStorage.getItem('privateKey');
+      if (!privatePEM) throw new Error("No private key found for decryption.");
+
+      const decryptedNewMessages = await Promise.all(data.map(async (msg) => {
+        try {
+          const sharedKey = await deriveSharedKey(privatePEM, chatUser.public_key);
+          const plaintext = await decryptMessage(msg.content, sharedKey);
+          console.log(plaintext)
+          return { ...msg, plaintext };
+        } catch (e) {
+          console.warn("Failed to decrypt message", msg.id, e);
+          return { ...msg, plaintext: null };
+        }
+      }));
+
+      console.log("decccc",decryptedNewMessages)
+
       if (beforeId) {
-        setMessages((prev) => [...data, ...prev]);
+        setMessages((prev) => [...decryptedNewMessages, ...prev]);
       } else {
-        setMessages(data);
+        setMessages(decryptedNewMessages);
       }
       setHasMore(data.length > 0);
       setErrorMessages(null);
@@ -158,30 +177,13 @@ export default function Dm({ user }) {
     if (!inputValue.trim() || !chatUser) return;
 
     try {
-      // encrypt
-      // console.log("pubkey", chatUser.public_key)
-      // const message = inputValue.trim();
-      // const pubKeyBuffer = base64ToArrayBuffer(chatUser.public_key);
-      // console.log("pubKeyBuffer", pubKeyBuffer);
-      // const privateKey = localStorage.getItem('privateKey')
-      // console.log("privateKey", privateKey);
-      // const privateKeyBuffer = base64ToArrayBuffer(privateKey);
-      // const signatureBytes = await signMessage(privateKeyBuffer, message);
-
-      // const encoder = new TextEncoder();
-      // console.log("signatureBytes", signatureBytes);
-      // const payload = JSON.stringify({
-      //   message,
-      //   signature: btoa(String.fromCharCode(...signatureBytes))
-      // });
-      // console.log("payload", payload);
-
-      // const encrypted = await encryptMessage(pubKeyBuffer, encoder.encode(payload));
-      // console.log("encrypted", encrypted);
-
-      await sendMessageToUser(chatUser.id, message);
-      
       setInputValue('');
+      const message = inputValue.trim();
+      const sharedKey = await deriveSharedKey(localStorage.getItem('privateKey'), chatUser.public_key)
+      const encryptedMessage = await encryptMessage(message, sharedKey)
+      await sendMessageToUser(chatUser.id, encryptedMessage);
+
+      
       setErrorMessages(null);
       await fetchMessages();
     } catch (error) {

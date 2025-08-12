@@ -199,7 +199,7 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
   const otherUserId = parseInt(req.params.otherUserId, 10);
   const beforeId = req.query.before;
   const params = [loggedInUserId, otherUserId, otherUserId, loggedInUserId];
-  const limit = 20;
+  const limit = 10;
   if (isNaN(otherUserId)) return res.status(400).json({ error: 'Invalid user ID' });
   var query = `
     SELECT dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, u.username AS sender_username
@@ -281,7 +281,7 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
               return res.status(500).json({ error: 'Failed to send message' });
             }
 
-            console.log(`User ${message.recipient_id} received a new DM from ${message.sender_name}: "${message.content.trim()}"`);
+            console.log(`User ${message.recipient_id} received a new DM from ${message.sender_username}: "${message.content.trim()}"`);
 
             db.run(
               `
