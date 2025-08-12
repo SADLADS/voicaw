@@ -1,3 +1,11 @@
+function pemToArrayBuffer(pem) {
+    const b64 = pem.replace(/-----.*-----/g, '').replace(/\s/g, '');
+    const binary = atob(b64);
+    const buffer = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) buffer[i] = binary.charCodeAt(i);
+    return buffer.buffer;
+}
+
 export async function generateECDH_P256_PEM() {
     const kp = await crypto.subtle.generateKey(
         { name: "ECDH", namedCurve: "P-256" },
@@ -5,7 +13,7 @@ export async function generateECDH_P256_PEM() {
         ["deriveKey"]
     );
 
-    const pub = await crypto.subtle.exportKey("raw", kp.publicKey);
+    const pub = await crypto.subtle.exportKey("spki", kp.publicKey);
     const priv = await crypto.subtle.exportKey("pkcs8", kp.privateKey);
 
     const toPEM = (buf, type) => {
@@ -98,5 +106,69 @@ export async function decryptPrivateKey(encryptedB64, password) {
         key,
         data
     );
+    return dec.decode(plaintextBuffer);
+}
+
+
+export async function deriveSharedKey(privatePEM, otherPublicPEM) {
+    const privateKey = await crypto.subtle.importKey(
+        "pkcs8",
+        pemToArrayBuffer(privatePEM),
+        { name: "ECDH", namedCurve: "P-256" },
+        false,
+        ["deriveKey"]
+    );
+
+    const publicKey = await crypto.subtle.importKey(
+        "spki",
+        pemToArrayBuffer(otherPublicPEM),
+        { name: "ECDH", namedCurve: "P-256" },
+        false,
+        []
+    );
+
+    const derivedKey = await crypto.subtle.deriveKey(
+        {
+            name: "ECDH",
+            public: publicKey,
+        },
+        privateKey,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+    );
+
+    return derivedKey;
+}
+
+export async function encryptMessage(message, aesKey) {
+    const enc = new TextEncoder();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        aesKey,
+        enc.encode(message)
+    );
+
+    const combined = new Uint8Array(iv.byteLength + ciphertext.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(ciphertext), iv.byteLength);
+
+    return btoa(String.fromCharCode(...combined));
+}
+
+export async function decryptMessage(encryptedB64, aesKey) {
+    const dec = new TextDecoder();
+    const encryptedBytes = Uint8Array.from(atob(encryptedB64), c => c.charCodeAt(0));
+
+    const iv = encryptedBytes.slice(0, 12);
+    const data = encryptedBytes.slice(12);
+
+    const plaintextBuffer = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        aesKey,
+        data
+    );
+
     return dec.decode(plaintextBuffer);
 }
