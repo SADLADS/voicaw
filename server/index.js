@@ -115,12 +115,12 @@ app.post('/api/finaliselogin', (req, res) => {
           console.error("Failed to delete login state:", err);
         }
       });
-      db.get('SELECT id, salt, iv, private_key FROM users WHERE username = ?', [userIdentifier], (err, userKeyData) => {
+      db.get('SELECT id, private_key FROM users WHERE username = ?', [userIdentifier], (err, userKeyData) => {
         if (err) return res.status(500).json({ error: 'DB error' });
         if (!userKeyData) return res.status(404).json({ error: 'User not found' });
-        const { salt, iv, private_key } = userKeyData;
+        const { private_key } = userKeyData;
         const token = generateToken({id: userKeyData.id, username: userIdentifier});
-        res.json({ token, id: user.id, salt, iv, private_key });
+        res.json({ token, id: user.id, private_key });
       });
     }
   });
@@ -144,15 +144,16 @@ app.post('/api/initiateregister', (req, res) => {
 
 // Register route
 app.post('/api/finaliseregister', (req, res) => {
-  const { registrationRecord, userIdentifier, publicKey, encryptedPrivateKey, salt, iv } = req.body;
+  const { registrationRecord, userIdentifier, publicKey, encryptedPrivateKey } = req.body;
 
   // Check that all data is here
   if (!userIdentifier || !registrationRecord) return res.status(400).json({ error: 'Missing username or registrationRecord' });
   if (!publicKey || !encryptedPrivateKey) return res.status(400).json({ error: 'Missing public key or private key' });
   // Attempt to insert user into DB
-  db.run(`INSERT INTO users (username, password, public_key, private_key, salt, iv) VALUES (?, ?, ?, ?, ?, ?)`,
-    [userIdentifier, registrationRecord, publicKey, encryptedPrivateKey, salt, iv], function (err) {
+  db.run(`INSERT INTO users (username, password, public_key, private_key) VALUES (?, ?, ?, ?)`,
+    [userIdentifier, registrationRecord, publicKey, encryptedPrivateKey], function (err) {
       if (err) {
+        console.log("ERROR",err)
         // If username already exists, return 409
         if (err.message.includes('UNIQUE constraint failed')) {
           return res.status(409).json({ error: 'Username already exists' });
