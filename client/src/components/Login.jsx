@@ -43,19 +43,28 @@ export default function Login({ onLoginSuccess }) {
         localStorage.setItem('privateKey', privateKey); // Save decrypted private key - fix this later
         localStorage.setItem('token', response2.data.token); // Save JWT
 
-        if ('serviceWorker' in navigator && 'PushManager' in window) {
-          const reg = await navigator.serviceWorker.ready;
+        try {
+          if ('serviceWorker' in navigator && 'PushManager' in window) {
+            console.log("Registering service worker for push notifications");
+            const reg = await navigator.serviceWorker.ready;
+            console.log('Service worker ready:', reg);
+            const convertedKey = urlBase64ToUint8Array(response2.data.vapidPubKey);
 
-          const convertedKey = urlBase64ToUint8Array(response2.data.vapidPubKey);
+            const existingSub = await reg.pushManager.getSubscription();
+            if (existingSub) {
+              await existingSub.unsubscribe();
+            }
+            const subscription = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: convertedKey
+            });
 
-          const subscription = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: convertedKey
-          });
-
-          console.log('Push subscription:', subscription);
-
-          await api.post('/save-subscription', { subscription });
+            console.log('Push subscription:', subscription);
+            await api.post('/save-subscription', { subscription });
+          }
+        } catch (pushError) {
+          console.warn('Push subscription failed (non-critical):', pushError);
+          // tell the user that it failed?
         }
 
         function urlBase64ToUint8Array(base64String) {
@@ -82,6 +91,7 @@ export default function Login({ onLoginSuccess }) {
       }
     } catch (err) {
       setError(err.message);
+      console.error('Login error:', err);
     }
   }
 
