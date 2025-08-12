@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import '../assets/css/login.css';
 import api from '../utils/api';
 import * as opaque from "@serenity-kit/opaque";
-import { generateECDSA_P256_PEM, encryptPrivateKey, decryptPrivateKey } from '../services/encryptionService';
+import { generateECDH_P256_PEM, encryptPrivateKey, decryptPrivateKey } from '../services/encryptionService';
 
 export default function Login({ onLoginSuccess }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
@@ -61,7 +61,7 @@ export default function Login({ onLoginSuccess }) {
       }
       const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
 
-      const { publicPEM, privatePEM } = await generateECDSA_P256_PEM();
+      const { publicPEM, privatePEM } = await generateECDH_P256_PEM();
 
       const encryptedPrivatePEM = await encryptPrivateKey(privatePEM, password);
 
