@@ -1,11 +1,11 @@
-export async function generateECDSA_P256_PEM() {
+export async function generateECDH_P256_PEM() {
     const kp = await crypto.subtle.generateKey(
-        { name: "ECDSA", namedCurve: "P-256" },
+        { name: "ECDH", namedCurve: "P-256" },
         true,
-        ["sign", "verify"]
+        ["deriveKey"]
     );
 
-    const pub = await crypto.subtle.exportKey("spki", kp.publicKey);
+    const pub = await crypto.subtle.exportKey("raw", kp.publicKey);
     const priv = await crypto.subtle.exportKey("pkcs8", kp.privateKey);
 
     const toPEM = (buf, type) => {
@@ -20,6 +20,7 @@ export async function generateECDSA_P256_PEM() {
     return {
         publicPEM: toPEM(pub, "PUBLIC KEY"),
         privatePEM: toPEM(priv, "PRIVATE KEY"),
+        keyPair: kp,
     };
 }
 
