@@ -22,6 +22,7 @@ export default function App() {
   async function handleLogout() {
     try {
       localStorage.removeItem('token');
+      localStorage.removeItem('privateKey');
       setUser(null);
     } catch (err) {
       console.error('Logout failed', err);

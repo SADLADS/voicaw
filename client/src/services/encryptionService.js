@@ -1,32 +1,43 @@
-export function arrayBufferToBase64(buffer) {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
+export async function generateECDSA_P256_PEM() {
+    const kp = await crypto.subtle.generateKey(
+        { name: "ECDSA", namedCurve: "P-256" },
+        true,
+        ["sign", "verify"]
+    );
+
+    const pub = await crypto.subtle.exportKey("spki", kp.publicKey);
+    const priv = await crypto.subtle.exportKey("pkcs8", kp.privateKey);
+
+    const toPEM = (buf, type) => {
+        const bytes = new Uint8Array(buf);
+        let binary = "";
+        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+        const b64 = btoa(binary);
+        const lines = b64.match(/.{1,64}/g).join("\n");
+        return `-----BEGIN ${type}-----\n${lines}\n-----END ${type}-----\n`;
+    };
+
+    return {
+        publicPEM: toPEM(pub, "PUBLIC KEY"),
+        privatePEM: toPEM(priv, "PRIVATE KEY"),
+    };
 }
 
-export function base64ToArrayBuffer(base64) {
-    const binary = atob(base64);
-    const len = binary.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes.buffer;
-}
-
-async function deriveKey(password, salt) {
+export async function encryptPrivateKey(privatePEM, password) {
     const enc = new TextEncoder();
+
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+
     const keyMaterial = await crypto.subtle.importKey(
         "raw",
         enc.encode(password),
-        "PBKDF2",
+        { name: "PBKDF2" },
         false,
         ["deriveKey"]
     );
-    return crypto.subtle.deriveKey(
+
+    const key = await crypto.subtle.deriveKey(
         {
             name: "PBKDF2",
             salt,
@@ -36,40 +47,55 @@ async function deriveKey(password, salt) {
         keyMaterial,
         { name: "AES-GCM", length: 256 },
         false,
-        ["encrypt", "decrypt"]
+        ["encrypt"]
     );
-}
 
-
-export async function generateKeyPair() {
-    const keyPair = await crypto.subtle.generateKey(
-        { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
-        true,
-        ["encrypt", "decrypt"]
-    );
-    const publicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
-    const privateKey = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
-    return { publicKey, privateKey };
-}
-
-
-export async function encryptPrivateKey(privateKey, password, salt, iv) {
-    const key = await deriveKey(password, salt);
-    const encrypted = await crypto.subtle.encrypt(
+    const ciphertext = await crypto.subtle.encrypt(
         { name: "AES-GCM", iv },
         key,
-        privateKey
+        enc.encode(privatePEM)
     );
-    const encryptedPrivateKey = new Uint8Array(encrypted);
-    return encryptedPrivateKey;
+
+    const combined = new Uint8Array(salt.byteLength + iv.byteLength + ciphertext.byteLength);
+    combined.set(salt, 0);
+    combined.set(iv, salt.byteLength);
+    combined.set(new Uint8Array(ciphertext), salt.byteLength + iv.byteLength);
+
+    return btoa(String.fromCharCode(...combined));
 }
 
-export async function decryptPrivateKey(encryptedPrivateKey, password, salt, iv) {
-    const key = await deriveKey(password, salt);
-    const decrypted = await crypto.subtle.decrypt(
+export async function decryptPrivateKey(encryptedB64, password) {
+    const enc = new TextEncoder();
+    const dec = new TextDecoder();
+    const encryptedBytes = Uint8Array.from(atob(encryptedB64), c => c.charCodeAt(0));
+
+    const salt = encryptedBytes.slice(0, 16);
+    const iv = encryptedBytes.slice(16, 28);
+    const data = encryptedBytes.slice(28);
+
+    const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(password),
+        { name: "PBKDF2" },
+        false,
+        ["deriveKey"]
+    );
+    const key = await crypto.subtle.deriveKey(
+        {
+            name: "PBKDF2",
+            salt,
+            iterations: 100000,
+            hash: "SHA-256"
+        },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["decrypt"]
+    );
+    const plaintextBuffer = await crypto.subtle.decrypt(
         { name: "AES-GCM", iv },
         key,
-        encryptedPrivateKey
+        data
     );
-    return new Uint8Array(decrypted);
+    return dec.decode(plaintextBuffer);
 }

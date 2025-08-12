@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import '../assets/css/login.css';
 import api from '../utils/api';
 import * as opaque from "@serenity-kit/opaque";
-import { arrayBufferToBase64, base64ToArrayBuffer, generateKeyPair, encryptPrivateKey, decryptPrivateKey } from '../services/encryptionService';
+import { generateECDSA_P256_PEM, encryptPrivateKey, decryptPrivateKey } from '../services/encryptionService';
 
 export default function Login({ onLoginSuccess }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
@@ -37,9 +37,9 @@ export default function Login({ onLoginSuccess }) {
       const response2 = await api.post('/finaliselogin', { finishLoginRequest, clientSessionKey: sessionKey, userIdentifier: username });
 
       if (response2.data.error) throw new Error(response2.data.error || 'Login failed');
-      if (response2.data.token && response2.data.private_key && response2.data.salt && response2.data.iv) {
-        const privateKey = await decryptPrivateKey(base64ToArrayBuffer(response2.data.private_key), password, base64ToArrayBuffer(response2.data.salt), base64ToArrayBuffer(response2.data.iv));
-        localStorage.setItem('privateKey', arrayBufferToBase64(privateKey)); // Save decrypted private key - fix this later
+      if (response2.data.token && response2.data.private_key) {
+        const privateKey = await decryptPrivateKey(response2.data.private_key, password);
+        localStorage.setItem('privateKey', privateKey); // Save decrypted private key - fix this later
         localStorage.setItem('token', response2.data.token); // Save JWT
         onLoginSuccess(response2.data); // Pass user info to parent
       } else {
@@ -60,6 +60,13 @@ export default function Login({ onLoginSuccess }) {
         throw new Error('Username and password are required');
       }
       const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
+
+      const { publicPEM, privatePEM } = await generateECDSA_P256_PEM();
+
+      const encryptedPrivatePEM = await encryptPrivateKey(privatePEM, password);
+
+
+
       const response1 = await api.post('/initiateregister', { userIdentifier: username, registrationRequest: registrationRequest });
       console.log(response1)
       if (response1.data.error) throw new Error(response1.data.error || 'Registration failed');
@@ -72,29 +79,12 @@ export default function Login({ onLoginSuccess }) {
       });
       console.log("Registration record:", registrationRecord);
 
-      const { publicKey, privateKey } = await generateKeyPair();
-      console.log("Generated keys:", publicKey, privateKey);
-      const salt = crypto.getRandomValues(new Uint8Array(16));
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-
-      const encryptedPrivateKey = await encryptPrivateKey(privateKey, password, salt, iv);
-
-      const publicKeyBase64 = arrayBufferToBase64(publicKey);
-      const encryptedPrivateKeyBase64 = arrayBufferToBase64(encryptedPrivateKey);
-      const saltBase64 = arrayBufferToBase64(salt);
-      const ivBase64 = arrayBufferToBase64(iv);
-
-      const response2 = await api.post('/finaliseregister', { registrationRecord, userIdentifier: username, publicKey: publicKeyBase64, encryptedPrivateKey: encryptedPrivateKeyBase64, salt: saltBase64, iv: ivBase64 });
-
-      console.log("real privateKey", arrayBufferToBase64(privateKey)); //delete this line in production
+      const response2 = await api.post('/finaliseregister', { registrationRecord, userIdentifier: username, publicKey: publicPEM, encryptedPrivateKey: encryptedPrivatePEM });
 
       console.log("Token data:", response2.data);
-      console.log("encrypted Private key:", encryptedPrivateKeyBase64);
-
-
 
       if (response2.data.token) {
-        localStorage.setItem('privateKey', privateKey);
+        localStorage.setItem('privateKey', privatePEM); // Save decrypted private key - fix this later?
         localStorage.setItem('token', response2.data.token);
         onLoginSuccess(response2.data);
       } else {
@@ -107,7 +97,7 @@ export default function Login({ onLoginSuccess }) {
 
 
 
-  
+
 
 
   return (

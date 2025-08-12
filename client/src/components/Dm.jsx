@@ -11,7 +11,6 @@ import remarkEmoji from 'remark-emoji';
 import rehypeHighlight from 'rehype-highlight';
 import { Virtuoso } from 'react-virtuoso';
 
-
 function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, firstItemIndex }) {
   return (
     <Virtuoso
@@ -159,11 +158,34 @@ export default function Dm({ user }) {
     if (!inputValue.trim() || !chatUser) return;
 
     try {
-      await sendMessageToUser(chatUser.id, inputValue.trim());
+      // encrypt
+      // console.log("pubkey", chatUser.public_key)
+      // const message = inputValue.trim();
+      // const pubKeyBuffer = base64ToArrayBuffer(chatUser.public_key);
+      // console.log("pubKeyBuffer", pubKeyBuffer);
+      // const privateKey = localStorage.getItem('privateKey')
+      // console.log("privateKey", privateKey);
+      // const privateKeyBuffer = base64ToArrayBuffer(privateKey);
+      // const signatureBytes = await signMessage(privateKeyBuffer, message);
+
+      // const encoder = new TextEncoder();
+      // console.log("signatureBytes", signatureBytes);
+      // const payload = JSON.stringify({
+      //   message,
+      //   signature: btoa(String.fromCharCode(...signatureBytes))
+      // });
+      // console.log("payload", payload);
+
+      // const encrypted = await encryptMessage(pubKeyBuffer, encoder.encode(payload));
+      // console.log("encrypted", encrypted);
+
+      await sendMessageToUser(chatUser.id, message);
+      
       setInputValue('');
       setErrorMessages(null);
       await fetchMessages();
     } catch (error) {
+      console.error("Error sending message:", error);
       setErrorMessages(error.message);
     }
   };
