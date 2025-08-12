@@ -6,7 +6,6 @@ export async function fetchUsersList() {
   }
   
   export async function fetchMessagesForUser(userId, params = {}) {
-    console.log("fetchMessagesForUser", params)
     const res = await api.get(`/dm-messages/${userId}`, { params });
     return res.data;
   }
