@@ -120,7 +120,9 @@ app.post('/api/finaliselogin', (req, res) => {
         if (!userKeyData) return res.status(404).json({ error: 'User not found' });
         const { private_key } = userKeyData;
         const token = generateToken({ id: userKeyData.id, username: userIdentifier });
-        res.json({ token, id: user.id, private_key });
+        console.log(userKeyData.id)
+        const userId = userKeyData.id
+        res.json({ token, userId, private_key });
       });
     }
   });
@@ -435,6 +437,20 @@ function heartbeat() {
   this.isAlive = true;
 }
 
+function broadcastUserStatus(userId, status) {
+  const message = JSON.stringify({
+    type: 'user_status',
+    userId,
+    status, // 'online' or 'offline'
+  });
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  });
+}
+
+
 // -- Set up WebSocket Server --
 wss.on('connection', (ws) => {
   // console.log('New connection');
@@ -455,6 +471,7 @@ wss.on('connection', (ws) => {
           clients.set(user.id.toString(), ws);
           ws.userId = user.id.toString();
           console.log(`User identified as ${user.id}`);
+          broadcastUserStatus(user.id.toString(), 'online');
         });
       }
     } catch (err) {
@@ -467,6 +484,9 @@ wss.on('connection', (ws) => {
     const id = ws.userId || 'unknown';
     // console.log(`WebSocket closed for user ${id}. Code: ${code}, Reason: ${reason?.toString() || 'No reason'}`);
     clients.delete(id);
+    if (id !== 'unknown') {
+      broadcastUserStatus(id, 'offline');
+    }
   });
 
   ws.on('error', (err) => {

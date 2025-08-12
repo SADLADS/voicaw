@@ -9,6 +9,8 @@ import Calendar from './components/Calendar.jsx';
 import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
 
+import { closeWebSocket } from './utils/ws-client';
+
 export default function App() {
   const { user, setUser, loading } = useAuth();
 
@@ -23,6 +25,7 @@ export default function App() {
     try {
       localStorage.removeItem('token');
       localStorage.removeItem('privateKey');
+      closeWebSocket();
       setUser(null);
     } catch (err) {
       console.error('Logout failed', err);

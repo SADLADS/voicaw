@@ -3,6 +3,7 @@ import '../assets/css/login.css';
 import api from '../utils/api';
 import * as opaque from "@serenity-kit/opaque";
 import { generateECDH_P256_PEM, encryptPrivateKey, decryptPrivateKey } from '../services/encryptionService';
+import { connectWebSocket } from "../utils/ws-client"
 
 export default function Login({ onLoginSuccess }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
@@ -41,6 +42,7 @@ export default function Login({ onLoginSuccess }) {
         const privateKey = await decryptPrivateKey(response2.data.private_key, password);
         localStorage.setItem('privateKey', privateKey); // Save decrypted private key - fix this later
         localStorage.setItem('token', response2.data.token); // Save JWT
+        connectWebSocket(response2.data.userId);
         onLoginSuccess(response2.data); // Pass user info to parent
       } else {
         throw new Error('No token or private key received');
