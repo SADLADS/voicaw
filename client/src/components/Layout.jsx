@@ -60,7 +60,6 @@ export default function Layout({ user, onLogout }) {
     try {
       const res = await api.get('/dm-get-unread');
       const data = res.data;
-      console.log("data", data);
       setHasUnreadDms(data.length > 0);
       setUnreadDms(data);
     } catch (e) {
