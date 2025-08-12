@@ -205,6 +205,7 @@ app.get('/api/dms-list', authenticateJWT, (req, res) => {
 
 
 app.post('/api/save-subscription', authenticateJWT, (req, res) => {
+  console.log("save-subscription");
   const userId = req.user.id;
   const subscription = req.body.subscription;
 
@@ -212,13 +213,24 @@ app.post('/api/save-subscription', authenticateJWT, (req, res) => {
     return res.status(400).json({ error: 'Missing subscription' });
   }
 
-  const subString = JSON.stringify(subscription);
+  let subObj;
+  try {
+    subObj = typeof subscription === 'string' ? JSON.parse(subscription) : subscription;
+  } catch {
+    return res.status(400).json({ error: 'Invalid subscription format' });
+  }
+  const endpoint = subObj.endpoint;
+  if (!endpoint) {
+    return res.status(400).json({ error: 'Subscription endpoint missing' });
+  }
+
+  const subString = JSON.stringify(subObj);
 
   db.run(`
-    INSERT INTO push_subscriptions (user_id, subscription)
-    VALUES (?, ?)
-    ON CONFLICT(user_id) DO UPDATE SET subscription=excluded.subscription
-  `, [userId, subString], (err) => {
+    INSERT INTO push_subscriptions (user_id, endpoint, subscription)
+    VALUES (?, ?, ?)
+    ON CONFLICT(user_id, endpoint) DO UPDATE SET subscription=excluded.subscription
+  `, [userId, endpoint, subString], (err) => {
     if (err) {
       console.error('Failed to save subscription:', err);
       return res.status(500).json({ error: 'Failed to save subscription' });
@@ -226,6 +238,7 @@ app.post('/api/save-subscription', authenticateJWT, (req, res) => {
     res.json({ success: true });
   });
 });
+
 
 
 
@@ -343,20 +356,27 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
               }));
             }
 
-            db.get('SELECT subscription FROM push_subscriptions WHERE user_id = ?', [recipient_id], (err, row) => {
-              if (err || !row) return;
+            db.all('SELECT id, subscription FROM push_subscriptions WHERE user_id = ?', [recipient_id], (err, rows) => {
+              if (err || !rows || rows.length === 0) return;
 
-              const subscription = JSON.parse(row.subscription);
+              rows.forEach(row => {
+                const subscription = JSON.parse(row.subscription);
 
-              const payload = JSON.stringify({
-                title: req.user.username,
-                body: `New encrypted message.`,
-                url: `/dm/${req.user.id}`
-              });
+                webpush.sendNotification(subscription, payload)
+                  .catch(error => {
+                    console.error('Push notification error:', error);
 
-              webpush.sendNotification(subscription, payload).catch(error => {
-                console.error('Push notification error:', error);
-                // delete subscription if 410 error here
+                    if (error.statusCode === 410) {
+                      // Subscription is no longer valid, delete it
+                      db.run('DELETE FROM push_subscriptions WHERE id = ?', [row.id], (delErr) => {
+                        if (delErr) {
+                          console.error('Failed to delete stale subscription:', delErr);
+                        } else {
+                          console.log('Deleted stale subscription with id:', row.id);
+                        }
+                      });
+                    }
+                  });
               });
             });
 
