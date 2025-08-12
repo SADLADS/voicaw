@@ -135,7 +135,7 @@ CREATE TABLE IF NOT EXISTS login_states (
 db.run(`
   CREATE TABLE IF NOT EXISTS push_subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL UNIQUE,
     subscription TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id)
   );

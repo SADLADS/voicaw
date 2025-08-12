@@ -129,7 +129,8 @@ app.post('/api/finaliselogin', (req, res) => {
         const token = generateToken({ id: userKeyData.id, username: userIdentifier });
         console.log(userKeyData.id)
         const userId = userKeyData.id
-        res.json({ token, userId, private_key });
+        const vapidPubKey = process.env.VAPID_PUBLIC_KEY
+        res.json({ token, userId, private_key, vapidPubKey });
       });
     }
   });
@@ -348,8 +349,8 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
               const subscription = JSON.parse(row.subscription);
 
               const payload = JSON.stringify({
-                title: 'New Message',
-                body: `From ${req.user.username}: ${content.trim()}`,
+                title: 'Message',
+                body: `From ${req.user.username}`,
                 url: `/dm/${req.user.id}`
               });
 

@@ -42,6 +42,39 @@ export default function Login({ onLoginSuccess }) {
         const privateKey = await decryptPrivateKey(response2.data.private_key, password);
         localStorage.setItem('privateKey', privateKey); // Save decrypted private key - fix this later
         localStorage.setItem('token', response2.data.token); // Save JWT
+
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+          const reg = await navigator.serviceWorker.ready;
+
+          const convertedKey = urlBase64ToUint8Array(response2.data.vapidPubKey);
+
+          const subscription = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: convertedKey
+          });
+
+          console.log('Push subscription:', subscription);
+
+          await api.post('/save-subscription', { subscription });
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+          const padding = '='.repeat((4 - base64String.length % 4) % 4);
+          const base64 = (base64String + padding)
+            .replace(/\-/g, '+')
+            .replace(/_/g, '/');
+
+          const rawData = window.atob(base64);
+          const outputArray = new Uint8Array(rawData.length);
+
+          for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+          }
+          return outputArray;
+        }
+
+
+
         connectWebSocket(response2.data.userId);
         onLoginSuccess(response2.data); // Pass user info to parent
       } else {
