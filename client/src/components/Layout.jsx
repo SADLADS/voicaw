@@ -9,6 +9,7 @@ import { fetchUsersList } from '../services/dmService';
 import notificationSound from '../assets/sounds/notification.mp3';
 import logoIcon from '../assets/images/logo.svg';
 import 'highlight.js/styles/atom-one-dark.css';
+import { decryptMessage, deriveSharedKey } from '../services/encryptionService';
 
 export const LayoutContext = createContext();
 
