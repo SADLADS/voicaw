@@ -132,8 +132,6 @@ export default function Dm({ user }) {
         }
       }));
 
-      console.log("decccc",decryptedNewMessages)
-
       if (beforeId) {
         setMessages((prev) => [...decryptedNewMessages, ...prev]);
       } else {
@@ -147,19 +145,38 @@ export default function Dm({ user }) {
   }
 
   const loadMoreMessages = async () => {
-    const prevLength = messages.length;
     const oldest = messages[0];
     if (!oldest) return;
 
-    const newMessages = await fetchMessagesForUser(id, { before: oldest.id });
+    try {
+      const newMessages = await fetchMessagesForUser(id, { before: oldest.id });
 
-    if (newMessages.length > 0) {
-      setMessages((prev) => [...newMessages, ...prev]);
-      setFirstItemIndex((prev) => prev - newMessages.length);
+      const privatePEM = localStorage.getItem('privateKey');
+      if (!privatePEM) throw new Error("No private key found for decryption.");
+      if (!chatUser) throw new Error("Chat user not loaded for decryption.");
+
+      const decryptedNewMessages = await Promise.all(newMessages.map(async (msg) => {
+        try {
+          const sharedKey = await deriveSharedKey(privatePEM, chatUser.public_key);
+          const plaintext = await decryptMessage(msg.content, sharedKey);
+          return { ...msg, plaintext };
+        } catch (e) {
+          console.warn("Failed to decrypt message", msg.id, e);
+          return { ...msg, plaintext: null };
+        }
+      }));
+
+      if (decryptedNewMessages.length > 0) {
+        setMessages((prev) => [...decryptedNewMessages, ...prev]);
+        setFirstItemIndex((prev) => prev - decryptedNewMessages.length);
+      }
+
+      setHasMore(decryptedNewMessages.length > 0);
+    } catch (e) {
+      setErrorMessages(e.message);
     }
-
-    setHasMore(newMessages.length > 0);
   };
+
 
 
   const markRead = async () => {
@@ -183,7 +200,7 @@ export default function Dm({ user }) {
       const encryptedMessage = await encryptMessage(message, sharedKey)
       await sendMessageToUser(chatUser.id, encryptedMessage);
 
-      
+
       setErrorMessages(null);
       await fetchMessages();
     } catch (error) {
