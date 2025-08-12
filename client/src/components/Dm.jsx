@@ -57,6 +57,8 @@ export default function Dm({ user }) {
   const inputRef = useRef(null);
   const initialLoad = useRef(true);
 
+  const [sharedKey, setSharedKey] = useState(null);
+
   const chatUser = users.find((u) => u.id.toString() === id);
 
   useEffect(() => {
@@ -64,9 +66,25 @@ export default function Dm({ user }) {
     setMessages([]);
     setHasMore(true);
     if (!id) return;
-    fetchMessages();
   }, [id, chatUser]);
 
+  useEffect(() => {
+    async function deriveKey() {
+      if (!chatUser?.public_key) return setSharedKey(null);
+
+      try {
+        const privatePEM = localStorage.getItem('privateKey');
+        if (!privatePEM) throw new Error("No private key found for decryption.");
+        const key = await deriveSharedKey(privatePEM, chatUser.public_key);
+        setSharedKey(key);
+      } catch (e) {
+        console.error("Failed to derive shared key:", e);
+        setSharedKey(null);
+      }
+    }
+
+    deriveKey();
+  }, [chatUser?.public_key]);
 
   useEffect(() => {
     if (!chatUser?.id) return;
@@ -113,16 +131,44 @@ export default function Dm({ user }) {
     }
   }, [inputValue]);
 
+  useEffect(() => {
+    async function deriveKey() {
+      if (!chatUser?.public_key) return setSharedKey(null);
+      try {
+        const privatePEM = localStorage.getItem('privateKey');
+        if (!privatePEM) throw new Error("No private key found for decryption.");
+        const key = await deriveSharedKey(privatePEM, chatUser.public_key);
+        setSharedKey(key);
+      } catch (e) {
+        console.error("Failed to derive shared key:", e);
+        setSharedKey(null);
+      }
+    }
+
+    setMessages([]);
+    setHasMore(true);
+    setFirstItemIndex(INITIAL_INDEX);
+
+    deriveKey();
+  }, [chatUser?.public_key]);
+
+
+  useEffect(() => {
+    if (sharedKey) {
+      fetchMessages();
+    }
+  }, [sharedKey]);
+
+
   async function fetchMessages(beforeId = null) {
+    console.log("fetch messages!")
     try {
       const data = await fetchMessagesForUser(id, { before: beforeId });
-
       const privatePEM = localStorage.getItem('privateKey');
       if (!privatePEM) throw new Error("No private key found for decryption.");
 
       const decryptedNewMessages = await Promise.all(data.map(async (msg) => {
         try {
-          const sharedKey = await deriveSharedKey(privatePEM, chatUser.public_key);
           const plaintext = await decryptMessage(msg.content, sharedKey);
           console.log(plaintext)
           return { ...msg, plaintext };
@@ -145,6 +191,7 @@ export default function Dm({ user }) {
   }
 
   const loadMoreMessages = async () => {
+    console.log("load more!")
     const oldest = messages[0];
     if (!oldest) return;
 
@@ -157,7 +204,6 @@ export default function Dm({ user }) {
 
       const decryptedNewMessages = await Promise.all(newMessages.map(async (msg) => {
         try {
-          const sharedKey = await deriveSharedKey(privatePEM, chatUser.public_key);
           const plaintext = await decryptMessage(msg.content, sharedKey);
           return { ...msg, plaintext };
         } catch (e) {
@@ -196,7 +242,6 @@ export default function Dm({ user }) {
     try {
       setInputValue('');
       const message = inputValue.trim();
-      const sharedKey = await deriveSharedKey(localStorage.getItem('privateKey'), chatUser.public_key)
       const encryptedMessage = await encryptMessage(message, sharedKey)
       await sendMessageToUser(chatUser.id, encryptedMessage);
 
