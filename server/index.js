@@ -349,8 +349,8 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
               const subscription = JSON.parse(row.subscription);
 
               const payload = JSON.stringify({
-                title: 'Message',
-                body: `From ${req.user.username}`,
+                title: req.user.username,
+                body: `New encrypted message.`,
                 url: `/dm/${req.user.id}`
               });
 
