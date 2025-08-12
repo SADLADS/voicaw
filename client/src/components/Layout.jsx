@@ -82,7 +82,7 @@ export default function Layout({ user, onLogout }) {
     if (user?.id) {
       connectWebSocket(user.id);
 
-      const unsubscribe = onNewDm((message) => {
+      const unsubscribe = onNewDm(async (message) => {
         fetchUnreadMessages();
 
         const dmMatch = location.pathname.match(/^\/dm\/(\d+)/);
@@ -91,12 +91,16 @@ export default function Layout({ user, onLogout }) {
         if (currentDmId && currentDmId === message.sender_id.toString() && document.hasFocus()) return;
 
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          
+          const sharedKey = await deriveSharedKey(localStorage.getItem('privateKey'), message.public_key);
+          const plaintext = await decryptMessage(message.content, sharedKey);
+
           const audio = new Audio(notificationSound);
           audio.play().catch(err => {
             console.warn('Autoplay failed:', err);
           });
-          const notif = new Notification(`${message.sender_name || 'User'}`, {
-            body: message.content,
+          const notif = new Notification(`${message.sender_username || 'User'}`, {
+            body: plaintext,
             icon: logoIcon,
             silent: true
           });
