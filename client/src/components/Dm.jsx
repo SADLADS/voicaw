@@ -39,8 +39,6 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, firstI
   );
 }
 
-
-
 export default function Dm({ user }) {
   const INITIAL_INDEX = 100000;
 
@@ -70,21 +68,31 @@ export default function Dm({ user }) {
 
   useEffect(() => {
     async function deriveKey() {
-      if (!chatUser?.public_key) return setSharedKey(null);
+      if (!chatUser?.public_key) {
+        setSharedKey(null);
+        return;
+      }
 
       try {
         const privatePEM = localStorage.getItem('privateKey');
         if (!privatePEM) throw new Error("No private key found for decryption.");
         const key = await deriveSharedKey(privatePEM, chatUser.public_key);
         setSharedKey(key);
+        console.log("set shared key!", key);
       } catch (e) {
         console.error("Failed to derive shared key:", e);
         setSharedKey(null);
       }
     }
 
+    // reset UI state when switching chats
+    setMessages([]);
+    setHasMore(true);
+    setFirstItemIndex(INITIAL_INDEX);
+
     deriveKey();
   }, [chatUser?.public_key]);
+
 
   useEffect(() => {
     if (!chatUser?.id) return;
@@ -99,35 +107,33 @@ export default function Dm({ user }) {
     if (!user?.id || !chatUser?.id) return;
 
     const unsubscribe = onNewDm(async (message) => {
+      // If there's already plaintext on the message, use it.
+      if (message.plaintext) {
+        handleIncomingMessage(message, true);
+        return;
+      }
 
-      const plaintext = message.plaintext || await decryptMessage(message.content, sharedKey);
+      if (!sharedKey) {
+        console.warn("Received DM but sharedKey not ready. Skipping decrypt for message:", message.id);
+        return;
+      }
 
-      console.log(plaintext)
-      const decryptedNewMessage =  { ...message, plaintext };
+      try {
+        const plaintext = await decryptMessage(message.content, sharedKey);
+        const decryptedNewMessage = { ...message, plaintext };
 
-      const fromId = decryptedNewMessage.sender_id.toString();
-      const currentChatUserId = chatUser.id.toString();
-      const currentUserId = user.id.toString();
-
-      const isIncomingFromCurrentChatUser = fromId === currentChatUserId;
-      const isOutgoingFromSelf =
-        fromId === currentUserId && decryptedNewMessage.recipient_id.toString() === currentChatUserId;
-
-      if (isIncomingFromCurrentChatUser || isOutgoingFromSelf) {
-        setMessages((prev) => [...prev, decryptedNewMessage]);
-        if (isIncomingFromCurrentChatUser) {
-          markRead();
-        }
-      } else {
-        const dot = document.getElementById(`user-dot-${fromId}`);
-        if (dot) {
-          dot.classList.add('active');
-        }
+        handleIncomingMessage(decryptedNewMessage);
+      } catch (err) {
+        console.warn("Failed to decrypt incoming DM", message.id, err);
+        // Do null plaintext so UI won't crash
+        const fallback = { ...message, plaintext: null };
+        handleIncomingMessage(fallback);
       }
     });
 
     return () => unsubscribe();
-  }, [chatUser?.id, user?.id]);
+  }, [chatUser?.id, user?.id, sharedKey]);
+
 
   useEffect(() => {
     const textarea = inputRef.current;
@@ -137,27 +143,6 @@ export default function Dm({ user }) {
     }
   }, [inputValue]);
 
-  useEffect(() => {
-    async function deriveKey() {
-      if (!chatUser?.public_key) return setSharedKey(null);
-      try {
-        const privatePEM = localStorage.getItem('privateKey');
-        if (!privatePEM) throw new Error("No private key found for decryption.");
-        const key = await deriveSharedKey(privatePEM, chatUser.public_key);
-        setSharedKey(key);
-      } catch (e) {
-        console.error("Failed to derive shared key:", e);
-        setSharedKey(null);
-      }
-    }
-
-    setMessages([]);
-    setHasMore(true);
-    setFirstItemIndex(INITIAL_INDEX);
-
-    deriveKey();
-  }, [chatUser?.public_key]);
-
 
   useEffect(() => {
     if (sharedKey) {
@@ -165,6 +150,37 @@ export default function Dm({ user }) {
     }
   }, [sharedKey]);
 
+  function handleIncomingMessage(message, alreadyPlain = false) {
+    const decryptedNewMessage = alreadyPlain ? message : { ...message };
+
+    const fromId = decryptedNewMessage.sender_id.toString();
+    const currentChatUserId = chatUser.id.toString();
+    const currentUserId = user.id.toString();
+
+    const isIncomingFromCurrentChatUser = fromId === currentChatUserId;
+    const isOutgoingFromSelf =
+      fromId === currentUserId && decryptedNewMessage.recipient_id?.toString() === currentChatUserId;
+
+    if (isIncomingFromCurrentChatUser || isOutgoingFromSelf) {
+      setMessages((prev) => [...prev, decryptedNewMessage]);
+      if (isIncomingFromCurrentChatUser) markRead();
+    } else {
+      const dot = document.getElementById(`user-dot-${fromId}`);
+      if (dot) dot.classList.add('active');
+    }
+  }
+
+  async function decryptMessagesBatch(messages, key) {
+    return Promise.all(messages.map(async msg => {
+      try {
+        const plaintext = await decryptMessage(msg.content, key);
+        return { ...msg, plaintext };
+      } catch (e) {
+        console.warn("Failed to decrypt message", msg.id, e);
+        return { ...msg, plaintext: null };
+      }
+    }));
+  }
 
   async function fetchMessages(beforeId = null) {
     console.log("fetch messages!")
@@ -172,18 +188,7 @@ export default function Dm({ user }) {
       const data = await fetchMessagesForUser(id, { before: beforeId });
       const privatePEM = localStorage.getItem('privateKey');
       if (!privatePEM) throw new Error("No private key found for decryption.");
-
-      const decryptedNewMessages = await Promise.all(data.map(async (msg) => {
-        try {
-          const plaintext = await decryptMessage(msg.content, sharedKey);
-          console.log(plaintext)
-          return { ...msg, plaintext };
-        } catch (e) {
-          console.warn("Failed to decrypt message", msg.id, e);
-          return { ...msg, plaintext: null };
-        }
-      }));
-
+      const decryptedNewMessages = await decryptMessagesBatch(data, sharedKey)
       if (beforeId) {
         setMessages((prev) => [...decryptedNewMessages, ...prev]);
       } else {
@@ -208,15 +213,7 @@ export default function Dm({ user }) {
       if (!privatePEM) throw new Error("No private key found for decryption.");
       if (!chatUser) throw new Error("Chat user not loaded for decryption.");
 
-      const decryptedNewMessages = await Promise.all(newMessages.map(async (msg) => {
-        try {
-          const plaintext = await decryptMessage(msg.content, sharedKey);
-          return { ...msg, plaintext };
-        } catch (e) {
-          console.warn("Failed to decrypt message", msg.id, e);
-          return { ...msg, plaintext: null };
-        }
-      }));
+      const decryptedNewMessages = await decryptMessagesBatch(data, sharedKey)
 
       if (decryptedNewMessages.length > 0) {
         setMessages((prev) => [...decryptedNewMessages, ...prev]);
