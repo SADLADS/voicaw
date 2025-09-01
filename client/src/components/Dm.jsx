@@ -59,12 +59,62 @@ export default function Dm({ user }) {
 
   const chatUser = users.find((u) => u.id.toString() === id);
 
+  const [isLoading, setIsLoading] = useState(true);
+
+
+  useEffect(() => {
+    if (!id || !chatUser?.public_key) {
+      setMessages([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const loadChatData = async () => {
+      setIsLoading(true);
+      setMessages([]);
+      setFirstItemIndex(INITIAL_INDEX);
+      setHasMore(true);
+      setErrorMessages(null);
+
+      try {
+        // derive the shared key
+        const privatePEM = localStorage.getItem('privateKey');
+        if (!privatePEM) throw new Error("No private key found.");
+
+        const key = await deriveSharedKey(privatePEM, chatUser.public_key);
+        setSharedKey(key);
+
+        // Fetch initial messages with the new key
+        const initialMessages = await fetchMessagesForUser(id);
+
+        // decrypt the messages
+        const decryptedMessages = await decryptMessagesBatch(initialMessages, key);
+
+        // set the state
+        setMessages(decryptedMessages);
+        setHasMore(initialMessages.length > 0);
+
+      } catch (e) {
+        console.error("Failed to load chat data:", e);
+        setErrorMessages(e.message);
+        setMessages([]); // clear messages on error
+      } finally {
+        setIsLoading(false); // stop loading
+      }
+    };
+
+    loadChatData();
+
+  }, [id, chatUser]);
+
+
   useEffect(() => {
     setFirstItemIndex(INITIAL_INDEX);
     setMessages([]);
     setHasMore(true);
     if (!id) return;
   }, [id, chatUser]);
+
 
   useEffect(() => {
     async function deriveKey() {
@@ -103,8 +153,9 @@ export default function Dm({ user }) {
     }
   }, [chatUser?.id]);
 
+
   useEffect(() => {
-    if (!user?.id || !chatUser?.id) return;
+    if (!user?.id || !chatUser?.id || !sharedKey) return;
 
     const unsubscribe = onNewDm(async (message) => {
       // If there's already plaintext on the message, use it.
@@ -150,6 +201,7 @@ export default function Dm({ user }) {
     }
   }, [sharedKey]);
 
+
   function handleIncomingMessage(message, alreadyPlain = false) {
     const decryptedNewMessage = alreadyPlain ? message : { ...message };
 
@@ -170,6 +222,7 @@ export default function Dm({ user }) {
     }
   }
 
+
   async function decryptMessagesBatch(messages, key) {
     return Promise.all(messages.map(async msg => {
       try {
@@ -181,6 +234,7 @@ export default function Dm({ user }) {
       }
     }));
   }
+
 
   async function fetchMessages(beforeId = null) {
     console.log("fetch messages!")
@@ -201,6 +255,7 @@ export default function Dm({ user }) {
     }
   }
 
+
   const loadMoreMessages = async () => {
     console.log("load more!")
     const oldest = messages[0];
@@ -213,7 +268,7 @@ export default function Dm({ user }) {
       if (!privatePEM) throw new Error("No private key found for decryption.");
       if (!chatUser) throw new Error("Chat user not loaded for decryption.");
 
-      const decryptedNewMessages = await decryptMessagesBatch(data, sharedKey)
+      const decryptedNewMessages = await decryptMessagesBatch(newMessages, sharedKey)
 
       if (decryptedNewMessages.length > 0) {
         setMessages((prev) => [...decryptedNewMessages, ...prev]);
@@ -227,7 +282,6 @@ export default function Dm({ user }) {
   };
 
 
-
   const markRead = async () => {
     try {
       if (!chatUser) return;
@@ -237,6 +291,7 @@ export default function Dm({ user }) {
       console.warn('Failed to mark messages as read', err);
     }
   };
+
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -257,6 +312,7 @@ export default function Dm({ user }) {
     }
   };
 
+
   return (
     <div
       id="dm-main"
@@ -271,15 +327,23 @@ export default function Dm({ user }) {
           <h4 className="chat-recipient-header">{chatUser?.username || 'User'}</h4>
 
           <div className="dm-message-wrapper">
-            <VirtuosoMessageList
-              key={id}
-              messages={messages}
-              user={user}
-              hasMore={hasMore}
-              loadMoreMessages={loadMoreMessages}
-              firstItemIndex={firstItemIndex}
-              initialTopMostItemIndex={firstItemIndex + messages.length - 1}
-            />
+            {isLoading ? (
+              <p></p>
+            ) : errorMessages ? (
+              <p className="error-text">Error: {errorMessages}</p>
+            ) : messages.length === 0 ? (
+              <p>No messages yet. Start the conversation!</p>
+            ) : (
+              <VirtuosoMessageList
+                key={id}
+                messages={messages}
+                user={user}
+                hasMore={hasMore}
+                loadMoreMessages={loadMoreMessages}
+                firstItemIndex={firstItemIndex}
+                initialTopMostItemIndex={firstItemIndex + messages.length - 1}
+              />
+            )}
           </div>
 
           <div className="dm-chat-wrapper">
