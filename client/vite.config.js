@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -12,7 +13,25 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: isElectron ? './' : '/',
-    plugins: [react()],
+    plugins: [
+      react(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.ico', 'robots.txt', 'logo192.png', 'logo512.png'],
+        manifest: {
+          name: 'Voicaw',
+          short_name: 'Voicaw',
+          description: 'Voicaw',
+          theme_color: '#66558c',
+          background_color: '#232329',
+          display: 'standalone',
+          icons: [
+            { src: 'logo192.png', sizes: '192x192', type: 'image/png' },
+            { src: 'logo512.png', sizes: '512x512', type: 'image/png' }
+          ]
+        }
+      })
+    ],
     build: {
       outDir: isElectron
         ? path.resolve(__dirname, '../build')
