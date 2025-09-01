@@ -367,7 +367,11 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
 
               rows.forEach(row => {
                 const subscription = JSON.parse(row.subscription);
-
+                const payload = JSON.stringify({
+                  title: req.user.username,
+                  body: `New encrypted message.`,
+                  url: `/dm/${req.user.id}`
+                });
                 webpush.sendNotification(subscription, payload)
                   .catch(error => {
                     console.error('Push notification error:', error);
