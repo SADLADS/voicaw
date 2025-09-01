@@ -10,6 +10,28 @@ const webpush = require('web-push');
 
 require('dotenv').config();
 
+const requiredEnvVars = [
+  'JWT_SECRET',
+  'OPAQUE_SERVER_SETUP',
+  'VAPID_EMAIL',
+  'VAPID_PUBLIC_KEY',
+  'VAPID_PRIVATE_KEY'
+];
+
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+  console.error('FATAL ERROR: Missing required environment variables:');
+  console.error(`- ${missingEnvVars.join('\n- ')}`);
+  console.error('Please create a .env file or set these variables in your environment before starting the server.');
+  process.exit(1); // Exit with a failure code
+}
+
+console.log('All required environment variables are present.');
+
+
+
+
 webpush.setVapidDetails(
   process.env.VAPID_EMAIL,
   process.env.VAPID_PUBLIC_KEY,
@@ -18,7 +40,7 @@ webpush.setVapidDetails(
 
 
 const app = express();
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+const JWT_SECRET = process.env.JWT_SECRET;
 app.use(express.json());
 
 
@@ -35,6 +57,21 @@ app.use(cors({
   },
   credentials: true
 }));
+
+
+function errorHandler(err, req, res, next) {
+  console.error('--- Unhandled Error ---');
+  console.error(`Route: ${req.method} ${req.originalUrl}`);
+  console.error(err.stack);
+
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  res.status(500).json({ error: 'An internal server error occurred.' });
+}
+
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, (err) => {
@@ -53,7 +90,7 @@ const clients = new Map();
 let serverSetup;
 (async () => {
   await opaque.ready;
-  serverSetup = process.env.OPAQUE_SERVER_SETUP || opaque.server.createSetup();
+  serverSetup = process.env.OPAQUE_SERVER_SETUP // || opaque.server.createSetup();
   console.log("Server setup created:", serverSetup);
 })();
 
@@ -289,19 +326,19 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
 });
 
 app.post('/api/dm-send', authenticateJWT, async (req, res) => {
-  console.log("dm-send!");
-  const sender_id = req.user?.id;
-  const { recipient_id, content } = req.body;
-
-  if (!sender_id) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  if (!recipient_id || !content || !content.trim()) {
-    return res.status(400).json({ error: 'Missing recipient or content' });
-  }
-
   try {
+    console.log("dm-send!");
+    const sender_id = req.user?.id;
+    const { recipient_id, content } = req.body;
+
+    if (!sender_id) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!recipient_id || !content || !content.trim()) {
+      return res.status(400).json({ error: 'Missing recipient or content' });
+    }
+
     db.run(
       `INSERT INTO direct_messages (sender_id, recipient_id, content, timestamp)
        VALUES (?, ?, ?, strftime('%s','now'))`,
