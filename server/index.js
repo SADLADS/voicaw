@@ -109,10 +109,16 @@ app.post('/api/finaliselogin', (req, res) => {
     if (Math.floor(Date.now() / 1000) > user.expires_at) return res.status(401).json({ error: 'Login state expired' });
 
     const serverLoginState = JSON.parse(user.server_login_state);
-    const { sessionKey } = opaque.server.finishLogin({
-      finishLoginRequest,
-      serverLoginState,
-    });
+    let sessionKey;
+    try {
+      ({ sessionKey } = opaque.server.finishLogin({
+        finishLoginRequest,
+        serverLoginState,
+      }));
+    } catch (e) {
+      console.error("OPAQUE finishLogin error:", e);
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
     if (!sessionKey || sessionKey !== clientSessionKey) {
       return res.status(401).json({ error: 'Login failed' });
     } else {
