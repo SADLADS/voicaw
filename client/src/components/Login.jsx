@@ -9,10 +9,12 @@ export default function Login({ onLoginSuccess }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [registerData, setRegisterData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
+  const [Loading, setLoading] = useState(false);
 
   async function handleLogin(e) {
     e.preventDefault();
     setError('');
+    setLoading(true);
     try {
       const password = loginData.password;
       const username = loginData.username;
@@ -92,12 +94,15 @@ export default function Login({ onLoginSuccess }) {
     } catch (err) {
       setError(err.message);
       console.error('Login error:', err);
+    } finally {
+      setLoading(false);
     }
   }
 
   async function handleRegister(e) {
     e.preventDefault();
     setError('');
+    setLoading(true);
     try {
       const password = registerData.password;
       const username = registerData.username;
@@ -137,6 +142,8 @@ export default function Login({ onLoginSuccess }) {
       }
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -169,7 +176,9 @@ export default function Login({ onLoginSuccess }) {
           value={loginData.password}
           onChange={e => setLoginData({ ...loginData, password: e.target.value })}
         />
-        <button className="btn btn-vc w-100" type="submit">Login</button>
+        <button className="btn btn-vc w-100" type="submit" disabled={Loading}>
+          {Loading ? "Please wait..." : "Login"}
+        </button>
       </form>
 
       <hr />
@@ -192,7 +201,9 @@ export default function Login({ onLoginSuccess }) {
           value={registerData.password}
           onChange={e => setRegisterData({ ...registerData, password: e.target.value })}
         />
-        <button className="btn btn-secondary w-100" type="submit">Register</button>
+        <button className="btn btn-secondary w-100" type="submit" disabled={Loading}>
+          {Loading ? "Please wait..." : "Register"}
+        </button>
       </form>
     </div>
   );
