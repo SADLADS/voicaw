@@ -407,7 +407,8 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
                 const payload = JSON.stringify({
                   title: req.user.username,
                   body: `New encrypted message.`,
-                  url: `/dm/${req.user.id}`
+                  url: `/dm/${req.user.id}`,
+                  image: '/logo192.png'
                 });
                 webpush.sendNotification(subscription, payload)
                   .catch(error => {

@@ -8,7 +8,7 @@ self.addEventListener('push', event => {
 
   const options = {
     body: data.body,
-    icon: '/logo192.png', // Change to user profile pic?
+    icon: data.image || '/logo192.png',
     badge: '/badge.png',
     data: { url: data.url || '/' },
   };
