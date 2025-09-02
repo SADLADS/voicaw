@@ -16,8 +16,11 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'service-worker.js',
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'robots.txt', 'logo192.png', 'logo512.png'],
+        includeAssets: ['favicon.ico', 'robots.txt', 'logo192.png', 'logo512.png', 'apple-touch-icon.png'],
         manifest: {
           name: 'Voicaw',
           short_name: 'Voicaw',
