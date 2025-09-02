@@ -24,6 +24,16 @@ export default function DmSidebar({ users }) {
     return unsubscribe; // cleanup listener
   }, []);
 
+  // Scroll main-wrapper on activeId change
+  useEffect(() => {
+    const wrapper = document.querySelector('.main-wrapper');
+    if (wrapper) {
+      requestAnimationFrame(() => {
+        wrapper.scrollBy({ left: window.innerWidth, behavior: 'smooth' });
+      });
+    }
+  }, [activeId]); // triggers whenever user is clicked
+
   return (
     <div id="dm-sidebar">
       <h4 className="direct-messages-header">Direct Messages</h4>

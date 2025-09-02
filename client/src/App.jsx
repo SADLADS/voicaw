@@ -19,7 +19,6 @@ function SWMessageHandler() {
     if ('serviceWorker' in navigator) {
       const handler = (event) => {
         if (event.data?.action === 'navigate' && event.data.url) {
-          // If using HashRouter, prepend "#" to make sure navigation works
           if (window.location.hash) {
             navigate(`#${event.data.url}`);
           } else {
@@ -32,6 +31,15 @@ function SWMessageHandler() {
       return () => navigator.serviceWorker.removeEventListener('message', handler);
     }
   }, [navigate]);
+
+  useEffect(() => {
+    const wrapper = document.querySelector('.main-wrapper');
+    if (wrapper) {
+      requestAnimationFrame(() => {
+        wrapper.scrollBy({ left: window.innerWidth, behavior: 'smooth' });
+      });
+    }
+  }, [location]);
 
   return null;
 }

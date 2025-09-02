@@ -199,7 +199,7 @@ small {
   width: 8px;
   height: 8px;
   margin-right: 6px;
-  transform: rotate(45deg); /* makes a square into a diamond */
+  transform: rotate(45deg);
 }
 
 .online-dot.online {
@@ -207,5 +207,5 @@ small {
 }
 
 .online-dot.offline {
-  background-color: var(--vc-border-light); /* muted grey from your palette */
+  background-color: var(--vc-border-light);
 }
