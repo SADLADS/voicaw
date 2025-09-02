@@ -21,6 +21,12 @@
   --vc-fg-muted: #E6E8EB;
 }
 
+html,
+body {
+  height: 100%;
+  overscroll-behavior-y: contain;
+}
+
 body {
   background-color: var(--vc-bg-subtle);
   color: var(--vc-fg)
