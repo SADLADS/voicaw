@@ -305,32 +305,53 @@ export default function Dm({ user }) {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputValue.trim() || !chatUser) return;
-
+  
+    const messageText = inputValue.trim();
+    setInputValue('');
+  
+    const tempId = `temp-${Date.now()}`;
+    const tempMessage = {
+      id: tempId,
+      sender_id: user.id,
+      recipient_id: chatUser.id,
+      plaintext: messageText,
+      status: 'pending',
+      timestamp: Math.floor(Date.now() / 1000),
+      sender_username: user.username,
+    };
+  
+    // Add temp message
+    setMessages(prev => [...prev, tempMessage]);
+  
     try {
-      setInputValue('');
-      const message = inputValue.trim();
-
-
-      const tempMessage = {
-        id: `temp-${Date.now()}`, // temporary client-side id
-        sender_id: user.id,
-        recipient_id: chatUser.id,
-        plaintext: inputValue.trim(),
-        status: 'pending',
-        timestamp: Math.floor(Date.now() / 1000),
-        sender_username: user.username,
-      };
-      setMessages(prev => [...prev, tempMessage]);
-
-
-      const encryptedMessage = await encryptMessage(message, sharedKey)
-      await sendMessageToUser(chatUser.id, encryptedMessage);
-
-
+      const encryptedMessage = await encryptMessage(messageText, sharedKey);
+      const savedMessage = await sendMessageToUser(chatUser.id, encryptedMessage);
+  
+      // Replace temp message
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === tempId
+            ? {
+                ...savedMessage,
+                plaintext: messageText,
+                status: 'sent',
+                timestamp: savedMessage.timestamp || tempMessage.timestamp,
+              }
+            : msg
+        )
+      );
+  
       setErrorMessages(null);
-      await fetchMessages();
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error('Error sending message:', error);
+  
+      // Mark temp message as failed
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === tempId ? { ...msg, status: 'failed' } : msg
+        )
+      );
+  
       setErrorMessages(error.message);
     }
   };
