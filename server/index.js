@@ -506,6 +506,11 @@ app.get("/api/upload_profile_pic", authenticateJWT, async (req, res) => {
   }
 });
 
+app.get('/api/config', (req, res) => {
+  res.json({
+    s3Endpoint: process.env.S3_ENDPOINT,
+  });
+});
 
 
 // FUNCTIONS
