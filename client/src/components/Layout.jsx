@@ -89,6 +89,26 @@ export default function Layout({ user, onLogout }) {
   }, []);
 
   useEffect(() => {
+    if (!navigator.serviceWorker) return;
+  
+    const listener = (event) => {
+      const data = event.data;
+      if (!data) return;
+  
+      if (data.action === 'navigate' && data.url) {
+        scrollToRight();
+        navigate(data.url);
+      }
+    };
+  
+    navigator.serviceWorker.addEventListener('message', listener);
+  
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', listener);
+    };
+  }, []);
+
+  useEffect(() => {
     if (user?.id) {
       connectWebSocket(user.id);
 
@@ -115,12 +135,14 @@ export default function Layout({ user, onLogout }) {
             silent: true
           });
           notif.onclick = async () => {
+            console.log("notif clicked!")
             try {
               window.focus();
               await api.post(`/dm-mark-read/${message.sender_id}`);
-              navigate(`/dm/${message.sender_id}`);
             } catch (err) {
               console.error("Failed to mark DM as read:", err);
+            } finally {
+              scrollToRight();
               navigate(`/dm/${message.sender_id}`);
             }
           };
