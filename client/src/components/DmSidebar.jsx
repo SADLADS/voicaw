@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { onUserStatus } from '../utils/ws-client';
+import { scrollToRight } from './Layout';
 
 export default function DmSidebar({ users }) {
   const { id: activeId } = useParams();
@@ -24,16 +25,6 @@ export default function DmSidebar({ users }) {
     return unsubscribe; // cleanup listener
   }, []);
 
-  // Scroll main-wrapper on activeId change
-  useEffect(() => {
-    const wrapper = document.querySelector('.main-wrapper');
-    if (wrapper) {
-      requestAnimationFrame(() => {
-        wrapper.scrollBy({ left: window.innerWidth, behavior: 'smooth' });
-      });
-    }
-  }, [activeId]); // triggers whenever user is clicked
-
   return (
     <div id="dm-sidebar">
       <h4 className="direct-messages-header">Direct Messages</h4>
@@ -42,6 +33,7 @@ export default function DmSidebar({ users }) {
           <Link
             key={id}
             to={`/dm/${id}`}
+            onClick={scrollToRight}
             className={`dm-user ${id.toString() === activeId ? 'active' : ''}`}
           >
             <span className={`online-dot ${online ? 'online' : 'offline'}`} />
