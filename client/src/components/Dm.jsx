@@ -11,8 +11,10 @@ import remarkEmoji from 'remark-emoji';
 import rehypeHighlight from 'rehype-highlight';
 import { Virtuoso } from 'react-virtuoso';
 import { encryptMessage, decryptMessage, deriveSharedKey } from '../services/encryptionService';
+import { ConfigContext } from '../App';
+import defaultpfp from '../assets/images/default.png';
 
-function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, firstItemIndex }) {
+function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endpoint, firstItemIndex }) {
   return (
     <Virtuoso
       style={{ height: '100%', width: '100%' }}
@@ -20,7 +22,12 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, firstI
       firstItemIndex={firstItemIndex}
       initialTopMostItemIndex={messages.length - 1}
       startReached={hasMore ? loadMoreMessages : undefined}
-      itemContent={(index, msg) => (
+      itemContent={(index, msg) => {
+        const imgSrc = s3Endpoint
+          ? `${s3Endpoint}/profile-pics/${msg.sender_id}.png`
+          : defaultpfp; // fallback
+          return (
+        
         <div
           className={`
             dm-message
@@ -29,7 +36,24 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, firstI
             ${msg.status === 'failed' ? 'failed' : ''}
           `}
         >
-          <strong>{msg.sender_username}</strong>{' '}
+          <img
+              src={imgSrc}
+              alt={msg.sender_username}
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = defaultpfp;
+              }}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                objectFit: 'cover',
+                flexShrink: 0,
+                display: 'inline',
+              }}
+            />
+          <strong> {msg.sender_username}</strong>{' '}
+          
           <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
           <br />
           <ReactMarkdown
@@ -39,7 +63,7 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, firstI
             {msg.plaintext}
           </ReactMarkdown>
         </div>
-      )}
+      )}}
       followOutput="auto"
       increaseViewportBy={300}
     />
@@ -47,6 +71,7 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, firstI
 }
 
 export default function Dm({ user }) {
+  const { s3Endpoint } = useContext(ConfigContext);
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   const INITIAL_INDEX = 100000;
@@ -385,6 +410,7 @@ export default function Dm({ user }) {
                 hasMore={hasMore}
                 loadMoreMessages={loadMoreMessages}
                 firstItemIndex={firstItemIndex}
+                s3Endpoint={s3Endpoint}
                 initialTopMostItemIndex={firstItemIndex + messages.length - 1}
               />
             )}
