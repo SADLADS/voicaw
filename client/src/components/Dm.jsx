@@ -55,13 +55,14 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
           <strong> {msg.sender_username}</strong>{' '}
           
           <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
-          <br />
+          <div class="dm-message-content">
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
             rehypePlugins={[rehypeHighlight]}
           >
             {msg.plaintext}
           </ReactMarkdown>
+          </div>
         </div>
       )}}
       followOutput="auto"

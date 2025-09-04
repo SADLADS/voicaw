@@ -224,3 +224,7 @@ small {
   color: var(--vc-danger);
   font-style: italic;
 }
+
+.dm-message-content{
+  margin-left: 38px;
+}

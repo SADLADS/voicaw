@@ -42,7 +42,7 @@ export default function Login({ onLoginSuccess }) {
       if (response2.data.error) throw new Error(response2.data.error || 'Login failed');
       if (response2.data.token && response2.data.private_key) {
         const privateKey = await decryptPrivateKey(response2.data.private_key, password);
-        localStorage.setItem('privateKey', privateKey); // Save decrypted private key - fix this later
+        localStorage.setItem('privateKey', privateKey); // Save decrypted private key
         localStorage.setItem('token', response2.data.token); // Save JWT
 
         try {
