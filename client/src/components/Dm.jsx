@@ -40,6 +40,8 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, firstI
 }
 
 export default function Dm({ user }) {
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
   const INITIAL_INDEX = 100000;
 
   const [firstItemIndex, setFirstItemIndex] = useState(INITIAL_INDEX);
@@ -359,7 +361,7 @@ export default function Dm({ user }) {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
+                  if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     handleSendMessage(e);
                   }
