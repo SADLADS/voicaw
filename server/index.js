@@ -15,7 +15,10 @@ const requiredEnvVars = [
   'OPAQUE_SERVER_SETUP',
   'VAPID_EMAIL',
   'VAPID_PUBLIC_KEY',
-  'VAPID_PRIVATE_KEY'
+  'VAPID_PRIVATE_KEY',
+  'S3_ENDPOINT',
+  'S3_ROOT_USER',
+  'S3_ROOT_PASSWORD'
 ];
 
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -29,7 +32,7 @@ if (missingEnvVars.length > 0) {
 
 console.log('All required environment variables are present.');
 
-
+const { getUploadUrl, getDownloadUrl } = require("./s3");
 
 
 webpush.setVapidDetails(
@@ -37,6 +40,7 @@ webpush.setVapidDetails(
   process.env.VAPID_PUBLIC_KEY,
   process.env.VAPID_PRIVATE_KEY
 );
+
 
 
 const app = express();
@@ -488,6 +492,18 @@ app.get('/api/dm-get-unread/', authenticateJWT, (req, res) => {
       res.json(rows);
     }
   );
+});
+
+
+app.get("/api/upload_profile_pic", authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const url = await getUploadUrl(`${userId}.png`, "profile-pics", "image/png");
+    return res.status(201).json({ url });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to generate URL" });
+  }
 });
 
 
