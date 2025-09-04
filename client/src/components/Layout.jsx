@@ -13,6 +13,16 @@ import { decryptMessage, deriveSharedKey } from '../services/encryptionService';
 
 export const LayoutContext = createContext();
 
+export function scrollToRight() {
+  const wrapper = document.querySelector('.main-wrapper');
+  if (wrapper) {
+    requestAnimationFrame(() => {
+      wrapper.scrollBy({ left: window.innerWidth, behavior: 'smooth' });
+    });
+  }
+}
+
+
 // ask the user for consent to show notifications
 export function requestNotificationPermission() {
   if (typeof Notification !== 'undefined' && Notification.requestPermission) {
