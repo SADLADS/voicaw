@@ -209,3 +209,18 @@ small {
 .online-dot.offline {
   background-color: var(--vc-border-light);
 }
+
+
+
+/* Pending messages */
+.dm-message.pending {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Failed messages */
+.dm-message.failed {
+  opacity: 0.6;
+  color: var(--vc-danger);
+  font-style: italic;
+}

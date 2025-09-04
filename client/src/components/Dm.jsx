@@ -21,7 +21,14 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, firstI
       initialTopMostItemIndex={messages.length - 1}
       startReached={hasMore ? loadMoreMessages : undefined}
       itemContent={(index, msg) => (
-        <div className={`dm-message ${msg.sender_id === user.id ? 'sent' : 'received'}`}>
+        <div
+          className={`
+            dm-message
+            ${msg.sender_id === user.id ? 'sent' : 'received'}
+            ${msg.status === 'pending' ? 'pending' : ''}
+            ${msg.status === 'failed' ? 'failed' : ''}
+          `}
+        >
           <strong>{msg.sender_username}</strong>{' '}
           <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
           <br />
@@ -302,6 +309,20 @@ export default function Dm({ user }) {
     try {
       setInputValue('');
       const message = inputValue.trim();
+
+
+      const tempMessage = {
+        id: `temp-${Date.now()}`, // temporary client-side id
+        sender_id: user.id,
+        recipient_id: chatUser.id,
+        plaintext: inputValue.trim(),
+        status: 'pending',
+        timestamp: Math.floor(Date.now() / 1000),
+        sender_username: user.username,
+      };
+      setMessages(prev => [...prev, tempMessage]);
+
+
       const encryptedMessage = await encryptMessage(message, sharedKey)
       await sendMessageToUser(chatUser.id, encryptedMessage);
 
