@@ -506,8 +506,9 @@ function getRecentDmsForUser(loggedInUserId, callback) {
         OR
         (m.recipient_id = ? AND m.sender_id = u.id)
       )
+    WHERE u.id != ?
     GROUP BY u.id
-    ORDER BY last_timestamp DESC NULLS LAST, u.id = ? DESC
+    ORDER BY last_timestamp DESC NULLS LAST
     `,
     [loggedInUserId, loggedInUserId, loggedInUserId],
     (err, rows) => {
