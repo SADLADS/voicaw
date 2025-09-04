@@ -220,3 +220,19 @@ pre code {
     scrollbar-width: none;
   }
 }
+
+.uploadbutton{
+  background-color: var(--vc-accent);
+  border: none;
+  color: var(--vc-fg);
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.uploadbutton:hover{
+  background-color: var(--vc-accent-hover);
+}
+
+.uploadbutton:disabled{
+  background-color: var(--vc-accent-alt); /* change this at some point */
+}

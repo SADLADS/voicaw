@@ -1,81 +1,90 @@
-import React, { useEffect } from 'react';
-import api from '../utils/api';
-import { connectWebSocket, onNewDm } from '../utils/ws-client';
-import notificationSound from '../assets/sounds/notification.mp3';
-import logoIcon from '../assets/images/logo.svg';
-import { decryptMessage, deriveSharedKey } from '../services/encryptionService';
+import React, { useState, useCallback } from "react";
+import api from "../utils/api";
 
 export default function Settings({ user }) {
-  // Request push permission and register subscription
-  async function enablePushNotifications() {
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-      alert('Push notifications are not supported in this browser.');
-      return;
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleFileSelect = useCallback((e) => {
+    const f = e.target.files[0];
+    if (f && f.type === "image/png") {
+      setFile(f);
+      setError(null);
+    } else {
+      setError("Only PNG images are allowed.");
     }
+  }, []);
 
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      alert('Notifications not enabled.');
-      return;
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    const f = e.dataTransfer.files[0];
+    if (f && f.type === "image/png") {
+      setFile(f);
+      setError(null);
+    } else {
+      setError("Only PNG images are allowed.");
     }
+  }, []);
 
-    // Register push subscription with service worker
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(user.vapidPubKey),
-    });
+  const handleDragOver = (e) => e.preventDefault();
 
-    await api.post('/api/save-subscription', { subscription });
-    alert('Push notifications enabled!');
-  }
+  const uploadFile = async () => {
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    setSuccess(false);
 
-  // Live in-page notifications via WebSocket
-  useEffect(() => {
-    if (!user?.id) return;
+    try {
+      const { data } = await api.get("/upload_profile_pic", {
+        params: { filename: file.name, type: file.type },
+      });
 
-    connectWebSocket(user.id);
+      const uploadUrl = data?.url;
+      if (!uploadUrl) throw new Error("Invalid upload URL");
 
-    const unsubscribe = onNewDm(async (message) => {
-      // decrypt message
-      const sharedKey = await deriveSharedKey(localStorage.getItem('privateKey'), message.public_key);
-      const plaintext = await decryptMessage(message.content, sharedKey);
+      const res = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
 
-      // Play notification sound
-      const audio = new Audio(notificationSound);
-      audio.play().catch(() => {});
+      if (!res.ok) throw new Error("Upload failed");
 
-      // Show in-page notification if permission granted
-      if (Notification.permission === 'granted') {
-        const notif = new Notification(message.sender_username || 'User', {
-          body: plaintext,
-          icon: logoIcon,
-          silent: true,
-        });
-        notif.onclick = async () => {
-          window.focus();
-          await api.post(`/dm-mark-read/${message.sender_id}`);
-          window.location.href = `/dm/${message.sender_id}`;
-        };
-      }
-    });
-
-    return () => unsubscribe();
-  }, [user?.id]);
+      setSuccess(true);
+      setFile(null);
+    } catch (err) {
+      setError(err.message || "Upload error");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
-    <div style={{ padding: '2rem' }}>
+    <div style={{ padding: "2rem" }}>
       <h2>Settings</h2>
-      <p>Manage your account and notifications.</p>
-      <button onClick={enablePushNotifications}>Enable Push Notifications</button>
+      <h4>Change Profile Pic</h4>
+      <input
+        type="file"
+        accept="image/png"
+        onChange={handleFileSelect}
+        style={{ marginBottom: "1rem" }}
+      />
+    <br></br>
+      <button
+        className="uploadbutton btn"
+        onClick={uploadFile}
+        disabled={!file || uploading}
+        style={{
+          cursor: uploading ? "not-allowed" : "pointer",
+        }}
+      >
+        {uploading ? "Uploading..." : "Upload"}
+      </button>
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
+      {success && <p style={{ color: "green" }}>Upload successful!</p>}
     </div>
   );
-}
-
-// Helper: convert VAPID key to Uint8Array
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
