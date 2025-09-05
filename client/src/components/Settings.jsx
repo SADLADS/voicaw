@@ -1,7 +1,10 @@
 import React, { useState, useCallback } from "react";
 import api from "../utils/api";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 
-export default function Settings({ user }) {
+
+export default function Settings({ onLogout, user }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
@@ -61,7 +64,7 @@ export default function Settings({ user }) {
   return (
     <div style={{ padding: "2rem" }}>
       <h2>Settings</h2>
-      <h4>Change Profile Pic</h4>
+      <h5>Change Profile Pic</h5>
       <input
         type="file"
         accept="image/*"   // allow any image type
@@ -79,9 +82,16 @@ export default function Settings({ user }) {
       >
         {uploading ? "Uploading..." : "Upload"}
       </button>
+      
 
       {error && <p style={{ color: "red" }}>{error}</p>}
       {success && <p style={{ color: "green" }}>Upload successful!</p>}
+      <h5>Log Out</h5>
+      <div className="mt-auto mb-4">
+        <button onClick={onLogout} className="btn btn-sm btn-danger" title="Logout">
+          <FontAwesomeIcon icon={faSignOutAlt} />Log out
+        </button>
+      </div>
     </div>
   );
 }

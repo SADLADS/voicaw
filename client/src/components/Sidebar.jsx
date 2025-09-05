@@ -6,11 +6,10 @@ import {
   faUsers,
   faCalendarAlt,
   faCog,
-  faSignOutAlt
 } from '@fortawesome/free-solid-svg-icons';
 import logo from '../assets/images/logo-no-border.svg';
 
-export default function Sidebar({ onLogout, hasUnreadDms }) {
+export default function Sidebar({ hasUnreadDms }) {
   const location = useLocation();
 
   // Helper to check if path is active (starts with)
@@ -54,12 +53,6 @@ export default function Sidebar({ onLogout, hasUnreadDms }) {
         <NavLink to="/settings" className="nav-icon">
           <FontAwesomeIcon icon={faCog} />
         </NavLink>
-      </div>
-
-      <div className="mt-auto mb-4">
-        <button onClick={onLogout} className="btn btn-sm btn-danger" title="Logout">
-          <FontAwesomeIcon icon={faSignOutAlt} />
-        </button>
       </div>
     </div>
   );

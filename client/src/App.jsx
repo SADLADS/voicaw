@@ -95,10 +95,10 @@ export default function App() {
           />
 
           {user && (
-            <Route element={<Layout user={user} onLogout={handleLogout} />}>
+            <Route element={<Layout user={user}  />}>
               <Route path="/plaza" element={<Plaza user={user} />} />
               <Route path="/calendar" element={<Calendar user={user} />} />
-              <Route path="/settings" element={<Settings user={user} />} />
+              <Route path="/settings" element={<Settings user={user} onLogout={handleLogout} />} />
               <Route path="/dm/:id?" element={<Dm user={user} />} />
             </Route>
           )}
