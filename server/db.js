@@ -34,13 +34,36 @@ CREATE TABLE IF NOT EXISTS user_roles (
 );
 `);
 
+// GUILDS
+db.run(`
+CREATE TABLE IF NOT EXISTS guilds (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  owner INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  FOREIGN KEY (owner) REFERENCES users(id)
+);
+`);
+
+// CATEGORIES
+db.run(`
+CREATE TABLE IF NOT EXISTS categories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  position INTEGER DEFAULT 0,
+  FOREIGN KEY (guild_id) REFERENCES guilds(id)
+);
+`);
+
 // CHANNELS
 db.run(`
 CREATE TABLE IF NOT EXISTS channels (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  category_id INTEGER NOT NULL,
   name TEXT NOT NULL,
   type TEXT CHECK(type IN ('text', 'voice')) NOT NULL,
-  position INTEGER DEFAULT 0
+  position INTEGER DEFAULT 0,
+  FOREIGN KEY (category_id) REFERENCES categories(id)
 );
 `);
 
