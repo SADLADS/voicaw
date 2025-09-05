@@ -184,42 +184,6 @@ pre code {
   width: 100%;
 }
 
-@media (max-width: 768px) {
-  body, html {
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    height: 100dvh;
-  }
-
-  .main-wrapper {
-    display: flex !important;
-    flex-direction: row;
-    overflow-x: scroll !important;
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    height: 100dvh;
-    width: 100vw;
-  }
-
-  .sidebar-wrapper,
-  .main-content-wrapper {
-    flex: 0 0 100vw;
-    height: 100dvh;
-    scroll-snap-align: start;
-    overflow-y: auto;
-  }
-
-  .main-wrapper::-webkit-scrollbar {
-    display: none;
-  }
-
-  .main-wrapper {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-}
 
 .uploadbutton{
   background-color: var(--vc-accent);

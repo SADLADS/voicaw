@@ -26,17 +26,17 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
         const imgSrc = s3Endpoint
           ? `${s3Endpoint}/profile-pics/${msg.sender_id}`
           : defaultpfp; // fallback
-          return (
-        
-        <div
-          className={`
+        return (
+
+          <div
+            className={`
             dm-message
             ${msg.sender_id === user.id ? 'sent' : 'received'}
             ${msg.status === 'pending' ? 'pending' : ''}
             ${msg.status === 'failed' ? 'failed' : ''}
           `}
-        >
-          <img
+          >
+            <img
               src={imgSrc}
               alt={msg.sender_username}
               onError={(e) => {
@@ -52,19 +52,20 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
                 display: 'inline',
               }}
             />
-          <strong> {msg.sender_username}</strong>{' '}
-          
-          <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
-          <div class="dm-message-content">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
-            rehypePlugins={[rehypeHighlight]}
-          >
-            {msg.plaintext}
-          </ReactMarkdown>
+            <strong> {msg.sender_username}</strong>{' '}
+
+            <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
+            <div class="dm-message-content">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
+                rehypePlugins={[rehypeHighlight]}
+              >
+                {msg.plaintext}
+              </ReactMarkdown>
+            </div>
           </div>
-        </div>
-      )}}
+        )
+      }}
       followOutput="auto"
       increaseViewportBy={300}
     />
@@ -331,10 +332,10 @@ export default function Dm({ user }) {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputValue.trim() || !chatUser) return;
-  
+
     const messageText = inputValue.trim();
     setInputValue('');
-  
+
     const tempId = `temp-${Date.now()}`;
     const tempMessage = {
       id: tempId,
@@ -345,39 +346,39 @@ export default function Dm({ user }) {
       timestamp: Math.floor(Date.now() / 1000),
       sender_username: user.username,
     };
-  
+
     // Add temp message
     setMessages(prev => [...prev, tempMessage]);
-  
+
     try {
       const encryptedMessage = await encryptMessage(messageText, sharedKey);
       const savedMessage = await sendMessageToUser(chatUser.id, encryptedMessage);
-  
+
       // Replace temp message
       setMessages(prev =>
         prev.map(msg =>
           msg.id === tempId
             ? {
-                ...savedMessage,
-                plaintext: messageText,
-                status: 'sent',
-                timestamp: savedMessage.timestamp || tempMessage.timestamp,
-              }
+              ...savedMessage,
+              plaintext: messageText,
+              status: 'sent',
+              timestamp: savedMessage.timestamp || tempMessage.timestamp,
+            }
             : msg
         )
       );
-  
+
       setErrorMessages(null);
     } catch (error) {
       console.error('Error sending message:', error);
-  
+
       // Mark temp message as failed
       setMessages(prev =>
         prev.map(msg =>
           msg.id === tempId ? { ...msg, status: 'failed' } : msg
         )
       );
-  
+
       setErrorMessages(error.message);
     }
   };

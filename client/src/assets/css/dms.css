@@ -228,3 +228,35 @@ small {
 .dm-message-content{
   margin-left: 38px;
 }
+
+
+
+@media (max-width: 768px) {
+  .slidey.main-wrapper {
+    display: flex !important;
+    flex-direction: row;
+    overflow-x: scroll !important;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    height: 100dvh;
+    width: 100vw;
+  }
+
+  .slidey .sidebar-wrapper,
+  .slidey .main-content-wrapper {
+    flex: 0 0 100vw;
+    height: 100dvh;
+    scroll-snap-align: start;
+    overflow-y: auto;
+  }
+
+  .slidey.main-wrapper::-webkit-scrollbar {
+    display: none;
+  }
+
+  .slidey.main-wrapper {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

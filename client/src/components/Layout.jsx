@@ -155,7 +155,7 @@ export default function Layout({ user, onLogout }) {
 
   return (
     <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers }}>
-      <div className="main-wrapper d-flex">
+      <div className={`${isDmPage ? 'slidey' : ''} main-wrapper d-flex`}>
         <SidebarWrapper>
           {/* Main sidebar always shows */}
           <Sidebar user={user} onLogout={onLogout} hasUnreadDms={hasUnreadDms} />
