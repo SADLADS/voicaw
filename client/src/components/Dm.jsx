@@ -16,6 +16,36 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import defaultpfp from '../assets/images/default.png';
 
+function extractUrls(text) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  return text.match(urlRegex) || [];
+}
+
+function UrlPreview({ url }) {
+  let embedUrl = url;
+
+  // Simple YouTube embed conversion
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    const videoId = url.includes('youtu.be')
+      ? url.split('/').pop()
+      : new URL(url).searchParams.get('v');
+
+    embedUrl = `https://www.youtube.com/embed/${videoId}`;
+    return (
+      <div className="url-preview">
+        <iframe
+          width="300"
+          height="170"
+          src={embedUrl}
+          title="YouTube video"
+          frameBorder="0"
+          allowFullScreen
+        ></iframe>
+      </div>
+    );
+  }
+}
+
 function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endpoint, firstItemIndex }) {
   return (
     <Virtuoso
@@ -64,6 +94,10 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
               >
                 {msg.plaintext}
               </ReactMarkdown>
+
+              {extractUrls(msg.plaintext).map((url, idx) => (
+                <UrlPreview key={idx} url={url} />
+              ))}
             </div>
           </div>
         )
@@ -274,6 +308,8 @@ export default function Dm({ user }) {
   }
 
 
+
+
   async function fetchMessages(beforeId = null) {
     console.log("fetch messages!")
     try {
@@ -292,6 +328,9 @@ export default function Dm({ user }) {
       setErrorMessages(e.message);
     }
   }
+
+
+
 
 
   const loadMoreMessages = async () => {
