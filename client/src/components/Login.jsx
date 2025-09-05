@@ -47,7 +47,8 @@ export default function Login({ onLoginSuccess }) {
 
         try {
           if ('serviceWorker' in navigator && 'PushManager' in window) {
-            console.log("Registering service worker for push notifications");
+            console.log("Registering service worker...");
+            await navigator.serviceWorker.register('../service-worker.js');
             const reg = await navigator.serviceWorker.ready;
             console.log('Service worker ready:', reg);
             const convertedKey = urlBase64ToUint8Array(response2.data.vapidPubKey);
@@ -85,8 +86,9 @@ export default function Login({ onLoginSuccess }) {
         }
 
 
-
+        console.log("connectWebSocket")
         connectWebSocket(response2.data.userId);
+        console.log("redirecting...")
         onLoginSuccess(response2.data); // Pass user info to parent
       } else {
         throw new Error('No token or private key received');
