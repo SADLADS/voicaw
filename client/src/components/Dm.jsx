@@ -447,7 +447,7 @@ export default function Dm({ user }) {
                 rows={1}
               />
               <div className="chat-buttons">
-                <button className="emoji-button" type="submit">
+                <button className="emoji-button">
                   😎
                 </button>
                 <button className="send-button" type="submit">
