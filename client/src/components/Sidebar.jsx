@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faComments,
-  faUsers,
+  faPlus,
   faCalendarAlt,
   faCog,
 } from '@fortawesome/free-solid-svg-icons';
@@ -34,10 +34,10 @@ export default function Sidebar({ hasUnreadDms }) {
         </NavLink>
       </div>
 
-      <div className={`nav-item ${isActivePath('/plaza') ? 'active' : ''}`}>
+      <div className={`nav-item ${isActivePath('/createguild') ? 'active' : ''}`}>
         <span className="dot"></span>
-        <NavLink to="/plaza" className="nav-icon">
-          <FontAwesomeIcon icon={faUsers} />
+        <NavLink to="/createguild" className="nav-icon">
+          <FontAwesomeIcon icon={faPlus} />
         </NavLink>
       </div>
 

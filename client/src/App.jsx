@@ -4,7 +4,7 @@ import { useAuth } from './AuthProvider.jsx';
 
 import Login from './components/Login.jsx';
 import Layout from './components/Layout.jsx';
-import Plaza from './components/Plaza.jsx';
+import CreateGuild from './components/CreateGuild.jsx';
 import Calendar from './components/Calendar.jsx';
 import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
@@ -91,12 +91,12 @@ export default function App() {
         <Routes>
           <Route
             path="/"
-            element={user ? <Navigate to="/plaza" replace /> : <Login onLoginSuccess={setUser} />}
+            element={user ? <Navigate to="/createguild" replace /> : <Login onLoginSuccess={setUser} />}
           />
 
           {user && (
             <Route element={<Layout user={user}  />}>
-              <Route path="/plaza" element={<Plaza user={user} />} />
+              <Route path="/createguild" element={<CreateGuild user={user} />} />
               <Route path="/calendar" element={<Calendar user={user} />} />
               <Route path="/settings" element={<Settings user={user} onLogout={handleLogout} />} />
               <Route path="/dm/:id?" element={<Dm user={user} />} />
