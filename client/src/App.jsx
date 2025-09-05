@@ -91,7 +91,8 @@ export default function App() {
         <Routes>
           <Route
             path="/"
-            element={user ? <Navigate to="/createguild" replace /> : <Login onLoginSuccess={setUser} />}
+            // TODO at some point, change this to the previously viewed page?
+            element={user ? <Navigate to="/dm" replace /> : <Login onLoginSuccess={setUser} />}
           />
 
           {user && (
