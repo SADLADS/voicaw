@@ -76,9 +76,6 @@ body {
   border-radius: 8px;
 }
 
-.dm-message:hover {
-  background-color: var(--vc-bg-elevated);
-}
 
 #dm-chat-box {
   flex-grow: 1;
