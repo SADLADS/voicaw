@@ -6,6 +6,7 @@
   --vc-action-hover: #bfa62f;
 
   --vc-accent-alt: #1C9A8C;
+  --vc-accent-alt-hover: #165C56;
   --vc-danger: #E94F37;
 
   --vc-bg-base: #1a1a1f;
@@ -56,6 +57,11 @@ body {
 
 a {
   text-decoration: none;
+  color:var(--vc-accent-alt);
+}
+
+a:hover {
+  text-decoration: underline;
 }
 
 .nav-item {
