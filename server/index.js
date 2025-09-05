@@ -7,6 +7,8 @@ const opaque = require('@serenity-kit/opaque');
 const db = require('./db');
 const cors = require('cors');
 const webpush = require('web-push');
+const emojiData = require('unicode-emoji-json');
+
 
 require('dotenv').config();
 
@@ -41,6 +43,57 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 );
 
+
+function seedEmojisIfNeeded() {
+  db.get("SELECT COUNT(*) as count FROM emojis", (err, row) => {
+    if (err) {
+      console.error("Error checking emoji table:", err);
+      return;
+    }
+
+    if (row.count === 0) {
+      console.log("No emojis found, seeding database...");
+
+      db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+
+        const stmt = db.prepare(
+          "INSERT OR IGNORE INTO emojis (name, unicode, is_custom) VALUES (?, ?, 0)"
+        );
+
+        const entries = Object.entries(emojiData);
+
+        entries.forEach(([char, data]) => {
+          const slug = data.slug || data.name.replace(/\s+/g, "_").toLowerCase();
+          stmt.run(slug, char, function (err) {
+            if (err) {
+              console.error("Insert error:", slug, char, err);
+            }
+          });
+        });
+
+        stmt.finalize(err => {
+          if (err) {
+            console.error("Error finalizing statement:", err);
+          } else {
+            db.run("COMMIT", commitErr => {
+              if (commitErr) {
+                console.error("Error committing transaction:", commitErr);
+              } else {
+                console.log(`Seeded ${entries.length} Unicode emojis.`);
+              }
+            });
+          }
+        });
+      });
+    } else {
+      console.log(`Emoji table already has ${row.count} entries, skipping seed.`);
+    }
+  });
+}
+
+
+seedEmojisIfNeeded();
 
 
 const app = express();
