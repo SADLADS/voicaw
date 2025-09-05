@@ -7,25 +7,22 @@ export default function Settings({ user }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  const handleFileSelect = useCallback((e) => {
-    const f = e.target.files[0];
-    if (f && f.type === "image/png") {
+  const validateImage = (f) => {
+    if (f && f.type.startsWith("image/")) {
       setFile(f);
       setError(null);
     } else {
-      setError("Only PNG images are allowed.");
+      setError("Only image files are allowed.");
     }
+  };
+
+  const handleFileSelect = useCallback((e) => {
+    validateImage(e.target.files[0]);
   }, []);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
-    const f = e.dataTransfer.files[0];
-    if (f && f.type === "image/png") {
-      setFile(f);
-      setError(null);
-    } else {
-      setError("Only PNG images are allowed.");
-    }
+    validateImage(e.dataTransfer.files[0]);
   }, []);
 
   const handleDragOver = (e) => e.preventDefault();
@@ -67,11 +64,11 @@ export default function Settings({ user }) {
       <h4>Change Profile Pic</h4>
       <input
         type="file"
-        accept="image/png"
+        accept="image/*"   // allow any image type
         onChange={handleFileSelect}
         style={{ marginBottom: "1rem" }}
       />
-    <br></br>
+      <br />
       <button
         className="uploadbutton btn"
         onClick={uploadFile}

@@ -24,7 +24,7 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
       startReached={hasMore ? loadMoreMessages : undefined}
       itemContent={(index, msg) => {
         const imgSrc = s3Endpoint
-          ? `${s3Endpoint}/profile-pics/${msg.sender_id}.png`
+          ? `${s3Endpoint}/profile-pics/${msg.sender_id}`
           : defaultpfp; // fallback
           return (
         

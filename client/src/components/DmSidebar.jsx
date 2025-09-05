@@ -33,7 +33,7 @@ export default function DmSidebar({ users }) {
       <h4 className="direct-messages-header">Direct Messages</h4>
       <div className="dm-user-list-container">
         {userList.map(({ id, username, online }) => {
-          const imgSrc = `${s3Endpoint}/profile-pics/${id}.png`;
+          const imgSrc = `${s3Endpoint}/profile-pics/${id}`;
           return (
             <Link
               key={id}

@@ -498,7 +498,13 @@ app.get('/api/dm-get-unread/', authenticateJWT, (req, res) => {
 app.get("/api/upload_profile_pic", authenticateJWT, async (req, res) => {
   try {
     const userId = req.user?.id;
-    const url = await getUploadUrl(`${userId}.png`, "profile-pics", "image/png");
+    const { type } = req.query;
+    if (!type) {
+      return res.status(400).json({ error: "Missing content type" });
+    }
+
+    const url = await getUploadUrl(`${userId}`, "profile-pics", type);
+
     return res.status(201).json({ url });
   } catch (err) {
     console.error(err);
