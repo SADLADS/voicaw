@@ -275,3 +275,17 @@ small {
 .send-button:hover {
   background-color: var(--vc-accent-hover);
 }
+
+
+.youtube-wrapper {
+  width: 100%;
+  max-width: 500px;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  margin: 10px 0;
+}
+
+.youtube-wrapper iframe {
+  width: 100%;
+  height: 100%;
+}

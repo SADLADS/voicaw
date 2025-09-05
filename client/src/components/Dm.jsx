@@ -32,10 +32,8 @@ function UrlPreview({ url }) {
 
     embedUrl = `https://www.youtube.com/embed/${videoId}`;
     return (
-      <div className="url-preview">
+      <div className="youtube-wrapper">
         <iframe
-          width="300"
-          height="170"
           src={embedUrl}
           title="YouTube video"
           frameBorder="0"
