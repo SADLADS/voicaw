@@ -8,15 +8,31 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Try to fetch current user session from backend
-    api.get('/profile')
-      .then(res => {
-        if (res.data.user) setUser(res.data.user);
-        else setUser(null);
-      })
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+    async function fetchProfile() {
+      try {
+        const res = await api.get('/profile');
+
+        if (res.data && res.data.id) {
+          setUser({
+            id: res.data.id,
+            username: res.data.username,
+            token: res.data.token,
+            private_key: res.data.private_key,
+            vapidPubKey: res.data.vapidPubKey
+          });
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProfile();
   }, []);
+
 
   return (
     <AuthContext.Provider value={{ user, setUser, loading }}>

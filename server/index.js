@@ -177,7 +177,7 @@ app.post('/api/finaliselogin', (req, res) => {
         console.log(userKeyData.id)
         const userId = userKeyData.id
         const vapidPubKey = process.env.VAPID_PUBLIC_KEY
-        res.json({ token, userId, private_key, vapidPubKey });
+        res.json({ token, id: userId, private_key, vapidPubKey, username: userIdentifier });
       });
     }
   });
@@ -228,14 +228,28 @@ app.post('/api/finaliseregister', (req, res) => {
 });
 
 
-// Minimal protected route example
 app.get('/api/profile', authenticateJWT, (req, res) => {
-  if (req.user) {
-    res.json({ user: req.user });
-  } else {
-    res.json({ user: null });
-  }
+  if (!req.user) return res.json({ user: null });
+
+  const userId = req.user.id;
+
+  db.get('SELECT private_key FROM users WHERE id = ?', [userId], (err, userKeyData) => {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    if (!userKeyData) return res.status(404).json({ error: 'User not found' });
+
+    const token = req.headers.authorization?.split(' ')[1];
+    const vapidPubKey = process.env.VAPID_PUBLIC_KEY;
+
+    res.json({
+      token,
+      id: userId,
+      username: req.user.username,
+      private_key: userKeyData.private_key,
+      vapidPubKey
+    });
+  });
 });
+
 
 app.get('/api/dms-list', authenticateJWT, (req, res) => {
   const loggedInUserId = req.user.id;
