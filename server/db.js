@@ -113,8 +113,10 @@ CREATE TABLE IF NOT EXISTS direct_messages (
 db.run(`
 CREATE TABLE IF NOT EXISTS emojis (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  image_url TEXT NOT NULL
+  name TEXT NOT NULL UNIQUE,
+  unicode TEXT,
+  image_url TEXT,
+  is_custom INTEGER DEFAULT 0
 );
 `);
 
