@@ -12,6 +12,8 @@ import rehypeHighlight from 'rehype-highlight';
 import { Virtuoso } from 'react-virtuoso';
 import { encryptMessage, decryptMessage, deriveSharedKey } from '../services/encryptionService';
 import { ConfigContext } from '../App';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import defaultpfp from '../assets/images/default.png';
 
 function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endpoint, firstItemIndex }) {
@@ -423,7 +425,11 @@ export default function Dm({ user }) {
               id="dm-chat-form"
               className="d-flex flex-grow-1"
               onSubmit={handleSendMessage}
-            >
+            ><div className="attach-wrapper">
+                <button className="attach-button">
+                  <FontAwesomeIcon icon={faPlus} />
+                </button>
+              </div>
               <textarea
                 id="dm-input"
                 className="form-control auto-resize-textarea"
@@ -440,9 +446,14 @@ export default function Dm({ user }) {
                 ref={inputRef}
                 rows={1}
               />
-              <button className="btn btn-primary" type="submit">
-                Send
-              </button>
+              <div className="chat-buttons">
+                <button className="emoji-button" type="submit">
+                  😎
+                </button>
+                <button className="send-button" type="submit">
+                  Send
+                </button>
+              </div>
             </form>
           </div>
         </>

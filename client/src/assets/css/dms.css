@@ -124,17 +124,8 @@ small {
   color: var(--vc-fg);
 }
 
-#dm-chat-form .btn {
-  background-color: var(--vc-accent);
-  border: none;
-  color: var(--vc-fg);
-  border-radius: 8px;
-  transition: background-color 0.2s ease;
-}
 
-#dm-chat-form .btn:hover {
-  background-color: var(--vc-accent-hover);
-}
+
 
 .chat-recipient-header {
   margin: 0px;
@@ -256,4 +247,31 @@ small {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+}
+
+.emoji-button{
+  background: none;
+  border: none;
+  padding: 8px;
+}
+
+.chat-buttons{
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  height: auto; 
+}
+
+.send-button {
+  background-color: var(--vc-accent);
+  border: none;
+  color: var(--vc-fg);
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+  padding: 8px;
+}
+
+.send-button:hover {
+  background-color: var(--vc-accent-hover);
 }
