@@ -60,7 +60,7 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
 
           <div
             className={`
-            dm-message
+            dm-message message
             ${msg.sender_id === user.id ? 'sent' : 'received'}
             ${msg.status === 'pending' ? 'pending' : ''}
             ${msg.status === 'failed' ? 'failed' : ''}

@@ -55,12 +55,12 @@ body {
   font-weight: bold;
 }
 
-a {
+.message a {
   text-decoration: none;
   color:var(--vc-accent-alt);
 }
 
-a:hover {
+.message a:hover {
   text-decoration: underline;
 }
 
