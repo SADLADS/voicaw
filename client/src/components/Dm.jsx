@@ -16,6 +16,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import defaultpfp from '../assets/images/default.png';
 import { InteractionContext } from "../App";
+import { faEdit, faTrash, faReply } from '@fortawesome/free-solid-svg-icons';
 
 
 function extractUrls(text) {
@@ -46,7 +47,9 @@ function UrlPreview({ url }) {
   }
 }
 
-function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endpoint, firstItemIndex }) {
+
+
+function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endpoint, firstItemIndex, hoveredMsgId, setHoveredMsgId, handleEdit, handleDelete, handleReply }) {
   return (
     <Virtuoso
       style={{ height: '100%', width: '100%' }}
@@ -66,7 +69,10 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
             ${msg.sender_id === user.id ? 'sent' : 'received'}
             ${msg.status === 'pending' ? 'pending' : ''}
             ${msg.status === 'failed' ? 'failed' : ''}
+            
           `}
+            onMouseEnter={() => setHoveredMsgId(msg.id)}
+            onMouseLeave={() => setHoveredMsgId(null)}
           >
             <img
               src={imgSrc}
@@ -99,6 +105,24 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
                 <UrlPreview key={idx} url={url} />
               ))}
             </div>
+            {hoveredMsgId === msg.id && (
+              <div className="message-menu">
+                {msg.sender_id === user.id && (
+                  <button className="icon-button" onClick={() => handleEdit(msg)}>
+                    <FontAwesomeIcon icon={faEdit} title="Edit" />
+                  </button>
+                )}
+                {msg.sender_id === user.id && (
+                  <button className="icon-button trash-button" onClick={() => handleDelete(msg)}>
+                    <FontAwesomeIcon icon={faTrash} title="Delete" />
+                  </button>
+                )}
+                <button className="icon-button" onClick={() => handleReply(msg)}>
+                  <FontAwesomeIcon icon={faReply} title="Reply" />
+                </button>
+              </div>
+            )}
+
           </div>
         )
       }}
@@ -134,6 +158,20 @@ export default function Dm({ user }) {
 
   const [isLoading, setIsLoading] = useState(true);
 
+  const [hoveredMsgId, setHoveredMsgId] = useState(null);
+
+  function handleEdit(msg) {
+  }
+
+  function handleDelete(msg) {
+    setMessages(prev => prev.filter(m => m.id !== msg.id));
+    // TODO: call API to delete message on server
+  }
+
+  function handleReply(msg) {
+    setInputValue(`@${msg.sender_username} `);
+    inputRef.current?.focus();
+  }
 
   useEffect(() => {
     if (!id || !chatUser?.public_key) {
@@ -456,6 +494,11 @@ export default function Dm({ user }) {
                 firstItemIndex={firstItemIndex}
                 s3Endpoint={s3Endpoint}
                 initialTopMostItemIndex={firstItemIndex + messages.length - 1}
+                hoveredMsgId={hoveredMsgId}
+                setHoveredMsgId={setHoveredMsgId}
+                handleEdit={handleEdit}
+                handleDelete={handleDelete}
+                handleReply={handleReply}
               />
             )}
           </div>

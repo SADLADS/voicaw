@@ -1,0 +1,49 @@
+/* this is all not desktop specific yet, until i can be bothered to add a different mobile version */
+
+.dm-message {
+  position: relative;
+}
+
+.message-menu {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 8px;
+  background: var(--vc-bg-elevated);
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+}
+
+.dm-message:hover .message-menu {
+  opacity: 1;
+}
+
+.message-menu button {
+  background: none;
+  border: none;
+  color: var(--vc-fg-subtle);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.message-menu button:hover {
+  background: var(--vc-bg-elevated-hover);
+  border-radius: 3px;
+}
+
+.icon-button:hover {
+  color: var(--vc-fg);
+}
+
+.icon-button.trash-button {
+  color: var(--vc-danger);
+}
+
+.icon-button.trash-button:hover {
+  color: var(--vc-danger);
+}
