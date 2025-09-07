@@ -21,6 +21,7 @@ import api from '../utils/api';
 
 
 function extractUrls(text) {
+  if(!text) return [];
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   return text.match(urlRegex) || [];
 }
@@ -330,6 +331,7 @@ export default function Dm({ user }) {
     if (!user?.id || !chatUser?.id || !sharedKey) return;
 
     const unsubscribe = onNewDm(async (message) => {
+      console.log("new dm!", message);
       // If there's already plaintext on the message, use it.
       if (message.plaintext) {
         handleIncomingMessage(message, true);
@@ -343,7 +345,14 @@ export default function Dm({ user }) {
 
       try {
         const plaintext = await decryptMessage(message.content, sharedKey);
-        const parent_plaintext = await decryptMessage(message.parent_content, sharedKey);
+        let parent_plaintext = "";
+        if (message.parent_message_id && message.parent_content) {
+          try {
+            parent_plaintext = await decryptMessage(message.parent_content, sharedKey);
+          } catch (e) {
+            console.warn("Failed to decrypt parent message", message.parent_message_id, e);
+          }
+        }
         const decryptedNewMessage = { ...message, plaintext, parent_plaintext };
 
         handleIncomingMessage(decryptedNewMessage);
@@ -489,6 +498,10 @@ export default function Dm({ user }) {
     const messageText = inputValue.trim();
     setInputValue('');
     const tempId = `temp-${Date.now()}`;
+
+    const pm_id = messageToReply?.id || null;
+    const pm_plaintext = messageToReply?.plaintext || null;
+
     const tempMessage = {
       id: tempId,
       sender_id: user.id,
@@ -497,8 +510,8 @@ export default function Dm({ user }) {
       status: 'pending',
       timestamp: Math.floor(Date.now() / 1000),
       sender_username: user.username,
-      parent_message_id: messageToReply.id,
-      parent_plaintext: messageToReply.plaintext,
+      parent_message_id: pm_id,
+      parent_plaintext: pm_plaintext,
     };
 
     setMessageToReply(null)
@@ -508,7 +521,7 @@ export default function Dm({ user }) {
 
     try {
       const encryptedMessage = await encryptMessage(messageText, sharedKey);
-      const savedMessage = await sendMessageToUser(chatUser.id, encryptedMessage, messageToReply.id);
+      const savedMessage = await sendMessageToUser(chatUser.id, encryptedMessage, pm_id);
 
       // Replace temp message
       setMessages(prev =>
@@ -519,7 +532,7 @@ export default function Dm({ user }) {
               plaintext: messageText,
               status: 'sent',
               timestamp: savedMessage.timestamp || tempMessage.timestamp,
-              parent_plaintext: tempMessage.parent_plaintext,
+              parent_plaintext: pm_plaintext,
             }
             : msg
         )
