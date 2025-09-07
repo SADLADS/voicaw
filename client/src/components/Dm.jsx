@@ -112,14 +112,14 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
                     <FontAwesomeIcon icon={faEdit} title="Edit" />
                   </button>
                 )}
+                <button className="icon-button" onClick={() => handleReply(msg)}>
+                  <FontAwesomeIcon icon={faReply} title="Reply" />
+                </button>
                 {msg.sender_id === user.id && (
                   <button className="icon-button trash-button" onClick={() => handleDelete(msg)}>
                     <FontAwesomeIcon icon={faTrash} title="Delete" />
                   </button>
                 )}
-                <button className="icon-button" onClick={() => handleReply(msg)}>
-                  <FontAwesomeIcon icon={faReply} title="Reply" />
-                </button>
               </div>
             )}
 
