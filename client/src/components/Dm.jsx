@@ -78,7 +78,7 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
             data-msg-id={msg.id}
             onMouseEnter={() => setHoveredMsgId(msg.id)}
             onMouseLeave={() => setHoveredMsgId(null)}
-          >{msg.parent_plaintext}
+          >
             {parent && (
               <div className="reply-snippet">
                 <img
@@ -343,7 +343,8 @@ export default function Dm({ user }) {
 
       try {
         const plaintext = await decryptMessage(message.content, sharedKey);
-        const decryptedNewMessage = { ...message, plaintext };
+        const parent_plaintext = await decryptMessage(message.parent_content, sharedKey);
+        const decryptedNewMessage = { ...message, plaintext, parent_plaintext };
 
         handleIncomingMessage(decryptedNewMessage);
       } catch (err) {
