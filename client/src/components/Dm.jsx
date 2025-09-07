@@ -64,7 +64,12 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
           : defaultpfp;
 
         const parent = msg.parent_message_id
-          ? messages.find(m => m.id === msg.parent_message_id)
+          ? {
+            id: msg.parent_message_id,
+            plaintext: msg.parent_plaintext,
+            sender_username: msg.parent_username,
+            sender_id: msg.parent_sender_id,
+          }
           : null;
 
         return (
@@ -390,13 +395,24 @@ export default function Dm({ user }) {
 
   async function decryptMessagesBatch(messages, key) {
     return Promise.all(messages.map(async msg => {
+      let plaintext = null;
+      let parentPlaintext = null;
+
       try {
-        const plaintext = await decryptMessage(msg.content, key);
-        return { ...msg, plaintext };
+        plaintext = await decryptMessage(msg.content, key);
       } catch (e) {
         console.warn("Failed to decrypt message", msg.id, e);
-        return { ...msg, plaintext: null };
       }
+
+      if (msg.parent_message_id && msg.parent_content) {
+        try {
+          parentPlaintext = await decryptMessage(msg.parent_content, key);
+        } catch (e) {
+          console.warn("Failed to decrypt parent message", msg.parent_message_id, e);
+        }
+      }
+
+      return { ...msg, plaintext, parent_plaintext: parentPlaintext };
     }));
   }
 

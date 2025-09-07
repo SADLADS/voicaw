@@ -360,40 +360,45 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
   const loggedInUserId = req.user.id;
   const otherUserId = parseInt(req.params.otherUserId, 10);
   const beforeId = req.query.before;
-  const params = [loggedInUserId, otherUserId, otherUserId, loggedInUserId];
   const limit = 10;
   if (isNaN(otherUserId)) return res.status(400).json({ error: 'Invalid user ID' });
-  var query = `
-    SELECT dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, u.username AS sender_username, dm.parent_message_id
+
+  const params = [loggedInUserId, otherUserId, otherUserId, loggedInUserId];
+
+  let query = `
+    SELECT 
+      dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, u.username AS sender_username, dm.parent_message_id,
+      pm.content AS parent_content,
+      pu.username AS parent_username,
+      pu.id AS parent_sender_id
     FROM direct_messages dm
     JOIN users u ON dm.sender_id = u.id
+    LEFT JOIN direct_messages pm ON dm.parent_message_id = pm.id
+    LEFT JOIN users pu ON pm.sender_id = pu.id
     WHERE
       ((dm.sender_id = ? AND dm.recipient_id = ?)
       OR
       (dm.sender_id = ? AND dm.recipient_id = ?))
-  `
+  `;
 
   if (beforeId) {
-    query += `AND dm.id < ?`
-    params.push(beforeId)
+    query += ` AND dm.id < ?`;
+    params.push(beforeId);
   }
 
   query += `
-  ORDER BY dm.id DESC
-  LIMIT ?
-  `
-  params.push(limit)
-  db.all(query
-    ,
-    params,
-    (err, rows) => {
-      if (err) {
-        console.error('Failed to fetch DM messages:', err);
-        return res.status(500).json({ error: 'Server error' });
-      }
-      res.json(rows.reverse());
+    ORDER BY dm.id DESC
+    LIMIT ?
+  `;
+  params.push(limit);
+
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      console.error('Failed to fetch DM messages:', err);
+      return res.status(500).json({ error: 'Server error' });
     }
-  );
+    res.json(rows.reverse());
+  });
 });
 
 app.post('/api/dm-send', authenticateJWT, async (req, res) => {
