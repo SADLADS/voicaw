@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import api from "../utils/api";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+import { InteractionContext } from "../App";
 
 
 export default function Settings({ onLogout, user }) {
@@ -9,6 +10,7 @@ export default function Settings({ onLogout, user }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const { interactionMode, setInteractionMode } = useContext(InteractionContext);
 
   const validateImage = (f) => {
     if (f && f.type.startsWith("image/")) {
@@ -82,10 +84,19 @@ export default function Settings({ onLogout, user }) {
       >
         {uploading ? "Uploading..." : "Upload"}
       </button>
-      
-
       {error && <p style={{ color: "red" }}>{error}</p>}
       {success && <p style={{ color: "green" }}>Upload successful!</p>}
+
+      <h5>Interaction Mode</h5>
+      <select
+        value={interactionMode}
+        onChange={(e) => setInteractionMode(e.target.value)}
+      >
+        <option value="desktop">Desktop</option>
+        <option value="mobile">Mobile</option>
+        <option value="auto">Auto</option>
+      </select>
+
       <h5>Log Out</h5>
       <div className="mt-auto mb-4">
         <button onClick={onLogout} className="btn btn-sm btn-danger" title="Logout">

@@ -15,6 +15,8 @@ import { ConfigContext } from '../App';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import defaultpfp from '../assets/images/default.png';
+import { InteractionContext } from "../App";
+
 
 function extractUrls(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -108,7 +110,8 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
 
 export default function Dm({ user }) {
   const { s3Endpoint } = useContext(ConfigContext);
-  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const { interactionMode } = useContext(InteractionContext);
+  const isMobile = interactionMode === "mobile";
 
   const INITIAL_INDEX = 100000;
 

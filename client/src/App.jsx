@@ -9,10 +9,17 @@ import Calendar from './components/Calendar.jsx';
 import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
 import api from './utils/api';
+import './assets/css/mobile.css';
+import './assets/css/desktop.css';
 
 import { closeWebSocket } from './utils/ws-client';
 
 export const ConfigContext = createContext({ s3Endpoint: '' });
+
+export const InteractionContext = createContext({
+  interactionMode: "auto",
+  setInteractionMode: () => { },
+});
 
 // Handles service worker messages (like "navigate")
 function SWMessageHandler() {
@@ -51,8 +58,9 @@ export default function App() {
   const { user, setUser, loading } = useAuth();
   const [config, setConfig] = useState({ s3Endpoint: '' });
 
+  const [interactionMode, setInteractionMode] = useState("auto");
+
   useEffect(() => {
-    console.log("fetch config")
     // Fetch server config once at app start
     async function fetchConfig() {
       try {
@@ -62,8 +70,41 @@ export default function App() {
         console.error('Failed to fetch config', err);
       }
     }
+
+    const saved = localStorage.getItem("interactionMode");
+    if (saved) {
+      setInteractionMode(saved);
+    } else {
+      const isMobile =
+        navigator.userAgentData?.mobile ??
+        /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      setInteractionMode(isMobile ? "mobile" : "desktop");
+    }
+
+    console.log("fetch config")
     fetchConfig();
   }, []);
+
+
+  useEffect(() => {
+    localStorage.setItem('interactionMode', interactionMode);
+
+    let resolvedMode = interactionMode;
+    if (interactionMode === 'auto') {
+      const isMobile =
+        navigator.userAgentData?.mobile ??
+        /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      resolvedMode = isMobile ? 'mobile' : 'desktop';
+    }
+
+    document.body.classList.toggle('mobile-mode', resolvedMode === 'mobile');
+    document.body.classList.toggle('desktop-mode', resolvedMode === 'desktop');
+  }, [interactionMode]);
+
+
+
+
+
 
   if (loading) return <div></div>;
 
@@ -86,27 +127,29 @@ export default function App() {
 
   return (
     <ConfigContext.Provider value={config}>
-      <Router>
-        <SWMessageHandler />
-        <Routes>
-          <Route
-            path="/"
-            // TODO at some point, change this to the previously viewed page?
-            element={user ? <Navigate to="/dm" replace /> : <Login onLoginSuccess={setUser} />}
-          />
+      <InteractionContext.Provider value={{ interactionMode, setInteractionMode }}>
+        <Router>
+          <SWMessageHandler />
+          <Routes>
+            <Route
+              path="/"
+              // TODO at some point, change this to the previously viewed page?
+              element={user ? <Navigate to="/dm" replace /> : <Login onLoginSuccess={setUser} />}
+            />
 
-          {user && (
-            <Route element={<Layout user={user}  />}>
-              <Route path="/createguild" element={<CreateGuild user={user} />} />
-              <Route path="/calendar" element={<Calendar user={user} />} />
-              <Route path="/settings" element={<Settings user={user} onLogout={handleLogout} />} />
-              <Route path="/dm/:id?" element={<Dm user={user} />} />
-            </Route>
-          )}
+            {user && (
+              <Route element={<Layout user={user} />}>
+                <Route path="/createguild" element={<CreateGuild user={user} />} />
+                <Route path="/calendar" element={<Calendar user={user} />} />
+                <Route path="/settings" element={<Settings user={user} onLogout={handleLogout} />} />
+                <Route path="/dm/:id?" element={<Dm user={user} />} />
+              </Route>
+            )}
 
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </Router>
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </Router>
+      </InteractionContext.Provider>
     </ConfigContext.Provider>
   );
 }

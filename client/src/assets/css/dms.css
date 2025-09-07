@@ -17,8 +17,8 @@ body {
   background-color: var(--vc-bg-base);
   color: var(--vc-fg);
   padding: 0;
-  margin:0;
-  border:0;
+  margin: 0;
+  border: 0;
   display: flex;
   flex-direction: column;
   height: 100dvh;
@@ -54,8 +54,8 @@ body {
   text-decoration: none;
   display: flex;
   border: 1px solid var(--vc-bg-base);
-  margin-left:10px;
-  margin-right:10px;
+  margin-left: 10px;
+  margin-right: 10px;
 }
 
 .dm-user.active {
@@ -102,10 +102,10 @@ small {
   margin: 0.5rem;
 }
 
-.dm-chat-wrapper{
+.dm-chat-wrapper {
   border-radius: 8px;
   margin: 0.75rem;
-  margin-top:0;
+  margin-top: 0;
   border: 1px solid var(--vc-border-light);
   background-color: var(--vc-bg-elevated);
 }
@@ -135,8 +135,8 @@ small {
   padding-left: 1.25rem;
 }
 
-.direct-messages-header{
-  margin:0;
+.direct-messages-header {
+  margin: 0;
   padding: 0.5rem;
   border-bottom: 1px solid var(--vc-border-light);
   border-top: 1px solid var(--vc-border-light);
@@ -152,18 +152,18 @@ small {
   width: 8px;
   height: 8px;
   opacity: 0;
-  margin-left:-15px
+  margin-left: -15px
 }
 
-.userdot.active{
+.userdot.active {
   opacity: 1;
 }
 
-.list-group{
+.list-group {
   border-radius: 0;
 }
 
-.dm-message-wrapper{
+.dm-message-wrapper {
   flex-grow: 1;
   overflow: auto;
   scrollbar-color: var(--vc-fg-muted) var(--vc-bg-subtle);
@@ -177,8 +177,8 @@ small {
 }
 
 @media (max-width: 768px) {
-  #dm-sidebar{
-    width:calc(100% - 72px);
+  #dm-sidebar {
+    width: calc(100% - 72px);
   }
 }
 
@@ -213,54 +213,26 @@ small {
   font-style: italic;
 }
 
-.dm-message-content{
+.dm-message-content {
   margin-left: 38px;
 }
 
 
 
-@media (max-width: 768px) {
-  .slidey.main-wrapper {
-    display: flex !important;
-    flex-direction: row;
-    overflow-x: scroll !important;
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    height: 100dvh;
-    width: 100vw;
-  }
 
-  .slidey .sidebar-wrapper,
-  .slidey .main-content-wrapper {
-    flex: 0 0 100vw;
-    height: 100dvh;
-    scroll-snap-align: start;
-    overflow-y: auto;
-  }
 
-  .slidey.main-wrapper::-webkit-scrollbar {
-    display: none;
-  }
-
-  .slidey.main-wrapper {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-}
-
-.emoji-button{
+.emoji-button {
   background: none;
   border: none;
   padding: 8px;
 }
 
-.chat-buttons{
+.chat-buttons {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
   gap: 10px;
-  height: auto; 
+  height: auto;
 }
 
 .send-button {
