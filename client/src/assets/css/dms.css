@@ -165,7 +165,6 @@ small {
 }
 
 .dm-message-wrapper {
-  padding-top: 10px; /* TODO: remove after adding user info stuff at the top of DMs */
   flex-grow: 1;
   overflow: auto;
   scrollbar-color: var(--vc-fg-muted) var(--vc-bg-subtle);
