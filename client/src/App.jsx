@@ -74,11 +74,6 @@ export default function App() {
     const saved = localStorage.getItem("interactionMode");
     if (saved) {
       setInteractionMode(saved);
-    } else {
-      const isMobile =
-        navigator.userAgentData?.mobile ??
-        /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      setInteractionMode(isMobile ? "mobile" : "desktop");
     }
 
     console.log("fetch config")
@@ -87,19 +82,21 @@ export default function App() {
 
 
   useEffect(() => {
-    localStorage.setItem('interactionMode', interactionMode);
+    localStorage.setItem("interactionMode", interactionMode);
 
     let resolvedMode = interactionMode;
-    if (interactionMode === 'auto') {
+
+    if (interactionMode === "auto") {
       const isMobile =
         navigator.userAgentData?.mobile ??
         /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      resolvedMode = isMobile ? 'mobile' : 'desktop';
+      resolvedMode = isMobile ? "mobile" : "desktop";
     }
 
-    document.body.classList.toggle('mobile-mode', resolvedMode === 'mobile');
-    document.body.classList.toggle('desktop-mode', resolvedMode === 'desktop');
+    document.body.classList.toggle("mobile-mode", resolvedMode === "mobile");
+    document.body.classList.toggle("desktop-mode", resolvedMode === "desktop");
   }, [interactionMode]);
+
 
 
 
