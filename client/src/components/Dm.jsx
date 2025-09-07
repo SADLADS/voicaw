@@ -78,7 +78,7 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
             data-msg-id={msg.id}
             onMouseEnter={() => setHoveredMsgId(msg.id)}
             onMouseLeave={() => setHoveredMsgId(null)}
-          >
+          >{msg.parent_plaintext}
             {parent && (
               <div className="reply-snippet">
                 <img
@@ -102,6 +102,27 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
                 >
                   {parent.plaintext?.slice(0, 80) || "…"}
                 </span>
+              </div>
+            )}
+
+            {hoveredMsgId === msg.id && (
+              <div className="message-menu">
+                {msg.sender_id === user.id && (
+                  <button className="icon-button" onClick={() => handleEdit(msg)}>
+                    <FontAwesomeIcon icon={faEdit} title="Edit" />
+                  </button>
+                )}
+                <button className="icon-button" onClick={() => handleReply(msg)}>
+                  <FontAwesomeIcon icon={faReply} title="Reply" />
+                </button>
+                {msg.sender_id === user.id && (
+                  <button
+                    className="icon-button trash-button"
+                    onClick={() => handleDelete(msg)}
+                  >
+                    <FontAwesomeIcon icon={faTrash} title="Delete" />
+                  </button>
+                )}
               </div>
             )}
 
@@ -144,26 +165,7 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
                   <UrlPreview key={idx} url={url} />
                 ))}
               </div>
-              {hoveredMsgId === msg.id && (
-                <div className="message-menu">
-                  {msg.sender_id === user.id && (
-                    <button className="icon-button" onClick={() => handleEdit(msg)}>
-                      <FontAwesomeIcon icon={faEdit} title="Edit" />
-                    </button>
-                  )}
-                  <button className="icon-button" onClick={() => handleReply(msg.id)}>
-                    <FontAwesomeIcon icon={faReply} title="Reply" />
-                  </button>
-                  {msg.sender_id === user.id && (
-                    <button
-                      className="icon-button trash-button"
-                      onClick={() => handleDelete(msg)}
-                    >
-                      <FontAwesomeIcon icon={faTrash} title="Delete" />
-                    </button>
-                  )}
-                </div>
-              )}
+
             </div>
           </div>
         );
@@ -217,8 +219,8 @@ export default function Dm({ user }) {
     }
   }
 
-  function handleReply(id) {
-    setMessageToReply(id);
+  function handleReply(msg) {
+    setMessageToReply(msg);
     inputRef.current?.focus();
   }
 
@@ -494,7 +496,8 @@ export default function Dm({ user }) {
       status: 'pending',
       timestamp: Math.floor(Date.now() / 1000),
       sender_username: user.username,
-      parent_message_id: messageToReply,
+      parent_message_id: messageToReply.id,
+      parent_plaintext: messageToReply.plaintext,
     };
 
     setMessageToReply(null)
@@ -504,7 +507,7 @@ export default function Dm({ user }) {
 
     try {
       const encryptedMessage = await encryptMessage(messageText, sharedKey);
-      const savedMessage = await sendMessageToUser(chatUser.id, encryptedMessage, messageToReply);
+      const savedMessage = await sendMessageToUser(chatUser.id, encryptedMessage, messageToReply.id);
 
       // Replace temp message
       setMessages(prev =>
@@ -515,6 +518,7 @@ export default function Dm({ user }) {
               plaintext: messageText,
               status: 'sent',
               timestamp: savedMessage.timestamp || tempMessage.timestamp,
+              parent_plaintext: tempMessage.parent_plaintext,
             }
             : msg
         )
@@ -579,7 +583,7 @@ export default function Dm({ user }) {
             {messageToReply && (
               <div className="reply-bar">
                 <span>
-                  Replying to <strong>{chatUser?.username}</strong>
+                  Replying to <strong>{messageToReply?.sender_username}</strong>
                 </span>
                 <button
                   className="reply-close"

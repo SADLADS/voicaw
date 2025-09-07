@@ -276,12 +276,12 @@ small {
   background: var(--vc-bg-elevated);
   padding: 2px 4px;
   border-radius: 4px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: .15s ease;
   z-index: 10;
   border: 1px solid var(--vc-border-dark);
   box-shadow: 0 2px 4px var(--vc-shadow);
   transition: opacity 0.1s ease, box-shadow 0.2s ease;
+  z-index: 10;
 }
 
 .message-menu:hover {
@@ -348,6 +348,7 @@ small {
   background-color: var(--vc-bg-subtle);
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .reply-snippet {

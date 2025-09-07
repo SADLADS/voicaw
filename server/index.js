@@ -438,9 +438,14 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
             dm.timestamp,
             dm.parent_message_id,
             u.username AS sender_username,
-            u.public_key
+            u.public_key,
+            pm.content AS parent_content,
+            pu.id AS parent_sender_id,
+            pu.username AS parent_username
           FROM direct_messages dm
           JOIN users u ON dm.sender_id = u.id
+          LEFT JOIN direct_messages pm ON dm.parent_message_id = pm.id
+          LEFT JOIN users pu ON pm.sender_id = pu.id
           WHERE dm.id = ?
           `,
           [insertedId],
