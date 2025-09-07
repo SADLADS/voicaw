@@ -1,3 +1,7 @@
 .desktop-mode .dm-message:hover .message-menu {
   opacity: 1;
 }
+
+.dm-message:hover {
+  background-color: var(--vc-bg-hover);
+}

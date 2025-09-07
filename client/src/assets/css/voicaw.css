@@ -21,6 +21,8 @@
 
   --vc-fg: #F0F0F0;
   --vc-fg-muted: #E6E8EB;
+
+  --vc-shadow: rgba(0, 0, 0, 0.2);
 }
 
 html,
