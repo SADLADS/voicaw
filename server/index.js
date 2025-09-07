@@ -364,7 +364,7 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
   const limit = 10;
   if (isNaN(otherUserId)) return res.status(400).json({ error: 'Invalid user ID' });
   var query = `
-    SELECT dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, u.username AS sender_username
+    SELECT dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, u.username AS sender_username, dm.parent_message_id
     FROM direct_messages dm
     JOIN users u ON dm.sender_id = u.id
     WHERE
@@ -431,6 +431,7 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
             dm.recipient_id, 
             dm.content, 
             dm.timestamp,
+            dm.parent_message_id,
             u.username AS sender_username,
             u.public_key
           FROM direct_messages dm

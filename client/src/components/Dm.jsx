@@ -433,7 +433,6 @@ export default function Dm({ user }) {
 
     const messageText = inputValue.trim();
     setInputValue('');
-    setMessageToReply(null)
     const tempId = `temp-${Date.now()}`;
     const tempMessage = {
       id: tempId,
@@ -443,7 +442,10 @@ export default function Dm({ user }) {
       status: 'pending',
       timestamp: Math.floor(Date.now() / 1000),
       sender_username: user.username,
+      parent_message_id: messageToReply,
     };
+    
+    setMessageToReply(null)
 
     // Add temp message
     setMessages(prev => [...prev, tempMessage]);
