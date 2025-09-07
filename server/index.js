@@ -585,6 +585,53 @@ app.get('/api/config', (req, res) => {
   });
 });
 
+// DELETE a direct message by ID
+app.delete('/api/messages/:id', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const messageId = parseInt(req.params.id, 10);
+
+    if (!messageId) {
+      return res.status(400).json({ error: 'Invalid message ID' });
+    }
+
+    // Check if the message exists and the user is sender or recipient
+    db.get(
+      `SELECT * FROM direct_messages WHERE id = ?`,
+      [messageId],
+      (err, row) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).json({ error: 'Database error' });
+        }
+
+        if (!row) {
+          return res.status(404).json({ error: 'Message not found' });
+        }
+
+        // Only sender can delete their message
+        if (row.sender_id !== userId) {
+          return res.status(403).json({ error: 'Not authorized to delete this message' });
+        }
+
+        // Delete the message
+        db.run(`DELETE FROM direct_messages WHERE id = ?`, [messageId], function (err2) {
+          if (err2) {
+            console.error(err2);
+            return res.status(500).json({ error: 'Failed to delete message' });
+          }
+
+          return res.json({ success: true, deletedId: messageId });
+        });
+      }
+    );
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
 
 // FUNCTIONS
 

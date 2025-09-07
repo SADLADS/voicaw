@@ -17,6 +17,7 @@ import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import defaultpfp from '../assets/images/default.png';
 import { InteractionContext } from "../App";
 import { faEdit, faTrash, faReply } from '@fortawesome/free-solid-svg-icons';
+import api from '../utils/api';
 
 
 function extractUrls(text) {
@@ -163,9 +164,14 @@ export default function Dm({ user }) {
   function handleEdit(msg) {
   }
 
-  function handleDelete(msg) {
-    setMessages(prev => prev.filter(m => m.id !== msg.id));
-    // TODO: call API to delete message on server
+  async function handleDelete(msg) {
+    try {
+      await api.delete(`/messages/${msg.id}`);
+      // Remove message from local state
+      setMessages(prev => prev.filter(m => m.id !== msg.id));
+    } catch (err) {
+      console.error('Failed to delete message', err);
+    }
   }
 
   function handleReply(msg) {
