@@ -67,7 +67,6 @@ body {
 }
 
 .dm-message {
-  margin-top: 10px;
   position: relative;
   border-radius: 0;
   background-color: var(--vc-bg-subtle);
