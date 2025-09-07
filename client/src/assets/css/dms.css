@@ -69,12 +69,14 @@ body {
 .dm-message {
   position: relative;
   border-radius: 0;
-  background-color: var(--vc-bg-subtle);
   color: var(--vc-fg);
   border: none;
-  padding: 10px;
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-top: 4px;
   margin-right: .75rem;
-  border-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 
 
@@ -317,7 +319,7 @@ small {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: var(--vc-bg-elevated-hover); /* Discord-like dark gray */
+  background-color: var(--vc-bg-elevated-hover);
   color: var(--vc-fg-muted);
   font-size: 14px;
   padding: 4px 8px;
@@ -339,4 +341,62 @@ small {
 
 .reply-close:hover {
   color: #fff;
+}
+
+
+.each-dm-message-wrapper {
+  background-color: var(--vc-bg-subtle);
+  display: flex;
+  flex-direction: column;
+}
+
+.reply-snippet {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-left: 82px;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.reply-snippet::before {
+  content: "";
+  position: absolute;
+  left: 25px;
+  width: 30px;
+  height: 50%;
+  top: 11px;
+  border-left: 2px solid var(--vc-fg-muted);
+  border-top: 2px solid var(--vc-fg-muted);
+  border-top-left-radius: 6px;
+  box-sizing: border-box;
+}
+
+
+.reply-author {
+  font-weight: bold;
+  color: var(--vc-fg-muted);
+  margin-right: 6px;
+}
+
+.reply-preview {
+  color: var(--vc-fg-muted);
+}
+
+
+.each-dm-message-wrapper:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.reply-snippet img.reply-avatar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 5px;
+  margin-left: 60px;
 }

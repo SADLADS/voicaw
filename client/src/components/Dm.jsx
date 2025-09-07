@@ -61,71 +61,107 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
       itemContent={(index, msg) => {
         const imgSrc = s3Endpoint
           ? `${s3Endpoint}/profile-pics/${msg.sender_id}`
-          : defaultpfp; // fallback
-        return (
+          : defaultpfp;
 
+        const parent = msg.parent_message_id
+          ? messages.find(m => m.id === msg.parent_message_id)
+          : null;
+
+        return (
           <div
-            className={`
-            dm-message message
-            ${msg.sender_id === user.id ? 'sent' : 'received'}
-            ${msg.status === 'pending' ? 'pending' : ''}
-            ${msg.status === 'failed' ? 'failed' : ''}
-            
-          `}
+            className={`each-dm-message-wrapper ${msg.sender_id === user.id ? 'sent' : 'received'}`}
+            data-msg-id={msg.id}
             onMouseEnter={() => setHoveredMsgId(msg.id)}
             onMouseLeave={() => setHoveredMsgId(null)}
           >
-            <img
-              src={imgSrc}
-              alt={msg.sender_username}
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = defaultpfp;
-              }}
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                objectFit: 'cover',
-                flexShrink: 0,
-                display: 'inline',
-              }}
-            />
-            <strong> {msg.sender_username}</strong>{' '}
-
-            <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
-            <div className="dm-message-content">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
-                rehypePlugins={[rehypeHighlight]}
-              >
-                {msg.plaintext}
-              </ReactMarkdown>
-
-              {extractUrls(msg.plaintext).map((url, idx) => (
-                <UrlPreview key={idx} url={url} />
-              ))}
-            </div>
-            {hoveredMsgId === msg.id && (
-              <div className="message-menu">
-                {msg.sender_id === user.id && (
-                  <button className="icon-button" onClick={() => handleEdit(msg)}>
-                    <FontAwesomeIcon icon={faEdit} title="Edit" />
-                  </button>
-                )}
-                <button className="icon-button" onClick={() => handleReply(msg.id)}>
-                  <FontAwesomeIcon icon={faReply} title="Reply" />
-                </button>
-                {msg.sender_id === user.id && (
-                  <button className="icon-button trash-button" onClick={() => handleDelete(msg)}>
-                    <FontAwesomeIcon icon={faTrash} title="Delete" />
-                  </button>
-                )}
+            {parent && (
+              <div className="reply-snippet">
+                <img
+                  src={s3Endpoint ? `${s3Endpoint}/profile-pics/${parent.sender_id}` : defaultpfp}
+                  alt={parent.sender_username}
+                  className="reply-avatar"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = defaultpfp;
+                  }}
+                />
+                <span className="reply-author">{parent.sender_username}</span>
+                <span
+                  className="reply-preview"
+                  onClick={() => {
+                    const el = document.querySelector(
+                      `[data-msg-id="${msg.parent_message_id}"]`
+                    );
+                    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }}
+                >
+                  {parent.plaintext?.slice(0, 80) || "…"}
+                </span>
               </div>
             )}
 
+            <div
+              className={`
+                dm-message message
+                ${msg.sender_id === user.id ? 'sent' : 'received'}
+                ${msg.status === 'pending' ? 'pending' : ''}
+                ${msg.status === 'failed' ? 'failed' : ''}
+              `}
+            >
+              <img
+                src={imgSrc}
+                alt={msg.sender_username}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = defaultpfp;
+                }}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  flexShrink: 0,
+                  display: 'inline',
+                }}
+              />
+              <strong> {msg.sender_username}</strong>{' '}
+
+              <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
+              <div className="dm-message-content">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
+                  rehypePlugins={[rehypeHighlight]}
+                >
+                  {msg.plaintext}
+                </ReactMarkdown>
+
+                {extractUrls(msg.plaintext).map((url, idx) => (
+                  <UrlPreview key={idx} url={url} />
+                ))}
+              </div>
+              {hoveredMsgId === msg.id && (
+                <div className="message-menu">
+                  {msg.sender_id === user.id && (
+                    <button className="icon-button" onClick={() => handleEdit(msg)}>
+                      <FontAwesomeIcon icon={faEdit} title="Edit" />
+                    </button>
+                  )}
+                  <button className="icon-button" onClick={() => handleReply(msg.id)}>
+                    <FontAwesomeIcon icon={faReply} title="Reply" />
+                  </button>
+                  {msg.sender_id === user.id && (
+                    <button
+                      className="icon-button trash-button"
+                      onClick={() => handleDelete(msg)}
+                    >
+                      <FontAwesomeIcon icon={faTrash} title="Delete" />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        )
+        );
       }}
       followOutput="auto"
       increaseViewportBy={300}
@@ -182,15 +218,15 @@ export default function Dm({ user }) {
   }
 
   useEffect(() => {
-  function handleKeyDown(e) {
-    if (e.key === "Escape") {
-      setMessageToReply(null);
+    function handleKeyDown(e) {
+      if (e.key === "Escape") {
+        setMessageToReply(null);
+      }
     }
-  }
 
-  window.addEventListener("keydown", handleKeyDown);
-  return () => window.removeEventListener("keydown", handleKeyDown);
-}, []);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     if (!id || !chatUser?.public_key) {
@@ -444,7 +480,7 @@ export default function Dm({ user }) {
       sender_username: user.username,
       parent_message_id: messageToReply,
     };
-    
+
     setMessageToReply(null)
 
     // Add temp message
