@@ -182,6 +182,17 @@ export default function Dm({ user }) {
   }
 
   useEffect(() => {
+  function handleKeyDown(e) {
+    if (e.key === "Escape") {
+      setMessageToReply(null);
+    }
+  }
+
+  window.addEventListener("keydown", handleKeyDown);
+  return () => window.removeEventListener("keydown", handleKeyDown);
+}, []);
+
+  useEffect(() => {
     if (!id || !chatUser?.public_key) {
       setMessages([]);
       setIsLoading(false);
