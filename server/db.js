@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS direct_messages (
   recipient_id INTEGER NOT NULL,
   content TEXT NOT NULL,
   timestamp INTEGER DEFAULT (strftime('%s','now')),
+  parent_message_id INTEGER,
   FOREIGN KEY (sender_id) REFERENCES users(id),
   FOREIGN KEY (recipient_id) REFERENCES users(id)
 );
