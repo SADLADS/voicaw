@@ -11,10 +11,11 @@ export async function fetchMessagesForUser(userId, params = {}) {
 }
 
 
-export async function sendMessageToUser(recipientId, content) {
+export async function sendMessageToUser(recipientId, content, replyTo = null) {
   const res = await api.post('/dm-send', {
     recipient_id: recipientId,
     content,
+    replyTo,
   });
   return res.data;
 }

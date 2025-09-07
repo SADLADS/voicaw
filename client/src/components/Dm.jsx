@@ -113,7 +113,7 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
                     <FontAwesomeIcon icon={faEdit} title="Edit" />
                   </button>
                 )}
-                <button className="icon-button" onClick={() => handleReply(msg)}>
+                <button className="icon-button" onClick={() => handleReply(msg.id)}>
                   <FontAwesomeIcon icon={faReply} title="Reply" />
                 </button>
                 {msg.sender_id === user.id && (
@@ -161,6 +161,8 @@ export default function Dm({ user }) {
 
   const [hoveredMsgId, setHoveredMsgId] = useState(null);
 
+  const [messageToReply, setMessageToReply] = useState(null);
+
   function handleEdit(msg) {
   }
 
@@ -174,8 +176,8 @@ export default function Dm({ user }) {
     }
   }
 
-  function handleReply(msg) {
-    setInputValue(`@${msg.sender_username} `);
+  function handleReply(id) {
+    setMessageToReply(id);
     inputRef.current?.focus();
   }
 
@@ -231,7 +233,6 @@ export default function Dm({ user }) {
     setHasMore(true);
     if (!id) return;
   }, [id, chatUser]);
-
 
   useEffect(() => {
     async function deriveKey() {
@@ -421,7 +422,7 @@ export default function Dm({ user }) {
 
     const messageText = inputValue.trim();
     setInputValue('');
-
+    setMessageToReply(null)
     const tempId = `temp-${Date.now()}`;
     const tempMessage = {
       id: tempId,
@@ -438,7 +439,7 @@ export default function Dm({ user }) {
 
     try {
       const encryptedMessage = await encryptMessage(messageText, sharedKey);
-      const savedMessage = await sendMessageToUser(chatUser.id, encryptedMessage);
+      const savedMessage = await sendMessageToUser(chatUser.id, encryptedMessage, messageToReply);
 
       // Replace temp message
       setMessages(prev =>
@@ -510,6 +511,21 @@ export default function Dm({ user }) {
           </div>
 
           <div className="dm-chat-wrapper">
+            {messageToReply && (
+              <div className="reply-bar">
+                <span>
+                  Replying to <strong>{chatUser?.username}</strong>
+                </span>
+                <button
+                  className="reply-close"
+                  onClick={() => setMessageToReply(null)}
+                  type="button"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+
             <form
               id="dm-chat-form"
               className="d-flex flex-grow-1"

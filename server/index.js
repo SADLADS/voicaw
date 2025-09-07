@@ -400,7 +400,7 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
   try {
     console.log("dm-send!");
     const sender_id = req.user?.id;
-    const { recipient_id, content } = req.body;
+    const { recipient_id, content, replyTo } = req.body;
 
     if (!sender_id) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -411,9 +411,9 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
     }
 
     db.run(
-      `INSERT INTO direct_messages (sender_id, recipient_id, content, timestamp)
-       VALUES (?, ?, ?, strftime('%s','now'))`,
-      [sender_id, recipient_id, content.trim()],
+      `INSERT INTO direct_messages (sender_id, recipient_id, content, parent_message_id, timestamp)
+       VALUES (?, ?, ?, ?, strftime('%s','now'))`,
+      [sender_id, recipient_id, content.trim(), replyTo],
       function (err) {
         if (err) {
           console.error('Failed to insert DM:', err);
@@ -483,7 +483,8 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
                 });
                 webpush.sendNotification(subscription, payload)
                   .catch(error => {
-                    console.error('Push notification error:', error);
+                    // console.error('Push notification error:', error);
+                    console.log('Push notification error status code:', error.statusCode)
 
                     if (error.statusCode === 410) {
                       // Subscription is no longer valid, delete it

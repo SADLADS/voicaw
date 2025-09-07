@@ -313,3 +313,31 @@ small {
 .icon-button.trash-button:hover {
   color: var(--vc-danger);
 }
+
+.reply-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--vc-bg-elevated-hover); /* Discord-like dark gray */
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 4px 4px 0 0;
+}
+
+.reply-bar strong {
+  color: var(--vc-fg);
+}
+
+.reply-close {
+  background: none;
+  border: none;
+  color: var(--vc-fg-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 6px;
+}
+
+.reply-close:hover {
+  color: #fff;
+}
