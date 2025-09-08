@@ -168,6 +168,7 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
                         value={editingMessageContent}
                         onChange={(e) => setEditingMessageContent(e.target.value)}
                         onKeyDown={(e) => {
+                          if (e.key === 'Escape') setEditingMessageId(null);
                           if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
                             handleSendMessage(e);
@@ -774,7 +775,7 @@ export default function Dm({ user }) {
                 }}
                 autoComplete="off"
                 ref={inputRef}
-                rows={1}
+                rows={2}
               />
               <div className="chat-buttons">
                 <button className="emoji-button">
