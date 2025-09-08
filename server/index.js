@@ -652,6 +652,13 @@ app.put('/api/update-message/:id', authenticateJWT, async (req, res) => {
       return res.status(400).json({ error: 'Invalid input' });
     }
 
+    // Enforce max message length
+    if (content.length > max_message_length) {
+      return res.status(400).json({
+        error: `Message too long. Max length is ${max_plaintext_length} characters.`,
+      });
+    }
+
     // Check if the message exists and the user is sender
     db.get(`SELECT * FROM direct_messages WHERE id = ?`, [messageId], (err, row) => {
       if (err) {
