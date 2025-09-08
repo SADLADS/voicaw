@@ -435,3 +435,10 @@ small {
 .inline-edit-banner a:hover {
   text-decoration: underline;
 }
+
+.char-count{
+  font-size: 10px;
+  color: var(--vc-fg-muted);
+  margin:0;
+  padding-left:10px;
+}

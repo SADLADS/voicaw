@@ -43,6 +43,12 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 );
 
+const max_plaintext_length = parseInt(process.env.MAX_MESSAGE_LENGTH, 10) || 5000;
+const max_message_length = getMaxEncryptedLength(max_plaintext_length);
+
+console.log(`Max plaintext length: ${max_plaintext_length}`);
+console.log(`Max encrypted Base64 length: ${max_message_length}`);
+
 
 function seedEmojisIfNeeded() {
   db.get("SELECT COUNT(*) as count FROM emojis", (err, row) => {
@@ -415,6 +421,12 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
       return res.status(400).json({ error: 'Missing recipient or content' });
     }
 
+    if (content.length > max_message_length) {
+      return res.status(400).json({
+        error: `Message too long. Max allowed characters: ${max_plaintext_length} bytes`
+      });
+    }
+
     db.run(
       `INSERT INTO direct_messages (sender_id, recipient_id, content, parent_message_id, timestamp)
        VALUES (?, ?, ?, ?, strftime('%s','now'))`,
@@ -691,6 +703,7 @@ app.get("/api/upload_profile_pic", authenticateJWT, async (req, res) => {
 app.get('/api/config', (req, res) => {
   res.json({
     s3Endpoint: process.env.S3_ENDPOINT,
+    maxPlaintextLength: max_plaintext_length,
   });
 });
 
@@ -770,6 +783,14 @@ async function getUserImageUrl(userId) {
     console.error("Error checking S3 image:", err);
   }
   return "/default.png";
+}
+
+
+function getMaxEncryptedLength(maxPlaintextLength) {
+  const ivLength = 12;
+  const tagLength = 16;
+  const totalBytes = maxPlaintextLength + ivLength + tagLength;
+  return Math.ceil(totalBytes * 4 / 3);
 }
 
 

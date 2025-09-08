@@ -14,7 +14,10 @@ import './assets/css/desktop.css';
 
 import { closeWebSocket } from './utils/ws-client';
 
-export const ConfigContext = createContext({ s3Endpoint: '' });
+export const ConfigContext = createContext({ 
+  s3Endpoint: '',
+  maxPlaintextLength: 5000,
+ });
 
 export const InteractionContext = createContext({
   interactionMode: "auto",
@@ -67,7 +70,10 @@ export default function App() {
     async function fetchConfig() {
       try {
         const res = await api.get('/config');
-        setConfig({ s3Endpoint: res.data.s3Endpoint });
+        setConfig({ 
+          s3Endpoint: res.data.s3Endpoint,
+          maxPlaintextLength: res.data.maxPlaintextLength,
+        });
       } catch (err) {
         console.error('Failed to fetch config', err);
       }

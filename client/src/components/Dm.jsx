@@ -70,6 +70,7 @@ function VirtuosoMessageList({
   handleSaveEdit,
   isMobile,
   editRef,
+  maxPlaintextLength,
 }) {
   return (
     <Virtuoso
@@ -185,7 +186,14 @@ function VirtuosoMessageList({
                       <textarea
                         id={`edit-input-${msg.id}`}
                         value={editingMessageContent}
-                        onChange={(e) => setEditingMessageContent(e.target.value)}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value.length <= maxPlaintextLength) {
+                            setEditingMessageContent(value);
+                          } else {
+                            setEditingMessageContent(value.slice(0, maxPlaintextLength));
+                          }
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === 'Escape') setEditingMessageId(null);
                           if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
@@ -239,7 +247,7 @@ function VirtuosoMessageList({
 }
 
 export default function Dm({ user }) {
-  const { s3Endpoint } = useContext(ConfigContext);
+  const { s3Endpoint, maxPlaintextLength } = useContext(ConfigContext);
   const { isMobile } = useContext(InteractionContext);
 
 
@@ -765,6 +773,7 @@ export default function Dm({ user }) {
                 handleSaveEdit={handleSaveEdit}
                 isMobile={isMobile}
                 editRef={editRef}
+                maxPlaintextLength={maxPlaintextLength}
               />
             )}
           </div>
@@ -799,7 +808,14 @@ export default function Dm({ user }) {
                 className="form-control auto-resize-textarea"
                 placeholder={`Message ${chatUser?.username || 'User'}...`}
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.length <= maxPlaintextLength) {
+                    setInputValue(value);
+                  } else {
+                    setInputValue(value.slice(0, maxPlaintextLength));
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -819,6 +835,9 @@ export default function Dm({ user }) {
                 </button>
               </div>
             </form>
+          </div>
+          <div className="char-count">
+            {inputValue.length}/{maxPlaintextLength}
           </div>
         </>
       )}
