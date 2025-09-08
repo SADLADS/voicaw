@@ -190,7 +190,7 @@ function VirtuosoMessageList({
                           if (e.key === 'Escape') setEditingMessageId(null);
                           if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
-                            handleSendMessage(e);
+                            handleSaveEdit(msg.id);
                           }
                         }}
                         className="form-control auto-resize-textarea"
