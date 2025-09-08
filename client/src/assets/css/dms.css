@@ -355,7 +355,7 @@ small {
 .reply-snippet {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: top;
   padding-left: 82px;
   border-radius: 4px;
   overflow: hidden;

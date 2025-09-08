@@ -51,23 +51,23 @@ function UrlPreview({ url }) {
 
 
 
-function VirtuosoMessageList({ 
-  messages, 
-  user, 
-  hasMore, 
-  loadMoreMessages, 
-  s3Endpoint, 
-  firstItemIndex, 
-  hoveredMsgId, 
-  setHoveredMsgId, 
-  handleEdit, 
-  handleDelete, 
-  handleReply, 
-  editingMessageId, 
-  editingMessageContent, 
-  setEditingMessageContent, 
-  setEditingMessageId, 
-  handleSaveEdit, 
+function VirtuosoMessageList({
+  messages,
+  user,
+  hasMore,
+  loadMoreMessages,
+  s3Endpoint,
+  firstItemIndex,
+  hoveredMsgId,
+  setHoveredMsgId,
+  handleEdit,
+  handleDelete,
+  handleReply,
+  editingMessageId,
+  editingMessageContent,
+  setEditingMessageContent,
+  setEditingMessageId,
+  handleSaveEdit,
   isMobile,
 }) {
   return (
