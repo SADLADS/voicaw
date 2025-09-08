@@ -51,7 +51,7 @@ function UrlPreview({ url }) {
 
 
 
-function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endpoint, firstItemIndex, hoveredMsgId, setHoveredMsgId, handleEdit, handleDelete, handleReply }) {
+function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endpoint, firstItemIndex, hoveredMsgId, setHoveredMsgId, handleEdit, handleDelete, handleReply, editingMessageId, editingMessageContent, setEditingMessageContent, setEditingMessageId, handleSaveEdit }) {
   return (
     <Virtuoso
       style={{ height: '100%', width: '100%' }}
@@ -155,12 +155,38 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
 
               <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
               <div className="dm-message-content">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
-                  rehypePlugins={[rehypeHighlight]}
-                >
-                  {msg.plaintext}
-                </ReactMarkdown>
+                {editingMessageId === msg.id ? (
+                  <div className="inline-edit-wrapper">
+                    <textarea
+                      id={`edit-input-${msg.id}`}
+                      value={editingMessageContent}
+                      onChange={(e) => setEditingMessageContent(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setEditingMessageId(null);
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSaveEdit(msg.id);
+                        }
+                      }}
+                      className="form-control auto-resize-textarea"
+                      rows={1}
+                      style={{ width: '100%' }}
+                    />
+                    <div className="inline-edit-banner">
+                      <span>
+                        Escape to <a href="#" onClick={(e) => { e.preventDefault(); setEditingMessageId(null); }}>cancel</a> • Enter to <a href="#" onClick={(e) => { e.preventDefault(); handleSaveEdit(msg.id); }}>save</a>
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks, remarkEmoji]}
+                    rehypePlugins={[rehypeHighlight]}
+                  >
+                    {msg.plaintext}
+                  </ReactMarkdown>
+                )}
+
 
                 {extractUrls(msg.plaintext).map((url, idx) => (
                   <UrlPreview key={idx} url={url} />
@@ -207,8 +233,40 @@ export default function Dm({ user }) {
 
   const [messageToReply, setMessageToReply] = useState(null);
 
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingMessageContent, setEditingMessageContent] = useState('');
+
+
   function handleEdit(msg) {
+    setEditingMessageId(msg.id);
+    setEditingMessageContent(msg.plaintext);
+    setTimeout(() => {
+      const textarea = document.getElementById(`edit-input-${msg.id}`);
+      textarea?.focus();
+      textarea?.select();
+    }, 0);
   }
+
+  async function handleSaveEdit(id) {
+    try {
+      const plaintextEditingContent = await encryptMessage(editingMessageContent, sharedKey);
+      await api.put(`/update-message/${id}`, { content: plaintextEditingContent });
+
+      // Update the message locally
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === id ? { ...msg, plaintext: editingMessageContent } : msg
+        )
+      );
+
+      // Exit edit mode
+      setEditingMessageId(null);
+    } catch (err) {
+      console.error('Failed to edit message', err);
+    }
+  }
+
+
 
   async function handleDelete(msg) {
     try {
@@ -632,6 +690,11 @@ export default function Dm({ user }) {
                 handleEdit={handleEdit}
                 handleDelete={handleDelete}
                 handleReply={handleReply}
+                editingMessageId={editingMessageId}
+                editingMessageContent={editingMessageContent}
+                setEditingMessageContent={setEditingMessageContent}
+                setEditingMessageId={setEditingMessageId}
+                handleSaveEdit={handleSaveEdit}
               />
             )}
           </div>

@@ -408,3 +408,30 @@ small {
   word-break: break-word;
   overflow-wrap: break-word;
 }
+
+.edit-message-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.inline-edit-wrapper {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.inline-edit-banner {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+  margin-top: 2px;
+}
+
+.inline-edit-banner a {
+  color: var(--vc-action);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.inline-edit-banner a:hover {
+  text-decoration: underline;
+}

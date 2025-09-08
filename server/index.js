@@ -651,6 +651,49 @@ app.delete('/api/messages/:id', authenticateJWT, async (req, res) => {
 });
 
 
+// UPDATE a direct message by ID
+app.put('/api/update-message/:id', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const messageId = parseInt(req.params.id, 10);
+    const { content } = req.body;
+
+    if (!messageId || !content) {
+      return res.status(400).json({ error: 'Invalid input' });
+    }
+
+    // Check if the message exists and the user is sender
+    db.get(`SELECT * FROM direct_messages WHERE id = ?`, [messageId], (err, row) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+
+      if (!row) return res.status(404).json({ error: 'Message not found' });
+      if (row.sender_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+
+      // Update the message
+      db.run(`UPDATE direct_messages SET content = ?, edited = 1 WHERE id = ?`, [content, messageId], function (err2) {
+        if (err2) {
+          console.error(err2);
+          return res.status(500).json({ error: 'Failed to update message' });
+        }
+
+        // Notify sockets
+        sendToUserSockets(row.recipient_id, { type: 'edit_dm', messageId, content });
+        sendToUserSockets(row.sender_id, { type: 'edit_dm', messageId, content });
+
+        return res.json({ success: true, messageId, content });
+      });
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+
 
 // FUNCTIONS
 
