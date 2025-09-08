@@ -51,7 +51,25 @@ function UrlPreview({ url }) {
 
 
 
-function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endpoint, firstItemIndex, hoveredMsgId, setHoveredMsgId, handleEdit, handleDelete, handleReply, editingMessageId, editingMessageContent, setEditingMessageContent, setEditingMessageId, handleSaveEdit, isMobile }) {
+function VirtuosoMessageList({ 
+  messages, 
+  user, 
+  hasMore, 
+  loadMoreMessages, 
+  s3Endpoint, 
+  firstItemIndex, 
+  hoveredMsgId, 
+  setHoveredMsgId, 
+  handleEdit, 
+  handleDelete, 
+  handleReply, 
+  editingMessageId, 
+  editingMessageContent, 
+  setEditingMessageContent, 
+  setEditingMessageId, 
+  handleSaveEdit, 
+  isMobile,
+}) {
   return (
     <Virtuoso
       style={{ height: '100%', width: '100%' }}
