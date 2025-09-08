@@ -1,6 +1,7 @@
 let ws;
 let token;
-const listeners = new Set();
+const newDmlisteners = new Set();
+const deleteListeners = new Set(); // delete_dm listeners
 const statusListeners = new Set();
 let reconnectTimeout = null;
 
@@ -30,7 +31,10 @@ export function connectWebSocket() {
     try {
       const data = JSON.parse(event.data);
       if (data.type === 'new_dm') {
-        listeners.forEach((cb) => cb(data.message));
+        newDmlisteners.forEach((cb) => cb(data.message));
+      }
+      else if (data.type === 'delete_dm') {
+        deleteListeners.forEach((cb) => cb(data));
       }
       else if (data.type === 'user_status') {
         console.log(`User ${data.userId} is now ${data.status}`);
@@ -65,13 +69,19 @@ export function closeWebSocket() {
     ws.close(1000, 'Client logout');
     ws = null;
   }
-  listeners.clear();
+  newDmlisteners.clear();
   statusListeners.clear();
+  deleteListeners.clear();
 }
 
 export function onNewDm(callback) {
-  listeners.add(callback);
-  return () => listeners.delete(callback);
+  newDmlisteners.add(callback);
+  return () => newDmlisteners.delete(callback);
+}
+
+export function onDeleteDm(callback) {
+  deleteListeners.add(callback);
+  return () => deleteListeners.delete(callback);
 }
 
 export function onUserStatus(callback) {

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useContext, useLayoutEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import '../assets/css/dms.css';
-import { onNewDm } from '../utils/ws-client';
+import { onNewDm, onDeleteDm } from '../utils/ws-client';
 import { LayoutContext } from './Layout';
 import { fetchMessagesForUser, sendMessageToUser, markMessagesRead } from '../services/dmService';
 import ReactMarkdown from 'react-markdown';
@@ -366,6 +366,23 @@ export default function Dm({ user }) {
 
     return () => unsubscribe();
   }, [chatUser?.id, user?.id, sharedKey]);
+
+
+  useEffect(() => {
+    const unsubscribeDelete = onDeleteDm(({ messageId, sender_id }) => {
+      const currentChatUserId = chatUser?.id?.toString();
+      if (!currentChatUserId) return;
+
+      setMessages(prev =>
+        prev.filter(msg =>
+          msg.id !== messageId &&
+          (msg.sender_id?.toString() === currentChatUserId || msg.recipient_id?.toString() === currentChatUserId)
+        )
+      );
+    });
+
+    return () => unsubscribeDelete();
+  }, [chatUser?.id]);
 
 
   useEffect(() => {
