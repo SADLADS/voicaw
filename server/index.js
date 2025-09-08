@@ -481,20 +481,20 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
               }));
             }
 
-            db.all('SELECT id, subscription FROM push_subscriptions WHERE user_id = ?', [recipient_id], (err, rows) => {
+            db.all('SELECT id, subscription FROM push_subscriptions WHERE user_id = ?', [recipient_id], async (err, rows) => {
               if (err || !rows || rows.length === 0) return;
-
+              const imageUrl = await getUserImageUrl(req.user.id);
+              console.log(imageUrl)
               rows.forEach(row => {
                 const subscription = JSON.parse(row.subscription);
                 const payload = JSON.stringify({
                   title: req.user.username,
                   body: `New encrypted message.`,
                   url: `/dm/${req.user.id}`,
-                  image: '/logo192.png'
+                  image: imageUrl,
                 });
                 webpush.sendNotification(subscription, payload)
                   .catch(error => {
-                    // console.error('Push notification error:', error);
                     console.log('Push notification error status code:', error.statusCode)
 
                     if (error.statusCode === 410) {
@@ -702,6 +702,22 @@ function authenticateJWT(req, res, next) {
     next();
   });
 }
+
+
+async function getUserImageUrl(userId) {
+  const endpoint = `${process.env.S3_ENDPOINT}/profile-pics/${userId}`;
+  console.log(endpoint)
+  try {
+    const res = await fetch(endpoint, { method: "HEAD" });
+    if (res.ok) {
+      return endpoint;
+    }
+  } catch (err) {
+    console.error("Error checking S3 image:", err);
+  }
+  return "/default.png";
+}
+
 
 // WEBSOCKETS
 function noop() { }
