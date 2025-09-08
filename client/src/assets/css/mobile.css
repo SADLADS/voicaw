@@ -5,14 +5,14 @@
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
-    height: 100dvh;
+    height: 100%;
     width: 100vw;
 }
 
 .mobile-mode .slidey .sidebar-wrapper,
 .mobile-mode .slidey .main-content-wrapper {
     flex: 0 0 100vw;
-    height: 100dvh;
+    height: 100svh;
     scroll-snap-align: start;
     overflow-y: auto;
 }

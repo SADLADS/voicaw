@@ -2,13 +2,13 @@ html,
 body {
   margin: 0;
   padding: 0;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
 }
 
 .dm-container {
   display: flex;
-  height: 100dvh;
+  height: 100%;
 }
 
 #dm-sidebar {
@@ -21,7 +21,7 @@ body {
   border: 0;
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: 100%;
 }
 
 #dm-sidebar::after {
@@ -30,7 +30,7 @@ body {
   right: 0;
   top: 0;
   width: 4px;
-  height: 100dvh;
+  height: 100%;
   background-color: transparent;
 }
 
@@ -39,7 +39,7 @@ body {
   display: flex;
   flex-grow: 1;
   flex-direction: column;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
   padding: 0rem;
   box-sizing: border-box;

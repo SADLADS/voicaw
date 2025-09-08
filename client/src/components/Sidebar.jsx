@@ -17,8 +17,8 @@ export default function Sidebar({ hasUnreadDms }) {
 
   return (
     <div
-      className="sidebar d-flex flex-column align-items-center"
-      style={{ width: '72px', height: '100dvh' }}
+      className="sidebar d-flex flex-column align-items-center full-height"
+      style={{ width: '72px' }}
     >
       <div className={`nav-item }`}>
       <NavLink to="/" className="" style={{ display: 'block' }}>
