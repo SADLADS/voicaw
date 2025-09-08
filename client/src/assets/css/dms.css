@@ -169,6 +169,7 @@ small {
   flex-grow: 1;
   overflow: auto;
   scrollbar-color: var(--vc-fg-muted) var(--vc-bg-subtle);
+  overflow-x: hidden;
 }
 
 .dm-user-list-container {
@@ -404,4 +405,6 @@ small {
 
 .dm-message-content {
   white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
