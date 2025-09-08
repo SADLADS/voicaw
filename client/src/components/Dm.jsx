@@ -51,7 +51,7 @@ function UrlPreview({ url }) {
 
 
 
-function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endpoint, firstItemIndex, hoveredMsgId, setHoveredMsgId, handleEdit, handleDelete, handleReply, editingMessageId, editingMessageContent, setEditingMessageContent, setEditingMessageId, handleSaveEdit }) {
+function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endpoint, firstItemIndex, hoveredMsgId, setHoveredMsgId, handleEdit, handleDelete, handleReply, editingMessageId, editingMessageContent, setEditingMessageContent, setEditingMessageId, handleSaveEdit, isMobile }) {
   return (
     <Virtuoso
       style={{ height: '100%', width: '100%' }}
@@ -161,21 +161,24 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
               <div className="dm-message-content">
                 {editingMessageId === msg.id ? (
                   <div className="inline-edit-wrapper">
-                    <textarea
-                      id={`edit-input-${msg.id}`}
-                      value={editingMessageContent}
-                      onChange={(e) => setEditingMessageContent(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Escape') setEditingMessageId(null);
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSaveEdit(msg.id);
-                        }
-                      }}
-                      className="form-control auto-resize-textarea"
-                      rows={1}
-                      style={{ width: '100%' }}
-                    />
+                    <form onSubmit={(e) => e.preventDefault()}>
+
+                      <textarea
+                        id={`edit-input-${msg.id}`}
+                        value={editingMessageContent}
+                        onChange={(e) => setEditingMessageContent(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage(e);
+                          }
+                        }}
+                        className="form-control auto-resize-textarea"
+                        rows={1}
+                        style={{ width: '100%' }}
+                      />
+                    </form>
+
                     <div className="inline-edit-banner">
                       <span>
                         Escape to <a href="#" onClick={(e) => { e.preventDefault(); setEditingMessageId(null); }}>cancel</a> • Enter to <a href="#" onClick={(e) => { e.preventDefault(); handleSaveEdit(msg.id); }}>save</a>
@@ -209,8 +212,8 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
 
 export default function Dm({ user }) {
   const { s3Endpoint } = useContext(ConfigContext);
-  const { interactionMode } = useContext(InteractionContext);
-  const isMobile = interactionMode === "mobile";
+  const { isMobile } = useContext(InteractionContext);
+
 
   const INITIAL_INDEX = 100000;
 
@@ -727,6 +730,7 @@ export default function Dm({ user }) {
                 setEditingMessageContent={setEditingMessageContent}
                 setEditingMessageId={setEditingMessageId}
                 handleSaveEdit={handleSaveEdit}
+                isMobile={isMobile}
               />
             )}
           </div>

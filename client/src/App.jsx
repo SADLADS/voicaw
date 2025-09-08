@@ -18,6 +18,7 @@ export const ConfigContext = createContext({ s3Endpoint: '' });
 
 export const InteractionContext = createContext({
   interactionMode: "auto",
+  isMobile: false,
   setInteractionMode: () => { },
 });
 
@@ -59,6 +60,7 @@ export default function App() {
   const [config, setConfig] = useState({ s3Endpoint: '' });
 
   const [interactionMode, setInteractionMode] = useState("auto");
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     // Fetch server config once at app start
@@ -80,26 +82,26 @@ export default function App() {
     fetchConfig();
   }, []);
 
-
   useEffect(() => {
     localStorage.setItem("interactionMode", interactionMode);
 
     let resolvedMode = interactionMode;
+    let resolvedIsMobile = false;
 
     if (interactionMode === "auto") {
-      const isMobile =
+      resolvedIsMobile =
         navigator.userAgentData?.mobile ??
         /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      resolvedMode = isMobile ? "mobile" : "desktop";
+      resolvedMode = resolvedIsMobile ? "mobile" : "desktop";
+    } else {
+      resolvedIsMobile = interactionMode === "mobile";
     }
+
+    setIsMobile(resolvedIsMobile);
 
     document.body.classList.toggle("mobile-mode", resolvedMode === "mobile");
     document.body.classList.toggle("desktop-mode", resolvedMode === "desktop");
   }, [interactionMode]);
-
-
-
-
 
 
 
@@ -124,7 +126,7 @@ export default function App() {
 
   return (
     <ConfigContext.Provider value={config}>
-      <InteractionContext.Provider value={{ interactionMode, setInteractionMode }}>
+      <InteractionContext.Provider value={{ interactionMode, setInteractionMode, isMobile }}>
         <Router>
           <SWMessageHandler />
           <Routes>
