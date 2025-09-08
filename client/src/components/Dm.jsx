@@ -69,6 +69,7 @@ function VirtuosoMessageList({
   setEditingMessageId,
   handleSaveEdit,
   isMobile,
+  editRef,
 }) {
   return (
     <Virtuoso
@@ -195,6 +196,14 @@ function VirtuosoMessageList({
                         className="form-control auto-resize-textarea"
                         rows={1}
                         style={{ width: '100%' }}
+                        ref={(el) => {
+                          editRef.current = el;
+                          if (el) {
+                            el.style.height = 'auto';
+                            el.style.height = `${el.scrollHeight}px`;
+                            el.focus();
+                          }
+                        }}
                       />
                     </form>
 
@@ -247,6 +256,7 @@ export default function Dm({ user }) {
   const [hasMore, setHasMore] = useState(true);
 
   const inputRef = useRef(null);
+  const editRef = useRef(null);
   const initialLoad = useRef(true);
 
   const [sharedKey, setSharedKey] = useState(null);
@@ -268,10 +278,14 @@ export default function Dm({ user }) {
     setEditingMessageContent(msg.plaintext);
     setTimeout(() => {
       const textarea = document.getElementById(`edit-input-${msg.id}`);
-      textarea?.focus();
-      textarea?.select();
+      if (textarea) {
+        textarea.focus();
+        const length = textarea.value.length;
+        textarea.setSelectionRange(length, length); // cursor at end
+      }
     }, 0);
   }
+
 
   async function handleSaveEdit(id) {
     try {
@@ -750,6 +764,7 @@ export default function Dm({ user }) {
                 setEditingMessageId={setEditingMessageId}
                 handleSaveEdit={handleSaveEdit}
                 isMobile={isMobile}
+                editRef={editRef}
               />
             )}
           </div>
