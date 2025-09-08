@@ -21,7 +21,7 @@ import api from '../utils/api';
 
 
 function extractUrls(text) {
-  if(!text) return [];
+  if (!text) return [];
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   return text.match(urlRegex) || [];
 }
@@ -387,22 +387,48 @@ export default function Dm({ user }) {
   function handleIncomingMessage(message, alreadyPlain = false) {
     const decryptedNewMessage = alreadyPlain ? message : { ...message };
 
-    const fromId = decryptedNewMessage.sender_id.toString();
-    const currentChatUserId = chatUser.id.toString();
-    const currentUserId = user.id.toString();
+    setMessages(prev => {
+      // check if message exists by id
+      const byId = prev.findIndex(m => m.id === decryptedNewMessage.id);
+      if (byId !== -1) return prev; // duplicate, skip
 
-    const isIncomingFromCurrentChatUser = fromId === currentChatUserId;
-    const isOutgoingFromSelf =
-      fromId === currentUserId && decryptedNewMessage.recipient_id?.toString() === currentChatUserId;
+      // check if temp message exists (by matching sender, recipient, content)
+      const tempIndex = prev.findIndex(
+        m =>
+          m.status === 'pending' &&
+          m.sender_id === decryptedNewMessage.sender_id &&
+          m.recipient_id === decryptedNewMessage.recipient_id &&
+          m.plaintext === decryptedNewMessage.plaintext
+      );
 
-    if (isIncomingFromCurrentChatUser || isOutgoingFromSelf) {
-      setMessages((prev) => [...prev, decryptedNewMessage]);
-      if (isIncomingFromCurrentChatUser) markRead();
-    } else {
-      const dot = document.getElementById(`user-dot-${fromId}`);
-      if (dot) dot.classList.add('active');
-    }
+      if (tempIndex !== -1) {
+        // replace temp message with real message
+        const updated = [...prev];
+        updated[tempIndex] = decryptedNewMessage;
+        return updated;
+      }
+
+      // add new message normally
+      const fromId = decryptedNewMessage.sender_id.toString();
+      const currentChatUserId = chatUser.id.toString();
+      const currentUserId = user.id.toString();
+
+      const isIncomingFromCurrentChatUser = fromId === currentChatUserId;
+      const isOutgoingFromSelf =
+        fromId === currentUserId && decryptedNewMessage.recipient_id?.toString() === currentChatUserId;
+
+      if (isIncomingFromCurrentChatUser || isOutgoingFromSelf) {
+        if (isIncomingFromCurrentChatUser) markRead();
+        return [...prev, decryptedNewMessage];
+      } else {
+        const dot = document.getElementById(`user-dot-${fromId}`);
+        if (dot) dot.classList.add('active');
+        return prev;
+      }
+    });
   }
+
+
 
 
   async function decryptMessagesBatch(messages, key) {

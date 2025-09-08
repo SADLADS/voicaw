@@ -472,14 +472,8 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
               }
             );
 
-            const recipientSocket = clients.get(message.recipient_id.toString());
-
-            if (recipientSocket && recipientSocket.readyState === WebSocket.OPEN) {
-              recipientSocket.send(JSON.stringify({
-                type: 'new_dm',
-                message: message,
-              }));
-            }
+            sendToUserSockets(message.recipient_id, { type: 'new_dm', message });
+            sendToUserSockets(message.sender_id, { type: 'new_dm', message });
 
             db.all('SELECT id, subscription FROM push_subscriptions WHERE user_id = ?', [recipient_id], async (err, rows) => {
               if (err || !rows || rows.length === 0) return;
@@ -633,6 +627,19 @@ app.delete('/api/messages/:id', authenticateJWT, async (req, res) => {
             return res.status(500).json({ error: 'Failed to delete message' });
           }
 
+          // Send webhooks
+          sendToUserSockets(row.recipient_id, {
+            type: 'delete_dm',
+            messageId,
+            sender_id: row.sender_id
+          });
+          sendToUserSockets(row.sender_id, {
+            type: 'delete_dm',
+            messageId,
+            sender_id: row.sender_id
+          });
+
+
           return res.json({ success: true, deletedId: messageId });
         });
       }
@@ -753,11 +760,14 @@ wss.on('connection', (ws) => {
         const token = data.token;
         jwt.verify(token, JWT_SECRET, (err, user) => {
           if (err) {
-            ws.close(1008, 'Invalid token'); // Policy Violation
+            ws.close(1008, 'Invalid token');
             return;
           }
-          clients.set(user.id.toString(), ws);
           ws.userId = user.id.toString();
+
+          if (!clients.has(ws.userId)) clients.set(ws.userId, []);
+          clients.get(ws.userId).push(ws);
+
           console.log(`User identified as ${user.id}`);
           broadcastUserStatus(user.id.toString(), 'online');
         });
@@ -768,14 +778,20 @@ wss.on('connection', (ws) => {
   });
 
 
-  ws.on('close', (code, reason) => {
-    const id = ws.userId || 'unknown';
-    // console.log(`WebSocket closed for user ${id}. Code: ${code}, Reason: ${reason?.toString() || 'No reason'}`);
-    clients.delete(id);
-    if (id !== 'unknown') {
-      broadcastUserStatus(id, 'offline');
+
+  ws.on('close', () => {
+    const userId = ws.userId;
+    if (userId && clients.has(userId)) {
+      const arr = clients.get(userId).filter(s => s !== ws);
+      if (arr.length) {
+        clients.set(userId, arr);
+      } else {
+        clients.delete(userId);
+        broadcastUserStatus(userId, 'offline');
+      }
     }
   });
+
 
   ws.on('error', (err) => {
     const id = ws.userId || 'unknown';
@@ -799,3 +815,13 @@ const interval = setInterval(() => {
 wss.on('close', () => {
   clearInterval(interval);
 });
+
+// send a webhook to all clients of a given user
+function sendToUserSockets(userId, payload) {
+  const sockets = clients.get(userId.toString()) || [];
+  sockets.forEach(s => {
+    if (s.readyState === WebSocket.OPEN) {
+      s.send(JSON.stringify(payload));
+    }
+  });
+}
