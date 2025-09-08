@@ -775,7 +775,7 @@ export default function Dm({ user }) {
                 }}
                 autoComplete="off"
                 ref={inputRef}
-                rows={2}
+                rows={1}
               />
               <div className="chat-buttons">
                 <button className="emoji-button">
