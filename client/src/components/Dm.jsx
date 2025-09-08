@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useContext, useLayoutEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import '../assets/css/dms.css';
-import { onNewDm, onDeleteDm } from '../utils/ws-client';
+import { onNewDm, onDeleteDm, onEditDm } from '../utils/ws-client';
 import { LayoutContext } from './Layout';
 import { fetchMessagesForUser, sendMessageToUser, markMessagesRead } from '../services/dmService';
 import ReactMarkdown from 'react-markdown';
@@ -153,7 +153,11 @@ function VirtuosoMessageList({ messages, user, hasMore, loadMoreMessages, s3Endp
               />
               <strong> {msg.sender_username}</strong>{' '}
 
-              <small>{new Date(msg.timestamp * 1000).toLocaleString()}</small>
+              <small>
+                {new Date(msg.timestamp * 1000).toLocaleString()}
+                {msg.edited ? <em style={{ marginLeft: '6px' }}>edited</em> : null}
+              </small>
+
               <div className="dm-message-content">
                 {editingMessageId === msg.id ? (
                   <div className="inline-edit-wrapper">
@@ -441,6 +445,34 @@ export default function Dm({ user }) {
 
     return () => unsubscribeDelete();
   }, [chatUser?.id]);
+
+
+  useEffect(() => {
+    const unsubscribeEdit = onEditDm(({ messageId, content, sender_id }) => {
+      const updateMessage = async () => {
+        try {
+          const plaintextEdit = await decryptMessage(content, sharedKey);
+          const currentChatUserId = chatUser?.id?.toString();
+          if (!currentChatUserId) return;
+
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === messageId &&
+                (msg.sender_id?.toString() === currentChatUserId || msg.recipient_id?.toString() === currentChatUserId)
+                ? { ...msg, plaintext: plaintextEdit, edited: 1 }
+                : msg
+            )
+          );
+        } catch (err) {
+          console.error("Failed to decrypt edited message", err);
+        }
+      };
+
+      updateMessage();
+    });
+
+    return () => unsubscribeEdit();
+  }, [chatUser?.id, sharedKey]);
 
 
   useEffect(() => {

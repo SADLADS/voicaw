@@ -367,7 +367,7 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
 
   let query = `
     SELECT 
-      dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, u.username AS sender_username, dm.parent_message_id,
+      dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, u.username AS sender_username, dm.parent_message_id, dm.edited,
       pm.content AS parent_content,
       pu.username AS parent_username,
       pu.id AS parent_sender_id
@@ -437,6 +437,7 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
             dm.content, 
             dm.timestamp,
             dm.parent_message_id,
+            dm.edited,
             u.username AS sender_username,
             u.public_key,
             pm.content AS parent_content,
@@ -568,29 +569,6 @@ app.get('/api/dm-get-unread/', authenticateJWT, (req, res) => {
 });
 
 
-app.get("/api/upload_profile_pic", authenticateJWT, async (req, res) => {
-  try {
-    const userId = req.user?.id;
-    const { type } = req.query;
-    if (!type) {
-      return res.status(400).json({ error: "Missing content type" });
-    }
-
-    const url = await getUploadUrl(`${userId}`, "profile-pics", type);
-
-    return res.status(201).json({ url });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Failed to generate URL" });
-  }
-});
-
-app.get('/api/config', (req, res) => {
-  res.json({
-    s3Endpoint: process.env.S3_ENDPOINT,
-  });
-});
-
 // DELETE a direct message by ID
 app.delete('/api/messages/:id', authenticateJWT, async (req, res) => {
   try {
@@ -691,6 +669,32 @@ app.put('/api/update-message/:id', authenticateJWT, async (req, res) => {
     return res.status(500).json({ error: 'Server error' });
   }
 });
+
+
+app.get("/api/upload_profile_pic", authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { type } = req.query;
+    if (!type) {
+      return res.status(400).json({ error: "Missing content type" });
+    }
+
+    const url = await getUploadUrl(`${userId}`, "profile-pics", type);
+
+    return res.status(201).json({ url });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to generate URL" });
+  }
+});
+
+app.get('/api/config', (req, res) => {
+  res.json({
+    s3Endpoint: process.env.S3_ENDPOINT,
+  });
+});
+
+
 
 
 
