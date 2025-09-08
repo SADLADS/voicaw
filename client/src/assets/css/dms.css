@@ -401,3 +401,7 @@ small {
   margin: 5px;
   margin-left: 60px;
 }
+
+.dm-message-content {
+  white-space: pre-wrap;
+}
