@@ -64,44 +64,48 @@ export default function Settings({ onLogout, user }) {
   };
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h2>Settings</h2>
-      <h5>Change Profile Pic</h5>
-      <input
-        type="file"
-        accept="image/*"   // allow any image type
-        onChange={handleFileSelect}
-        style={{ marginBottom: "1rem" }}
-      />
-      <br />
-      <button
-        className="uploadbutton btn"
-        onClick={uploadFile}
-        disabled={!file || uploading}
-        style={{
-          cursor: uploading ? "not-allowed" : "pointer",
-        }}
-      >
-        {uploading ? "Uploading..." : "Upload"}
-      </button>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {success && <p style={{ color: "green" }}>Upload successful!</p>}
-
-      <h5>Interaction Mode</h5>
-      <select
-        value={interactionMode}
-        onChange={(e) => setInteractionMode(e.target.value)}
-      >
-        <option value="desktop">Desktop</option>
-        <option value="mobile">Mobile</option>
-        <option value="auto">Auto</option>
-      </select>
-
-      <h5>Log Out</h5>
-      <div className="mt-auto mb-4">
-        <button onClick={onLogout} className="btn btn-sm btn-danger" title="Logout">
-          <FontAwesomeIcon icon={faSignOutAlt} />Log out
+    <div>
+      <h2 className="settings-header">User Settings</h2>
+      <div className="settings-card">
+        <h5>Change Profile Pic</h5>
+        <input
+          type="file"
+          accept="image/*"   // allow any image type
+          onChange={handleFileSelect}
+          style={{ marginBottom: "1rem" }}
+        />
+        <br />
+        <button
+          className="uploadbutton btn"
+          onClick={uploadFile}
+          disabled={!file || uploading}
+          style={{
+            cursor: uploading ? "not-allowed" : "pointer",
+          }}
+        >
+          {uploading ? "Uploading..." : "Upload"}
         </button>
+        {error && <p style={{ color: "red" }}>{error}</p>}
+        {success && <p style={{ color: "green" }}>Upload successful!</p>}
+      </div>
+      <div className="settings-card">
+        <h5>Interaction Mode</h5>
+        <select
+          value={interactionMode}
+          onChange={(e) => setInteractionMode(e.target.value)}
+        >
+          <option value="desktop">Desktop</option>
+          <option value="mobile">Mobile</option>
+          <option value="auto">Auto</option>
+        </select>
+      </div>
+      <div className="settings-card">
+        <h5>Log Out</h5>
+        <div className="mt-auto mb-4">
+          <button onClick={onLogout} className="btn btn-sm btn-danger" title="Logout">
+            <FontAwesomeIcon icon={faSignOutAlt} />Log out
+          </button>
+        </div>
       </div>
     </div>
   );
