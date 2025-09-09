@@ -49,62 +49,57 @@ export default function Dm({ user }) {
 
   // FUNCTIONS
 
+  async function uploadAndInsertFile(file) {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+
+    const cursorPos = textarea.selectionStart;
+    const before = inputValue.slice(0, cursorPos);
+    const after = inputValue.slice(cursorPos);
+
+    try {
+      const { data } = await api.get("/upload_file", { params: { type: file.type } });
+      const { fileUrl, uploadUrl } = data;
+      if (!uploadUrl) throw new Error("Invalid upload URL");
+
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!uploadRes.ok) throw new Error("Upload failed");
+
+      const markdown = `![](${fileUrl})`;
+      setInputValue(before + markdown + after);
+
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(cursorPos + markdown.length, cursorPos + markdown.length);
+      }, 0);
+
+    } catch (err) {
+      console.error("File upload failed:", err);
+      alert("File upload failed");
+    }
+  }
+
+
   async function handleAttachFile() {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
     fileInput.style.display = 'none';
-  
+
     fileInput.onchange = async (e) => {
       const file = e.target.files?.[0];
-      if (!file) return;
-  
-      const textarea = inputRef.current;
-      if (!textarea) return;
-  
-      const cursorPos = textarea.selectionStart;
-      const before = inputValue.slice(0, cursorPos);
-      const after = inputValue.slice(cursorPos);
-  
-      try {
-        const { data } = await api.get("/upload_file", {
-          params: { type: file.type },
-        });
-  
-        const { fileUrl, uploadUrl } = data;
-        if (!uploadUrl) throw new Error("Invalid upload URL");
-  
-        const uploadRes = await fetch(uploadUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": file.type,
-          },
-          body: file,
-        });
-  
-        if (!uploadRes.ok) throw new Error("Upload failed");
-  
-        const markdown = `![](${fileUrl})`;
-        setInputValue(before + markdown + after);
-  
-        // Restore cursor after inserted Markdown
-        setTimeout(() => {
-          textarea.focus();
-          textarea.setSelectionRange(cursorPos + markdown.length, cursorPos + markdown.length);
-        }, 0);
-  
-      } catch (err) {
-        console.error("File upload failed:", err);
-        alert("File upload failed");
-      } finally {
-        fileInput.remove();
-      }
+      if (file) await uploadAndInsertFile(file);
+      fileInput.remove();
     };
-  
+
     document.body.appendChild(fileInput);
     fileInput.click();
   }
-  
+
 
 
 
@@ -326,6 +321,31 @@ export default function Dm({ user }) {
 
 
   // USEEFFECTS
+
+
+  useEffect(() => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+
+    const handlePaste = async (e) => {
+      if (!e.clipboardData) return;
+
+      const items = e.clipboardData.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) await uploadAndInsertFile(file);
+        }
+      }
+    };
+
+    textarea.addEventListener('paste', handlePaste);
+    return () => textarea.removeEventListener('paste', handlePaste);
+  }, [inputValue]);
 
 
   useEffect(() => {
