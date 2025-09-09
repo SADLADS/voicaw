@@ -64,5 +64,6 @@ async function getDownloadUrl(filename) {
 ensureBucketExists("uploads")
 ensureBucketExists("profile-pics")
 makeBucketPublic("profile-pics")
+makeBucketPublic("uploads")
 
 module.exports = { s3, getUploadUrl, getDownloadUrl };

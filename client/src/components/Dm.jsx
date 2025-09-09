@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useContext, useLayoutEffect } from 'react';
+import React, { useEffect, useRef, useState, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import '../assets/css/dms.css';
 import { onNewDm, onDeleteDm, onEditDm } from '../utils/ws-client';
@@ -10,7 +10,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import { InteractionContext } from "../App";
 import api from '../utils/api';
-
 import MessageList from './MessageList';
 
 
@@ -47,6 +46,66 @@ export default function Dm({ user }) {
 
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingMessageContent, setEditingMessageContent] = useState('');
+
+  // FUNCTIONS
+
+  async function handleAttachFile() {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+  
+    fileInput.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+  
+      const textarea = inputRef.current;
+      if (!textarea) return;
+  
+      const cursorPos = textarea.selectionStart;
+      const before = inputValue.slice(0, cursorPos);
+      const after = inputValue.slice(cursorPos);
+  
+      try {
+        const { data } = await api.get("/upload_file", {
+          params: { type: file.type },
+        });
+  
+        const { fileUrl, uploadUrl } = data;
+        if (!uploadUrl) throw new Error("Invalid upload URL");
+  
+        const uploadRes = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": file.type,
+          },
+          body: file,
+        });
+  
+        if (!uploadRes.ok) throw new Error("Upload failed");
+  
+        const markdown = `![](${fileUrl})`;
+        setInputValue(before + markdown + after);
+  
+        // Restore cursor after inserted Markdown
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(cursorPos + markdown.length, cursorPos + markdown.length);
+        }, 0);
+  
+      } catch (err) {
+        console.error("File upload failed:", err);
+        alert("File upload failed");
+      } finally {
+        fileInput.remove();
+      }
+    };
+  
+    document.body.appendChild(fileInput);
+    fileInput.click();
+  }
+  
+
 
 
   function handleEdit(msg) {
@@ -94,10 +153,180 @@ export default function Dm({ user }) {
     }
   }
 
+
   function handleReply(msg) {
     setMessageToReply(msg);
     inputRef.current?.focus();
   }
+
+
+  function handleIncomingMessage(message, alreadyPlain = false) {
+    const decryptedNewMessage = alreadyPlain ? message : { ...message };
+
+    setMessages(prev => {
+      // check if message exists by id
+      const byId = prev.findIndex(m => m.id === decryptedNewMessage.id);
+      if (byId !== -1) return prev; // duplicate, skip
+
+      // check if temp message exists (by matching sender, recipient, content)
+      const tempIndex = prev.findIndex(
+        m =>
+          m.status === 'pending' &&
+          m.sender_id === decryptedNewMessage.sender_id &&
+          m.recipient_id === decryptedNewMessage.recipient_id &&
+          m.plaintext === decryptedNewMessage.plaintext
+      );
+
+      if (tempIndex !== -1) {
+        // replace temp message with real message
+        const updated = [...prev];
+        updated[tempIndex] = decryptedNewMessage;
+        return updated;
+      }
+
+      // add new message normally
+      const fromId = decryptedNewMessage.sender_id.toString();
+      const currentChatUserId = chatUser.id.toString();
+      const currentUserId = user.id.toString();
+
+      const isIncomingFromCurrentChatUser = fromId === currentChatUserId;
+      const isOutgoingFromSelf =
+        fromId === currentUserId && decryptedNewMessage.recipient_id?.toString() === currentChatUserId;
+
+      if (isIncomingFromCurrentChatUser || isOutgoingFromSelf) {
+        if (isIncomingFromCurrentChatUser) markRead();
+        return [...prev, decryptedNewMessage];
+      } else {
+        const dot = document.getElementById(`user-dot-${fromId}`);
+        if (dot) dot.classList.add('active');
+        return prev;
+      }
+    });
+  }
+
+
+  async function fetchMessages(beforeId = null) {
+    console.log("fetch messages!")
+    try {
+      const data = await fetchMessagesForUser(id, { before: beforeId });
+      const privatePEM = localStorage.getItem('privateKey');
+      if (!privatePEM) throw new Error("No private key found for decryption.");
+      const decryptedNewMessages = await decryptMessagesBatch(data, sharedKey)
+      if (beforeId) {
+        setMessages((prev) => [...decryptedNewMessages, ...prev]);
+      } else {
+        setMessages(decryptedNewMessages);
+      }
+      setHasMore(data.length > 0);
+      setErrorMessages(null);
+    } catch (e) {
+      setErrorMessages(e.message);
+    }
+  }
+
+
+  const loadMoreMessages = async () => {
+    console.log("load more!")
+    const oldest = messages[0];
+    if (!oldest) return;
+
+    try {
+      const newMessages = await fetchMessagesForUser(id, { before: oldest.id });
+
+      const privatePEM = localStorage.getItem('privateKey');
+      if (!privatePEM) throw new Error("No private key found for decryption.");
+      if (!chatUser) throw new Error("Chat user not loaded for decryption.");
+
+      const decryptedNewMessages = await decryptMessagesBatch(newMessages, sharedKey)
+
+      if (decryptedNewMessages.length > 0) {
+        setMessages((prev) => [...decryptedNewMessages, ...prev]);
+        setFirstItemIndex((prev) => prev - decryptedNewMessages.length);
+      }
+
+      setHasMore(decryptedNewMessages.length > 0);
+    } catch (e) {
+      setErrorMessages(e.message);
+    }
+  };
+
+
+  const markRead = async () => {
+    try {
+      if (!chatUser) return;
+      await markMessagesRead(chatUser.id);
+      fetchUnreadMessages?.();
+    } catch (err) {
+      console.warn('Failed to mark messages as read', err);
+    }
+  };
+
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!inputValue.trim() || !chatUser) return;
+
+    const messageText = inputValue.trim();
+    setInputValue('');
+    const tempId = `temp-${Date.now()}`;
+
+    const pm_id = messageToReply?.id || null;
+    const pm_plaintext = messageToReply?.plaintext || null;
+
+    const tempMessage = {
+      id: tempId,
+      sender_id: user.id,
+      recipient_id: chatUser.id,
+      plaintext: messageText,
+      status: 'pending',
+      timestamp: Math.floor(Date.now() / 1000),
+      sender_username: user.username,
+      parent_message_id: pm_id,
+      parent_plaintext: pm_plaintext,
+    };
+
+    setMessageToReply(null)
+
+    // Add temp message
+    setMessages(prev => [...prev, tempMessage]);
+
+    try {
+      const encryptedMessage = await encryptMessage(messageText, sharedKey);
+      const savedMessage = await sendMessageToUser(chatUser.id, encryptedMessage, pm_id);
+
+      // Replace temp message
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === tempId
+            ? {
+              ...savedMessage,
+              plaintext: messageText,
+              status: 'sent',
+              timestamp: savedMessage.timestamp || tempMessage.timestamp,
+              parent_plaintext: pm_plaintext,
+            }
+            : msg
+        )
+      );
+
+      setErrorMessages(null);
+    } catch (error) {
+      console.error('Error sending message:', error);
+
+      // Mark temp message as failed
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === tempId ? { ...msg, status: 'failed' } : msg
+        )
+      );
+
+      setErrorMessages(error.message);
+    }
+  };
+
+
+  // USEEFFECTS
+
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -109,6 +338,7 @@ export default function Dm({ user }) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
 
   useEffect(() => {
     if (!id || !chatUser?.public_key) {
@@ -162,6 +392,7 @@ export default function Dm({ user }) {
     setHasMore(true);
     if (!id) return;
   }, [id, chatUser]);
+
 
   useEffect(() => {
     async function deriveKey() {
@@ -303,180 +534,6 @@ export default function Dm({ user }) {
   }, [sharedKey]);
 
 
-  function handleIncomingMessage(message, alreadyPlain = false) {
-    const decryptedNewMessage = alreadyPlain ? message : { ...message };
-
-    setMessages(prev => {
-      // check if message exists by id
-      const byId = prev.findIndex(m => m.id === decryptedNewMessage.id);
-      if (byId !== -1) return prev; // duplicate, skip
-
-      // check if temp message exists (by matching sender, recipient, content)
-      const tempIndex = prev.findIndex(
-        m =>
-          m.status === 'pending' &&
-          m.sender_id === decryptedNewMessage.sender_id &&
-          m.recipient_id === decryptedNewMessage.recipient_id &&
-          m.plaintext === decryptedNewMessage.plaintext
-      );
-
-      if (tempIndex !== -1) {
-        // replace temp message with real message
-        const updated = [...prev];
-        updated[tempIndex] = decryptedNewMessage;
-        return updated;
-      }
-
-      // add new message normally
-      const fromId = decryptedNewMessage.sender_id.toString();
-      const currentChatUserId = chatUser.id.toString();
-      const currentUserId = user.id.toString();
-
-      const isIncomingFromCurrentChatUser = fromId === currentChatUserId;
-      const isOutgoingFromSelf =
-        fromId === currentUserId && decryptedNewMessage.recipient_id?.toString() === currentChatUserId;
-
-      if (isIncomingFromCurrentChatUser || isOutgoingFromSelf) {
-        if (isIncomingFromCurrentChatUser) markRead();
-        return [...prev, decryptedNewMessage];
-      } else {
-        const dot = document.getElementById(`user-dot-${fromId}`);
-        if (dot) dot.classList.add('active');
-        return prev;
-      }
-    });
-  }
-
-
-
-
-
-
-
-
-
-  async function fetchMessages(beforeId = null) {
-    console.log("fetch messages!")
-    try {
-      const data = await fetchMessagesForUser(id, { before: beforeId });
-      const privatePEM = localStorage.getItem('privateKey');
-      if (!privatePEM) throw new Error("No private key found for decryption.");
-      const decryptedNewMessages = await decryptMessagesBatch(data, sharedKey)
-      if (beforeId) {
-        setMessages((prev) => [...decryptedNewMessages, ...prev]);
-      } else {
-        setMessages(decryptedNewMessages);
-      }
-      setHasMore(data.length > 0);
-      setErrorMessages(null);
-    } catch (e) {
-      setErrorMessages(e.message);
-    }
-  }
-
-
-
-
-
-  const loadMoreMessages = async () => {
-    console.log("load more!")
-    const oldest = messages[0];
-    if (!oldest) return;
-
-    try {
-      const newMessages = await fetchMessagesForUser(id, { before: oldest.id });
-
-      const privatePEM = localStorage.getItem('privateKey');
-      if (!privatePEM) throw new Error("No private key found for decryption.");
-      if (!chatUser) throw new Error("Chat user not loaded for decryption.");
-
-      const decryptedNewMessages = await decryptMessagesBatch(newMessages, sharedKey)
-
-      if (decryptedNewMessages.length > 0) {
-        setMessages((prev) => [...decryptedNewMessages, ...prev]);
-        setFirstItemIndex((prev) => prev - decryptedNewMessages.length);
-      }
-
-      setHasMore(decryptedNewMessages.length > 0);
-    } catch (e) {
-      setErrorMessages(e.message);
-    }
-  };
-
-
-  const markRead = async () => {
-    try {
-      if (!chatUser) return;
-      await markMessagesRead(chatUser.id);
-      fetchUnreadMessages?.();
-    } catch (err) {
-      console.warn('Failed to mark messages as read', err);
-    }
-  };
-
-
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!inputValue.trim() || !chatUser) return;
-
-    const messageText = inputValue.trim();
-    setInputValue('');
-    const tempId = `temp-${Date.now()}`;
-
-    const pm_id = messageToReply?.id || null;
-    const pm_plaintext = messageToReply?.plaintext || null;
-
-    const tempMessage = {
-      id: tempId,
-      sender_id: user.id,
-      recipient_id: chatUser.id,
-      plaintext: messageText,
-      status: 'pending',
-      timestamp: Math.floor(Date.now() / 1000),
-      sender_username: user.username,
-      parent_message_id: pm_id,
-      parent_plaintext: pm_plaintext,
-    };
-
-    setMessageToReply(null)
-
-    // Add temp message
-    setMessages(prev => [...prev, tempMessage]);
-
-    try {
-      const encryptedMessage = await encryptMessage(messageText, sharedKey);
-      const savedMessage = await sendMessageToUser(chatUser.id, encryptedMessage, pm_id);
-
-      // Replace temp message
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === tempId
-            ? {
-              ...savedMessage,
-              plaintext: messageText,
-              status: 'sent',
-              timestamp: savedMessage.timestamp || tempMessage.timestamp,
-              parent_plaintext: pm_plaintext,
-            }
-            : msg
-        )
-      );
-
-      setErrorMessages(null);
-    } catch (error) {
-      console.error('Error sending message:', error);
-
-      // Mark temp message as failed
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === tempId ? { ...msg, status: 'failed' } : msg
-        )
-      );
-
-      setErrorMessages(error.message);
-    }
-  };
-
 
   return (
     <div
@@ -544,11 +601,17 @@ export default function Dm({ user }) {
               id="dm-chat-form"
               className="d-flex flex-grow-1"
               onSubmit={handleSendMessage}
-            ><div className="attach-wrapper">
-                <button className="attach-button">
+            >
+              <div className="attach-wrapper">
+                <button
+                  className="attach-button"
+                  type="button"
+                  onClick={handleAttachFile}
+                >
                   <FontAwesomeIcon icon={faPlus} />
                 </button>
               </div>
+
               <textarea
                 id="dm-input"
                 className="form-control auto-resize-textarea"

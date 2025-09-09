@@ -8,7 +8,7 @@ const db = require('./db');
 const cors = require('cors');
 const webpush = require('web-push');
 const emojiData = require('unicode-emoji-json');
-
+const { v4: uuidv4 } = require('uuid');
 
 require('dotenv').config();
 
@@ -706,6 +706,34 @@ app.get("/api/upload_profile_pic", authenticateJWT, async (req, res) => {
     return res.status(500).json({ error: "Failed to generate URL" });
   }
 });
+
+
+app.get("/api/upload_file", authenticateJWT, async (req, res) => {
+  try {
+    console.log("UPLOAD");
+    const { type } = req.query;
+    if (!type) return res.status(400).json({ error: "Missing content type" });
+
+    const ext = type.split("/")[1] || "bin";
+    const filename = `${uuidv4()}.${ext}`;
+
+    const bucketName = "uploads";
+
+    const uploadUrl = await getUploadUrl(filename, bucketName, type);
+
+    const fileUrl = `${process.env.S3_ENDPOINT}/${bucketName}/${filename}`;
+
+    console.log("Signed URL:", uploadUrl);
+    console.log("Final URL:", fileUrl);
+
+    return res.status(201).json({ uploadUrl, fileUrl });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to generate upload URL" });
+  }
+});
+
+
 
 app.get('/api/config', (req, res) => {
   res.json({
