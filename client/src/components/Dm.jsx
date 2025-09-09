@@ -342,6 +342,58 @@ export default function Dm({ user }) {
 
 
   useEffect(() => {
+    const wrapper = document.querySelector('.dm-chat-wrapper');
+    if (!wrapper) return;
+
+    let dragCounter = 0;
+
+    const handleDragEnter = (e) => {
+      e.preventDefault();
+      dragCounter++;
+      wrapper.classList.add('drag-over');
+    };
+
+    const handleDragLeave = (e) => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter === 0) {
+        wrapper.classList.remove('drag-over');
+      }
+    };
+
+    const handleDragOver = (e) => e.preventDefault();
+
+    const handleDrop = async (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      wrapper.classList.remove('drag-over');
+
+      if (!e.dataTransfer) return;
+
+      const files = Array.from(e.dataTransfer.files).filter(file =>
+        file.type.startsWith('image/')
+      );
+
+      for (const file of files) {
+        await uploadAndInsertFile(file);
+      }
+    };
+
+    wrapper.addEventListener('dragenter', handleDragEnter);
+    wrapper.addEventListener('dragleave', handleDragLeave);
+    wrapper.addEventListener('dragover', handleDragOver);
+    wrapper.addEventListener('drop', handleDrop);
+
+    return () => {
+      wrapper.removeEventListener('dragenter', handleDragEnter);
+      wrapper.removeEventListener('dragleave', handleDragLeave);
+      wrapper.removeEventListener('dragover', handleDragOver);
+      wrapper.removeEventListener('drop', handleDrop);
+    };
+  }, [inputValue]);
+
+
+  useEffect(() => {
     const textarea = inputRef.current;
     if (!textarea) return;
 

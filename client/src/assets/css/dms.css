@@ -436,9 +436,18 @@ small {
   text-decoration: underline;
 }
 
-.char-count{
+.char-count {
   font-size: 10px;
   color: var(--vc-fg-muted);
-  margin:0;
-  padding-left:10px;
+  margin: 0;
+  padding-left: 10px;
+}
+
+.dm-chat-wrapper.drag-over {
+  border: 1px dashed var(--vc-accent);
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.dm-chat-wrapper.drag-over #dm-input {
+  background-color: var(--vc-bg-elevated-hover);
 }
