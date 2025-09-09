@@ -29,7 +29,6 @@ function UrlPreview({ url }) {
         <iframe
           src={embedUrl}
           title="YouTube video"
-          frameBorder="0"
           allowFullScreen
         ></iframe>
       </div>
