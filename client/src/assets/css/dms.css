@@ -444,10 +444,14 @@ small {
 }
 
 .dm-chat-wrapper.drag-over {
-  border: 1px dashed var(--vc-accent);
+  border: 2px dashed var(--vc-accent);
   background-color: var(--vc-bg-elevated-hover);
 }
 
 .dm-chat-wrapper.drag-over #dm-input {
   background-color: var(--vc-bg-elevated-hover);
+}
+
+.dm-chat-wrapper.drag-over #dm-chat-form {
+  margin:7px;
 }
