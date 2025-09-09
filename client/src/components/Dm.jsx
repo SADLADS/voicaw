@@ -46,6 +46,7 @@ export default function Dm({ user }) {
 
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingMessageContent, setEditingMessageContent] = useState('');
+  const [progress, setProgress] = useState(0);
 
   // FUNCTIONS
 
@@ -62,12 +63,26 @@ export default function Dm({ user }) {
       const { fileUrl, uploadUrl } = data;
       if (!uploadUrl) throw new Error("Invalid upload URL");
 
-      const uploadRes = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", uploadUrl, true);
+        xhr.setRequestHeader("Content-Type", file.type);
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            setProgress(percent);
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error("Upload failed"));
+        };
+
+        xhr.onerror = () => reject(new Error("Upload failed"));
+        xhr.send(file);
       });
-      if (!uploadRes.ok) throw new Error("Upload failed");
 
       const markdown = `![](${fileUrl})`;
       setInputValue(before + markdown + after);
@@ -80,8 +95,11 @@ export default function Dm({ user }) {
     } catch (err) {
       console.error("File upload failed:", err);
       alert("File upload failed");
+    } finally {
+      setProgress(0);
     }
   }
+
 
 
   async function handleAttachFile() {
@@ -665,6 +683,10 @@ export default function Dm({ user }) {
               </div>
             </form>
           </div>
+          {progress > 0 && (
+            <progress value={progress} max="100" style={{ width: "100%" }} />
+          )}
+
           {/* <div className="char-count">
             {inputValue.length}/{maxPlaintextLength}
           </div> */}
