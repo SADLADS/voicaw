@@ -645,9 +645,9 @@ export default function Dm({ user }) {
               </div>
             </form>
           </div>
-          <div className="char-count">
+          {/* <div className="char-count">
             {inputValue.length}/{maxPlaintextLength}
-          </div>
+          </div> */}
         </>
       )}
     </div>
