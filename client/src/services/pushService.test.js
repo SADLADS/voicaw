@@ -131,6 +131,25 @@ describe('ensureSubscription', () => {
   });
 });
 
+describe('push service failures', () => {
+  it('explains "push service error" (e.g. Brave with Google push off) instead of the raw error', async () => {
+    installPushSupport({ permission: 'granted' });
+    registration.pushManager.subscribe = vi.fn(async () => {
+      throw Object.assign(new Error('Registration failed - push service error'), { name: 'AbortError' });
+    });
+
+    await expect(ensureSubscription(VAPID)).rejects.toThrow(/Brave/);
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('passes other subscribe errors through unchanged', async () => {
+    installPushSupport({ permission: 'granted' });
+    registration.pushManager.subscribe = vi.fn(async () => { throw new Error('something else'); });
+
+    await expect(ensureSubscription(VAPID)).rejects.toThrow('something else');
+  });
+});
+
 describe('enableNotifications', () => {
   it('asks for permission before anything else, so iOS counts it as user-initiated', async () => {
     installPushSupport();

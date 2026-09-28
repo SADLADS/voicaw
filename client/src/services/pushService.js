@@ -57,6 +57,21 @@ function serviceWorkerReady(timeoutMs = 10000) {
   ]);
 }
 
+// Chrome-family browsers report their push service refusing or being unreachable as
+// "Registration failed - push service error". That's the browser's setup, not Voicaw: Brave
+// has its push service off by default, and Chromium builds without Google services have none.
+export const PUSH_SERVICE_UNAVAILABLE =
+  "this browser's push service isn't available. In Brave, turn on \"Use Google services for " +
+  'push messaging" (Settings → Privacy and security) and restart Brave. Chromium builds ' +
+  'without Google services can\'t receive web push; Chrome, Edge, Firefox and Safari can.';
+
+function explainSubscribeError(err) {
+  if (/push service (error|not available)/i.test(err?.message || '')) {
+    return Object.assign(new Error(PUSH_SERVICE_UNAVAILABLE), { cause: err });
+  }
+  return err;
+}
+
 // Makes sure this device has a push subscription for our VAPID key and that the server
 // has it. Safe to call on every app start: subscriptions can change or expire.
 export async function ensureSubscription(vapidPublicKey) {
@@ -70,10 +85,14 @@ export async function ensureSubscription(vapidPublicKey) {
     subscription = null;
   }
   if (!subscription) {
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: key,
-    });
+    try {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: key,
+      });
+    } catch (err) {
+      throw explainSubscribeError(err);
+    }
   }
 
   await api.post('/save-subscription', { subscription: subscription.toJSON() });
