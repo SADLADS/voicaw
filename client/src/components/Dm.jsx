@@ -19,6 +19,7 @@ import EmojiPicker from './EmojiPicker';
 import EmojiSuggestions from './EmojiSuggestions';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { getSkinTone, recordEmojiUse, skinFor } from '../emoji/emojiUsage';
+import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
 
 // ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
 const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
@@ -185,11 +186,25 @@ export default function Dm({ user }) {
     replaceInput(start, end, text, options);
   }
 
+  // On mobile the emoji panel and the on-screen keyboard take turns in the same space (like
+  // Discord): opening the panel dismisses the keyboard, and the button (then showing a
+  // keyboard) or tapping the message box swaps back.
   function toggleEmojiPicker() {
-    // On mobile, opening the picker hides the on-screen keyboard (it would cover the picker).
-    if (!showEmojiPicker && isMobile) inputRef.current?.blur();
+    if (isMobile) {
+      if (showEmojiPicker) {
+        setShowEmojiPicker(false);
+        inputRef.current?.focus(); // inside the tap, so the keyboard opens
+      } else {
+        inputRef.current?.blur();
+        setShowEmojiPicker(true);
+      }
+      return;
+    }
     setShowEmojiPicker((open) => !open);
   }
+
+  // Remember the keyboard's height (mobile), so the emoji panel can match it.
+  useEffect(() => (isMobile ? watchKeyboardHeight() : undefined), [isMobile]);
 
   const emojiQuery = emojiIndex ? EMOJI_QUERY.exec(inputValue.slice(0, caret))?.[1] ?? null : null;
   const emojiSuggestions = emojiQuery && emojiQuery !== dismissedEmojiQuery
@@ -904,12 +919,8 @@ export default function Dm({ user }) {
             onDragOver={handleDragOver}
             onDrop={handleDrop}
           >
-            {showEmojiPicker && (
-              <EmojiPicker
-                onSelect={(native) => insertAtCursor(native, { focus: !isMobile })}
-                onClose={() => setShowEmojiPicker(false)}
-                autoFocus={!isMobile}
-              />
+            {showEmojiPicker && !isMobile && (
+              <EmojiPicker onSelect={insertAtCursor} onClose={() => setShowEmojiPicker(false)} />
             )}
 
             {emojiSuggestions.length > 0 && (
@@ -971,6 +982,8 @@ export default function Dm({ user }) {
                 onChange={handleInputChange}
                 onKeyDown={handleInputKeyDown}
                 onSelect={(e) => setCaret(e.target.selectionStart)}
+                // Mobile: the keyboard is coming up, so the emoji panel gives way.
+                onFocus={() => { if (isMobile) setShowEmojiPicker(false); }}
                 onPaste={handlePaste}
                 autoComplete="off"
                 ref={inputRef}
@@ -980,13 +993,13 @@ export default function Dm({ user }) {
                 <button
                   type="button"
                   className="emoji-button"
-                  aria-label="Emoji"
+                  aria-label={isMobile && showEmojiPicker ? 'Show keyboard' : 'Emoji'}
                   aria-expanded={showEmojiPicker}
                   // Don't let the picker's outside-click handler close it before this toggles.
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={toggleEmojiPicker}
                 >
-                  😎
+                  {isMobile && showEmojiPicker ? '⌨️' : '😎'}
                 </button>
                 <button className="send-button" type="submit">
                   Send
@@ -996,6 +1009,16 @@ export default function Dm({ user }) {
           </div>
           {progress > 0 && (
             <progress value={progress} max="100" style={{ width: "100%" }} />
+          )}
+
+          {showEmojiPicker && isMobile && (
+            // Where the keyboard would be, the same height.
+            <EmojiPicker
+              docked
+              height={getKeyboardHeight()}
+              onSelect={(native) => insertAtCursor(native, { focus: false })}
+              onClose={() => setShowEmojiPicker(false)}
+            />
           )}
           </>)}
 

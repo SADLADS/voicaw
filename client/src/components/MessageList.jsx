@@ -294,6 +294,8 @@ export default function MessageList({
   const contentRef = useRef(null);
   // Following the newest message (true until the user scrolls away from the bottom).
   const pinnedToBottom = useRef(true);
+  // The list's own height when last seen, to tell the list resizing apart from user scrolling.
+  const lastListHeight = useRef(null);
   // Manual anchoring only: the first visible row and its position within the content.
   // Scrolling doesn't change that position; content changing above the row does, and that
   // difference is exactly how far to scroll to keep the row still.
@@ -359,6 +361,15 @@ export default function MessageList({
 
   const handleScroll = () => {
     const scroller = scrollerRef.current;
+    // The list itself just changed height (keyboard / mobile emoji panel). The browser's scroll
+    // anchoring may nudge scrollTop, firing this before the ResizeObserver runs: that isn't
+    // the user scrolling away, so stay at the bottom if we were there.
+    const resized = lastListHeight.current !== null && scroller.clientHeight !== lastListHeight.current;
+    lastListHeight.current = scroller.clientHeight;
+    if (resized && pinnedToBottom.current) {
+      scroller.scrollTop = scroller.scrollHeight;
+      return;
+    }
     pinnedToBottom.current =
       scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <= PINNED_TOLERANCE_PX;
     // Content may have shifted since the anchor was recorded (e.g. an image above loaded in
@@ -376,14 +387,17 @@ export default function MessageList({
     maybeLoadOlder();
   }, [messages, hasMore, keepAnchorInPlace, rememberAnchor, maybeLoadOlder]);
 
-  // Rows changing size (images/videos loading, code highlighting, edits). ResizeObserver
-  // callbacks run after layout but before paint, so the correction is never seen.
+  // Rows changing size (images/videos loading, code highlighting, edits), and the list itself
+  // changing height (keyboard or mobile emoji panel opening). ResizeObserver callbacks run
+  // after layout but before paint, so the correction is never seen.
   useEffect(() => {
     const observer = new ResizeObserver(() => {
       keepAnchorInPlace();
       rememberAnchor();
+      lastListHeight.current = scrollerRef.current?.clientHeight ?? null;
     });
     observer.observe(contentRef.current);
+    observer.observe(scrollerRef.current);
     return () => observer.disconnect();
   }, [keepAnchorInPlace, rememberAnchor]);
 

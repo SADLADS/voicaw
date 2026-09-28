@@ -580,20 +580,56 @@ describe('Dm emoji', () => {
     expect(document.activeElement).toBe(screen.getByRole('searchbox', { name: 'Search emoji' }));
   });
 
-  it('on mobile, never focuses anything (which would pop up the keyboard)', async () => {
-    renderDm({ path: '/dm/2', users: [chatUserFull], isMobile: true });
-    await screen.findByText('No messages yet. Start the conversation!');
-    const textarea = document.getElementById('dm-input');
-    textarea.focus();
+  describe('on mobile', () => {
+    async function openMobileChat() {
+      renderDm({ path: '/dm/2', users: [chatUserFull], isMobile: true });
+      await screen.findByText('No messages yet. Start the conversation!');
+      return document.getElementById('dm-input');
+    }
 
-    fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
-    expect(document.activeElement).not.toBe(textarea);
-    expect(document.activeElement).not.toBe(screen.getByRole('searchbox', { name: 'Search emoji' }));
+    it('swaps the keyboard for a docked emoji panel of the keyboard\'s height', async () => {
+      localStorage.setItem('keyboardHeight', '300');
+      const textarea = await openMobileChat();
+      textarea.focus();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Grinning Face' }));
-    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
-    expect(textarea.value).toBe('😀');
-    expect(document.activeElement).not.toBe(textarea);
+      fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+
+      const panel = screen.getByRole('dialog', { name: 'Emoji picker' });
+      expect(panel).toHaveClass('docked');
+      expect(panel.style.height).toBe('300px');
+      expect(panel.closest('.dm-chat-wrapper')).toBeNull(); // below the composer, not over it
+      expect(document.activeElement).not.toBe(textarea); // keyboard dismissed
+      expect(screen.queryByRole('searchbox')).not.toBeInTheDocument(); // would open the keyboard
+    });
+
+    it('inserts picked emoji without focusing anything (no keyboard)', async () => {
+      const textarea = await openMobileChat();
+      fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Grinning Face' }));
+      await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+
+      expect(textarea.value).toBe('😀');
+      expect(document.activeElement).not.toBe(textarea);
+      // Stays open like a keyboard, for picking several.
+      fireEvent.click(screen.getByRole('button', { name: 'Grinning Face' }));
+      expect(textarea.value).toBe('😀😀');
+    });
+
+    it('swaps back to the keyboard from the button (now a keyboard) or by tapping the message box', async () => {
+      const textarea = await openMobileChat();
+      fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Show keyboard' }));
+      expect(screen.queryByRole('dialog', { name: 'Emoji picker' })).not.toBeInTheDocument();
+      expect(document.activeElement).toBe(textarea);
+
+      textarea.blur();
+      fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+      expect(screen.getByRole('dialog', { name: 'Emoji picker' })).toBeInTheDocument();
+      fireEvent.focus(textarea);
+      expect(screen.queryByRole('dialog', { name: 'Emoji picker' })).not.toBeInTheDocument();
+    });
   });
 });
 

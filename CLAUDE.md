@@ -222,6 +222,13 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   localStorage via `emojiUsage.js`), `:sm` autocomplete (`EmojiSuggestions`), and a completed
   `:shortcode:` turns into the emoji as you type. `remark-emoji` still renders any leftover
   `:shortcode:` text.
+- Mobile: the picker is `docked` in the on-screen keyboard's place, at its height
+  (`utils/keyboardHeight.js` measures it via `visualViewport` and remembers it per device). It and
+  the keyboard are never open together: opening it blurs the message box, and the button (⌨️ while
+  open) or focusing the message box swaps back. There's no search box when docked (typing `:name`
+  in the composer searches instead), and picks don't close it. `MessageList` keeps the chat pinned
+  to the bottom when the list's own height changes (a `ResizeObserver` on the scroller, plus
+  ignoring the browser's scroll-anchoring nudge during that resize).
 - Planned: custom per-guild emoji, as plain (unencrypted) images written `<:name:id>` in message
   text (currently left as text), shown as extra picker sections. Reactions in encrypted chats
   must be encrypted with the conversation key.

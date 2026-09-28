@@ -1024,3 +1024,22 @@ img.emoji,
   color: var(--vc-fg-muted);
   margin: 0;
 }
+
+/* Mobile: the picker docks in the keyboard's place (height set inline). */
+.emoji-picker.docked {
+  position: static;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  border-radius: 0;
+  border-width: 1px 0 0;
+  box-shadow: none;
+}
+
+.emoji-picker-title {
+  flex: 1;
+  align-self: center;
+  font-weight: 600;
+  color: var(--vc-fg-muted);
+}

@@ -24,9 +24,13 @@ function EmojiButton({ emoji, tone, onPick, onHover }) {
 
 // Discord-style picker: search, categories, frequently used, skin tone. `onSelect(native)`;
 // shift+click picks without closing. Custom (guild) emoji categories can be added later as
-// extra sections. `autoFocus` focuses the search box on open (off on mobile, where that
-// would pop up the on-screen keyboard).
-export default function EmojiPicker({ onSelect, onClose, autoFocus = true }) {
+// extra sections. `autoFocus` focuses the search box on open.
+//
+// `docked` (mobile): the picker takes the on-screen keyboard's place, `height` tall, instead
+// of floating over the chat. It has no search box there, because typing would open the
+// keyboard on top of it (searching works by typing ":name" in the message box instead), and
+// no hover preview (touch screens don't hover).
+export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docked = false, height }) {
   const index = useEmojiIndex();
   const [query, setQuery] = useState('');
   const [tone, setTone] = useState(getSkinTone);
@@ -53,8 +57,8 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true }) {
   }, [onClose]);
 
   useEffect(() => {
-    if (autoFocus) searchRef.current?.focus();
-  }, [autoFocus]);
+    if (autoFocus && !docked) searchRef.current?.focus();
+  }, [autoFocus, docked]);
 
   const sections = useMemo(() => {
     if (!index) return [];
@@ -70,7 +74,8 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true }) {
   const pick = (emoji, skin, event) => {
     recordEmojiUse(emoji.id);
     onSelect(skin.native);
-    if (!event?.shiftKey) onClose();
+    // Docked (mobile) it stays open like a keyboard; floating, shift+click keeps it open.
+    if (!docked && !event?.shiftKey) onClose();
   };
 
   const chooseTone = (value) => {
@@ -91,17 +96,27 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true }) {
   const preview = hovered && skinFor(hovered, tone);
 
   return (
-    <div className="emoji-picker" ref={rootRef} role="dialog" aria-label="Emoji picker">
+    <div
+      className={`emoji-picker${docked ? ' docked' : ''}`}
+      style={docked && height ? { height: `${height}px` } : undefined}
+      ref={rootRef}
+      role="dialog"
+      aria-label="Emoji picker"
+    >
       <div className="emoji-picker-header">
-        <input
-          ref={searchRef}
-          className="emoji-picker-search"
-          type="search"
-          placeholder="Find the perfect emoji"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search emoji"
-        />
+        {docked ? (
+          <span className="emoji-picker-title">Emoji</span>
+        ) : (
+          <input
+            ref={searchRef}
+            className="emoji-picker-search"
+            type="search"
+            placeholder="Find the perfect emoji"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search emoji"
+          />
+        )}
         {toneSample && (
           <div className="emoji-picker-tones">
             <button
@@ -173,16 +188,18 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true }) {
         </div>
       )}
 
-      <div className="emoji-picker-preview">
-        {preview ? (
-          <>
-            <img className="emoji" src={emojiImageUrl(preview.unified)} alt="" draggable={false} />
-            <span className="emoji-picker-preview-code">:{hovered.id}:</span>
-          </>
-        ) : (
-          <span className="emoji-picker-preview-name">Pick an emoji</span>
-        )}
-      </div>
+      {!docked && (
+        <div className="emoji-picker-preview">
+          {preview ? (
+            <>
+              <img className="emoji" src={emojiImageUrl(preview.unified)} alt="" draggable={false} />
+              <span className="emoji-picker-preview-code">:{hovered.id}:</span>
+            </>
+          ) : (
+            <span className="emoji-picker-preview-name">Pick an emoji</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
