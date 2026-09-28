@@ -157,12 +157,15 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
     });
   };
 
-  // Full-screen search geometry: down to the keyboard's top edge.
+  // Full-screen search geometry.
   function searchBox() {
     if (useKeyboardApi) {
-      // The keyboard overlays the page, so the picker can run exactly to its top edge.
-      const bottom = keyboardOpen ? keyboardRect.y : window.innerHeight;
-      return { top: '0px', height: `${bottom + 1}px` };
+      // The keyboard overlays the page, so the picker fills the whole screen and runs on
+      // under the keyboard; only its content stops at the keyboard's reported top. With
+      // Chrome's address bar at the bottom, that report is off by the bar's height (the real
+      // keyboard sits lower), so sizing the picker to it left the chat showing in between.
+      const inset = keyboardOpen ? Math.max(0, window.innerHeight - keyboardRect.y) : 0;
+      return { top: '0px', bottom: '0px', paddingBottom: `${inset}px` };
     }
     return { top: `${visible.offsetTop}px`, height: `${visible.height + 1}px` };
   }
@@ -175,8 +178,7 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
       className={`emoji-picker${docked ? ' docked' : ''}${docked && searching ? ' searching' : ''}`}
       style={
         docked && searching
-          // Everything above the keyboard: picker plus keyboard fill the screen. 1px extra
-          // (hidden under the keyboard) so no sliver of the page shows between them.
+          // Picker plus keyboard fill the screen, with no sliver of the page between them.
           ? searchBox()
           : docked && height ? { height: `${height}px` } : undefined
       }

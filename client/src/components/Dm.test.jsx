@@ -715,15 +715,19 @@ describe('Dm emoji', () => {
         return { search, overlaysBeforeFocus, panel: () => screen.getByRole('dialog', { name: 'Emoji picker' }) };
       }
 
-      it('has the keyboard overlay the page before it opens, and fills exactly to its top', async () => {
+      it('has the keyboard overlay the page before it opens, and fills the screen behind it', async () => {
         const { overlaysBeforeFocus, panel } = await startSearch();
         expect(overlaysBeforeFocus).toBe(true);
 
-        setKeyboardTop(520, 280); // keyboard (plus the bottom address bar above it) starts at 520
+        setKeyboardTop(520, 280); // reported keyboard top (may be above the real one)
 
         expect(panel()).toHaveClass('searching');
+        // Covers the whole screen, so no page shows even if the report is off...
         expect(panel().style.top).toBe('0px');
-        expect(panel().style.height).toBe('521px');
+        expect(panel().style.bottom).toBe('0px');
+        expect(panel().style.height).toBe('');
+        // ...while its content stays above the keyboard.
+        expect(panel().style.paddingBottom).toBe('280px');
       });
 
       it('goes back to the docked size and stops overlaying when the keyboard closes', async () => {

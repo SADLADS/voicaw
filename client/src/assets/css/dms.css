@@ -1037,11 +1037,13 @@ img.emoji,
   box-shadow: none;
 }
 
-/* Mobile emoji search: the picker fills everything above the keyboard (top/height inline). */
+/* Mobile emoji search: the picker fills the screen with the keyboard (geometry inline: either
+   top/height above the keyboard, or the whole screen with the keyboard overlaying its padding). */
 .emoji-picker.docked.searching {
   position: fixed;
   left: 0;
   right: 0;
+  height: auto;
   z-index: 200;
   border-width: 0;
 }
