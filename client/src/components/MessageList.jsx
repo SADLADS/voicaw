@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -9,6 +9,18 @@ import { faEdit, faTrash, faReply } from '@fortawesome/free-solid-svg-icons';
 import defaultpfp from '../assets/images/default.png';
 import Attachment from './Attachment';
 import { placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
+
+// react-markdown's `components` must keep a stable identity: a new function each render
+// is a new component type to React, which remounts (and reloads) every attachment on any
+// re-render. The per-message local drafts come in through context instead.
+const LocalAttachmentsContext = createContext(null);
+
+function MarkdownImage({ src, alt }) {
+  const localAttachments = useContext(LocalAttachmentsContext);
+  return <Attachment src={src} alt={alt} localAttachments={localAttachments} />;
+}
+
+const markdownComponents = { img: MarkdownImage };
 
 // react-markdown blanks URLs with unknown schemes; let draft placeholders through so
 // pending messages can show their attachments while uploading.
@@ -216,18 +228,16 @@ export default function MessageList({
                     </div>
                   </div>
                 ) : (
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkEmoji]}
-                    rehypePlugins={[rehypeHighlight]}
-                    urlTransform={urlTransform}
-                    components={{
-                      img: ({ src, alt }) => (
-                        <Attachment src={src} alt={alt} localAttachments={msg.localAttachments} />
-                      ),
-                    }}
-                  >
-                    {msg.plaintext}
-                  </ReactMarkdown>
+                  <LocalAttachmentsContext.Provider value={msg.localAttachments ?? null}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkEmoji]}
+                      rehypePlugins={[rehypeHighlight]}
+                      urlTransform={urlTransform}
+                      components={markdownComponents}
+                    >
+                      {msg.plaintext}
+                    </ReactMarkdown>
+                  </LocalAttachmentsContext.Provider>
                 )}
 
 

@@ -4,10 +4,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 vi.mock('../services/attachmentCache', () => ({
   loadDecryptedAttachment: vi.fn(),
+  getCachedAttachment: vi.fn(() => null),
 }));
 
 import Attachment from './Attachment';
-import { loadDecryptedAttachment } from '../services/attachmentCache';
+import { loadDecryptedAttachment, getCachedAttachment } from '../services/attachmentCache';
 import { buildAttachmentUrl } from '../services/attachmentCrypto';
 
 const encryptedUrl = (type, size = 2048) =>
@@ -15,6 +16,7 @@ const encryptedUrl = (type, size = 2048) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  getCachedAttachment.mockReturnValue(null);
 });
 
 describe('Attachment', () => {
@@ -34,6 +36,15 @@ describe('Attachment', () => {
     expect(screen.getByLabelText('Loading cat.png')).toBeInTheDocument();
     expect(await screen.findByRole('img', { name: 'cat.png' })).toHaveAttribute('src', 'blob:decrypted-image');
     expect(loadDecryptedAttachment).toHaveBeenCalledWith(url, expect.objectContaining({ key: 'KEY', type: 'image/png' }));
+  });
+
+  it('shows an already-decrypted attachment immediately, with no loading state', () => {
+    getCachedAttachment.mockReturnValue('blob:cached-image');
+
+    render(<Attachment src={encryptedUrl('image/png')} alt="sent.png" />);
+
+    expect(screen.getByRole('img', { name: 'sent.png' })).toHaveAttribute('src', 'blob:cached-image');
+    expect(screen.queryByLabelText('Loading sent.png')).not.toBeInTheDocument();
   });
 
   it('shows an encrypted video inline with controls', async () => {

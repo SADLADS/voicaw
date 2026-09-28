@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFile, faDownload } from '@fortawesome/free-solid-svg-icons';
 import { parseAttachmentUrl } from '../services/attachmentCrypto';
-import { loadDecryptedAttachment } from '../services/attachmentCache';
+import { loadDecryptedAttachment, getCachedAttachment } from '../services/attachmentCache';
 import { formatBytes } from '../utils/formatBytes';
 import { placeholderIdFromUrl } from '../utils/attachmentMarkup';
 
@@ -69,7 +69,10 @@ function LocalAttachment({ local, name }) {
 
 function EncryptedAttachment({ url, meta, name }) {
   const kind = kindOf(meta.type);
-  const [state, setState] = useState({ status: 'idle', objectUrl: null });
+  const [state, setState] = useState(() => {
+    const cached = getCachedAttachment(url);
+    return cached ? { status: 'ready', objectUrl: cached } : { status: 'idle', objectUrl: null };
+  });
 
   const load = () => {
     setState((s) => (s.objectUrl ? s : { status: 'loading', objectUrl: null }));
@@ -88,7 +91,7 @@ function EncryptedAttachment({ url, meta, name }) {
 
   // Images and videos load as soon as they're rendered; other files only on request.
   useEffect(() => {
-    if (kind !== 'file') load();
+    if (kind !== 'file' && !state.objectUrl) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 

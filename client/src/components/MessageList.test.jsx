@@ -18,7 +18,14 @@ vi.mock('react-virtuoso', () => ({
   ),
 }));
 
+vi.mock('../services/attachmentCache', () => ({
+  loadDecryptedAttachment: vi.fn(async () => 'blob:decrypted'),
+  getCachedAttachment: vi.fn(() => null),
+}));
+
 import MessageList from './MessageList';
+import { loadDecryptedAttachment } from '../services/attachmentCache';
+import { buildAttachmentUrl } from '../services/attachmentCrypto';
 
 const user = { id: 1, username: 'alice' };
 
@@ -190,5 +197,20 @@ describe('MessageList', () => {
     fireEvent.error(img);
 
     expect(img.src).toContain('default');
+  });
+
+  it('keeps rendered attachments mounted across re-renders (e.g. hovering a message)', async () => {
+    const url = buildAttachmentUrl('https://s3.test/uploads/a.bin', { key: 'KEY', type: 'image/png', size: 10 });
+    const messages = [
+      { id: 1, sender_id: 1, sender_username: 'alice', plaintext: `![cat.png](${url})`, timestamp: 1000 },
+    ];
+    const { rerender } = render(<MessageList {...baseProps({ messages })} />);
+    const img = await screen.findByRole('img', { name: 'cat.png' });
+
+    rerender(<MessageList {...baseProps({ messages, hoveredMsgId: 1 })} />);
+    rerender(<MessageList {...baseProps({ messages, hoveredMsgId: null })} />);
+
+    expect(screen.getByRole('img', { name: 'cat.png' })).toBe(img);
+    expect(loadDecryptedAttachment).toHaveBeenCalledTimes(1);
   });
 });
