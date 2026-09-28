@@ -77,10 +77,12 @@ describe('EmojiPicker', () => {
     expect(within(frequent).getByRole('button', { name: 'Pizza' })).toBeInTheDocument();
   });
 
-  it("shows the hovered emoji's name and shortcode", () => {
-    renderPicker();
+  it("shows the hovered emoji's :shortcode: (not its full name)", () => {
+    const { container } = renderPicker();
     fireEvent.mouseEnter(screen.getByRole('button', { name: 'Thumbs Up' }));
-    expect(screen.getByText(':+1:')).toBeInTheDocument();
+    const preview = container.querySelector('.emoji-picker-preview');
+    expect(preview).toHaveTextContent(':+1:');
+    expect(preview).not.toHaveTextContent('Thumbs Up');
   });
 
   it('closes on Escape and on clicking outside', () => {

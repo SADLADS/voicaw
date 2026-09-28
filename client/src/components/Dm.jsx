@@ -165,23 +165,30 @@ export default function Dm({ user }) {
   }
 
 
-  // Replaces inputValue[start, end) with `text` and puts the caret after it.
-  function replaceInput(start, end, text) {
+  // Replaces inputValue[start, end) with `text` and puts the caret after it. `focus` also
+  // focuses the textarea (skipped for the emoji picker on mobile: it'd open the keyboard).
+  function replaceInput(start, end, text, { focus = true } = {}) {
     const textarea = inputRef.current;
     setInputValue((prev) => (prev.slice(0, start) + text + prev.slice(end)).slice(0, maxPlaintextLength));
     const cursor = start + text.length;
     setCaret(cursor);
     setTimeout(() => {
-      textarea?.focus();
+      if (focus) textarea?.focus();
       textarea?.setSelectionRange(cursor, cursor);
     }, 0);
   }
 
-  function insertAtCursor(text) {
+  function insertAtCursor(text, options) {
     const textarea = inputRef.current;
     const start = textarea?.selectionStart ?? inputValue.length;
     const end = textarea?.selectionEnd ?? start;
-    replaceInput(start, end, text);
+    replaceInput(start, end, text, options);
+  }
+
+  function toggleEmojiPicker() {
+    // On mobile, opening the picker hides the on-screen keyboard (it would cover the picker).
+    if (!showEmojiPicker && isMobile) inputRef.current?.blur();
+    setShowEmojiPicker((open) => !open);
   }
 
   const emojiQuery = emojiIndex ? EMOJI_QUERY.exec(inputValue.slice(0, caret))?.[1] ?? null : null;
@@ -898,7 +905,11 @@ export default function Dm({ user }) {
             onDrop={handleDrop}
           >
             {showEmojiPicker && (
-              <EmojiPicker onSelect={insertAtCursor} onClose={() => setShowEmojiPicker(false)} />
+              <EmojiPicker
+                onSelect={(native) => insertAtCursor(native, { focus: !isMobile })}
+                onClose={() => setShowEmojiPicker(false)}
+                autoFocus={!isMobile}
+              />
             )}
 
             {emojiSuggestions.length > 0 && (
@@ -973,7 +984,7 @@ export default function Dm({ user }) {
                   aria-expanded={showEmojiPicker}
                   // Don't let the picker's outside-click handler close it before this toggles.
                   onMouseDown={(e) => e.stopPropagation()}
-                  onClick={() => setShowEmojiPicker((open) => !open)}
+                  onClick={toggleEmojiPicker}
                 >
                   😎
                 </button>

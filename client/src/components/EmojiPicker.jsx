@@ -24,8 +24,9 @@ function EmojiButton({ emoji, tone, onPick, onHover }) {
 
 // Discord-style picker: search, categories, frequently used, skin tone. `onSelect(native)`;
 // shift+click picks without closing. Custom (guild) emoji categories can be added later as
-// extra sections.
-export default function EmojiPicker({ onSelect, onClose }) {
+// extra sections. `autoFocus` focuses the search box on open (off on mobile, where that
+// would pop up the on-screen keyboard).
+export default function EmojiPicker({ onSelect, onClose, autoFocus = true }) {
   const index = useEmojiIndex();
   const [query, setQuery] = useState('');
   const [tone, setTone] = useState(getSkinTone);
@@ -52,8 +53,8 @@ export default function EmojiPicker({ onSelect, onClose }) {
   }, [onClose]);
 
   useEffect(() => {
-    searchRef.current?.focus();
-  }, []);
+    if (autoFocus) searchRef.current?.focus();
+  }, [autoFocus]);
 
   const sections = useMemo(() => {
     if (!index) return [];
@@ -176,7 +177,6 @@ export default function EmojiPicker({ onSelect, onClose }) {
         {preview ? (
           <>
             <img className="emoji" src={emojiImageUrl(preview.unified)} alt="" draggable={false} />
-            <span className="emoji-picker-preview-name">{hovered.name}</span>
             <span className="emoji-picker-preview-code">:{hovered.id}:</span>
           </>
         ) : (

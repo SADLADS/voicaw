@@ -96,11 +96,11 @@ const chatUserNoKey = { id: 3, username: 'nokey' };
 
 const emojiIndex = buildEmojiIndex(emojiData);
 
-function renderDm({ path, users, user = currentUser, layoutOverrides = {} } = {}) {
+function renderDm({ path, users, user = currentUser, layoutOverrides = {}, isMobile = false } = {}) {
   return render(
     <EmojiContext.Provider value={emojiIndex}>
     <ConfigContext.Provider value={{ s3Endpoint: 'https://s3.test', maxPlaintextLength: 5000 }}>
-      <InteractionContext.Provider value={{ isMobile: false }}>
+      <InteractionContext.Provider value={{ isMobile }}>
         <LayoutContext.Provider
           value={{ unreadDms: {}, users, errorUsers: null, fetchUnreadMessages: vi.fn(), ...layoutOverrides }}
         >
@@ -572,6 +572,28 @@ describe('Dm emoji', () => {
 
     type(textarea, 'nice 👍 :notarealemoji:');
     expect(textarea.value).toBe('nice 👍 :notarealemoji:');
+  });
+
+  it('on desktop, focuses the picker search so you can type straight away', async () => {
+    await openChat();
+    fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+    expect(document.activeElement).toBe(screen.getByRole('searchbox', { name: 'Search emoji' }));
+  });
+
+  it('on mobile, never focuses anything (which would pop up the keyboard)', async () => {
+    renderDm({ path: '/dm/2', users: [chatUserFull], isMobile: true });
+    await screen.findByText('No messages yet. Start the conversation!');
+    const textarea = document.getElementById('dm-input');
+    textarea.focus();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+    expect(document.activeElement).not.toBe(textarea);
+    expect(document.activeElement).not.toBe(screen.getByRole('searchbox', { name: 'Search emoji' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Grinning Face' }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    expect(textarea.value).toBe('😀');
+    expect(document.activeElement).not.toBe(textarea);
   });
 });
 
