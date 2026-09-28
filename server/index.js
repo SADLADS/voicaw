@@ -1,13 +1,11 @@
 const express = require('express');
 const crypto = require('crypto');
-const bcrypt = require('bcrypt');
 const WebSocket = require('ws');
 const jwt = require('jsonwebtoken');
 const opaque = require('@serenity-kit/opaque');
 const db = require('./db');
 const cors = require('cors');
 const webpush = require('web-push');
-const { v4: uuidv4 } = require('uuid');
 
 require('dotenv').config();
 
@@ -729,7 +727,7 @@ app.get("/api/upload_file", authenticateJWT, async (req, res) => {
 
     // Attachments are encrypted client-side and uploaded as opaque binary blobs.
     const ext = type === "application/octet-stream" ? "bin" : (type.split("/")[1] || "bin");
-    const filename = `${uuidv4()}.${ext}`;
+    const filename = `${crypto.randomUUID()}.${ext}`;
 
     const bucketName = "uploads";
 

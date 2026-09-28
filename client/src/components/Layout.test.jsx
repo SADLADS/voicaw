@@ -121,7 +121,8 @@ describe('Layout', () => {
 
     renderLayout({ path: '/dm/7' });
 
-    expect(await screen.findByTestId('errorUsers')).toHaveTextContent('failed to load users');
+    // The element exists (empty) before the fetch fails, so wait for the text itself.
+    await waitFor(() => expect(screen.getByTestId('errorUsers')).toHaveTextContent('failed to load users'));
   });
 
   it('loads unread DMs into context on mount', async () => {

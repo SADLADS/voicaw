@@ -51,6 +51,12 @@ stubs `ResizeObserver` (used by `MessageList`). Component tests mock `../utils/a
 
 ### Server environment
 
+`sqlite3` 6's prebuilt binary needs glibc >= 2.38. On older hosts (this server runs Debian 12,
+glibc 2.36) `npm install` succeeds but the server then crashes loading it. Such hosts need a
+git-ignored `.npmrc` at the repo root containing `build_from_source=sqlite3` (compiles just
+sqlite3, about 1.5 min, needs gcc/make/python3). After changing it, run
+`npm rebuild sqlite3 --build-from-source`.
+
 `server/index.js` fails fast at startup if any of these env vars are missing (set them in
 `server/.env`): `JWT_SECRET`, `OPAQUE_SERVER_SETUP`, `VAPID_EMAIL`, `VAPID_PUBLIC_KEY`,
 `VAPID_PRIVATE_KEY`, `S3_ENDPOINT`, `S3_ROOT_USER`, `S3_ROOT_PASSWORD`. VAPID keys are generated
