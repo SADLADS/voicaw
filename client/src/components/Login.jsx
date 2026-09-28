@@ -26,7 +26,8 @@ export default function Login({ onLoginSuccess }) {
         password,
       });
 
-      const response1 = await api.post('/initiatelogin', { clientLoginState, startLoginRequest, userIdentifier: username });
+      // clientLoginState is this device's secret half of the OPAQUE exchange: never send it.
+      const response1 = await api.post('/initiatelogin', { startLoginRequest, userIdentifier: username });
       const loginResponse = response1.data.loginResponse;
       const loginResult = opaque.client.finishLogin({
         clientLoginState,
@@ -34,7 +35,8 @@ export default function Login({ onLoginSuccess }) {
         password,
       });
       if (!loginResult) {
-        throw new Error("Login failed");
+        // Wrong password and unknown username look the same here (on purpose).
+        throw new Error("Incorrect username or password");
       }
       const { finishLoginRequest, sessionKey } = loginResult;
 

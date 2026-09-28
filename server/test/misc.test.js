@@ -1,4 +1,4 @@
-import './helpers/mockS3.js';
+import { signedUploads } from './helpers/mockS3.js';
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { registerUser, loginUser } from './helpers/authFlow.js';
@@ -49,55 +49,48 @@ describe('authenticateJWT middleware', () => {
 });
 
 describe('upload URL routes', () => {
-  it('requires auth for profile pic upload URLs', async () => {
-    const res = await request(app).get('/api/upload_profile_pic').query({ type: 'image/png' });
-    expect(res.status).toBe(401);
+  let token;
+  const authed = () => ({ Authorization: `Bearer ${token}` });
+  const MB = 1024 * 1024;
+
+  it('requires auth for upload URLs', async () => {
+    expect((await request(app).get('/api/upload_profile_pic').query({ type: 'image/png', size: 10 })).status).toBe(401);
+    expect((await request(app).get('/api/upload_file').query({ type: 'image/png', size: 10 })).status).toBe(401);
   });
 
-  it('requires a content type for profile pic upload URLs', async () => {
+  it('signs the exact file size into attachment upload URLs', async () => {
     await registerUser(app, request, 'uploader1', 'uploader-pw');
-    const { response } = await loginUser(app, request, 'uploader1', 'uploader-pw');
+    token = (await loginUser(app, request, 'uploader1', 'uploader-pw')).response.body.token;
 
-    const res = await request(app)
-      .get('/api/upload_profile_pic')
-      .set('Authorization', `Bearer ${response.body.token}`);
-    expect(res.status).toBe(400);
-  });
+    const res = await request(app).get('/api/upload_file').query({ type: 'application/octet-stream', size: 12345 }).set(authed());
 
-  it('returns a signed upload URL for a valid request', async () => {
-    await registerUser(app, request, 'uploader2', 'uploader-pw');
-    const { response } = await loginUser(app, request, 'uploader2', 'uploader-pw');
-
-    const res = await request(app)
-      .get('/api/upload_profile_pic')
-      .query({ type: 'image/png' })
-      .set('Authorization', `Bearer ${response.body.token}`);
-    expect(res.status).toBe(201);
-    expect(res.body.url).toContain('mock-s3.test');
-  });
-
-  it('generates a unique filename for generic file uploads', async () => {
-    await registerUser(app, request, 'uploader3', 'uploader-pw');
-    const { response } = await loginUser(app, request, 'uploader3', 'uploader-pw');
-
-    const res = await request(app)
-      .get('/api/upload_file')
-      .query({ type: 'image/jpeg' })
-      .set('Authorization', `Bearer ${response.body.token}`);
     expect(res.status).toBe(201);
     expect(res.body.uploadUrl).toContain('mock-s3.test');
-    expect(res.body.fileUrl).toMatch(/\.jpeg$/);
+    expect(res.body.fileUrl).toMatch(/\/uploads\/[0-9a-f-]{36}\.bin$/);
+    expect(signedUploads.at(-1)).toMatchObject({ bucket: 'uploads', contentType: 'application/octet-stream', contentLength: 12345 });
   });
 
-  it('names opaque (encrypted) attachment uploads .bin', async () => {
-    await registerUser(app, request, 'uploader4', 'uploader-pw');
-    const { response } = await loginUser(app, request, 'uploader4', 'uploader-pw');
+  it('refuses attachment uploads without a size or over 100MB', async () => {
+    const get = (query) => request(app).get('/api/upload_file').query(query).set(authed());
+    expect((await get({ type: 'application/octet-stream' })).status).toBe(400);
+    expect((await get({ type: 'application/octet-stream', size: 0 })).status).toBe(400);
+    expect((await get({ type: 'application/octet-stream', size: 'lots' })).status).toBe(400);
+    expect((await get({ type: 'application/octet-stream', size: 100 * MB + 1 })).status).toBe(413);
+    expect((await get({ type: 'application/octet-stream', size: 100 * MB })).status).toBe(201);
+    expect((await get({ size: 10 })).status).toBe(400);
+  });
 
-    const res = await request(app)
-      .get('/api/upload_file')
-      .query({ type: 'application/octet-stream' })
-      .set('Authorization', `Bearer ${response.body.token}`);
-    expect(res.status).toBe(201);
-    expect(res.body.fileUrl).toMatch(/\/uploads\/[0-9a-f-]{36}\.bin$/);
+  it('signs profile picture uploads, which must be images of at most 8MB', async () => {
+    const get = (query) => request(app).get('/api/upload_profile_pic').query(query).set(authed());
+
+    const ok = await get({ type: 'image/png', size: 2048 });
+    expect(ok.status).toBe(201);
+    expect(ok.body.url).toContain('mock-s3.test');
+    expect(signedUploads.at(-1)).toMatchObject({ bucket: 'profile-pics', contentType: 'image/png', contentLength: 2048 });
+
+    expect((await get({ type: 'image/png' })).status).toBe(400);
+    expect((await get({ size: 10 })).status).toBe(400);
+    expect((await get({ type: 'text/html', size: 10 })).status).toBe(400);
+    expect((await get({ type: 'image/png', size: 8 * MB + 1 })).status).toBe(413);
   });
 });

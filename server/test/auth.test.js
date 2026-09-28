@@ -64,9 +64,33 @@ describe('login', () => {
     expect(response.body.token).toBeFalsy();
   });
 
-  it('fails initiatelogin for an unknown user with 404', async () => {
-    const { response } = await loginUser(app, request, 'nobody-registered', 'whatever');
-    expect(response.status).toBe(404);
+  it('does not reveal whether a username exists to logged-out visitors', async () => {
+    await registerUser(app, request, 'real-user', 'real-password');
+
+    // Unknown user: a normal-looking OPAQUE response, failing at the end like a bad password.
+    const unknown = await loginUser(app, request, 'nobody-registered', 'whatever');
+    const wrongPassword = await loginUser(app, request, 'real-user', 'not-the-password');
+
+    for (const attempt of [unknown, wrongPassword]) {
+      expect(attempt.failedAt).toBe('finishLogin-client');
+      expect(attempt.response.status).toBe(200);
+      expect(Object.keys(attempt.response.body)).toEqual(['loginResponse']);
+    }
+    expect(unknown.response.body.loginResponse.length).toBe(wrongPassword.response.body.loginResponse.length);
+  });
+
+  it('rejects a forged finaliselogin for an unknown user without saying why', async () => {
+    const res = await request(app)
+      .post('/api/finaliselogin')
+      .send({ userIdentifier: 'nobody-2', finishLoginRequest: 'x', clientSessionKey: 'y' });
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('Invalid credentials');
+  });
+
+  it('never needs the client\'s secret login state', async () => {
+    const res = await request(app).post('/api/initiatelogin').send({ userIdentifier: 'someone' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).not.toMatch(/clientLoginState/);
   });
 
   it('issues a token whose id/username round-trip through JWT_SECRET', async () => {

@@ -43,7 +43,7 @@ export async function loginUser(app, request, username, password) {
 
   const initiateRes = await request(app)
     .post('/api/initiatelogin')
-    .send({ userIdentifier: username, clientLoginState, startLoginRequest });
+    .send({ userIdentifier: username, startLoginRequest });
   if (initiateRes.body.error) {
     return { response: initiateRes, failedAt: 'initiate' };
   }

@@ -68,7 +68,13 @@ operation:
 - Login: `POST /api/initiatelogin` → `POST /api/finaliselogin`
 
 Server-side login state is stored transiently in the `login_states` table (5-minute expiry) keyed
-by username, cleaned up on successful login.
+by username, cleaned up on successful login (expired rows are purged on each login attempt).
+
+Logged-out visitors must not be able to tell which usernames exist. `/api/initiatelogin` answers an
+unknown username with OPAQUE's dummy response (`registrationRecord: null`), so it fails at the end
+exactly like a wrong password. Logged-in users can see every user (intentional: the app is for groups
+where everyone knows each other). The client must never send its `clientLoginState` to the server.
+The websocket `user_status` broadcast only goes to identified sockets.
 
 On successful login/register, the server issues a JWT (`generateToken`, 1-day expiry, see
 `server/index.js`) which the client stores in `localStorage` and sends as `Authorization: Bearer
@@ -157,7 +163,11 @@ implemented in `index.js` yet.
 targets a self-hosted/MinIO-style endpoint, not raw AWS). It auto-creates and makes public two
 buckets on startup: `uploads`, `profile-pics`. Uploads are client-direct: the server only
 issues short-lived (60s) pre-signed PUT URLs (`/api/upload_file`, `/api/upload_profile_pic`); the
-client uploads the file straight to S3, bypassing the app server. Profile pictures are unencrypted.
+client uploads the file straight to S3, bypassing the app server. Both routes require a `size` query
+param, which is signed into the URL together with the content type (`s3.js` `signableHeaders`), so
+the object store rejects a body of any other length or type (verified against the live MinIO).
+Limits: 100MB for attachments (nginx's cap on media.voicaw.com), 8MB for profile pictures, which must
+be `image/*`. Profile pictures are unencrypted.
 
 ### DM attachments (encrypted, uploaded on send)
 

@@ -6,6 +6,9 @@ import { InteractionContext } from "../App";
 import NotificationSettings from "./NotificationSettings";
 
 
+// Must match MAX_PROFILE_PIC_BYTES in server/index.js.
+const MAX_PROFILE_PIC_BYTES = 8 * 1024 * 1024;
+
 export default function Settings({ onLogout, user }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -14,11 +17,13 @@ export default function Settings({ onLogout, user }) {
   const { interactionMode, setInteractionMode } = useContext(InteractionContext);
 
   const validateImage = (f) => {
-    if (f && f.type.startsWith("image/")) {
+    if (!f || !f.type.startsWith("image/")) {
+      setError("Only image files are allowed.");
+    } else if (f.size > MAX_PROFILE_PIC_BYTES) {
+      setError("That image is too large (max 8 MB).");
+    } else {
       setFile(f);
       setError(null);
-    } else {
-      setError("Only image files are allowed.");
     }
   };
 
@@ -41,7 +46,7 @@ export default function Settings({ onLogout, user }) {
 
     try {
       const { data } = await api.get("/upload_profile_pic", {
-        params: { filename: file.name, type: file.type },
+        params: { type: file.type, size: file.size },
       });
 
       const uploadUrl = data?.url;
