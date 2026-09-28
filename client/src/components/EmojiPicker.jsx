@@ -3,6 +3,10 @@ import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { frequentEmojiIds, getSkinTone, recordEmojiUse, setSkinTone, skinFor } from '../emoji/emojiUsage';
 import { useVisualViewport } from '../utils/useVisualViewport';
+import { hasVirtualKeyboardApi, setKeyboardOverlaysContent, watchKeyboardRect } from '../utils/virtualKeyboard';
+
+// `?kbdebug` in the URL shows the keyboard/viewport numbers during mobile emoji search.
+const KEYBOARD_DEBUG = typeof location !== 'undefined' && new URLSearchParams(location.search).has('kbdebug');
 
 const TONE_SAMPLE = 'raised_hand';
 
@@ -49,6 +53,18 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
   const visible = useVisualViewport(docked && searching);
   // Whether the keyboard has come up during this search (so its closing can be noticed).
   const keyboardSeen = useRef(false);
+  // Chromium: exact keyboard geometry (see utils/virtualKeyboard.js); others: visual viewport.
+  const useKeyboardApi = docked && hasVirtualKeyboardApi();
+  const [keyboardRect, setKeyboardRect] = useState(null);
+  const keyboardOpen = useKeyboardApi ? (keyboardRect?.height ?? 0) > 0 : visible.keyboardOpen;
+
+  useEffect(() => {
+    if (!useKeyboardApi || !searching) return undefined;
+    return watchKeyboardRect(setKeyboardRect);
+  }, [useKeyboardApi, searching]);
+
+  // Never leave the keyboard overlaying the page once the picker is gone.
+  useEffect(() => () => { if (docked) setKeyboardOverlaysContent(false); }, [docked]);
 
   // Close on outside click or Escape.
   useEffect(() => {
@@ -85,21 +101,23 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
   // keyboard while the box kept focus): back to the docked size, keeping the results.
   const keyboardClosed = () => {
     keyboardSeen.current = false;
+    setKeyboardOverlaysContent(false);
     setSearching(false);
   };
 
   useEffect(() => {
     if (!docked || !searching) return;
-    if (visible.keyboardOpen) {
+    if (keyboardOpen) {
       keyboardSeen.current = true;
     } else if (keyboardSeen.current) {
       searchRef.current?.blur();
       keyboardClosed();
     }
-  }, [docked, searching, visible.keyboardOpen]);
+  }, [docked, searching, keyboardOpen]);
 
   const stopSearching = () => {
     keyboardSeen.current = false;
+    setKeyboardOverlaysContent(false);
     setSearching(false);
     setQuery('');
     searchRef.current?.blur(); // dismisses the keyboard
@@ -139,6 +157,16 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
     });
   };
 
+  // Full-screen search geometry: down to the keyboard's top edge.
+  function searchBox() {
+    if (useKeyboardApi) {
+      // The keyboard overlays the page, so the picker can run exactly to its top edge.
+      const bottom = keyboardOpen ? keyboardRect.y : window.innerHeight;
+      return { top: '0px', height: `${bottom + 1}px` };
+    }
+    return { top: `${visible.offsetTop}px`, height: `${visible.height + 1}px` };
+  }
+
   const toneSample = index?.byShortcode.get(TONE_SAMPLE);
   const preview = hovered && skinFor(hovered, tone);
 
@@ -149,7 +177,7 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
         docked && searching
           // Everything above the keyboard: picker plus keyboard fill the screen. 1px extra
           // (hidden under the keyboard) so no sliver of the page shows between them.
-          ? { top: `${visible.offsetTop}px`, height: `${visible.height + 1}px` }
+          ? searchBox()
           : docked && height ? { height: `${height}px` } : undefined
       }
       ref={rootRef}
@@ -172,7 +200,9 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onSearchKeyDown}
           // Docked: tapping the box opens the keyboard (a real tap, so iOS allows it) and goes full screen.
-          onFocus={docked ? () => setSearching(true) : undefined}
+          // Chromium: have the keyboard overlay the page (exact geometry) before it opens.
+          onPointerDown={docked ? () => setKeyboardOverlaysContent(true) : undefined}
+          onFocus={docked ? () => { setKeyboardOverlaysContent(true); setSearching(true); } : undefined}
           onBlur={docked ? keyboardClosed : undefined}
           aria-label="Search emoji"
         />
@@ -245,6 +275,18 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
             )}
           </div>
         </div>
+      )}
+
+      {KEYBOARD_DEBUG && docked && searching && (
+        <pre className="emoji-picker-kbdebug">
+          {JSON.stringify({
+            innerHeight: window.innerHeight,
+            visualViewport: { height: visible.height, offsetTop: visible.offsetTop },
+            keyboardApi: useKeyboardApi,
+            keyboardRect: keyboardRect && { y: keyboardRect.y, height: keyboardRect.height },
+            picker: searchBox(),
+          }, null, 1)}
+        </pre>
       )}
 
       {!docked && (

@@ -686,6 +686,72 @@ describe('Dm emoji', () => {
       });
     });
 
+    describe('with the VirtualKeyboard API (Chrome/Brave on Android)', () => {
+      let keyboard;
+      const setKeyboardTop = (y, height) => act(() => {
+        keyboard.boundingRect = { x: 0, y, width: 400, height };
+        keyboard.listeners.forEach((fn) => fn());
+      });
+      beforeEach(() => {
+        Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });
+        keyboard = {
+          overlaysContent: false,
+          boundingRect: { x: 0, y: 0, width: 0, height: 0 },
+          listeners: [],
+          addEventListener(_, fn) { this.listeners.push(fn); },
+          removeEventListener(_, fn) { this.listeners = this.listeners.filter((l) => l !== fn); },
+        };
+        Object.defineProperty(navigator, 'virtualKeyboard', { configurable: true, value: keyboard });
+      });
+      afterEach(() => { delete navigator.virtualKeyboard; });
+
+      async function startSearch() {
+        await openMobileChat();
+        fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+        const search = screen.getByRole('searchbox', { name: 'Search emoji' });
+        fireEvent.pointerDown(search);
+        const overlaysBeforeFocus = keyboard.overlaysContent;
+        act(() => search.focus());
+        return { search, overlaysBeforeFocus, panel: () => screen.getByRole('dialog', { name: 'Emoji picker' }) };
+      }
+
+      it('has the keyboard overlay the page before it opens, and fills exactly to its top', async () => {
+        const { overlaysBeforeFocus, panel } = await startSearch();
+        expect(overlaysBeforeFocus).toBe(true);
+
+        setKeyboardTop(520, 280); // keyboard (plus the bottom address bar above it) starts at 520
+
+        expect(panel()).toHaveClass('searching');
+        expect(panel().style.top).toBe('0px');
+        expect(panel().style.height).toBe('521px');
+      });
+
+      it('goes back to the docked size and stops overlaying when the keyboard closes', async () => {
+        const { search, panel } = await startSearch();
+        setKeyboardTop(520, 280);
+        fireEvent.change(search, { target: { value: 'pizza' } });
+
+        setKeyboardTop(0, 0); // keyboard dismissed (e.g. back button), box still focused
+
+        expect(panel()).not.toHaveClass('searching');
+        expect(search.value).toBe('pizza');
+        expect(keyboard.overlaysContent).toBe(false);
+      });
+
+      it('stops overlaying when leaving search or closing the panel', async () => {
+        await startSearch();
+        setKeyboardTop(520, 280);
+        fireEvent.click(screen.getByRole('button', { name: 'Close search' }));
+        expect(keyboard.overlaysContent).toBe(false);
+
+        fireEvent.pointerDown(screen.getByRole('searchbox', { name: 'Search emoji' }));
+        expect(keyboard.overlaysContent).toBe(true);
+        fireEvent.click(screen.getByRole('button', { name: 'Show keyboard' }));
+        expect(screen.queryByRole('dialog', { name: 'Emoji picker' })).not.toBeInTheDocument();
+        expect(keyboard.overlaysContent).toBe(false);
+      });
+    });
+
     it('leaves search with the back button', async () => {
       await openMobileChat();
       fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));

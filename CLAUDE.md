@@ -229,6 +229,12 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   exception: tapping its search box (never auto-focused, since iOS only opens the keyboard for a
   real tap) switches to full-screen search, sized to the visible area above the keyboard
   (`utils/useVisualViewport.js`, unrounded, plus 1px hidden under the keyboard so no seam shows).
+  On Chromium (Chrome/Brave Android) the visual viewport height is wrong there: with the address
+  bar at the bottom it comes out one toolbar short, leaving a gap. So during search only, the
+  search box turns on `navigator.virtualKeyboard.overlaysContent` (on pointerdown, before the
+  keyboard opens) and the picker runs to the keyboard's exact `boundingRect` top
+  (`utils/virtualKeyboard.js`). It's switched off again on leaving search or closing. Add
+  `?kbdebug` to the URL to show the numbers on screen.
   Picking (or Enter) or going back returns to the docked panel and dismisses the keyboard. If the
   keyboard closes some other way (search box blurred, or Android's back button with focus kept),
   it returns to the docked size and keeps the results. Result taps don't take focus from the
