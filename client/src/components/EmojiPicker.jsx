@@ -6,13 +6,16 @@ import { useVisualViewport } from '../utils/useVisualViewport';
 
 const TONE_SAMPLE = 'raised_hand';
 
-function EmojiButton({ emoji, tone, onPick, onHover }) {
+function EmojiButton({ emoji, tone, onPick, onHover, keepFocus }) {
   const skin = skinFor(emoji, tone);
   return (
     <button
       type="button"
       className="emoji-picker-item"
       onClick={(e) => onPick(emoji, skin, e)}
+      // While searching on mobile, don't let the tap take focus from the search box: the
+      // blur would shrink the picker mid-tap and the tap could land on a different emoji.
+      onMouseDown={keepFocus ? (e) => e.preventDefault() : undefined}
       onMouseEnter={() => onHover(emoji)}
       onFocus={() => onHover(emoji)}
       aria-label={emoji.name}
@@ -44,6 +47,8 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
   // Docked only: full-screen search mode (keyboard open).
   const [searching, setSearching] = useState(false);
   const visible = useVisualViewport(docked && searching);
+  // Whether the keyboard has come up during this search (so its closing can be noticed).
+  const keyboardSeen = useRef(false);
 
   // Close on outside click or Escape.
   useEffect(() => {
@@ -76,7 +81,25 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
 
   const results = useMemo(() => (index && query.trim() ? index.search(query, 120) : null), [index, query]);
 
+  // The keyboard went away (search box lost focus, or e.g. Android's back button closed the
+  // keyboard while the box kept focus): back to the docked size, keeping the results.
+  const keyboardClosed = () => {
+    keyboardSeen.current = false;
+    setSearching(false);
+  };
+
+  useEffect(() => {
+    if (!docked || !searching) return;
+    if (visible.keyboardOpen) {
+      keyboardSeen.current = true;
+    } else if (keyboardSeen.current) {
+      searchRef.current?.blur();
+      keyboardClosed();
+    }
+  }, [docked, searching, visible.keyboardOpen]);
+
   const stopSearching = () => {
+    keyboardSeen.current = false;
     setSearching(false);
     setQuery('');
     searchRef.current?.blur(); // dismisses the keyboard
@@ -124,8 +147,9 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
       className={`emoji-picker${docked ? ' docked' : ''}${docked && searching ? ' searching' : ''}`}
       style={
         docked && searching
-          // Everything above the keyboard: picker plus keyboard fill the screen.
-          ? { top: `${visible.offsetTop}px`, height: `${visible.height}px` }
+          // Everything above the keyboard: picker plus keyboard fill the screen. 1px extra
+          // (hidden under the keyboard) so no sliver of the page shows between them.
+          ? { top: `${visible.offsetTop}px`, height: `${visible.height + 1}px` }
           : docked && height ? { height: `${height}px` } : undefined
       }
       ref={rootRef}
@@ -149,6 +173,7 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
           onKeyDown={onSearchKeyDown}
           // Docked: tapping the box opens the keyboard (a real tap, so iOS allows it) and goes full screen.
           onFocus={docked ? () => setSearching(true) : undefined}
+          onBlur={docked ? keyboardClosed : undefined}
           aria-label="Search emoji"
         />
         {toneSample && !(docked && searching) && (
@@ -200,7 +225,7 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
               results.length ? (
                 <div className="emoji-picker-grid">
                   {results.map((emoji) => (
-                    <EmojiButton key={emoji.id} emoji={emoji} tone={tone} onPick={pick} onHover={setHovered} />
+                    <EmojiButton key={emoji.id} emoji={emoji} tone={tone} onPick={pick} onHover={setHovered} keepFocus={docked && searching} />
                   ))}
                 </div>
               ) : (
@@ -212,7 +237,7 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
                   <h6 className="emoji-picker-section-title">{section.name}</h6>
                   <div className="emoji-picker-grid">
                     {section.emojis.map((emoji) => (
-                      <EmojiButton key={emoji.id} emoji={emoji} tone={tone} onPick={pick} onHover={setHovered} />
+                      <EmojiButton key={emoji.id} emoji={emoji} tone={tone} onPick={pick} onHover={setHovered} keepFocus={docked && searching} />
                     ))}
                   </div>
                 </section>

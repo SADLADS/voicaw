@@ -228,8 +228,11 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   open) or focusing the message box swaps back. Picks don't close it. Searching is the one
   exception: tapping its search box (never auto-focused, since iOS only opens the keyboard for a
   real tap) switches to full-screen search, sized to the visible area above the keyboard
-  (`utils/useVisualViewport.js`). Picking (or Enter) or going back returns to the docked panel
-  and dismisses the keyboard. `MessageList` keeps the chat pinned
+  (`utils/useVisualViewport.js`, unrounded, plus 1px hidden under the keyboard so no seam shows).
+  Picking (or Enter) or going back returns to the docked panel and dismisses the keyboard. If the
+  keyboard closes some other way (search box blurred, or Android's back button with focus kept),
+  it returns to the docked size and keeps the results. Result taps don't take focus from the
+  search box, so the picker can't shrink mid-tap. `MessageList` keeps the chat pinned
   to the bottom when the list's own height changes (a `ResizeObserver` on the scroller, plus
   ignoring the browser's scroll-anchoring nudge during that resize).
 - Planned: custom per-guild emoji, as plain (unencrypted) images written `<:name:id>` in message

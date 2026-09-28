@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
@@ -611,7 +611,7 @@ describe('Dm emoji', () => {
 
       act(() => search.focus()); // a tap on the search box (keyboard opens)
       expect(panel).toHaveClass('searching');
-      expect(panel.style.height).toBe(`${window.visualViewport?.height ?? window.innerHeight}px`);
+      expect(panel.style.height).toBe(`${(window.visualViewport?.height ?? window.innerHeight) + 1}px`);
       expect(screen.getByRole('button', { name: 'Close search' })).toBeInTheDocument();
 
       fireEvent.change(search, { target: { value: 'pizza' } });
@@ -622,6 +622,68 @@ describe('Dm emoji', () => {
       expect(search.value).toBe('');
       expect(document.activeElement).not.toBe(search); // keyboard dismissed
       expect(screen.getByRole('dialog', { name: 'Emoji picker' })).toBeInTheDocument(); // panel still open
+    });
+
+    describe('with an on-screen keyboard', () => {
+      let listeners;
+      const setKeyboard = (px) => act(() => {
+        window.visualViewport.height = 800 - px;
+        listeners.forEach((fn) => fn());
+      });
+      beforeEach(() => {
+        listeners = [];
+        Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });
+        window.visualViewport = {
+          height: 800,
+          offsetTop: 0,
+          addEventListener: (_, fn) => listeners.push(fn),
+          removeEventListener: (_, fn) => { listeners = listeners.filter((l) => l !== fn); },
+        };
+      });
+      afterEach(() => { delete window.visualViewport; });
+
+      async function startSearch() {
+        await openMobileChat();
+        fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+        const search = screen.getByRole('searchbox', { name: 'Search emoji' });
+        act(() => search.focus());
+        return { search, panel: () => screen.getByRole('dialog', { name: 'Emoji picker' }) };
+      }
+
+      it('fills exactly the space above the keyboard (1px extra, hidden under it)', async () => {
+        const { panel } = await startSearch();
+        setKeyboard(320.5);
+        expect(panel().style.height).toBe('480.5px');
+        expect(panel().style.top).toBe('0px');
+      });
+
+      it('returns to the docked size when the keyboard closes, keeping the results', async () => {
+        const { search, panel } = await startSearch();
+        setKeyboard(320);
+        fireEvent.change(search, { target: { value: 'pizza' } });
+
+        setKeyboard(0); // e.g. Android back button: keyboard gone, box still focused
+
+        expect(panel()).not.toHaveClass('searching');
+        expect(search.value).toBe('pizza');
+        expect(screen.getByRole('button', { name: 'Pizza' })).toBeInTheDocument();
+        expect(document.activeElement).not.toBe(search);
+      });
+
+      it('also returns to the docked size when the search box loses focus', async () => {
+        const { search, panel } = await startSearch();
+        fireEvent.change(search, { target: { value: 'pizza' } });
+        act(() => search.blur());
+        expect(panel()).not.toHaveClass('searching');
+        expect(search.value).toBe('pizza');
+      });
+
+      it('tapping a result does not take focus from the search box first', async () => {
+        const { search } = await startSearch();
+        fireEvent.change(search, { target: { value: 'pizza' } });
+        const notPrevented = fireEvent.mouseDown(screen.getByRole('button', { name: 'Pizza' }));
+        expect(notPrevented).toBe(false); // default (focus change) prevented
+      });
     });
 
     it('leaves search with the back button', async () => {
