@@ -29,7 +29,8 @@ export async function uploadAttachment(file, onProgress, dimensions = null) {
   const { blob, key } = await encryptAttachment(file);
 
   // Ask for an opaque binary upload so the object's content type doesn't leak what it is.
-  const { data } = await api.get('/upload_file', { params: { type: blob.type } });
+  // The size is signed into the upload URL; the storage server rejects any other length.
+  const { data } = await api.get('/upload_file', { params: { type: blob.type, size: blob.size } });
   if (!data?.uploadUrl || !data?.fileUrl) throw new Error('Invalid upload URL');
 
   await putWithProgress(data.uploadUrl, blob, onProgress);

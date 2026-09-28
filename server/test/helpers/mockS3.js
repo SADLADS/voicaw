@@ -7,13 +7,19 @@
 // does not intercept.
 const s3Path = require.resolve('../../s3.js');
 
+// Every pre-signed upload the server asked for (to check the size it signed).
+export const signedUploads = [];
+
 require.cache[s3Path] = {
   id: s3Path,
   filename: s3Path,
   loaded: true,
   exports: {
     s3: {},
-    getUploadUrl: async (filename, bucket) => `https://mock-s3.test/${bucket}/${filename}?signed=1`,
+    getUploadUrl: async (filename, bucket, contentType, contentLength) => {
+      signedUploads.push({ filename, bucket, contentType, contentLength });
+      return `https://mock-s3.test/${bucket}/${filename}?signed=1`;
+    },
     getDownloadUrl: async (filename) => `https://mock-s3.test/uploads/${filename}?signed=1`,
   },
 };

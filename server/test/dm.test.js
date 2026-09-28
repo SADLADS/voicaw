@@ -230,4 +230,43 @@ describe('direct messages', () => {
       expect(delRes.status).toBe(404);
     });
   });
+
+  describe('validation', () => {
+    it('rejects a recipient that does not exist or is not an id', async () => {
+      const alice = await makeAuthedUser('dm-val-alice', 'pw-alice-123');
+      const send = (recipient_id) => request(app).post('/api/dm-send').set(authed(alice.token)).send({ recipient_id, content: 'ENC' });
+
+      expect((await send(999999)).status).toBe(404);
+      expect((await send('abc')).status).toBe(400);
+    });
+
+    it('rejects non-string content', async () => {
+      const alice = await makeAuthedUser('dm-val-alice2', 'pw-alice-123');
+      const bob = await makeAuthedUser('dm-val-bob2', 'pw-bob-123');
+      const res = await request(app).post('/api/dm-send').set(authed(alice.token)).send({ recipient_id: bob.id, content: { a: 1 } });
+      expect(res.status).toBe(400);
+    });
+
+    it('only allows replying to a message in the same conversation', async () => {
+      const alice = await makeAuthedUser('dm-val-alice3', 'pw-alice-123');
+      const bob = await makeAuthedUser('dm-val-bob3', 'pw-bob-123');
+      const carol = await makeAuthedUser('dm-val-carol3', 'pw-carol-123');
+      const send = (from, to, extra = {}) =>
+        request(app).post('/api/dm-send').set(authed(from.token)).send({ recipient_id: to.id, content: 'ENC', ...extra });
+
+      const aliceToBob = (await send(alice, bob)).body;
+      const bobToCarol = (await send(bob, carol)).body;
+
+      // Bob replying to Alice's message in their chat: fine, and the parent comes back.
+      const reply = await send(bob, alice, { replyTo: aliceToBob.id });
+      expect(reply.status).toBe(201);
+      expect(reply.body.parent_message_id).toBe(aliceToBob.id);
+
+      // Alice can't reply (and so read the ciphertext of) a message from Bob and Carol's chat.
+      expect((await send(alice, bob, { replyTo: bobToCarol.id })).status).toBe(400);
+      expect((await send(alice, bob, { replyTo: 999999 })).status).toBe(400);
+      expect((await send(alice, bob, { replyTo: 'x' })).status).toBe(400);
+    });
+  });
 });
+

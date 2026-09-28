@@ -43,13 +43,19 @@ async function makeBucketPublic(bucketName) {
 }
 
 
-async function getUploadUrl(filename, bucket, contentType = "application/octet-stream") {
+// `contentLength` is signed into the URL: the object store rejects an upload whose
+// Content-Length differs, which is what enforces the server's size limits.
+async function getUploadUrl(filename, bucket, contentType, contentLength) {
     const command = new PutObjectCommand({
         Bucket: bucket,
         Key: filename,
         ContentType: contentType,
+        ContentLength: contentLength,
     });
-    return await getSignedUrl(s3, command, { expiresIn: 60 });
+    return await getSignedUrl(s3, command, {
+        expiresIn: 60,
+        signableHeaders: new Set(["content-type", "content-length"]),
+    });
 }
 
 // Generate a pre-signed download URL

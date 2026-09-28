@@ -82,6 +82,9 @@ describe('Login - login form', () => {
     await waitFor(() => expect(onLoginSuccess).toHaveBeenCalled());
 
     expect(storePrivateKey).toHaveBeenCalledWith('decrypted-private-pem');
+    // The client's OPAQUE login state is its secret: it must never be sent to the server.
+    expect(api.post).toHaveBeenCalledWith('/initiatelogin', { startLoginRequest: 'SLR', userIdentifier: 'alice' });
+    for (const [, body] of api.post.mock.calls) expect(body).not.toHaveProperty('clientLoginState');
     expect(localStorage.getItem('privateKey')).toBeNull();
     expect(localStorage.getItem('token')).toBe('jwt123');
     expect(connectWebSocket).toHaveBeenCalled();
@@ -99,7 +102,7 @@ describe('Login - login form', () => {
     fillLogin(container, 'alice', 'wrongpassword');
     fireEvent.submit(loginForm);
 
-    expect(await screen.findByText('Login failed')).toBeInTheDocument();
+    expect(await screen.findByText('Incorrect username or password')).toBeInTheDocument();
   });
 
   it('shows the server error message when finaliselogin returns one', async () => {

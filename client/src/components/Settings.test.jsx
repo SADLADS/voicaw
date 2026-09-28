@@ -68,7 +68,7 @@ describe('Settings', () => {
     await waitFor(() => expect(screen.getByText('Upload successful!')).toBeInTheDocument());
 
     expect(api.get).toHaveBeenCalledWith('/upload_profile_pic', {
-      params: { filename: 'pic.png', type: 'image/png' },
+      params: { type: 'image/png', size: 10 },
     });
     expect(global.fetch).toHaveBeenCalledWith(
       'https://s3.test/signed-put-url',
@@ -117,4 +117,15 @@ describe('Settings', () => {
 
     expect(onLogout).toHaveBeenCalled();
   });
+
+  it('rejects profile pictures over 8 MB before uploading', async () => {
+    renderSettings();
+    const big = new File([new Uint8Array(8 * 1024 * 1024 + 1)], 'huge.png', { type: 'image/png' });
+
+    fireEvent.change(document.querySelector('input[type="file"]'), { target: { files: [big] } });
+
+    expect(await screen.findByText('That image is too large (max 8 MB).')).toBeInTheDocument();
+    expect(api.get).not.toHaveBeenCalled();
+  });
 });
+

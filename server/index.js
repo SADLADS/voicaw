@@ -135,13 +135,18 @@ let serverSetup;
 
 // Initial Login route
 app.post('/api/initiatelogin', (req, res) => {
-  const { clientLoginState, startLoginRequest, userIdentifier } = req.body;
-  if (!clientLoginState || !startLoginRequest) return res.status(400).json({ error: 'Missing clientLoginState or startLoginRequest' });
+  const { startLoginRequest, userIdentifier } = req.body;
+  if (!startLoginRequest || !userIdentifier) return res.status(400).json({ error: 'Missing startLoginRequest or userIdentifier' });
+
+  // Forget abandoned login attempts (states are only removed on successful login).
+  db.run('DELETE FROM login_states WHERE expires_at < ?', [Math.floor(Date.now() / 1000)]);
 
   db.get('SELECT password FROM users WHERE username = ?', [userIdentifier], (err, user) => {
     if (err) return res.status(500).json({ error: 'DB error' });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    const registrationRecord = user.password;
+    // Unknown usernames get OPAQUE's dummy response (registrationRecord = null), which is
+    // indistinguishable from a real one and just fails at the end like a wrong password,
+    // so logged-out visitors can't find out which usernames exist.
+    const registrationRecord = user ? user.password : null;
     const { serverLoginState, loginResponse } = opaque.server.startLogin({
       serverSetup,
       userIdentifier,
@@ -204,7 +209,7 @@ app.post('/api/finaliselogin', (req, res) => {
       });
       db.get('SELECT id, private_key FROM users WHERE username = ?', [userIdentifier], (err, userKeyData) => {
         if (err) return res.status(500).json({ error: 'DB error' });
-        if (!userKeyData) return res.status(404).json({ error: 'User not found' });
+        if (!userKeyData) return res.status(401).json({ error: 'Invalid credentials' });
         const { private_key } = userKeyData;
         const token = generateToken({ id: userKeyData.id, username: userIdentifier });
         const userId = userKeyData.id
@@ -447,6 +452,10 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    if (content != null && typeof content !== 'string') {
+      return res.status(400).json({ error: 'Invalid content' });
+    }
+
     if (!recipient_id || !content || !content.trim()) {
       return res.status(400).json({ error: 'Missing recipient or content' });
     }
@@ -457,10 +466,33 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
       });
     }
 
+    const recipientId = Number(recipient_id);
+    if (!Number.isInteger(recipientId)) {
+      return res.status(400).json({ error: 'Invalid recipient' });
+    }
+    const recipient = await dbGet('SELECT id FROM users WHERE id = ?', [recipientId]);
+    if (!recipient) {
+      return res.status(404).json({ error: 'Recipient not found' });
+    }
+
+    // A reply must point at a message in this same conversation.
+    let parentMessageId = null;
+    if (replyTo != null) {
+      parentMessageId = Number(replyTo);
+      const parent = Number.isInteger(parentMessageId) && await dbGet(
+        `SELECT id FROM direct_messages WHERE id = ?
+           AND ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))`,
+        [parentMessageId, sender_id, recipientId, recipientId, sender_id]
+      );
+      if (!parent) {
+        return res.status(400).json({ error: 'Invalid reply' });
+      }
+    }
+
     db.run(
       `INSERT INTO direct_messages (sender_id, recipient_id, content, parent_message_id, timestamp)
        VALUES (?, ?, ?, ?, strftime('%s','now'))`,
-      [sender_id, recipient_id, content.trim(), replyTo],
+      [sender_id, recipientId, content.trim(), parentMessageId],
       function (err) {
         if (err) {
           console.error('Failed to insert DM:', err);
@@ -700,15 +732,34 @@ app.put('/api/update-message/:id', authenticateJWT, async (req, res) => {
 });
 
 
+// Upload sizes are signed into the pre-signed URL (the object store rejects a body of any
+// other length), so these limits can't be bypassed by uploading straight to the bucket.
+// 100MB matches media.voicaw.com's nginx client_max_body_size.
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+const MAX_PROFILE_PIC_BYTES = 8 * 1024 * 1024;
+
+// Parses the `size` query param; returns an error response (or null if valid).
+function checkUploadSize(size, max) {
+  if (!Number.isInteger(size) || size <= 0) return { status: 400, error: "Missing or invalid size" };
+  if (size > max) return { status: 413, error: `File too large (max ${max} bytes)` };
+  return null;
+}
+
 app.get("/api/upload_profile_pic", authenticateJWT, async (req, res) => {
   try {
     const userId = req.user?.id;
     const { type } = req.query;
+    const size = Number(req.query.size);
     if (!type) {
       return res.status(400).json({ error: "Missing content type" });
     }
+    if (!type.startsWith("image/")) {
+      return res.status(400).json({ error: "Profile pictures must be images" });
+    }
+    const sizeError = checkUploadSize(size, MAX_PROFILE_PIC_BYTES);
+    if (sizeError) return res.status(sizeError.status).json({ error: sizeError.error });
 
-    const url = await getUploadUrl(`${userId}`, "profile-pics", type);
+    const url = await getUploadUrl(`${userId}`, "profile-pics", type, size);
 
     return res.status(201).json({ url });
   } catch (err) {
@@ -720,9 +771,11 @@ app.get("/api/upload_profile_pic", authenticateJWT, async (req, res) => {
 
 app.get("/api/upload_file", authenticateJWT, async (req, res) => {
   try {
-    console.log("UPLOAD");
     const { type } = req.query;
+    const size = Number(req.query.size);
     if (!type) return res.status(400).json({ error: "Missing content type" });
+    const sizeError = checkUploadSize(size, MAX_UPLOAD_BYTES);
+    if (sizeError) return res.status(sizeError.status).json({ error: sizeError.error });
 
     // Attachments are encrypted client-side and uploaded as opaque binary blobs.
     const ext = type === "application/octet-stream" ? "bin" : (type.split("/")[1] || "bin");
@@ -730,12 +783,9 @@ app.get("/api/upload_file", authenticateJWT, async (req, res) => {
 
     const bucketName = "uploads";
 
-    const uploadUrl = await getUploadUrl(filename, bucketName, type);
+    const uploadUrl = await getUploadUrl(filename, bucketName, type, size);
 
     const fileUrl = `${process.env.S3_ENDPOINT}/${bucketName}/${filename}`;
-
-    console.log("Signed URL:", uploadUrl);
-    console.log("Final URL:", fileUrl);
 
     return res.status(201).json({ uploadUrl, fileUrl });
   } catch (err) {
@@ -760,6 +810,12 @@ app.get('/api/config', (req, res) => {
 
 
 // FUNCTIONS
+
+function dbGet(sql, params) {
+  return new Promise((resolve, reject) =>
+    db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)))
+  );
+}
 
 function getRecentDmsForUser(loggedInUserId, callback) {
   db.all(
@@ -964,8 +1020,9 @@ if (require.main === module) {
       userId,
       status, // 'online' or 'offline'
     });
+    // Only to identified (logged-in) sockets: anyone can open a websocket.
     wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
+      if (client.userId && client.readyState === WebSocket.OPEN) {
         client.send(message);
       }
     });
