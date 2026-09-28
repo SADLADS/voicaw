@@ -686,7 +686,8 @@ app.get("/api/upload_file", authenticateJWT, async (req, res) => {
     const { type } = req.query;
     if (!type) return res.status(400).json({ error: "Missing content type" });
 
-    const ext = type.split("/")[1] || "bin";
+    // Attachments are encrypted client-side and uploaded as opaque binary blobs.
+    const ext = type === "application/octet-stream" ? "bin" : (type.split("/")[1] || "bin");
     const filename = `${uuidv4()}.${ext}`;
 
     const bucketName = "uploads";

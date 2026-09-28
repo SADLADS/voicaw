@@ -133,10 +133,23 @@ implemented in `index.js` yet.
 
 `server/s3.js` wraps `@aws-sdk/client-s3` against `S3_ENDPOINT` (`forcePathStyle: true`, so this
 targets a self-hosted/MinIO-style endpoint, not raw AWS). It auto-creates and makes public two
-buckets on startup: `uploads`, `profile-pics`. Uploaded images are currently stored unencrypted in
-a public bucket (a known gap, pending a redesign). Uploads are client-direct: the server only
+buckets on startup: `uploads`, `profile-pics`. Uploads are client-direct: the server only
 issues short-lived (60s) pre-signed PUT URLs (`/api/upload_file`, `/api/upload_profile_pic`); the
-client uploads the file straight to S3, bypassing the app server.
+client uploads the file straight to S3, bypassing the app server. Profile pictures are unencrypted.
+
+### DM attachments (encrypted, uploaded on send)
+
+Attachments are never uploaded when attached. The composer (`Dm.jsx`) keeps them as local drafts
+and inserts a markdown placeholder `![name](attachment:ID)` (`utils/attachmentMarkup.js`); the tray
+(`AttachmentTray.jsx`) previews drafts still referenced from the text. On send, each referenced
+draft is encrypted with its own AES-GCM key (`services/attachmentCrypto.js`), uploaded as
+`application/octet-stream` (`services/attachmentUpload.js`; server names it `<uuid>.bin`), and its
+placeholder is replaced with `<fileUrl>#v=1&k=<key>&t=<mime>&s=<size>`. The fragment is never sent
+to S3 and the URL only exists inside the E2EE message. `Attachment.jsx` renders every markdown image:
+placeholders (pending messages, from local blob URLs), encrypted attachments (fetched, decrypted,
+cached in `services/attachmentCache.js`; images/videos inline, anything else a download box), and
+plain URLs (legacy unencrypted uploads, external images) as `<img>`. Because placeholders are
+shorter than final URLs, the send-time length check uses same-length stand-in URLs.
 
 ### Client structure
 

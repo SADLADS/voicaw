@@ -1,12 +1,20 @@
 import React from 'react';
 import { Virtuoso } from 'react-virtuoso';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import rehypeHighlight from 'rehype-highlight';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faTrash, faReply } from '@fortawesome/free-solid-svg-icons';
 import defaultpfp from '../assets/images/default.png';
+import Attachment from './Attachment';
+import { placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
+
+// react-markdown blanks URLs with unknown schemes; let draft placeholders through so
+// pending messages can show their attachments while uploading.
+function urlTransform(url) {
+  return placeholderIdFromUrl(url) !== null ? url : defaultUrlTransform(url);
+}
 
 function extractUrls(text) {
   if (!text) return [];
@@ -107,7 +115,7 @@ export default function MessageList({
                     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
                   }}
                 >
-                  {parent.plaintext?.slice(0, 80) || "…"}
+                  {summarizeAttachments(parent.plaintext)?.slice(0, 80) || "…"}
                 </span>
               </div>
             )}
@@ -211,6 +219,12 @@ export default function MessageList({
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm, remarkEmoji]}
                     rehypePlugins={[rehypeHighlight]}
+                    urlTransform={urlTransform}
+                    components={{
+                      img: ({ src, alt }) => (
+                        <Attachment src={src} alt={alt} localAttachments={msg.localAttachments} />
+                      ),
+                    }}
                   >
                     {msg.plaintext}
                   </ReactMarkdown>

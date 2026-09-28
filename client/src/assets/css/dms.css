@@ -455,3 +455,171 @@ small {
 .dm-chat-wrapper.drag-over #dm-chat-form {
   margin:7px;
 }
+/* ATTACHMENTS */
+
+.composer-error {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--vc-danger);
+  background-color: var(--vc-bg-elevated-hover);
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 4px 4px 0 0;
+}
+
+.attachment-tray {
+  display: flex;
+  gap: 8px;
+  padding: 8px 8px 0;
+  overflow-x: auto;
+}
+
+.attachment-draft {
+  position: relative;
+  flex: 0 0 auto;
+  width: 96px;
+  height: 96px;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: var(--vc-bg-subtle);
+  border: 1px solid var(--vc-border-dark);
+}
+
+.attachment-draft img,
+.attachment-draft video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.attachment-draft-file {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  padding: 6px;
+  color: var(--vc-fg-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.attachment-draft-file svg {
+  font-size: 22px;
+}
+
+.attachment-draft-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vc-fg);
+}
+
+.attachment-draft-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.65);
+  color: var(--vc-fg);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.attachment-draft-remove:hover {
+  background-color: var(--vc-danger);
+}
+
+.dm-message .attachment-media {
+  display: block;
+  max-width: min(100%, 420px);
+  max-height: 360px;
+  border-radius: 6px;
+  margin: 4px 0;
+}
+
+.attachment-loading {
+  display: block;
+  width: 240px;
+  max-width: 100%;
+  height: 160px;
+  margin: 4px 0;
+  border-radius: 6px;
+  background-color: var(--vc-bg-elevated);
+  animation: attachment-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes attachment-pulse {
+  50% { opacity: 0.5; }
+}
+
+.attachment-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(100%, 360px);
+  margin: 4px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--vc-border-light);
+  background-color: var(--vc-bg-elevated);
+  vertical-align: middle;
+}
+
+.attachment-file-icon {
+  font-size: 24px;
+  color: var(--vc-fg-muted);
+  flex-shrink: 0;
+}
+
+.attachment-file-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.attachment-file-name {
+  color: var(--vc-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-file-size {
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.attachment-file-download {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 9px;
+  background-color: var(--vc-accent);
+  color: var(--vc-fg);
+  cursor: pointer;
+}
+
+.attachment-file-download:hover {
+  background-color: var(--vc-accent-hover);
+}
+
+.attachment-file-download:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.attachment-missing {
+  color: var(--vc-fg-muted);
+  font-style: italic;
+}

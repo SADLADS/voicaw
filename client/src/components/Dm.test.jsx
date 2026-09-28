@@ -39,6 +39,11 @@ vi.mock('../services/encryptionService', () => ({
   ),
 }));
 
+vi.mock('../services/attachmentUpload', () => ({
+  uploadAttachment: vi.fn(),
+  MAX_ATTACHMENT_BYTES: 1000,
+}));
+
 vi.mock('../services/keyStore', () => ({
   loadPrivateKey: vi.fn(async () => 'fake-private-key'),
 }));
@@ -59,7 +64,8 @@ import Dm from './Dm';
 import { ConfigContext, InteractionContext } from '../App';
 import { LayoutContext } from './Layout';
 import { fetchMessagesForUser, sendMessageToUser, markMessagesRead } from '../services/dmService';
-import { deriveSharedKey } from '../services/encryptionService';
+import { deriveSharedKey, encryptMessage } from '../services/encryptionService';
+import { uploadAttachment } from '../services/attachmentUpload';
 
 const currentUser = { id: 1, username: 'me' };
 const chatUserFull = { id: 2, username: 'bob', public_key: 'bob-pub-key' };
@@ -91,6 +97,9 @@ beforeEach(() => {
   localStorage.clear();
   fetchMessagesForUser.mockResolvedValue([]);
   deriveSharedKey.mockResolvedValue('shared-key');
+  let blobCount = 0;
+  URL.createObjectURL = vi.fn(() => `blob:local-${++blobCount}`);
+  URL.revokeObjectURL = vi.fn();
 });
 
 describe('Dm', () => {
@@ -166,5 +175,133 @@ describe('Dm', () => {
     renderDm({ path: '/dm/2', users: [chatUserFull] });
 
     await waitFor(() => expect(markMessagesRead).toHaveBeenCalledWith(2));
+  });
+});
+
+describe('Dm attachments', () => {
+  const png = () => new File(['png-bytes'], 'cat.png', { type: 'image/png' });
+  const pdf = () => new File(['pdf-bytes'], 'report.pdf', { type: 'application/pdf' });
+
+  async function openChat() {
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText('No messages yet. Start the conversation!');
+    return document.getElementById('dm-input');
+  }
+
+  const paste = (textarea, files) => fireEvent.paste(textarea, { clipboardData: { files } });
+
+  it('inserts placeholders and shows previews on paste, without uploading anything', async () => {
+    const textarea = await openChat();
+
+    paste(textarea, [png(), pdf()]);
+
+    await waitFor(() =>
+      expect(textarea.value).toBe('![cat.png](attachment:1)\n![report.pdf](attachment:2)')
+    );
+    expect(screen.getByRole('img', { name: 'cat.png' })).toHaveAttribute('src', 'blob:local-1');
+    expect(screen.getByText('report.pdf')).toBeInTheDocument();
+    expect(uploadAttachment).not.toHaveBeenCalled();
+  });
+
+  it('accepts dropped files of any type', async () => {
+    const textarea = await openChat();
+    const wrapper = document.querySelector('.dm-chat-wrapper');
+
+    fireEvent.drop(wrapper, { dataTransfer: { files: [pdf()], types: ['Files'] } });
+
+    await waitFor(() => expect(textarea.value).toBe('![report.pdf](attachment:1)'));
+  });
+
+  it('removing a preview also removes its placeholder from the text', async () => {
+    const textarea = await openChat();
+    fireEvent.change(textarea, { target: { value: 'look: ' } });
+    textarea.setSelectionRange(6, 6);
+    paste(textarea, [png()]);
+    await waitFor(() => expect(textarea.value).toBe('look: ![cat.png](attachment:1)'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove cat.png' }));
+
+    expect(textarea.value).toBe('look: ');
+    expect(screen.queryByRole('img', { name: 'cat.png' })).not.toBeInTheDocument();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-1');
+  });
+
+  it('rejects files over the size limit', async () => {
+    const textarea = await openChat();
+
+    paste(textarea, [new File(['x'.repeat(2000)], 'huge.mov', { type: 'video/quicktime' })]);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('huge.mov is over the');
+    expect(textarea.value).toBe('');
+  });
+
+  it('uploads on send and sends the message with the real attachment URLs', async () => {
+    const finalUrl = 'https://s3.test/uploads/abc.bin#v=1&k=KEY&t=image%2Fpng&s=9';
+    let finishUpload;
+    uploadAttachment.mockReturnValue(new Promise((resolve) => { finishUpload = resolve; }));
+    sendMessageToUser.mockResolvedValue({ id: 99, sender_id: 1, recipient_id: 2, timestamp: 2000 });
+
+    const textarea = await openChat();
+    fireEvent.change(textarea, { target: { value: 'hi ' } });
+    textarea.setSelectionRange(3, 3);
+    paste(textarea, [png()]);
+    await waitFor(() => expect(textarea.value).toBe('hi ![cat.png](attachment:1)'));
+
+    fireEvent.submit(document.getElementById('dm-chat-form'));
+
+    // Pending while uploading, still showing the placeholder text.
+    expect(await screen.findByText('hi ![cat.png](attachment:1) [pending]')).toBeInTheDocument();
+    expect(uploadAttachment).toHaveBeenCalledWith(expect.any(File), expect.any(Function));
+    expect(uploadAttachment.mock.calls[0][0].name).toBe('cat.png');
+    expect(sendMessageToUser).not.toHaveBeenCalled();
+    expect(textarea.value).toBe('');
+
+    await act(async () => finishUpload(finalUrl));
+
+    expect(await screen.findByText(`hi ![cat.png](${finalUrl}) [sent]`)).toBeInTheDocument();
+    expect(encryptMessage).toHaveBeenCalledWith(`hi ![cat.png](${finalUrl})`, 'shared-key');
+    expect(sendMessageToUser).toHaveBeenCalledWith(2, `enc(hi ![cat.png](${finalUrl}))`, null);
+  });
+
+  it('does not upload drafts whose placeholder was deleted before sending', async () => {
+    sendMessageToUser.mockResolvedValue({ id: 99, sender_id: 1, recipient_id: 2, timestamp: 2000 });
+    const textarea = await openChat();
+    paste(textarea, [png()]);
+    await waitFor(() => expect(textarea.value).toBe('![cat.png](attachment:1)'));
+
+    fireEvent.change(textarea, { target: { value: 'never mind' } });
+    fireEvent.submit(document.getElementById('dm-chat-form'));
+
+    expect(await screen.findByText('never mind [sent]')).toBeInTheDocument();
+    expect(uploadAttachment).not.toHaveBeenCalled();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-1');
+  });
+
+  it('marks the message failed and says why when an upload fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    uploadAttachment.mockRejectedValue(new Error('Upload failed (403)'));
+
+    const textarea = await openChat();
+    paste(textarea, [png()]);
+    await waitFor(() => expect(textarea.value).toBe('![cat.png](attachment:1)'));
+    fireEvent.submit(document.getElementById('dm-chat-form'));
+
+    expect(await screen.findByText('![cat.png](attachment:1) [failed]')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Upload failed (403)');
+    expect(sendMessageToUser).not.toHaveBeenCalled();
+  });
+
+  it('refuses to send when the attachment links would push the message over the limit', async () => {
+    const textarea = await openChat();
+    fireEvent.change(textarea, { target: { value: 'x'.repeat(4950) } });
+    textarea.setSelectionRange(4950, 4950);
+    paste(textarea, [png()]);
+    await waitFor(() => expect(textarea.value).toContain('(attachment:1)'));
+
+    fireEvent.submit(document.getElementById('dm-chat-form'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('too long once attachment links are added');
+    expect(uploadAttachment).not.toHaveBeenCalled();
+    expect(textarea.value).toContain('(attachment:1)');
   });
 });

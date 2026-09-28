@@ -1,0 +1,89 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+
+vi.mock('../services/attachmentCache', () => ({
+  loadDecryptedAttachment: vi.fn(),
+}));
+
+import Attachment from './Attachment';
+import { loadDecryptedAttachment } from '../services/attachmentCache';
+import { buildAttachmentUrl } from '../services/attachmentCrypto';
+
+const encryptedUrl = (type, size = 2048) =>
+  buildAttachmentUrl('https://s3.test/uploads/abc.bin', { key: 'KEY', type, size });
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe('Attachment', () => {
+  it('renders legacy / external image URLs as a plain image without decrypting', () => {
+    render(<Attachment src="https://media.voicaw.com/uploads/old.png" alt="old" />);
+
+    expect(screen.getByRole('img', { name: 'old' })).toHaveAttribute('src', 'https://media.voicaw.com/uploads/old.png');
+    expect(loadDecryptedAttachment).not.toHaveBeenCalled();
+  });
+
+  it('decrypts and shows an encrypted image inline', async () => {
+    loadDecryptedAttachment.mockResolvedValue('blob:decrypted-image');
+    const url = encryptedUrl('image/png');
+
+    render(<Attachment src={url} alt="cat.png" />);
+
+    expect(screen.getByLabelText('Loading cat.png')).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: 'cat.png' })).toHaveAttribute('src', 'blob:decrypted-image');
+    expect(loadDecryptedAttachment).toHaveBeenCalledWith(url, expect.objectContaining({ key: 'KEY', type: 'image/png' }));
+  });
+
+  it('shows an encrypted video inline with controls', async () => {
+    loadDecryptedAttachment.mockResolvedValue('blob:decrypted-video');
+
+    const { container } = render(<Attachment src={encryptedUrl('video/mp4')} alt="clip.mp4" />);
+
+    await waitFor(() => expect(container.querySelector('video')).toHaveAttribute('src', 'blob:decrypted-video'));
+    expect(container.querySelector('video')).toHaveAttribute('controls');
+  });
+
+  it('shows other files as a download box and only fetches when downloading', async () => {
+    loadDecryptedAttachment.mockResolvedValue('blob:decrypted-file');
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    render(<Attachment src={encryptedUrl('application/pdf', 1536)} alt="report.pdf" />);
+
+    expect(screen.getByText('report.pdf')).toBeInTheDocument();
+    expect(screen.getByText('1.5 KB')).toBeInTheDocument();
+    expect(loadDecryptedAttachment).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download report.pdf' }));
+
+    await waitFor(() => expect(click).toHaveBeenCalled());
+    expect(loadDecryptedAttachment).toHaveBeenCalledTimes(1);
+    click.mockRestore();
+  });
+
+  it('falls back to a download box when an image fails to decrypt', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    loadDecryptedAttachment.mockRejectedValue(new Error('bad key'));
+
+    render(<Attachment src={encryptedUrl('image/png')} alt="broken.png" />);
+
+    expect(await screen.findByText('Download failed')).toBeInTheDocument();
+    expect(screen.getByText('broken.png')).toBeInTheDocument();
+  });
+
+  it('shows a pending message attachment from its local preview', () => {
+    const localAttachments = { 3: { previewUrl: 'blob:local', type: 'image/jpeg', size: 10 } };
+
+    render(<Attachment src="attachment:3" alt="me.jpg" localAttachments={localAttachments} />);
+
+    expect(screen.getByRole('img', { name: 'me.jpg' })).toHaveAttribute('src', 'blob:local');
+    expect(loadDecryptedAttachment).not.toHaveBeenCalled();
+  });
+
+  it('shows a placeholder label when a draft placeholder has no local file', () => {
+    render(<Attachment src="attachment:7" alt="gone.png" />);
+
+    expect(screen.getByText('📎 gone.png')).toBeInTheDocument();
+  });
+});

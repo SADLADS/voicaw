@@ -88,4 +88,16 @@ describe('upload URL routes', () => {
     expect(res.body.uploadUrl).toContain('mock-s3.test');
     expect(res.body.fileUrl).toMatch(/\.jpeg$/);
   });
+
+  it('names opaque (encrypted) attachment uploads .bin', async () => {
+    await registerUser(app, request, 'uploader4', 'uploader-pw');
+    const { response } = await loginUser(app, request, 'uploader4', 'uploader-pw');
+
+    const res = await request(app)
+      .get('/api/upload_file')
+      .query({ type: 'application/octet-stream' })
+      .set('Authorization', `Bearer ${response.body.token}`);
+    expect(res.status).toBe(201);
+    expect(res.body.fileUrl).toMatch(/\/uploads\/[0-9a-f-]{36}\.bin$/);
+  });
 });

@@ -6,6 +6,17 @@ import { LayoutContext } from './Layout';
 import { fetchMessagesForUser, sendMessageToUser, markMessagesRead } from '../services/dmService';
 import { encryptMessage, decryptMessage, deriveSharedKey, decryptMessagesBatch } from '../services/encryptionService';
 import { loadPrivateKey } from '../services/keyStore';
+import { uploadAttachment, MAX_ATTACHMENT_BYTES } from '../services/attachmentUpload';
+import { buildAttachmentUrl, ENCRYPTION_OVERHEAD_BYTES } from '../services/attachmentCrypto';
+import {
+  makePlaceholder,
+  findPlaceholderIds,
+  removePlaceholder,
+  replacePlaceholders,
+} from '../utils/attachmentMarkup';
+import { seedAttachmentCache } from '../services/attachmentCache';
+import { formatBytes } from '../utils/formatBytes';
+import AttachmentTray from './AttachmentTray';
 import { ConfigContext } from '../App';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
@@ -49,74 +60,153 @@ export default function Dm({ user }) {
   const [editingMessageContent, setEditingMessageContent] = useState('');
   const [progress, setProgress] = useState(0);
 
+  // Files attached to the message being composed. They stay local (referenced from the
+  // text as `![name](attachment:ID)`) until the message is sent.
+  const [drafts, setDrafts] = useState([]);
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
+  const nextDraftId = useRef(1);
+  const [composerError, setComposerError] = useState(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragDepth = useRef(0);
+
   // FUNCTIONS
 
-  async function uploadAndInsertFile(file) {
+  // ATTACHMENTS
+
+  function addDraftAttachments(files) {
+    if (files.length === 0) return;
+
+    const tooBig = files.filter((f) => f.size > MAX_ATTACHMENT_BYTES);
+    const accepted = files.filter((f) => f.size <= MAX_ATTACHMENT_BYTES);
+    setComposerError(
+      tooBig.length > 0
+        ? `${tooBig.map((f) => f.name).join(', ')} ${tooBig.length === 1 ? 'is' : 'are'} over the ${formatBytes(MAX_ATTACHMENT_BYTES)} limit.`
+        : null
+    );
+    if (accepted.length === 0) return;
+
+    const newDrafts = accepted.map((file) => ({
+      id: nextDraftId.current++,
+      file,
+      name: file.name || 'file',
+      type: file.type || 'application/octet-stream',
+      size: file.size,
+      previewUrl: URL.createObjectURL(file),
+    }));
+    setDrafts((prev) => [...prev, ...newDrafts]);
+
+    // Insert the placeholders at the cursor (or over the selection).
+    const markup = newDrafts.map((d) => makePlaceholder(d.id, d.name)).join('\n');
     const textarea = inputRef.current;
-    if (!textarea) return;
+    const start = textarea?.selectionStart ?? inputValue.length;
+    const end = textarea?.selectionEnd ?? start;
+    setInputValue((prev) => prev.slice(0, start) + markup + prev.slice(end));
 
-    const cursorPos = textarea.selectionStart;
-    const before = inputValue.slice(0, cursorPos);
-    const after = inputValue.slice(cursorPos);
-
-    try {
-      const { data } = await api.get("/upload_file", { params: { type: file.type } });
-      const { fileUrl, uploadUrl } = data;
-      if (!uploadUrl) throw new Error("Invalid upload URL");
-
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", uploadUrl, true);
-        xhr.setRequestHeader("Content-Type", file.type);
-
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const percent = Math.round((e.loaded / e.total) * 100);
-            setProgress(percent);
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error("Upload failed"));
-        };
-
-        xhr.onerror = () => reject(new Error("Upload failed"));
-        xhr.send(file);
-      });
-
-      const markdown = `![](${fileUrl})`;
-      setInputValue(before + markdown + after);
-
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(cursorPos + markdown.length, cursorPos + markdown.length);
-      }, 0);
-
-    } catch (err) {
-      console.error("File upload failed:", err);
-      alert("File upload failed");
-    } finally {
-      setProgress(0);
-    }
+    const cursor = start + markup.length;
+    setTimeout(() => {
+      textarea?.focus();
+      textarea?.setSelectionRange(cursor, cursor);
+    }, 0);
   }
 
 
+  function removeDraft(id) {
+    const draft = drafts.find((d) => d.id === id);
+    if (draft) URL.revokeObjectURL(draft.previewUrl);
+    setDrafts((prev) => prev.filter((d) => d.id !== id));
+    setInputValue((prev) => removePlaceholder(prev, id));
+  }
 
-  async function handleAttachFile() {
+
+  function handleAttachFile() {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
-    fileInput.accept = 'image/*';
+    fileInput.multiple = true;
     fileInput.style.display = 'none';
 
-    fileInput.onchange = async (e) => {
-      const file = e.target.files?.[0];
-      if (file) await uploadAndInsertFile(file);
+    fileInput.onchange = (e) => {
+      addDraftAttachments(Array.from(e.target.files || []));
       fileInput.remove();
     };
 
     document.body.appendChild(fileInput);
     fileInput.click();
+  }
+
+
+  function handlePaste(e) {
+    const files = Array.from(e.clipboardData?.files || []);
+    if (files.length === 0) return; // plain text paste
+    e.preventDefault();
+    addDraftAttachments(files);
+  }
+
+
+  // Only react to drags carrying files, so dragging text into the textarea still works.
+  const isFileDrag = (e) => Array.from(e.dataTransfer?.types || []).includes('Files');
+
+  function handleDragEnter(e) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepth.current++;
+    setIsDragOver(true);
+  }
+
+  function handleDragLeave(e) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setIsDragOver(false);
+  }
+
+  function handleDragOver(e) {
+    if (isFileDrag(e)) e.preventDefault();
+  }
+
+  function handleDrop(e) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setIsDragOver(false);
+    addDraftAttachments(Array.from(e.dataTransfer.files || []));
+  }
+
+
+  // The final attachment URL has a fixed shape (see attachmentCrypto/attachmentUpload), so
+  // a same-length stand-in lets us check the message length before uploading anything.
+  function projectedAttachmentUrl(draft) {
+    return buildAttachmentUrl(`${s3Endpoint}/uploads/${'0'.repeat(36)}.bin`, {
+      key: 'A'.repeat(43),
+      type: draft.type,
+      size: draft.size,
+    });
+  }
+
+
+  async function uploadDrafts(attachments) {
+    const total = attachments.reduce((sum, d) => sum + d.size + ENCRYPTION_OVERHEAD_BYTES, 0);
+    const loaded = {};
+    const report = () => {
+      const done = Object.values(loaded).reduce((a, b) => a + b, 0);
+      setProgress(Math.max(1, Math.round((done / total) * 100)));
+    };
+
+    report();
+    try {
+      const entries = await Promise.all(
+        attachments.map(async (d) => {
+          const url = await uploadAttachment(d.file, (bytes) => {
+            loaded[d.id] = bytes;
+            report();
+          });
+          return [d.id, url];
+        })
+      );
+      return Object.fromEntries(entries);
+    } finally {
+      setProgress(0);
+    }
   }
 
 
@@ -277,7 +367,29 @@ export default function Dm({ user }) {
     if (!inputValue.trim() || !chatUser) return;
 
     const messageText = inputValue.trim();
+    const referencedIds = findPlaceholderIds(messageText);
+    const attachments = drafts.filter((d) => referencedIds.has(d.id));
+
+    // Placeholders are much shorter than the final attachment URLs, so check the length
+    // the message will have once they're swapped in.
+    const projectedText = replacePlaceholders(
+      messageText,
+      Object.fromEntries(attachments.map((d) => [d.id, projectedAttachmentUrl(d)]))
+    );
+    if (projectedText.length > maxPlaintextLength) {
+      setComposerError(
+        `Message is ${projectedText.length - maxPlaintextLength} characters too long once attachment links are added.`
+      );
+      return;
+    }
+    setComposerError(null);
+
     setInputValue('');
+    // Drafts whose placeholder was deleted from the text are dropped; the rest now belong
+    // to the pending message.
+    drafts.filter((d) => !referencedIds.has(d.id)).forEach((d) => URL.revokeObjectURL(d.previewUrl));
+    setDrafts([]);
+
     const tempId = `temp-${Date.now()}`;
 
     const pm_id = messageToReply?.id || null;
@@ -293,6 +405,10 @@ export default function Dm({ user }) {
       sender_username: user.username,
       parent_message_id: pm_id,
       parent_plaintext: pm_plaintext,
+      // Lets the pending message show attachments from the local files while they upload.
+      localAttachments: Object.fromEntries(
+        attachments.map((d) => [d.id, { previewUrl: d.previewUrl, type: d.type, size: d.size }])
+      ),
     };
 
     setMessageToReply(null)
@@ -301,7 +417,21 @@ export default function Dm({ user }) {
     setMessages(prev => [...prev, tempMessage]);
 
     try {
-      const encryptedMessage = await encryptMessage(messageText, sharedKey);
+      let finalText = messageText;
+
+      if (attachments.length > 0) {
+        const urls = await uploadDrafts(attachments);
+        finalText = replacePlaceholders(messageText, urls);
+        attachments.forEach((d) => seedAttachmentCache(urls[d.id], d.previewUrl));
+
+        // Swap the real text in before sending: our own websocket echo of this message
+        // is matched to the pending one by plaintext.
+        setMessages(prev =>
+          prev.map(msg => (msg.id === tempId ? { ...msg, plaintext: finalText } : msg))
+        );
+      }
+
+      const encryptedMessage = await encryptMessage(finalText, sharedKey);
       const savedMessage = await sendMessageToUser(chatUser.id, encryptedMessage, pm_id);
 
       // Replace temp message
@@ -310,7 +440,7 @@ export default function Dm({ user }) {
           msg.id === tempId
             ? {
               ...savedMessage,
-              plaintext: messageText,
+              plaintext: finalText,
               status: 'sent',
               timestamp: savedMessage.timestamp || tempMessage.timestamp,
               parent_plaintext: pm_plaintext,
@@ -330,7 +460,7 @@ export default function Dm({ user }) {
         )
       );
 
-      setErrorMessages(error.message);
+      setComposerError(`Message failed to send: ${error.message}`);
     }
   };
 
@@ -338,81 +468,16 @@ export default function Dm({ user }) {
   // USEEFFECTS
 
 
+  // Unsent attachments belong to the conversation they were added in.
   useEffect(() => {
-    const wrapper = document.querySelector('.dm-chat-wrapper');
-    if (!wrapper) return;
-
-    let dragCounter = 0;
-
-    const handleDragEnter = (e) => {
-      e.preventDefault();
-      dragCounter++;
-      wrapper.classList.add('drag-over');
-    };
-
-    const handleDragLeave = (e) => {
-      e.preventDefault();
-      dragCounter--;
-      if (dragCounter === 0) {
-        wrapper.classList.remove('drag-over');
-      }
-    };
-
-    const handleDragOver = (e) => e.preventDefault();
-
-    const handleDrop = async (e) => {
-      e.preventDefault();
-      dragCounter = 0;
-      wrapper.classList.remove('drag-over');
-
-      if (!e.dataTransfer) return;
-
-      const files = Array.from(e.dataTransfer.files).filter(file =>
-        file.type.startsWith('image/')
-      );
-
-      for (const file of files) {
-        await uploadAndInsertFile(file);
-      }
-    };
-
-    wrapper.addEventListener('dragenter', handleDragEnter);
-    wrapper.addEventListener('dragleave', handleDragLeave);
-    wrapper.addEventListener('dragover', handleDragOver);
-    wrapper.addEventListener('drop', handleDrop);
-
     return () => {
-      wrapper.removeEventListener('dragenter', handleDragEnter);
-      wrapper.removeEventListener('dragleave', handleDragLeave);
-      wrapper.removeEventListener('dragover', handleDragOver);
-      wrapper.removeEventListener('drop', handleDrop);
+      const dropped = draftsRef.current;
+      dropped.forEach((d) => URL.revokeObjectURL(d.previewUrl));
+      setDrafts([]);
+      setInputValue((prev) => dropped.reduce((text, d) => removePlaceholder(text, d.id), prev));
+      setComposerError(null);
     };
-  }, [inputValue]);
-
-
-  useEffect(() => {
-    const textarea = inputRef.current;
-    if (!textarea) return;
-
-    const handlePaste = async (e) => {
-      if (!e.clipboardData) return;
-
-      const items = e.clipboardData.items;
-      if (!items) return;
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.type.startsWith('image/')) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) await uploadAndInsertFile(file);
-        }
-      }
-    };
-
-    textarea.addEventListener('paste', handlePaste);
-    return () => textarea.removeEventListener('paste', handlePaste);
-  }, [inputValue]);
+  }, [id]);
 
 
   useEffect(() => {
@@ -622,6 +687,11 @@ export default function Dm({ user }) {
 
 
 
+  // The tray only shows drafts still referenced from the text; unreferenced ones are kept
+  // until send so that undoing a deletion brings them back.
+  const referencedDraftIds = findPlaceholderIds(inputValue);
+  const visibleDrafts = drafts.filter((d) => referencedDraftIds.has(d.id));
+
   return (
     <div
       id="dm-main"
@@ -668,7 +738,13 @@ export default function Dm({ user }) {
             )}
           </div>
 
-          <div className="dm-chat-wrapper">
+          <div
+            className={`dm-chat-wrapper${isDragOver ? ' drag-over' : ''}`}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+          >
             {messageToReply && (
               <div className="reply-bar">
                 <span>
@@ -683,6 +759,17 @@ export default function Dm({ user }) {
                 </button>
               </div>
             )}
+
+            {composerError && (
+              <div className="composer-error" role="alert">
+                <span>{composerError}</span>
+                <button className="reply-close" onClick={() => setComposerError(null)} type="button">
+                  ×
+                </button>
+              </div>
+            )}
+
+            <AttachmentTray drafts={visibleDrafts} onRemove={removeDraft} />
 
             <form
               id="dm-chat-form"
@@ -718,6 +805,7 @@ export default function Dm({ user }) {
                     handleSendMessage(e);
                   }
                 }}
+                onPaste={handlePaste}
                 autoComplete="off"
                 ref={inputRef}
                 rows={1}

@@ -11,6 +11,7 @@ import logoIcon from '../assets/images/logo.svg';
 import 'highlight.js/styles/atom-one-dark.css';
 import { decryptMessage, deriveSharedKey } from '../services/encryptionService';
 import { loadPrivateKey } from '../services/keyStore';
+import { summarizeAttachments } from '../utils/attachmentMarkup';
 
 export const LayoutContext = createContext();
 
@@ -131,7 +132,7 @@ export default function Layout({ user, onLogout }) {
             console.warn('Autoplay failed:', err);
           });
           const notif = new Notification(`${message.sender_username || 'User'}`, {
-            body: plaintext,
+            body: summarizeAttachments(plaintext),
             icon: logoIcon,
             silent: true
           });
