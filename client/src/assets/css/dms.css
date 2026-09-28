@@ -767,3 +767,225 @@ small {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* EMOJI */
+
+/* More specific than `.dm-message img` (display: block) in voicaw.css. */
+img.emoji,
+.dm-message img.emoji {
+  display: inline-block;
+  width: 1.375em;
+  height: 1.375em;
+  margin: 0 0.05em;
+  vertical-align: -0.3em;
+  object-fit: contain;
+}
+
+/* Emoji-only messages are shown larger, like Discord. */
+.dm-message-content.emoji-only img.emoji {
+  width: 3rem;
+  height: 3rem;
+  margin: 2px 1px;
+}
+
+/* The emoji picker is positioned against the composer. */
+.dm-chat-wrapper {
+  position: relative;
+}
+
+.emoji-picker {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 50;
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  height: 420px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  border: 1px solid var(--vc-border-dark);
+  background-color: var(--vc-bg-elevated);
+  box-shadow: 0 8px 24px var(--vc-shadow);
+  color: var(--vc-fg);
+}
+
+.emoji-picker-header {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.emoji-picker-search {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 8px;
+  background-color: var(--vc-bg-base);
+  color: var(--vc-fg);
+  outline: none;
+}
+
+.emoji-picker-tones {
+  position: relative;
+}
+
+.emoji-picker-tone-toggle,
+.emoji-picker-tone-menu button,
+.emoji-picker-nav button,
+.emoji-picker-item {
+  border: none;
+  background: none;
+  padding: 4px;
+  border-radius: 4px;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.emoji-picker-tone-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border-radius: 6px;
+  background-color: var(--vc-bg-base);
+  box-shadow: 0 4px 12px var(--vc-shadow);
+}
+
+.emoji-picker .emoji {
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  vertical-align: middle;
+}
+
+.emoji-picker-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.emoji-picker-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 4px;
+  border-right: 1px solid var(--vc-border-dark);
+  overflow-y: auto;
+}
+
+.emoji-picker-nav .emoji {
+  width: 20px;
+  height: 20px;
+  filter: grayscale(0.6);
+}
+
+.emoji-picker-nav button:hover .emoji {
+  filter: none;
+}
+
+.emoji-picker-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 8px 8px;
+}
+
+.emoji-picker-section-title {
+  position: sticky;
+  top: -4px;
+  margin: 0;
+  padding: 6px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--vc-fg-muted);
+  background-color: var(--vc-bg-elevated);
+}
+
+.emoji-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+}
+
+.emoji-picker-item:hover,
+.emoji-picker-item:focus-visible,
+.emoji-picker-nav button:hover,
+.emoji-picker-tone-menu button:hover {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.emoji-picker-item .emoji {
+  width: 28px;
+  height: 28px;
+}
+
+.emoji-picker-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--vc-fg-muted);
+}
+
+.emoji-picker-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--vc-border-dark);
+  background-color: var(--vc-bg-subtle);
+  border-radius: 0 0 8px 8px;
+  font-size: 14px;
+}
+
+.emoji-picker-preview .emoji {
+  width: 28px;
+  height: 28px;
+}
+
+.emoji-picker-preview-code {
+  color: var(--vc-fg-muted);
+}
+
+/* ":shortcode" autocomplete */
+.emoji-suggestions {
+  padding: 4px;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.emoji-suggestions-title {
+  padding: 2px 6px 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--vc-fg-muted);
+}
+
+.emoji-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.emoji-suggestion.active {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.emoji-suggestion .emoji {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+}
+
+.settings-attribution {
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+  margin: 0;
+}

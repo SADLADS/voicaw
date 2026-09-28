@@ -198,6 +198,28 @@ cached in `services/attachmentCache.js`; images/videos inline, anything else a d
 plain URLs (legacy unencrypted uploads, external images) as `<img>`. Because placeholders are
 shorter than final URLs, the send-time length check uses same-length stand-in URLs.
 
+### Emoji (Discord-style, default Unicode set)
+
+Messages store plain Unicode emoji; there is no server-side emoji data. `client/src/emoji/`:
+- `emojiIndex.js`: emoji data from `@emoji-mart/data` (`sets/15/twitter.json`, lazy-loaded) and
+  Twemoji art from `@twemoji/svg` (both Unicode 15, so every emoji has an image; a test checks
+  this). It provides search, a shortcode map, and a matcher for emoji in text. `twemojiFile()`
+  gives Twemoji's file-naming rule.
+- Images are **self-hosted** at `/emoji/<file>.svg` by the `twemojiAssets` plugin in
+  `client/vite.config.js`: served from the npm package in dev, copied into the build otherwise,
+  and not precached. There is no CDN and no setup for a new install. The artwork is CC-BY 4.0,
+  so keep the attribution in Settings.
+- `EmojiProvider` (in `App.jsx`) loads the index. `rehypeTwemoji` turns emoji in rendered
+  messages into `<img class="emoji">` (skipping code). `MessageList`'s `MarkdownImage` passes
+  those through (not to `Attachment`), and emoji-only messages get `.emoji-only` (large).
+- Composer (`Dm.jsx`): `EmojiPicker` (search, categories, frequently used and skin tone, both in
+  localStorage via `emojiUsage.js`), `:sm` autocomplete (`EmojiSuggestions`), and a completed
+  `:shortcode:` turns into the emoji as you type. `remark-emoji` still renders any leftover
+  `:shortcode:` text.
+- Planned: custom per-guild emoji, as plain (unencrypted) images written `<:name:id>` in message
+  text (currently left as text), shown as extra picker sections. Reactions in encrypted chats
+  must be encrypted with the conversation key.
+
 ### DM message list and history loading
 
 `MessageList` is deliberately **not virtualized**: every loaded message is rendered in a plain

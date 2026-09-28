@@ -2,6 +2,36 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
+import fs from 'fs';
+import { createRequire } from 'module';
+
+// Twemoji images, self-hosted at /emoji/<file>.svg (see src/emoji/emojiIndex.js): served
+// straight from the npm package in dev, copied into the build output otherwise. Nothing to
+// upload or configure for a new install, and browsers never contact a third party.
+function twemojiAssets() {
+  const svgDir = path.dirname(createRequire(import.meta.url).resolve('@twemoji/svg/package.json'));
+  const isEmojiFile = (name) => /^[0-9a-f-]+\.svg$/.test(name);
+  return {
+    name: 'twemoji-assets',
+    configureServer(server) {
+      server.middlewares.use('/emoji', (req, res, next) => {
+        const name = decodeURIComponent(req.url.split('?')[0].replace(/^\//, ''));
+        const file = path.join(svgDir, name);
+        if (!isEmojiFile(name) || !fs.existsSync(file)) return next();
+        res.setHeader('Content-Type', 'image/svg+xml');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        fs.createReadStream(file).pipe(res);
+      });
+    },
+    writeBundle(options) {
+      const outDir = path.join(options.dir, 'emoji');
+      fs.mkdirSync(outDir, { recursive: true });
+      for (const name of fs.readdirSync(svgDir)) {
+        if (isEmojiFile(name)) fs.copyFileSync(path.join(svgDir, name), path.join(outDir, name));
+      }
+    },
+  };
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -15,6 +45,7 @@ export default defineConfig(({ mode }) => {
     base: isElectron ? './' : '/',
     plugins: [
       react(),
+      twemojiAssets(),
       VitePWA({
         strategies: 'injectManifest',
         srcDir: 'src',

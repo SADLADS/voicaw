@@ -9,6 +9,9 @@ vi.mock('../services/attachmentCache', () => ({
 }));
 
 import MessageList from './MessageList';
+import emojiData from '@emoji-mart/data/sets/15/twitter.json';
+import { buildEmojiIndex } from '../emoji/emojiIndex';
+import { EmojiContext } from '../emoji/emojiContext';
 import { loadDecryptedAttachment } from '../services/attachmentCache';
 import { buildAttachmentUrl } from '../services/attachmentCrypto';
 
@@ -248,4 +251,35 @@ describe('MessageList', () => {
 
     expect(screen.getByRole('img', { name: 'b.png' })).toBe(imgB);
   });
+
+  describe('emoji', () => {
+    const index = buildEmojiIndex(emojiData);
+    const renderWithEmoji = (messages) =>
+      render(
+        <EmojiContext.Provider value={index}>
+          <MessageList {...baseProps({ messages })} />
+        </EmojiContext.Provider>
+      );
+
+    it('renders emoji as Twemoji images (not attachments)', () => {
+      renderWithEmoji([{ id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'nice 👍', timestamp: 1 }]);
+
+      const img = screen.getByRole('img', { name: '👍' });
+      expect(img).toHaveAttribute('src', '/emoji/1f44d.svg');
+      expect(img).toHaveClass('emoji');
+    });
+
+    it('shows emoji-only messages large', () => {
+      renderWithEmoji([
+        { id: 1, sender_id: 2, sender_username: 'bob', plaintext: '🎉🎉', timestamp: 1 },
+        { id: 2, sender_id: 2, sender_username: 'bob', plaintext: 'party 🎉', timestamp: 2 },
+      ]);
+
+      const contentOf = (id) => document.querySelector(`[data-msg-id="${id}"] .dm-message-content`);
+      const [onlyEmoji, mixed] = [contentOf(1), contentOf(2)];
+      expect(onlyEmoji).toHaveClass('emoji-only');
+      expect(mixed).not.toHaveClass('emoji-only');
+    });
+  });
 });
+

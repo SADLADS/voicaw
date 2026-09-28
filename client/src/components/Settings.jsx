@@ -107,6 +107,14 @@ export default function Settings({ onLogout, user }) {
       </div>
       <NotificationSettings />
       <div className="settings-card">
+        <h5>About</h5>
+        <p className="settings-attribution">
+          Emoji graphics by <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noreferrer">Twemoji</a>,
+          {' '}© Twitter, Inc and other contributors, licensed under{' '}
+          <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC-BY 4.0</a>.
+        </p>
+      </div>
+      <div className="settings-card">
         <h5>Log Out</h5>
         <div className="mt-auto mb-4">
           <button onClick={onLogout} className="btn btn-sm btn-danger" title="Logout">

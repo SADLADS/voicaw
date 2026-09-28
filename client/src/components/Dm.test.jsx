@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 const dmListeners = vi.hoisted(() => ({ newDm: [], deleteDm: [], editDm: [] }));
@@ -77,6 +77,9 @@ vi.mock('./MessageList', () => ({
 }));
 
 import Dm from './Dm';
+import emojiData from '@emoji-mart/data/sets/15/twitter.json';
+import { buildEmojiIndex } from '../emoji/emojiIndex';
+import { EmojiContext } from '../emoji/emojiContext';
 import { ConfigContext, InteractionContext } from '../App';
 import { LayoutContext } from './Layout';
 import { fetchMessagesForUser, sendMessageToUser, markMessagesRead } from '../services/dmService';
@@ -91,8 +94,11 @@ const chatUserFull = {
 };
 const chatUserNoKey = { id: 3, username: 'nokey' };
 
+const emojiIndex = buildEmojiIndex(emojiData);
+
 function renderDm({ path, users, user = currentUser, layoutOverrides = {} } = {}) {
   return render(
+    <EmojiContext.Provider value={emojiIndex}>
     <ConfigContext.Provider value={{ s3Endpoint: 'https://s3.test', maxPlaintextLength: 5000 }}>
       <InteractionContext.Provider value={{ isMobile: false }}>
         <LayoutContext.Provider
@@ -106,6 +112,7 @@ function renderDm({ path, users, user = currentUser, layoutOverrides = {} } = {}
         </LayoutContext.Provider>
       </InteractionContext.Provider>
     </ConfigContext.Provider>
+    </EmojiContext.Provider>
   );
 }
 
@@ -490,6 +497,81 @@ describe('Dm contact keys', () => {
     expect(acceptContactKeys).toHaveBeenCalledWith(1, chatUserFull);
     expect(screen.getByRole('button', { name: 'Not verified' })).toBeInTheDocument();
     expect(document.getElementById('dm-input')).not.toBeNull();
+  });
+});
+
+describe('Dm emoji', () => {
+  async function openChat() {
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText('No messages yet. Start the conversation!');
+    return document.getElementById('dm-input');
+  }
+  const type = (textarea, value) =>
+    fireEvent.change(textarea, { target: { value, selectionStart: value.length, selectionEnd: value.length } });
+
+  it('the emoji button opens the picker and does not send the message', async () => {
+    const textarea = await openChat();
+    type(textarea, 'draft');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+
+    expect(screen.getByRole('dialog', { name: 'Emoji picker' })).toBeInTheDocument();
+    expect(sendMessageToUser).not.toHaveBeenCalled();
+    expect(textarea.value).toBe('draft');
+  });
+
+  it('inserts a picked emoji at the cursor', async () => {
+    const textarea = await openChat();
+    type(textarea, 'hi ');
+    textarea.setSelectionRange(3, 3);
+    fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Grinning Face' }));
+
+    expect(textarea.value).toBe('hi 😀');
+    expect(screen.queryByRole('dialog', { name: 'Emoji picker' })).not.toBeInTheDocument();
+  });
+
+  it('suggests emoji for ":sm" and inserts the chosen one with Tab or Enter', async () => {
+    const textarea = await openChat();
+    type(textarea, 'hello :smi');
+
+    const list = screen.getByRole('listbox', { name: 'Emoji matching :smi' });
+    expect(within(list).getAllByRole('option')[0]).toHaveTextContent(':smile:');
+
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+
+    expect(textarea.value).toBe('hello 😄 ');
+    expect(sendMessageToUser).not.toHaveBeenCalled();
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('moves through suggestions with the arrow keys and dismisses them with Escape', async () => {
+    const textarea = await openChat();
+    type(textarea, ':smi');
+    fireEvent.keyDown(textarea, { key: 'ArrowDown' });
+    const options = within(screen.getByRole('listbox')).getAllByRole('option');
+    expect(options[1]).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.keyDown(textarea, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('does not suggest for times or URLs', async () => {
+    const textarea = await openChat();
+    type(textarea, 'at 12:30');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    type(textarea, 'see https://example');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('turns a completed :shortcode: into the emoji as you type', async () => {
+    const textarea = await openChat();
+    type(textarea, 'nice :+1:');
+    expect(textarea.value).toBe('nice 👍');
+
+    type(textarea, 'nice 👍 :notarealemoji:');
+    expect(textarea.value).toBe('nice 👍 :notarealemoji:');
   });
 });
 

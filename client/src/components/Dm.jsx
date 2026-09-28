@@ -15,6 +15,15 @@ import {
 import { loadEncryptionKey } from '../services/keyStore';
 import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
 import ContactKeyWarning from './ContactKeyWarning';
+import EmojiPicker from './EmojiPicker';
+import EmojiSuggestions from './EmojiSuggestions';
+import { useEmojiIndex } from '../emoji/emojiContext';
+import { getSkinTone, recordEmojiUse, skinFor } from '../emoji/emojiUsage';
+
+// ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
+const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
+// A complete ":shortcode:" just typed.
+const EMOJI_SHORTCODE = /(?:^|[\s([{]):([a-z0-9_+-]+):$/i;
 import SafetyNumberDialog from './SafetyNumberDialog';
 import { uploadAttachment, MAX_ATTACHMENT_BYTES } from '../services/attachmentUpload';
 import { buildAttachmentUrl, ENCRYPTION_OVERHEAD_BYTES } from '../services/attachmentCrypto';
@@ -89,6 +98,13 @@ export default function Dm({ user }) {
   draftsRef.current = drafts;
   const nextDraftId = useRef(1);
   const [composerError, setComposerError] = useState(null);
+
+  // Emoji: picker, ":shortcode" autocomplete (caret position drives it).
+  const emojiIndex = useEmojiIndex();
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [caret, setCaret] = useState(0);
+  const [suggestionIndex, setSuggestionIndex] = useState(0);
+  const [dismissedEmojiQuery, setDismissedEmojiQuery] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const dragDepth = useRef(0);
 
@@ -146,6 +162,84 @@ export default function Dm({ user }) {
     if (draft) URL.revokeObjectURL(draft.previewUrl);
     setDrafts((prev) => prev.filter((d) => d.id !== id));
     setInputValue((prev) => removePlaceholder(prev, id));
+  }
+
+
+  // Replaces inputValue[start, end) with `text` and puts the caret after it.
+  function replaceInput(start, end, text) {
+    const textarea = inputRef.current;
+    setInputValue((prev) => (prev.slice(0, start) + text + prev.slice(end)).slice(0, maxPlaintextLength));
+    const cursor = start + text.length;
+    setCaret(cursor);
+    setTimeout(() => {
+      textarea?.focus();
+      textarea?.setSelectionRange(cursor, cursor);
+    }, 0);
+  }
+
+  function insertAtCursor(text) {
+    const textarea = inputRef.current;
+    const start = textarea?.selectionStart ?? inputValue.length;
+    const end = textarea?.selectionEnd ?? start;
+    replaceInput(start, end, text);
+  }
+
+  const emojiQuery = emojiIndex ? EMOJI_QUERY.exec(inputValue.slice(0, caret))?.[1] ?? null : null;
+  const emojiSuggestions = emojiQuery && emojiQuery !== dismissedEmojiQuery
+    ? emojiIndex.search(emojiQuery.slice(1), 8)
+    : [];
+  const activeSuggestion = Math.min(suggestionIndex, Math.max(emojiSuggestions.length - 1, 0));
+
+  function pickSuggestion(emoji) {
+    recordEmojiUse(emoji.id);
+    replaceInput(caret - emojiQuery.length, caret, `${skinFor(emoji, getSkinTone()).native} `);
+    setSuggestionIndex(0);
+  }
+
+  function handleInputChange(e) {
+    let value = e.target.value;
+    let cursor = e.target.selectionStart ?? value.length;
+
+    // Typing the closing colon of a known :shortcode: turns it into the emoji (like Discord).
+    const typed = emojiIndex && EMOJI_SHORTCODE.exec(value.slice(0, cursor));
+    const emoji = typed && emojiIndex.byShortcode.get(typed[1].toLowerCase());
+    if (emoji) {
+      const native = skinFor(emoji, getSkinTone()).native;
+      const start = cursor - typed[1].length - 2;
+      value = value.slice(0, start) + native + value.slice(cursor);
+      cursor = start + native.length;
+      recordEmojiUse(emoji.id);
+      setTimeout(() => inputRef.current?.setSelectionRange(cursor, cursor), 0);
+    }
+
+    setInputValue(value.slice(0, maxPlaintextLength));
+    setCaret(cursor);
+    setSuggestionIndex(0);
+  }
+
+  function handleInputKeyDown(e) {
+    if (emojiSuggestions.length > 0) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        setSuggestionIndex((activeSuggestion + step + emojiSuggestions.length) % emojiSuggestions.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        pickSuggestion(emojiSuggestions[activeSuggestion]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setDismissedEmojiQuery(emojiQuery);
+        return;
+      }
+    }
+    if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(e);
+    }
   }
 
 
@@ -511,6 +605,7 @@ export default function Dm({ user }) {
       setDrafts([]);
       setInputValue((prev) => dropped.reduce((text, d) => removePlaceholder(text, d.id), prev));
       setComposerError(null);
+      setShowEmojiPicker(false);
     };
   }, [id]);
 
@@ -802,6 +897,20 @@ export default function Dm({ user }) {
             onDragOver={handleDragOver}
             onDrop={handleDrop}
           >
+            {showEmojiPicker && (
+              <EmojiPicker onSelect={insertAtCursor} onClose={() => setShowEmojiPicker(false)} />
+            )}
+
+            {emojiSuggestions.length > 0 && (
+              <EmojiSuggestions
+                query={emojiQuery}
+                emojis={emojiSuggestions}
+                activeIndex={activeSuggestion}
+                onPick={pickSuggestion}
+                onHover={setSuggestionIndex}
+              />
+            )}
+
             {messageToReply && (
               <div className="reply-bar">
                 <span>
@@ -848,27 +957,24 @@ export default function Dm({ user }) {
                 className="form-control auto-resize-textarea"
                 placeholder={`Message ${chatUser?.username || 'User'}...`}
                 value={inputValue}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value.length <= maxPlaintextLength) {
-                    setInputValue(value);
-                  } else {
-                    setInputValue(value.slice(0, maxPlaintextLength));
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage(e);
-                  }
-                }}
+                onChange={handleInputChange}
+                onKeyDown={handleInputKeyDown}
+                onSelect={(e) => setCaret(e.target.selectionStart)}
                 onPaste={handlePaste}
                 autoComplete="off"
                 ref={inputRef}
                 rows={1}
               />
               <div className="chat-buttons">
-                <button className="emoji-button">
+                <button
+                  type="button"
+                  className="emoji-button"
+                  aria-label="Emoji"
+                  aria-expanded={showEmojiPicker}
+                  // Don't let the picker's outside-click handler close it before this toggles.
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => setShowEmojiPicker((open) => !open)}
+                >
                   😎
                 </button>
                 <button className="send-button" type="submit">

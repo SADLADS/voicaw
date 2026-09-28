@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
@@ -8,14 +8,21 @@ import { faEdit, faTrash, faReply } from '@fortawesome/free-solid-svg-icons';
 import defaultpfp from '../assets/images/default.png';
 import Attachment from './Attachment';
 import { placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
+import { useEmojiIndex } from '../emoji/emojiContext';
+import { isEmojiOnly } from '../emoji/emojiIndex';
+import { rehypeTwemoji } from '../emoji/rehypeTwemoji';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
 // is a new component type to React, which remounts (and reloads) every attachment on any
 // re-render. The per-message local drafts come in through context instead.
 const LocalAttachmentsContext = createContext(null);
 
-function MarkdownImage({ src, alt }) {
+function MarkdownImage({ src, alt, className, title }) {
   const localAttachments = useContext(LocalAttachmentsContext);
+  // Twemoji images from rehypeTwemoji, not attachments.
+  if (className === 'emoji') {
+    return <img className="emoji" src={src} alt={alt} title={title} draggable={false} />;
+  }
   return <Attachment src={src} alt={alt} localAttachments={localAttachments} />;
 }
 
@@ -75,6 +82,13 @@ export function MessageRow({
   editRef,
   maxPlaintextLength,
 }) {
+  const emojiIndex = useEmojiIndex();
+  // Stable per emoji index (a new plugin list every render would re-run markdown needlessly).
+  const rehypePlugins = useMemo(
+    () => (emojiIndex ? [rehypeHighlight, rehypeTwemoji(emojiIndex)] : [rehypeHighlight]),
+    [emojiIndex]
+  );
+
   const imgSrc = s3Endpoint
     ? `${s3Endpoint}/profile-pics/${msg.sender_id}`
     : defaultpfp;
@@ -173,7 +187,7 @@ export function MessageRow({
           {msg.edited ? <em style={{ marginLeft: '6px' }}>edited</em> : null}
         </small>
 
-        <div className="dm-message-content">
+        <div className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}`}>
           {editingMessageId === msg.id ? (
             <div className="inline-edit-wrapper">
               <form onSubmit={(e) => e.preventDefault()}>
@@ -220,7 +234,7 @@ export function MessageRow({
             <LocalAttachmentsContext.Provider value={msg.localAttachments ?? null}>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkEmoji]}
-                rehypePlugins={[rehypeHighlight]}
+                rehypePlugins={rehypePlugins}
                 urlTransform={urlTransform}
                 components={markdownComponents}
               >

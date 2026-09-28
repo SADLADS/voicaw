@@ -14,6 +14,7 @@ import './assets/css/desktop.css';
 
 import { closeWebSocket } from './utils/ws-client';
 import { clearUserKeys } from './services/keyStore';
+import EmojiProvider from './emoji/EmojiProvider';
 import { disableNotificationsOnThisDevice } from './services/pushService';
 
 export const ConfigContext = createContext({ 
@@ -139,6 +140,7 @@ export default function App() {
 
   return (
     <ConfigContext.Provider value={config}>
+      <EmojiProvider>
       <InteractionContext.Provider value={{ interactionMode, setInteractionMode, isMobile }}>
         <Router>
           <SWMessageHandler />
@@ -162,6 +164,7 @@ export default function App() {
           </Routes>
         </Router>
       </InteractionContext.Provider>
+      </EmojiProvider>
     </ConfigContext.Provider>
   );
 }
