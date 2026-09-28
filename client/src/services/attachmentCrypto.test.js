@@ -18,7 +18,9 @@ describe('attachmentCrypto', () => {
 
     const url = buildAttachmentUrl('https://s3.test/uploads/abc.bin', { key, type: file.type, size: file.size });
     const meta = parseAttachmentUrl(url);
-    expect(meta).toEqual({ fileUrl: 'https://s3.test/uploads/abc.bin', key, type: 'image/png', size: 5000 });
+    expect(meta).toEqual({
+      fileUrl: 'https://s3.test/uploads/abc.bin', key, type: 'image/png', size: 5000, width: null, height: null,
+    });
 
     const plain = await decryptAttachment(await blob.arrayBuffer(), meta.key);
     expect(new Uint8Array(plain)).toEqual(bytes);
@@ -63,6 +65,21 @@ describe('attachmentCrypto', () => {
       key: 'abc',
       type: 'application/octet-stream',
       size: null,
+      width: null,
+      height: null,
     });
+  });
+
+  it('carries media dimensions when both are known, and ignores bad ones', () => {
+    const withDims = buildAttachmentUrl('https://s3.test/x.bin', { key: 'k', type: 'image/png', size: 1, width: 800, height: 600 });
+    expect(parseAttachmentUrl(withDims)).toMatchObject({ width: 800, height: 600 });
+
+    const noDims = buildAttachmentUrl('https://s3.test/x.bin', { key: 'k', type: 'image/png', size: 1 });
+    expect(noDims).not.toContain('w=');
+    expect(parseAttachmentUrl(noDims)).toMatchObject({ width: null, height: null });
+
+    expect(parseAttachmentUrl('https://s3.test/x.bin#v=1&k=k&w=800')).toMatchObject({ width: null, height: null });
+    expect(parseAttachmentUrl('https://s3.test/x.bin#v=1&k=k&w=0&h=5')).toMatchObject({ width: null, height: null });
+    expect(parseAttachmentUrl('https://s3.test/x.bin#v=1&k=k&w=-1&h=5')).toMatchObject({ width: null, height: null });
   });
 });

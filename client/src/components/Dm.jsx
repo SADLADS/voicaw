@@ -16,6 +16,7 @@ import {
 } from '../utils/attachmentMarkup';
 import { seedAttachmentCache } from '../services/attachmentCache';
 import { formatBytes } from '../utils/formatBytes';
+import { readMediaDimensions } from '../utils/mediaDimensions';
 import AttachmentTray from './AttachmentTray';
 import { ConfigContext } from '../App';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -31,6 +32,9 @@ export default function Dm({ user }) {
 
 
   const INITIAL_INDEX = 100000;
+  // Older history is fetched in pages this size as you scroll up. Bigger pages mean fewer
+  // prepends (each one makes Virtuoso re-measure and shift the list).
+  const PAGE_SIZE = 50;
 
   const [firstItemIndex, setFirstItemIndex] = useState(INITIAL_INDEX);
 
@@ -44,7 +48,12 @@ export default function Dm({ user }) {
 
   const inputRef = useRef(null);
   const editRef = useRef(null);
-  const initialLoad = useRef(true);
+  // Always the current render's messages, for the load-older handler to dedupe against.
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const loadingOlder = useRef(false);
+  // The conversation currently being shown, so late responses for a previous one are ignored.
+  const activeChatId = useRef(id);
 
   const [sharedKey, setSharedKey] = useState(null);
 
@@ -95,6 +104,14 @@ export default function Dm({ user }) {
       previewUrl: URL.createObjectURL(file),
     }));
     setDrafts((prev) => [...prev, ...newDrafts]);
+
+    // Record image/video sizes (sent in the attachment URL) so receivers can reserve the
+    // right space before the file loads.
+    newDrafts.forEach((d) => {
+      readMediaDimensions(d.file, d.previewUrl).then((dims) => {
+        if (dims) setDrafts((prev) => prev.map((x) => (x.id === d.id ? { ...x, ...dims } : x)));
+      });
+    });
 
     // Insert the placeholders at the cursor (or over the selection).
     const markup = newDrafts.map((d) => makePlaceholder(d.id, d.name)).join('\n');
@@ -180,6 +197,8 @@ export default function Dm({ user }) {
       key: 'A'.repeat(43),
       type: draft.type,
       size: draft.size,
+      width: draft.width,
+      height: draft.height,
     });
   }
 
@@ -196,10 +215,11 @@ export default function Dm({ user }) {
     try {
       const entries = await Promise.all(
         attachments.map(async (d) => {
+          const dims = d.width && d.height ? { width: d.width, height: d.height } : null;
           const url = await uploadAttachment(d.file, (bytes) => {
             loaded[d.id] = bytes;
             report();
-          });
+          }, dims);
           return [d.id, url];
         })
       );
@@ -282,9 +302,12 @@ export default function Dm({ user }) {
       );
 
       if (tempIndex !== -1) {
-        // replace temp message with real message
+        // replace temp message with real message, keeping its list key stable
         const updated = [...prev];
-        updated[tempIndex] = decryptedNewMessage;
+        updated[tempIndex] = {
+          ...decryptedNewMessage,
+          clientKey: prev[tempIndex].clientKey ?? prev[tempIndex].id,
+        };
         return updated;
       }
 
@@ -309,44 +332,35 @@ export default function Dm({ user }) {
   }
 
 
-  async function fetchMessages(beforeId = null) {
-    console.log("fetch messages!")
-    try {
-      const data = await fetchMessagesForUser(id, { before: beforeId });
-      const decryptedNewMessages = await decryptMessagesBatch(data, sharedKey)
-      if (beforeId) {
-        setMessages((prev) => [...decryptedNewMessages, ...prev]);
-      } else {
-        setMessages(decryptedNewMessages);
-      }
-      setHasMore(data.length > 0);
-      setErrorMessages(null);
-    } catch (e) {
-      setErrorMessages(e.message);
-    }
-  }
 
 
   const loadMoreMessages = async () => {
-    console.log("load more!")
-    const oldest = messages[0];
+    // Virtuoso can ask again before the previous page has arrived.
+    if (loadingOlder.current || !sharedKey) return;
+    const oldest = messagesRef.current[0];
     if (!oldest) return;
 
+    loadingOlder.current = true;
+    const chatId = id;
     try {
-      const newMessages = await fetchMessagesForUser(id, { before: oldest.id });
+      const page = await fetchMessagesForUser(chatId, { before: oldest.id, limit: PAGE_SIZE });
+      const decrypted = await decryptMessagesBatch(page, sharedKey);
+      if (activeChatId.current !== chatId) return;
 
-      if (!chatUser) throw new Error("Chat user not loaded for decryption.");
-
-      const decryptedNewMessages = await decryptMessagesBatch(newMessages, sharedKey)
-
-      if (decryptedNewMessages.length > 0) {
-        setMessages((prev) => [...decryptedNewMessages, ...prev]);
-        setFirstItemIndex((prev) => prev - decryptedNewMessages.length);
+      // firstItemIndex must shift by exactly the number of items prepended, or Virtuoso
+      // loses its place and the list jumps.
+      const known = new Set(messagesRef.current.map((m) => m.id));
+      const fresh = decrypted.filter((m) => !known.has(m.id));
+      if (fresh.length > 0) {
+        setMessages((prev) => [...fresh, ...prev]);
+        setFirstItemIndex((prev) => prev - fresh.length);
       }
-
-      setHasMore(decryptedNewMessages.length > 0);
+      setHasMore(page.length > 0);
     } catch (e) {
-      setErrorMessages(e.message);
+      // Keep the conversation on screen; scrolling back to the top retries.
+      console.error('Failed to load older messages:', e);
+    } finally {
+      if (activeChatId.current === chatId) loadingOlder.current = false;
     }
   };
 
@@ -407,7 +421,10 @@ export default function Dm({ user }) {
       parent_plaintext: pm_plaintext,
       // Lets the pending message show attachments from the local files while they upload.
       localAttachments: Object.fromEntries(
-        attachments.map((d) => [d.id, { previewUrl: d.previewUrl, type: d.type, size: d.size }])
+        attachments.map((d) => [
+          d.id,
+          { previewUrl: d.previewUrl, type: d.type, size: d.size, width: d.width, height: d.height },
+        ])
       ),
     };
 
@@ -440,6 +457,7 @@ export default function Dm({ user }) {
           msg.id === tempId
             ? {
               ...savedMessage,
+              clientKey: tempId,
               plaintext: finalText,
               status: 'sent',
               timestamp: savedMessage.timestamp || tempMessage.timestamp,
@@ -492,86 +510,53 @@ export default function Dm({ user }) {
   }, []);
 
 
+  // Load a conversation: derive the shared key, then fetch the newest page. This is the
+  // only place history is (re)loaded; anything else replacing `messages` would desync
+  // Virtuoso's firstItemIndex and make the list jump.
   useEffect(() => {
-    if (!id || !chatUser?.public_key) {
-      setMessages([]);
+    activeChatId.current = id;
+    loadingOlder.current = false;
+    setMessages([]);
+    setFirstItemIndex(INITIAL_INDEX);
+    setHasMore(true);
+    setErrorMessages(null);
+    setSharedKey(null);
+
+    const publicKey = chatUser?.public_key;
+    if (!id || !publicKey) {
       setIsLoading(false);
       return;
     }
 
-    const loadChatData = async () => {
-      setIsLoading(true);
-      setMessages([]);
-      setFirstItemIndex(INITIAL_INDEX);
-      setHasMore(true);
-      setErrorMessages(null);
+    let cancelled = false;
+    setIsLoading(true);
 
+    (async () => {
       try {
-        // derive the shared key
         const privateKey = await loadPrivateKey();
         if (!privateKey) throw new Error("No private key found.");
+        const key = await deriveSharedKey(privateKey, publicKey);
 
-        const key = await deriveSharedKey(privateKey, chatUser.public_key);
+        const page = await fetchMessagesForUser(id, { limit: PAGE_SIZE });
+        const decrypted = await decryptMessagesBatch(page, key);
+        if (cancelled) return;
+
         setSharedKey(key);
-
-        // Fetch initial messages with the new key
-        const initialMessages = await fetchMessagesForUser(id);
-
-        // decrypt the messages
-        const decryptedMessages = await decryptMessagesBatch(initialMessages, key);
-
-        // set the state
-        setMessages(decryptedMessages);
-        setHasMore(initialMessages.length > 0);
-
+        setMessages(decrypted);
+        setHasMore(page.length > 0);
       } catch (e) {
+        if (cancelled) return;
         console.error("Failed to load chat data:", e);
         setErrorMessages(e.message);
-        setMessages([]); // clear messages on error
       } finally {
-        setIsLoading(false); // stop loading
+        if (!cancelled) setIsLoading(false);
       }
+    })();
+
+    return () => {
+      cancelled = true;
     };
-
-    loadChatData();
-
-  }, [id, chatUser]);
-
-
-  useEffect(() => {
-    setFirstItemIndex(INITIAL_INDEX);
-    setMessages([]);
-    setHasMore(true);
-    if (!id) return;
-  }, [id, chatUser]);
-
-
-  useEffect(() => {
-    async function deriveKey() {
-      if (!chatUser?.public_key) {
-        setSharedKey(null);
-        return;
-      }
-
-      try {
-        const privateKey = await loadPrivateKey();
-        if (!privateKey) throw new Error("No private key found for decryption.");
-        const key = await deriveSharedKey(privateKey, chatUser.public_key);
-        setSharedKey(key);
-        console.log("set shared key!", key);
-      } catch (e) {
-        console.error("Failed to derive shared key:", e);
-        setSharedKey(null);
-      }
-    }
-
-    // reset UI state when switching chats
-    setMessages([]);
-    setHasMore(true);
-    setFirstItemIndex(INITIAL_INDEX);
-
-    deriveKey();
-  }, [chatUser?.public_key]);
+  }, [id, chatUser?.public_key]);
 
 
   useEffect(() => {
@@ -677,13 +662,6 @@ export default function Dm({ user }) {
       textarea.style.height = `${textarea.scrollHeight}px`;
     }
   }, [inputValue]);
-
-
-  useEffect(() => {
-    if (sharedKey) {
-      fetchMessages();
-    }
-  }, [sharedKey]);
 
 
 

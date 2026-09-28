@@ -103,6 +103,25 @@ describe('direct messages', () => {
     expect(beforeThird.body.map(m => m.content)).toEqual(['msg-1', 'msg-2']);
   });
 
+  it('honours a requested page size, clamped to 1–100, defaulting to 10', async () => {
+    const alice = await makeAuthedUser('dm-alice-limit', 'pw-alice-123');
+    const bob = await makeAuthedUser('dm-bob-limit', 'pw-bob-123');
+    for (let i = 1; i <= 12; i++) {
+      await request(app)
+        .post('/api/dm-send')
+        .set(authed(alice.token))
+        .send({ recipient_id: bob.id, content: `m${i}` });
+    }
+    const fetchPage = (query) =>
+      request(app).get(`/api/dm-messages/${bob.id}`).query(query).set(authed(alice.token));
+
+    expect((await fetchPage({})).body).toHaveLength(10);
+    expect((await fetchPage({ limit: 3 })).body.map((m) => m.content)).toEqual(['m10', 'm11', 'm12']);
+    expect((await fetchPage({ limit: 50 })).body).toHaveLength(12);
+    expect((await fetchPage({ limit: 0 })).body).toHaveLength(1);
+    expect((await fetchPage({ limit: 'abc' })).body).toHaveLength(10);
+  });
+
   it('tracks and clears unread counts', async () => {
     const alice = await makeAuthedUser('dm-alice5', 'pw-alice-123');
     const bob = await makeAuthedUser('dm-bob5', 'pw-bob-123');

@@ -250,8 +250,13 @@ export default function MessageList({
           </div>
         );
       }}
+      // Key rows by message, not position: a deleted message must not shift every later
+      // row onto a different message. `clientKey` survives the temp id -> real id swap.
+      computeItemKey={(index, msg) => msg.clientKey ?? msg.id}
       followOutput="auto"
-      increaseViewportBy={300}
+      // Render (and so measure) well above the viewport, so older messages have their real
+      // height before they scroll into view instead of being corrected on screen.
+      increaseViewportBy={{ top: 800, bottom: 300 }}
     />
   );
 }

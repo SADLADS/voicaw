@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 vi.mock('../services/attachmentCache', () => ({
   loadDecryptedAttachment: vi.fn(),
@@ -11,8 +11,8 @@ import Attachment from './Attachment';
 import { loadDecryptedAttachment, getCachedAttachment } from '../services/attachmentCache';
 import { buildAttachmentUrl } from '../services/attachmentCrypto';
 
-const encryptedUrl = (type, size = 2048) =>
-  buildAttachmentUrl('https://s3.test/uploads/abc.bin', { key: 'KEY', type, size });
+const encryptedUrl = (type, size = 2048, dims = {}) =>
+  buildAttachmentUrl('https://s3.test/uploads/abc.bin', { key: 'KEY', type, size, ...dims });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -45,6 +45,32 @@ describe('Attachment', () => {
 
     expect(screen.getByRole('img', { name: 'sent.png' })).toHaveAttribute('src', 'blob:cached-image');
     expect(screen.queryByLabelText('Loading sent.png')).not.toBeInTheDocument();
+  });
+
+  it('reserves the final size while loading when the dimensions are known', async () => {
+    let finish;
+    loadDecryptedAttachment.mockReturnValue(new Promise((r) => { finish = r; }));
+
+    // 1600x900 scaled down to fit 420 wide.
+    render(<Attachment src={encryptedUrl('image/jpeg', 10, { width: 1600, height: 900 })} alt="wide.jpg" />);
+
+    const placeholder = screen.getByLabelText('Loading wide.jpg');
+    expect(placeholder.style.width).toBe('420px');
+    expect(placeholder.getAttribute('style')).toContain('aspect-ratio: 1600 / 900');
+
+    await act(async () => finish('blob:wide'));
+    const img = screen.getByRole('img', { name: 'wide.jpg' });
+    expect(img.style.width).toBe('420px');
+    expect(img.getAttribute('style')).toContain('aspect-ratio: 1600 / 900');
+  });
+
+  it('limits tall media by height when reserving space', () => {
+    loadDecryptedAttachment.mockReturnValue(new Promise(() => {}));
+
+    // 600x1200 scaled to 360 tall -> 180 wide.
+    render(<Attachment src={encryptedUrl('video/mp4', 10, { width: 600, height: 1200 })} alt="tall.mp4" />);
+
+    expect(screen.getByLabelText('Loading tall.mp4').style.width).toBe('180px');
   });
 
   it('shows an encrypted video inline with controls', async () => {

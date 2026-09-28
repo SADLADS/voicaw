@@ -144,12 +144,25 @@ and inserts a markdown placeholder `![name](attachment:ID)` (`utils/attachmentMa
 (`AttachmentTray.jsx`) previews drafts still referenced from the text. On send, each referenced
 draft is encrypted with its own AES-GCM key (`services/attachmentCrypto.js`), uploaded as
 `application/octet-stream` (`services/attachmentUpload.js`; server names it `<uuid>.bin`), and its
-placeholder is replaced with `<fileUrl>#v=1&k=<key>&t=<mime>&s=<size>`. The fragment is never sent
+placeholder is replaced with `<fileUrl>#v=1&k=<key>&t=<mime>&s=<size>[&w=<px>&h=<px>]` (image/video
+dimensions, read at attach time by `utils/mediaDimensions.js`, let the renderer reserve the final
+box before the file loads). The fragment is never sent
 to S3 and the URL only exists inside the E2EE message. `Attachment.jsx` renders every markdown image:
 placeholders (pending messages, from local blob URLs), encrypted attachments (fetched, decrypted,
 cached in `services/attachmentCache.js`; images/videos inline, anything else a download box), and
 plain URLs (legacy unencrypted uploads, external images) as `<img>`. Because placeholders are
 shorter than final URLs, the send-time length check uses same-length stand-in URLs.
+
+### DM history loading (Virtuoso)
+
+`MessageList` uses react-virtuoso with `firstItemIndex` for prepending older pages. To avoid the
+list jumping: `Dm.jsx` loads a conversation in exactly one effect (keyed on `id` + the other user's
+public key, ignoring late responses after a chat switch); older pages (`PAGE_SIZE`, sent as `limit`,
+server clamps 1–100, default 10) are only prepended by `loadMoreMessages`, which guards against
+overlapping loads, drops ids already present and shifts `firstItemIndex` by exactly the number
+prepended. Never replace `messages` wholesale outside that effect. Rows are keyed by
+`clientKey ?? id` (`clientKey` carries a sent message's temp id), and react-markdown's `components`
+must be a stable object, or attachments remount on every render.
 
 ### Client structure
 

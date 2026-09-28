@@ -6,13 +6,13 @@ import { render, screen, fireEvent } from '@testing-library/react';
 // Render itemContent directly for every row instead so we're testing MessageList's
 // own rendering logic rather than react-virtuoso's layout math.
 vi.mock('react-virtuoso', () => ({
-  Virtuoso: ({ data, itemContent, startReached }) => (
+  Virtuoso: ({ data, itemContent, startReached, computeItemKey }) => (
     <div data-testid="virtuoso-mock">
       {startReached && (
         <button data-testid="load-more-trigger" onClick={() => startReached(0)} />
       )}
       {data.map((item, index) => (
-        <div key={item.id ?? index}>{itemContent(index, item)}</div>
+        <div key={computeItemKey ? computeItemKey(index, item) : index}>{itemContent(index, item)}</div>
       ))}
     </div>
   ),
@@ -212,5 +212,30 @@ describe('MessageList', () => {
 
     expect(screen.getByRole('img', { name: 'cat.png' })).toBe(img);
     expect(loadDecryptedAttachment).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a sent message mounted when its temp id is swapped for the real one', async () => {
+    const url = buildAttachmentUrl('https://s3.test/uploads/b.bin', { key: 'KEY', type: 'image/png', size: 10 });
+    const pending = { id: 'temp-1', sender_id: 1, sender_username: 'alice', plaintext: `![dog.png](${url})`, timestamp: 1000, status: 'pending' };
+    const { rerender } = render(<MessageList {...baseProps({ messages: [pending] })} />);
+    const img = await screen.findByRole('img', { name: 'dog.png' });
+
+    const saved = { ...pending, id: 42, clientKey: 'temp-1', status: 'sent' };
+    rerender(<MessageList {...baseProps({ messages: [saved] })} />);
+
+    expect(screen.getByRole('img', { name: 'dog.png' })).toBe(img);
+  });
+
+  it('keys rows by message so deleting one does not re-use its row for the next message', async () => {
+    const urlA = buildAttachmentUrl('https://s3.test/uploads/a.bin', { key: 'KA', type: 'image/png', size: 10 });
+    const urlB = buildAttachmentUrl('https://s3.test/uploads/b.bin', { key: 'KB', type: 'image/png', size: 10 });
+    const a = { id: 1, sender_id: 2, sender_username: 'bob', plaintext: `![a.png](${urlA})`, timestamp: 1 };
+    const b = { id: 2, sender_id: 2, sender_username: 'bob', plaintext: `![b.png](${urlB})`, timestamp: 2 };
+    const { rerender } = render(<MessageList {...baseProps({ messages: [a, b] })} />);
+    const imgB = await screen.findByRole('img', { name: 'b.png' });
+
+    rerender(<MessageList {...baseProps({ messages: [b] })} />);
+
+    expect(screen.getByRole('img', { name: 'b.png' })).toBe(imgB);
   });
 });

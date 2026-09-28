@@ -338,7 +338,9 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
   const loggedInUserId = req.user.id;
   const otherUserId = parseInt(req.params.otherUserId, 10);
   const beforeId = req.query.before;
-  const limit = 10;
+  // Page size: clients may ask for 1–100 (default 10, what older clients expect).
+  const requestedLimit = parseInt(req.query.limit, 10);
+  const limit = Number.isNaN(requestedLimit) ? 10 : Math.min(Math.max(requestedLimit, 1), 100);
   if (isNaN(otherUserId)) return res.status(400).json({ error: 'Invalid user ID' });
 
   const params = [loggedInUserId, otherUserId, otherUserId, loggedInUserId];

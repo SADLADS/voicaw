@@ -39,6 +39,10 @@ vi.mock('../services/encryptionService', () => ({
   ),
 }));
 
+vi.mock('../utils/mediaDimensions', () => ({
+  readMediaDimensions: vi.fn(async () => null),
+}));
+
 vi.mock('../services/attachmentUpload', () => ({
   uploadAttachment: vi.fn(),
   MAX_ATTACHMENT_BYTES: 1000,
@@ -51,10 +55,11 @@ vi.mock('../services/keyStore', () => ({
 // Dm renders real Virtuoso-backed MessageList; stub it so these tests exercise
 // Dm's own state machine (fetch/send/receive) rather than virtualization.
 vi.mock('./MessageList', () => ({
-  default: ({ messages }) => (
-    <div data-testid="message-list">
+  default: ({ messages, loadMoreMessages, hasMore, firstItemIndex }) => (
+    <div data-testid="message-list" data-first-item-index={firstItemIndex} data-has-more={String(hasMore)}>
+      <button data-testid="load-older" onClick={() => loadMoreMessages()} />
       {messages.map((m) => (
-        <div key={m.id}>{m.plaintext} [{m.status || 'sent'}]</div>
+        <div key={m.clientKey ?? m.id}>{m.plaintext} [{m.status || 'sent'}]</div>
       ))}
     </div>
   ),
@@ -66,6 +71,7 @@ import { LayoutContext } from './Layout';
 import { fetchMessagesForUser, sendMessageToUser, markMessagesRead } from '../services/dmService';
 import { deriveSharedKey, encryptMessage } from '../services/encryptionService';
 import { uploadAttachment } from '../services/attachmentUpload';
+import { readMediaDimensions } from '../utils/mediaDimensions';
 
 const currentUser = { id: 1, username: 'me' };
 const chatUserFull = { id: 2, username: 'bob', public_key: 'bob-pub-key' };
@@ -251,7 +257,7 @@ describe('Dm attachments', () => {
 
     // Pending while uploading, still showing the placeholder text.
     expect(await screen.findByText('hi ![cat.png](attachment:1) [pending]')).toBeInTheDocument();
-    expect(uploadAttachment).toHaveBeenCalledWith(expect.any(File), expect.any(Function));
+    expect(uploadAttachment).toHaveBeenCalledWith(expect.any(File), expect.any(Function), null);
     expect(uploadAttachment.mock.calls[0][0].name).toBe('cat.png');
     expect(sendMessageToUser).not.toHaveBeenCalled();
     expect(textarea.value).toBe('');
@@ -261,6 +267,21 @@ describe('Dm attachments', () => {
     expect(await screen.findByText(`hi ![cat.png](${finalUrl}) [sent]`)).toBeInTheDocument();
     expect(encryptMessage).toHaveBeenCalledWith(`hi ![cat.png](${finalUrl})`, 'shared-key');
     expect(sendMessageToUser).toHaveBeenCalledWith(2, `enc(hi ![cat.png](${finalUrl}))`, null);
+  });
+
+  it('sends image dimensions with the upload so receivers can reserve space', async () => {
+    readMediaDimensions.mockResolvedValueOnce({ width: 800, height: 600 });
+    uploadAttachment.mockResolvedValue('https://s3.test/uploads/abc.bin#v=1&k=K&t=image%2Fpng&s=9&w=800&h=600');
+    sendMessageToUser.mockResolvedValue({ id: 99, sender_id: 1, recipient_id: 2, timestamp: 2000 });
+
+    const textarea = await openChat();
+    paste(textarea, [png()]);
+    await waitFor(() => expect(readMediaDimensions).toHaveBeenCalled());
+    await act(async () => {});
+    fireEvent.submit(document.getElementById('dm-chat-form'));
+
+    await waitFor(() => expect(uploadAttachment).toHaveBeenCalled());
+    expect(uploadAttachment.mock.calls[0][2]).toEqual({ width: 800, height: 600 });
   });
 
   it('does not upload drafts whose placeholder was deleted before sending', async () => {
@@ -303,5 +324,98 @@ describe('Dm attachments', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('too long once attachment links are added');
     expect(uploadAttachment).not.toHaveBeenCalled();
     expect(textarea.value).toContain('(attachment:1)');
+  });
+});
+
+describe('Dm history loading', () => {
+  const page = (fromId, count) =>
+    Array.from({ length: count }, (_, i) => ({
+      id: fromId + i,
+      sender_id: 2,
+      recipient_id: 1,
+      content: `ENC${fromId + i}`,
+      timestamp: 1000 + fromId + i,
+    }));
+
+  it('fetches the newest page exactly once when opening a chat', async () => {
+    fetchMessagesForUser.mockResolvedValue(page(100, 3));
+
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+
+    expect(await screen.findByText('dec:ENC102 [sent]')).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(fetchMessagesForUser).toHaveBeenCalledTimes(1);
+    expect(fetchMessagesForUser).toHaveBeenCalledWith('2', { limit: 50 });
+  });
+
+  it('prepends older messages and shifts firstItemIndex by exactly the number added', async () => {
+    fetchMessagesForUser.mockResolvedValueOnce(page(100, 3));
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText('dec:ENC100 [sent]');
+    const list = screen.getByTestId('message-list');
+    const before = Number(list.dataset.firstItemIndex);
+
+    fetchMessagesForUser.mockResolvedValueOnce(page(97, 3));
+    fireEvent.click(screen.getByTestId('load-older'));
+
+    expect(await screen.findByText('dec:ENC97 [sent]')).toBeInTheDocument();
+    expect(fetchMessagesForUser).toHaveBeenLastCalledWith('2', { before: 100, limit: 50 });
+    expect(Number(screen.getByTestId('message-list').dataset.firstItemIndex)).toBe(before - 3);
+  });
+
+  it('ignores load-older requests while one is already in flight', async () => {
+    fetchMessagesForUser.mockResolvedValueOnce(page(100, 3));
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText('dec:ENC100 [sent]');
+
+    let resolveOlder;
+    fetchMessagesForUser.mockReturnValueOnce(new Promise((r) => { resolveOlder = r; }));
+    fireEvent.click(screen.getByTestId('load-older'));
+    fireEvent.click(screen.getByTestId('load-older'));
+    fireEvent.click(screen.getByTestId('load-older'));
+    await act(async () => resolveOlder(page(97, 3)));
+
+    expect(fetchMessagesForUser).toHaveBeenCalledTimes(2);
+    expect(screen.getAllByText('dec:ENC97 [sent]')).toHaveLength(1);
+  });
+
+  it('drops messages it already has and only shifts firstItemIndex for new ones', async () => {
+    fetchMessagesForUser.mockResolvedValueOnce(page(100, 3));
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText('dec:ENC100 [sent]');
+    const before = Number(screen.getByTestId('message-list').dataset.firstItemIndex);
+
+    // Overlapping page: 98, 99 are new; 100 is already shown.
+    fetchMessagesForUser.mockResolvedValueOnce(page(98, 3));
+    fireEvent.click(screen.getByTestId('load-older'));
+
+    expect(await screen.findByText('dec:ENC98 [sent]')).toBeInTheDocument();
+    expect(screen.getAllByText('dec:ENC100 [sent]')).toHaveLength(1);
+    expect(Number(screen.getByTestId('message-list').dataset.firstItemIndex)).toBe(before - 2);
+  });
+
+  it('keeps the conversation on screen when loading older messages fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    fetchMessagesForUser.mockResolvedValueOnce(page(100, 3));
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText('dec:ENC100 [sent]');
+
+    fetchMessagesForUser.mockRejectedValueOnce(new Error('network down'));
+    fireEvent.click(screen.getByTestId('load-older'));
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(screen.getByText('dec:ENC100 [sent]')).toBeInTheDocument();
+    expect(screen.queryByText(/network down/)).not.toBeInTheDocument();
+  });
+
+  it('stops asking for older messages once the start of the conversation is reached', async () => {
+    fetchMessagesForUser.mockResolvedValueOnce(page(100, 3));
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText('dec:ENC100 [sent]');
+
+    fetchMessagesForUser.mockResolvedValueOnce([]);
+    fireEvent.click(screen.getByTestId('load-older'));
+
+    await waitFor(() => expect(screen.getByTestId('message-list').dataset.hasMore).toBe('false'));
   });
 });

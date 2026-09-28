@@ -540,6 +540,7 @@ small {
   background-color: var(--vc-danger);
 }
 
+/* Max size must match MAX_MEDIA_WIDTH/HEIGHT in Attachment.jsx. */
 .dm-message .attachment-media {
   display: block;
   max-width: min(100%, 420px);
@@ -550,6 +551,7 @@ small {
 
 .attachment-loading {
   display: block;
+  /* Default size when the media's dimensions are unknown; overridden inline otherwise. */
   width: 240px;
   max-width: 100%;
   height: 160px;

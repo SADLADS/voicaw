@@ -46,17 +46,37 @@ function FileBox({ name, size, onDownload, status }) {
   );
 }
 
-function MediaView({ kind, src, name, size, onDownload }) {
+// Must match the .attachment-media max-width/max-height in dms.css.
+const MAX_MEDIA_WIDTH = 420;
+const MAX_MEDIA_HEIGHT = 360;
+
+// When the media's size is known, give it (and its loading placeholder) its final box up
+// front, so the message doesn't change height when the file arrives.
+function reservedBoxStyle(width, height) {
+  if (!width || !height) return undefined;
+  const scale = Math.min(1, MAX_MEDIA_WIDTH / width, MAX_MEDIA_HEIGHT / height);
+  return { width: `${Math.round(width * scale)}px`, height: 'auto', aspectRatio: `${width} / ${height}` };
+}
+
+function MediaView({ kind, src, name, size, width, height, onDownload }) {
   const [failed, setFailed] = useState(false);
+  const style = reservedBoxStyle(width, height);
 
   // e.g. a video codec the browser can't play: still let the user download it.
   if (failed) return <FileBox name={name} size={size} onDownload={onDownload} />;
 
   if (kind === 'image') {
-    return <img className="attachment-media" src={src} alt={name} onError={() => setFailed(true)} />;
+    return <img className="attachment-media" style={style} src={src} alt={name} onError={() => setFailed(true)} />;
   }
   return (
-    <video className="attachment-media" src={src} controls preload="metadata" onError={() => setFailed(true)} />
+    <video
+      className="attachment-media"
+      style={style}
+      src={src}
+      controls
+      preload="metadata"
+      onError={() => setFailed(true)}
+    />
   );
 }
 
@@ -64,7 +84,17 @@ function LocalAttachment({ local, name }) {
   const kind = kindOf(local.type);
   const download = () => triggerDownload(local.previewUrl, name);
   if (kind === 'file') return <FileBox name={name} size={local.size} onDownload={download} />;
-  return <MediaView kind={kind} src={local.previewUrl} name={name} size={local.size} onDownload={download} />;
+  return (
+    <MediaView
+      kind={kind}
+      src={local.previewUrl}
+      name={name}
+      size={local.size}
+      width={local.width}
+      height={local.height}
+      onDownload={download}
+    />
+  );
 }
 
 function EncryptedAttachment({ url, meta, name }) {
@@ -107,9 +137,25 @@ function EncryptedAttachment({ url, meta, name }) {
     return <FileBox name={name} size={meta.size} onDownload={download} status="error" />;
   }
   if (!state.objectUrl) {
-    return <span className={`attachment-loading attachment-loading-${kind}`} aria-label={`Loading ${name}`} />;
+    return (
+      <span
+        className={`attachment-loading attachment-loading-${kind}`}
+        style={reservedBoxStyle(meta.width, meta.height)}
+        aria-label={`Loading ${name}`}
+      />
+    );
   }
-  return <MediaView kind={kind} src={state.objectUrl} name={name} size={meta.size} onDownload={download} />;
+  return (
+    <MediaView
+      kind={kind}
+      src={state.objectUrl}
+      name={name}
+      size={meta.size}
+      width={meta.width}
+      height={meta.height}
+      onDownload={download}
+    />
+  );
 }
 
 // Renders a markdown image (`![alt](src)`) from a message: a draft placeholder in a
