@@ -191,6 +191,10 @@ pre code {
 
 .main-content-wrapper{
   width: 100%;
+  /* An explicit height (like the sidebar's), so pages inside size to the screen rather than
+     to their content. Without it the row takes the tallest child's height, and the DM view
+     grows to fit every message instead of scrolling. */
+  height: 100svh;
 }
 
 
