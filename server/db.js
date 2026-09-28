@@ -115,29 +115,6 @@ CREATE TABLE IF NOT EXISTS direct_messages (
 );
 `);
 
-// CUSTOM EMOJIS
-db.run(`
-CREATE TABLE IF NOT EXISTS emojis (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  unicode TEXT,
-  image_url TEXT,
-  is_custom INTEGER DEFAULT 0
-);
-`);
-
-// MESSAGE REACTIONS
-db.run(`
-CREATE TABLE IF NOT EXISTS message_reactions (
-  message_id INTEGER NOT NULL,
-  user_id INTEGER NOT NULL,
-  emoji TEXT NOT NULL,
-  PRIMARY KEY (message_id, user_id, emoji),
-  FOREIGN KEY (message_id) REFERENCES messages(id),
-  FOREIGN KEY (user_id) REFERENCES users(id)
-);
-`);
-
 // UNREAD DMS
 db.run(`
 CREATE TABLE IF NOT EXISTS dm_unread (
