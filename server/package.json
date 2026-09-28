@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -22,7 +22,12 @@
     "jsonwebtoken": "^9.0.2",
     "sqlite3": "^5.1.7",
     "unicode-emoji-json": "^0.8.0",
+    "uuid": "^9.0.1",
     "web-push": "^3.6.7",
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "supertest": "^7.1.1",
+    "vitest": "^3.2.4"
   }
 }

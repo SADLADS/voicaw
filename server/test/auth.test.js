@@ -1,0 +1,105 @@
+import './helpers/mockS3.js';
+import { describe, it, expect } from 'vitest';
+import request from 'supertest';
+import jwt from 'jsonwebtoken';
+import { registerUser, loginUser } from './helpers/authFlow.js';
+
+const app = require('../index.js');
+
+describe('registration', () => {
+  it('registers a new user and returns a JWT', async () => {
+    const { response } = await registerUser(app, request, 'alice', 'correct horse battery staple');
+
+    expect(response.status).toBe(201);
+    expect(response.body.token).toBeTruthy();
+    expect(response.body.username).toBe('alice');
+    expect(typeof response.body.id).toBe('number');
+  });
+
+  it('issues a registration token that carries the username', async () => {
+    const { response } = await registerUser(app, request, 'regtoken', 'password123');
+
+    const decoded = jwt.verify(response.body.token, process.env.JWT_SECRET);
+    expect(decoded.username).toBe('regtoken');
+    expect(decoded.id).toBe(response.body.id);
+  });
+
+  it('rejects a duplicate username with 409', async () => {
+    await registerUser(app, request, 'bob', 'password123');
+    const { response } = await registerUser(app, request, 'bob', 'different-password');
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toMatch(/already exists/i);
+  });
+
+  it('rejects initiateregister missing fields with 400', async () => {
+    const res = await request(app).post('/api/initiateregister').send({ userIdentifier: 'nouser' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects finaliseregister missing key material with 400', async () => {
+    const res = await request(app)
+      .post('/api/finaliseregister')
+      .send({ userIdentifier: 'nouser', registrationRecord: 'x' });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('login', () => {
+  it('logs in with correct credentials and returns the wrapped private key', async () => {
+    await registerUser(app, request, 'carol', 'hunter2-hunter2');
+    const { response } = await loginUser(app, request, 'carol', 'hunter2-hunter2');
+
+    expect(response.status).toBe(200);
+    expect(response.body.token).toBeTruthy();
+    expect(response.body.private_key).toBeTruthy();
+    expect(response.body.username).toBe('carol');
+  });
+
+  it('fails login with the wrong password', async () => {
+    await registerUser(app, request, 'dave', 'correct-password');
+    const { response, failedAt } = await loginUser(app, request, 'dave', 'wrong-password');
+
+    expect(failedAt).toBeTruthy();
+    expect(response.body.token).toBeFalsy();
+  });
+
+  it('fails initiatelogin for an unknown user with 404', async () => {
+    const { response } = await loginUser(app, request, 'nobody-registered', 'whatever');
+    expect(response.status).toBe(404);
+  });
+
+  it('issues a token whose id/username round-trip through JWT_SECRET', async () => {
+    await registerUser(app, request, 'erin', 'super-secret-pw');
+    const { response } = await loginUser(app, request, 'erin', 'super-secret-pw');
+
+    const decoded = jwt.verify(response.body.token, process.env.JWT_SECRET);
+    expect(decoded.username).toBe('erin');
+    expect(decoded.id).toBe(response.body.id);
+  });
+});
+
+describe('GET /api/profile', () => {
+  it('rejects requests with no Authorization header', async () => {
+    const res = await request(app).get('/api/profile');
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects an invalid token', async () => {
+    const res = await request(app).get('/api/profile').set('Authorization', 'Bearer not-a-real-token');
+    expect(res.status).toBe(403);
+  });
+
+  it('returns the profile for a valid token', async () => {
+    await registerUser(app, request, 'frank', 'password-for-frank');
+    const { response: loginRes } = await loginUser(app, request, 'frank', 'password-for-frank');
+
+    const res = await request(app)
+      .get('/api/profile')
+      .set('Authorization', `Bearer ${loginRes.body.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.username).toBe('frank');
+    expect(res.body.private_key).toBeTruthy();
+  });
+});

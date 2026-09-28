@@ -123,17 +123,6 @@ app.use(cors({
 
 
 
-const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, (err) => {
-  if (err) {
-    console.error('Failed to start server:', err);
-    process.exit(1);
-  }
-  console.log(`Server running on port ${PORT}`);
-});
-
-const wss = new WebSocket.Server({ server });
-
 const clients = new Map();
 
 
@@ -730,23 +719,6 @@ app.get('/api/config', (req, res) => {
 
 
 
-// Must be registered after all routes: Express only routes errors to
-// error-handling middleware added later in the stack.
-function errorHandler(err, req, res, next) {
-  console.error('--- Unhandled Error ---');
-  console.error(`Route: ${req.method} ${req.originalUrl}`);
-  console.error(err.stack);
-
-  if (res.headersSent) {
-    return next(err);
-  }
-
-  res.status(500).json({ error: 'An internal server error occurred.' });
-}
-
-app.use(errorHandler);
-
-
 // FUNCTIONS
 
 function getRecentDmsForUser(loggedInUserId, callback) {
@@ -828,96 +800,6 @@ function getMaxEncryptedLength(maxPlaintextLength) {
 }
 
 
-// WEBSOCKETS
-function noop() { }
-function heartbeat() {
-  this.isAlive = true;
-}
-
-function broadcastUserStatus(userId, status) {
-  const message = JSON.stringify({
-    type: 'user_status',
-    userId,
-    status, // 'online' or 'offline'
-  });
-  wss.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(message);
-    }
-  });
-}
-
-
-// -- Set up WebSocket Server --
-wss.on('connection', (ws) => {
-  // console.log('New connection');
-
-  ws.isAlive = true;
-  ws.on('pong', heartbeat);
-
-  ws.on('message', (msg) => {
-    try {
-      const data = JSON.parse(msg);
-      if (data.type === 'identify') {
-        const token = data.token;
-        jwt.verify(token, JWT_SECRET, (err, user) => {
-          if (err) {
-            ws.close(1008, 'Invalid token');
-            return;
-          }
-          ws.userId = user.id.toString();
-
-          if (!clients.has(ws.userId)) clients.set(ws.userId, []);
-          clients.get(ws.userId).push(ws);
-
-          console.log(`User identified as ${user.id}`);
-          broadcastUserStatus(user.id.toString(), 'online');
-        });
-      }
-    } catch (err) {
-      console.error('Invalid message', err);
-    }
-  });
-
-
-
-  ws.on('close', () => {
-    const userId = ws.userId;
-    if (userId && clients.has(userId)) {
-      const arr = clients.get(userId).filter(s => s !== ws);
-      if (arr.length) {
-        clients.set(userId, arr);
-      } else {
-        clients.delete(userId);
-        broadcastUserStatus(userId, 'offline');
-      }
-    }
-  });
-
-
-  ws.on('error', (err) => {
-    const id = ws.userId || 'unknown';
-    console.error(`WebSocket error for user ${id}:`, err);
-  });
-});
-
-// -- Global heartbeat check every 30s --
-const interval = setInterval(() => {
-  wss.clients.forEach((ws) => {
-    if (ws.isAlive === false) {
-      console.warn('Terminating stale connection');
-      return ws.terminate();
-    }
-    ws.isAlive = false;
-    ws.ping(noop);
-  });
-}, 30000);
-
-// Optional: Clean up interval when server shuts down
-wss.on('close', () => {
-  clearInterval(interval);
-});
-
 // send a webhook to all clients of a given user
 function sendToUserSockets(userId, payload) {
   const sockets = clients.get(userId.toString()) || [];
@@ -925,5 +807,128 @@ function sendToUserSockets(userId, payload) {
     if (s.readyState === WebSocket.OPEN) {
       s.send(JSON.stringify(payload));
     }
+  });
+}
+
+// Must be registered after all routes: Express only routes errors to
+// error-handling middleware added later in the stack.
+function errorHandler(err, req, res, next) {
+  console.error('--- Unhandled Error ---');
+  console.error(`Route: ${req.method} ${req.originalUrl}`);
+  console.error(err.stack);
+
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  res.status(500).json({ error: 'An internal server error occurred.' });
+}
+
+app.use(errorHandler);
+
+module.exports = app;
+
+// Only bind a real port / WebSocket server when run directly (`node index.js`),
+// not when required as a module (e.g. by tests).
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  const server = app.listen(PORT, (err) => {
+    if (err) {
+      console.error('Failed to start server:', err);
+      process.exit(1);
+    }
+    console.log(`Server running on port ${PORT}`);
+  });
+
+  const wss = new WebSocket.Server({ server });
+
+  // WEBSOCKETS
+  function noop() { }
+  function heartbeat() {
+    this.isAlive = true;
+  }
+
+  function broadcastUserStatus(userId, status) {
+    const message = JSON.stringify({
+      type: 'user_status',
+      userId,
+      status, // 'online' or 'offline'
+    });
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+
+
+  // -- Set up WebSocket Server --
+  wss.on('connection', (ws) => {
+    // console.log('New connection');
+
+    ws.isAlive = true;
+    ws.on('pong', heartbeat);
+
+    ws.on('message', (msg) => {
+      try {
+        const data = JSON.parse(msg);
+        if (data.type === 'identify') {
+          const token = data.token;
+          jwt.verify(token, JWT_SECRET, (err, user) => {
+            if (err) {
+              ws.close(1008, 'Invalid token');
+              return;
+            }
+            ws.userId = user.id.toString();
+
+            if (!clients.has(ws.userId)) clients.set(ws.userId, []);
+            clients.get(ws.userId).push(ws);
+
+            console.log(`User identified as ${user.id}`);
+            broadcastUserStatus(user.id.toString(), 'online');
+          });
+        }
+      } catch (err) {
+        console.error('Invalid message', err);
+      }
+    });
+
+
+
+    ws.on('close', () => {
+      const userId = ws.userId;
+      if (userId && clients.has(userId)) {
+        const arr = clients.get(userId).filter(s => s !== ws);
+        if (arr.length) {
+          clients.set(userId, arr);
+        } else {
+          clients.delete(userId);
+          broadcastUserStatus(userId, 'offline');
+        }
+      }
+    });
+
+
+    ws.on('error', (err) => {
+      const id = ws.userId || 'unknown';
+      console.error(`WebSocket error for user ${id}:`, err);
+    });
+  });
+
+  // -- Global heartbeat check every 30s --
+  const interval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws.isAlive === false) {
+        console.warn('Terminating stale connection');
+        return ws.terminate();
+      }
+      ws.isAlive = false;
+      ws.ping(noop);
+    });
+  }, 30000);
+
+  // Optional: Clean up interval when server shuts down
+  wss.on('close', () => {
+    clearInterval(interval);
   });
 }

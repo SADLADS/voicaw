@@ -1,5 +1,5 @@
 const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('./voicaw.db');
+const db = new sqlite3.Database(process.env.DB_PATH || './voicaw.db');
 
 // USERS
 db.run(`
