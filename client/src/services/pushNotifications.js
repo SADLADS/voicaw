@@ -1,5 +1,6 @@
-import { loadPrivateKey } from './keyStore';
-import { deriveSharedKey, decryptMessage } from './encryptionService';
+import { loadEncryptionKey } from './keyStore';
+import { deriveConversationKey, decryptMessage, dmContext } from './encryptionService';
+import { getPinnedContact } from './contactKeys';
 import { summarizeAttachments } from '../utils/attachmentMarkup';
 import { getSetting } from './settingsStore';
 
@@ -9,16 +10,20 @@ import { getSetting } from './settingsStore';
 const MAX_PREVIEW_LENGTH = 200;
 
 // DM pushes carry the end-to-end encrypted message when it fits in a push. It's decrypted
-// here, on the device, with the user's private key (IndexedDB) for the notification text;
-// the server never sees the plaintext. Returns null to fall back to a generic body.
+// here, on the device, for the notification text; the server never sees the plaintext.
+// Only the sender's key this device has already checked and remembered is used (never a
+// key from the push). Returns null to fall back to a generic body.
 async function dmPreview(data) {
-  if (!data.ciphertext || !data.senderPublicKey) return null;
+  if (!data.ciphertext || data.senderId == null || data.recipientId == null) return null;
   if (!(await getSetting('notificationPreviews'))) return null;
   try {
-    const privateKey = await loadPrivateKey();
-    if (!privateKey) return null; // logged out on this device
-    const sharedKey = await deriveSharedKey(privateKey, data.senderPublicKey);
-    const text = summarizeAttachments(await decryptMessage(data.ciphertext, sharedKey)).trim();
+    const myKey = await loadEncryptionKey();
+    if (!myKey) return null; // logged out on this device
+    const sender = await getPinnedContact(data.recipientId, data.senderId);
+    if (!sender) return null; // never opened a chat with them here: key not checked yet
+    const key = await deriveConversationKey(myKey, sender.encryptionKey);
+    const plaintext = await decryptMessage(data.ciphertext, key, dmContext(data.senderId, data.recipientId));
+    const text = summarizeAttachments(plaintext).trim();
     if (!text) return null;
     return text.length > MAX_PREVIEW_LENGTH ? `${text.slice(0, MAX_PREVIEW_LENGTH - 1)}…` : text;
   } catch (err) {

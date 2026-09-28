@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import { registerUser, loginUser } from './helpers/authFlow.js';
+import { generateUserKeys } from '../../client/src/services/encryptionService.js';
 
 const app = require('../index.js');
 
@@ -43,17 +44,36 @@ describe('registration', () => {
       .send({ userIdentifier: 'nouser', registrationRecord: 'x' });
     expect(res.status).toBe(400);
   });
+
+  it('rejects an encryption key that is not signed by the identity key', async () => {
+    const real = await generateUserKeys();
+    const other = await generateUserKeys();
+    const res = await request(app)
+      .post('/api/finaliseregister')
+      .send({
+        userIdentifier: 'forger', registrationRecord: 'x', keyBackup: '{}',
+        ...real.public, encryptionKey: other.public.encryptionKey,
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/signature/i);
+  });
 });
 
 describe('login', () => {
-  it('logs in with correct credentials and returns the wrapped private key', async () => {
-    await registerUser(app, request, 'carol', 'hunter2-hunter2');
-    const { response } = await loginUser(app, request, 'carol', 'hunter2-hunter2');
+  it('logs in and returns the key backup, which opens with the login\'s exportKey', async () => {
+    const { keys, exportKey: registrationExportKey } = await registerUser(app, request, 'carol', 'hunter2-hunter2');
+    const { response, keys: fromBackup, exportKey } = await loginUser(app, request, 'carol', 'hunter2-hunter2');
 
     expect(response.status).toBe(200);
     expect(response.body.token).toBeTruthy();
-    expect(response.body.private_key).toBeTruthy();
     expect(response.body.username).toBe('carol');
+    // OPAQUE's exportKey is stable across registration and every login...
+    expect(exportKey).toBe(registrationExportKey);
+    // ...so the backup opens, and holds the same keys the server publishes.
+    expect(fromBackup).toEqual({ public: keys.public, private: keys.private });
+    expect(response.body).toMatchObject(keys.public);
+    // The server only ever has the encrypted backup.
+    expect(response.body.keyBackup).not.toContain(keys.private.encryptionKey);
   });
 
   it('fails login with the wrong password', async () => {
@@ -124,6 +144,6 @@ describe('GET /api/profile', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.username).toBe('frank');
-    expect(res.body.private_key).toBeTruthy();
+    expect(res.body.keyBackup).toBeUndefined();
   });
 });

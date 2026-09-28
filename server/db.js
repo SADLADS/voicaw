@@ -11,8 +11,12 @@ CREATE TABLE IF NOT EXISTS users (
   description TEXT,
   last_online INTEGER DEFAULT (strftime('%s','now')),
   account_created INTEGER DEFAULT (strftime('%s','now')),
-  public_key TEXT NOT NULL,
-  private_key TEXT NOT NULL
+  -- Public keys (base64 raw P-256 points): identity (ECDSA) signs encryption (ECDH).
+  identity_key TEXT NOT NULL,
+  encryption_key TEXT NOT NULL,
+  encryption_key_signature TEXT NOT NULL,
+  -- Both private keys, encrypted client-side with a key derived from OPAQUE's exportKey.
+  key_backup TEXT NOT NULL
 );
 `);
 

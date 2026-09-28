@@ -13,7 +13,7 @@ import './assets/css/mobile.css';
 import './assets/css/desktop.css';
 
 import { closeWebSocket } from './utils/ws-client';
-import { clearPrivateKey } from './services/keyStore';
+import { clearUserKeys } from './services/keyStore';
 import { disableNotificationsOnThisDevice } from './services/pushService';
 
 export const ConfigContext = createContext({ 
@@ -127,7 +127,7 @@ export default function App() {
     }
     try {
       localStorage.removeItem('token');
-      await clearPrivateKey();
+      await clearUserKeys();
     } catch (err) {
       console.error('Failed to clear stored keys on logout', err);
     }

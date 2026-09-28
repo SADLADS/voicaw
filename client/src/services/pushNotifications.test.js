@@ -1,39 +1,48 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('./keyStore', () => ({ loadPrivateKey: vi.fn() }));
+vi.mock('./keyStore', () => ({ loadEncryptionKey: vi.fn() }));
 vi.mock('./settingsStore', () => ({ getSetting: vi.fn() }));
+vi.mock('./contactKeys', () => ({ getPinnedContact: vi.fn() }));
 
 import { notificationFromPush } from './pushNotifications';
-import { loadPrivateKey } from './keyStore';
+import { loadEncryptionKey } from './keyStore';
 import { getSetting } from './settingsStore';
-import { generateECDH_P256_PEM, deriveSharedKey, encryptMessage, importPrivateKey } from './encryptionService';
+import { getPinnedContact } from './contactKeys';
+import {
+  generateUserKeys, importEncryptionPrivateKey, deriveConversationKey, encryptMessage, dmContext,
+} from './encryptionService';
 
-let alice; // sender
-let bob; // recipient (this device)
+const ALICE = 7; // sender
+const BOB = 3; // this device
+let alice;
+let bob;
 
 async function dmPushFromAlice(text, extra = {}) {
-  const key = await deriveSharedKey(alice.privatePEM, bob.publicPEM);
+  const key = await deriveConversationKey(await importEncryptionPrivateKey(alice.private.encryptionKey), bob.public.encryptionKey);
   return {
-    type: 'dm', title: 'alice', url: '/dm/1', tag: 'dm-1', senderId: 1, timestamp: 1700000000,
-    ciphertext: await encryptMessage(text, key), senderPublicKey: alice.publicPEM, ...extra,
+    type: 'dm', title: 'alice', body: 'New message', url: `/dm/${ALICE}`, tag: `dm-${ALICE}`,
+    senderId: ALICE, recipientId: BOB, timestamp: 1700000000,
+    ciphertext: await encryptMessage(text, key, dmContext(ALICE, BOB)), ...extra,
   };
 }
 
 beforeEach(async () => {
   vi.spyOn(console, 'warn').mockImplementation(() => {});
-  alice ??= await generateECDH_P256_PEM();
-  bob ??= await generateECDH_P256_PEM();
-  loadPrivateKey.mockResolvedValue(await importPrivateKey(bob.privatePEM));
+  alice ??= await generateUserKeys();
+  bob ??= await generateUserKeys();
+  loadEncryptionKey.mockResolvedValue(await importEncryptionPrivateKey(bob.private.encryptionKey));
+  getPinnedContact.mockResolvedValue({ identityKey: alice.public.identityKey, encryptionKey: alice.public.encryptionKey, verified: false });
   getSetting.mockResolvedValue(true);
 });
 
 describe('notificationFromPush', () => {
-  it('decrypts the message on the device for the preview, one notification per conversation', async () => {
+  it('decrypts the preview with the sender key this device remembered, one notification per chat', async () => {
     const { title, options } = await notificationFromPush(await dmPushFromAlice('see you at 8'));
 
+    expect(getPinnedContact).toHaveBeenCalledWith(BOB, ALICE);
     expect(title).toBe('alice');
     expect(options).toMatchObject({
-      body: 'see you at 8', tag: 'dm-1', renotify: true, timestamp: 1700000000000, data: { url: '/dm/1' },
+      body: 'see you at 8', tag: `dm-${ALICE}`, renotify: true, timestamp: 1700000000000, data: { url: `/dm/${ALICE}` },
     });
   });
 
@@ -50,24 +59,28 @@ describe('notificationFromPush', () => {
     expect(options.body.endsWith('…')).toBe(true);
   });
 
-  it('falls back to a generic body when previews are turned off', async () => {
-    getSetting.mockResolvedValue(false);
-    const { options } = await notificationFromPush(await dmPushFromAlice('secret'));
+  it('shows no preview for a sender whose key this device has not checked yet', async () => {
+    getPinnedContact.mockResolvedValue(null);
+    const { options } = await notificationFromPush(await dmPushFromAlice('hi'));
     expect(options.body).toBe('New message');
   });
 
-  it('falls back when this device has no key (logged out) or decryption fails', async () => {
-    loadPrivateKey.mockResolvedValueOnce(null);
-    expect((await notificationFromPush(await dmPushFromAlice('hi'))).options.body).toBe('New message');
-
-    const mallory = await generateECDH_P256_PEM();
-    loadPrivateKey.mockResolvedValueOnce(await importPrivateKey(mallory.privatePEM));
-    expect((await notificationFromPush(await dmPushFromAlice('hi'))).options.body).toBe('New message');
+  it('fails closed if the server swapped sender and recipient', async () => {
+    const push = await dmPushFromAlice('hi');
+    getPinnedContact.mockResolvedValue({ encryptionKey: alice.public.encryptionKey });
+    const { options } = await notificationFromPush({ ...push, senderId: BOB, recipientId: ALICE });
+    expect(options.body).toBe('New message');
   });
 
-  it('falls back when the push had no room for the ciphertext', async () => {
-    const { options } = await notificationFromPush({ type: 'dm', title: 'alice', tag: 'dm-1', url: '/dm/1' });
-    expect(options.body).toBe('New message');
+  it('falls back when previews are off, the device is logged out, or there is no ciphertext', async () => {
+    getSetting.mockResolvedValueOnce(false);
+    expect((await notificationFromPush(await dmPushFromAlice('secret'))).options.body).toBe('New message');
+
+    loadEncryptionKey.mockResolvedValueOnce(null);
+    expect((await notificationFromPush(await dmPushFromAlice('hi'))).options.body).toBe('New message');
+
+    const { ciphertext, ...noCiphertext } = await dmPushFromAlice('hi');
+    expect((await notificationFromPush(noCiphertext)).options.body).toBe('New message');
   });
 
   it('shows non-DM pushes (e.g. the test notification) as sent', async () => {

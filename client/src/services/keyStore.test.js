@@ -1,14 +1,15 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
-  generateECDH_P256_PEM,
-  deriveSharedKey,
+  generateUserKeys,
+  deriveConversationKey,
+  importEncryptionPrivateKey,
   encryptMessage,
   decryptMessage,
+  dmContext,
 } from './encryptionService';
 
-// Stays in the node environment (like encryptionService.test.js): jsdom's ArrayBuffer
-// is a different realm from Node's WebCrypto, so importKey rejects it. Stub localStorage instead.
+// Node environment (jsdom's ArrayBuffer is another realm to Node's WebCrypto); stub localStorage.
 const storage = new Map();
 globalThis.localStorage = {
   getItem: (k) => (storage.has(k) ? storage.get(k) : null),
@@ -20,7 +21,6 @@ globalThis.localStorage = {
 let keyStore;
 
 beforeEach(async () => {
-  // Fresh module (and so an empty in-memory cache) plus an empty IndexedDB per test.
   vi.resetModules();
   indexedDB.deleteDatabase('voicaw-keys');
   localStorage.clear();
@@ -28,48 +28,44 @@ beforeEach(async () => {
 });
 
 describe('keyStore', () => {
-  it('returns null when no key has been stored', async () => {
-    expect(await keyStore.loadPrivateKey()).toBeNull();
+  it('has nothing before login', async () => {
+    expect(await keyStore.loadEncryptionKey()).toBeNull();
+    expect(await keyStore.loadIdentityKey()).toBeNull();
+    expect(await keyStore.loadOwnPublicKeys()).toBeNull();
   });
 
-  it('stores the key as a non-extractable CryptoKey that still derives the right shared key', async () => {
-    const alice = await generateECDH_P256_PEM();
-    const bob = await generateECDH_P256_PEM();
+  it('stores non-extractable private keys that still work, plus own public keys', async () => {
+    const alice = await generateUserKeys();
+    const bob = await generateUserKeys();
+    await keyStore.storeUserKeys(7, alice);
 
-    await keyStore.storePrivateKey(alice.privatePEM);
-
-    // Reload the module so the key has to come back out of IndexedDB, not the cache.
+    // Fresh module: must come back out of IndexedDB, not the in-memory cache.
     vi.resetModules();
     keyStore = await import('./keyStore');
-    const stored = await keyStore.loadPrivateKey();
+    const encryption = await keyStore.loadEncryptionKey();
+    const identity = await keyStore.loadIdentityKey();
 
-    expect(stored.extractable).toBe(false);
-    await expect(crypto.subtle.exportKey('pkcs8', stored)).rejects.toThrow();
+    expect(encryption.extractable).toBe(false);
+    expect(identity.extractable).toBe(false);
+    await expect(crypto.subtle.exportKey('pkcs8', encryption)).rejects.toThrow();
+    expect(await keyStore.loadOwnPublicKeys()).toEqual({ userId: '7', ...alice.public });
 
-    const aliceShared = await deriveSharedKey(stored, bob.publicPEM);
-    const bobShared = await deriveSharedKey(bob.privatePEM, alice.publicPEM);
-    const ciphertext = await encryptMessage('hi bob', aliceShared);
-    expect(await decryptMessage(ciphertext, bobShared)).toBe('hi bob');
+    const aliceSide = await deriveConversationKey(encryption, bob.public.encryptionKey);
+    const bobSide = await deriveConversationKey(await importEncryptionPrivateKey(bob.private.encryptionKey), alice.public.encryptionKey);
+    expect(await decryptMessage(await encryptMessage('hi', aliceSide, dmContext(7, 8)), bobSide, dmContext(7, 8))).toBe('hi');
+
+    const signature = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, identity, new Uint8Array([1]));
+    expect(signature.byteLength).toBe(64);
   });
 
-  it('migrates a legacy PEM out of localStorage', async () => {
-    const alice = await generateECDH_P256_PEM();
-    localStorage.setItem('privateKey', alice.privatePEM);
+  it('clears everything on logout, including the old scheme\'s leftovers', async () => {
+    await keyStore.storeUserKeys(7, await generateUserKeys());
+    localStorage.setItem('privateKey', 'old-pem');
 
-    const key = await keyStore.loadPrivateKey();
-
-    expect(key).toBeInstanceOf(CryptoKey);
-    expect(localStorage.getItem('privateKey')).toBeNull();
-  });
-
-  it('clearPrivateKey removes the key from IndexedDB and localStorage', async () => {
-    const alice = await generateECDH_P256_PEM();
-    await keyStore.storePrivateKey(alice.privatePEM);
-    localStorage.setItem('privateKey', 'stale');
-
-    await keyStore.clearPrivateKey();
+    await keyStore.clearUserKeys();
 
     expect(localStorage.getItem('privateKey')).toBeNull();
-    expect(await keyStore.loadPrivateKey()).toBeNull();
+    expect(await keyStore.loadEncryptionKey()).toBeNull();
+    expect(await keyStore.loadOwnPublicKeys()).toBeNull();
   });
 });

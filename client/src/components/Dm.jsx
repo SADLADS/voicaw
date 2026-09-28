@@ -5,8 +5,17 @@ import { onNewDm, onDeleteDm, onEditDm, setActiveChat } from '../utils/ws-client
 import NotificationPrompt from './NotificationPrompt';
 import { LayoutContext } from './Layout';
 import { fetchMessagesForUser, sendMessageToUser, markMessagesRead } from '../services/dmService';
-import { encryptMessage, decryptMessage, deriveSharedKey, decryptMessagesBatch } from '../services/encryptionService';
-import { loadPrivateKey } from '../services/keyStore';
+import {
+  encryptMessage,
+  decryptMessage,
+  deriveConversationKey,
+  decryptMessagesBatch,
+  dmContext,
+} from '../services/encryptionService';
+import { loadEncryptionKey } from '../services/keyStore';
+import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
+import ContactKeyWarning from './ContactKeyWarning';
+import SafetyNumberDialog from './SafetyNumberDialog';
 import { uploadAttachment, MAX_ATTACHMENT_BYTES } from '../services/attachmentUpload';
 import { buildAttachmentUrl, ENCRYPTION_OVERHEAD_BYTES } from '../services/attachmentCrypto';
 import {
@@ -54,6 +63,12 @@ export default function Dm({ user }) {
   const activeChatId = useRef(id);
 
   const [sharedKey, setSharedKey] = useState(null);
+  // Result of checking the contact's keys (see contactKeys): null while unknown, then
+  // 'trusted' | 'verified' | 'changed' | 'invalid'.
+  const [keyStatus, setKeyStatus] = useState(null);
+  const [showSafetyNumber, setShowSafetyNumber] = useState(false);
+  // Bumped to re-run the conversation load (e.g. after accepting a changed key).
+  const [keyCheck, setKeyCheck] = useState(0);
 
   const chatUser = users.find((u) => u.id.toString() === id);
 
@@ -246,7 +261,7 @@ export default function Dm({ user }) {
 
   async function handleSaveEdit(id) {
     try {
-      const plaintextEditingContent = await encryptMessage(editingMessageContent, sharedKey);
+      const plaintextEditingContent = await encryptMessage(editingMessageContent, sharedKey, dmContext(user.id, chatUser.id));
       await api.put(`/update-message/${id}`, { content: plaintextEditingContent });
 
       // Update the message locally
@@ -443,7 +458,7 @@ export default function Dm({ user }) {
         );
       }
 
-      const encryptedMessage = await encryptMessage(finalText, sharedKey);
+      const encryptedMessage = await encryptMessage(finalText, sharedKey, dmContext(user.id, chatUser.id));
       const savedMessage = await sendMessageToUser(chatUser.id, encryptedMessage, pm_id);
 
       // Replace temp message
@@ -512,9 +527,9 @@ export default function Dm({ user }) {
   }, []);
 
 
-  // Load a conversation: derive the shared key, then fetch the newest page. This is the
-  // only place history is (re)loaded; older pages are only ever prepended by
-  // loadMoreMessages.
+  // Load a conversation: check the contact's keys, derive the conversation key, then fetch
+  // the newest page. This is the only place history is (re)loaded; older pages are only
+  // ever prepended by loadMoreMessages.
   useEffect(() => {
     activeChatId.current = id;
     loadingOlder.current = false;
@@ -522,9 +537,10 @@ export default function Dm({ user }) {
     setHasMore(true);
     setErrorMessages(null);
     setSharedKey(null);
+    setKeyStatus(null);
+    setShowSafetyNumber(false);
 
-    const publicKey = chatUser?.public_key;
-    if (!id || !publicKey) {
+    if (!id || !chatUser || !user?.id) {
       setIsLoading(false);
       return;
     }
@@ -534,9 +550,16 @@ export default function Dm({ user }) {
 
     (async () => {
       try {
-        const privateKey = await loadPrivateKey();
-        if (!privateKey) throw new Error("No private key found.");
-        const key = await deriveSharedKey(privateKey, publicKey);
+        // Never use a key straight from the server: only one that's validly signed and
+        // matches what this device has seen for this person before.
+        const check = await checkContactKeys(user.id, chatUser);
+        if (cancelled) return;
+        setKeyStatus(check.status);
+        if (!check.encryptionKey) return;
+
+        const myKey = await loadEncryptionKey();
+        if (!myKey) throw new Error("This device has no encryption keys. Log out and log in again.");
+        const key = await deriveConversationKey(myKey, check.encryptionKey);
 
         const page = await fetchMessagesForUser(id, { limit: PAGE_SIZE });
         const decrypted = await decryptMessagesBatch(page, key);
@@ -557,7 +580,16 @@ export default function Dm({ user }) {
     return () => {
       cancelled = true;
     };
-  }, [id, chatUser?.public_key]);
+    // Keyed on the contact's keys rather than the chatUser object, which Layout replaces on
+    // every user-list fetch; reloading then would reset the conversation (and scroll).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user?.id, chatUser?.identity_key, chatUser?.encryption_key, chatUser?.encryption_key_signature, keyCheck]);
+
+
+  async function handleAcceptChangedKey() {
+    await acceptContactKeys(user.id, chatUser);
+    setKeyCheck((n) => n + 1);
+  }
 
 
   useEffect(() => {
@@ -587,11 +619,19 @@ export default function Dm({ user }) {
       }
 
       try {
-        const plaintext = await decryptMessage(message.content, sharedKey);
+        const plaintext = await decryptMessage(
+          message.content, sharedKey, dmContext(message.sender_id, message.recipient_id)
+        );
         let parent_plaintext = "";
         if (message.parent_message_id && message.parent_content) {
           try {
-            parent_plaintext = await decryptMessage(message.parent_content, sharedKey);
+            // The parent is in this conversation: its recipient is the other participant.
+            const parentRecipient = String(message.parent_sender_id) === String(message.sender_id)
+              ? message.recipient_id
+              : message.sender_id;
+            parent_plaintext = await decryptMessage(
+              message.parent_content, sharedKey, dmContext(message.parent_sender_id, parentRecipient)
+            );
           } catch (e) {
             console.warn("Failed to decrypt parent message", message.parent_message_id, e);
           }
@@ -629,10 +669,14 @@ export default function Dm({ user }) {
 
 
   useEffect(() => {
-    const unsubscribeEdit = onEditDm(({ messageId, content, sender_id }) => {
+    const unsubscribeEdit = onEditDm(({ messageId, content }) => {
       const updateMessage = async () => {
         try {
-          const plaintextEdit = await decryptMessage(content, sharedKey);
+          const original = messagesRef.current.find((m) => m.id === messageId);
+          if (!original || !sharedKey) return;
+          const plaintextEdit = await decryptMessage(
+            content, sharedKey, dmContext(original.sender_id, original.recipient_id)
+          );
           const currentChatUserId = chatUser?.id?.toString();
           if (!currentChatUserId) return;
 
@@ -666,6 +710,9 @@ export default function Dm({ user }) {
 
 
 
+  // A changed or invalid contact key blocks the conversation until resolved.
+  const keyBlocked = keyStatus === 'changed' || keyStatus === 'invalid';
+
   // The tray only shows drafts still referenced from the text; unreferenced ones are kept
   // until send so that undoing a deletion brings them back.
   const referencedDraftIds = findPlaceholderIds(inputValue);
@@ -683,8 +730,39 @@ export default function Dm({ user }) {
 
       {id && (
         <>
-          <h4 className="chat-recipient-header">{chatUser?.username || 'User'}</h4>
+          <h4 className="chat-recipient-header">
+            {chatUser?.username || 'User'}
+            {(keyStatus === 'trusted' || keyStatus === 'verified') && (
+              <button
+                type="button"
+                className={`key-status-badge ${keyStatus}`}
+                onClick={() => setShowSafetyNumber(true)}
+                title="Compare safety numbers"
+              >
+                {keyStatus === 'verified' ? '✓ Verified' : 'Not verified'}
+              </button>
+            )}
+          </h4>
 
+          {showSafetyNumber && (
+            <SafetyNumberDialog
+              me={user}
+              contact={chatUser}
+              verified={keyStatus === 'verified'}
+              onChange={(verified) => setKeyStatus(verified ? 'verified' : 'trusted')}
+              onClose={() => setShowSafetyNumber(false)}
+            />
+          )}
+
+          {(keyStatus === 'changed' || keyStatus === 'invalid') && (
+            <ContactKeyWarning
+              status={keyStatus}
+              username={chatUser?.username}
+              onAccept={handleAcceptChangedKey}
+            />
+          )}
+
+          {!keyBlocked && (<>
           <div className="dm-message-wrapper">
             {isLoading ? (
               <p></p>
@@ -802,6 +880,7 @@ export default function Dm({ user }) {
           {progress > 0 && (
             <progress value={progress} max="100" style={{ width: "100%" }} />
           )}
+          </>)}
 
           {/* <div className="char-count">
             {inputValue.length}/{maxPlaintextLength}

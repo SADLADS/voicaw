@@ -1,15 +1,13 @@
 import opaque from '@serenity-kit/opaque';
-import { generateECDH_P256_PEM, encryptPrivateKey } from '../../../client/src/services/encryptionService.js';
+import { generateUserKeys, wrapKeyBackup, unwrapKeyBackup } from '../../../client/src/services/encryptionService.js';
 
-// Mirrors the OPAQUE + key-wrapping dance client/src/components/Login.jsx performs,
-// so integration tests exercise the real client/server protocol instead of a stub.
+// Mirrors what client/src/components/Login.jsx does (OPAQUE, then keys wrapped with the
+// OPAQUE exportKey), so integration tests exercise the real client/server protocol.
 
 export async function registerUser(app, request, username, password) {
   await opaque.ready;
 
   const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
-  const { publicPEM, privatePEM } = await generateECDH_P256_PEM();
-  const encryptedPrivateKey = await encryptPrivateKey(privatePEM, password);
 
   const initiateRes = await request(app)
     .post('/api/initiateregister')
@@ -18,22 +16,20 @@ export async function registerUser(app, request, username, password) {
     throw new Error(`initiateregister failed: ${initiateRes.body.error}`);
   }
 
-  const { registrationRecord } = opaque.client.finishRegistration({
+  const { registrationRecord, exportKey } = opaque.client.finishRegistration({
     clientRegistrationState,
     registrationResponse: initiateRes.body.registrationResponse,
     password,
   });
 
+  const keys = await generateUserKeys();
+  const keyBackup = await wrapKeyBackup(exportKey, keys);
+
   const finaliseRes = await request(app)
     .post('/api/finaliseregister')
-    .send({
-      registrationRecord,
-      userIdentifier: username,
-      publicKey: publicPEM,
-      encryptedPrivateKey,
-    });
+    .send({ registrationRecord, userIdentifier: username, ...keys.public, keyBackup });
 
-  return { response: finaliseRes, publicPEM, privatePEM };
+  return { response: finaliseRes, keys, exportKey };
 }
 
 export async function loginUser(app, request, username, password) {
@@ -58,11 +54,13 @@ export async function loginUser(app, request, username, password) {
     return { response: initiateRes, failedAt: 'finishLogin-client' };
   }
 
-  const { finishLoginRequest, sessionKey } = loginResult;
+  const { finishLoginRequest, sessionKey, exportKey } = loginResult;
 
   const finaliseRes = await request(app)
     .post('/api/finaliselogin')
     .send({ finishLoginRequest, clientSessionKey: sessionKey, userIdentifier: username });
 
-  return { response: finaliseRes };
+  // As the client does: open the key backup with this login's exportKey.
+  const keys = finaliseRes.body.keyBackup ? await unwrapKeyBackup(exportKey, finaliseRes.body.keyBackup) : null;
+  return { response: finaliseRes, exportKey, keys };
 }

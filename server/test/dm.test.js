@@ -5,10 +5,9 @@ import { registerUser, loginUser } from './helpers/authFlow.js';
 
 const app = require('../index.js');
 
+// "v1." + base64(IV || ciphertext || tag)
 function maxEncryptedLength(maxPlaintextLength) {
-  const ivLength = 12;
-  const tagLength = 16;
-  return Math.ceil((maxPlaintextLength + ivLength + tagLength) * 4 / 3);
+  return 'v1.'.length + Math.ceil((maxPlaintextLength + 12 + 16) / 3) * 4;
 }
 
 async function makeAuthedUser(username, password) {
@@ -75,6 +74,21 @@ describe('direct messages', () => {
       .set(authed(alice.token))
       .send({ recipient_id: bob.id, content: 'a'.repeat(limit) });
     expect(atLimit.status).toBe(201);
+  });
+
+  it('accepts the longest message the client can actually produce', async () => {
+    const { generateUserKeys, importEncryptionPrivateKey, deriveConversationKey, encryptMessage, dmContext } =
+      await import('../../client/src/services/encryptionService.js');
+    const alice = await makeAuthedUser('dm-alice-max', 'pw-alice-123');
+    const bob = await makeAuthedUser('dm-bob-max', 'pw-bob-123');
+    const a = await generateUserKeys();
+    const b = await generateUserKeys();
+    const key = await deriveConversationKey(await importEncryptionPrivateKey(a.private.encryptionKey), b.public.encryptionKey);
+
+    const envelope = await encryptMessage('a'.repeat(parseInt(process.env.MAX_MESSAGE_LENGTH, 10)), key, dmContext(alice.id, bob.id));
+    const res = await request(app).post('/api/dm-send').set(authed(alice.token)).send({ recipient_id: bob.id, content: envelope });
+
+    expect(res.status).toBe(201);
   });
 
   it('fetches message history in chronological order with cursor pagination', async () => {

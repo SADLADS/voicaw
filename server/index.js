@@ -207,15 +207,26 @@ app.post('/api/finaliselogin', (req, res) => {
           console.error("Failed to delete login state:", err);
         }
       });
-      db.get('SELECT id, private_key FROM users WHERE username = ?', [userIdentifier], (err, userKeyData) => {
-        if (err) return res.status(500).json({ error: 'DB error' });
-        if (!userKeyData) return res.status(401).json({ error: 'Invalid credentials' });
-        const { private_key } = userKeyData;
-        const token = generateToken({ id: userKeyData.id, username: userIdentifier });
-        const userId = userKeyData.id
-        const vapidPubKey = process.env.VAPID_PUBLIC_KEY
-        res.json({ token, id: userId, private_key, vapidPubKey, username: userIdentifier });
-      });
+      db.get(
+        'SELECT id, identity_key, encryption_key, encryption_key_signature, key_backup FROM users WHERE username = ?',
+        [userIdentifier],
+        (err, user) => {
+          if (err) return res.status(500).json({ error: 'DB error' });
+          if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+          const token = generateToken({ id: user.id, username: userIdentifier });
+          // The client decrypts the backup with its OPAQUE exportKey and checks the published
+          // public keys against the ones inside it.
+          res.json({
+            token,
+            id: user.id,
+            username: userIdentifier,
+            keyBackup: user.key_backup,
+            identityKey: user.identity_key,
+            encryptionKey: user.encryption_key,
+            encryptionKeySignature: user.encryption_key_signature,
+          });
+        }
+      );
     }
   });
 });
@@ -237,30 +248,34 @@ app.post('/api/initiateregister', (req, res) => {
 
 
 // Register route
-app.post('/api/finaliseregister', (req, res) => {
-  const { registrationRecord, userIdentifier, publicKey, encryptedPrivateKey } = req.body;
+app.post('/api/finaliseregister', async (req, res) => {
+  const { registrationRecord, userIdentifier, identityKey, encryptionKey, encryptionKeySignature, keyBackup } = req.body;
 
-  // Check that all data is here
   if (!userIdentifier || !registrationRecord) return res.status(400).json({ error: 'Missing username or registrationRecord' });
-  if (!publicKey || !encryptedPrivateKey) return res.status(400).json({ error: 'Missing public key or private key' });
-  // Attempt to insert user into DB
-  db.run(`INSERT INTO users (username, password, public_key, private_key) VALUES (?, ?, ?, ?)`,
-    [userIdentifier, registrationRecord, publicKey, encryptedPrivateKey], function (err) {
+  if (!identityKey || !encryptionKey || !encryptionKeySignature || !keyBackup) {
+    return res.status(400).json({ error: 'Missing keys' });
+  }
+  // Clients verify this themselves; checking here just keeps broken keys out of the DB.
+  if (!(await isValidEncryptionKeySignature(identityKey, encryptionKey, encryptionKeySignature))) {
+    return res.status(400).json({ error: 'Invalid key signature' });
+  }
+
+  db.run(
+    `INSERT INTO users (username, password, identity_key, encryption_key, encryption_key_signature, key_backup)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [userIdentifier, registrationRecord, identityKey, encryptionKey, encryptionKeySignature, keyBackup],
+    function (err) {
       if (err) {
-        console.log("ERROR", err)
-        // If username already exists, return 409
         if (err.message.includes('UNIQUE constraint failed')) {
           return res.status(409).json({ error: 'Username already exists' });
         }
+        console.error('Failed to register user:', err.message);
         return res.status(500).json({ error: 'DB error' });
       }
-
-      // Generate JWT
       const user = { id: this.lastID, username: userIdentifier };
-      const token = generateToken(user);
-      // Return token and user info
-      res.status(201).json({ token, id: user.id, username: user.username });
-    });
+      res.status(201).json({ token: generateToken(user), id: user.id, username: user.username });
+    }
+  );
 });
 
 
@@ -269,20 +284,12 @@ app.get('/api/profile', authenticateJWT, (req, res) => {
 
   const userId = req.user.id;
 
-  db.get('SELECT private_key FROM users WHERE id = ?', [userId], (err, userKeyData) => {
+  db.get('SELECT id FROM users WHERE id = ?', [userId], (err, user) => {
     if (err) return res.status(500).json({ error: 'DB error' });
-    if (!userKeyData) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
     const token = req.headers.authorization?.split(' ')[1];
-    const vapidPubKey = process.env.VAPID_PUBLIC_KEY;
-
-    res.json({
-      token,
-      id: userId,
-      username: req.user.username,
-      private_key: userKeyData.private_key,
-      vapidPubKey
-    });
+    res.json({ token, id: userId, username: req.user.username });
   });
 });
 
@@ -513,7 +520,6 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
             dm.parent_message_id,
             dm.edited,
             u.username AS sender_username,
-            u.public_key,
             pm.content AS parent_content,
             pu.id AS parent_sender_id,
             pu.username AS parent_username
@@ -820,7 +826,7 @@ function dbGet(sql, params) {
 function getRecentDmsForUser(loggedInUserId, callback) {
   db.all(
     `
-    SELECT u.id, u.username, u.public_key,
+    SELECT u.id, u.username, u.identity_key, u.encryption_key, u.encryption_key_signature,
            MAX(m.timestamp) as last_timestamp
     FROM users u
     LEFT JOIN direct_messages m
@@ -888,11 +894,32 @@ async function getUserImageUrl(userId) {
 }
 
 
+// Messages are "v1." + base64(12-byte IV || ciphertext || 16-byte tag), see the client's
+// encryptionService.
 function getMaxEncryptedLength(maxPlaintextLength) {
+  const prefixLength = 'v1.'.length;
   const ivLength = 12;
   const tagLength = 16;
   const totalBytes = maxPlaintextLength + ivLength + tagLength;
-  return Math.ceil(totalBytes * 4 / 3);
+  return prefixLength + Math.ceil(totalBytes / 3) * 4;
+}
+
+// ECDSA P-256 / SHA-256 over "voicaw/encryption-key/v1\n<encryptionKey>" (see the client's
+// encryptionService); keys and signature are base64.
+async function isValidEncryptionKeySignature(identityKey, encryptionKey, signature) {
+  try {
+    const key = await crypto.webcrypto.subtle.importKey(
+      'raw', Buffer.from(identityKey, 'base64'), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']
+    );
+    return await crypto.webcrypto.subtle.verify(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      key,
+      Buffer.from(signature, 'base64'),
+      new TextEncoder().encode(`voicaw/encryption-key/v1\n${encryptionKey}`)
+    );
+  } catch {
+    return false;
+  }
 }
 
 
@@ -928,11 +955,13 @@ function buildDmPushPayload(message, imageUrl) {
     tag: `dm-${message.sender_id}`,
     image: imageUrl,
     senderId: message.sender_id,
+    recipientId: message.recipient_id,
     timestamp: message.timestamp,
   };
-  if (message.content.length <= MAX_PUSH_CIPHERTEXT_LENGTH && message.public_key) {
+  // The service worker decrypts with the sender's key it has already checked and remembered
+  // (never a key from the push), so only the ciphertext is included.
+  if (message.content.length <= MAX_PUSH_CIPHERTEXT_LENGTH) {
     payload.ciphertext = message.content;
-    payload.senderPublicKey = message.public_key;
   }
   return payload;
 }

@@ -2,9 +2,15 @@ import React, { useState } from 'react';
 import '../assets/css/login.css';
 import api from '../utils/api';
 import * as opaque from "@serenity-kit/opaque";
-import { generateECDH_P256_PEM, encryptPrivateKey, decryptPrivateKey } from '../services/encryptionService';
+import { generateUserKeys, wrapKeyBackup, unwrapKeyBackup } from '../services/encryptionService';
 import { connectWebSocket } from "../utils/ws-client"
-import { storePrivateKey } from '../services/keyStore';
+import { storeUserKeys } from '../services/keyStore';
+
+// The password is what the encryption keys are protected with (and it can't be reset), so
+// insist on a reasonable length. The server never sees it, so it can only be checked here.
+export const MIN_PASSWORD_LENGTH = 10;
+
+const PUBLIC_KEY_FIELDS = ['identityKey', 'encryptionKey', 'encryptionKeySignature'];
 
 export default function Login({ onLoginSuccess }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
@@ -38,24 +44,32 @@ export default function Login({ onLoginSuccess }) {
         // Wrong password and unknown username look the same here (on purpose).
         throw new Error("Incorrect username or password");
       }
-      const { finishLoginRequest, sessionKey } = loginResult;
+      const { finishLoginRequest, sessionKey, exportKey } = loginResult;
 
       const response2 = await api.post('/finaliselogin', { finishLoginRequest, clientSessionKey: sessionKey, userIdentifier: username });
+      const { token, id, keyBackup } = response2.data;
+      if (!token || !keyBackup) throw new Error('Login failed');
 
-      if (response2.data.error) throw new Error(response2.data.error || 'Login failed');
-      if (response2.data.token && response2.data.private_key) {
-        const privatePEM = await decryptPrivateKey(response2.data.private_key, password);
-        await storePrivateKey(privatePEM);
-        localStorage.setItem('token', response2.data.token); // Save JWT
-
-        // Push notifications are set up after login (Layout re-syncs the subscription;
-        // asking for permission needs a tap, see NotificationPrompt / Settings).
-        connectWebSocket();
-        console.log("redirecting...")
-        onLoginSuccess(response2.data); // Pass user info to parent
-      } else {
-        throw new Error('No token or private key received');
+      // The keys are encrypted with OPAQUE's exportKey, which only this password produces.
+      let keys;
+      try {
+        keys = await unwrapKeyBackup(exportKey, keyBackup);
+      } catch {
+        throw new Error("Couldn't unlock your encryption keys.");
       }
+      // The server must publish exactly the public keys in our own backup; otherwise
+      // other people would be encrypting to keys that aren't ours.
+      if (PUBLIC_KEY_FIELDS.some((field) => keys.public[field] !== response2.data[field])) {
+        throw new Error("The server's copy of your public keys doesn't match your account. Not logging in.");
+      }
+
+      await storeUserKeys(id, keys);
+      localStorage.setItem('token', token);
+
+      // Push notifications are set up after login (Layout re-syncs the subscription;
+      // asking for permission needs a tap, see NotificationPrompt / Settings).
+      connectWebSocket();
+      onLoginSuccess({ token, id, username: response2.data.username });
     } catch (err) {
       setError(err.message);
       console.error('Login error:', err);
@@ -74,32 +88,32 @@ export default function Login({ onLoginSuccess }) {
       if (!username || !password) {
         throw new Error('Username and password are required');
       }
+      if (password.length < MIN_PASSWORD_LENGTH) {
+        throw new Error(`Use a password of at least ${MIN_PASSWORD_LENGTH} characters.`);
+      }
       const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
 
-      const { publicPEM, privatePEM } = await generateECDH_P256_PEM();
-
-      const encryptedPrivatePEM = await encryptPrivateKey(privatePEM, password);
-
-
-
-      const response1 = await api.post('/initiateregister', { userIdentifier: username, registrationRequest: registrationRequest });
-      console.log(response1)
+      const response1 = await api.post('/initiateregister', { userIdentifier: username, registrationRequest });
       if (response1.data.error) throw new Error(response1.data.error || 'Registration failed');
-      console.log("Registration response:", response1.data);
-      const registrationResponse = response1.data.registrationResponse;
-      const { registrationRecord } = opaque.client.finishRegistration({
+      const { registrationRecord, exportKey } = opaque.client.finishRegistration({
         clientRegistrationState,
-        registrationResponse,
+        registrationResponse: response1.data.registrationResponse,
         password,
       });
-      console.log("Registration record:", registrationRecord);
 
-      const response2 = await api.post('/finaliseregister', { registrationRecord, userIdentifier: username, publicKey: publicPEM, encryptedPrivateKey: encryptedPrivatePEM });
+      // New keys, backed up on the server encrypted with the OPAQUE exportKey.
+      const keys = await generateUserKeys();
+      const keyBackup = await wrapKeyBackup(exportKey, keys);
 
-      console.log("Token data:", response2.data);
+      const response2 = await api.post('/finaliseregister', {
+        registrationRecord,
+        userIdentifier: username,
+        ...keys.public,
+        keyBackup,
+      });
 
       if (response2.data.token) {
-        await storePrivateKey(privatePEM);
+        await storeUserKeys(response2.data.id, keys);
         localStorage.setItem('token', response2.data.token);
         onLoginSuccess(response2.data);
       } else {
@@ -166,6 +180,10 @@ export default function Login({ onLoginSuccess }) {
           value={registerData.password}
           onChange={e => setRegisterData({ ...registerData, password: e.target.value })}
         />
+        <p className="register-password-hint">
+          At least {MIN_PASSWORD_LENGTH} characters. Your password protects your encrypted messages and
+          can't be reset: if you forget it, your message history can't be recovered.
+        </p>
         <button className="btn btn-secondary w-100" type="submit" disabled={Loading}>
           {Loading ? "Please wait..." : "Register"}
         </button>

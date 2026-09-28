@@ -1,158 +1,125 @@
 import { describe, it, expect } from 'vitest';
 import {
-  generateECDH_P256_PEM,
-  encryptPrivateKey,
-  decryptPrivateKey,
-  deriveSharedKey,
+  generateUserKeys,
+  verifyEncryptionKey,
+  wrapKeyBackup,
+  unwrapKeyBackup,
+  importEncryptionPrivateKey,
+  deriveConversationKey,
+  dmContext,
   encryptMessage,
   decryptMessage,
   decryptMessagesBatch,
+  toBase64,
 } from './encryptionService';
 
-describe('generateECDH_P256_PEM', () => {
-  it('produces PEM-wrapped public and private keys', async () => {
-    const { publicPEM, privatePEM } = await generateECDH_P256_PEM();
+const randomExportKey = () => toBase64(crypto.getRandomValues(new Uint8Array(64)));
 
-    expect(publicPEM).toMatch(/^-----BEGIN PUBLIC KEY-----\n/);
-    expect(publicPEM).toMatch(/-----END PUBLIC KEY-----\n$/);
-    expect(privatePEM).toMatch(/^-----BEGIN PRIVATE KEY-----\n/);
-    expect(privatePEM).toMatch(/-----END PRIVATE KEY-----\n$/);
+async function conversationKeys() {
+  const alice = await generateUserKeys();
+  const bob = await generateUserKeys();
+  const aliceKey = await deriveConversationKey(await importEncryptionPrivateKey(alice.private.encryptionKey), bob.public.encryptionKey);
+  const bobKey = await deriveConversationKey(await importEncryptionPrivateKey(bob.private.encryptionKey), alice.public.encryptionKey);
+  return { alice, bob, aliceKey, bobKey };
+}
+
+describe('user keys', () => {
+  it('generates an identity key that signs the encryption key', async () => {
+    const keys = await generateUserKeys();
+
+    expect(Object.keys(keys.public).sort()).toEqual(['encryptionKey', 'encryptionKeySignature', 'identityKey']);
+    expect(await verifyEncryptionKey(keys.public)).toBe(true);
   });
 
-  it('generates a fresh keypair on every call', async () => {
-    const a = await generateECDH_P256_PEM();
-    const b = await generateECDH_P256_PEM();
-    expect(a.privatePEM).not.toBe(b.privatePEM);
-  });
-});
+  it('rejects an encryption key signed by someone else, or swapped in', async () => {
+    const alice = await generateUserKeys();
+    const mallory = await generateUserKeys();
 
-describe('encryptPrivateKey / decryptPrivateKey', () => {
-  it('round-trips the private key PEM under a password', async () => {
-    const { privatePEM } = await generateECDH_P256_PEM();
-    const password = 'correct horse battery staple';
-
-    const wrapped = await encryptPrivateKey(privatePEM, password);
-    expect(wrapped).not.toContain(privatePEM);
-
-    const unwrapped = await decryptPrivateKey(wrapped, password);
-    expect(unwrapped).toBe(privatePEM);
-  });
-
-  it('fails to decrypt with the wrong password', async () => {
-    const { privatePEM } = await generateECDH_P256_PEM();
-    const wrapped = await encryptPrivateKey(privatePEM, 'right-password');
-
-    await expect(decryptPrivateKey(wrapped, 'wrong-password')).rejects.toThrow();
-  });
-
-  it('produces different ciphertext each time (random salt/iv)', async () => {
-    const { privatePEM } = await generateECDH_P256_PEM();
-    const wrapped1 = await encryptPrivateKey(privatePEM, 'pw');
-    const wrapped2 = await encryptPrivateKey(privatePEM, 'pw');
-    expect(wrapped1).not.toBe(wrapped2);
+    expect(await verifyEncryptionKey({ ...alice.public, encryptionKey: mallory.public.encryptionKey })).toBe(false);
+    expect(await verifyEncryptionKey({ ...mallory.public, identityKey: alice.public.identityKey })).toBe(false);
+    expect(await verifyEncryptionKey({ ...alice.public, encryptionKeySignature: 'AAAA' })).toBe(false);
   });
 });
 
-describe('deriveSharedKey', () => {
-  it('produces the same shared secret from both sides of an ECDH exchange', async () => {
-    const alice = await generateECDH_P256_PEM();
-    const bob = await generateECDH_P256_PEM();
+describe('key backup', () => {
+  it('round-trips the keys with the same exportKey', async () => {
+    const keys = await generateUserKeys();
+    const exportKey = randomExportKey();
 
-    const aliceSharedKey = await deriveSharedKey(alice.privatePEM, bob.publicPEM);
-    const bobSharedKey = await deriveSharedKey(bob.privatePEM, alice.publicPEM);
+    const backup = await wrapKeyBackup(exportKey, keys);
+    expect(JSON.parse(backup).v).toBe(1);
+    expect(backup).not.toContain(keys.private.encryptionKey);
 
-    const message = 'shared secrets should match on both ends';
-    const ciphertext = await encryptMessage(message, aliceSharedKey);
-    const plaintext = await decryptMessage(ciphertext, bobSharedKey);
-
-    expect(plaintext).toBe(message);
+    expect(await unwrapKeyBackup(exportKey, backup)).toEqual({ public: keys.public, private: keys.private });
   });
 
-  it('produces a different shared secret with an unrelated keypair', async () => {
-    const alice = await generateECDH_P256_PEM();
-    const bob = await generateECDH_P256_PEM();
-    const mallory = await generateECDH_P256_PEM();
+  it('cannot be opened with another exportKey (wrong password) or if tampered with', async () => {
+    const keys = await generateUserKeys();
+    const exportKey = randomExportKey();
+    const backup = await wrapKeyBackup(exportKey, keys);
 
-    const aliceSharedKey = await deriveSharedKey(alice.privatePEM, bob.publicPEM);
-    const malloryKeyClaimingToBeBob = await deriveSharedKey(mallory.privatePEM, alice.publicPEM);
+    await expect(unwrapKeyBackup(randomExportKey(), backup)).rejects.toThrow();
 
-    const ciphertext = await encryptMessage('hello bob', aliceSharedKey);
-    await expect(decryptMessage(ciphertext, malloryKeyClaimingToBeBob)).rejects.toThrow();
-  });
-});
-
-describe('encryptMessage / decryptMessage', () => {
-  it('round-trips plaintext through AES-GCM', async () => {
-    const alice = await generateECDH_P256_PEM();
-    const bob = await generateECDH_P256_PEM();
-    const key = await deriveSharedKey(alice.privatePEM, bob.publicPEM);
-
-    const message = 'hello, encrypted world! 🔒';
-    const ciphertext = await encryptMessage(message, key);
-    expect(ciphertext).not.toContain(message);
-
-    const plaintext = await decryptMessage(ciphertext, key);
-    expect(plaintext).toBe(message);
+    const parsed = JSON.parse(backup);
+    const ct = Uint8Array.from(atob(parsed.ct), (c) => c.charCodeAt(0));
+    ct[5] ^= 1;
+    await expect(unwrapKeyBackup(exportKey, JSON.stringify({ ...parsed, ct: toBase64(ct) }))).rejects.toThrow();
+    await expect(unwrapKeyBackup(exportKey, JSON.stringify({ ...parsed, v: 2 }))).rejects.toThrow(/version/);
   });
 
-  it('produces different ciphertext for the same message due to random IV', async () => {
-    const alice = await generateECDH_P256_PEM();
-    const bob = await generateECDH_P256_PEM();
-    const key = await deriveSharedKey(alice.privatePEM, bob.publicPEM);
-
-    const c1 = await encryptMessage('same message', key);
-    const c2 = await encryptMessage('same message', key);
-    expect(c1).not.toBe(c2);
-  });
-
-  it('rejects tampered ciphertext', async () => {
-    const alice = await generateECDH_P256_PEM();
-    const bob = await generateECDH_P256_PEM();
-    const key = await deriveSharedKey(alice.privatePEM, bob.publicPEM);
-
-    const ciphertext = await encryptMessage('untampered', key);
-    const tampered = ciphertext.slice(0, -4) + (ciphertext.slice(-4) === 'AAAA' ? 'BBBB' : 'AAAA');
-
-    await expect(decryptMessage(tampered, key)).rejects.toThrow();
+  it('accepts OPAQUE-style base64url export keys', async () => {
+    const keys = await generateUserKeys();
+    const exportKey = toBase64(crypto.getRandomValues(new Uint8Array(64))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const backup = await wrapKeyBackup(exportKey, keys);
+    expect((await unwrapKeyBackup(exportKey, backup)).private).toEqual(keys.private);
   });
 });
 
-describe('decryptMessagesBatch', () => {
-  it('decrypts a batch of messages and their parent replies', async () => {
-    const alice = await generateECDH_P256_PEM();
-    const bob = await generateECDH_P256_PEM();
-    const key = await deriveSharedKey(alice.privatePEM, bob.publicPEM);
+describe('direct messages', () => {
+  it('both people derive the same conversation key', async () => {
+    const { aliceKey, bobKey } = await conversationKeys();
+    const envelope = await encryptMessage('hi bob', aliceKey, dmContext(1, 2));
 
-    const parentContent = await encryptMessage('parent message', key);
-    const childContent = await encryptMessage('child reply', key);
+    expect(envelope.startsWith('v1.')).toBe(true);
+    expect(await decryptMessage(envelope, bobKey, dmContext(1, 2))).toBe('hi bob');
+  });
 
-    const messages = [
-      { id: 1, content: parentContent },
-      { id: 2, content: childContent, parent_message_id: 1, parent_content: parentContent },
+  it('binds sender and recipient: a message cannot be passed off as from the other person', async () => {
+    const { aliceKey, bobKey } = await conversationKeys();
+    const fromAlice = await encryptMessage('I owe you £100', aliceKey, dmContext(1, 2));
+
+    await expect(decryptMessage(fromAlice, bobKey, dmContext(2, 1))).rejects.toThrow();
+    await expect(decryptMessage(fromAlice, bobKey, dmContext(1, 3))).rejects.toThrow();
+  });
+
+  it('a third party derives a different key and cannot decrypt', async () => {
+    const { alice, aliceKey } = await conversationKeys();
+    const mallory = await generateUserKeys();
+    const malloryKey = await deriveConversationKey(await importEncryptionPrivateKey(mallory.private.encryptionKey), alice.public.encryptionKey);
+    const envelope = await encryptMessage('secret', aliceKey, dmContext(1, 2));
+
+    await expect(decryptMessage(envelope, malloryKey, dmContext(1, 2))).rejects.toThrow();
+  });
+
+  it('rejects unversioned or unknown formats', async () => {
+    const { aliceKey } = await conversationKeys();
+    await expect(decryptMessage('AAAA', aliceKey, dmContext(1, 2))).rejects.toThrow(/format/);
+    await expect(decryptMessage('v2.AAAA', aliceKey, dmContext(1, 2))).rejects.toThrow(/format/);
+  });
+
+  it('decrypts pages including replies in either direction', async () => {
+    const { aliceKey, bobKey } = await conversationKeys();
+    const q = await encryptMessage('question?', aliceKey, dmContext(1, 2));
+    const a = await encryptMessage('answer', bobKey, dmContext(2, 1));
+
+    const rows = [
+      { id: 10, sender_id: 1, recipient_id: 2, content: q },
+      { id: 11, sender_id: 2, recipient_id: 1, content: a, parent_message_id: 10, parent_content: q, parent_sender_id: 1 },
+      { id: 12, sender_id: 1, recipient_id: 2, content: 'garbage' },
     ];
+    const out = await decryptMessagesBatch(rows, aliceKey);
 
-    const results = await decryptMessagesBatch(messages, key);
-
-    expect(results[0].plaintext).toBe('parent message');
-    expect(results[1].plaintext).toBe('child reply');
-    expect(results[1].parent_plaintext).toBe('parent message');
-  });
-
-  it('tolerates individual decryption failures without throwing', async () => {
-    const alice = await generateECDH_P256_PEM();
-    const bob = await generateECDH_P256_PEM();
-    const key = await deriveSharedKey(alice.privatePEM, bob.publicPEM);
-
-    const goodContent = await encryptMessage('this one works', key);
-
-    const messages = [
-      { id: 1, content: 'not-valid-base64-ciphertext!!!' },
-      { id: 2, content: goodContent },
-    ];
-
-    const results = await decryptMessagesBatch(messages, key);
-
-    expect(results[0].plaintext).toBeNull();
-    expect(results[1].plaintext).toBe('this one works');
+    expect(out.map((m) => m.plaintext)).toEqual(['question?', 'answer', null]);
+    expect(out[1].parent_plaintext).toBe('question?');
   });
 });

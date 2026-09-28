@@ -17,8 +17,6 @@ export function AuthProvider({ children }) {
             id: res.data.id,
             username: res.data.username,
             token: res.data.token,
-            private_key: res.data.private_key,
-            vapidPubKey: res.data.vapidPubKey
           });
         } else {
           setUser(null);

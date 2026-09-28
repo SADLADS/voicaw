@@ -1,15 +1,21 @@
-import { importPrivateKey } from './encryptionService';
+import { importEncryptionPrivateKey, importIdentityPrivateKey } from './encryptionService';
 
-// The user's ECDH private key is kept in IndexedDB as a non-extractable CryptoKey,
-// so page scripts can use it to derive shared keys but can never read the raw key
-// material back out (unlike the PEM string we used to keep in localStorage).
+// This device's copy of the logged-in user's keys, in IndexedDB. Private keys are stored as
+// non-extractable CryptoKeys: page scripts (and the service worker) can use them, but can
+// never read the raw key material back out. The user's own public keys are kept too, taken
+// from their own (verified) key backup rather than from the server, so safety numbers are
+// computed from the real keys.
 
 const DB_NAME = 'voicaw-keys';
 const STORE = 'keys';
-const IDENTITY_KEY = 'identity';
-const LEGACY_STORAGE_KEY = 'privateKey';
+const IDENTITY = 'identity-private';
+const ENCRYPTION = 'encryption-private';
+const OWN_PUBLIC = 'own-public';
+// Entries/keys from the previous key scheme, removed whenever keys are (re)stored or cleared.
+const LEGACY_ENTRIES = ['identity'];
+const LEGACY_LOCAL_STORAGE_KEY = 'privateKey';
 
-let cachedKey = null;
+const cache = new Map();
 
 function openDb() {
   return new Promise((resolve, reject) => {
@@ -26,7 +32,7 @@ async function withStore(mode, fn) {
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, mode);
       const req = fn(tx.objectStore(STORE));
-      tx.oncomplete = () => resolve(req.result);
+      tx.oncomplete = () => resolve(req?.result);
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error);
     });
@@ -35,38 +41,56 @@ async function withStore(mode, fn) {
   }
 }
 
-export async function storePrivateKey(privatePEM) {
-  const key = await importPrivateKey(privatePEM);
-  await withStore('readwrite', store => store.put(key, IDENTITY_KEY));
-  cachedKey = key;
-  return key;
+async function load(name) {
+  if (cache.has(name)) return cache.get(name);
+  const value = (await withStore('readonly', (store) => store.get(name))) ?? null;
+  if (value) cache.set(name, value);
+  return value;
 }
 
-// Returns the stored CryptoKey, or null if the user has no key on this device.
-export async function loadPrivateKey() {
-  if (cachedKey) return cachedKey;
-
-  const stored = await withStore('readonly', store => store.get(IDENTITY_KEY));
-  if (stored) {
-    cachedKey = stored;
-    return stored;
-  }
-
-  // Sessions from before this change still have the PEM in localStorage: move it over.
-  // (Not in the service worker, which has no localStorage.)
-  if (typeof localStorage === 'undefined') return null;
-  const legacyPEM = localStorage.getItem(LEGACY_STORAGE_KEY);
-  if (legacyPEM) {
-    const key = await storePrivateKey(legacyPEM);
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
-    return key;
-  }
-
-  return null;
+function removeLegacyLocalStorage() {
+  if (typeof localStorage !== 'undefined') localStorage.removeItem(LEGACY_LOCAL_STORAGE_KEY);
 }
 
-export async function clearPrivateKey() {
-  cachedKey = null;
-  localStorage.removeItem(LEGACY_STORAGE_KEY);
-  await withStore('readwrite', store => store.delete(IDENTITY_KEY));
+// `userKeys` as produced by generateUserKeys / unwrapKeyBackup; `userId` is the account.
+export async function storeUserKeys(userId, userKeys) {
+  const identity = await importIdentityPrivateKey(userKeys.private.identityKey);
+  const encryption = await importEncryptionPrivateKey(userKeys.private.encryptionKey);
+  const ownPublic = { userId: String(userId), ...userKeys.public };
+
+  await withStore('readwrite', (store) => {
+    store.put(identity, IDENTITY);
+    store.put(encryption, ENCRYPTION);
+    LEGACY_ENTRIES.forEach((name) => store.delete(name));
+    return store.put(ownPublic, OWN_PUBLIC);
+  });
+  removeLegacyLocalStorage();
+
+  cache.clear();
+  cache.set(IDENTITY, identity);
+  cache.set(ENCRYPTION, encryption);
+  cache.set(OWN_PUBLIC, ownPublic);
+}
+
+// ECDH private key for DMs, or null if this device isn't logged in.
+export function loadEncryptionKey() {
+  return load(ENCRYPTION);
+}
+
+// ECDSA identity private key (signing), or null.
+export function loadIdentityKey() {
+  return load(IDENTITY);
+}
+
+// { userId, identityKey, encryptionKey, encryptionKeySignature } for the logged-in user.
+export function loadOwnPublicKeys() {
+  return load(OWN_PUBLIC);
+}
+
+export async function clearUserKeys() {
+  cache.clear();
+  removeLegacyLocalStorage();
+  await withStore('readwrite', (store) => {
+    [IDENTITY, ENCRYPTION, OWN_PUBLIC, ...LEGACY_ENTRIES].forEach((name) => store.delete(name));
+  });
 }

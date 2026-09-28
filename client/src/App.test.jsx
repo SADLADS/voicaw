@@ -16,7 +16,7 @@ vi.mock('./utils/ws-client', () => ({
 }));
 
 vi.mock('./services/keyStore', () => ({
-  clearPrivateKey: vi.fn(async () => {}),
+  clearUserKeys: vi.fn(async () => {}),
 }));
 
 vi.mock('./components/Login.jsx', () => ({
@@ -63,7 +63,7 @@ globalThis.__appConfigContext = ConfigContext;
 import { useAuth } from './AuthProvider.jsx';
 import api from './utils/api';
 import { closeWebSocket } from './utils/ws-client';
-import { clearPrivateKey } from './services/keyStore';
+import { clearUserKeys } from './services/keyStore';
 
 function setPath(path) {
   window.history.pushState({}, '', path);
@@ -142,7 +142,7 @@ describe('App routing', () => {
     await waitFor(() => expect(setUser).toHaveBeenCalledWith(null));
     expect(closeWebSocket).toHaveBeenCalled();
     expect(localStorage.getItem('token')).toBeNull();
-    expect(clearPrivateKey).toHaveBeenCalled();
+    expect(clearUserKeys).toHaveBeenCalled();
   });
 });
 

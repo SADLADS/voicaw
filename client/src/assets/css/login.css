@@ -35,3 +35,8 @@ body {
     color: var(--vc-bg-base);
     border:1px solid var(--vc-action-hover);
   }
+.register-password-hint {
+  font-size: 12px;
+  opacity: 0.75;
+  margin: -0.25rem 0 0.5rem;
+}

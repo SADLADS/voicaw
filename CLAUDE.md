@@ -38,15 +38,15 @@ app with an in-memory SQLite DB:
 - Each test file must `import './helpers/mockS3.js'` **before** requiring `../index.js`. `s3.js`
   hits the network at require-time, and because `index.js`/`s3.js` are plain CommonJS, `vi.mock`
   can't intercept them — the helper pre-seeds Node's `require.cache` instead.
-- `test/helpers/authFlow.js` (`registerUser` / `loginUser`) runs the real OPAQUE + key-wrapping
-  client flow (importing `client/src/services/encryptionService.js`) — use it to get authenticated
-  users rather than forging tokens.
+- `test/helpers/authFlow.js` (`registerUser` / `loginUser`) runs the real OPAQUE + key backup
+  client flow (importing `client/src/services/encryptionService.js`). Use it to get authenticated
+  users (and their keys) rather than forging tokens.
 - WebSocket handling is not covered: it only exists when `index.js` is run directly (see below).
 
 Client tests sit next to their source files (`src/**/*.test.{js,jsx}`). The default environment is
 `node`; component tests opt into DOM with a `// @vitest-environment jsdom` header on the first
 line. `vitest.config.js` pins `VITE_API_BASE_URL`/`VITE_WS_URL`, and `src/test/setupTests.js`
-stubs `ResizeObserver` (needed by react-virtuoso). Component tests mock `../utils/api`,
+stubs `ResizeObserver` (used by `MessageList`). Component tests mock `../utils/api`,
 `../utils/ws-client`, and `../services/dmService` with `vi.mock`.
 
 ### Server environment
@@ -81,29 +81,41 @@ On successful login/register, the server issues a JWT (`generateToken`, 1-day ex
 <token>` (see `client/src/utils/api.js`). `authenticateJWT` middleware protects all `/api/*`
 routes except config/login/register.
 
-### End-to-end encryption of DMs
+### End-to-end encryption
 
-Each user has an ECDH P-256 keypair (PEM-encoded). The public key is stored server-side
-(`users.public_key`); the private key is stored server-side too, but **encrypted** with a key
-derived from the user's password via PBKDF2 (`users.private_key`) — the server can never decrypt
-it. All of this lives in `client/src/services/encryptionService.js`:
-- `generateECDH_P256_PEM()` — keypair generation at registration
-- `encryptPrivateKey` / `decryptPrivateKey` — PBKDF2(password) + AES-GCM wrapping of the private
-  key for server storage
-- `deriveSharedKey(myPrivateKey, theirPublicPEM)` — ECDH shared secret → AES-GCM key, used to
-  encrypt/decrypt DM content between exactly two users (`myPrivateKey` is a `CryptoKey` or PEM)
-- `encryptMessage` / `decryptMessage` — AES-GCM with a random IV, base64-encoded
-- `decryptMessagesBatch` — bulk-decrypts fetched message pages, tolerating individual failures
+The goal is that a server admin can't read messages, including by swapping keys. All crypto is
+WebCrypto, in `client/src/services/encryptionService.js`. Every format is versioned: messages
+are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are bound to
+`voicaw/<purpose>/v1` strings.
+- **Keys per user** (`generateUserKeys`): an **identity** key (ECDSA P-256) that *is* the user
+  (safety numbers come from it), and an **encryption** key (ECDH P-256) for DMs, signed by the
+  identity key (`verifyEncryptionKey`). Public keys are base64 raw points in `users.identity_key` /
+  `encryption_key` / `encryption_key_signature`. The server checks the signature at registration.
+  Future per-device or group keys should also be signed by the identity key, so safety numbers
+  don't change.
+- **Key backup:** both private keys are stored server-side only inside `users.key_backup`,
+  encrypted (`wrapKeyBackup`, HKDF → AES-GCM) with OPAQUE's `exportKey`. That is argon2id-stretched,
+  stable across logins, and never seen by the server. There is no PBKDF2 and no second password
+  derivation. The backup also contains the public keys. On login (`Login.jsx`) the client refuses
+  to continue if the server publishes different ones. A forgotten password means the history is
+  lost, by design.
+- **On the device** (`keyStore.js`): non-extractable private `CryptoKey`s plus the user's *own*
+  public keys (from the backup, never from the server) in IndexedDB. `clearUserKeys` runs on
+  logout.
+- **Contacts** (`contactKeys.js`, IndexedDB, per logged-in account): trust on first use. Never
+  use a contact key straight from the server. `checkContactKeys` verifies the signature, pins the
+  identity key, and returns `'changed'` (the conversation is blocked until the user accepts,
+  `ContactKeyWarning`) or `'invalid'`. Users compare 60-digit safety numbers (`safetyNumber.js`,
+  `SafetyNumberDialog`) and can mark contacts verified.
+- **DMs:** `deriveConversationKey` (ECDH → HKDF → AES-GCM) uses the *pinned* contact key.
+  `encryptMessage`/`decryptMessage` take `dmContext(senderId, recipientId)` as AES-GCM additional
+  data, so the server can't re-attribute or move messages. Replies and edits use the original
+  message's sender/recipient.
 
-After login/registration the unwrapped private key is kept on the device by
-`client/src/services/keyStore.js` as a **non-extractable** `CryptoKey` in IndexedDB
-(`storePrivateKey` / `loadPrivateKey` / `clearPrivateKey`) — never as a PEM in `localStorage`.
-`loadPrivateKey` migrates any legacy `localStorage.privateKey` PEM on first use. Never log
-plaintext, session keys, tokens or `OPAQUE_SERVER_SETUP` — server logs end up in pm2.
-
-The server stores and relays only ciphertext (`direct_messages.content`); message length limits
-(`MAX_MESSAGE_LENGTH` server-side, `/api/config` client-side) are computed on the encrypted
-(base64) length via `getMaxEncryptedLength`, not the plaintext length.
+Never log plaintext, session keys, tokens or `OPAQUE_SERVER_SETUP`; server logs end up in pm2.
+The server stores and relays only ciphertext. Message length limits (`MAX_MESSAGE_LENGTH`
+server-side, `/api/config` client-side) are computed on the envelope length via
+`getMaxEncryptedLength` (`v1.` + base64 of IV + ciphertext + tag).
 
 ### Realtime: WebSocket for push, REST for fetch/mutate
 
@@ -137,11 +149,12 @@ one user at a time).
   `isViewingConversation()` says the recipient is looking at that chat. That uses `presence`
   websocket messages (`{visible, chatId}`) that `ws-client` sends on focus/visibility/chat changes
   and every 15s. The server ignores presence older than 35s.
-- Previews stay end-to-end encrypted. The DM push carries the ciphertext and the sender's public
-  key when it fits in a push (~4KB). `service-worker.js` → `services/pushNotifications.js` decrypts
-  it on the device with the private key from IndexedDB (`keyStore`). It falls back to "New message"
-  when the message is too big, previews are off (`settingsStore`, IndexedDB, readable by the SW), or
-  the device is logged out. Notifications are tagged per conversation.
+- Previews stay end-to-end encrypted. The DM push carries the ciphertext (never a key) when it fits
+  in a push (~4KB), plus `senderId`/`recipientId`. `service-worker.js` → `services/pushNotifications.js`
+  decrypts it on the device with the sender's *pinned* key (`contactKeys`) and the user's key
+  (`keyStore`). It falls back to "New message" when the message is too big, previews are off
+  (`settingsStore`, IndexedDB, readable by the SW), this device has never checked the sender's
+  keys, or the device is logged out. Notifications are tagged per conversation.
 - `pushsubscriptionchange` posts to the unauthenticated `/api/update-subscription`, keyed by the
   old endpoint. `/api/test-push` sends a test notification to all of the caller's devices.
 - The PWA manifest is `public/manifest.json` only (VitePWA `manifest: false`). The dev server also
@@ -206,8 +219,8 @@ their box is reserved before they load.
 
 ### Client structure
 
-- `AuthProvider.jsx` — fetches `/api/profile` on mount to restore session (id, username, JWT,
-  encrypted private key, VAPID public key) into React context
+- `AuthProvider.jsx` — fetches `/api/profile` on mount to restore the session (id, username, JWT)
+  into React context; the keys come from IndexedDB (`keyStore`)
 - `App.jsx` — top-level routing; swaps `BrowserRouter` for `HashRouter` when running inside
   Electron (detected via user-agent sniffing); provides `ConfigContext` (fetched from
   `/api/config`) and `InteractionContext` (mobile vs. desktop interaction mode, persisted to

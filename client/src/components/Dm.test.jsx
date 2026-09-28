@@ -34,7 +34,8 @@ vi.mock('../services/dmService', () => ({
 vi.mock('../services/encryptionService', () => ({
   encryptMessage: vi.fn(async (text) => `enc(${text})`),
   decryptMessage: vi.fn(async (content) => `dec(${content})`),
-  deriveSharedKey: vi.fn(async () => 'shared-key'),
+  deriveConversationKey: vi.fn(async () => 'shared-key'),
+  dmContext: (sender, recipient) => `ctx:${sender}->${recipient}`,
   decryptMessagesBatch: vi.fn(async (messages) =>
     messages.map((m) => ({ ...m, plaintext: m.plaintext ?? `dec:${m.content}` }))
   ),
@@ -50,7 +51,16 @@ vi.mock('../services/attachmentUpload', () => ({
 }));
 
 vi.mock('../services/keyStore', () => ({
-  loadPrivateKey: vi.fn(async () => 'fake-private-key'),
+  loadEncryptionKey: vi.fn(async () => 'my-encryption-key'),
+}));
+
+vi.mock('../services/contactKeys', () => ({
+  checkContactKeys: vi.fn(),
+  acceptContactKeys: vi.fn(async () => {}),
+}));
+
+vi.mock('./SafetyNumberDialog', () => ({
+  default: ({ contact }) => <div role="dialog">Safety number with {contact.username}</div>,
 }));
 
 // Stub MessageList (its scrolling/layout needs a real browser) so these tests exercise
@@ -70,12 +80,15 @@ import Dm from './Dm';
 import { ConfigContext, InteractionContext } from '../App';
 import { LayoutContext } from './Layout';
 import { fetchMessagesForUser, sendMessageToUser, markMessagesRead } from '../services/dmService';
-import { deriveSharedKey, encryptMessage } from '../services/encryptionService';
+import { deriveConversationKey, encryptMessage, decryptMessage } from '../services/encryptionService';
+import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
 import { uploadAttachment } from '../services/attachmentUpload';
 import { readMediaDimensions } from '../utils/mediaDimensions';
 
 const currentUser = { id: 1, username: 'me' };
-const chatUserFull = { id: 2, username: 'bob', public_key: 'bob-pub-key' };
+const chatUserFull = {
+  id: 2, username: 'bob', identity_key: 'bob-identity', encryption_key: 'bob-enc', encryption_key_signature: 'bob-sig',
+};
 const chatUserNoKey = { id: 3, username: 'nokey' };
 
 function renderDm({ path, users, user = currentUser, layoutOverrides = {} } = {}) {
@@ -103,7 +116,12 @@ beforeEach(() => {
   dmListeners.editDm = [];
   localStorage.clear();
   fetchMessagesForUser.mockResolvedValue([]);
-  deriveSharedKey.mockResolvedValue('shared-key');
+  deriveConversationKey.mockResolvedValue('shared-key');
+  checkContactKeys.mockImplementation(async (me, contact) =>
+    contact.identity_key
+      ? { status: 'trusted', encryptionKey: contact.encryption_key }
+      : { status: 'invalid', encryptionKey: null }
+  );
   let blobCount = 0;
   URL.createObjectURL = vi.fn(() => `blob:local-${++blobCount}`);
   URL.revokeObjectURL = vi.fn();
@@ -116,11 +134,12 @@ describe('Dm', () => {
     expect(screen.getByText('No recent conversations found.')).toBeInTheDocument();
   });
 
-  it("shows 'no messages yet' when the chat user has no public key (no shared key derivable)", async () => {
+  it("blocks a conversation whose keys can't be verified, without loading it", async () => {
     renderDm({ path: '/dm/3', users: [chatUserNoKey] });
 
-    expect(await screen.findByText('No messages yet. Start the conversation!')).toBeInTheDocument();
-    expect(screen.getByText('nokey')).toBeInTheDocument();
+    expect(await screen.findByText(/encryption keys can't be verified/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Accept/ })).not.toBeInTheDocument();
+    expect(document.getElementById('dm-input')).toBeNull();
     expect(fetchMessagesForUser).not.toHaveBeenCalled();
   });
 
@@ -266,7 +285,7 @@ describe('Dm attachments', () => {
     await act(async () => finishUpload(finalUrl));
 
     expect(await screen.findByText(`hi ![cat.png](${finalUrl}) [sent]`)).toBeInTheDocument();
-    expect(encryptMessage).toHaveBeenCalledWith(`hi ![cat.png](${finalUrl})`, 'shared-key');
+    expect(encryptMessage).toHaveBeenCalledWith(`hi ![cat.png](${finalUrl})`, 'shared-key', 'ctx:1->2');
     expect(sendMessageToUser).toHaveBeenCalledWith(2, `enc(hi ![cat.png](${finalUrl}))`, null);
   });
 
@@ -419,3 +438,58 @@ describe('Dm history loading', () => {
     await waitFor(() => expect(screen.getByTestId('message-list').dataset.hasMore).toBe('false'));
   });
 });
+
+describe('Dm contact keys', () => {
+  it('derives the conversation key from the checked key, not straight from the server', async () => {
+    checkContactKeys.mockResolvedValueOnce({ status: 'trusted', encryptionKey: 'pinned-enc' });
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+
+    await screen.findByText('No messages yet. Start the conversation!');
+    expect(checkContactKeys).toHaveBeenCalledWith(1, chatUserFull);
+    expect(deriveConversationKey).toHaveBeenCalledWith('my-encryption-key', 'pinned-enc');
+  });
+
+  it('binds sender and recipient when sending and when receiving', async () => {
+    sendMessageToUser.mockResolvedValue({ id: 99, sender_id: 1, recipient_id: 2, timestamp: 2000 });
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText('No messages yet. Start the conversation!');
+
+    fireEvent.change(document.getElementById('dm-input'), { target: { value: 'hello' } });
+    fireEvent.submit(document.getElementById('dm-chat-form'));
+    await screen.findByText('hello [sent]');
+    expect(encryptMessage).toHaveBeenCalledWith('hello', 'shared-key', 'ctx:1->2');
+
+    await waitFor(() => expect(dmListeners.newDm.length).toBeGreaterThan(0));
+    await act(async () => {
+      dmListeners.newDm.at(-1)({ id: 100, sender_id: 2, recipient_id: 1, content: 'ENC-IN', timestamp: 3000 });
+    });
+    expect(decryptMessage).toHaveBeenCalledWith('ENC-IN', 'shared-key', 'ctx:2->1');
+  });
+
+  it('shows whether the contact is verified and opens the safety number', async () => {
+    checkContactKeys.mockResolvedValueOnce({ status: 'verified', encryptionKey: 'bob-enc' });
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+
+    fireEvent.click(await screen.findByRole('button', { name: '✓ Verified' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Safety number with bob');
+  });
+
+  it('blocks the chat when the key changed, until the user accepts it', async () => {
+    checkContactKeys
+      .mockResolvedValueOnce({ status: 'changed', encryptionKey: null })
+      .mockResolvedValueOnce({ status: 'trusted', encryptionKey: 'bob-enc' });
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+
+    expect(await screen.findByText(/security key has changed/)).toBeInTheDocument();
+    expect(document.getElementById('dm-input')).toBeNull();
+    expect(fetchMessagesForUser).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Accept the new key' }));
+
+    await screen.findByText('No messages yet. Start the conversation!');
+    expect(acceptContactKeys).toHaveBeenCalledWith(1, chatUserFull);
+    expect(screen.getByRole('button', { name: 'Not verified' })).toBeInTheDocument();
+    expect(document.getElementById('dm-input')).not.toBeNull();
+  });
+});
+
