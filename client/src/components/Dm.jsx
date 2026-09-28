@@ -5,6 +5,7 @@ import { onNewDm, onDeleteDm, onEditDm } from '../utils/ws-client';
 import { LayoutContext } from './Layout';
 import { fetchMessagesForUser, sendMessageToUser, markMessagesRead } from '../services/dmService';
 import { encryptMessage, decryptMessage, deriveSharedKey, decryptMessagesBatch } from '../services/encryptionService';
+import { loadPrivateKey } from '../services/keyStore';
 import { ConfigContext } from '../App';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
@@ -222,8 +223,6 @@ export default function Dm({ user }) {
     console.log("fetch messages!")
     try {
       const data = await fetchMessagesForUser(id, { before: beforeId });
-      const privatePEM = localStorage.getItem('privateKey');
-      if (!privatePEM) throw new Error("No private key found for decryption.");
       const decryptedNewMessages = await decryptMessagesBatch(data, sharedKey)
       if (beforeId) {
         setMessages((prev) => [...decryptedNewMessages, ...prev]);
@@ -246,8 +245,6 @@ export default function Dm({ user }) {
     try {
       const newMessages = await fetchMessagesForUser(id, { before: oldest.id });
 
-      const privatePEM = localStorage.getItem('privateKey');
-      if (!privatePEM) throw new Error("No private key found for decryption.");
       if (!chatUser) throw new Error("Chat user not loaded for decryption.");
 
       const decryptedNewMessages = await decryptMessagesBatch(newMessages, sharedKey)
@@ -446,10 +443,10 @@ export default function Dm({ user }) {
 
       try {
         // derive the shared key
-        const privatePEM = localStorage.getItem('privateKey');
-        if (!privatePEM) throw new Error("No private key found.");
+        const privateKey = await loadPrivateKey();
+        if (!privateKey) throw new Error("No private key found.");
 
-        const key = await deriveSharedKey(privatePEM, chatUser.public_key);
+        const key = await deriveSharedKey(privateKey, chatUser.public_key);
         setSharedKey(key);
 
         // Fetch initial messages with the new key
@@ -492,9 +489,9 @@ export default function Dm({ user }) {
       }
 
       try {
-        const privatePEM = localStorage.getItem('privateKey');
-        if (!privatePEM) throw new Error("No private key found for decryption.");
-        const key = await deriveSharedKey(privatePEM, chatUser.public_key);
+        const privateKey = await loadPrivateKey();
+        if (!privateKey) throw new Error("No private key found for decryption.");
+        const key = await deriveSharedKey(privateKey, chatUser.public_key);
         setSharedKey(key);
         console.log("set shared key!", key);
       } catch (e) {

@@ -10,6 +10,7 @@ import notificationSound from '../assets/sounds/notification.mp3';
 import logoIcon from '../assets/images/logo.svg';
 import 'highlight.js/styles/atom-one-dark.css';
 import { decryptMessage, deriveSharedKey } from '../services/encryptionService';
+import { loadPrivateKey } from '../services/keyStore';
 
 export const LayoutContext = createContext();
 
@@ -122,7 +123,7 @@ export default function Layout({ user, onLogout }) {
 
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           
-          const sharedKey = await deriveSharedKey(localStorage.getItem('privateKey'), message.public_key);
+          const sharedKey = await deriveSharedKey(await loadPrivateKey(), message.public_key);
           const plaintext = await decryptMessage(message.content, sharedKey);
 
           const audio = new Audio(notificationSound);

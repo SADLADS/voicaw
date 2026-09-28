@@ -110,14 +110,22 @@ export async function decryptPrivateKey(encryptedB64, password) {
 }
 
 
-export async function deriveSharedKey(privatePEM, otherPublicPEM) {
-  const privateKey = await crypto.subtle.importKey(
+// Imports a PEM private key as a non-extractable CryptoKey usable only for ECDH derivation.
+export async function importPrivateKey(privatePEM) {
+  return crypto.subtle.importKey(
     "pkcs8",
     pemToArrayBuffer(privatePEM),
     { name: "ECDH", namedCurve: "P-256" },
     false,
     ["deriveKey"]
   );
+}
+
+// `myPrivateKey` may be a CryptoKey (from keyStore) or a PEM string.
+export async function deriveSharedKey(myPrivateKey, otherPublicPEM) {
+  const privateKey = typeof myPrivateKey === "string"
+    ? await importPrivateKey(myPrivateKey)
+    : myPrivateKey;
 
   const publicKey = await crypto.subtle.importKey(
     "spki",
@@ -180,7 +188,6 @@ export async function decryptMessagesBatch(messages, key) {
 
     try {
       plaintext = await decryptMessage(msg.content, key);
-      console.log(plaintext)
     } catch (e) {
       console.warn("Failed to decrypt message", msg.id, e);
     }

@@ -122,19 +122,6 @@ app.use(cors({
 }));
 
 
-function errorHandler(err, req, res, next) {
-  console.error('--- Unhandled Error ---');
-  console.error(`Route: ${req.method} ${req.originalUrl}`);
-  console.error(err.stack);
-
-  if (res.headersSent) {
-    return next(err);
-  }
-
-  res.status(500).json({ error: 'An internal server error occurred.' });
-}
-
-app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, (err) => {
@@ -153,8 +140,7 @@ const clients = new Map();
 let serverSetup;
 (async () => {
   await opaque.ready;
-  serverSetup = process.env.OPAQUE_SERVER_SETUP // || opaque.server.createSetup();
-  console.log("Server setup created:", serverSetup);
+  serverSetup = process.env.OPAQUE_SERVER_SETUP;
 })();
 
 
@@ -200,7 +186,6 @@ app.post('/api/initiatelogin', (req, res) => {
 // Final Login route
 app.post('/api/finaliselogin', (req, res) => {
   const { finishLoginRequest, clientSessionKey, userIdentifier } = req.body;
-  console.log("finishLoginRequest", finishLoginRequest, clientSessionKey, userIdentifier)
   if (!finishLoginRequest || !clientSessionKey || !userIdentifier) return res.status(400).json({ error: 'Missing data' });
   db.get('SELECT * FROM login_states WHERE username = ?', [userIdentifier], (err, user) => { // maybe do a join with users table to get key data?
     if (err) return res.status(500).json({ error: 'DB error' });
@@ -233,7 +218,6 @@ app.post('/api/finaliselogin', (req, res) => {
         if (!userKeyData) return res.status(404).json({ error: 'User not found' });
         const { private_key } = userKeyData;
         const token = generateToken({ id: userKeyData.id, username: userIdentifier });
-        console.log(userKeyData.id)
         const userId = userKeyData.id
         const vapidPubKey = process.env.VAPID_PUBLIC_KEY
         res.json({ token, id: userId, private_key, vapidPubKey, username: userIdentifier });
@@ -278,11 +262,10 @@ app.post('/api/finaliseregister', (req, res) => {
       }
 
       // Generate JWT
-      const user = { id: this.lastID, userIdentifier };
+      const user = { id: this.lastID, username: userIdentifier };
       const token = generateToken(user);
-      console.log("token", { token, id: user.id, username: user.userIdentifier })
       // Return token and user info
-      res.status(201).json({ token, id: user.id, username: user.userIdentifier });
+      res.status(201).json({ token, id: user.id, username: user.username });
     });
 });
 
@@ -747,6 +730,23 @@ app.get('/api/config', (req, res) => {
 
 
 
+// Must be registered after all routes: Express only routes errors to
+// error-handling middleware added later in the stack.
+function errorHandler(err, req, res, next) {
+  console.error('--- Unhandled Error ---');
+  console.error(`Route: ${req.method} ${req.originalUrl}`);
+  console.error(err.stack);
+
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  res.status(500).json({ error: 'An internal server error occurred.' });
+}
+
+app.use(errorHandler);
+
+
 // FUNCTIONS
 
 function getRecentDmsForUser(loggedInUserId, callback) {
@@ -783,7 +783,6 @@ function generateToken(user) {
     id: user.id,
     username: user.username,
   };
-  console.log("Generating token for user:", payload);
   // Token expires in 1 day
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
 }

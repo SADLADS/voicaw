@@ -13,6 +13,7 @@ import './assets/css/mobile.css';
 import './assets/css/desktop.css';
 
 import { closeWebSocket } from './utils/ws-client';
+import { clearPrivateKey } from './services/keyStore';
 
 export const ConfigContext = createContext({ 
   s3Endpoint: '',
@@ -120,12 +121,12 @@ export default function App() {
   async function handleLogout() {
     try {
       localStorage.removeItem('token');
-      localStorage.removeItem('privateKey');
-      closeWebSocket();
-      setUser(null);
+      await clearPrivateKey();
     } catch (err) {
-      console.error('Logout failed', err);
+      console.error('Failed to clear stored keys on logout', err);
     }
+    closeWebSocket();
+    setUser(null);
   }
 
   const Router = isElectron() ? HashRouter : BrowserRouter;
