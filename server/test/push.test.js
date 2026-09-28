@@ -169,8 +169,26 @@ describe('push notifications', () => {
 
     const before = sentPushes.length;
     const res = await request(app).post('/api/test-push').set(authed(bob.token));
-    expect(res.body).toEqual({ sent: 2 });
+    expect(res.body).toEqual({ devices: 2, delivered: 2 });
     const pushes = sentPushes.slice(before);
     expect(pushes.map((p) => p.payload.type)).toEqual(['test', 'test']);
+  });
+
+  it('reports devices it could not deliver the test to', async () => {
+    const bob = await makeAuthedUser('push-bob10');
+    await subscribe(bob, 'https://push.test/bob-10-ok');
+    await subscribe(bob, 'https://push.test/bob-10-broken');
+    pushFailures['https://push.test/bob-10-broken'] = 403;
+
+    const res = await request(app).post('/api/test-push').set(authed(bob.token));
+    delete pushFailures['https://push.test/bob-10-broken'];
+
+    expect(res.body).toEqual({ devices: 2, delivered: 1 });
+  });
+
+  it('reports when the user has no devices set up', async () => {
+    const bob = await makeAuthedUser('push-bob11');
+    const res = await request(app).post('/api/test-push').set(authed(bob.token));
+    expect(res.body).toEqual({ devices: 0, delivered: 0 });
   });
 });

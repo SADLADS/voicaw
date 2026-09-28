@@ -377,14 +377,14 @@ app.post('/api/update-subscription', (req, res) => {
 
 // Lets a user check notifications work on their devices.
 app.post('/api/test-push', authenticateJWT, async (req, res) => {
-  const sent = await sendPushToUser(req.user.id, {
+  const result = await sendPushToUser(req.user.id, {
     type: 'test',
     title: 'Voicaw',
     body: 'Notifications are working.',
     url: '/settings',
     tag: 'test',
   });
-  res.json({ sent });
+  res.json(result);
 });
 
 
@@ -882,11 +882,11 @@ function buildDmPushPayload(message, imageUrl) {
 }
 
 // Sends a web push to every device the user has subscribed; forgets devices whose
-// subscription is gone. Resolves to the number of devices it was delivered to.
+// subscription is gone. Resolves to { devices, delivered }.
 function sendPushToUser(userId, payload, options = {}) {
   return new Promise((resolve) => {
     db.all('SELECT id, subscription FROM push_subscriptions WHERE user_id = ?', [userId], async (err, rows) => {
-      if (err || !rows || rows.length === 0) return resolve(0);
+      if (err || !rows || rows.length === 0) return resolve({ devices: 0, delivered: 0 });
 
       const body = JSON.stringify(payload);
       const results = await Promise.all(rows.map(async (row) => {
@@ -897,12 +897,12 @@ function sendPushToUser(userId, payload, options = {}) {
           if (error.statusCode === 404 || error.statusCode === 410) {
             db.run('DELETE FROM push_subscriptions WHERE id = ?', [row.id]);
           } else {
-            console.error('Push notification failed:', error.statusCode || error.message);
+            console.error('Push notification failed:', error.statusCode || error.message, error.body || '');
           }
           return false;
         }
       }));
-      resolve(results.filter(Boolean).length);
+      resolve({ devices: rows.length, delivered: results.filter(Boolean).length });
     });
   });
 }

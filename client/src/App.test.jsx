@@ -45,11 +45,21 @@ vi.mock('./components/Settings.jsx', () => ({
   ),
 }));
 
-vi.mock('./components/Dm.jsx', () => ({
-  default: ({ user }) => <div data-testid="dm-page">DM for {user?.username}</div>,
-}));
+vi.mock('./components/Dm.jsx', async () => {
+  const { useContext } = await import('react');
+  return {
+    // Shows the ConfigContext it receives (set once App is imported, below).
+    default: ({ user }) => {
+      const config = useContext(globalThis.__appConfigContext);
+      return (
+        <div data-testid="dm-page" data-vapid={config?.vapidPublicKey ?? ''}>DM for {user?.username}</div>
+      );
+    },
+  };
+});
 
-import App from './App';
+import App, { ConfigContext } from './App';
+globalThis.__appConfigContext = ConfigContext;
 import { useAuth } from './AuthProvider.jsx';
 import api from './utils/api';
 import { closeWebSocket } from './utils/ws-client';
@@ -135,3 +145,18 @@ describe('App routing', () => {
     expect(clearPrivateKey).toHaveBeenCalled();
   });
 });
+
+describe('App config', () => {
+  it('passes everything from /api/config (including the VAPID key) to the app', async () => {
+    api.get.mockResolvedValue({
+      data: { s3Endpoint: 'https://s3.test', maxPlaintextLength: 5000, vapidPublicKey: 'VAPID-KEY' },
+    });
+    useAuth.mockReturnValue({ user: { id: 1, username: 'alice' }, setUser: vi.fn(), loading: false });
+    setPath('/dm');
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByTestId('dm-page')).toHaveAttribute('data-vapid', 'VAPID-KEY'));
+  });
+});
+

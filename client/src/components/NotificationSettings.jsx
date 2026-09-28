@@ -3,6 +3,7 @@ import { ConfigContext } from '../App';
 import {
   disableNotificationsOnThisDevice,
   enableNotifications,
+  ensureSubscription,
   getPushStatus,
   sendTestNotification,
 } from '../services/pushService';
@@ -23,10 +24,26 @@ export default function NotificationSettings() {
   const [previews, setPreviews] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
+  // Browser permission alone doesn't mean this device is registered with the server for
+  // this account, so when notifications look "on", make sure (and show it if that fails).
+  const [registrationError, setRegistrationError] = useState(null);
 
   useEffect(() => {
     getSetting('notificationPreviews').then(setPreviews);
   }, []);
+
+  useEffect(() => {
+    if (status !== 'granted' || !vapidPublicKey) return;
+    let cancelled = false;
+    ensureSubscription(vapidPublicKey).then(
+      () => { if (!cancelled) setRegistrationError(null); },
+      (err) => {
+        console.error('Could not register this device for notifications:', err);
+        if (!cancelled) setRegistrationError(err.message || String(err));
+      }
+    );
+    return () => { cancelled = true; };
+  }, [status, vapidPublicKey]);
 
   const run = async (fn) => {
     setBusy(true);
@@ -43,13 +60,17 @@ export default function NotificationSettings() {
   };
 
   // enableNotifications must be the first thing awaited in the click (iOS gesture rule).
-  const turnOn = () => run(() => enableNotifications(vapidPublicKey));
+  const turnOn = () => run(async () => {
+    await enableNotifications(vapidPublicKey);
+    setRegistrationError(null);
+  });
   const turnOff = () => run(() => disableNotificationsOnThisDevice({ remember: true }));
   const test = () => run(async () => {
-    const sent = await sendTestNotification();
-    setMessage(sent > 0
-      ? `Sent to ${sent} device${sent === 1 ? '' : 's'}.`
-      : 'No devices are set up for notifications yet.');
+    const { devices, delivered } = await sendTestNotification();
+    const plural = (n) => `${n} device${n === 1 ? '' : 's'}`;
+    if (devices === 0) setMessage('No devices are set up for notifications on this account yet.');
+    else if (delivered === devices) setMessage(`Sent to ${plural(devices)}.`);
+    else setMessage(`Sent to ${delivered} of ${plural(devices)}; the rest couldn't be reached.`);
   });
   const togglePreviews = async (e) => {
     const value = e.target.checked;
@@ -60,12 +81,21 @@ export default function NotificationSettings() {
   return (
     <div className="settings-card">
       <h5>Notifications</h5>
-      <p className="notification-settings-status">{STATUS_TEXT[status]}</p>
+      <p className="notification-settings-status">
+        {status === 'granted' && registrationError
+          ? `Notifications are allowed, but this device couldn't be registered: ${registrationError}`
+          : STATUS_TEXT[status]}
+      </p>
 
       <div className="notification-settings-actions">
         {(status === 'can-enable' || status === 'off') && (
           <button type="button" className="uploadbutton btn" onClick={turnOn} disabled={busy}>
             Turn on
+          </button>
+        )}
+        {status === 'granted' && registrationError && (
+          <button type="button" className="uploadbutton btn" onClick={turnOn} disabled={busy}>
+            Try again
           </button>
         )}
         {status === 'granted' && (

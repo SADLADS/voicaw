@@ -107,7 +107,8 @@ export async function disableNotificationsOnThisDevice({ remember = false } = {}
   }
 }
 
+// Resolves to { devices, delivered } for the current account.
 export async function sendTestNotification() {
   const { data } = await api.post('/test-push');
-  return data.sent;
+  return data;
 }

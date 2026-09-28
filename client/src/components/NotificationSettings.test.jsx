@@ -6,7 +6,8 @@ vi.mock('../services/pushService', () => ({
   getPushStatus: vi.fn(),
   enableNotifications: vi.fn(async () => 'granted'),
   disableNotificationsOnThisDevice: vi.fn(async () => {}),
-  sendTestNotification: vi.fn(async () => 2),
+  sendTestNotification: vi.fn(async () => ({ devices: 2, delivered: 2 })),
+  ensureSubscription: vi.fn(async () => {}),
 }));
 vi.mock('../services/settingsStore', () => ({
   getSetting: vi.fn(async () => true),
@@ -17,6 +18,7 @@ import NotificationSettings from './NotificationSettings';
 import { ConfigContext } from '../App';
 import {
   getPushStatus, enableNotifications, disableNotificationsOnThisDevice, sendTestNotification,
+  ensureSubscription,
 } from '../services/pushService';
 import { setSetting } from '../services/settingsStore';
 
@@ -81,5 +83,37 @@ describe('NotificationSettings', () => {
     getPushStatus.mockReturnValue('needs-install');
     renderSettings();
     expect(screen.getByText(/Add to Home Screen/)).toBeInTheDocument();
+  });
+
+  it('makes sure this device is registered when notifications look on', async () => {
+    getPushStatus.mockReturnValue('granted');
+    renderSettings();
+
+    await waitFor(() => expect(ensureSubscription).toHaveBeenCalledWith('VAPID-KEY'));
+    expect(screen.getByText('Notifications are on for this device.')).toBeInTheDocument();
+  });
+
+  it('shows why this device could not be registered and offers to try again', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    getPushStatus.mockReturnValue('granted');
+    ensureSubscription.mockRejectedValueOnce(new Error('Service worker is not available'));
+    renderSettings();
+
+    expect(await screen.findByText(/couldn't be registered: Service worker is not available/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(enableNotifications).toHaveBeenCalledWith('VAPID-KEY');
+    await waitFor(() => expect(screen.getByText('Notifications are on for this device.')).toBeInTheDocument());
+  });
+
+  it('distinguishes no devices from devices that could not be reached', async () => {
+    getPushStatus.mockReturnValue('granted');
+    sendTestNotification.mockResolvedValueOnce({ devices: 0, delivered: 0 });
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'Send test notification' }));
+    expect(await screen.findByText(/No devices are set up/)).toBeInTheDocument();
+
+    sendTestNotification.mockResolvedValueOnce({ devices: 3, delivered: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Send test notification' }));
+    expect(await screen.findByText("Sent to 1 of 3 devices; the rest couldn't be reached.")).toBeInTheDocument();
   });
 });

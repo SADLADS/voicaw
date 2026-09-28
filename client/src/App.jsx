@@ -72,10 +72,8 @@ export default function App() {
     async function fetchConfig() {
       try {
         const res = await api.get('/config');
-        setConfig({ 
-          s3Endpoint: res.data.s3Endpoint,
-          maxPlaintextLength: res.data.maxPlaintextLength,
-        });
+        // Everything the server exposes (s3Endpoint, maxPlaintextLength, vapidPublicKey, ...).
+        setConfig(res.data);
       } catch (err) {
         console.error('Failed to fetch config', err);
       }
