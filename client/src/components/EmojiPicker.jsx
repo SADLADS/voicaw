@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { frequentEmojiIds, getSkinTone, recordEmojiUse, setSkinTone, skinFor } from '../emoji/emojiUsage';
+import { useVisualViewport } from '../utils/useVisualViewport';
 
 const TONE_SAMPLE = 'raised_hand';
 
@@ -27,9 +28,10 @@ function EmojiButton({ emoji, tone, onPick, onHover }) {
 // extra sections. `autoFocus` focuses the search box on open.
 //
 // `docked` (mobile): the picker takes the on-screen keyboard's place, `height` tall, instead
-// of floating over the chat. It has no search box there, because typing would open the
-// keyboard on top of it (searching works by typing ":name" in the message box instead), and
-// no hover preview (touch screens don't hover).
+// of floating over the chat, and has no hover preview (touch screens don't hover). Its
+// search box isn't focused on open (that would summon the keyboard); tapping it does, and the
+// picker then goes full screen above the keyboard for searching. Picking or going back
+// returns to the docked panel and dismisses the keyboard.
 export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docked = false, height }) {
   const index = useEmojiIndex();
   const [query, setQuery] = useState('');
@@ -39,6 +41,9 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
   const rootRef = useRef(null);
   const scrollRef = useRef(null);
   const searchRef = useRef(null);
+  // Docked only: full-screen search mode (keyboard open).
+  const [searching, setSearching] = useState(false);
+  const visible = useVisualViewport(docked && searching);
 
   // Close on outside click or Escape.
   useEffect(() => {
@@ -71,11 +76,30 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
 
   const results = useMemo(() => (index && query.trim() ? index.search(query, 120) : null), [index, query]);
 
+  const stopSearching = () => {
+    setSearching(false);
+    setQuery('');
+    searchRef.current?.blur(); // dismisses the keyboard
+  };
+
   const pick = (emoji, skin, event) => {
     recordEmojiUse(emoji.id);
     onSelect(skin.native);
-    // Docked (mobile) it stays open like a keyboard; floating, shift+click keeps it open.
-    if (!docked && !event?.shiftKey) onClose();
+    // Docked (mobile) it stays open like a keyboard (leaving search mode); floating,
+    // shift+click keeps it open.
+    if (docked) {
+      if (searching) stopSearching();
+    } else if (!event?.shiftKey) {
+      onClose();
+    }
+  };
+
+  const onSearchKeyDown = (e) => {
+    // Enter (the keyboard's search key on mobile) picks the top result.
+    if (e.key === 'Enter' && results?.length) {
+      e.preventDefault();
+      pick(results[0], skinFor(results[0], tone), e);
+    }
   };
 
   const chooseTone = (value) => {
@@ -97,27 +121,37 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
 
   return (
     <div
-      className={`emoji-picker${docked ? ' docked' : ''}`}
-      style={docked && height ? { height: `${height}px` } : undefined}
+      className={`emoji-picker${docked ? ' docked' : ''}${docked && searching ? ' searching' : ''}`}
+      style={
+        docked && searching
+          // Everything above the keyboard: picker plus keyboard fill the screen.
+          ? { top: `${visible.offsetTop}px`, height: `${visible.height}px` }
+          : docked && height ? { height: `${height}px` } : undefined
+      }
       ref={rootRef}
       role="dialog"
       aria-label="Emoji picker"
     >
       <div className="emoji-picker-header">
-        {docked ? (
-          <span className="emoji-picker-title">Emoji</span>
-        ) : (
-          <input
-            ref={searchRef}
-            className="emoji-picker-search"
-            type="search"
-            placeholder="Find the perfect emoji"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search emoji"
-          />
+        {docked && searching && (
+          <button type="button" className="emoji-picker-back" onClick={stopSearching} aria-label="Close search">
+            ←
+          </button>
         )}
-        {toneSample && (
+        <input
+          ref={searchRef}
+          className="emoji-picker-search"
+          type="search"
+          enterKeyHint="search"
+          placeholder="Find the perfect emoji"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={onSearchKeyDown}
+          // Docked: tapping the box opens the keyboard (a real tap, so iOS allows it) and goes full screen.
+          onFocus={docked ? () => setSearching(true) : undefined}
+          aria-label="Search emoji"
+        />
+        {toneSample && !(docked && searching) && (
           <div className="emoji-picker-tones">
             <button
               type="button"

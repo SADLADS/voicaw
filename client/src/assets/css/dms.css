@@ -1037,9 +1037,21 @@ img.emoji,
   box-shadow: none;
 }
 
-.emoji-picker-title {
-  flex: 1;
-  align-self: center;
-  font-weight: 600;
-  color: var(--vc-fg-muted);
+/* Mobile emoji search: the picker fills everything above the keyboard (top/height inline). */
+.emoji-picker.docked.searching {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  border-width: 0;
+}
+
+.emoji-picker-back {
+  border: none;
+  background: none;
+  color: var(--vc-fg);
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 6px;
+  cursor: pointer;
 }

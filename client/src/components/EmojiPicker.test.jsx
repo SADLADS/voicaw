@@ -91,4 +91,13 @@ describe('EmojiPicker', () => {
     fireEvent.mouseDown(screen.getByRole('button', { name: 'outside' }));
     expect(onClose).toHaveBeenCalledTimes(2);
   });
+
+  it('Enter in the search box picks the top result', () => {
+    const { onSelect } = renderPicker();
+    const search = screen.getByRole('searchbox', { name: 'Search emoji' });
+    fireEvent.change(search, { target: { value: 'pizza' } });
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(onSelect).toHaveBeenCalledWith('🍕');
+  });
 });
+

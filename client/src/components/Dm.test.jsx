@@ -599,7 +599,43 @@ describe('Dm emoji', () => {
       expect(panel.style.height).toBe('300px');
       expect(panel.closest('.dm-chat-wrapper')).toBeNull(); // below the composer, not over it
       expect(document.activeElement).not.toBe(textarea); // keyboard dismissed
-      expect(screen.queryByRole('searchbox')).not.toBeInTheDocument(); // would open the keyboard
+      // Searchable, but not focused on open (that would summon the keyboard).
+      expect(document.activeElement).not.toBe(screen.getByRole('searchbox', { name: 'Search emoji' }));
+    });
+
+    it('goes full screen above the keyboard to search, and back to the panel after picking', async () => {
+      const textarea = await openMobileChat();
+      fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+      const panel = screen.getByRole('dialog', { name: 'Emoji picker' });
+      const search = screen.getByRole('searchbox', { name: 'Search emoji' });
+
+      act(() => search.focus()); // a tap on the search box (keyboard opens)
+      expect(panel).toHaveClass('searching');
+      expect(panel.style.height).toBe(`${window.visualViewport?.height ?? window.innerHeight}px`);
+      expect(screen.getByRole('button', { name: 'Close search' })).toBeInTheDocument();
+
+      fireEvent.change(search, { target: { value: 'pizza' } });
+      fireEvent.keyDown(search, { key: 'Enter' });
+
+      expect(textarea.value).toBe('🍕');
+      expect(panel).not.toHaveClass('searching');
+      expect(search.value).toBe('');
+      expect(document.activeElement).not.toBe(search); // keyboard dismissed
+      expect(screen.getByRole('dialog', { name: 'Emoji picker' })).toBeInTheDocument(); // panel still open
+    });
+
+    it('leaves search with the back button', async () => {
+      await openMobileChat();
+      fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+      const search = screen.getByRole('searchbox', { name: 'Search emoji' });
+      act(() => search.focus());
+      fireEvent.change(search, { target: { value: 'cat' } });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close search' }));
+
+      expect(screen.getByRole('dialog', { name: 'Emoji picker' })).not.toHaveClass('searching');
+      expect(search.value).toBe('');
+      expect(document.activeElement).not.toBe(search);
     });
 
     it('inserts picked emoji without focusing anything (no keyboard)', async () => {
