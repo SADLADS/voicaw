@@ -31,12 +31,9 @@ export default function Dm({ user }) {
   const { isMobile } = useContext(InteractionContext);
 
 
-  const INITIAL_INDEX = 100000;
-  // Older history is fetched in pages this size as you scroll up. Bigger pages mean fewer
-  // prepends (each one makes Virtuoso re-measure and shift the list).
+  // Older history is fetched in pages this size as you scroll up.
   const PAGE_SIZE = 50;
 
-  const [firstItemIndex, setFirstItemIndex] = useState(INITIAL_INDEX);
 
   const { unreadDms, users, errorUsers, fetchUnreadMessages } = useContext(LayoutContext);
   const { id } = useParams();
@@ -335,7 +332,7 @@ export default function Dm({ user }) {
 
 
   const loadMoreMessages = async () => {
-    // Virtuoso can ask again before the previous page has arrived.
+    // The list can ask again (every scroll event near the top) before this page arrives.
     if (loadingOlder.current || !sharedKey) return;
     const oldest = messagesRef.current[0];
     if (!oldest) return;
@@ -347,14 +344,11 @@ export default function Dm({ user }) {
       const decrypted = await decryptMessagesBatch(page, sharedKey);
       if (activeChatId.current !== chatId) return;
 
-      // firstItemIndex must shift by exactly the number of items prepended, or Virtuoso
-      // loses its place and the list jumps.
+      // Skip anything already shown (e.g. overlapping pages), which would otherwise
+      // render twice under the same key.
       const known = new Set(messagesRef.current.map((m) => m.id));
       const fresh = decrypted.filter((m) => !known.has(m.id));
-      if (fresh.length > 0) {
-        setMessages((prev) => [...fresh, ...prev]);
-        setFirstItemIndex((prev) => prev - fresh.length);
-      }
+      if (fresh.length > 0) setMessages((prev) => [...fresh, ...prev]);
       setHasMore(page.length > 0);
     } catch (e) {
       // Keep the conversation on screen; scrolling back to the top retries.
@@ -511,13 +505,12 @@ export default function Dm({ user }) {
 
 
   // Load a conversation: derive the shared key, then fetch the newest page. This is the
-  // only place history is (re)loaded; anything else replacing `messages` would desync
-  // Virtuoso's firstItemIndex and make the list jump.
+  // only place history is (re)loaded; older pages are only ever prepended by
+  // loadMoreMessages.
   useEffect(() => {
     activeChatId.current = id;
     loadingOlder.current = false;
     setMessages([]);
-    setFirstItemIndex(INITIAL_INDEX);
     setHasMore(true);
     setErrorMessages(null);
     setSharedKey(null);
@@ -696,7 +689,6 @@ export default function Dm({ user }) {
                 user={user}
                 hasMore={hasMore}
                 loadMoreMessages={loadMoreMessages}
-                firstItemIndex={firstItemIndex}
                 s3Endpoint={s3Endpoint}
                 hoveredMsgId={hoveredMsgId}
                 setHoveredMsgId={setHoveredMsgId}

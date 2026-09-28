@@ -625,3 +625,16 @@ small {
   color: var(--vc-fg-muted);
   font-style: italic;
 }
+
+/* MESSAGE LIST */
+
+.message-scroller {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Browser scroll anchoring keeps the visible messages still when content above changes. */
+  overflow-anchor: auto;
+  /* Rows' offsetTop is measured relative to this (manual anchoring). */
+  position: relative;
+}

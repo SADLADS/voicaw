@@ -153,16 +153,24 @@ cached in `services/attachmentCache.js`; images/videos inline, anything else a d
 plain URLs (legacy unencrypted uploads, external images) as `<img>`. Because placeholders are
 shorter than final URLs, the send-time length check uses same-length stand-in URLs.
 
-### DM history loading (Virtuoso)
+### DM message list and history loading
 
-`MessageList` uses react-virtuoso with `firstItemIndex` for prepending older pages. To avoid the
-list jumping: `Dm.jsx` loads a conversation in exactly one effect (keyed on `id` + the other user's
-public key, ignoring late responses after a chat switch); older pages (`PAGE_SIZE`, sent as `limit`,
-server clamps 1–100, default 10) are only prepended by `loadMoreMessages`, which guards against
-overlapping loads, drops ids already present and shifts `firstItemIndex` by exactly the number
-prepended. Never replace `messages` wholesale outside that effect. Rows are keyed by
-`clientKey ?? id` (`clientKey` carries a sent message's temp id), and react-markdown's `components`
-must be a stable object, or attachments remount on every render.
+`MessageList` is deliberately **not virtualized**: every loaded message is rendered in a plain
+scroll container. Virtualized lists (react-virtuoso was used before) must guess the height of
+rows they haven't rendered and correct afterwards, which showed as the chat jumping while
+scrolling up. Measured in headless Chrome, the plain list has no such jumps. The browser's CSS
+scroll anchoring (`overflow-anchor`) keeps visible messages still when older pages are prepended
+or content above resizes. Where that's unsupported (Safari), `MessageList` does the same manually
+by tracking the first visible row's `offsetTop` (layout effect + ResizeObserver, both before paint).
+It also keeps the view pinned to the bottom while the user is there.
+
+`Dm.jsx` loads a conversation in exactly one effect (keyed on `id` + the other user's public key,
+ignoring late responses after a chat switch). Older pages (`PAGE_SIZE`, sent as `limit`, server
+clamps 1–100, default 10) are only ever prepended by `loadMoreMessages`, which guards against
+overlapping loads and drops ids already present. Rows are keyed by `clientKey ?? id`
+(`clientKey` carries a sent message's temp id). react-markdown's `components` must be a stable
+object, or attachments remount on every render. Image/video attachments carry their dimensions so
+their box is reserved before they load.
 
 ### Client structure
 

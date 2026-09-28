@@ -52,11 +52,11 @@ vi.mock('../services/keyStore', () => ({
   loadPrivateKey: vi.fn(async () => 'fake-private-key'),
 }));
 
-// Dm renders real Virtuoso-backed MessageList; stub it so these tests exercise
+// Stub MessageList (its scrolling/layout needs a real browser) so these tests exercise
 // Dm's own state machine (fetch/send/receive) rather than virtualization.
 vi.mock('./MessageList', () => ({
-  default: ({ messages, loadMoreMessages, hasMore, firstItemIndex }) => (
-    <div data-testid="message-list" data-first-item-index={firstItemIndex} data-has-more={String(hasMore)}>
+  default: ({ messages, loadMoreMessages, hasMore }) => (
+    <div data-testid="message-list" data-has-more={String(hasMore)}>
       <button data-testid="load-older" onClick={() => loadMoreMessages()} />
       {messages.map((m) => (
         <div key={m.clientKey ?? m.id}>{m.plaintext} [{m.status || 'sent'}]</div>
@@ -348,19 +348,20 @@ describe('Dm history loading', () => {
     expect(fetchMessagesForUser).toHaveBeenCalledWith('2', { limit: 50 });
   });
 
-  it('prepends older messages and shifts firstItemIndex by exactly the number added', async () => {
+  const shownIds = () =>
+    [...screen.getByTestId('message-list').querySelectorAll('div')].map((d) => d.textContent.match(/ENC(\d+)/)?.[1]).filter(Boolean).map(Number);
+
+  it('prepends older messages above the ones already shown', async () => {
     fetchMessagesForUser.mockResolvedValueOnce(page(100, 3));
     renderDm({ path: '/dm/2', users: [chatUserFull] });
     await screen.findByText('dec:ENC100 [sent]');
-    const list = screen.getByTestId('message-list');
-    const before = Number(list.dataset.firstItemIndex);
 
     fetchMessagesForUser.mockResolvedValueOnce(page(97, 3));
     fireEvent.click(screen.getByTestId('load-older'));
 
     expect(await screen.findByText('dec:ENC97 [sent]')).toBeInTheDocument();
     expect(fetchMessagesForUser).toHaveBeenLastCalledWith('2', { before: 100, limit: 50 });
-    expect(Number(screen.getByTestId('message-list').dataset.firstItemIndex)).toBe(before - 3);
+    expect(shownIds()).toEqual([97, 98, 99, 100, 101, 102]);
   });
 
   it('ignores load-older requests while one is already in flight', async () => {
@@ -379,19 +380,17 @@ describe('Dm history loading', () => {
     expect(screen.getAllByText('dec:ENC97 [sent]')).toHaveLength(1);
   });
 
-  it('drops messages it already has and only shifts firstItemIndex for new ones', async () => {
+  it('drops messages it already has when pages overlap', async () => {
     fetchMessagesForUser.mockResolvedValueOnce(page(100, 3));
     renderDm({ path: '/dm/2', users: [chatUserFull] });
     await screen.findByText('dec:ENC100 [sent]');
-    const before = Number(screen.getByTestId('message-list').dataset.firstItemIndex);
 
     // Overlapping page: 98, 99 are new; 100 is already shown.
     fetchMessagesForUser.mockResolvedValueOnce(page(98, 3));
     fireEvent.click(screen.getByTestId('load-older'));
 
     expect(await screen.findByText('dec:ENC98 [sent]')).toBeInTheDocument();
-    expect(screen.getAllByText('dec:ENC100 [sent]')).toHaveLength(1);
-    expect(Number(screen.getByTestId('message-list').dataset.firstItemIndex)).toBe(before - 2);
+    expect(shownIds()).toEqual([98, 99, 100, 101, 102]);
   });
 
   it('keeps the conversation on screen when loading older messages fails', async () => {

@@ -1,7 +1,8 @@
 import { decryptAttachment } from './attachmentCrypto';
 
 // Decrypted attachments, keyed by their full attachment URL, as Promise<objectURL>.
-// Virtuoso unmounts off-screen messages, so without this every scroll would re-download.
+// Rows remount when a chat is reopened or a message is edited/re-sent, so without this
+// they would download and decrypt the same files again.
 const cache = new Map();
 // The same entries once decrypted, readable synchronously so a remounted attachment can
 // render straight away instead of flashing its loading state.

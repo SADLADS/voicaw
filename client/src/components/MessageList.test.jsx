@@ -1,22 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-// react-virtuoso virtualizes based on measured DOM size, which jsdom can't provide.
-// Render itemContent directly for every row instead so we're testing MessageList's
-// own rendering logic rather than react-virtuoso's layout math.
-vi.mock('react-virtuoso', () => ({
-  Virtuoso: ({ data, itemContent, startReached, computeItemKey }) => (
-    <div data-testid="virtuoso-mock">
-      {startReached && (
-        <button data-testid="load-more-trigger" onClick={() => startReached(0)} />
-      )}
-      {data.map((item, index) => (
-        <div key={computeItemKey ? computeItemKey(index, item) : index}>{itemContent(index, item)}</div>
-      ))}
-    </div>
-  ),
-}));
 
 vi.mock('../services/attachmentCache', () => ({
   loadDecryptedAttachment: vi.fn(async () => 'blob:decrypted'),
@@ -173,20 +158,45 @@ describe('MessageList', () => {
     expect(setEditingMessageContent).toHaveBeenCalledWith('way t');
   });
 
-  it('calls loadMoreMessages when startReached fires and hasMore is true', () => {
-    const loadMoreMessages = vi.fn();
-    render(
-      <MessageList
-        {...baseProps({
-          messages: [{ id: 1, sender_id: 1, sender_username: 'alice', plaintext: 'hi', timestamp: 1000 }],
-          hasMore: true,
-          loadMoreMessages,
-        })}
-      />
-    );
+  describe('loading older messages', () => {
+    // jsdom has no layout: give the scroller a height so "near the top" means something
+    // (its scrollTop is always 0 there, i.e. at the very top).
+    let restore;
+    const withViewportHeight = (px) => {
+      const desc = Object.getOwnPropertyDescriptor(Element.prototype, 'clientHeight');
+      Object.defineProperty(Element.prototype, 'clientHeight', { configurable: true, get: () => px });
+      restore = () => Object.defineProperty(Element.prototype, 'clientHeight', desc);
+    };
+    afterEach(() => restore?.());
+    const one = [{ id: 1, sender_id: 1, sender_username: 'alice', plaintext: 'hi', timestamp: 1000 }];
 
-    fireEvent.click(screen.getByTestId('load-more-trigger'));
-    expect(loadMoreMessages).toHaveBeenCalled();
+    it('asks for older messages when the top of the list is near', () => {
+      withViewportHeight(500);
+      const loadMoreMessages = vi.fn();
+      render(<MessageList {...baseProps({ messages: one, hasMore: true, loadMoreMessages })} />);
+
+      expect(loadMoreMessages).toHaveBeenCalled();
+    });
+
+    it('asks again as the user scrolls', () => {
+      withViewportHeight(500);
+      const loadMoreMessages = vi.fn();
+      const { container } = render(<MessageList {...baseProps({ messages: one, hasMore: true, loadMoreMessages })} />);
+      loadMoreMessages.mockClear();
+
+      fireEvent.scroll(container.querySelector('.message-scroller'));
+
+      expect(loadMoreMessages).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops asking once there is no more history', () => {
+      withViewportHeight(500);
+      const loadMoreMessages = vi.fn();
+      const { container } = render(<MessageList {...baseProps({ messages: one, hasMore: false, loadMoreMessages })} />);
+      fireEvent.scroll(container.querySelector('.message-scroller'));
+
+      expect(loadMoreMessages).not.toHaveBeenCalled();
+    });
   });
 
   it('falls back to the default avatar when a profile pic fails to load', () => {

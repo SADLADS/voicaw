@@ -6,7 +6,7 @@ afterEach(() => {
   cleanup();
 });
 
-// react-virtuoso measures item sizes via ResizeObserver, which jsdom doesn't implement.
+// MessageList watches row sizes via ResizeObserver, which jsdom doesn't implement.
 if (typeof globalThis.ResizeObserver === 'undefined') {
   globalThis.ResizeObserver = class ResizeObserver {
     observe() {}

@@ -1,5 +1,4 @@
-import React, { createContext, useContext } from 'react';
-import { Virtuoso } from 'react-virtuoso';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef } from 'react';
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
@@ -57,13 +56,11 @@ function UrlPreview({ url }) {
   return null;
 }
 
-export default function MessageList({
-  messages,
+// One message (with its reply snippet, hover menu and inline editor).
+export function MessageRow({
+  msg,
   user,
-  hasMore,
-  loadMoreMessages,
   s3Endpoint,
-  firstItemIndex,
   hoveredMsgId,
   setHoveredMsgId,
   handleEdit,
@@ -78,185 +75,313 @@ export default function MessageList({
   editRef,
   maxPlaintextLength,
 }) {
+  const imgSrc = s3Endpoint
+    ? `${s3Endpoint}/profile-pics/${msg.sender_id}`
+    : defaultpfp;
+
+  const parent = msg.parent_message_id
+    ? {
+      id: msg.parent_message_id,
+      plaintext: msg.parent_plaintext,
+      sender_username: msg.parent_username,
+      sender_id: msg.parent_sender_id,
+    }
+    : null;
+
   return (
-    <Virtuoso
-      style={{ height: '100%', width: '100%' }}
-      data={messages}
-      firstItemIndex={firstItemIndex}
-      initialTopMostItemIndex={messages.length - 1}
-      startReached={hasMore ? loadMoreMessages : undefined}
-      itemContent={(index, msg) => {
-        const imgSrc = s3Endpoint
-          ? `${s3Endpoint}/profile-pics/${msg.sender_id}`
-          : defaultpfp;
-
-        const parent = msg.parent_message_id
-          ? {
-            id: msg.parent_message_id,
-            plaintext: msg.parent_plaintext,
-            sender_username: msg.parent_username,
-            sender_id: msg.parent_sender_id,
-          }
-          : null;
-
-        return (
-          <div
-            className={`each-dm-message-wrapper ${msg.sender_id === user.id ? 'sent' : 'received'}`}
-            data-msg-id={msg.id}
-            onMouseEnter={() => setHoveredMsgId(msg.id)}
-            onMouseLeave={() => setHoveredMsgId(null)}
+    <div
+      className={`each-dm-message-wrapper ${msg.sender_id === user.id ? 'sent' : 'received'}`}
+      data-msg-id={msg.id}
+      onMouseEnter={() => setHoveredMsgId(msg.id)}
+      onMouseLeave={() => setHoveredMsgId(null)}
+    >
+      {parent && (
+        <div className="reply-snippet">
+          <img
+            src={s3Endpoint ? `${s3Endpoint}/profile-pics/${parent.sender_id}` : defaultpfp}
+            alt={parent.sender_username}
+            className="reply-avatar"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = defaultpfp;
+            }}
+          />
+          <span className="reply-author">{parent.sender_username}</span>
+          <span
+            className="reply-preview"
+            onClick={() => {
+              const el = document.querySelector(
+                `[data-msg-id="${msg.parent_message_id}"]`
+              );
+              if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
           >
-            {parent && (
-              <div className="reply-snippet">
-                <img
-                  src={s3Endpoint ? `${s3Endpoint}/profile-pics/${parent.sender_id}` : defaultpfp}
-                  alt={parent.sender_username}
-                  className="reply-avatar"
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = defaultpfp;
+            {summarizeAttachments(parent.plaintext)?.slice(0, 80) || "…"}
+          </span>
+        </div>
+      )}
+
+      {hoveredMsgId === msg.id && (
+        <div className="message-menu">
+          {msg.sender_id === user.id && (
+            <button className="icon-button" onClick={() => handleEdit(msg)}>
+              <FontAwesomeIcon icon={faEdit} title="Edit" />
+            </button>
+          )}
+          <button className="icon-button" onClick={() => handleReply(msg)}>
+            <FontAwesomeIcon icon={faReply} title="Reply" />
+          </button>
+          {msg.sender_id === user.id && (
+            <button
+              className="icon-button trash-button"
+              onClick={() => handleDelete(msg)}
+            >
+              <FontAwesomeIcon icon={faTrash} title="Delete" />
+            </button>
+          )}
+        </div>
+      )}
+
+      <div
+        className={`
+          dm-message message
+          ${msg.sender_id === user.id ? 'sent' : 'received'}
+          ${msg.status === 'pending' ? 'pending' : ''}
+          ${msg.status === 'failed' ? 'failed' : ''}
+        `}
+      >
+        <img
+          src={imgSrc}
+          alt={msg.sender_username}
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = defaultpfp;
+          }}
+          style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            objectFit: 'cover',
+            flexShrink: 0,
+            display: 'inline',
+          }}
+        />
+        <strong> {msg.sender_username}</strong>{' '}
+
+        <small>
+          {new Date(msg.timestamp * 1000).toLocaleString()}
+          {msg.edited ? <em style={{ marginLeft: '6px' }}>edited</em> : null}
+        </small>
+
+        <div className="dm-message-content">
+          {editingMessageId === msg.id ? (
+            <div className="inline-edit-wrapper">
+              <form onSubmit={(e) => e.preventDefault()}>
+
+                <textarea
+                  id={`edit-input-${msg.id}`}
+                  value={editingMessageContent}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value.length <= maxPlaintextLength) {
+                      setEditingMessageContent(value);
+                    } else {
+                      setEditingMessageContent(value.slice(0, maxPlaintextLength));
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setEditingMessageId(null);
+                    if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSaveEdit(msg.id);
+                    }
+                  }}
+                  className="form-control auto-resize-textarea"
+                  rows={1}
+                  style={{ width: '100%' }}
+                  ref={(el) => {
+                    editRef.current = el;
+                    if (el) {
+                      el.style.height = 'auto';
+                      el.style.height = `${el.scrollHeight}px`;
+                      el.focus();
+                    }
                   }}
                 />
-                <span className="reply-author">{parent.sender_username}</span>
-                <span
-                  className="reply-preview"
-                  onClick={() => {
-                    const el = document.querySelector(
-                      `[data-msg-id="${msg.parent_message_id}"]`
-                    );
-                    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                  }}
-                >
-                  {summarizeAttachments(parent.plaintext)?.slice(0, 80) || "…"}
+              </form>
+
+              <div className="inline-edit-banner">
+                <span>
+                  Escape to <a href="#" onClick={(e) => { e.preventDefault(); setEditingMessageId(null); }}>cancel</a> • Enter to <a href="#" onClick={(e) => { e.preventDefault(); handleSaveEdit(msg.id); }}>save</a>
                 </span>
               </div>
-            )}
-
-            {hoveredMsgId === msg.id && (
-              <div className="message-menu">
-                {msg.sender_id === user.id && (
-                  <button className="icon-button" onClick={() => handleEdit(msg)}>
-                    <FontAwesomeIcon icon={faEdit} title="Edit" />
-                  </button>
-                )}
-                <button className="icon-button" onClick={() => handleReply(msg)}>
-                  <FontAwesomeIcon icon={faReply} title="Reply" />
-                </button>
-                {msg.sender_id === user.id && (
-                  <button
-                    className="icon-button trash-button"
-                    onClick={() => handleDelete(msg)}
-                  >
-                    <FontAwesomeIcon icon={faTrash} title="Delete" />
-                  </button>
-                )}
-              </div>
-            )}
-
-            <div
-              className={`
-                dm-message message
-                ${msg.sender_id === user.id ? 'sent' : 'received'}
-                ${msg.status === 'pending' ? 'pending' : ''}
-                ${msg.status === 'failed' ? 'failed' : ''}
-              `}
-            >
-              <img
-                src={imgSrc}
-                alt={msg.sender_username}
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = defaultpfp;
-                }}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  flexShrink: 0,
-                  display: 'inline',
-                }}
-              />
-              <strong> {msg.sender_username}</strong>{' '}
-
-              <small>
-                {new Date(msg.timestamp * 1000).toLocaleString()}
-                {msg.edited ? <em style={{ marginLeft: '6px' }}>edited</em> : null}
-              </small>
-
-              <div className="dm-message-content">
-                {editingMessageId === msg.id ? (
-                  <div className="inline-edit-wrapper">
-                    <form onSubmit={(e) => e.preventDefault()}>
-
-                      <textarea
-                        id={`edit-input-${msg.id}`}
-                        value={editingMessageContent}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value.length <= maxPlaintextLength) {
-                            setEditingMessageContent(value);
-                          } else {
-                            setEditingMessageContent(value.slice(0, maxPlaintextLength));
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') setEditingMessageId(null);
-                          if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSaveEdit(msg.id);
-                          }
-                        }}
-                        className="form-control auto-resize-textarea"
-                        rows={1}
-                        style={{ width: '100%' }}
-                        ref={(el) => {
-                          editRef.current = el;
-                          if (el) {
-                            el.style.height = 'auto';
-                            el.style.height = `${el.scrollHeight}px`;
-                            el.focus();
-                          }
-                        }}
-                      />
-                    </form>
-
-                    <div className="inline-edit-banner">
-                      <span>
-                        Escape to <a href="#" onClick={(e) => { e.preventDefault(); setEditingMessageId(null); }}>cancel</a> • Enter to <a href="#" onClick={(e) => { e.preventDefault(); handleSaveEdit(msg.id); }}>save</a>
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <LocalAttachmentsContext.Provider value={msg.localAttachments ?? null}>
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkEmoji]}
-                      rehypePlugins={[rehypeHighlight]}
-                      urlTransform={urlTransform}
-                      components={markdownComponents}
-                    >
-                      {msg.plaintext}
-                    </ReactMarkdown>
-                  </LocalAttachmentsContext.Provider>
-                )}
-
-
-                {extractUrls(msg.plaintext).map((url, idx) => (
-                  <UrlPreview key={idx} url={url} />
-                ))}
-              </div>
-
             </div>
+          ) : (
+            <LocalAttachmentsContext.Provider value={msg.localAttachments ?? null}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkEmoji]}
+                rehypePlugins={[rehypeHighlight]}
+                urlTransform={urlTransform}
+                components={markdownComponents}
+              >
+                {msg.plaintext}
+              </ReactMarkdown>
+            </LocalAttachmentsContext.Provider>
+          )}
+
+
+          {extractUrls(msg.plaintext).map((url, idx) => (
+            <UrlPreview key={idx} url={url} />
+          ))}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// How close to the top (in viewport heights) to start fetching older history, so it's
+// usually in place before the user gets there.
+const LOAD_OLDER_WITHIN_VIEWPORTS = 1.5;
+// Within this many px of the bottom counts as "at the bottom" (keep following new messages).
+const PINNED_TOLERANCE_PX = 4;
+
+const rowKey = (msg) => String(msg.clientKey ?? msg.id);
+
+// Chrome/Firefox keep the visible content still when things above it change size or are
+// inserted (CSS scroll anchoring). Safari doesn't, so there we do it ourselves.
+const NATIVE_SCROLL_ANCHORING =
+  typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('overflow-anchor', 'auto');
+
+// A plain (non-virtualized) scrolling list. Virtualized lists have to guess the height of
+// rows they haven't rendered and correct it afterwards, which shows as the content jumping
+// while scrolling up; with every row rendered, the browser always knows the real layout.
+export default function MessageList({
+  messages,
+  user,
+  hasMore,
+  loadMoreMessages,
+  s3Endpoint,
+  hoveredMsgId,
+  setHoveredMsgId,
+  handleEdit,
+  handleDelete,
+  handleReply,
+  editingMessageId,
+  editingMessageContent,
+  setEditingMessageContent,
+  setEditingMessageId,
+  handleSaveEdit,
+  isMobile,
+  editRef,
+  maxPlaintextLength,
+}) {
+  const scrollerRef = useRef(null);
+  const contentRef = useRef(null);
+  // Following the newest message (true until the user scrolls away from the bottom).
+  const pinnedToBottom = useRef(true);
+  // Manual anchoring only: the first visible row and its position within the content.
+  // Scrolling doesn't change that position; content changing above the row does, and that
+  // difference is exactly how far to scroll to keep the row still.
+  const anchor = useRef(null);
+
+  const latest = useRef({ hasMore, loadMoreMessages });
+  latest.current = { hasMore, loadMoreMessages };
+
+  const rowProps = {
+    user,
+    s3Endpoint,
+    hoveredMsgId,
+    setHoveredMsgId,
+    handleEdit,
+    handleDelete,
+    handleReply,
+    editingMessageId,
+    editingMessageContent,
+    setEditingMessageContent,
+    setEditingMessageId,
+    handleSaveEdit,
+    isMobile,
+    editRef,
+    maxPlaintextLength,
+  };
+
+  const rememberAnchor = useCallback(() => {
+    if (NATIVE_SCROLL_ANCHORING) return;
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    for (const row of contentRef.current.children) {
+      if (row.offsetTop + row.offsetHeight > scroller.scrollTop) {
+        anchor.current = { key: row.dataset.key, top: row.offsetTop };
+        return;
+      }
+    }
+    anchor.current = null;
+  }, []);
+
+  // Keep the view where it should be after the content changed: at the bottom if we're
+  // following new messages, otherwise (without native anchoring) with the anchor row still.
+  const keepAnchorInPlace = useCallback(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    if (pinnedToBottom.current) {
+      scroller.scrollTop = scroller.scrollHeight;
+      return;
+    }
+    if (NATIVE_SCROLL_ANCHORING) return;
+    const saved = anchor.current;
+    const row = saved && [...contentRef.current.children].find((el) => el.dataset.key === saved.key);
+    if (!row) return;
+    const drift = row.offsetTop - saved.top;
+    if (Math.abs(drift) >= 1) scroller.scrollTop += drift;
+  }, []);
+
+  const maybeLoadOlder = useCallback(() => {
+    const scroller = scrollerRef.current;
+    const { hasMore: more, loadMoreMessages: load } = latest.current;
+    if (!scroller || !more) return;
+    if (scroller.scrollTop < scroller.clientHeight * LOAD_OLDER_WITHIN_VIEWPORTS) load();
+  }, []);
+
+  const handleScroll = () => {
+    const scroller = scrollerRef.current;
+    pinnedToBottom.current =
+      scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <= PINNED_TOLERANCE_PX;
+    // Content may have shifted since the anchor was recorded (e.g. an image above loaded in
+    // the same frame as this scroll): correct that before recording the new position.
+    if (!pinnedToBottom.current) keepAnchorInPlace();
+    rememberAnchor();
+    maybeLoadOlder();
+  };
+
+  // After messages change (older page prepended, new message appended, …), before paint.
+  useLayoutEffect(() => {
+    keepAnchorInPlace();
+    rememberAnchor();
+    // Keep fetching until the viewport is filled or history runs out.
+    maybeLoadOlder();
+  }, [messages, hasMore, keepAnchorInPlace, rememberAnchor, maybeLoadOlder]);
+
+  // Rows changing size (images/videos loading, code highlighting, edits). ResizeObserver
+  // callbacks run after layout but before paint, so the correction is never seen.
+  useEffect(() => {
+    const observer = new ResizeObserver(() => {
+      keepAnchorInPlace();
+      rememberAnchor();
+    });
+    observer.observe(contentRef.current);
+    return () => observer.disconnect();
+  }, [keepAnchorInPlace, rememberAnchor]);
+
+  return (
+    <div className="message-scroller" ref={scrollerRef} onScroll={handleScroll}>
+      <div className="message-scroller-content" ref={contentRef}>
+        {messages.map((msg) => (
+          <div key={rowKey(msg)} data-key={rowKey(msg)}>
+            <MessageRow msg={msg} {...rowProps} />
           </div>
-        );
-      }}
-      // Key rows by message, not position: a deleted message must not shift every later
-      // row onto a different message. `clientKey` survives the temp id -> real id swap.
-      computeItemKey={(index, msg) => msg.clientKey ?? msg.id}
-      followOutput="auto"
-      // Render (and so measure) well above the viewport, so older messages have their real
-      // height before they scroll into view instead of being corrected on screen.
-      increaseViewportBy={{ top: 800, bottom: 300 }}
-    />
+        ))}
+      </div>
+    </div>
   );
 }
