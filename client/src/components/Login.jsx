@@ -46,49 +46,9 @@ export default function Login({ onLoginSuccess }) {
         await storePrivateKey(privatePEM);
         localStorage.setItem('token', response2.data.token); // Save JWT
 
-        try {
-          if ('serviceWorker' in navigator && 'PushManager' in window) {
-            console.log("Registering service worker...");
-            await navigator.serviceWorker.register('../service-worker.js');
-            const reg = await navigator.serviceWorker.ready;
-            console.log('Service worker ready:', reg);
-            const convertedKey = urlBase64ToUint8Array(response2.data.vapidPubKey);
-
-            const existingSub = await reg.pushManager.getSubscription();
-            if (existingSub) {
-              await existingSub.unsubscribe();
-            }
-            const subscription = await reg.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: convertedKey
-            });
-
-            console.log('Push subscription:', subscription);
-            await api.post('/save-subscription', { subscription });
-          }
-        } catch (pushError) {
-          console.warn('Push subscription failed (non-critical):', pushError);
-          // tell the user that it failed?
-        }
-
-        function urlBase64ToUint8Array(base64String) {
-          const padding = '='.repeat((4 - base64String.length % 4) % 4);
-          const base64 = (base64String + padding)
-            .replace(/\-/g, '+')
-            .replace(/_/g, '/');
-
-          const rawData = window.atob(base64);
-          const outputArray = new Uint8Array(rawData.length);
-
-          for (let i = 0; i < rawData.length; ++i) {
-            outputArray[i] = rawData.charCodeAt(i);
-          }
-          return outputArray;
-        }
-
-
-        console.log("connectWebSocket")
-        connectWebSocket(response2.data.userId);
+        // Push notifications are set up after login (Layout re-syncs the subscription;
+        // asking for permission needs a tap, see NotificationPrompt / Settings).
+        connectWebSocket();
         console.log("redirecting...")
         onLoginSuccess(response2.data); // Pass user info to parent
       } else {

@@ -3,6 +3,7 @@ import api from "../utils/api";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 import { InteractionContext } from "../App";
+import NotificationSettings from "./NotificationSettings";
 
 
 export default function Settings({ onLogout, user }) {
@@ -99,6 +100,7 @@ export default function Settings({ onLogout, user }) {
           <option value="auto">Auto</option>
         </select>
       </div>
+      <NotificationSettings />
       <div className="settings-card">
         <h5>Log Out</h5>
         <div className="mt-auto mb-4">

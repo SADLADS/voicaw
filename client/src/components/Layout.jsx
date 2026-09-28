@@ -1,4 +1,4 @@
-import { useEffect, useState, createContext } from 'react';
+import { useEffect, useState, createContext, useContext } from 'react';
 import { useLocation, Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import DmSidebar from './DmSidebar';
@@ -6,12 +6,9 @@ import SidebarWrapper from './SidebarWrapper';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';
-import notificationSound from '../assets/sounds/notification.mp3';
-import logoIcon from '../assets/images/logo.svg';
 import 'highlight.js/styles/atom-one-dark.css';
-import { decryptMessage, deriveSharedKey } from '../services/encryptionService';
-import { loadPrivateKey } from '../services/keyStore';
-import { summarizeAttachments } from '../utils/attachmentMarkup';
+import { ConfigContext } from '../App';
+import { ensureSubscription, getPushStatus } from '../services/pushService';
 
 export const LayoutContext = createContext();
 
@@ -25,16 +22,6 @@ export function scrollToRight() {
 }
 
 
-// ask the user for consent to show notifications
-export function requestNotificationPermission() {
-  if (typeof Notification !== 'undefined' && Notification.requestPermission) {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        console.log('Notifications enabled');
-      }
-    });
-  }
-}
 
 export default function Layout({ user, onLogout }) {
   const location = useLocation();
@@ -80,80 +67,35 @@ export default function Layout({ user, onLogout }) {
     }
   }
 
+  const { vapidPublicKey } = useContext(ConfigContext);
+
+  // Push subscriptions can change or expire, and permission may have been granted since
+  // the last visit, so re-sync this device's subscription with the server on every start.
+  // (Asking for permission needs a tap, so that's left to NotificationPrompt/Settings.)
   useEffect(() => {
-    if (user?.id) {
-      requestNotificationPermission();
-    }
-  }, [user?.id]);
+    if (!user?.id || !vapidPublicKey || getPushStatus() !== 'granted') return;
+    ensureSubscription(vapidPublicKey).catch((err) =>
+      console.warn('Could not refresh push subscription:', err)
+    );
+  }, [user?.id, vapidPublicKey]);
 
   useEffect(() => {
     fetchUnreadMessages();
   }, []);
 
-  useEffect(() => {
-    if (!navigator.serviceWorker) return;
-  
-    const listener = (event) => {
-      const data = event.data;
-      if (!data) return;
-  
-      if (data.action === 'navigate' && data.url) {
-        scrollToRight();
-        navigate(data.url);
-      }
-    };
-  
-    navigator.serviceWorker.addEventListener('message', listener);
-  
-    return () => {
-      navigator.serviceWorker.removeEventListener('message', listener);
-    };
-  }, []);
 
   useEffect(() => {
     if (user?.id) {
       connectWebSocket(user.id);
 
-      const unsubscribe = onNewDm(async (message) => {
+      // Notifications come from web push (service-worker.js); here just refresh the badge.
+      const unsubscribe = onNewDm(() => {
         fetchUnreadMessages();
-
-        const dmMatch = location.pathname.match(/^\/dm\/(\d+)/);
-        const currentDmId = dmMatch ? dmMatch[1] : null;
-
-        if (currentDmId && currentDmId === message.sender_id.toString() && document.hasFocus()) return;
-
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          
-          const sharedKey = await deriveSharedKey(await loadPrivateKey(), message.public_key);
-          const plaintext = await decryptMessage(message.content, sharedKey);
-
-          const audio = new Audio(notificationSound);
-          audio.play().catch(err => {
-            console.warn('Autoplay failed:', err);
-          });
-          const notif = new Notification(`${message.sender_username || 'User'}`, {
-            body: summarizeAttachments(plaintext),
-            icon: logoIcon,
-            silent: true
-          });
-          notif.onclick = async () => {
-            console.log("notif clicked!")
-            try {
-              window.focus();
-              await api.post(`/dm-mark-read/${message.sender_id}`);
-            } catch (err) {
-              console.error("Failed to mark DM as read:", err);
-            } finally {
-              scrollToRight();
-              navigate(`/dm/${message.sender_id}`);
-            }
-          };
-        }
       });
 
       return () => unsubscribe();
     }
-  }, [user?.id, location]);
+  }, [user?.id]);
 
   return (
     <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers }}>

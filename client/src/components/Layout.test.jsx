@@ -28,11 +28,18 @@ vi.mock('../services/encryptionService', () => ({
   deriveSharedKey: vi.fn(async () => 'shared-key'),
 }));
 
+vi.mock('../services/pushService', () => ({
+  getPushStatus: vi.fn(() => 'can-enable'),
+  ensureSubscription: vi.fn(async () => {}),
+}));
+
 vi.mock('../services/keyStore', () => ({
   loadPrivateKey: vi.fn(async () => 'fake-private-key'),
 }));
 
 import Layout, { LayoutContext } from './Layout';
+import { ConfigContext } from '../App';
+import { getPushStatus, ensureSubscription } from '../services/pushService';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';
 import { connectWebSocket } from '../utils/ws-client';
@@ -56,6 +63,7 @@ function LocationDisplay() {
 
 function renderLayout({ path, user = { id: 1, username: 'me' } } = {}) {
   return render(
+    <ConfigContext.Provider value={{ vapidPublicKey: 'VAPID-KEY' }}>
     <MemoryRouter initialEntries={[path]}>
       <LocationDisplay />
       <Routes>
@@ -65,6 +73,7 @@ function renderLayout({ path, user = { id: 1, username: 'me' } } = {}) {
         </Route>
       </Routes>
     </MemoryRouter>
+    </ConfigContext.Provider>
   );
 }
 
@@ -128,5 +137,24 @@ describe('Layout', () => {
     renderLayout({ path: '/settings', user: { id: 42, username: 'me' } });
 
     expect(connectWebSocket).toHaveBeenCalledWith(42);
+  });
+});
+
+describe('Layout push notifications', () => {
+  it('re-syncs this device\'s push subscription on start when notifications are allowed', async () => {
+    getPushStatus.mockReturnValue('granted');
+    renderLayout({ path: '/dm' });
+
+    await waitFor(() => expect(ensureSubscription).toHaveBeenCalledWith('VAPID-KEY'));
+  });
+
+  it('does not subscribe (or prompt) on start otherwise; that needs a tap', async () => {
+    for (const status of ['can-enable', 'off', 'denied', 'needs-install']) {
+      getPushStatus.mockReturnValue(status);
+      const { unmount } = renderLayout({ path: '/dm' });
+      await new Promise((r) => setTimeout(r, 10));
+      unmount();
+    }
+    expect(ensureSubscription).not.toHaveBeenCalled();
   });
 });

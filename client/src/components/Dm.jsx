@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import '../assets/css/dms.css';
-import { onNewDm, onDeleteDm, onEditDm } from '../utils/ws-client';
+import { onNewDm, onDeleteDm, onEditDm, setActiveChat } from '../utils/ws-client';
+import NotificationPrompt from './NotificationPrompt';
 import { LayoutContext } from './Layout';
 import { fetchMessagesForUser, sendMessageToUser, markMessagesRead } from '../services/dmService';
 import { encryptMessage, decryptMessage, deriveSharedKey, decryptMessagesBatch } from '../services/encryptionService';
@@ -480,6 +481,13 @@ export default function Dm({ user }) {
   // USEEFFECTS
 
 
+  // Tell the server which chat is on screen (no push notifications for it).
+  useEffect(() => {
+    setActiveChat(id ?? null);
+    return () => setActiveChat(null);
+  }, [id]);
+
+
   // Unsent attachments belong to the conversation they were added in.
   useEffect(() => {
     return () => {
@@ -669,6 +677,7 @@ export default function Dm({ user }) {
       data-current-user-id={user?.id}
       data-other-user-id={chatUser?.id}
     >
+      <NotificationPrompt />
       {errorUsers && <p className="error-text">Error loading users: {errorUsers}</p>}
       {users.length === 0 && !errorUsers && !id && <p>No recent conversations found.</p>}
 

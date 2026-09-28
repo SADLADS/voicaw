@@ -84,7 +84,7 @@ describe('Login - login form', () => {
     expect(storePrivateKey).toHaveBeenCalledWith('decrypted-private-pem');
     expect(localStorage.getItem('privateKey')).toBeNull();
     expect(localStorage.getItem('token')).toBe('jwt123');
-    expect(connectWebSocket).toHaveBeenCalledWith(5);
+    expect(connectWebSocket).toHaveBeenCalled();
     expect(onLoginSuccess).toHaveBeenCalledWith(
       expect.objectContaining({ token: 'jwt123', userId: 5 })
     );

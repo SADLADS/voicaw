@@ -115,9 +115,31 @@ and a pub/sub listener API (`onNewDm`, `onDeleteDm`, `onEditDm`, `onUserStatus`)
 every 3s on close. All non-realtime DM operations (fetch history, send, mark read) go through the
 plain REST API in `client/src/services/dmService.js` / `client/src/utils/api.js` instead.
 
-Web Push (`web-push` + VAPID) is a separate, independent notification channel from the WebSocket
-connection — subscriptions are stored per-user in `push_subscriptions` and triggered alongside
-`new_dm` socket events for offline delivery.
+### Push notifications (Web Push)
+
+Web push (`web-push` + VAPID) is the **only** source of OS notifications; the page itself never
+shows a `Notification`. Subscriptions live per device in `push_subscriptions` (an endpoint belongs to
+one user at a time).
+- Client (`services/pushService.js`): `getPushStatus()` covers each platform. On iOS/iPadOS, web push
+  only works from the Home Screen app. `enableNotifications()` must be called directly from a tap
+  (`requestPermission()` first, or iOS drops the gesture). It's used by `NotificationPrompt` (banner
+  in the DM view) and `NotificationSettings` (Settings). `Layout` re-syncs the subscription on every
+  start via `ensureSubscription()` when permission is granted and the user hasn't turned it off
+  (`localStorage.pushDisabled`). Logout calls `disableNotificationsOnThisDevice()` *before* the token
+  is cleared, so the server forgets the device.
+- Server: `sendPushToUser()` (drops 404/410 subscriptions). New DMs are pushed unless
+  `isViewingConversation()` says the recipient is looking at that chat. That uses `presence`
+  websocket messages (`{visible, chatId}`) that `ws-client` sends on focus/visibility/chat changes
+  and every 15s. The server ignores presence older than 35s.
+- Previews stay end-to-end encrypted. The DM push carries the ciphertext and the sender's public
+  key when it fits in a push (~4KB). `service-worker.js` → `services/pushNotifications.js` decrypts
+  it on the device with the private key from IndexedDB (`keyStore`). It falls back to "New message"
+  when the message is too big, previews are off (`settingsStore`, IndexedDB, readable by the SW), or
+  the device is logged out. Notifications are tagged per conversation.
+- `pushsubscriptionchange` posts to the unauthenticated `/api/update-subscription`, keyed by the
+  old endpoint. `/api/test-push` sends a test notification to all of the caller's devices.
+- The PWA manifest is `public/manifest.json` only (VitePWA `manifest: false`). The dev server also
+  serves the real service worker (`devOptions`), so push works on test.voicaw.com.
 
 ### Database
 

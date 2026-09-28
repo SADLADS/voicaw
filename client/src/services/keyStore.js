@@ -53,6 +53,8 @@ export async function loadPrivateKey() {
   }
 
   // Sessions from before this change still have the PEM in localStorage: move it over.
+  // (Not in the service worker, which has no localStorage.)
+  if (typeof localStorage === 'undefined') return null;
   const legacyPEM = localStorage.getItem(LEGACY_STORAGE_KEY);
   if (legacyPEM) {
     const key = await storePrivateKey(legacyPEM);

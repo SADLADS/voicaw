@@ -14,6 +14,7 @@ import './assets/css/desktop.css';
 
 import { closeWebSocket } from './utils/ws-client';
 import { clearPrivateKey } from './services/keyStore';
+import { disableNotificationsOnThisDevice } from './services/pushService';
 
 export const ConfigContext = createContext({ 
   s3Endpoint: '',
@@ -119,6 +120,13 @@ export default function App() {
   };
 
   async function handleLogout() {
+    // Before the token goes: the server must forget this device, or it would keep
+    // receiving this account's notifications after logout.
+    try {
+      await disableNotificationsOnThisDevice();
+    } catch (err) {
+      console.error('Failed to turn off notifications on logout', err);
+    }
     try {
       localStorage.removeItem('token');
       await clearPrivateKey();

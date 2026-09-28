@@ -638,3 +638,57 @@ small {
   /* Rows' offsetTop is measured relative to this (manual anchoring). */
   position: relative;
 }
+
+/* NOTIFICATIONS */
+
+.notification-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 12px;
+  background-color: var(--vc-bg-elevated);
+  border-bottom: 1px solid var(--vc-border-dark);
+  color: var(--vc-fg);
+  font-size: 14px;
+}
+
+.notification-prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.notification-prompt-enable {
+  border: none;
+  border-radius: 6px;
+  padding: 3px 12px;
+  background-color: var(--vc-accent);
+  color: var(--vc-fg);
+}
+
+.notification-prompt-enable:hover {
+  background-color: var(--vc-accent-hover);
+}
+
+.notification-settings-status {
+  color: var(--vc-fg-muted);
+  margin-bottom: 0.5rem;
+}
+
+.notification-settings-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.notification-settings-previews {
+  display: block;
+  margin-top: 0.75rem;
+}
+
+.notification-settings-message {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}

@@ -318,17 +318,73 @@ app.post('/api/save-subscription', authenticateJWT, (req, res) => {
 
   const subString = JSON.stringify(subObj);
 
-  db.run(`
-    INSERT INTO push_subscriptions (user_id, endpoint, subscription)
-    VALUES (?, ?, ?)
-    ON CONFLICT(user_id, endpoint) DO UPDATE SET subscription=excluded.subscription
-  `, [userId, endpoint, subString], (err) => {
+  db.serialize(() => {
+    // A device (endpoint) belongs to whoever is logged in on it now; otherwise it would
+    // keep receiving a previous account's notifications.
+    db.run('DELETE FROM push_subscriptions WHERE endpoint = ? AND user_id != ?', [endpoint, userId]);
+    db.run(`
+      INSERT INTO push_subscriptions (user_id, endpoint, subscription)
+      VALUES (?, ?, ?)
+      ON CONFLICT(user_id, endpoint) DO UPDATE SET subscription=excluded.subscription
+    `, [userId, endpoint, subString], (err) => {
+      if (err) {
+        console.error('Failed to save subscription:', err);
+        return res.status(500).json({ error: 'Failed to save subscription' });
+      }
+      res.json({ success: true });
+    });
+  });
+});
+
+
+// Stop sending this device notifications (logout, or notifications turned off).
+app.post('/api/delete-subscription', authenticateJWT, (req, res) => {
+  const { endpoint } = req.body || {};
+  if (!endpoint) return res.status(400).json({ error: 'Missing endpoint' });
+
+  db.run('DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?', [req.user.id, endpoint], (err) => {
     if (err) {
-      console.error('Failed to save subscription:', err);
-      return res.status(500).json({ error: 'Failed to save subscription' });
+      console.error('Failed to delete subscription:', err);
+      return res.status(500).json({ error: 'Failed to delete subscription' });
     }
     res.json({ success: true });
   });
+});
+
+
+// The push service replaced a subscription (service worker `pushsubscriptionchange`).
+// Unauthenticated because the service worker has no JWT; knowing the old endpoint (an
+// unguessable URL only the device and this server have) is what authorises the swap.
+app.post('/api/update-subscription', (req, res) => {
+  const { oldEndpoint, subscription } = req.body || {};
+  const newEndpoint = subscription?.endpoint;
+  if (!oldEndpoint || !newEndpoint) return res.status(400).json({ error: 'Missing endpoint' });
+
+  db.run(
+    'UPDATE push_subscriptions SET endpoint = ?, subscription = ? WHERE endpoint = ?',
+    [newEndpoint, JSON.stringify(subscription), oldEndpoint],
+    function (err) {
+      if (err) {
+        console.error('Failed to update subscription:', err);
+        return res.status(500).json({ error: 'Failed to update subscription' });
+      }
+      if (this.changes === 0) return res.status(404).json({ error: 'Unknown subscription' });
+      res.json({ success: true });
+    }
+  );
+});
+
+
+// Lets a user check notifications work on their devices.
+app.post('/api/test-push', authenticateJWT, async (req, res) => {
+  const sent = await sendPushToUser(req.user.id, {
+    type: 'test',
+    title: 'Voicaw',
+    body: 'Notifications are working.',
+    url: '/settings',
+    tag: 'test',
+  });
+  res.json({ sent });
 });
 
 
@@ -462,35 +518,15 @@ app.post('/api/dm-send', authenticateJWT, async (req, res) => {
             sendToUserSockets(message.recipient_id, { type: 'new_dm', message });
             sendToUserSockets(message.sender_id, { type: 'new_dm', message });
 
-            db.all('SELECT id, subscription FROM push_subscriptions WHERE user_id = ?', [recipient_id], async (err, rows) => {
-              if (err || !rows || rows.length === 0) return;
-              const imageUrl = await getUserImageUrl(req.user.id);
-              console.log(imageUrl)
-              rows.forEach(row => {
-                const subscription = JSON.parse(row.subscription);
-                const payload = JSON.stringify({
-                  title: req.user.username,
-                  body: `New encrypted message.`,
-                  url: `/dm/${req.user.id}`,
-                  image: imageUrl,
-                });
-                webpush.sendNotification(subscription, payload)
-                  .catch(error => {
-                    console.log('Push notification error status code:', error.statusCode)
-
-                    if (error.statusCode === 410) {
-                      // Subscription is no longer valid, delete it
-                      db.run('DELETE FROM push_subscriptions WHERE id = ?', [row.id], (delErr) => {
-                        if (delErr) {
-                          console.error('Failed to delete stale subscription:', delErr);
-                        } else {
-                          console.log('Deleted stale subscription with id:', row.id);
-                        }
-                      });
-                    }
-                  });
-              });
-            });
+            // Don't buzz someone about a conversation they're looking at right now.
+            if (!isViewingConversation(message.recipient_id, message.sender_id)) {
+              getUserImageUrl(message.sender_id).then((imageUrl) =>
+                sendPushToUser(message.recipient_id, buildDmPushPayload(message, imageUrl), {
+                  urgency: 'high',
+                  topic: `dm${message.sender_id}`,
+                })
+              );
+            }
 
             res.status(201).json(message);
           }
@@ -714,6 +750,7 @@ app.get('/api/config', (req, res) => {
   res.json({
     s3Endpoint: process.env.S3_ENDPOINT,
     maxPlaintextLength: max_plaintext_length,
+    vapidPublicKey: process.env.VAPID_PUBLIC_KEY,
   });
 });
 
@@ -803,6 +840,70 @@ function getMaxEncryptedLength(maxPlaintextLength) {
 }
 
 
+// A recipient is "viewing" a conversation if one of their sockets recently reported
+// (see the `presence` websocket message) that it's visible and showing that chat.
+// Presence has to be fresh: a phone that locks may not get to report going hidden.
+const PRESENCE_FRESH_MS = 35000;
+
+function isViewingConversation(userId, otherUserId) {
+  const sockets = clients.get(String(userId)) || [];
+  const now = Date.now();
+  return sockets.some((s) =>
+    s.readyState === WebSocket.OPEN &&
+    s.presence?.visible &&
+    s.presence.chatId === String(otherUserId) &&
+    now - s.presence.at < PRESENCE_FRESH_MS
+  );
+}
+
+// Web push payloads must stay under ~4KB, so the (end-to-end encrypted) message is only
+// included when it's small enough; the service worker decrypts it on the device for the
+// notification preview and falls back to a generic body otherwise.
+const MAX_PUSH_CIPHERTEXT_LENGTH = 2800;
+
+function buildDmPushPayload(message, imageUrl) {
+  const payload = {
+    type: 'dm',
+    title: message.sender_username,
+    url: `/dm/${message.sender_id}`,
+    tag: `dm-${message.sender_id}`,
+    image: imageUrl,
+    senderId: message.sender_id,
+    timestamp: message.timestamp,
+  };
+  if (message.content.length <= MAX_PUSH_CIPHERTEXT_LENGTH && message.public_key) {
+    payload.ciphertext = message.content;
+    payload.senderPublicKey = message.public_key;
+  }
+  return payload;
+}
+
+// Sends a web push to every device the user has subscribed; forgets devices whose
+// subscription is gone. Resolves to the number of devices it was delivered to.
+function sendPushToUser(userId, payload, options = {}) {
+  return new Promise((resolve) => {
+    db.all('SELECT id, subscription FROM push_subscriptions WHERE user_id = ?', [userId], async (err, rows) => {
+      if (err || !rows || rows.length === 0) return resolve(0);
+
+      const body = JSON.stringify(payload);
+      const results = await Promise.all(rows.map(async (row) => {
+        try {
+          await webpush.sendNotification(JSON.parse(row.subscription), body, { TTL: 24 * 60 * 60, ...options });
+          return true;
+        } catch (error) {
+          if (error.statusCode === 404 || error.statusCode === 410) {
+            db.run('DELETE FROM push_subscriptions WHERE id = ?', [row.id]);
+          } else {
+            console.error('Push notification failed:', error.statusCode || error.message);
+          }
+          return false;
+        }
+      }));
+      resolve(results.filter(Boolean).length);
+    });
+  });
+}
+
 // send a webhook to all clients of a given user
 function sendToUserSockets(userId, payload) {
   const sockets = clients.get(userId.toString()) || [];
@@ -828,6 +929,9 @@ function errorHandler(err, req, res, next) {
 }
 
 app.use(errorHandler);
+
+// Exposed so tests can simulate connected sockets.
+app.locals.clients = clients;
 
 module.exports = app;
 
@@ -890,6 +994,14 @@ if (require.main === module) {
             console.log(`User identified as ${user.id}`);
             broadcastUserStatus(user.id.toString(), 'online');
           });
+        } else if (data.type === 'presence' && ws.userId) {
+          // Whether this client is on screen and which conversation it shows; used to
+          // skip push notifications for a chat the user is already looking at.
+          ws.presence = {
+            visible: data.visible === true,
+            chatId: data.chatId != null ? String(data.chatId) : null,
+            at: Date.now(),
+          };
         }
       } catch (err) {
         console.error('Invalid message', err);

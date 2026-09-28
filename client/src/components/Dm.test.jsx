@@ -6,6 +6,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 const dmListeners = vi.hoisted(() => ({ newDm: [], deleteDm: [], editDm: [] }));
 
 vi.mock('../utils/ws-client', () => ({
+  setActiveChat: vi.fn(),
   onNewDm: (cb) => {
     dmListeners.newDm.push(cb);
     return () => { dmListeners.newDm = dmListeners.newDm.filter((x) => x !== cb); };

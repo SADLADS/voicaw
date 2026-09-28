@@ -6,6 +6,7 @@ import {
   onDeleteDm,
   onEditDm,
   onUserStatus,
+  setActiveChat,
 } from './ws-client';
 
 class MockWebSocket {
@@ -75,8 +76,9 @@ describe('connectWebSocket', () => {
     const socket = MockWebSocket.instances[0];
     socket._open();
 
-    expect(socket.sent).toHaveLength(1);
     expect(JSON.parse(socket.sent[0])).toEqual({ type: 'identify', token: 'jwt-abc' });
+    // followed by its presence (no chat open yet)
+    expect(JSON.parse(socket.sent[1])).toEqual({ type: 'presence', visible: true, chatId: null });
   });
 
   it('does not open a second socket if already connected', () => {
@@ -208,5 +210,58 @@ describe('reconnect behavior', () => {
 
     vi.advanceTimersByTime(3000);
     expect(MockWebSocket.instances.length).toBe(2);
+  });
+});
+
+describe('presence', () => {
+  const presences = (socket) =>
+    socket.sent.map((m) => JSON.parse(m)).filter((m) => m.type === 'presence');
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('reports the open chat whenever it changes', () => {
+    global.localStorage.setItem('token', 'jwt-abc');
+    connectWebSocket();
+    const socket = MockWebSocket.instances[0];
+    socket._open();
+
+    setActiveChat(42);
+    setActiveChat(null);
+
+    expect(presences(socket).slice(-2)).toEqual([
+      { type: 'presence', visible: true, chatId: '42' },
+      { type: 'presence', visible: true, chatId: null },
+    ]);
+  });
+
+  it('re-sends presence periodically so the server knows it is still current', () => {
+    vi.useFakeTimers();
+    global.localStorage.setItem('token', 'jwt-abc');
+    connectWebSocket();
+    const socket = MockWebSocket.instances[0];
+    socket._open();
+    setActiveChat(7);
+    const before = presences(socket).length;
+
+    vi.advanceTimersByTime(31000);
+
+    expect(presences(socket).length).toBe(before + 2);
+    expect(presences(socket).at(-1).chatId).toBe('7');
+  });
+
+  it('stops sending presence once closed', () => {
+    vi.useFakeTimers();
+    global.localStorage.setItem('token', 'jwt-abc');
+    connectWebSocket();
+    const socket = MockWebSocket.instances[0];
+    socket._open();
+    closeWebSocket();
+    const sent = socket.sent.length;
+
+    vi.advanceTimersByTime(60000);
+
+    expect(socket.sent.length).toBe(sent);
   });
 });

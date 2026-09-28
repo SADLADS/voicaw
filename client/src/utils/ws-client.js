@@ -6,6 +6,32 @@ const editListeners = new Set();
 const statusListeners = new Set();
 let reconnectTimeout = null;
 
+// Presence: tells the server whether this client is on screen and which conversation it
+// shows, so it can skip push notifications for a chat the user is already reading.
+// Re-sent periodically because the server ignores stale presence (a phone that locks may
+// never get to report going hidden).
+const PRESENCE_REFRESH_MS = 15000;
+let activeChatId = null;
+let presenceInterval = null;
+
+function sendPresence() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  const visible = typeof document === 'undefined' ||
+    (document.visibilityState === 'visible' && document.hasFocus());
+  ws.send(JSON.stringify({ type: 'presence', visible, chatId: activeChatId }));
+}
+
+export function setActiveChat(chatId) {
+  activeChatId = chatId != null ? String(chatId) : null;
+  sendPresence();
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', sendPresence);
+  window.addEventListener('focus', sendPresence);
+  window.addEventListener('blur', sendPresence);
+}
+
 export function connectWebSocket() {
   if (ws && ws.readyState === WebSocket.OPEN) {
     console.warn('[WS] Already connected');
@@ -26,6 +52,9 @@ export function connectWebSocket() {
     console.log('[WS] Connection opened');
     // Identify using JWT token
     ws.send(JSON.stringify({ type: 'identify', token }));
+    sendPresence();
+    clearInterval(presenceInterval);
+    presenceInterval = setInterval(sendPresence, PRESENCE_REFRESH_MS);
   };
 
   ws.onmessage = (event) => {
@@ -50,6 +79,7 @@ export function connectWebSocket() {
   };
 
   ws.onclose = (event) => {
+    clearInterval(presenceInterval);
     console.warn(`[WS] Connection closed. Code: ${event.code}, Reason: "${event.reason || 'No reason'}"`);
 
     // Try to reconnect after short delay
@@ -65,6 +95,8 @@ export function connectWebSocket() {
 }
 
 export function closeWebSocket() {
+  clearInterval(presenceInterval);
+  activeChatId = null;
   if (reconnectTimeout) {
     clearTimeout(reconnectTimeout);
     reconnectTimeout = null;

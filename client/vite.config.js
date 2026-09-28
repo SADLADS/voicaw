@@ -20,19 +20,16 @@ export default defineConfig(({ mode }) => {
         srcDir: 'src',
         filename: 'service-worker.js',
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'robots.txt', 'logo192.png', 'logo512.png', 'apple-touch-icon.png'],
-        manifest: {
-          name: 'Voicaw',
-          short_name: 'Voicaw',
-          description: 'Voicaw',
-          theme_color: '#66558c',
-          background_color: '#232329',
-          display: 'standalone',
-          icons: [
-            { src: 'logo192.png', sizes: '192x192', type: 'image/png' },
-            { src: 'logo512.png', sizes: '512x512', type: 'image/png' }
-          ]
-        }
+        includeAssets: ['favicon.ico', 'logo192.png', 'logo512.png', 'logo-maskable-512.png', 'apple-touch-icon.png', 'badge.png', 'default.png'],
+        // The app links public/manifest.json itself (served as application/json; nginx has
+        // no MIME type for .webmanifest), so don't generate a second manifest.
+        manifest: false,
+        // Serve the real service worker from the dev server too, so push notifications can
+        // be tested on test.voicaw.com (which runs `vite dev`).
+        devOptions: {
+          enabled: true,
+          type: 'module',
+        },
       })
     ],
     build: {
