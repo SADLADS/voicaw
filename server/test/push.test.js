@@ -47,7 +47,7 @@ describe('push notifications', () => {
     const [push] = await waitForPushes(1, before);
     expect(push.endpoint).toBe('https://push.test/bob-1');
     expect(push.payload).toMatchObject({
-      type: 'dm', title: 'push-alice', url: `/dm/${alice.id}`, tag: `dm-${alice.id}`,
+      type: 'dm', title: 'push-alice', body: 'New message', url: `/dm/${alice.id}`, tag: `dm-${alice.id}`,
       senderId: alice.id, ciphertext: 'SMALL-CIPHERTEXT',
     });
     expect(push.payload.senderPublicKey).toContain('PUBLIC KEY');

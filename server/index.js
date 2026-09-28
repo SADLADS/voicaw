@@ -865,6 +865,9 @@ function buildDmPushPayload(message, imageUrl) {
   const payload = {
     type: 'dm',
     title: message.sender_username,
+    // What service workers from before previews existed show (the current one decrypts
+    // `ciphertext` instead); keeps notifications readable until every device updates.
+    body: 'New message',
     url: `/dm/${message.sender_id}`,
     tag: `dm-${message.sender_id}`,
     image: imageUrl,
