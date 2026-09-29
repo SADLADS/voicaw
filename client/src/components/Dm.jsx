@@ -109,17 +109,10 @@ export default function Dm({ user }) {
   // Remember the keyboard's height (mobile), so the emoji panel can match it.
   useEffect(() => (isMobile ? watchKeyboardHeight() : undefined), [isMobile]);
 
+  // The inline editor opens focused, with the cursor at the end.
   function handleEdit(msg) {
     setEditingMessageId(msg.id);
     setEditingMessageContent(msg.plaintext);
-    setTimeout(() => {
-      const textarea = document.getElementById(`edit-input-${msg.id}`);
-      if (textarea) {
-        textarea.focus();
-        const length = textarea.value.length;
-        textarea.setSelectionRange(length, length); // cursor at end
-      }
-    }, 0);
   }
 
   async function handleSaveEdit(messageId) {

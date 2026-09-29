@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { uploadAttachment, MAX_ATTACHMENT_BYTES } from '../services/attachmentUpload';
 import { buildAttachmentUrl, ENCRYPTION_OVERHEAD_BYTES } from '../services/attachmentCrypto';
-import { makePlaceholder } from '../utils/attachmentMarkup';
 import { formatBytes } from '../utils/formatBytes';
 import { readMediaDimensions } from '../utils/mediaDimensions';
 
@@ -9,11 +8,12 @@ import { readMediaDimensions } from '../utils/mediaDimensions';
 // text as `![name](attachment:ID)` placeholders, until the message is sent (see
 // utils/attachmentMarkup and services/attachmentUpload).
 //
-// - `insertText(markup)` puts new placeholders into the message text at the cursor.
+// - `insertAttachments(drafts)` puts new drafts into the message at the cursor (the editor
+//   shows them as chips; in the text they're placeholders).
 // - `onError(message | null)` reports (or clears) a problem, e.g. a file that's too big.
 // - `onDiscard(drafts)` runs when the conversation (`chatId`) changes: unsent attachments
 //   belong to the conversation they were added in, so their placeholders should go too.
-export function useAttachmentDrafts({ chatId, s3Endpoint, insertText, onError, onDiscard }) {
+export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onError, onDiscard }) {
   const [drafts, setDrafts] = useState([]);
   const draftsRef = useRef(drafts);
   draftsRef.current = drafts;
@@ -61,7 +61,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertText, onError, o
       });
     });
 
-    insertText(newDrafts.map((d) => makePlaceholder(d.id, d.name)).join('\n'));
+    insertAttachments(newDrafts);
   }
 
   function removeDraft(id) {
@@ -132,13 +132,6 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertText, onError, o
     input.click();
   }
 
-  function handlePaste(e) {
-    const files = Array.from(e.clipboardData?.files || []);
-    if (files.length === 0) return; // plain text paste
-    e.preventDefault();
-    addFiles(files);
-  }
-
   // Only react to drags carrying files, so dragging text into the textarea still works.
   const isFileDrag = (e) => Array.from(e.dataTransfer?.types || []).includes('Files');
 
@@ -172,7 +165,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertText, onError, o
     progress,
     isDragOver,
     dropHandlers,
-    handlePaste,
+    addFiles,
     pickFiles,
     removeDraft,
     takeDrafts,

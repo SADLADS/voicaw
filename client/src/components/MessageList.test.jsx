@@ -9,6 +9,7 @@ vi.mock('../services/attachmentCache', () => ({
 }));
 
 import MessageList from './MessageList';
+import { editorFor } from '../editor/editorRegistry';
 import emojiData from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../emoji/emojiIndex';
 import { EmojiContext } from '../emoji/emojiContext';
@@ -131,15 +132,15 @@ describe('MessageList', () => {
       />
     );
 
-    const textarea = document.getElementById('edit-input-1');
-    expect(textarea).toBeInTheDocument();
-    expect(textarea.value).toBe('mine');
+    const editor = editorFor(document.getElementById('edit-input-1'));
+    expect(editor.getText()).toBe('mine');
+    expect(document.activeElement).toBe(document.getElementById('edit-input-1'));
 
-    fireEvent.change(textarea, { target: { value: 'mine edited' } });
-    expect(setEditingMessageContent).toHaveBeenCalledWith('mine edited');
+    act(() => editor.insertText(' edited'));
+    expect(setEditingMessageContent).toHaveBeenLastCalledWith('mine edited');
   });
 
-  it('truncates edits at maxPlaintextLength instead of passing the full value through', () => {
+  it('keeps edits within maxPlaintextLength', () => {
     const msg = { id: 1, sender_id: 1, sender_username: 'alice', plaintext: 'mine', timestamp: 1000 };
     const setEditingMessageContent = vi.fn();
 
@@ -155,10 +156,24 @@ describe('MessageList', () => {
       />
     );
 
-    const textarea = document.getElementById('edit-input-1');
-    fireEvent.change(textarea, { target: { value: 'way too long' } });
+    const editor = editorFor(document.getElementById('edit-input-1'));
+    act(() => editor.insertText('!'));
+    act(() => editor.insertText('way too long'));
 
-    expect(setEditingMessageContent).toHaveBeenCalledWith('way t');
+    expect(editor.getText()).toBe('mine!');
+    expect(setEditingMessageContent).toHaveBeenLastCalledWith('mine!');
+  });
+
+  it('saves on Enter and cancels on Escape', () => {
+    const msg = { id: 1, sender_id: 1, sender_username: 'alice', plaintext: 'mine', timestamp: 1000 };
+    const props = baseProps({ messages: [msg], editingMessageId: 1, editingMessageContent: 'mine' });
+    render(<MessageList {...props} />);
+    const box = document.getElementById('edit-input-1');
+
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(props.handleSaveEdit).toHaveBeenCalledWith(1);
+    fireEvent.keyDown(box, { key: 'Escape' });
+    expect(props.setEditingMessageId).toHaveBeenCalledWith(null);
   });
 
   describe('loading older messages', () => {

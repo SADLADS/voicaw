@@ -108,6 +108,13 @@ vi.mock('./MessageList', () => ({
 }));
 
 import Dm from './Dm';
+import { editorFor } from '../editor/editorRegistry';
+
+// The message box is an editor (contenteditable), which jsdom can't type into: tests drive
+// it through its handle.
+const box = () => document.getElementById('dm-input');
+const boxText = () => editorFor(box()).getText();
+const setBoxText = (text) => act(() => { editorFor(box()).setText(text); });
 import emojiData from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../emoji/emojiIndex';
 import { EmojiContext } from '../emoji/emojiContext';
@@ -205,8 +212,7 @@ describe('Dm', () => {
     renderDm({ path: '/dm/2', users: [chatUserFull] });
     await screen.findByText('No messages yet. Start the conversation!');
 
-    const textarea = document.getElementById('dm-input');
-    fireEvent.change(textarea, { target: { value: 'hello bob' } });
+    setBoxText('hello bob');
     fireEvent.submit(document.getElementById('dm-chat-form'));
 
     expect(await screen.findByText('hello bob [pending]')).toBeInTheDocument();
@@ -254,7 +260,7 @@ describe('Dm attachments', () => {
     return document.getElementById('dm-input');
   }
 
-  const paste = (textarea, files) => fireEvent.paste(textarea, { clipboardData: { files } });
+  const paste = (textarea, files) => fireEvent.paste(textarea, { clipboardData: { files, getData: () => '' } });
 
   it('inserts placeholders and shows previews on paste, without uploading anything', async () => {
     const textarea = await openChat();
@@ -262,7 +268,7 @@ describe('Dm attachments', () => {
     paste(textarea, [png(), pdf()]);
 
     await waitFor(() =>
-      expect(textarea.value).toBe('![cat.png](attachment:1)\n![report.pdf](attachment:2)')
+      expect(boxText()).toBe('![cat.png](attachment:1) ![report.pdf](attachment:2)')
     );
     expect(screen.getByRole('img', { name: 'cat.png' })).toHaveAttribute('src', 'blob:local-1');
     expect(screen.getByText('report.pdf')).toBeInTheDocument();
@@ -270,24 +276,23 @@ describe('Dm attachments', () => {
   });
 
   it('accepts dropped files of any type', async () => {
-    const textarea = await openChat();
+    await openChat();
     const wrapper = document.querySelector('.dm-chat-wrapper');
 
     fireEvent.drop(wrapper, { dataTransfer: { files: [pdf()], types: ['Files'] } });
 
-    await waitFor(() => expect(textarea.value).toBe('![report.pdf](attachment:1)'));
+    await waitFor(() => expect(boxText()).toBe('![report.pdf](attachment:1)'));
   });
 
   it('removing a preview also removes its placeholder from the text', async () => {
     const textarea = await openChat();
-    fireEvent.change(textarea, { target: { value: 'look: ' } });
-    textarea.setSelectionRange(6, 6);
+    setBoxText('look: ');
     paste(textarea, [png()]);
-    await waitFor(() => expect(textarea.value).toBe('look: ![cat.png](attachment:1)'));
+    await waitFor(() => expect(boxText()).toBe('look: ![cat.png](attachment:1)'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove cat.png' }));
 
-    expect(textarea.value).toBe('look: ');
+    expect(boxText()).toBe('look: ');
     expect(screen.queryByRole('img', { name: 'cat.png' })).not.toBeInTheDocument();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-1');
   });
@@ -298,7 +303,7 @@ describe('Dm attachments', () => {
     paste(textarea, [new File(['x'.repeat(2000)], 'huge.mov', { type: 'video/quicktime' })]);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('huge.mov is over the');
-    expect(textarea.value).toBe('');
+    expect(boxText()).toBe('');
   });
 
   it('uploads on send and sends the message with the real attachment URLs', async () => {
@@ -308,10 +313,9 @@ describe('Dm attachments', () => {
     sendMessageToUser.mockResolvedValue({ id: 99, sender_id: 1, recipient_id: 2, timestamp: 2000 });
 
     const textarea = await openChat();
-    fireEvent.change(textarea, { target: { value: 'hi ' } });
-    textarea.setSelectionRange(3, 3);
+    setBoxText('hi ');
     paste(textarea, [png()]);
-    await waitFor(() => expect(textarea.value).toBe('hi ![cat.png](attachment:1)'));
+    await waitFor(() => expect(boxText()).toBe('hi ![cat.png](attachment:1)'));
 
     fireEvent.submit(document.getElementById('dm-chat-form'));
 
@@ -320,7 +324,7 @@ describe('Dm attachments', () => {
     expect(uploadAttachment).toHaveBeenCalledWith(expect.any(File), expect.any(Function), null);
     expect(uploadAttachment.mock.calls[0][0].name).toBe('cat.png');
     expect(sendMessageToUser).not.toHaveBeenCalled();
-    expect(textarea.value).toBe('');
+    expect(boxText()).toBe('');
 
     await act(async () => finishUpload(finalUrl));
 
@@ -348,9 +352,9 @@ describe('Dm attachments', () => {
     sendMessageToUser.mockResolvedValue({ id: 99, sender_id: 1, recipient_id: 2, timestamp: 2000 });
     const textarea = await openChat();
     paste(textarea, [png()]);
-    await waitFor(() => expect(textarea.value).toBe('![cat.png](attachment:1)'));
+    await waitFor(() => expect(boxText()).toBe('![cat.png](attachment:1)'));
 
-    fireEvent.change(textarea, { target: { value: 'never mind' } });
+    setBoxText('never mind');
     fireEvent.submit(document.getElementById('dm-chat-form'));
 
     expect(await screen.findByText('never mind [sent]')).toBeInTheDocument();
@@ -364,7 +368,7 @@ describe('Dm attachments', () => {
 
     const textarea = await openChat();
     paste(textarea, [png()]);
-    await waitFor(() => expect(textarea.value).toBe('![cat.png](attachment:1)'));
+    await waitFor(() => expect(boxText()).toBe('![cat.png](attachment:1)'));
     fireEvent.submit(document.getElementById('dm-chat-form'));
 
     expect(await screen.findByText('![cat.png](attachment:1) [failed]')).toBeInTheDocument();
@@ -374,16 +378,15 @@ describe('Dm attachments', () => {
 
   it('refuses to send when the attachment links would push the message over the limit', async () => {
     const textarea = await openChat();
-    fireEvent.change(textarea, { target: { value: 'x'.repeat(4950) } });
-    textarea.setSelectionRange(4950, 4950);
+    setBoxText('x'.repeat(4950));
     paste(textarea, [png()]);
-    await waitFor(() => expect(textarea.value).toContain('(attachment:1)'));
+    await waitFor(() => expect(boxText()).toContain('(attachment:1)'));
 
     fireEvent.submit(document.getElementById('dm-chat-form'));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('too long once attachment links are added');
     expect(uploadAttachment).not.toHaveBeenCalled();
-    expect(textarea.value).toContain('(attachment:1)');
+    expect(boxText()).toContain('(attachment:1)');
   });
 });
 
@@ -494,7 +497,7 @@ describe('Dm contact keys', () => {
     renderDm({ path: '/dm/2', users: [chatUserFull] });
     await screen.findByText('No messages yet. Start the conversation!');
 
-    fireEvent.change(document.getElementById('dm-input'), { target: { value: 'hello' } });
+    setBoxText('hello');
     fireEvent.submit(document.getElementById('dm-chat-form'));
     await screen.findByText('hello [sent]');
     expect(encryptMessage).toHaveBeenCalledWith('hello', 'shared-key', 'ctx:1->2');
@@ -539,8 +542,7 @@ describe('Dm emoji', () => {
     await screen.findByText('No messages yet. Start the conversation!');
     return document.getElementById('dm-input');
   }
-  const type = (textarea, value) =>
-    fireEvent.change(textarea, { target: { value, selectionStart: value.length, selectionEnd: value.length } });
+  const type = (textarea, value) => setBoxText(value);
 
   it('the emoji button opens the picker and does not send the message', async () => {
     const textarea = await openChat();
@@ -550,18 +552,17 @@ describe('Dm emoji', () => {
 
     expect(screen.getByRole('dialog', { name: 'Emoji picker' })).toBeInTheDocument();
     expect(sendMessageToUser).not.toHaveBeenCalled();
-    expect(textarea.value).toBe('draft');
+    expect(boxText()).toBe('draft');
   });
 
   it('inserts a picked emoji at the cursor', async () => {
     const textarea = await openChat();
     type(textarea, 'hi ');
-    textarea.setSelectionRange(3, 3);
     fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Grinning Face' }));
 
-    expect(textarea.value).toBe('hi 😀');
+    expect(boxText()).toBe('hi 😀');
     expect(screen.queryByRole('dialog', { name: 'Emoji picker' })).not.toBeInTheDocument();
   });
 
@@ -574,7 +575,7 @@ describe('Dm emoji', () => {
 
     fireEvent.keyDown(textarea, { key: 'Enter' });
 
-    expect(textarea.value).toBe('hello 😄 ');
+    expect(boxText()).toBe('hello 😄 ');
     expect(sendMessageToUser).not.toHaveBeenCalled();
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
@@ -601,10 +602,11 @@ describe('Dm emoji', () => {
   it('turns a completed :shortcode: into the emoji as you type', async () => {
     const textarea = await openChat();
     type(textarea, 'nice :+1:');
-    expect(textarea.value).toBe('nice 👍');
+    await waitFor(() => expect(boxText()).toBe('nice 👍'));
 
     type(textarea, 'nice 👍 :notarealemoji:');
-    expect(textarea.value).toBe('nice 👍 :notarealemoji:');
+    await act(async () => {});
+    expect(boxText()).toBe('nice 👍 :notarealemoji:');
   });
 
   it('on desktop, focuses the picker search so you can type straight away', async () => {
@@ -637,7 +639,7 @@ describe('Dm emoji', () => {
     });
 
     it('goes full screen above the keyboard to search, and back to the panel after picking', async () => {
-      const textarea = await openMobileChat();
+      await openMobileChat();
       fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
       const panel = screen.getByRole('dialog', { name: 'Emoji picker' });
       const search = screen.getByRole('searchbox', { name: 'Search emoji' });
@@ -650,7 +652,7 @@ describe('Dm emoji', () => {
       fireEvent.change(search, { target: { value: 'pizza' } });
       fireEvent.keyDown(search, { key: 'Enter' });
 
-      expect(textarea.value).toBe('🍕');
+      expect(boxText()).toBe('🍕');
       expect(panel).not.toHaveClass('searching');
       expect(search.value).toBe('');
       expect(document.activeElement).not.toBe(search); // keyboard dismissed
@@ -810,11 +812,11 @@ describe('Dm emoji', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Grinning Face' }));
       await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
 
-      expect(textarea.value).toBe('😀');
+      expect(boxText()).toBe('😀');
       expect(document.activeElement).not.toBe(textarea);
       // Stays open like a keyboard, for picking several.
       fireEvent.click(screen.getByRole('button', { name: 'Grinning Face' }));
-      expect(textarea.value).toBe('😀😀');
+      expect(boxText()).toBe('😀😀');
     });
 
     it('swaps back to the keyboard from the button (now a keyboard) or by tapping the message box', async () => {

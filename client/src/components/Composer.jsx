@@ -7,17 +7,19 @@ import AttachmentTray from './AttachmentTray';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { getSkinTone, recordEmojiUse, skinFor } from '../emoji/emojiUsage';
 import { getKeyboardHeight } from '../utils/keyboardHeight';
-import { findPlaceholderIds, removePlaceholder, replacePlaceholders } from '../utils/attachmentMarkup';
+import { findPlaceholderIds, replacePlaceholders } from '../utils/attachmentMarkup';
 import { seedAttachmentCache } from '../services/attachmentCache';
 import { useAttachmentDrafts } from '../hooks/useAttachmentDrafts';
+import MessageEditor from '../editor/MessageEditor';
 
 // ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
 const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
 // A complete ":shortcode:" just typed.
 const EMOJI_SHORTCODE = /(?:^|[\s([{]):([a-z0-9_+-]+):$/i;
 
-// The message box under a conversation, with attachments (added as placeholders, uploaded on
-// send), emoji (picker, ":smi" suggestions, ":shortcode:" conversion) and the reply bar.
+// The message box under a conversation (MessageEditor: `inputRef` is its handle), with
+// attachments (chips in the box, uploaded on send), emoji (picker, ":smi" suggestions,
+// ":shortcode:" conversion) and the reply bar.
 //
 // `onSend({ text, replyTo, localAttachments, resolveText })` sends (see useConversation's
 // sendMessage). `error` is shown above the box (Dm reports its own errors there too). On
@@ -40,51 +42,32 @@ export default function Composer({
   onSend,
 }) {
   const emojiIndex = useEmojiIndex();
+  // The message as text (see editor/messageDoc), and its current line up to the cursor
+  // (which drives ":smi" suggestions).
   const [inputValue, setInputValue] = useState('');
-  // Where the caret is (it drives ":smi" suggestions).
-  const [caret, setCaret] = useState(0);
+  const [beforeCaret, setBeforeCaret] = useState('');
   const [suggestionIndex, setSuggestionIndex] = useState(0);
   const [dismissedEmojiQuery, setDismissedEmojiQuery] = useState(null);
 
-  // Replaces inputValue[start, end) with `text` and puts the caret after it. `focus` also
-  // focuses the textarea (skipped for the emoji picker on mobile: it'd open the keyboard).
-  // `clamp` keeps the text within the length limit (not for attachment placeholders, which
-  // mustn't be cut; the length is checked on send).
-  function replaceInput(start, end, text, { focus = true, clamp = true } = {}) {
-    const textarea = inputRef.current;
-    setInputValue((prev) => {
-      const next = prev.slice(0, start) + text + prev.slice(end);
-      return clamp ? next.slice(0, maxPlaintextLength) : next;
-    });
-    const cursor = start + text.length;
-    setCaret(cursor);
-    setTimeout(() => {
-      if (focus) textarea?.focus();
-      textarea?.setSelectionRange(cursor, cursor);
-    }, 0);
-  }
-
-  function insertAtCursor(text, options) {
-    const textarea = inputRef.current;
-    const start = textarea?.selectionStart ?? inputValue.length;
-    const end = textarea?.selectionEnd ?? start;
-    replaceInput(start, end, text, options);
+  // Emoji from the picker. On mobile the box isn't focused (that would open the keyboard).
+  function insertEmoji(native) {
+    inputRef.current?.insertText(native, { focus: !isMobile });
   }
 
   const attachments = useAttachmentDrafts({
     chatId,
     s3Endpoint,
-    insertText: (markup) => insertAtCursor(markup, { clamp: false }),
+    insertAttachments: (drafts) => inputRef.current?.insertAttachments(drafts),
     onError: setError,
     onDiscard: (dropped) => {
-      setInputValue((prev) => dropped.reduce((text, d) => removePlaceholder(text, d.id), prev));
+      dropped.forEach((d) => inputRef.current?.removeAttachment(d.id));
       setError(null);
     },
   });
 
   function removeDraft(id) {
     attachments.removeDraft(id);
-    setInputValue((prev) => removePlaceholder(prev, id));
+    inputRef.current?.removeAttachment(id);
   }
 
   // On mobile the emoji panel and the on-screen keyboard take turns in the same space (like
@@ -104,7 +87,7 @@ export default function Composer({
     setShowEmojiPicker(!showEmojiPicker);
   }
 
-  const emojiQuery = emojiIndex ? EMOJI_QUERY.exec(inputValue.slice(0, caret))?.[1] ?? null : null;
+  const emojiQuery = emojiIndex ? EMOJI_QUERY.exec(beforeCaret)?.[1] ?? null : null;
   const emojiSuggestions = emojiQuery && emojiQuery !== dismissedEmojiQuery
     ? emojiIndex.search(emojiQuery.slice(1), 8)
     : [];
@@ -112,29 +95,28 @@ export default function Composer({
 
   function pickSuggestion(emoji) {
     recordEmojiUse(emoji.id);
-    replaceInput(caret - emojiQuery.length, caret, `${skinFor(emoji, getSkinTone()).native} `);
+    inputRef.current?.replaceBeforeCaret(emojiQuery.length, `${skinFor(emoji, getSkinTone()).native} `);
     setSuggestionIndex(0);
   }
 
-  function handleInputChange(e) {
-    let value = e.target.value;
-    let cursor = e.target.selectionStart ?? value.length;
+  function handleEditorChange({ text, beforeCaret: line, docChanged }) {
+    setInputValue(text);
+    setBeforeCaret(line);
+    if (!docChanged) return;
+    setSuggestionIndex(0);
 
     // Typing the closing colon of a known :shortcode: turns it into the emoji (like Discord).
-    const typed = emojiIndex && EMOJI_SHORTCODE.exec(value.slice(0, cursor));
+    const typed = emojiIndex && EMOJI_SHORTCODE.exec(line);
     const emoji = typed && emojiIndex.byShortcode.get(typed[1].toLowerCase());
     if (emoji) {
-      const native = skinFor(emoji, getSkinTone()).native;
-      const start = cursor - typed[1].length - 2;
-      value = value.slice(0, start) + native + value.slice(cursor);
-      cursor = start + native.length;
       recordEmojiUse(emoji.id);
-      setTimeout(() => inputRef.current?.setSelectionRange(cursor, cursor), 0);
+      const native = skinFor(emoji, getSkinTone()).native;
+      // After this edit has finished (and not in the middle of a keyboard's composition).
+      queueMicrotask(() => {
+        const editor = inputRef.current;
+        if (editor && !editor.isComposing()) editor.replaceBeforeCaret(typed[1].length + 2, native, { focus: false });
+      });
     }
-
-    setInputValue(value.slice(0, maxPlaintextLength));
-    setCaret(cursor);
-    setSuggestionIndex(0);
   }
 
   function handleInputKeyDown(e) {
@@ -156,17 +138,13 @@ export default function Composer({
         return;
       }
     }
-    if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
   }
 
   async function handleSubmit(e) {
-    e.preventDefault();
-    if (!inputValue.trim() || !chatUser) return;
+    e?.preventDefault();
+    const text = (inputRef.current?.getText() ?? '').trim();
+    if (!text || !chatUser) return;
 
-    const text = inputValue.trim();
     const referencedIds = findPlaceholderIds(text);
     const referenced = attachments.drafts.filter((d) => referencedIds.has(d.id));
 
@@ -182,7 +160,7 @@ export default function Composer({
     }
     setError(null);
 
-    setInputValue('');
+    inputRef.current?.clear();
     const sending = attachments.takeDrafts(referencedIds);
     onCancelReply();
 
@@ -217,15 +195,6 @@ export default function Composer({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onCancelReply]);
 
-  // The message box grows with its text.
-  useEffect(() => {
-    const textarea = inputRef.current;
-    if (textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = `${textarea.scrollHeight}px`;
-    }
-  }, [inputValue, inputRef]);
-
   // The tray only shows drafts still referenced from the text; unreferenced ones are kept
   // until send so that undoing a deletion brings them back.
   const referencedDraftIds = findPlaceholderIds(inputValue);
@@ -235,7 +204,7 @@ export default function Composer({
     <>
       <div className={`dm-chat-wrapper${attachments.isDragOver ? ' drag-over' : ''}`} {...attachments.dropHandlers}>
         {showEmojiPicker && !isMobile && (
-          <EmojiPicker onSelect={insertAtCursor} onClose={() => setShowEmojiPicker(false)} />
+          <EmojiPicker onSelect={insertEmoji} onClose={() => setShowEmojiPicker(false)} />
         )}
 
         {emojiSuggestions.length > 0 && (
@@ -277,24 +246,25 @@ export default function Composer({
             </button>
           </div>
 
-          <textarea
+          <MessageEditor
+            ref={inputRef}
             id="dm-input"
-            className="form-control auto-resize-textarea"
+            className="message-editor-wrapper"
+            ariaLabel={`Message ${chatUser?.username || 'User'}`}
             placeholder={`Message ${chatUser?.username || 'User'}...`}
-            value={inputValue}
-            onChange={handleInputChange}
+            maxLength={maxPlaintextLength}
+            // Mobile: Enter is a new line; the Send button sends.
+            submitOnEnter={!isMobile}
+            onSubmit={handleSubmit}
+            onChange={handleEditorChange}
             onKeyDown={handleInputKeyDown}
-            onSelect={(e) => setCaret(e.target.selectionStart)}
+            onPasteFiles={attachments.addFiles}
             // Mobile: the keyboard is coming up, so the emoji panel gives way.
             onFocus={() => {
               if (!isMobile) return;
               setShowEmojiPicker(false);
               onInputFocus?.();
             }}
-            onPaste={attachments.handlePaste}
-            autoComplete="off"
-            ref={inputRef}
-            rows={1}
           />
           <div className="chat-buttons">
             <button
@@ -324,7 +294,7 @@ export default function Composer({
         <EmojiPicker
           docked
           height={getKeyboardHeight()}
-          onSelect={(native) => insertAtCursor(native, { focus: false })}
+          onSelect={insertEmoji}
           onClose={() => setShowEmojiPicker(false)}
         />
       )}

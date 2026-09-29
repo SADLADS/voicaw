@@ -157,15 +157,6 @@ body {
   background-color: var(--vc-danger);
 }
 
-.auto-resize-textarea {
-  resize: none;
-  overflow-y: auto;
-  max-height: 200px;
-  line-height: 1.5;
-  padding: 0.5rem;
-  transition: height 0.1s ease-in-out;
-  scrollbar-color: var(--vc-bg-subtle) var(--vc-bg-elevated);
-}
 
 /* stuff shrink stuff in smaller screens */
 pre code {
@@ -183,12 +174,6 @@ pre code {
 
 /* message input placeholder text */
 
-.auto-resize-textarea::placeholder {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
-}
 
 .main-content-wrapper{
   width: 100%;
@@ -411,7 +396,7 @@ pre code {
      (scrollbar-color inherits), including ones added later.
    - Small boxes and pop-ups (emoji picker, suggestions, action sheet, attachment tray, code):
      a thin bar, listed below.
-   The message box keeps its own (.auto-resize-textarea). Chrome and Firefox use the standard
+   The message editor keeps its own (.message-editor). Chrome and Firefox use the standard
    properties; the ::-webkit-scrollbar rules are for Safari, which doesn't support them (Chrome
    ignores those rules wherever scrollbar-color applies). */
 html {

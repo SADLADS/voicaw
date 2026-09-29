@@ -67,7 +67,10 @@ unexpected errors. The rest:
 Client tests sit next to their source files (`src/**/*.test.{js,jsx}`). The default environment is
 `node`; component tests opt into DOM with a `// @vitest-environment jsdom` header on the first
 line. `vitest.config.js` pins `VITE_API_BASE_URL`/`VITE_WS_URL`, and `src/test/setupTests.js`
-stubs `ResizeObserver` (used by `MessageList`). Component tests mock `../utils/api`,
+stubs `ResizeObserver` (used by `MessageList`) and the Range measuring ProseMirror does. The message
+box is an editor (contenteditable), which jsdom can't type into: tests drive it through its handle,
+`editorFor(element)` from `editor/editorRegistry.js` (`insertText`, `setText`, `getText`...).
+Component tests mock `../utils/api`,
 `../utils/ws-client`, and `../services/dmService` with `vi.mock`.
 
 ### Server environment
@@ -233,7 +236,8 @@ be `image/*`. Profile pictures are unencrypted.
 ### DM attachments (encrypted, uploaded on send)
 
 Attachments are never uploaded when attached. The composer (`Composer.jsx`, `hooks/useAttachmentDrafts.js`) keeps them as local drafts
-and inserts a markdown placeholder `![name](attachment:ID)` (`utils/attachmentMarkup.js`); the tray
+and inserts a markdown placeholder `![name](attachment:ID)` (`utils/attachmentMarkup.js`; the editor
+shows it as a "📎 name" chip); the tray
 (`AttachmentTray.jsx`) previews drafts still referenced from the text. On send, each referenced
 draft is encrypted with its own AES-GCM key (`services/attachmentCrypto.js`), uploaded as
 `application/octet-stream` (`services/attachmentUpload.js`; server names it `<uuid>.bin`), and its
@@ -273,6 +277,15 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
 - `EmojiProvider` (in `App.jsx`) loads the index. `rehypeTwemoji` turns emoji in rendered
   messages into `<img class="emoji">` (skipping code). `MessageList`'s `MarkdownImage` passes
   those through (not to `Attachment`), and emoji-only messages get `.emoji-only` (large).
+- The message box is `editor/MessageEditor.jsx`, a small ProseMirror editor (also used for editing a
+  sent message). Its value is plain message text (`editor/messageDoc.js`): lines are paragraphs,
+  draft attachments are chips, custom emoji `<:name:id>` are inline images (ready for guild
+  emoji; nothing creates them yet). Unicode emoji stay text, drawn by the Twemoji font, so
+  typing, autocorrect, IME and copy/paste stay plain. Pasting is always plain text (files go to
+  attachments); edits past the length limit are refused. Enter sends on desktop, Shift+Enter is a
+  new line; on mobile Enter is a new line. The ref handle (`focus`, `blur`, `insertText`,
+  `replaceBeforeCaret`, `insertAttachments`, `removeAttachment`, `clear`...) is how `Composer`
+  and `Dm` drive it.
 - Composer (`Composer.jsx`): `EmojiPicker` (search, categories, frequently used and skin tone, both in
   localStorage via `emojiUsage.js`), `:sm` autocomplete (`EmojiSuggestions`), and a completed
   `:shortcode:` turns into the emoji as you type. `remark-emoji` still renders any leftover

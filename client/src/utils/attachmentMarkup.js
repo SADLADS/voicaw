@@ -16,7 +16,7 @@ export function escapeAltText(name) {
   return name.replace(/[\\[\]*_`~&]/g, '\\$&');
 }
 
-function unescapeAltText(alt) {
+export function unescapeAltText(alt) {
   return alt.replace(/\\(.)/g, '$1');
 }
 

@@ -10,6 +10,7 @@ import Attachment from './Attachment';
 import MessageReactions from './MessageReactions';
 import UrlPreviews from './UrlPreviews';
 import { useLongPress } from '../hooks/useLongPress';
+import MessageEditor from '../editor/MessageEditor';
 import { placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { isEmojiOnly } from '../emoji/emojiIndex';
@@ -178,39 +179,25 @@ export function MessageRow({
         <div className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}`}>
           {editingMessageId === msg.id ? (
             <div className="inline-edit-wrapper">
-              <form onSubmit={(e) => e.preventDefault()}>
-
-                <textarea
-                  id={`edit-input-${msg.id}`}
-                  value={editingMessageContent}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value.length <= maxPlaintextLength) {
-                      setEditingMessageContent(value);
-                    } else {
-                      setEditingMessageContent(value.slice(0, maxPlaintextLength));
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') setEditingMessageId(null);
-                    if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSaveEdit(msg.id);
-                    }
-                  }}
-                  className="form-control auto-resize-textarea"
-                  rows={1}
-                  style={{ width: '100%' }}
-                  ref={(el) => {
-                    editRef.current = el;
-                    if (el) {
-                      el.style.height = 'auto';
-                      el.style.height = `${el.scrollHeight}px`;
-                      el.focus();
-                    }
-                  }}
-                />
-              </form>
+              <MessageEditor
+                ref={editRef}
+                id={`edit-input-${msg.id}`}
+                className="inline-edit-editor"
+                ariaLabel="Edit message"
+                initialText={editingMessageContent}
+                maxLength={maxPlaintextLength}
+                // Mobile: Enter is a new line; "save" below saves.
+                submitOnEnter={!isMobile}
+                onSubmit={() => handleSaveEdit(msg.id)}
+                onChange={({ text }) => setEditingMessageContent(text)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setEditingMessageId(null);
+                  }
+                }}
+                autoFocus
+              />
 
               <div className="inline-edit-banner">
                 <span>
