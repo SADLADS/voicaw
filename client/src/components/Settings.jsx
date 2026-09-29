@@ -1,23 +1,20 @@
-import React, { useState, useCallback, useContext } from "react";
-import api from "../utils/api";
+import React, { useState, useContext } from "react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
-import { InteractionContext } from "../App";
+import { InteractionContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
+import { MAX_PROFILE_PIC_BYTES, uploadProfilePicture } from '../services/profileService';
 
-
-// Must match MAX_PROFILE_PIC_BYTES in server/index.js.
-const MAX_PROFILE_PIC_BYTES = 8 * 1024 * 1024;
-
-export default function Settings({ onLogout, user }) {
+export default function Settings({ onLogout }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const { interactionMode, setInteractionMode } = useContext(InteractionContext);
 
-  const validateImage = (f) => {
+  const handleFileSelect = (e) => {
+    const f = e.target.files[0];
     if (!f || !f.type.startsWith("image/")) {
       setError("Only image files are allowed.");
     } else if (f.size > MAX_PROFILE_PIC_BYTES) {
@@ -28,17 +25,6 @@ export default function Settings({ onLogout, user }) {
     }
   };
 
-  const handleFileSelect = useCallback((e) => {
-    validateImage(e.target.files[0]);
-  }, []);
-
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    validateImage(e.dataTransfer.files[0]);
-  }, []);
-
-  const handleDragOver = (e) => e.preventDefault();
-
   const uploadFile = async () => {
     if (!file) return;
     setUploading(true);
@@ -46,21 +32,7 @@ export default function Settings({ onLogout, user }) {
     setSuccess(false);
 
     try {
-      const { data } = await api.get("/upload_profile_pic", {
-        params: { type: file.type, size: file.size },
-      });
-
-      const uploadUrl = data?.url;
-      if (!uploadUrl) throw new Error("Invalid upload URL");
-
-      const res = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-
-      if (!res.ok) throw new Error("Upload failed");
-
+      await uploadProfilePicture(file);
       setSuccess(true);
       setFile(null);
     } catch (err) {

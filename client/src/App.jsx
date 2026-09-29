@@ -1,11 +1,11 @@
-import React, { useEffect, createContext, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { HashRouter, BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthProvider.jsx';
+import { useAuth } from './hooks/useAuth';
+import { ConfigContext, InteractionContext } from './contexts';
+import { scrollToRight } from './utils/scrollToRight';
 
 import Login from './components/Login.jsx';
 import Layout from './components/Layout.jsx';
-import CreateGuild from './components/CreateGuild.jsx';
-import Calendar from './components/Calendar.jsx';
 import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
 import api from './utils/api';
@@ -18,16 +18,7 @@ import EmojiProvider from './emoji/EmojiProvider';
 import UpdateBanner from './components/UpdateBanner';
 import { disableNotificationsOnThisDevice } from './services/pushService';
 
-export const ConfigContext = createContext({ 
-  s3Endpoint: '',
-  maxPlaintextLength: 5000,
- });
 
-export const InteractionContext = createContext({
-  interactionMode: "auto",
-  isMobile: false,
-  setInteractionMode: () => { },
-});
 
 // Handles service worker messages (like "navigate")
 function SWMessageHandler() {
@@ -50,14 +41,8 @@ function SWMessageHandler() {
     }
   }, [navigate]);
 
-  useEffect(() => {
-    const wrapper = document.querySelector('.main-wrapper');
-    if (wrapper) {
-      requestAnimationFrame(() => {
-        wrapper.scrollBy({ left: window.innerWidth, behavior: 'smooth' });
-      });
-    }
-  }, [location]);
+  // Mobile: open on the content pane rather than the sidebar.
+  useEffect(scrollToRight, []);
 
   return null;
 }
@@ -155,9 +140,7 @@ export default function App() {
 
             {user && (
               <Route element={<Layout user={user} />}>
-                <Route path="/createguild" element={<CreateGuild user={user} />} />
-                <Route path="/calendar" element={<Calendar user={user} />} />
-                <Route path="/settings" element={<Settings user={user} onLogout={handleLogout} />} />
+                <Route path="/settings" element={<Settings onLogout={handleLogout} />} />
                 <Route path="/dm/:id?" element={<Dm user={user} />} />
               </Route>
             )}

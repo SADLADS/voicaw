@@ -79,7 +79,8 @@ describe('notificationFromPush', () => {
     loadEncryptionKey.mockResolvedValueOnce(null);
     expect((await notificationFromPush(await dmPushFromAlice('hi'))).options.body).toBe('New message');
 
-    const { ciphertext, ...noCiphertext } = await dmPushFromAlice('hi');
+    const noCiphertext = await dmPushFromAlice('hi');
+    delete noCiphertext.ciphertext;
     expect((await notificationFromPush(noCiphertext)).options.body).toBe('New message');
   });
 

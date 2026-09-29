@@ -253,31 +253,36 @@ function otherParticipant(msg, participantId) {
   return String(participantId) === String(msg.sender_id) ? msg.recipient_id : msg.sender_id;
 }
 
-// Decrypts a page of DM rows (and the messages they reply to), tolerating failures.
-export async function decryptMessagesBatch(messages, key) {
-  return Promise.all(messages.map(async (msg) => {
-    let plaintext = null;
-    let parentPlaintext = null;
+// Decrypts one DM row from the server (with the message it replies to and its reactions)
+// into { ...row, plaintext, parent_plaintext, reactions }. Anything that fails to decrypt
+// comes back as null (or is left out, for reactions) rather than throwing.
+export async function decryptMessageRow(msg, key) {
+  let plaintext = null;
+  let parentPlaintext = null;
 
+  try {
+    plaintext = await decryptMessage(msg.content, key, dmContext(msg.sender_id, msg.recipient_id));
+  } catch (e) {
+    console.warn('Failed to decrypt message', msg.id, e);
+  }
+
+  if (msg.parent_message_id && msg.parent_content) {
     try {
-      plaintext = await decryptMessage(msg.content, key, dmContext(msg.sender_id, msg.recipient_id));
+      // The parent is in the same conversation, so its recipient is the other participant.
+      const parentRecipient = otherParticipant(msg, msg.parent_sender_id);
+      parentPlaintext = await decryptMessage(
+        msg.parent_content, key, dmContext(msg.parent_sender_id, parentRecipient)
+      );
     } catch (e) {
-      console.warn('Failed to decrypt message', msg.id, e);
+      console.warn('Failed to decrypt parent message', msg.parent_message_id, e);
     }
+  }
 
-    if (msg.parent_message_id && msg.parent_content) {
-      try {
-        // The parent is in the same conversation, so its recipient is the other participant.
-        const parentRecipient = otherParticipant(msg, msg.parent_sender_id);
-        parentPlaintext = await decryptMessage(
-          msg.parent_content, key, dmContext(msg.parent_sender_id, parentRecipient)
-        );
-      } catch (e) {
-        console.warn('Failed to decrypt parent message', msg.parent_message_id, e);
-      }
-    }
+  const reactions = await decryptReactions(msg, msg.reactions, key);
+  return { ...msg, plaintext, parent_plaintext: parentPlaintext, reactions };
+}
 
-    const reactions = await decryptReactions(msg, msg.reactions, key);
-    return { ...msg, plaintext, parent_plaintext: parentPlaintext, reactions };
-  }));
+// Decrypts a page of DM rows.
+export function decryptMessagesBatch(messages, key) {
+  return Promise.all(messages.map((msg) => decryptMessageRow(msg, key)));
 }

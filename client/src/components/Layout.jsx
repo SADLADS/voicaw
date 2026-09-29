@@ -1,4 +1,4 @@
-import { useEffect, useState, createContext, useContext } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { useLocation, Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import DmSidebar from './DmSidebar';
@@ -7,21 +7,8 @@ import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';
 import 'highlight.js/styles/atom-one-dark.css';
-import { ConfigContext } from '../App';
+import { ConfigContext, LayoutContext } from '../contexts';
 import { ensureSubscription, getPushStatus } from '../services/pushService';
-
-export const LayoutContext = createContext();
-
-export function scrollToRight() {
-  const wrapper = document.querySelector('.main-wrapper');
-  if (wrapper) {
-    requestAnimationFrame(() => {
-      wrapper.scrollBy({ left: window.innerWidth, behavior: 'smooth' });
-    });
-  }
-}
-
-
 
 export default function Layout({ user, onLogout }) {
   const location = useLocation();
@@ -105,7 +92,7 @@ export default function Layout({ user, onLogout }) {
           <Sidebar user={user} onLogout={onLogout} hasUnreadDms={hasUnreadDms} />
 
           {/* DM sidebar only shows on the /dm route */}
-          {isDmPage && <DmSidebar users={users} />}
+          {isDmPage && <DmSidebar users={users} unreadDms={unreadDms} />}
         </SidebarWrapper>
 
         {/* The main page content */}

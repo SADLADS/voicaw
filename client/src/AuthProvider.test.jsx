@@ -7,7 +7,8 @@ vi.mock('./utils/api', () => ({
 }));
 
 import api from './utils/api';
-import { AuthProvider, useAuth } from './AuthProvider';
+import { AuthProvider } from './AuthProvider';
+import { useAuth } from './hooks/useAuth';
 
 function Consumer() {
   const { user, loading } = useAuth();

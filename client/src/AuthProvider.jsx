@@ -1,7 +1,6 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from './utils/api';
-
-const AuthContext = createContext();
+import { AuthContext } from './hooks/useAuth';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -21,7 +20,7 @@ export function AuthProvider({ children }) {
         } else {
           setUser(null);
         }
-      } catch (err) {
+      } catch {
         setUser(null);
       } finally {
         setLoading(false);
@@ -37,8 +36,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }

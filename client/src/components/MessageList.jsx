@@ -8,6 +8,7 @@ import { faEdit, faTrash, faReply, faFaceSmile } from '@fortawesome/free-solid-s
 import defaultpfp from '../assets/images/default.png';
 import Attachment from './Attachment';
 import MessageReactions from './MessageReactions';
+import UrlPreviews from './UrlPreviews';
 import { placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { isEmojiOnly } from '../emoji/emojiIndex';
@@ -33,35 +34,6 @@ const markdownComponents = { img: MarkdownImage };
 // pending messages can show their attachments while uploading.
 function urlTransform(url) {
   return placeholderIdFromUrl(url) !== null ? url : defaultUrlTransform(url);
-}
-
-function extractUrls(text) {
-  if (!text) return [];
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  return text.match(urlRegex) || [];
-}
-
-function UrlPreview({ url }) {
-  let embedUrl = url;
-
-  // Simple YouTube embed conversion
-  if (url.includes('youtube.com') || url.includes('youtu.be')) {
-    const videoId = url.includes('youtu.be')
-      ? url.split('/').pop()
-      : new URL(url).searchParams.get('v');
-
-    embedUrl = `https://www.youtube.com/embed/${videoId}`;
-    return (
-      <div className="youtube-wrapper">
-        <iframe
-          src={embedUrl}
-          title="YouTube video"
-          allowFullScreen
-        ></iframe>
-      </div>
-    );
-  }
-  return null;
 }
 
 // One message (with its reply snippet, hover menu and inline editor).
@@ -189,14 +161,7 @@ export function MessageRow({
             e.currentTarget.onerror = null;
             e.currentTarget.src = defaultpfp;
           }}
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            objectFit: 'cover',
-            flexShrink: 0,
-            display: 'inline',
-          }}
+          className="message-avatar"
         />
         <strong> {msg.sender_username}</strong>{' '}
 
@@ -262,9 +227,7 @@ export function MessageRow({
           )}
 
 
-          {extractUrls(msg.plaintext).map((url, idx) => (
-            <UrlPreview key={idx} url={url} />
-          ))}
+          <UrlPreviews text={msg.plaintext} />
         </div>
 
         {canReact && (

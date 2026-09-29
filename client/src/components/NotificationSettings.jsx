@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { ConfigContext } from '../App';
+import { ConfigContext } from '../contexts';
 import {
   disableNotificationsOnThisDevice,
   enableNotifications,

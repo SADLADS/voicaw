@@ -121,7 +121,7 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
 - **Key backup:** both private keys are stored server-side only inside `users.key_backup`,
   encrypted (`wrapKeyBackup`, HKDF → AES-GCM) with OPAQUE's `exportKey`. That is argon2id-stretched,
   stable across logins, and never seen by the server. There is no PBKDF2 and no second password
-  derivation. The backup also contains the public keys. On login (`Login.jsx`) the client refuses
+  derivation. The backup also contains the public keys. On login (`services/authService.js`) the client refuses
   to continue if the server publishes different ones. A forgotten password means the history is
   lost, by design.
 - **On the device** (`keyStore.js`): non-extractable private `CryptoKey`s plus the user's *own*
@@ -221,7 +221,7 @@ be `image/*`. Profile pictures are unencrypted.
 
 ### DM attachments (encrypted, uploaded on send)
 
-Attachments are never uploaded when attached. The composer (`Dm.jsx`) keeps them as local drafts
+Attachments are never uploaded when attached. The composer (`Composer.jsx`, `hooks/useAttachmentDrafts.js`) keeps them as local drafts
 and inserts a markdown placeholder `![name](attachment:ID)` (`utils/attachmentMarkup.js`); the tray
 (`AttachmentTray.jsx`) previews drafts still referenced from the text. On send, each referenced
 draft is encrypted with its own AES-GCM key (`services/attachmentCrypto.js`), uploaded as
@@ -252,7 +252,7 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
 - `EmojiProvider` (in `App.jsx`) loads the index. `rehypeTwemoji` turns emoji in rendered
   messages into `<img class="emoji">` (skipping code). `MessageList`'s `MarkdownImage` passes
   those through (not to `Attachment`), and emoji-only messages get `.emoji-only` (large).
-- Composer (`Dm.jsx`): `EmojiPicker` (search, categories, frequently used and skin tone, both in
+- Composer (`Composer.jsx`): `EmojiPicker` (search, categories, frequently used and skin tone, both in
   localStorage via `emojiUsage.js`), `:sm` autocomplete (`EmojiSuggestions`), and a completed
   `:shortcode:` turns into the emoji as you type. `remark-emoji` still renders any leftover
   `:shortcode:` text.
@@ -295,7 +295,7 @@ or content above resizes. Where that's unsupported (Safari), `MessageList` does 
 by tracking the first visible row's `offsetTop` (layout effect + ResizeObserver, both before paint).
 It also keeps the view pinned to the bottom while the user is there.
 
-`Dm.jsx` loads a conversation in exactly one effect (keyed on `id` + the other user's public key,
+`hooks/useConversation.js` loads a conversation in exactly one effect (keyed on `id` + the other user's public key,
 ignoring late responses after a chat switch). Older pages (`PAGE_SIZE`, sent as `limit`, server
 clamps 1–100, default 10) are only ever prepended by `loadMoreMessages`, which guards against
 overlapping loads and drops ids already present. Rows are keyed by `clientKey ?? id`
@@ -305,14 +305,23 @@ their box is reserved before they load.
 
 ### Client structure
 
+- Component files export only components (Vite hot reload needs that; lint enforces it).
+  Contexts live in `contexts.js` (`ConfigContext`, `InteractionContext`, `LayoutContext`) and
+  `hooks/useAuth.js`; logic lives in `hooks/` and `services/`.
 - `AuthProvider.jsx` — fetches `/api/profile` on mount to restore the session (id, username, JWT)
-  into React context; the keys come from IndexedDB (`keyStore`)
+  into `useAuth`; the keys come from IndexedDB (`keyStore`). `services/authService.js` does the
+  OPAQUE login/register (`Login.jsx` is just the form).
 - `App.jsx` — top-level routing; swaps `BrowserRouter` for `HashRouter` when running inside
   Electron (detected via user-agent sniffing); provides `ConfigContext` (fetched from
   `/api/config`) and `InteractionContext` (mobile vs. desktop interaction mode, persisted to
   `localStorage`, auto-detected via user-agent unless overridden)
-- `components/Dm.jsx` / `MessageList.jsx` / `DmSidebar.jsx` — DM view, message list/composer, and
-  conversation list
+- `Layout.jsx` — the logged-in shell: sidebars, users list and unread counts (`LayoutContext`).
+  `DmSidebar` draws the unread dots from those counts.
+- DM view: `Dm.jsx` puts together `hooks/useConversation.js` (keys, history, paging, send/edit/
+  delete, live websocket updates), `hooks/useReactions.js`, `MessageList.jsx` (+ `MessageReactions`,
+  `UrlPreviews`) and `Composer.jsx` (message box, emoji, reply bar, attachments via
+  `hooks/useAttachmentDrafts.js`). `Dm.jsx` owns what several of them share: reply target, edit
+  state, the composer error line, and which emoji picker is open (never both).
 - Desktop vs. mobile layouts are two separate CSS files (`assets/css/desktop.css` /
   `mobile.css`) toggled via body classes rather than component-level responsive branches
 - PWA support via `vite-plugin-pwa` (`injectManifest` strategy, custom `src/service-worker.js`) —

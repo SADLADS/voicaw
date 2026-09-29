@@ -15,7 +15,7 @@ vi.mock('../services/settingsStore', () => ({
 }));
 
 import NotificationSettings from './NotificationSettings';
-import { ConfigContext } from '../App';
+import { ConfigContext } from '../contexts';
 import {
   getPushStatus, enableNotifications, disableNotificationsOnThisDevice, sendTestNotification,
   ensureSubscription,

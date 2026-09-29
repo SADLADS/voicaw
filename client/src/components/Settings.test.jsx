@@ -8,7 +8,7 @@ vi.mock('../utils/api', () => ({
 
 import api from '../utils/api';
 import Settings from './Settings';
-import { InteractionContext } from '../App';
+import { InteractionContext } from '../contexts';
 
 function renderSettings({ onLogout = vi.fn(), interactionOverrides = {} } = {}) {
   const setInteractionMode = vi.fn();
@@ -32,7 +32,7 @@ function textFile(name = 'notes.txt') {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  global.fetch = vi.fn();
+  globalThis.fetch = vi.fn();
 });
 
 describe('Settings', () => {
@@ -58,7 +58,7 @@ describe('Settings', () => {
 
   it('uploads the selected file and shows a success message', async () => {
     api.get.mockResolvedValue({ data: { url: 'https://s3.test/signed-put-url' } });
-    global.fetch.mockResolvedValue({ ok: true });
+    globalThis.fetch.mockResolvedValue({ ok: true });
 
     renderSettings();
     const input = document.querySelector('input[type="file"]');
@@ -70,7 +70,7 @@ describe('Settings', () => {
     expect(api.get).toHaveBeenCalledWith('/upload_profile_pic', {
       params: { type: 'image/png', size: 10 },
     });
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://s3.test/signed-put-url',
       expect.objectContaining({ method: 'PUT' })
     );
@@ -80,7 +80,7 @@ describe('Settings', () => {
 
   it('shows an error message when the upload PUT fails', async () => {
     api.get.mockResolvedValue({ data: { url: 'https://s3.test/signed-put-url' } });
-    global.fetch.mockResolvedValue({ ok: false });
+    globalThis.fetch.mockResolvedValue({ ok: false });
 
     renderSettings();
     const input = document.querySelector('input[type="file"]');
@@ -99,7 +99,7 @@ describe('Settings', () => {
     fireEvent.click(screen.getByText('Upload'));
 
     await waitFor(() => expect(screen.getByText('Invalid upload URL')).toBeInTheDocument());
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it('calls setInteractionMode when the select changes', () => {

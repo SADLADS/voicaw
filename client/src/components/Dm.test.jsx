@@ -41,18 +41,27 @@ vi.mock('../services/dmService', () => ({
   removeReaction: vi.fn(async () => {}),
 }));
 
-vi.mock('../services/encryptionService', () => ({
-  encryptMessage: vi.fn(async (text) => `enc(${text})`),
-  decryptMessage: vi.fn(async (content) => `dec(${content})`),
-  deriveConversationKey: vi.fn(async () => 'shared-key'),
-  dmContext: (sender, recipient) => `ctx:${sender}->${recipient}`,
-  reactionContext: (messageId, reactorId) => `rctx:${messageId}:${reactorId}`,
-  encryptReaction: vi.fn(async (emoji) => `renc(${emoji})`),
-  decryptReaction: vi.fn(async (content) => content.replace(/^renc\((.*)\)$/, '$1')),
-  decryptMessagesBatch: vi.fn(async (messages) =>
-    messages.map((m) => ({ ...m, plaintext: m.plaintext ?? `dec:${m.content}` }))
-  ),
-}));
+vi.mock('../services/encryptionService', () => {
+  const decryptMessage = vi.fn(async (content) => `dec(${content})`);
+  const dmContext = (sender, recipient) => `ctx:${sender}->${recipient}`;
+  return {
+    encryptMessage: vi.fn(async (text) => `enc(${text})`),
+    decryptMessage,
+    deriveConversationKey: vi.fn(async () => 'shared-key'),
+    dmContext,
+    reactionContext: (messageId, reactorId) => `rctx:${messageId}:${reactorId}`,
+    encryptReaction: vi.fn(async (emoji) => `renc(${emoji})`),
+    decryptReaction: vi.fn(async (content) => content.replace(/^renc\((.*)\)$/, '$1')),
+    decryptMessageRow: vi.fn(async (m, key) => ({
+      ...m,
+      plaintext: await decryptMessage(m.content, key, dmContext(m.sender_id, m.recipient_id)),
+      parent_plaintext: null,
+    })),
+    decryptMessagesBatch: vi.fn(async (messages) =>
+      messages.map((m) => ({ ...m, plaintext: m.plaintext ?? `dec:${m.content}` }))
+    ),
+  };
+});
 
 vi.mock('../utils/mediaDimensions', () => ({
   readMediaDimensions: vi.fn(async () => null),
@@ -100,8 +109,8 @@ import Dm from './Dm';
 import emojiData from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../emoji/emojiIndex';
 import { EmojiContext } from '../emoji/emojiContext';
-import { ConfigContext, InteractionContext } from '../App';
-import { LayoutContext } from './Layout';
+import { ConfigContext, InteractionContext } from '../contexts';
+import { LayoutContext } from '../contexts';
 import { fetchMessagesForUser, sendMessageToUser, markMessagesRead, addReaction, removeReaction } from '../services/dmService';
 import { deriveConversationKey, encryptMessage, decryptMessage, encryptReaction } from '../services/encryptionService';
 import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
@@ -218,12 +227,12 @@ describe('Dm', () => {
         id: 55,
         sender_id: 2,
         recipient_id: 1,
-        plaintext: 'incoming hello',
+        content: 'ENC-HELLO',
         timestamp: 3000,
       });
     });
 
-    expect(await screen.findByText('incoming hello [sent]')).toBeInTheDocument();
+    expect(await screen.findByText('dec(ENC-HELLO) [sent]')).toBeInTheDocument();
   });
 
   it('marks messages read for the active conversation', async () => {

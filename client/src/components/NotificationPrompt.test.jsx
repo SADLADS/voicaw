@@ -8,7 +8,7 @@ vi.mock('../services/pushService', () => ({
 }));
 
 import NotificationPrompt from './NotificationPrompt';
-import { ConfigContext } from '../App';
+import { ConfigContext } from '../contexts';
 import { getPushStatus, enableNotifications } from '../services/pushService';
 
 const renderPrompt = () =>

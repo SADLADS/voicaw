@@ -1,7 +1,7 @@
 import opaque from '@serenity-kit/opaque';
 import { generateUserKeys, wrapKeyBackup, unwrapKeyBackup } from '../../../client/src/services/encryptionService.js';
 
-// Mirrors what client/src/components/Login.jsx does (OPAQUE, then keys wrapped with the
+// Mirrors what client/src/services/authService.js does (OPAQUE, then keys wrapped with the
 // OPAQUE exportKey), so integration tests exercise the real client/server protocol.
 
 export async function registerUser(app, request, username, password) {

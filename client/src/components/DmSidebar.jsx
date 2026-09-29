@@ -1,15 +1,18 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { onUserStatus } from '../utils/ws-client';
-import { scrollToRight } from './Layout';
+import { scrollToRight } from '../utils/scrollToRight';
 import defaultpfp from '../assets/images/default.png';
-import { ConfigContext } from '../App';
+import { ConfigContext } from '../contexts';
 
-export default function DmSidebar({ users }) {
+// The conversation list. `unreadDms` ([{ from_user_id, count }], from Layout) marks
+// conversations with unread messages, except the one being viewed.
+export default function DmSidebar({ users, unreadDms = [] }) {
   const { id: activeId } = useParams();
   const [userList, setUserList] = useState(users);
   const { s3Endpoint } = useContext(ConfigContext);
-  
+  const unreadFrom = new Set(unreadDms.map((u) => String(u.from_user_id)));
+
   useEffect(() => {
     // Keep initial users from props
     setUserList(users);
@@ -42,7 +45,7 @@ export default function DmSidebar({ users }) {
               className={`dm-user ${id.toString() === activeId ? 'active' : ''}`}
             >
               <span className={`online-dot ${online ? 'online' : 'offline'}`} />
-              <span className="userdot" id={`user-dot-${id.toString()}`} />
+              <span className={`userdot${unreadFrom.has(String(id)) && String(id) !== activeId ? ' active' : ''}`} />
 
               <div className="dm-user-container">
                 <span><img
@@ -52,12 +55,7 @@ export default function DmSidebar({ users }) {
                     e.currentTarget.onerror = null;
                     e.currentTarget.src = defaultpfp;
                   }}
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                  }}
+                  className="dm-user-avatar"
                 /></span><span> {username}</span></div>
             </Link>
           );

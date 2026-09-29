@@ -32,3 +32,12 @@ export async function addReaction(messageId, content) {
 export async function removeReaction(reactionId) {
   await api.delete(`/dm-reactions/${reactionId}`);
 }
+
+// `content` is the new ciphertext.
+export async function editMessage(messageId, content) {
+  await api.put(`/update-message/${messageId}`, { content });
+}
+
+export async function deleteMessage(messageId) {
+  await api.delete(`/messages/${messageId}`);
+}

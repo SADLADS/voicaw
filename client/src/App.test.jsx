@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Outlet } from 'react-router-dom';
 
-vi.mock('./AuthProvider.jsx', () => ({
+vi.mock('./hooks/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 
@@ -31,13 +31,7 @@ vi.mock('./components/Layout.jsx', () => ({
   ),
 }));
 
-vi.mock('./components/CreateGuild.jsx', () => ({
-  default: () => <div data-testid="createguild-page">CREATE GUILD</div>,
-}));
 
-vi.mock('./components/Calendar.jsx', () => ({
-  default: () => <div data-testid="calendar-page">CALENDAR</div>,
-}));
 
 vi.mock('./components/Settings.jsx', () => ({
   default: ({ onLogout }) => (
@@ -47,20 +41,20 @@ vi.mock('./components/Settings.jsx', () => ({
 
 vi.mock('./components/Dm.jsx', async () => {
   const { useContext } = await import('react');
-  return {
-    // Shows the ConfigContext it receives (set once App is imported, below).
-    default: ({ user }) => {
-      const config = useContext(globalThis.__appConfigContext);
-      return (
-        <div data-testid="dm-page" data-vapid={config?.vapidPublicKey ?? ''}>DM for {user?.username}</div>
-      );
-    },
-  };
+  const { ConfigContext } = await import('./contexts');
+  // Shows the ConfigContext it receives.
+  function DmStub({ user }) {
+    const config = useContext(ConfigContext);
+    return (
+      <div data-testid="dm-page" data-vapid={config?.vapidPublicKey ?? ''}>DM for {user?.username}</div>
+    );
+  }
+  return { default: DmStub };
 });
 
-import App, { ConfigContext } from './App';
-globalThis.__appConfigContext = ConfigContext;
-import { useAuth } from './AuthProvider.jsx';
+import App from './App';
+import { ConfigContext } from './contexts';
+import { useAuth } from './hooks/useAuth';
 import api from './utils/api';
 import { closeWebSocket } from './utils/ws-client';
 import { clearUserKeys } from './services/keyStore';
@@ -113,7 +107,7 @@ describe('App routing', () => {
     expect(screen.getByTestId('login-page')).toBeInTheDocument();
   });
 
-  it('renders Settings, Calendar, and CreateGuild under Layout for a logged-in user', () => {
+  it('renders Settings under Layout for a logged-in user', () => {
     useAuth.mockReturnValue({ user: { id: 1, username: 'alice' }, setUser: vi.fn(), loading: false });
 
     setPath('/settings');
@@ -121,13 +115,6 @@ describe('App routing', () => {
     expect(screen.getByTestId('settings-page')).toBeInTheDocument();
     expect(screen.getByTestId('layout')).toBeInTheDocument();
     unmount();
-
-    setPath('/calendar');
-    render(<App />).unmount();
-
-    setPath('/createguild');
-    render(<App />);
-    expect(screen.getByTestId('createguild-page')).toBeInTheDocument();
   });
 
   it('logs out (clears storage, closes the socket, and nulls the user) when Settings triggers onLogout', async () => {

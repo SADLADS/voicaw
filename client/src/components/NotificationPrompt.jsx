@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { ConfigContext } from '../App';
+import { ConfigContext } from '../contexts';
 import { enableNotifications, getPushStatus } from '../services/pushService';
 
 const DISMISSED_KEY = 'notificationPromptDismissed';

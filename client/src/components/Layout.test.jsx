@@ -37,8 +37,9 @@ vi.mock('../services/keyStore', () => ({
   loadPrivateKey: vi.fn(async () => 'fake-private-key'),
 }));
 
-import Layout, { LayoutContext } from './Layout';
-import { ConfigContext } from '../App';
+import Layout from './Layout';
+import { LayoutContext } from '../contexts';
+import { ConfigContext } from '../contexts';
 import { getPushStatus, ensureSubscription } from '../services/pushService';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';

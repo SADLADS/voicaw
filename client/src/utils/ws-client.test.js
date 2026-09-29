@@ -53,8 +53,8 @@ function fakeLocalStorage() {
 
 beforeEach(() => {
   MockWebSocket.instances = [];
-  global.WebSocket = MockWebSocket;
-  global.localStorage = fakeLocalStorage();
+  globalThis.WebSocket = MockWebSocket;
+  globalThis.localStorage = fakeLocalStorage();
   closeWebSocket();
 });
 
@@ -69,7 +69,7 @@ describe('connectWebSocket', () => {
   });
 
   it('opens a socket and sends an identify message once connected', () => {
-    global.localStorage.setItem('token', 'jwt-abc');
+    globalThis.localStorage.setItem('token', 'jwt-abc');
     connectWebSocket();
 
     expect(MockWebSocket.instances.length).toBe(1);
@@ -82,7 +82,7 @@ describe('connectWebSocket', () => {
   });
 
   it('does not open a second socket if already connected', () => {
-    global.localStorage.setItem('token', 'jwt-abc');
+    globalThis.localStorage.setItem('token', 'jwt-abc');
     connectWebSocket();
     MockWebSocket.instances[0]._open();
 
@@ -93,7 +93,7 @@ describe('connectWebSocket', () => {
 
 describe('message routing', () => {
   function connectAndOpen() {
-    global.localStorage.setItem('token', 'jwt-abc');
+    globalThis.localStorage.setItem('token', 'jwt-abc');
     connectWebSocket();
     const socket = MockWebSocket.instances[0];
     socket._open();
@@ -162,7 +162,7 @@ describe('message routing', () => {
 
 describe('closeWebSocket', () => {
   it('closes the socket and clears listeners', () => {
-    global.localStorage.setItem('token', 'jwt-abc');
+    globalThis.localStorage.setItem('token', 'jwt-abc');
     connectWebSocket();
     const socket = MockWebSocket.instances[0];
     socket._open();
@@ -183,7 +183,7 @@ describe('closeWebSocket', () => {
 
   it('cancels a pending reconnect attempt', () => {
     vi.useFakeTimers();
-    global.localStorage.setItem('token', 'jwt-abc');
+    globalThis.localStorage.setItem('token', 'jwt-abc');
     connectWebSocket();
     const socket = MockWebSocket.instances[0];
     socket.close(1006, 'dropped');
@@ -201,7 +201,7 @@ describe('closeWebSocket', () => {
 describe('reconnect behavior', () => {
   it('attempts to reconnect 3s after an unexpected close', () => {
     vi.useFakeTimers();
-    global.localStorage.setItem('token', 'jwt-abc');
+    globalThis.localStorage.setItem('token', 'jwt-abc');
     connectWebSocket();
     const socket = MockWebSocket.instances[0];
 
@@ -222,7 +222,7 @@ describe('presence', () => {
   });
 
   it('reports the open chat whenever it changes', () => {
-    global.localStorage.setItem('token', 'jwt-abc');
+    globalThis.localStorage.setItem('token', 'jwt-abc');
     connectWebSocket();
     const socket = MockWebSocket.instances[0];
     socket._open();
@@ -238,7 +238,7 @@ describe('presence', () => {
 
   it('re-sends presence periodically so the server knows it is still current', () => {
     vi.useFakeTimers();
-    global.localStorage.setItem('token', 'jwt-abc');
+    globalThis.localStorage.setItem('token', 'jwt-abc');
     connectWebSocket();
     const socket = MockWebSocket.instances[0];
     socket._open();
@@ -253,7 +253,7 @@ describe('presence', () => {
 
   it('stops sending presence once closed', () => {
     vi.useFakeTimers();
-    global.localStorage.setItem('token', 'jwt-abc');
+    globalThis.localStorage.setItem('token', 'jwt-abc');
     connectWebSocket();
     const socket = MockWebSocket.instances[0];
     socket._open();

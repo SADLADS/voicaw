@@ -15,14 +15,14 @@ vi.mock('../utils/ws-client', () => ({
 }));
 
 import DmSidebar from './DmSidebar';
-import { ConfigContext } from '../App';
+import { ConfigContext } from '../contexts';
 
-function renderSidebar(users, { path = '/dm/2' } = {}) {
+function renderSidebar(users, { path = '/dm/2', unreadDms } = {}) {
   return render(
     <ConfigContext.Provider value={{ s3Endpoint: 'https://s3.test' }}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route path="/dm/:id" element={<DmSidebar users={users} />} />
+          <Route path="/dm/:id" element={<DmSidebar users={users} unreadDms={unreadDms} />} />
         </Routes>
       </MemoryRouter>
     </ConfigContext.Provider>
@@ -84,5 +84,16 @@ describe('DmSidebar', () => {
     img.dispatchEvent(new Event('error'));
 
     expect(img.src).toContain('default');
+  });
+
+  it('marks conversations with unread messages, except the open one', () => {
+    renderSidebar(
+      [...users, { id: 3, username: 'carol', online: false }],
+      { unreadDms: [{ from_user_id: 1, count: 2 }, { from_user_id: 2, count: 1 }] }
+    );
+    const dot = (name) => screen.getByText(name).closest('a').querySelector('.userdot');
+    expect(dot('alice')).toHaveClass('active');
+    expect(dot('bob')).not.toHaveClass('active'); // open (/dm/2)
+    expect(dot('carol')).not.toHaveClass('active');
   });
 });

@@ -1182,3 +1182,18 @@ body.mobile-mode .reaction-chip.reaction-add {
   color: var(--vc-fg-muted);
   margin-bottom: 0.5rem;
 }
+
+/* Profile pictures next to messages and in the conversation list (`.dm-message img` in
+   voicaw.css would otherwise make message avatars full-size blocks). */
+.dm-message img.message-avatar,
+.dm-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.dm-message img.message-avatar {
+  display: inline;
+}
