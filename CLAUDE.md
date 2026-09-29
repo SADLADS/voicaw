@@ -214,7 +214,10 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
 - Images are **self-hosted** at `/emoji/<file>.svg` by the `twemojiAssets` plugin in
   `client/vite.config.js`: served from the npm package in dev, copied into the build otherwise,
   and not precached. There is no CDN and no setup for a new install. The artwork is CC-BY 4.0,
-  so keep the attribution in Settings.
+  so keep the attribution in Settings. The service worker caches them cache-first (cache
+  `emoji-<twemoji version>`), so each is fetched once per device. The picker only sets an
+  image's `src` once it's within a screen of the visible area (its own `IntersectionObserver`,
+  not `loading="lazy"`, which queued hundreds of offscreen images ahead of the visible ones).
 - `EmojiProvider` (in `App.jsx`) loads the index. `rehypeTwemoji` turns emoji in rendered
   messages into `<img class="emoji">` (skipping code). `MessageList`'s `MarkdownImage` passes
   those through (not to `Attachment`), and emoji-only messages get `.emoji-only` (large).

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { frequentEmojiIds, getSkinTone, recordEmojiUse, setSkinTone, skinFor } from '../emoji/emojiUsage';
@@ -9,6 +9,56 @@ import { hasVirtualKeyboardApi, setKeyboardOverlaysContent, watchKeyboardRect } 
 const KEYBOARD_DEBUG = typeof location !== 'undefined' && new URLSearchParams(location.search).has('kbdebug');
 
 const TONE_SAMPLE = 'raised_hand';
+
+// Emoji images only load once they're within a screen of the picker's visible area. The
+// browser's own `loading="lazy"` looks much further ahead (hundreds of images on open), so
+// the emoji actually on screen had to queue behind ones nobody could see yet.
+const NearbyContext = createContext(null);
+const CAN_OBSERVE = typeof IntersectionObserver !== 'undefined';
+
+function useNearbyObserver(rootRef, ready) {
+  const [observer, setObserver] = useState(null);
+  useEffect(() => {
+    if (!CAN_OBSERVE || !ready || !rootRef.current) return undefined;
+    const callbacks = new Map();
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        callbacks.get(entry.target)?.();
+        callbacks.delete(entry.target);
+        io.unobserve(entry.target);
+      }
+    }, { root: rootRef.current, rootMargin: '100% 0px' });
+    setObserver({
+      watch(el, onNear) {
+        callbacks.set(el, onNear);
+        io.observe(el);
+        return () => { callbacks.delete(el); io.unobserve(el); };
+      },
+    });
+    return () => io.disconnect();
+  }, [rootRef, ready]);
+  return observer;
+}
+
+function EmojiImage({ unified, alt }) {
+  const nearby = useContext(NearbyContext);
+  const ref = useRef(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => (nearby && !near ? nearby.watch(ref.current, () => setNear(true)) : undefined), [nearby, near]);
+  // Without IntersectionObserver (old browsers, tests) fall back to the browser's lazy loading.
+  const show = near || !CAN_OBSERVE;
+  return (
+    <img
+      ref={ref}
+      className="emoji"
+      src={show ? emojiImageUrl(unified) : undefined}
+      alt={alt}
+      loading={CAN_OBSERVE ? undefined : 'lazy'}
+      draggable={false}
+    />
+  );
+}
 
 function EmojiButton({ emoji, tone, onPick, onHover, keepFocus }) {
   const skin = skinFor(emoji, tone);
@@ -25,7 +75,7 @@ function EmojiButton({ emoji, tone, onPick, onHover, keepFocus }) {
       aria-label={emoji.name}
       title={`:${emoji.id}:`}
     >
-      <img className="emoji" src={emojiImageUrl(skin.unified)} alt={skin.native} loading="lazy" draggable={false} />
+      <EmojiImage unified={skin.unified} alt={skin.native} />
     </button>
   );
 }
@@ -48,6 +98,7 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
   const rootRef = useRef(null);
   const scrollRef = useRef(null);
   const searchRef = useRef(null);
+  const nearby = useNearbyObserver(scrollRef, Boolean(index));
   // Docked only: full-screen search mode (keyboard open).
   const [searching, setSearching] = useState(false);
   const visible = useVisualViewport(docked && searching);
@@ -253,28 +304,30 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
             </nav>
           )}
           <div className="emoji-picker-scroll" ref={scrollRef}>
-            {results ? (
-              results.length ? (
-                <div className="emoji-picker-grid">
-                  {results.map((emoji) => (
-                    <EmojiButton key={emoji.id} emoji={emoji} tone={tone} onPick={pick} onHover={setHovered} keepFocus={docked && searching} />
-                  ))}
-                </div>
-              ) : (
-                <div className="emoji-picker-empty">No emoji match "{query}"</div>
-              )
-            ) : (
-              sections.map((section) => (
-                <section key={section.id} data-section={section.id}>
-                  <h6 className="emoji-picker-section-title">{section.name}</h6>
+            <NearbyContext.Provider value={nearby}>
+              {results ? (
+                results.length ? (
                   <div className="emoji-picker-grid">
-                    {section.emojis.map((emoji) => (
+                    {results.map((emoji) => (
                       <EmojiButton key={emoji.id} emoji={emoji} tone={tone} onPick={pick} onHover={setHovered} keepFocus={docked && searching} />
                     ))}
                   </div>
-                </section>
-              ))
-            )}
+                ) : (
+                  <div className="emoji-picker-empty">No emoji match "{query}"</div>
+                )
+              ) : (
+                sections.map((section) => (
+                  <section key={section.id} data-section={section.id}>
+                    <h6 className="emoji-picker-section-title">{section.name}</h6>
+                    <div className="emoji-picker-grid">
+                      {section.emojis.map((emoji) => (
+                        <EmojiButton key={emoji.id} emoji={emoji} tone={tone} onPick={pick} onHover={setHovered} keepFocus={docked && searching} />
+                      ))}
+                    </div>
+                  </section>
+                ))
+              )}
+            </NearbyContext.Provider>
           </div>
         </div>
       )}
