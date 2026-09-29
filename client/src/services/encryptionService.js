@@ -7,13 +7,16 @@
 //     the user's other keys, so future per-device keys can be added without changing it.
 //   - encryption (ECDH): used to derive per-conversation keys for DMs; signed by identity.
 // Both private keys are stored on the server only inside a backup encrypted with a key
-// derived from OPAQUE's exportKey (argon2id-stretched; the server can't compute it).
+// derived from OPAQUE's exportKey (argon2id-stretched; the server can't compute it), and
+// optionally in a second backup encrypted with a key derived from a recovery code.
 
 const te = new TextEncoder();
 const td = new TextDecoder();
 
 const ENCRYPTION_KEY_CONTEXT = 'voicaw/encryption-key/v1';
 const KEY_BACKUP_CONTEXT = 'voicaw/key-backup/v1';
+const RECOVERY_BACKUP_CONTEXT = 'voicaw/recovery-backup/v1';
+const RECOVERY_AUTH_CONTEXT = 'voicaw/recovery-auth/v1';
 const DM_KEY_CONTEXT = 'voicaw/dm-key/v1';
 const DM_MESSAGE_CONTEXT = 'voicaw/dm/v1';
 const DM_REACTION_CONTEXT = 'voicaw/dm-reaction/v1';
@@ -104,40 +107,102 @@ export function importEncryptionPrivateKey(pkcs8Base64) {
 
 // ---------------------------------------------------------------- key backup
 
-async function keyBackupKey(exportKey) {
-  const material = await crypto.subtle.importKey('raw', fromBase64(exportKey), 'HKDF', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: te.encode(KEY_BACKUP_CONTEXT) },
-    material,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt']
+// An AES-GCM key (or raw bits) from `secret` with HKDF, bound to `context`.
+async function hkdf(secret, context, algorithm) {
+  const material = await crypto.subtle.importKey('raw', secret, 'HKDF', false, ['deriveKey', 'deriveBits']);
+  const params = { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: te.encode(context) };
+  if (!algorithm) return new Uint8Array(await crypto.subtle.deriveBits(params, material, 256));
+  return crypto.subtle.deriveKey(params, material, algorithm, false, ['encrypt', 'decrypt']);
+}
+
+const AES_GCM = { name: 'AES-GCM', length: 256 };
+
+function keyBackupKey(exportKey) {
+  return hkdf(fromBase64(exportKey), KEY_BACKUP_CONTEXT, AES_GCM);
+}
+
+async function wrapKeys(key, context, userKeys) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const plaintext = te.encode(JSON.stringify({ public: userKeys.public, private: userKeys.private }));
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: te.encode(context) }, key, plaintext);
+  return JSON.stringify({ v: 1, iv: toBase64(iv), ct: toBase64(ciphertext) });
+}
+
+async function unwrapKeys(key, context, backup) {
+  const { v, iv, ct } = JSON.parse(backup);
+  if (v !== 1) throw new Error(`Unsupported key backup version ${v}`);
+  const plaintext = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: fromBase64(iv), additionalData: te.encode(context) },
+    key,
+    fromBase64(ct)
   );
+  return JSON.parse(td.decode(plaintext));
 }
 
 // Encrypts the user's keys for storage on the server. The public keys are included so that
 // after login the client can check the server is publishing the right ones.
 export async function wrapKeyBackup(exportKey, userKeys) {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const plaintext = te.encode(JSON.stringify({ public: userKeys.public, private: userKeys.private }));
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv, additionalData: te.encode(KEY_BACKUP_CONTEXT) },
-    await keyBackupKey(exportKey),
-    plaintext
-  );
-  return JSON.stringify({ v: 1, iv: toBase64(iv), ct: toBase64(ciphertext) });
+  return wrapKeys(await keyBackupKey(exportKey), KEY_BACKUP_CONTEXT, userKeys);
 }
 
 // Throws if the backup can't be decrypted with this exportKey (wrong password / tampered).
 export async function unwrapKeyBackup(exportKey, backup) {
-  const { v, iv, ct } = JSON.parse(backup);
-  if (v !== 1) throw new Error(`Unsupported key backup version ${v}`);
-  const plaintext = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: fromBase64(iv), additionalData: te.encode(KEY_BACKUP_CONTEXT) },
-    await keyBackupKey(exportKey),
-    fromBase64(ct)
-  );
-  return JSON.parse(td.decode(plaintext));
+  return unwrapKeys(await keyBackupKey(exportKey), KEY_BACKUP_CONTEXT, backup);
+}
+
+// ---------------------------------------------------------------- recovery code
+
+// A recovery code is 25 random Crockford base32 characters (125 bits), shown in groups of
+// five. It's random enough that no stretching is needed. Two things are derived from it: a
+// key that encrypts a second copy of the key backup, and an "auth" value the client sends
+// to the server to prove it has the code. The server only stores SHA-256 of the auth value
+// (the verifier), so neither its database nor the auth value reveals the backup key.
+const RECOVERY_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+const RECOVERY_LENGTH = 25;
+
+export function generateRecoveryCode() {
+  // 256 is a multiple of 32, so masking keeps every character equally likely.
+  const chars = Array.from(crypto.getRandomValues(new Uint8Array(RECOVERY_LENGTH)), (b) => RECOVERY_ALPHABET[b & 31]);
+  return chars.join('').match(/.{5}/g).join('-');
+}
+
+// The code in its canonical form (no dashes or spaces, upper case, O read as 0 and I/L as 1),
+// or null if it can't be a recovery code.
+export function normalizeRecoveryCode(input) {
+  const code = String(input ?? '')
+    .toUpperCase()
+    .replace(/[\s-]/g, '')
+    .replace(/O/g, '0')
+    .replace(/[IL]/g, '1');
+  if (code.length !== RECOVERY_LENGTH || [...code].some((c) => !RECOVERY_ALPHABET.includes(c))) return null;
+  return code;
+}
+
+function recoverySecret(code) {
+  const normalized = normalizeRecoveryCode(code);
+  if (!normalized) throw new Error("That isn't a valid recovery code.");
+  return te.encode(normalized);
+}
+
+// What the client sends to prove it has the code (base64).
+export async function recoveryAuth(code) {
+  return toBase64(await hkdf(recoverySecret(code), RECOVERY_AUTH_CONTEXT));
+}
+
+// What the server stores to check recoveryAuth against (base64 SHA-256 of it).
+export async function recoveryVerifier(auth) {
+  return toBase64(await crypto.subtle.digest('SHA-256', fromBase64(auth)));
+}
+
+export async function wrapRecoveryBackup(code, userKeys) {
+  const key = await hkdf(recoverySecret(code), RECOVERY_BACKUP_CONTEXT, AES_GCM);
+  return wrapKeys(key, RECOVERY_BACKUP_CONTEXT, userKeys);
+}
+
+// Throws if the backup can't be decrypted with this code.
+export async function unwrapRecoveryBackup(code, backup) {
+  const key = await hkdf(recoverySecret(code), RECOVERY_BACKUP_CONTEXT, AES_GCM);
+  return unwrapKeys(key, RECOVERY_BACKUP_CONTEXT, backup);
 }
 
 // ---------------------------------------------------------------- direct messages

@@ -1,13 +1,24 @@
 import React, { useState } from 'react';
 import '../assets/css/login.css';
+import '../assets/css/recovery.css';
 import { connectWebSocket } from '../utils/ws-client';
-import { MIN_PASSWORD_LENGTH, logIn, register } from '../services/authService';
+import { MIN_PASSWORD_LENGTH, logIn, register, recoverAccount } from '../services/authService';
+import RecoveryCodeDisplay from './RecoveryCodeDisplay';
 
 export default function Login({ onLoginSuccess }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [registerData, setRegisterData] = useState({ username: '', password: '' });
+  const [recoverData, setRecoverData] = useState({ username: '', code: '', password: '', confirm: '' });
+  // 'login' (log in or register), 'recover' (forgot password), or after registering,
+  // { user, recoveryCode } while the new code is shown.
+  const [mode, setMode] = useState('login');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const switchTo = (next) => {
+    setError('');
+    setMode(next);
+  };
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -32,14 +43,116 @@ export default function Login({ onLoginSuccess }) {
     setError('');
     setLoading(true);
     try {
-      const user = await register(registerData.username, registerData.password);
-      if (user) onLoginSuccess(user);
-      else alert('Registered! You can now log in.');
+      const { user, recoveryCode } = await register(registerData.username, registerData.password);
+      setMode({ user, recoveryCode });
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleRecover(e) {
+    e.preventDefault();
+    setError('');
+    if (recoverData.password !== recoverData.confirm) {
+      setError("The new passwords don't match.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const user = await recoverAccount(recoverData.username, recoverData.code, recoverData.password);
+      connectWebSocket();
+      onLoginSuccess(user);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function finishRegistration() {
+    if (mode.user) onLoginSuccess(mode.user);
+    else {
+      alert('Registered! You can now log in.');
+      switchTo('login');
+    }
+  }
+
+  if (mode.recoveryCode) {
+    return (
+      <div className="login-page">
+        <div className="form-container">
+          <h3 className="login-header text-center mb-3">Save your recovery code</h3>
+          <RecoveryCodeDisplay code={mode.recoveryCode} username={registerData.username} onDone={finishRegistration} />
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === 'recover') {
+    return (
+      <div className="login-page">
+        <div className="form-container">
+          <h3 className="login-header text-center mb-3">Reset your password</h3>
+          <p className="register-password-hint">
+            Enter the recovery code you saved when you made your account (or in Settings), and
+            choose a new password. Your messages stay.
+          </p>
+
+          {error && <div className="login-error" role="alert">{error}</div>}
+
+          <form onSubmit={handleRecover} className="mb-3">
+            <input
+              name="username"
+              className="form-control mb-2"
+              placeholder="Username"
+              autoComplete="username"
+              required
+              value={recoverData.username}
+              onChange={e => setRecoverData({ ...recoverData, username: e.target.value })}
+            />
+            <input
+              name="recovery-code"
+              className="form-control mb-2"
+              placeholder="Recovery code (XXXXX-XXXXX-…)"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              required
+              value={recoverData.code}
+              onChange={e => setRecoverData({ ...recoverData, code: e.target.value })}
+            />
+            <input
+              type="password"
+              name="new-password"
+              className="form-control mb-2"
+              placeholder="New password"
+              autoComplete="new-password"
+              required
+              value={recoverData.password}
+              onChange={e => setRecoverData({ ...recoverData, password: e.target.value })}
+            />
+            <input
+              type="password"
+              name="confirm-password"
+              className="form-control mb-2"
+              placeholder="New password again"
+              autoComplete="new-password"
+              required
+              value={recoverData.confirm}
+              onChange={e => setRecoverData({ ...recoverData, confirm: e.target.value })}
+            />
+            <button className="btn btn-vc w-100" type="submit" disabled={loading}>
+              {loading ? "Please wait..." : "Reset password and log in"}
+            </button>
+          </form>
+          <button type="button" className="link-button" onClick={() => switchTo('login')}>
+            Back to login
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -70,6 +183,9 @@ export default function Login({ onLoginSuccess }) {
           <button className="btn btn-vc w-100" type="submit" disabled={loading}>
             {loading ? "Please wait..." : "Login"}
           </button>
+          <button type="button" className="link-button mt-2" onClick={() => switchTo('recover')}>
+            Forgot password?
+          </button>
         </form>
 
         <hr />
@@ -93,8 +209,8 @@ export default function Login({ onLoginSuccess }) {
             onChange={e => setRegisterData({ ...registerData, password: e.target.value })}
           />
           <p className="register-password-hint">
-            At least {MIN_PASSWORD_LENGTH} characters. Your password protects your encrypted messages and
-            can't be reset: if you forget it, your message history can't be recovered.
+            At least {MIN_PASSWORD_LENGTH} characters. You'll get a recovery code next: keep it safe,
+            it's the only way to reset a forgotten password.
           </p>
           <button className="btn btn-secondary w-100" type="submit" disabled={loading}>
             {loading ? "Please wait..." : "Register"}

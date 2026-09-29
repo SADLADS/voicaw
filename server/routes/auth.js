@@ -24,6 +24,9 @@ const limits = {
   loginPerUsername: createLimiter({ windowMs: 15 * MINUTE, max: 20 }),
   registerStartPerIp: createLimiter({ windowMs: 60 * MINUTE, max: 30 }),
   registerPerIp: createLimiter({ windowMs: 60 * MINUTE, max: 10 }),
+  // Recovery codes can't be guessed (125 bits), so these only stop pointless hammering.
+  recoverPerIp: createLimiter({ windowMs: 15 * MINUTE, max: 30 }),
+  recoverPerUsername: createLimiter({ windowMs: 15 * MINUTE, max: 20 }),
 };
 
 // Middleware: counts this request against `limiters` ([limiter, keyOf(req)] pairs) and
@@ -90,14 +93,14 @@ router.post('/initiatelogin', limit([limits.loginPerIp, byIp], [limits.loginPerU
   res.json({ loginResponse });
 });
 
-router.post('/finaliselogin', async (req, res) => {
-  const { finishLoginRequest, clientSessionKey, userIdentifier } = req.body;
-  if (!finishLoginRequest || !clientSessionKey || !userIdentifier || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing data' });
+// Checks the second half of an OPAQUE login for `username` (started with /initiatelogin).
+// Resolves to null when it's right, otherwise to [status, error] to answer with.
+async function checkLoginProof(username, finishLoginRequest, clientSessionKey) {
+  if (!finishLoginRequest || !clientSessionKey) return [400, 'Missing data'];
   await opaque.ready;
-
-  const state = await db.get('SELECT * FROM login_states WHERE username = ?', [userIdentifier]);
-  if (!state) return res.status(401).json({ error: 'Invalid credentials' });
-  if (now() > state.expires_at) return res.status(401).json({ error: 'Login state expired' });
+  const state = await db.get('SELECT * FROM login_states WHERE username = ?', [username]);
+  if (!state) return [401, 'Invalid credentials'];
+  if (now() > state.expires_at) return [401, 'Login state expired'];
 
   let sessionKey;
   try {
@@ -107,16 +110,24 @@ router.post('/finaliselogin', async (req, res) => {
     }));
   } catch (e) {
     console.error('OPAQUE finishLogin error:', e);
-    return res.status(401).json({ error: 'Invalid credentials' });
+    return [401, 'Invalid credentials'];
   }
-  if (!sessionKey || sessionKey !== clientSessionKey) {
-    return res.status(401).json({ error: 'Login failed' });
-  }
+  if (!sessionKey || sessionKey !== clientSessionKey) return [401, 'Login failed'];
 
-  await db.run('DELETE FROM login_states WHERE username = ?', [userIdentifier]);
-  limits.loginPerUsername.reset(byUsername(req));
+  await db.run('DELETE FROM login_states WHERE username = ?', [username]);
+  limits.loginPerUsername.reset(String(username).slice(0, 100));
+  return null;
+}
+
+router.post('/finaliselogin', async (req, res) => {
+  const { finishLoginRequest, clientSessionKey, userIdentifier } = req.body;
+  if (!finishLoginRequest || !clientSessionKey || !userIdentifier || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing data' });
+
+  const failed = await checkLoginProof(userIdentifier, finishLoginRequest, clientSessionKey);
+  if (failed) return res.status(failed[0]).json({ error: failed[1] });
+
   const user = await db.get(
-    'SELECT id, identity_key, encryption_key, encryption_key_signature, key_backup FROM users WHERE username = ?',
+    'SELECT id, identity_key, encryption_key, encryption_key_signature, key_backup, recovery_verifier FROM users WHERE username = ?',
     [userIdentifier]
   );
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
@@ -127,6 +138,7 @@ router.post('/finaliselogin', async (req, res) => {
     token: generateToken({ id: user.id, username: userIdentifier }),
     id: user.id,
     username: userIdentifier,
+    hasRecoveryCode: Boolean(user.recovery_verifier),
     keyBackup: user.key_backup,
     identityKey: user.identity_key,
     encryptionKey: user.encryption_key,
@@ -148,7 +160,7 @@ router.post('/initiateregister', limit([limits.registerStartPerIp, byIp]), async
 });
 
 router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req, res) => {
-  const { registrationRecord, userIdentifier, identityKey, encryptionKey, encryptionKeySignature, keyBackup } = req.body;
+  const { registrationRecord, userIdentifier, identityKey, encryptionKey, encryptionKeySignature, keyBackup, recoveryVerifier, recoveryBackup } = req.body;
   if (!userIdentifier || !registrationRecord || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing username or registrationRecord' });
   if (!identityKey || !encryptionKey || !encryptionKeySignature || !keyBackup) {
     return res.status(400).json({ error: 'Missing keys' });
@@ -157,13 +169,17 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
   if (!(await isValidEncryptionKeySignature(identityKey, encryptionKey, encryptionKeySignature))) {
     return res.status(400).json({ error: 'Invalid key signature' });
   }
+  const recovery = recoveryVerifier || recoveryBackup ? parseRecovery(req.body) : null;
+  if (recovery?.error) return res.status(400).json({ error: recovery.error });
 
   let lastID;
   try {
     ({ lastID } = await db.run(
-      `INSERT INTO users (username, password, identity_key, encryption_key, encryption_key_signature, key_backup)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [userIdentifier, registrationRecord, identityKey, encryptionKey, encryptionKeySignature, keyBackup]
+      `INSERT INTO users (username, password, identity_key, encryption_key, encryption_key_signature, key_backup,
+         recovery_verifier, recovery_backup, recovery_created)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userIdentifier, registrationRecord, identityKey, encryptionKey, encryptionKeySignature, keyBackup,
+        recovery?.verifier ?? null, recovery?.backup ?? null, recovery ? now() : null]
     ));
   } catch (err) {
     if (err.message.includes('UNIQUE constraint failed')) {
@@ -172,15 +188,138 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
     throw err;
   }
   const user = { id: lastID, username: userIdentifier };
-  res.status(201).json({ token: generateToken(user), id: user.id, username: user.username });
+  res.status(201).json({ token: generateToken(user), id: user.id, username: user.username, hasRecoveryCode: Boolean(recovery) });
 });
 
 // Restores a session from its token (the client keeps it in localStorage).
 router.get('/profile', authenticateJWT, async (req, res) => {
-  const user = await db.get('SELECT id FROM users WHERE id = ?', [req.user.id]);
+  const user = await db.get('SELECT id, recovery_verifier FROM users WHERE id = ?', [req.user.id]);
   if (!user) return res.status(404).json({ error: 'User not found' });
   const token = req.headers.authorization.split(' ')[1];
-  res.json({ token, id: req.user.id, username: req.user.username });
+  res.json({ token, id: req.user.id, username: req.user.username, hasRecoveryCode: Boolean(user.recovery_verifier) });
+});
+
+// ---------------------------------------------------------------- password and recovery code
+//
+// Neither the password nor the private keys ever reach the server: the client re-encrypts
+// its key backup itself and sends only the result. Changes while logged in need the current
+// password too (a fresh OPAQUE login: /initiatelogin, then its finishLoginRequest and
+// session key sent along here), so a stolen token alone can't take over the account. A
+// recovery code works without being logged in.
+
+const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
+const MAX_BACKUP_LENGTH = 4096;
+
+function isBackup(value) {
+  if (typeof value !== 'string' || value.length > MAX_BACKUP_LENGTH) return false;
+  try {
+    const { v, iv, ct } = JSON.parse(value);
+    return v === 1 && typeof iv === 'string' && typeof ct === 'string';
+  } catch {
+    return false;
+  }
+}
+
+// { verifier, backup } from a request body, or { error }.
+function parseRecovery({ recoveryVerifier, recoveryBackup }) {
+  if (typeof recoveryVerifier !== 'string' || !BASE64.test(recoveryVerifier)
+    || Buffer.from(recoveryVerifier, 'base64').length !== 32) {
+    return { error: 'Invalid recovery verifier' };
+  }
+  if (!isBackup(recoveryBackup)) return { error: 'Invalid recovery backup' };
+  return { verifier: recoveryVerifier, backup: recoveryBackup };
+}
+
+// A registration record from /initiateregister for a new password, and the key backup
+// re-encrypted with that registration's exportKey.
+function newPassword({ registrationRecord, keyBackup }) {
+  if (typeof registrationRecord !== 'string' || !registrationRecord || registrationRecord.length > 1024) {
+    return { error: 'Missing registrationRecord' };
+  }
+  if (!isBackup(keyBackup)) return { error: 'Invalid key backup' };
+  return { record: registrationRecord, backup: keyBackup };
+}
+
+// The key backup, for re-encrypting it (it's useless without the password).
+router.get('/key-backup', authenticateJWT, async (req, res) => {
+  const user = await db.get('SELECT key_backup FROM users WHERE id = ?', [req.user.id]);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({ keyBackup: user.key_backup });
+});
+
+router.post('/change-password', authenticateJWT, async (req, res) => {
+  const password = newPassword(req.body);
+  if (password.error) return res.status(400).json({ error: password.error });
+  const failed = await checkLoginProof(req.user.username, req.body.finishLoginRequest, req.body.clientSessionKey);
+  if (failed) return res.status(failed[0]).json({ error: failed[0] === 401 ? 'Current password is incorrect' : failed[1] });
+
+  await db.run('UPDATE users SET password = ?, key_backup = ? WHERE id = ?', [password.record, password.backup, req.user.id]);
+  res.json({ ok: true });
+});
+
+// Sets up a recovery code, or replaces the old one (which then stops working).
+router.put('/recovery-code', authenticateJWT, async (req, res) => {
+  const recovery = parseRecovery(req.body);
+  if (recovery.error) return res.status(400).json({ error: recovery.error });
+  const failed = await checkLoginProof(req.user.username, req.body.finishLoginRequest, req.body.clientSessionKey);
+  if (failed) return res.status(failed[0]).json({ error: failed[0] === 401 ? 'Password is incorrect' : failed[1] });
+
+  await db.run(
+    'UPDATE users SET recovery_verifier = ?, recovery_backup = ?, recovery_created = ? WHERE id = ?',
+    [recovery.verifier, recovery.backup, now(), req.user.id]
+  );
+  res.json({ ok: true });
+});
+
+// A made-up verifier to compare against for unknown usernames, so they take as long and
+// fail the same way as a wrong code.
+const DUMMY_VERIFIER = crypto.randomBytes(32);
+
+// The user if `recoveryAuth` matches their recovery code, else null.
+async function checkRecoveryAuth(username, recoveryAuth) {
+  if (typeof username !== 'string' || typeof recoveryAuth !== 'string' || !BASE64.test(recoveryAuth)) return null;
+  const user = await db.get(
+    'SELECT id, username, recovery_verifier, recovery_backup, identity_key, encryption_key, encryption_key_signature FROM users WHERE username = ?',
+    [username]
+  );
+  const expected = user?.recovery_verifier ? Buffer.from(user.recovery_verifier, 'base64') : DUMMY_VERIFIER;
+  const actual = crypto.createHash('sha256').update(Buffer.from(recoveryAuth, 'base64')).digest();
+  const matches = expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+  return matches && user?.recovery_verifier ? user : null;
+}
+
+const recoverLimits = limit([limits.recoverPerIp, byIp], [limits.recoverPerUsername, byUsername]);
+const WRONG_RECOVERY = 'Wrong username or recovery code';
+
+// Step 1: the recovery copy of the keys, which only the code opens.
+router.post('/recover/start', recoverLimits, async (req, res) => {
+  const user = await checkRecoveryAuth(req.body.userIdentifier, req.body.recoveryAuth);
+  if (!user) return res.status(401).json({ error: WRONG_RECOVERY });
+  res.json({
+    recoveryBackup: user.recovery_backup,
+    identityKey: user.identity_key,
+    encryptionKey: user.encryption_key,
+    encryptionKeySignature: user.encryption_key_signature,
+  });
+});
+
+// Step 2: the new password (registration record, and the keys encrypted for it). Logs in.
+// The recovery code stays the same.
+router.post('/recover/finish', recoverLimits, async (req, res) => {
+  const user = await checkRecoveryAuth(req.body.userIdentifier, req.body.recoveryAuth);
+  if (!user) return res.status(401).json({ error: WRONG_RECOVERY });
+  const password = newPassword(req.body);
+  if (password.error) return res.status(400).json({ error: password.error });
+
+  await db.run('UPDATE users SET password = ?, key_backup = ? WHERE id = ?', [password.record, password.backup, user.id]);
+  await db.run('DELETE FROM login_states WHERE username = ?', [user.username]);
+  limits.loginPerUsername.reset(byUsername(req));
+  res.json({
+    token: generateToken({ id: user.id, username: user.username }),
+    id: user.id,
+    username: user.username,
+    hasRecoveryCode: true,
+  });
 });
 
 module.exports = router;

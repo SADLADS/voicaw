@@ -13,8 +13,8 @@ export function launchChrome(options = {}) {
 }
 
 // Registers a new user (names get a unique suffix; the database lives as long as serve.mjs)
-// in its own browser context and returns { page, name, id }. `contextOptions` can be e.g.
-// devices['Pixel 7'] for a phone.
+// in its own browser context and returns { page, name, id, password, recoveryCode }.
+// `contextOptions` can be e.g. devices['Pixel 7'] for a phone.
 export async function signUp(browser, name, contextOptions = { viewport: { width: 1100, height: 750 } }) {
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
@@ -25,6 +25,10 @@ export async function signUp(browser, name, contextOptions = { viewport: { width
   await page.fill('input[placeholder="New Username"]', username);
   await page.fill('input[placeholder="New Password"]', `correct horse battery ${name}`);
   await page.click('button:has-text("Register")');
+  // Then the new recovery code is shown (kept as `recoveryCode`) until it's confirmed saved.
+  const recoveryCode = (await page.textContent('[aria-label="Recovery code"]', { timeout: 20000 })).trim();
+  await page.check('text=I\'ve saved my recovery code');
+  await page.click('button:has-text("Continue")');
   // Registering logs in and redirects into the app: wait for that to finish.
   await page.waitForSelector('#dm-main', { timeout: 20000 });
   await page.waitForLoadState('networkidle');
@@ -32,7 +36,7 @@ export async function signUp(browser, name, contextOptions = { viewport: { width
     const res = await fetch('/api/profile', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
     return (await res.json()).id;
   });
-  return { page, name: username, id };
+  return { page, name: username, id, password: `correct horse battery ${name}`, recoveryCode };
 }
 
 // Opens the conversation with user `otherId` and waits for the message box.

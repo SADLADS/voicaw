@@ -97,6 +97,7 @@ node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permission
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
+node e2e/recovery.mjs [dir] # change password, recovery code reset, new code (old one refused)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
 For voice, `serve.mjs` also runs its own LiveKit (the binary at `LIVEKIT_BIN`, default
@@ -109,7 +110,7 @@ Never use ports 5173 or 3002 (the live test site and API) or 7880-7882 (the live
 `serve.mjs` refuses them. Kill test
 processes by PID, never `pkill -f` with a pattern that's in your own command line (it kills your
 shell). `e2e/helpers.mjs` has `signUp` (registers a user in its own browser context, unique
-name), `openChat`, `send`, `launchChrome`, and `devices` (e.g. `devices['Pixel 7']` for a phone).
+name; returns its `password` and `recoveryCode` too), `openChat`, `send`, `launchChrome`, and `devices` (e.g. `devices['Pixel 7']` for a phone).
 Vite re-optimises its dependencies (and reloads the page) on its first start after the lockfile
 changes; if the first check fails that way, run it again.
 The message box is a contenteditable: `page.fill('#dm-input', …)` and `page.keyboard.type` work.
@@ -183,6 +184,11 @@ the server never sees the plaintext password. The flow is split into two round t
 operation:
 - Register: `POST /api/initiateregister` → `POST /api/finaliseregister`
 - Login: `POST /api/initiatelogin` → `POST /api/finaliselogin`
+- Change password (logged in, Settings): `/initiatelogin` with the current password, `GET
+  /api/key-backup`, `/initiateregister` for the new one, then `POST /api/change-password` with the
+  login's `finishLoginRequest` + session key (proof of the current password, checked by
+  `checkLoginProof`) and the new record and re-encrypted backup. Other devices stay logged in.
+- Recovery code: see End-to-end encryption.
 
 Server-side login state is stored transiently in the `login_states` table (5-minute expiry) keyed
 by username, cleaned up on successful login (expired rows are purged on each login attempt).
@@ -194,7 +200,8 @@ where everyone knows each other). The client must never send its `clientLoginSta
 
 Password guessing can only happen online (through the server), so `routes/auth.js` rate limits
 it (`rateLimit.js`, in memory): login starts per IP (30 / 15 min) and per username (20 / 15 min,
-applied whether or not the account exists; cleared by a successful login), registrations per IP.
+applied whether or not the account exists; cleared by a successful login), registrations per IP,
+recovery attempts per IP and username.
 Refusals are 429 with `Retry-After` and a message the login form shows. `req.ip` comes from
 nginx's `X-Forwarded-For` (`trust proxy: 'loopback'`). test.voicaw.com goes through vite's proxy
 to the public API, so its visitors all share one address there. The websocket `user_status`
@@ -221,8 +228,22 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   encrypted (`wrapKeyBackup`, HKDF → AES-GCM) with OPAQUE's `exportKey`. That is argon2id-stretched,
   stable across logins, and never seen by the server. There is no PBKDF2 and no second password
   derivation. The backup also contains the public keys. On login (`services/authService.js`) the client refuses
-  to continue if the server publishes different ones. A forgotten password means the history is
-  lost, by design.
+  to continue if the server publishes different ones. Changing the password re-encrypts it on the
+  device (the current password is needed to open it; device keys are non-extractable).
+- **Recovery code** (the only way back from a forgotten password; there's no email or admin
+  reset): 25 random Crockford base32 characters (125 bits, `generateRecoveryCode`, shown as five
+  groups; `normalizeRecoveryCode` accepts lower case, spaces, O/I/L). Made at registration and
+  shown once (`RecoveryCodeDisplay`), or (re)made in Settings (`AccountSecuritySettings`, needs the
+  password; `PUT /api/recovery-code` with a login proof; the old code stops working). HKDF from
+  the code gives a key for a second backup (`users.recovery_backup`, `wrapRecoveryBackup`) and an
+  auth value; the server stores only its SHA-256 (`recovery_verifier`). "Forgot password?" on the
+  login page: `POST /api/recover/start {userIdentifier, recoveryAuth}` returns the recovery backup
+  (unknown user, no code and wrong code all get the same 401), the client opens it, checks the
+  published public keys, registers the new password and sends `POST /api/recover/finish` (auth
+  again, new record + backup), which logs in. The code keeps working. Rate limited per IP and
+  username. `hasRecoveryCode` comes with login/profile; accounts without one get `RecoveryPrompt`
+  (dismissible banner in the DM view). Without a code, a forgotten password means the history
+  is lost, by design.
 - **On the device** (`keyStore.js`): non-extractable private `CryptoKey`s plus the user's *own*
   public keys (from the backup, never from the server) in IndexedDB. `clearUserKeys` runs on
   logout.

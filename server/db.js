@@ -38,6 +38,11 @@ CREATE TABLE IF NOT EXISTS guilds (
 );
 `);
 // Fail harmlessly ("duplicate column") once the columns exist.
+// Recovery code (optional): SHA-256 of the code's auth value, and a second copy of the key
+// backup encrypted with a key derived from the code (see the client's encryptionService).
+db.run('ALTER TABLE users ADD COLUMN recovery_verifier TEXT', () => {});
+db.run('ALTER TABLE users ADD COLUMN recovery_backup TEXT', () => {});
+db.run('ALTER TABLE users ADD COLUMN recovery_created INTEGER', () => {});
 db.run('ALTER TABLE guilds ADD COLUMN icon_version INTEGER NOT NULL DEFAULT 0', () => {});
 db.run('ALTER TABLE guilds ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0', () => {});
 
