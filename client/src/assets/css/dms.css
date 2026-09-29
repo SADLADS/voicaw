@@ -382,8 +382,18 @@ small {
 }
 
 
-.each-dm-message-wrapper:hover {
+.each-dm-message-wrapper:hover,
+.each-dm-message-wrapper.focused {
   background-color: var(--vc-bg-hover);
+}
+
+/* While a picker or menu is open for one message (.focused), the others ignore hovering. */
+.message-scroller.has-focused-message .each-dm-message-wrapper:not(.focused):hover {
+  background-color: var(--vc-bg-subtle);
+}
+
+.each-dm-message-wrapper.focused .message-menu {
+  opacity: 1;
 }
 
 .reply-snippet img.reply-avatar {
@@ -1100,9 +1110,14 @@ img.emoji,
 }
 
 .each-dm-message-wrapper:hover .reaction-chip.reaction-add,
+.each-dm-message-wrapper.focused .reaction-chip.reaction-add,
 .reaction-chip.reaction-add:focus-visible,
 body.mobile-mode .reaction-chip.reaction-add {
   opacity: 1;
+}
+
+.desktop-mode .message-scroller.has-focused-message .each-dm-message-wrapper:not(.focused):hover .reaction-chip.reaction-add {
+  opacity: 0;
 }
 
 /* The floating reaction picker (desktop): a zero-size fixed point by the button pressed; the

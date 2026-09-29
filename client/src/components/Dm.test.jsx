@@ -89,8 +89,8 @@ vi.mock('./SafetyNumberDialog', () => ({
 // Stub MessageList (its scrolling/layout needs a real browser) so these tests exercise
 // Dm's own state machine (fetch/send/receive) rather than virtualization.
 vi.mock('./MessageList', () => ({
-  default: ({ messages, loadMoreMessages, hasMore, onToggleReaction, onOpenReactionPicker, onOpenActions }) => (
-    <div data-testid="message-list" data-has-more={String(hasMore)}>
+  default: ({ messages, loadMoreMessages, hasMore, onToggleReaction, onOpenReactionPicker, onOpenActions, focusedMsgId }) => (
+    <div data-testid="message-list" data-has-more={String(hasMore)} data-focused={focusedMsgId ?? ''}>
       <button data-testid="load-older" onClick={() => loadMoreMessages()} />
       {messages.map((m) => (
         <div key={m.clientKey ?? m.id}>
@@ -887,14 +887,18 @@ describe('Dm reactions', () => {
   it('reacts from the picker and closes it', async () => {
     addReaction.mockResolvedValue({ id: 51, message_id: 10, user_id: 1, content: 'renc(🎉)' });
     await openChat();
+    expect(screen.getByTestId('message-list')).toHaveAttribute('data-focused', '');
 
     fireEvent.click(screen.getByTestId('react-10'));
+    // The message stays highlighted while its picker is open.
+    expect(screen.getByTestId('message-list')).toHaveAttribute('data-focused', '10');
     const picker = screen.getByRole('dialog', { name: 'Emoji picker' });
     fireEvent.change(within(picker).getByRole('searchbox'), { target: { value: 'tada' } });
     fireEvent.click(within(picker).getByRole('button', { name: 'Party Popper' }));
 
     await waitFor(() => expect(screen.getByTestId('reactions-10')).toHaveTextContent('🎉:1'));
     expect(screen.queryByRole('dialog', { name: 'Emoji picker' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('message-list')).toHaveAttribute('data-focused', '');
   });
 
   it('reacts from the docked panel on mobile, which closes after the pick', async () => {

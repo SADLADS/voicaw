@@ -211,6 +211,9 @@ export default function Dm({ user }) {
                     onOpenReactionPicker={openReactionPicker}
                     reactionNames={reactionNames}
                     onOpenActions={openActions}
+                    // While reacting to a message (or its mobile menu is open), it stays
+                    // highlighted and the others don't react to hovering.
+                    focusedMsgId={reactingTo?.msgId ?? actionsForId}
                   />
                 )}
               </div>

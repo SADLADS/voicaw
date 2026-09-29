@@ -60,8 +60,11 @@ export function MessageRow({
   onOpenReactionPicker,
   reactionNames,
   onOpenActions,
+  focusedMsgId,
 }) {
   const emojiIndex = useEmojiIndex();
+  // A picker or menu is open for this message: it stays highlighted with its menu showing.
+  const focused = focusedMsgId === msg.id;
   // Mobile: touch and hold opens the message's action sheet (there's no hover there).
   const longPress = useLongPress(() => onOpenActions(msg), { enabled: isMobile && Boolean(onOpenActions) });
   // Stable per emoji index (a new plugin list every render would re-run markdown needlessly).
@@ -88,7 +91,7 @@ export function MessageRow({
 
   return (
     <div
-      className={`each-dm-message-wrapper ${msg.sender_id === user.id ? 'sent' : 'received'}`}
+      className={`each-dm-message-wrapper ${msg.sender_id === user.id ? 'sent' : 'received'}${focused ? ' focused' : ''}`}
       data-msg-id={msg.id}
       onMouseEnter={() => setHoveredMsgId(msg.id)}
       onMouseLeave={() => setHoveredMsgId(null)}
@@ -120,7 +123,7 @@ export function MessageRow({
         </div>
       )}
 
-      {hoveredMsgId === msg.id && !isMobile && (
+      {(focusedMsgId ?? hoveredMsgId) === msg.id && !isMobile && (
         <div className="message-menu">
           {canReact && (
             <button
@@ -276,6 +279,7 @@ export default function MessageList({
   onOpenReactionPicker,
   reactionNames,
   onOpenActions,
+  focusedMsgId,
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
@@ -311,6 +315,7 @@ export default function MessageList({
     onOpenReactionPicker,
     reactionNames,
     onOpenActions,
+    focusedMsgId,
   };
 
   const rememberAnchor = useCallback(() => {
@@ -393,7 +398,11 @@ export default function MessageList({
   }, [keepAnchorInPlace, rememberAnchor]);
 
   return (
-    <div className="message-scroller" ref={scrollerRef} onScroll={handleScroll}>
+    <div
+      className={`message-scroller${focusedMsgId != null ? ' has-focused-message' : ''}`}
+      ref={scrollerRef}
+      onScroll={handleScroll}
+    >
       <div className="message-scroller-content" ref={contentRef}>
         {messages.map((msg) => (
           <div key={rowKey(msg)} data-key={rowKey(msg)}>

@@ -360,4 +360,23 @@ describe('MessageList reactions', () => {
       vi.useRealTimers();
     }
   });
+
+  it('keeps the message being reacted to highlighted, and ignores hovering others', () => {
+    const a = { id: 5, sender_id: 2, recipient_id: 1, sender_username: 'bob', plaintext: 'first', timestamp: 1 };
+    const b = { id: 6, sender_id: 2, recipient_id: 1, sender_username: 'bob', plaintext: 'second', timestamp: 2 };
+    const { container, rerender } = render(<MessageList {...reactionProps({ messages: [a, b], hoveredMsgId: 6, focusedMsgId: 5 })} />);
+
+    const row = (text) => screen.getByText(text).closest('.each-dm-message-wrapper');
+    expect(container.querySelector('.message-scroller')).toHaveClass('has-focused-message');
+    expect(row('first')).toHaveClass('focused');
+    expect(row('second')).not.toHaveClass('focused');
+    // One menu, on the focused message, not the hovered one.
+    expect(container.querySelectorAll('.message-menu')).toHaveLength(1);
+    expect(row('first').querySelector('.message-menu')).not.toBeNull();
+
+    rerender(<MessageList {...reactionProps({ messages: [a, b], hoveredMsgId: 6, focusedMsgId: null })} />);
+    expect(container.querySelector('.message-scroller')).not.toHaveClass('has-focused-message');
+    expect(row('second').querySelector('.message-menu')).not.toBeNull();
+  });
 });
+
