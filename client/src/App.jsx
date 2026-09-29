@@ -15,6 +15,7 @@ import './assets/css/desktop.css';
 import { closeWebSocket } from './utils/ws-client';
 import { clearUserKeys } from './services/keyStore';
 import EmojiProvider from './emoji/EmojiProvider';
+import UpdateBanner from './components/UpdateBanner';
 import { disableNotificationsOnThisDevice } from './services/pushService';
 
 export const ConfigContext = createContext({ 
@@ -144,6 +145,7 @@ export default function App() {
       <InteractionContext.Provider value={{ interactionMode, setInteractionMode, isMobile }}>
         <Router>
           <SWMessageHandler />
+          <UpdateBanner />
           <Routes>
             <Route
               path="/"

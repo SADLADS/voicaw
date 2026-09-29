@@ -1143,3 +1143,42 @@ body.mobile-mode .reaction-chip.reaction-add {
   top: 8px;
   bottom: auto;
 }
+
+/* "A new version is available" (UpdateBanner): floats over the top of the app. */
+.update-banner {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 16px);
+  padding: 6px 8px 6px 14px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 999px;
+  background-color: var(--vc-bg-elevated);
+  box-shadow: 0 8px 24px var(--vc-shadow);
+  color: var(--vc-fg);
+  font-size: 14px;
+}
+
+.update-banner-button {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 3px 14px;
+  background-color: var(--vc-accent);
+  color: var(--vc-fg);
+}
+
+.update-banner-button:hover:not(:disabled) {
+  background-color: var(--vc-accent-hover);
+}
+
+.app-version {
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+  margin-bottom: 0.5rem;
+}

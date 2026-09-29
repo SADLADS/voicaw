@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 import { InteractionContext } from "../App";
 import NotificationSettings from "./NotificationSettings";
+import AppUpdateSettings from "./AppUpdateSettings";
 
 
 // Must match MAX_PROFILE_PIC_BYTES in server/index.js.
@@ -106,6 +107,7 @@ export default function Settings({ onLogout, user }) {
         </select>
       </div>
       <NotificationSettings />
+      <AppUpdateSettings />
       <div className="settings-card">
         <h5>About</h5>
         <p className="settings-attribution">

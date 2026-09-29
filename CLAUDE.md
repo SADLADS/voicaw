@@ -298,3 +298,11 @@ their box is reserved before they load.
 - PWA support via `vite-plugin-pwa` (`injectManifest` strategy, custom `src/service-worker.js`) —
   service worker handles push notifications and posts `navigate` messages back to the app, which
   `SWMessageHandler` in `App.jsx` listens for
+- Updates: `registerType: 'prompt'`. A new deploy's service worker precaches the new build and
+  waits; `utils/appUpdate.js` (wired up in `main.jsx`) notices it and `UpdateBanner` offers
+  "Update", which sends `SKIP_WAITING` (handled in `service-worker.js`), so the new worker takes
+  over, `cleanupOutdatedCaches` drops the old build, and the page reloads. Browsers only look for
+  a new worker on navigation, so it also checks every 30 min and when the app comes back into view
+  (at most once a minute). Settings (`AppUpdateSettings`) shows the build time
+  (`VITE_BUILD_TIME`) and has "Check for updates". Other tabs, and pages whose lazily loaded chunks
+  are gone from the server (`vite:preloadError`), are offered a reload.

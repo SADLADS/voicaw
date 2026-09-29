@@ -50,7 +50,8 @@ export default defineConfig(({ mode }) => {
         strategies: 'injectManifest',
         srcDir: 'src',
         filename: 'service-worker.js',
-        registerType: 'autoUpdate',
+        // The app offers updates (UpdateBanner) rather than swapping versions under the user.
+        registerType: 'prompt',
         includeAssets: ['favicon.ico', 'logo192.png', 'logo512.png', 'logo-maskable-512.png', 'apple-touch-icon.png', 'badge.png', 'default.png'],
         // The app links public/manifest.json itself (served as application/json; nginx has
         // no MIME type for .webmanifest), so don't generate a second manifest.
@@ -63,6 +64,10 @@ export default defineConfig(({ mode }) => {
         },
       })
     ],
+    define: {
+      // Shown in Settings, to tell which version a device is running.
+      'import.meta.env.VITE_BUILD_TIME': JSON.stringify(new Date().toISOString()),
+    },
     build: {
       outDir: isElectron
         ? path.resolve(__dirname, '../build')
