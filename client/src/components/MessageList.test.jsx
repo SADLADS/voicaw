@@ -283,3 +283,50 @@ describe('MessageList', () => {
   });
 });
 
+describe('MessageList reactions', () => {
+  const reactionProps = (overrides = {}) => baseProps({
+    onToggleReaction: vi.fn(),
+    onOpenReactionPicker: vi.fn(),
+    reactionNames: { 1: 'alice', 2: 'bob' },
+    ...overrides,
+  });
+
+  it('groups reactions into chips with counts, marking your own', () => {
+    const msg = {
+      id: 5, sender_id: 2, recipient_id: 1, sender_username: 'bob', plaintext: 'nice', timestamp: 1000,
+      reactions: [
+        { id: 1, user_id: 2, emoji: '👍' },
+        { id: 2, user_id: 1, emoji: '👍' },
+        { id: 3, user_id: 1, emoji: '👍' }, // a second device racing the first: counted once
+        { id: 4, user_id: 2, emoji: '😂' },
+      ],
+    };
+    const props = reactionProps({ messages: [msg] });
+    render(
+      <EmojiContext.Provider value={buildEmojiIndex(emojiData)}>
+        <MessageList {...props} />
+      </EmojiContext.Provider>
+    );
+
+    const thumbs = screen.getByRole('button', { name: '👍 2, reacted by bob, You' });
+    expect(thumbs).toHaveAttribute('aria-pressed', 'true');
+    expect(thumbs.querySelector('img.emoji')).toHaveAttribute('src', '/emoji/1f44d.svg');
+    const laugh = screen.getByRole('button', { name: '😂 1, reacted by bob' });
+    expect(laugh).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(laugh);
+    expect(props.onToggleReaction).toHaveBeenCalledWith(msg, '😂');
+    fireEvent.click(screen.getByRole('button', { name: 'Add reaction' }));
+    expect(props.onOpenReactionPicker).toHaveBeenCalledWith(msg, expect.any(HTMLElement));
+  });
+
+  it('offers a react button on hover, but not for messages still sending', () => {
+    const sent = { id: 5, sender_id: 1, recipient_id: 2, sender_username: 'alice', plaintext: 'a', timestamp: 1 };
+    const pending = { id: 'temp-1', sender_id: 1, recipient_id: 2, sender_username: 'alice', plaintext: 'b', timestamp: 2, status: 'pending' };
+    const { rerender } = render(<MessageList {...reactionProps({ messages: [sent, pending], hoveredMsgId: 5 })} />);
+    expect(screen.getByRole('button', { name: 'Add reaction' })).toBeInTheDocument();
+
+    rerender(<MessageList {...reactionProps({ messages: [sent, pending], hoveredMsgId: 'temp-1' })} />);
+    expect(screen.queryByRole('button', { name: 'Add reaction' })).not.toBeInTheDocument();
+  });
+});

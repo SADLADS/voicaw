@@ -117,6 +117,16 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   `encryptMessage`/`decryptMessage` take `dmContext(senderId, recipientId)` as AES-GCM additional
   data, so the server can't re-attribute or move messages. Replies and edits use the original
   message's sender/recipient.
+- **Reactions** (`dm_reactions`): the emoji is encrypted (`encryptReaction`) with the conversation
+  key, zero-padded to `REACTION_PLAINTEXT_BYTES` (64) so every envelope is 127 chars (the server
+  rejects any other length) and its size doesn't reveal the emoji. `reactionContext(messageId,
+  reactorId, senderId, recipientId)` is the additional data, so a reaction can't be moved or
+  re-attributed. Which message was reacted to, by whom and when is deliberately visible, like reply
+  links: hiding it would mean syncing every reaction in a conversation on each device (the server
+  couldn't look them up per message). `GET /api/dm-messages` returns each message's `reactions`
+  (`withReactions`); `POST /api/dm-reactions` / `DELETE /api/dm-reactions/:id` (own only, max 20
+  per person per message) push `reaction_add` / `reaction_remove`. Deleting a message deletes its
+  reactions. No push notifications for reactions.
 
 Never log plaintext, session keys, tokens or `OPAQUE_SERVER_SETUP`; server logs end up in pm2.
 The server stores and relays only ciphertext. Message length limits (`MAX_MESSAGE_LENGTH`
@@ -131,11 +141,12 @@ needs the socket server (`wss`, heartbeat, connection handlers) lives inside tha
 `clients` and `sendToUserSockets` stay at module level so routes can push events. Clients
 identify themselves post-connect with `{ type: 'identify', token }` (JWT); the server maps
 `userId -> [sockets]` in an in-memory `clients` Map (a user can have multiple open sockets/tabs).
-Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `user_status`. A 30s heartbeat
+Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, `reaction_remove`,
+`user_status`. A 30s heartbeat
 (ping/pong) prunes dead connections and broadcasts `offline` status.
 
 Client side, `client/src/utils/ws-client.js` wraps this with `connectWebSocket`/`closeWebSocket`
-and a pub/sub listener API (`onNewDm`, `onDeleteDm`, `onEditDm`, `onUserStatus`), auto-reconnecting
+and a pub/sub listener API (`onNewDm`, `onDeleteDm`, `onEditDm`, `onReactionAdd`, `onReactionRemove`, `onUserStatus`), auto-reconnecting
 every 3s on close. All non-realtime DM operations (fetch history, send, mark read) go through the
 plain REST API in `client/src/services/dmService.js` / `client/src/utils/api.js` instead.
 
@@ -172,7 +183,7 @@ SQLite via `sqlite3`, single file `server/voicaw.db` (overridable with `DB_PATH`
 (`CREATE TABLE IF NOT EXISTS`) in `server/db.js` on require. All queries in `server/index.js` use
 the plain callback-style `sqlite3` API (no ORM, no migrations). Note: the schema includes
 `guilds`/`categories`/`channels`/`messages`/roles/permissions tables for a Discord-like
-multi-channel model, but only the `direct_messages` / `dm_unread` / `users` / `push_subscriptions`
+multi-channel model, but only the `direct_messages` / `dm_reactions` / `dm_unread` / `users` / `push_subscriptions`
 / `login_states` tables are actually used by current routes — guild/channel features aren't
 implemented in `index.js` yet.
 
@@ -245,8 +256,13 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   to the bottom when the list's own height changes (a `ResizeObserver` on the scroller, plus
   ignoring the browser's scroll-anchoring nudge during that resize).
 - Planned: custom per-guild emoji, as plain (unencrypted) images written `<:name:id>` in message
-  text (currently left as text), shown as extra picker sections. Reactions in encrypted chats
-  must be encrypted with the conversation key.
+  text (currently left as text), shown as extra picker sections. They fit in a reaction's 64
+  padded bytes too.
+- Reactions (see End-to-end encryption): `MessageReactions` chips under a message (grouped by
+  emoji, each person counted once, yours highlighted; tap to toggle, `+` to add). The message
+  menu's smiley opens `EmojiPicker` for it: floating by the button on desktop
+  (`reactionPickerPosition`, a zero-size fixed `.reaction-picker-anchor`), docked in the keyboard's
+  place on mobile, closing after the pick. Search matches several words ("thumbs up").
 
 ### DM message list and history loading
 

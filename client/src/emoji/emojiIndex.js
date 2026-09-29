@@ -73,8 +73,11 @@ export function buildEmojiIndex(data) {
   const source = natives.map(escapeRegExp).join('|');
 
   function search(query, limit = 50) {
-    const q = query.toLowerCase().replace(/^:|:$/g, '').trim();
-    if (!q) return [];
+    const text = query.toLowerCase().replace(/^:|:$/g, '').trim();
+    if (!text) return [];
+    // "heart eyes" also searches as the shortcode "heart_eyes".
+    const q = text.replace(/\s+/g, '_');
+    const words = text.split(/\s+/);
     const ranked = [];
     for (const emoji of emojis.values()) {
       let rank = Infinity;
@@ -84,8 +87,15 @@ export function buildEmojiIndex(data) {
         else if (code.includes(q)) rank = Math.min(rank, 3);
       }
       const name = emoji.name.toLowerCase();
-      if (rank > 2 && name.split(/\s+/).some((w) => w.startsWith(q))) rank = 2;
-      if (rank > 4 && emoji.keywords.some((k) => k.startsWith(q))) rank = 4;
+      const nameWords = name.split(/\s+/);
+      if (rank > 2 && (words.length === 1
+        ? nameWords.some((w) => w.startsWith(text))
+        : name.startsWith(text) || name.includes(` ${text}`))) rank = 2;
+      if (rank > 4) {
+        // Every word starts a word of the name, a keyword or a shortcode ("thumbs up").
+        const tokens = [...nameWords, ...emoji.keywords, ...emoji.shortcodes.flatMap((c) => c.split('_'))];
+        if (words.every((w) => tokens.some((t) => t.startsWith(w)))) rank = 4;
+      }
       if (rank !== Infinity) ranked.push([rank, emoji]);
     }
     return ranked

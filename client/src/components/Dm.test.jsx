@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
-const dmListeners = vi.hoisted(() => ({ newDm: [], deleteDm: [], editDm: [] }));
+const dmListeners = vi.hoisted(() => ({ newDm: [], deleteDm: [], editDm: [], reactionAdd: [], reactionRemove: [] }));
 
 vi.mock('../utils/ws-client', () => ({
   setActiveChat: vi.fn(),
@@ -19,6 +19,14 @@ vi.mock('../utils/ws-client', () => ({
     dmListeners.editDm.push(cb);
     return () => { dmListeners.editDm = dmListeners.editDm.filter((x) => x !== cb); };
   },
+  onReactionAdd: (cb) => {
+    dmListeners.reactionAdd.push(cb);
+    return () => { dmListeners.reactionAdd = dmListeners.reactionAdd.filter((x) => x !== cb); };
+  },
+  onReactionRemove: (cb) => {
+    dmListeners.reactionRemove.push(cb);
+    return () => { dmListeners.reactionRemove = dmListeners.reactionRemove.filter((x) => x !== cb); };
+  },
 }));
 
 vi.mock('../utils/api', () => ({
@@ -29,6 +37,8 @@ vi.mock('../services/dmService', () => ({
   fetchMessagesForUser: vi.fn(),
   sendMessageToUser: vi.fn(),
   markMessagesRead: vi.fn(),
+  addReaction: vi.fn(),
+  removeReaction: vi.fn(async () => {}),
 }));
 
 vi.mock('../services/encryptionService', () => ({
@@ -36,6 +46,9 @@ vi.mock('../services/encryptionService', () => ({
   decryptMessage: vi.fn(async (content) => `dec(${content})`),
   deriveConversationKey: vi.fn(async () => 'shared-key'),
   dmContext: (sender, recipient) => `ctx:${sender}->${recipient}`,
+  reactionContext: (messageId, reactorId) => `rctx:${messageId}:${reactorId}`,
+  encryptReaction: vi.fn(async (emoji) => `renc(${emoji})`),
+  decryptReaction: vi.fn(async (content) => content.replace(/^renc\((.*)\)$/, '$1')),
   decryptMessagesBatch: vi.fn(async (messages) =>
     messages.map((m) => ({ ...m, plaintext: m.plaintext ?? `dec:${m.content}` }))
   ),
@@ -66,11 +79,18 @@ vi.mock('./SafetyNumberDialog', () => ({
 // Stub MessageList (its scrolling/layout needs a real browser) so these tests exercise
 // Dm's own state machine (fetch/send/receive) rather than virtualization.
 vi.mock('./MessageList', () => ({
-  default: ({ messages, loadMoreMessages, hasMore }) => (
+  default: ({ messages, loadMoreMessages, hasMore, onToggleReaction, onOpenReactionPicker }) => (
     <div data-testid="message-list" data-has-more={String(hasMore)}>
       <button data-testid="load-older" onClick={() => loadMoreMessages()} />
       {messages.map((m) => (
-        <div key={m.clientKey ?? m.id}>{m.plaintext} [{m.status || 'sent'}]</div>
+        <div key={m.clientKey ?? m.id}>
+          {m.plaintext} [{m.status || 'sent'}]
+          {m.reactions?.length > 0 && (
+            <span data-testid={`reactions-${m.id}`}>{m.reactions.map((r) => `${r.emoji}:${r.user_id}`).join(' ')}</span>
+          )}
+          <button data-testid={`toggle-thumbs-${m.id}`} onClick={() => onToggleReaction(m, '👍')} />
+          <button data-testid={`react-${m.id}`} onClick={(e) => onOpenReactionPicker(m, e.currentTarget)} />
+        </div>
       ))}
     </div>
   ),
@@ -82,8 +102,8 @@ import { buildEmojiIndex } from '../emoji/emojiIndex';
 import { EmojiContext } from '../emoji/emojiContext';
 import { ConfigContext, InteractionContext } from '../App';
 import { LayoutContext } from './Layout';
-import { fetchMessagesForUser, sendMessageToUser, markMessagesRead } from '../services/dmService';
-import { deriveConversationKey, encryptMessage, decryptMessage } from '../services/encryptionService';
+import { fetchMessagesForUser, sendMessageToUser, markMessagesRead, addReaction, removeReaction } from '../services/dmService';
+import { deriveConversationKey, encryptMessage, decryptMessage, encryptReaction } from '../services/encryptionService';
 import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
 import { uploadAttachment } from '../services/attachmentUpload';
 import { readMediaDimensions } from '../utils/mediaDimensions';
@@ -121,6 +141,8 @@ beforeEach(() => {
   dmListeners.newDm = [];
   dmListeners.deleteDm = [];
   dmListeners.editDm = [];
+  dmListeners.reactionAdd = [];
+  dmListeners.reactionRemove = [];
   localStorage.clear();
   fetchMessagesForUser.mockResolvedValue([]);
   deriveConversationKey.mockResolvedValue('shared-key');
@@ -801,3 +823,79 @@ describe('Dm emoji', () => {
   });
 });
 
+describe('Dm reactions', () => {
+  const message = { id: 10, sender_id: 2, recipient_id: 1, content: 'ENC1', timestamp: 1000, reactions: [] };
+
+  async function openChat(reactions = []) {
+    fetchMessagesForUser.mockResolvedValue([{ ...message, reactions }]);
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText(/dec:ENC1/);
+  }
+
+  it('adds an encrypted reaction bound to the message and reactor, then removes it', async () => {
+    addReaction.mockResolvedValue({ id: 50, message_id: 10, user_id: 1, content: 'renc(👍)' });
+    await openChat();
+
+    fireEvent.click(screen.getByTestId('toggle-thumbs-10'));
+    await waitFor(() => expect(screen.getByTestId('reactions-10')).toHaveTextContent('👍:1'));
+    expect(encryptReaction).toHaveBeenCalledWith('👍', 'shared-key', 'rctx:10:1');
+    expect(addReaction).toHaveBeenCalledWith(10, 'renc(👍)');
+
+    // The server's websocket echo of the same reaction doesn't add it twice.
+    await act(async () => {
+      await Promise.all(dmListeners.reactionAdd.map((cb) => cb({ id: 50, message_id: 10, user_id: 1, content: 'renc(👍)' })));
+    });
+    expect(screen.getByTestId('reactions-10')).toHaveTextContent(/^👍:1$/);
+
+    fireEvent.click(screen.getByTestId('toggle-thumbs-10'));
+    await waitFor(() => expect(screen.queryByTestId('reactions-10')).not.toBeInTheDocument());
+    expect(removeReaction).toHaveBeenCalledWith(50);
+  });
+
+  it("shows the other person's reactions live, and their removal", async () => {
+    await openChat([{ id: 7, user_id: 2, emoji: '😂' }]);
+    expect(screen.getByTestId('reactions-10')).toHaveTextContent('😂:2');
+
+    await act(async () => {
+      await Promise.all(dmListeners.reactionAdd.map((cb) => cb({ id: 8, message_id: 10, user_id: 2, content: 'renc(❤️)' })));
+    });
+    expect(screen.getByTestId('reactions-10')).toHaveTextContent('😂:2 ❤️:2');
+
+    act(() => dmListeners.reactionRemove.forEach((cb) => cb({ reactionId: 7, messageId: 10 })));
+    expect(screen.getByTestId('reactions-10')).toHaveTextContent(/^❤️:2$/);
+
+    // Reactions to messages not shown here are ignored.
+    await act(async () => {
+      await Promise.all(dmListeners.reactionAdd.map((cb) => cb({ id: 9, message_id: 999, user_id: 2, content: 'renc(🎉)' })));
+    });
+    expect(screen.getByTestId('reactions-10')).toHaveTextContent(/^❤️:2$/);
+  });
+
+  it('reacts from the picker and closes it', async () => {
+    addReaction.mockResolvedValue({ id: 51, message_id: 10, user_id: 1, content: 'renc(🎉)' });
+    await openChat();
+
+    fireEvent.click(screen.getByTestId('react-10'));
+    const picker = screen.getByRole('dialog', { name: 'Emoji picker' });
+    fireEvent.change(within(picker).getByRole('searchbox'), { target: { value: 'tada' } });
+    fireEvent.click(within(picker).getByRole('button', { name: 'Party Popper' }));
+
+    await waitFor(() => expect(screen.getByTestId('reactions-10')).toHaveTextContent('🎉:1'));
+    expect(screen.queryByRole('dialog', { name: 'Emoji picker' })).not.toBeInTheDocument();
+  });
+
+  it('reacts from the docked panel on mobile, which closes after the pick', async () => {
+    addReaction.mockResolvedValue({ id: 52, message_id: 10, user_id: 1, content: 'renc(🎉)' });
+    fetchMessagesForUser.mockResolvedValue([{ ...message }]);
+    renderDm({ path: '/dm/2', users: [chatUserFull], isMobile: true });
+    await screen.findByText(/dec:ENC1/);
+
+    fireEvent.click(screen.getByTestId('react-10'));
+    const picker = screen.getByRole('dialog', { name: 'Emoji picker' });
+    expect(picker).toHaveClass('docked');
+    fireEvent.click(within(picker).getAllByRole('button', { name: 'Party Popper' })[0]);
+
+    await waitFor(() => expect(screen.getByTestId('reactions-10')).toHaveTextContent('🎉:1'));
+    expect(screen.queryByRole('dialog', { name: 'Emoji picker' })).not.toBeInTheDocument();
+  });
+});

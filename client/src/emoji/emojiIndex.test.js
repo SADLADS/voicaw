@@ -56,6 +56,14 @@ describe('emoji index', () => {
     expect(index.search('pizza')[0].id).toBe('pizza');
     expect(index.search('')).toEqual([]);
   });
+
+  it('searches several words', () => {
+    expect(index.search('thumbs up')[0].id).toBe('+1');
+    expect(index.search('heart eyes')[0].id).toBe('heart_eyes');
+    expect(index.search('party popper')[0].id).toBe('tada');
+    expect(index.search('red heart').map((e) => e.id)).toContain('heart');
+    expect(index.search('zzzz qqqq')).toEqual([]);
+  });
 });
 
 describe('splitting text into emoji', () => {

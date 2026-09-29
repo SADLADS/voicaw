@@ -23,3 +23,12 @@ export async function sendMessageToUser(recipientId, content, replyTo = null) {
 export async function markMessagesRead(userId) {
   await api.post(`/dm-mark-read/${userId}`);
 }
+// `content` is the encrypted emoji (encryptReaction).
+export async function addReaction(messageId, content) {
+  const res = await api.post('/dm-reactions', { messageId, content });
+  return res.data;
+}
+
+export async function removeReaction(reactionId) {
+  await api.delete(`/dm-reactions/${reactionId}`);
+}

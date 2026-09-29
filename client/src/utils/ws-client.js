@@ -4,6 +4,8 @@ const newDmlisteners = new Set();
 const deleteListeners = new Set();
 const editListeners = new Set();
 const statusListeners = new Set();
+const reactionAddListeners = new Set();
+const reactionRemoveListeners = new Set();
 let reconnectTimeout = null;
 
 // Presence: tells the server whether this client is on screen and which conversation it
@@ -69,6 +71,12 @@ export function connectWebSocket() {
       else if (data.type === 'edit_dm') {
         editListeners.forEach((cb) => cb(data));
       }
+      else if (data.type === 'reaction_add') {
+        reactionAddListeners.forEach((cb) => cb(data.reaction));
+      }
+      else if (data.type === 'reaction_remove') {
+        reactionRemoveListeners.forEach((cb) => cb(data));
+      }
       else if (data.type === 'user_status') {
         console.log(`User ${data.userId} is now ${data.status}`);
         statusListeners.forEach((cb) => cb(data));
@@ -109,6 +117,8 @@ export function closeWebSocket() {
   statusListeners.clear();
   deleteListeners.clear();
   editListeners.clear();
+  reactionAddListeners.clear();
+  reactionRemoveListeners.clear();
 }
 
 export function onNewDm(callback) {
@@ -129,4 +139,15 @@ export function onEditDm(callback) {
 export function onUserStatus(callback) {
   statusListeners.add(callback);
   return () => statusListeners.delete(callback);
+}
+// A reaction row ({ id, message_id, user_id, content }) was added to a DM.
+export function onReactionAdd(callback) {
+  reactionAddListeners.add(callback);
+  return () => reactionAddListeners.delete(callback);
+}
+
+// { reactionId, messageId }
+export function onReactionRemove(callback) {
+  reactionRemoveListeners.add(callback);
+  return () => reactionRemoveListeners.delete(callback);
 }

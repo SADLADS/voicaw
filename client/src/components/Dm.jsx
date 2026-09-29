@@ -1,16 +1,19 @@
 import React, { useEffect, useRef, useState, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import '../assets/css/dms.css';
-import { onNewDm, onDeleteDm, onEditDm, setActiveChat } from '../utils/ws-client';
+import { onNewDm, onDeleteDm, onEditDm, onReactionAdd, onReactionRemove, setActiveChat } from '../utils/ws-client';
 import NotificationPrompt from './NotificationPrompt';
 import { LayoutContext } from './Layout';
-import { fetchMessagesForUser, sendMessageToUser, markMessagesRead } from '../services/dmService';
+import { fetchMessagesForUser, sendMessageToUser, markMessagesRead, addReaction, removeReaction } from '../services/dmService';
 import {
   encryptMessage,
   decryptMessage,
   deriveConversationKey,
   decryptMessagesBatch,
   dmContext,
+  encryptReaction,
+  decryptReaction,
+  reactionContext,
 } from '../services/encryptionService';
 import { loadEncryptionKey } from '../services/keyStore';
 import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
@@ -45,6 +48,21 @@ import { InteractionContext } from "../App";
 import api from '../utils/api';
 import MessageList from './MessageList';
 
+
+// Where the floating reaction picker goes (desktop): by the button that opened it, lined up
+// with its right edge, above it if there's room and otherwise below. The picker sits against
+// a zero-size fixed box at that point (see `.reaction-picker-anchor` in dms.css).
+const REACTION_PICKER_WIDTH = 360;
+const REACTION_PICKER_HEIGHT = 420;
+function reactionPickerPosition(rect) {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const pickerHeight = Math.min(REACTION_PICKER_HEIGHT, height * 0.6);
+  const left = Math.min(Math.max(rect.right, REACTION_PICKER_WIDTH + 12), width - 12);
+  const below = rect.top - pickerHeight - 16 < 0;
+  const top = below ? Math.min(rect.bottom, height - pickerHeight - 16) : rect.top;
+  return { below, style: { left: `${left}px`, top: `${top}px` } };
+}
 
 export default function Dm({ user }) {
   const { s3Endpoint, maxPlaintextLength } = useContext(ConfigContext);
@@ -81,6 +99,7 @@ export default function Dm({ user }) {
   const [keyCheck, setKeyCheck] = useState(0);
 
   const chatUser = users.find((u) => u.id.toString() === id);
+  const reactionNames = { [user?.id]: user?.username, [chatUser?.id]: chatUser?.username };
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -103,6 +122,10 @@ export default function Dm({ user }) {
   // Emoji: picker, ":shortcode" autocomplete (caret position drives it).
   const emojiIndex = useEmojiIndex();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  // The message the emoji picker is choosing a reaction for, and (desktop) where to show it.
+  const [reactingTo, setReactingTo] = useState(null);
+  // Reactions being added or removed ("<messageId>|<emoji>"), so a double tap doesn't do it twice.
+  const reactionsInFlight = useRef(new Set());
   const [caret, setCaret] = useState(0);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
   const [dismissedEmojiQuery, setDismissedEmojiQuery] = useState(null);
@@ -190,6 +213,7 @@ export default function Dm({ user }) {
   // Discord): opening the panel dismisses the keyboard, and the button (then showing a
   // keyboard) or tapping the message box swaps back.
   function toggleEmojiPicker() {
+    setReactingTo(null);
     if (isMobile) {
       if (showEmojiPicker) {
         setShowEmojiPicker(false);
@@ -413,6 +437,62 @@ export default function Dm({ user }) {
   }
 
 
+  // Opens the picker to react to `msg` (again for the same message closes it). On desktop it
+  // floats by `anchor` (the button pressed); on mobile it takes the keyboard's place.
+  function openReactionPicker(msg, anchor) {
+    if (reactingTo?.msgId === msg.id) {
+      setReactingTo(null);
+      return;
+    }
+    setShowEmojiPicker(false);
+    if (isMobile) inputRef.current?.blur();
+    const rect = anchor?.getBoundingClientRect();
+    setReactingTo({ msgId: msg.id, rect: rect && { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right } });
+  }
+
+  function setMessageReactions(messageId, update) {
+    setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions: update(m.reactions ?? []) } : m)));
+  }
+
+  // Adds `emoji` to `msg` as a reaction from this user, or removes it if they already have.
+  async function toggleReaction(msg, emoji) {
+    const key = `${msg.id}|${emoji}`;
+    if (!sharedKey || reactionsInFlight.current.has(key)) return;
+    reactionsInFlight.current.add(key);
+    try {
+      const current = messagesRef.current.find((m) => m.id === msg.id) ?? msg;
+      const mine = (current.reactions ?? []).filter((r) => r.user_id === user.id && r.emoji === emoji);
+      if (mine.length > 0) {
+        await Promise.all(mine.map((r) => removeReaction(r.id)));
+        const removed = new Set(mine.map((r) => r.id));
+        setMessageReactions(msg.id, (list) => list.filter((r) => !removed.has(r.id)));
+      } else {
+        const content = await encryptReaction(
+          emoji, sharedKey, reactionContext(msg.id, user.id, msg.sender_id, msg.recipient_id)
+        );
+        const saved = await addReaction(msg.id, content);
+        // The websocket may have delivered it already.
+        setMessageReactions(msg.id, (list) =>
+          list.some((r) => r.id === saved.id) ? list : [...list, { id: saved.id, user_id: user.id, emoji }]
+        );
+      }
+    } catch (err) {
+      console.error('Failed to update reaction', err);
+      setComposerError(err.response?.data?.error || "Couldn't update the reaction. Try again.");
+    } finally {
+      reactionsInFlight.current.delete(key);
+    }
+  }
+
+  function pickReaction(emoji) {
+    const msg = messagesRef.current.find((m) => m.id === reactingTo?.msgId);
+    if (!msg) return;
+    const alreadyMine = (msg.reactions ?? []).some((r) => r.user_id === user.id && r.emoji === emoji);
+    // Picking an emoji you've already reacted with leaves it as is (the chip removes it).
+    if (!alreadyMine) toggleReaction(msg, emoji);
+  }
+
+
   function handleIncomingMessage(message, alreadyPlain = false) {
     const decryptedNewMessage = alreadyPlain ? message : { ...message };
 
@@ -628,6 +708,7 @@ export default function Dm({ user }) {
       setInputValue((prev) => dropped.reduce((text, d) => removePlaceholder(text, d.id), prev));
       setComposerError(null);
       setShowEmojiPicker(false);
+      setReactingTo(null);
     };
   }, [id]);
 
@@ -818,6 +899,32 @@ export default function Dm({ user }) {
 
 
   useEffect(() => {
+    if (!sharedKey) return undefined;
+    const unsubscribeAdd = onReactionAdd(async (reaction) => {
+      const msg = messagesRef.current.find((m) => m.id === reaction.message_id);
+      if (!msg) return; // another conversation, or a message not loaded here
+      try {
+        const emoji = await decryptReaction(
+          reaction.content, sharedKey, reactionContext(msg.id, reaction.user_id, msg.sender_id, msg.recipient_id)
+        );
+        setMessageReactions(msg.id, (list) =>
+          list.some((r) => r.id === reaction.id) ? list : [...list, { id: reaction.id, user_id: reaction.user_id, emoji }]
+        );
+      } catch (err) {
+        console.warn('Failed to decrypt reaction', reaction.id, err);
+      }
+    });
+    const unsubscribeRemove = onReactionRemove(({ reactionId, messageId }) => {
+      setMessageReactions(messageId, (list) => list.filter((r) => r.id !== reactionId));
+    });
+    return () => {
+      unsubscribeAdd();
+      unsubscribeRemove();
+    };
+  }, [sharedKey]);
+
+
+  useEffect(() => {
     const textarea = inputRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
@@ -907,6 +1014,9 @@ export default function Dm({ user }) {
                 isMobile={isMobile}
                 editRef={editRef}
                 maxPlaintextLength={maxPlaintextLength}
+                onToggleReaction={toggleReaction}
+                onOpenReactionPicker={openReactionPicker}
+                reactionNames={reactionNames}
               />
 
             )}
@@ -922,6 +1032,15 @@ export default function Dm({ user }) {
             {showEmojiPicker && !isMobile && (
               <EmojiPicker onSelect={insertAtCursor} onClose={() => setShowEmojiPicker(false)} />
             )}
+
+            {reactingTo?.rect && !isMobile && (() => {
+              const { below, style } = reactionPickerPosition(reactingTo.rect);
+              return (
+                <div className={`reaction-picker-anchor${below ? ' below' : ''}`} style={style}>
+                  <EmojiPicker onSelect={pickReaction} onClose={() => setReactingTo(null)} />
+                </div>
+              );
+            })()}
 
             {emojiSuggestions.length > 0 && (
               <EmojiSuggestions
@@ -983,7 +1102,7 @@ export default function Dm({ user }) {
                 onKeyDown={handleInputKeyDown}
                 onSelect={(e) => setCaret(e.target.selectionStart)}
                 // Mobile: the keyboard is coming up, so the emoji panel gives way.
-                onFocus={() => { if (isMobile) setShowEmojiPicker(false); }}
+                onFocus={() => { if (isMobile) { setShowEmojiPicker(false); setReactingTo(null); } }}
                 onPaste={handlePaste}
                 autoComplete="off"
                 ref={inputRef}
@@ -1018,6 +1137,16 @@ export default function Dm({ user }) {
               height={getKeyboardHeight()}
               onSelect={(native) => insertAtCursor(native, { focus: false })}
               onClose={() => setShowEmojiPicker(false)}
+            />
+          )}
+
+          {reactingTo && isMobile && (
+            // Reacting: the same panel, closed by the pick.
+            <EmojiPicker
+              docked
+              height={getKeyboardHeight()}
+              onSelect={(native) => { pickReaction(native); setReactingTo(null); }}
+              onClose={() => setReactingTo(null)}
             />
           )}
           </>)}

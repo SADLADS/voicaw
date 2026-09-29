@@ -4,9 +4,10 @@ import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import rehypeHighlight from 'rehype-highlight';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faTrash, faReply } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faTrash, faReply, faFaceSmile } from '@fortawesome/free-solid-svg-icons';
 import defaultpfp from '../assets/images/default.png';
 import Attachment from './Attachment';
+import MessageReactions from './MessageReactions';
 import { placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { isEmojiOnly } from '../emoji/emojiIndex';
@@ -81,6 +82,9 @@ export function MessageRow({
   isMobile,
   editRef,
   maxPlaintextLength,
+  onToggleReaction,
+  onOpenReactionPicker,
+  reactionNames,
 }) {
   const emojiIndex = useEmojiIndex();
   // Stable per emoji index (a new plugin list every render would re-run markdown needlessly).
@@ -92,6 +96,9 @@ export function MessageRow({
   const imgSrc = s3Endpoint
     ? `${s3Endpoint}/profile-pics/${msg.sender_id}`
     : defaultpfp;
+
+  // Not before the server has the message (it has no id yet).
+  const canReact = Boolean(onToggleReaction) && msg.status !== 'pending' && msg.status !== 'failed';
 
   const parent = msg.parent_message_id
     ? {
@@ -137,6 +144,17 @@ export function MessageRow({
 
       {hoveredMsgId === msg.id && (
         <div className="message-menu">
+          {canReact && (
+            <button
+              className="icon-button"
+              aria-label="Add reaction"
+              // Keep an open picker's outside-click handler from closing it before this toggles it.
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => onOpenReactionPicker(msg, e.currentTarget)}
+            >
+              <FontAwesomeIcon icon={faFaceSmile} title="Add reaction" />
+            </button>
+          )}
           {msg.sender_id === user.id && (
             <button className="icon-button" onClick={() => handleEdit(msg)}>
               <FontAwesomeIcon icon={faEdit} title="Edit" />
@@ -249,6 +267,16 @@ export function MessageRow({
           ))}
         </div>
 
+        {canReact && (
+          <MessageReactions
+            reactions={msg.reactions}
+            userId={user.id}
+            names={reactionNames}
+            onToggle={(emoji) => onToggleReaction(msg, emoji)}
+            onAdd={(anchor) => onOpenReactionPicker(msg, anchor)}
+          />
+        )}
+
       </div>
     </div>
   );
@@ -289,6 +317,9 @@ export default function MessageList({
   isMobile,
   editRef,
   maxPlaintextLength,
+  onToggleReaction,
+  onOpenReactionPicker,
+  reactionNames,
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
@@ -320,6 +351,9 @@ export default function MessageList({
     isMobile,
     editRef,
     maxPlaintextLength,
+    onToggleReaction,
+    onOpenReactionPicker,
+    reactionNames,
   };
 
   const rememberAnchor = useCallback(() => {

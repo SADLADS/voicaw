@@ -10,6 +10,9 @@ import {
   encryptMessage,
   decryptMessage,
   decryptMessagesBatch,
+  encryptReaction,
+  decryptReaction,
+  reactionContext,
   toBase64,
 } from './encryptionService';
 
@@ -121,5 +124,45 @@ describe('direct messages', () => {
 
     expect(out.map((m) => m.plaintext)).toEqual(['question?', 'answer', null]);
     expect(out[1].parent_plaintext).toBe('question?');
+  });
+});
+
+describe('reactions', () => {
+  it('round-trips between the two people, always at the same length', async () => {
+    const { aliceKey, bobKey } = await conversationKeys();
+    const ctx = reactionContext(7, 2, 1, 2);
+
+    const short = await encryptReaction('👍', bobKey, ctx);
+    const long = await encryptReaction('👨🏽‍👩🏽‍👧🏽', bobKey, ctx);
+    expect(short).toHaveLength(127);
+    expect(long).toHaveLength(127);
+    expect(await decryptReaction(short, aliceKey, ctx)).toBe('👍');
+    expect(await decryptReaction(long, aliceKey, ctx)).toBe('👨🏽‍👩🏽‍👧🏽');
+  });
+
+  it("can't be moved to another message or re-attributed", async () => {
+    const { aliceKey, bobKey } = await conversationKeys();
+    const envelope = await encryptReaction('❤️', bobKey, reactionContext(7, 2, 1, 2));
+
+    await expect(decryptReaction(envelope, aliceKey, reactionContext(8, 2, 1, 2))).rejects.toThrow();
+    await expect(decryptReaction(envelope, aliceKey, reactionContext(7, 1, 1, 2))).rejects.toThrow();
+  });
+
+  it('rejects empty or oversized reactions', async () => {
+    const { aliceKey } = await conversationKeys();
+    await expect(encryptReaction('', aliceKey, 'x')).rejects.toThrow();
+    await expect(encryptReaction('a'.repeat(65), aliceKey, 'x')).rejects.toThrow();
+  });
+
+  it('are decrypted with their messages', async () => {
+    const { aliceKey, bobKey } = await conversationKeys();
+    const msg = { id: 5, sender_id: 1, recipient_id: 2, content: await encryptMessage('hi', aliceKey, dmContext(1, 2)) };
+    msg.reactions = [
+      { id: 1, user_id: 2, content: await encryptReaction('😂', bobKey, reactionContext(5, 2, 1, 2)) },
+      { id: 2, user_id: 2, content: await encryptReaction('😂', bobKey, reactionContext(6, 2, 1, 2)) },
+    ];
+
+    const [out] = await decryptMessagesBatch([msg], aliceKey);
+    expect(out.reactions).toEqual([{ id: 1, user_id: 2, emoji: '😂' }]);
   });
 });

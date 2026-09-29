@@ -115,6 +115,24 @@ CREATE TABLE IF NOT EXISTS direct_messages (
 );
 `);
 
+// DM REACTIONS
+// The emoji is encrypted (padded to a fixed size, so its length doesn't give it away); which
+// message was reacted to, by whom and when is visible to the server, like reply links are.
+db.serialize(() => {
+db.run(`
+CREATE TABLE IF NOT EXISTS dm_reactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  message_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  timestamp INTEGER DEFAULT (strftime('%s','now')),
+  FOREIGN KEY (message_id) REFERENCES direct_messages(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+`);
+db.run(`CREATE INDEX IF NOT EXISTS dm_reactions_message ON dm_reactions (message_id)`);
+});
+
 // UNREAD DMS
 db.run(`
 CREATE TABLE IF NOT EXISTS dm_unread (

@@ -16,6 +16,7 @@ const ENCRYPTION_KEY_CONTEXT = 'voicaw/encryption-key/v1';
 const KEY_BACKUP_CONTEXT = 'voicaw/key-backup/v1';
 const DM_KEY_CONTEXT = 'voicaw/dm-key/v1';
 const DM_MESSAGE_CONTEXT = 'voicaw/dm/v1';
+const DM_REACTION_CONTEXT = 'voicaw/dm-reaction/v1';
 export const MESSAGE_PREFIX = 'v1.';
 
 // ---------------------------------------------------------------- encoding
@@ -186,6 +187,67 @@ export async function decryptMessage(envelope, key, context) {
   return td.decode(plaintext);
 }
 
+// ---------------------------------------------------------------- reactions
+
+// Every reaction is padded to this many bytes before encryption, so the server can't tell
+// 👍 from 👨‍👩‍👧 (or, later, a custom emoji) by its length. The server checks the size.
+export const REACTION_PLAINTEXT_BYTES = 64;
+
+// Binds a reaction to its message, the person reacting and the conversation, so the server
+// can't move it to another message or make it look like the other person's.
+export function reactionContext(messageId, reactorId, senderId, recipientId) {
+  return `${DM_REACTION_CONTEXT}|${messageId}|${reactorId}|${senderId}|${recipientId}`;
+}
+
+// -> "v1.<base64(iv || ciphertext)>", always the same length.
+export async function encryptReaction(emoji, key, context) {
+  const bytes = te.encode(emoji);
+  if (bytes.length === 0 || bytes.length > REACTION_PLAINTEXT_BYTES || bytes.includes(0)) {
+    throw new Error('Invalid reaction');
+  }
+  const padded = new Uint8Array(REACTION_PLAINTEXT_BYTES);
+  padded.set(bytes);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: te.encode(context) },
+    key,
+    padded
+  );
+  return MESSAGE_PREFIX + toBase64(concat(iv, new Uint8Array(ciphertext)));
+}
+
+export async function decryptReaction(envelope, key, context) {
+  if (typeof envelope !== 'string' || !envelope.startsWith(MESSAGE_PREFIX)) {
+    throw new Error('Unsupported reaction format');
+  }
+  const bytes = fromBase64(envelope.slice(MESSAGE_PREFIX.length));
+  const padded = new Uint8Array(await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: bytes.slice(0, 12), additionalData: te.encode(context) },
+    key,
+    bytes.slice(12)
+  ));
+  const end = padded.indexOf(0);
+  const emoji = td.decode(end === -1 ? padded : padded.slice(0, end));
+  if (!emoji) throw new Error('Empty reaction');
+  return emoji;
+}
+
+// Decrypts a message's reactions into [{ id, user_id, emoji }], skipping any that fail.
+export async function decryptReactions(msg, reactions, key) {
+  const results = await Promise.all((reactions ?? []).map(async (r) => {
+    try {
+      const emoji = await decryptReaction(
+        r.content, key, reactionContext(msg.id, r.user_id, msg.sender_id, msg.recipient_id)
+      );
+      return { id: r.id, user_id: r.user_id, emoji };
+    } catch (e) {
+      console.warn('Failed to decrypt reaction', r.id, e);
+      return null;
+    }
+  }));
+  return results.filter(Boolean);
+}
+
 // The other person in a DM, given one of the two participants.
 function otherParticipant(msg, participantId) {
   return String(participantId) === String(msg.sender_id) ? msg.recipient_id : msg.sender_id;
@@ -215,6 +277,7 @@ export async function decryptMessagesBatch(messages, key) {
       }
     }
 
-    return { ...msg, plaintext, parent_plaintext: parentPlaintext };
+    const reactions = await decryptReactions(msg, msg.reactions, key);
+    return { ...msg, plaintext, parent_plaintext: parentPlaintext, reactions };
   }));
 }

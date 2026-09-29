@@ -382,12 +382,17 @@ app.get('/api/dm-messages/:otherUserId', authenticateJWT, (req, res) => {
   `;
   params.push(limit);
 
-  db.all(query, params, (err, rows) => {
+  db.all(query, params, async (err, rows) => {
     if (err) {
       console.error('Failed to fetch DM messages:', err);
       return res.status(500).json({ error: 'Server error' });
     }
-    res.json(rows.reverse());
+    try {
+      res.json(await withReactions(rows.reverse()));
+    } catch (reactionErr) {
+      console.error('Failed to fetch DM reactions:', reactionErr);
+      res.status(500).json({ error: 'Server error' });
+    }
   });
 });
 
@@ -600,7 +605,8 @@ app.delete('/api/messages/:id', authenticateJWT, async (req, res) => {
           return res.status(403).json({ error: 'Not authorized to delete this message' });
         }
 
-        // Delete the message
+        // Delete the message (and its reactions)
+        db.run(`DELETE FROM dm_reactions WHERE message_id = ?`, [messageId]);
         db.run(`DELETE FROM direct_messages WHERE id = ?`, [messageId], function (err2) {
           if (err2) {
             console.error(err2);
@@ -676,6 +682,93 @@ app.put('/api/update-message/:id', authenticateJWT, async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+// Reactions. The emoji is encrypted by the client with the conversation key, padded to
+// REACTION_PLAINTEXT_BYTES so every reaction is the same length; the server sees only who
+// reacted to which message, and when.
+const REACTION_PLAINTEXT_BYTES = 64;
+const REACTION_LENGTH = getMaxEncryptedLength(REACTION_PLAINTEXT_BYTES);
+const MAX_REACTIONS_PER_USER_PER_MESSAGE = 20;
+
+// The DM `messageId` if `userId` is one of its two participants.
+async function getDmForParticipant(messageId, userId) {
+  if (!Number.isInteger(messageId)) return null;
+  const row = await dbGet(
+    `SELECT id, sender_id, recipient_id FROM direct_messages WHERE id = ?`,
+    [messageId]
+  );
+  return row && (row.sender_id === userId || row.recipient_id === userId) ? row : null;
+}
+
+app.post('/api/dm-reactions', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const messageId = Number(req.body?.messageId);
+    const { content } = req.body ?? {};
+
+    if (typeof content !== 'string' || !content.startsWith('v1.') || content.length !== REACTION_LENGTH) {
+      return res.status(400).json({ error: 'Invalid reaction' });
+    }
+    const message = await getDmForParticipant(messageId, userId);
+    if (!message) return res.status(404).json({ error: 'Message not found' });
+
+    const { count } = await dbGet(
+      `SELECT COUNT(*) AS count FROM dm_reactions WHERE message_id = ? AND user_id = ?`,
+      [messageId, userId]
+    );
+    if (count >= MAX_REACTIONS_PER_USER_PER_MESSAGE) {
+      return res.status(400).json({ error: 'Too many reactions on this message' });
+    }
+
+    const { lastID } = await dbRun(
+      `INSERT INTO dm_reactions (message_id, user_id, content, timestamp) VALUES (?, ?, ?, strftime('%s','now'))`,
+      [messageId, userId, content]
+    );
+    const reaction = await dbGet(
+      `SELECT id, message_id, user_id, content, timestamp FROM dm_reactions WHERE id = ?`,
+      [lastID]
+    );
+
+    sendToUserSockets(message.sender_id, { type: 'reaction_add', reaction });
+    if (message.recipient_id !== message.sender_id) {
+      sendToUserSockets(message.recipient_id, { type: 'reaction_add', reaction });
+    }
+    res.status(201).json(reaction);
+  } catch (err) {
+    console.error('Failed to add reaction:', err);
+    res.status(500).json({ error: 'Failed to add reaction' });
+  }
+});
+
+app.delete('/api/dm-reactions/:id', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const reactionId = Number(req.params.id);
+    const reaction = Number.isInteger(reactionId) && await dbGet(
+      `SELECT id, message_id, user_id FROM dm_reactions WHERE id = ?`,
+      [reactionId]
+    );
+    if (!reaction) return res.status(404).json({ error: 'Reaction not found' });
+    if (reaction.user_id !== userId) return res.status(403).json({ error: 'Not your reaction' });
+
+    const message = await dbGet(
+      `SELECT sender_id, recipient_id FROM direct_messages WHERE id = ?`,
+      [reaction.message_id]
+    );
+    await dbRun(`DELETE FROM dm_reactions WHERE id = ?`, [reactionId]);
+
+    const event = { type: 'reaction_remove', reactionId, messageId: reaction.message_id };
+    if (message) {
+      sendToUserSockets(message.sender_id, event);
+      if (message.recipient_id !== message.sender_id) sendToUserSockets(message.recipient_id, event);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Failed to remove reaction:', err);
+    res.status(500).json({ error: 'Failed to remove reaction' });
   }
 });
 
@@ -758,6 +851,33 @@ function dbGet(sql, params) {
   return new Promise((resolve, reject) =>
     db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)))
   );
+}
+
+function dbAll(sql, params) {
+  return new Promise((resolve, reject) =>
+    db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows)))
+  );
+}
+
+// Resolves to { lastID, changes }.
+function dbRun(sql, params) {
+  return new Promise((resolve, reject) =>
+    db.run(sql, params, function (err) { return err ? reject(err) : resolve(this); })
+  );
+}
+
+// Adds `reactions` ([{ id, user_id, content, timestamp }], oldest first) to each DM row.
+async function withReactions(messages) {
+  if (messages.length === 0) return messages;
+  const ids = messages.map((m) => m.id);
+  const rows = await dbAll(
+    `SELECT id, message_id, user_id, content, timestamp FROM dm_reactions
+     WHERE message_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`,
+    ids
+  );
+  const byMessage = new Map(ids.map((id) => [id, []]));
+  for (const { message_id: messageId, ...reaction } of rows) byMessage.get(messageId).push(reaction);
+  return messages.map((m) => ({ ...m, reactions: byMessage.get(m.id) }));
 }
 
 function getRecentDmsForUser(loggedInUserId, callback) {

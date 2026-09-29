@@ -1072,3 +1072,74 @@ img.emoji,
   background: rgba(0, 0, 0, 0.85);
   pointer-events: none;
 }
+
+/* Reactions under a message (MessageReactions). */
+.message-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.reaction-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--vc-bg-elevated);
+  color: var(--vc-fg-subtle);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.reaction-chip:hover {
+  border-color: var(--vc-border-dark);
+  background: var(--vc-bg-elevated-hover);
+}
+
+.reaction-chip.mine {
+  border-color: var(--vc-accent);
+  background: color-mix(in srgb, var(--vc-accent) 18%, transparent);
+  color: var(--vc-fg);
+}
+
+.reaction-chip img.emoji {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  vertical-align: middle;
+}
+
+.reaction-chip .reaction-count {
+  min-width: 1ch;
+  font-variant-numeric: tabular-nums;
+}
+
+.reaction-chip.reaction-add {
+  font-size: 16px;
+  opacity: 0;
+}
+
+.each-dm-message-wrapper:hover .reaction-chip.reaction-add,
+.reaction-chip.reaction-add:focus-visible,
+body.mobile-mode .reaction-chip.reaction-add {
+  opacity: 1;
+}
+
+/* The floating reaction picker (desktop): a zero-size fixed point by the button pressed; the
+   picker hangs above it, right edges aligned, or below it with `.below`. */
+.reaction-picker-anchor {
+  position: fixed;
+  width: 0;
+  height: 0;
+  z-index: 60;
+}
+
+.reaction-picker-anchor.below .emoji-picker {
+  top: 8px;
+  bottom: auto;
+}
