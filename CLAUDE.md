@@ -260,6 +260,11 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   `emoji-<twemoji version>`), so each is fetched once per device. The picker only sets an
   image's `src` once it's within a screen of the visible area (its own `IntersectionObserver`,
   not `loading="lazy"`, which queued hundreds of offscreen images ahead of the visible ones).
+- Everywhere else (the message box while typing, names, previews, buttons) emoji are Twemoji
+  too, via a colour font: `assets/css/twemoji-font.css` (`twemoji-colr-font`, COLR, Twemoji 15,
+  OFL, credited in Settings) is first in the body font stack, limited by `unicode-range` to its
+  emoji (not the digits, `#`, `*`, ©, ® it also has). A text box can't show images, so this is
+  how typing looks right. Bundled into `/assets/`, loaded once an emoji is on screen.
 - `EmojiProvider` (in `App.jsx`) loads the index. `rehypeTwemoji` turns emoji in rendered
   messages into `<img class="emoji">` (skipping code). `MessageList`'s `MarkdownImage` passes
   those through (not to `Attachment`), and emoji-only messages get `.emoji-only` (large).

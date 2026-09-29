@@ -10,6 +10,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 // Global css
 import './assets/css/voicaw.css';
+import './assets/css/twemoji-font.css';
 import App from './App.jsx';
 
 // A new version waits until the user chooses to update (UpdateBanner, Settings).

@@ -88,6 +88,10 @@ export default function Settings({ onLogout }) {
           Emoji graphics by <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noreferrer">Twemoji</a>,
           {' '}© Twitter, Inc and other contributors, licensed under{' '}
           <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC-BY 4.0</a>.
+          {' '}Emoji font from{' '}
+          <a href="https://github.com/mrdrogdrog/twemoji-color-font" target="_blank" rel="noreferrer">twemoji-color-font</a>,
+          licensed under the{' '}
+          <a href="https://openfontlicense.org/open-font-license-official-text/" target="_blank" rel="noreferrer">SIL Open Font License 1.1</a>.
         </p>
       </div>
       <div className="settings-card">
