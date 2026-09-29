@@ -267,3 +267,17 @@ pre code {
   color: var(--vc-online);
   margin-top: 0.5rem;
 }
+
+/* The app is a fixed-height screen (the chat scrolls inside itself; the page never does), so
+   pages that can be taller than the window scroll on their own. */
+.settings-page {
+  height: 100%;
+  overflow-y: auto;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+.login-page {
+  height: 100svh;
+  overflow-y: auto;
+  padding: 0 1rem env(safe-area-inset-bottom);
+}
