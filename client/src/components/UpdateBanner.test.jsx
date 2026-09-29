@@ -19,7 +19,7 @@ describe('UpdateBanner', () => {
 
     const apply = vi.fn(async () => {});
     act(() => appUpdate.setUpdateAvailable(apply));
-    expect(screen.getByRole('status')).toHaveTextContent('A new version of Voicaw is available.');
+    expect(screen.getByRole('status')).toHaveTextContent('Update availableA new version is ready.');
 
     fireEvent.click(screen.getByRole('button', { name: 'Update' }));
     expect(apply).toHaveBeenCalled();
