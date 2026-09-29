@@ -843,6 +843,8 @@ describe('Dm reactions', () => {
     fetchMessagesForUser.mockResolvedValue([{ ...message, reactions }]);
     renderDm({ path: '/dm/2', users: [chatUserFull] });
     await screen.findByText(/dec:ENC1/);
+    // Live updates are subscribed to just after the conversation shows.
+    await waitFor(() => expect(dmListeners.reactionAdd.length).toBeGreaterThan(0));
   }
 
   it('adds an encrypted reaction bound to the message and reactor, then removes it', async () => {
