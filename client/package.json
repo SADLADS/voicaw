@@ -21,6 +21,7 @@
     "axios": "^1.11.0",
     "bootstrap": "^5.3.7",
     "highlight.js": "^11.11.1",
+    "livekit-client": "^2.22.3",
     "prosemirror-commands": "^1.7.2",
     "prosemirror-history": "^1.5.1",
     "prosemirror-keymap": "^1.2.3",

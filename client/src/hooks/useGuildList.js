@@ -4,8 +4,9 @@ import { fetchAllEmojis, fetchGuild, fetchGuilds, fetchGuildUnread, saveGuildOrd
 
 // The logged-in user's guilds, for the whole layout (Layout puts this in LayoutContext):
 // - `guilds`: the list for the server rail ([{ id, name, owner, icon_version }]).
-// - `layouts`: guilds opened so far, by id, with their `categories` and `channels`
-//   (`loadGuild(id)` fetches one; websocket updates keep them current).
+// - `layouts`: guilds opened so far, by id, with their `categories` and `channels` (a voice
+//   channel's `voice`: who's in it) (`loadGuild(id)` fetches one; websocket updates keep them
+//   current).
 // - `unread`: [{ channel_id, guild_id, count }]; `refreshUnread()` refetches it.
 // - `emojis`: custom emoji by guild id ({ [guildId]: [{ id, guild_id, name, animated }] }).
 // `reorderGuilds(ids)` saves a new rail order (top first); other devices follow.
@@ -120,6 +121,23 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
           break;
         case 'guild_order':
           applyOrder(event.guildIds);
+          break;
+        case 'guild_voice_state':
+          setLayouts((prev) => {
+            const guild = prev[event.guildId];
+            if (!guild) return prev; // not opened yet: its layout will have it
+            // Their entry is updated in place, added at the end (joined), or removed (left or
+            // moved to another channel).
+            const channels = guild.channels.map((c) => {
+              const voice = c.voice ?? [];
+              const here = voice.some((s) => s.user_id === event.userId);
+              if (c.id === event.channelId && event.state) {
+                return { ...c, voice: here ? voice.map((s) => (s.user_id === event.userId ? event.state : s)) : [...voice, event.state] };
+              }
+              return here ? { ...c, voice: voice.filter((s) => s.user_id !== event.userId) } : c;
+            });
+            return { ...prev, [event.guildId]: { ...guild, channels } };
+          });
           break;
         case 'guild_message_new': {
           const { message } = event;

@@ -6,13 +6,14 @@ import defaultpfp from '../assets/images/default.png';
 import { ConfigContext } from '../contexts';
 import { getConnectionState, onConnectionState } from '../utils/ws-client';
 import { onProfilePictureChange } from '../utils/profilePicture';
+import VoiceControls from './voice/VoiceControls';
 
 const STATUS_LABELS = { online: 'Online', connecting: 'Connecting…', offline: 'Offline' };
 
 // You, at the bottom of the sidebar (like Discord): profile picture, name, and whether this
-// device is connected, with the settings button.
+// device is connected, with mute, deafen (voice) and the settings button.
 export default function UserPanel({ user }) {
-  const { s3Endpoint } = useContext(ConfigContext);
+  const { s3Endpoint, voiceEnabled } = useContext(ConfigContext);
   const status = useSyncExternalStore(onConnectionState, getConnectionState);
   // Bumped when a new picture is uploaded, to skip the browser's cached one.
   const [pictureVersion, setPictureVersion] = useState(0);
@@ -38,6 +39,7 @@ export default function UserPanel({ user }) {
         <span className="user-panel-name">{user.username}</span>
         <span className="user-panel-state">{STATUS_LABELS[status]}</span>
       </div>
+      {voiceEnabled && <VoiceControls />}
       <NavLink to="/settings" className="user-panel-button" aria-label="User settings" title="User settings">
         <FontAwesomeIcon icon={faGear} />
       </NavLink>

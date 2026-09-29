@@ -11,7 +11,7 @@ import {
   faUserPlus,
   faXmark,
 } from '@fortawesome/free-solid-svg-icons';
-import { LayoutContext } from '../../contexts';
+import { ConfigContext, InteractionContext, LayoutContext } from '../../contexts';
 import { scrollToRight } from '../../utils/scrollToRight';
 import { groupChannels } from '../../utils/guildDisplay';
 import { leaveGuild } from '../../services/guildService';
@@ -21,6 +21,9 @@ import CategoryDialog from './CategoryDialog';
 import GuildSettingsDialog from './GuildSettingsDialog';
 import ConfirmDialog from './ConfirmDialog';
 import ChannelIcon from './ChannelIcon';
+import VoiceChannelMembers from './VoiceChannelMembers';
+import { useVoice } from '../../hooks/useVoice';
+import { joinVoice } from '../../voice/voiceClient';
 import { PERMISSIONS, has } from '../../utils/permissions';
 
 const COLLAPSED_KEY = 'collapsedCategories';
@@ -42,6 +45,9 @@ export default function GuildSidebar({ guild, user }) {
   const { channelId } = useParams();
   const navigate = useNavigate();
   const { guildList } = useContext(LayoutContext);
+  const { isMobile } = useContext(InteractionContext);
+  const { voiceEnabled } = useContext(ConfigContext);
+  const voice = useVoice();
   const [menuOpen, setMenuOpen] = useState(false);
   // { type: 'invite' | 'settings' | 'channel' | 'category' | 'leave', ...props }
   const [dialog, setDialog] = useState(null);
@@ -69,6 +75,8 @@ export default function GuildSidebar({ guild, user }) {
     can(PERMISSIONS.MANAGE_EMOJIS) || can(PERMISSIONS.BAN_MEMBERS);
   const unreadChannels = new Set(guildList.unread.filter((u) => u.guild_id === guild.id).map((u) => u.channel_id));
   const { uncategorized, categories } = groupChannels(guild);
+  const inVoice = voice.status !== 'idle' && voice.guildId === guild.id ? voice.channelId : null;
+  const speaking = new Set(voice.status === 'connected' ? voice.speaking : []);
 
   function toggleCategory(id) {
     setCollapsed((prev) => {
@@ -91,14 +99,25 @@ export default function GuildSidebar({ guild, user }) {
 
   const closeDialog = () => setDialog(null);
 
+  // A voice channel joins on click (desktop). On mobile a tap only opens it, and it's joined
+  // from there: a stray tap shouldn't put you on a call.
+  function openChannel(channel) {
+    if (channel.type === 'voice' && !isMobile && voiceEnabled && has(channel.my_permissions, PERMISSIONS.CONNECT)) {
+      joinVoice(guild.id, channel.id);
+    }
+    scrollToRight();
+  }
+
   function renderChannel(channel) {
     const active = String(channel.id) === channelId;
     const unread = unreadChannels.has(channel.id) && !active;
+    const connected = channel.id === inVoice;
     return (
-      <li key={channel.id} className={`guild-channel${active ? ' active' : ''}${unread ? ' unread' : ''}`}>
+      <React.Fragment key={channel.id}>
+      <li className={`guild-channel${active ? ' active' : ''}${unread ? ' unread' : ''}${connected ? ' connected' : ''}`}>
         <Link
           to={`/guild/${guild.id}/${channel.id}`}
-          onClick={scrollToRight}
+          onClick={() => openChannel(channel)}
           className="guild-channel-link"
           aria-current={active ? 'page' : undefined}
         >
@@ -117,6 +136,12 @@ export default function GuildSidebar({ guild, user }) {
           </button>
         )}
       </li>
+      {channel.voice?.length > 0 && (
+        <li className="guild-channel-voice">
+          <VoiceChannelMembers members={channel.voice} speaking={channel.id === inVoice ? speaking : new Set()} />
+        </li>
+      )}
+      </React.Fragment>
     );
   }
 
@@ -173,9 +198,10 @@ export default function GuildSidebar({ guild, user }) {
 
         {categories.map((category) => {
           const isCollapsed = collapsed.has(category.id);
-          // Collapsed, a category still shows the open channel and unread ones (like Discord).
+          // Collapsed, a category still shows the open channel, unread ones and your voice
+          // channel (like Discord).
           const shown = isCollapsed
-            ? category.channels.filter((c) => String(c.id) === channelId || unreadChannels.has(c.id))
+            ? category.channels.filter((c) => String(c.id) === channelId || unreadChannels.has(c.id) || c.id === inVoice)
             : category.channels;
           return (
             <div key={category.id} className="guild-category">

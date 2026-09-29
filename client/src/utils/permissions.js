@@ -15,10 +15,12 @@ export const PERMISSIONS = {
   BAN_MEMBERS: 1 << 9,
   ADMINISTRATOR: 1 << 10,
   MANAGE_EMOJIS: 1 << 11,
+  CONNECT: 1 << 12,
+  SPEAK: 1 << 13,
 };
 
 export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
-  PERMISSIONS.ADD_REACTIONS | PERMISSIONS.CREATE_INVITE;
+  PERMISSIONS.ADD_REACTIONS | PERMISSIONS.CREATE_INVITE | PERMISSIONS.CONNECT | PERMISSIONS.SPEAK;
 
 export const has = (permissions, bit) => ((permissions ?? 0) & bit) === bit;
 
@@ -51,6 +53,13 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
+    title: 'Voice channels',
+    items: [
+      ['CONNECT', 'Connect', 'Lets members join voice channels and hear others.'],
+      ['SPEAK', 'Speak', 'Lets members talk in voice channels. Without it they can only listen.'],
+    ],
+  },
+  {
     title: 'Advanced',
     items: [
       ['ADMINISTRATOR', 'Administrator', 'Every permission, in every channel, whatever the channel settings. Handle with care.'],
@@ -58,13 +67,22 @@ export const PERMISSION_GROUPS = [
   },
 ];
 
-// What a channel override can change (the server refuses anything else).
-export const CHANNEL_PERMISSION_ITEMS = [
-  ['VIEW_CHANNEL', 'View Channel'],
-  ['SEND_MESSAGES', 'Send Messages'],
-  ['ADD_REACTIONS', 'Add Reactions'],
-  ['MANAGE_MESSAGES', 'Manage Messages'],
-];
+// What a channel override can change (the server refuses anything else), by channel type.
+const CHANNEL_PERMISSION_ITEMS = {
+  text: [
+    ['VIEW_CHANNEL', 'View Channel'],
+    ['SEND_MESSAGES', 'Send Messages'],
+    ['ADD_REACTIONS', 'Add Reactions'],
+    ['MANAGE_MESSAGES', 'Manage Messages'],
+  ],
+  voice: [
+    ['VIEW_CHANNEL', 'View Channel'],
+    ['CONNECT', 'Connect'],
+    ['SPEAK', 'Speak'],
+  ],
+};
+
+export const channelPermissionItems = (type) => CHANNEL_PERMISSION_ITEMS[type] ?? CHANNEL_PERMISSION_ITEMS.text;
 
 // A member's roles (from `roles`, the guild's list, highest first), highest first.
 export function memberRoles(roles, roleIds) {

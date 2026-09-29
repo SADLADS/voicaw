@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
 const guildListeners = vi.hoisted(() => ({ list: [] }));
@@ -24,6 +24,15 @@ vi.mock('../../services/guildService', () => ({
   removeGuildReaction: vi.fn(async () => {}),
 }));
 
+const idleVoice = vi.hoisted(() => ({ status: 'idle', guildId: null, channelId: null, selfMute: false, selfDeaf: false, speaking: [] }));
+vi.mock('../../voice/voiceClient', () => ({
+  getVoiceSnapshot: () => idleVoice,
+  onVoiceChange: () => () => {},
+  joinVoice: vi.fn(),
+  leaveVoice: vi.fn(),
+  setSelfMute: vi.fn(),
+  setSelfDeaf: vi.fn(),
+}));
 vi.mock('../../utils/mediaDimensions', () => ({ readMediaDimensions: vi.fn(async () => null) }));
 vi.mock('../../services/attachmentUpload', () => ({ uploadAttachment: vi.fn(), MAX_ATTACHMENT_BYTES: 1000 }));
 
@@ -43,6 +52,7 @@ vi.mock('../MessageList', () => ({
 }));
 
 import GuildView from './GuildView';
+import { joinVoice } from '../../voice/voiceClient';
 import { editorFor } from '../../editor/editorRegistry';
 import emojiData from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../../emoji/emojiIndex';
@@ -72,7 +82,10 @@ const guild = {
   categories: [],
   channels: [
     { id: 10, name: 'general', type: 'text', topic: 'Say hi', category_id: null, position: 0, my_permissions: 2047, private: false },
-    { id: 11, name: 'lounge', type: 'voice', topic: null, category_id: null, position: 1, my_permissions: 2047, private: false },
+    {
+      id: 11, name: 'lounge', type: 'voice', topic: null, category_id: null, position: 1, my_permissions: 2047 | 4096 | 8192, private: false,
+      voice: [{ user_id: 2, username: 'bob', self_mute: true, self_deaf: false }],
+    },
     { id: 12, name: 'news', type: 'text', topic: null, category_id: null, position: 2, my_permissions: 1, private: true },
   ],
 };
@@ -86,11 +99,11 @@ function Where() {
   return <div data-testid="where">{useLocation().pathname}</div>;
 }
 
-function renderView(path, { layouts = { 5: guild }, user = me } = {}) {
+function renderView(path, { layouts = { 5: guild }, user = me, voiceEnabled = true } = {}) {
   const guildList = { layouts, loadGuild: vi.fn(async () => guild), refreshUnread: vi.fn() };
   render(
     <EmojiContext.Provider value={emojiIndex}>
-      <ConfigContext.Provider value={{ s3Endpoint: '', maxPlaintextLength: 5000 }}>
+      <ConfigContext.Provider value={{ s3Endpoint: '', maxPlaintextLength: 5000, voiceEnabled }}>
         <InteractionContext.Provider value={{ isMobile: false }}>
           <LayoutContext.Provider value={{ guildList }}>
             <MemoryRouter initialEntries={[path]}>
@@ -201,10 +214,21 @@ describe('GuildView', () => {
     expect(JSON.parse(screen.getByTestId('message-list').dataset.colors)).toEqual({});
   });
 
-  it('shows a placeholder for voice channels', async () => {
+  it("shows who's in a voice channel, and joins it", async () => {
     renderView('/guild/5/11');
-    expect(await screen.findByText('Voice channels are coming later.')).toBeInTheDocument();
+    const tile = (await screen.findByText('bob')).closest('li');
+    expect(within(tile).getByLabelText('Muted')).toBeInTheDocument();
     expect(fetchChannelMessages).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Join Voice' }));
+    expect(joinVoice).toHaveBeenCalledWith(5, 11);
+    // A voice channel isn't where the guild reopens.
+    expect(localStorage.getItem('guildChannel:5')).toBeNull();
+  });
+
+  it("says so when voice isn't set up", async () => {
+    renderView('/guild/5/11', { voiceEnabled: false });
+    expect(await screen.findByText("Voice isn't set up on this server yet.")).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Join Voice' })).toBeNull();
   });
 
   it("loads a guild it doesn't have yet, and says so if it can't", async () => {

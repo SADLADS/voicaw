@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project overview
 
 Voicaw is a Discord-style chat web app: end-to-end encrypted direct messages, and guilds
-(servers with text channels, roles and private channels; not encrypted, see Guilds). It's an npm workspaces monorepo with
+(servers with text and voice channels, roles and private channels; not encrypted, see Guilds). It's an npm workspaces monorepo with
 three packages: `client` (React/Vite SPA, also packaged as an Electron desktop app), `server`
 (Express + ws API), and `electron` (thin desktop shell wrapping the built client).
 
@@ -89,15 +89,23 @@ real app against a throwaway API (in-memory database, fresh secrets, rate limits
 stand-in object store in memory, so uploads, profile pictures and emoji work) and drives it with Playwright (`playwright-core`, using the system Chrome
 at `/usr/bin/google-chrome`, headless):
 ```
-node e2e/serve.mjs &     # web :5199, API :3099, object store :3100; E2E_WEB/API/S3_PORT
+node e2e/serve.mjs &     # web :5199, API :3099, object store :3100, LiveKit :3101-3103;
+                         # E2E_WEB/API/S3/LIVEKIT_PORT
 node e2e/smoke.mjs       # two users, one message delivered live; an example to copy
 node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots into dir
 node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permissions
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
-kill %1                  # stops both servers (kill the serve.mjs process itself)
+node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
+kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
+For voice, `serve.mjs` also runs its own LiveKit (the binary at `LIVEKIT_BIN`, default
+`~/livekit/livekit-server`; skipped with a note if missing) on 127.0.0.1 with fresh keys and its
+webhook pointed at the throwaway API. `fakeMicArgs()` (helpers) gives Chrome a fake microphone
+playing a made-up speech-like sound: Chrome's own fake mic is a steady beep, which the browser's
+noise suppression removes, so it never counts as talking.
 Scripts need the same `E2E_WEB_PORT` as `serve.mjs` when not using the default.
-Never use ports 5173 or 3002 (the live test site and API); `serve.mjs` refuses them. Kill test
+Never use ports 5173 or 3002 (the live test site and API) or 7880-7882 (the live LiveKit);
+`serve.mjs` refuses them. Kill test
 processes by PID, never `pkill -f` with a pattern that's in your own command line (it kills your
 shell). `e2e/helpers.mjs` has `signUp` (registers a user in its own browser context, unique
 name), `openChat`, `send`, `launchChrome`, and `devices` (e.g. `devices['Pixel 7']` for a phone).
@@ -130,10 +138,12 @@ unexpected errors. The rest:
 - `push.js`: web push sending and the DM push payload.
 - `s3.js`: pre-signed upload URLs. Bucket setup at startup logs and carries on if the store is down.
 - `guilds.js`: shared guild helpers (membership checks, `getGuildLayout`, `sendToGuild`).
+- `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
 - `routes/`: `auth.js` (OPAQUE register/login, profile), `dms.js` (conversations, send, edit,
   delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `guilds.js` (guilds,
   members, invites, bans, categories, channels), `guildMessages.js` (channel messages, reactions,
-  read state), `push.js` (subscriptions), `uploads.js`.
+  read state), `voice.js` (join token, mute/deafen, leave, LiveKit webhook), `push.js`
+  (subscriptions), `uploads.js`.
 
 Client tests sit next to their source files (`src/**/*.test.{js,jsx}`). The default environment is
 `node`; component tests opt into DOM with a `// @vitest-environment jsdom` header on the first
@@ -156,7 +166,9 @@ stop working in the next major version of npm"; it still works, but will need re
 
 `server/config.js` fails fast at startup if any of these env vars are missing (set them in
 `server/.env`): `JWT_SECRET`, `OPAQUE_SERVER_SETUP`, `VAPID_EMAIL`, `VAPID_PUBLIC_KEY`,
-`VAPID_PRIVATE_KEY`, `S3_ENDPOINT`, `S3_ROOT_USER`, `S3_ROOT_PASSWORD`. VAPID keys are generated
+`VAPID_PRIVATE_KEY`, `S3_ENDPOINT`, `S3_ROOT_USER`, `S3_ROOT_PASSWORD`. Voice channels also need
+`LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (and `LIVEKIT_API_URL` to reach LiveKit
+directly); without them voice is just off. `README.md` "Initial setup" has the whole list. VAPID keys are generated
 via `webpush.generateVAPIDKeys()` (see root `README.md`). `S3_*` vars point at an S3-compatible
 object store (e.g. MinIO) used for uploads and profile pics.
 
@@ -250,7 +262,8 @@ Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, 
 `user_status`, and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete`,
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
-`guild_order` (your server rail order, to your other devices). A 30s heartbeat
+`guild_order` (your server rail order, to your other devices), `guild_voice_state` (someone
+joined, left or (un)muted in a voice channel). A 30s heartbeat
 (ping/pong) prunes dead connections and broadcasts `offline` status.
 
 Client side, `client/src/utils/ws-client.js` wraps this with `connectWebSocket`/`closeWebSocket`
@@ -289,8 +302,10 @@ one user at a time).
 
 SQLite via `sqlite3`, single file `server/voicaw.db` (overridable with `DB_PATH`), schema created idempotently
 (`CREATE TABLE IF NOT EXISTS`) in `server/db.js` on require. Queries use the small promise helpers
-in `db.js` (no ORM, no migrations: a new column on an existing table needs an
-`ALTER TABLE ... ADD COLUMN` whose "duplicate column" error is ignored, as `guilds` does). Guild
+in `db.js` (no ORM: a new column on an existing table needs an `ALTER TABLE ... ADD COLUMN`
+whose "duplicate column" error is ignored, as `guilds` does). Changes to existing data that must
+run exactly once are numbered with SQLite's `PRAGMA user_version` at the end of the guild block
+(1: @everyone gets Connect and Speak); add the next one as 2. Guild
 tables are `guilds` plus `guild_*`. An earlier sketch left unused, empty tables in old databases
 (`roles`, `user_roles`, `categories`, `channels`, `channel_permissions`, `messages`); nothing
 creates or reads them any more, and they can be dropped.
@@ -303,13 +318,14 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - **Permissions** (`server/permissions.js`, copied in `client/src/utils/permissions.js`; a
   test checks they match) are Discord's model with a bit field: View Channel, Send Messages,
   Add Reactions, Manage Messages, Manage Channels, Manage Roles, Manage Server, Create Invite,
-  Kick, Ban, Administrator. Every guild has an `@everyone` role (`is_everyone`, position 0,
-  default: view, send, react, invite) plus orderable roles (`guild_roles`: name, colour
+  Kick, Ban, Administrator, Manage Emoji, Connect, Speak (voice). Every guild has an `@everyone`
+  role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak) plus orderable roles (`guild_roles`: name, colour
   0xRRGGBB or null, `hoist` = shown separately in the member list, position: higher ranks
   higher), given out in `guild_member_roles`. Guild permissions are @everyone's plus the
   member's roles'; the owner and Administrator get everything.
 - **Channel overrides** (`guild_channel_overrides`, per role or member, `allow`/`deny` of the
-  four channel permissions) apply in order: @everyone's, the member's roles' (all denies, then
+  channel permissions: View, Send, React, Manage Messages, Connect, Speak; the editor shows a
+  text channel's or a voice channel's) apply in order: @everyone's, the member's roles' (all denies, then
   all allows), the member's own. A **private channel** is @everyone denied View Channel. A
   channel you can't view doesn't exist for you: left out of your layout, 404, no events
   (`sendToChannel`), not in unread counts.
@@ -382,8 +398,58 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   `CustomEmojiContext` (`emoji/customEmojiContext.js`: by guild in rail order, and by id).
 - **Not done yet:** drag-and-drop reordering of channels (the API exists; roles and servers can
   be dragged), category-level permissions (overrides are per channel), mentions and guild
-  notifications (no push for guild messages yet), voice channels (they can be created and show
-  a placeholder), server folders in the rail.
+  notifications (no push for guild messages yet), server folders in the rail. Voice: see
+  Voice channels.
+
+### Voice channels (LiveKit)
+
+A voice channel's audio goes through a self-hosted LiveKit server (an SFU: it forwards each
+person's audio to the others, it doesn't mix or decode; setup in `README.md`). Not end-to-end
+encrypted, like the rest of a guild. The API decides who may join and keeps track of who's in;
+LiveKit carries the audio.
+- **Server** (`server/voice.js`, `routes/voice.js`): each voice channel is LiveKit room
+  `channel-<id>`, each participant's identity their user id. `POST
+  /guilds/:g/channels/:c/voice` (View Channel + Connect) returns `{ url, token }`: a 10 minute
+  LiveKit token for that room (LiveKit keeps it fresh once connected), publishing only the
+  microphone, and only with Speak. One voice channel per user: getting a token for another
+  removes you from the first. Who's actually in comes from LiveKit's **webhooks** (`POST
+  /livekit/webhook`, signed with the API key): joined/left/room finished. The state is in memory
+  (`states`), rebuilt from LiveKit's room list when the API starts (`restoreFromLiveKit`, only
+  when run as the server). A "left" only counts for the session (sid) that's in, since joining
+  from a second device replaces the first. After any guild change (`announceGuildUpdate`) and
+  when a member is removed, `enforceGuild` disconnects whoever lost View/Connect and gives or
+  takes away Speak live. Self mute/deafen: `PUT /voice/state` (kept in LiveKit participant
+  attributes too, so a restart keeps them); `DELETE /voice` leaves. Everyone who can see the
+  channel gets `guild_voice_state { guildId, channelId, userId, state }` (`state` null: left),
+  and a voice channel in the layout has `voice: [{ user_id, username, self_mute, self_deaf }]`.
+  Without `LIVEKIT_*` settings voice is off: `/api/config` says `voiceEnabled: false`, joins 503.
+- **Client** (`voice/voiceClient.js`, read with `hooks/useVoice.js`): one connection per
+  device, a module-level store like `ws-client`. `livekit-client` is loaded on the first join
+  (it's big). Joining must come from a click (browsers play sound only after one). Muted, the
+  mic is released (`stopMicTrackOnMute`, the browser's recording light goes off); deafened, the
+  `<audio>` elements are muted and you're muted too; unmuting undeafens (Discord's rules). Mute
+  and deafen are remembered per device (`localStorage voicePrefs`) and work outside a call.
+  `speaking` is LiveKit's active speakers. A lost connection, being removed, or joining the same
+  channel elsewhere ends it with a message in the voice bar.
+- **Microphone chain** (`voice/voiceChain.js`): the browser captures with echo cancellation,
+  noise suppression, auto gain and `voiceIsolation` (Chrome's stronger suppression, where it has
+  it); then our own LiveKit audio processor runs the mic through a list of Web Audio stages
+  (none yet: it passes through). **Voice isolation goes in here** as a stage (RNNoise, then
+  DeepFilterNet, each an AudioWorklet). The processor is set on the track after the mic is on
+  (LiveKit applies capture-time processors before the track has its AudioContext), and it
+  keeps the AudioContext from `init`, because LiveKit calls `restart` (after an unmute or a mic
+  change) without one.
+- **UI:** in the channel list, people in a voice channel are listed under it (ringed while
+  talking, when you're in there too). Clicking a voice channel joins it on desktop; on mobile a
+  tap only opens it and you join from its page (`guild/VoiceChannelView.jsx`: tiles, Join Voice,
+  mute/deafen/disconnect). `voice/VoiceBar.jsx` sits above the user panel while connected
+  (status, channel link, disconnect, errors); `UserPanel` has mute and deafen
+  (`voice/VoiceControls.jsx`). A guild reopens on its last *text* channel.
+- **Not done yet:** device selection, per-user volume, push-to-talk and voice activity
+  settings, server mute/move (Mute Members, Move Members), the Electron global push-to-talk key,
+  voice isolation stages, DM calls (to be end-to-end encrypted with LiveKit's E2EE), screen
+  share, and a TURN server for networks that block UDP 7882 and TCP 7881. Phones: a PWA's audio
+  stops when it's in the background (iOS also when locked).
 
 ### File uploads (S3-compatible object store)
 

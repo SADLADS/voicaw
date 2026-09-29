@@ -117,7 +117,7 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
             </label>
             <label className={type === 'voice' ? 'selected' : ''}>
               <input type="radio" name="channel-type" value="voice" checked={type === 'voice'} onChange={() => setType('voice')} />
-              <FontAwesomeIcon icon={faVolumeHigh} /> Voice <span className="vc-hint">(coming later)</span>
+              <FontAwesomeIcon icon={faVolumeHigh} /> Voice
             </label>
           </fieldset>
         )}

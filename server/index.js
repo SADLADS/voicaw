@@ -24,6 +24,7 @@ app.get('/api/config', (req, res) => {
     s3Endpoint: config.s3Endpoint,
     maxPlaintextLength: config.maxPlaintextLength,
     vapidPublicKey: config.vapid.publicKey,
+    voiceEnabled: Boolean(config.livekit),
   });
 });
 
@@ -34,6 +35,7 @@ app.use('/api', require('./routes/guilds'));
 app.use('/api', require('./routes/guildMessages'));
 app.use('/api', require('./routes/guildRoles'));
 app.use('/api', require('./routes/guildEmojis'));
+app.use('/api', require('./routes/voice'));
 app.use('/api', require('./routes/push'));
 app.use('/api', require('./routes/uploads'));
 
@@ -61,4 +63,6 @@ if (require.main === module) {
     console.log(`Server running on port ${config.port} (max message length ${config.maxPlaintextLength})`);
   });
   attachWebSocketServer(server);
+  // Who's in voice right now, in case the API restarted while people were talking.
+  require('./voice').restoreFromLiveKit();
 }

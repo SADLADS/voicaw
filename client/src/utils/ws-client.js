@@ -192,7 +192,7 @@ export function onReactionRemove(callback) {
 // Every guild event, as sent by the server: `{ type: 'guild_add' | 'guild_update' |
 // 'guild_remove' | 'guild_member_add' | 'guild_member_remove' | 'guild_message_new' |
 // 'guild_message_edit' | 'guild_message_delete' | 'guild_reaction_add' |
-// 'guild_reaction_remove', ... }` (see CLAUDE.md, Guilds).
+// 'guild_reaction_remove' | 'guild_voice_state', ... }` (see CLAUDE.md, Guilds).
 export function onGuildEvent(callback) {
   guildListeners.add(callback);
   return () => guildListeners.delete(callback);

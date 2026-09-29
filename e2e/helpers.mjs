@@ -1,6 +1,9 @@
 // Helpers for browser checks against e2e/serve.mjs. Scripts import these and use Playwright
 // (playwright-core, driving the system Chrome); see e2e/smoke.mjs.
 import { chromium, devices } from 'playwright-core';
+import { mkdtempSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 export { devices };
 export const BASE = `http://localhost:${process.env.E2E_WEB_PORT || 5199}`;
@@ -45,3 +48,60 @@ export async function send(page, text) {
   await page.keyboard.press('Enter');
 }
 
+
+// Chrome flags for a fake microphone and camera that need no permission prompt. The
+// microphone plays a speech-like sound (voiced syllables with pauses, made up here): Chrome's
+// own fake input is a steady beep, which its noise suppression removes, so it never counts as
+// someone talking.
+export function fakeMicArgs() {
+  return [
+    '--use-fake-ui-for-media-stream',
+    '--use-fake-device-for-media-stream',
+    `--use-file-for-fake-audio-capture=${speechLikeWav()}`,
+    '--autoplay-policy=no-user-gesture-required',
+  ];
+}
+
+let speechFile = null;
+function speechLikeWav() {
+  if (speechFile) return speechFile;
+  const rate = 48000;
+  const seconds = 8;
+  const samples = new Int16Array(rate * seconds);
+  let phase = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const t = i / rate;
+    // Syllables of ~0.25 s, a pause every fourth one; the pitch wanders like a voice.
+    const syllable = Math.floor(t * 4);
+    const within = (t * 4) % 1;
+    const envelope = syllable % 4 === 3 ? 0 : Math.sin(Math.PI * within) ** 2;
+    const pitch = 120 + 40 * Math.sin(2 * Math.PI * 0.7 * t) + 15 * Math.sin(2 * Math.PI * 3.1 * t);
+    phase += (2 * Math.PI * pitch) / rate;
+    // Harmonics shaped by two "formants" that move between vowels.
+    const f1 = 500 + 300 * Math.sin(2 * Math.PI * 0.9 * t + syllable);
+    const f2 = 1500 + 700 * Math.cos(2 * Math.PI * 0.6 * t + syllable);
+    let value = 0;
+    for (let h = 1; h * pitch < 4000; h++) {
+      const f = h * pitch;
+      const gain = Math.exp(-(((f - f1) / 250) ** 2)) + 0.6 * Math.exp(-(((f - f2) / 350) ** 2)) + 0.05;
+      value += (gain / h ** 0.5) * Math.sin(h * phase);
+    }
+    samples[i] = Math.max(-32767, Math.min(32767, value * envelope * 6000));
+  }
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + samples.byteLength, 4);
+  header.write('WAVEfmt ', 8);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20); // PCM
+  header.writeUInt16LE(1, 22); // mono
+  header.writeUInt32LE(rate, 24);
+  header.writeUInt32LE(rate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(samples.byteLength, 40);
+  speechFile = join(mkdtempSync(join(tmpdir(), 'voicaw-e2e-mic-')), 'speech.wav');
+  writeFileSync(speechFile, Buffer.concat([header, Buffer.from(samples.buffer)]));
+  return speechFile;
+}

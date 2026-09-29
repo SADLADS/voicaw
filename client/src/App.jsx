@@ -15,6 +15,7 @@ import './assets/css/mobile.css';
 import './assets/css/desktop.css';
 
 import { closeWebSocket } from './utils/ws-client';
+import { leaveVoice } from './voice/voiceClient';
 import { clearUserKeys } from './services/keyStore';
 import EmojiProvider from './emoji/EmojiProvider';
 import UpdateBanner from './components/UpdateBanner';
@@ -117,6 +118,7 @@ export default function App() {
     } catch (err) {
       console.error('Failed to turn off notifications on logout', err);
     }
+    await leaveVoice();
     try {
       localStorage.removeItem('token');
       await clearUserKeys();

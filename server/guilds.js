@@ -114,7 +114,7 @@ function isPrivate(member, overrides) {
 
 // The guild as `member` sees it: its roles (everyone sees every role, as in Discord), their own
 // `my_permissions` and `my_role_ids`, and the categories and channels they can see, in order, each channel with
-// `my_permissions` and `private`. Categories left empty by hidden channels are hidden too,
+// `my_permissions` and `private` (and a voice channel with `voice`, who's in it). Categories left empty by hidden channels are hidden too,
 // except from people who manage channels. What GET /guilds/:id returns and `guild_update` sends.
 async function layoutFor(member, overridesByChannel) {
   const { guild } = member;
@@ -132,7 +132,10 @@ async function layoutFor(member, overridesByChannel) {
     const overrides = overridesByChannel.get(channel.id) ?? [];
     const permissions = channelPermissions(member, member.userId, overrides);
     if (!has(permissions, PERMISSIONS.VIEW_CHANNEL)) continue;
-    channels.push({ ...channel, my_permissions: permissions, private: isPrivate(member, overrides) });
+    const entry = { ...channel, my_permissions: permissions, private: isPrivate(member, overrides) };
+    // Who's in it right now (voice.js; required here, since it requires this file).
+    if (channel.type === 'voice') entry.voice = require('./voice').membersOf(channel.id);
+    channels.push(entry);
   }
   const managesChannels = has(member.permissions, PERMISSIONS.MANAGE_CHANNELS);
   const visibleCategories = categories.filter((category) => managesChannels ||
@@ -186,6 +189,8 @@ async function announceGuildUpdate(guildId) {
   for (const member of members.values()) {
     sendToUserSockets(member.userId, { type: 'guild_update', guild: await layoutFor(member, overrides) });
   }
+  // Anyone who may no longer be in their voice channel leaves it.
+  await require('./voice').enforceGuild(guildId);
 }
 
 // A member for the member list: id, name, join time, role ids.

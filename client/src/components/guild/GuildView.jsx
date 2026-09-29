@@ -1,13 +1,14 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUsers, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
+import { faUsers } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/dms.css';
 import '../../assets/css/guilds.css';
 import { InteractionContext, LayoutContext } from '../../contexts';
 import ChatPane from '../ChatPane';
 import MemberList from './MemberList';
 import ChannelIcon from './ChannelIcon';
+import VoiceChannelView from './VoiceChannelView';
 import { useChannel } from '../../hooks/useChannel';
 import { onGuildEvent, onUserStatus } from '../../utils/ws-client';
 import { addGuildReaction, fetchMembers, removeGuildReaction } from '../../services/guildService';
@@ -59,8 +60,9 @@ export default function GuildView({ user }) {
     loadGuild(guildId).catch(() => {}).finally(() => setCheckedMissing(channelId));
   }, [missingChannel, guildId, channelId, loadGuild]);
 
+  // The guild reopens on the last text channel (a voice one would just show who's talking).
   useEffect(() => {
-    if (channel) rememberChannel(guildId, channel.id);
+    if (channel?.type === 'text') rememberChannel(guildId, channel.id);
   }, [guildId, channel]);
 
   useEffect(() => setMembersOpenMobile(false), [channelId]);
@@ -170,10 +172,7 @@ export default function GuildView({ user }) {
           {!channel ? (
             <p className="guild-placeholder">Loading…</p>
           ) : channel.type === 'voice' ? (
-            <div className="guild-placeholder">
-              <FontAwesomeIcon icon={faVolumeHigh} size="2x" />
-              <p>Voice channels are coming later.</p>
-            </div>
+            <VoiceChannelView guild={guild} channel={channel} nameColors={nameColors} />
           ) : (
             <ChatPane
               chatId={`channel-${channel.id}`}

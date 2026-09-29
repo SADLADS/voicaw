@@ -8,8 +8,16 @@ vi.mock('../../services/guildService', () => ({
   createInvite: vi.fn(async () => ({ code: 'abc12345', expires_at: null, max_uses: null })),
 }));
 
+const voice = vi.hoisted(() => ({ snapshot: { status: 'idle', guildId: null, channelId: null, speaking: [] } }));
+vi.mock('../../voice/voiceClient', () => ({
+  getVoiceSnapshot: () => voice.snapshot,
+  onVoiceChange: () => () => {},
+  joinVoice: vi.fn(),
+}));
+
 import GuildSidebar from './GuildSidebar';
-import { LayoutContext } from '../../contexts';
+import { ConfigContext, InteractionContext, LayoutContext } from '../../contexts';
+import { joinVoice } from '../../voice/voiceClient';
 import { leaveGuild } from '../../services/guildService';
 
 const owner = { id: 1, username: 'owner' };
@@ -27,7 +35,13 @@ const baseGuild = {
   channels: [
     { id: 10, name: 'general', type: 'text', category_id: 1, position: 0 },
     { id: 11, name: 'memes', type: 'text', category_id: 2, position: 1 },
-    { id: 12, name: 'lounge', type: 'voice', category_id: 2, position: 2 },
+    {
+      id: 12, name: 'lounge', type: 'voice', category_id: 2, position: 2, my_permissions: 135 | 4096,
+      voice: [
+        { user_id: 3, username: 'carol', self_mute: false, self_deaf: false },
+        { user_id: 4, username: 'dave', self_mute: true, self_deaf: true },
+      ],
+    },
   ],
 };
 
@@ -35,10 +49,12 @@ function Where() {
   return <div data-testid="where">{useLocation().pathname}</div>;
 }
 
-function renderSidebar({ user = owner, unread = [], path = '/guild/5/10', permissions } = {}) {
+function renderSidebar({ user = owner, unread = [], path = '/guild/5/10', permissions, isMobile = false } = {}) {
   const guildList = { unread, removeGuild: vi.fn() };
   const guild = { ...baseGuild, my_permissions: permissions ?? (user.id === baseGuild.owner ? ALL : DEFAULT) };
   render(
+    <ConfigContext.Provider value={{ s3Endpoint: '', voiceEnabled: true }}>
+    <InteractionContext.Provider value={{ isMobile }}>
     <LayoutContext.Provider value={{ guildList }}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
@@ -46,6 +62,8 @@ function renderSidebar({ user = owner, unread = [], path = '/guild/5/10', permis
         </Routes>
       </MemoryRouter>
     </LayoutContext.Provider>
+    </InteractionContext.Provider>
+    </ConfigContext.Provider>
   );
   return guildList;
 }
@@ -53,6 +71,7 @@ function renderSidebar({ user = owner, unread = [], path = '/guild/5/10', permis
 const channelRow = (name) => screen.getByRole('link', { name }).closest('li');
 
 beforeEach(() => {
+  voice.snapshot = { status: 'idle', guildId: null, channelId: null, speaking: [] };
   vi.clearAllMocks();
   localStorage.clear();
 });
@@ -127,5 +146,37 @@ describe('GuildSidebar', () => {
     fireEvent.click(screen.getByRole('button', { name: /Test Guild/ }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Invite People' }));
     await waitFor(() => expect(screen.getByLabelText(/invite link/)).toHaveValue(`${window.location.origin}/invite/abc12345`));
+  });
+
+  it("lists who's in a voice channel under it, with mute and deafen", () => {
+    renderSidebar();
+    const list = screen.getByRole('list', { name: 'In this channel' });
+    const rows = within(list).getAllByRole('listitem');
+    expect(rows.map((r) => r.textContent)).toEqual(['carol', 'dave']);
+    expect(within(rows[0]).queryByLabelText('Muted')).toBeNull();
+    expect(within(rows[1]).getByLabelText('Muted')).toBeInTheDocument();
+    expect(within(rows[1]).getByLabelText('Deafened')).toBeInTheDocument();
+  });
+
+  it('rings whoever is talking in your own voice channel', () => {
+    voice.snapshot = { status: 'connected', guildId: 5, channelId: 12, speaking: ['3'] };
+    renderSidebar();
+    expect(channelRow('lounge')).toHaveClass('connected');
+    const [carol, dave] = screen.getByRole('list', { name: 'In this channel' }).querySelectorAll('img');
+    expect(carol).toHaveClass('speaking');
+    expect(dave).not.toHaveClass('speaking');
+  });
+
+  it('joins a voice channel on click (desktop) but only opens it on a phone', () => {
+    renderSidebar();
+    fireEvent.click(screen.getByRole('link', { name: 'lounge' }));
+    expect(joinVoice).toHaveBeenCalledWith(5, 12);
+    expect(screen.getByTestId('where')).toHaveTextContent('/guild/5/12');
+  });
+
+  it("doesn't join from a phone", () => {
+    renderSidebar({ isMobile: true });
+    fireEvent.click(screen.getByRole('link', { name: 'lounge' }));
+    expect(joinVoice).not.toHaveBeenCalled();
   });
 });

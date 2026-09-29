@@ -13,6 +13,10 @@ process.env.DISABLE_RATE_LIMITS = '1';
 process.env.S3_ENDPOINT = 'http://localhost:0';
 process.env.S3_ROOT_USER = 'test-root-user';
 process.env.S3_ROOT_PASSWORD = 'test-root-password';
+// Voice: tests replace the LiveKit client (voice.livekit.roomService); nothing is contacted.
+process.env.LIVEKIT_URL = 'ws://livekit.invalid';
+process.env.LIVEKIT_API_KEY = 'test-livekit-key';
+process.env.LIVEKIT_API_SECRET = 'test-livekit-secret-that-is-long-enough';
 
 const vapidKeys = webpush.generateVAPIDKeys();
 process.env.VAPID_EMAIL = 'mailto:test@example.com';

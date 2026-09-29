@@ -33,6 +33,19 @@ function getMaxEncryptedLength(maxPlaintextLength) {
 
 const maxPlaintextLength = parseInt(process.env.MAX_MESSAGE_LENGTH, 10) || 5000;
 
+// Voice channels (a LiveKit server, see README.md). Optional: without these, voice channels
+// exist but can't be joined. LIVEKIT_URL is what browsers connect to (wss://); the API talks
+// to LiveKit at LIVEKIT_API_URL (default: the same address over http(s)).
+const { LIVEKIT_URL, LIVEKIT_API_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET } = process.env;
+const livekit = LIVEKIT_URL && LIVEKIT_API_KEY && LIVEKIT_API_SECRET
+  ? {
+    url: LIVEKIT_URL,
+    apiUrl: LIVEKIT_API_URL || LIVEKIT_URL.replace(/^ws/, 'http'),
+    apiKey: LIVEKIT_API_KEY,
+    apiSecret: LIVEKIT_API_SECRET,
+  }
+  : null;
+
 module.exports = {
   port: process.env.PORT || 3000,
   jwtSecret: process.env.JWT_SECRET,
@@ -45,6 +58,7 @@ module.exports = {
   },
   allowedOrigins: ['https://test.voicaw.com', 'https://voicaw.com', 'http://test.voicaw.com', 'http://voicaw.com'],
   maxPlaintextLength,
+  livekit,
   // Login/registration attempt limits (see routes/auth.js). Tests turn them off, since they
   // register and log in dozens of users from one address.
   rateLimitsEnabled: process.env.DISABLE_RATE_LIMITS !== '1',

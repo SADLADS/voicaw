@@ -1,6 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database(process.env.DB_PATH || './voicaw.db');
-const { DEFAULT_EVERYONE_PERMISSIONS } = require('./permissions');
+const { DEFAULT_EVERYONE_PERMISSIONS, PERMISSIONS } = require('./permissions');
 
 // USERS
 db.run(`
@@ -217,6 +217,16 @@ INSERT INTO guild_roles (guild_id, name, position, permissions, is_everyone)
 SELECT g.id, '@everyone', 0, ${DEFAULT_EVERYONE_PERMISSIONS}, 1 FROM guilds g
 WHERE NOT EXISTS (SELECT 1 FROM guild_roles r WHERE r.guild_id = g.id AND r.is_everyone = 1)
 `);
+
+// Changes to existing data that must happen once, counted in SQLite's user_version:
+// 1. Voice channels: @everyone gets Connect and Speak, as in new guilds.
+db.get('PRAGMA user_version', (err, row) => {
+  if (err || row.user_version >= 1) return;
+  db.serialize(() => {
+    db.run(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.CONNECT | PERMISSIONS.SPEAK} WHERE is_everyone = 1`);
+    db.run('PRAGMA user_version = 1');
+  });
+});
 });
 
 // DIRECT MESSAGES

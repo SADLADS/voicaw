@@ -62,8 +62,9 @@ MAX_MESSAGE_LENGTH=5000
 # Optional: database file (default server/voicaw.db)
 # DB_PATH=/path/to/voicaw.db
 
-# Voice channels (step 5)
-LIVEKIT_URL=wss://rtc.voicaw.com
+# Voice channels (step 5). Optional: without them voice channels can't be joined.
+LIVEKIT_URL=wss://rtc.voicaw.com          # what browsers connect to
+LIVEKIT_API_URL=http://127.0.0.1:7880     # how the API reaches LiveKit (default: LIVEKIT_URL over https)
 LIVEKIT_API_KEY=voicaw
 LIVEKIT_API_SECRET=...
 ```
@@ -114,9 +115,16 @@ keys:
   voicaw: <API secret>
 room:
   empty_timeout: 60
+webhook:                    # tells the API who joins and leaves (it shows who's in each channel)
+  api_key: voicaw
+  urls:
+    - http://127.0.0.1:3002/api/livekit/webhook
 logging:
   level: info
 ```
+
+Without the `webhook:` block people can connect and talk, but nobody shows as being in the
+channel. After changing the file, `pm2 restart voicaw-livekit`.
 
 On start it logs `found external IP via STUN` with the public IP. `could not validate external
 IP` means UDP 7882 isn't forwarded yet, or the router can't loop back to its own public IP.

@@ -5,6 +5,7 @@ import DmSidebar from './DmSidebar';
 import GuildSidebar from './guild/GuildSidebar';
 import SidebarWrapper from './SidebarWrapper';
 import UserPanel from './UserPanel';
+import VoiceBar from './voice/VoiceBar';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';
@@ -109,8 +110,9 @@ export default function Layout({ user, onLogout }) {
     <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList }}>
     <CustomEmojiContext.Provider value={customEmoji}>
       <div className={`${isDmPage || guildId ? 'slidey' : ''} main-wrapper d-flex`}>
-        {/* The user panel sits under the conversation or channel list (not on e.g. Settings). */}
-        <SidebarWrapper footer={isDmPage || guildId ? <UserPanel user={user} /> : null}>
+        {/* The user panel (and the voice bar above it, while in voice) sits under the
+            conversation or channel list (not on e.g. Settings). */}
+        <SidebarWrapper footer={isDmPage || guildId ? <><VoiceBar /><UserPanel user={user} /></> : null}>
           {/* Main sidebar always shows */}
           <Sidebar
             user={user}

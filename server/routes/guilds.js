@@ -22,6 +22,7 @@ const {
   deleteChannelContents,
   markGuildRead,
 } = require('../guilds');
+const { enforceGuild: enforceGuildVoice, disconnectGuild: disconnectGuildVoice } = require('../voice');
 
 // Guilds (servers): creating and managing them, members, bans, invites, categories and
 // channels. Roles and channel overrides are in routes/guildRoles.js, messages in
@@ -141,6 +142,7 @@ router.delete('/guilds/:guildId', owner, async (req, res) => {
   const guildId = req.guild.id;
   const memberIds = await getMemberIds(guildId);
 
+  await disconnectGuildVoice(guildId);
   await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);
   const emojis = await db.all('SELECT id, available FROM guild_emojis WHERE guild_id = ?', [guildId]);
   for (const { id, available } of emojis) await deleteObject('emojis', available ? String(id) : `src/${id}`);
@@ -199,6 +201,7 @@ async function removeMember(guildId, userId) {
   );
   sendToUserSockets(userId, { type: 'guild_remove', guildId });
   await sendToGuild(guildId, { type: 'guild_member_remove', guildId, userId });
+  await enforceGuildVoice(guildId);
 }
 
 // Leave. The owner has to hand the guild over (or delete it) first.

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheck, faSlash, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { fetchChannelOverrides, fetchMembers, setChannelOverride } from '../../services/guildService';
-import { CHANNEL_PERMISSION_ITEMS, PERMISSIONS, colorToHex, has, memberRank } from '../../utils/permissions';
+import { PERMISSIONS, channelPermissionItems, colorToHex, has, memberRank } from '../../utils/permissions';
 import { errorMessage } from '../../utils/guildDisplay';
 
 // Editing a channel → Permissions (Manage Roles): "Private channel" (hides it from
@@ -130,7 +130,7 @@ export default function ChannelPermissions({ guild, channel, user }) {
 
         <div className="override-grid" aria-label={`Permissions for ${current.name}`}>
           {current.locked && <p className="vc-hint">This role is as high as yours or higher.</p>}
-          {CHANNEL_PERMISSION_ITEMS.map(([key, label]) => {
+          {channelPermissionItems(channel.type).map(([key, label]) => {
             const bit = PERMISSIONS[key];
             const state = has(deny, bit) ? 'deny' : has(allow, bit) ? 'allow' : 'inherit';
             const disabled = current.locked || !has(myChannelPermissions, bit);
