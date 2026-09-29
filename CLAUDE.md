@@ -9,6 +9,38 @@ guild/channel messaging is wired up despite schema support). It's an npm workspa
 three packages: `client` (React/Vite SPA, also packaged as an Electron desktop app), `server`
 (Express + ws API), and `electron` (thin desktop shell wrapping the built client).
 
+## Working on Voicaw (read first)
+
+Each feature is worked on in its own chat, on its own branch, in its own worktree. The rules:
+
+- **`dev` is the deploy branch.** A push to it makes the webhook (`~/code/gitWebhookListener.js`,
+  not in git) pull `/home/otto/git/voicaw`, run `npm install` if the lockfile changed, and
+  restart pm2 `voicaw-api` (the live API on :3002, with the real database) and `voicaw-test`
+  (test.voicaw.com: `vite dev` on :5173, using the live API). voicaw.com itself is a static build
+  in `/opt/voicaw-client`, only updated by running `npm run build` by hand.
+- **Never commit to, merge into, push, reset or otherwise move `dev`.** Branch off it
+  (`feature-name`), commit there; the user reviews and merges. Don't push branches unless asked.
+- **Never work in `/home/otto/git/voicaw`.** It's the live checkout: switching its branch
+  changes what test.voicaw.com serves and stops deploys. Use a worktree per feature:
+  ```
+  git -C ~/git/voicaw worktree add ~/git/voicaw-<feature> -b <feature> dev
+  cp ~/git/voicaw/.npmrc ~/git/voicaw-<feature>/    # git-ignored; needed on this host (see below)
+  cd ~/git/voicaw-<feature> && npm install          # compiles sqlite3, ~1.5 min
+  ```
+  Chats running at the same time each need their own worktree (and their own e2e ports, see
+  Browser checks). Check `git branch --show-current` before committing. Once the user has
+  merged a branch, its worktree can go: `git -C ~/git/voicaw worktree remove ~/git/voicaw-<feature>`
+  (ask before deleting branches).
+- **Don't touch production** unless asked: no pm2 restarts, no edits to nginx, `server/.env`,
+  the real database or `/opt/voicaw-client`. Never run `pm2 update` (on 2026-09-29 it left every
+  app on the host stopped; `pm2 resurrect` brought them back). The host also runs other
+  projects' apps under the same pm2 and Node.
+- **Done means:** server and client tests pass, `npm run lint` (in `client/`) is clean, UI
+  changes are checked in a real browser (Browser checks below), and this file is updated when
+  something it describes changes. Then commit on the branch with a message saying what and why.
+- **Secrets:** never log or commit plaintext messages, keys, tokens, `OPAQUE_SERVER_SETUP` or
+  anything from `server/.env`.
+
 ## Commands
 
 Run from the repo root unless noted.
@@ -45,6 +77,34 @@ app with an in-memory SQLite DB:
   client flow (importing `client/src/services/encryptionService.js`). Use it to get authenticated
   users (and their keys) rather than forging tokens.
 - WebSocket handling is not covered: it only exists when `index.js` is run directly (see below).
+
+### Browser checks (real Chrome, throwaway server)
+
+Unit tests can't see layout, scrolling, focus, touch or the editor. For those, `e2e/` runs the
+real app against a throwaway API (in-memory database, fresh secrets, rate limits off, no object
+store, so uploads fail) and drives it with Playwright (`playwright-core`, using the system Chrome
+at `/usr/bin/google-chrome`, headless):
+```
+node e2e/serve.mjs &     # web http://localhost:5199, API :3099; E2E_WEB_PORT / E2E_API_PORT
+node e2e/smoke.mjs       # two users, one message delivered live; an example to copy
+kill %1                  # stops both servers (kill the serve.mjs process itself)
+```
+Scripts need the same `E2E_WEB_PORT` as `serve.mjs` when not using the default.
+Never use ports 5173 or 3002 (the live test site and API); `serve.mjs` refuses them. Kill test
+processes by PID, never `pkill -f` with a pattern that's in your own command line (it kills your
+shell). `e2e/helpers.mjs` has `signUp` (registers a user in its own browser context, unique
+name), `openChat`, `send`, `launchChrome`, and `devices` (e.g. `devices['Pixel 7']` for a phone).
+The message box is a contenteditable: `page.fill('#dm-input', …)` and `page.keyboard.type` work.
+Tips:
+- Headless Chrome hides scrollbars in screenshots; launch with
+  `ignoreDefaultArgs: ['--hide-scrollbars']` to see them.
+- After a tap, Playwright moves its mouse back, so hover-dependent UI vanishes; real phones keep
+  the hover. Long press: CDP `Input.dispatchTouchEvent` start, wait, end.
+- Measure layout after paint (post a `MessageChannel` message from `requestAnimationFrame`), not
+  inside rAF, or you see states before `ResizeObserver` corrections.
+- Firefox and WebKit builds are cached in `~/.cache/ms-playwright` (firefox-1522, webkit-2287),
+  which match `playwright-core@1.60.0`: install that version in a scratch directory to use
+  them. That WebKit build crashes when the emoji picker opens (also without any recent change).
 
 ### Server layout
 
@@ -112,8 +172,8 @@ it (`rateLimit.js`, in memory): login starts per IP (30 / 15 min) and per userna
 applied whether or not the account exists; cleared by a successful login), registrations per IP.
 Refusals are 429 with `Retry-After` and a message the login form shows. `req.ip` comes from
 nginx's `X-Forwarded-For` (`trust proxy: 'loopback'`). test.voicaw.com goes through vite's proxy
-to the public API, so its visitors all share one address there.
-The websocket `user_status` broadcast only goes to identified sockets.
+to the public API, so its visitors all share one address there. The websocket `user_status`
+broadcast only goes to identified sockets.
 
 On successful login/register, the server issues a JWT (`generateToken`, 1-day expiry, see
 `server/auth.js`) which the client stores in `localStorage` and sends as `Authorization: Bearer
@@ -383,3 +443,27 @@ their box is reserved before they load.
   (at most once a minute). Settings (`AppUpdateSettings`) shows the build time
   (`VITE_BUILD_TIME`) and has "Check for updates". Other tabs, and pages whose lazily loaded chunks
   are gone from the server (`vite:preloadError`), are offered a reload.
+
+## Decisions, plans and known issues
+
+- **Group chats (planned):** removed members must not read new messages and new members must not
+  read old ones. So: per-group epoch keys, rotated on every membership change, each member getting
+  a copy encrypted to them (HPKE preferred); membership changes and group messages signed with
+  identity keys. Don't change identity keys or the safety-number derivation casually: every
+  contact would get a "key changed" warning. The server delivering the web app's code stays the
+  unfixable gap until native apps.
+- **Custom emoji (planned):** per guild (guilds don't exist yet), plain unencrypted images like
+  profile pictures, written `<:name:id>`, shown as extra sections in the existing picker. The
+  editor (`customEmoji` node) and reactions (64 padded bytes) already fit them.
+- **Everyone sees everyone** once logged in (the app is for groups who know each other); only
+  logged-out visitors must not learn usernames.
+- **Known issues:**
+  - Keycap emoji (1️⃣) and Unicode 15.1+ emoji (🙂‍↔️) show in the system font while typing
+    (digits are kept out of the Twemoji font; 15.1 isn't in Twemoji 15).
+  - The Playwright WebKit build crashes opening the emoji picker (see Browser checks); not yet
+    checked on a real iPhone.
+  - nginx doesn't compress JS/CSS/SVG (`gzip_types` is commented out in
+    `/etc/nginx/nginx.conf`); first visits download the 1.6 MB main bundle uncompressed.
+  - npm 11 warns about `build_from_source` in `.npmrc` (see Server environment), and that the
+    install scripts of `sqlite3` and `esbuild` aren't in an `allowScripts` list yet. They still
+    run today; a future npm will need them approved (`npm install-scripts approve`).
