@@ -51,3 +51,14 @@ describe('messageDoc', () => {
     expect(textBeforeCaret(state)).toBe(`say ${OBJECT_CHAR} :smi`);
   });
 });
+
+describe('messageDoc mentions', () => {
+  it('turns mentions of known people into @name nodes and back', () => {
+    const doc = textToDoc('hi <@2> and <@9>', { resolveMention: (id) => ({ 2: 'Anna' })[id] });
+    const mentions = [];
+    doc.descendants((n) => { if (n.type === schema.nodes.mention) mentions.push(n.attrs); });
+    // Someone unknown stays as typed.
+    expect(mentions).toEqual([{ id: '2', name: 'Anna' }]);
+    expect(docToText(doc)).toBe('hi <@2> and <@9>');
+  });
+});

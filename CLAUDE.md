@@ -101,6 +101,7 @@ node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mu
 node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, group call, owner leaves
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
+node e2e/mentions.mjs [dir] # @ suggestions (guild, phone DM), mention highlight, editing
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
 For voice, `serve.mjs` also runs its own LiveKit (the binary at `LIVEKIT_BIN`, default
@@ -462,8 +463,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   its emoji anywhere. The client keeps them in `useGuildList` (`emojis`), and `Layout` provides
   `CustomEmojiContext` (`emoji/customEmojiContext.js`: by guild in rail order, and by id).
 - **Not done yet:** drag-and-drop reordering of channels (the API exists; roles and servers can
-  be dragged), category-level permissions (overrides are per channel), mentions and guild
-  notifications (no push for guild messages yet), server folders in the rail. Voice: see
+  be dragged), category-level permissions (overrides are per channel), guild notifications (no
+  push for guild messages or mentions yet; mentions exist, see Mentions), `@everyone`/role mentions, server folders in the rail. Voice: see
   Voice channels.
 
 ### Voice channels (LiveKit)
@@ -731,6 +732,24 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   menu's smiley opens `EmojiPicker` for it: floating by the button on desktop
   (`reactionPickerPosition`, a zero-size fixed `.reaction-picker-anchor`), docked in the keyboard's
   place on mobile, closing after the pick. Search matches several words ("thumbs up").
+
+### Mentions
+
+`<@id>` in message text (DMs, group DMs, channels; inside the encryption where there is one),
+helpers in `utils/mentions.js`. Only the id is stored, so a mention always shows the current
+name, looked up when drawn from the chat's names (`ChatPane`'s `reactionNames`: the two people
+in a DM, everyone in a group's log, a guild's members); anyone else shows as `@unknown-user`.
+- Typing `@` (after a space/bracket or at the start) lists `people` (`ChatPane` → `Composer`:
+  the DM's two, the group's current members, the guild's members; for a private channel that's
+  still every member) in `MentionSuggestions`, narrowing as you type (name starts with, then
+  contains); arrows/Enter/Tab/Escape and clicks work as for `:emoji` suggestions. Picking puts
+  a `mention` node in the editor (`editor/messageDoc.js`, shown as `@name`; the editor's
+  `mentionNames` prop turns `<@id>` in edited or pasted text back into one).
+- `rehypeMentions` (`utils/rehypeMentions.js`) marks them; `MessageList`'s `span` component draws
+  `@name` (`.mention`, `.mention-me` for you), and a message mentioning you gets `.mentioned`
+  (tinted, bar on the left). Plain-text places use `mentionsToText` (reply previews, copying,
+  DM push previews: the push carries `recipientName` for that).
+- Nothing on the server knows about them yet: no notifications or unread badges for mentions.
 
 ### DM message list and history loading
 

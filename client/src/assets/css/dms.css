@@ -1481,3 +1481,41 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   color: var(--vc-fg-muted);
   text-align: center;
 }
+
+/* Mentions (`<@id>`): a tinted "@name", in messages and in the message box. */
+.mention {
+  padding: 0 2px;
+  border-radius: 3px;
+  background-color: rgba(102, 85, 140, 0.45);
+  color: var(--vc-fg);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mention.mention-me {
+  background-color: rgba(216, 185, 48, 0.3);
+}
+
+.editor-mention {
+  display: inline-block;
+  line-height: 1.4;
+}
+
+/* A message that mentions you: tinted, with a bar on the left (like Discord). */
+.each-dm-message-wrapper.mentioned,
+.message-scroller.has-focused-message .each-dm-message-wrapper.mentioned:not(.focused):hover {
+  background-color: rgba(216, 185, 48, 0.08);
+  box-shadow: inset 2px 0 0 var(--vc-action);
+}
+
+.each-dm-message-wrapper.mentioned:hover,
+.each-dm-message-wrapper.mentioned.focused {
+  background-color: rgba(216, 185, 48, 0.14);
+}
+
+.mention-suggestion-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+}

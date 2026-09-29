@@ -179,6 +179,7 @@ export default function GuildView({ user }) {
               saveReaction={(msg, emoji) => addGuildReaction(msg.id, emoji)}
               deleteReaction={removeGuildReaction}
               reactionNames={reactionNames}
+              people={members}
               canModerate={has(permissions, PERMISSIONS.MANAGE_MESSAGES)}
               canSend={has(permissions, PERMISSIONS.SEND_MESSAGES)}
               cantSendText={`You do not have permission to send messages in #${channel.name}.`}

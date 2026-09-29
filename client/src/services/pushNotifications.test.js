@@ -53,6 +53,13 @@ describe('notificationFromPush', () => {
     expect(options.body).toBe('look 📎 cat.png');
   });
 
+  it('shows mentions of the two people by name', async () => {
+    const { options } = await notificationFromPush(
+      await dmPushFromAlice(`hey <@${BOB}>, it's <@${ALICE}> (not <@99>)`, { recipientName: 'bob' })
+    );
+    expect(options.body).toBe("hey @bob, it's @alice (not @unknown-user)");
+  });
+
   it('truncates long previews', async () => {
     const { options } = await notificationFromPush(await dmPushFromAlice('x'.repeat(500)));
     expect(options.body).toHaveLength(200);

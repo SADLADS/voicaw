@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import EmojiPicker from './EmojiPicker';
 import EmojiSuggestions from './EmojiSuggestions';
+import MentionSuggestions from './MentionSuggestions';
 import AttachmentTray from './AttachmentTray';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { getSkinTone, recordEmojiUse, skinFor } from '../emoji/emojiUsage';
@@ -19,16 +20,20 @@ import {
   searchCustomEmoji,
 } from '../emoji/customEmoji';
 import { useCustomEmoji } from '../emoji/customEmojiContext';
+import { searchPeople } from '../utils/mentions';
 
 // ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
 const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
 // A complete ":shortcode:" just typed.
 const EMOJI_SHORTCODE = /(?:^|[\s([{]):([a-z0-9_+-]+):$/i;
+// "@", "@na": a mention being typed (not "a@b").
+const MENTION_QUERY = /(?:^|[\s([{])@([^\s@<>]{0,32})$/;
 
 // The message box under a conversation (MessageEditor: `inputRef` is its handle), writing to
 // `chatName` (a person, or "#channel"; null while the chat can't be sent to yet), with
 // attachments (chips in the box, uploaded on send), emoji (picker, ":smi" suggestions,
-// ":shortcode:" conversion) and the reply bar.
+// ":shortcode:" conversion), mentions ("@na" suggestions from `people`, [{ id, username }])
+// and the reply bar.
 //
 // `onSend({ text, replyTo, localAttachments, resolveText })` sends (see useConversation's
 // sendMessage). `error` is shown above the box (Dm reports its own errors there too). On
@@ -49,8 +54,10 @@ export default function Composer({
   setShowEmojiPicker,
   onInputFocus,
   onSend,
+  people,
 }) {
   const emojiIndex = useEmojiIndex();
+  const mentionNames = Object.fromEntries((people ?? []).map((p) => [p.id, p.username]));
   const custom = useCustomEmoji();
   // What the editor needs to show a custom emoji.
   const customNode = (emoji) => ({ id: String(emoji.id), name: emoji.name, url: customEmojiUrl(emoji.id, s3Endpoint) });
@@ -59,7 +66,8 @@ export default function Composer({
   const [inputValue, setInputValue] = useState('');
   const [beforeCaret, setBeforeCaret] = useState('');
   const [suggestionIndex, setSuggestionIndex] = useState(0);
-  const [dismissedEmojiQuery, setDismissedEmojiQuery] = useState(null);
+  // The query (":smi" or "@na") whose suggestions Escape closed.
+  const [dismissedQuery, setDismissedQuery] = useState(null);
 
   // Emoji from the picker (Unicode, or `<:name:id>`). On mobile the box isn't focused (that
   // would open the keyboard).
@@ -104,12 +112,28 @@ export default function Composer({
 
   const emojiQuery = emojiIndex ? EMOJI_QUERY.exec(beforeCaret)?.[1] ?? null : null;
   // Custom emoji first, then standard ones (8 in all).
-  const emojiSuggestions = emojiQuery && emojiQuery !== dismissedEmojiQuery
+  const emojiSuggestions = emojiQuery && emojiQuery !== dismissedQuery
     ? [...searchCustomEmoji(custom, emojiQuery.slice(1), 8), ...emojiIndex.search(emojiQuery.slice(1), 8)].slice(0, 8)
     : [];
-  const activeSuggestion = Math.min(suggestionIndex, Math.max(emojiSuggestions.length - 1, 0));
+  const mentionQuery = people?.length ? MENTION_QUERY.exec(beforeCaret)?.[1] ?? null : null;
+  const mentionSuggestions = mentionQuery != null && `@${mentionQuery}` !== dismissedQuery
+    ? searchPeople(people, mentionQuery, 8)
+    : [];
+  // Only one kind can match what's before the cursor.
+  const suggestions = emojiSuggestions.length > 0 ? emojiSuggestions : mentionSuggestions;
+  const activeSuggestion = Math.min(suggestionIndex, Math.max(suggestions.length - 1, 0));
 
-  function pickSuggestion(emoji) {
+  function pickSuggestion(item) {
+    if (emojiSuggestions.length > 0) pickEmoji(item);
+    else pickMention(item);
+  }
+
+  function pickMention(person) {
+    inputRef.current?.replaceBeforeCaretWithMention(mentionQuery.length + 1, { id: person.id, name: person.username });
+    setSuggestionIndex(0);
+  }
+
+  function pickEmoji(emoji) {
     if (emoji.guild) {
       recordEmojiUse(customUsageId(emoji.id));
       inputRef.current?.replaceBeforeCaretWithCustomEmoji(emojiQuery.length, customNode(emoji));
@@ -152,21 +176,21 @@ export default function Composer({
   }
 
   function handleInputKeyDown(e) {
-    if (emojiSuggestions.length > 0) {
+    if (suggestions.length > 0) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         const step = e.key === 'ArrowDown' ? 1 : -1;
-        setSuggestionIndex((activeSuggestion + step + emojiSuggestions.length) % emojiSuggestions.length);
+        setSuggestionIndex((activeSuggestion + step + suggestions.length) % suggestions.length);
         return;
       }
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
-        pickSuggestion(emojiSuggestions[activeSuggestion]);
+        pickSuggestion(suggestions[activeSuggestion]);
         return;
       }
       if (e.key === 'Escape') {
         e.preventDefault();
-        setDismissedEmojiQuery(emojiQuery);
+        setDismissedQuery(emojiSuggestions.length > 0 ? emojiQuery : `@${mentionQuery}`);
         return;
       }
     }
@@ -244,7 +268,18 @@ export default function Composer({
             query={emojiQuery}
             emojis={emojiSuggestions}
             activeIndex={activeSuggestion}
-            onPick={pickSuggestion}
+            onPick={pickEmoji}
+            onHover={setSuggestionIndex}
+            s3Endpoint={s3Endpoint}
+          />
+        )}
+
+        {mentionSuggestions.length > 0 && emojiSuggestions.length === 0 && (
+          <MentionSuggestions
+            query={mentionQuery}
+            people={mentionSuggestions}
+            activeIndex={activeSuggestion}
+            onPick={pickMention}
             onHover={setSuggestionIndex}
             s3Endpoint={s3Endpoint}
           />
@@ -292,6 +327,7 @@ export default function Composer({
             onChange={handleEditorChange}
             onKeyDown={handleInputKeyDown}
             onPasteFiles={attachments.addFiles}
+            mentionNames={mentionNames}
             // Mobile: the keyboard is coming up, so the emoji panel gives way.
             onFocus={() => {
               if (!isMobile) return;

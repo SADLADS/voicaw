@@ -40,6 +40,17 @@ describe('MessageEditor', () => {
     expect(ref.current.getText()).toBe('hi <:blob:42> !');
   });
 
+  it('completes a mention, and shows <@id> of people it knows as @name', () => {
+    const { ref, element } = setup({ mentionNames: { 7: 'anna' } });
+    act(() => ref.current.insertText('hi @an'));
+    act(() => ref.current.replaceBeforeCaretWithMention(3, { id: 7, name: 'anna' }));
+    expect(ref.current.getText()).toBe('hi <@7> ');
+    expect(element.querySelector('.mention')).toHaveTextContent('@anna');
+    act(() => ref.current.setText('<@7> <@8>'));
+    expect(element.querySelectorAll('.mention')).toHaveLength(1);
+    expect(ref.current.getText()).toBe('<@7> <@8>');
+  });
+
   it('reports text and the line up to the cursor', () => {
     const { ref, onChange } = setup();
     act(() => ref.current.insertText('hello :smi'));

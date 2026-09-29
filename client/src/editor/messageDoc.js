@@ -8,6 +8,7 @@ import { customEmojiUrl } from '../emoji/customEmoji';
 // - sentAttachment: an attachment of a sent message being edited, shown as the same chip; in
 //   text `![name](https://…)`, kept exactly as it was (the URL carries the file's key).
 // - customEmoji: a custom emoji, shown as its image; in text `<:name:id>`.
+// - mention: a person, shown as `@name`; in text `<@id>` (utils/mentions).
 // Unicode emoji stay text (the Twemoji font draws them), which keeps typing, autocorrect and
 // copy/paste plain.
 
@@ -58,6 +59,17 @@ export const schema = new Schema({
         },
       ],
     },
+    mention: {
+      group: 'inline',
+      inline: true,
+      atom: true,
+      attrs: { id: {}, name: {} },
+      toDOM: (node) => [
+        'span',
+        { class: 'mention editor-mention', 'data-mention-id': String(node.attrs.id), contenteditable: 'false' },
+        `@${node.attrs.name}`,
+      ],
+    },
   },
 });
 
@@ -70,6 +82,7 @@ function inlineToText(node) {
   if (node.type === schema.nodes.attachment) return makePlaceholder(node.attrs.id, node.attrs.name);
   if (node.type === schema.nodes.sentAttachment) return node.attrs.markup;
   if (node.type === schema.nodes.customEmoji) return `<:${node.attrs.name}:${node.attrs.id}>`;
+  if (node.type === schema.nodes.mention) return `<@${node.attrs.id}>`;
   return '';
 }
 
@@ -83,13 +96,14 @@ export function docToText(doc) {
   return lines.join('\n');
 }
 
-// A draft attachment placeholder, a sent attachment (or any other markdown image), or a custom
-// emoji.
-const INLINE_OBJECT_RE = /!\[((?:\\.|[^\]\\])*)\]\((?:attachment:(\d+)|(https?:\/\/[^)\s]+))\)|<:([A-Za-z0-9_]+):(\w+)>/g;
+// A draft attachment placeholder, a sent attachment (or any other markdown image), a custom
+// emoji, or a mention.
+const INLINE_OBJECT_RE = /!\[((?:\\.|[^\]\\])*)\]\((?:attachment:(\d+)|(https?:\/\/[^)\s]+))\)|<:([A-Za-z0-9_]+):(\w+)>|<@(\d+)>/g;
 
 // Message text -> editor document. `resolveCustomEmoji(id, name)` gives a custom emoji's image
 // URL (by default its place in the object store); without one, `<:name:id>` stays as text.
-export function textToDoc(text, { resolveCustomEmoji = (id) => customEmojiUrl(id) } = {}) {
+// `resolveMention(id)` gives a mentioned person's name; without one, `<@id>` stays as text.
+export function textToDoc(text, { resolveCustomEmoji = (id) => customEmojiUrl(id), resolveMention } = {}) {
   const paragraphs = String(text ?? '').split('\n').map((line) => {
     const content = [];
     let last = 0;
@@ -99,6 +113,9 @@ export function textToDoc(text, { resolveCustomEmoji = (id) => customEmojiUrl(id
         node = schema.nodes.attachment.create({ id: Number(m[2]), name: unescapeAltText(m[1]) });
       } else if (m[3]) {
         node = schema.nodes.sentAttachment.create({ name: unescapeAltText(m[1]), markup: m[0] });
+      } else if (m[6]) {
+        const name = resolveMention?.(m[6]);
+        if (name != null) node = schema.nodes.mention.create({ id: m[6], name });
       } else {
         const url = resolveCustomEmoji?.(m[5], m[4]);
         if (url) node = schema.nodes.customEmoji.create({ id: m[5], name: m[4], url });
@@ -119,7 +136,7 @@ export function textToSlice(text, options) {
   return new Slice(textToDoc(text, options).content, 1, 1);
 }
 
-// The current line up to the cursor, with chips/custom emoji as OBJECT_CHAR.
+// The current line up to the cursor, with chips/custom emoji/mentions as OBJECT_CHAR.
 export function textBeforeCaret(state) {
   const { $from } = state.selection;
   return $from.parent.textBetween(0, $from.parentOffset, undefined, leafText);

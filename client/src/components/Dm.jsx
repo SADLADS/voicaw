@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPhone } from '@fortawesome/free-solid-svg-icons';
 import { useParams } from 'react-router-dom';
@@ -38,7 +38,11 @@ export default function Dm({ user }) {
   const conversation = useConversation({ id, user, chatUser, onRead: fetchUnreadMessages });
   const { keyStatus, sharedKey } = conversation;
   const [showSafetyNumber, setShowSafetyNumber] = useState(false);
-  const reactionNames = { [user?.id]: user?.username, [chatUser?.id]: chatUser?.username };
+  const reactionNames = useMemo(
+    () => ({ [user?.id]: user?.username, [chatUser?.id]: chatUser?.username }),
+    [user?.id, user?.username, chatUser?.id, chatUser?.username]
+  );
+  const people = useMemo(() => (chatUser ? [chatUser, user] : []), [chatUser, user]);
 
   // Reactions are encrypted with the conversation key, bound to the message and the reactor.
   const saveReaction = async (msg, emoji) => {
@@ -119,6 +123,7 @@ export default function Dm({ user }) {
               saveReaction={saveReaction}
               deleteReaction={removeReaction}
               reactionNames={reactionNames}
+              people={people}
             />
           )}
         </>

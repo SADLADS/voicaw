@@ -124,6 +124,7 @@ export default function GroupDm({ user }) {
             saveReaction={conversation.saveReaction}
             deleteReaction={conversation.deleteReaction}
             reactionNames={reactionNames}
+            people={summary?.members}
             canSend={Boolean(group) && problems.length === 0}
             cantSendText={group ? "Can't send until the security keys are sorted out." : 'Loading…'}
             emptyText="No messages yet. Say hi to the group!"

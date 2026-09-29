@@ -126,12 +126,15 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
 
   // Don't buzz someone about a conversation they're looking at right now.
   if (!isViewingConversation(recipientId, senderId)) {
-    getUserImageUrl(senderId).then((imageUrl) =>
-      sendPushToUser(recipientId, buildDmPushPayload(message, imageUrl), {
+    Promise.all([
+      getUserImageUrl(senderId),
+      db.get('SELECT username FROM users WHERE id = ?', [recipientId]),
+    ]).then(([imageUrl, recipient]) =>
+      sendPushToUser(recipientId, buildDmPushPayload(message, imageUrl, recipient?.username), {
         urgency: 'high',
         topic: `dm${senderId}`,
       })
-    );
+    ).catch((err) => console.error('DM push failed:', err.message));
   }
 
   res.status(201).json(message);

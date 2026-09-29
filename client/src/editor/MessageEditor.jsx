@@ -11,7 +11,7 @@ import { registerEditor } from './editorRegistry';
 
 
 // The message box: a small ProseMirror editor whose value is message text (see messageDoc),
-// with draft attachments as chips and custom emoji as images inline.
+// with draft attachments as chips, custom emoji as images and mentions as `@name` inline.
 //
 // Props are read when needed, so they can change freely:
 // - onChange({ text, beforeCaret, docChanged }) after every edit or cursor move.
@@ -20,16 +20,20 @@ import { registerEditor } from './editorRegistry';
 //   new line (mobile).
 // - maxLength: edits that would make the text longer are refused.
 // - onPasteFiles(files): pasted files. Dropped files are left to the page (Composer).
+// - mentionNames ({ id: username }): who `<@id>` in initial or pasted text is.
 // - onFocus / onBlur, placeholder, id, ariaLabel, className, initialText, autoFocus.
 //
 // The ref gives: focus(), blur(), isComposing(), getText(), setText(text), clear(), insertText(text,
 // { focus }), insertAttachments([{ id, name }]), insertCustomEmoji({ id, name, url }),
-// replaceBeforeCaret(count, text, { focus }), removeAttachment(id), and element.
+// replaceBeforeCaret(count, text, { focus }), replaceBeforeCaretWithCustomEmoji(count, emoji),
+// replaceBeforeCaretWithMention(count, { id, name }), removeAttachment(id), and element.
 const MessageEditor = forwardRef(function MessageEditor(props, ref) {
   const mountRef = useRef(null);
   const viewRef = useRef(null);
   const propsRef = useRef(props);
   propsRef.current = props;
+  // How text becomes the document: mentions get the names given.
+  const parseOptions = () => ({ resolveMention: (id) => propsRef.current.mentionNames?.[id] });
 
   useEffect(() => {
     const current = () => propsRef.current;
@@ -66,9 +70,9 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
 
     const view = new EditorView(mountRef.current, {
       state: EditorState.create({
-        doc: textToDoc(current().initialText),
+        doc: textToDoc(current().initialText, parseOptions()),
         // With initial text (editing a message), the cursor starts at the end.
-        selection: TextSelection.atEnd(textToDoc(current().initialText)),
+        selection: TextSelection.atEnd(textToDoc(current().initialText, parseOptions())),
         plugins: [
           history(),
           keymap({ Enter: enter, 'Shift-Enter': splitBlock, 'Mod-z': undo, 'Mod-y': redo, 'Shift-Mod-z': redo }),
@@ -91,7 +95,7 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
         // Always plain text: formatting from elsewhere means nothing in a message.
         const text = event.clipboardData?.getData('text/plain');
         if (!text) return true;
-        v.dispatch(v.state.tr.replaceSelection(textToSlice(text.replace(/\r\n?/g, '\n'))).scrollIntoView());
+        v.dispatch(v.state.tr.replaceSelection(textToSlice(text.replace(/\r\n?/g, '\n'), parseOptions())).scrollIntoView());
         return true;
       },
       handleDrop(v, event) {
@@ -165,7 +169,7 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
       getText: () => (view() ? docToText(view().state.doc) : ''),
       setText(text) {
         run((tr, state) => {
-          tr.replaceWith(0, state.doc.content.size, textToDoc(text).content).setMeta('ignoreLength', true);
+          tr.replaceWith(0, state.doc.content.size, textToDoc(text, parseOptions()).content).setMeta('ignoreLength', true);
           return tr.setSelection(TextSelection.atEnd(tr.doc));
         }, { focus: false });
       },
@@ -173,7 +177,7 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
         handle.setText('');
       },
       insertText(text, options) {
-        run((tr) => (text.includes('\n') ? tr.replaceSelection(textToSlice(text)) : tr.insertText(text)), options);
+        run((tr) => (text.includes('\n') ? tr.replaceSelection(textToSlice(text, parseOptions())) : tr.insertText(text)), options);
       },
       // Chips, separated by spaces; they may take the text over the length limit (Composer
       // checks the final length on send).
@@ -195,6 +199,16 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
           const { from } = state.selection;
           const start = Math.max(from - count, state.selection.$from.start());
           const nodes = Fragment.from([schema.nodes.customEmoji.create(emoji), schema.text(' ')]);
+          return tr.replaceWith(start, from, nodes);
+        }, options);
+      },
+      // Replaces the `count` characters before the cursor (an "@na" being completed) with a
+      // mention ({ id, name }) and a space.
+      replaceBeforeCaretWithMention(count, person, options) {
+        run((tr, state) => {
+          const { from } = state.selection;
+          const start = Math.max(from - count, state.selection.$from.start());
+          const nodes = Fragment.from([schema.nodes.mention.create({ id: String(person.id), name: person.name }), schema.text(' ')]);
           return tr.replaceWith(start, from, nodes);
         }, options);
       },

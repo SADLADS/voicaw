@@ -44,6 +44,21 @@ function baseProps(overrides = {}) {
 }
 
 describe('MessageList', () => {
+  it('shows mentions by name and highlights messages that mention you', () => {
+    const messages = [
+      { id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'hey <@1>', timestamp: 1000 },
+      { id: 2, sender_id: 2, sender_username: 'bob', plaintext: 'ask <@3> or <@9>', timestamp: 1001 },
+    ];
+    render(<MessageList {...baseProps({ messages, reactionNames: { 1: 'alice', 2: 'bob', 3: 'carol' } })} />);
+    const me = screen.getByText('@alice');
+    expect(me).toHaveClass('mention', 'mention-me');
+    expect(me.closest('.each-dm-message-wrapper')).toHaveClass('mentioned');
+    const other = screen.getByText('@carol');
+    expect(other).not.toHaveClass('mention-me');
+    expect(other.closest('.each-dm-message-wrapper')).not.toHaveClass('mentioned');
+    expect(screen.getByText('@unknown-user')).toHaveClass('mention');
+  });
+
   it('marks messages from the current user as sent and others as received', () => {
     const messages = [
       { id: 1, sender_id: 1, sender_username: 'alice', plaintext: 'hi there', timestamp: 1000 },

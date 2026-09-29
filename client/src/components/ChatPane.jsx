@@ -8,6 +8,7 @@ import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight'
 import { useReactions } from '../hooks/useReactions';
 import { summarizeAttachments } from '../utils/attachmentMarkup';
 import { customEmojiToText } from '../emoji/customEmoji';
+import { mentionsToText } from '../utils/mentions';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 
 // The body of a chat, shared by DMs (Dm) and guild channels (GuildChannel): the messages, the
@@ -21,6 +22,8 @@ import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 // ready to send). `canModerate` lets you delete other people's messages too; `canSend` and
 // `canAddReactions` false (a guild channel's permissions) take away the composer (showing
 // `cantSendText`) and reacting. `nameColors` ({ userId: '#rrggbb' }) colours names.
+// `reactionNames` ({ userId: username }) names who reacted and who's mentioned; `people`
+// ([{ id, username }]) are who can be mentioned ("@name" suggestions).
 export default function ChatPane({
   chatId,
   chatName,
@@ -30,6 +33,7 @@ export default function ChatPane({
   saveReaction,
   deleteReaction,
   reactionNames,
+  people,
   canModerate = false,
   canSend = true,
   cantSendText = "You don't have permission to send messages here.",
@@ -86,10 +90,11 @@ export default function ChatPane({
   }
 
   // Copies what the message says; attachments become their names (their links carry the
-  // decryption key, which shouldn't end up pasted elsewhere), custom emoji `:name:`.
+  // decryption key, which shouldn't end up pasted elsewhere), custom emoji `:name:`, mentions
+// `@name`.
   async function copyMessage(msg) {
     try {
-      await navigator.clipboard.writeText(customEmojiToText(summarizeAttachments(msg.plaintext)));
+      await navigator.clipboard.writeText(mentionsToText(customEmojiToText(summarizeAttachments(msg.plaintext)), reactionNames));
     } catch (err) {
       console.error('Copy failed', err);
       setComposerError("Couldn't copy the message.");
@@ -213,6 +218,7 @@ export default function ChatPane({
         setShowEmojiPicker={setShowEmojiPicker}
         onInputFocus={reactions.closePicker}
         onSend={conversation.sendMessage}
+        people={people}
       />}
 
       {actionsFor && (

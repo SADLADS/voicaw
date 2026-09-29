@@ -16,11 +16,25 @@ import { useEmojiIndex } from '../emoji/emojiContext';
 import { isEmojiOnly } from '../emoji/emojiIndex';
 import { rehypeTwemoji } from '../emoji/rehypeTwemoji';
 import { customEmojiToText } from '../emoji/customEmoji';
+import { rehypeMentions } from '../utils/rehypeMentions';
+import { mentionName, mentionsToText, mentionsUser } from '../utils/mentions';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
 // is a new component type to React, which remounts (and reloads) every attachment on any
 // re-render. The per-message local drafts come in through context instead.
 const LocalAttachmentsContext = createContext(null);
+// Who mentions are: { names: { id: username }, meId }.
+const MentionContext = createContext(null);
+
+// A mention (from rehypeMentions): `@name`, highlighted more when it's you.
+// Other spans (code highlighting) only have a class.
+function MarkdownSpan({ className, children, ...rest }) {
+  const mentions = useContext(MentionContext);
+  const id = rest['data-mention-id'];
+  if (id == null) return <span className={className}>{children}</span>;
+  const me = String(mentions?.meId) === id;
+  return <span className={`mention${me ? ' mention-me' : ''}`}>@{mentionName(mentions?.names, id)}</span>;
+}
 
 // A custom emoji; one that's been deleted (image gone) shows as `:name:` text.
 function CustomEmojiImage({ src, alt, title }) {
@@ -39,7 +53,7 @@ function MarkdownImage({ src, alt, className, title, ...rest }) {
   return <Attachment src={src} alt={alt} localAttachments={localAttachments} />;
 }
 
-const markdownComponents = { img: MarkdownImage };
+const markdownComponents = { img: MarkdownImage, span: MarkdownSpan };
 
 // react-markdown blanks URLs with unknown schemes; let draft placeholders through so
 // pending messages can show their attachments while uploading.
@@ -81,9 +95,12 @@ export function MessageRow({
   const longPress = useLongPress(() => onOpenActions(msg), { enabled: isMobile && Boolean(onOpenActions) });
   // Stable per emoji index (a new plugin list every render would re-run markdown needlessly).
   const rehypePlugins = useMemo(
-    () => [rehypeHighlight, rehypeTwemoji(emojiIndex, s3Endpoint)],
+    () => [rehypeHighlight, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)],
     [emojiIndex, s3Endpoint]
   );
+
+  const mentions = useMemo(() => ({ names: reactionNames, meId: user.id }), [reactionNames, user.id]);
+  const mentionsMe = mentionsUser(msg.plaintext, user.id);
 
   const imgSrc = s3Endpoint
     ? `${s3Endpoint}/profile-pics/${msg.sender_id}`
@@ -103,7 +120,7 @@ export function MessageRow({
 
   return (
     <div
-      className={`each-dm-message-wrapper ${msg.sender_id === user.id ? 'sent' : 'received'}${focused ? ' focused' : ''}`}
+      className={`each-dm-message-wrapper ${msg.sender_id === user.id ? 'sent' : 'received'}${focused ? ' focused' : ''}${mentionsMe ? ' mentioned' : ''}`}
       data-msg-id={msg.id}
       onMouseEnter={() => setHoveredMsgId(msg.id)}
       onMouseLeave={() => setHoveredMsgId(null)}
@@ -130,7 +147,7 @@ export function MessageRow({
               if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
             }}
           >
-            {customEmojiToText(summarizeAttachments(parent.plaintext))?.slice(0, 80) || "…"}
+            {mentionsToText(customEmojiToText(summarizeAttachments(parent.plaintext)), reactionNames)?.slice(0, 80) || "…"}
           </span>
         </div>
       )}
@@ -204,6 +221,7 @@ export function MessageRow({
                 className="inline-edit-editor"
                 ariaLabel="Edit message"
                 initialText={editingMessageContent}
+                mentionNames={reactionNames}
                 maxLength={maxPlaintextLength}
                 // Mobile: Enter is a new line; "save" below saves.
                 submitOnEnter={!isMobile}
@@ -226,14 +244,16 @@ export function MessageRow({
             </div>
           ) : (
             <LocalAttachmentsContext.Provider value={msg.localAttachments ?? null}>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkEmoji]}
-                rehypePlugins={rehypePlugins}
-                urlTransform={urlTransform}
-                components={markdownComponents}
-              >
-                {msg.plaintext}
-              </ReactMarkdown>
+              <MentionContext.Provider value={mentions}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkEmoji]}
+                  rehypePlugins={rehypePlugins}
+                  urlTransform={urlTransform}
+                  components={markdownComponents}
+                >
+                  {msg.plaintext}
+                </ReactMarkdown>
+              </MentionContext.Provider>
             </LocalAttachmentsContext.Provider>
           )}
 

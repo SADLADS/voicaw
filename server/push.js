@@ -9,7 +9,8 @@ webpush.setVapidDetails(vapid.email, vapid.publicKey, vapid.privateKey);
 // notification preview and falls back to a generic body otherwise.
 const MAX_PUSH_CIPHERTEXT_LENGTH = 2800;
 
-function buildDmPushPayload(message, imageUrl) {
+// `recipientName` is only for showing mentions (`<@id>`) in the preview.
+function buildDmPushPayload(message, imageUrl, recipientName) {
   const payload = {
     type: 'dm',
     title: message.sender_username,
@@ -21,6 +22,7 @@ function buildDmPushPayload(message, imageUrl) {
     image: imageUrl,
     senderId: message.sender_id,
     recipientId: message.recipient_id,
+    recipientName,
     timestamp: message.timestamp,
   };
   // The service worker decrypts with the sender's key it has already checked and remembered

@@ -48,7 +48,7 @@ describe('push notifications', () => {
     expect(push.endpoint).toBe('https://push.test/bob-1');
     expect(push.payload).toMatchObject({
       type: 'dm', title: 'push-alice', body: 'New message', url: `/dm/${alice.id}`, tag: `dm-${alice.id}`,
-      senderId: alice.id, recipientId: bob.id, ciphertext: 'SMALL-CIPHERTEXT',
+      senderId: alice.id, recipientId: bob.id, recipientName: 'push-bob', ciphertext: 'SMALL-CIPHERTEXT',
     });
     // The service worker only uses keys it has already checked; the push carries none.
     expect(JSON.stringify(push.payload)).not.toMatch(/key/i);
