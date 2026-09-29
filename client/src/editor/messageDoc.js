@@ -5,6 +5,8 @@ import { customEmojiUrl } from '../emoji/customEmoji';
 // What the message editor holds, and its conversion to and from message text (the markdown
 // the rest of the app sends and stores). Lines are paragraphs. Inline, besides text:
 // - attachment: a draft attachment, shown as a chip; in text `![name](attachment:ID)`.
+// - sentAttachment: an attachment of a sent message being edited, shown as the same chip; in
+//   text `![name](https://…)`, kept exactly as it was (the URL carries the file's key).
 // - customEmoji: a custom emoji, shown as its image; in text `<:name:id>`.
 // Unicode emoji stay text (the Twemoji font draws them), which keeps typing, autocorrect and
 // copy/paste plain.
@@ -27,6 +29,17 @@ export const schema = new Schema({
         'span',
         { class: 'editor-attachment', 'data-attachment-id': String(node.attrs.id), contenteditable: 'false' },
         `📎 ${node.attrs.name}`,
+      ],
+    },
+    sentAttachment: {
+      group: 'inline',
+      inline: true,
+      atom: true,
+      attrs: { name: {}, markup: {} },
+      toDOM: (node) => [
+        'span',
+        { class: 'editor-attachment', contenteditable: 'false' },
+        `📎 ${node.attrs.name || 'attachment'}`,
       ],
     },
     customEmoji: {
@@ -55,6 +68,7 @@ const leafText = () => OBJECT_CHAR;
 function inlineToText(node) {
   if (node.isText) return node.text;
   if (node.type === schema.nodes.attachment) return makePlaceholder(node.attrs.id, node.attrs.name);
+  if (node.type === schema.nodes.sentAttachment) return node.attrs.markup;
   if (node.type === schema.nodes.customEmoji) return `<:${node.attrs.name}:${node.attrs.id}>`;
   return '';
 }
@@ -69,8 +83,9 @@ export function docToText(doc) {
   return lines.join('\n');
 }
 
-// A draft attachment placeholder, or a custom emoji.
-const INLINE_OBJECT_RE = /!\[((?:\\.|[^\]\\])*)\]\(attachment:(\d+)\)|<:([A-Za-z0-9_]+):(\w+)>/g;
+// A draft attachment placeholder, a sent attachment (or any other markdown image), or a custom
+// emoji.
+const INLINE_OBJECT_RE = /!\[((?:\\.|[^\]\\])*)\]\((?:attachment:(\d+)|(https?:\/\/[^)\s]+))\)|<:([A-Za-z0-9_]+):(\w+)>/g;
 
 // Message text -> editor document. `resolveCustomEmoji(id, name)` gives a custom emoji's image
 // URL (by default its place in the object store); without one, `<:name:id>` stays as text.
@@ -82,9 +97,11 @@ export function textToDoc(text, { resolveCustomEmoji = (id) => customEmojiUrl(id
       let node = null;
       if (m[2]) {
         node = schema.nodes.attachment.create({ id: Number(m[2]), name: unescapeAltText(m[1]) });
+      } else if (m[3]) {
+        node = schema.nodes.sentAttachment.create({ name: unescapeAltText(m[1]), markup: m[0] });
       } else {
-        const url = resolveCustomEmoji?.(m[4], m[3]);
-        if (url) node = schema.nodes.customEmoji.create({ id: m[4], name: m[3], url });
+        const url = resolveCustomEmoji?.(m[5], m[4]);
+        if (url) node = schema.nodes.customEmoji.create({ id: m[5], name: m[4], url });
       }
       if (!node) continue;
       if (m.index > last) content.push(schema.text(line.slice(last, m.index)));

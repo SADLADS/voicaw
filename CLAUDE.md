@@ -549,9 +549,11 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   those through (not to `Attachment`), and emoji-only messages get `.emoji-only` (large).
 - The message box is `editor/MessageEditor.jsx`, a small ProseMirror editor (also used for editing a
   sent message). Its value is plain message text (`editor/messageDoc.js`): lines are paragraphs,
-  draft attachments are chips, custom emoji `<:name:id>` are inline images. Unicode emoji stay text, drawn by the Twemoji font, so
+  draft attachments are chips (so are a sent message's attachments while editing it, kept as
+  their exact `![name](url)`, so the link and its key never show), custom emoji `<:name:id>` are inline images. Unicode emoji stay text, drawn by the Twemoji font, so
   typing, autocorrect, IME and copy/paste stay plain. Pasting is always plain text (files go to
-  attachments); edits past the length limit are refused. Enter sends on desktop, Shift+Enter is a
+  attachments); edits past the length limit are refused. Saving an edit left empty or
+  only whitespace cancels it (`ChatPane`). Enter sends on desktop, Shift+Enter is a
   new line; on mobile Enter is a new line. The ref handle (`focus`, `blur`, `insertText`,
   `replaceBeforeCaret`, `insertAttachments`, `removeAttachment`, `clear`...) is how `Composer`
   and `Dm` drive it.

@@ -19,6 +19,19 @@ describe('messageDoc', () => {
     expect(docToText(doc)).toBe('look ![cat\\_1.png](attachment:3) and ![dog.png](attachment:4)');
   });
 
+  it("turns a sent message's attachments into chips, keeping their links exactly", () => {
+    const sent = '![IMG\\_9342.jpg](https://media.test/uploads/3d.bin#v=1&k=KEY&t=image%2Fjpeg&s=5&w=2&h=1)';
+    const text = `look ${sent}\n![](https://example.com/a.png) and ![draft.png](attachment:2)`;
+    const doc = textToDoc(text);
+    const chips = [];
+    doc.descendants((n) => { if (n.type === schema.nodes.sentAttachment) chips.push(n.attrs); });
+    expect(chips).toEqual([
+      { name: 'IMG_9342.jpg', markup: sent },
+      { name: '', markup: '![](https://example.com/a.png)' },
+    ]);
+    expect(docToText(doc)).toBe(text);
+  });
+
   it('turns custom emoji into images when their URL is known', () => {
     const doc = textToDoc('hi <:party:42> <:gone:7>', { resolveCustomEmoji: (id) => (id === '42' ? emojiUrl(id) : null) });
     const emoji = [];

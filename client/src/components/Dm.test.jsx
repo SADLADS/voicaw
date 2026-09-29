@@ -40,6 +40,7 @@ vi.mock('../services/dmService', () => ({
   addReaction: vi.fn(),
   removeReaction: vi.fn(async () => {}),
   deleteMessage: vi.fn(async () => {}),
+  editMessage: vi.fn(async () => {}),
 }));
 
 vi.mock('../services/encryptionService', () => {
@@ -89,8 +90,14 @@ vi.mock('./SafetyNumberDialog', () => ({
 // Stub MessageList (its scrolling/layout needs a real browser) so these tests exercise
 // Dm's own state machine (fetch/send/receive) rather than virtualization.
 vi.mock('./MessageList', () => ({
-  default: ({ messages, loadMoreMessages, hasMore, onToggleReaction, onOpenReactionPicker, onOpenActions, focusedMsgId }) => (
+  default: ({
+    messages, loadMoreMessages, hasMore, onToggleReaction, onOpenReactionPicker, onOpenActions, focusedMsgId,
+    handleEdit, editingMessageId, setEditingMessageContent, handleSaveEdit,
+  }) => (
     <div data-testid="message-list" data-has-more={String(hasMore)} data-focused={focusedMsgId ?? ''}>
+      <span data-testid="editing">{editingMessageId ?? ''}</span>
+      <input data-testid="edit-text" onChange={(e) => setEditingMessageContent(e.target.value)} />
+      <button data-testid="save-edit" onClick={() => handleSaveEdit(editingMessageId)} />
       <button data-testid="load-older" onClick={() => loadMoreMessages()} />
       {messages.map((m) => (
         <div key={m.clientKey ?? m.id}>
@@ -101,6 +108,7 @@ vi.mock('./MessageList', () => ({
           <button data-testid={`toggle-thumbs-${m.id}`} onClick={() => onToggleReaction(m, '👍')} />
           <button data-testid={`react-${m.id}`} onClick={(e) => onOpenReactionPicker(m, e.currentTarget)} />
           <button data-testid={`hold-${m.id}`} onClick={() => onOpenActions(m)} />
+          <button data-testid={`edit-${m.id}`} onClick={() => handleEdit(m)} />
         </div>
       ))}
     </div>
@@ -121,7 +129,9 @@ import { EmojiContext } from '../emoji/emojiContext';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { ConfigContext, InteractionContext } from '../contexts';
 import { LayoutContext } from '../contexts';
-import { fetchMessagesForUser, sendMessageToUser, markMessagesRead, addReaction, removeReaction, deleteMessage } from '../services/dmService';
+import {
+  fetchMessagesForUser, sendMessageToUser, markMessagesRead, addReaction, removeReaction, deleteMessage, editMessage,
+} from '../services/dmService';
 import { deriveConversationKey, encryptMessage, decryptMessage, encryptReaction } from '../services/encryptionService';
 import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
 import { uploadAttachment } from '../services/attachmentUpload';
@@ -246,6 +256,37 @@ describe('Dm', () => {
     });
 
     expect(await screen.findByText('dec(ENC-HELLO) [sent]')).toBeInTheDocument();
+  });
+
+  it('saves an edit, encrypted', async () => {
+    fetchMessagesForUser.mockResolvedValue([{ id: 11, sender_id: 1, recipient_id: 2, content: 'ENC2', timestamp: 1 }]);
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText('dec:ENC2 [sent]');
+
+    fireEvent.click(screen.getByTestId('edit-11'));
+    expect(screen.getByTestId('editing')).toHaveTextContent('11');
+    fireEvent.change(screen.getByTestId('edit-text'), { target: { value: 'fixed' } });
+    fireEvent.click(screen.getByTestId('save-edit'));
+
+    await waitFor(() => expect(editMessage).toHaveBeenCalledWith(11, 'enc(fixed)'));
+    expect(await screen.findByText('fixed [sent]')).toBeInTheDocument();
+    expect(screen.getByTestId('editing')).toBeEmptyDOMElement();
+  });
+
+  it('saving an edit left empty or only whitespace just cancels it', async () => {
+    fetchMessagesForUser.mockResolvedValue([{ id: 11, sender_id: 1, recipient_id: 2, content: 'ENC2', timestamp: 1 }]);
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText('dec:ENC2 [sent]');
+
+    for (const value of ['', '  \n\t ']) {
+      fireEvent.click(screen.getByTestId('edit-11'));
+      fireEvent.change(screen.getByTestId('edit-text'), { target: { value: 'x' } });
+      fireEvent.change(screen.getByTestId('edit-text'), { target: { value } });
+      fireEvent.click(screen.getByTestId('save-edit'));
+      expect(screen.getByTestId('editing')).toBeEmptyDOMElement();
+    }
+    expect(editMessage).not.toHaveBeenCalled();
+    expect(screen.getByText('dec:ENC2 [sent]')).toBeInTheDocument();
   });
 
   it('marks messages read for the active conversation', async () => {

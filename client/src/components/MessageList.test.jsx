@@ -140,6 +140,25 @@ describe('MessageList', () => {
     expect(setEditingMessageContent).toHaveBeenLastCalledWith('mine edited');
   });
 
+  it("shows a sent message's attachments as chips while editing, not their links", () => {
+    const image = '![IMG\\_1.jpg](https://s3.test/uploads/x.bin#v=1&k=SECRET&t=image%2Fjpeg&s=5)';
+    const msg = { id: 1, sender_id: 1, sender_username: 'alice', plaintext: `look ${image}`, timestamp: 1000 };
+    const setEditingMessageContent = vi.fn();
+    render(
+      <MessageList
+        {...baseProps({ messages: [msg], editingMessageId: 1, editingMessageContent: msg.plaintext, setEditingMessageContent })}
+      />
+    );
+
+    const box = document.getElementById('edit-input-1');
+    expect(box).toHaveTextContent('look 📎 IMG_1.jpg');
+    expect(box.textContent).not.toContain('SECRET');
+
+    const editor = editorFor(box);
+    act(() => editor.insertText(' edited'));
+    expect(setEditingMessageContent).toHaveBeenLastCalledWith(`look ${image} edited`);
+  });
+
   it('keeps edits within maxPlaintextLength', () => {
     const msg = { id: 1, sender_id: 1, sender_username: 'alice', plaintext: 'mine', timestamp: 1000 };
     const setEditingMessageContent = vi.fn();

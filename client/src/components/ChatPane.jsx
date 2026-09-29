@@ -115,6 +115,11 @@ export default function ChatPane({
   }
 
   async function handleSaveEdit(messageId) {
+    // Emptied (or only whitespace left): the same as cancelling.
+    if (!editingMessageContent.trim()) {
+      setEditingMessageId(null);
+      return;
+    }
     try {
       await conversation.editMessage(messageId, editingMessageContent);
       setEditingMessageId(null);
