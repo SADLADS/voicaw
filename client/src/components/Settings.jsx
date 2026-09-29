@@ -5,6 +5,7 @@ import { InteractionContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
 import { MAX_PROFILE_PIC_BYTES, uploadProfilePicture } from '../services/profileService';
+import { announceProfilePictureChange } from '../utils/profilePicture';
 
 export default function Settings({ onLogout }) {
   const [file, setFile] = useState(null);
@@ -33,6 +34,7 @@ export default function Settings({ onLogout }) {
 
     try {
       await uploadProfilePicture(file);
+      announceProfilePictureChange();
       setSuccess(true);
       setFile(null);
     } catch (err) {

@@ -8,6 +8,26 @@ const reactionAddListeners = new Set();
 const reactionRemoveListeners = new Set();
 let reconnectTimeout = null;
 
+// This client's own connection: 'connecting' | 'online' | 'offline' (logged out, or the
+// device has no network). Shown in the user panel.
+let connectionState = 'offline';
+const connectionListeners = new Set();
+
+function setConnectionState(next) {
+  if (next === connectionState) return;
+  connectionState = next;
+  connectionListeners.forEach((cb) => cb(next));
+}
+
+export function getConnectionState() {
+  return connectionState;
+}
+
+export function onConnectionState(callback) {
+  connectionListeners.add(callback);
+  return () => connectionListeners.delete(callback);
+}
+
 // Presence: tells the server whether this client is on screen and which conversation it
 // shows, so it can skip push notifications for a chat the user is already reading.
 // Re-sent periodically because the server ignores stale presence (a phone that locks may
@@ -29,6 +49,10 @@ export function setActiveChat(chatId) {
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  window.addEventListener('offline', () => { if (ws) setConnectionState('offline'); });
+  window.addEventListener('online', () => {
+    if (ws) setConnectionState(ws.readyState === WebSocket.OPEN ? 'online' : 'connecting');
+  });
   document.addEventListener('visibilitychange', sendPresence);
   window.addEventListener('focus', sendPresence);
   window.addEventListener('blur', sendPresence);
@@ -48,9 +72,12 @@ export function connectWebSocket() {
 
   const url = import.meta.env.VITE_WS_URL;
   console.log("Connecting to WebSocket:", url);
-  ws = new WebSocket(url);
+  const socket = new WebSocket(url);
+  ws = socket;
+  setConnectionState(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'connecting');
 
   ws.onopen = () => {
+    setConnectionState('online');
     console.log('[WS] Connection opened');
     // Identify using JWT token
     ws.send(JSON.stringify({ type: 'identify', token }));
@@ -87,7 +114,10 @@ export function connectWebSocket() {
   };
 
   ws.onclose = (event) => {
+    // A socket closed on purpose (logout) or already replaced: nothing to do.
+    if (socket !== ws) return;
     clearInterval(presenceInterval);
+    setConnectionState(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'connecting');
     console.warn(`[WS] Connection closed. Code: ${event.code}, Reason: "${event.reason || 'No reason'}"`);
 
     // Try to reconnect after short delay
@@ -110,9 +140,11 @@ export function closeWebSocket() {
     reconnectTimeout = null;
   }
   if (ws) {
-    ws.close(1000, 'Client logout');
+    const socket = ws;
     ws = null;
+    socket.close(1000, 'Client logout');
   }
+  setConnectionState('offline');
   newDmlisteners.clear();
   statusListeners.clear();
   deleteListeners.clear();

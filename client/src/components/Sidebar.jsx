@@ -1,10 +1,7 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-  faComments,
-  faCog,
-} from '@fortawesome/free-solid-svg-icons';
+import { faComments } from '@fortawesome/free-solid-svg-icons';
 import logo from '../assets/images/logo-no-border.svg';
 
 export default function Sidebar({ hasUnreadDms }) {
@@ -15,7 +12,7 @@ export default function Sidebar({ hasUnreadDms }) {
 
   return (
     <div
-      className="sidebar d-flex flex-column align-items-center full-height"
+      className="sidebar d-flex flex-column align-items-center"
       style={{ width: '72px' }}
     >
       <div className="nav-item">
@@ -34,12 +31,6 @@ export default function Sidebar({ hasUnreadDms }) {
 
       {/* Guilds and a calendar are planned; their icons go here. */}
 
-      <div className={`nav-item ${isActivePath('/settings') ? 'active' : ''}`}>
-        <span className="dot"></span>
-        <NavLink to="/settings" className="nav-icon">
-          <FontAwesomeIcon icon={faCog} />
-        </NavLink>
-      </div>
     </div>
   );
 }

@@ -327,7 +327,11 @@ their box is reserved before they load.
   `/api/config`) and `InteractionContext` (mobile vs. desktop interaction mode, persisted to
   `localStorage`, auto-detected via user-agent unless overridden)
 - `Layout.jsx` — the logged-in shell: sidebars, users list and unread counts (`LayoutContext`).
-  `DmSidebar` draws the unread dots from those counts.
+  `DmSidebar` draws the unread dots from those counts. `SidebarWrapper` puts the sidebars in a
+  row with `UserPanel` across the bottom: your picture, name, this device's connection state
+  (`ws-client` `getConnectionState`/`onConnectionState`: online / connecting / offline) and the
+  settings button. It's compact (picture and button only) when the sidebar is just the icon
+  column. Uploading a profile picture calls `announceProfilePictureChange()` so it refreshes.
 - Mobile message actions: there's no hover menu on mobile. A long press on a message
   (`hooks/useLongPress.js`, 450ms, cancelled by scrolling) opens `MessageActionSheet`: quick
   reactions (most used first, then 👍❤️😂😮😢🙏) and `+` for the full picker, Reply, Edit,

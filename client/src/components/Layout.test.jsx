@@ -13,6 +13,8 @@ vi.mock('../utils/ws-client', () => ({
     return () => { newDmListeners.list = newDmListeners.list.filter((x) => x !== cb); };
   },
   onUserStatus: () => () => {},
+  getConnectionState: () => 'online',
+  onConnectionState: () => () => {},
 }));
 
 vi.mock('../utils/api', () => ({

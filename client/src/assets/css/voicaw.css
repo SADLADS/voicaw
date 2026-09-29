@@ -281,3 +281,123 @@ pre code {
   overflow-y: auto;
   padding: 0 1rem env(safe-area-inset-bottom);
 }
+
+/* The left side: the icon column and (on DM pages) the conversation list side by side, with
+   the user panel across the bottom. */
+.sidebar-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100svh;
+  background-color: var(--vc-bg-base);
+}
+
+.sidebar-columns {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* You (UserPanel). */
+.user-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom)) 10px;
+  border-top: 1px solid var(--vc-border-dark);
+  background-color: var(--vc-bg-base);
+  color: var(--vc-fg);
+}
+
+.user-panel.compact {
+  flex-direction: column;
+  gap: 6px;
+  /* Continues the icon column's divider down to the bottom. */
+  border-right: 1px solid var(--vc-border-light);
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+}
+
+.user-panel-avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+}
+
+.user-panel-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* The status dot sits on the picture's edge, ringed in the panel's colour. */
+.user-panel-status {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 3px solid var(--vc-bg-base);
+  background-color: var(--vc-border-light);
+}
+
+.user-panel-status.online {
+  background-color: var(--vc-online);
+}
+
+.user-panel-status.connecting {
+  background-color: var(--vc-action);
+}
+
+.user-panel-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.user-panel-name {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-panel-state {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}
+
+.user-panel-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: var(--vc-fg-muted);
+  font-size: 17px;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.user-panel-button:hover {
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+}
+
+.user-panel-button.active {
+  background-color: color-mix(in srgb, var(--vc-accent) 30%, transparent);
+  color: var(--vc-fg);
+}
+
+.user-panel-button:hover svg {
+  transform: rotate(45deg);
+}
+
+.user-panel-button svg {
+  transition: transform 0.3s ease;
+}

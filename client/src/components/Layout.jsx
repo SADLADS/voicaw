@@ -3,6 +3,7 @@ import { useLocation, Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import DmSidebar from './DmSidebar';
 import SidebarWrapper from './SidebarWrapper';
+import UserPanel from './UserPanel';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';
@@ -87,7 +88,7 @@ export default function Layout({ user, onLogout }) {
   return (
     <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers }}>
       <div className={`${isDmPage ? 'slidey' : ''} main-wrapper d-flex`}>
-        <SidebarWrapper>
+        <SidebarWrapper footer={<UserPanel user={user} compact={!isDmPage} />}>
           {/* Main sidebar always shows */}
           <Sidebar user={user} onLogout={onLogout} hasUnreadDms={hasUnreadDms} />
 

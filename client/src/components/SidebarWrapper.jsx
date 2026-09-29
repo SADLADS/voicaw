@@ -1,9 +1,11 @@
 import React from 'react';
 
-export default function SidebarWrapper({ children }) {
+// The left side: the sidebars in a row, with `footer` (the user panel) across the bottom.
+export default function SidebarWrapper({ children, footer }) {
   return (
-    <div className="d-flex flex-row sidebar-wrapper">
-      {children}
+    <div className="sidebar-wrapper">
+      <div className="sidebar-columns">{children}</div>
+      {footer}
     </div>
   );
 }
