@@ -9,6 +9,7 @@ import defaultpfp from '../assets/images/default.png';
 import Attachment from './Attachment';
 import MessageReactions from './MessageReactions';
 import UrlPreviews from './UrlPreviews';
+import { useLongPress } from '../hooks/useLongPress';
 import { placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { isEmojiOnly } from '../emoji/emojiIndex';
@@ -57,8 +58,11 @@ export function MessageRow({
   onToggleReaction,
   onOpenReactionPicker,
   reactionNames,
+  onOpenActions,
 }) {
   const emojiIndex = useEmojiIndex();
+  // Mobile: touch and hold opens the message's action sheet (there's no hover there).
+  const longPress = useLongPress(() => onOpenActions(msg), { enabled: isMobile && Boolean(onOpenActions) });
   // Stable per emoji index (a new plugin list every render would re-run markdown needlessly).
   const rehypePlugins = useMemo(
     () => (emojiIndex ? [rehypeHighlight, rehypeTwemoji(emojiIndex)] : [rehypeHighlight]),
@@ -87,6 +91,7 @@ export function MessageRow({
       data-msg-id={msg.id}
       onMouseEnter={() => setHoveredMsgId(msg.id)}
       onMouseLeave={() => setHoveredMsgId(null)}
+      {...longPress}
     >
       {parent && (
         <div className="reply-snippet">
@@ -114,7 +119,7 @@ export function MessageRow({
         </div>
       )}
 
-      {hoveredMsgId === msg.id && (
+      {hoveredMsgId === msg.id && !isMobile && (
         <div className="message-menu">
           {canReact && (
             <button
@@ -283,6 +288,7 @@ export default function MessageList({
   onToggleReaction,
   onOpenReactionPicker,
   reactionNames,
+  onOpenActions,
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
@@ -317,6 +323,7 @@ export default function MessageList({
     onToggleReaction,
     onOpenReactionPicker,
     reactionNames,
+    onOpenActions,
   };
 
   const rememberAnchor = useCallback(() => {

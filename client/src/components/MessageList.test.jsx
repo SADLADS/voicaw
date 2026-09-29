@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 
 
 vi.mock('../services/attachmentCache', () => ({
@@ -328,5 +328,21 @@ describe('MessageList reactions', () => {
 
     rerender(<MessageList {...reactionProps({ messages: [sent, pending], hoveredMsgId: 'temp-1' })} />);
     expect(screen.queryByRole('button', { name: 'Add reaction' })).not.toBeInTheDocument();
+  });
+
+  it('on mobile, a long press opens the message actions instead of a hover menu', () => {
+    vi.useFakeTimers();
+    try {
+      const msg = { id: 5, sender_id: 1, recipient_id: 2, sender_username: 'alice', plaintext: 'hold me', timestamp: 1 };
+      const props = reactionProps({ messages: [msg], hoveredMsgId: 5, isMobile: true, onOpenActions: vi.fn() });
+      render(<MessageList {...props} />);
+      expect(screen.queryByRole('button', { name: 'Add reaction' })).not.toBeInTheDocument();
+
+      fireEvent.touchStart(screen.getByText('hold me'), { touches: [{ clientX: 5, clientY: 5 }] });
+      act(() => vi.advanceTimersByTime(500));
+      expect(props.onOpenActions).toHaveBeenCalledWith(msg);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

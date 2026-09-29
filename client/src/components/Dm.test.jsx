@@ -39,6 +39,7 @@ vi.mock('../services/dmService', () => ({
   markMessagesRead: vi.fn(),
   addReaction: vi.fn(),
   removeReaction: vi.fn(async () => {}),
+  deleteMessage: vi.fn(async () => {}),
 }));
 
 vi.mock('../services/encryptionService', () => {
@@ -88,7 +89,7 @@ vi.mock('./SafetyNumberDialog', () => ({
 // Stub MessageList (its scrolling/layout needs a real browser) so these tests exercise
 // Dm's own state machine (fetch/send/receive) rather than virtualization.
 vi.mock('./MessageList', () => ({
-  default: ({ messages, loadMoreMessages, hasMore, onToggleReaction, onOpenReactionPicker }) => (
+  default: ({ messages, loadMoreMessages, hasMore, onToggleReaction, onOpenReactionPicker, onOpenActions }) => (
     <div data-testid="message-list" data-has-more={String(hasMore)}>
       <button data-testid="load-older" onClick={() => loadMoreMessages()} />
       {messages.map((m) => (
@@ -99,6 +100,7 @@ vi.mock('./MessageList', () => ({
           )}
           <button data-testid={`toggle-thumbs-${m.id}`} onClick={() => onToggleReaction(m, '👍')} />
           <button data-testid={`react-${m.id}`} onClick={(e) => onOpenReactionPicker(m, e.currentTarget)} />
+          <button data-testid={`hold-${m.id}`} onClick={() => onOpenActions(m)} />
         </div>
       ))}
     </div>
@@ -111,7 +113,7 @@ import { buildEmojiIndex } from '../emoji/emojiIndex';
 import { EmojiContext } from '../emoji/emojiContext';
 import { ConfigContext, InteractionContext } from '../contexts';
 import { LayoutContext } from '../contexts';
-import { fetchMessagesForUser, sendMessageToUser, markMessagesRead, addReaction, removeReaction } from '../services/dmService';
+import { fetchMessagesForUser, sendMessageToUser, markMessagesRead, addReaction, removeReaction, deleteMessage } from '../services/dmService';
 import { deriveConversationKey, encryptMessage, decryptMessage, encryptReaction } from '../services/encryptionService';
 import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
 import { uploadAttachment } from '../services/attachmentUpload';
@@ -908,3 +910,54 @@ describe('Dm reactions', () => {
     expect(screen.queryByRole('dialog', { name: 'Emoji picker' })).not.toBeInTheDocument();
   });
 });
+
+describe('Dm mobile message actions', () => {
+  // The sheet only takes clicks from a touch that started on it.
+  const tapInSheet = (el) => {
+    fireEvent.pointerDown(el);
+    fireEvent.click(el);
+  };
+
+  async function openMobileChat(messages, shown = /dec:/) {
+    fetchMessagesForUser.mockResolvedValue(messages);
+    renderDm({ path: '/dm/2', users: [chatUserFull], isMobile: true });
+    await screen.findByText(shown);
+  }
+
+  it('reacts from the sheet and closes it', async () => {
+    addReaction.mockResolvedValue({ id: 60, message_id: 10, user_id: 1, content: 'renc(👍)' });
+    await openMobileChat([{ id: 10, sender_id: 2, recipient_id: 1, content: 'ENC1', timestamp: 1, reactions: [] }]);
+
+    fireEvent.click(screen.getByTestId('hold-10'));
+    const sheet = screen.getByRole('dialog', { name: 'Message actions' });
+    expect(within(sheet).queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument(); // not ours
+    tapInSheet(within(sheet).getByRole('button', { name: 'React with Thumbs Up' }));
+
+    await waitFor(() => expect(screen.getByTestId('reactions-10')).toHaveTextContent('👍:1'));
+    expect(screen.queryByRole('dialog', { name: 'Message actions' })).not.toBeInTheDocument();
+  });
+
+  it('replies, copies (attachments as names) and deletes after confirming', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    await openMobileChat([{
+      id: 11, sender_id: 1, recipient_id: 2, content: 'ENC2', timestamp: 1, reactions: [],
+      plaintext: 'look ![cat.png](https://s3.test/uploads/x.bin#v=1&k=SECRET)',
+    }], /look/);
+
+    fireEvent.click(screen.getByTestId('hold-11'));
+    tapInSheet(screen.getByRole('button', { name: 'Copy text' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('look 📎 cat.png'));
+
+    fireEvent.click(screen.getByTestId('hold-11'));
+    tapInSheet(screen.getByRole('button', { name: 'Reply' }));
+    expect(screen.getByText(/Replying to/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('hold-11'));
+    tapInSheet(screen.getByRole('button', { name: 'Delete' }));
+    tapInSheet(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(deleteMessage).toHaveBeenCalledWith(11));
+    await waitFor(() => expect(screen.queryByText(/look/)).not.toBeInTheDocument());
+  });
+});
+

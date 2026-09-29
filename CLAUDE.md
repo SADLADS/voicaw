@@ -328,6 +328,13 @@ their box is reserved before they load.
   `localStorage`, auto-detected via user-agent unless overridden)
 - `Layout.jsx` — the logged-in shell: sidebars, users list and unread counts (`LayoutContext`).
   `DmSidebar` draws the unread dots from those counts.
+- Mobile message actions: there's no hover menu on mobile. A long press on a message
+  (`hooks/useLongPress.js`, 450ms, cancelled by scrolling) opens `MessageActionSheet`: quick
+  reactions (most used first, then 👍❤️😂😮😢🙏) and `+` for the full picker, Reply, Edit,
+  Copy text (attachments become their names, never their key-carrying links) and Delete (asks
+  first). The sheet ignores the click Chrome fires when the holding finger lifts (it lands on the
+  sheet); only clicks from a touch that started on it count. Messages aren't text-selectable
+  on mobile, so the long press isn't taken by text selection.
 - DM view: `Dm.jsx` puts together `hooks/useConversation.js` (keys, history, paging, send/edit/
   delete, live websocket updates), `hooks/useReactions.js`, `MessageList.jsx` (+ `MessageReactions`,
   `UrlPreviews`) and `Composer.jsx` (message box, emoji, reply bar, attachments via
