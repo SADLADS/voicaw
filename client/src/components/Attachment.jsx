@@ -7,6 +7,7 @@ import { formatBytes } from '../utils/formatBytes';
 import { placeholderIdFromUrl } from '../utils/attachmentMarkup';
 import { triggerDownload } from '../utils/saveFile';
 import { ImageViewerContext } from '../contexts';
+import { galleryAround, galleryItemRef } from '../utils/imageGallery';
 
 function kindOf(type) {
   if (type?.startsWith('image/')) return 'image';
@@ -51,13 +52,17 @@ function reservedBoxStyle(width, height) {
   return { width: `${Math.round(width * scale)}px`, height: 'auto', aspectRatio: `${width} / ${height}` };
 }
 
-// An image in a message; clicking (or Enter) opens it in the full-screen viewer.
-function ViewableImage({ src, name, size, width, height, style, onError }) {
+// An image in a message; clicking (or Enter) opens it in the full-screen viewer, along with
+// the message's other images. `item` is its gallery item (utils/imageGallery.js).
+function ViewableImage({ src, item, style, onError }) {
   const viewer = useContext(ImageViewerContext);
+  const { name } = item;
   if (!viewer) return <img className="attachment-media" style={style} src={src} alt={name} onError={onError} />;
-  const open = () => viewer.openImage({ src, name, size, width, height });
+  const open = (e) => viewer.openImage(galleryAround(e.currentTarget));
   return (
     <img
+      ref={galleryItemRef(item)}
+      data-gallery-item=""
       className="attachment-media viewable"
       style={style}
       src={src}
@@ -69,14 +74,14 @@ function ViewableImage({ src, name, size, width, height, style, onError }) {
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          open();
+          open(e);
         }
       }}
     />
   );
 }
 
-function MediaView({ kind, src, name, size, width, height, onDownload }) {
+function MediaView({ kind, src, name, size, width, height, onDownload, galleryItem }) {
   const [failed, setFailed] = useState(false);
   const style = reservedBoxStyle(width, height);
 
@@ -85,15 +90,7 @@ function MediaView({ kind, src, name, size, width, height, onDownload }) {
 
   if (kind === 'image') {
     return (
-      <ViewableImage
-        src={src}
-        name={name}
-        size={size}
-        width={width}
-        height={height}
-        style={style}
-        onError={() => setFailed(true)}
-      />
+      <ViewableImage src={src} item={galleryItem} style={style} onError={() => setFailed(true)} />
     );
   }
   return (
@@ -121,6 +118,7 @@ function LocalAttachment({ local, name }) {
       width={local.width}
       height={local.height}
       onDownload={download}
+      galleryItem={{ src: local.previewUrl, name, size: local.size, width: local.width, height: local.height }}
     />
   );
 }
@@ -161,12 +159,15 @@ function EncryptedAttachment({ url, meta, name }) {
   if (kind === 'file') {
     return <FileBox name={name} size={meta.size} onDownload={download} status={state.status} />;
   }
+  const galleryItem = { src: url, name, size: meta.size, width: meta.width, height: meta.height, meta };
   if (state.status === 'error') {
     return <FileBox name={name} size={meta.size} onDownload={download} status="error" />;
   }
   if (!state.objectUrl) {
     return (
       <span
+        // Still decrypting, but already one of the message's images in the viewer.
+        {...(kind === 'image' ? { ref: galleryItemRef(galleryItem), 'data-gallery-item': '' } : {})}
         className={`attachment-loading attachment-loading-${kind}`}
         style={reservedBoxStyle(meta.width, meta.height)}
         aria-label={`Loading ${name}`}
@@ -182,6 +183,7 @@ function EncryptedAttachment({ url, meta, name }) {
       width={meta.width}
       height={meta.height}
       onDownload={download}
+      galleryItem={galleryItem}
     />
   );
 }
@@ -201,7 +203,7 @@ export default function Attachment({ src, alt, localAttachments }) {
   }
 
   const meta = parseAttachmentUrl(src);
-  if (!meta) return <ViewableImage src={src} name={name} />;
+  if (!meta) return <ViewableImage src={src} item={{ src, name }} />;
 
   return <EncryptedAttachment url={src} meta={meta} name={name} />;
 }

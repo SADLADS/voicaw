@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -7,9 +7,12 @@ import {
   faDownload,
   faArrowUpRightFromSquare,
   faXmark,
+  faChevronLeft,
+  faChevronRight,
 } from '@fortawesome/free-solid-svg-icons';
 import { formatBytes } from '../utils/formatBytes';
 import { saveUrlAs, openInNewTab } from '../utils/saveFile';
+import { useImageSrc } from '../hooks/useImageSrc';
 import {
   ZOOM_STEP,
   clampView,
@@ -26,6 +29,11 @@ const TAP_MS = 350;
 // Two taps this close in time and space are a double tap.
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_PX = 30;
+// A sideways drag of an unzoomed image further than this goes to the next/previous image.
+const SWIPE_MIN_PX = 60;
+const SWIPE_MIN_FRACTION = 0.15;
+// Past the first/last image, a swipe only follows the finger this much.
+const SWIPE_EDGE_RESISTANCE = 0.3;
 
 function wheelZoomFactor(e) {
   // Trackpad pinches arrive as ctrl+wheel with small deltas; mouse wheels as big steps.
@@ -33,27 +41,31 @@ function wheelZoomFactor(e) {
   return Math.exp(-pixels * (e.ctrlKey ? 0.01 : 0.002));
 }
 
-// Full-screen view of one image: zoom (wheel, pinch, double click/tap, buttons, + - 0 keys),
-// pan (drag), save, open in a new tab. Rendered into <body> by ImageViewerProvider, outside
-// the message list, so its touches don't reach the message's long press.
-export default function ImageViewer({ image, onClose }) {
-  const { src, name, size } = image;
+// One image, zoomable and pannable. Remounted for each image (keyed by the viewer), so every
+// image starts fitted. The toolbar drives it through its ref: zoomBy(factor), reset().
+const ImageStage = forwardRef(function ImageStage(
+  { item, onView, onClose, onSwipe, canSwipe },
+  ref
+) {
+  const { src, error } = useImageSrc(item);
   const stageRef = useRef(null);
-  const closeRef = useRef(null);
   const [stage, setStage] = useState({ width: 0, height: 0 });
   const [natural, setNatural] = useState(
-    image.width && image.height ? { width: image.width, height: image.height } : null
+    item.width && item.height ? { width: item.width, height: item.height } : null
   );
   const [view, setView] = useState({ scale: 1, x: 0, y: 0 });
-  // Animate button/keyboard/double-click zooms, but not drags and pinches.
+  // Sideways offset of an unzoomed image while it's being swiped.
+  const [swipeX, setSwipeX] = useState(0);
+  // Animate button/keyboard/double-click zooms and swipes snapping back, but not drags and
+  // pinches.
   const [animate, setAnimate] = useState(false);
   const fitted = useRef(true);
 
-  const ready = natural && stage.width > 0;
+  const ready = Boolean(src && natural && stage.width > 0);
 
   // Always-current values for the gesture handlers below.
   const live = useRef({});
-  live.current = { view, stage, natural };
+  live.current = { view, stage, natural, canSwipe };
 
   const update = useCallback((next, { animated = false } = {}) => {
     const { stage: s, natural: n } = live.current;
@@ -75,48 +87,25 @@ export default function ImageViewer({ image, onClose }) {
   }, []);
 
   useLayoutEffect(() => {
-    if (!ready) return;
+    if (!natural || !stage.width) return;
     setAnimate(false);
     setView((v) => (fitted.current ? fittedView(stage, natural) : clampView(v, stage, natural)));
-  }, [ready, stage, natural]);
+  }, [stage, natural]);
 
-  const zoomBy = useCallback((factor) => {
-    const { view: v, stage: s, natural: n } = live.current;
-    if (n) update(zoomAt(v, v.scale * factor, 0, 0, s, n), { animated: true });
-  }, [update]);
-
-  const resetZoom = useCallback(() => {
-    const { stage: s, natural: n } = live.current;
-    if (n) update(fittedView(s, n), { animated: true });
-  }, [update]);
-
-  // Keys go to the viewer only: stopped at the window's capture phase, before the composer's
-  // Escape-cancels-reply and other listeners see them.
   useEffect(() => {
-    const onKeyDown = (e) => {
-      const actions = {
-        Escape: onClose,
-        '+': () => zoomBy(ZOOM_STEP),
-        '=': () => zoomBy(ZOOM_STEP),
-        '-': () => zoomBy(1 / ZOOM_STEP),
-        '0': resetZoom,
-      };
-      const action = actions[e.key];
-      if (!action || e.ctrlKey || e.metaKey || e.altKey) return;
-      e.preventDefault();
-      e.stopPropagation();
-      action();
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [onClose, zoomBy, resetZoom]);
+    onView(ready ? { percent: Math.round(view.scale * 100) } : null);
+  }, [onView, ready, view.scale]);
 
-  // Focus moves into the viewer (so typing doesn't go to the message box) and back after.
-  useEffect(() => {
-    const previous = document.activeElement;
-    closeRef.current?.focus({ preventScroll: true });
-    return () => previous?.focus?.({ preventScroll: true });
-  }, []);
+  useImperativeHandle(ref, () => ({
+    zoomBy(factor) {
+      const { view: v, stage: s, natural: n } = live.current;
+      if (n) update(zoomAt(v, v.scale * factor, 0, 0, s, n), { animated: true });
+    },
+    reset() {
+      const { stage: s, natural: n } = live.current;
+      if (n) update(fittedView(s, n), { animated: true });
+    },
+  }), [update]);
 
   // React's wheel listener is passive, so it can't stop the page from scrolling.
   useEffect(() => {
@@ -134,8 +123,8 @@ export default function ImageViewer({ image, onClose }) {
     return () => el.removeEventListener('wheel', onWheel);
   }, [update]);
 
-  // Pointer gestures: one pointer pans, two pinch, a tap outside the image closes, a
-  // double tap/click toggles zoom.
+  // Pointer gestures: one pointer pans (or, unzoomed, swipes to the next image), two pinch,
+  // a tap outside the image closes, a double tap/click toggles zoom.
   const pointers = useRef(new Map());
   const gesture = useRef(null);
   const lastTap = useRef(null);
@@ -158,15 +147,23 @@ export default function ImageViewer({ image, onClose }) {
     e.currentTarget.setPointerCapture(e.pointerId);
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.current.size === 1) {
+      const { view: v, stage: s, natural: n } = live.current;
       gesture.current = {
         tap: true,
         startX: e.clientX,
         startY: e.clientY,
         startTime: performance.now(),
         onImage: e.target.classList.contains('image-viewer-image'),
+        swipe: !n || !isZoomed(v, s, n),
       };
     } else {
-      gesture.current = { ...gesture.current, tap: false, pinch: pointers.current.size === 2 ? pinchState() : null };
+      setSwipeX(0);
+      gesture.current = {
+        ...gesture.current,
+        tap: false,
+        swipe: false,
+        pinch: pointers.current.size === 2 ? pinchState() : null,
+      };
     }
   };
 
@@ -177,7 +174,14 @@ export default function ImageViewer({ image, onClose }) {
     const g = gesture.current;
     if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) > TAP_SLOP_PX) g.tap = false;
 
-    const { view: v, stage: s, natural: n } = live.current;
+    const { view: v, stage: s, natural: n, canSwipe: can } = live.current;
+    if (pointers.current.size === 1 && g.swipe) {
+      const dx = e.clientX - g.startX;
+      const allowed = dx < 0 ? can.next : can.previous;
+      setAnimate(false);
+      setSwipeX(allowed ? dx : dx * SWIPE_EDGE_RESISTANCE);
+      return;
+    }
     if (!n) return;
     if (pointers.current.size === 1) {
       update({ ...v, x: v.x + e.clientX - previous.x, y: v.y + e.clientY - previous.y });
@@ -198,6 +202,21 @@ export default function ImageViewer({ image, onClose }) {
       return;
     }
     gesture.current = null;
+
+    if (g?.swipe && !g.tap) {
+      const dx = e.clientX - g.startX;
+      const dy = e.clientY - g.startY;
+      const { stage: s, canSwipe: can } = live.current;
+      const far = Math.abs(dx) > Math.max(SWIPE_MIN_PX, s.width * SWIPE_MIN_FRACTION) && Math.abs(dx) > Math.abs(dy);
+      const direction = dx < 0 ? 1 : -1;
+      if (e.type !== 'pointercancel' && far && (direction > 0 ? can.next : can.previous)) {
+        onSwipe(direction);
+        return;
+      }
+      setAnimate(true);
+      setSwipeX(0);
+      return;
+    }
     if (e.type === 'pointercancel' || !g?.tap || performance.now() - g.startTime > TAP_MS) return;
 
     const now = performance.now();
@@ -213,55 +232,22 @@ export default function ImageViewer({ image, onClose }) {
     if (!g.onImage) onClose();
   };
 
-  const percent = ready ? Math.round(view.scale * 100) : null;
-  const zoomedIn = ready && isZoomed(view, stage, natural);
-
-  return createPortal(
-    <div className="image-viewer" role="dialog" aria-modal="true" aria-label={name}>
-      <div className="image-viewer-toolbar">
-        <div className="image-viewer-title">
-          <span className="image-viewer-name" title={name}>{name}</span>
-          {size ? <span className="image-viewer-size">{formatBytes(size)}</span> : null}
-        </div>
-        <div className="image-viewer-actions">
-          <button type="button" className="image-viewer-zoom-button" onClick={() => zoomBy(1 / ZOOM_STEP)} title="Zoom out (−)" aria-label="Zoom out">
-            <FontAwesomeIcon icon={faMagnifyingGlassMinus} />
-          </button>
-          <button
-            type="button"
-            className="image-viewer-percent"
-            onClick={resetZoom}
-            title="Fit to screen (0)"
-            aria-label="Fit to screen"
-          >
-            {percent !== null ? `${percent}%` : ''}
-          </button>
-          <button type="button" className="image-viewer-zoom-button" onClick={() => zoomBy(ZOOM_STEP)} title="Zoom in (+)" aria-label="Zoom in">
-            <FontAwesomeIcon icon={faMagnifyingGlassPlus} />
-          </button>
-          <button type="button" onClick={() => saveUrlAs(src, name)} title="Save" aria-label="Save">
-            <FontAwesomeIcon icon={faDownload} />
-          </button>
-          <button type="button" onClick={() => openInNewTab(src)} title="Open in new tab" aria-label="Open in new tab">
-            <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
-          </button>
-          <button type="button" ref={closeRef} onClick={onClose} title="Close (Esc)" aria-label="Close">
-            <FontAwesomeIcon icon={faXmark} />
-          </button>
-        </div>
-      </div>
-      <div
-        ref={stageRef}
-        className={`image-viewer-stage${zoomedIn ? ' zoomed' : ''}`}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
+  return (
+    <div
+      ref={stageRef}
+      className={`image-viewer-stage${ready && isZoomed(view, stage, natural) ? ' zoomed' : ''}`}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {error && <p className="image-viewer-status">Couldn't load this image.</p>}
+      {!src && !error && <p className="image-viewer-status">Decrypting…</p>}
+      {src && (
         <img
           className={`image-viewer-image${animate ? ' animate' : ''}`}
           src={src}
-          alt={name}
+          alt={item.name}
           draggable={false}
           onLoad={(e) => {
             const { naturalWidth: width, naturalHeight: height } = e.currentTarget;
@@ -272,12 +258,185 @@ export default function ImageViewer({ image, onClose }) {
               ? {
                   width: `${natural.width}px`,
                   height: `${natural.height}px`,
-                  transform: `translate(-50%, -50%) translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
+                  transform:
+                    `translate(-50%, -50%) translate(${view.x + swipeX}px, ${view.y}px) scale(${view.scale})`,
                 }
               : { visibility: 'hidden' }
           }
         />
+      )}
+    </div>
+  );
+});
+
+function Thumbnail({ item, index, current, onSelect }) {
+  const { src } = useImageSrc(item);
+  const ref = useRef(null);
+
+  // Keep the current image's thumbnail in view in a long strip.
+  useEffect(() => {
+    if (current) ref.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [current]);
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      className={`image-viewer-thumbnail${current ? ' current' : ''}`}
+      onClick={() => onSelect(index)}
+      aria-label={`Image ${index + 1}: ${item.name}`}
+      aria-current={current ? 'true' : undefined}
+    >
+      {src ? <img src={src} alt="" draggable={false} /> : <span className="image-viewer-thumbnail-loading" />}
+    </button>
+  );
+}
+
+// Full-screen view of a message's images: zoom (wheel, pinch, double click/tap, buttons,
+// + - 0 keys), pan (drag), step through them (arrows, ← → keys, swipe, thumbnails), save,
+// open in a new tab. Rendered into <body> by ImageViewerProvider, outside the message list,
+// so its touches don't reach the message's long press.
+export default function ImageViewer({ images, index, onIndexChange, onClose }) {
+  const item = images[index];
+  const stageRef = useRef(null);
+  const closeRef = useRef(null);
+  const [viewInfo, setViewInfo] = useState(null);
+  const { src } = useImageSrc(item);
+  const multiple = images.length > 1;
+  const canSwipe = { previous: index > 0, next: index < images.length - 1 };
+
+  const go = useCallback((step) => {
+    const next = index + step;
+    if (next >= 0 && next < images.length) onIndexChange(next);
+  }, [index, images.length, onIndexChange]);
+
+  // Keys go to the viewer only: stopped at the window's capture phase, before the composer's
+  // Escape-cancels-reply and other listeners see them.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const actions = {
+        Escape: onClose,
+        ArrowLeft: () => go(-1),
+        ArrowRight: () => go(1),
+        '+': () => stageRef.current?.zoomBy(ZOOM_STEP),
+        '=': () => stageRef.current?.zoomBy(ZOOM_STEP),
+        '-': () => stageRef.current?.zoomBy(1 / ZOOM_STEP),
+        '0': () => stageRef.current?.reset(),
+      };
+      const action = actions[e.key];
+      if (!action || e.ctrlKey || e.metaKey || e.altKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      action();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [onClose, go]);
+
+  // Focus moves into the viewer (so typing doesn't go to the message box) and back after.
+  useEffect(() => {
+    const previous = document.activeElement;
+    closeRef.current?.focus({ preventScroll: true });
+    return () => previous?.focus?.({ preventScroll: true });
+  }, []);
+
+  return createPortal(
+    <div className="image-viewer" role="dialog" aria-modal="true" aria-label={item.name}>
+      <div className="image-viewer-toolbar">
+        <div className="image-viewer-title">
+          <span className="image-viewer-name" title={item.name}>{item.name}</span>
+          <span className="image-viewer-details">
+            {multiple && <span>{index + 1} / {images.length}</span>}
+            {item.size ? <span>{formatBytes(item.size)}</span> : null}
+          </span>
+        </div>
+        <div className="image-viewer-actions">
+          <button
+            type="button"
+            className="image-viewer-zoom-button"
+            onClick={() => stageRef.current?.zoomBy(1 / ZOOM_STEP)}
+            title="Zoom out (−)"
+            aria-label="Zoom out"
+          >
+            <FontAwesomeIcon icon={faMagnifyingGlassMinus} />
+          </button>
+          <button
+            type="button"
+            className="image-viewer-percent"
+            onClick={() => stageRef.current?.reset()}
+            title="Fit to screen (0)"
+            aria-label="Fit to screen"
+          >
+            {viewInfo ? `${viewInfo.percent}%` : ''}
+          </button>
+          <button
+            type="button"
+            className="image-viewer-zoom-button"
+            onClick={() => stageRef.current?.zoomBy(ZOOM_STEP)}
+            title="Zoom in (+)"
+            aria-label="Zoom in"
+          >
+            <FontAwesomeIcon icon={faMagnifyingGlassPlus} />
+          </button>
+          <button type="button" onClick={() => saveUrlAs(src, item.name)} disabled={!src} title="Save" aria-label="Save">
+            <FontAwesomeIcon icon={faDownload} />
+          </button>
+          <button
+            type="button"
+            onClick={() => openInNewTab(src)}
+            disabled={!src}
+            title="Open in new tab"
+            aria-label="Open in new tab"
+          >
+            <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
+          </button>
+          <button type="button" ref={closeRef} onClick={onClose} title="Close (Esc)" aria-label="Close">
+            <FontAwesomeIcon icon={faXmark} />
+          </button>
+        </div>
       </div>
+      <div className="image-viewer-main">
+        <ImageStage
+          key={index}
+          ref={stageRef}
+          item={item}
+          onView={setViewInfo}
+          onClose={onClose}
+          onSwipe={go}
+          canSwipe={canSwipe}
+        />
+        {multiple && (
+          <>
+            <button
+              type="button"
+              className="image-viewer-nav previous"
+              onClick={() => go(-1)}
+              disabled={!canSwipe.previous}
+              title="Previous image (←)"
+              aria-label="Previous image"
+            >
+              <FontAwesomeIcon icon={faChevronLeft} />
+            </button>
+            <button
+              type="button"
+              className="image-viewer-nav next"
+              onClick={() => go(1)}
+              disabled={!canSwipe.next}
+              title="Next image (→)"
+              aria-label="Next image"
+            >
+              <FontAwesomeIcon icon={faChevronRight} />
+            </button>
+          </>
+        )}
+      </div>
+      {multiple && (
+        <div className="image-viewer-thumbnails" role="group" aria-label="Images in this message">
+          {images.map((image, i) => (
+            <Thumbnail key={i} item={image} index={i} current={i === index} onSelect={onIndexChange} />
+          ))}
+        </div>
+      )}
     </div>,
     document.body
   );

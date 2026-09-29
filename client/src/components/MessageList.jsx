@@ -179,7 +179,11 @@ export function MessageRow({
           {msg.edited ? <em style={{ marginLeft: '6px' }}>edited</em> : null}
         </small>
 
-        <div className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}`}>
+        {/* The image viewer steps through the images within this (utils/imageGallery.js). */}
+        <div
+          className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}`}
+          data-image-gallery=""
+        >
           {editingMessageId === msg.id ? (
             <div className="inline-edit-wrapper">
               <MessageEditor

@@ -314,7 +314,11 @@ Clicking an image opens `ImageViewer` (full screen, from `ImageViewerProvider` i
 via `ImageViewerContext`, portalled to `<body>` so its touches don't reach the message's long
 press). It shows the already-decrypted blob URL: zoom by wheel, pinch, double click/tap,
 buttons or `+ - 0` keys (geometry in `utils/imageZoom.js`), drag to pan, save and open in a new
-tab (`utils/saveFile.js`). Its keys are caught at the window's capture phase, so Escape doesn't
+tab (`utils/saveFile.js`). It steps through the other images in the same message (arrows,
+← → keys, swiping an unzoomed image, a thumbnail strip): each image registers itself on its
+element (`utils/imageGallery.js` `galleryItemRef`, including ones still decrypting), and
+`MessageList` marks the message content `data-image-gallery`; opening collects them in reading
+order. Its keys are caught at the window's capture phase, so Escape doesn't
 also cancel a reply. Opening it pushes a history entry (keeping the router's state), so the
 back button closes it.
 

@@ -19,6 +19,6 @@ export const InteractionContext = createContext({
 // The logged-in layout's shared data (Layout): users list, unread counts.
 export const LayoutContext = createContext();
 
-// Opens the full-screen image viewer (ImageViewerProvider): `openImage({ src, name, size,
-// width, height })`. Null outside the provider (e.g. in component tests).
+// Opens the full-screen image viewer (ImageViewerProvider): `openImage({ images, index })`,
+// gallery items from utils/imageGallery.js. Null outside the provider (e.g. in component tests).
 export const ImageViewerContext = createContext(null);
