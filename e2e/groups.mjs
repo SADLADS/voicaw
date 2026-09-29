@@ -1,7 +1,8 @@
 // Group DMs in real browsers: Ann makes a group with Bea and Cal and they talk; Bea adds Dan,
 // who sees what's said from then on but not before; Ann (the owner) removes Cal; a group call
 // (Bea starts it, Ann answers, Dan joins later from the group) that LiveKit only sees
-// encrypted; Ann leaves and the group has no owner any more.
+// encrypted; Ann leaves and the group has no owner any more. Every message is signed and
+// checks out.
 //   node e2e/serve.mjs &   then   node e2e/groups.mjs [screenshot dir]
 // (E2E_API_PORT too when serve.mjs isn't on the default ports: it reads LiveKit's keys.)
 import { readFileSync } from 'fs';
@@ -129,6 +130,11 @@ try {
   await sendText(b, 'just us now');
   await d.waitForSelector('.dm-message-content:has-text("just us now")');
   console.log('ann left: no owner, the others carry on');
+  // Every message is signed and checks out: no "not signed" / "unverified sender" marks.
+  for (const page of [b, d]) {
+    if (await page.$('.message-signature')) throw new Error('a message shows as unsigned or unverified');
+  }
+  console.log('all messages signed and verified');
   await shot(b, '08-bea-after-ann-left');
   console.log('OK');
 } finally {

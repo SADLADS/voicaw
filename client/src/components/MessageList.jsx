@@ -189,6 +189,14 @@ export function MessageRow({
         <small>
           {new Date(msg.timestamp * 1000).toLocaleString()}
           {msg.edited ? <em style={{ marginLeft: '6px' }}>edited</em> : null}
+          {/* Group DMs: sent before messages were signed (the sender can't be verified), or a
+              signature that doesn't match the sender. */}
+          {msg.unsigned ? (
+            <em className="message-signature unsigned" title="Sent before group messages were signed: who sent it can't be verified">not signed</em>
+          ) : null}
+          {msg.unverified ? (
+            <em className="message-signature unverified" title="The signature doesn't match the sender: it may be forged">⚠ unverified sender</em>
+          ) : null}
         </small>
 
         {/* The image viewer steps through the images within this (utils/imageGallery.js). */}

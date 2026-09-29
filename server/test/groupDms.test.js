@@ -8,7 +8,6 @@ import {
   importEncryptionPrivateKey,
   importIdentityPrivateKey,
   encryptMessage,
-  decryptMessage,
 } from '../../client/src/services/encryptionService.js';
 import {
   makeRecord,
@@ -20,6 +19,12 @@ import {
   unwrapGroupKey,
   groupKeyContext,
   groupMessageContext,
+  encryptGroupMessage,
+  decryptGroupMessage,
+  messageSignatureContext,
+  encryptGroupReaction,
+  reactionSignatureContext,
+  groupReactionContext,
 } from '../../client/src/services/groupCrypto.js';
 
 const app = require('../index.js');
@@ -115,20 +120,31 @@ async function keyOf(user, groupId, epoch) {
   return unwrapGroupKey(e.envelope, user.encryptionKey, creator.encryption_key, groupKeyContext(groupId, epoch, e.log_seq, e.creator_id, user.id));
 }
 
+// Sends `text` signed, as the app does.
 async function send(user, groupId, text) {
   const group = (await api.get(user, `/group-dms/${groupId}`)).body;
   const epoch = group.latest_epoch.epoch;
   const key = await keyOf(user, groupId, epoch);
-  const content = await encryptMessage(text, key, groupMessageContext(groupId, epoch, user.id));
+  const content = await encryptGroupMessage(
+    text, key, groupMessageContext(groupId, epoch, user.id), user.signingKey,
+    messageSignatureContext({ groupId, epoch, senderId: user.id })
+  );
   return api.post(user, `/group-dms/${groupId}/messages`, { epoch, content });
 }
 
 async function readAll(user, groupId) {
   const rows = (await api.get(user, `/group-dms/${groupId}/messages`)).body;
   const out = [];
+  const group = (await api.get(user, `/group-dms/${groupId}`)).body;
   for (const m of rows) {
     const key = await keyOf(user, groupId, m.epoch);
-    out.push(await decryptMessage(m.content, key, groupMessageContext(groupId, m.epoch, m.sender_id)));
+    const sender = group.users.find((u) => u.id === m.sender_id);
+    const { text, verified } = await decryptGroupMessage(
+      m.content, key, groupMessageContext(groupId, m.epoch, m.sender_id), sender.identity_key,
+      messageSignatureContext({ groupId, epoch: m.epoch, senderId: m.sender_id, replyTo: m.parent_message_id, editOf: m.edited ? m.id : null })
+    );
+    expect(verified).toBe(true);
+    out.push(text);
   }
   return out;
 }
@@ -242,17 +258,35 @@ describe('group DMs', () => {
     await api.post(bea, `/group-dms/${groupId}/read`, { messageId: sent.id });
     expect((await api.get(bea, '/group-dms')).body.find((g) => g.id === groupId).unread).toBe(1);
 
-    expect((await api.put(bea, `/group-dm-messages/${sent.id}`, { content: 'v1.x' })).status).toBe(403);
+    expect((await api.put(bea, `/group-dm-messages/${sent.id}`, { content: 'v2.x' })).status).toBe(403);
     expect((await api.delete(bea, `/group-dm-messages/${sent.id}`)).status).toBe(403);
-    expect((await api.put(ann, `/group-dm-messages/${sent.id}`, { content: 'v1.edited' })).status).toBe(200);
-    const reaction = await api.post(bea, `/group-dm-messages/${sent.id}/reactions`, { content: `v1.${'A'.repeat(124)}` });
+    // Unsigned (from an app older than signing): refused.
+    expect((await api.put(ann, `/group-dm-messages/${sent.id}`, { content: 'v1.edited' })).body.error).toMatch(/update the app/);
+    expect((await api.put(ann, `/group-dm-messages/${sent.id}`, { content: 'v2.edited' })).status).toBe(200);
+    const key = await keyOf(bea, groupId, 1);
+    const signedReaction = await encryptGroupReaction(
+      '👍', key, groupReactionContext(groupId, sent.id, bea.id), bea.signingKey,
+      reactionSignatureContext({ groupId, epoch: 1, messageId: sent.id, reactorId: bea.id })
+    );
+    const reaction = await api.post(bea, `/group-dm-messages/${sent.id}/reactions`, { content: signedReaction });
     expect(reaction.status).toBe(201);
-    expect((await api.post(bea, `/group-dm-messages/${sent.id}/reactions`, { content: 'v1.short' })).status).toBe(400);
+    expect((await api.post(bea, `/group-dm-messages/${sent.id}/reactions`, { content: `v1.${'A'.repeat(124)}` })).status).toBe(400);
+    expect((await api.post(bea, `/group-dm-messages/${sent.id}/reactions`, { content: 'v2.short' })).status).toBe(400);
     expect((await api.delete(ann, `/group-dm-reactions/${reaction.body.id}`)).status).toBe(404);
     expect((await api.delete(ann, `/group-dm-messages/${sent.id}`)).status).toBe(200);
     const outsider = await makeUser('out');
     expect((await api.get(outsider, `/group-dms/${groupId}/messages`)).status).toBe(404);
-    expect((await api.post(outsider, `/group-dm-messages/${sent.id}/reactions`, { content: `v1.${'A'.repeat(124)}` })).status).toBe(404);
+    expect((await api.post(outsider, `/group-dm-messages/${sent.id}/reactions`, { content: signedReaction })).status).toBe(404);
+  });
+
+  it('refuses unsigned new messages', async () => {
+    const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    const key = await keyOf(ann, groupId, 1);
+    const content = await encryptMessage('unsigned', key, groupMessageContext(groupId, 1, ann.id));
+    const res = await api.post(ann, `/group-dms/${groupId}/messages`, { epoch: 1, content });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/update the app/);
   });
 
   it('renames', async () => {
