@@ -29,8 +29,8 @@ vi.mock('../../services/attachmentUpload', () => ({ uploadAttachment: vi.fn(), M
 
 // MessageList needs a real browser's layout; the tests look at what it's given.
 vi.mock('../MessageList', () => ({
-  default: ({ messages, onToggleReaction, canModerate }) => (
-    <div data-testid="message-list" data-can-moderate={String(canModerate)}>
+  default: ({ messages, onToggleReaction, canModerate, canAddReactions, nameColors }) => (
+    <div data-testid="message-list" data-can-moderate={String(canModerate)} data-can-react={String(canAddReactions)} data-colors={JSON.stringify(nameColors)}>
       {messages.map((m) => (
         <div key={m.clientKey ?? m.id} data-testid="message">
           {m.sender_username}: {m.plaintext} [{m.status || 'sent'}]
@@ -62,10 +62,18 @@ const guild = {
   name: 'Test Guild',
   owner: 1,
   icon_version: 0,
+  my_permissions: 2047,
+  my_role_ids: [],
+  roles: [
+    { id: 3, name: 'Mods', color: 0xe91e63, position: 2, permissions: 8, hoist: 1, is_everyone: 0 },
+    { id: 2, name: 'Plain', color: null, position: 1, permissions: 0, hoist: 0, is_everyone: 0 },
+    { id: 1, name: '@everyone', color: null, position: 0, permissions: 135, hoist: 0, is_everyone: 1 },
+  ],
   categories: [],
   channels: [
-    { id: 10, name: 'general', type: 'text', topic: 'Say hi', category_id: null, position: 0 },
-    { id: 11, name: 'lounge', type: 'voice', topic: null, category_id: null, position: 1 },
+    { id: 10, name: 'general', type: 'text', topic: 'Say hi', category_id: null, position: 0, my_permissions: 2047, private: false },
+    { id: 11, name: 'lounge', type: 'voice', topic: null, category_id: null, position: 1, my_permissions: 2047, private: false },
+    { id: 12, name: 'news', type: 'text', topic: null, category_id: null, position: 2, my_permissions: 1, private: true },
   ],
 };
 const row = (id, text, senderId = 2) => ({
@@ -169,6 +177,28 @@ describe('GuildView', () => {
     fireEvent.click(await screen.findByTestId('react-1'));
     await waitFor(() => expect(addGuildReaction).toHaveBeenCalledWith(1, '👍'));
     await waitFor(() => expect(messageTexts()).toEqual(['bob: hello [sent] 👍']));
+  });
+
+  it("follows the channel's permissions: no composer or reactions without them", async () => {
+    fetchChannelMessages.mockResolvedValue([row(1, 'read only')]);
+    renderView('/guild/5/12');
+    expect(await screen.findByText('You do not have permission to send messages in #news.')).toBeInTheDocument();
+    expect(document.getElementById('dm-input')).toBeNull();
+    expect(screen.getByTestId('message-list')).toHaveAttribute('data-can-react', 'false');
+    expect(screen.getByTestId('message-list')).toHaveAttribute('data-can-moderate', 'false');
+    expect(screen.getByLabelText('Private')).toBeInTheDocument();
+  });
+
+  it('colours names by their highest coloured role, and follows role changes', async () => {
+    fetchMembers.mockResolvedValue([
+      { id: 2, username: 'bob', joined_at: 1, role_ids: [2, 3], online: true },
+      { id: 4, username: 'plain', joined_at: 1, role_ids: [2], online: true },
+    ]);
+    fetchChannelMessages.mockResolvedValue([row(1, 'hello')]);
+    renderView('/guild/5/10');
+    await waitFor(() => expect(JSON.parse(screen.getByTestId('message-list').dataset.colors)).toEqual({ 2: '#e91e63' }));
+    await emit({ type: 'guild_member_update', guildId: 5, userId: 2, roleIds: [2] });
+    expect(JSON.parse(screen.getByTestId('message-list').dataset.colors)).toEqual({});
   });
 
   it('shows a placeholder for voice channels', async () => {

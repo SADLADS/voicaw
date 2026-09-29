@@ -28,6 +28,7 @@ export default function MessageActionSheet({
   msg,
   isOwn,
   canDelete = isOwn,
+  canReact = true,
   myReactions,
   onReact,
   onMoreReactions,
@@ -75,7 +76,7 @@ export default function MessageActionSheet({
         aria-label="Message actions"
         onClick={(e) => e.stopPropagation()}
       >
-        {sent && index && !confirmingDelete && (
+        {sent && canReact && index && !confirmingDelete && (
           <div className="action-sheet-reactions" role="group" aria-label="React">
             {quickReactions(index).map(({ emoji, skin }) => (
               <button

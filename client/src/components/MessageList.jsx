@@ -62,6 +62,8 @@ export function MessageRow({
   onOpenActions,
   focusedMsgId,
   canModerate = false,
+  canAddReactions = true,
+  nameColors,
 }) {
   const emojiIndex = useEmojiIndex();
   // A picker or menu is open for this message: it stays highlighted with its menu showing.
@@ -109,7 +111,7 @@ export function MessageRow({
               e.currentTarget.src = defaultpfp;
             }}
           />
-          <span className="reply-author">{parent.sender_username}</span>
+          <span className="reply-author" style={{ color: nameColors?.[parent.sender_id] }}>{parent.sender_username}</span>
           <span
             className="reply-preview"
             onClick={() => {
@@ -126,7 +128,7 @@ export function MessageRow({
 
       {(focusedMsgId ?? hoveredMsgId) === msg.id && !isMobile && (
         <div className="message-menu">
-          {canReact && (
+          {canReact && canAddReactions && (
             <button
               className="icon-button"
               aria-label="Add reaction"
@@ -173,7 +175,7 @@ export function MessageRow({
           }}
           className="message-avatar"
         />
-        <strong> {msg.sender_username}</strong>{' '}
+        <strong className="message-author" style={{ color: nameColors?.[msg.sender_id] }}> {msg.sender_username}</strong>{' '}
 
         <small>
           {new Date(msg.timestamp * 1000).toLocaleString()}
@@ -236,7 +238,7 @@ export function MessageRow({
             userId={user.id}
             names={reactionNames}
             onToggle={(emoji) => onToggleReaction(msg, emoji)}
-            onAdd={(anchor) => onOpenReactionPicker(msg, anchor)}
+            onAdd={canAddReactions ? (anchor) => onOpenReactionPicker(msg, anchor) : undefined}
           />
         )}
 
@@ -286,6 +288,8 @@ export default function MessageList({
   onOpenActions,
   focusedMsgId,
   canModerate,
+  canAddReactions,
+  nameColors,
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
@@ -323,6 +327,8 @@ export default function MessageList({
     onOpenActions,
     focusedMsgId,
     canModerate,
+    canAddReactions,
+    nameColors,
   };
 
   const rememberAnchor = useCallback(() => {

@@ -12,6 +12,8 @@ function ReactionEmoji({ native }) {
 
 // Discord-style reaction chips under a message: tap one to add or remove your own, `+` to
 // pick another. `names` maps user id -> username, for the tooltip.
+// Without `onAdd` (not allowed to react), there's no "+" and only your own chips can be tapped
+// (to take your reaction back).
 export default function MessageReactions({ reactions, userId, names, onToggle, onAdd }) {
   const groups = groupReactions(reactions);
   if (groups.length === 0) return null;
@@ -29,6 +31,7 @@ export default function MessageReactions({ reactions, userId, names, onToggle, o
             aria-pressed={mine}
             aria-label={`${emoji} ${userIds.length}, reacted by ${who}`}
             title={`Reacted by ${who}`}
+            disabled={!mine && !onAdd}
             onClick={() => onToggle(emoji)}
           >
             <ReactionEmoji native={emoji} />
@@ -36,7 +39,7 @@ export default function MessageReactions({ reactions, userId, names, onToggle, o
           </button>
         );
       })}
-      <button
+      {onAdd && <button
         type="button"
         className="reaction-chip reaction-add"
         aria-label="Add reaction"
@@ -46,7 +49,7 @@ export default function MessageReactions({ reactions, userId, names, onToggle, o
         onClick={(e) => onAdd(e.currentTarget)}
       >
         +
-      </button>
+      </button>}
     </div>
   );
 }

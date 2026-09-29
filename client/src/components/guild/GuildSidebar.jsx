@@ -6,11 +6,9 @@ import {
   faChevronRight,
   faFolderPlus,
   faGear,
-  faHashtag,
   faPlus,
   faRightFromBracket,
   faUserPlus,
-  faVolumeHigh,
   faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../../contexts';
@@ -22,6 +20,8 @@ import ChannelDialog from './ChannelDialog';
 import CategoryDialog from './CategoryDialog';
 import GuildSettingsDialog from './GuildSettingsDialog';
 import ConfirmDialog from './ConfirmDialog';
+import ChannelIcon from './ChannelIcon';
+import { PERMISSIONS, has } from '../../utils/permissions';
 
 const COLLAPSED_KEY = 'collapsedCategories';
 
@@ -35,7 +35,9 @@ function loadCollapsed() {
 
 // The guild's column next to the server rail (like Discord): its name, with a menu (invite,
 // settings, create channel/category, leave), then its channels, grouped in collapsible
-// categories. Unread channels are bold. The owner gets edit buttons on channels and categories.
+// categories. Unread channels are bold; private ones have a lock. What's offered follows the
+// member's permissions (Manage Channels: edit buttons, creating; Create Invite; Manage Server,
+// Manage Roles or Ban Members: Server Settings).
 export default function GuildSidebar({ guild, user }) {
   const { channelId } = useParams();
   const navigate = useNavigate();
@@ -61,6 +63,9 @@ export default function GuildSidebar({ guild, user }) {
   }
 
   const isOwner = guild.owner === user.id;
+  const can = (bit) => has(guild.my_permissions, bit);
+  const managesChannels = can(PERMISSIONS.MANAGE_CHANNELS);
+  const opensSettings = can(PERMISSIONS.MANAGE_GUILD) || can(PERMISSIONS.MANAGE_ROLES) || can(PERMISSIONS.BAN_MEMBERS);
   const unreadChannels = new Set(guildList.unread.filter((u) => u.guild_id === guild.id).map((u) => u.channel_id));
   const { uncategorized, categories } = groupChannels(guild);
 
@@ -96,10 +101,10 @@ export default function GuildSidebar({ guild, user }) {
           className="guild-channel-link"
           aria-current={active ? 'page' : undefined}
         >
-          <FontAwesomeIcon icon={channel.type === 'voice' ? faVolumeHigh : faHashtag} className="guild-channel-icon" />
+          <ChannelIcon channel={channel} className="guild-channel-icon" />
           <span className="guild-channel-name">{channel.name}</span>
         </Link>
-        {isOwner && (
+        {managesChannels && (
           <button
             type="button"
             className="guild-sidebar-icon-button"
@@ -130,14 +135,18 @@ export default function GuildSidebar({ guild, user }) {
 
         {menuOpen && (
           <div className="guild-menu" role="menu">
-            <button type="button" role="menuitem" className="guild-menu-item accent" onClick={() => openDialog({ type: 'invite' })}>
-              Invite People <FontAwesomeIcon icon={faUserPlus} />
-            </button>
-            {isOwner && (
+            {can(PERMISSIONS.CREATE_INVITE) && (
+              <button type="button" role="menuitem" className="guild-menu-item accent" onClick={() => openDialog({ type: 'invite' })}>
+                Invite People <FontAwesomeIcon icon={faUserPlus} />
+              </button>
+            )}
+            {opensSettings && (
+              <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'settings' })}>
+                Server Settings <FontAwesomeIcon icon={faGear} />
+              </button>
+            )}
+            {managesChannels && (
               <>
-                <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'settings' })}>
-                  Server Settings <FontAwesomeIcon icon={faGear} />
-                </button>
                 <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'channel' })}>
                   Create Channel <FontAwesomeIcon icon={faPlus} />
                 </button>
@@ -179,7 +188,7 @@ export default function GuildSidebar({ guild, user }) {
                   <FontAwesomeIcon icon={isCollapsed ? faChevronRight : faChevronDown} className="guild-category-chevron" />
                   <span>{category.name}</span>
                 </button>
-                {isOwner && (
+                {managesChannels && (
                   <>
                     <button
                       type="button"
@@ -213,11 +222,12 @@ export default function GuildSidebar({ guild, user }) {
       </nav>
 
       {dialog?.type === 'invite' && <InviteDialog guild={guild} onClose={closeDialog} />}
-      {dialog?.type === 'settings' && <GuildSettingsDialog guild={guild} onClose={closeDialog} />}
+      {dialog?.type === 'settings' && <GuildSettingsDialog guild={guild} user={user} onClose={closeDialog} />}
       {dialog?.type === 'category' && <CategoryDialog guild={guild} category={dialog.category} onClose={closeDialog} />}
       {dialog?.type === 'channel' && (
         <ChannelDialog
           guild={guild}
+          user={user}
           channel={dialog.channel}
           categoryId={dialog.categoryId}
           onCreated={(created) => navigate(`/guild/${guild.id}/${created.id}`)}

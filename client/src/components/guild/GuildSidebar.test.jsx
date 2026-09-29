@@ -14,11 +14,15 @@ import { leaveGuild } from '../../services/guildService';
 
 const owner = { id: 1, username: 'owner' };
 const member = { id: 2, username: 'member' };
-const guild = {
+const ALL = 2047;
+const DEFAULT = 135; // view, send, react, create invite
+const baseGuild = {
   id: 5,
   name: 'Test Guild',
   owner: 1,
   icon_version: 0,
+  roles: [{ id: 1, name: '@everyone', color: null, position: 0, permissions: DEFAULT, hoist: 0, is_everyone: 1 }],
+  my_role_ids: [],
   categories: [{ id: 1, name: 'Text Channels', position: 0 }, { id: 2, name: 'Fun', position: 1 }],
   channels: [
     { id: 10, name: 'general', type: 'text', category_id: 1, position: 0 },
@@ -31,8 +35,9 @@ function Where() {
   return <div data-testid="where">{useLocation().pathname}</div>;
 }
 
-function renderSidebar({ user = owner, unread = [], path = '/guild/5/10' } = {}) {
+function renderSidebar({ user = owner, unread = [], path = '/guild/5/10', permissions } = {}) {
   const guildList = { unread, removeGuild: vi.fn() };
+  const guild = { ...baseGuild, my_permissions: permissions ?? (user.id === baseGuild.owner ? ALL : DEFAULT) };
   render(
     <LayoutContext.Provider value={{ guildList }}>
       <MemoryRouter initialEntries={[path]}>
@@ -100,6 +105,21 @@ describe('GuildSidebar', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Leave Server' }));
     await waitFor(() => expect(leaveGuild).toHaveBeenCalledWith(5));
     expect(guildList.removeGuild).toHaveBeenCalledWith(5);
+  });
+
+  it('offers what your permissions allow', () => {
+    // Manage Channels (16) only: create and edit, but no settings or invites.
+    renderSidebar({ user: member, permissions: 1 | 16 });
+    expect(screen.getByRole('button', { name: 'Edit general' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Test Guild/ }));
+    expect(within(screen.getByRole('menu')).getAllByRole('menuitem').map((b) => b.textContent.trim())).toEqual([
+      'Create Channel', 'Create Category', 'Leave Server',
+    ]);
+  });
+
+  it('shows a lock on private channels', () => {
+    renderSidebar();
+    expect(within(channelRow('general')).queryByLabelText('Private')).toBeNull();
   });
 
   it('opens the invite dialog with a fresh link', async () => {

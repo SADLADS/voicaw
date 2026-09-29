@@ -2,13 +2,22 @@ import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHashtag, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import Modal from './Modal';
+import ChannelPermissions from './ChannelPermissions';
 import { createChannel, deleteChannel, updateChannel } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
+import { PERMISSIONS, colorToHex, has, memberRank } from '../../utils/permissions';
 
-// Creating a channel (no `channel`; in `categoryId` if given) or editing one (name, topic,
-// category, delete). Owner only; the server checks.
-export default function ChannelDialog({ guild, channel, categoryId = null, onCreated, onClose }) {
+// Creating a channel (no `channel`; in `categoryId` if given), optionally private to some
+// roles, or editing one: Overview (name, topic, category, delete) and, with Manage Roles,
+// Permissions (ChannelPermissions). The server checks every permission again.
+export default function ChannelDialog({ guild, channel, user, categoryId = null, onCreated, onClose }) {
   const editing = Boolean(channel);
+  const managesRoles = has(guild.my_permissions, PERMISSIONS.MANAGE_ROLES);
+  const [tab, setTab] = useState('overview');
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [privateRoleIds, setPrivateRoleIds] = useState([]);
+  const myRank = memberRank(guild, user.id, guild.my_role_ids);
+  const grantableRoles = (guild.roles ?? []).filter((r) => !r.is_everyone && r.position < myRank);
   const [type, setType] = useState(channel?.type ?? 'text');
   const [name, setName] = useState(channel?.name ?? '');
   const [topic, setTopic] = useState(channel?.topic ?? '');
@@ -36,7 +45,10 @@ export default function ChannelDialog({ guild, channel, categoryId = null, onCre
       if (editing) {
         await updateChannel(guild.id, channel.id, { name, topic: topic.trim() || null, categoryId: category });
       } else {
-        const created = await createChannel(guild.id, { name, type, topic: topic.trim() || null, categoryId: category });
+        const created = await createChannel(guild.id, {
+          name, type, topic: topic.trim() || null, categoryId: category,
+          ...(isPrivate ? { private: true, roleIds: privateRoleIds } : {}),
+        });
         onCreated?.(created);
       }
     });
@@ -49,7 +61,10 @@ export default function ChannelDialog({ guild, channel, categoryId = null, onCre
     <Modal
       title={editing ? `Edit #${channel.name}` : 'Create channel'}
       onClose={onClose}
-      actions={(
+      className={tab === 'permissions' ? 'channel-dialog wide' : 'channel-dialog'}
+      actions={tab === 'permissions' ? (
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Done</button>
+      ) : (
         <>
           {editing && !confirmingDelete && (
             <button type="button" className="btn btn-outline-danger btn-sm me-auto" onClick={() => setConfirmingDelete(true)}>
@@ -75,6 +90,23 @@ export default function ChannelDialog({ guild, channel, categoryId = null, onCre
         </>
       )}
     >
+      {editing && managesRoles && (
+        <div className="settings-tabs" role="tablist">
+          {[['overview', 'Overview'], ['permissions', 'Permissions']].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              className={`settings-tab${tab === key ? ' active' : ''}`}
+              onClick={() => setTab(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {tab === 'permissions' ? <ChannelPermissions guild={guild} channel={channel} user={user} /> : (
       <form id="channel-form" className="vc-form" onSubmit={save}>
         {!editing && (
           <fieldset className="channel-type-choice">
@@ -126,7 +158,36 @@ export default function ChannelDialog({ guild, channel, categoryId = null, onCre
           <option value="">No category</option>
           {guild.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
+
+        {!editing && managesRoles && (
+          <>
+            <label className="role-toggle private-toggle">
+              <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} />
+              <span>
+                <strong>Private channel</strong>
+                <span className="vc-hint">Only the roles you pick (and admins) will see it.</span>
+              </span>
+            </label>
+            {isPrivate && grantableRoles.length > 0 && (
+              <fieldset className="private-roles">
+                <legend>Who can see it</legend>
+                {grantableRoles.map((role) => (
+                  <label key={role.id} className="role-toggle">
+                    <input
+                      type="checkbox"
+                      checked={privateRoleIds.includes(role.id)}
+                      onChange={(e) => setPrivateRoleIds((ids) => (e.target.checked ? [...ids, role.id] : ids.filter((id) => id !== role.id)))}
+                    />
+                    <span className="role-dot" style={{ backgroundColor: role.color != null ? colorToHex(role.color) : undefined }} />
+                    <span>{role.name}</span>
+                  </label>
+                ))}
+              </fieldset>
+            )}
+          </>
+        )}
       </form>
+      )}
       {error && <p className="error-msg" role="alert">{error}</p>}
     </Modal>
   );

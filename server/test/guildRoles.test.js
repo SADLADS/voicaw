@@ -113,6 +113,7 @@ describe('roles', () => {
     bobEvents.stop();
     expect(res.status).toBe(200);
     expect(bobEvents).toContainEqual({ type: 'guild_member_update', guildId: guild.id, userId: alice.id, roleIds: [builders.id] });
+    expect((await layout(alice, guild.id)).my_role_ids).toEqual([builders.id]);
 
     expect((await api.post(alice, `/guilds/${guild.id}/channels`, { name: 'built' })).status).toBe(201);
     const members = (await api.get(bob, `/guilds/${guild.id}/members`)).body;

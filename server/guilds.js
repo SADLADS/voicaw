@@ -113,7 +113,7 @@ function isPrivate(member, overrides) {
 }
 
 // The guild as `member` sees it: its roles (everyone sees every role, as in Discord), their own
-// `my_permissions`, and the categories and channels they can see, in order, each channel with
+// `my_permissions` and `my_role_ids`, and the categories and channels they can see, in order, each channel with
 // `my_permissions` and `private`. Categories left empty by hidden channels are hidden too,
 // except from people who manage channels. What GET /guilds/:id returns and `guild_update` sends.
 async function layoutFor(member, overridesByChannel) {
@@ -141,6 +141,7 @@ async function layoutFor(member, overridesByChannel) {
   return {
     ...guild,
     my_permissions: member.permissions,
+    my_role_ids: member.roles.map((r) => r.id),
     roles: member.allRoles,
     categories: visibleCategories,
     channels,

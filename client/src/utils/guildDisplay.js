@@ -65,3 +65,25 @@ export function parseInviteCode(text) {
 export function errorMessage(err) {
   return err?.response?.data?.error || err?.message || 'Something went wrong.';
 }
+
+// Online members grouped like Discord: under their highest "display separately" (hoisted)
+// role, the rest under Online; everyone offline under Offline. Each group sorted by name.
+export function groupMembers(members, roles) {
+  const hoisted = (roles ?? []).filter((r) => !r.is_everyone && r.hoist);
+  const byName = (a, b) => a.username.localeCompare(b.username, undefined, { sensitivity: 'base' });
+  const groups = hoisted.map((role) => ({ key: `role-${role.id}`, title: role.name, members: [] }));
+  const online = { key: 'online', title: 'Online', members: [] };
+  const offline = { key: 'offline', title: 'Offline', members: [] };
+  for (const member of members) {
+    if (!member.online) {
+      offline.members.push(member);
+      continue;
+    }
+    const ids = new Set(member.role_ids ?? []);
+    const index = hoisted.findIndex((r) => ids.has(r.id)); // highest first
+    (index === -1 ? online : groups[index]).members.push(member);
+  }
+  return [...groups, online, offline]
+    .filter((g) => g.members.length > 0)
+    .map((g) => ({ ...g, members: g.members.sort(byName) }));
+}

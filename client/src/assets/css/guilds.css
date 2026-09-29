@@ -884,3 +884,515 @@ img.guild-icon {
 .invite-card .guild-initials {
   background-color: var(--vc-accent);
 }
+
+/* ---- Roles and permissions ---- */
+
+/* A private channel's icon: # with a small lock on its corner. */
+.channel-icon {
+  position: relative;
+  display: inline-flex;
+}
+
+.channel-icon-lock {
+  position: absolute;
+  right: -4px;
+  top: -3px;
+  font-size: 0.55em;
+  padding: 1px;
+  border-radius: 2px;
+  background-color: var(--vc-bg-base);
+}
+
+.channel-header .channel-icon-lock {
+  background-color: var(--vc-bg-subtle);
+}
+
+.composer-locked {
+  margin: 0 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  padding: 12px 16px;
+  border-radius: 8px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+}
+
+.vc-label {
+  display: block;
+  margin: 14px 0 6px;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* A role's colour, as a dot (grey: no colour). */
+.role-dot {
+  flex-shrink: 0;
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--vc-fg-muted);
+}
+
+.role-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg);
+  font-size: 12px;
+}
+
+.role-chip-remove {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 11px;
+}
+
+.role-chip-remove:hover {
+  color: var(--vc-danger);
+}
+
+.role-chip-add {
+  width: 24px;
+  justify-content: center;
+  padding: 0;
+  color: var(--vc-fg-muted);
+}
+
+.role-chip-add:hover {
+  color: var(--vc-fg);
+}
+
+.role-picker {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  border-radius: 6px;
+  background-color: var(--vc-bg-base);
+}
+
+.role-picker button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vc-fg);
+  font-size: 14px;
+  text-align: left;
+}
+
+.role-picker button:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.member-card-roles {
+  margin-top: 10px;
+}
+
+.member-card-label {
+  margin-bottom: 4px;
+  color: var(--vc-fg-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Tabs inside dialogs (server settings, channel settings). */
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 4px 0 12px;
+  border-bottom: 1px solid var(--vc-border-dark);
+  overflow-x: auto;
+}
+
+.settings-tab {
+  padding: 6px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.settings-tab:hover {
+  color: var(--vc-fg);
+}
+
+.settings-tab.active {
+  border-bottom-color: var(--vc-accent);
+  color: var(--vc-fg);
+}
+
+.guild-settings-dialog {
+  max-width: 780px;
+}
+
+.channel-dialog.wide {
+  max-width: 640px;
+}
+
+/* Server settings → Roles: the list on the left, the editor on the right. */
+.roles-settings {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.roles-list {
+  flex: 0 0 210px;
+}
+
+.roles-list ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.roles-list-item {
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.roles-list-item.selected,
+.roles-list-item:hover {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.roles-list-item.dragging {
+  opacity: 0.4;
+}
+
+.roles-list-select {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--vc-fg);
+  text-align: left;
+}
+
+.roles-list-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roles-grip {
+  width: 10px;
+  color: var(--vc-fg-muted);
+  font-size: 11px;
+  cursor: grab;
+}
+
+.roles-lock {
+  color: var(--vc-fg-muted);
+  font-size: 11px;
+}
+
+.roles-move {
+  display: flex;
+}
+
+.roles-move button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 11px;
+}
+
+.roles-move button:hover:not(:disabled) {
+  color: var(--vc-fg);
+}
+
+.roles-move button:disabled {
+  opacity: 0.3;
+}
+
+.role-editor {
+  flex: 1;
+  min-width: 0;
+}
+
+.role-editor h6 {
+  font-weight: 600;
+}
+
+.role-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 360px;
+}
+
+.role-color {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 4px;
+}
+
+.role-color.default {
+  width: 62px;
+  background-color: var(--vc-fg-muted);
+}
+
+.role-color.selected {
+  border-color: var(--vc-fg);
+  box-shadow: 0 0 0 2px var(--vc-bg-elevated) inset;
+}
+
+.role-color:disabled {
+  opacity: 0.5;
+}
+
+.role-color.custom {
+  position: relative;
+  overflow: hidden;
+  border: 2px dashed var(--vc-border-light);
+  cursor: pointer;
+}
+
+.role-color.custom input {
+  position: absolute;
+  inset: -8px;
+  width: calc(100% + 16px);
+  height: calc(100% + 16px);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.role-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 10px 0;
+  cursor: pointer;
+}
+
+.role-toggle input {
+  flex-shrink: 0;
+  margin-top: 4px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--vc-accent);
+}
+
+.role-toggle > span {
+  display: flex;
+  flex-direction: column;
+}
+
+.role-toggle .vc-hint {
+  margin: 2px 0 0;
+}
+
+.role-permissions section {
+  padding-top: 4px;
+  border-top: 1px solid var(--vc-border-dark);
+  margin-top: 12px;
+}
+
+.role-editor-actions {
+  position: sticky;
+  bottom: -16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 0;
+  background-color: var(--vc-bg-elevated);
+}
+
+@media (max-width: 640px) {
+  .roles-settings {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .roles-list {
+    flex-basis: auto;
+  }
+}
+
+/* Channel → Permissions */
+
+.private-toggle {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background-color: var(--vc-bg-subtle);
+}
+
+.private-roles {
+  margin: 0 0 0 26px;
+}
+
+.private-roles legend {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.private-roles .role-toggle {
+  align-items: center;
+  margin: 6px 0;
+}
+
+.private-roles .role-toggle input {
+  margin-top: 0;
+}
+
+.override-editor {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.override-targets {
+  flex: 0 0 180px;
+}
+
+.override-targets ul {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.override-target {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vc-fg);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.override-target:hover,
+.override-target.selected {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.override-grid {
+  flex: 1;
+  min-width: 0;
+}
+
+.override-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.override-states {
+  display: flex;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--vc-border-light);
+}
+
+.override-state {
+  width: 32px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+}
+
+.override-state + .override-state {
+  border-left: 1px solid var(--vc-border-light);
+}
+
+.override-state.deny.selected {
+  background-color: var(--vc-danger);
+  color: var(--vc-fg);
+}
+
+.override-state.inherit.selected {
+  background-color: var(--vc-border-light);
+  color: var(--vc-fg);
+}
+
+.override-state.allow.selected {
+  background-color: #23a55a;
+  color: var(--vc-fg);
+}
+
+.override-state:disabled {
+  opacity: 0.4;
+}
+
+@media (max-width: 640px) {
+  .override-editor {
+    flex-direction: column;
+  }
+
+  .override-targets {
+    flex-basis: auto;
+  }
+}
+
+/* Checkbox rows inside forms keep normal text (form labels are small capitals). */
+.vc-form .role-toggle,
+.vc-form .private-roles legend + .role-toggle,
+.vc-form .private-roles .role-toggle {
+  color: var(--vc-fg);
+  font-size: 15px;
+  font-weight: normal;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.vc-form .role-toggle .vc-hint {
+  font-size: 13px;
+}

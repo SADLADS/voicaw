@@ -1,16 +1,18 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHashtag, faUsers, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
+import { faUsers, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/dms.css';
 import '../../assets/css/guilds.css';
 import { InteractionContext, LayoutContext } from '../../contexts';
 import ChatPane from '../ChatPane';
 import MemberList from './MemberList';
+import ChannelIcon from './ChannelIcon';
 import { useChannel } from '../../hooks/useChannel';
 import { onGuildEvent, onUserStatus } from '../../utils/ws-client';
 import { addGuildReaction, fetchMembers, removeGuildReaction } from '../../services/guildService';
 import { defaultChannel, errorMessage, rememberChannel } from '../../utils/guildDisplay';
+import { PERMISSIONS, has, memberColor } from '../../utils/permissions';
 
 const SHOW_MEMBERS_KEY = 'showMemberList';
 
@@ -78,6 +80,8 @@ export default function GuildView({ user }) {
           .sort((a, b) => a.username.localeCompare(b.username, undefined, { sensitivity: 'base' }))));
       } else if (event.type === 'guild_member_remove') {
         setMembers((prev) => prev.filter((m) => m.id !== event.userId));
+      } else if (event.type === 'guild_member_update') {
+        setMembers((prev) => prev.map((m) => (m.id === event.userId ? { ...m, role_ids: event.roleIds } : m)));
       }
     });
     const offStatus = onUserStatus(({ userId, status }) => {
@@ -93,6 +97,12 @@ export default function GuildView({ user }) {
   const reactionNames = useMemo(
     () => Object.fromEntries(members.map((m) => [m.id, m.username])),
     [members]
+  );
+  // Each member's name colour: their highest coloured role's (none: the normal colour).
+  const roles = guild?.roles;
+  const nameColors = useMemo(
+    () => Object.fromEntries(members.map((m) => [m.id, memberColor(roles, m.role_ids)]).filter(([, c]) => c)),
+    [members, roles]
   );
 
   if (loadError) {
@@ -130,11 +140,12 @@ export default function GuildView({ user }) {
   }
 
   const membersVisible = isMobile ? membersOpenMobile : showMembers;
+  const permissions = channel?.my_permissions ?? 0;
 
   return (
     <div id="guild-main" className="guild-main">
       <header className="channel-header">
-        <FontAwesomeIcon icon={channel?.type === 'voice' ? faVolumeHigh : faHashtag} className="channel-header-icon" />
+        <ChannelIcon channel={channel} className="channel-header-icon" />
         <h4 className="channel-header-name">{channel?.name ?? ''}</h4>
         {channel?.topic && (
           <>
@@ -173,7 +184,11 @@ export default function GuildView({ user }) {
               saveReaction={(msg, emoji) => addGuildReaction(msg.id, emoji)}
               deleteReaction={removeGuildReaction}
               reactionNames={reactionNames}
-              canModerate={guild.owner === user.id}
+              canModerate={has(permissions, PERMISSIONS.MANAGE_MESSAGES)}
+              canSend={has(permissions, PERMISSIONS.SEND_MESSAGES)}
+              cantSendText={`You do not have permission to send messages in #${channel.name}.`}
+              canAddReactions={has(permissions, PERMISSIONS.ADD_REACTIONS)}
+              nameColors={nameColors}
               emptyText={`Welcome to #${channel.name}! This is the start of the channel.`}
             />
           )}

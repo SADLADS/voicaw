@@ -141,3 +141,37 @@ export async function markChannelRead(channelId, messageId) {
 export async function fetchGuildUnread() {
   return (await api.get('/guild-unread')).data;
 }
+
+// ---- Roles and channel permissions ----
+
+// { name, color (0xRRGGBB or null), permissions, hoist }; all optional.
+export async function createRole(guildId, role = {}) {
+  return (await api.post(`/guilds/${guildId}/roles`, role)).data;
+}
+
+export async function updateRole(guildId, roleId, changes) {
+  return (await api.patch(`/guilds/${guildId}/roles/${roleId}`, changes)).data;
+}
+
+export async function deleteRole(guildId, roleId) {
+  await api.delete(`/guilds/${guildId}/roles/${roleId}`);
+}
+
+// Every role but @everyone, top first.
+export async function reorderRoles(guildId, roleIds) {
+  await api.put(`/guilds/${guildId}/roles/order`, { roleIds });
+}
+
+export async function setMemberRoles(guildId, userId, roleIds) {
+  return (await api.put(`/guilds/${guildId}/members/${userId}/roles`, { roleIds })).data;
+}
+
+// [{ target_type: 'role' | 'member', target_id, allow, deny }]
+export async function fetchChannelOverrides(guildId, channelId) {
+  return (await api.get(`/guilds/${guildId}/channels/${channelId}/overrides`)).data;
+}
+
+// allow = deny = 0 removes the override.
+export async function setChannelOverride(guildId, channelId, targetType, targetId, { allow = 0, deny = 0 }) {
+  return (await api.put(`/guilds/${guildId}/channels/${channelId}/overrides/${targetType}/${targetId}`, { allow, deny })).data;
+}

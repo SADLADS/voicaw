@@ -1,7 +1,8 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
-import { LayoutContext } from '../../contexts';
 import GuildIcon from './GuildIcon';
+import RolesSettings from './RolesSettings';
+import { LayoutContext } from '../../contexts';
 import {
   deleteGuild,
   fetchBans,
@@ -12,24 +13,17 @@ import {
   uploadGuildIcon,
 } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
+import { PERMISSIONS, has } from '../../utils/permissions';
 
 const MAX_ICON_BYTES = 8 * 1024 * 1024;
 
-// Server settings (owner only): name and icon, the invites in use, bans, and deleting it.
-export default function GuildSettingsDialog({ guild, onClose }) {
+function Overview({ guild, isOwner }) {
   const { guildList } = useContext(LayoutContext);
   const [name, setName] = useState(guild.name);
-  const [invites, setInvites] = useState(null);
-  const [bans, setBans] = useState(null);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
   const [deleteText, setDeleteText] = useState('');
   const fileInput = useRef(null);
-
-  useEffect(() => {
-    fetchInvites(guild.id).then(setInvites).catch((err) => setError(errorMessage(err)));
-    fetchBans(guild.id).then(setBans).catch((err) => setError(errorMessage(err)));
-  }, [guild.id]);
 
   async function run(action, done) {
     setError(null);
@@ -57,9 +51,8 @@ export default function GuildSettingsDialog({ guild, onClose }) {
   }
 
   return (
-    <Modal title="Server settings" onClose={onClose} className="guild-settings-dialog">
+    <>
       <section>
-        <h6>Overview</h6>
         <div className="guild-settings-overview">
           <button type="button" className="guild-settings-icon" onClick={() => fileInput.current?.click()} title="Change icon">
             <GuildIcon guild={guild} />
@@ -73,7 +66,7 @@ export default function GuildSettingsDialog({ guild, onClose }) {
               <button type="submit" className="btn btn-primary btn-sm vc-button" disabled={!name.trim() || name.trim() === guild.name}>Save</button>
             </div>
             {guild.icon_version > 0 && (
-              <button type="button" className="btn btn-link btn-sm p-0" onClick={() => run(() => updateGuild(guild.id, { icon: null }), 'Icon removed.')}>
+              <button type="button" className="btn btn-link btn-sm p-0 align-self-start" onClick={() => run(() => updateGuild(guild.id, { icon: null }), 'Icon removed.')}>
                 Remove icon
               </button>
             )}
@@ -83,74 +76,141 @@ export default function GuildSettingsDialog({ guild, onClose }) {
         {error && <p className="error-msg" role="alert">{error}</p>}
       </section>
 
-      <section>
-        <h6>Invites</h6>
-        {invites == null ? <p className="vc-hint">Loading…</p> : invites.length === 0 ? <p className="vc-hint">No active invites.</p> : (
-          <ul className="guild-settings-list">
-            {invites.map((invite) => (
-              <li key={invite.code}>
-                <span className="guild-settings-code">{invite.code}</span>
-                <span className="vc-hint">
-                  by {invite.creator_username} · {invite.uses}{invite.max_uses ? `/${invite.max_uses}` : ''} {(invite.max_uses || invite.uses) === 1 ? 'use' : 'uses'}
-                  {invite.expires_at ? ` · expires ${new Date(invite.expires_at * 1000).toLocaleString()}` : ''}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-outline-danger btn-sm"
-                  onClick={() => run(async () => {
-                    await revokeInvite(invite.code);
-                    setInvites((list) => list.filter((i) => i.code !== invite.code));
-                  })}
-                >
-                  Revoke
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {isOwner && (
+        <section className="guild-settings-danger">
+          <h6>Delete server</h6>
+          <p className="vc-hint">This deletes every channel and message. It can't be undone. Type the server's name to confirm.</p>
+          <div className="vc-form-row">
+            <input className="form-control" aria-label="Server name to confirm" value={deleteText} onChange={(e) => setDeleteText(e.target.value)} />
+            <button
+              type="button"
+              className="btn btn-danger btn-sm"
+              disabled={deleteText !== guild.name}
+              onClick={() => run(async () => {
+                await deleteGuild(guild.id);
+                guildList.removeGuild(guild.id);
+              })}
+            >
+              Delete server
+            </button>
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
 
-      <section>
-        <h6>Bans</h6>
-        {bans == null ? <p className="vc-hint">Loading…</p> : bans.length === 0 ? <p className="vc-hint">Nobody is banned.</p> : (
-          <ul className="guild-settings-list">
-            {bans.map((ban) => (
-              <li key={ban.id}>
-                <span>{ban.username}</span>
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary btn-sm"
-                  onClick={() => run(async () => {
-                    await unbanMember(guild.id, ban.id);
-                    setBans((list) => list.filter((b) => b.id !== ban.id));
-                  })}
-                >
-                  Unban
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+function Invites({ guild }) {
+  const [invites, setInvites] = useState(null);
+  const [error, setError] = useState(null);
 
-      <section className="guild-settings-danger">
-        <h6>Delete server</h6>
-        <p className="vc-hint">This deletes every channel and message. It can't be undone. Type the server's name to confirm.</p>
-        <div className="vc-form-row">
-          <input className="form-control" aria-label="Server name to confirm" value={deleteText} onChange={(e) => setDeleteText(e.target.value)} />
+  useEffect(() => {
+    fetchInvites(guild.id).then(setInvites).catch((err) => setError(errorMessage(err)));
+  }, [guild.id]);
+
+  if (error) return <p className="error-msg" role="alert">{error}</p>;
+  if (invites == null) return <p className="vc-hint">Loading…</p>;
+  if (invites.length === 0) return <p className="vc-hint">No active invites.</p>;
+  return (
+    <ul className="guild-settings-list">
+      {invites.map((invite) => (
+        <li key={invite.code}>
+          <span className="guild-settings-code">{invite.code}</span>
+          <span className="vc-hint">
+            by {invite.creator_username} · {invite.uses}{invite.max_uses ? `/${invite.max_uses}` : ''} {(invite.max_uses || invite.uses) === 1 ? 'use' : 'uses'}
+            {invite.expires_at ? ` · expires ${new Date(invite.expires_at * 1000).toLocaleString()}` : ''}
+          </span>
           <button
             type="button"
-            className="btn btn-danger btn-sm"
-            disabled={deleteText !== guild.name}
-            onClick={() => run(async () => {
-              await deleteGuild(guild.id);
-              guildList.removeGuild(guild.id);
-            })}
+            className="btn btn-outline-danger btn-sm"
+            onClick={async () => {
+              try {
+                await revokeInvite(invite.code);
+                setInvites((list) => list.filter((i) => i.code !== invite.code));
+              } catch (err) {
+                setError(errorMessage(err));
+              }
+            }}
           >
-            Delete server
+            Revoke
           </button>
-        </div>
-      </section>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Bans({ guild }) {
+  const [bans, setBans] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchBans(guild.id).then(setBans).catch((err) => setError(errorMessage(err)));
+  }, [guild.id]);
+
+  if (error) return <p className="error-msg" role="alert">{error}</p>;
+  if (bans == null) return <p className="vc-hint">Loading…</p>;
+  if (bans.length === 0) return <p className="vc-hint">Nobody is banned.</p>;
+  return (
+    <ul className="guild-settings-list">
+      {bans.map((ban) => (
+        <li key={ban.id}>
+          <span>{ban.username}</span>
+          <button
+            type="button"
+            className="btn btn-outline-secondary btn-sm"
+            onClick={async () => {
+              try {
+                await unbanMember(guild.id, ban.id);
+                setBans((list) => list.filter((b) => b.id !== ban.id));
+              } catch (err) {
+                setError(errorMessage(err));
+              }
+            }}
+          >
+            Unban
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Server settings: the tabs you have permission for (Overview and Invites: Manage Server;
+// Roles: Manage Roles; Bans: Ban Members). Deleting the server is the owner's alone.
+export default function GuildSettingsDialog({ guild, user, onClose }) {
+  const can = (bit) => has(guild.my_permissions, bit);
+  const tabs = [
+    can(PERMISSIONS.MANAGE_GUILD) && ['overview', 'Overview'],
+    can(PERMISSIONS.MANAGE_ROLES) && ['roles', 'Roles'],
+    can(PERMISSIONS.MANAGE_GUILD) && ['invites', 'Invites'],
+    can(PERMISSIONS.BAN_MEMBERS) && ['bans', 'Bans'],
+  ].filter(Boolean);
+  const [tab, setTab] = useState(tabs[0]?.[0]);
+
+  return (
+    <Modal title="Server settings" onClose={onClose} className="guild-settings-dialog">
+      <div className="settings-tabs" role="tablist">
+        {tabs.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            className={`settings-tab${tab === key ? ' active' : ''}`}
+            onClick={() => setTab(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="settings-tab-body" role="tabpanel">
+        {tab === 'overview' && <Overview guild={guild} isOwner={guild.owner === user.id} />}
+        {tab === 'roles' && <RolesSettings guild={guild} user={user} />}
+        {tab === 'invites' && <Invites guild={guild} />}
+        {tab === 'bans' && <Bans guild={guild} />}
+        {tabs.length === 0 && <p className="vc-hint">You don't have permission to change anything here.</p>}
+      </div>
     </Modal>
   );
 }

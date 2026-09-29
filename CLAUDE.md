@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project overview
 
 Voicaw is a Discord-style chat web app: end-to-end encrypted direct messages, and guilds
-(servers with text channels, not encrypted; roles are next, see Guilds). It's an npm workspaces monorepo with
+(servers with text channels, roles and private channels; not encrypted, see Guilds). It's an npm workspaces monorepo with
 three packages: `client` (React/Vite SPA, also packaged as an Electron desktop app), `server`
 (Express + ws API), and `electron` (thin desktop shell wrapping the built client).
 
@@ -88,6 +88,7 @@ at `/usr/bin/google-chrome`, headless):
 node e2e/serve.mjs &     # web http://localhost:5199, API :3099; E2E_WEB_PORT / E2E_API_PORT
 node e2e/smoke.mjs       # two users, one message delivered live; an example to copy
 node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots into dir
+node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permissions
 kill %1                  # stops both servers (kill the serve.mjs process itself)
 ```
 Scripts need the same `E2E_WEB_PORT` as `serve.mjs` when not using the default.
@@ -241,7 +242,7 @@ identify themselves post-connect with `{ type: 'identify', token }` (JWT); the s
 Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, `reaction_remove`,
 `user_status`, and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete`,
-`guild_reaction_add` / `_remove`. A 30s heartbeat
+`guild_reaction_add` / `_remove`, `guild_member_update` (roles). A 30s heartbeat
 (ping/pong) prunes dead connections and broadcasts `offline` status.
 
 Client side, `client/src/utils/ws-client.js` wraps this with `connectWebSocket`/`closeWebSocket`
@@ -290,25 +291,45 @@ creates or reads them any more, and they can be dropped.
 
 Discord-style servers. **Not end-to-end encrypted**, on purpose: the server reads guild
 messages, so it can do mentions, search and moderation. Encryption stays for DMs and (planned)
-group DMs. Anyone can create a guild. Until roles exist, the owner (`guilds.owner`) manages
-everything (settings, channels, categories, kicks, bans, revoking invites) and members chat and
-create invites.
+group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
+- **Permissions** (`server/permissions.js`, copied in `client/src/utils/permissions.js`; a
+  test checks they match) are Discord's model with a bit field: View Channel, Send Messages,
+  Add Reactions, Manage Messages, Manage Channels, Manage Roles, Manage Server, Create Invite,
+  Kick, Ban, Administrator. Every guild has an `@everyone` role (`is_everyone`, position 0,
+  default: view, send, react, invite) plus orderable roles (`guild_roles`: name, colour
+  0xRRGGBB or null, `hoist` = shown separately in the member list, position: higher ranks
+  higher), given out in `guild_member_roles`. Guild permissions are @everyone's plus the
+  member's roles'; the owner and Administrator get everything.
+- **Channel overrides** (`guild_channel_overrides`, per role or member, `allow`/`deny` of the
+  four channel permissions) apply in order: @everyone's, the member's roles' (all denies, then
+  all allows), the member's own. A **private channel** is @everyone denied View Channel. A
+  channel you can't view doesn't exist for you: left out of your layout, 404, no events
+  (`sendToChannel`), not in unread counts.
+- **Hierarchy:** you only manage roles, and kick, ban or change the roles of members, below
+  your own highest role (the owner is above all; `outranks`), only reorder roles below yours,
+  and never give a permission (to a role or an override) you don't have yourself.
+- `server/guilds.js` has the member context (`getMember`: roles, `permissions`, `highest`),
+  `getChannelAccess`, the per-member layout and the send helpers; `routes/guildRoles.js` the
+  role, member-role and override routes. Guilds from before roles get their @everyone on start.
 - Non-members get 404 for a guild, its channels and messages (it doesn't reveal what exists).
 - A new guild gets a "Text Channels" category with `#general`. Channel names are normalised
   Discord style (lower case, spaces to `-`). Channels with no category sit above the
   categories; deleting a category keeps its channels, uncategorised. `PUT /guilds/:id/layout`
   sets the whole order at once (every category id, every channel `{id, categoryId}`).
 - `GET /guilds/:id` (and the `guild_update` event, sent to every member on any change) is the
-  whole layout: guild, `categories`, `channels`, in order.
+  layout as that member sees it: guild, `my_permissions`, `my_role_ids`, every role (highest
+  first), and the `categories` and `channels` they can see, in order, each channel with its
+  `my_permissions` and `private`.
 - Invites: 8-character codes, optional expiry (`maxAge` s, up to 30 days) and `maxUses`,
   claimed atomically. Joining marks existing history read. Bans remove and block rejoining.
   The owner has to transfer ownership before leaving.
 - Messages have the DM row shape (`sender_*`, `parent_*`, `reactions`, `edited`) so
   `MessageList` can show both; content is plain text up to `maxPlaintextLength` characters.
-  Authors edit; authors or the owner delete. Reactions are plain emoji, one of each per person.
+  Authors edit; authors or Manage Messages delete. Reactions are plain emoji, one of each per
+  person.
 - Unread: `guild_channel_reads` holds each member's last read message per channel;
   `GET /guild-unread` counts newer messages by others. Sending marks your own channel read.
-- Icons: `GET /upload_guild_icon` (owner, image, 8MB) signs `guild-icons/<guild id>`; then
+- Icons: `GET /upload_guild_icon` (Manage Server, image, 8MB) signs `guild-icons/<guild id>`; then
   `PATCH /guilds/:id {iconUploaded: true}` bumps `icon_version` (use it as `?v=` to bust caches).
 - **Client:** routes `/guild/:guildId/:channelId?` (`guild/GuildView.jsx`; without a channel it
   opens the last one viewed there, `localStorage guildChannel:<id>`, or the first text one) and
@@ -318,18 +339,25 @@ create invites.
   (`ws-client`, every `guild_*` event). `Sidebar` is the server rail (guild icons with unread
   pills, `+` → `AddGuildDialog`: create or join). `guild/GuildSidebar.jsx` is the channel column
   (header menu: invite, settings, create channel/category, leave; collapsible categories,
-  remembered in `localStorage collapsedCategories`; owner edit buttons on hover).
+  remembered in `localStorage collapsedCategories`; edit buttons for Manage Channels; what's
+  offered follows `my_permissions`). Private channels show a lock (`guild/ChannelIcon.jsx`).
   `hooks/useChannel.js` is `useConversation` for a channel (plain text, same shape), and both
   DMs and channels render through `ChatPane.jsx` (message list, composer, reactions, action
   sheet; `useReactions` takes `saveReaction`/`deleteReaction`, so DMs encrypt and guilds
-  don't). `guild/MemberList.jsx`: online/offline, click for Message / Make owner / Kick / Ban
-  (a panel over the chat on mobile). Dialogs use `guild/Modal.jsx`; styles are
+  don't). Names take the colour of the member's highest coloured role (`memberColor`; none:
+  the normal colour), in chat (`nameColors`) and the member list. A channel without Send
+  Messages shows a notice instead of the composer. `guild/MemberList.jsx`: grouped under
+  hoisted roles, then Online, Offline; click for a card with roles (add/remove below your
+  rank), Message / Make owner / Kick / Ban (a panel over the chat on mobile). Server Settings
+  (`GuildSettingsDialog`) has tabs by permission: Overview, Roles (`RolesSettings`: drag or
+  arrows to reorder, colour swatches, permissions), Invites, Bans. A channel's settings have a
+  Permissions tab (`ChannelPermissions`: private toggle, ✕ / / ✓ per role or member). Dialogs use `guild/Modal.jsx`; styles are
   `assets/css/guilds.css`. Attachments in channels still go through the encrypted upload (the
   key is in the plain message, so anyone in the channel can open them); plain uploads can come later.
-- **Not done yet:** drag-and-drop reordering (the API exists), mentions and guild
-  notifications (no push for guild messages yet), roles and permissions (next: per-channel
-  overrides, private channels), custom emoji, voice channels (they can be created and show a
-  placeholder).
+- **Not done yet:** drag-and-drop reordering of channels (the API exists; roles can be
+  dragged), category-level permissions (overrides are per channel), mentions and guild
+  notifications (no push for guild messages yet), custom emoji, voice channels (they can be
+  created and show a placeholder).
 
 ### File uploads (S3-compatible object store)
 

@@ -17,7 +17,9 @@ import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 // `conversation` is useConversation's or useChannel's result. `saveReaction` /
 // `deleteReaction` / `reactionsReady` go to useReactions. `chatId` identifies the chat (things
 // reset when it changes), `chatName` is who or what the composer writes to (null while not
-// ready to send). `canModerate` lets you delete other people's messages too.
+// ready to send). `canModerate` lets you delete other people's messages too; `canSend` and
+// `canAddReactions` false (a guild channel's permissions) take away the composer (showing
+// `cantSendText`) and reacting. `nameColors` ({ userId: '#rrggbb' }) colours names.
 export default function ChatPane({
   chatId,
   chatName,
@@ -28,6 +30,10 @@ export default function ChatPane({
   deleteReaction,
   reactionNames,
   canModerate = false,
+  canSend = true,
+  cantSendText = "You don't have permission to send messages here.",
+  canAddReactions = true,
+  nameColors,
   emptyText = 'No messages yet. Start the conversation!',
 }) {
   const { s3Endpoint, maxPlaintextLength } = useContext(ConfigContext);
@@ -166,6 +172,8 @@ export default function ChatPane({
             reactionNames={reactionNames}
             onOpenActions={openActions}
             canModerate={canModerate}
+            canAddReactions={canAddReactions}
+            nameColors={nameColors}
             // While reacting to a message (or its mobile menu is open), it stays
             // highlighted and the others don't react to hovering.
             focusedMsgId={reactingTo?.msgId ?? actionsForId}
@@ -182,7 +190,9 @@ export default function ChatPane({
         );
       })()}
 
-      <Composer
+      {!canSend ? (
+        <div className="composer-locked" role="status">{cantSendText}</div>
+      ) : <Composer
         chatId={chatId}
         chatName={chatName}
         isMobile={isMobile}
@@ -197,13 +207,14 @@ export default function ChatPane({
         setShowEmojiPicker={setShowEmojiPicker}
         onInputFocus={reactions.closePicker}
         onSend={conversation.sendMessage}
-      />
+      />}
 
       {actionsFor && (
         <MessageActionSheet
           msg={actionsFor}
           isOwn={actionsFor.sender_id === user.id}
           canDelete={actionsFor.sender_id === user.id || canModerate}
+          canReact={canAddReactions}
           myReactions={new Set((actionsFor.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
           onReact={(emoji) => reactions.toggleReaction(actionsFor, emoji)}
           onMoreReactions={() => openReactionPicker(actionsFor, null)}
