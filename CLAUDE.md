@@ -344,6 +344,9 @@ their box is reserved before they load.
   `UrlPreviews`) and `Composer.jsx` (message box, emoji, reply bar, attachments via
   `hooks/useAttachmentDrafts.js`). `Dm.jsx` owns what several of them share: reply target, edit
   state, the composer error line, and which emoji picker is open (never both).
+- Scrollbars are styled once, in `voicaw.css` (SCROLLBARS): every scroll area inherits the pane
+  look (like the message list); small boxes and pop-ups are listed there for the thin one. Don't
+  style a new scroll area's scrollbar locally.
 - Desktop vs. mobile layouts are two separate CSS files (`assets/css/desktop.css` /
   `mobile.css`) toggled via body classes rather than component-level responsive branches
 - PWA support via `vite-plugin-pwa` (`injectManifest` strategy, custom `src/service-worker.js`) —

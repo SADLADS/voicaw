@@ -168,7 +168,6 @@ small {
 .dm-message-wrapper {
   flex-grow: 1;
   overflow: auto;
-  scrollbar-color: var(--vc-fg-muted) var(--vc-bg-subtle);
   overflow-x: hidden;
 }
 
@@ -176,7 +175,6 @@ small {
   overflow-y: auto;
   flex-grow: 1;
   min-height: 0;
-  scrollbar-color: var(--vc-fg-muted) var(--vc-bg-base);
 }
 
 @media (max-width: 768px) {
@@ -906,26 +904,6 @@ img.emoji,
   overflow-y: auto;
   overflow-x: hidden;
   padding: 4px 8px 8px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--vc-border-light) transparent;
-}
-
-/* Safari (no scrollbar-color). */
-.emoji-picker-scroll::-webkit-scrollbar {
-  width: 8px;
-}
-
-.emoji-picker-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.emoji-picker-scroll::-webkit-scrollbar-thumb {
-  background-color: var(--vc-border-light);
-  border-radius: 4px;
-}
-
-.emoji-picker-scroll::-webkit-scrollbar-thumb:hover {
-  background-color: var(--vc-fg-muted);
 }
 
 .emoji-picker-section-title {

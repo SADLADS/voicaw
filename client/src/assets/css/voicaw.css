@@ -123,6 +123,7 @@ body {
 
 .sidebar{
   overflow-y: auto;
+  scrollbar-width: none;
   background-color: var(--vc-bg-base);
   border-right: 1px solid var(--vc-border-light);
 }
@@ -400,4 +401,63 @@ pre code {
 
 .user-panel-button svg {
   transition: transform 0.3s ease;
+}
+
+
+/* SCROLLBARS
+   Two looks, set here for the whole app:
+   - Panes (the message list, conversation list, Settings, …): a normal-width bar, grey thumb
+     on the pane's own background. This is the default: every scrolling element inherits it
+     (scrollbar-color inherits), including ones added later.
+   - Small boxes and pop-ups (emoji picker, suggestions, action sheet, attachment tray, code):
+     a thin bar, listed below.
+   The message box keeps its own (.auto-resize-textarea). Chrome and Firefox use the standard
+   properties; the ::-webkit-scrollbar rules are for Safari, which doesn't support them (Chrome
+   ignores those rules wherever scrollbar-color applies). */
+html {
+  scrollbar-color: var(--vc-fg-muted) transparent;
+}
+
+.emoji-picker-scroll,
+.emoji-suggestions,
+.action-sheet,
+.attachment-tray,
+.dm-message-content pre code {
+  scrollbar-width: thin;
+  scrollbar-color: var(--vc-border-light) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--vc-fg-muted);
+  border: 3px solid transparent;
+  border-radius: 6px;
+  background-clip: padding-box;
+}
+
+.emoji-picker-scroll::-webkit-scrollbar,
+.emoji-suggestions::-webkit-scrollbar,
+.action-sheet::-webkit-scrollbar,
+.attachment-tray::-webkit-scrollbar,
+.dm-message-content pre code::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.emoji-picker-scroll::-webkit-scrollbar-thumb,
+.emoji-suggestions::-webkit-scrollbar-thumb,
+.action-sheet::-webkit-scrollbar-thumb,
+.attachment-tray::-webkit-scrollbar-thumb,
+.dm-message-content pre code::-webkit-scrollbar-thumb {
+  background-color: var(--vc-border-light);
+  border: 0;
+  border-radius: 4px;
 }
