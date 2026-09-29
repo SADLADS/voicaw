@@ -36,12 +36,31 @@ app with an in-memory SQLite DB:
 - `test/setupEnv.js` sets every required env var (including `DB_PATH=:memory:` and a freshly
   generated OPAQUE setup / VAPID keys), so no `.env` or S3 is needed.
 - Each test file must `import './helpers/mockS3.js'` **before** requiring `../index.js`. `s3.js`
-  hits the network at require-time, and because `index.js`/`s3.js` are plain CommonJS, `vi.mock`
-  can't intercept them — the helper pre-seeds Node's `require.cache` instead.
+  hits the network at require-time, and because the server is plain CommonJS, `vi.mock` can't
+  intercept it. The helper pre-seeds Node's `require.cache` instead (`mockWebPush.js` does the same
+  for `web-push`).
 - `test/helpers/authFlow.js` (`registerUser` / `loginUser`) runs the real OPAQUE + key backup
   client flow (importing `client/src/services/encryptionService.js`). Use it to get authenticated
   users (and their keys) rather than forging tokens.
 - WebSocket handling is not covered: it only exists when `index.js` is run directly (see below).
+
+### Server layout
+
+`server/index.js` only assembles the app: CORS, `/api/config`, the routers, and the error handler.
+Express 5 sends rejected async handlers to that handler, so routes don't need try/catch for
+unexpected errors. The rest:
+- `config.js`: loads `.env` (required first), checks it, message length limits.
+- `db.js`: schema, plus promise helpers `db.get` / `db.all` / `db.run` (`run` resolves to
+  `{ lastID, changes }`). Use these, not the callback API. The raw handle is `db.db`.
+- `auth.js`: `generateToken`, `verifyToken`, the `authenticateJWT` middleware (attach it per
+  route, not with `router.use`, since every router is mounted at `/api`).
+- `sockets.js`: the `clients` map, `sendToUserSockets`, `isOnline`, `isViewingConversation`, and
+  `attachWebSocketServer` (the ws server).
+- `push.js`: web push sending and the DM push payload.
+- `s3.js`: pre-signed upload URLs. Bucket setup at startup logs and carries on if the store is down.
+- `routes/`: `auth.js` (OPAQUE register/login, profile), `dms.js` (conversations, send, edit,
+  delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `push.js`
+  (subscriptions), `uploads.js`.
 
 Client tests sit next to their source files (`src/**/*.test.{js,jsx}`). The default environment is
 `node`; component tests opt into DOM with a `// @vitest-environment jsdom` header on the first
@@ -57,7 +76,7 @@ git-ignored `.npmrc` at the repo root containing `build_from_source=sqlite3` (co
 sqlite3, about 1.5 min, needs gcc/make/python3). After changing it, run
 `npm rebuild sqlite3 --build-from-source`.
 
-`server/index.js` fails fast at startup if any of these env vars are missing (set them in
+`server/config.js` fails fast at startup if any of these env vars are missing (set them in
 `server/.env`): `JWT_SECRET`, `OPAQUE_SERVER_SETUP`, `VAPID_EMAIL`, `VAPID_PUBLIC_KEY`,
 `VAPID_PRIVATE_KEY`, `S3_ENDPOINT`, `S3_ROOT_USER`, `S3_ROOT_PASSWORD`. VAPID keys are generated
 via `webpush.generateVAPIDKeys()` (see root `README.md`). `S3_*` vars point at an S3-compatible
@@ -83,7 +102,7 @@ where everyone knows each other). The client must never send its `clientLoginSta
 The websocket `user_status` broadcast only goes to identified sockets.
 
 On successful login/register, the server issues a JWT (`generateToken`, 1-day expiry, see
-`server/index.js`) which the client stores in `localStorage` and sends as `Authorization: Bearer
+`server/auth.js`) which the client stores in `localStorage` and sends as `Authorization: Bearer
 <token>` (see `client/src/utils/api.js`). `authenticateJWT` middleware protects all `/api/*`
 routes except config/login/register.
 
@@ -136,9 +155,10 @@ server-side, `/api/config` client-side) are computed on the envelope length via
 ### Realtime: WebSocket for push, REST for fetch/mutate
 
 `server/index.js` exports the Express `app`; only when run directly (`require.main === module`)
-does it bind `PORT` (default 3000) and attach a `ws` server to the same HTTP server. Code that
-needs the socket server (`wss`, heartbeat, connection handlers) lives inside that block, while
-`clients` and `sendToUserSockets` stay at module level so routes can push events. Clients
+does it bind `PORT` (default 3000) and attach the `ws` server (`sockets.js`
+`attachWebSocketServer`) to the same HTTP server. `clients` and `sendToUserSockets` are
+module-level in `sockets.js`, so routes can push events (and tests can fake sockets through
+`app.locals.clients`). Clients
 identify themselves post-connect with `{ type: 'identify', token }` (JWT); the server maps
 `userId -> [sockets]` in an in-memory `clients` Map (a user can have multiple open sockets/tabs).
 Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, `reaction_remove`,
@@ -180,12 +200,12 @@ one user at a time).
 ### Database
 
 SQLite via `sqlite3`, single file `server/voicaw.db` (overridable with `DB_PATH`), schema created idempotently
-(`CREATE TABLE IF NOT EXISTS`) in `server/db.js` on require. All queries in `server/index.js` use
-the plain callback-style `sqlite3` API (no ORM, no migrations). Note: the schema includes
+(`CREATE TABLE IF NOT EXISTS`) in `server/db.js` on require. Queries use the small promise helpers
+in `db.js` (no ORM, no migrations). Note: the schema includes
 `guilds`/`categories`/`channels`/`messages`/roles/permissions tables for a Discord-like
 multi-channel model, but only the `direct_messages` / `dm_reactions` / `dm_unread` / `users` / `push_subscriptions`
 / `login_states` tables are actually used by current routes — guild/channel features aren't
-implemented in `index.js` yet.
+implemented yet.
 
 ### File uploads (S3-compatible object store)
 

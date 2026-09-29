@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const s3 = new S3Client({
@@ -58,18 +58,16 @@ async function getUploadUrl(filename, bucket, contentType, contentLength) {
     });
 }
 
-// Generate a pre-signed download URL
-async function getDownloadUrl(filename) {
-    const command = new GetObjectCommand({
-        Bucket: "uploads",
-        Key: filename,
-    });
-    return await getSignedUrl(s3, command, { expiresIn: 60 });
+// Both buckets exist and are publicly readable (attachments are encrypted; profile pictures
+// are public on purpose). If the object store is unreachable, log it rather than crash the
+// server: messaging works without it, and the next start tries again.
+async function setUpBuckets() {
+    for (const bucket of ["uploads", "profile-pics"]) {
+        await ensureBucketExists(bucket);
+        await makeBucketPublic(bucket);
+    }
 }
 
-ensureBucketExists("uploads")
-ensureBucketExists("profile-pics")
-makeBucketPublic("profile-pics")
-makeBucketPublic("uploads")
+setUpBuckets().catch((err) => console.error("Failed to set up S3 buckets:", err.code || err.name, err.message));
 
-module.exports = { s3, getUploadUrl, getDownloadUrl };
+module.exports = { s3, getUploadUrl };

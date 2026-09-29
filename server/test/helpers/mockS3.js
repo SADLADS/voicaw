@@ -20,6 +20,5 @@ require.cache[s3Path] = {
       signedUploads.push({ filename, bucket, contentType, contentLength });
       return `https://mock-s3.test/${bucket}/${filename}?signed=1`;
     },
-    getDownloadUrl: async (filename) => `https://mock-s3.test/uploads/${filename}?signed=1`,
   },
 };
