@@ -19,7 +19,7 @@ const { getMember, getMemberIds } = require('../guilds');
 // emoji can use them anywhere (in DMs too); managing them needs Manage Emoji.
 const router = express.Router();
 
-const MAX_EMOJIS_PER_GUILD = 50;
+const MAX_EMOJIS_PER_GUILD = 200;
 const EMOJI_TYPES = new Set(['image/png', 'image/gif', 'image/webp', 'image/jpeg', 'image/avif']);
 const EMOJI_NAME = /^[A-Za-z0-9_]{2,32}$/;
 // An upload that never finished stops counting after this long.

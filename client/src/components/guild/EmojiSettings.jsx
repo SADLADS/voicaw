@@ -6,7 +6,7 @@ import { addGuildEmoji, deleteGuildEmoji, fetchGuildEmojis, renameGuildEmoji } f
 import { customEmojiUrl } from '../../emoji/customEmoji';
 import { emojiNameFromFile, errorMessage } from '../../utils/guildDisplay';
 
-const MAX_EMOJIS = 50;
+const MAX_EMOJIS = 200;
 // The server shrinks what's uploaded (to 128×128), so the original can be big.
 const MAX_BYTES = 10 * 1024 * 1024;
 const TYPES = ['image/png', 'image/gif', 'image/webp', 'image/jpeg', 'image/avif'];

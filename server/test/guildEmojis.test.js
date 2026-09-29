@@ -102,10 +102,10 @@ describe('custom emoji', () => {
     await addEmoji(owner, guild.id, 'taken');
     expect((await create({ name: 'taken' })).status).toBe(409);
 
-    for (let i = 2; i < 50; i++) await create({ name: `e${i}` });
+    for (let i = 2; i < 200; i++) await create({ name: `e${i}` });
     const full = await create({ name: 'one_more' });
     expect(full.status).toBe(400);
-    expect(full.body.error).toMatch(/at most 50/);
+    expect(full.body.error).toMatch(/at most 200/);
   });
 
   it('needs Manage Emoji to add, rename or delete', async () => {

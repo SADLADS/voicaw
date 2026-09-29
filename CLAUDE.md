@@ -372,7 +372,7 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   at most 128×128, never enlarged, WebP; animated GIF/WebP stay animated; limits on pixels and
   frames so a small file can't decode into something huge), store it as `emojis/<id>`, delete
   the original and send `guild_emojis_update`. Not an image: the emoji is dropped (400).
-  Unfinished uploads (and their originals) are cleared after an hour. Limits: 50 per guild,
+  Unfinished uploads (and their originals) are cleared after an hour. Limits: 200 per guild,
   PNG/GIF/WebP/JPEG/AVIF, names 2–32 of `[A-Za-z0-9_]`, unique per guild. Manage Emoji (`MANAGE_EMOJIS`) adds, renames and deletes; members of a guild can use
   its emoji anywhere. The client keeps them in `useGuildList` (`emojis`), and `Layout` provides
   `CustomEmojiContext` (`emoji/customEmojiContext.js`: by guild in rail order, and by id).
