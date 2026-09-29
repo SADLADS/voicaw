@@ -13,9 +13,13 @@ vi.mock('../utils/ws-client', () => ({
     return () => { newDmListeners.list = newDmListeners.list.filter((x) => x !== cb); };
   },
   onGuildEvent: () => () => {},
+  onGroupEvent: () => () => {},
   getConnectionState: () => 'online',
   onConnectionState: () => () => {},
 }));
+
+// Group DMs (tested with their hooks and in e2e/groups.mjs): none here.
+vi.mock('../services/groupService', () => ({ fetchGroups: vi.fn(async () => []) }));
 
 // DM calls (tested in voice/callClient.test.js): none here.
 const noCall = vi.hoisted(() => ({ call: null }));

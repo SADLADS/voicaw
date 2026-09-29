@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPhone, faPhoneSlash } from '@fortawesome/free-solid-svg-icons';
@@ -7,27 +7,34 @@ import { useCall } from '../../hooks/useCall';
 import { acceptCall, declineCall } from '../../voice/callClient';
 import UserAvatar from '../voice/UserAvatar';
 import { scrollToRight } from '../../utils/scrollToRight';
+import { LayoutContext } from '../../contexts';
+import { groupTitle } from '../../utils/groupDisplay';
 
 // Someone calling you, over whatever page is open (like a phone's incoming call screen).
 // Answering opens your chat with them, where the call is.
-export default function IncomingCall() {
+export default function IncomingCall({ user }) {
   const call = useCall();
   const navigate = useNavigate();
+  const { groupList } = useContext(LayoutContext);
   if (!call || call.outgoing || call.state === 'active') return null;
   const answering = call.state === 'connecting';
+  const group = call.groupId && (groupList?.groups.find((g) => g.id === call.groupId) ?? { name: call.groupName });
+  const title = group ? groupTitle(group, user) : call.peerName;
+  const subtitle = group ? `${call.callerName} started a call` : 'Incoming voice call';
+  const avatarId = call.callerId ?? call.peerId ?? null;
   return (
-    <div className="incoming-call" role="alertdialog" aria-label={`Incoming call from ${call.peerName}`}>
-      <UserAvatar userId={call.peerId} className="incoming-call-avatar" speaking={!answering} />
+    <div className="incoming-call" role="alertdialog" aria-label={`Incoming call from ${group ? title : call.peerName}`}>
+      {avatarId != null && <UserAvatar userId={avatarId} className="incoming-call-avatar" speaking={!answering} />}
       <div className="incoming-call-text">
-        <strong>{call.peerName}</strong>
-        <span>{answering ? 'Connecting…' : 'Incoming voice call'}</span>
+        <strong>{title}</strong>
+        <span>{answering ? 'Connecting…' : subtitle}</span>
       </div>
       <button type="button" className="call-button decline" aria-label="Decline" title="Decline" onClick={declineCall} disabled={answering}>
         <FontAwesomeIcon icon={faPhoneSlash} />
       </button>
       <button type="button" className="call-button accept" aria-label="Accept" title="Accept" onClick={() => {
         acceptCall();
-        navigate(`/dm/${call.peerId}`);
+        navigate(call.groupId ? `/dm/g/${call.groupId}` : `/dm/${call.peerId}`);
         scrollToRight();
       }} disabled={answering}>
         <FontAwesomeIcon icon={faPhone} />

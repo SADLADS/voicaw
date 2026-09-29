@@ -15,6 +15,7 @@ import 'highlight.js/styles/atom-one-dark.css';
 import { ConfigContext, LayoutContext } from '../contexts';
 import { ensureSubscription, getPushStatus } from '../services/pushService';
 import { useGuildList } from '../hooks/useGuildList';
+import { useGroupList } from '../hooks/useGroupList';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
 
 export default function Layout({ user, onLogout }) {
@@ -37,6 +38,13 @@ export default function Layout({ user, onLogout }) {
     if (String(removedId) === guildId) navigate('/dm', { replace: true });
   }, [guildId, navigate]);
   const guildList = useGuildList({ userId: user?.id, activeChannelId: guildMatch?.[2] ?? null, onRemoved: onGuildRemoved });
+  // Group DMs: /dm/g/:groupId. Leaving (or being removed from) the one on screen goes back.
+  const groupId = /^\/dm\/g\/([0-9a-f-]+)/.exec(location.pathname)?.[1] ?? null;
+  const onGroupRemoved = useCallback((removedId) => {
+    if (removedId === groupId) navigate('/dm', { replace: true });
+  }, [groupId, navigate]);
+  const groupList = useGroupList({ userId: user?.id, activeGroupId: groupId, onRemoved: onGroupRemoved });
+  const hasUnreadGroups = groupList.groups.some((g) => g.unread > 0 && g.id !== groupId);
   const unreadGuildIds = useMemo(() => new Set(guildList.unread.map((u) => u.guild_id)), [guildList.unread]);
   // Custom emoji for the picker and autocomplete: by guild, in rail order.
   const customEmoji = useMemo(() => {
@@ -116,28 +124,28 @@ export default function Layout({ user, onLogout }) {
   }, [user?.id]);
 
   return (
-    <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList }}>
+    <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList, groupList }}>
     <CustomEmojiContext.Provider value={customEmoji}>
       <div className={`${isDmPage || guildId ? 'slidey' : ''} main-wrapper d-flex`}>
         {/* The user panel (and the voice bar above it, while in voice) sits under the
             conversation or channel list (not on e.g. Settings). */}
-        <SidebarWrapper footer={isDmPage || guildId ? <><VoiceBar /><UserPanel user={user} /></> : null}>
+        <SidebarWrapper footer={isDmPage || guildId ? <><VoiceBar user={user} /><UserPanel user={user} /></> : null}>
           {/* Main sidebar always shows */}
           <Sidebar
             user={user}
             onLogout={onLogout}
-            hasUnreadDms={hasUnreadDms}
+            hasUnreadDms={hasUnreadDms || hasUnreadGroups}
             guilds={guildList.guilds}
             unreadGuildIds={unreadGuildIds}
             onReorderGuilds={guildList.reorderGuilds}
           />
 
           {/* DM sidebar only shows on the /dm route */}
-          {isDmPage && <DmSidebar users={users} unreadDms={unreadDms} />}
+          {isDmPage && <DmSidebar user={user} users={users} groups={groupList.groups} unreadDms={unreadDms} />}
           {guildId && <GuildSidebar guild={guildList.layouts[guildId]} user={user} />}
         </SidebarWrapper>
 
-        <IncomingCall />
+        <IncomingCall user={user} />
 
         {/* The main page content */}
         <div className='main-content-wrapper'>

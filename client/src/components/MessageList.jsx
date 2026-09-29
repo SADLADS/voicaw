@@ -428,7 +428,8 @@ export default function MessageList({
       <div className="message-scroller-content" ref={contentRef}>
         {messages.map((msg) => (
           <div key={rowKey(msg)} data-key={rowKey(msg)}>
-            <MessageRow msg={msg} {...rowProps} />
+            {/* Group DMs: membership changes, between the messages. */}
+            {msg.system ? <p className="message-system">{msg.text}</p> : <MessageRow msg={msg} {...rowProps} />}
           </div>
         ))}
       </div>

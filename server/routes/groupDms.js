@@ -1,0 +1,349 @@
+const express = require('express');
+const db = require('../db');
+const { maxPlaintextLength, maxMessageLength } = require('../config');
+const { authenticateJWT } = require('../auth');
+const { sendToUserSockets, isViewingConversation } = require('../sockets');
+const { sendPushToUser } = require('../push');
+const groups = require('../groupDms');
+const calls = require('../calls');
+
+// Group DMs (see groupDms.js): creating one, its membership log (add, remove, leave), key
+// epochs, and its messages and reactions (all ciphertext). Everything 404s for non-members.
+const router = express.Router();
+
+const MAX_REACTIONS_PER_USER_PER_MESSAGE = 20;
+// An encrypted reaction is always this long (see the client's encryptReaction).
+const REACTION_LENGTH = 127;
+
+// A message row, as `viewerId` may see it: only messages of epochs they have a key for, and
+// a reply's parent only if they can read that too.
+const MESSAGE_SELECT = `
+  SELECT m.id, m.group_id, m.epoch, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
+    u.username AS sender_username,
+    CASE WHEN pk.user_id IS NOT NULL THEN pm.content END AS parent_content,
+    CASE WHEN pk.user_id IS NOT NULL THEN pm.epoch END AS parent_epoch,
+    CASE WHEN pk.user_id IS NOT NULL THEN pm.sender_id END AS parent_sender_id,
+    CASE WHEN pk.user_id IS NOT NULL THEN pu.username END AS parent_username
+  FROM group_dm_messages m
+  JOIN users u ON u.id = m.sender_id
+  JOIN group_dm_epoch_keys k ON k.group_id = m.group_id AND k.epoch = m.epoch AND k.user_id = ?
+  LEFT JOIN group_dm_messages pm ON pm.id = m.parent_message_id
+  LEFT JOIN group_dm_epoch_keys pk ON pk.group_id = pm.group_id AND pk.epoch = pm.epoch AND pk.user_id = ?
+  LEFT JOIN users pu ON pu.id = pm.sender_id`;
+
+async function withReactions(messages) {
+  if (messages.length === 0) return messages;
+  const ids = messages.map((m) => m.id);
+  const rows = await db.all(
+    `SELECT id, message_id, user_id, content, timestamp FROM group_dm_reactions
+     WHERE message_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`,
+    ids
+  );
+  const byMessage = new Map(ids.map((id) => [id, []]));
+  for (const { message_id: messageId, ...reaction } of rows) byMessage.get(messageId).push(reaction);
+  return messages.map((m) => ({ ...m, reactions: byMessage.get(m.id) }));
+}
+
+async function messageFor(viewerId, messageId) {
+  const row = await db.get(`${MESSAGE_SELECT} WHERE m.id = ?`, [viewerId, viewerId, messageId]);
+  return row ? (await withReactions([row]))[0] : null;
+}
+
+// Sends a GroupError as its status; anything else goes to the error handler.
+function handle(fn) {
+  return async (req, res) => {
+    try {
+      await fn(req, res);
+    } catch (err) {
+      if (err instanceof groups.GroupError) return res.status(err.status).json({ error: err.message });
+      throw err;
+    }
+  };
+}
+
+async function requireMember(req, res, next) {
+  const state = await groups.memberState(req.params.groupId, req.user.id);
+  if (!state) return res.status(404).json({ error: 'Group not found' });
+  req.state = state;
+  next();
+}
+const member = [authenticateJWT, requireMember];
+
+// Your groups, most recent first.
+router.get('/group-dms', authenticateJWT, async (req, res) => {
+  const rows = await db.all('SELECT group_id FROM group_dm_members WHERE user_id = ?', [req.user.id]);
+  const list = [];
+  for (const { group_id: groupId } of rows) list.push(await groups.groupSummary(groupId, req.user.id));
+  list.sort((a, b) => b.last_timestamp - a.last_timestamp);
+  res.json(list);
+});
+
+// A new group: { id (UUID), name?, log: [create, add…] (signed), epoch: { epoch: 1, logSeq,
+// envelopes } }. Everyone in it gets `group_dm_add`.
+router.post('/group-dms', authenticateJWT, handle(async (req, res) => {
+  const { id, name, log, epoch } = req.body ?? {};
+  if (typeof id !== 'string' || !groups.UUID.test(id)) return res.status(400).json({ error: 'Invalid group id' });
+  if (await db.get('SELECT id FROM group_dms WHERE id = ?', [id])) return res.status(409).json({ error: 'Group already exists' });
+  const cleanName = typeof name === 'string' ? name.trim().slice(0, groups.MAX_NAME) || null : null;
+  if (!Array.isArray(log) || log.length < 3) return res.status(400).json({ error: 'A group needs at least two other people' });
+  if (log.length > groups.MAX_MEMBERS) return res.status(400).json({ error: `Groups have at most ${groups.MAX_MEMBERS} people` });
+
+  // Check the whole log before storing anything: the creator makes it and adds everyone.
+  const state = { group: { id }, members: new Set(), ownerId: null, nextSeq: 0, prevHash: null, latestEpoch: null };
+  const records = [];
+  for (const [i, entry] of log.entries()) {
+    const r = await groups.checkEntry(state, entry, req.user.id);
+    if ((i === 0) !== (r.type === 'create') || (i > 0 && r.type !== 'add')) {
+      return res.status(400).json({ error: 'Invalid membership change' });
+    }
+    groups.applyToState(state, entry, r);
+    records.push(r);
+  }
+  // Checked against the members about to exist.
+  const epochState = { ...state, group: { id } };
+  await db.run('INSERT INTO group_dms (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)', [id, cleanName, req.user.id, Math.floor(Date.now() / 1000)]);
+  try {
+    for (const [i, r] of records.entries()) await groups.storeEntry(id, log[i], r);
+    await groups.storeEpoch(epochState, req.user.id, epoch ?? {});
+  } catch (err) {
+    await groups.deleteGroup(id);
+    throw err;
+  }
+  for (const userId of state.members) {
+    sendToUserSockets(userId, { type: 'group_dm_add', group: await groups.groupSummary(id, userId) });
+  }
+  res.status(201).json(await groups.groupSummary(id, req.user.id));
+}));
+
+// Everything a member needs to check the group and read it: the summary, the whole
+// membership log, the public keys of everyone in it, and the member's own epoch keys.
+router.get('/group-dms/:groupId', member, async (req, res) => {
+  const groupId = req.state.group.id;
+  const log = await db.all('SELECT seq, record, signature FROM group_dm_log WHERE group_id = ? ORDER BY seq', [groupId]);
+  const users = await db.all(
+    `SELECT id, username, identity_key, encryption_key, encryption_key_signature FROM users
+     WHERE id IN (SELECT actor_id FROM group_dm_log WHERE group_id = ? UNION SELECT target_id FROM group_dm_log WHERE group_id = ?)`,
+    [groupId, groupId]
+  );
+  const epochs = await db.all(
+    `SELECT e.epoch, e.log_seq, e.creator_id, k.envelope FROM group_dm_epochs e
+     JOIN group_dm_epoch_keys k ON k.group_id = e.group_id AND k.epoch = e.epoch AND k.user_id = ?
+     WHERE e.group_id = ? ORDER BY e.epoch`,
+    [req.user.id, groupId]
+  );
+  res.json({
+    ...(await groups.groupSummary(groupId, req.user.id)),
+    log,
+    users,
+    epochs,
+    latest_epoch: req.state.latestEpoch ?? null,
+    // A call going on in the group (to join), or null.
+    call: calls.groupCall(groupId) ? calls.publicCall(calls.groupCall(groupId)) : null,
+  });
+});
+
+// Rename (any member; not encrypted, like guild names). null or '' clears it.
+router.patch('/group-dms/:groupId', member, async (req, res) => {
+  const { name } = req.body ?? {};
+  if (name != null && typeof name !== 'string') return res.status(400).json({ error: 'Invalid name' });
+  const cleanName = name?.trim().slice(0, groups.MAX_NAME) || null;
+  const groupId = req.state.group.id;
+  await db.run('UPDATE group_dms SET name = ? WHERE id = ?', [cleanName, groupId]);
+  for (const userId of req.state.members) {
+    sendToUserSockets(userId, { type: 'group_dm_update', group: await groups.groupSummary(groupId, userId) });
+  }
+  res.json(await groups.groupSummary(groupId, req.user.id));
+});
+
+// A membership change: { entry: { record, signature } } (add, remove, leave), optionally with
+// the next `epoch` for the new membership (the adder can make it straight away; after a leave
+// the next member to send one does). The people affected get `group_dm_add` /
+// `group_dm_remove`, everyone else `group_dm_update` with the entry.
+router.post('/group-dms/:groupId/log', member, handle(async (req, res) => {
+  const { state } = req;
+  const groupId = state.group.id;
+  const { entry, epoch } = req.body ?? {};
+  const before = new Set(state.members);
+  const r = await groups.checkEntry(state, entry, req.user.id);
+  groups.applyToState(state, entry, r);
+  await groups.storeEntry(groupId, entry, r);
+  if (epoch) {
+    try {
+      await groups.storeEpoch(state, req.user.id, epoch);
+    } catch (err) {
+      // The change stands; the next message makes the epoch.
+      if (!(err instanceof groups.GroupError)) throw err;
+    }
+  }
+
+  if (state.members.size === 0) {
+    await groups.deleteGroup(groupId);
+  } else {
+    await calls.leaveGroupCall(groupId, r.type === 'add' ? null : r.target);
+  }
+  const stored = { seq: r.seq, record: entry.record, signature: entry.signature };
+  for (const userId of new Set([...before, ...state.members])) {
+    if (!state.members.has(userId)) {
+      sendToUserSockets(userId, { type: 'group_dm_remove', groupId });
+    } else if (!before.has(userId)) {
+      sendToUserSockets(userId, { type: 'group_dm_add', group: await groups.groupSummary(groupId, userId) });
+    } else {
+      sendToUserSockets(userId, { type: 'group_dm_update', group: await groups.groupSummary(groupId, userId), entry: stored });
+    }
+  }
+  if (state.latestEpoch && epoch && state.latestEpoch.epoch === epoch.epoch) {
+    await announceEpoch(groupId, state.latestEpoch);
+  }
+  res.json({ success: true, entry: stored });
+}));
+
+// Each member gets their own key of the new epoch.
+async function announceEpoch(groupId, epoch) {
+  const keys = await db.all('SELECT user_id, envelope FROM group_dm_epoch_keys WHERE group_id = ? AND epoch = ?', [groupId, epoch.epoch]);
+  for (const { user_id: userId, envelope } of keys) {
+    sendToUserSockets(userId, { type: 'group_dm_epoch', groupId, epoch: { ...epoch, envelope } });
+  }
+}
+
+// A new epoch for the current membership: { epoch, logSeq, envelopes: { userId: envelope } }.
+// 409 if another member made it first (then use theirs).
+router.post('/group-dms/:groupId/epochs', member, handle(async (req, res) => {
+  const { state } = req;
+  await groups.storeEpoch(state, req.user.id, req.body ?? {});
+  await announceEpoch(state.group.id, state.latestEpoch);
+  res.status(201).json(state.latestEpoch);
+}));
+
+// A page of messages you can read, oldest first (like DMs: `limit` 1–100, `before` an id).
+router.get('/group-dms/:groupId/messages', member, async (req, res) => {
+  const requested = parseInt(req.query.limit, 10);
+  const limit = Number.isNaN(requested) ? 50 : Math.min(Math.max(requested, 1), 100);
+  const before = parseInt(req.query.before, 10);
+  const params = [req.user.id, req.user.id, req.state.group.id];
+  let where = 'm.group_id = ?';
+  if (!Number.isNaN(before)) {
+    where += ' AND m.id < ?';
+    params.push(before);
+  }
+  const rows = await db.all(`${MESSAGE_SELECT} WHERE ${where} ORDER BY m.id DESC LIMIT ?`, [...params, limit]);
+  res.json(await withReactions(rows.reverse()));
+});
+
+// Send: { epoch, content, replyTo }. The epoch must be the newest, for the current members:
+// otherwise 409 `{ code: 'stale_epoch' }` (make the next one first).
+router.post('/group-dms/:groupId/messages', member, async (req, res) => {
+  const { state } = req;
+  const groupId = state.group.id;
+  const { epoch, content, replyTo } = req.body ?? {};
+  if (typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: 'Missing content' });
+  if (content.length > maxMessageLength) {
+    return res.status(400).json({ error: `Message too long. Max allowed characters: ${maxPlaintextLength}` });
+  }
+  const latest = state.latestEpoch;
+  if (!latest || epoch !== latest.epoch || latest.log_seq !== state.nextSeq - 1) {
+    return res.status(409).json({ error: 'The group changed; its key has to be renewed', code: 'stale_epoch' });
+  }
+  let parentId = null;
+  if (replyTo != null) {
+    const parent = await messageFor(req.user.id, Number(replyTo));
+    if (!parent || parent.group_id !== groupId) return res.status(400).json({ error: 'Invalid reply' });
+    parentId = parent.id;
+  }
+  const { lastID } = await db.run(
+    `INSERT INTO group_dm_messages (group_id, epoch, sender_id, content, parent_message_id, timestamp)
+     VALUES (?, ?, ?, ?, ?, strftime('%s','now'))`,
+    [groupId, epoch, req.user.id, content.trim(), parentId]
+  );
+  await db.run(
+    `INSERT INTO group_dm_reads (user_id, group_id, last_read_id) VALUES (?, ?, ?)
+     ON CONFLICT(user_id, group_id) DO UPDATE SET last_read_id = excluded.last_read_id`,
+    [req.user.id, groupId, lastID]
+  );
+
+  const title = state.group.name || 'Group';
+  for (const userId of state.members) {
+    sendToUserSockets(userId, { type: 'group_dm_message_new', groupId, message: await messageFor(userId, lastID) });
+    if (userId !== req.user.id && !isViewingConversation(userId, `group-${groupId}`)) {
+      sendPushToUser(userId, {
+        type: 'group',
+        title,
+        body: `New message from ${req.user.username}`,
+        url: `/dm/g/${groupId}`,
+        tag: `group-${groupId}`,
+        timestamp: Math.floor(Date.now() / 1000),
+      }, { urgency: 'high', topic: `group${groupId.replace(/-/g, '').slice(0, 20)}` }).catch(() => {});
+    }
+  }
+  res.status(201).json(await messageFor(req.user.id, lastID));
+});
+
+// The message, if it's in a group the caller is in and they can read it.
+async function findMessage(req, res, next) {
+  const message = await messageFor(req.user.id, Number(req.params.messageId));
+  const state = message && await groups.memberState(message.group_id, req.user.id);
+  if (!state) return res.status(404).json({ error: 'Message not found' });
+  req.message = message;
+  req.state = state;
+  next();
+}
+
+// Edit your own message: { content } (encrypted with the message's epoch key).
+router.put('/group-dm-messages/:messageId', authenticateJWT, findMessage, async (req, res) => {
+  const { content } = req.body ?? {};
+  if (typeof content !== 'string' || !content.trim() || content.length > maxMessageLength) {
+    return res.status(400).json({ error: 'Invalid content' });
+  }
+  if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not your message' });
+  await db.run('UPDATE group_dm_messages SET content = ?, edited = 1 WHERE id = ?', [content.trim(), req.message.id]);
+  await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_edit', groupId: req.message.group_id, messageId: req.message.id, content: content.trim() });
+  res.json({ success: true });
+});
+
+// Delete your own message (and its reactions).
+router.delete('/group-dm-messages/:messageId', authenticateJWT, findMessage, async (req, res) => {
+  if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not your message' });
+  await db.run('DELETE FROM group_dm_reactions WHERE message_id = ?', [req.message.id]);
+  await db.run('DELETE FROM group_dm_messages WHERE id = ?', [req.message.id]);
+  await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_delete', groupId: req.message.group_id, messageId: req.message.id });
+  res.json({ success: true });
+});
+
+// React: { content } (the encrypted, padded emoji; see DM reactions).
+router.post('/group-dm-messages/:messageId/reactions', authenticateJWT, findMessage, async (req, res) => {
+  const { content } = req.body ?? {};
+  if (typeof content !== 'string' || content.length !== REACTION_LENGTH || !content.startsWith('v1.')) {
+    return res.status(400).json({ error: 'Invalid reaction' });
+  }
+  const { n } = await db.get('SELECT COUNT(*) AS n FROM group_dm_reactions WHERE message_id = ? AND user_id = ?', [req.message.id, req.user.id]);
+  if (n >= MAX_REACTIONS_PER_USER_PER_MESSAGE) return res.status(400).json({ error: 'Too many reactions' });
+  const { lastID } = await db.run(
+    `INSERT INTO group_dm_reactions (message_id, user_id, content, timestamp) VALUES (?, ?, ?, strftime('%s','now'))`,
+    [req.message.id, req.user.id, content]
+  );
+  const reaction = await db.get('SELECT id, message_id, user_id, content, timestamp FROM group_dm_reactions WHERE id = ?', [lastID]);
+  await groups.sendToGroup(req.message.group_id, { type: 'group_dm_reaction_add', groupId: req.message.group_id, reaction });
+  res.status(201).json(reaction);
+});
+
+router.delete('/group-dm-reactions/:reactionId', authenticateJWT, async (req, res) => {
+  const reaction = await db.get('SELECT id, message_id, user_id FROM group_dm_reactions WHERE id = ?', [Number(req.params.reactionId)]);
+  if (!reaction || reaction.user_id !== req.user.id) return res.status(404).json({ error: 'Reaction not found' });
+  const message = await db.get('SELECT group_id FROM group_dm_messages WHERE id = ?', [reaction.message_id]);
+  await db.run('DELETE FROM group_dm_reactions WHERE id = ?', [reaction.id]);
+  await groups.sendToGroup(message.group_id, { type: 'group_dm_reaction_remove', groupId: message.group_id, messageId: reaction.message_id, reactionId: reaction.id });
+  res.json({ success: true });
+});
+
+// Read up to `messageId`.
+router.post('/group-dms/:groupId/read', member, async (req, res) => {
+  const messageId = Number(req.body?.messageId);
+  if (!Number.isInteger(messageId) || messageId < 0) return res.status(400).json({ error: 'Invalid message' });
+  await db.run(
+    `INSERT INTO group_dm_reads (user_id, group_id, last_read_id) VALUES (?, ?, ?)
+     ON CONFLICT(user_id, group_id) DO UPDATE SET last_read_id = MAX(last_read_id, excluded.last_read_id)`,
+    [req.user.id, req.state.group.id, messageId]
+  );
+  res.json({ success: true });
+});
+
+module.exports = router;

@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-Voicaw is a Discord-style chat web app: end-to-end encrypted direct messages, and guilds
+Voicaw is a Discord-style chat web app: end-to-end encrypted direct messages and group DMs
+(with calls), and guilds
 (servers with text and voice channels, roles and private channels; not encrypted, see Guilds). It's an npm workspaces monorepo with
 three packages: `client` (React/Vite SPA, also packaged as an Electron desktop app), `server`
 (Express + ws API), and `electron` (thin desktop shell wrapping the built client).
@@ -97,6 +98,7 @@ node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permission
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
 node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mute, decline, phone
+node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, group call, owner leaves
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
@@ -145,12 +147,13 @@ unexpected errors. The rest:
 - `s3.js`: pre-signed upload URLs. Bucket setup at startup logs and carries on if the store is down.
 - `guilds.js`: shared guild helpers (membership checks, `getGuildLayout`, `sendToGuild`).
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
-- `calls.js`: DM calls (ringing, answering, hanging up; see DM calls).
+- `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).
+- `groupDms.js`: group DMs (membership log checks, epochs, summaries; see Group DMs).
 - `routes/`: `auth.js` (OPAQUE register/login, profile), `dms.js` (conversations, send, edit,
   delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `guilds.js` (guilds,
   members, invites, bans, categories, channels), `guildMessages.js` (channel messages, reactions,
   read state), `voice.js` (join token, mute/deafen, leave, LiveKit webhook), `calls.js` (DM
-  calls), `push.js`
+  calls), `groupDms.js` (group DMs), `push.js`
   (subscriptions), `uploads.js`.
 
 Client tests sit next to their source files (`src/**/*.test.{js,jsx}`). The default environment is
@@ -296,12 +299,14 @@ Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, 
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete`,
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
 `guild_order` (your server rail order, to your other devices), `guild_voice_state` (someone
-joined, left or (un)muted in a voice channel), and for DM calls `call_incoming`, `call_update`,
-`call_end`. A 30s heartbeat
+joined, left or (un)muted in a voice channel), for calls `call_incoming`, `call_update`,
+`call_end`, and for group DMs `group_dm_add` / `_update` / `_remove` / `_epoch` /
+`_message_new` / `_message_edit` / `_message_delete` / `_reaction_add` / `_reaction_remove`. A 30s heartbeat
 (ping/pong) prunes dead connections.
 
 Client side, `client/src/utils/ws-client.js` wraps this with `connectWebSocket`/`closeWebSocket`
-and a pub/sub listener API (`onNewDm`, `onDeleteDm`, `onEditDm`, `onReactionAdd`, `onReactionRemove`, `onGuildEvent`), auto-reconnecting
+and a pub/sub listener API (`onNewDm`, `onDeleteDm`, `onEditDm`, `onReactionAdd`, `onReactionRemove`, `onGuildEvent`,
+`onCallEvent`, `onGroupEvent`), auto-reconnecting
 every 3s on close. All non-realtime DM operations (fetch history, send, mark read) go through the
 plain REST API in `client/src/services/dmService.js` / `client/src/utils/api.js` instead.
 
@@ -542,8 +547,75 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
   other's mute, the duration, controls, "End-to-end encrypted"), the voice bar ("Call with …",
   hang up; why a call ended: declined, didn't answer, missed call). Ring and ringback sounds are
   Web Audio (`voice/ringtone.js`). Reloading or leaving the page leaves the call.
-- **Not done yet:** calls in the chat history (missed/ended entries), video, group calls, and
-  the incoming call screen of a native app (a closed PWA only gets the notification).
+- **Group calls** (from a group DM's header): the call key is encrypted with the group's
+  current epoch key (`groupCallKeyContext(callId, groupId, epoch, callerId)`, `key_epoch`), so
+  only members of that epoch can open it; members added during a call join the next one.
+  `POST /group-dms/:id/call { callId, epoch, keyEnvelope }` rings every other member (409 with
+  the `call` if the group has one: join that); any member joins any time with
+  `/dm-calls/:id/accept` (declining only stops your ringing; after 45 s nobody's rung and they
+  get "Missed call"); `DELETE` leaves, and the last one out ends it. `call_update` (with
+  `participants` and `ringing`) goes to every member, so the group shows who's in and "Join call"
+  (`group/GroupCallPanel.jsx`; `callClient` keeps `groupCalls`). Being removed from the group
+  takes you out of its call (LiveKit too). The call key isn't changed when someone leaves a
+  call.
+- **Not done yet:** calls in the chat history (missed/ended entries), video, and the incoming
+  call screen of a native app (a closed PWA only gets the notification).
+
+### Group DMs
+
+End-to-end encrypted chats of up to 10 people (`MAX_MEMBERS`), with calls (see DM calls). Anyone
+in a group adds people; only the owner (the creator) removes them; anyone leaves; an owner who
+leaves leaves the group without an owner (nobody can remove anyone then); the last one out
+deletes it. The group name isn't encrypted (like guild names); messages, reactions, edits and
+call keys are.
+- **Membership log** (`group_dm_log`): every change is a record (`makeRecord`: `{ v, group, seq,
+  prev, type, actor, target, targetIdentityKey, at }`, JSON in a fixed order) that its author
+  signs with their identity key (`voicaw/group-log/v1`); `prev` is the previous entry's hash, so
+  it's a chain. Types: `create` (seq 0, the creator's own identity key), `add` (the added
+  person's identity key), `remove` (owner only), `leave` (yourself). Group ids are UUIDs made by
+  the creator. The server checks every record like a client would (sequence, chain, rules,
+  identity key = the user's, signature) before storing it; clients check the whole log again
+  (`verifyGroupLog` in `services/groupCrypto.js`), and each current member's log identity key
+  against the key this device pinned for them (`checkContactKeys`, as for DMs). A mismatch
+  blocks sending in the group (a changed key can be accepted, like in a DM; a key that doesn't
+  match the log needs the person removed and re-added).
+- **Epochs** (`group_dm_epochs`, `group_dm_epoch_keys`): a key period, for the members after log
+  entry `log_seq`. Its key is 32 random bytes, wrapped for each member (`wrapGroupKey`: ECDH
+  between the creator's and the member's encryption keys, HKDF `voicaw/group-key-wrap/v1`,
+  bound to group, epoch, `log_seq`, creator and member). Clients only wrap for members from the
+  checked log, with the encryption key their log identity key signed, and only open epochs whose
+  creator was a member at `log_seq`. A new epoch is needed after every membership change; the
+  person adding or removing makes it with the change, otherwise (after a leave) the next member
+  to send one does (`currentEpoch` in `services/groupKeys.js`). The server only takes a message
+  for the newest epoch when that's for the current membership (else 409 `stale_epoch`), and only
+  one epoch per number (the loser of a race gets 409 and uses the winner's).
+- **Who reads what:** the server only returns messages (and reply previews) of epochs you have a
+  key for, and unread counts only count those. So someone added never sees what was said before
+  (they never get those keys), someone removed never gets new keys, and someone re-added keeps
+  their old keys: they see the times they were a member, not the gap (decided 2026-09-30;
+  "fresh start on rejoin" would be deleting their old `group_dm_epoch_keys` rows on re-add).
+- **Messages** (`group_dm_messages`, `_reactions`, `_reads`): like DMs, encrypted with the
+  epoch key, additional data `groupMessageContext(groupId, epoch, senderId)` (reactions:
+  `groupReactionContext(groupId, messageId, reactorId)`, padded like DM reactions); edits keep
+  the message's epoch. Messages aren't signed: within a group, who sent a message rests on the
+  server's login (a member working with the server could forge one; signing them is a possible
+  next step). Pushes say "New message from <name>" (no preview: the service worker has no epoch
+  keys).
+- **API** (`routes/groupDms.js`): `GET/POST /group-dms`, `GET /group-dms/:id` (summary, the
+  whole log, everyone's public keys, your epoch keys, `latest_epoch`, the group's `call`),
+  `PATCH` (rename), `POST /:id/log { entry, epoch? }`, `POST /:id/epochs`, `GET/POST
+  /:id/messages`, `PUT/DELETE /group-dm-messages/:id` (author), `POST
+  /group-dm-messages/:id/reactions`, `DELETE /group-dm-reactions/:id`, `POST /:id/read`.
+  Non-members get 404 for everything.
+- **Client:** route `/dm/g/:groupId` (`group/GroupDm.jsx`: header with call and members
+  buttons, `GroupCallPanel`, key warnings, `ChatPane`, `GroupMembers`: add people, remove
+  (owner), rename, leave). `hooks/useGroupConversation.js` is `useConversation` for a group
+  (decrypting with each message's epoch key; membership changes as `system` rows in the
+  timeline, which `MessageList` draws as centred lines, from the time you joined).
+  `hooks/useGroupList.js` (in `Layout`, `LayoutContext.groupList`) feeds `DmSidebar`, which
+  mixes groups in with people by latest message and has the "New group" button
+  (`group/NewGroupDialog.jsx`).
+
 
 ### File uploads (S3-compatible object store)
 
@@ -728,11 +800,12 @@ their box is reserved before they load.
 
 ## Decisions, plans and known issues
 
-- **Group chats (planned):** removed members must not read new messages and new members must not
-  read old ones. So: per-group epoch keys, rotated on every membership change, each member getting
-  a copy encrypted to them (HPKE preferred); membership changes and group messages signed with
-  identity keys. Don't change identity keys or the safety-number derivation casually: every
-  contact would get a "key changed" warning. The server delivering the web app's code stays the
+- **Group DMs** (built 2026-09-30, see Group DMs): removed members don't read new messages and
+  new members don't read old ones: per-group epoch keys, renewed after every membership change,
+  each member getting a copy wrapped for them (ECDH + HKDF; WebCrypto has no HPKE); membership
+  changes signed with identity keys. Re-added members see the times they were in, not the gap.
+  Group messages aren't signed yet. Don't change identity keys or the safety-number derivation
+  casually: every contact would get a "key changed" warning. The server delivering the web app's code stays the
   unfixable gap until native apps.
 - **Guilds aren't encrypted** (decided 2026-09-29): encrypted channels inside guilds were
   considered and dropped (who may add members to one, when roles are server-controlled, had no

@@ -9,6 +9,7 @@ const reactionAddListeners = new Set();
 const reactionRemoveListeners = new Set();
 const guildListeners = new Set();
 const callListeners = new Set();
+const groupListeners = new Set();
 let reconnectTimeout = null;
 
 // This client's own connection: 'connecting' | 'online' | 'offline' (logged out, or the
@@ -140,6 +141,9 @@ export function connectWebSocket() {
       else if (data.type?.startsWith('call_')) {
         callListeners.forEach((cb) => cb(data));
       }
+      else if (data.type?.startsWith('group_dm_')) {
+        groupListeners.forEach((cb) => cb(data));
+      }
       else if (data.type === 'user_status') {
         applyUserStatus(data);
       }
@@ -233,4 +237,12 @@ export function onGuildEvent(callback) {
 export function onCallEvent(callback) {
   callListeners.add(callback);
   return () => callListeners.delete(callback);
+}
+
+// Group DM events: `group_dm_add` / `_update` ({ group, entry? }), `_remove` ({ groupId }),
+// `_epoch` ({ groupId, epoch }), `_message_new` / `_edit` / `_delete`, `_reaction_add` /
+// `_remove` (see server/routes/groupDms.js).
+export function onGroupEvent(callback) {
+  groupListeners.add(callback);
+  return () => groupListeners.delete(callback);
 }

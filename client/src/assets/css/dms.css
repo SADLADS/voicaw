@@ -1472,3 +1472,12 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   margin: 0 0.05em;
   vertical-align: -0.3em;
 }
+
+/* A group DM's membership changes, between its messages. */
+.message-system {
+  margin: 6px 0;
+  padding: 2px 1.25rem;
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+  text-align: center;
+}

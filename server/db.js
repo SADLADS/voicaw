@@ -272,6 +272,115 @@ CREATE TABLE IF NOT EXISTS dm_reactions (
 db.run(`CREATE INDEX IF NOT EXISTS dm_reactions_message ON dm_reactions (message_id)`);
 });
 
+// GROUP DMS (end-to-end encrypted; see routes/groupDms.js). Ids are UUIDs made by the creator
+// (they're signed into the membership log). `owner_id` is null once the owner has left.
+db.serialize(() => {
+db.run(`
+CREATE TABLE IF NOT EXISTS group_dms (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  owner_id INTEGER,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (owner_id) REFERENCES users(id)
+);
+`);
+
+// Who's in each group now (leaving or being removed deletes the row).
+db.run(`
+CREATE TABLE IF NOT EXISTS group_dm_members (
+  group_id TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
+  joined_at INTEGER NOT NULL,
+  PRIMARY KEY (group_id, user_id),
+  FOREIGN KEY (group_id) REFERENCES group_dms(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+`);
+db.run('CREATE INDEX IF NOT EXISTS group_dm_members_user ON group_dm_members (user_id)');
+
+// The membership log: every change, as the JSON its author signed with their identity key, in
+// a hash chain (each record names the previous one), so the server can't add, drop or reorder
+// changes without clients noticing.
+db.run(`
+CREATE TABLE IF NOT EXISTS group_dm_log (
+  group_id TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  record TEXT NOT NULL,
+  signature TEXT NOT NULL,
+  type TEXT NOT NULL,
+  actor_id INTEGER NOT NULL,
+  target_id INTEGER,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (group_id, seq),
+  FOREIGN KEY (group_id) REFERENCES group_dms(id)
+);
+`);
+
+// Key periods: a new one after every membership change (made by a member, lazily), for the
+// members as of log entry `log_seq`. Each member gets the period's key encrypted for them.
+db.run(`
+CREATE TABLE IF NOT EXISTS group_dm_epochs (
+  group_id TEXT NOT NULL,
+  epoch INTEGER NOT NULL,
+  log_seq INTEGER NOT NULL,
+  creator_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (group_id, epoch),
+  FOREIGN KEY (group_id) REFERENCES group_dms(id)
+);
+`);
+db.run(`
+CREATE TABLE IF NOT EXISTS group_dm_epoch_keys (
+  group_id TEXT NOT NULL,
+  epoch INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  envelope TEXT NOT NULL,
+  PRIMARY KEY (group_id, epoch, user_id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+`);
+
+db.run(`
+CREATE TABLE IF NOT EXISTS group_dm_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  group_id TEXT NOT NULL,
+  epoch INTEGER NOT NULL,
+  sender_id INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  timestamp INTEGER DEFAULT (strftime('%s','now')),
+  parent_message_id INTEGER,
+  edited INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (group_id) REFERENCES group_dms(id),
+  FOREIGN KEY (sender_id) REFERENCES users(id)
+);
+`);
+db.run('CREATE INDEX IF NOT EXISTS group_dm_messages_group ON group_dm_messages (group_id, id)');
+
+// Encrypted like DM reactions (same fixed size), with the message's epoch key.
+db.run(`
+CREATE TABLE IF NOT EXISTS group_dm_reactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  message_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  timestamp INTEGER DEFAULT (strftime('%s','now')),
+  FOREIGN KEY (message_id) REFERENCES group_dm_messages(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+`);
+db.run('CREATE INDEX IF NOT EXISTS group_dm_reactions_message ON group_dm_reactions (message_id)');
+
+// How far each member has read; unread = newer messages by others they can read.
+db.run(`
+CREATE TABLE IF NOT EXISTS group_dm_reads (
+  user_id INTEGER NOT NULL,
+  group_id TEXT NOT NULL,
+  last_read_id INTEGER NOT NULL,
+  PRIMARY KEY (user_id, group_id)
+);
+`);
+});
+
 // UNREAD DMS
 db.run(`
 CREATE TABLE IF NOT EXISTS dm_unread (

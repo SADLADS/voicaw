@@ -8,6 +8,7 @@ import Login from './components/Login.jsx';
 import Layout from './components/Layout.jsx';
 import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
+import GroupDm from './components/group/GroupDm.jsx';
 import GuildView from './components/guild/GuildView.jsx';
 import InvitePage from './components/guild/InvitePage.jsx';
 import api from './utils/api';
@@ -152,6 +153,7 @@ export default function App() {
               <Route element={<Layout user={user} />}>
                 <Route path="/settings" element={<Settings onLogout={handleLogout} />} />
                 <Route path="/dm/:id?" element={<Dm user={user} />} />
+                <Route path="/dm/g/:groupId" element={<GroupDm user={user} />} />
                 <Route path="/guild/:guildId/:channelId?" element={<GuildView user={user} />} />
                 <Route path="/invite/:code" element={<InvitePage />} />
               </Route>

@@ -24,3 +24,8 @@ export async function declineCallRequest(callId) {
 export async function hangUpRequest(callId) {
   await api.delete(`/dm-calls/${callId}`);
 }
+
+// -> { call, url, token }; 409 with `call` when the group already has one.
+export async function startGroupCallRequest(groupId, callId, epoch, keyEnvelope) {
+  return (await api.post(`/group-dms/${groupId}/call`, { callId, epoch, keyEnvelope })).data;
+}
