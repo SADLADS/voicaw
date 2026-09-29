@@ -43,7 +43,7 @@ export default function Settings({ onLogout }) {
   };
 
   return (
-    <div>
+    <div className="settings-page">
       <h2 className="settings-header">User Settings</h2>
       <div className="settings-card">
         <h5>Change Profile Pic</h5>
