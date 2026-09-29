@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import '../assets/css/dms.css';
 import NotificationPrompt from './NotificationPrompt';
+import RecoveryPrompt from './RecoveryPrompt';
 import { LayoutContext } from '../contexts';
 import ContactKeyWarning from './ContactKeyWarning';
 import SafetyNumberDialog from './SafetyNumberDialog';
@@ -41,6 +42,7 @@ export default function Dm({ user }) {
 
   return (
     <div id="dm-main" data-current-user-id={user?.id} data-other-user-id={chatUser?.id}>
+      <RecoveryPrompt user={user} />
       <NotificationPrompt />
       {errorUsers && <p className="error-text">Error loading users: {errorUsers}</p>}
       {users.length === 0 && !errorUsers && !id && <p>No recent conversations found.</p>}

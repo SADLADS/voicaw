@@ -16,6 +16,7 @@ export function AuthProvider({ children }) {
             id: res.data.id,
             username: res.data.username,
             token: res.data.token,
+            hasRecoveryCode: res.data.hasRecoveryCode,
           });
         } else {
           setUser(null);

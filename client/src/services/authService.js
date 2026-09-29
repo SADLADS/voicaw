@@ -1,28 +1,35 @@
 import * as opaque from '@serenity-kit/opaque';
 import api from '../utils/api';
-import { generateUserKeys, wrapKeyBackup, unwrapKeyBackup } from './encryptionService';
+import {
+  generateUserKeys, wrapKeyBackup, unwrapKeyBackup, generateRecoveryCode, normalizeRecoveryCode, recoveryAuth,
+  recoveryVerifier, wrapRecoveryBackup, unwrapRecoveryBackup,
+} from './encryptionService';
 import { storeUserKeys } from './keyStore';
 
 // Logging in and registering: OPAQUE (the password never leaves the device) plus the
 // encryption keys, which the server keeps only as a backup encrypted with OPAQUE's
-// exportKey. On success the keys go into this device's key store and the token into
-// localStorage. (server/test/helpers/authFlow.js mirrors this protocol.)
+// exportKey (and optionally a second one encrypted with a recovery code). On success the
+// keys go into this device's key store and the token into localStorage. Changing the
+// password or recovering the account re-encrypts the backup here, so the server never
+// sees a password or a private key. (server/test/helpers/authFlow.js mirrors this protocol.)
 
-// The password is what the encryption keys are protected with (and it can't be reset), so
-// insist on a reasonable length. The server never sees it, so it can only be checked here.
+// The password is what the encryption keys are protected with, so insist on a reasonable
+// length. The server never sees it, so it can only be checked here.
 export const MIN_PASSWORD_LENGTH = 10;
 
 const PUBLIC_KEY_FIELDS = ['identityKey', 'encryptionKey', 'encryptionKeySignature'];
 
-// POSTs and resolves to the response body; a refusal throws the server's own message
+// Sends and resolves to the response body; a refusal throws the server's own message
 // (e.g. "Username already exists", or too many attempts).
-async function post(path, body) {
+async function send(method, path, body) {
   try {
-    return (await api.post(path, body)).data;
+    return (await api[method](path, body)).data;
   } catch (err) {
     throw new Error(err.response?.data?.error || err.message);
   }
 }
+
+const post = (path, body) => send('post', path, body);
 
 // Resolves to the user ({ token, id, username }); throws an Error with a message to show.
 export async function logIn(username, password) {
@@ -63,39 +70,131 @@ export async function logIn(username, password) {
 
   await storeUserKeys(id, keys);
   localStorage.setItem('token', token);
-  return { token, id, username: data.username };
+  return { token, id, username: data.username, hasRecoveryCode: Boolean(data.hasRecoveryCode) };
 }
 
-// Creates the account with new keys. Resolves to the logged-in user ({ token, id,
-// username }), or null if the server registered it without logging in.
-export async function register(username, password) {
-  if (!username || !password) throw new Error('Username and password are required');
+function checkNewPassword(password) {
+  if (!password) throw new Error('Password is required');
   if (password.length < MIN_PASSWORD_LENGTH) {
     throw new Error(`Use a password of at least ${MIN_PASSWORD_LENGTH} characters.`);
   }
+}
 
+// OPAQUE registration for `password`: { registrationRecord, exportKey }.
+async function registerPassword(username, password) {
   const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
   const started = await post('/initiateregister', { userIdentifier: username, registrationRequest });
   if (started.error) throw new Error(started.error);
-  const { registrationRecord, exportKey } = opaque.client.finishRegistration({
+  return opaque.client.finishRegistration({
     clientRegistrationState,
     registrationResponse: started.registrationResponse,
     password,
   });
+}
 
-  // New keys, backed up on the server encrypted with the OPAQUE exportKey.
+// A new password's registration record and the keys encrypted for it. The backup is opened
+// again before anything is sent, so a bad one can never replace the working one.
+async function newPasswordFields(username, password, keys) {
+  const { registrationRecord, exportKey } = await registerPassword(username, password);
+  const keyBackup = await wrapKeyBackup(exportKey, keys);
+  await unwrapKeyBackup(exportKey, keyBackup);
+  return { registrationRecord, keyBackup };
+}
+
+// What the server stores for a recovery code: { recoveryVerifier, recoveryBackup }.
+async function recoveryFields(code, keys) {
+  return {
+    recoveryVerifier: await recoveryVerifier(await recoveryAuth(code)),
+    recoveryBackup: await wrapRecoveryBackup(code, keys),
+  };
+}
+
+// Creates the account with new keys and a recovery code. Resolves to { user, recoveryCode }
+// (user: the logged-in { token, id, username, hasRecoveryCode }, or null if the server
+// registered it without logging in). The code is shown once and never stored.
+export async function register(username, password) {
+  if (!username) throw new Error('Username and password are required');
+  checkNewPassword(password);
+
+  const { registrationRecord, exportKey } = await registerPassword(username, password);
+
+  // New keys, backed up on the server encrypted with the OPAQUE exportKey and the code.
   const keys = await generateUserKeys();
   const keyBackup = await wrapKeyBackup(exportKey, keys);
+  const recoveryCode = generateRecoveryCode();
 
   const data = await post('/finaliseregister', {
     registrationRecord,
     userIdentifier: username,
     ...keys.public,
     keyBackup,
+    ...(await recoveryFields(recoveryCode, keys)),
   });
-  if (!data.token) return null;
+  if (!data.token) return { user: null, recoveryCode };
 
   await storeUserKeys(data.id, keys);
   localStorage.setItem('token', data.token);
-  return data;
+  return { user: { token: data.token, id: data.id, username: data.username, hasRecoveryCode: true }, recoveryCode };
+}
+
+// Proves the logged-in user knows `password` (a fresh OPAQUE login) and opens their key
+// backup with it. Resolves to { proof, keys }; `proof` goes along with the change.
+async function unlockWithPassword(username, password) {
+  if (!password) throw new Error('Enter your current password');
+  const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
+  const started = await post('/initiatelogin', { startLoginRequest, userIdentifier: username });
+  const result = opaque.client.finishLogin({ clientLoginState, loginResponse: started.loginResponse, password });
+  if (!result) throw new Error('Your current password is incorrect');
+
+  const { keyBackup } = await send('get', '/key-backup');
+  let keys;
+  try {
+    keys = await unwrapKeyBackup(result.exportKey, keyBackup);
+  } catch {
+    throw new Error("Couldn't unlock your encryption keys.");
+  }
+  return { proof: { finishLoginRequest: result.finishLoginRequest, clientSessionKey: result.sessionKey }, keys };
+}
+
+// Logged in: replaces the password. Other devices stay logged in.
+export async function changePassword(username, currentPassword, newPassword) {
+  checkNewPassword(newPassword);
+  const { proof, keys } = await unlockWithPassword(username, currentPassword);
+  const fields = await newPasswordFields(username, newPassword, keys);
+  await post('/change-password', { ...proof, ...fields });
+}
+
+// Logged in: makes a new recovery code (the old one stops working). Resolves to the code.
+export async function createRecoveryCode(username, password) {
+  const { proof, keys } = await unlockWithPassword(username, password);
+  const code = generateRecoveryCode();
+  await send('put', '/recovery-code', { ...proof, ...(await recoveryFields(code, keys)) });
+  return code;
+}
+
+// Logged out, password forgotten: sets a new password with the recovery code and logs in.
+// Resolves to the user, like logIn. The recovery code keeps working.
+export async function recoverAccount(username, code, newPassword) {
+  if (!username) throw new Error('Enter your username');
+  if (!normalizeRecoveryCode(code)) throw new Error("That doesn't look like a recovery code. It's 25 letters and numbers.");
+  checkNewPassword(newPassword);
+
+  const auth = await recoveryAuth(code);
+  const data = await post('/recover/start', { userIdentifier: username, recoveryAuth: auth });
+  let keys;
+  try {
+    keys = await unwrapRecoveryBackup(code, data.recoveryBackup);
+  } catch {
+    throw new Error("Couldn't unlock your encryption keys with that code.");
+  }
+  if (PUBLIC_KEY_FIELDS.some((field) => keys.public[field] !== data[field])) {
+    throw new Error("The server's copy of your public keys doesn't match your account.");
+  }
+
+  const fields = await newPasswordFields(username, newPassword, keys);
+  const done = await post('/recover/finish', { userIdentifier: username, recoveryAuth: auth, ...fields });
+
+  await storeUserKeys(done.id, keys);
+  localStorage.setItem('token', done.token);
+  return { token: done.token, id: done.id, username: done.username, hasRecoveryCode: true };
 }

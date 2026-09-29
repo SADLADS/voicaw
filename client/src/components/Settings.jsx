@@ -4,6 +4,7 @@ import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 import { InteractionContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
+import AccountSecuritySettings from "./AccountSecuritySettings";
 import { MAX_PROFILE_PIC_BYTES, uploadProfilePicture } from '../services/profileService';
 import { announceProfilePictureChange } from '../utils/profilePicture';
 
@@ -69,6 +70,7 @@ export default function Settings({ onLogout }) {
         {error && <p style={{ color: "red" }}>{error}</p>}
         {success && <p style={{ color: "green" }}>Upload successful!</p>}
       </div>
+      <AccountSecuritySettings />
       <div className="settings-card">
         <h5>Interaction Mode</h5>
         <select

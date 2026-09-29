@@ -9,15 +9,18 @@ vi.mock('../utils/api', () => ({
 import api from '../utils/api';
 import Settings from './Settings';
 import { InteractionContext } from '../contexts';
+import { AuthContext } from '../hooks/useAuth';
 
 function renderSettings({ onLogout = vi.fn(), interactionOverrides = {} } = {}) {
   const setInteractionMode = vi.fn();
   const utils = render(
-    <InteractionContext.Provider
-      value={{ interactionMode: 'auto', setInteractionMode, ...interactionOverrides }}
-    >
-      <Settings onLogout={onLogout} user={{ id: 1, username: 'me' }} />
-    </InteractionContext.Provider>
+    <AuthContext.Provider value={{ user: { id: 1, username: 'me', hasRecoveryCode: true }, setUser: vi.fn() }}>
+      <InteractionContext.Provider
+        value={{ interactionMode: 'auto', setInteractionMode, ...interactionOverrides }}
+      >
+        <Settings onLogout={onLogout} />
+      </InteractionContext.Provider>
+    </AuthContext.Provider>
   );
   return { ...utils, setInteractionMode, onLogout };
 }
