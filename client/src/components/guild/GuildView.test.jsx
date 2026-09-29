@@ -10,7 +10,6 @@ vi.mock('../../utils/ws-client', () => ({
     guildListeners.list.push(cb);
     return () => { guildListeners.list = guildListeners.list.filter((x) => x !== cb); };
   },
-  onUserStatus: () => () => {},
 }));
 
 vi.mock('../../services/guildService', () => ({
@@ -204,8 +203,8 @@ describe('GuildView', () => {
 
   it('colours names by their highest coloured role, and follows role changes', async () => {
     fetchMembers.mockResolvedValue([
-      { id: 2, username: 'bob', joined_at: 1, role_ids: [2, 3], online: true },
-      { id: 4, username: 'plain', joined_at: 1, role_ids: [2], online: true },
+      { id: 2, username: 'bob', joined_at: 1, role_ids: [2, 3], status: 'online' },
+      { id: 4, username: 'plain', joined_at: 1, role_ids: [2], status: 'online' },
     ]);
     fetchChannelMessages.mockResolvedValue([row(1, 'hello')]);
     renderView('/guild/5/10');

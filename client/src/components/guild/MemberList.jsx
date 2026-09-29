@@ -8,12 +8,17 @@ import { banMember, kickMember, setMemberRoles, transferGuild } from '../../serv
 import { PERMISSIONS, colorToHex, has, memberColor, memberRank, memberRoles } from '../../utils/permissions';
 import { errorMessage, groupMembers } from '../../utils/guildDisplay';
 import ConfirmDialog from './ConfirmDialog';
+import StatusIcon from '../StatusIcon';
+import { usePresence } from '../../hooks/usePresence';
+import { lastSeenText, statusLabel } from '../../utils/presence';
 
 // The guild's members down the right (like Discord), names in their role colour. Clicking one
 // opens a card: their roles (added and removed there by people who manage roles, for roles
 // below their own), Message, and, as permissions and rank allow, Make owner / Kick / Ban.
-export default function MemberList({ guild, members, user, onClose }) {
+export default function MemberList({ guild, members: memberList, user, onClose }) {
   const { s3Endpoint } = useContext(ConfigContext);
+  const presenceOf = usePresence();
+  const members = memberList.map((m) => ({ ...m, ...presenceOf(m) }));
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState(null);
   const [confirm, setConfirm] = useState(null);
@@ -58,6 +63,9 @@ export default function MemberList({ guild, members, user, onClose }) {
       <div className="member-card" ref={cardRef} role="dialog" aria-label={member.username}>
         <div className="member-card-name" style={{ color: memberColor(guild.roles, member.role_ids) ?? undefined }}>
           {member.username}
+        </div>
+        <div className={`member-card-status ${member.status}`}>
+          {member.status === 'offline' ? lastSeenText(member.lastOnline) ?? statusLabel(member.status) : statusLabel(member.status)}
         </div>
         <div className="vc-hint">Member since {new Date(member.joined_at * 1000).toLocaleDateString()}</div>
 
@@ -171,7 +179,7 @@ export default function MemberList({ guild, members, user, onClose }) {
       <li key={member.id} className="member-item">
         <button
           type="button"
-          className={`member-row${member.online ? '' : ' offline'}${isSelected ? ' selected' : ''}`}
+          className={`member-row${member.status === 'offline' ? ' offline' : ''}${isSelected ? ' selected' : ''}`}
           onClick={() => setSelectedId(isSelected ? null : member.id)}
         >
           <span className="member-avatar">
@@ -183,7 +191,7 @@ export default function MemberList({ guild, members, user, onClose }) {
                 e.currentTarget.src = defaultpfp;
               }}
             />
-            <span className={`member-status${member.online ? ' online' : ''}`} />
+            <StatusIcon className="member-status" status={member.status} />
           </span>
           <span className="member-name" style={{ color: color ?? undefined }}>{member.username}</span>
           {member.id === guild.owner && <FontAwesomeIcon icon={faCrown} className="member-owner" title="Server owner" />}

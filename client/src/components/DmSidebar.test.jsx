@@ -1,19 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { act } from 'react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-
-const statusListeners = [];
-vi.mock('../utils/ws-client', () => ({
-  onUserStatus: (cb) => {
-    statusListeners.push(cb);
-    return () => {
-      const idx = statusListeners.indexOf(cb);
-      if (idx !== -1) statusListeners.splice(idx, 1);
-    };
-  },
-}));
-
+import { applyPresenceSnapshot, applyUserStatus, resetPresence } from '../utils/presence';
 import DmSidebar from './DmSidebar';
 import { ConfigContext } from '../contexts';
 
@@ -30,13 +20,13 @@ function renderSidebar(users, { path = '/dm/2', unreadDms } = {}) {
 }
 
 beforeEach(() => {
-  statusListeners.length = 0;
+  resetPresence();
 });
 
 describe('DmSidebar', () => {
   const users = [
-    { id: 1, username: 'alice', online: false },
-    { id: 2, username: 'bob', online: true },
+    { id: 1, username: 'alice', status: 'offline', last_online: null },
+    { id: 2, username: 'bob', status: 'online' },
   ];
 
   it('renders one link per user with their username', () => {
@@ -56,25 +46,29 @@ describe('DmSidebar', () => {
     expect(aliceLink.className).not.toContain('active');
   });
 
-  it('reflects the initial online prop via the online-dot class', () => {
+  const dotOf = (name) => screen.getByText(name).closest('a').querySelector('.online-dot');
+
+  it('shows the status the API gave until the live one arrives', () => {
     renderSidebar(users);
 
-    const aliceDot = screen.getByText('alice').closest('a').querySelector('.online-dot');
-    const bobDot = screen.getByText('bob').closest('a').querySelector('.online-dot');
-
-    expect(aliceDot.className).toContain('offline');
-    expect(bobDot.className).toContain('online');
+    expect(dotOf('alice')).toHaveClass('offline');
+    expect(dotOf('bob')).toHaveClass('online');
   });
 
-  it('updates the online-dot when a user_status event fires', () => {
+  it('follows the live snapshot and status changes, with last seen for offline people', () => {
     renderSidebar(users);
 
-    expect(statusListeners).toHaveLength(1);
+    act(() => applyPresenceSnapshot({ 1: 'mobile' }));
+    expect(dotOf('alice')).toHaveClass('mobile');
+    expect(dotOf('alice')).toHaveAttribute('title', 'Online on mobile');
+    expect(dotOf('bob')).toHaveClass('offline');
 
-    statusListeners[0]({ userId: '1', status: 'online' });
+    act(() => applyUserStatus({ userId: 1, status: 'idle' }));
+    expect(dotOf('alice')).toHaveClass('idle');
 
-    const aliceDot = screen.getByText('alice').closest('a').querySelector('.online-dot');
-    expect(aliceDot.className).toContain('online');
+    act(() => applyUserStatus({ userId: 1, status: 'offline', lastOnline: Math.floor(Date.now() / 1000) - 3 * 3600 }));
+    expect(dotOf('alice')).toHaveClass('offline');
+    expect(dotOf('alice')).toHaveAttribute('title', 'Last seen 3 hours ago');
   });
 
   it('falls back to the default avatar when the profile pic fails to load', () => {
@@ -88,7 +82,7 @@ describe('DmSidebar', () => {
 
   it('marks conversations with unread messages, except the open one', () => {
     renderSidebar(
-      [...users, { id: 3, username: 'carol', online: false }],
+      [...users, { id: 3, username: 'carol', status: 'offline' }],
       { unreadDms: [{ from_user_id: 1, count: 2 }, { from_user_id: 2, count: 1 }] }
     );
     const dot = (name) => screen.getByText(name).closest('a').querySelector('.userdot');

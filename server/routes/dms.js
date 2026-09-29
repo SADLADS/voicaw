@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { maxPlaintextLength, maxMessageLength } = require('../config');
 const { authenticateJWT } = require('../auth');
-const { sendToUserSockets, isOnline, isViewingConversation } = require('../sockets');
+const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
 const { buildDmPushPayload, sendPushToUser, getUserImageUrl } = require('../push');
 
 // Direct messages. Contents are end-to-end encrypted: the server stores and relays
@@ -38,11 +38,11 @@ async function withReactions(messages) {
   return messages.map((m) => ({ ...m, reactions: byMessage.get(m.id) }));
 }
 
-// Everyone else, most recent conversation first, with their public keys and online state.
+// Everyone else, most recent conversation first, with their public keys, status and last seen.
 router.get('/dms-list', authenticateJWT, async (req, res) => {
   const me = req.user.id;
   const users = await db.all(
-    `SELECT u.id, u.username, u.identity_key, u.encryption_key, u.encryption_key_signature,
+    `SELECT u.id, u.username, u.identity_key, u.encryption_key, u.encryption_key_signature, u.last_online,
             MAX(m.timestamp) AS last_timestamp
      FROM users u
      LEFT JOIN direct_messages m
@@ -52,7 +52,7 @@ router.get('/dms-list', authenticateJWT, async (req, res) => {
      ORDER BY last_timestamp DESC NULLS LAST`,
     [me, me, me]
   );
-  res.json(users.map((user) => ({ ...user, online: isOnline(user.id) })));
+  res.json(users.map((user) => ({ ...user, status: getStatus(user.id) })));
 });
 
 // A page of a conversation, oldest first: the newest `limit` messages (1–100, default 10),

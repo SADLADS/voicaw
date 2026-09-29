@@ -5,9 +5,9 @@ import {
   onNewDm,
   onDeleteDm,
   onEditDm,
-  onUserStatus,
   setActiveChat,
 } from './ws-client';
+import { presenceOf } from './presence';
 
 class MockWebSocket {
   constructor(url) {
@@ -76,9 +76,10 @@ describe('connectWebSocket', () => {
     const socket = MockWebSocket.instances[0];
     socket._open();
 
-    expect(JSON.parse(socket.sent[0])).toEqual({ type: 'identify', token: 'jwt-abc' });
-    // followed by its presence (no chat open yet)
-    expect(JSON.parse(socket.sent[1])).toEqual({ type: 'presence', visible: true, chatId: null });
+    // Its presence first (no chat open yet, active, not a phone), then identify.
+    expect(JSON.parse(socket.sent[0])).toEqual({ type: 'presence', visible: true, chatId: null, mobile: false, idleIn: expect.any(Number) });
+    expect(JSON.parse(socket.sent[0]).idleIn).toBeGreaterThan(9 * 60 * 1000);
+    expect(JSON.parse(socket.sent[1])).toEqual({ type: 'identify', token: 'jwt-abc' });
   });
 
   it('does not open a second socket if already connected', () => {
@@ -133,14 +134,22 @@ describe('message routing', () => {
     expect(onEdit).toHaveBeenCalledWith({ type: 'edit_dm', messageId: 5, content: 'edited' });
   });
 
-  it('routes user_status events to status listeners', () => {
+  it('keeps online status from the snapshot and user_status events', () => {
     const socket = connectAndOpen();
-    const onStatus = vi.fn();
-    onUserStatus(onStatus);
+    // Before any snapshot, the status the API gave.
+    expect(presenceOf({ id: 3, status: 'idle' }).status).toBe('idle');
 
-    socket._receive({ type: 'user_status', userId: '3', status: 'online' });
+    socket._receive({ type: 'presence_snapshot', statuses: { 3: 'online', 4: 'mobile' } });
+    expect(presenceOf({ id: 3, status: 'idle' }).status).toBe('online');
+    expect(presenceOf({ id: 4 }).status).toBe('mobile');
+    expect(presenceOf({ id: 5, status: 'online' }).status).toBe('offline');
 
-    expect(onStatus).toHaveBeenCalledWith({ type: 'user_status', userId: '3', status: 'online' });
+    socket._receive({ type: 'user_status', userId: '3', status: 'offline', lastOnline: 1700000000 });
+    expect(presenceOf({ id: 3, last_online: 5 })).toEqual({ status: 'offline', lastOnline: 1700000000 });
+
+    // Logging out forgets it all.
+    closeWebSocket();
+    expect(presenceOf({ id: 4, status: 'idle' }).status).toBe('idle');
   });
 
   it('ignores malformed messages without throwing', () => {
@@ -231,8 +240,8 @@ describe('presence', () => {
     setActiveChat(null);
 
     expect(presences(socket).slice(-2)).toEqual([
-      { type: 'presence', visible: true, chatId: '42' },
-      { type: 'presence', visible: true, chatId: null },
+      expect.objectContaining({ type: 'presence', visible: true, chatId: '42' }),
+      expect.objectContaining({ type: 'presence', visible: true, chatId: null }),
     ]);
   });
 
@@ -249,6 +258,19 @@ describe('presence', () => {
 
     expect(presences(socket).length).toBe(before + 2);
     expect(presences(socket).at(-1).chatId).toBe('7');
+  });
+
+  it('reports going idle after ten minutes without input', () => {
+    vi.useFakeTimers();
+    globalThis.localStorage.setItem('token', 'jwt-abc');
+    connectWebSocket();
+    const socket = MockWebSocket.instances[0];
+    socket._open();
+    expect(presences(socket).at(-1).idleIn).toBeGreaterThan(0);
+
+    vi.advanceTimersByTime(10 * 60 * 1000 + 15000);
+
+    expect(presences(socket).at(-1).idleIn).toBe(0);
   });
 
   it('stops sending presence once closed', () => {

@@ -1,9 +1,10 @@
+import { applyPresenceSnapshot, applyUserStatus, isMobileDevice, resetPresence } from './presence';
+
 let ws;
 let token;
 const newDmlisteners = new Set();
 const deleteListeners = new Set();
 const editListeners = new Set();
-const statusListeners = new Set();
 const reactionAddListeners = new Set();
 const reactionRemoveListeners = new Set();
 const guildListeners = new Set();
@@ -32,16 +33,34 @@ export function onConnectionState(callback) {
 // Presence: tells the server whether this client is on screen and which conversation it
 // shows, so it can skip push notifications for a chat the user is already reading.
 // Re-sent periodically because the server ignores stale presence (a phone that locks may
-// never get to report going hidden).
+// never get to report going hidden). It also carries what the online status is worked out
+// from: whether this is a phone, and how long until this device counts as idle (no input
+// here for IDLE_AFTER_MS; on a phone, also as soon as the app is hidden).
 const PRESENCE_REFRESH_MS = 15000;
+const IDLE_AFTER_MS = 10 * 60 * 1000;
+const mobileDevice = isMobileDevice();
 let activeChatId = null;
 let presenceInterval = null;
+let lastActivity = Date.now();
+
+function idleIn() {
+  if (mobileDevice && typeof document !== 'undefined' && document.visibilityState !== 'visible') return 0;
+  return Math.max(0, lastActivity + IDLE_AFTER_MS - Date.now());
+}
 
 function sendPresence() {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   const visible = typeof document === 'undefined' ||
     (document.visibilityState === 'visible' && document.hasFocus());
-  ws.send(JSON.stringify({ type: 'presence', visible, chatId: activeChatId }));
+  ws.send(JSON.stringify({ type: 'presence', visible, chatId: activeChatId, mobile: mobileDevice, idleIn: idleIn() }));
+}
+
+// Input (or coming back to the app): active again, which the server hears at once if this
+// device had gone idle.
+function noteActivity() {
+  const wasIdle = idleIn() === 0;
+  lastActivity = Date.now();
+  if (wasIdle) sendPresence();
 }
 
 export function setActiveChat(chatId) {
@@ -54,9 +73,18 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   window.addEventListener('online', () => {
     if (ws) setConnectionState(ws.readyState === WebSocket.OPEN ? 'online' : 'connecting');
   });
-  document.addEventListener('visibilitychange', sendPresence);
-  window.addEventListener('focus', sendPresence);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') lastActivity = Date.now();
+    sendPresence();
+  });
+  window.addEventListener('focus', () => {
+    lastActivity = Date.now();
+    sendPresence();
+  });
   window.addEventListener('blur', sendPresence);
+  for (const type of ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart']) {
+    window.addEventListener(type, noteActivity, { capture: true, passive: true });
+  }
 }
 
 export function connectWebSocket() {
@@ -80,9 +108,9 @@ export function connectWebSocket() {
   ws.onopen = () => {
     setConnectionState('online');
     console.log('[WS] Connection opened');
-    // Identify using JWT token
-    ws.send(JSON.stringify({ type: 'identify', token }));
+    // Presence first, so the server already knows this device's status when it identifies.
     sendPresence();
+    ws.send(JSON.stringify({ type: 'identify', token }));
     clearInterval(presenceInterval);
     presenceInterval = setInterval(sendPresence, PRESENCE_REFRESH_MS);
   };
@@ -109,8 +137,10 @@ export function connectWebSocket() {
         guildListeners.forEach((cb) => cb(data));
       }
       else if (data.type === 'user_status') {
-        console.log(`User ${data.userId} is now ${data.status}`);
-        statusListeners.forEach((cb) => cb(data));
+        applyUserStatus(data);
+      }
+      else if (data.type === 'presence_snapshot') {
+        applyPresenceSnapshot(data.statuses);
       }
     } catch (err) {
       console.error('[WS] Failed to parse or handle message:', err);
@@ -149,8 +179,8 @@ export function closeWebSocket() {
     socket.close(1000, 'Client logout');
   }
   setConnectionState('offline');
+  resetPresence();
   newDmlisteners.clear();
-  statusListeners.clear();
   deleteListeners.clear();
   editListeners.clear();
   reactionAddListeners.clear();
@@ -173,10 +203,6 @@ export function onEditDm(callback) {
   return () => editListeners.delete(callback);
 }
 
-export function onUserStatus(callback) {
-  statusListeners.add(callback);
-  return () => statusListeners.delete(callback);
-}
 // A reaction row ({ id, message_id, user_id, content }) was added to a DM.
 export function onReactionAdd(callback) {
   reactionAddListeners.add(callback);

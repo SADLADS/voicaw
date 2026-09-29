@@ -12,7 +12,6 @@ vi.mock('../utils/ws-client', () => ({
     newDmListeners.list.push(cb);
     return () => { newDmListeners.list = newDmListeners.list.filter((x) => x !== cb); };
   },
-  onUserStatus: () => () => {},
   onGuildEvent: () => () => {},
   getConnectionState: () => 'online',
   onConnectionState: () => () => {},
@@ -118,8 +117,8 @@ describe('Layout', () => {
 
   it('fetches the DM user list on /dm routes and exposes it through LayoutContext', async () => {
     fetchUsersList.mockResolvedValue([
-      { id: 7, username: 'bob', online: false },
-      { id: 8, username: 'carol', online: true },
+      { id: 7, username: 'bob', status: 'offline' },
+      { id: 8, username: 'carol', status: 'online' },
     ]);
 
     renderLayout({ path: '/dm/7' });
@@ -130,8 +129,8 @@ describe('Layout', () => {
 
   it('redirects /dm with no id to /dm/:firstUserId', async () => {
     fetchUsersList.mockResolvedValue([
-      { id: 7, username: 'bob', online: false },
-      { id: 8, username: 'carol', online: true },
+      { id: 7, username: 'bob', status: 'offline' },
+      { id: 8, username: 'carol', status: 'online' },
     ]);
 
     renderLayout({ path: '/dm' });

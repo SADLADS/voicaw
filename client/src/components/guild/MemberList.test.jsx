@@ -20,10 +20,10 @@ const roles = [
   { id: 1, name: '@everyone', color: null, position: 0, hoist: 0, permissions: 135, is_everyone: 1 },
 ];
 const members = [
-  { id: 1, username: 'owner', joined_at: 1, role_ids: [], online: true },
-  { id: 2, username: 'mod', joined_at: 1, role_ids: [3], online: true },
-  { id: 3, username: 'admin', joined_at: 1, role_ids: [4], online: true },
-  { id: 4, username: 'newbie', joined_at: 1, role_ids: [], online: false },
+  { id: 1, username: 'owner', joined_at: 1, role_ids: [], status: 'online' },
+  { id: 2, username: 'mod', joined_at: 1, role_ids: [3], status: 'online' },
+  { id: 3, username: 'admin', joined_at: 1, role_ids: [4], status: 'online' },
+  { id: 4, username: 'newbie', joined_at: 1, role_ids: [], status: 'offline' },
 ];
 
 // Manage Roles (32) + Kick (256), as the member with id 2 (a Mod).

@@ -182,6 +182,7 @@ small {
 
 .online-dot {
   display: inline-block;
+  flex-shrink: 0;
   width: 8px;
   height: 8px;
   margin-right: 6px;
@@ -192,8 +193,22 @@ small {
   background-color: var(--vc-online);
 }
 
+.online-dot.idle {
+  background-color: var(--vc-idle);
+}
+
 .online-dot.offline {
   background-color: var(--vc-border-light);
+}
+
+/* Active only on a phone: a phone instead of the diamond. */
+.online-dot.mobile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: none;
+  color: var(--vc-online);
+  font-size: 11px;
 }
 
 
@@ -703,6 +718,23 @@ small {
 }
 
 /* CONTACT KEYS / SAFETY NUMBERS */
+
+.chat-recipient-status {
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--vc-fg-muted);
+  vertical-align: middle;
+}
+
+.chat-recipient-status.online,
+.chat-recipient-status.mobile {
+  color: var(--vc-online);
+}
+
+.chat-recipient-status.idle {
+  color: var(--vc-idle);
+}
 
 .chat-recipient-header .key-status-badge {
   margin-left: 10px;

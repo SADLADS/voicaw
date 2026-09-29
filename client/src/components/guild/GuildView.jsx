@@ -10,7 +10,7 @@ import MemberList from './MemberList';
 import ChannelIcon from './ChannelIcon';
 import VoiceChannelView from './VoiceChannelView';
 import { useChannel } from '../../hooks/useChannel';
-import { onGuildEvent, onUserStatus } from '../../utils/ws-client';
+import { onGuildEvent } from '../../utils/ws-client';
 import { addGuildReaction, fetchMembers, removeGuildReaction } from '../../services/guildService';
 import { defaultChannel, errorMessage, rememberChannel } from '../../utils/guildDisplay';
 import { PERMISSIONS, has, memberColor } from '../../utils/permissions';
@@ -67,7 +67,7 @@ export default function GuildView({ user }) {
 
   useEffect(() => setMembersOpenMobile(false), [channelId]);
 
-  // Members, kept current: joins, leaves and online status.
+  // Members, kept current: joins, leaves and roles (online status: usePresence).
   useEffect(() => {
     let cancelled = false;
     setMembers([]);
@@ -86,13 +86,9 @@ export default function GuildView({ user }) {
         setMembers((prev) => prev.map((m) => (m.id === event.userId ? { ...m, role_ids: event.roleIds } : m)));
       }
     });
-    const offStatus = onUserStatus(({ userId, status }) => {
-      setMembers((prev) => prev.map((m) => (String(m.id) === String(userId) ? { ...m, online: status === 'online' } : m)));
-    });
     return () => {
       cancelled = true;
       offGuild();
-      offStatus();
     };
   }, [guildId]);
 

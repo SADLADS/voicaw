@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   password TEXT NOT NULL,
   avatar TEXT,
   description TEXT,
-  last_online INTEGER DEFAULT (strftime('%s','now')),
+  last_online INTEGER DEFAULT (strftime('%s','now')), -- last seen online (unix s), or NULL
   account_created INTEGER DEFAULT (strftime('%s','now')),
   -- Public keys (base64 raw P-256 points): identity (ECDSA) signs encryption (ECDH).
   identity_key TEXT NOT NULL,
@@ -220,11 +220,16 @@ WHERE NOT EXISTS (SELECT 1 FROM guild_roles r WHERE r.guild_id = g.id AND r.is_e
 
 // Changes to existing data that must happen once, counted in SQLite's user_version:
 // 1. Voice channels: @everyone gets Connect and Speak, as in new guilds.
+// 2. users.last_online was never updated (it held the sign-up time): unknown until next seen.
 db.get('PRAGMA user_version', (err, row) => {
-  if (err || row.user_version >= 1) return;
+  if (err || row.user_version >= 2) return;
   db.serialize(() => {
-    db.run(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.CONNECT | PERMISSIONS.SPEAK} WHERE is_everyone = 1`);
-    db.run('PRAGMA user_version = 1');
+    if (row.user_version < 1) {
+      db.run(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.CONNECT | PERMISSIONS.SPEAK} WHERE is_everyone = 1`);
+      db.run('PRAGMA user_version = 1');
+    }
+    db.run('UPDATE users SET last_online = NULL');
+    db.run('PRAGMA user_version = 2');
   });
 });
 });

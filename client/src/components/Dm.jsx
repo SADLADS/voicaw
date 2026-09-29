@@ -9,6 +9,8 @@ import ChatPane from './ChatPane';
 import { useConversation } from '../hooks/useConversation';
 import { addReaction, removeReaction } from '../services/dmService';
 import { encryptReaction, reactionContext } from '../services/encryptionService';
+import { usePresence } from '../hooks/usePresence';
+import { lastSeenText, statusLabel } from '../utils/presence';
 
 // A DM conversation: header (with the contact's key status), then the chat itself (ChatPane).
 // The conversation (loading, sending, live updates) is useConversation.
@@ -16,6 +18,8 @@ export default function Dm({ user }) {
   const { users, errorUsers, fetchUnreadMessages } = useContext(LayoutContext);
   const { id } = useParams();
   const chatUser = users.find((u) => u.id.toString() === id);
+  const presenceOf = usePresence();
+  const presence = chatUser ? presenceOf(chatUser) : null;
 
   const conversation = useConversation({ id, user, chatUser, onRead: fetchUnreadMessages });
   const { keyStatus, sharedKey } = conversation;
@@ -45,6 +49,11 @@ export default function Dm({ user }) {
         <>
           <h4 className="chat-recipient-header">
             {chatUser?.username || 'User'}
+            {presence && (
+              <span className={`chat-recipient-status ${presence.status}`}>
+                {presence.status === 'offline' ? lastSeenText(presence.lastOnline) ?? statusLabel(presence.status) : statusLabel(presence.status)}
+              </span>
+            )}
             {(keyStatus === 'trusted' || keyStatus === 'verified') && (
               <button
                 type="button"

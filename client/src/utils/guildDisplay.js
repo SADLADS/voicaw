@@ -68,6 +68,7 @@ export function errorMessage(err) {
 
 // Online members grouped like Discord: under their highest "display separately" (hoisted)
 // role, the rest under Online; everyone offline under Offline. Each group sorted by name.
+// `status` is the member's online status (utils/presence.js); idle and mobile count as online.
 export function groupMembers(members, roles) {
   const hoisted = (roles ?? []).filter((r) => !r.is_everyone && r.hoist);
   const byName = (a, b) => a.username.localeCompare(b.username, undefined, { sensitivity: 'base' });
@@ -75,7 +76,7 @@ export function groupMembers(members, roles) {
   const online = { key: 'online', title: 'Online', members: [] };
   const offline = { key: 'offline', title: 'Offline', members: [] };
   for (const member of members) {
-    if (!member.online) {
+    if ((member.status ?? 'offline') === 'offline') {
       offline.members.push(member);
       continue;
     }

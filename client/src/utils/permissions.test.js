@@ -33,10 +33,10 @@ describe('role display', () => {
 
   it('groups online members under their highest hoisted role, offline apart', () => {
     const members = [
-      { id: 1, username: 'zed', online: true, role_ids: [3, 4] },
-      { id: 2, username: 'amy', online: true, role_ids: [3] },
-      { id: 3, username: 'bo', online: true, role_ids: [2] },
-      { id: 4, username: 'cy', online: false, role_ids: [4] },
+      { id: 1, username: 'zed', status: 'online', role_ids: [3, 4] },
+      { id: 2, username: 'amy', status: 'mobile', role_ids: [3] },
+      { id: 3, username: 'bo', status: 'idle', role_ids: [2] },
+      { id: 4, username: 'cy', status: 'offline', role_ids: [4] },
     ];
     expect(groupMembers(members, roles).map((g) => [g.title, g.members.map((m) => m.username)])).toEqual([
       ['Admins', ['zed']],

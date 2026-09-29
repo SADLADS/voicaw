@@ -96,6 +96,7 @@ node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots int
 node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permissions
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
+node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
 For voice, `serve.mjs` also runs its own LiveKit (the binary at `LIVEKIT_BIN`, default
@@ -133,7 +134,8 @@ unexpected errors. The rest:
   `{ lastID, changes }`). Use these, not the callback API. The raw handle is `db.db`.
 - `auth.js`: `generateToken`, `verifyToken`, the `authenticateJWT` middleware (attach it per
   route, not with `router.use`, since every router is mounted at `/api`).
-- `sockets.js`: the `clients` map, `sendToUserSockets`, `isOnline`, `isViewingConversation`, and
+- `sockets.js`: the `clients` map, `sendToUserSockets`, online status (`getStatus`, see Online
+  status), `isViewingConversation`, and
   `attachWebSocketServer` (the ws server).
 - `push.js`: web push sending and the DM push payload.
 - `s3.js`: pre-signed upload URLs. Bucket setup at startup logs and carries on if the store is down.
@@ -259,17 +261,42 @@ module-level in `sockets.js`, so routes can push events (and tests can fake sock
 identify themselves post-connect with `{ type: 'identify', token }` (JWT); the server maps
 `userId -> [sockets]` in an in-memory `clients` Map (a user can have multiple open sockets/tabs).
 Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, `reaction_remove`,
-`user_status`, and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
+`user_status` and `presence_snapshot` (see Online status), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete`,
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
 `guild_order` (your server rail order, to your other devices), `guild_voice_state` (someone
 joined, left or (un)muted in a voice channel). A 30s heartbeat
-(ping/pong) prunes dead connections and broadcasts `offline` status.
+(ping/pong) prunes dead connections.
 
 Client side, `client/src/utils/ws-client.js` wraps this with `connectWebSocket`/`closeWebSocket`
-and a pub/sub listener API (`onNewDm`, `onDeleteDm`, `onEditDm`, `onReactionAdd`, `onReactionRemove`, `onUserStatus`), auto-reconnecting
+and a pub/sub listener API (`onNewDm`, `onDeleteDm`, `onEditDm`, `onReactionAdd`, `onReactionRemove`, `onGuildEvent`), auto-reconnecting
 every 3s on close. All non-realtime DM operations (fetch history, send, mark read) go through the
 plain REST API in `client/src/services/dmService.js` / `client/src/utils/api.js` instead.
+
+### Online status
+
+Four states: `online` (active on a computer), `mobile` (active only on a phone or tablet),
+`idle` (connected, nothing active) and `offline` (no sockets). The server works it out from all
+of a user's sockets (`sockets.js` `statusOf`): any active computer wins, then any active phone.
+- Each socket's `presence` message (sent before `identify`, on focus/visibility/chat changes and
+  every 15s) carries `mobile` (the device, `isMobileDevice()` in `utils/presence.js`, not the
+  chosen layout) and `idleIn`: ms until that device counts as idle (10 min after its last input
+  in the app: pointer, keys, wheel, focus; a phone's is 0 as soon as the app is hidden). The server
+  turns that into `activeUntil` (capped at 10 min); a 15s sweep catches it passing. Input after
+  going idle sends presence at once.
+- Only changes are broadcast (`user_status { userId, status }`, to every logged-in socket).
+  Losing the last socket starts a 15s grace period before `offline`, so reloads, blips and API
+  restarts don't flicker. Going offline saves `users.last_online` (unix s) and puts it in the
+  event (`lastOnline`); it's also saved for everyone online once a minute, so a crash loses at
+  most that. NULL means never seen since this was added.
+- Each identify gets `presence_snapshot { statuses: { id: status } }` (everyone not offline), so a
+  device that was disconnected catches up. `/dms-list` and guild members also carry `status` and
+  `last_online`.
+- Client: `utils/presence.js` is the store (snapshot + changes; before the first snapshot, a
+  user's own `status` from the API), `hooks/usePresence.js` returns `presenceOf(user)` →
+  `{ status, lastOnline }`. `StatusIcon` draws it (dot; a phone for `mobile`; a moon for idle in
+  the member list). The DM header and the member card show the status or "Last seen …". Idle and
+  mobile members count as online in the member list.
 
 ### Push notifications (Web Push)
 
@@ -305,7 +332,8 @@ SQLite via `sqlite3`, single file `server/voicaw.db` (overridable with `DB_PATH`
 in `db.js` (no ORM: a new column on an existing table needs an `ALTER TABLE ... ADD COLUMN`
 whose "duplicate column" error is ignored, as `guilds` does). Changes to existing data that must
 run exactly once are numbered with SQLite's `PRAGMA user_version` at the end of the guild block
-(1: @everyone gets Connect and Speak); add the next one as 2. Guild
+(1: @everyone gets Connect and Speak; 2: clear `users.last_online`, which had only ever held the
+sign-up time); add the next one as 3. Guild
 tables are `guilds` plus `guild_*`. An earlier sketch left unused, empty tables in old databases
 (`roles`, `user_roles`, `categories`, `channels`, `channel_permissions`, `messages`); nothing
 creates or reads them any more, and they can be dropped.

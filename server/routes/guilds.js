@@ -3,7 +3,7 @@ const express = require('express');
 const db = require('../db');
 const { authenticateJWT } = require('../auth');
 const { deleteObject } = require('../s3');
-const { sendToUserSockets, isOnline } = require('../sockets');
+const { sendToUserSockets, getStatus } = require('../sockets');
 const { PERMISSIONS, DEFAULT_EVERYONE_PERMISSIONS, has } = require('../permissions');
 const {
   MAX_GUILD_NAME,
@@ -175,7 +175,7 @@ router.post('/guilds/:guildId/transfer', owner, async (req, res) => {
 // Everyone in the guild, with their role ids (for colours, grouping and the member card).
 router.get('/guilds/:guildId/members', member, async (req, res) => {
   const members = await db.all(
-    `SELECT u.id, u.username, gm.joined_at
+    `SELECT u.id, u.username, u.last_online, gm.joined_at
      FROM guild_members gm JOIN users u ON u.id = gm.user_id
      WHERE gm.guild_id = ? ORDER BY u.username COLLATE NOCASE`,
     [req.guild.id]
@@ -183,7 +183,7 @@ router.get('/guilds/:guildId/members', member, async (req, res) => {
   const roleRows = await db.all('SELECT user_id, role_id FROM guild_member_roles WHERE guild_id = ?', [req.guild.id]);
   const roleIds = new Map(members.map((m) => [m.id, []]));
   for (const { user_id: userId, role_id: roleId } of roleRows) roleIds.get(userId)?.push(roleId);
-  res.json(members.map((m) => ({ ...m, role_ids: roleIds.get(m.id), online: isOnline(m.id) })));
+  res.json(members.map((m) => ({ ...m, role_ids: roleIds.get(m.id), status: getStatus(m.id) })));
 });
 
 // Takes `userId` out of the guild and tells everyone (including them).
@@ -348,7 +348,7 @@ router.post('/invites/:code', authenticateJWT, async (req, res) => {
   const guild = await getGuildLayout(guildId, userId);
   const joined = await getMemberListEntry(guildId, userId);
   sendToUserSockets(userId, { type: 'guild_add', guild });
-  await sendToGuild(guildId, { type: 'guild_member_add', guildId, member: { ...joined, online: isOnline(userId) } });
+  await sendToGuild(guildId, { type: 'guild_member_add', guildId, member: { ...joined, status: getStatus(userId) } });
   res.status(201).json(guild);
 });
 
