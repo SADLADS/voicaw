@@ -17,7 +17,9 @@ Each feature is worked on in its own chat, on its own branch, in its own worktre
   not in git) pull `/home/otto/git/voicaw`, run `npm install` if the lockfile changed, and
   restart pm2 `voicaw-api` (the live API on :3002, with the real database) and `voicaw-test`
   (test.voicaw.com: `vite dev` on :5173, using the live API). voicaw.com itself is a static build
-  in `/opt/voicaw-client`, only updated by running `npm run build` by hand.
+  in `/opt/voicaw-client`, only updated by running `npm run build` by hand. Voice runs on a
+  self-hosted LiveKit server, pm2 `voicaw-livekit` (`~/livekit`, not in git; the webhook doesn't
+  touch it).
 - **Never commit to, merge into, push, reset or otherwise move `dev`.** Branch off it
   (`feature-name`), commit there; the user reviews and merges. Don't push branches unless asked.
 - **Never work in `/home/otto/git/voicaw`.** It's the live checkout: switching its branch
@@ -32,14 +34,16 @@ Each feature is worked on in its own chat, on its own branch, in its own worktre
   merged a branch, its worktree can go: `git -C ~/git/voicaw worktree remove ~/git/voicaw-<feature>`
   (ask before deleting branches).
 - **Don't touch production** unless asked: no pm2 restarts, no edits to nginx, `server/.env`,
-  the real database or `/opt/voicaw-client`. Never run `pm2 update` (on 2026-09-29 it left every
+  `~/livekit/livekit.yaml`, the real database or `/opt/voicaw-client`. Never run `pm2 update` (on 2026-09-29 it left every
   app on the host stopped; `pm2 resurrect` brought them back). The host also runs other
   projects' apps under the same pm2 and Node.
 - **Done means:** server and client tests pass, `npm run lint` (in `client/`) is clean, UI
   changes are checked in a real browser (Browser checks below), and this file is updated when
-  something it describes changes. Then commit on the branch with a message saying what and why.
-- **Secrets:** never log or commit plaintext messages, keys, tokens, `OPAQUE_SERVER_SETUP` or
-  anything from `server/.env`.
+  something it describes changes. When a change affects how a new host is set up (a new env
+  var, service, port, bucket, nginx site, build step or dependency on the host), update
+  `README.md`'s "Initial setup" in the same branch: it's the only setup guide. Then commit on the branch with a message saying what and why.
+- **Secrets:** never log or commit plaintext messages, keys, tokens, `OPAQUE_SERVER_SETUP`,
+  anything from `server/.env` or the LiveKit API secret.
 
 ## Commands
 
@@ -571,6 +575,13 @@ their box is reserved before they load.
 - **Guilds aren't encrypted** (decided 2026-09-29): encrypted channels inside guilds were
   considered and dropped (who may add members to one, when roles are server-controlled, had no
   good answer). Encryption is for DMs and group DMs.
+- **Voice** (decided 2026-09-29): a self-hosted LiveKit SFU (setup in `README.md`), not
+  peer-to-peer mesh, so channels scale past a handful of people. The API only checks permissions
+  and hands out short-lived LiveKit tokens. Guild voice isn't end-to-end encrypted (like guild
+  text). DM calls, later, should be, using LiveKit's E2EE with our keys. Build the microphone
+  path as a Web Audio chain (capture with echo cancellation → processing slot → gain/voice
+  activity → published track), so voice isolation (RNNoise, then DeepFilterNet, in an
+  AudioWorklet) drops into the slot later. Krisp needs LiveKit Cloud or a licence, so it's out.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only
