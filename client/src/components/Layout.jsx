@@ -88,7 +88,8 @@ export default function Layout({ user, onLogout }) {
   return (
     <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers }}>
       <div className={`${isDmPage ? 'slidey' : ''} main-wrapper d-flex`}>
-        <SidebarWrapper footer={<UserPanel user={user} compact={!isDmPage} />}>
+        {/* The user panel sits under the conversation list (not on e.g. Settings). */}
+        <SidebarWrapper footer={isDmPage ? <UserPanel user={user} /> : null}>
           {/* Main sidebar always shows */}
           <Sidebar user={user} onLogout={onLogout} hasUnreadDms={hasUnreadDms} />
 

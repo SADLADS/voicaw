@@ -48,12 +48,6 @@ describe('UserPanel', () => {
     connection.state = 'online';
   });
 
-  it('is just the picture and settings button when compact', () => {
-    renderPanel({ compact: true });
-    expect(screen.queryByText('alice')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'User settings' })).toBeInTheDocument();
-  });
-
   it('falls back to the default picture, and shows a newly uploaded one', () => {
     const { container } = renderPanel();
     const img = () => container.querySelector('.user-panel-avatar img');

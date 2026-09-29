@@ -294,14 +294,6 @@ pre code {
   color: var(--vc-fg);
 }
 
-.user-panel.compact {
-  flex-direction: column;
-  gap: 6px;
-  /* Continues the icon column's divider down to the bottom. */
-  border-right: 1px solid var(--vc-border-light);
-  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-}
-
 .user-panel-avatar {
   position: relative;
   flex-shrink: 0;

@@ -353,8 +353,8 @@ their box is reserved before they load.
   `DmSidebar` draws the unread dots from those counts. `SidebarWrapper` puts the sidebars in a
   row with `UserPanel` across the bottom: your picture, name, this device's connection state
   (`ws-client` `getConnectionState`/`onConnectionState`: online / connecting / offline) and the
-  settings button. It's compact (picture and button only) when the sidebar is just the icon
-  column. Uploading a profile picture calls `announceProfilePictureChange()` so it refreshes.
+  settings button. It's only shown with the conversation list (DM pages), not on e.g. Settings.
+  Uploading a profile picture calls `announceProfilePictureChange()` so it refreshes.
 - Mobile message actions: there's no hover menu on mobile. A long press on a message
   (`hooks/useLongPress.js`, 450ms, cancelled by scrolling) opens `MessageActionSheet`: quick
   reactions (most used first, then 👍❤️😂😮😢🙏) and `+` for the full picker, Reply, Edit,

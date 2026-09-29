@@ -10,9 +10,8 @@ import { onProfilePictureChange } from '../utils/profilePicture';
 const STATUS_LABELS = { online: 'Online', connecting: 'Connecting…', offline: 'Offline' };
 
 // You, at the bottom of the sidebar (like Discord): profile picture, name, and whether this
-// device is connected, with the settings button. `compact` (when the sidebar is only the icon
-// column, e.g. in Settings) shows just the picture and the button.
-export default function UserPanel({ user, compact = false }) {
+// device is connected, with the settings button.
+export default function UserPanel({ user }) {
   const { s3Endpoint } = useContext(ConfigContext);
   const status = useSyncExternalStore(onConnectionState, getConnectionState);
   // Bumped when a new picture is uploaded, to skip the browser's cached one.
@@ -30,17 +29,15 @@ export default function UserPanel({ user, compact = false }) {
     : `${s3Endpoint}/profile-pics/${user.id}${pictureVersion ? `?v=${pictureVersion}` : ''}`;
 
   return (
-    <div className={`user-panel${compact ? ' compact' : ''}`} aria-label="You">
-      <div className="user-panel-avatar" title={compact ? `${user.username} · ${STATUS_LABELS[status]}` : undefined}>
+    <div className="user-panel" aria-label="You">
+      <div className="user-panel-avatar">
         <img src={picture} alt="" onError={() => setPictureFailed(true)} />
         <span className={`user-panel-status ${status}`} role="img" aria-label={STATUS_LABELS[status]} />
       </div>
-      {!compact && (
-        <div className="user-panel-text">
-          <span className="user-panel-name">{user.username}</span>
-          <span className="user-panel-state">{STATUS_LABELS[status]}</span>
-        </div>
-      )}
+      <div className="user-panel-text">
+        <span className="user-panel-name">{user.username}</span>
+        <span className="user-panel-state">{STATUS_LABELS[status]}</span>
+      </div>
       <NavLink to="/settings" className="user-panel-button" aria-label="User settings" title="User settings">
         <FontAwesomeIcon icon={faGear} />
       </NavLink>

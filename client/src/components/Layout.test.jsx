@@ -96,6 +96,17 @@ describe('Layout', () => {
     expect(document.getElementById('dm-sidebar')).not.toBeInTheDocument();
   });
 
+  it('shows the user panel with the conversation list, not on Settings', async () => {
+    fetchUsersList.mockResolvedValue([]);
+    const { unmount } = renderLayout({ path: '/dm' });
+    expect(screen.getByLabelText('You')).toHaveTextContent('me');
+    unmount();
+
+    renderLayout({ path: '/settings' });
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    expect(screen.queryByLabelText('You')).not.toBeInTheDocument();
+  });
+
   it('fetches the DM user list on /dm routes and exposes it through LayoutContext', async () => {
     fetchUsersList.mockResolvedValue([
       { id: 7, username: 'bob', online: false },
