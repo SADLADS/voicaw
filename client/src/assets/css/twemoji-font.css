@@ -1,13 +1,15 @@
 /* Emoji anywhere in the UI (the message box while typing, names, previews, buttons) in the
    same Twemoji style as the images in messages: Twemoji as a colour font (COLR, drawn in
-   colour by Chrome, Firefox and Safari), from the twemoji-colr-font package (Twemoji 15, like
-   @twemoji/svg; font under the SIL OFL 1.1, artwork CC-BY 4.0, credited in Settings).
+   colour by Chrome, Firefox and Safari): ../fonts/twemoji-voicaw.woff2, made from the
+   twemoji-colr-font package (Twemoji 15, like @twemoji/svg) by scripts/patch-twemoji-font.py so
+   multi-part emoji (e.g. the rainbow flag) join in Chrome and Safari too. Font under the SIL OFL
+   1.1, artwork CC-BY 4.0, both credited in Settings.
    unicode-range limits it to the emoji characters it has, leaving out the plain characters it
    also covers (digits, #, *, ©, ®), so all other text keeps the normal font. The browser only
    downloads it once an emoji is on screen. */
 @font-face {
-  font-family: "Twemoji";
-  src: url("twemoji-colr-font/twemoji.woff2") format("woff2");
+  font-family: "Voicaw Twemoji";
+  src: url("../fonts/twemoji-voicaw.woff2") format("woff2");
   font-display: swap;
   unicode-range:
     U+200D, U+203C, U+2049, U+20E3, U+2122, U+2139, U+2194-2199, U+21A9-21AA, U+231A-231B,
@@ -36,7 +38,7 @@
 
 :root {
   /* Bootstrap's font stack, with Twemoji in front (only used for emoji, see above). */
-  --bs-body-font-family: "Twemoji", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+  --bs-body-font-family: "Voicaw Twemoji", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
     "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
     "Segoe UI Symbol", "Noto Color Emoji";
 }
