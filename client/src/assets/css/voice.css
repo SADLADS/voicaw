@@ -319,3 +319,170 @@ button.user-panel-button {
 .voice-view-button.leave:hover {
   filter: brightness(1.1);
 }
+
+/* ---- DM calls ---- */
+
+/* The call button, at the right end of the DM header. */
+.chat-recipient-header {
+  display: flex;
+  align-items: center;
+}
+
+.chat-call-button {
+  order: 1;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 17px;
+}
+
+.chat-call-button:hover:not(:disabled) {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-online);
+}
+
+.chat-call-button:disabled {
+  opacity: 0.4;
+}
+
+/* In the DM, while calling: both people, the state, the controls. */
+.call-panel {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px 14px;
+  background-color: var(--vc-bg-base);
+  border-bottom: 1px solid var(--vc-border-dark);
+  --slash-gap: var(--vc-bg-base);
+}
+
+.call-panel-people {
+  display: flex;
+  gap: 28px;
+}
+
+.call-panel-person {
+  position: relative;
+}
+
+.call-panel-avatar {
+  width: 72px;
+  height: 72px;
+}
+
+.call-panel .user-avatar.speaking {
+  box-shadow: 0 0 0 3px var(--vc-online);
+}
+
+.call-panel-muted {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-danger);
+  font-size: 12px;
+}
+
+.call-panel-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.call-panel-e2ee {
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--vc-fg-muted);
+}
+
+/* An incoming call, over any page. */
+.incoming-call {
+  position: fixed;
+  z-index: 1000;
+  top: calc(12px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(380px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--vc-border-light);
+  border-radius: 12px;
+  background-color: var(--vc-bg-elevated);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  color: var(--vc-fg);
+}
+
+.incoming-call-avatar {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+}
+
+.incoming-call-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.incoming-call-text strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.incoming-call-text span {
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+}
+
+.call-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 17px;
+}
+
+.call-button.accept {
+  background-color: var(--vc-online);
+}
+
+.call-button.decline {
+  background-color: var(--vc-danger);
+}
+
+.call-button:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.call-button:disabled {
+  opacity: 0.5;
+}

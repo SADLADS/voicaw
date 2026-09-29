@@ -14,6 +14,10 @@ import {
   decryptReaction,
   reactionContext,
   toBase64,
+  generateCallKey,
+  callKeyContext,
+  encryptCallKey,
+  decryptCallKey,
 } from './encryptionService';
 
 const randomExportKey = () => toBase64(crypto.getRandomValues(new Uint8Array(64)));
@@ -164,5 +168,24 @@ describe('reactions', () => {
 
     const [out] = await decryptMessagesBatch([msg], aliceKey);
     expect(out.reactions).toEqual([{ id: 1, user_id: 2, emoji: '😂' }]);
+  });
+});
+
+describe('call keys', () => {
+  it('reach the other person, and only for that call and those roles', async () => {
+    const { aliceKey, bobKey } = await conversationKeys();
+    const key = generateCallKey();
+    expect(key).toHaveLength(32);
+    const envelope = await encryptCallKey(key, aliceKey, callKeyContext('call-1', 1, 2));
+    expect(envelope.length).toBeLessThan(200); // the server's limit
+    expect(await decryptCallKey(envelope, bobKey, callKeyContext('call-1', 1, 2))).toEqual(key);
+
+    // The server can't reuse it for another call, or swap who's calling whom.
+    await expect(decryptCallKey(envelope, bobKey, callKeyContext('call-2', 1, 2))).rejects.toThrow();
+    await expect(decryptCallKey(envelope, bobKey, callKeyContext('call-1', 2, 1))).rejects.toThrow();
+  });
+
+  it('are different every call', () => {
+    expect(generateCallKey()).not.toEqual(generateCallKey());
   });
 });

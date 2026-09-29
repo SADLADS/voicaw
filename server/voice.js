@@ -88,13 +88,9 @@ function publishPermission(canSpeak) {
   };
 }
 
-// A token to join `channel` (a voice channel the caller may connect to). Leaves any other
-// voice channel first. `selfMute`/`selfDeaf` are how the client joins.
-async function joinToken({ channel, userId, username, permissions, selfMute, selfDeaf }) {
-  const current = states.get(userId);
-  if (current && current.channelId !== channel.id) await disconnect(userId);
-  preferences.set(userId, { selfMute: Boolean(selfMute), selfDeaf: Boolean(selfDeaf) });
-
+// { url, token } for joining LiveKit room `room` as `userId`: the microphone only, and only
+// with `canSpeak`. Also used for DM calls (calls.js).
+async function roomToken({ room, userId, username, canSpeak }) {
   const token = new AccessToken(config.livekit.apiKey, config.livekit.apiSecret, {
     identity: String(userId),
     name: username,
@@ -102,11 +98,21 @@ async function joinToken({ channel, userId, username, permissions, selfMute, sel
   });
   token.addGrant({
     roomJoin: true,
-    room: roomName(channel.id),
+    room,
     canUpdateOwnMetadata: false,
-    ...publishPermission(has(permissions, PERMISSIONS.SPEAK)),
+    ...publishPermission(canSpeak),
   });
   return { url: config.livekit.url, token: await token.toJwt() };
+}
+
+// A token to join `channel` (a voice channel the caller may connect to). Leaves any other
+// voice channel, and hangs up any call, first. `selfMute`/`selfDeaf` are how the client joins.
+async function joinToken({ channel, userId, username, permissions, selfMute, selfDeaf }) {
+  const current = states.get(userId);
+  if (current && current.channelId !== channel.id) await disconnect(userId);
+  await require('./calls').endCallOf(userId);
+  preferences.set(userId, { selfMute: Boolean(selfMute), selfDeaf: Boolean(selfDeaf) });
+  return roomToken({ room: roomName(channel.id), userId, username, canSpeak: has(permissions, PERMISSIONS.SPEAK) });
 }
 
 function syncAttributes(state) {
@@ -194,6 +200,11 @@ function verifyWebhook(body, authorization) {
 }
 
 async function handleWebhookEvent(event) {
+  // DM call rooms are calls.js's.
+  if (event.room?.name?.startsWith('call-')) {
+    await require('./calls').handleWebhookEvent(event);
+    return;
+  }
   const channelId = channelIdOfRoom(event.room?.name);
   if (channelId == null) return;
   if (event.event === 'participant_joined') await participantJoined(channelId, event.participant);
@@ -267,6 +278,8 @@ module.exports = {
   roomName,
   membersOf,
   joinToken,
+  roomToken,
+  logLiveKitError,
   setSelfState,
   voiceAccess,
   disconnect,

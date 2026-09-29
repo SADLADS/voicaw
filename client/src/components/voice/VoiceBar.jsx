@@ -6,6 +6,8 @@ import { faPhoneSlash, faSignal, faTriangleExclamation, faVolumeHigh, faXmark } 
 import { LayoutContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
 import { clearVoiceError, leaveVoice, resumeAudio } from '../../voice/voiceClient';
+import { hangUp } from '../../voice/callClient';
+import { useCall } from '../../hooks/useCall';
 
 const STATUS_TEXT = {
   connecting: 'Connecting…',
@@ -14,9 +16,10 @@ const STATUS_TEXT = {
 };
 
 // Above the user panel while you're in voice (like Discord): the connection state, which
-// channel (a link to it) and the disconnect button. Also where voice errors show.
+// channel or call (a link to it) and the disconnect button. Also where voice errors show.
 export default function VoiceBar() {
   const voice = useVoice();
+  const call = useCall();
   const { guildList } = useContext(LayoutContext);
 
   if (voice.status === 'idle') {
@@ -34,6 +37,7 @@ export default function VoiceBar() {
     );
   }
 
+  const inCall = voice.callId != null;
   const guild = guildList.layouts[voice.guildId] ?? guildList.guilds.find((g) => g.id === voice.guildId);
   const channel = guildList.layouts[voice.guildId]?.channels.find((c) => c.id === voice.channelId);
 
@@ -42,13 +46,25 @@ export default function VoiceBar() {
       <div className="voice-bar-row">
         <div className="voice-bar-text">
           <span className={`voice-bar-status ${voice.status}`}>
-            <FontAwesomeIcon icon={faSignal} /> {STATUS_TEXT[voice.status]}
+            <FontAwesomeIcon icon={faSignal} /> {inCall && voice.status === 'connected' ? 'Call Connected' : STATUS_TEXT[voice.status]}
           </span>
-          <Link to={`/guild/${voice.guildId}/${voice.channelId}`} className="voice-bar-channel">
-            {channel?.name ?? 'Voice'}{guild ? ` / ${guild.name}` : ''}
-          </Link>
+          {inCall ? (
+            <Link to={`/dm/${call?.peerId ?? ''}`} className="voice-bar-channel">
+              {call ? `Call with ${call.peerName}` : 'Call'}
+            </Link>
+          ) : (
+            <Link to={`/guild/${voice.guildId}/${voice.channelId}`} className="voice-bar-channel">
+              {channel?.name ?? 'Voice'}{guild ? ` / ${guild.name}` : ''}
+            </Link>
+          )}
         </div>
-        <button type="button" className="user-panel-button voice-bar-leave" aria-label="Disconnect" title="Disconnect" onClick={leaveVoice}>
+        <button
+          type="button"
+          className="user-panel-button voice-bar-leave"
+          aria-label={inCall ? 'Hang up' : 'Disconnect'}
+          title={inCall ? 'Hang up' : 'Disconnect'}
+          onClick={inCall ? hangUp : leaveVoice}
+        >
           <FontAwesomeIcon icon={faPhoneSlash} />
         </button>
       </div>

@@ -12,6 +12,7 @@ import { randomBytes } from 'crypto';
 import { tmpdir, homedir } from 'os';
 import { join } from 'path';
 import { createRequire } from 'module';
+import { livekitInfoPath } from './helpers.mjs';
 import { fileURLToPath } from 'url';
 
 const webPort = process.env.E2E_WEB_PORT || '5199';
@@ -68,6 +69,10 @@ if (livekit) {
     'logging: { level: warn }',
   ].join('\n'), { mode: 0o600 });
   children.push(spawn(livekitBin, ['--config', config], { stdio: 'inherit' }));
+  // For scripts that ask LiveKit itself (calls.mjs checks the audio is encrypted).
+  writeFileSync(livekitInfoPath(apiPort), JSON.stringify({
+    url: `http://127.0.0.1:${livekitPort}`, key: livekit.key, secret: livekit.secret,
+  }), { mode: 0o600 });
 } else {
   console.log(`e2e: no LiveKit at ${livekitBin}, voice channels can't be joined.`);
 }

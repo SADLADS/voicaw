@@ -8,6 +8,7 @@ const editListeners = new Set();
 const reactionAddListeners = new Set();
 const reactionRemoveListeners = new Set();
 const guildListeners = new Set();
+const callListeners = new Set();
 let reconnectTimeout = null;
 
 // This client's own connection: 'connecting' | 'online' | 'offline' (logged out, or the
@@ -136,6 +137,9 @@ export function connectWebSocket() {
       else if (data.type?.startsWith('guild_')) {
         guildListeners.forEach((cb) => cb(data));
       }
+      else if (data.type?.startsWith('call_')) {
+        callListeners.forEach((cb) => cb(data));
+      }
       else if (data.type === 'user_status') {
         applyUserStatus(data);
       }
@@ -222,4 +226,11 @@ export function onReactionRemove(callback) {
 export function onGuildEvent(callback) {
   guildListeners.add(callback);
   return () => guildListeners.delete(callback);
+}
+
+// DM call events: `{ type: 'call_incoming' | 'call_update', call }` and
+// `{ type: 'call_end', id, reason }` (see voice/callClient.js).
+export function onCallEvent(callback) {
+  callListeners.add(callback);
+  return () => callListeners.delete(callback);
 }

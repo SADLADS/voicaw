@@ -17,6 +17,16 @@ vi.mock('../utils/ws-client', () => ({
   onConnectionState: () => () => {},
 }));
 
+// DM calls (tested in voice/callClient.test.js): none here.
+const noCall = vi.hoisted(() => ({ call: null }));
+vi.mock('../voice/callClient', () => ({
+  initCalls: vi.fn(),
+  getCallSnapshot: () => noCall,
+  onCallChange: () => () => {},
+  acceptCall: vi.fn(),
+  declineCall: vi.fn(),
+  hangUp: vi.fn(),
+}));
 vi.mock('../utils/api', () => ({
   default: { get: vi.fn(), post: vi.fn() },
 }));

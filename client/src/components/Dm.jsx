@@ -1,9 +1,15 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPhone } from '@fortawesome/free-solid-svg-icons';
 import { useParams } from 'react-router-dom';
 import '../assets/css/dms.css';
+import '../assets/css/voice.css';
 import NotificationPrompt from './NotificationPrompt';
 import RecoveryPrompt from './RecoveryPrompt';
-import { LayoutContext } from '../contexts';
+import { ConfigContext, LayoutContext } from '../contexts';
+import CallPanel from './call/CallPanel';
+import { useCall } from '../hooks/useCall';
+import { startCall } from '../voice/callClient';
 import ContactKeyWarning from './ContactKeyWarning';
 import SafetyNumberDialog from './SafetyNumberDialog';
 import ChatPane from './ChatPane';
@@ -17,10 +23,13 @@ import { lastSeenText, statusLabel } from '../utils/presence';
 // for most people. The keys are still pinned and a changed key still blocks the chat.
 const SHOW_SAFETY_NUMBERS = false;
 
-// A DM conversation: header (with the contact's key status), then the chat itself (ChatPane).
+// A DM conversation: header (with the contact's status and the call button), the call with
+// them if there is one (CallPanel), then the chat itself (ChatPane).
 // The conversation (loading, sending, live updates) is useConversation.
 export default function Dm({ user }) {
   const { users, errorUsers, fetchUnreadMessages } = useContext(LayoutContext);
+  const { voiceEnabled } = useContext(ConfigContext);
+  const call = useCall();
   const { id } = useParams();
   const chatUser = users.find((u) => u.id.toString() === id);
   const presenceOf = usePresence();
@@ -60,6 +69,18 @@ export default function Dm({ user }) {
                 {presence.status === 'offline' ? lastSeenText(presence.lastOnline) ?? statusLabel(presence.status) : statusLabel(presence.status)}
               </span>
             )}
+            {voiceEnabled && chatUser && sharedKey && !keyBlocked && (
+              <button
+                type="button"
+                className="chat-call-button"
+                aria-label={`Call ${chatUser.username}`}
+                title={call ? "You're already in a call" : `Start a voice call with ${chatUser.username}`}
+                disabled={Boolean(call)}
+                onClick={() => startCall(chatUser)}
+              >
+                <FontAwesomeIcon icon={faPhone} />
+              </button>
+            )}
             {SHOW_SAFETY_NUMBERS && (keyStatus === 'trusted' || keyStatus === 'verified') && (
               <button
                 type="button"
@@ -81,6 +102,8 @@ export default function Dm({ user }) {
               onClose={() => setShowSafetyNumber(false)}
             />
           )}
+
+          {chatUser && <CallPanel user={user} peer={chatUser} />}
 
           {keyBlocked && (
             <ContactKeyWarning status={keyStatus} username={chatUser?.username} onAccept={conversation.acceptChangedKey} />

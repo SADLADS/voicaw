@@ -6,6 +6,8 @@ import GuildSidebar from './guild/GuildSidebar';
 import SidebarWrapper from './SidebarWrapper';
 import UserPanel from './UserPanel';
 import VoiceBar from './voice/VoiceBar';
+import IncomingCall from './call/IncomingCall';
+import { initCalls } from '../voice/callClient';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';
@@ -106,6 +108,13 @@ export default function Layout({ user, onLogout }) {
     }
   }, [user?.id]);
 
+  // DM calls: ringing, from any page.
+  useEffect(() => {
+    initCalls(user?.id ? user : null);
+    return () => initCalls(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   return (
     <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList }}>
     <CustomEmojiContext.Provider value={customEmoji}>
@@ -127,6 +136,8 @@ export default function Layout({ user, onLogout }) {
           {isDmPage && <DmSidebar users={users} unreadDms={unreadDms} />}
           {guildId && <GuildSidebar guild={guildList.layouts[guildId]} user={user} />}
         </SidebarWrapper>
+
+        <IncomingCall />
 
         {/* The main page content */}
         <div className='main-content-wrapper'>

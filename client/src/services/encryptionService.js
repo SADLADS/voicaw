@@ -20,6 +20,7 @@ const RECOVERY_AUTH_CONTEXT = 'voicaw/recovery-auth/v1';
 const DM_KEY_CONTEXT = 'voicaw/dm-key/v1';
 const DM_MESSAGE_CONTEXT = 'voicaw/dm/v1';
 const DM_REACTION_CONTEXT = 'voicaw/dm-reaction/v1';
+const CALL_KEY_CONTEXT = 'voicaw/call-key/v1';
 export const MESSAGE_PREFIX = 'v1.';
 
 // ---------------------------------------------------------------- encoding
@@ -295,6 +296,29 @@ export async function decryptReaction(envelope, key, context) {
   const emoji = td.decode(end === -1 ? padded : padded.slice(0, end));
   if (!emoji) throw new Error('Empty reaction');
   return emoji;
+}
+
+// ---------------------------------------------------------------- calls
+
+// A DM call's media key: 32 random bytes, made by the caller. It reaches the other person
+// encrypted with the conversation key, bound to the call and who's calling whom, so the server
+// can't hand it to another call or reverse the roles. LiveKit's end-to-end encryption uses it.
+export function generateCallKey() {
+  return crypto.getRandomValues(new Uint8Array(32));
+}
+
+export function callKeyContext(callId, callerId, calleeId) {
+  return `${CALL_KEY_CONTEXT}|${callId}|${callerId}|${calleeId}`;
+}
+
+export function encryptCallKey(callKey, conversationKey, context) {
+  return encryptMessage(toBase64(callKey), conversationKey, context);
+}
+
+export async function decryptCallKey(envelope, conversationKey, context) {
+  const key = fromBase64(await decryptMessage(envelope, conversationKey, context));
+  if (key.length !== 32) throw new Error('Invalid call key');
+  return key;
 }
 
 // Decrypts a message's reactions into [{ id, user_id, emoji }], skipping any that fail.

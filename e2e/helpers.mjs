@@ -109,3 +109,8 @@ function speechLikeWav() {
   writeFileSync(speechFile, Buffer.concat([header, Buffer.from(samples.buffer)]));
   return speechFile;
 }
+
+// Where serve.mjs leaves its LiveKit's address and keys ({ url, key, secret }).
+export function livekitInfoPath(apiPort = process.env.E2E_API_PORT || '3099') {
+  return join(tmpdir(), `voicaw-e2e-livekit-${apiPort}.json`);
+}

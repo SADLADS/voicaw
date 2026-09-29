@@ -96,6 +96,7 @@ node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots int
 node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permissions
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
+node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mute, decline, phone
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
@@ -104,7 +105,9 @@ For voice, `serve.mjs` also runs its own LiveKit (the binary at `LIVEKIT_BIN`, d
 `~/livekit/livekit-server`; skipped with a note if missing) on 127.0.0.1 with fresh keys and its
 webhook pointed at the throwaway API. `fakeMicArgs()` (helpers) gives Chrome a fake microphone
 playing a made-up speech-like sound: Chrome's own fake mic is a steady beep, which the browser's
-noise suppression removes, so it never counts as talking.
+noise suppression removes, so it never counts as talking. `serve.mjs` also leaves its LiveKit's
+address and keys where `livekitInfoPath()` says (scripts that ask LiveKit itself need
+`E2E_API_PORT` too).
 Scripts need the same `E2E_WEB_PORT` as `serve.mjs` when not using the default.
 Never use ports 5173 or 3002 (the live test site and API) or 7880-7882 (the live LiveKit);
 `serve.mjs` refuses them. Kill test
@@ -142,10 +145,12 @@ unexpected errors. The rest:
 - `s3.js`: pre-signed upload URLs. Bucket setup at startup logs and carries on if the store is down.
 - `guilds.js`: shared guild helpers (membership checks, `getGuildLayout`, `sendToGuild`).
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
+- `calls.js`: DM calls (ringing, answering, hanging up; see DM calls).
 - `routes/`: `auth.js` (OPAQUE register/login, profile), `dms.js` (conversations, send, edit,
   delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `guilds.js` (guilds,
   members, invites, bans, categories, channels), `guildMessages.js` (channel messages, reactions,
-  read state), `voice.js` (join token, mute/deafen, leave, LiveKit webhook), `push.js`
+  read state), `voice.js` (join token, mute/deafen, leave, LiveKit webhook), `calls.js` (DM
+  calls), `push.js`
   (subscriptions), `uploads.js`.
 
 Client tests sit next to their source files (`src/**/*.test.{js,jsx}`). The default environment is
@@ -291,7 +296,8 @@ Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, 
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete`,
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
 `guild_order` (your server rail order, to your other devices), `guild_voice_state` (someone
-joined, left or (un)muted in a voice channel). A 30s heartbeat
+joined, left or (un)muted in a voice channel), and for DM calls `call_incoming`, `call_update`,
+`call_end`. A 30s heartbeat
 (ping/pong) prunes dead connections.
 
 Client side, `client/src/utils/ws-client.js` wraps this with `connectWebSocket`/`closeWebSocket`
@@ -501,9 +507,43 @@ LiveKit carries the audio.
   (`voice/VoiceControls.jsx`). A guild reopens on its last *text* channel.
 - **Not done yet:** device selection, per-user volume, push-to-talk and voice activity
   settings, server mute/move (Mute Members, Move Members), the Electron global push-to-talk key,
-  voice isolation stages, DM calls (to be end-to-end encrypted with LiveKit's E2EE), screen
-  share, and a TURN server for networks that block UDP 7882 and TCP 7881. Phones: a PWA's audio
-  stops when it's in the background (iOS also when locked).
+  voice isolation stages, screen share, and a TURN server for networks that block UDP 7882 and
+  TCP 7881. Phones: a PWA's audio stops when it's in the background (iOS also when locked).
+
+### DM calls
+
+One-to-one voice calls from a DM, through the same LiveKit and `voiceClient` connection (one
+per device: starting or answering a call leaves a voice channel, and joining a channel hangs up
+a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
+- **Key:** the caller makes 32 random bytes per call (`generateCallKey`) and a call id (UUID),
+  and encrypts the key with the DM conversation key (`encryptCallKey`, additional data
+  `callKeyContext(callId, callerId, calleeId)`, so it can't be moved to another call or have
+  the roles swapped). The server passes on only that envelope (`key_envelope`). Both clients
+  give the key to LiveKit's E2EE (`ExternalE2EEKeyProvider` + its worker, in `voiceClient`
+  `connect`), which encrypts every audio frame before it leaves: LiveKit sees GCM-encrypted
+  tracks (`calls.mjs` checks with LiveKit's API). No E2EE in the browser: no call (never a
+  plain fallback). A contact whose key changed can't be called or answered (their chat has to
+  accept the new key first); the callee checks the caller's keys like opening their chat does.
+- **Server** (`server/calls.js`, `routes/calls.js`, in memory): `POST /dm-calls { calleeId,
+  callId, keyEnvelope }` rings (409 if they're in a call) and returns the caller's LiveKit
+  token (room `call-<id>`); the callee gets `call_incoming` on every device and a push ("Incoming
+  voice call", tag `call-<id>`, 45 s TTL). `POST /dm-calls/:id/accept` (callee, once) returns
+  theirs; `call_update` (state `active`) tells both, and the callee's other devices stop
+  ringing. `/decline`, `DELETE /dm-calls/:id` (hang up; the caller before an answer cancels)
+  and 45 s without an answer (`RING_MS`: missed) end it: `call_end { id, reason }` to both
+  (`ended`, `declined`, `cancelled`, `missed`), LiveKit's room is deleted, and a missed or
+  cancelled call replaces the ringing notification with "Missed call". Someone leaving the room
+  (LiveKit webhook) ends it after a 10 s grace (LiveKit's client may rejoin after a network
+  change). `GET /dm-calls/current` lets a just-opened app show a call ringing for it. An API
+  restart forgets calls (people keep talking until they hang up).
+- **Client** (`voice/callClient.js`, read with `hooks/useCall.js`; `initCalls(user)` from
+  `Layout`): the call button in the DM header, `call/IncomingCall.jsx` over any page (answering
+  opens the chat), `call/CallPanel.jsx` at the top of the DM (both people, speaking rings, the
+  other's mute, the duration, controls, "End-to-end encrypted"), the voice bar ("Call with …",
+  hang up; why a call ended: declined, didn't answer, missed call). Ring and ringback sounds are
+  Web Audio (`voice/ringtone.js`). Reloading or leaving the page leaves the call.
+- **Not done yet:** calls in the chat history (missed/ended entries), video, group calls, and
+  the incoming call screen of a native app (a closed PWA only gets the notification).
 
 ### File uploads (S3-compatible object store)
 
@@ -700,7 +740,7 @@ their box is reserved before they load.
 - **Voice** (decided 2026-09-29): a self-hosted LiveKit SFU (setup in `README.md`), not
   peer-to-peer mesh, so channels scale past a handful of people. The API only checks permissions
   and hands out short-lived LiveKit tokens. Guild voice isn't end-to-end encrypted (like guild
-  text). DM calls, later, should be, using LiveKit's E2EE with our keys. Build the microphone
+  text). DM calls are (LiveKit's E2EE with a per-call key sent inside the DM encryption). Build the microphone
   path as a Web Audio chain (capture with echo cancellation → processing slot → gain/voice
   activity → published track), so voice isolation (RNNoise, then DeepFilterNet, in an
   AudioWorklet) drops into the slot later. Krisp needs LiveKit Cloud or a licence, so it's out.

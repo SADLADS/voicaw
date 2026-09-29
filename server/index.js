@@ -36,6 +36,7 @@ app.use('/api', require('./routes/guildMessages'));
 app.use('/api', require('./routes/guildRoles'));
 app.use('/api', require('./routes/guildEmojis'));
 app.use('/api', require('./routes/voice'));
+app.use('/api', require('./routes/calls'));
 app.use('/api', require('./routes/push'));
 app.use('/api', require('./routes/uploads'));
 
