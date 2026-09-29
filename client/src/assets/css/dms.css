@@ -554,6 +554,10 @@ small {
   margin: 4px 0;
 }
 
+.dm-message .attachment-media.viewable {
+  cursor: zoom-in;
+}
+
 .attachment-loading {
   display: block;
   /* Default size when the media's dimensions are unknown; overridden inline otherwise. */

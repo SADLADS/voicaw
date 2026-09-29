@@ -1,0 +1,121 @@
+/* Full-screen image viewer (ImageViewer.jsx). */
+
+.image-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: rgba(0, 0, 0, 0.92);
+  color: var(--vc-fg);
+  animation: image-viewer-in 0.12s ease-out;
+}
+
+@keyframes image-viewer-in {
+  from { opacity: 0; }
+}
+
+.image-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: calc(6px + env(safe-area-inset-top, 0px)) calc(8px + env(safe-area-inset-right, 0px)) 6px
+    calc(14px + env(safe-area-inset-left, 0px));
+  background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+  position: relative;
+  z-index: 1;
+}
+
+.image-viewer-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.image-viewer-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-viewer-size {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}
+
+.image-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.image-viewer-actions button {
+  min-width: 40px;
+  height: 40px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--vc-fg);
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.image-viewer-actions button:hover,
+.image-viewer-actions button:focus-visible {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.image-viewer-actions .image-viewer-percent {
+  min-width: 56px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Phones pinch to zoom: the zoom buttons would only crowd the name. */
+body.mobile-mode .image-viewer-actions .image-viewer-zoom-button {
+  display: none;
+}
+
+.image-viewer-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  /* A zoomed image runs on under the toolbar; the viewer itself clips it. */
+  overflow: visible;
+  /* The viewer handles every touch gesture itself. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.image-viewer-stage.zoomed {
+  cursor: grab;
+}
+
+.image-viewer-stage.zoomed:active {
+  cursor: grabbing;
+}
+
+.image-viewer-image {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  max-height: none;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.image-viewer-stage:not(.zoomed) .image-viewer-image {
+  cursor: zoom-in;
+}
+
+.image-viewer-image.animate {
+  transition: transform 0.18s ease-out;
+}

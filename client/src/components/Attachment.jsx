@@ -1,24 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFile, faDownload } from '@fortawesome/free-solid-svg-icons';
 import { parseAttachmentUrl } from '../services/attachmentCrypto';
 import { loadDecryptedAttachment, getCachedAttachment } from '../services/attachmentCache';
 import { formatBytes } from '../utils/formatBytes';
 import { placeholderIdFromUrl } from '../utils/attachmentMarkup';
+import { triggerDownload } from '../utils/saveFile';
+import { ImageViewerContext } from '../contexts';
 
 function kindOf(type) {
   if (type?.startsWith('image/')) return 'image';
   if (type?.startsWith('video/')) return 'video';
   return 'file';
-}
-
-function triggerDownload(objectUrl, name) {
-  const a = document.createElement('a');
-  a.href = objectUrl;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
 }
 
 // Spans rather than divs throughout: markdown renders images inside <p>.
@@ -58,6 +51,31 @@ function reservedBoxStyle(width, height) {
   return { width: `${Math.round(width * scale)}px`, height: 'auto', aspectRatio: `${width} / ${height}` };
 }
 
+// An image in a message; clicking (or Enter) opens it in the full-screen viewer.
+function ViewableImage({ src, name, size, width, height, style, onError }) {
+  const viewer = useContext(ImageViewerContext);
+  if (!viewer) return <img className="attachment-media" style={style} src={src} alt={name} onError={onError} />;
+  const open = () => viewer.openImage({ src, name, size, width, height });
+  return (
+    <img
+      className="attachment-media viewable"
+      style={style}
+      src={src}
+      alt={name}
+      onError={onError}
+      role="button"
+      tabIndex={0}
+      onClick={open}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open();
+        }
+      }}
+    />
+  );
+}
+
 function MediaView({ kind, src, name, size, width, height, onDownload }) {
   const [failed, setFailed] = useState(false);
   const style = reservedBoxStyle(width, height);
@@ -66,7 +84,17 @@ function MediaView({ kind, src, name, size, width, height, onDownload }) {
   if (failed) return <FileBox name={name} size={size} onDownload={onDownload} />;
 
   if (kind === 'image') {
-    return <img className="attachment-media" style={style} src={src} alt={name} onError={() => setFailed(true)} />;
+    return (
+      <ViewableImage
+        src={src}
+        name={name}
+        size={size}
+        width={width}
+        height={height}
+        style={style}
+        onError={() => setFailed(true)}
+      />
+    );
   }
   return (
     <video
@@ -173,7 +201,7 @@ export default function Attachment({ src, alt, localAttachments }) {
   }
 
   const meta = parseAttachmentUrl(src);
-  if (!meta) return <img className="attachment-media" src={src} alt={alt} />;
+  if (!meta) return <ViewableImage src={src} name={name} />;
 
   return <EncryptedAttachment url={src} meta={meta} name={name} />;
 }

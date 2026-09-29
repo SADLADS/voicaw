@@ -16,6 +16,7 @@ import { closeWebSocket } from './utils/ws-client';
 import { clearUserKeys } from './services/keyStore';
 import EmojiProvider from './emoji/EmojiProvider';
 import UpdateBanner from './components/UpdateBanner';
+import ImageViewerProvider from './components/ImageViewerProvider';
 import { disableNotificationsOnThisDevice } from './services/pushService';
 
 
@@ -128,6 +129,7 @@ export default function App() {
     <ConfigContext.Provider value={config}>
       <EmojiProvider>
       <InteractionContext.Provider value={{ interactionMode, setInteractionMode, isMobile }}>
+        <ImageViewerProvider>
         <Router>
           <SWMessageHandler />
           <UpdateBanner />
@@ -148,6 +150,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Router>
+        </ImageViewerProvider>
       </InteractionContext.Provider>
       </EmojiProvider>
     </ConfigContext.Provider>

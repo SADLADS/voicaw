@@ -310,6 +310,14 @@ cached in `services/attachmentCache.js`; images/videos inline, anything else a d
 plain URLs (legacy unencrypted uploads, external images) as `<img>`. Because placeholders are
 shorter than final URLs, the send-time length check uses same-length stand-in URLs.
 
+Clicking an image opens `ImageViewer` (full screen, from `ImageViewerProvider` in `App.jsx`
+via `ImageViewerContext`, portalled to `<body>` so its touches don't reach the message's long
+press). It shows the already-decrypted blob URL: zoom by wheel, pinch, double click/tap,
+buttons or `+ - 0` keys (geometry in `utils/imageZoom.js`), drag to pan, save and open in a new
+tab (`utils/saveFile.js`). Its keys are caught at the window's capture phase, so Escape doesn't
+also cancel a reply. Opening it pushes a history entry (keeping the router's state), so the
+back button closes it.
+
 ### Emoji (Discord-style, default Unicode set)
 
 Messages store plain Unicode emoji; there is no server-side emoji data. `client/src/emoji/`:
