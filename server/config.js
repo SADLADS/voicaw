@@ -45,6 +45,9 @@ module.exports = {
   },
   allowedOrigins: ['https://test.voicaw.com', 'https://voicaw.com', 'http://test.voicaw.com', 'http://voicaw.com'],
   maxPlaintextLength,
+  // Login/registration attempt limits (see routes/auth.js). Tests turn them off, since they
+  // register and log in dozens of users from one address.
+  rateLimitsEnabled: process.env.DISABLE_RATE_LIMITS !== '1',
   // What a message of maxPlaintextLength is once encrypted (the server only sees that).
   maxMessageLength: getMaxEncryptedLength(maxPlaintextLength),
   getMaxEncryptedLength,

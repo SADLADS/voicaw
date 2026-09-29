@@ -137,6 +137,19 @@ describe('Login - login form', () => {
 
     expect(await screen.findByText('Incorrect username or password')).toBeInTheDocument();
   });
+
+  it("shows the server's reason when it refuses, e.g. too many attempts", async () => {
+    opaque.client.startLogin.mockReturnValue({ clientLoginState: 'CLS', startLoginRequest: 'SLR' });
+    api.post.mockRejectedValue(Object.assign(new Error('Request failed with status code 429'), {
+      response: { status: 429, data: { error: 'Too many attempts. Try again in 15 minutes.' } },
+    }));
+
+    const { loginForm, container } = renderLogin();
+    fillLogin(container, 'alice', 'whatever-password');
+    fireEvent.submit(loginForm);
+
+    expect(await screen.findByText('Too many attempts. Try again in 15 minutes.')).toBeInTheDocument();
+  });
 });
 
 describe('Login - register form', () => {

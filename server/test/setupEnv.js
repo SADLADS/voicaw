@@ -7,6 +7,9 @@ process.env.DB_PATH = ':memory:';
 process.env.JWT_SECRET = 'test-jwt-secret-for-vitest';
 process.env.OPAQUE_SERVER_SETUP = opaque.server.createSetup();
 process.env.MAX_MESSAGE_LENGTH = '5000';
+// The suites register and log in many users from one address (test/rateLimit.test.js
+// turns this back on).
+process.env.DISABLE_RATE_LIMITS = '1';
 process.env.S3_ENDPOINT = 'http://localhost:0';
 process.env.S3_ROOT_USER = 'test-root-user';
 process.env.S3_ROOT_PASSWORD = 'test-root-password';

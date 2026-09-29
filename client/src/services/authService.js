@@ -14,13 +14,23 @@ export const MIN_PASSWORD_LENGTH = 10;
 
 const PUBLIC_KEY_FIELDS = ['identityKey', 'encryptionKey', 'encryptionKeySignature'];
 
+// POSTs and resolves to the response body; a refusal throws the server's own message
+// (e.g. "Username already exists", or too many attempts).
+async function post(path, body) {
+  try {
+    return (await api.post(path, body)).data;
+  } catch (err) {
+    throw new Error(err.response?.data?.error || err.message);
+  }
+}
+
 // Resolves to the user ({ token, id, username }); throws an Error with a message to show.
 export async function logIn(username, password) {
   if (!username || !password) throw new Error('Username and password are required');
 
   const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
   // clientLoginState is this device's secret half of the OPAQUE exchange: never send it.
-  const { data: started } = await api.post('/initiatelogin', { startLoginRequest, userIdentifier: username });
+  const started = await post('/initiatelogin', { startLoginRequest, userIdentifier: username });
   const loginResult = opaque.client.finishLogin({
     clientLoginState,
     loginResponse: started.loginResponse,
@@ -30,7 +40,7 @@ export async function logIn(username, password) {
   if (!loginResult) throw new Error('Incorrect username or password');
   const { finishLoginRequest, sessionKey, exportKey } = loginResult;
 
-  const { data } = await api.post('/finaliselogin', {
+  const data = await post('/finaliselogin', {
     finishLoginRequest,
     clientSessionKey: sessionKey,
     userIdentifier: username,
@@ -65,7 +75,7 @@ export async function register(username, password) {
   }
 
   const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
-  const { data: started } = await api.post('/initiateregister', { userIdentifier: username, registrationRequest });
+  const started = await post('/initiateregister', { userIdentifier: username, registrationRequest });
   if (started.error) throw new Error(started.error);
   const { registrationRecord, exportKey } = opaque.client.finishRegistration({
     clientRegistrationState,
@@ -77,7 +87,7 @@ export async function register(username, password) {
   const keys = await generateUserKeys();
   const keyBackup = await wrapKeyBackup(exportKey, keys);
 
-  const { data } = await api.post('/finaliseregister', {
+  const data = await post('/finaliseregister', {
     registrationRecord,
     userIdentifier: username,
     ...keys.public,

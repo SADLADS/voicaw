@@ -34,7 +34,9 @@ Client-only (run inside `client/`):
 Server tests (`server/test/*.test.js`) are supertest integration tests against the real Express
 app with an in-memory SQLite DB:
 - `test/setupEnv.js` sets every required env var (including `DB_PATH=:memory:` and a freshly
-  generated OPAQUE setup / VAPID keys), so no `.env` or S3 is needed.
+  generated OPAQUE setup / VAPID keys), so no `.env` or S3 is needed. It also sets
+  `DISABLE_RATE_LIMITS=1`, since suites register dozens of users from one address
+  (`test/rateLimit.test.js` turns them back on).
 - Each test file must `import './helpers/mockS3.js'` **before** requiring `../index.js`. `s3.js`
   hits the network at require-time, and because the server is plain CommonJS, `vi.mock` can't
   intercept it. The helper pre-seeds Node's `require.cache` instead (`mockWebPush.js` does the same
@@ -99,6 +101,13 @@ Logged-out visitors must not be able to tell which usernames exist. `/api/initia
 unknown username with OPAQUE's dummy response (`registrationRecord: null`), so it fails at the end
 exactly like a wrong password. Logged-in users can see every user (intentional: the app is for groups
 where everyone knows each other). The client must never send its `clientLoginState` to the server.
+
+Password guessing can only happen online (through the server), so `routes/auth.js` rate limits
+it (`rateLimit.js`, in memory): login starts per IP (30 / 15 min) and per username (20 / 15 min,
+applied whether or not the account exists; cleared by a successful login), registrations per IP.
+Refusals are 429 with `Retry-After` and a message the login form shows. `req.ip` comes from
+nginx's `X-Forwarded-For` (`trust proxy: 'loopback'`). test.voicaw.com goes through vite's proxy
+to the public API, so its visitors all share one address there.
 The websocket `user_status` broadcast only goes to identified sockets.
 
 On successful login/register, the server issues a JWT (`generateToken`, 1-day expiry, see

@@ -6,6 +6,9 @@ const { clients, attachWebSocketServer } = require('./sockets');
 // The HTTP API (all under /api). Required by tests as-is; the port and the websocket server
 // only exist when this file is run as the server (`node index.js`).
 const app = express();
+// nginx (on this machine) proxies every request, so the client's address is the last one it
+// adds to X-Forwarded-For; req.ip then is the visitor, not 127.0.0.1 (rate limits use it).
+app.set('trust proxy', 'loopback');
 app.use(express.json());
 
 app.use(cors({

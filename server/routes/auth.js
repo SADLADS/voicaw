@@ -4,6 +4,8 @@ const opaque = require('@serenity-kit/opaque');
 const db = require('../db');
 const { opaqueServerSetup } = require('../config');
 const { generateToken, authenticateJWT } = require('../auth');
+const { rateLimitsEnabled } = require('../config');
+const { createLimiter, tooManyAttempts } = require('../rateLimit');
 
 // Registration and login use OPAQUE (the password never reaches the server), each in two
 // round trips. Login state between them lives in login_states for 5 minutes.
@@ -11,6 +13,34 @@ const router = express.Router();
 const LOGIN_STATE_SECONDS = 300;
 
 const now = () => Math.floor(Date.now() / 1000);
+
+// Password guessing has to go through the server (OPAQUE gives nothing to guess offline), so
+// attempts are limited per address and per username. The username limit applies whether or
+// not the account exists, so it can't be used to find out which ones do. A successful login
+// clears its username's count.
+const MINUTE = 60 * 1000;
+const limits = {
+  loginPerIp: createLimiter({ windowMs: 15 * MINUTE, max: 30 }),
+  loginPerUsername: createLimiter({ windowMs: 15 * MINUTE, max: 20 }),
+  registerStartPerIp: createLimiter({ windowMs: 60 * MINUTE, max: 30 }),
+  registerPerIp: createLimiter({ windowMs: 60 * MINUTE, max: 10 }),
+};
+
+// Middleware: counts this request against `limiters` ([limiter, keyOf(req)] pairs) and
+// answers 429 once any of them is used up.
+function limit(...limiters) {
+  return (req, res, next) => {
+    if (!rateLimitsEnabled) return next();
+    for (const [limiter, keyOf] of limiters) {
+      const { allowed, retryAfterMs } = limiter.hit(keyOf(req));
+      if (!allowed) return tooManyAttempts(res, retryAfterMs);
+    }
+    next();
+  };
+}
+
+const byIp = (req) => req.ip;
+const byUsername = (req) => String(req.body?.userIdentifier).slice(0, 100);
 
 // ECDSA P-256 / SHA-256 over "voicaw/encryption-key/v1\n<encryptionKey>" (see the client's
 // encryptionService); keys and signature are base64.
@@ -30,9 +60,9 @@ async function isValidEncryptionKeySignature(identityKey, encryptionKey, signatu
   }
 }
 
-router.post('/initiatelogin', async (req, res) => {
+router.post('/initiatelogin', limit([limits.loginPerIp, byIp], [limits.loginPerUsername, byUsername]), async (req, res) => {
   const { startLoginRequest, userIdentifier } = req.body;
-  if (!startLoginRequest || !userIdentifier) return res.status(400).json({ error: 'Missing startLoginRequest or userIdentifier' });
+  if (!startLoginRequest || !userIdentifier || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing startLoginRequest or userIdentifier' });
   await opaque.ready;
 
   // Forget abandoned login attempts (states are only removed on successful login).
@@ -62,7 +92,7 @@ router.post('/initiatelogin', async (req, res) => {
 
 router.post('/finaliselogin', async (req, res) => {
   const { finishLoginRequest, clientSessionKey, userIdentifier } = req.body;
-  if (!finishLoginRequest || !clientSessionKey || !userIdentifier) return res.status(400).json({ error: 'Missing data' });
+  if (!finishLoginRequest || !clientSessionKey || !userIdentifier || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing data' });
   await opaque.ready;
 
   const state = await db.get('SELECT * FROM login_states WHERE username = ?', [userIdentifier]);
@@ -84,6 +114,7 @@ router.post('/finaliselogin', async (req, res) => {
   }
 
   await db.run('DELETE FROM login_states WHERE username = ?', [userIdentifier]);
+  limits.loginPerUsername.reset(byUsername(req));
   const user = await db.get(
     'SELECT id, identity_key, encryption_key, encryption_key_signature, key_backup FROM users WHERE username = ?',
     [userIdentifier]
@@ -103,9 +134,9 @@ router.post('/finaliselogin', async (req, res) => {
   });
 });
 
-router.post('/initiateregister', async (req, res) => {
+router.post('/initiateregister', limit([limits.registerStartPerIp, byIp]), async (req, res) => {
   const { userIdentifier, registrationRequest } = req.body;
-  if (!userIdentifier || !registrationRequest) return res.status(400).json({ error: 'Missing username or registrationRequest' });
+  if (!userIdentifier || !registrationRequest || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing username or registrationRequest' });
   await opaque.ready;
 
   const { registrationResponse } = opaque.server.createRegistrationResponse({
@@ -116,9 +147,9 @@ router.post('/initiateregister', async (req, res) => {
   res.status(201).json({ registrationResponse });
 });
 
-router.post('/finaliseregister', async (req, res) => {
+router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req, res) => {
   const { registrationRecord, userIdentifier, identityKey, encryptionKey, encryptionKeySignature, keyBackup } = req.body;
-  if (!userIdentifier || !registrationRecord) return res.status(400).json({ error: 'Missing username or registrationRecord' });
+  if (!userIdentifier || !registrationRecord || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing username or registrationRecord' });
   if (!identityKey || !encryptionKey || !encryptionKeySignature || !keyBackup) {
     return res.status(400).json({ error: 'Missing keys' });
   }
