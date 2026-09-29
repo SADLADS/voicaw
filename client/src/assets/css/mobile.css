@@ -26,7 +26,4 @@
     scrollbar-width: none;
 }
 
-/* TODO: change this later when adding mobile specific menu */
-.mobile-mode .dm-message:hover .message-menu {
-  opacity: 1;
-}
+/* Mobile has no hover menu: a long press opens MessageActionSheet instead. */

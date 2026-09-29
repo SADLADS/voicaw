@@ -8,10 +8,12 @@ import SafetyNumberDialog from './SafetyNumberDialog';
 import EmojiPicker from './EmojiPicker';
 import MessageList from './MessageList';
 import Composer from './Composer';
+import MessageActionSheet from './MessageActionSheet';
 import { ConfigContext, InteractionContext } from '../contexts';
 import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
 import { useConversation } from '../hooks/useConversation';
 import { useReactions } from '../hooks/useReactions';
+import { summarizeAttachments } from '../utils/attachmentMarkup';
 
 // Where the floating reaction picker goes (desktop): by the button that opened it, lined up
 // with its right edge, above it if there's room and otherwise below. The picker sits against
@@ -53,6 +55,9 @@ export default function Dm({ user }) {
   const [composerError, setComposerError] = useState(null);
   // The composer's emoji picker. It and the reaction picker are never open together.
   const [showEmojiPicker, setShowEmojiPickerState] = useState(false);
+  // Mobile: the message whose action sheet (long press) is open.
+  const [actionsForId, setActionsForId] = useState(null);
+  const closeActions = useCallback(() => setActionsForId(null), []);
 
   const reactions = useReactions({
     chatId: id,
@@ -75,8 +80,27 @@ export default function Dm({ user }) {
     reactions.openPicker(msg, anchor);
   }
 
+  function openActions(msg) {
+    inputRef.current?.blur(); // the keyboard would cover the sheet
+    setShowEmojiPickerState(false);
+    reactions.closePicker();
+    setActionsForId(msg.id);
+  }
+
+  // Copies what the message says; attachments become their names (their links carry the
+  // decryption key, which shouldn't end up pasted elsewhere).
+  async function copyMessage(msg) {
+    try {
+      await navigator.clipboard.writeText(summarizeAttachments(msg.plaintext));
+    } catch (err) {
+      console.error('Copy failed', err);
+      setComposerError("Couldn't copy the message.");
+    }
+  }
+
   // A new conversation starts with nothing open.
   useEffect(() => {
+    setActionsForId(null);
     setShowSafetyNumber(false);
     setShowEmojiPickerState(false);
     setComposerError(null);
@@ -123,6 +147,7 @@ export default function Dm({ user }) {
   // A changed or invalid contact key blocks the conversation until resolved.
   const keyBlocked = keyStatus === 'changed' || keyStatus === 'invalid';
   const { reactingTo } = reactions;
+  const actionsFor = actionsForId != null ? messages.find((m) => m.id === actionsForId) : null;
 
   return (
     <div id="dm-main" data-current-user-id={user?.id} data-other-user-id={chatUser?.id}>
@@ -192,6 +217,7 @@ export default function Dm({ user }) {
                     onToggleReaction={reactions.toggleReaction}
                     onOpenReactionPicker={openReactionPicker}
                     reactionNames={reactionNames}
+                    onOpenActions={openActions}
                   />
                 )}
               </div>
@@ -221,6 +247,21 @@ export default function Dm({ user }) {
                 onInputFocus={reactions.closePicker}
                 onSend={conversation.sendMessage}
               />
+
+              {actionsFor && (
+                <MessageActionSheet
+                  msg={actionsFor}
+                  isOwn={actionsFor.sender_id === user.id}
+                  myReactions={new Set((actionsFor.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
+                  onReact={(emoji) => reactions.toggleReaction(actionsFor, emoji)}
+                  onMoreReactions={() => openReactionPicker(actionsFor, null)}
+                  onReply={() => handleReply(actionsFor)}
+                  onEdit={() => handleEdit(actionsFor)}
+                  onCopy={() => copyMessage(actionsFor)}
+                  onDelete={() => handleDelete(actionsFor)}
+                  onClose={closeActions}
+                />
+              )}
 
               {reactingTo && isMobile && (
                 // Reacting: the same panel as the composer's emoji, closed by the pick.
