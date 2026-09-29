@@ -2,11 +2,14 @@ const express = require('express');
 const db = require('../db');
 const { maxPlaintextLength } = require('../config');
 const { authenticateJWT } = require('../auth');
-const { getChannelForMember, sendToGuild } = require('../guilds');
+const { PERMISSIONS, has, channelPermissions } = require('../permissions');
+const { getChannelAccess, getMember, getOverrides, sendToChannel } = require('../guilds');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
-// same shape as DMs (sender_*, parent_*) so the client's message list shows both. Any member
-// can read and post; authors edit their own; authors and the owner delete.
+// same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
+// needs View Channel (without it the channel doesn't exist, 404), posting Send Messages,
+// reacting Add Reactions. Authors edit their own; authors or Manage Messages delete. Events
+// only go to the members who can see the channel.
 const router = express.Router();
 
 const MAX_REACTIONS_PER_USER_PER_MESSAGE = 20;
@@ -38,25 +41,30 @@ async function withReactions(messages) {
   return messages.map((m) => ({ ...m, reactions: byMessage.get(m.id) }));
 }
 
-// Loads req.channel if the caller is in its guild and it's a text channel.
+const forbidden = (res) => res.status(403).json({ error: "You don't have permission to do that" });
+
+// Loads req.channel and req.permissions (there) if the caller can see it and it's a text channel.
 async function requireTextChannel(req, res, next) {
-  const channel = await getChannelForMember(Number(req.params.channelId), req.user.id);
-  if (!channel) return res.status(404).json({ error: 'Channel not found' });
-  if (channel.type !== 'text') return res.status(400).json({ error: 'Not a text channel' });
-  req.channel = channel;
+  const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
+  if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Channel not found' });
+  if (access.channel.type !== 'text') return res.status(400).json({ error: 'Not a text channel' });
+  req.channel = access.channel;
+  req.permissions = access.permissions;
   next();
 }
 
-// Loads req.message (with its channel's guild and owner) if the caller can see it.
+// Loads req.message, its req.channel and req.permissions if the caller can see it.
 async function requireMessage(req, res, next) {
   const messageId = Number(req.params.messageId);
   const message = Number.isInteger(messageId) && await db.get(
     'SELECT id, channel_id, sender_id FROM guild_messages WHERE id = ?',
     [messageId]
   );
-  const channel = message && await getChannelForMember(message.channel_id, req.user.id);
-  if (!channel) return res.status(404).json({ error: 'Message not found' });
-  req.message = { ...message, guild_id: channel.guild_id, owner: channel.owner };
+  const access = message && await getChannelAccess(message.channel_id, req.user.id);
+  if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Message not found' });
+  req.message = message;
+  req.channel = access.channel;
+  req.permissions = access.permissions;
   next();
 }
 
@@ -93,6 +101,7 @@ router.get('/channels/:channelId/messages', authenticateJWT, requireTextChannel,
 });
 
 router.post('/channels/:channelId/messages', authenticateJWT, requireTextChannel, async (req, res) => {
+  if (!has(req.permissions, PERMISSIONS.SEND_MESSAGES)) return forbidden(res);
   const content = cleanContent(req.body?.content);
   if (!content) {
     return res.status(400).json({ error: `Messages are 1–${maxPlaintextLength} characters` });
@@ -117,7 +126,7 @@ router.post('/channels/:channelId/messages', authenticateJWT, requireTextChannel
   await markRead(req.user.id, req.channel.id, lastID);
   const [message] = await withReactions([await db.get(`${MESSAGE_SELECT} WHERE m.id = ?`, [lastID])]);
 
-  await sendToGuild(req.channel.guild_id, { type: 'guild_message_new', guildId: req.channel.guild_id, message });
+  await sendToChannel(req.channel, { type: 'guild_message_new', guildId: req.channel.guild_id, message });
   res.status(201).json(message);
 });
 
@@ -129,25 +138,26 @@ router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async 
     return res.status(400).json({ error: `Messages are 1–${maxPlaintextLength} characters` });
   }
   await db.run('UPDATE guild_messages SET content = ?, edited = 1 WHERE id = ?', [content, req.message.id]);
-  await sendToGuild(req.message.guild_id, {
+  await sendToChannel(req.channel, {
     type: 'guild_message_edit',
-    guildId: req.message.guild_id,
-    channelId: req.message.channel_id,
+    guildId: req.channel.guild_id,
+    channelId: req.channel.id,
     messageId: req.message.id,
     content,
   });
   res.json({ success: true, messageId: req.message.id, content });
 });
 
-// The author or the guild's owner can delete; its reactions go with it.
+// The author, or anyone with Manage Messages there, can delete; its reactions go with it.
 router.delete('/guild-messages/:messageId', authenticateJWT, requireMessage, async (req, res) => {
-  const { id, sender_id: senderId, owner, guild_id: guildId, channel_id: channelId } = req.message;
-  if (senderId !== req.user.id && owner !== req.user.id) {
+  const { id, sender_id: senderId } = req.message;
+  if (senderId !== req.user.id && !has(req.permissions, PERMISSIONS.MANAGE_MESSAGES)) {
     return res.status(403).json({ error: 'Not authorized to delete this message' });
   }
   await db.run('DELETE FROM guild_reactions WHERE message_id = ?', [id]);
   await db.run('DELETE FROM guild_messages WHERE id = ?', [id]);
-  await sendToGuild(guildId, { type: 'guild_message_delete', guildId, channelId, messageId: id });
+  const { guild_id: guildId, id: channelId } = req.channel;
+  await sendToChannel(req.channel, { type: 'guild_message_delete', guildId, channelId, messageId: id });
   res.json({ success: true, deletedId: id });
 });
 
@@ -158,7 +168,9 @@ router.post('/guild-messages/:messageId/reactions', authenticateJWT, requireMess
   if (typeof emoji !== 'string' || !emoji || emoji.length > MAX_EMOJI_LENGTH || /\s/.test(emoji)) {
     return res.status(400).json({ error: 'Invalid reaction' });
   }
-  const { id: messageId, guild_id: guildId, channel_id: channelId } = req.message;
+  if (!has(req.permissions, PERMISSIONS.ADD_REACTIONS)) return forbidden(res);
+  const messageId = req.message.id;
+  const { guild_id: guildId, id: channelId } = req.channel;
 
   const { count } = await db.get(
     'SELECT COUNT(*) AS count FROM guild_reactions WHERE message_id = ? AND user_id = ?',
@@ -177,7 +189,7 @@ router.post('/guild-messages/:messageId/reactions', authenticateJWT, requireMess
     'SELECT id, message_id, user_id, emoji, timestamp FROM guild_reactions WHERE id = ?',
     [lastID]
   );
-  await sendToGuild(guildId, { type: 'guild_reaction_add', guildId, channelId, reaction });
+  await sendToChannel(req.channel, { type: 'guild_reaction_add', guildId, channelId, reaction });
   res.status(201).json(reaction);
 });
 
@@ -189,12 +201,13 @@ router.delete('/guild-reactions/:reactionId', authenticateJWT, async (req, res) 
      JOIN guild_messages m ON m.id = r.message_id WHERE r.id = ?`,
     [reactionId]
   );
-  const channel = reaction && await getChannelForMember(reaction.channel_id, req.user.id);
-  if (!channel) return res.status(404).json({ error: 'Reaction not found' });
+  const access = reaction && await getChannelAccess(reaction.channel_id, req.user.id);
+  if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Reaction not found' });
   if (reaction.user_id !== req.user.id) return res.status(403).json({ error: 'Not your reaction' });
 
+  const { channel } = access;
   await db.run('DELETE FROM guild_reactions WHERE id = ?', [reactionId]);
-  await sendToGuild(channel.guild_id, {
+  await sendToChannel(channel, {
     type: 'guild_reaction_remove',
     guildId: channel.guild_id,
     channelId: channel.id,
@@ -214,11 +227,11 @@ router.post('/channels/:channelId/read', authenticateJWT, requireTextChannel, as
   res.json({ success: true });
 });
 
-// Unread counts for every channel of the caller's guilds that has any: messages by other
-// people after the caller's read marker.
+// Unread counts for every channel of the caller's guilds that has any and they can see:
+// messages by other people after the caller's read marker.
 router.get('/guild-unread', authenticateJWT, async (req, res) => {
   const me = req.user.id;
-  res.json(await db.all(
+  const rows = await db.all(
     `SELECT c.id AS channel_id, c.guild_id, COUNT(m.id) AS count
      FROM guild_channels c
      JOIN guild_members gm ON gm.guild_id = c.guild_id AND gm.user_id = ?
@@ -226,7 +239,16 @@ router.get('/guild-unread', authenticateJWT, async (req, res) => {
      JOIN guild_messages m ON m.channel_id = c.id AND m.id > COALESCE(r.last_read_id, 0) AND m.sender_id != ?
      GROUP BY c.id`,
     [me, me, me]
-  ));
+  );
+  const visible = [];
+  for (const guildId of new Set(rows.map((r) => r.guild_id))) {
+    const member = await getMember(guildId, me);
+    const overrides = await getOverrides({ guildId });
+    for (const row of rows.filter((r) => r.guild_id === guildId)) {
+      if (has(channelPermissions(member, me, overrides.get(row.channel_id)), PERMISSIONS.VIEW_CHANNEL)) visible.push(row);
+    }
+  }
+  res.json(visible);
 });
 
 module.exports = router;

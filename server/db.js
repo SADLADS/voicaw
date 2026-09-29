@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database(process.env.DB_PATH || './voicaw.db');
+const { DEFAULT_EVERYONE_PERMISSIONS } = require('./permissions');
 
 // USERS
 db.run(`
@@ -142,6 +143,58 @@ CREATE TABLE IF NOT EXISTS guild_channel_reads (
   last_read_id INTEGER NOT NULL,
   PRIMARY KEY (user_id, channel_id)
 );
+`);
+
+// ROLES. Every guild has an @everyone role (is_everyone = 1, position 0, always the bottom);
+// higher positions rank higher. `permissions` is a bit field (permissions.js); `color` is
+// 0xRRGGBB or null (no colour).
+db.run(`
+CREATE TABLE IF NOT EXISTS guild_roles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  color INTEGER,
+  position INTEGER NOT NULL DEFAULT 0,
+  permissions INTEGER NOT NULL DEFAULT 0,
+  hoist INTEGER NOT NULL DEFAULT 0,
+  is_everyone INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (guild_id) REFERENCES guilds(id)
+);
+`);
+db.run('CREATE INDEX IF NOT EXISTS guild_roles_guild ON guild_roles (guild_id)');
+
+// Which roles each member has (@everyone is implied, never stored here).
+db.run(`
+CREATE TABLE IF NOT EXISTS guild_member_roles (
+  guild_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  role_id INTEGER NOT NULL,
+  PRIMARY KEY (user_id, role_id),
+  FOREIGN KEY (guild_id) REFERENCES guilds(id),
+  FOREIGN KEY (role_id) REFERENCES guild_roles(id)
+);
+`);
+db.run('CREATE INDEX IF NOT EXISTS guild_member_roles_guild ON guild_member_roles (guild_id)');
+
+// Per-channel permission overrides for a role or a member: bits in `deny` are taken away, bits in
+// `allow` given (a private channel denies VIEW_CHANNEL to @everyone).
+db.run(`
+CREATE TABLE IF NOT EXISTS guild_channel_overrides (
+  channel_id INTEGER NOT NULL,
+  target_type TEXT CHECK(target_type IN ('role', 'member')) NOT NULL,
+  target_id INTEGER NOT NULL,
+  allow INTEGER NOT NULL DEFAULT 0,
+  deny INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (channel_id, target_type, target_id),
+  FOREIGN KEY (channel_id) REFERENCES guild_channels(id)
+);
+`);
+
+// Guilds from before roles get their @everyone role (with the default permissions).
+db.run(`
+INSERT INTO guild_roles (guild_id, name, position, permissions, is_everyone)
+SELECT g.id, '@everyone', 0, ${DEFAULT_EVERYONE_PERMISSIONS}, 1 FROM guilds g
+WHERE NOT EXISTS (SELECT 1 FROM guild_roles r WHERE r.guild_id = g.id AND r.is_everyone = 1)
 `);
 });
 

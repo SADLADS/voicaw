@@ -101,7 +101,10 @@ describe('guilds', () => {
     const res = await api.patch(owner, `/guilds/${guild.id}`, { name: 'Renamed' });
     events.stop();
     expect(res.body.name).toBe('Renamed');
-    expect(events).toEqual([{ type: 'guild_update', guild: res.body }]);
+    // Each member gets the guild as they see it (their own permissions).
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: 'guild_update', guild: { id: guild.id, name: 'Renamed' } });
+    expect(events[0].guild.my_permissions).not.toBe(res.body.my_permissions);
   });
 
   it('bumps the icon version after an upload, and removes it', async () => {
@@ -167,7 +170,7 @@ describe('guild members, invites and bans', () => {
     expect(ownerEvents).toEqual([{
       type: 'guild_member_add',
       guildId: guild.id,
-      member: { id: joiner.id, username: joiner.username, joined_at: expect.any(Number), online: true },
+      member: { id: joiner.id, username: joiner.username, joined_at: expect.any(Number), role_ids: [], online: true },
     }]);
 
     const members = await api.get(owner, `/guilds/${guild.id}/members`);

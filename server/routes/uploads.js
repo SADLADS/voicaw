@@ -3,7 +3,8 @@ const express = require('express');
 const { s3Endpoint } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { getUploadUrl } = require('../s3');
-const { getGuildForMember } = require('../guilds');
+const { getMember } = require('../guilds');
+const { PERMISSIONS, has } = require('../permissions');
 
 // Uploads go straight from the browser to the object store; the server only hands out
 // short-lived pre-signed PUT URLs. Attachments arrive already encrypted by the client.
@@ -39,14 +40,15 @@ router.get('/upload_profile_pic', authenticateJWT, async (req, res) => {
   }
 });
 
-// A guild's icon (owner only), stored as guild-icons/<guild id>. Once it's uploaded the
+// A guild's icon (Manage Server), stored as guild-icons/<guild id>. Once it's uploaded the
 // client sends PATCH /guilds/:id { iconUploaded: true }, which bumps the icon's version.
 router.get('/upload_guild_icon', authenticateJWT, async (req, res) => {
   const { type } = req.query;
   const size = Number(req.query.size);
-  const guild = await getGuildForMember(Number(req.query.guildId), req.user.id);
-  if (!guild) return res.status(404).json({ error: 'Guild not found' });
-  if (guild.owner !== req.user.id) return res.status(403).json({ error: 'Only the owner can do that' });
+  const member = await getMember(Number(req.query.guildId), req.user.id);
+  if (!member) return res.status(404).json({ error: 'Guild not found' });
+  if (!has(member.permissions, PERMISSIONS.MANAGE_GUILD)) return res.status(403).json({ error: "You don't have permission to do that" });
+  const { guild } = member;
   if (!type) return res.status(400).json({ error: 'Missing content type' });
   if (!type.startsWith('image/')) return res.status(400).json({ error: 'Guild icons must be images' });
   const sizeError = checkUploadSize(size, MAX_PROFILE_PIC_BYTES);

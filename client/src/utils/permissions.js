@@ -1,0 +1,91 @@
+// Guild permissions, as the server has them (server/permissions.js; a server test checks the
+// two match). The server decides; the client uses these to show only what you can do, and
+// to draw roles (colours, member list groups).
+
+export const PERMISSIONS = {
+  VIEW_CHANNEL: 1 << 0,
+  SEND_MESSAGES: 1 << 1,
+  ADD_REACTIONS: 1 << 2,
+  MANAGE_MESSAGES: 1 << 3,
+  MANAGE_CHANNELS: 1 << 4,
+  MANAGE_ROLES: 1 << 5,
+  MANAGE_GUILD: 1 << 6,
+  CREATE_INVITE: 1 << 7,
+  KICK_MEMBERS: 1 << 8,
+  BAN_MEMBERS: 1 << 9,
+  ADMINISTRATOR: 1 << 10,
+};
+
+export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
+  PERMISSIONS.ADD_REACTIONS | PERMISSIONS.CREATE_INVITE;
+
+export const has = (permissions, bit) => ((permissions ?? 0) & bit) === bit;
+
+// What the role editor lists, in groups, with Discord's wording.
+export const PERMISSION_GROUPS = [
+  {
+    title: 'General',
+    items: [
+      ['VIEW_CHANNEL', 'View Channels', 'Lets members see channels (private channels aside).'],
+      ['MANAGE_CHANNELS', 'Manage Channels', 'Lets members create, edit and delete channels and categories.'],
+      ['MANAGE_ROLES', 'Manage Roles', 'Lets members create and edit roles below their highest role, give them out, and change channel permissions.'],
+      ['MANAGE_GUILD', 'Manage Server', "Lets members change the server's name and icon, and see and revoke all invites."],
+    ],
+  },
+  {
+    title: 'Membership',
+    items: [
+      ['CREATE_INVITE', 'Create Invite', 'Lets members invite people to this server.'],
+      ['KICK_MEMBERS', 'Kick Members', 'Lets members remove people ranked below them. They can rejoin with an invite.'],
+      ['BAN_MEMBERS', 'Ban Members', 'Lets members remove people ranked below them for good (until unbanned).'],
+    ],
+  },
+  {
+    title: 'Text channels',
+    items: [
+      ['SEND_MESSAGES', 'Send Messages', 'Lets members post in text channels.'],
+      ['ADD_REACTIONS', 'Add Reactions', 'Lets members react to messages.'],
+      ['MANAGE_MESSAGES', 'Manage Messages', "Lets members delete other people's messages."],
+    ],
+  },
+  {
+    title: 'Advanced',
+    items: [
+      ['ADMINISTRATOR', 'Administrator', 'Every permission, in every channel, whatever the channel settings. Handle with care.'],
+    ],
+  },
+];
+
+// What a channel override can change (the server refuses anything else).
+export const CHANNEL_PERMISSION_ITEMS = [
+  ['VIEW_CHANNEL', 'View Channel'],
+  ['SEND_MESSAGES', 'Send Messages'],
+  ['ADD_REACTIONS', 'Add Reactions'],
+  ['MANAGE_MESSAGES', 'Manage Messages'],
+];
+
+// A member's roles (from `roles`, the guild's list, highest first), highest first.
+export function memberRoles(roles, roleIds) {
+  const ids = new Set(roleIds ?? []);
+  return (roles ?? []).filter((r) => !r.is_everyone && ids.has(r.id));
+}
+
+// Their name colour: that of their highest role with a colour, or null (the normal colour).
+export function memberColor(roles, roleIds) {
+  const role = memberRoles(roles, roleIds).find((r) => r.color != null);
+  return role ? colorToHex(role.color) : null;
+}
+
+// How high someone ranks (their highest role's position; the owner above all).
+export function memberRank(guild, userId, roleIds) {
+  if (guild.owner === userId) return Infinity;
+  return memberRoles(guild.roles, roleIds).reduce((max, r) => Math.max(max, r.position), 0);
+}
+
+export function colorToHex(color) {
+  return `#${color.toString(16).padStart(6, '0')}`;
+}
+
+export function hexToColor(hex) {
+  return parseInt(hex.replace('#', ''), 16);
+}
