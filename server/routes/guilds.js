@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const express = require('express');
 const db = require('../db');
 const { authenticateJWT } = require('../auth');
+const { deleteObject } = require('../s3');
 const { sendToUserSockets, isOnline } = require('../sockets');
 const { PERMISSIONS, DEFAULT_EVERYONE_PERMISSIONS, has } = require('../permissions');
 const {
@@ -67,12 +68,21 @@ async function outranks(actor, targetId) {
 
 // ---- Guilds ----
 
-// The caller's guilds, in the order they joined them.
+// Adds `userId` to the guild, at the bottom of their server rail.
+async function addMember(guildId, userId) {
+  await db.run(
+    `INSERT OR IGNORE INTO guild_members (guild_id, user_id, position)
+     VALUES (?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM guild_members WHERE user_id = ?))`,
+    [guildId, userId, userId]
+  );
+}
+
+// The caller's guilds, in their server rail order (PUT /guilds-order).
 router.get('/guilds', authenticateJWT, async (req, res) => {
   res.json(await db.all(
     `SELECT g.id, g.name, g.owner, g.icon_version, g.created_at
      FROM guilds g JOIN guild_members gm ON gm.guild_id = g.id
-     WHERE gm.user_id = ? ORDER BY gm.joined_at, g.id`,
+     WHERE gm.user_id = ? ORDER BY gm.position, gm.joined_at, g.id`,
     [req.user.id]
   ));
 });
@@ -90,7 +100,7 @@ router.post('/guilds', authenticateJWT, async (req, res) => {
     `INSERT INTO guild_roles (guild_id, name, position, permissions, is_everyone) VALUES (?, '@everyone', 0, ?, 1)`,
     [guildId, DEFAULT_EVERYONE_PERMISSIONS]
   );
-  await db.run('INSERT INTO guild_members (guild_id, user_id) VALUES (?, ?)', [guildId, req.user.id]);
+  await addMember(guildId, req.user.id);
   const { lastID: categoryId } = await db.run(
     'INSERT INTO guild_categories (guild_id, name, position) VALUES (?, ?, 0)',
     [guildId, 'Text Channels']
@@ -132,7 +142,10 @@ router.delete('/guilds/:guildId', owner, async (req, res) => {
   const memberIds = await getMemberIds(guildId);
 
   await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);
+  const emojis = await db.all('SELECT id FROM guild_emojis WHERE guild_id = ?', [guildId]);
+  for (const { id } of emojis) await deleteObject('emojis', String(id));
   for (const table of [
+    'guild_emojis',
     'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',
     'guild_member_roles', 'guild_roles', 'guild_members',
   ]) {
@@ -326,7 +339,7 @@ router.post('/invites/:code', authenticateJWT, async (req, res) => {
   );
   if (!changes) return res.status(404).json({ error: 'This invite is invalid or has expired' });
 
-  await db.run('INSERT OR IGNORE INTO guild_members (guild_id, user_id) VALUES (?, ?)', [guildId, userId]);
+  await addMember(guildId, userId);
   await markGuildRead(guildId, userId);
 
   const guild = await getGuildLayout(guildId, userId);

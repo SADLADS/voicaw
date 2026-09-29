@@ -30,6 +30,8 @@ vi.mock('../services/guildService', () => ({
   fetchGuilds: vi.fn(async () => []),
   fetchGuild: vi.fn(),
   fetchGuildUnread: vi.fn(async () => []),
+  fetchAllEmojis: vi.fn(async () => []),
+  saveGuildOrder: vi.fn(async () => {}),
 }));
 
 vi.mock('../services/encryptionService', () => ({

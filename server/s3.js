@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, DeleteObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const s3 = new S3Client({
@@ -62,7 +62,7 @@ async function getUploadUrl(filename, bucket, contentType, contentLength) {
 // and guild icons are public on purpose). If the object store is unreachable, log it rather than crash the
 // server: messaging works without it, and the next start tries again.
 async function setUpBuckets() {
-    for (const bucket of ["uploads", "profile-pics", "guild-icons"]) {
+    for (const bucket of ["uploads", "profile-pics", "guild-icons", "emojis"]) {
         await ensureBucketExists(bucket);
         await makeBucketPublic(bucket);
     }
@@ -70,4 +70,14 @@ async function setUpBuckets() {
 
 setUpBuckets().catch((err) => console.error("Failed to set up S3 buckets:", err.code || err.name, err.message));
 
-module.exports = { s3, getUploadUrl };
+// Removes an object (e.g. a deleted custom emoji's image). Failures are logged, not thrown:
+// the row is already gone, and a leftover file only takes space.
+async function deleteObject(bucket, key) {
+    try {
+        await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    } catch (err) {
+        console.error("Failed to delete object:", bucket, key, err.code || err.name);
+    }
+}
+
+module.exports = { s3, getUploadUrl, deleteObject };

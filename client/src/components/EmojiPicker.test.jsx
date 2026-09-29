@@ -5,6 +5,8 @@ import data from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../emoji/emojiIndex';
 import { EmojiContext } from '../emoji/emojiContext';
 import EmojiPicker from './EmojiPicker';
+import { CustomEmojiContext } from '../emoji/customEmojiContext';
+import { ConfigContext } from '../contexts';
 
 let index;
 beforeAll(() => { index = buildEmojiIndex(data); });
@@ -101,3 +103,60 @@ describe('EmojiPicker', () => {
   });
 });
 
+
+describe('EmojiPicker custom emoji', () => {
+  const guildOne = { id: 1, name: 'Cool Server', icon_version: 0 };
+  const guildTwo = { id: 2, name: 'Blob Land', icon_version: 0 };
+  const blob = { id: 10, name: 'blob', guild: guildTwo };
+  const cat = { id: 11, name: 'blobcat', guild: guildTwo };
+  const wave = { id: 20, name: 'wave_hi', guild: guildOne };
+  // In rail order: Blob Land first.
+  const custom = {
+    guilds: [{ guild: guildTwo, emojis: [blob, cat] }, { guild: guildOne, emojis: [wave] }],
+    byId: new Map([['10', blob], ['11', cat], ['20', wave]]),
+  };
+
+  function renderWithCustom() {
+    const onSelect = vi.fn();
+    render(
+      <ConfigContext.Provider value={{ s3Endpoint: 'https://s3.test' }}>
+        <CustomEmojiContext.Provider value={custom}>
+          <EmojiContext.Provider value={index}>
+            <EmojiPicker onSelect={onSelect} onClose={vi.fn()} />
+          </EmojiContext.Provider>
+        </CustomEmojiContext.Provider>
+      </ConfigContext.Provider>
+    );
+    return { onSelect };
+  }
+
+  it("puts each server's emoji after Frequently Used and before the standard ones, in rail order", () => {
+    localStorage.setItem('emojiFrequent', JSON.stringify({ grinning: 3, 'custom:20': 5 }));
+    renderWithCustom();
+    const headings = screen.getAllByRole('heading').map((h) => h.textContent);
+    expect(headings.slice(0, 4)).toEqual(['Frequently Used', 'Blob Land', 'Cool Server', 'Smileys & People']);
+    // Frequently used mixes custom and standard emoji.
+    const frequent = screen.getByRole('heading', { name: 'Frequently Used' }).closest('section');
+    expect(within(frequent).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([':wave_hi:', 'Grinning Face']);
+    // The category bar shows the server's icon (initials here).
+    const nav = screen.getByRole('navigation', { name: 'Emoji categories' });
+    expect(within(nav).getByRole('button', { name: 'Blob Land' })).toHaveTextContent('BL');
+  });
+
+  it('picks a custom emoji as <:name:id> and remembers it', () => {
+    const { onSelect } = renderWithCustom();
+    const button = screen.getByRole('button', { name: ':blob:' });
+    expect(within(button).getByRole('img')).toHaveAttribute('src', 'https://s3.test/emojis/10');
+    fireEvent.click(button);
+    expect(onSelect).toHaveBeenCalledWith('<:blob:10>');
+    expect(JSON.parse(localStorage.getItem('emojiFrequent'))).toEqual({ 'custom:10': 1 });
+  });
+
+  it('finds custom emoji first when searching', () => {
+    renderWithCustom();
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search emoji' }), { target: { value: 'wave' } });
+    const buttons = screen.getAllByRole('button', { name: /wave/i });
+    expect(buttons[0]).toHaveAttribute('aria-label', ':wave_hi:');
+    expect(buttons.length).toBeGreaterThan(1);
+  });
+});

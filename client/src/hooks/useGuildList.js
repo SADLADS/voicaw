@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { onGuildEvent } from '../utils/ws-client';
-import { fetchGuild, fetchGuilds, fetchGuildUnread } from '../services/guildService';
+import { fetchAllEmojis, fetchGuild, fetchGuilds, fetchGuildUnread, saveGuildOrder } from '../services/guildService';
 
 // The logged-in user's guilds, for the whole layout (Layout puts this in LayoutContext):
 // - `guilds`: the list for the server rail ([{ id, name, owner, icon_version }]).
 // - `layouts`: guilds opened so far, by id, with their `categories` and `channels`
 //   (`loadGuild(id)` fetches one; websocket updates keep them current).
 // - `unread`: [{ channel_id, guild_id, count }]; `refreshUnread()` refetches it.
+// - `emojis`: custom emoji by guild id ({ [guildId]: [{ id, guild_id, name, animated }] }).
+// `reorderGuilds(ids)` saves a new rail order (top first); other devices follow.
 // `activeChannelId` is the channel on screen: new messages there don't count as unread.
 // `onRemoved(guildId)` runs when you leave, are removed from, or delete a guild.
 export function useGuildList({ userId, activeChannelId, onRemoved }) {
   const [guilds, setGuilds] = useState([]);
   const [layouts, setLayouts] = useState({});
   const [unread, setUnread] = useState([]);
+  const [emojis, setEmojis] = useState({});
   const [loaded, setLoaded] = useState(false);
 
   const active = useRef(activeChannelId);
@@ -43,6 +46,10 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
       return rest;
     });
     setUnread((prev) => prev.filter((u) => u.guild_id !== guildId));
+    setEmojis((prev) => {
+      const { [guildId]: _removed, ...rest } = prev;
+      return rest;
+    });
     onRemovedRef.current?.(guildId);
   }, []);
 
@@ -66,10 +73,36 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
       }
     })();
     refreshUnread();
+    fetchAllEmojis()
+      .then((list) => {
+        if (cancelled) return;
+        const byGuild = {};
+        for (const emoji of list) (byGuild[emoji.guild_id] ??= []).push(emoji);
+        setEmojis(byGuild);
+      })
+      .catch((err) => console.warn('Failed to load custom emoji', err));
     return () => {
       cancelled = true;
     };
   }, [userId, refreshUnread]);
+
+  // Puts the guilds in `guildIds` order (any not listed keep their place at the end).
+  const applyOrder = useCallback((guildIds) => {
+    setGuilds((prev) => {
+      const rank = new Map(guildIds.map((id, i) => [id, i]));
+      return [...prev].sort((a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity));
+    });
+  }, []);
+
+  const reorderGuilds = useCallback(async (guildIds) => {
+    applyOrder(guildIds);
+    try {
+      await saveGuildOrder(guildIds);
+    } catch (err) {
+      console.warn('Failed to save the server order', err);
+      fetchGuilds().then(setGuilds).catch(() => {});
+    }
+  }, [applyOrder]);
 
   useEffect(() => {
     if (!userId) return undefined;
@@ -82,6 +115,12 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
         case 'guild_remove':
           removeGuild(event.guildId);
           break;
+        case 'guild_emojis_update':
+          setEmojis((prev) => ({ ...prev, [event.guildId]: event.emojis }));
+          break;
+        case 'guild_order':
+          applyOrder(event.guildIds);
+          break;
         case 'guild_message_new': {
           const { message } = event;
           if (message.sender_id === userId || String(message.channel_id) === String(active.current)) break;
@@ -93,7 +132,7 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
         default:
       }
     });
-  }, [userId, upsertGuild, removeGuild]);
+  }, [userId, upsertGuild, removeGuild, applyOrder]);
 
-  return { guilds, layouts, unread, loaded, loadGuild, upsertGuild, removeGuild, refreshUnread };
+  return { guilds, layouts, unread, emojis, loaded, loadGuild, upsertGuild, removeGuild, refreshUnread, reorderGuilds };
 }

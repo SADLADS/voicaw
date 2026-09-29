@@ -2,6 +2,7 @@ import { loadEncryptionKey } from './keyStore';
 import { deriveConversationKey, decryptMessage, dmContext } from './encryptionService';
 import { getPinnedContact } from './contactKeys';
 import { summarizeAttachments } from '../utils/attachmentMarkup';
+import { customEmojiToText } from '../emoji/customEmoji';
 import { getSetting } from './settingsStore';
 
 // Turns a web push payload (see buildDmPushPayload in server/index.js) into the
@@ -23,7 +24,7 @@ async function dmPreview(data) {
     if (!sender) return null; // never opened a chat with them here: key not checked yet
     const key = await deriveConversationKey(myKey, sender.encryptionKey);
     const plaintext = await decryptMessage(data.ciphertext, key, dmContext(data.senderId, data.recipientId));
-    const text = summarizeAttachments(plaintext).trim();
+    const text = customEmojiToText(summarizeAttachments(plaintext)).trim();
     if (!text) return null;
     return text.length > MAX_PREVIEW_LENGTH ? `${text.slice(0, MAX_PREVIEW_LENGTH - 1)}…` : text;
   } catch (err) {

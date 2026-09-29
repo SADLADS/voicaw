@@ -118,6 +118,7 @@ const setBoxText = (text) => act(() => { editorFor(box()).setText(text); });
 import emojiData from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../emoji/emojiIndex';
 import { EmojiContext } from '../emoji/emojiContext';
+import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { ConfigContext, InteractionContext } from '../contexts';
 import { LayoutContext } from '../contexts';
 import { fetchMessagesForUser, sendMessageToUser, markMessagesRead, addReaction, removeReaction, deleteMessage } from '../services/dmService';
@@ -134,8 +135,11 @@ const chatUserNoKey = { id: 3, username: 'nokey' };
 
 const emojiIndex = buildEmojiIndex(emojiData);
 
-function renderDm({ path, users, user = currentUser, layoutOverrides = {}, isMobile = false } = {}) {
+const noCustomEmoji = { guilds: [], byId: new Map() };
+
+function renderDm({ path, users, user = currentUser, layoutOverrides = {}, isMobile = false, customEmoji = noCustomEmoji } = {}) {
   return render(
+    <CustomEmojiContext.Provider value={customEmoji}>
     <EmojiContext.Provider value={emojiIndex}>
     <ConfigContext.Provider value={{ s3Endpoint: 'https://s3.test', maxPlaintextLength: 5000 }}>
       <InteractionContext.Provider value={{ isMobile }}>
@@ -151,6 +155,7 @@ function renderDm({ path, users, user = currentUser, layoutOverrides = {}, isMob
       </InteractionContext.Provider>
     </ConfigContext.Provider>
     </EmojiContext.Provider>
+    </CustomEmojiContext.Provider>
   );
 }
 
@@ -607,6 +612,45 @@ describe('Dm emoji', () => {
     type(textarea, 'nice 👍 :notarealemoji:');
     await act(async () => {});
     expect(boxText()).toBe('nice 👍 :notarealemoji:');
+  });
+
+  describe('custom emoji', () => {
+    const guild = { id: 7, name: 'Blob Land', icon_version: 0 };
+    const blob = { id: 10, name: 'blob', guild };
+    const customEmoji = { guilds: [{ guild, emojis: [blob] }], byId: new Map([['10', blob]]) };
+
+    async function openCustomChat() {
+      renderDm({ path: '/dm/2', users: [chatUserFull], customEmoji });
+      await screen.findByText('No messages yet. Start the conversation!');
+      return document.getElementById('dm-input');
+    }
+
+    it('turns a typed :name: into the custom emoji', async () => {
+      const textarea = await openCustomChat();
+      type(textarea, 'look :blob:');
+      await waitFor(() => expect(boxText()).toBe('look <:blob:10> '));
+      expect(textarea.querySelector('img.emoji')).toHaveAttribute('src', 'https://s3.test/emojis/10');
+    });
+
+    it('suggests custom emoji first, with their server', async () => {
+      const textarea = await openCustomChat();
+      type(textarea, 'hi :blo');
+      const options = within(screen.getByRole('listbox', { name: 'Emoji matching :blo' })).getAllByRole('option');
+      expect(options[0]).toHaveTextContent(':blob:Blob Land');
+      fireEvent.keyDown(textarea, { key: 'Enter' });
+      expect(boxText()).toBe('hi <:blob:10> ');
+    });
+
+    it('inserts one from the picker and sends it as <:name:id>', async () => {
+      sendMessageToUser.mockImplementation(async (to, content) => ({ id: 50, sender_id: 1, recipient_id: 2, content, timestamp: 1 }));
+      const textarea = await openCustomChat();
+      type(textarea, 'hey ');
+      fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+      fireEvent.click(screen.getByRole('button', { name: ':blob:' }));
+      expect(boxText()).toBe('hey <:blob:10>');
+      fireEvent.submit(document.getElementById('dm-chat-form'));
+      await waitFor(() => expect(encryptMessage).toHaveBeenCalledWith('hey <:blob:10>', 'shared-key', expect.anything()));
+    });
   });
 
   it('on desktop, focuses the picker search so you can type straight away', async () => {

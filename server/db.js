@@ -190,6 +190,27 @@ CREATE TABLE IF NOT EXISTS guild_channel_overrides (
 );
 `);
 
+// Custom emoji: plain images (not encrypted), stored as emojis/<id> in the
+// object store and written `<:name:id>` in messages. A row is created before its upload and
+// only counts (available = 1) once the uploader says the upload finished.
+db.run(`
+CREATE TABLE IF NOT EXISTS guild_emojis (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  animated INTEGER NOT NULL DEFAULT 0,
+  creator_id INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s','now')),
+  available INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (guild_id) REFERENCES guilds(id),
+  FOREIGN KEY (creator_id) REFERENCES users(id)
+);
+`);
+db.run('CREATE INDEX IF NOT EXISTS guild_emojis_guild ON guild_emojis (guild_id)');
+
+// Each member's own order of their guilds in the server rail (lowest first).
+db.run('ALTER TABLE guild_members ADD COLUMN position INTEGER NOT NULL DEFAULT 0', () => {});
+
 // Guilds from before roles get their @everyone role (with the default permissions).
 db.run(`
 INSERT INTO guild_roles (guild_id, name, position, permissions, is_everyone)

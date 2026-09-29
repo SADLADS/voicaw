@@ -1,10 +1,21 @@
-import React from 'react';
+import React, { useContext, useState } from 'react';
+import { ConfigContext } from '../contexts';
+import { customEmojiUrl, parseCustomEmoji } from '../emoji/customEmoji';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { groupReactions } from '../utils/reactions';
 
+// A reaction's emoji: Unicode (as Twemoji), or a custom emoji's image (`:name:` if deleted).
 function ReactionEmoji({ native }) {
   const index = useEmojiIndex();
+  const { s3Endpoint } = useContext(ConfigContext);
+  const [failed, setFailed] = useState(false);
+  const custom = parseCustomEmoji(native);
+  if (custom) {
+    const src = customEmojiUrl(custom.id, s3Endpoint);
+    if (failed || !src) return <span className="reaction-native">:{custom.name}:</span>;
+    return <img className="emoji" src={src} alt={`:${custom.name}:`} title={`:${custom.name}:`} draggable={false} onError={() => setFailed(true)} />;
+  }
   const match = index?.byNative.get(native);
   if (!match) return <span className="reaction-native">{native}</span>;
   return <img className="emoji" src={emojiImageUrl(match.skin.unified)} alt={native} draggable={false} />;

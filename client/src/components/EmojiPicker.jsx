@@ -2,6 +2,12 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { frequentEmojiIds, getSkinTone, recordEmojiUse, setSkinTone, skinFor } from '../emoji/emojiUsage';
+import { customEmojiText, customEmojiUrl, customUsageId, searchCustomEmoji } from '../emoji/customEmoji';
+import { useCustomEmoji } from '../emoji/customEmojiContext';
+import { ConfigContext } from '../contexts';
+import GuildIcon from './guild/GuildIcon';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faClock } from '@fortawesome/free-solid-svg-icons';
 import { useVisualViewport } from '../utils/useVisualViewport';
 import { hasVirtualKeyboardApi, setKeyboardOverlaysContent, watchKeyboardRect } from '../utils/virtualKeyboard';
 
@@ -41,7 +47,7 @@ function useNearbyObserver(rootRef, ready) {
   return observer;
 }
 
-function EmojiImage({ unified, alt }) {
+function EmojiImage({ unified, src, alt }) {
   const nearby = useContext(NearbyContext);
   const ref = useRef(null);
   const [near, setNear] = useState(false);
@@ -52,7 +58,7 @@ function EmojiImage({ unified, alt }) {
     <img
       ref={ref}
       className="emoji"
-      src={show ? emojiImageUrl(unified) : undefined}
+      src={show ? src ?? emojiImageUrl(unified) : undefined}
       alt={alt}
       loading={CAN_OBSERVE ? undefined : 'lazy'}
       draggable={false}
@@ -80,9 +86,29 @@ function EmojiButton({ emoji, tone, onPick, onHover, keepFocus }) {
   );
 }
 
-// Discord-style picker: search, categories, frequently used, skin tone. `onSelect(native)`;
-// shift+click picks without closing. Custom (guild) emoji categories can be added later as
-// extra sections. `autoFocus` focuses the search box on open.
+// A custom (guild) emoji in the grid.
+function CustomEmojiButton({ emoji, s3Endpoint, onPick, onHover, keepFocus }) {
+  return (
+    <button
+      type="button"
+      className="emoji-picker-item"
+      onClick={(e) => onPick(emoji, null, e)}
+      onMouseDown={keepFocus ? (e) => e.preventDefault() : undefined}
+      onMouseEnter={() => onHover(emoji)}
+      onFocus={() => onHover(emoji)}
+      aria-label={`:${emoji.name}:`}
+      title={`:${emoji.name}: (${emoji.guild.name})`}
+    >
+      <EmojiImage src={customEmojiUrl(emoji.id, s3Endpoint)} alt={`:${emoji.name}:`} />
+    </button>
+  );
+}
+
+// Discord-style picker: search, categories, frequently used, skin tone. `onSelect(text)` gets
+// the Unicode emoji, or `<:name:id>` for a custom one; shift+click picks without closing.
+// The custom emoji of each of your servers come after Frequently Used and before the standard
+// categories, in your server rail order, with the server's icon in the category bar.
+// `autoFocus` focuses the search box on open.
 //
 // `docked` (mobile): the picker takes the on-screen keyboard's place, `height` tall, instead
 // of floating over the chat, and has no hover preview (touch screens don't hover). Its
@@ -91,6 +117,8 @@ function EmojiButton({ emoji, tone, onPick, onHover, keepFocus }) {
 // returns to the docked panel and dismisses the keyboard.
 export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docked = false, height }) {
   const index = useEmojiIndex();
+  const custom = useCustomEmoji();
+  const { s3Endpoint } = useContext(ConfigContext);
   const [query, setQuery] = useState('');
   const [tone, setTone] = useState(getSkinTone);
   const [showTones, setShowTones] = useState(false);
@@ -139,14 +167,21 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
 
   const sections = useMemo(() => {
     if (!index) return [];
-    const frequent = frequentEmojiIds().map((id) => index.emojis.get(id)).filter(Boolean);
+    const frequent = frequentEmojiIds()
+      .map((id) => (id.startsWith('custom:') ? custom.byId.get(id.slice(7)) : index.emojis.get(id)))
+      .filter(Boolean);
     return [
       ...(frequent.length ? [{ id: 'frequent', name: 'Frequently Used', emojis: frequent }] : []),
+      ...custom.guilds.map(({ guild, emojis }) => ({ id: `guild-${guild.id}`, name: guild.name, guild, emojis })),
       ...index.categories,
     ];
-  }, [index]);
+  }, [index, custom]);
 
-  const results = useMemo(() => (index && query.trim() ? index.search(query, 120) : null), [index, query]);
+  // Custom emoji first (their names are what people search for), then the standard ones.
+  const results = useMemo(
+    () => (index && query.trim() ? [...searchCustomEmoji(custom, query, 60), ...index.search(query, 120)] : null),
+    [index, custom, query]
+  );
 
   // The keyboard went away (search box lost focus, or e.g. Android's back button closed the
   // keyboard while the box kept focus): back to the docked size, keeping the results.
@@ -175,8 +210,13 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
   };
 
   const pick = (emoji, skin, event) => {
-    recordEmojiUse(emoji.id);
-    onSelect(skin.native);
+    if (emoji.guild) {
+      recordEmojiUse(customUsageId(emoji.id));
+      onSelect(customEmojiText(emoji));
+    } else {
+      recordEmojiUse(emoji.id);
+      onSelect(skin.native);
+    }
     // Docked (mobile) it stays open like a keyboard (leaving search mode); floating,
     // shift+click keeps it open.
     if (docked) {
@@ -190,7 +230,7 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
     // Enter (the keyboard's search key on mobile) picks the top result.
     if (e.key === 'Enter' && results?.length) {
       e.preventDefault();
-      pick(results[0], skinFor(results[0], tone), e);
+      pick(results[0], results[0].guild ? null : skinFor(results[0], tone), e);
     }
   };
 
@@ -222,7 +262,10 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
   }
 
   const toneSample = index?.byShortcode.get(TONE_SAMPLE);
-  const preview = hovered && skinFor(hovered, tone);
+  const preview = hovered && !hovered.guild && skinFor(hovered, tone);
+  const renderItem = (emoji) => (emoji.guild
+    ? <CustomEmojiButton key={`c${emoji.id}`} emoji={emoji} s3Endpoint={s3Endpoint} onPick={pick} onHover={setHovered} keepFocus={docked && searching} />
+    : <EmojiButton key={emoji.id} emoji={emoji} tone={tone} onPick={pick} onHover={setHovered} keepFocus={docked && searching} />);
 
   return (
     <div
@@ -298,7 +341,13 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
             <nav className="emoji-picker-nav" aria-label="Emoji categories">
               {sections.map((section) => (
                 <button key={section.id} type="button" onClick={() => jumpTo(section.id)} title={section.name} aria-label={section.name}>
-                  <img className="emoji" src={emojiImageUrl(section.emojis[0].skins[0].unified)} alt="" draggable={false} />
+                  {section.guild ? (
+                    <GuildIcon guild={section.guild} className="emoji-picker-guild-icon" />
+                  ) : section.id === 'frequent' ? (
+                    <FontAwesomeIcon icon={faClock} className="emoji-picker-frequent-icon" />
+                  ) : (
+                    <img className="emoji" src={emojiImageUrl(section.emojis[0].skins[0].unified)} alt="" draggable={false} />
+                  )}
                 </button>
               ))}
             </nav>
@@ -308,9 +357,7 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
               {results ? (
                 results.length ? (
                   <div className="emoji-picker-grid">
-                    {results.map((emoji) => (
-                      <EmojiButton key={emoji.id} emoji={emoji} tone={tone} onPick={pick} onHover={setHovered} keepFocus={docked && searching} />
-                    ))}
+                    {results.map(renderItem)}
                   </div>
                 ) : (
                   <div className="emoji-picker-empty">No emoji match "{query}"</div>
@@ -320,9 +367,7 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
                   <section key={section.id} data-section={section.id}>
                     <h6 className="emoji-picker-section-title">{section.name}</h6>
                     <div className="emoji-picker-grid">
-                      {section.emojis.map((emoji) => (
-                        <EmojiButton key={emoji.id} emoji={emoji} tone={tone} onPick={pick} onHover={setHovered} keepFocus={docked && searching} />
-                      ))}
+                      {section.emojis.map(renderItem)}
                     </div>
                   </section>
                 ))
@@ -346,7 +391,13 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
 
       {!docked && (
         <div className="emoji-picker-preview">
-          {preview ? (
+          {hovered?.guild ? (
+            <>
+              <img className="emoji" src={customEmojiUrl(hovered.id, s3Endpoint)} alt="" draggable={false} />
+              <span className="emoji-picker-preview-code">:{hovered.name}:</span>
+              <span className="emoji-picker-preview-from">from {hovered.guild.name}</span>
+            </>
+          ) : preview ? (
             <>
               <img className="emoji" src={emojiImageUrl(preview.unified)} alt="" draggable={false} />
               <span className="emoji-picker-preview-code">:{hovered.id}:</span>

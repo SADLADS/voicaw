@@ -65,7 +65,8 @@ export default function GuildSidebar({ guild, user }) {
   const isOwner = guild.owner === user.id;
   const can = (bit) => has(guild.my_permissions, bit);
   const managesChannels = can(PERMISSIONS.MANAGE_CHANNELS);
-  const opensSettings = can(PERMISSIONS.MANAGE_GUILD) || can(PERMISSIONS.MANAGE_ROLES) || can(PERMISSIONS.BAN_MEMBERS);
+  const opensSettings = can(PERMISSIONS.MANAGE_GUILD) || can(PERMISSIONS.MANAGE_ROLES) ||
+    can(PERMISSIONS.MANAGE_EMOJIS) || can(PERMISSIONS.BAN_MEMBERS);
   const unreadChannels = new Set(guildList.unread.filter((u) => u.guild_id === guild.id).map((u) => u.channel_id));
   const { uncategorized, categories } = groupChannels(guild);
 

@@ -1,5 +1,6 @@
 // A throwaway Voicaw API for browser checks: its own fresh in-memory database, fresh secrets,
-// rate limits off, and no object store (uploads fail; profile pictures fall back). Never
+// rate limits off, and no object store (uploads fail, unless a check uses fakeObjectStore;
+// profile pictures fall back). Never
 // touches the real server/.env, database or S3. Run through serve.mjs.
 import opaque from '@serenity-kit/opaque';
 import webpush from 'web-push';
@@ -30,7 +31,13 @@ require.cache[s3Path] = {
   id: s3Path,
   filename: s3Path,
   loaded: true,
-  exports: { s3: {}, getUploadUrl: async () => 'http://localhost:1/unavailable' },
+  // Upload URLs point where the file would be served from (S3_ENDPOINT/<bucket>/<key>), so
+  // a browser check can stand in for the store (helpers.mjs fakeObjectStore).
+  exports: {
+    s3: {},
+    getUploadUrl: async (key, bucket) => `http://localhost:1/${bucket}/${key}`,
+    deleteObject: async () => {},
+  },
 };
 // Load index.js as the main module, so it listens and starts the websocket server.
 require('module')._load(serverIndex, null, true);

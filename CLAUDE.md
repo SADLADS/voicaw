@@ -89,13 +89,16 @@ node e2e/serve.mjs &     # web http://localhost:5199, API :3099; E2E_WEB_PORT / 
 node e2e/smoke.mjs       # two users, one message delivered live; an example to copy
 node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots into dir
 node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permissions
+node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
 kill %1                  # stops both servers (kill the serve.mjs process itself)
 ```
 Scripts need the same `E2E_WEB_PORT` as `serve.mjs` when not using the default.
 Never use ports 5173 or 3002 (the live test site and API); `serve.mjs` refuses them. Kill test
 processes by PID, never `pkill -f` with a pattern that's in your own command line (it kills your
 shell). `e2e/helpers.mjs` has `signUp` (registers a user in its own browser context, unique
-name), `openChat`, `send`, `launchChrome`, and `devices` (e.g. `devices['Pixel 7']` for a phone).
+name), `openChat`, `send`, `launchChrome`, `devices` (e.g. `devices['Pixel 7']` for a phone), and
+`fakeObjectStore(context)`, which stands in for the missing object store in a browser context
+(uploads are kept and served back, so uploaded images show).
 The message box is a contenteditable: `page.fill('#dm-input', …)` and `page.keyboard.type` work.
 Tips:
 - Headless Chrome hides scrollbars in screenshots; launch with
@@ -242,7 +245,8 @@ identify themselves post-connect with `{ type: 'identify', token }` (JWT); the s
 Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, `reaction_remove`,
 `user_status`, and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete`,
-`guild_reaction_add` / `_remove`, `guild_member_update` (roles). A 30s heartbeat
+`guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
+`guild_order` (your server rail order, to your other devices). A 30s heartbeat
 (ping/pong) prunes dead connections and broadcasts `offline` status.
 
 Client side, `client/src/utils/ws-client.js` wraps this with `connectWebSocket`/`closeWebSocket`
@@ -350,20 +354,35 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   hoisted roles, then Online, Offline; click for a card with roles (add/remove below your
   rank), Message / Make owner / Kick / Ban (a panel over the chat on mobile). Server Settings
   (`GuildSettingsDialog`) has tabs by permission: Overview, Roles (`RolesSettings`: drag or
-  arrows to reorder, colour swatches, permissions), Invites, Bans. A channel's settings have a
+  arrows to reorder, colour swatches, permissions), Emoji (`EmojiSettings`), Invites, Bans. A channel's settings have a
   Permissions tab (`ChannelPermissions`: private toggle, ✕ / / ✓ per role or member). Dialogs use `guild/Modal.jsx`; styles are
   `assets/css/guilds.css`. Attachments in channels still go through the encrypted upload (the
   key is in the plain message, so anyone in the channel can open them); plain uploads can come later.
-- **Not done yet:** drag-and-drop reordering of channels (the API exists; roles can be
-  dragged), category-level permissions (overrides are per channel), mentions and guild
-  notifications (no push for guild messages yet), custom emoji, voice channels (they can be
-  created and show a placeholder).
+- **Server rail order** is per member (`guild_members.position`; `PUT /guilds-order` with every
+  guild id, top first; new guilds go at the bottom). `GET /guilds` and `GET /emojis` follow it.
+  In the rail, servers are dragged into order (`hooks/useDragReorder.js`: a mouse drag after a
+  few pixels, a touch drag after holding still, so swiping still scrolls).
+- **Custom emoji** (`routes/guildEmojis.js`, `guild_emojis`): per guild, plain images (not
+  encrypted) in the public `emojis` bucket at `emojis/<id>`, written `<:name:id>` in messages
+  (DMs too, inside the encryption). Rendering only needs the id (`emoji/customEmoji.js`
+  `customEmojiUrl`), so it never waits for a list; a deleted one's image is removed and it shows
+  as `:name:`. Adding is two steps: `POST /guilds/:id/emojis {name, type, size}` makes an
+  unavailable row and returns a signed upload URL; after the upload, `POST .../ready` makes it
+  available and sends `guild_emojis_update`. Unfinished uploads stop counting after an hour.
+  Limits: 50 per guild, 256 KB, PNG/GIF/WebP/JPEG, names 2–32 of `[A-Za-z0-9_]`, unique per
+  guild. Manage Emoji (`MANAGE_EMOJIS`) adds, renames and deletes; members of a guild can use
+  its emoji anywhere. The client keeps them in `useGuildList` (`emojis`), and `Layout` provides
+  `CustomEmojiContext` (`emoji/customEmojiContext.js`: by guild in rail order, and by id).
+- **Not done yet:** drag-and-drop reordering of channels (the API exists; roles and servers can
+  be dragged), category-level permissions (overrides are per channel), mentions and guild
+  notifications (no push for guild messages yet), voice channels (they can be created and show
+  a placeholder), server folders in the rail.
 
 ### File uploads (S3-compatible object store)
 
 `server/s3.js` wraps `@aws-sdk/client-s3` against `S3_ENDPOINT` (`forcePathStyle: true`, so this
-targets a self-hosted/MinIO-style endpoint, not raw AWS). It auto-creates and makes public three
-buckets on startup: `uploads`, `profile-pics`, `guild-icons`. Uploads are client-direct: the server only
+targets a self-hosted/MinIO-style endpoint, not raw AWS). It auto-creates and makes public four
+buckets on startup: `uploads`, `profile-pics`, `guild-icons`, `emojis`. Uploads are client-direct: the server only
 issues short-lived (60s) pre-signed PUT URLs (`/api/upload_file`, `/api/upload_profile_pic`); the
 client uploads the file straight to S3, bypassing the app server. Both routes require a `size` query
 param, which is signed into the URL together with the content type (`s3.js` `signableHeaders`), so
@@ -429,8 +448,7 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   those through (not to `Attachment`), and emoji-only messages get `.emoji-only` (large).
 - The message box is `editor/MessageEditor.jsx`, a small ProseMirror editor (also used for editing a
   sent message). Its value is plain message text (`editor/messageDoc.js`): lines are paragraphs,
-  draft attachments are chips, custom emoji `<:name:id>` are inline images (ready for guild
-  emoji; nothing creates them yet). Unicode emoji stay text, drawn by the Twemoji font, so
+  draft attachments are chips, custom emoji `<:name:id>` are inline images. Unicode emoji stay text, drawn by the Twemoji font, so
   typing, autocorrect, IME and copy/paste stay plain. Pasting is always plain text (files go to
   attachments); edits past the length limit are refused. Enter sends on desktop, Shift+Enter is a
   new line; on mobile Enter is a new line. The ref handle (`focus`, `blur`, `insertText`,
@@ -459,9 +477,14 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   search box, so the picker can't shrink mid-tap. `MessageList` keeps the chat pinned
   to the bottom when the list's own height changes (a `ResizeObserver` on the scroller, plus
   ignoring the browser's scroll-anchoring nudge during that resize).
-- Planned: custom per-guild emoji, as plain (unencrypted) images written `<:name:id>` in message
-  text (currently left as text), shown as extra picker sections. They fit in a reaction's 64
-  padded bytes too.
+- Custom (guild) emoji (see Guilds): the picker shows each of your servers' emoji after Frequently
+  Used and before the standard categories, in your rail order, with the server's icon in the
+  category bar; search, `:name` suggestions and a typed `:name:` include them (standard
+  shortcodes win a name clash). Picking gives `<:name:id>` (Frequently Used keeps them as
+  `custom:<id>`). `rehypeTwemoji` renders them in messages (`data-custom-emoji`, which
+  `MarkdownImage` turns into `CustomEmojiImage`), reactions show them too (a reaction's 64
+  padded bytes fit one), and plain-text places (reply previews, copying, notifications) show
+  `:name:` (`customEmojiToText`). Emoji-only messages count them.
 - Reactions (see End-to-end encryption): `MessageReactions` chips under a message (grouped by
   emoji, each person counted once, yours highlighted; tap to toggle, `+` to add). The message
   menu's smiley opens `EmojiPicker` for it: floating by the button on desktop
@@ -545,9 +568,8 @@ their box is reserved before they load.
 - **Guilds aren't encrypted** (decided 2026-09-29): encrypted channels inside guilds were
   considered and dropped (who may add members to one, when roles are server-controlled, had no
   good answer). Encryption is for DMs and group DMs.
-- **Custom emoji (planned):** per guild, plain unencrypted images like
-  profile pictures, written `<:name:id>`, shown as extra sections in the existing picker. The
-  editor (`customEmoji` node) and reactions (64 padded bytes) already fit them.
+- **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
+  members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only
   logged-out visitors must not learn usernames.
 - **Known issues:**

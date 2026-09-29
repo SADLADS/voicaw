@@ -23,6 +23,15 @@ describe('rehypeTwemoji', () => {
     expect(render('`😄`')).toBe('<p><code>😄</code></p>');
   });
 
+  it('renders custom emoji as their images, marked with their name', () => {
+    const html = renderToStaticMarkup(createElement(ReactMarkdown, { rehypePlugins: [rehypeTwemoji(index, 'https://s3.test')] }, 'hi <:party_blob:42> 😄'));
+    expect(html).toContain('<img class="emoji custom-emoji" src="https://s3.test/emojis/42" alt=":party_blob:" title=":party_blob:" draggable="false" data-custom-emoji="party_blob"/>');
+    expect(html).toContain('<img class="emoji" src="/emoji/1f604.svg"');
+    // Not inside code.
+    expect(renderToStaticMarkup(createElement(ReactMarkdown, { rehypePlugins: [rehypeTwemoji(index, 'https://s3.test')] }, '`<:party_blob:42>`')))
+      .toBe('<p><code>&lt;:party_blob:42&gt;</code></p>');
+  });
+
   it('leaves text without emoji untouched', () => {
     expect(render('just text')).toBe('<p>just text</p>');
   });

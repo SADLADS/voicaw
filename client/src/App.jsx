@@ -20,6 +20,7 @@ import EmojiProvider from './emoji/EmojiProvider';
 import UpdateBanner from './components/UpdateBanner';
 import ImageViewerProvider from './components/ImageViewerProvider';
 import { disableNotificationsOnThisDevice } from './services/pushService';
+import { setCustomEmojiBase } from './emoji/customEmoji';
 
 
 
@@ -64,6 +65,7 @@ export default function App() {
         const res = await api.get('/config');
         // Everything the server exposes (s3Endpoint, maxPlaintextLength, vapidPublicKey, ...).
         setConfig(res.data);
+        setCustomEmojiBase(res.data.s3Endpoint);
       } catch (err) {
         console.error('Failed to fetch config', err);
       }

@@ -12,6 +12,7 @@ import 'highlight.js/styles/atom-one-dark.css';
 import { ConfigContext, LayoutContext } from '../contexts';
 import { ensureSubscription, getPushStatus } from '../services/pushService';
 import { useGuildList } from '../hooks/useGuildList';
+import { CustomEmojiContext } from '../emoji/customEmojiContext';
 
 export default function Layout({ user, onLogout }) {
   const location = useLocation();
@@ -34,6 +35,13 @@ export default function Layout({ user, onLogout }) {
   }, [guildId, navigate]);
   const guildList = useGuildList({ userId: user?.id, activeChannelId: guildMatch?.[2] ?? null, onRemoved: onGuildRemoved });
   const unreadGuildIds = useMemo(() => new Set(guildList.unread.map((u) => u.guild_id)), [guildList.unread]);
+  // Custom emoji for the picker and autocomplete: by guild, in rail order.
+  const customEmoji = useMemo(() => {
+    const guilds = guildList.guilds
+      .map((guild) => ({ guild, emojis: (guildList.emojis[guild.id] ?? []).map((e) => ({ ...e, guild })) }))
+      .filter((g) => g.emojis.length > 0);
+    return { guilds, byId: new Map(guilds.flatMap((g) => g.emojis.map((e) => [String(e.id), e]))) };
+  }, [guildList.guilds, guildList.emojis]);
 
   useEffect(() => {
     // Only fetch users if we are on the DM page to avoid unnecessary API calls
@@ -99,11 +107,19 @@ export default function Layout({ user, onLogout }) {
 
   return (
     <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList }}>
+    <CustomEmojiContext.Provider value={customEmoji}>
       <div className={`${isDmPage || guildId ? 'slidey' : ''} main-wrapper d-flex`}>
         {/* The user panel sits under the conversation or channel list (not on e.g. Settings). */}
         <SidebarWrapper footer={isDmPage || guildId ? <UserPanel user={user} /> : null}>
           {/* Main sidebar always shows */}
-          <Sidebar user={user} onLogout={onLogout} hasUnreadDms={hasUnreadDms} guilds={guildList.guilds} unreadGuildIds={unreadGuildIds} />
+          <Sidebar
+            user={user}
+            onLogout={onLogout}
+            hasUnreadDms={hasUnreadDms}
+            guilds={guildList.guilds}
+            unreadGuildIds={unreadGuildIds}
+            onReorderGuilds={guildList.reorderGuilds}
+          />
 
           {/* DM sidebar only shows on the /dm route */}
           {isDmPage && <DmSidebar users={users} unreadDms={unreadDms} />}
@@ -115,6 +131,7 @@ export default function Layout({ user, onLogout }) {
           <Outlet />
         </div>
       </div>
+    </CustomEmojiContext.Provider>
     </LayoutContext.Provider>
   );
 }

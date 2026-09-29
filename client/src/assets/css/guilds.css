@@ -1396,3 +1396,129 @@ img.guild-icon {
 .vc-form .role-toggle .vc-hint {
   font-size: 13px;
 }
+
+/* Dragging a server in the rail: it follows the pointer, the others slide out of its way. */
+.rail-guilds .nav-item {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.rail-guilds.reordering .nav-item {
+  transition: transform 0.15s ease;
+}
+
+.rail-guilds .nav-item.dragging {
+  z-index: 2;
+  transition: none;
+  opacity: 0.85;
+  cursor: grabbing;
+}
+
+.rail-guilds .nav-item.dragging .dot {
+  opacity: 0;
+}
+
+/* ---- Custom emoji ---- */
+
+.emoji-settings-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.emoji-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.emoji-settings-image {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.emoji-settings-name {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  color: var(--vc-fg-muted);
+}
+
+.emoji-settings-name input {
+  max-width: 220px;
+}
+
+.emoji-settings-by {
+  flex-shrink: 0;
+  max-width: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emoji-settings-delete {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+}
+
+.emoji-settings-delete:hover {
+  color: var(--vc-danger);
+}
+
+/* The picker's category bar: a server's icon for its emoji, a clock for Frequently Used. */
+.emoji-picker-nav .emoji-picker-guild-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 9px;
+  opacity: 0.85;
+}
+
+.emoji-picker-nav button:hover .emoji-picker-guild-icon {
+  opacity: 1;
+}
+
+.emoji-picker-frequent-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--vc-fg-muted);
+}
+
+.emoji-picker-preview-from {
+  margin-left: auto;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emoji-suggestion-guild {
+  margin-left: auto;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+/* A deleted custom emoji: its name as text. */
+.custom-emoji-missing {
+  color: var(--vc-fg-muted);
+}
+
+img.emoji.custom-emoji {
+  object-fit: contain;
+}
+
+.emoji-picker-nav .guild-initials {
+  background-color: var(--vc-accent);
+  color: var(--vc-fg);
+}

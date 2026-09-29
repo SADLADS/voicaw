@@ -91,3 +91,12 @@ describe('splitting text into emoji', () => {
     expect(isEmojiOnly('', index)).toBe(false);
   });
 });
+
+describe('isEmojiOnly with custom emoji', () => {
+  it('counts custom emoji as emoji', () => {
+    const idx = buildEmojiIndex(data);
+    expect(isEmojiOnly('<:blob:1>', idx)).toBe(true);
+    expect(isEmojiOnly('<:blob:1> 😄 <:cat:2>', idx)).toBe(true);
+    expect(isEmojiOnly('<:blob:1> hi', idx)).toBe(false);
+  });
+});

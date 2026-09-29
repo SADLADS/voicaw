@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
@@ -15,15 +15,24 @@ import { placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentM
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { isEmojiOnly } from '../emoji/emojiIndex';
 import { rehypeTwemoji } from '../emoji/rehypeTwemoji';
+import { customEmojiToText } from '../emoji/customEmoji';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
 // is a new component type to React, which remounts (and reloads) every attachment on any
 // re-render. The per-message local drafts come in through context instead.
 const LocalAttachmentsContext = createContext(null);
 
-function MarkdownImage({ src, alt, className, title }) {
+// A custom emoji; one that's been deleted (image gone) shows as `:name:` text.
+function CustomEmojiImage({ src, alt, title }) {
+  const [failed, setFailed] = useState(false);
+  if (failed || !src) return <span className="custom-emoji-missing">{alt}</span>;
+  return <img className="emoji custom-emoji" src={src} alt={alt} title={title} draggable={false} onError={() => setFailed(true)} />;
+}
+
+function MarkdownImage({ src, alt, className, title, ...rest }) {
   const localAttachments = useContext(LocalAttachmentsContext);
-  // Twemoji images from rehypeTwemoji, not attachments.
+  // Emoji images from rehypeTwemoji, not attachments.
+  if (rest['data-custom-emoji'] != null) return <CustomEmojiImage src={src} alt={alt} title={title} />;
   if (className === 'emoji') {
     return <img className="emoji" src={src} alt={alt} title={title} draggable={false} />;
   }
@@ -72,8 +81,8 @@ export function MessageRow({
   const longPress = useLongPress(() => onOpenActions(msg), { enabled: isMobile && Boolean(onOpenActions) });
   // Stable per emoji index (a new plugin list every render would re-run markdown needlessly).
   const rehypePlugins = useMemo(
-    () => (emojiIndex ? [rehypeHighlight, rehypeTwemoji(emojiIndex)] : [rehypeHighlight]),
-    [emojiIndex]
+    () => [rehypeHighlight, rehypeTwemoji(emojiIndex, s3Endpoint)],
+    [emojiIndex, s3Endpoint]
   );
 
   const imgSrc = s3Endpoint
@@ -121,7 +130,7 @@ export function MessageRow({
               if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
             }}
           >
-            {summarizeAttachments(parent.plaintext)?.slice(0, 80) || "…"}
+            {customEmojiToText(summarizeAttachments(parent.plaintext))?.slice(0, 80) || "…"}
           </span>
         </div>
       )}

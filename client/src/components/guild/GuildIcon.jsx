@@ -11,7 +11,7 @@ export default function GuildIcon({ guild, className = '' }) {
     : null;
 
   if (src && failed !== src) {
-    return <img className={`guild-icon ${className}`} src={src} alt={guild.name} onError={() => setFailed(src)} />;
+    return <img className={`guild-icon ${className}`} src={src} alt={guild.name} draggable={false} onError={() => setFailed(src)} />;
   }
   return (
     <span className={`guild-icon guild-initials ${className}`} aria-label={guild.name}>

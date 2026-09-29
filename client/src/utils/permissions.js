@@ -14,6 +14,7 @@ export const PERMISSIONS = {
   KICK_MEMBERS: 1 << 8,
   BAN_MEMBERS: 1 << 9,
   ADMINISTRATOR: 1 << 10,
+  MANAGE_EMOJIS: 1 << 11,
 };
 
 export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
@@ -30,6 +31,7 @@ export const PERMISSION_GROUPS = [
       ['MANAGE_CHANNELS', 'Manage Channels', 'Lets members create, edit and delete channels and categories.'],
       ['MANAGE_ROLES', 'Manage Roles', 'Lets members create and edit roles below their highest role, give them out, and change channel permissions.'],
       ['MANAGE_GUILD', 'Manage Server', "Lets members change the server's name and icon, and see and revoke all invites."],
+      ['MANAGE_EMOJIS', 'Manage Emoji', "Lets members add, rename and remove the server's custom emoji."],
     ],
   },
   {

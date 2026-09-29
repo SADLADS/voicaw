@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
 import GuildIcon from './GuildIcon';
 import RolesSettings from './RolesSettings';
+import EmojiSettings from './EmojiSettings';
 import { LayoutContext } from '../../contexts';
 import {
   deleteGuild,
@@ -177,12 +178,13 @@ function Bans({ guild }) {
 }
 
 // Server settings: the tabs you have permission for (Overview and Invites: Manage Server;
-// Roles: Manage Roles; Bans: Ban Members). Deleting the server is the owner's alone.
+// Roles: Manage Roles; Emoji: Manage Emoji; Bans: Ban Members). Deleting the server is the owner's alone.
 export default function GuildSettingsDialog({ guild, user, onClose }) {
   const can = (bit) => has(guild.my_permissions, bit);
   const tabs = [
     can(PERMISSIONS.MANAGE_GUILD) && ['overview', 'Overview'],
     can(PERMISSIONS.MANAGE_ROLES) && ['roles', 'Roles'],
+    can(PERMISSIONS.MANAGE_EMOJIS) && ['emoji', 'Emoji'],
     can(PERMISSIONS.MANAGE_GUILD) && ['invites', 'Invites'],
     can(PERMISSIONS.BAN_MEMBERS) && ['bans', 'Bans'],
   ].filter(Boolean);
@@ -207,6 +209,7 @@ export default function GuildSettingsDialog({ guild, user, onClose }) {
       <div className="settings-tab-body" role="tabpanel">
         {tab === 'overview' && <Overview guild={guild} isOwner={guild.owner === user.id} />}
         {tab === 'roles' && <RolesSettings guild={guild} user={user} />}
+        {tab === 'emoji' && <EmojiSettings guild={guild} />}
         {tab === 'invites' && <Invites guild={guild} />}
         {tab === 'bans' && <Bans guild={guild} />}
         {tabs.length === 0 && <p className="vc-hint">You don't have permission to change anything here.</p>}

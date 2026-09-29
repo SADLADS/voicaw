@@ -175,3 +175,35 @@ export async function fetchChannelOverrides(guildId, channelId) {
 export async function setChannelOverride(guildId, channelId, targetType, targetId, { allow = 0, deny = 0 }) {
   return (await api.put(`/guilds/${guildId}/channels/${channelId}/overrides/${targetType}/${targetId}`, { allow, deny })).data;
 }
+
+// ---- Custom emoji and the server rail order ----
+
+// Every emoji of every guild you're in: [{ id, guild_id, name, animated }].
+export async function fetchAllEmojis() {
+  return (await api.get('/emojis')).data;
+}
+
+export async function fetchGuildEmojis(guildId) {
+  return (await api.get(`/guilds/${guildId}/emojis`)).data;
+}
+
+// Creates the emoji, uploads `file` for it, then makes it available.
+export async function addGuildEmoji(guildId, name, file) {
+  const { data } = await api.post(`/guilds/${guildId}/emojis`, { name, type: file.type, size: file.size });
+  const res = await fetch(data.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+  if (!res.ok) throw new Error('Upload failed');
+  return (await api.post(`/guilds/${guildId}/emojis/${data.emoji.id}/ready`)).data;
+}
+
+export async function renameGuildEmoji(guildId, emojiId, name) {
+  return (await api.patch(`/guilds/${guildId}/emojis/${emojiId}`, { name })).data;
+}
+
+export async function deleteGuildEmoji(guildId, emojiId) {
+  await api.delete(`/guilds/${guildId}/emojis/${emojiId}`);
+}
+
+// Your guilds, top first, as the server rail should show them.
+export async function saveGuildOrder(guildIds) {
+  await api.put('/guilds-order', { guildIds });
+}

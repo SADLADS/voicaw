@@ -1,5 +1,6 @@
 import { Schema, Slice } from 'prosemirror-model';
 import { makePlaceholder, unescapeAltText } from '../utils/attachmentMarkup';
+import { customEmojiUrl } from '../emoji/customEmoji';
 
 // What the message editor holds, and its conversion to and from message text (the markdown
 // the rest of the app sends and stores). Lines are paragraphs. Inline, besides text:
@@ -72,8 +73,8 @@ export function docToText(doc) {
 const INLINE_OBJECT_RE = /!\[((?:\\.|[^\]\\])*)\]\(attachment:(\d+)\)|<:([A-Za-z0-9_]+):(\w+)>/g;
 
 // Message text -> editor document. `resolveCustomEmoji(id, name)` gives a custom emoji's image
-// URL (without one, `<:name:id>` stays as text).
-export function textToDoc(text, { resolveCustomEmoji } = {}) {
+// URL (by default its place in the object store); without one, `<:name:id>` stays as text.
+export function textToDoc(text, { resolveCustomEmoji = (id) => customEmojiUrl(id) } = {}) {
   const paragraphs = String(text ?? '').split('\n').map((line) => {
     const content = [];
     let last = 0;

@@ -9,6 +9,8 @@ const s3Path = require.resolve('../../s3.js');
 
 // Every pre-signed upload the server asked for (to check the size it signed).
 export const signedUploads = [];
+// Every object the server deleted.
+export const deletedObjects = [];
 
 require.cache[s3Path] = {
   id: s3Path,
@@ -19,6 +21,9 @@ require.cache[s3Path] = {
     getUploadUrl: async (filename, bucket, contentType, contentLength) => {
       signedUploads.push({ filename, bucket, contentType, contentLength });
       return `https://mock-s3.test/${bucket}/${filename}?signed=1`;
+    },
+    deleteObject: async (bucket, key) => {
+      deletedObjects.push({ bucket, key });
     },
   },
 };

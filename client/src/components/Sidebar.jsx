@@ -6,13 +6,18 @@ import logo from '../assets/images/logo-no-border.svg';
 import GuildIcon from './guild/GuildIcon';
 import '../assets/css/guilds.css';
 import AddGuildDialog from './guild/AddGuildDialog';
+import { useDragReorder } from '../hooks/useDragReorder';
 
 // The server rail down the left (like Discord's): home, DMs, then each guild (a pill on the
 // left marks unread messages, a taller one the open guild), then "+" to create or join one.
-// `unreadGuildIds` is a Set of guild ids with unread messages.
-export default function Sidebar({ hasUnreadDms, guilds = [], unreadGuildIds = new Set() }) {
+// `unreadGuildIds` is a Set of guild ids with unread messages. Guilds can be dragged into a
+// new order (hold, then drag, on touch screens); `onReorderGuilds(ids)` saves it.
+export default function Sidebar({ hasUnreadDms, guilds = [], unreadGuildIds = new Set(), onReorderGuilds }) {
   const location = useLocation();
   const [adding, setAdding] = useState(false);
+  const { drag, itemProps } = useDragReorder(guilds.map((g) => g.id), (ids) => onReorderGuilds?.(ids));
+  // While dragging, the others make room where it will land.
+  const dragFrom = drag ? guilds.findIndex((g) => g.id === drag.id) : -1;
 
   // Helper to check if path is active (starts with)
   const isActivePath = (path) => location.pathname.startsWith(path);
@@ -38,15 +43,29 @@ export default function Sidebar({ hasUnreadDms, guilds = [], unreadGuildIds = ne
 
       {guilds.length > 0 && <div className="rail-separator" />}
 
-      <nav className="rail-guilds" aria-label="Servers">
-        {guilds.map((guild) => (
-          <div key={guild.id} className={`nav-item ${isActivePath(`/guild/${guild.id}/`) || location.pathname === `/guild/${guild.id}` ? 'active' : ''}`}>
-            <span className={`dot${unreadGuildIds.has(guild.id) ? ' visible' : ''}`}></span>
-            <NavLink to={`/guild/${guild.id}`} className="nav-icon rail-guild" aria-label={guild.name} title={guild.name}>
-              <GuildIcon guild={guild} />
-            </NavLink>
-          </div>
-        ))}
+      <nav className={`rail-guilds${drag ? ' reordering' : ''}`} aria-label="Servers">
+        {guilds.map((guild, index) => {
+          const dragging = drag?.id === guild.id;
+          // Items between where it was and where it's going shift by one slot.
+          let shift = 0;
+          if (drag && !dragging) {
+            if (index > dragFrom && index <= drag.targetIndex) shift = -1;
+            else if (index < dragFrom && index >= drag.targetIndex) shift = 1;
+          }
+          return (
+            <div
+              key={guild.id}
+              className={`nav-item${isActivePath(`/guild/${guild.id}/`) || location.pathname === `/guild/${guild.id}` ? ' active' : ''}${dragging ? ' dragging' : ''}`}
+              style={dragging ? { transform: `translateY(${drag.dy}px)` } : shift ? { transform: `translateY(${shift * 100}%) translateY(${shift * 16}px)` } : undefined}
+              {...itemProps(guild.id)}
+            >
+              <span className={`dot${unreadGuildIds.has(guild.id) ? ' visible' : ''}`}></span>
+              <NavLink to={`/guild/${guild.id}`} className="nav-icon rail-guild" aria-label={guild.name} title={guild.name} draggable={false}>
+                <GuildIcon guild={guild} />
+              </NavLink>
+            </div>
+          );
+        })}
       </nav>
 
       <div className="nav-item">

@@ -188,6 +188,16 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
       insertCustomEmoji(emoji, options) {
         run((tr) => tr.replaceSelectionWith(schema.nodes.customEmoji.create(emoji), false), options);
       },
+      // Replaces the `count` characters before the cursor (a ":blob" or ":blob:" being
+      // completed) with a custom emoji ({ id, name, url }) and a space.
+      replaceBeforeCaretWithCustomEmoji(count, emoji, options) {
+        run((tr, state) => {
+          const { from } = state.selection;
+          const start = Math.max(from - count, state.selection.$from.start());
+          const nodes = Fragment.from([schema.nodes.customEmoji.create(emoji), schema.text(' ')]);
+          return tr.replaceWith(start, from, nodes);
+        }, options);
+      },
       // Replaces the `count` characters before the cursor (e.g. a ":smi" being completed).
       replaceBeforeCaret(count, text, options) {
         run((tr, state) => {

@@ -18,6 +18,7 @@ const PERMISSIONS = {
   KICK_MEMBERS: 1 << 8,
   BAN_MEMBERS: 1 << 9,
   ADMINISTRATOR: 1 << 10,
+  MANAGE_EMOJIS: 1 << 11,
 };
 
 const ALL_PERMISSIONS = Object.values(PERMISSIONS).reduce((all, bit) => all | bit, 0);

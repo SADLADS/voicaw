@@ -87,3 +87,9 @@ export function groupMembers(members, roles) {
     .filter((g) => g.members.length > 0)
     .map((g) => ({ ...g, members: g.members.sort(byName) }));
 }
+
+// "party blob (1).gif" -> "party_blob_1": what an uploaded file is called at first.
+export function emojiNameFromFile(fileName) {
+  const base = fileName.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 32);
+  return base.length >= 2 ? base : `emoji_${base}`.slice(0, 32);
+}

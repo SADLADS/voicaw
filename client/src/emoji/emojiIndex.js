@@ -2,7 +2,7 @@
 // set: only emoji Twemoji has art for) and images from @twemoji/svg, served by this app at
 // /emoji/<file>.svg (see the twemojiAssets plugin in vite.config.js), so nothing is fetched
 // from a third party and a new install needs no setup. Messages store plain Unicode emoji;
-// custom (guild) emoji will be written `<:name:id>` and are left as text for now.
+// custom (guild) emoji are written `<:name:id>` (see customEmoji.js).
 
 export const EMOJI_BASE_URL = `${import.meta.env.BASE_URL || '/'}emoji/`;
 
@@ -138,10 +138,12 @@ export function splitEmoji(text, index) {
   return parts;
 }
 
-// Discord shows messages made only of emoji (up to 27) larger.
+// Discord shows messages made only of emoji (up to 27, custom ones included) larger.
 export function isEmojiOnly(text, index) {
   if (!text || !index) return false;
-  const parts = splitEmoji(text.trim(), index);
-  const emojiCount = parts.filter((p) => p.emoji).length;
+  const customCount = (text.match(/<:[A-Za-z0-9_]{2,32}:\d+>/g) ?? []).length;
+  const rest = text.replace(/<:[A-Za-z0-9_]{2,32}:\d+>/g, ' ').trim();
+  const parts = rest ? splitEmoji(rest, index) : [];
+  const emojiCount = parts.filter((p) => p.emoji).length + customCount;
   return emojiCount > 0 && emojiCount <= 27 && parts.every((p) => p.emoji || !p.text.trim());
 }

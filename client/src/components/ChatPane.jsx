@@ -7,6 +7,7 @@ import { ConfigContext, InteractionContext } from '../contexts';
 import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
 import { useReactions } from '../hooks/useReactions';
 import { summarizeAttachments } from '../utils/attachmentMarkup';
+import { customEmojiToText } from '../emoji/customEmoji';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 
 // The body of a chat, shared by DMs (Dm) and guild channels (GuildChannel): the messages, the
@@ -85,10 +86,10 @@ export default function ChatPane({
   }
 
   // Copies what the message says; attachments become their names (their links carry the
-  // decryption key, which shouldn't end up pasted elsewhere).
+  // decryption key, which shouldn't end up pasted elsewhere), custom emoji `:name:`.
   async function copyMessage(msg) {
     try {
-      await navigator.clipboard.writeText(summarizeAttachments(msg.plaintext));
+      await navigator.clipboard.writeText(customEmojiToText(summarizeAttachments(msg.plaintext)));
     } catch (err) {
       console.error('Copy failed', err);
       setComposerError("Couldn't copy the message.");

@@ -11,6 +11,14 @@ import { findPlaceholderIds, replacePlaceholders } from '../utils/attachmentMark
 import { seedAttachmentCache } from '../services/attachmentCache';
 import { useAttachmentDrafts } from '../hooks/useAttachmentDrafts';
 import MessageEditor from '../editor/MessageEditor';
+import {
+  customEmojiByName,
+  customEmojiUrl,
+  customUsageId,
+  parseCustomEmoji,
+  searchCustomEmoji,
+} from '../emoji/customEmoji';
+import { useCustomEmoji } from '../emoji/customEmojiContext';
 
 // ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
 const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
@@ -43,6 +51,9 @@ export default function Composer({
   onSend,
 }) {
   const emojiIndex = useEmojiIndex();
+  const custom = useCustomEmoji();
+  // What the editor needs to show a custom emoji.
+  const customNode = (emoji) => ({ id: String(emoji.id), name: emoji.name, url: customEmojiUrl(emoji.id, s3Endpoint) });
   // The message as text (see editor/messageDoc), and its current line up to the cursor
   // (which drives ":smi" suggestions).
   const [inputValue, setInputValue] = useState('');
@@ -50,9 +61,12 @@ export default function Composer({
   const [suggestionIndex, setSuggestionIndex] = useState(0);
   const [dismissedEmojiQuery, setDismissedEmojiQuery] = useState(null);
 
-  // Emoji from the picker. On mobile the box isn't focused (that would open the keyboard).
-  function insertEmoji(native) {
-    inputRef.current?.insertText(native, { focus: !isMobile });
+  // Emoji from the picker (Unicode, or `<:name:id>`). On mobile the box isn't focused (that
+  // would open the keyboard).
+  function insertEmoji(text) {
+    const customEmoji = parseCustomEmoji(text);
+    if (customEmoji) inputRef.current?.insertCustomEmoji(customNode(customEmoji), { focus: !isMobile });
+    else inputRef.current?.insertText(text, { focus: !isMobile });
   }
 
   const attachments = useAttachmentDrafts({
@@ -89,14 +103,20 @@ export default function Composer({
   }
 
   const emojiQuery = emojiIndex ? EMOJI_QUERY.exec(beforeCaret)?.[1] ?? null : null;
+  // Custom emoji first, then standard ones (8 in all).
   const emojiSuggestions = emojiQuery && emojiQuery !== dismissedEmojiQuery
-    ? emojiIndex.search(emojiQuery.slice(1), 8)
+    ? [...searchCustomEmoji(custom, emojiQuery.slice(1), 8), ...emojiIndex.search(emojiQuery.slice(1), 8)].slice(0, 8)
     : [];
   const activeSuggestion = Math.min(suggestionIndex, Math.max(emojiSuggestions.length - 1, 0));
 
   function pickSuggestion(emoji) {
-    recordEmojiUse(emoji.id);
-    inputRef.current?.replaceBeforeCaret(emojiQuery.length, `${skinFor(emoji, getSkinTone()).native} `);
+    if (emoji.guild) {
+      recordEmojiUse(customUsageId(emoji.id));
+      inputRef.current?.replaceBeforeCaretWithCustomEmoji(emojiQuery.length, customNode(emoji));
+    } else {
+      recordEmojiUse(emoji.id);
+      inputRef.current?.replaceBeforeCaret(emojiQuery.length, `${skinFor(emoji, getSkinTone()).native} `);
+    }
     setSuggestionIndex(0);
   }
 
@@ -106,9 +126,20 @@ export default function Composer({
     if (!docChanged) return;
     setSuggestionIndex(0);
 
-    // Typing the closing colon of a known :shortcode: turns it into the emoji (like Discord).
+    // Typing the closing colon of a known :shortcode: turns it into the emoji (like Discord):
+    // a standard one, else a custom emoji of that name.
     const typed = emojiIndex && EMOJI_SHORTCODE.exec(line);
     const emoji = typed && emojiIndex.byShortcode.get(typed[1].toLowerCase());
+    const customEmoji = typed && !emoji && customEmojiByName(custom, typed[1]);
+    if (customEmoji) {
+      recordEmojiUse(customUsageId(customEmoji.id));
+      queueMicrotask(() => {
+        const editor = inputRef.current;
+        if (editor && !editor.isComposing()) {
+          editor.replaceBeforeCaretWithCustomEmoji(typed[1].length + 2, customNode(customEmoji), { focus: false });
+        }
+      });
+    }
     if (emoji) {
       recordEmojiUse(emoji.id);
       const native = skinFor(emoji, getSkinTone()).native;
@@ -215,6 +246,7 @@ export default function Composer({
             activeIndex={activeSuggestion}
             onPick={pickSuggestion}
             onHover={setSuggestionIndex}
+            s3Endpoint={s3Endpoint}
           />
         )}
 

@@ -4,7 +4,7 @@ import request from 'supertest';
 import { registerUser, loginUser } from './helpers/authFlow.js';
 
 const app = require('../index.js');
-const { PERMISSIONS: P, DEFAULT_EVERYONE_PERMISSIONS } = require('../permissions.js');
+const { PERMISSIONS: P, ALL_PERMISSIONS, DEFAULT_EVERYONE_PERMISSIONS } = require('../permissions.js');
 const clients = app.locals.clients;
 
 let userCount = 0;
@@ -64,9 +64,9 @@ describe('roles', () => {
     expect(guild.roles).toEqual([
       { id: expect.any(Number), name: '@everyone', color: null, position: 0, permissions: DEFAULT_EVERYONE_PERMISSIONS, hoist: 0, is_everyone: 1 },
     ]);
-    expect(guild.my_permissions).toBe(2047);
+    expect(guild.my_permissions).toBe(ALL_PERMISSIONS);
     expect((await layout(members[0], guild.id)).my_permissions).toBe(DEFAULT_EVERYONE_PERMISSIONS);
-    expect(guild.channels[0]).toMatchObject({ my_permissions: 2047, private: false });
+    expect(guild.channels[0]).toMatchObject({ my_permissions: ALL_PERMISSIONS, private: false });
     expect((await api.post(members[0], `/guilds/${guild.id}/roles`)).status).toBe(403);
     expect((await api.get(owner, `/guilds/${guild.id}/members`)).body.every((m) => Array.isArray(m.role_ids))).toBe(true);
   });

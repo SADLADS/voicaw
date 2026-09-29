@@ -30,6 +30,16 @@ describe('MessageEditor', () => {
     expect(editorFor(element)).toBe(ref.current);
   });
 
+  it('completes a custom emoji, and shows <:name:id> from text as its image', () => {
+    const { ref, element } = setup();
+    act(() => ref.current.insertText('hi :blo'));
+    act(() => ref.current.replaceBeforeCaretWithCustomEmoji(4, { id: '42', name: 'blob', url: 'https://s3.test/emojis/42' }));
+    expect(ref.current.getText()).toBe('hi <:blob:42> ');
+    expect(element.querySelector('img.emoji')).toHaveAttribute('src', 'https://s3.test/emojis/42');
+    act(() => ref.current.insertText('!'));
+    expect(ref.current.getText()).toBe('hi <:blob:42> !');
+  });
+
   it('reports text and the line up to the cursor', () => {
     const { ref, onChange } = setup();
     act(() => ref.current.insertText('hello :smi'));
