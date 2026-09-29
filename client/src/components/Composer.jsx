@@ -17,7 +17,8 @@ const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
 // A complete ":shortcode:" just typed.
 const EMOJI_SHORTCODE = /(?:^|[\s([{]):([a-z0-9_+-]+):$/i;
 
-// The message box under a conversation (MessageEditor: `inputRef` is its handle), with
+// The message box under a conversation (MessageEditor: `inputRef` is its handle), writing to
+// `chatName` (a person, or "#channel"; null while the chat can't be sent to yet), with
 // attachments (chips in the box, uploaded on send), emoji (picker, ":smi" suggestions,
 // ":shortcode:" conversion) and the reply bar.
 //
@@ -27,7 +28,7 @@ const EMOJI_SHORTCODE = /(?:^|[\s([{]):([a-z0-9_+-]+):$/i;
 // runs when the keyboard is about to come up.
 export default function Composer({
   chatId,
-  chatUser,
+  chatName,
   isMobile,
   maxPlaintextLength,
   s3Endpoint,
@@ -143,7 +144,7 @@ export default function Composer({
   async function handleSubmit(e) {
     e?.preventDefault();
     const text = (inputRef.current?.getText() ?? '').trim();
-    if (!text || !chatUser) return;
+    if (!text || !chatName) return;
 
     const referencedIds = findPlaceholderIds(text);
     const referenced = attachments.drafts.filter((d) => referencedIds.has(d.id));
@@ -250,8 +251,8 @@ export default function Composer({
             ref={inputRef}
             id="dm-input"
             className="message-editor-wrapper"
-            ariaLabel={`Message ${chatUser?.username || 'User'}`}
-            placeholder={`Message ${chatUser?.username || 'User'}...`}
+            ariaLabel={`Message ${chatName || 'User'}`}
+            placeholder={`Message ${chatName || 'User'}...`}
             maxLength={maxPlaintextLength}
             // Mobile: Enter is a new line; the Send button sends.
             submitOnEnter={!isMobile}

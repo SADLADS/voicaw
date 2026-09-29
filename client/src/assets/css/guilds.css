@@ -1,0 +1,886 @@
+/* GUILDS: the server rail's guild icons, the channel sidebar, the channel page, the member
+   list, dialogs and the invite page. Laid out like Discord. */
+
+/* ---- Server rail ---- */
+
+.rail-separator {
+  width: 32px;
+  height: 2px;
+  margin: 4px auto;
+  border-radius: 1px;
+  background-color: var(--vc-border-dark);
+  flex-shrink: 0;
+}
+
+.rail-guilds {
+  width: 100%;
+}
+
+.nav-icon.rail-guild {
+  overflow: hidden;
+  text-decoration: none;
+}
+
+.rail-guild .guild-icon {
+  width: 100%;
+  height: 100%;
+}
+
+.nav-icon.rail-add {
+  border: 0;
+  color: var(--vc-online);
+  font-size: 1.1rem;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.nav-icon.rail-add svg {
+  font-size: 1.2rem;
+  color: inherit;
+}
+
+.nav-icon.rail-add:hover {
+  background-color: var(--vc-online);
+  color: var(--vc-fg);
+}
+
+/* ---- Guild icon (picture or initials) ---- */
+
+img.guild-icon {
+  object-fit: cover;
+  display: block;
+}
+
+.guild-initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  font-weight: 600;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* ---- Channel sidebar ---- */
+
+.guild-sidebar {
+  position: relative;
+  width: 260px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--vc-bg-base);
+  color: var(--vc-fg);
+}
+
+@media (max-width: 768px) {
+  .guild-sidebar {
+    width: calc(100% - 72px);
+  }
+}
+
+.mobile-mode .guild-sidebar {
+  flex: 1;
+  width: auto;
+}
+
+.guild-header {
+  position: relative;
+  flex-shrink: 0;
+  border-top: 1px solid var(--vc-border-light);
+  border-bottom: 1px solid var(--vc-border-light);
+}
+
+.guild-header-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  border: 0;
+  background: transparent;
+  color: var(--vc-fg);
+  font-weight: 600;
+  font-size: 16px;
+  text-align: left;
+}
+
+.guild-header-button:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.guild-header-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guild-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 8px;
+  right: 8px;
+  z-index: 40;
+  padding: 6px;
+  border-radius: 6px;
+  background-color: #111114;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+}
+
+.guild-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.guild-menu-item:hover {
+  background-color: var(--vc-accent);
+  color: var(--vc-fg);
+}
+
+.guild-menu-item.accent {
+  color: #a898d8;
+}
+
+.guild-menu-item.accent:hover {
+  color: var(--vc-fg);
+}
+
+.guild-menu-item.danger {
+  color: var(--vc-danger);
+}
+
+.guild-menu-item.danger:hover {
+  background-color: var(--vc-danger);
+  color: var(--vc-fg);
+}
+
+.guild-menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background-color: var(--vc-border-dark);
+}
+
+.guild-channel-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 8px 16px;
+}
+
+.guild-channel-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.guild-category {
+  margin-top: 16px;
+}
+
+.guild-category-header {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+.guild-category-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-align: left;
+}
+
+.guild-category-toggle span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guild-category-toggle:hover {
+  color: var(--vc-fg);
+}
+
+.guild-category-chevron {
+  width: 10px;
+  font-size: 9px;
+}
+
+.guild-channel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 1px 0;
+  border-radius: 4px;
+}
+
+.guild-channel-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  color: var(--vc-fg-muted);
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.guild-channel-icon {
+  flex-shrink: 0;
+  width: 16px;
+  opacity: 0.8;
+}
+
+.guild-channel-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guild-channel:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.guild-channel:hover .guild-channel-link {
+  color: var(--vc-fg);
+}
+
+.guild-channel.active {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.guild-channel.active .guild-channel-link {
+  color: var(--vc-fg);
+}
+
+.guild-channel.unread .guild-channel-link {
+  color: var(--vc-fg);
+  font-weight: 600;
+}
+
+/* The unread pill, on the column's left edge. */
+.guild-channel.unread::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  width: 4px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 0 4px 4px 0;
+  background-color: var(--vc-fg);
+}
+
+/* Owner's edit buttons: on hover (desktop), always (touch, where there's no hover). */
+.guild-sidebar-icon-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.guild-channel .guild-sidebar-icon-button {
+  margin-right: 4px;
+}
+
+.guild-sidebar-icon-button:hover {
+  color: var(--vc-fg);
+}
+
+.desktop-mode .guild-channel:not(:hover):not(.active) .guild-sidebar-icon-button,
+.desktop-mode .guild-category-header:not(:hover) .guild-sidebar-icon-button {
+  visibility: hidden;
+}
+
+.guild-sidebar-empty {
+  padding: 8px;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+}
+
+/* ---- Channel page ---- */
+
+.guild-main {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--vc-bg-subtle);
+}
+
+.channel-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 49px;
+  padding: 0 12px 0 16px;
+  border-top: 1px solid var(--vc-border-light);
+  border-bottom: 1px solid var(--vc-border-light);
+}
+
+.channel-header-icon {
+  color: var(--vc-fg-muted);
+  font-size: 18px;
+}
+
+.channel-header-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.channel-header-divider {
+  width: 1px;
+  height: 24px;
+  margin: 0 4px;
+  background-color: var(--vc-border-light);
+}
+
+.channel-header-topic {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+}
+
+.channel-header-button {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 18px;
+}
+
+.channel-header-topic + .channel-header-button {
+  margin-left: 0;
+}
+
+.channel-header-button:hover,
+.channel-header-button.active {
+  color: var(--vc-fg);
+}
+
+.guild-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.guild-chat {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.guild-placeholder {
+  margin: auto;
+  padding: 1rem;
+  text-align: center;
+  color: var(--vc-fg-muted);
+}
+
+.chat-empty {
+  padding: 1rem 1.25rem;
+  color: var(--vc-fg-muted);
+}
+
+/* ---- Member list ---- */
+
+.member-list {
+  flex-shrink: 0;
+  width: 240px;
+  overflow-y: auto;
+  padding: 8px 8px 16px;
+  background-color: var(--vc-bg-base);
+  border-left: 1px solid var(--vc-border-dark);
+}
+
+.member-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Mobile: a panel over the chat, from the right. */
+.mobile-mode .member-list {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  width: min(300px, 85vw);
+  box-shadow: -8px 0 16px rgba(0, 0, 0, 0.35);
+}
+
+.member-list-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 4px 8px;
+  font-weight: 600;
+}
+
+.member-group {
+  margin: 16px 8px 4px;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vc-fg);
+  text-align: left;
+}
+
+.member-row:hover,
+.member-row.selected {
+  background-color: var(--vc-bg-hover);
+}
+
+.member-row.offline {
+  opacity: 0.45;
+}
+
+.member-row.offline:hover,
+.member-row.offline.selected {
+  opacity: 1;
+}
+
+.member-avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.member-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.member-status {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--vc-bg-base);
+  background-color: var(--vc-border-light);
+}
+
+.member-status.online {
+  background-color: var(--vc-online);
+}
+
+.member-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+}
+
+.member-owner {
+  flex-shrink: 0;
+  color: var(--vc-action);
+  font-size: 12px;
+}
+
+.member-card {
+  margin: 4px 0 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background-color: var(--vc-bg-elevated);
+}
+
+.member-card-name {
+  font-weight: 600;
+}
+
+.member-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+/* ---- Dialogs ---- */
+
+.vc-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.vc-dialog {
+  width: 100%;
+  max-width: 460px;
+  max-height: calc(100svh - 32px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+.vc-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 4px 20px;
+}
+
+.vc-dialog-header h5 {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vc-dialog-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.vc-dialog-close:hover {
+  color: var(--vc-fg);
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.vc-dialog-body {
+  overflow-y: auto;
+  padding: 8px 20px 16px;
+}
+
+.vc-dialog-body > p {
+  color: var(--vc-fg-muted);
+}
+
+.vc-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 0 0 10px 10px;
+  background-color: var(--vc-bg-subtle);
+}
+
+.vc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.vc-form label,
+.invite-options label,
+.channel-type-choice legend {
+  margin-top: 8px;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.vc-form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vc-form-row .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.vc-hint {
+  margin: 4px 0;
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+}
+
+.vc-button,
+.vc-button:disabled {
+  background-color: var(--vc-accent);
+  border-color: var(--vc-accent);
+  color: var(--vc-fg);
+}
+
+.vc-button:hover,
+.vc-button:focus {
+  background-color: var(--vc-accent-hover);
+  border-color: var(--vc-accent-hover);
+  color: var(--vc-fg);
+}
+
+.invite-options {
+  margin-top: 12px;
+  align-items: flex-start;
+}
+
+.invite-options label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.invite-options select {
+  text-transform: none;
+  font-weight: normal;
+  letter-spacing: normal;
+}
+
+.invite-options + .btn {
+  margin-top: 12px;
+}
+
+.channel-type-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.channel-type-choice label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.channel-type-choice label.selected {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.channel-type-choice label .vc-hint {
+  margin: 0;
+}
+
+/* Server settings */
+
+.guild-settings-dialog {
+  max-width: 560px;
+}
+
+.guild-settings-dialog section + section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+.guild-settings-dialog h6 {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.guild-settings-overview {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.guild-settings-icon {
+  flex-shrink: 0;
+  position: relative;
+  width: 80px;
+  height: 80px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: transparent;
+}
+
+.guild-settings-icon .guild-icon {
+  width: 100%;
+  height: 100%;
+  font-size: 24px;
+}
+
+.guild-settings-icon span:last-child {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--vc-fg);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.guild-settings-icon:hover span:last-child,
+.guild-settings-icon:focus-visible span:last-child {
+  opacity: 1;
+}
+
+.guild-settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.guild-settings-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.guild-settings-list li > :nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.guild-settings-list li > span:only-of-type {
+  flex: 1;
+}
+
+.guild-settings-code {
+  font-family: monospace;
+}
+
+.guild-settings-danger h6 {
+  color: var(--vc-danger);
+}
+
+/* ---- Invite page ---- */
+
+.invite-page {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.invite-card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 32px 24px;
+  border-radius: 10px;
+  background-color: var(--vc-bg-elevated);
+  text-align: center;
+}
+
+.invite-card h4 {
+  margin: 0;
+}
+
+.invite-card .btn {
+  margin-top: 16px;
+  width: 100%;
+}
+
+.invite-icon {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 8px;
+  border-radius: 24px;
+  font-size: 24px;
+}
+
+/* Inside dialogs and cards (which are the elevated colour), fields and initials need their
+   own background to show. */
+.vc-dialog .form-control,
+.vc-dialog .form-control:focus {
+  background-color: var(--vc-bg-base);
+}
+
+.vc-dialog .guild-initials,
+.invite-card .guild-initials {
+  background-color: var(--vc-accent);
+}

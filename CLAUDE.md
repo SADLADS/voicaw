@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-Voicaw is a Discord-style chat web app with end-to-end encrypted direct messages. Guilds
-(servers with channels) are being built: their API exists, their UI doesn't yet (see Guilds). It's an npm workspaces monorepo with
+Voicaw is a Discord-style chat web app: end-to-end encrypted direct messages, and guilds
+(servers with text channels, not encrypted; roles are next, see Guilds). It's an npm workspaces monorepo with
 three packages: `client` (React/Vite SPA, also packaged as an Electron desktop app), `server`
 (Express + ws API), and `electron` (thin desktop shell wrapping the built client).
 
@@ -87,6 +87,7 @@ at `/usr/bin/google-chrome`, headless):
 ```
 node e2e/serve.mjs &     # web http://localhost:5199, API :3099; E2E_WEB_PORT / E2E_API_PORT
 node e2e/smoke.mjs       # two users, one message delivered live; an example to copy
+node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots into dir
 kill %1                  # stops both servers (kill the serve.mjs process itself)
 ```
 Scripts need the same `E2E_WEB_PORT` as `serve.mjs` when not using the default.
@@ -309,9 +310,26 @@ create invites.
   `GET /guild-unread` counts newer messages by others. Sending marks your own channel read.
 - Icons: `GET /upload_guild_icon` (owner, image, 8MB) signs `guild-icons/<guild id>`; then
   `PATCH /guilds/:id {iconUploaded: true}` bumps `icon_version` (use it as `?v=` to bust caches).
-- Planned, in order: the UI (server rail, channel sidebar, guild chat, member list, mobile),
-  then mentions and per-guild notification settings, then roles and permissions (per-channel
-  overrides, private channels), custom emoji, voice channels.
+- **Client:** routes `/guild/:guildId/:channelId?` (`guild/GuildView.jsx`; without a channel it
+  opens the last one viewed there, `localStorage guildChannel:<id>`, or the first text one) and
+  `/invite/:code` (`guild/InvitePage.jsx`; logged out, that URL shows the login form, then the
+  invite). `hooks/useGuildList.js` (in `Layout`, exposed as `LayoutContext.guildList`) holds the
+  guild list, the layouts opened so far, and unread counts, kept current by `onGuildEvent`
+  (`ws-client`, every `guild_*` event). `Sidebar` is the server rail (guild icons with unread
+  pills, `+` → `AddGuildDialog`: create or join). `guild/GuildSidebar.jsx` is the channel column
+  (header menu: invite, settings, create channel/category, leave; collapsible categories,
+  remembered in `localStorage collapsedCategories`; owner edit buttons on hover).
+  `hooks/useChannel.js` is `useConversation` for a channel (plain text, same shape), and both
+  DMs and channels render through `ChatPane.jsx` (message list, composer, reactions, action
+  sheet; `useReactions` takes `saveReaction`/`deleteReaction`, so DMs encrypt and guilds
+  don't). `guild/MemberList.jsx`: online/offline, click for Message / Make owner / Kick / Ban
+  (a panel over the chat on mobile). Dialogs use `guild/Modal.jsx`; styles are
+  `assets/css/guilds.css`. Attachments in channels still go through the encrypted upload (the
+  key is in the plain message, so anyone in the channel can open them); plain uploads can come later.
+- **Not done yet:** drag-and-drop reordering (the API exists), mentions and guild
+  notifications (no push for guild messages yet), roles and permissions (next: per-channel
+  overrides, private channels), custom emoji, voice channels (they can be created and show a
+  placeholder).
 
 ### File uploads (S3-compatible object store)
 

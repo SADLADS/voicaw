@@ -61,6 +61,7 @@ export function MessageRow({
   reactionNames,
   onOpenActions,
   focusedMsgId,
+  canModerate = false,
 }) {
   const emojiIndex = useEmojiIndex();
   // A picker or menu is open for this message: it stays highlighted with its menu showing.
@@ -144,7 +145,7 @@ export function MessageRow({
           <button className="icon-button" onClick={() => handleReply(msg)}>
             <FontAwesomeIcon icon={faReply} title="Reply" />
           </button>
-          {msg.sender_id === user.id && (
+          {(msg.sender_id === user.id || canModerate) && (
             <button
               className="icon-button trash-button"
               onClick={() => handleDelete(msg)}
@@ -284,6 +285,7 @@ export default function MessageList({
   reactionNames,
   onOpenActions,
   focusedMsgId,
+  canModerate,
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
@@ -320,6 +322,7 @@ export default function MessageList({
     reactionNames,
     onOpenActions,
     focusedMsgId,
+    canModerate,
   };
 
   const rememberAnchor = useCallback(() => {

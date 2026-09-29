@@ -22,10 +22,12 @@ function quickReactions(index) {
 // Mobile: what a long press on a message opens (in place of the desktop hover menu). A row of
 // quick reactions (plus the full picker), then Reply / Edit / Copy text / Delete. Actions the
 // message doesn't allow are left out: nothing but copying for one still sending or failed,
-// and editing/deleting only your own. `onClose` also runs after any action.
+// and editing only your own (deleting: your own, or `canDelete`, e.g. a guild's owner).
+// `onClose` also runs after any action.
 export default function MessageActionSheet({
   msg,
   isOwn,
+  canDelete = isOwn,
   myReactions,
   onReact,
   onMoreReactions,
@@ -125,7 +127,7 @@ export default function MessageActionSheet({
                 <FontAwesomeIcon icon={faCopy} /> Copy text
               </button>
             )}
-            {sent && isOwn && (
+            {sent && canDelete && (
               <button type="button" className="action-sheet-item danger" onClick={() => setConfirmingDelete(true)}>
                 <FontAwesomeIcon icon={faTrash} /> Delete
               </button>

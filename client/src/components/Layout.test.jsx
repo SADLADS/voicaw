@@ -13,6 +13,7 @@ vi.mock('../utils/ws-client', () => ({
     return () => { newDmListeners.list = newDmListeners.list.filter((x) => x !== cb); };
   },
   onUserStatus: () => () => {},
+  onGuildEvent: () => () => {},
   getConnectionState: () => 'online',
   onConnectionState: () => () => {},
 }));
@@ -23,6 +24,12 @@ vi.mock('../utils/api', () => ({
 
 vi.mock('../services/dmService', () => ({
   fetchUsersList: vi.fn(),
+}));
+
+vi.mock('../services/guildService', () => ({
+  fetchGuilds: vi.fn(async () => []),
+  fetchGuild: vi.fn(),
+  fetchGuildUnread: vi.fn(async () => []),
 }));
 
 vi.mock('../services/encryptionService', () => ({

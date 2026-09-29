@@ -8,6 +8,8 @@ import Login from './components/Login.jsx';
 import Layout from './components/Layout.jsx';
 import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
+import GuildView from './components/guild/GuildView.jsx';
+import InvitePage from './components/guild/InvitePage.jsx';
 import api from './utils/api';
 import './assets/css/mobile.css';
 import './assets/css/desktop.css';
@@ -144,8 +146,13 @@ export default function App() {
               <Route element={<Layout user={user} />}>
                 <Route path="/settings" element={<Settings onLogout={handleLogout} />} />
                 <Route path="/dm/:id?" element={<Dm user={user} />} />
+                <Route path="/guild/:guildId/:channelId?" element={<GuildView user={user} />} />
+                <Route path="/invite/:code" element={<InvitePage />} />
               </Route>
             )}
+
+            {/* Logged out, an invite link asks you to log in first, then shows the invite. */}
+            {!user && <Route path="/invite/:code" element={<Login onLoginSuccess={setUser} />} />}
 
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

@@ -6,6 +6,7 @@ const editListeners = new Set();
 const statusListeners = new Set();
 const reactionAddListeners = new Set();
 const reactionRemoveListeners = new Set();
+const guildListeners = new Set();
 let reconnectTimeout = null;
 
 // This client's own connection: 'connecting' | 'online' | 'offline' (logged out, or the
@@ -104,6 +105,9 @@ export function connectWebSocket() {
       else if (data.type === 'reaction_remove') {
         reactionRemoveListeners.forEach((cb) => cb(data));
       }
+      else if (data.type?.startsWith('guild_')) {
+        guildListeners.forEach((cb) => cb(data));
+      }
       else if (data.type === 'user_status') {
         console.log(`User ${data.userId} is now ${data.status}`);
         statusListeners.forEach((cb) => cb(data));
@@ -151,6 +155,7 @@ export function closeWebSocket() {
   editListeners.clear();
   reactionAddListeners.clear();
   reactionRemoveListeners.clear();
+  guildListeners.clear();
 }
 
 export function onNewDm(callback) {
@@ -182,4 +187,13 @@ export function onReactionAdd(callback) {
 export function onReactionRemove(callback) {
   reactionRemoveListeners.add(callback);
   return () => reactionRemoveListeners.delete(callback);
+}
+
+// Every guild event, as sent by the server: `{ type: 'guild_add' | 'guild_update' |
+// 'guild_remove' | 'guild_member_add' | 'guild_member_remove' | 'guild_message_new' |
+// 'guild_message_edit' | 'guild_message_delete' | 'guild_reaction_add' |
+// 'guild_reaction_remove', ... }` (see CLAUDE.md, Guilds).
+export function onGuildEvent(callback) {
+  guildListeners.add(callback);
+  return () => guildListeners.delete(callback);
 }

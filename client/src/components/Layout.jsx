@@ -1,7 +1,8 @@
-import { useEffect, useState, useContext } from 'react';
+import { useCallback, useEffect, useMemo, useState, useContext } from 'react';
 import { useLocation, Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import DmSidebar from './DmSidebar';
+import GuildSidebar from './guild/GuildSidebar';
 import SidebarWrapper from './SidebarWrapper';
 import UserPanel from './UserPanel';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
@@ -10,6 +11,7 @@ import { fetchUsersList } from '../services/dmService';
 import 'highlight.js/styles/atom-one-dark.css';
 import { ConfigContext, LayoutContext } from '../contexts';
 import { ensureSubscription, getPushStatus } from '../services/pushService';
+import { useGuildList } from '../hooks/useGuildList';
 
 export default function Layout({ user, onLogout }) {
   const location = useLocation();
@@ -22,6 +24,16 @@ export default function Layout({ user, onLogout }) {
   
   // Check if we are on the DM page
   const isDmPage = location.pathname.startsWith('/dm');
+  // A guild page: /guild/:guildId[/:channelId].
+  const guildMatch = /^\/guild\/(\d+)(?:\/(\d+))?/.exec(location.pathname);
+  const guildId = guildMatch?.[1];
+
+  // Leaving (or being removed from) the guild on screen goes back to the DMs.
+  const onGuildRemoved = useCallback((removedId) => {
+    if (String(removedId) === guildId) navigate('/dm', { replace: true });
+  }, [guildId, navigate]);
+  const guildList = useGuildList({ userId: user?.id, activeChannelId: guildMatch?.[2] ?? null, onRemoved: onGuildRemoved });
+  const unreadGuildIds = useMemo(() => new Set(guildList.unread.map((u) => u.guild_id)), [guildList.unread]);
 
   useEffect(() => {
     // Only fetch users if we are on the DM page to avoid unnecessary API calls
@@ -86,15 +98,16 @@ export default function Layout({ user, onLogout }) {
   }, [user?.id]);
 
   return (
-    <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers }}>
-      <div className={`${isDmPage ? 'slidey' : ''} main-wrapper d-flex`}>
-        {/* The user panel sits under the conversation list (not on e.g. Settings). */}
-        <SidebarWrapper footer={isDmPage ? <UserPanel user={user} /> : null}>
+    <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList }}>
+      <div className={`${isDmPage || guildId ? 'slidey' : ''} main-wrapper d-flex`}>
+        {/* The user panel sits under the conversation or channel list (not on e.g. Settings). */}
+        <SidebarWrapper footer={isDmPage || guildId ? <UserPanel user={user} /> : null}>
           {/* Main sidebar always shows */}
-          <Sidebar user={user} onLogout={onLogout} hasUnreadDms={hasUnreadDms} />
+          <Sidebar user={user} onLogout={onLogout} hasUnreadDms={hasUnreadDms} guilds={guildList.guilds} unreadGuildIds={unreadGuildIds} />
 
           {/* DM sidebar only shows on the /dm route */}
           {isDmPage && <DmSidebar users={users} unreadDms={unreadDms} />}
+          {guildId && <GuildSidebar guild={guildList.layouts[guildId]} user={user} />}
         </SidebarWrapper>
 
         {/* The main page content */}

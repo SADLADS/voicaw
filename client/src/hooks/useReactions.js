@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { addReaction, removeReaction } from '../services/dmService';
-import { encryptReaction, reactionContext } from '../services/encryptionService';
 
-// Reacting to messages in a conversation (see useConversation): adding and removing your own
-// reactions, and which message the reaction picker is open for. `onError(message)` reports
-// failures. The picker closes when the conversation (`chatId`) changes.
-export function useReactions({ chatId, user, sharedKey, messagesRef, setMessageReactions, onError }) {
+// Reacting to messages in a conversation (useConversation) or channel (useChannel): adding and
+// removing your own reactions, and which message the reaction picker is open for.
+// `saveReaction(msg, emoji)` stores one (resolving to its `{ id }`) and `deleteReaction(id)`
+// removes one: that's where a DM encrypts and a guild doesn't. Nothing is sent until `ready`.
+// `onError(message)` reports failures. The picker closes when the chat (`chatId`) changes.
+export function useReactions({ chatId, user, ready, saveReaction, deleteReaction, messagesRef, setMessageReactions, onError }) {
   // The message the picker is choosing a reaction for, and (desktop) the rect of the button
   // that opened it, to show it next to.
   const [reactingTo, setReactingTo] = useState(null);
@@ -29,20 +29,17 @@ export function useReactions({ chatId, user, sharedKey, messagesRef, setMessageR
   // Adds `emoji` to `msg` as a reaction from this user, or removes it if they already have.
   async function toggleReaction(msg, emoji) {
     const key = `${msg.id}|${emoji}`;
-    if (!sharedKey || inFlight.current.has(key)) return;
+    if (!ready || inFlight.current.has(key)) return;
     inFlight.current.add(key);
     try {
       const current = messagesRef.current.find((m) => m.id === msg.id) ?? msg;
       const mine = (current.reactions ?? []).filter((r) => r.user_id === user.id && r.emoji === emoji);
       if (mine.length > 0) {
-        await Promise.all(mine.map((r) => removeReaction(r.id)));
+        await Promise.all(mine.map((r) => deleteReaction(r.id)));
         const removed = new Set(mine.map((r) => r.id));
         setMessageReactions(msg.id, (list) => list.filter((r) => !removed.has(r.id)));
       } else {
-        const content = await encryptReaction(
-          emoji, sharedKey, reactionContext(msg.id, user.id, msg.sender_id, msg.recipient_id)
-        );
-        const saved = await addReaction(msg.id, content);
+        const saved = await saveReaction(msg, emoji);
         // The websocket may have delivered it already.
         setMessageReactions(msg.id, (list) =>
           list.some((r) => r.id === saved.id) ? list : [...list, { id: saved.id, user_id: user.id, emoji }]
