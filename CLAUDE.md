@@ -72,11 +72,13 @@ stubs `ResizeObserver` (used by `MessageList`). Component tests mock `../utils/a
 
 ### Server environment
 
+The host runs Node 24 LTS (NodeSource apt package, shared by every pm2 app on it).
 `sqlite3` 6's prebuilt binary needs glibc >= 2.38. On older hosts (this server runs Debian 12,
 glibc 2.36) `npm install` succeeds but the server then crashes loading it. Such hosts need a
 git-ignored `.npmrc` at the repo root containing `build_from_source=sqlite3` (compiles just
 sqlite3, about 1.5 min, needs gcc/make/python3). After changing it, run
-`npm rebuild sqlite3 --build-from-source`.
+`npm rebuild sqlite3 --build-from-source`. npm 11 warns that `build_from_source` in `.npmrc` "will
+stop working in the next major version of npm"; it still works, but will need replacing then.
 
 `server/config.js` fails fast at startup if any of these env vars are missing (set them in
 `server/.env`): `JWT_SECRET`, `OPAQUE_SERVER_SETUP`, `VAPID_EMAIL`, `VAPID_PUBLIC_KEY`,
