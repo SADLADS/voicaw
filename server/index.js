@@ -30,6 +30,8 @@ app.get('/api/config', (req, res) => {
 app.use('/api', require('./routes/auth'));
 app.use('/api', require('./routes/dms'));
 app.use('/api', require('./routes/reactions'));
+app.use('/api', require('./routes/guilds'));
+app.use('/api', require('./routes/guildMessages'));
 app.use('/api', require('./routes/push'));
 app.use('/api', require('./routes/uploads'));
 

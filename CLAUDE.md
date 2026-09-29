@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-Voicaw is an end-to-end encrypted direct-messaging web app (Discord-style UI, DMs only — no
-guild/channel messaging is wired up despite schema support). It's an npm workspaces monorepo with
+Voicaw is a Discord-style chat web app with end-to-end encrypted direct messages. Guilds
+(servers with channels) are being built: their API exists, their UI doesn't yet (see Guilds). It's an npm workspaces monorepo with
 three packages: `client` (React/Vite SPA, also packaged as an Electron desktop app), `server`
 (Express + ws API), and `electron` (thin desktop shell wrapping the built client).
 
@@ -120,9 +120,11 @@ unexpected errors. The rest:
   `attachWebSocketServer` (the ws server).
 - `push.js`: web push sending and the DM push payload.
 - `s3.js`: pre-signed upload URLs. Bucket setup at startup logs and carries on if the store is down.
+- `guilds.js`: shared guild helpers (membership checks, `getGuildLayout`, `sendToGuild`).
 - `routes/`: `auth.js` (OPAQUE register/login, profile), `dms.js` (conversations, send, edit,
-  delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `push.js`
-  (subscriptions), `uploads.js`.
+  delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `guilds.js` (guilds,
+  members, invites, bans, categories, channels), `guildMessages.js` (channel messages, reactions,
+  read state), `push.js` (subscriptions), `uploads.js`.
 
 Client tests sit next to their source files (`src/**/*.test.{js,jsx}`). The default environment is
 `node`; component tests opt into DOM with a `// @vitest-environment jsdom` header on the first
@@ -236,7 +238,9 @@ module-level in `sockets.js`, so routes can push events (and tests can fake sock
 identify themselves post-connect with `{ type: 'identify', token }` (JWT); the server maps
 `userId -> [sockets]` in an in-memory `clients` Map (a user can have multiple open sockets/tabs).
 Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, `reaction_remove`,
-`user_status`. A 30s heartbeat
+`user_status`, and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
+`guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete`,
+`guild_reaction_add` / `_remove`. A 30s heartbeat
 (ping/pong) prunes dead connections and broadcasts `offline` status.
 
 Client side, `client/src/utils/ws-client.js` wraps this with `connectWebSocket`/`closeWebSocket`
@@ -275,17 +279,45 @@ one user at a time).
 
 SQLite via `sqlite3`, single file `server/voicaw.db` (overridable with `DB_PATH`), schema created idempotently
 (`CREATE TABLE IF NOT EXISTS`) in `server/db.js` on require. Queries use the small promise helpers
-in `db.js` (no ORM, no migrations). Note: the schema includes
-`guilds`/`categories`/`channels`/`messages`/roles/permissions tables for a Discord-like
-multi-channel model, but only the `direct_messages` / `dm_reactions` / `dm_unread` / `users` / `push_subscriptions`
-/ `login_states` tables are actually used by current routes — guild/channel features aren't
-implemented yet.
+in `db.js` (no ORM, no migrations: a new column on an existing table needs an
+`ALTER TABLE ... ADD COLUMN` whose "duplicate column" error is ignored, as `guilds` does). Guild
+tables are `guilds` plus `guild_*`. An earlier sketch left unused, empty tables in old databases
+(`roles`, `user_roles`, `categories`, `channels`, `channel_permissions`, `messages`); nothing
+creates or reads them any more, and they can be dropped.
+
+### Guilds
+
+Discord-style servers. **Not end-to-end encrypted**, on purpose: the server reads guild
+messages, so it can do mentions, search and moderation. Encryption stays for DMs and (planned)
+group DMs. Anyone can create a guild. Until roles exist, the owner (`guilds.owner`) manages
+everything (settings, channels, categories, kicks, bans, revoking invites) and members chat and
+create invites.
+- Non-members get 404 for a guild, its channels and messages (it doesn't reveal what exists).
+- A new guild gets a "Text Channels" category with `#general`. Channel names are normalised
+  Discord style (lower case, spaces to `-`). Channels with no category sit above the
+  categories; deleting a category keeps its channels, uncategorised. `PUT /guilds/:id/layout`
+  sets the whole order at once (every category id, every channel `{id, categoryId}`).
+- `GET /guilds/:id` (and the `guild_update` event, sent to every member on any change) is the
+  whole layout: guild, `categories`, `channels`, in order.
+- Invites: 8-character codes, optional expiry (`maxAge` s, up to 30 days) and `maxUses`,
+  claimed atomically. Joining marks existing history read. Bans remove and block rejoining.
+  The owner has to transfer ownership before leaving.
+- Messages have the DM row shape (`sender_*`, `parent_*`, `reactions`, `edited`) so
+  `MessageList` can show both; content is plain text up to `maxPlaintextLength` characters.
+  Authors edit; authors or the owner delete. Reactions are plain emoji, one of each per person.
+- Unread: `guild_channel_reads` holds each member's last read message per channel;
+  `GET /guild-unread` counts newer messages by others. Sending marks your own channel read.
+- Icons: `GET /upload_guild_icon` (owner, image, 8MB) signs `guild-icons/<guild id>`; then
+  `PATCH /guilds/:id {iconUploaded: true}` bumps `icon_version` (use it as `?v=` to bust caches).
+- Planned, in order: the UI (server rail, channel sidebar, guild chat, member list, mobile),
+  then mentions and per-guild notification settings, then roles and permissions (per-channel
+  overrides, private channels), custom emoji, voice channels.
 
 ### File uploads (S3-compatible object store)
 
 `server/s3.js` wraps `@aws-sdk/client-s3` against `S3_ENDPOINT` (`forcePathStyle: true`, so this
-targets a self-hosted/MinIO-style endpoint, not raw AWS). It auto-creates and makes public two
-buckets on startup: `uploads`, `profile-pics`. Uploads are client-direct: the server only
+targets a self-hosted/MinIO-style endpoint, not raw AWS). It auto-creates and makes public three
+buckets on startup: `uploads`, `profile-pics`, `guild-icons`. Uploads are client-direct: the server only
 issues short-lived (60s) pre-signed PUT URLs (`/api/upload_file`, `/api/upload_profile_pic`); the
 client uploads the file straight to S3, bypassing the app server. Both routes require a `size` query
 param, which is signed into the URL together with the content type (`s3.js` `signableHeaders`), so
@@ -464,7 +496,10 @@ their box is reserved before they load.
   identity keys. Don't change identity keys or the safety-number derivation casually: every
   contact would get a "key changed" warning. The server delivering the web app's code stays the
   unfixable gap until native apps.
-- **Custom emoji (planned):** per guild (guilds don't exist yet), plain unencrypted images like
+- **Guilds aren't encrypted** (decided 2026-09-29): encrypted channels inside guilds were
+  considered and dropped (who may add members to one, when roles are server-controlled, had no
+  good answer). Encryption is for DMs and group DMs.
+- **Custom emoji (planned):** per guild, plain unencrypted images like
   profile pictures, written `<:name:id>`, shown as extra sections in the existing picker. The
   editor (`customEmoji` node) and reactions (64 padded bytes) already fit them.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

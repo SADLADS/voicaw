@@ -20,85 +20,130 @@ CREATE TABLE IF NOT EXISTS users (
 );
 `);
 
-// USER ROLES
-db.run(`
-CREATE TABLE IF NOT EXISTS roles (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT UNIQUE NOT NULL
-);
-`);
-
-db.run(`
-CREATE TABLE IF NOT EXISTS user_roles (
-  user_id INTEGER NOT NULL,
-  role_id INTEGER NOT NULL,
-  PRIMARY KEY (user_id, role_id),
-  FOREIGN KEY (user_id) REFERENCES users(id),
-  FOREIGN KEY (role_id) REFERENCES roles(id)
-);
-`);
-
-// GUILDS
+// GUILDS (servers, Discord style). Plain, not end-to-end encrypted: the server reads guild
+// messages (only DMs and group DMs are encrypted). An earlier sketch left unused tables in old
+// databases (roles, user_roles, categories, channels, channel_permissions, messages); they can
+// be dropped. `guilds` is from that sketch too, hence `owner` and the ALTERs that update it.
+db.serialize(() => {
 db.run(`
 CREATE TABLE IF NOT EXISTS guilds (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   owner INTEGER NOT NULL,
   name TEXT NOT NULL,
+  -- The icon is guild-icons/<id>; bumped on every new one (it busts caches). 0 = no icon.
+  icon_version INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (owner) REFERENCES users(id)
 );
 `);
+// Fail harmlessly ("duplicate column") once the columns exist.
+db.run('ALTER TABLE guilds ADD COLUMN icon_version INTEGER NOT NULL DEFAULT 0', () => {});
+db.run('ALTER TABLE guilds ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0', () => {});
 
-// CATEGORIES
 db.run(`
-CREATE TABLE IF NOT EXISTS categories (
+CREATE TABLE IF NOT EXISTS guild_members (
+  guild_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  joined_at INTEGER DEFAULT (strftime('%s','now')),
+  PRIMARY KEY (guild_id, user_id),
+  FOREIGN KEY (guild_id) REFERENCES guilds(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+`);
+db.run('CREATE INDEX IF NOT EXISTS guild_members_user ON guild_members (user_id)');
+
+db.run(`
+CREATE TABLE IF NOT EXISTS guild_bans (
+  guild_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  banned_by INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s','now')),
+  PRIMARY KEY (guild_id, user_id),
+  FOREIGN KEY (guild_id) REFERENCES guilds(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+`);
+
+// Invite links: /invite/<code>. No expiry / no use limit when null.
+db.run(`
+CREATE TABLE IF NOT EXISTS guild_invites (
+  code TEXT PRIMARY KEY,
+  guild_id INTEGER NOT NULL,
+  creator_id INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s','now')),
+  expires_at INTEGER,
+  max_uses INTEGER,
+  uses INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (guild_id) REFERENCES guilds(id),
+  FOREIGN KEY (creator_id) REFERENCES users(id)
+);
+`);
+
+db.run(`
+CREATE TABLE IF NOT EXISTS guild_categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   guild_id INTEGER NOT NULL,
   name TEXT NOT NULL,
-  position INTEGER DEFAULT 0,
+  position INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (guild_id) REFERENCES guilds(id)
 );
 `);
 
-// CHANNELS
+// category_id null = above every category, as in Discord.
 db.run(`
-CREATE TABLE IF NOT EXISTS channels (
+CREATE TABLE IF NOT EXISTS guild_channels (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  category_id INTEGER NOT NULL,
+  guild_id INTEGER NOT NULL,
+  category_id INTEGER,
   name TEXT NOT NULL,
-  type TEXT CHECK(type IN ('text', 'voice')) NOT NULL,
-  position INTEGER DEFAULT 0,
-  FOREIGN KEY (category_id) REFERENCES categories(id)
+  type TEXT CHECK(type IN ('text', 'voice')) NOT NULL DEFAULT 'text',
+  topic TEXT,
+  position INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (guild_id) REFERENCES guilds(id),
+  FOREIGN KEY (category_id) REFERENCES guild_categories(id)
 );
 `);
 
-// CHANNEL PERMISSIONS
 db.run(`
-CREATE TABLE IF NOT EXISTS channel_permissions (
+CREATE TABLE IF NOT EXISTS guild_messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   channel_id INTEGER NOT NULL,
-  target_type TEXT CHECK(target_type IN ('user', 'role')) NOT NULL,
-  target_id INTEGER NOT NULL,
-  allow TEXT,
-  deny TEXT,
-  FOREIGN KEY (channel_id) REFERENCES channels(id)
-);
-`);
-
-// MESSAGES
-db.run(`
-CREATE TABLE IF NOT EXISTS messages (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  channel_id INTEGER NOT NULL,
-  user_id INTEGER NOT NULL,
+  sender_id INTEGER NOT NULL,
   content TEXT NOT NULL,
   timestamp INTEGER DEFAULT (strftime('%s','now')),
-  is_pinned INTEGER DEFAULT 0,
   parent_message_id INTEGER,
-  FOREIGN KEY (channel_id) REFERENCES channels(id),
-  FOREIGN KEY (user_id) REFERENCES users(id),
-  FOREIGN KEY (parent_message_id) REFERENCES messages(id)
+  edited INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (channel_id) REFERENCES guild_channels(id),
+  FOREIGN KEY (sender_id) REFERENCES users(id)
 );
 `);
+db.run('CREATE INDEX IF NOT EXISTS guild_messages_channel ON guild_messages (channel_id, id)');
+
+// Plain emoji (a guild isn't encrypted), one of each per person per message.
+db.run(`
+CREATE TABLE IF NOT EXISTS guild_reactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  message_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  emoji TEXT NOT NULL,
+  timestamp INTEGER DEFAULT (strftime('%s','now')),
+  UNIQUE (message_id, user_id, emoji),
+  FOREIGN KEY (message_id) REFERENCES guild_messages(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+`);
+db.run('CREATE INDEX IF NOT EXISTS guild_reactions_message ON guild_reactions (message_id)');
+
+// How far each member has read each channel; unread = newer messages by someone else.
+db.run(`
+CREATE TABLE IF NOT EXISTS guild_channel_reads (
+  user_id INTEGER NOT NULL,
+  channel_id INTEGER NOT NULL,
+  last_read_id INTEGER NOT NULL,
+  PRIMARY KEY (user_id, channel_id)
+);
+`);
+});
 
 // DIRECT MESSAGES
 db.run(`

@@ -58,11 +58,11 @@ async function getUploadUrl(filename, bucket, contentType, contentLength) {
     });
 }
 
-// Both buckets exist and are publicly readable (attachments are encrypted; profile pictures
-// are public on purpose). If the object store is unreachable, log it rather than crash the
+// The buckets exist and are publicly readable (attachments are encrypted; profile pictures
+// and guild icons are public on purpose). If the object store is unreachable, log it rather than crash the
 // server: messaging works without it, and the next start tries again.
 async function setUpBuckets() {
-    for (const bucket of ["uploads", "profile-pics"]) {
+    for (const bucket of ["uploads", "profile-pics", "guild-icons"]) {
         await ensureBucketExists(bucket);
         await makeBucketPublic(bucket);
     }

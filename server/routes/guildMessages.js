@@ -1,0 +1,232 @@
+const express = require('express');
+const db = require('../db');
+const { maxPlaintextLength } = require('../config');
+const { authenticateJWT } = require('../auth');
+const { getChannelForMember, sendToGuild } = require('../guilds');
+
+// Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
+// same shape as DMs (sender_*, parent_*) so the client's message list shows both. Any member
+// can read and post; authors edit their own; authors and the owner delete.
+const router = express.Router();
+
+const MAX_REACTIONS_PER_USER_PER_MESSAGE = 20;
+const MAX_EMOJI_LENGTH = 64;
+
+const MESSAGE_SELECT = `
+  SELECT
+    m.id, m.channel_id, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
+    u.username AS sender_username,
+    pm.content AS parent_content,
+    pu.id AS parent_sender_id,
+    pu.username AS parent_username
+  FROM guild_messages m
+  JOIN users u ON m.sender_id = u.id
+  LEFT JOIN guild_messages pm ON m.parent_message_id = pm.id
+  LEFT JOIN users pu ON pm.sender_id = pu.id`;
+
+// Adds `reactions` ([{ id, user_id, emoji, timestamp }], oldest first) to each message.
+async function withReactions(messages) {
+  if (messages.length === 0) return messages;
+  const ids = messages.map((m) => m.id);
+  const rows = await db.all(
+    `SELECT id, message_id, user_id, emoji, timestamp FROM guild_reactions
+     WHERE message_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`,
+    ids
+  );
+  const byMessage = new Map(ids.map((id) => [id, []]));
+  for (const { message_id: messageId, ...reaction } of rows) byMessage.get(messageId).push(reaction);
+  return messages.map((m) => ({ ...m, reactions: byMessage.get(m.id) }));
+}
+
+// Loads req.channel if the caller is in its guild and it's a text channel.
+async function requireTextChannel(req, res, next) {
+  const channel = await getChannelForMember(Number(req.params.channelId), req.user.id);
+  if (!channel) return res.status(404).json({ error: 'Channel not found' });
+  if (channel.type !== 'text') return res.status(400).json({ error: 'Not a text channel' });
+  req.channel = channel;
+  next();
+}
+
+// Loads req.message (with its channel's guild and owner) if the caller can see it.
+async function requireMessage(req, res, next) {
+  const messageId = Number(req.params.messageId);
+  const message = Number.isInteger(messageId) && await db.get(
+    'SELECT id, channel_id, sender_id FROM guild_messages WHERE id = ?',
+    [messageId]
+  );
+  const channel = message && await getChannelForMember(message.channel_id, req.user.id);
+  if (!channel) return res.status(404).json({ error: 'Message not found' });
+  req.message = { ...message, guild_id: channel.guild_id, owner: channel.owner };
+  next();
+}
+
+// Checks message text; returns the trimmed text, or null.
+function cleanContent(content) {
+  if (typeof content !== 'string') return null;
+  const trimmed = content.trim();
+  return trimmed && trimmed.length <= maxPlaintextLength ? trimmed : null;
+}
+
+async function markRead(userId, channelId, messageId) {
+  await db.run(
+    `INSERT INTO guild_channel_reads (user_id, channel_id, last_read_id) VALUES (?, ?, ?)
+     ON CONFLICT(user_id, channel_id) DO UPDATE SET last_read_id = MAX(last_read_id, excluded.last_read_id)`,
+    [userId, channelId, messageId]
+  );
+}
+
+// A page of a channel, oldest first: the newest `limit` messages (1–100, default 50), or
+// those before message id `before`.
+router.get('/channels/:channelId/messages', authenticateJWT, requireTextChannel, async (req, res) => {
+  const requestedLimit = parseInt(req.query.limit, 10);
+  const limit = Number.isNaN(requestedLimit) ? 50 : Math.min(Math.max(requestedLimit, 1), 100);
+  const before = parseInt(req.query.before, 10);
+
+  const params = [req.channel.id];
+  let where = 'm.channel_id = ?';
+  if (!Number.isNaN(before)) {
+    where += ' AND m.id < ?';
+    params.push(before);
+  }
+  const rows = await db.all(`${MESSAGE_SELECT} WHERE ${where} ORDER BY m.id DESC LIMIT ?`, [...params, limit]);
+  res.json(await withReactions(rows.reverse()));
+});
+
+router.post('/channels/:channelId/messages', authenticateJWT, requireTextChannel, async (req, res) => {
+  const content = cleanContent(req.body?.content);
+  if (!content) {
+    return res.status(400).json({ error: `Messages are 1–${maxPlaintextLength} characters` });
+  }
+
+  // A reply must point at a message in this same channel.
+  let parentMessageId = null;
+  if (req.body.replyTo != null) {
+    parentMessageId = Number(req.body.replyTo);
+    const parent = Number.isInteger(parentMessageId) && await db.get(
+      'SELECT id FROM guild_messages WHERE id = ? AND channel_id = ?',
+      [parentMessageId, req.channel.id]
+    );
+    if (!parent) return res.status(400).json({ error: 'Invalid reply' });
+  }
+
+  const { lastID } = await db.run(
+    `INSERT INTO guild_messages (channel_id, sender_id, content, parent_message_id, timestamp)
+     VALUES (?, ?, ?, ?, strftime('%s','now'))`,
+    [req.channel.id, req.user.id, content, parentMessageId]
+  );
+  await markRead(req.user.id, req.channel.id, lastID);
+  const [message] = await withReactions([await db.get(`${MESSAGE_SELECT} WHERE m.id = ?`, [lastID])]);
+
+  await sendToGuild(req.channel.guild_id, { type: 'guild_message_new', guildId: req.channel.guild_id, message });
+  res.status(201).json(message);
+});
+
+// Only the author can edit.
+router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async (req, res) => {
+  if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+  const content = cleanContent(req.body?.content);
+  if (!content) {
+    return res.status(400).json({ error: `Messages are 1–${maxPlaintextLength} characters` });
+  }
+  await db.run('UPDATE guild_messages SET content = ?, edited = 1 WHERE id = ?', [content, req.message.id]);
+  await sendToGuild(req.message.guild_id, {
+    type: 'guild_message_edit',
+    guildId: req.message.guild_id,
+    channelId: req.message.channel_id,
+    messageId: req.message.id,
+    content,
+  });
+  res.json({ success: true, messageId: req.message.id, content });
+});
+
+// The author or the guild's owner can delete; its reactions go with it.
+router.delete('/guild-messages/:messageId', authenticateJWT, requireMessage, async (req, res) => {
+  const { id, sender_id: senderId, owner, guild_id: guildId, channel_id: channelId } = req.message;
+  if (senderId !== req.user.id && owner !== req.user.id) {
+    return res.status(403).json({ error: 'Not authorized to delete this message' });
+  }
+  await db.run('DELETE FROM guild_reactions WHERE message_id = ?', [id]);
+  await db.run('DELETE FROM guild_messages WHERE id = ?', [id]);
+  await sendToGuild(guildId, { type: 'guild_message_delete', guildId, channelId, messageId: id });
+  res.json({ success: true, deletedId: id });
+});
+
+// ---- Reactions (plain emoji) ----
+
+router.post('/guild-messages/:messageId/reactions', authenticateJWT, requireMessage, async (req, res) => {
+  const { emoji } = req.body ?? {};
+  if (typeof emoji !== 'string' || !emoji || emoji.length > MAX_EMOJI_LENGTH || /\s/.test(emoji)) {
+    return res.status(400).json({ error: 'Invalid reaction' });
+  }
+  const { id: messageId, guild_id: guildId, channel_id: channelId } = req.message;
+
+  const { count } = await db.get(
+    'SELECT COUNT(*) AS count FROM guild_reactions WHERE message_id = ? AND user_id = ?',
+    [messageId, req.user.id]
+  );
+  if (count >= MAX_REACTIONS_PER_USER_PER_MESSAGE) {
+    return res.status(400).json({ error: 'Too many reactions on this message' });
+  }
+  const { changes, lastID } = await db.run(
+    'INSERT OR IGNORE INTO guild_reactions (message_id, user_id, emoji) VALUES (?, ?, ?)',
+    [messageId, req.user.id, emoji]
+  );
+  if (!changes) return res.status(409).json({ error: 'Already reacted with that' });
+
+  const reaction = await db.get(
+    'SELECT id, message_id, user_id, emoji, timestamp FROM guild_reactions WHERE id = ?',
+    [lastID]
+  );
+  await sendToGuild(guildId, { type: 'guild_reaction_add', guildId, channelId, reaction });
+  res.status(201).json(reaction);
+});
+
+// Only your own reactions can be removed.
+router.delete('/guild-reactions/:reactionId', authenticateJWT, async (req, res) => {
+  const reactionId = Number(req.params.reactionId);
+  const reaction = Number.isInteger(reactionId) && await db.get(
+    `SELECT r.id, r.message_id, r.user_id, m.channel_id FROM guild_reactions r
+     JOIN guild_messages m ON m.id = r.message_id WHERE r.id = ?`,
+    [reactionId]
+  );
+  const channel = reaction && await getChannelForMember(reaction.channel_id, req.user.id);
+  if (!channel) return res.status(404).json({ error: 'Reaction not found' });
+  if (reaction.user_id !== req.user.id) return res.status(403).json({ error: 'Not your reaction' });
+
+  await db.run('DELETE FROM guild_reactions WHERE id = ?', [reactionId]);
+  await sendToGuild(channel.guild_id, {
+    type: 'guild_reaction_remove',
+    guildId: channel.guild_id,
+    channelId: channel.id,
+    messageId: reaction.message_id,
+    reactionId,
+  });
+  res.json({ success: true });
+});
+
+// ---- Read state ----
+
+// Marks the channel read up to `messageId` (never moves backwards).
+router.post('/channels/:channelId/read', authenticateJWT, requireTextChannel, async (req, res) => {
+  const messageId = Number(req.body?.messageId);
+  if (!Number.isInteger(messageId) || messageId < 0) return res.status(400).json({ error: 'Invalid messageId' });
+  await markRead(req.user.id, req.channel.id, messageId);
+  res.json({ success: true });
+});
+
+// Unread counts for every channel of the caller's guilds that has any: messages by other
+// people after the caller's read marker.
+router.get('/guild-unread', authenticateJWT, async (req, res) => {
+  const me = req.user.id;
+  res.json(await db.all(
+    `SELECT c.id AS channel_id, c.guild_id, COUNT(m.id) AS count
+     FROM guild_channels c
+     JOIN guild_members gm ON gm.guild_id = c.guild_id AND gm.user_id = ?
+     LEFT JOIN guild_channel_reads r ON r.channel_id = c.id AND r.user_id = ?
+     JOIN guild_messages m ON m.channel_id = c.id AND m.id > COALESCE(r.last_read_id, 0) AND m.sender_id != ?
+     GROUP BY c.id`,
+    [me, me, me]
+  ));
+});
+
+module.exports = router;
