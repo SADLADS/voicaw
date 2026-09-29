@@ -12,6 +12,10 @@ import { encryptReaction, reactionContext } from '../services/encryptionService'
 import { usePresence } from '../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../utils/presence';
 
+// The "Verified / Not verified" badge and safety number dialog. Hidden for now: too confusing
+// for most people. The keys are still pinned and a changed key still blocks the chat.
+const SHOW_SAFETY_NUMBERS = false;
+
 // A DM conversation: header (with the contact's key status), then the chat itself (ChatPane).
 // The conversation (loading, sending, live updates) is useConversation.
 export default function Dm({ user }) {
@@ -54,7 +58,7 @@ export default function Dm({ user }) {
                 {presence.status === 'offline' ? lastSeenText(presence.lastOnline) ?? statusLabel(presence.status) : statusLabel(presence.status)}
               </span>
             )}
-            {(keyStatus === 'trusted' || keyStatus === 'verified') && (
+            {SHOW_SAFETY_NUMBERS && (keyStatus === 'trusted' || keyStatus === 'verified') && (
               <button
                 type="button"
                 className={`key-status-badge ${keyStatus}`}

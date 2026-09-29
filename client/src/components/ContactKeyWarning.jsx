@@ -32,7 +32,7 @@ export default function ContactKeyWarning({ status, username, onAccept }) {
       <p>
         This shouldn't normally happen. It can mean someone is trying to intercept your
         messages, or that the server's data was reset. Check with {name} another way (in
-        person or on a call) before continuing, and compare safety numbers afterwards.
+        person or on a call) before continuing.
       </p>
       <button type="button" className="btn btn-sm btn-warning" onClick={accept} disabled={busy}>
         Accept the new key

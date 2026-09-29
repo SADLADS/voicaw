@@ -230,7 +230,9 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   use a contact key straight from the server. `checkContactKeys` verifies the signature, pins the
   identity key, and returns `'changed'` (the conversation is blocked until the user accepts,
   `ContactKeyWarning`) or `'invalid'`. Users compare 60-digit safety numbers (`safetyNumber.js`,
-  `SafetyNumberDialog`) and can mark contacts verified.
+  `SafetyNumberDialog`) and can mark contacts verified. That badge and dialog are
+  hidden for now (`SHOW_SAFETY_NUMBERS` in `Dm.jsx`: too confusing for non-technical users); the
+  pinning and the key-changed block still apply.
 - **DMs:** `deriveConversationKey` (ECDH → HKDF → AES-GCM) uses the *pinned* contact key.
   `encryptMessage`/`decryptMessage` take `dmContext(senderId, recipientId)` as AES-GCM additional
   data, so the server can't re-attribute or move messages. Replies and edits use the original
