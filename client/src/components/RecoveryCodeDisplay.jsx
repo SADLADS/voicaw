@@ -3,10 +3,24 @@ import '../assets/css/recovery.css';
 import { triggerDownload } from '../utils/saveFile';
 
 // Shows a new recovery code once, with copy / save buttons, and only lets the user go on
-// once they say they've kept it.
-export default function RecoveryCodeDisplay({ code, username, onDone, doneLabel = 'Continue' }) {
+// once they say they've kept it. `onDone` may be async (e.g. storing the code); if it fails,
+// its message is shown, and `onSkip` (if given) offers a way on without the code.
+export default function RecoveryCodeDisplay({ code, username, onDone, onSkip, intro, doneLabel = 'Continue' }) {
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const done = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await onDone();
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  };
 
   const copy = async () => {
     try {
@@ -28,6 +42,7 @@ export default function RecoveryCodeDisplay({ code, username, onDone, doneLabel 
 
   return (
     <div className="recovery-code-display">
+      {intro && <p>{intro}</p>}
       <p>
         This is your <strong>recovery code</strong>. If you ever forget your password, it's the only
         way back into your account and your messages. Nobody else has a copy, not even the server,
@@ -49,9 +64,20 @@ export default function RecoveryCodeDisplay({ code, username, onDone, doneLabel 
         <input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} />
         {' '}I've saved my recovery code
       </label>
-      <button type="button" className="btn btn-vc w-100" disabled={!saved} onClick={onDone}>
-        {doneLabel}
+      <button type="button" className="btn btn-vc w-100" disabled={!saved || busy} onClick={done}>
+        {busy ? 'Please wait…' : doneLabel}
       </button>
+      {error && (
+        <p className="recovery-error" role="alert">
+          {error}
+          {onSkip && (
+            <>
+              {' '}
+              <button type="button" className="link-button" onClick={onSkip}>Skip for now</button>
+            </>
+          )}
+        </p>
+      )}
     </div>
   );
 }

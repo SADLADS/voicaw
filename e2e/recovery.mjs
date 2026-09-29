@@ -1,8 +1,11 @@
 // Password change and recovery codes: sign up (code shown), change the password in
 // Settings, reset it with the recovery code while logged out (old messages still readable),
-// make a new code (the old one stops working).
+// make a new code (the old one stops working); an account from before recovery codes gets
+// one when it logs in.
 //   node e2e/serve.mjs &   then   node e2e/recovery.mjs [screenshot dir]
+import request from 'supertest';
 import { BASE, launchChrome, signUp, openChat, send, devices } from './helpers.mjs';
+import { registerUser } from '../server/test/helpers/authFlow.js';
 
 const shots = process.argv[2];
 const shot = (page, name) => shots && page.screenshot({ path: `${shots}/${name}.png` });
@@ -96,6 +99,30 @@ try {
   check((await stale.textContent('.login-error')) === 'Wrong username or recovery code', 'old code refused');
   const again = await recover(browser, alice.name, newCode, 'fourth password 1', devices['Pixel 7']);
   check(await again.isVisible('#dm-main'), 'new code works (phone)');
+  // An account from before recovery codes (registered without one, through the API).
+  const oldName = `old${String(Date.now()).slice(-5)}`;
+  await registerUser(BASE, request, oldName, 'old account password');
+  const first = await freshPage(browser);
+  await first.fill('input[placeholder="Username"]', oldName);
+  await first.fill('input[placeholder="Password"]', 'old account password');
+  await first.click('button:has-text("Login")');
+  const oldCode = (await first.textContent('[aria-label="Recovery code"]', { timeout: 20000 })).trim();
+  await shot(first, 'login-code');
+  check(true, 'logging in to an account without a code shows one');
+  // Closing the tab before continuing stores nothing: the next login offers a new one.
+  const second = await freshPage(browser);
+  await second.fill('input[placeholder="Username"]', oldName);
+  await second.fill('input[placeholder="Password"]', 'old account password');
+  await second.click('button:has-text("Login")');
+  const code2 = (await second.textContent('[aria-label="Recovery code"]', { timeout: 20000 })).trim();
+  check(code2 !== oldCode, 'not stored until confirmed: asked again next login');
+  await second.check("text=I've saved my recovery code");
+  await second.click('button:has-text("Continue")');
+  await second.waitForSelector('#dm-main', { timeout: 20000 });
+  check(!(await second.isVisible('text=Set up a recovery code')), 'in the app, no set-up banner');
+  check((await (await recover(browser, oldName, oldCode, 'x new password 1')).textContent('.login-error')) === 'Wrong username or recovery code', 'the unconfirmed code does nothing');
+  check(await (await recover(browser, oldName, code2, 'x new password 1')).isVisible('#dm-main'), 'the confirmed code works');
+  check(await (await logIn(browser, oldName, 'x new password 1')).isVisible('#dm-main'), 'later logins go straight in');
   console.log('recovery: ok');
 } catch (err) {
   console.error('recovery: FAILED', err.message.split('\n')[0]);

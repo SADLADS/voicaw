@@ -80,3 +80,8 @@
 .account-security-form .btn-vc:hover {
   background-color: var(--vc-accent-hover);
 }
+
+.recovery-code-display .recovery-error {
+  color: var(--vc-danger);
+  margin-top: 0.75rem;
+}

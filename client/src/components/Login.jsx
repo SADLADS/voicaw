@@ -2,15 +2,18 @@ import React, { useState } from 'react';
 import '../assets/css/login.css';
 import '../assets/css/recovery.css';
 import { connectWebSocket } from '../utils/ws-client';
-import { MIN_PASSWORD_LENGTH, logIn, register, recoverAccount } from '../services/authService';
+import {
+  MIN_PASSWORD_LENGTH, logIn, register, recoverAccount, generateRecoveryCode, saveRecoveryCode,
+} from '../services/authService';
 import RecoveryCodeDisplay from './RecoveryCodeDisplay';
 
 export default function Login({ onLoginSuccess }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [registerData, setRegisterData] = useState({ username: '', password: '' });
   const [recoverData, setRecoverData] = useState({ username: '', code: '', password: '', confirm: '' });
-  // 'login' (log in or register), 'recover' (forgot password), or after registering,
-  // { user, recoveryCode } while the new code is shown.
+  // 'login' (log in or register), 'recover' (forgot password), or { user, recoveryCode,
+  // password? } while a new code is shown: after registering (already stored), or after
+  // logging in to an account without one (`password` set: stored once the user continues).
   const [mode, setMode] = useState('login');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,16 +29,25 @@ export default function Login({ onLoginSuccess }) {
     setLoading(true);
     try {
       const user = await logIn(loginData.username, loginData.password);
-      // Push notifications are set up after login (Layout re-syncs the subscription;
-      // asking for permission needs a tap, see NotificationPrompt / Settings).
-      connectWebSocket();
-      onLoginSuccess(user);
+      // Accounts from before recovery codes get one now.
+      if (!user.hasRecoveryCode) {
+        setMode({ user, recoveryCode: generateRecoveryCode(), password: loginData.password });
+        return;
+      }
+      enterApp(user);
     } catch (err) {
       setError(err.message);
       console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
+  }
+
+  function enterApp(user) {
+    // Push notifications are set up after login (Layout re-syncs the subscription;
+    // asking for permission needs a tap, see NotificationPrompt / Settings).
+    connectWebSocket();
+    onLoginSuccess(user);
   }
 
   async function handleRegister(e) {
@@ -61,9 +73,7 @@ export default function Login({ onLoginSuccess }) {
     }
     setLoading(true);
     try {
-      const user = await recoverAccount(recoverData.username, recoverData.code, recoverData.password);
-      connectWebSocket();
-      onLoginSuccess(user);
+      enterApp(await recoverAccount(recoverData.username, recoverData.code, recoverData.password));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -71,8 +81,11 @@ export default function Login({ onLoginSuccess }) {
     }
   }
 
-  function finishRegistration() {
-    if (mode.user) onLoginSuccess(mode.user);
+  async function finishRecoveryCode() {
+    if (mode.password) {
+      await saveRecoveryCode(mode.user.username, mode.password, mode.recoveryCode);
+      enterApp({ ...mode.user, hasRecoveryCode: true });
+    } else if (mode.user) onLoginSuccess(mode.user);
     else {
       alert('Registered! You can now log in.');
       switchTo('login');
@@ -84,7 +97,13 @@ export default function Login({ onLoginSuccess }) {
       <div className="login-page">
         <div className="form-container">
           <h3 className="login-header text-center mb-3">Save your recovery code</h3>
-          <RecoveryCodeDisplay code={mode.recoveryCode} username={registerData.username} onDone={finishRegistration} />
+          <RecoveryCodeDisplay
+            code={mode.recoveryCode}
+            username={mode.user?.username ?? registerData.username}
+            intro={mode.password && "Your account doesn't have a recovery code yet, so here's one."}
+            onDone={finishRecoveryCode}
+            onSkip={mode.password ? () => enterApp(mode.user) : undefined}
+          />
         </div>
       </div>
     );

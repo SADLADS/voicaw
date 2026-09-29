@@ -164,13 +164,22 @@ export async function changePassword(username, currentPassword, newPassword) {
   await post('/change-password', { ...proof, ...fields });
 }
 
-// Logged in: makes a new recovery code (the old one stops working). Resolves to the code.
-export async function createRecoveryCode(username, password) {
+// Logged in: stores `code` as the account's recovery code (any old one stops working).
+export async function saveRecoveryCode(username, password, code) {
   const { proof, keys } = await unlockWithPassword(username, password);
-  const code = generateRecoveryCode();
   await send('put', '/recovery-code', { ...proof, ...(await recoveryFields(code, keys)) });
+}
+
+// Logged in: makes and stores a new recovery code. Resolves to the code.
+export async function createRecoveryCode(username, password) {
+  const code = generateRecoveryCode();
+  await saveRecoveryCode(username, password, code);
   return code;
 }
+
+// A new code, not stored yet (see saveRecoveryCode): after logging in to an account that has
+// none, it's shown first and only saved once the user says they've kept it.
+export { generateRecoveryCode };
 
 // Logged out, password forgotten: sets a new password with the recovery code and logs in.
 // Resolves to the user, like logIn. The recovery code keeps working.

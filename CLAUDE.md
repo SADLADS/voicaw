@@ -97,7 +97,7 @@ node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permission
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
-node e2e/recovery.mjs [dir] # change password, recovery code reset, new code (old one refused)
+node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
 For voice, `serve.mjs` also runs its own LiveKit (the binary at `LIVEKIT_BIN`, default
@@ -241,8 +241,11 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   (unknown user, no code and wrong code all get the same 401), the client opens it, checks the
   published public keys, registers the new password and sends `POST /api/recover/finish` (auth
   again, new record + backup), which logs in. The code keeps working. Rate limited per IP and
-  username. `hasRecoveryCode` comes with login/profile; accounts without one get `RecoveryPrompt`
-  (dismissible banner in the DM view). Without a code, a forgotten password means the history
+  username. The code is generated on the device. `hasRecoveryCode` comes with login/profile.
+  Logging in to an account without one (made before codes existed) shows a new code first and
+  stores it (`saveRecoveryCode`, a second login proof with the password just typed) only once the
+  user confirms they've kept it; closing the page stores nothing, so the next login asks again.
+  Sessions restored without a login get `RecoveryPrompt` (dismissible banner in the DM view). Without a code, a forgotten password means the history
   is lost, by design.
 - **On the device** (`keyStore.js`): non-extractable private `CryptoKey`s plus the user's *own*
   public keys (from the backup, never from the server) in IndexedDB. `clearUserKeys` runs on

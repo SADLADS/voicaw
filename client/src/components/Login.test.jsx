@@ -12,7 +12,7 @@ vi.mock('@serenity-kit/opaque', () => ({
 }));
 
 vi.mock('../utils/api', () => ({
-  default: { post: vi.fn() },
+  default: { post: vi.fn(), get: vi.fn(), put: vi.fn() },
 }));
 
 vi.mock('../services/encryptionService', () => ({
@@ -87,7 +87,7 @@ describe('Login - login form', () => {
   });
 
   it('opens the key backup with the OPAQUE exportKey, stores the keys, and logs in', async () => {
-    mockLoginExchange({ token: 'jwt123', id: 5, username: 'alice', keyBackup: 'BACKUP', ...PUBLIC });
+    mockLoginExchange({ token: 'jwt123', id: 5, username: 'alice', keyBackup: 'BACKUP', hasRecoveryCode: true, ...PUBLIC });
     unwrapKeyBackup.mockResolvedValue(KEYS);
 
     const { loginForm, container, onLoginSuccess } = renderLogin();
@@ -99,7 +99,7 @@ describe('Login - login form', () => {
     expect(storeUserKeys).toHaveBeenCalledWith(5, KEYS);
     expect(localStorage.getItem('token')).toBe('jwt123');
     expect(connectWebSocket).toHaveBeenCalled();
-    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: false });
+    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true });
     // The client's OPAQUE login state is its secret: it must never be sent to the server.
     expect(api.post).toHaveBeenCalledWith('/initiatelogin', { startLoginRequest: 'SLR', userIdentifier: 'alice' });
     for (const [, body] of api.post.mock.calls) expect(body).not.toHaveProperty('clientLoginState');
@@ -155,6 +155,49 @@ describe('Login - login form', () => {
     fireEvent.submit(loginForm);
 
     expect(await screen.findByText('Too many attempts. Try again in 15 minutes.')).toBeInTheDocument();
+  });
+});
+
+describe('Login - account without a recovery code', () => {
+  async function logInWithoutCode() {
+    mockLoginExchange({ token: 'jwt123', id: 5, username: 'alice', keyBackup: 'BACKUP', hasRecoveryCode: false, ...PUBLIC });
+    unwrapKeyBackup.mockResolvedValue(KEYS);
+    api.get.mockResolvedValue({ data: { keyBackup: 'BACKUP' } });
+    const utils = renderLogin();
+    fillLogin(utils.container, 'alice', 'hunter2-hunter2');
+    fireEvent.submit(utils.loginForm);
+    expect(await screen.findByLabelText('Recovery code')).toHaveTextContent('AAAAA-BBBBB-CCCCC-DDDDD-EEEEE');
+    expect(screen.getByText(/doesn't have a recovery code yet/)).toBeInTheDocument();
+    return utils;
+  }
+
+  it('shows a new code first and stores it only once the user continues', async () => {
+    const { onLoginSuccess } = await logInWithoutCode();
+    expect(api.put).not.toHaveBeenCalled();
+    expect(onLoginSuccess).not.toHaveBeenCalled();
+
+    api.put.mockResolvedValue({ data: { ok: true } });
+    fireEvent.click(screen.getByLabelText("I've saved my recovery code"));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true }));
+
+    // Stored with a fresh proof of the password, from the keys opened on this device.
+    expect(api.put).toHaveBeenCalledWith('/recovery-code', {
+      finishLoginRequest: 'FLR', clientSessionKey: 'SK', recoveryVerifier: 'REC-VERIFIER', recoveryBackup: 'REC-BACKUP',
+    });
+    expect(api.post.mock.calls.filter(([url]) => url === '/initiatelogin')).toHaveLength(2);
+    expect(connectWebSocket).toHaveBeenCalled();
+  });
+
+  it('can skip if storing the code fails, and is asked again next time', async () => {
+    const { onLoginSuccess } = await logInWithoutCode();
+    api.put.mockRejectedValue(Object.assign(new Error('429'), { response: { data: { error: 'Too many attempts.' } } }));
+    fireEvent.click(screen.getByLabelText("I've saved my recovery code"));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(await screen.findByText(/Too many attempts\./)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
+    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: false });
   });
 });
 
