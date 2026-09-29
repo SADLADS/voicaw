@@ -2,7 +2,8 @@ const express = require('express');
 const db = require('../db');
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets } = require('../sockets');
-const { getUploadUrl, deleteObject } = require('../s3');
+const { getUploadUrl, getObject, putObject, deleteObject } = require('../s3');
+const { shrinkEmoji, EmojiImageError, MAX_EMOJI_UPLOAD_BYTES } = require('../emojiImage');
 const { PERMISSIONS, has } = require('../permissions');
 const { getMember, getMemberIds } = require('../guilds');
 
@@ -11,14 +12,15 @@ const { getMember, getMemberIds } = require('../guilds');
 //
 // Emoji are plain images (not encrypted), stored as emojis/<id> in the public "emojis" bucket
 // and written `<:name:id>` in messages, so showing one needs nothing but its id. Adding one
-// takes two steps: POST creates it (not yet available) and returns a pre-signed upload URL;
-// once the upload is done, POST .../ready makes it available. Members of any of your guilds'
+// takes two steps: POST creates it (not yet available) and returns a pre-signed URL for the
+// original (up to 10 MB, to emojis/src/<id>); once that's uploaded, POST .../ready has the
+// server shrink it (emojiImage.js: 128×128 WebP, animation kept), store it as emojis/<id>,
+// delete the original, and make the emoji available. Members of any of your guilds'
 // emoji can use them anywhere (in DMs too); managing them needs Manage Emoji.
 const router = express.Router();
 
 const MAX_EMOJIS_PER_GUILD = 50;
-const MAX_EMOJI_BYTES = 256 * 1024;
-const EMOJI_TYPES = new Set(['image/png', 'image/gif', 'image/webp', 'image/jpeg']);
+const EMOJI_TYPES = new Set(['image/png', 'image/gif', 'image/webp', 'image/jpeg', 'image/avif']);
 const EMOJI_NAME = /^[A-Za-z0-9_]{2,32}$/;
 // An upload that never finished stops counting after this long.
 const PENDING_TTL_SECONDS = 60 * 60;
@@ -94,15 +96,21 @@ router.post('/guilds/:guildId/emojis', manage, async (req, res) => {
   if (typeof name !== 'string' || !EMOJI_NAME.test(name)) {
     return res.status(400).json({ error: 'Emoji names are 2–32 letters, numbers or underscores' });
   }
-  if (!EMOJI_TYPES.has(type)) return res.status(400).json({ error: 'Emoji must be PNG, GIF, WebP or JPEG images' });
+  if (!EMOJI_TYPES.has(type)) return res.status(400).json({ error: 'Emoji must be PNG, GIF, WebP, JPEG or AVIF images' });
   if (!Number.isInteger(size) || size <= 0) return res.status(400).json({ error: 'Missing or invalid size' });
-  if (size > MAX_EMOJI_BYTES) return res.status(413).json({ error: `Emoji must be under ${MAX_EMOJI_BYTES / 1024} KB` });
+  if (size > MAX_EMOJI_UPLOAD_BYTES) {
+    return res.status(413).json({ error: `Emoji images must be under ${MAX_EMOJI_UPLOAD_BYTES / 1024 / 1024} MB` });
+  }
 
-  // Uploads that were never finished are forgotten.
-  await db.run(
-    `DELETE FROM guild_emojis WHERE guild_id = ? AND available = 0 AND created_at < strftime('%s','now') - ?`,
+  // Uploads that were never finished are forgotten (with any original left behind).
+  const stale = await db.all(
+    `SELECT id FROM guild_emojis WHERE guild_id = ? AND available = 0 AND created_at < strftime('%s','now') - ?`,
     [req.guild.id, PENDING_TTL_SECONDS]
   );
+  for (const { id } of stale) {
+    await db.run('DELETE FROM guild_emojis WHERE id = ?', [id]);
+    await deleteObject('emojis', `src/${id}`);
+  }
   const { count } = await db.get('SELECT COUNT(*) AS count FROM guild_emojis WHERE guild_id = ?', [req.guild.id]);
   if (count >= MAX_EMOJIS_PER_GUILD) {
     return res.status(400).json({ error: `A server can have at most ${MAX_EMOJIS_PER_GUILD} emoji` });
@@ -116,7 +124,7 @@ router.post('/guilds/:guildId/emojis', manage, async (req, res) => {
     [req.guild.id, name, type === 'image/gif' ? 1 : 0, req.user.id]
   );
   try {
-    const uploadUrl = await getUploadUrl(String(lastID), 'emojis', type, size);
+    const uploadUrl = await getUploadUrl(`src/${lastID}`, 'emojis', type, size);
     res.status(201).json({ emoji: { id: lastID, guild_id: req.guild.id, name, animated: type === 'image/gif' ? 1 : 0 }, uploadUrl });
   } catch (err) {
     console.error(err);
@@ -125,13 +133,37 @@ router.post('/guilds/:guildId/emojis', manage, async (req, res) => {
   }
 });
 
-// The upload finished: the emoji becomes available to everyone.
+// The original is uploaded: shrink it into the emoji and make that available to everyone. If
+// it's not a usable image, the emoji is dropped (400 with the reason).
 router.post('/guilds/:guildId/emojis/:emojiId/ready', manage, async (req, res) => {
   const emoji = await findEmoji(req);
   if (!emoji) return res.status(404).json({ error: 'Emoji not found' });
-  await db.run('UPDATE guild_emojis SET available = 1 WHERE id = ?', [emoji.id]);
+  if (emoji.available) return res.json({ id: emoji.id, guild_id: emoji.guild_id, name: emoji.name, animated: emoji.animated });
+
+  const source = `src/${emoji.id}`;
+  let original;
+  try {
+    original = await getObject('emojis', source);
+  } catch (err) {
+    console.error('Emoji original missing:', err.code || err.name);
+    return res.status(400).json({ error: "The image wasn't uploaded. Try again." });
+  }
+
+  let image;
+  try {
+    image = await shrinkEmoji(original);
+  } catch (err) {
+    await db.run('DELETE FROM guild_emojis WHERE id = ?', [emoji.id]);
+    await deleteObject('emojis', source);
+    if (err instanceof EmojiImageError) return res.status(400).json({ error: err.message });
+    throw err;
+  }
+
+  await putObject('emojis', String(emoji.id), image.buffer, image.contentType);
+  await deleteObject('emojis', source);
+  await db.run('UPDATE guild_emojis SET available = 1, animated = ? WHERE id = ?', [image.animated ? 1 : 0, emoji.id]);
   await announceEmojis(req.guild.id);
-  res.json({ id: emoji.id, guild_id: emoji.guild_id, name: emoji.name, animated: emoji.animated });
+  res.json({ id: emoji.id, guild_id: emoji.guild_id, name: emoji.name, animated: image.animated ? 1 : 0 });
 });
 
 // Rename. (Messages keep the old name in their `<:name:id>`; the image follows the id.)

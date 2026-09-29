@@ -7,16 +7,17 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { launchChrome, signUp, openChat, devices, fakeObjectStore, BASE } from './helpers.mjs';
+import { launchChrome, signUp, openChat, devices, BASE } from './helpers.mjs';
 
 const shots = process.argv[2];
 const shot = async (page, name) => {
   if (shots) await page.screenshot({ path: `${shots}/${name}.png` });
 };
 
-// A 64×64 PNG of a coloured disc.
-function discPng(file, [r, g, b]) {
-  const size = 64;
+// A PNG of a coloured disc, `size` pixels square (`noisy`: speckled, so it doesn't compress).
+function discPng(file, [r, g, b], size = 64, noisy = false) {
+  const middle = (size - 1) / 2;
+  const radius = size / 2 - 2;
   const crcTable = Array.from({ length: 256 }, (_, n) => {
     let c = n;
     for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
@@ -39,8 +40,9 @@ function discPng(file, [r, g, b]) {
   for (let y = 0; y < size; y++) {
     const row = [0];
     for (let x = 0; x < size; x++) {
-      const inside = (x - 31.5) ** 2 + (y - 31.5) ** 2 <= 30 ** 2;
-      row.push(...(inside ? [r, g, b, 255] : [0, 0, 0, 0]));
+      const inside = (x - middle) ** 2 + (y - middle) ** 2 <= radius ** 2;
+      const n = noisy ? Math.floor(Math.random() * 60) : 0;
+      row.push(...(inside ? [Math.max(0, r - n), Math.max(0, g - n), Math.max(0, b - n), 255] : [0, 0, 0, 0]));
     }
     rows.push(Buffer.from(row));
   }
@@ -105,8 +107,6 @@ try {
   const bob = await signUp(browser, 'bob');
   const a = alice.page;
   const b = bob.page;
-  await fakeObjectStore(a.context());
-  await fakeObjectStore(b.context());
 
   const alpha = await createGuild(a, 'Alpha Server');
   const alphaLink = await inviteLink(a);
@@ -115,8 +115,17 @@ try {
   await join(b, alphaLink);
   await join(b, betaLink);
 
-  // Emoji: two in Beta, one in Alpha.
-  await uploadEmoji(a, beta, [discPng(path.join(dir, 'blob.png'), [80, 160, 255]), discPng(path.join(dir, 'wave_hi.png'), [240, 90, 120])]);
+  // Emoji: two in Beta (one a big 1200×1200 image, which the server shrinks), one in Alpha.
+  const bigFile = discPng(path.join(dir, 'blob.png'), [80, 160, 255], 1200, true);
+  console.log(`uploading a ${(fs.statSync(bigFile).size / 1024 / 1024).toFixed(1)} MB, 1200×1200 image`);
+  await uploadEmoji(a, beta, [bigFile, discPng(path.join(dir, 'wave_hi.png'), [240, 90, 120])]);
+  await a.waitForFunction(() => {
+    const img = document.querySelector('.emoji-settings-row img[alt=":blob:"]');
+    return img?.complete && img.naturalWidth > 0;
+  });
+  const served = await a.$eval('.emoji-settings-row img[alt=":blob:"]', (img) => `${img.naturalWidth}×${img.naturalHeight}`);
+  console.log('served as', served);
+  if (served !== '128×128') throw new Error(`expected the emoji shrunk to 128×128, got ${served}`);
   await shot(a, 'emoji-settings');
   await a.keyboard.press('Escape');
   await uploadEmoji(a, alpha, [discPng(path.join(dir, 'alpha_star.png'), [250, 200, 40])]);
@@ -197,7 +206,6 @@ try {
   // A phone: hold a server, then drag it.
   const carol = await signUp(browser, 'carol', devices['Pixel 7']);
   const c = carol.page;
-  await fakeObjectStore(c.context());
   await join(c, alphaLink);
   await join(c, betaLink);
   await c.evaluate(() => document.querySelector('.main-wrapper').scrollTo({ left: 0, behavior: 'instant' }));

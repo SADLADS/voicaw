@@ -45,23 +45,3 @@ export async function send(page, text) {
   await page.keyboard.press('Enter');
 }
 
-// Stands in for the object store (the throwaway API has none) in a browser context: uploads
-// to it are kept (for all contexts of this script) and served back, so uploaded images such
-// as custom emoji show. Call it for each user's page.context().
-const objects = new Map();
-export async function fakeObjectStore(context) {
-  await context.route('http://localhost:1/**', async (route) => {
-    const request = route.request();
-    const key = new URL(request.url()).pathname;
-    if (request.method() === 'PUT') {
-      objects.set(key, { body: request.postDataBuffer(), contentType: request.headers()['content-type'] });
-      return route.fulfill({ status: 200, body: '' });
-    }
-    if (request.method() === 'HEAD' || request.method() === 'GET') {
-      const object = objects.get(key);
-      if (!object) return route.fulfill({ status: 404, body: '' });
-      return route.fulfill({ status: 200, contentType: object.contentType, body: object.body });
-    }
-    return route.fulfill({ status: 405, body: '' });
-  });
-}

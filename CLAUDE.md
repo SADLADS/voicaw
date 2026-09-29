@@ -81,11 +81,11 @@ app with an in-memory SQLite DB:
 ### Browser checks (real Chrome, throwaway server)
 
 Unit tests can't see layout, scrolling, focus, touch or the editor. For those, `e2e/` runs the
-real app against a throwaway API (in-memory database, fresh secrets, rate limits off, no object
-store, so uploads fail) and drives it with Playwright (`playwright-core`, using the system Chrome
+real app against a throwaway API (in-memory database, fresh secrets, rate limits off, and a
+stand-in object store in memory, so uploads, profile pictures and emoji work) and drives it with Playwright (`playwright-core`, using the system Chrome
 at `/usr/bin/google-chrome`, headless):
 ```
-node e2e/serve.mjs &     # web http://localhost:5199, API :3099; E2E_WEB_PORT / E2E_API_PORT
+node e2e/serve.mjs &     # web :5199, API :3099, object store :3100; E2E_WEB/API/S3_PORT
 node e2e/smoke.mjs       # two users, one message delivered live; an example to copy
 node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots into dir
 node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permissions
@@ -96,9 +96,9 @@ Scripts need the same `E2E_WEB_PORT` as `serve.mjs` when not using the default.
 Never use ports 5173 or 3002 (the live test site and API); `serve.mjs` refuses them. Kill test
 processes by PID, never `pkill -f` with a pattern that's in your own command line (it kills your
 shell). `e2e/helpers.mjs` has `signUp` (registers a user in its own browser context, unique
-name), `openChat`, `send`, `launchChrome`, `devices` (e.g. `devices['Pixel 7']` for a phone), and
-`fakeObjectStore(context)`, which stands in for the missing object store in a browser context
-(uploads are kept and served back, so uploaded images show).
+name), `openChat`, `send`, `launchChrome`, and `devices` (e.g. `devices['Pixel 7']` for a phone).
+Vite re-optimises its dependencies (and reloads the page) on its first start after the lockfile
+changes; if the first check fails that way, run it again.
 The message box is a contenteditable: `page.fill('#dm-input', …)` and `page.keyboard.type` work.
 Tips:
 - Headless Chrome hides scrollbars in screenshots; launch with
@@ -367,10 +367,13 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   (DMs too, inside the encryption). Rendering only needs the id (`emoji/customEmoji.js`
   `customEmojiUrl`), so it never waits for a list; a deleted one's image is removed and it shows
   as `:name:`. Adding is two steps: `POST /guilds/:id/emojis {name, type, size}` makes an
-  unavailable row and returns a signed upload URL; after the upload, `POST .../ready` makes it
-  available and sends `guild_emojis_update`. Unfinished uploads stop counting after an hour.
-  Limits: 50 per guild, 256 KB, PNG/GIF/WebP/JPEG, names 2–32 of `[A-Za-z0-9_]`, unique per
-  guild. Manage Emoji (`MANAGE_EMOJIS`) adds, renames and deletes; members of a guild can use
+  unavailable row and returns a signed URL for the original (`emojis/src/<id>`, up to 10 MB);
+  after the upload, `POST .../ready` has the server shrink it (`server/emojiImage.js`, `sharp`:
+  at most 128×128, never enlarged, WebP; animated GIF/WebP stay animated; limits on pixels and
+  frames so a small file can't decode into something huge), store it as `emojis/<id>`, delete
+  the original and send `guild_emojis_update`. Not an image: the emoji is dropped (400).
+  Unfinished uploads (and their originals) are cleared after an hour. Limits: 50 per guild,
+  PNG/GIF/WebP/JPEG/AVIF, names 2–32 of `[A-Za-z0-9_]`, unique per guild. Manage Emoji (`MANAGE_EMOJIS`) adds, renames and deletes; members of a guild can use
   its emoji anywhere. The client keeps them in `useGuildList` (`emojis`), and `Layout` provides
   `CustomEmojiContext` (`emoji/customEmojiContext.js`: by guild in rail order, and by id).
 - **Not done yet:** drag-and-drop reordering of channels (the API exists; roles and servers can

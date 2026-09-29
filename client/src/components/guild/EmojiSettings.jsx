@@ -7,8 +7,9 @@ import { customEmojiUrl } from '../../emoji/customEmoji';
 import { emojiNameFromFile, errorMessage } from '../../utils/guildDisplay';
 
 const MAX_EMOJIS = 50;
-const MAX_BYTES = 256 * 1024;
-const TYPES = ['image/png', 'image/gif', 'image/webp', 'image/jpeg'];
+// The server shrinks what's uploaded (to 128×128), so the original can be big.
+const MAX_BYTES = 10 * 1024 * 1024;
+const TYPES = ['image/png', 'image/gif', 'image/webp', 'image/jpeg', 'image/avif'];
 
 function EmojiRow({ guild, emoji, s3Endpoint, onError }) {
   const [name, setName] = useState(emoji.name);
@@ -86,11 +87,11 @@ export default function EmojiSettings({ guild }) {
     setError(null);
     for (const file of files) {
       if (!TYPES.includes(file.type)) {
-        setError(`${file.name}: emoji must be PNG, GIF, WebP or JPEG images.`);
+        setError(`${file.name}: emoji must be PNG, GIF, WebP, JPEG or AVIF images.`);
         continue;
       }
       if (file.size > MAX_BYTES) {
-        setError(`${file.name} is over 256 KB.`);
+        setError(`${file.name} is over 10 MB.`);
         continue;
       }
       setUploading((n) => n + 1);
@@ -108,8 +109,9 @@ export default function EmojiSettings({ guild }) {
   return (
     <div className="emoji-settings">
       <p className="vc-hint">
-        Add up to {MAX_EMOJIS} custom emoji anyone in the server can use. PNG, GIF, WebP or JPEG, under 256 KB;
-        names are letters, numbers and underscores. 128×128 looks best.
+        Add up to {MAX_EMOJIS} custom emoji anyone in the server can use. PNG, GIF, WebP, JPEG or AVIF up to
+        10 MB; they're shrunk to 128×128, and animated ones stay animated. Names are letters, numbers and
+        underscores.
       </p>
       <div className="vc-form-row">
         <button

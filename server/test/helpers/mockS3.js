@@ -11,6 +11,11 @@ const s3Path = require.resolve('../../s3.js');
 export const signedUploads = [];
 // Every object the server deleted.
 export const deletedObjects = [];
+// The store's contents, by "bucket/key" ({ body, contentType }). Tests put uploads here.
+export const objects = new Map();
+export function putMockObject(bucket, key, body, contentType = 'application/octet-stream') {
+  objects.set(`${bucket}/${key}`, { body, contentType });
+}
 
 require.cache[s3Path] = {
   id: s3Path,
@@ -24,6 +29,15 @@ require.cache[s3Path] = {
     },
     deleteObject: async (bucket, key) => {
       deletedObjects.push({ bucket, key });
+      objects.delete(`${bucket}/${key}`);
+    },
+    getObject: async (bucket, key) => {
+      const object = objects.get(`${bucket}/${key}`);
+      if (!object) throw Object.assign(new Error('NoSuchKey'), { name: 'NoSuchKey' });
+      return object.body;
+    },
+    putObject: async (bucket, key, body, contentType) => {
+      objects.set(`${bucket}/${key}`, { body, contentType });
     },
   },
 };

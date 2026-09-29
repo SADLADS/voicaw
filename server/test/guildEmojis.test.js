@@ -2,7 +2,15 @@ import './helpers/mockS3.js';
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { registerUser, loginUser } from './helpers/authFlow.js';
-import { signedUploads, deletedObjects } from './helpers/mockS3.js';
+import { signedUploads, deletedObjects, objects, putMockObject } from './helpers/mockS3.js';
+import sharp from 'sharp';
+
+const png = (width, height, color = '#ff0066') =>
+  sharp({ create: { width, height, channels: 4, background: color } }).png().toBuffer();
+async function animatedGif(size = 200) {
+  const frames = await Promise.all(['#f00', '#0f0', '#00f'].map((c) => png(size, size, c)));
+  return sharp(frames, { join: { animated: true } }).gif({ delay: [80, 80, 80] }).toBuffer();
+}
 
 const app = require('../index.js');
 const { PERMISSIONS: P } = require('../permissions.js');
@@ -49,6 +57,7 @@ async function guildWith(owner, name, ...members) {
 async function addEmoji(user, guildId, name, type = 'image/png') {
   const created = await api.post(user, `/guilds/${guildId}/emojis`, { name, type, size: 1000 });
   expect(created.status).toBe(201);
+  putMockObject('emojis', `src/${created.body.emoji.id}`, await png(64, 64), type);
   const ready = await api.post(user, `/guilds/${guildId}/emojis/${created.body.emoji.id}/ready`);
   expect(ready.status).toBe(200);
   return ready.body;
@@ -64,7 +73,9 @@ describe('custom emoji', () => {
     expect(created.status).toBe(201);
     expect(created.body.emoji).toMatchObject({ name: 'party_blob', animated: 1, guild_id: guild.id });
     expect(created.body.uploadUrl).toContain('/emojis/');
-    expect(signedUploads.at(-1)).toEqual({ filename: String(created.body.emoji.id), bucket: 'emojis', contentType: 'image/gif', contentLength: 5000 });
+    // The original goes to emojis/src/<id>.
+    expect(signedUploads.at(-1)).toEqual({ filename: `src/${created.body.emoji.id}`, bucket: 'emojis', contentType: 'image/gif', contentLength: 5000 });
+    putMockObject('emojis', `src/${created.body.emoji.id}`, await animatedGif(), 'image/gif');
 
     // Not offered until the upload is done.
     expect((await api.get(member, '/emojis')).body).toEqual([]);
@@ -86,11 +97,12 @@ describe('custom emoji', () => {
     expect((await create({ name: 'has space' })).status).toBe(400);
     expect((await create({ name: 'x'.repeat(33) })).status).toBe(400);
     expect((await create({ type: 'image/svg+xml' })).status).toBe(400);
-    expect((await create({ size: 256 * 1024 + 1 })).status).toBe(413);
+    expect((await create({ size: 10 * 1024 * 1024 + 1 })).status).toBe(413);
+    expect((await create({ name: 'big_one', size: 10 * 1024 * 1024 })).status).toBe(201);
     await addEmoji(owner, guild.id, 'taken');
     expect((await create({ name: 'taken' })).status).toBe(409);
 
-    for (let i = 1; i < 50; i++) await create({ name: `e${i}` });
+    for (let i = 2; i < 50; i++) await create({ name: `e${i}` });
     const full = await create({ name: 'one_more' });
     expect(full.status).toBe(400);
     expect(full.body.error).toMatch(/at most 50/);
@@ -147,6 +159,66 @@ describe('custom emoji', () => {
 
     await api.put(alice, '/guilds-order', { guildIds: [two.id, one.id] });
     expect((await api.get(alice, '/emojis')).body.map((e) => e.name)).toEqual(['from_two', 'from_one']);
+  });
+});
+
+describe('emoji images', () => {
+  async function upload(owner, guildId, name, body, type) {
+    const created = await api.post(owner, `/guilds/${guildId}/emojis`, { name, type, size: body.length });
+    expect(created.status).toBe(201);
+    const { id } = created.body.emoji;
+    putMockObject('emojis', `src/${id}`, body, type);
+    return { id, ready: await api.post(owner, `/guilds/${guildId}/emojis/${id}/ready`) };
+  }
+
+  it('shrinks a big image to 128×128 WebP and drops the original', async () => {
+    const owner = await makeUser();
+    const guild = await guildWith(owner, 'Big');
+    const { id, ready } = await upload(owner, guild.id, 'huge', await png(1200, 800), 'image/png');
+    expect(ready.status).toBe(200);
+    expect(ready.body).toMatchObject({ name: 'huge', animated: 0 });
+
+    const stored = objects.get(`emojis/${id}`);
+    expect(stored.contentType).toBe('image/webp');
+    const meta = await sharp(stored.body).metadata();
+    expect([meta.format, meta.width, meta.height]).toEqual(['webp', 128, 85]);
+    expect(objects.has(`emojis/src/${id}`)).toBe(false);
+  });
+
+  it('keeps animations animated, and small images their size', async () => {
+    const owner = await makeUser();
+    const guild = await guildWith(owner, 'Anim');
+    const gif = await upload(owner, guild.id, 'spinner', await animatedGif(300), 'image/gif');
+    expect(gif.ready.body.animated).toBe(1);
+    const meta = await sharp(objects.get(`emojis/${gif.id}`).body, { animated: true }).metadata();
+    expect([meta.format, meta.width, meta.pageHeight, meta.pages]).toEqual(['webp', 128, 128, 3]);
+
+    const tiny = await upload(owner, guild.id, 'tiny', await png(32, 24), 'image/png');
+    const tinyMeta = await sharp(objects.get(`emojis/${tiny.id}`).body).metadata();
+    expect([tinyMeta.width, tinyMeta.height]).toEqual([32, 24]);
+    expect((await api.get(owner, '/emojis')).body.map((e) => [e.name, e.animated])).toEqual([['spinner', 1], ['tiny', 0]]);
+  });
+
+  it('refuses files that are not images, and forgets them', async () => {
+    const owner = await makeUser();
+    const guild = await guildWith(owner, 'Junk');
+    const { id, ready } = await upload(owner, guild.id, 'junk', Buffer.from('definitely not a picture'), 'image/png');
+    expect(ready.status).toBe(400);
+    expect(ready.body.error).toMatch(/isn't an image/);
+    expect(objects.has(`emojis/src/${id}`)).toBe(false);
+    expect((await api.get(owner, `/guilds/${guild.id}/emojis`)).body).toEqual([]);
+    // The name is free again.
+    expect((await upload(owner, guild.id, 'junk', await png(10, 10), 'image/png')).ready.status).toBe(200);
+  });
+
+  it('says so if the upload never arrived, keeping the emoji to retry', async () => {
+    const owner = await makeUser();
+    const guild = await guildWith(owner, 'Missing');
+    const created = await api.post(owner, `/guilds/${guild.id}/emojis`, { name: 'ghost', type: 'image/png', size: 10 });
+    const ready = await api.post(owner, `/guilds/${guild.id}/emojis/${created.body.emoji.id}/ready`);
+    expect(ready.status).toBe(400);
+    putMockObject('emojis', `src/${created.body.emoji.id}`, await png(20, 20), 'image/png');
+    expect((await api.post(owner, `/guilds/${guild.id}/emojis/${created.body.emoji.id}/ready`)).status).toBe(200);
   });
 });
 

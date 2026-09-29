@@ -1,5 +1,6 @@
 // Starts a throwaway API and a client dev server for browser checks:
-//   node e2e/serve.mjs            (web on :5199, API on :3099; E2E_WEB_PORT / E2E_API_PORT)
+//   node e2e/serve.mjs            (web on :5199, API on :3099, object store on :3100;
+//                                  E2E_WEB_PORT / E2E_API_PORT / E2E_S3_PORT)
 // Ctrl+C (or killing this process) stops both. Never use 5173 or 3002: those are the live
 // test site and API.
 import { spawn } from 'child_process';
@@ -8,7 +9,8 @@ import { fileURLToPath } from 'url';
 
 const webPort = process.env.E2E_WEB_PORT || '5199';
 const apiPort = process.env.E2E_API_PORT || '3099';
-if (['5173', '3002'].includes(webPort) || ['5173', '3002'].includes(apiPort)) {
+const s3Port = process.env.E2E_S3_PORT || String(Number(apiPort) + 1);
+if ([webPort, apiPort, s3Port].some((port) => ['5173', '3002'].includes(port))) {
   console.error('5173 and 3002 are the live test site and API; pick other ports.');
   process.exit(1);
 }
@@ -17,6 +19,7 @@ const env = {
   ...process.env,
   E2E_WEB_PORT: webPort,
   E2E_API_PORT: apiPort,
+  E2E_S3_PORT: s3Port,
   VITE_API_BASE_URL: '/api/',
   VITE_WS_URL: `ws://localhost:${webPort}/ws`,
 };
@@ -38,4 +41,4 @@ children.forEach((c) => c.on('exit', (code) => {
   console.error(`e2e: a server exited (${code}); stopping.`);
   stop();
 }));
-console.log(`e2e: http://localhost:${webPort} (API :${apiPort})`);
+console.log(`e2e: http://localhost:${webPort} (API :${apiPort}, object store :${s3Port})`);

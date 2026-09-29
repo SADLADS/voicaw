@@ -142,8 +142,8 @@ router.delete('/guilds/:guildId', owner, async (req, res) => {
   const memberIds = await getMemberIds(guildId);
 
   await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);
-  const emojis = await db.all('SELECT id FROM guild_emojis WHERE guild_id = ?', [guildId]);
-  for (const { id } of emojis) await deleteObject('emojis', String(id));
+  const emojis = await db.all('SELECT id, available FROM guild_emojis WHERE guild_id = ?', [guildId]);
+  for (const { id, available } of emojis) await deleteObject('emojis', available ? String(id) : `src/${id}`);
   for (const table of [
     'guild_emojis',
     'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',
