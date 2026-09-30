@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from 'react';
+import { userLocale } from './locale';
 
 // How dates and times are shown, chosen per device in Settings → Date & time (localStorage
 // `dateFormat`). Every date or time the app shows goes through here.
-// - date: 'auto' (the browser's language), 'dmy' (30/09/2026), 'mdy' (09/30/2026), 'ymd' (2026-09-30)
+// - date: 'auto' (the browser's language, else British), 'dmy' (30/09/2026), 'mdy' (09/30/2026), 'ymd' (2026-09-30)
 // - time: 'auto', '12' (4:37 PM), '24' (16:37)
 // Components read them with useDateFormat(), so they redraw when the choice changes.
 
@@ -56,7 +57,7 @@ export function formatDate(value, { date = settings.date } = {}) {
     case 'dmy': return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
     case 'mdy': return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()}`;
     case 'ymd': return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    default: return d.toLocaleDateString();
+    default: return d.toLocaleDateString(userLocale());
   }
 }
 
@@ -68,7 +69,7 @@ export function formatTime(value, { seconds = false, time = settings.time } = {}
     options.hourCycle = 'h23';
     options.hour = '2-digit';
   }
-  return toDate(value).toLocaleTimeString([], options);
+  return toDate(value).toLocaleTimeString(userLocale(), options);
 }
 
 // Both: 30/09/2026, 16:37.

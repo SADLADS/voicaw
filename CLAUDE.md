@@ -981,6 +981,18 @@ their box is reserved before they load.
   `formatDateTime`; components call `useDateFormat()` so they redraw): Settings → Date & time
   picks the date format (automatic from the browser, DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD) and
   12/24-hour time, per device (`localStorage dateFormat`). Don't call `toLocaleString` directly.
+  "Automatic" (and anything else that needs the user's language) uses `utils/locale.js`
+  `userLocale()`: the browser's language, else British English (`en-GB`). The app's own text
+  is British English (`<html lang="en-GB">`).
+- Spellcheck (red underlines while typing, suggestions and "Add to dictionary" on right click)
+  is the browser's own, with its dictionaries: nothing is bundled. `utils/spellcheck.js` puts
+  the per-device choice (Settings → Spellcheck, `localStorage spellcheck`, on unless `'off'`) on
+  `<html spellcheck>`, which every text box inherits; the message editor carries
+  `lang={userLocale()}` (Firefox picks its dictionary by it; Chrome uses its own language
+  settings). The desktop app has no right-click menu of its own, so `electron/spellcheck.js`
+  adds one (suggestions, Add to dictionary, cut/copy/paste) and sets the checker to the
+  system's languages that have a dictionary, else `en-GB` (Electron downloads dictionaries on
+  first use; not on macOS, which uses the system's).
 - Text can't be selected except where it's useful (`voicaw.css`, TEXT SELECTION): inputs and
   editors everywhere, and on desktop the chat's messages, names, times, reply previews and the
   channel topic. So dragging things (channels, guilds) doesn't highlight text. On mobile a long

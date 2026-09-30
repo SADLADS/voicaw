@@ -9,6 +9,7 @@ import AppUpdateSettings from "./AppUpdateSettings";
 import AccountSecuritySettings from "./AccountSecuritySettings";
 import AdminSettings from "./AdminSettings";
 import DateTimeSettings from "./DateTimeSettings";
+import SpellcheckSettings from "./SpellcheckSettings";
 import EditProfile from "./EditProfile";
 import Avatar from "./Avatar";
 import { useAuth } from '../hooks/useAuth';
@@ -89,6 +90,11 @@ export default function Settings({ onLogout }) {
       id: 'date-time', category: 'app', title: 'Date & time',
       keywords: 'locale language date format time format 12-hour 24-hour clock am pm',
       content: <DateTimeSettings />,
+    },
+    {
+      id: 'spellcheck', category: 'app', title: 'Spellcheck',
+      keywords: 'spelling spell check typos dictionary red underline squiggles language autocorrect',
+      content: <SpellcheckSettings />,
     },
     {
       id: 'notifications', category: 'app', title: 'Notifications',

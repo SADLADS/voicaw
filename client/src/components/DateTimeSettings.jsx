@@ -27,7 +27,7 @@ export default function DateTimeSettings() {
           <option value="24">{timeLabel('24', '24-hour')}</option>
         </select>
       </div>
-      <p className="vc-hint">Messages will show: {formatDateTime(now, { date, time })}. Automatic follows your browser&apos;s language. Saved on this device.</p>
+      <p className="vc-hint">Messages will show: {formatDateTime(now, { date, time })}. Automatic follows your browser&apos;s language (British English if it has none). Saved on this device.</p>
     </div>
   );
 }

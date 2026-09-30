@@ -9,6 +9,7 @@ import 'prosemirror-view/style/prosemirror.css';
 import { OBJECT_CHAR, docToText, schema, textBeforeCaret, textToDoc, textToSlice } from './messageDoc';
 import { markdownPreview } from './markdownPreview';
 import { registerEditor } from './editorRegistry';
+import { userLocale } from '../utils/locale';
 
 
 // The message box: a small ProseMirror editor whose value is message text (see messageDoc),
@@ -84,7 +85,8 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
     const isEmpty = (state) => state.doc.childCount === 1 && state.doc.firstChild.content.size === 0;
     const emptyState = new Plugin({
       props: {
-        attributes: (state) => ({ class: `message-editor${isEmpty(state) ? ' is-empty' : ''}` }),
+        // `lang`: what's typed is in the user's language, so the browser spellchecks in it.
+        attributes: (state) => ({ class: `message-editor${isEmpty(state) ? ' is-empty' : ''}`, lang: userLocale() }),
         // The placeholder, shown on the empty first line (see dms.css).
         decorations: (state) => (isEmpty(state) && current().placeholder
           ? DecorationSet.create(state.doc, [

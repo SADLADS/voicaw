@@ -91,4 +91,15 @@ describe('Settings layout, search and date formats', () => {
     expect(JSON.parse(localStorage.getItem('dateFormat'))).toEqual({ date: 'ymd', time: '24' });
     expect(screen.getByText(/Messages will show: \d{4}-\d{2}-\d{2}, \d{2}:\d{2}\./)).toBeInTheDocument();
   });
+  it('turns spellcheck off and on for this device', () => {
+    localStorage.removeItem('spellcheck');
+    renderSettings();
+    const box = screen.getByRole('checkbox', { name: 'Check spelling as you type' });
+    expect(box).toBeChecked();
+    fireEvent.click(box);
+    expect(document.documentElement.spellcheck).toBe(false);
+    expect(localStorage.getItem('spellcheck')).toBe('off');
+    fireEvent.click(box);
+    expect(document.documentElement.spellcheck).toBe(true);
+  });
 });

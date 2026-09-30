@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { AuthProvider } from './AuthProvider.jsx';
 import { registerSW } from 'virtual:pwa-register';
 import { setUpdateAvailable, watchForUpdates, watchForStaleApp } from './utils/appUpdate';
+import { applySpellcheck } from './utils/spellcheck';
 
 
 // Import Bootstrap CSS
@@ -23,6 +24,7 @@ const updateSW = registerSW({
   },
 });
 watchForStaleApp();
+applySpellcheck();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <AuthProvider>

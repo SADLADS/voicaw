@@ -262,6 +262,11 @@ pre code {
   padding: 0.5rem
 }
 
+.settings-toggle {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
 .settings-card h5 {
   margin-bottom: 0.5rem;
   margin-top: 0.5rem;

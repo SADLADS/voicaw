@@ -1,5 +1,6 @@
 const path = require('path');
 const { app, BrowserWindow } = require('electron');
+const { setUpSpellcheck } = require('./spellcheck');
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -10,8 +11,10 @@ function createWindow() {
             contextIsolation: true,
             nodeIntegration: false,
             webSecurity: false,
+            spellcheck: true,
         },
     });
+    setUpSpellcheck(win);
 
     win.loadFile(path.join(__dirname, '../build/index.html'));
     win.setMenuBarVisibility(false);  // Hide menu bar
