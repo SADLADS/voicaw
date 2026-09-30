@@ -51,6 +51,19 @@ describe('MessageEditor', () => {
     expect(ref.current.getText()).toBe('<@7> <@8>');
   });
 
+  it('shows markdown as it will look, keeping the text exactly as typed', () => {
+    const { ref, element } = setup();
+    act(() => ref.current.insertText('**hello** *world*'));
+    expect(ref.current.getText()).toBe('**hello** *world*');
+    expect(element.querySelector('.md-bold')).toHaveTextContent('hello');
+    expect(element.querySelector('.md-italic')).toHaveTextContent('world');
+    expect([...element.querySelectorAll('.md-syntax')].map((e) => e.textContent)).toEqual(['**', '**', '*', '*']);
+    // A chip before it takes one position, so the styling still lines up.
+    act(() => ref.current.setText('![a.png](attachment:1) ~~gone~~\n# Title'));
+    expect(element.querySelector('.md-strike')).toHaveTextContent('gone');
+    expect(element.querySelectorAll('p')[1]).toHaveClass('md-heading', 'md-h1');
+  });
+
   it('reports text and the line up to the cursor', () => {
     const { ref, onChange } = setup();
     act(() => ref.current.insertText('hello :smi'));

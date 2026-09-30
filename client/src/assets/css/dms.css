@@ -1714,3 +1714,77 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Markdown shown as you type (editor/markdownPreview): styled like the message will be, with
+   the markers kept but dimmed. */
+.message-editor .md-syntax {
+  color: var(--vc-fg-muted);
+  font-weight: normal;
+  font-style: normal;
+  text-decoration: none;
+}
+
+.message-editor .md-bold {
+  font-weight: 700;
+}
+
+.message-editor .md-italic {
+  font-style: italic;
+}
+
+.message-editor .md-strike {
+  text-decoration: line-through;
+}
+
+.message-editor .md-code,
+.message-editor .md-code-block {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.message-editor .md-code {
+  padding: 1px 3px;
+  border-radius: 4px;
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.message-editor p.md-code-block {
+  padding: 0 8px;
+  background-color: var(--vc-bg-subtle);
+  border-left: 1px solid var(--vc-border-dark);
+  border-right: 1px solid var(--vc-border-dark);
+}
+
+.message-editor p.md-code-block-start {
+  padding-top: 2px;
+  border-top: 1px solid var(--vc-border-dark);
+  border-radius: 4px 4px 0 0;
+}
+
+.message-editor p.md-code-block-end {
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--vc-border-dark);
+  border-radius: 0 0 4px 4px;
+}
+
+.message-editor p.md-quote {
+  padding-left: 8px;
+  border-left: 3px solid var(--vc-border-light);
+}
+
+.message-editor p.md-heading {
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.message-editor p.md-h1 {
+  font-size: 1.5em;
+}
+
+.message-editor p.md-h2 {
+  font-size: 1.25em;
+}
+
+.message-editor p.md-h3 {
+  font-size: 1.1em;
+}

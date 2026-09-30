@@ -711,7 +711,11 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
 - The message box is `editor/MessageEditor.jsx`, a small ProseMirror editor (also used for editing a
   sent message). Its value is plain message text (`editor/messageDoc.js`): lines are paragraphs,
   draft attachments are chips (so are a sent message's attachments while editing it, kept as
-  their exact `![name](url)`, so the link and its key never show), custom emoji `<:name:id>` are inline images. Unicode emoji stay text, drawn by the Twemoji font, so
+  their exact `![name](url)`, so the link and its key never show), custom emoji `<:name:id>` are inline images. Markdown shows as
+  it will look while typing, like Discord's box (`editor/markdownPreview.js`, drawn as
+  decorations, so the text and its markers stay exactly as typed, markers dimmed): bold,
+  italic, strikethrough, inline code, ``` code blocks, `#`–`###` headings and `>` quotes. It's
+  a line-by-line approximation of CommonMark (what messages are rendered with). Unicode emoji stay text, drawn by the Twemoji font, so
   typing, autocorrect, IME and copy/paste stay plain. Pasting is always plain text (files go to
   attachments); edits past the length limit are refused. Saving an edit left empty or
   only whitespace cancels it (`ChatPane`). Enter sends on desktop, Shift+Enter is a

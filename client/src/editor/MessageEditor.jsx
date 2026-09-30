@@ -6,12 +6,14 @@ import { baseKeymap, splitBlock } from 'prosemirror-commands';
 import { history, redo, undo } from 'prosemirror-history';
 import { Fragment, Slice } from 'prosemirror-model';
 import 'prosemirror-view/style/prosemirror.css';
-import { docToText, schema, textBeforeCaret, textToDoc, textToSlice } from './messageDoc';
+import { OBJECT_CHAR, docToText, schema, textBeforeCaret, textToDoc, textToSlice } from './messageDoc';
+import { markdownPreview } from './markdownPreview';
 import { registerEditor } from './editorRegistry';
 
 
 // The message box: a small ProseMirror editor whose value is message text (see messageDoc),
 // with draft attachments as chips, custom emoji as images and mentions as `@name` inline.
+// Markdown is shown as it will look, markers kept (markdownPreview).
 //
 // Props are read when needed, so they can change freely:
 // - onChange({ text, beforeCaret, docChanged }) after every edit or cursor move.
@@ -29,6 +31,25 @@ import { registerEditor } from './editorRegistry';
 // replaceBeforeCaret(count, text, { focus }), replaceBeforeCaretWithCustomEmoji(count, emoji),
 // replaceBeforeCaretWithMention(count, { id, name }), replaceBeforeCaretWithRoleMention(count,
 // { id, name, color }), removeAttachment(id), and element.
+// The document's markdown as decorations: a class on each styled line, and on each styled
+// stretch of text (see markdownPreview; chips and custom emoji count as one character, as they
+// take one position).
+function markdownDecorations(doc) {
+  const paragraphs = [];
+  doc.forEach((paragraph, offset) => paragraphs.push({ paragraph, offset }));
+  const lines = markdownPreview(paragraphs.map(({ paragraph }) =>
+    paragraph.textBetween(0, paragraph.content.size, undefined, () => OBJECT_CHAR)));
+  const decorations = [];
+  lines.forEach(({ block, spans }, i) => {
+    const { paragraph, offset } = paragraphs[i];
+    if (block) decorations.push(Decoration.node(offset, offset + paragraph.nodeSize, { class: block }));
+    for (const span of spans) {
+      if (span.to > span.from) decorations.push(Decoration.inline(offset + 1 + span.from, offset + 1 + span.to, { class: span.className }));
+    }
+  });
+  return DecorationSet.create(doc, decorations);
+}
+
 const MessageEditor = forwardRef(function MessageEditor(props, ref) {
   const mountRef = useRef(null);
   const viewRef = useRef(null);
@@ -73,6 +94,18 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
       },
     });
 
+    const markdown = new Plugin({
+      state: {
+        init: (_, state) => markdownDecorations(state.doc),
+        apply: (tr, old) => (tr.docChanged ? markdownDecorations(tr.doc) : old),
+      },
+      props: {
+        decorations(state) {
+          return this.getState(state);
+        },
+      },
+    });
+
     const view = new EditorView(mountRef.current, {
       state: EditorState.create({
         doc: textToDoc(current().initialText, parseOptions()),
@@ -84,6 +117,7 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
           keymap(baseKeymap),
           lengthLimit,
           emptyState,
+          markdown,
         ],
       }),
       handleKeyDown(v, event) {
