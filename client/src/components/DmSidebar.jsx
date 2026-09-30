@@ -14,7 +14,8 @@ import Avatar from './Avatar';
 // The conversation list: people and group DMs, most recent first. `unreadDms`
 // ([{ from_user_id, count }], from Layout) and each group's `unread` mark conversations with
 // unread messages, except the one being viewed. The header's button makes a new group.
-// Your notes (a DM to yourself) sit above it all, apart from the conversations.
+// Your notes (a DM to yourself) come first under the header, with a line between them and
+// the conversations; they don't scroll with the list.
 export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) {
   useProfiles();
   const { id: activeId, groupId: activeGroupId } = useParams();
@@ -38,12 +39,6 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
 
   return (
     <div id="dm-sidebar">
-      <div className="dm-notes-link-wrap">
-        <Link to="/dm/notes" onClick={scrollToRight} className={`dm-user dm-notes-link ${notesActive ? 'active' : ''}`}>
-          <span className="dm-notes-icon"><FontAwesomeIcon icon={faNoteSticky} /></span>
-          <span className="dm-user-name">Notes</span>
-        </Link>
-      </div>
       <h4 className="direct-messages-header">
         Direct Messages
         <button type="button" className="new-group-button" aria-label="New group" title="New group" onClick={() => setNewGroup(true)}>
@@ -51,6 +46,12 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
           <span className="new-group-plus">+</span>
         </button>
       </h4>
+      <div className="dm-notes-link-wrap">
+        <Link to="/dm/notes" onClick={scrollToRight} className={`dm-user dm-notes-link ${notesActive ? 'active' : ''}`}>
+          <span className="dm-notes-icon"><FontAwesomeIcon icon={faNoteSticky} /></span>
+          <span className="dm-user-name">Notes</span>
+        </Link>
+      </div>
       <div className="dm-user-list-container">
         {entries.map(({ person, group }) => {
           if (group) {

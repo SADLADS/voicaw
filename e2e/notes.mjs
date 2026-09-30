@@ -13,15 +13,25 @@ try {
   const bob = await signUp(browser, 'bob');
   const page = alice.page;
 
-  // The Notes row comes before the Direct Messages header, and you aren't in the DM list.
+  // The Direct Messages header, then Notes, then a line, then the conversations; you aren't
+  // in the DM list.
   await page.goto(`${BASE}/dm`);
   await page.waitForSelector('.dm-notes-link');
-  const order = await page.evaluate(() => {
-    const notes = document.querySelector('.dm-notes-link');
-    const header = document.querySelector('.direct-messages-header');
-    return Boolean(notes.compareDocumentPosition(header) & Node.DOCUMENT_POSITION_FOLLOWING);
+  const layout = await page.evaluate(() => {
+    const top = (sel) => document.querySelector(sel).getBoundingClientRect();
+    const line = getComputedStyle(document.querySelector('.dm-notes-link-wrap'), '::after');
+    return {
+      header: top('.direct-messages-header').bottom,
+      notes: top('.dm-notes-link').top,
+      notesBottom: top('.dm-notes-link-wrap').bottom,
+      list: top('.dm-user-list-container').top,
+      line: line.height,
+    };
   });
-  if (!order) throw new Error('Notes is not above the Direct Messages header');
+  if (!(layout.header <= layout.notes && layout.notesBottom <= layout.list)) {
+    throw new Error(`Notes isn't between the header and the conversations: ${JSON.stringify(layout)}`);
+  }
+  if (layout.line !== '1px') throw new Error('no line under Notes');
   if (await page.$(`a.dm-user[href="/dm/${alice.id}"]`)) throw new Error('you are listed in your own DMs');
 
   await page.click('.dm-notes-link');
@@ -30,6 +40,15 @@ try {
   await send(page, 'buy **milk**');
   await page.waitForSelector('.dm-message >> text=milk');
   await page.waitForSelector('.dm-message:not(.pending) >> text=milk');
+
+  // Pinning a note puts it in the pins list.
+  const note = page.locator('.each-dm-message-wrapper', { hasText: 'milk' });
+  await note.hover();
+  await note.locator('.message-menu .pin-button').click();
+  await note.locator('.message-pinned').waitFor({ timeout: 10000 });
+  await page.click('.pins-button');
+  await page.waitForSelector('.pins-panel >> text=milk', { timeout: 10000 });
+  await page.keyboard.press('Escape');
 
   // A DM to Bob from another tab doesn't turn up in the notes on screen.
   const other = await page.context().newPage();
