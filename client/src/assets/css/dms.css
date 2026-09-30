@@ -663,6 +663,12 @@ small {
   position: relative;
 }
 
+/* Room above the first message (its avatar, and its hover menu, which sits half above it) and
+   below the last one's reactions. */
+.message-scroller-content {
+  padding: 16px 0 12px;
+}
+
 /* NOTIFICATIONS */
 
 .notification-prompt {
