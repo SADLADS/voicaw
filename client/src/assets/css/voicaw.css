@@ -852,7 +852,7 @@ body.mobile-mode .settings-nav-item {
      on the pane's own background. This is the default: every scrolling element inherits it
      (scrollbar-color inherits), including ones added later.
    - Small boxes and pop-ups (emoji picker, suggestions, action sheet, attachment tray, image
-    viewer thumbnails, code):
+    viewer thumbnails, code) and a guild's channel list:
      a thin bar, listed below.
    The message editor keeps its own (.message-editor). Chrome and Firefox use the standard
    properties; the ::-webkit-scrollbar rules are for Safari, which doesn't support them (Chrome
@@ -866,6 +866,7 @@ html {
 .action-sheet,
 .pins-panel-list,
 .guild-search-suggestions,
+.guild-channel-list,
 .attachment-tray,
 .image-viewer-thumbnails,
 .dm-message-content pre code {
@@ -892,6 +893,7 @@ html {
 .emoji-picker-scroll::-webkit-scrollbar,
 .emoji-suggestions::-webkit-scrollbar,
 .action-sheet::-webkit-scrollbar,
+.guild-channel-list::-webkit-scrollbar,
 .attachment-tray::-webkit-scrollbar,
 .image-viewer-thumbnails::-webkit-scrollbar,
 .dm-message-content pre code::-webkit-scrollbar {
@@ -902,6 +904,7 @@ html {
 .emoji-picker-scroll::-webkit-scrollbar-thumb,
 .emoji-suggestions::-webkit-scrollbar-thumb,
 .action-sheet::-webkit-scrollbar-thumb,
+.guild-channel-list::-webkit-scrollbar-thumb,
 .attachment-tray::-webkit-scrollbar-thumb,
 .image-viewer-thumbnails::-webkit-scrollbar-thumb,
 .dm-message-content pre code::-webkit-scrollbar-thumb {
