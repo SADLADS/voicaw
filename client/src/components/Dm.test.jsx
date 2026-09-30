@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
-const dmListeners = vi.hoisted(() => ({ newDm: [], deleteDm: [], editDm: [], reactionAdd: [], reactionRemove: [] }));
+const dmListeners = vi.hoisted(() => ({ newDm: [], deleteDm: [], editDm: [], reactionAdd: [], reactionRemove: [], pin: [] }));
 
 vi.mock('../utils/ws-client', () => ({
   setActiveChat: vi.fn(),
@@ -27,6 +27,10 @@ vi.mock('../utils/ws-client', () => ({
     dmListeners.reactionRemove.push(cb);
     return () => { dmListeners.reactionRemove = dmListeners.reactionRemove.filter((x) => x !== cb); };
   },
+  onDmPin: (cb) => {
+    dmListeners.pin.push(cb);
+    return () => { dmListeners.pin = dmListeners.pin.filter((x) => x !== cb); };
+  },
 }));
 
 vi.mock('../utils/api', () => ({
@@ -41,6 +45,8 @@ vi.mock('../services/dmService', () => ({
   removeReaction: vi.fn(async () => {}),
   deleteMessage: vi.fn(async () => {}),
   editMessage: vi.fn(async () => {}),
+  fetchPins: vi.fn(async () => []),
+  setMessagePinned: vi.fn(),
 }));
 
 vi.mock('../services/encryptionService', () => {
@@ -90,9 +96,10 @@ vi.mock('./SafetyNumberDialog', () => ({
 // Stub MessageList (its scrolling/layout needs a real browser) so these tests exercise
 // Dm's own state machine (fetch/send/receive) rather than virtualization.
 vi.mock('./MessageList', () => ({
+  MessageContent: ({ msg }) => <div>{msg.plaintext}</div>,
   default: ({
     messages, loadMoreMessages, hasMore, onToggleReaction, onOpenReactionPicker, onOpenActions, focusedMsgId,
-    handleEdit, handleDelete, editingMessageId, setEditingMessageContent, handleSaveEdit,
+    handleEdit, handleDelete, editingMessageId, setEditingMessageContent, handleSaveEdit, onTogglePin,
   }) => (
     <div data-testid="message-list" data-has-more={String(hasMore)} data-focused={focusedMsgId ?? ''}>
       <span data-testid="editing">{editingMessageId ?? ''}</span>
@@ -101,7 +108,7 @@ vi.mock('./MessageList', () => ({
       <button data-testid="load-older" onClick={() => loadMoreMessages()} />
       {messages.map((m) => (
         <div key={m.clientKey ?? m.id}>
-          {m.plaintext} [{m.status || 'sent'}]
+          {m.plaintext} [{m.status || 'sent'}]{m.pinned_at ? ' [pinned]' : ''}
           {m.reactions?.length > 0 && (
             <span data-testid={`reactions-${m.id}`}>{m.reactions.map((r) => `${r.emoji}:${r.user_id}`).join(' ')}</span>
           )}
@@ -110,6 +117,7 @@ vi.mock('./MessageList', () => ({
           <button data-testid={`hold-${m.id}`} onClick={() => onOpenActions(m)} />
           <button data-testid={`edit-${m.id}`} onClick={() => handleEdit(m)} />
           <button data-testid={`delete-${m.id}`} onClick={(e) => handleDelete(m, e)} />
+          <button data-testid={`pin-${m.id}`} onClick={() => onTogglePin(m)} />
         </div>
       ))}
     </div>
@@ -132,6 +140,7 @@ import { ConfigContext, InteractionContext } from '../contexts';
 import { LayoutContext } from '../contexts';
 import {
   fetchMessagesForUser, sendMessageToUser, markMessagesRead, addReaction, removeReaction, deleteMessage, editMessage,
+  fetchPins, setMessagePinned,
 } from '../services/dmService';
 import { deriveConversationKey, encryptMessage, decryptMessage, encryptReaction } from '../services/encryptionService';
 import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
@@ -177,7 +186,9 @@ beforeEach(() => {
   dmListeners.editDm = [];
   dmListeners.reactionAdd = [];
   dmListeners.reactionRemove = [];
+  dmListeners.pin = [];
   localStorage.clear();
+  fetchPins.mockResolvedValue([]);
   fetchMessagesForUser.mockResolvedValue([]);
   deriveConversationKey.mockResolvedValue('shared-key');
   checkContactKeys.mockImplementation(async (me, contact) =>
@@ -918,6 +929,64 @@ describe('Dm emoji', () => {
       fireEvent.focus(textarea);
       expect(screen.queryByRole('dialog', { name: 'Emoji picker' })).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('Dm pins', () => {
+  const message = { id: 10, sender_id: 2, recipient_id: 1, content: 'ENC1', timestamp: 1000, reactions: [] };
+
+  async function openChat() {
+    fetchMessagesForUser.mockResolvedValue([message]);
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText(/dec:ENC1/);
+    await waitFor(() => expect(dmListeners.pin.length).toBeGreaterThan(0));
+  }
+
+  it('pins and unpins from the message menu', async () => {
+    await openChat();
+    setMessagePinned.mockResolvedValueOnce({ messageId: 10, pinned_at: 5000, pinned_by: 1 });
+    fireEvent.click(screen.getByTestId('pin-10'));
+    expect(await screen.findByText('dec:ENC1 [sent] [pinned]')).toBeInTheDocument();
+    expect(setMessagePinned).toHaveBeenCalledWith(10, true);
+
+    setMessagePinned.mockResolvedValueOnce({ messageId: 10, pinned_at: null, pinned_by: null });
+    fireEvent.click(screen.getByTestId('pin-10'));
+    expect(await screen.findByText('dec:ENC1 [sent]')).toBeInTheDocument();
+    expect(setMessagePinned).toHaveBeenLastCalledWith(10, false);
+  });
+
+  it("shows the other person's pins live, only for this conversation", async () => {
+    await openChat();
+    act(() => dmListeners.pin.forEach((cb) => cb({ messageId: 10, sender_id: 3, recipient_id: 1, pinned_at: 1, pinned_by: 3 })));
+    expect(screen.getByText('dec:ENC1 [sent]')).toBeInTheDocument();
+    act(() => dmListeners.pin.forEach((cb) => cb({ messageId: 10, sender_id: 2, recipient_id: 1, pinned_at: 1, pinned_by: 2 })));
+    expect(screen.getByText('dec:ENC1 [sent] [pinned]')).toBeInTheDocument();
+  });
+
+  it('lists the pinned messages, decrypted, and unpins from the list', async () => {
+    await openChat();
+    fetchPins.mockResolvedValue([{ ...message, pinned_at: 5000, pinned_by: 2 }]);
+    fireEvent.click(screen.getByRole('button', { name: 'Pinned messages' }));
+    const panel = await screen.findByRole('dialog', { name: 'Pinned messages' });
+    expect(await within(panel).findByText('dec:ENC1')).toBeInTheDocument();
+    expect(fetchPins).toHaveBeenCalledWith(2);
+
+    setMessagePinned.mockResolvedValueOnce({ messageId: 10, pinned_at: null, pinned_by: null });
+    fetchPins.mockResolvedValue([]);
+    fireEvent.click(within(panel).getByRole('button', { name: 'Unpin' }));
+    expect(await within(panel).findByText(/doesn't have any pinned messages/)).toBeInTheDocument();
+    expect(setMessagePinned).toHaveBeenCalledWith(10, false);
+
+    // Escape closes it.
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Pinned messages' })).not.toBeInTheDocument();
+  });
+
+  it('says why pinning failed', async () => {
+    await openChat();
+    setMessagePinned.mockRejectedValueOnce({ response: { data: { error: 'A chat can have at most 250 pinned messages. Unpin one first.' } } });
+    fireEvent.click(screen.getByTestId('pin-10'));
+    expect(await screen.findByText(/at most 250 pinned messages/)).toBeInTheDocument();
   });
 });
 

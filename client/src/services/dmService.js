@@ -41,3 +41,13 @@ export async function editMessage(messageId, content) {
 export async function deleteMessage(messageId) {
   await api.delete(`/messages/${messageId}`);
 }
+
+// The conversation's pinned messages (encrypted rows), most recently pinned first.
+export async function fetchPins(userId) {
+  return (await api.get(`/dm-pins/${userId}`)).data;
+}
+
+// -> { messageId, pinned_at, pinned_by } (null when unpinned).
+export async function setMessagePinned(messageId, pinned) {
+  return (await api[pinned ? 'put' : 'delete'](`/dm-messages/${messageId}/pin`)).data;
+}

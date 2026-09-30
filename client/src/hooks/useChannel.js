@@ -6,6 +6,8 @@ import {
   editChannelMessage,
   deleteChannelMessage,
   markChannelRead,
+  fetchChannelPins,
+  setChannelMessagePinned,
 } from '../services/guildService';
 
 // Older history is fetched in pages this size as you scroll up.
@@ -24,6 +26,8 @@ export function useChannel({ channelId, user, onRead }) {
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Bumped whenever a message here is pinned or unpinned (the pins list reloads).
+  const [pinsVersion, setPinsVersion] = useState(0);
 
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -39,6 +43,11 @@ export function useChannel({ channelId, user, onRead }) {
 
   const setMessageReactions = (messageId, update) => {
     updateMessage(messageId, (m) => ({ reactions: update(m.reactions ?? []) }));
+  };
+
+  const applyPin = ({ messageId, pinned_at: pinnedAt, pinned_by: pinnedBy }) => {
+    updateMessage(messageId, () => ({ pinned_at: pinnedAt, pinned_by: pinnedBy }));
+    setPinsVersion((n) => n + 1);
   };
 
   const markRead = async (messageId) => {
@@ -176,6 +185,15 @@ export function useChannel({ channelId, user, onRead }) {
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
   }
 
+  // The channel's pinned messages, most recently pinned first.
+  async function loadPins() {
+    return (await fetchChannelPins(channelId)).map(toChatMessage);
+  }
+
+  async function setPinned(msg, pinned) {
+    applyPin(await setChannelMessagePinned(msg.id, pinned));
+  }
+
   // The server doesn't push messages here while this device is looking at the channel.
   useEffect(() => {
     if (!channelId) return undefined;
@@ -214,6 +232,9 @@ export function useChannel({ channelId, user, onRead }) {
           );
           break;
         }
+        case 'guild_message_pin':
+          if (event.channelId === id) applyPin(event);
+          break;
         case 'guild_reaction_remove':
           if (event.channelId === id) {
             setMessageReactions(event.messageId, (list) => list.filter((r) => r.id !== event.reactionId));
@@ -236,5 +257,8 @@ export function useChannel({ channelId, user, onRead }) {
     editMessage,
     deleteMessage,
     setMessageReactions,
+    pinsVersion,
+    loadPins,
+    setPinned,
   };
 }

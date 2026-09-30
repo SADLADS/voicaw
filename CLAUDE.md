@@ -102,6 +102,7 @@ node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, gr
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
+node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
@@ -154,6 +155,7 @@ unexpected errors. The rest:
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).
 - `groupDms.js`: group DMs (membership log checks, epochs, summaries; see Group DMs).
 - `appSettings.js`: app-wide settings a global admin edits (see Admin settings).
+- `pins.js`: pinning and unpinning a message, the same for every kind of chat (see Pinned messages).
 - `profiles.js`: display name, custom status and bio (limits, cleaning, `displayNameOf`; see Profiles).
 - `avatars.js` + `avatarImage.js`: profile pictures (processing, storage, the one-off migration;
   see Profiles). `routes/avatars.js` has their routes.
@@ -299,19 +301,20 @@ module-level in `sockets.js`, so routes can push events (and tests can fake sock
 identify themselves post-connect with `{ type: 'identify', token }` (JWT); the server maps
 `userId -> [sockets]` in an in-memory `clients` Map (a user can have multiple open sockets/tabs).
 Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, `reaction_remove`,
+`dm_pin` (see Pinned messages),
 `user_status` and `presence_snapshot` (see Online status), `user_profile` (someone changed their
 profile, to every logged-in socket; see Profiles), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
-`guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete`,
+`guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete` / `_pin`,
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
 `guild_order` (your guild rail order, to your other devices), `guild_voice_state` (someone
 joined, left or (un)muted in a voice channel), `guild_mention` (only to whoever a new message
 mentions, for their red counts), for calls `call_incoming`, `call_update`,
 `call_end`, and for group DMs `group_dm_add` / `_update` / `_remove` / `_epoch` /
-`_message_new` / `_message_edit` / `_message_delete` / `_reaction_add` / `_reaction_remove`. A 30s heartbeat
+`_message_new` / `_message_edit` / `_message_delete` / `_message_pin` / `_reaction_add` / `_reaction_remove`. A 30s heartbeat
 (ping/pong) prunes dead connections.
 
 Client side, `client/src/utils/ws-client.js` wraps this with `connectWebSocket`/`closeWebSocket`
-and a pub/sub listener API (`onNewDm`, `onDeleteDm`, `onEditDm`, `onReactionAdd`, `onReactionRemove`, `onGuildEvent`,
+and a pub/sub listener API (`onNewDm`, `onDeleteDm`, `onEditDm`, `onReactionAdd`, `onReactionRemove`, `onDmPin`, `onGuildEvent`,
 `onCallEvent`, `onGroupEvent`), auto-reconnecting
 every 3s on close. All non-realtime DM operations (fetch history, send, mark read) go through the
 plain REST API in `client/src/services/dmService.js` / `client/src/utils/api.js` instead.
@@ -385,7 +388,8 @@ enforced (they never were). The schema is created idempotently (`CREATE TABLE IF
 existing table goes through `addColumn`, which ignores "duplicate column"). Changes to existing
 data that must run exactly once are `MIGRATIONS` at the end of `db.js`, numbered with SQLite's
 `PRAGMA user_version`, each in its own transaction (1: @everyone gets Connect and Speak; 2: clear
-`users.last_online`, which had only ever held the sign-up time); add the next one at the end.
+`users.last_online`, which had only ever held the sign-up time; 3: roles and channel overrides
+that allow or deny Manage Messages do the same for Pin Messages); add the next one at the end.
 - Queries: `db.get` / `db.all` / `db.run` return promises, as with the old driver (rows are plain
   objects; `undefined` binds as NULL, booleans as 1/0). Prepared statements are cached.
 - **Transactions:** anything that writes more than one row (or one row that depends on another)
@@ -408,14 +412,15 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   test checks they match) are Discord's model with a bit field: View Channel, Send Messages,
   Add Reactions, Manage Messages, Manage Channels, Manage Roles, Manage Guild, Create Invite,
   Kick, Ban, Administrator, Manage Emoji, Connect, Speak (voice), Mention Everyone (@everyone,
-  @here and any role; not a default, guild-wide only). Every guild has an `@everyone`
+  @here and any role; not a default, guild-wide only), Pin Messages (not a default; split out of
+  Manage Messages like Discord did, migration 3). Every guild has an `@everyone`
   role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak) plus orderable roles (`guild_roles`: name, colour
   0xRRGGBB or null, `hoist` = shown separately in the member list, `mentionable` = anyone may
   @mention it, position: higher ranks
   higher), given out in `guild_member_roles`. Guild permissions are @everyone's plus the
   member's roles'; the owner and Administrator get everything.
 - **Channel overrides** (`guild_channel_overrides`, per role or member, `allow`/`deny` of the
-  channel permissions: View, Send, React, Manage Messages, Connect, Speak; the editor shows a
+  channel permissions: View, Send, React, Manage Messages, Pin Messages, Connect, Speak; the editor shows a
   text channel's or a voice channel's) apply in order: @everyone's, the member's roles' (all denies, then
   all allows), the member's own. A **private channel** is @everyone denied View Channel. A
   channel you can't view doesn't exist for you: left out of your layout, 404, no events
@@ -651,7 +656,8 @@ call keys are.
   whole log, everyone's public keys, your epoch keys, `latest_epoch`, the group's `call`),
   `PATCH` (rename), `POST /:id/log { entry, epoch? }`, `POST /:id/epochs`, `GET/POST
   /:id/messages`, `PUT/DELETE /group-dm-messages/:id` (author), `POST
-  /group-dm-messages/:id/reactions`, `DELETE /group-dm-reactions/:id`, `POST /:id/read`.
+  /group-dm-messages/:id/reactions`, `DELETE /group-dm-reactions/:id`, `POST /:id/read`,
+  pins (see Pinned messages).
   Non-members get 404 for everything.
 - **Client:** route `/dm/g/:groupId` (`group/GroupDm.jsx`: header with call and members
   buttons, `GroupCallPanel`, key warnings, `ChatPane`, `GroupMembers`: add people, remove
@@ -872,6 +878,35 @@ in a DM, everyone in a group's log, a guild's members; anyone else `@unknown-use
   copying, DM push previews: the push carries `recipientName` for that).
 - DMs and group DMs push every message already; mentioning someone there adds no notification
   (the server can't see it).
+
+### Pinned messages
+
+Any message in a DM, group DM or guild text channel can be pinned. Who may: either person in a
+DM, any member of a group DM (a message they can read), Pin Messages in a channel. Max 250 per
+chat (`MAX_PINS`, Discord's number; 400 past it).
+- **Server** (`server/pins.js` `setPinned`, routes in `dms.js`, `groupDms.js`,
+  `guildMessages.js`): `pinned_at` (unix s) / `pinned_by` columns on each message table, null
+  when not pinned; message rows carry them, and deleting a message takes its pin with it.
+  `PUT` / `DELETE /dm-messages/:id/pin`, `/group-dm-messages/:id/pin`, `/guild-messages/:id/pin`
+  return `{ messageId, pinned_at, pinned_by }`; a change (not a repeat) sends `dm_pin` (with
+  `sender_id`/`recipient_id`) / `group_dm_message_pin` / `guild_message_pin` to whoever can see
+  the chat. Lists, most recently pinned first, as message rows: `GET /dm-pins/:otherUserId`,
+  `/group-dms/:id/pins` (only epochs you have a key for), `/channels/:id/pins`.
+- **Encrypted chats:** which message is pinned, by whom and when is visible to the server (like
+  reply links and reactions), never what it says; the list is decrypted (and, in groups, its
+  signatures checked) on the device like history. Pins aren't signed: in a group the server
+  could claim someone pinned something, or unpin it.
+- **Client:** the chat hooks (`useConversation`, `useGroupConversation`, `useChannel`) have
+  `loadPins()`, `setPinned(msg, pinned)` and `pinsVersion` (bumped on every pin change there,
+  so an open list reloads). `ChatPane` takes `canPin`, `pinsAnchor` (the header button's rect)
+  and `onClosePins`: a pin button in the hover menu and "Pin / Unpin message" in the mobile
+  action sheet, and `PinnedMessages` (floating under the header's pin button; full screen on a
+  phone; Escape or a click outside closes it), which draws each with `MessageContent`
+  (`MessageList`'s markdown, no menu) and has Jump (loads older pages until the message is
+  there, then scrolls to it and flashes it, `.jump-highlight`) and Unpin. A pinned message shows
+  a small pin by its time (after the text when grouped).
+- **Not done yet:** a "X pinned a message" line in the chat (Discord's system message) and
+  notifications for pins.
 
 ### Profiles
 

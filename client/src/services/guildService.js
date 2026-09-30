@@ -125,6 +125,14 @@ export async function deleteChannelMessage(messageId) {
   await api.delete(`/guild-messages/${messageId}`);
 }
 
+export async function fetchChannelPins(channelId) {
+  return (await api.get(`/channels/${channelId}/pins`)).data;
+}
+
+export async function setChannelMessagePinned(messageId, pinned) {
+  return (await api[pinned ? 'put' : 'delete'](`/guild-messages/${messageId}/pin`)).data;
+}
+
 export async function addGuildReaction(messageId, emoji) {
   return (await api.post(`/guild-messages/${messageId}/reactions`, { emoji })).data;
 }

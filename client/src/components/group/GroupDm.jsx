@@ -1,7 +1,7 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPhone, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faPhone, faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/dms.css';
 import '../../assets/css/voice.css';
 import '../../assets/css/groups.css';
@@ -37,6 +37,16 @@ export default function GroupDm({ user }) {
     }
   });
   const [accepting, setAccepting] = useState(false);
+
+  // The pinned messages list, under its header button (null: closed).
+  const [pinsAnchor, setPinsAnchor] = useState(null);
+  const closePins = useCallback(() => setPinsAnchor(null), []);
+  const togglePins = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPinsAnchor((open) => (open ? null : rect));
+  };
+
+  useEffect(() => setPinsAnchor(null), [groupId]);
 
   useEffect(() => {
     if (group) noteGroupCall(groupId, group.detail.call);
@@ -74,6 +84,18 @@ export default function GroupDm({ user }) {
             onClick={() => startGroupCall(groupId)}
           >
             <FontAwesomeIcon icon={faPhone} />
+          </button>
+        )}
+        {group && (
+          <button
+            type="button"
+            className={`chat-call-button pins-button${pinsAnchor ? ' active' : ''}`}
+            aria-label="Pinned messages"
+            aria-pressed={Boolean(pinsAnchor)}
+            title="Pinned messages"
+            onClick={togglePins}
+          >
+            <FontAwesomeIcon icon={faThumbtack} />
           </button>
         )}
         <button
@@ -131,6 +153,8 @@ export default function GroupDm({ user }) {
             canSend={Boolean(group) && problems.length === 0}
             cantSendText={group ? "Can't send until the security keys are sorted out." : 'Loading…'}
             emptyText="No messages yet. Say hi to the group!"
+            pinsAnchor={pinsAnchor}
+            onClosePins={closePins}
           />
         </div>
         {showMembers && group && (

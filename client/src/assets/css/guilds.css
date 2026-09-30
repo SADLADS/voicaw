@@ -434,6 +434,10 @@ img.guild-icon {
   margin-left: 0;
 }
 
+.channel-header-button + .channel-header-button {
+  margin-left: 2px;
+}
+
 .channel-header-button:hover,
 .channel-header-button.active {
   color: var(--vc-fg);
