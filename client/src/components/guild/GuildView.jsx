@@ -1,7 +1,7 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/dms.css';
 import '../../assets/css/guilds.css';
 import { InteractionContext, LayoutContext } from '../../contexts';
@@ -38,6 +38,16 @@ export default function GuildView({ user }) {
   });
   // Mobile: the member list is a panel over the chat, closed until asked for.
   const [membersOpenMobile, setMembersOpenMobile] = useState(false);
+
+  // The pinned messages list, under its header button (null: closed).
+  const [pinsAnchor, setPinsAnchor] = useState(null);
+  const closePins = useCallback(() => setPinsAnchor(null), []);
+  const togglePins = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPinsAnchor((open) => (open ? null : rect));
+  };
+
+  useEffect(() => setPinsAnchor(null), [channelId]);
 
   const channel = guild?.channels.find((c) => String(c.id) === channelId) ?? null;
   const textChannelId = channel?.type === 'text' ? channelId : null;
@@ -196,6 +206,18 @@ export default function GuildView({ user }) {
             <span className="channel-header-topic" title={channel.topic}>{channel.topic}</span>
           </>
         )}
+        {channel?.type === 'text' && (
+          <button
+            type="button"
+            className={`channel-header-button pins-button${pinsAnchor ? ' active' : ''}`}
+            aria-label="Pinned messages"
+            aria-pressed={Boolean(pinsAnchor)}
+            title="Pinned messages"
+            onClick={togglePins}
+          >
+            <FontAwesomeIcon icon={faThumbtack} />
+          </button>
+        )}
         <button
           type="button"
           className={`channel-header-button${membersVisible ? ' active' : ''}`}
@@ -217,6 +239,7 @@ export default function GuildView({ user }) {
           ) : (
             <ChatPane
               chatId={`channel-${channel.id}`}
+              encrypted={false}
               chatName={`#${channel.name}`}
               user={user}
               conversation={conversation}
@@ -233,6 +256,9 @@ export default function GuildView({ user }) {
               canSend={has(permissions, PERMISSIONS.SEND_MESSAGES)}
               cantSendText={`You do not have permission to send messages in #${channel.name}.`}
               canAddReactions={has(permissions, PERMISSIONS.ADD_REACTIONS)}
+              canPin={has(permissions, PERMISSIONS.PIN_MESSAGES)}
+              pinsAnchor={pinsAnchor}
+              onClosePins={closePins}
               nameColors={nameColors}
               emptyText={`Welcome to #${channel.name}! This is the start of the channel.`}
             />

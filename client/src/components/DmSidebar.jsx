@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUserGroup } from '@fortawesome/free-solid-svg-icons';
+import { faNoteSticky, faUserGroup } from '@fortawesome/free-solid-svg-icons';
 import { scrollToRight } from '../utils/scrollToRight';
 import { usePresence } from '../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../utils/presence';
@@ -14,9 +14,11 @@ import Avatar from './Avatar';
 // The conversation list: people and group DMs, most recent first. `unreadDms`
 // ([{ from_user_id, count }], from Layout) and each group's `unread` mark conversations with
 // unread messages, except the one being viewed. The header's button makes a new group.
+// Your notes (a DM to yourself) sit above it all, apart from the conversations.
 export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) {
   useProfiles();
   const { id: activeId, groupId: activeGroupId } = useParams();
+  const notesActive = useLocation().pathname === '/dm/notes';
   const presenceOf = usePresence();
   const [newGroup, setNewGroup] = useState(false);
   const unreadFrom = new Set(unreadDms.map((u) => String(u.from_user_id)));
@@ -36,6 +38,12 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
 
   return (
     <div id="dm-sidebar">
+      <div className="dm-notes-link-wrap">
+        <Link to="/dm/notes" onClick={scrollToRight} className={`dm-user dm-notes-link ${notesActive ? 'active' : ''}`}>
+          <span className="dm-notes-icon"><FontAwesomeIcon icon={faNoteSticky} /></span>
+          <span className="dm-user-name">Notes</span>
+        </Link>
+      </div>
       <h4 className="direct-messages-header">
         Direct Messages
         <button type="button" className="new-group-button" aria-label="New group" title="New group" onClick={() => setNewGroup(true)}>

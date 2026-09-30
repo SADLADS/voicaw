@@ -368,3 +368,33 @@ describe('group DMs', () => {
     });
   });
 });
+
+describe('group DM pins', () => {
+  it('lets any member pin and unpin, and lists only pins they can read', async () => {
+    const [ann, bea, cal, dan, eve] = [await makeUser(), await makeUser(), await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    const before = (await send(ann, groupId, 'before dan')).body.id;
+    const calEvents = listen(cal);
+
+    const pinned = await api.put(bea, `/group-dm-messages/${before}/pin`);
+    expect(pinned.status).toBe(200);
+    expect(pinned.body).toEqual({ messageId: before, pinned_at: expect.any(Number), pinned_by: bea.id });
+    expect(calEvents).toContainEqual(expect.objectContaining({ type: 'group_dm_message_pin', groupId, messageId: before, pinned_by: bea.id }));
+    expect((await api.get(cal, `/group-dms/${groupId}/messages`)).body[0].pinned_by).toBe(bea.id);
+
+    // Dan, added later, can't read the old message: not in his list, and he can't unpin it.
+    await change(ann, groupId, 'add', dan, [ann, bea, cal, dan]);
+    const after = (await send(dan, groupId, 'hi from dan')).body.id;
+    expect((await api.put(dan, `/group-dm-messages/${after}/pin`)).status).toBe(200);
+    expect((await api.get(dan, `/group-dms/${groupId}/pins`)).body.map((m) => m.id)).toEqual([after]);
+    expect((await api.delete(dan, `/group-dm-messages/${before}/pin`)).status).toBe(404);
+    expect((await api.get(cal, `/group-dms/${groupId}/pins`)).body.map((m) => m.id).sort()).toEqual([before, after].sort());
+
+    // Outsiders get nothing.
+    expect((await api.put(eve, `/group-dm-messages/${after}/pin`)).status).toBe(404);
+    expect((await api.get(eve, `/group-dms/${groupId}/pins`)).status).toBe(404);
+
+    expect((await api.delete(cal, `/group-dm-messages/${after}/pin`)).body.pinned_at).toBe(null);
+    expect((await api.get(dan, `/group-dms/${groupId}/pins`)).body).toEqual([]);
+  });
+});

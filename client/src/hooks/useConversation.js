@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { onNewDm, onDeleteDm, onEditDm, onReactionAdd, onReactionRemove, setActiveChat } from '../utils/ws-client';
+import { onNewDm, onDeleteDm, onEditDm, onReactionAdd, onReactionRemove, onDmPin, setActiveChat } from '../utils/ws-client';
 import {
   fetchMessagesForUser,
   sendMessageToUser,
   markMessagesRead,
   editMessage as saveEditedMessage,
   deleteMessage as deleteMessageOnServer,
+  fetchPins,
+  setMessagePinned,
 } from '../services/dmService';
 import {
   encryptMessage,
@@ -14,10 +16,11 @@ import {
   decryptMessagesBatch,
   decryptReaction,
   deriveConversationKey,
+  deriveNotesKey,
   dmContext,
   reactionContext,
 } from '../services/encryptionService';
-import { loadEncryptionKey } from '../services/keyStore';
+import { loadEncryptionKey, loadOwnPublicKeys } from '../services/keyStore';
 import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
 
 // Older history is fetched in pages this size as you scroll up.
@@ -28,10 +31,15 @@ export const PAGE_SIZE = 50;
 // the conversation is marked read (to refresh unread badges).
 //
 // Messages are the server's rows plus `plaintext`, `parent_plaintext` and decrypted
-// `reactions` ([{ id, user_id, emoji }]). A message being sent has a temporary id and
+// `reactions` ([{ id, user_id, emoji }]); `pinned_at` / `pinned_by` when it's pinned
+// (`loadPins`, `setPinned`, `pinsVersion`: bumped on every pin change here). A message being sent has a temporary id and
 // `status: 'pending'` (then 'sent' or 'failed'); `clientKey` keeps its list key stable once
 // the real id arrives.
-export function useConversation({ id, user, chatUser, onRead }) {
+//
+// `notes`: your notes, a DM to yourself (`chatUser` is you). Encrypted with a key only your
+// own key pair derives (deriveNotesKey), from this device's copy of your public key; never
+// unread.
+export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   const [messages, setMessages] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,6 +50,8 @@ export function useConversation({ id, user, chatUser, onRead }) {
   const [keyStatus, setKeyStatus] = useState(null);
   // Bumped to re-run the conversation load (e.g. after accepting a changed key).
   const [keyCheck, setKeyCheck] = useState(0);
+  // Bumped whenever a message here is pinned or unpinned (the pins list reloads).
+  const [pinsVersion, setPinsVersion] = useState(0);
 
   // Always the current render's messages, for handlers that run later.
   const messagesRef = useRef(messages);
@@ -58,9 +68,14 @@ export function useConversation({ id, user, chatUser, onRead }) {
     updateMessage(messageId, (m) => ({ reactions: update(m.reactions ?? []) }));
   };
 
+  const applyPin = ({ messageId, pinned_at: pinnedAt, pinned_by: pinnedBy }) => {
+    updateMessage(messageId, () => ({ pinned_at: pinnedAt, pinned_by: pinnedBy }));
+    setPinsVersion((n) => n + 1);
+  };
+
   const markRead = async () => {
     try {
-      if (!chatUser) return;
+      if (!chatUser || notes) return;
       await markMessagesRead(chatUser.id);
       onRead?.();
     } catch (err) {
@@ -98,14 +113,23 @@ export function useConversation({ id, user, chatUser, onRead }) {
       try {
         // Never use a key straight from the server: only one that's validly signed and
         // matches what this device has seen for this person before.
-        const check = await checkContactKeys(user.id, chatUser);
-        if (cancelled) return;
-        setKeyStatus(check.status);
-        if (!check.encryptionKey) return;
+        let key;
+        if (notes) {
+          const [myKey, own] = await Promise.all([loadEncryptionKey(), loadOwnPublicKeys()]);
+          if (!myKey || !own?.encryptionKey) throw new Error('This device has no encryption keys. Log out and log in again.');
+          if (cancelled) return;
+          setKeyStatus('trusted');
+          key = await deriveNotesKey(myKey, own.encryptionKey);
+        } else {
+          const check = await checkContactKeys(user.id, chatUser);
+          if (cancelled) return;
+          setKeyStatus(check.status);
+          if (!check.encryptionKey) return;
 
-        const myKey = await loadEncryptionKey();
-        if (!myKey) throw new Error('This device has no encryption keys. Log out and log in again.');
-        const key = await deriveConversationKey(myKey, check.encryptionKey);
+          const myKey = await loadEncryptionKey();
+          if (!myKey) throw new Error('This device has no encryption keys. Log out and log in again.');
+          key = await deriveConversationKey(myKey, check.encryptionKey);
+        }
 
         const page = await fetchMessagesForUser(id, { limit: PAGE_SIZE });
         const decrypted = await decryptMessagesBatch(page, key);
@@ -129,7 +153,7 @@ export function useConversation({ id, user, chatUser, onRead }) {
     // Keyed on the contact's keys rather than the chatUser object, which Layout replaces on
     // every user-list fetch; reloading then would reset the conversation (and scroll).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, user?.id, chatUser?.identity_key, chatUser?.encryption_key, chatUser?.encryption_key_signature, keyCheck]);
+  }, [id, user?.id, chatUser?.identity_key, chatUser?.encryption_key, chatUser?.encryption_key_signature, keyCheck, notes]);
 
   const acceptChangedKey = async () => {
     await acceptContactKeys(user.id, chatUser);
@@ -171,10 +195,13 @@ export function useConversation({ id, user, chatUser, onRead }) {
   // A message from the websocket (already decrypted): ours or theirs in this conversation.
   // Our own echo replaces the matching pending message instead of adding a second copy.
   function addIncomingMessage(message) {
-    const currentChatUserId = String(chatUser.id);
-    const fromChatUser = String(message.sender_id) === currentChatUserId;
-    const fromMeToChatUser = String(message.sender_id) === String(user.id) &&
-      String(message.recipient_id) === currentChatUserId;
+    const chatUserId = String(chatUser.id);
+    const myId = String(user.id);
+    const sender = String(message.sender_id);
+    const recipient = String(message.recipient_id);
+    // Checked both ways: in your notes, the chat user is you too.
+    const fromChatUser = sender === chatUserId && recipient === myId;
+    const fromMeToChatUser = sender === myId && recipient === chatUserId;
     if (!fromChatUser && !fromMeToChatUser) return; // another conversation (Layout badges it)
 
     setMessages((prev) => {
@@ -255,6 +282,16 @@ export function useConversation({ id, user, chatUser, onRead }) {
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
   }
 
+  // The conversation's pinned messages, decrypted, most recently pinned first.
+  async function loadPins() {
+    if (!sharedKey) return [];
+    return decryptMessagesBatch(await fetchPins(chatUser.id), sharedKey);
+  }
+
+  async function setPinned(msg, pinned) {
+    applyPin(await setMessagePinned(msg.id, pinned));
+  }
+
   // Live changes from the websocket.
   useEffect(() => {
     if (!user?.id || !chatUser?.id || !sharedKey) return undefined;
@@ -297,12 +334,18 @@ export function useConversation({ id, user, chatUser, onRead }) {
       setMessageReactions(messageId, (list) => list.filter((r) => r.id !== reactionId));
     });
 
+    const unsubscribePin = onDmPin((event) => {
+      const between = [event.sender_id, event.recipient_id].map(String).sort().join();
+      if (between === [user.id, chatUser.id].map(String).sort().join()) applyPin(event);
+    });
+
     return () => {
       unsubscribeNew();
       unsubscribeDelete();
       unsubscribeEdit();
       unsubscribeReactionAdd();
       unsubscribeReactionRemove();
+      unsubscribePin();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatUser?.id, user?.id, sharedKey]);
@@ -322,5 +365,8 @@ export function useConversation({ id, user, chatUser, onRead }) {
     editMessage,
     deleteMessage,
     setMessageReactions,
+    pinsVersion,
+    loadPins,
+    setPinned,
   };
 }

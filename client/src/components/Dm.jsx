@@ -1,6 +1,6 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPhone } from '@fortawesome/free-solid-svg-icons';
+import { faPhone, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import { useParams } from 'react-router-dom';
 import '../assets/css/dms.css';
 import '../assets/css/voice.css';
@@ -39,6 +39,14 @@ export default function Dm({ user }) {
   const conversation = useConversation({ id, user, chatUser, onRead: fetchUnreadMessages });
   const { keyStatus, sharedKey } = conversation;
   const [showSafetyNumber, setShowSafetyNumber] = useState(false);
+
+  // The pinned messages list, under its header button (null: closed).
+  const [pinsAnchor, setPinsAnchor] = useState(null);
+  const closePins = useCallback(() => setPinsAnchor(null), []);
+  const togglePins = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPinsAnchor((open) => (open ? null : rect));
+  };
   const profilesVersion = useProfiles();
   const chatName = chatUser ? nameOf(chatUser) : null;
   const reactionNames = useMemo(
@@ -56,7 +64,10 @@ export default function Dm({ user }) {
     return addReaction(msg.id, content);
   };
 
-  useEffect(() => setShowSafetyNumber(false), [id]);
+  useEffect(() => {
+    setShowSafetyNumber(false);
+    setPinsAnchor(null);
+  }, [id]);
 
   // A changed or invalid contact key blocks the conversation until resolved.
   const keyBlocked = keyStatus === 'changed' || keyStatus === 'invalid';
@@ -88,6 +99,18 @@ export default function Dm({ user }) {
               >
                 <FontAwesomeIcon icon={faPhone} />
               </button>
+            )}
+            {chatUser && sharedKey && !keyBlocked && (
+              <button
+              type="button"
+              className={`chat-call-button pins-button${pinsAnchor ? ' active' : ''}`}
+              aria-label="Pinned messages"
+              aria-pressed={Boolean(pinsAnchor)}
+              title="Pinned messages"
+              onClick={togglePins}
+            >
+              <FontAwesomeIcon icon={faThumbtack} />
+            </button>
             )}
             {SHOW_SAFETY_NUMBERS && (keyStatus === 'trusted' || keyStatus === 'verified') && (
               <button
@@ -128,6 +151,8 @@ export default function Dm({ user }) {
               deleteReaction={removeReaction}
               reactionNames={reactionNames}
               people={people}
+              pinsAnchor={pinsAnchor}
+              onClosePins={closePins}
             />
           )}
         </>

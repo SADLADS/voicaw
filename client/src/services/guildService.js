@@ -78,6 +78,25 @@ export async function fetchInvite(code) {
   return (await api.get(`/invites/${code}`)).data;
 }
 
+// Invite embeds in chats: each code is asked about once per session (an invalid one stays
+// invalid; other failures are asked again next time).
+const invitePreviews = new Map();
+
+export function fetchInvitePreview(code) {
+  if (!invitePreviews.has(code)) {
+    invitePreviews.set(code, fetchInvite(code).catch((err) => {
+      if (err?.response?.status !== 404) invitePreviews.delete(code);
+      throw err;
+    }));
+  }
+  return invitePreviews.get(code);
+}
+
+// Whether this session has asked about the code already (so asking again tells the server nothing new).
+export function invitePreviewRequested(code) {
+  return invitePreviews.has(code);
+}
+
 // Joins; resolves to the guild's layout.
 export async function acceptInvite(code) {
   return (await api.post(`/invites/${code}`)).data;
@@ -123,6 +142,14 @@ export async function editChannelMessage(messageId, content) {
 
 export async function deleteChannelMessage(messageId) {
   await api.delete(`/guild-messages/${messageId}`);
+}
+
+export async function fetchChannelPins(channelId) {
+  return (await api.get(`/channels/${channelId}/pins`)).data;
+}
+
+export async function setChannelMessagePinned(messageId, pinned) {
+  return (await api[pinned ? 'put' : 'delete'](`/guild-messages/${messageId}/pin`)).data;
 }
 
 export async function addGuildReaction(messageId, emoji) {

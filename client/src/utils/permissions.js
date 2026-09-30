@@ -18,7 +18,8 @@ export const PERMISSIONS = {
   CONNECT: 1 << 12,
   SPEAK: 1 << 13,
   MENTION_EVERYONE: 1 << 14,
-  MANAGE_WEBHOOKS: 1 << 15,
+  PIN_MESSAGES: 1 << 15,
+  MANAGE_WEBHOOKS: 1 << 16,
 };
 
 export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
@@ -53,6 +54,7 @@ export const PERMISSION_GROUPS = [
       ['SEND_MESSAGES', 'Send Messages', 'Lets members post in text channels.'],
       ['ADD_REACTIONS', 'Add Reactions', 'Lets members react to messages.'],
       ['MANAGE_MESSAGES', 'Manage Messages', "Lets members delete other people's messages."],
+      ['PIN_MESSAGES', 'Pin Messages', 'Lets members pin and unpin messages.'],
       ['MENTION_EVERYONE', 'Mention @everyone, @here and All Roles', 'Lets members notify everyone in a channel (@everyone), everyone online there (@here), and any role, even ones not set to be mentionable.'],
     ],
   },
@@ -78,6 +80,7 @@ const CHANNEL_PERMISSION_ITEMS = {
     ['SEND_MESSAGES', 'Send Messages'],
     ['ADD_REACTIONS', 'Add Reactions'],
     ['MANAGE_MESSAGES', 'Manage Messages'],
+    ['PIN_MESSAGES', 'Pin Messages'],
   ],
   voice: [
     ['VIEW_CHANNEL', 'View Channel'],

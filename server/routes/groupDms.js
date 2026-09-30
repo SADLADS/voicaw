@@ -7,6 +7,7 @@ const { sendPushToUser } = require('../push');
 const groups = require('../groupDms');
 const calls = require('../calls');
 const { displayNameOf } = require('../profiles');
+const { setPinned } = require('../pins');
 
 // Group DMs (see groupDms.js): creating one, its membership log (add, remove, leave), key
 // epochs, and its messages and reactions (all ciphertext). Everything 404s for non-members.
@@ -35,6 +36,7 @@ function contentError(content) {
 // a reply's parent only if they can read that too.
 const MESSAGE_SELECT = `
   SELECT m.id, m.group_id, m.epoch, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
+    m.pinned_at, m.pinned_by,
     u.username AS sender_username,
     u.display_name AS sender_display_name,
     CASE WHEN pk.user_id IS NOT NULL THEN pm.content END AS parent_content,
@@ -343,6 +345,29 @@ router.post('/group-dm-messages/:messageId/reactions', authenticateJWT, findMess
   await groups.sendToGroup(req.message.group_id, { type: 'group_dm_reaction_add', groupId: req.message.group_id, reaction });
   res.status(201).json(reaction);
 });
+
+// ---- Pins: any member can pin or unpin a message they can read ----
+
+// The pinned messages you can read, most recently pinned first.
+router.get('/group-dms/:groupId/pins', member, async (req, res) => {
+  const rows = await db.all(
+    `${MESSAGE_SELECT} WHERE m.group_id = ? AND m.pinned_at IS NOT NULL ORDER BY m.pinned_at DESC, m.id DESC`,
+    [req.user.id, req.user.id, req.state.group.id]
+  );
+  res.json(await withReactions(rows));
+});
+
+async function pinRoute(req, res, pinned) {
+  const groupId = req.message.group_id;
+  const result = await setPinned('group_dm_messages', req.message.id, req.user.id, pinned, 'group_id = ?', [groupId]);
+  if (result.error) return res.status(result.status).json({ error: result.error });
+  const pin = { messageId: req.message.id, pinned_at: result.pinned_at, pinned_by: result.pinned_by };
+  if (result.changed) await groups.sendToGroup(groupId, { type: 'group_dm_message_pin', groupId, ...pin });
+  res.json(pin);
+}
+
+router.put('/group-dm-messages/:messageId/pin', authenticateJWT, findMessage, (req, res) => pinRoute(req, res, true));
+router.delete('/group-dm-messages/:messageId/pin', authenticateJWT, findMessage, (req, res) => pinRoute(req, res, false));
 
 router.delete('/group-dm-reactions/:reactionId', authenticateJWT, async (req, res) => {
   const reaction = await db.get('SELECT id, message_id, user_id FROM group_dm_reactions WHERE id = ?', [Number(req.params.reactionId)]);

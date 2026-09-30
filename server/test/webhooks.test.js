@@ -281,4 +281,14 @@ describe('a webhook with its token', () => {
     expect((await request(app).post(hookPath(hook)).send({ content: 'gone' })).status).toBe(404);
     expect((await messagesIn(member, general)).slice(-2).map((m) => m.content)).toEqual(['before', 'after']);
   });
+
+describe('webhooks and pins', () => {
+  it("pins a webhook's message; the pins list has its name and embeds", async () => {
+    const { owner, general, hook } = await setUp();
+    const sent = (await request(app).post(`${hookPath(hook)}?wait=true`).send({ embeds: [{ title: 'Pin me' }] })).body;
+    expect((await api.put(owner, `/guild-messages/${sent.id}/pin`)).status).toBe(200);
+    const [pinned] = (await api.get(owner, `/channels/${general.id}/pins`)).body;
+    expect(pinned).toMatchObject({ id: Number(sent.id), webhook_name: 'Captain Hook', sender_username: 'Captain Hook', embeds: [{ title: 'Pin me' }], pinned_by: owner.id });
+  });
+});
 });

@@ -55,3 +55,11 @@ export async function removeGroupReaction(reactionId) {
 export async function markGroupRead(groupId, messageId) {
   await api.post(`/group-dms/${groupId}/read`, { messageId });
 }
+
+export async function fetchGroupPins(groupId) {
+  return (await api.get(`/group-dms/${groupId}/pins`)).data;
+}
+
+export async function setGroupMessagePinned(messageId, pinned) {
+  return (await api[pinned ? 'put' : 'delete'](`/group-dm-messages/${messageId}/pin`)).data;
+}

@@ -4,6 +4,7 @@ const { maxPlaintextLength, maxMessageLength } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
 const { buildDmPushPayload, sendPushToUser, getUserImageUrl } = require('../push');
+const { setPinned } = require('../pins');
 
 // Direct messages. Contents are end-to-end encrypted: the server stores and relays
 // ciphertext only (and checks its length against the encrypted size of the plaintext limit).
@@ -13,6 +14,7 @@ const router = express.Router();
 const DM_SELECT = `
   SELECT
     dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, dm.parent_message_id, dm.edited,
+    dm.pinned_at, dm.pinned_by,
     u.username AS sender_username,
     u.display_name AS sender_display_name,
     pm.content AS parent_content,
@@ -39,7 +41,13 @@ async function withReactions(messages) {
   return messages.map((m) => ({ ...m, reactions: byMessage.get(m.id) }));
 }
 
-// Everyone else, most recent conversation first, with their public keys, status and last seen.
+// Sends `event` to both people in a message's conversation (once, for notes to yourself).
+function sendToConversation(message, event) {
+  sendToUserSockets(message.sender_id, event);
+  if (message.recipient_id !== message.sender_id) sendToUserSockets(message.recipient_id, event);
+}
+
+// Everyone else (not your notes, a DM to yourself), most recent conversation first, with their public keys, status and last seen.
 router.get('/dms-list', authenticateJWT, async (req, res) => {
   const me = req.user.id;
   const users = await db.all(
@@ -110,13 +118,15 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
     if (!parent) return res.status(400).json({ error: 'Invalid reply' });
   }
 
+  // A DM to yourself is your notes: never unread, never pushed.
+  const notes = recipientId === senderId;
   const lastID = await db.transaction(async () => {
     const { lastID: id } = await db.run(
       `INSERT INTO direct_messages (sender_id, recipient_id, content, parent_message_id, timestamp)
        VALUES (?, ?, ?, ?, strftime('%s','now'))`,
       [senderId, recipientId, content.trim(), parentMessageId]
     );
-    await db.run(
+    if (!notes) await db.run(
       `INSERT INTO dm_unread (user_id, from_user_id, count) VALUES (?, ?, 1)
        ON CONFLICT(user_id, from_user_id) DO UPDATE SET count = count + 1`,
       [recipientId, senderId]
@@ -125,11 +135,10 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
   });
   const message = await db.get(`${DM_SELECT} WHERE dm.id = ?`, [lastID]);
 
-  sendToUserSockets(recipientId, { type: 'new_dm', message });
-  sendToUserSockets(senderId, { type: 'new_dm', message });
+  sendToConversation(message, { type: 'new_dm', message });
 
   // Don't buzz someone about a conversation they're looking at right now.
-  if (!isViewingConversation(recipientId, senderId)) {
+  if (!notes && !isViewingConversation(recipientId, senderId)) {
     Promise.all([
       getUserImageUrl(senderId),
       db.get('SELECT username FROM users WHERE id = ?', [recipientId]),
@@ -169,9 +178,7 @@ router.delete('/messages/:id', authenticateJWT, async (req, res) => {
     await db.run('DELETE FROM direct_messages WHERE id = ?', [messageId]);
   });
 
-  const event = { type: 'delete_dm', messageId, sender_id: row.sender_id };
-  sendToUserSockets(row.recipient_id, event);
-  sendToUserSockets(row.sender_id, event);
+  sendToConversation(row, { type: 'delete_dm', messageId, sender_id: row.sender_id });
   res.json({ success: true, deletedId: messageId });
 });
 
@@ -192,10 +199,47 @@ router.put('/update-message/:id', authenticateJWT, async (req, res) => {
 
   await db.run('UPDATE direct_messages SET content = ?, edited = 1 WHERE id = ?', [content, messageId]);
 
-  const event = { type: 'edit_dm', messageId, content };
-  sendToUserSockets(row.recipient_id, event);
-  sendToUserSockets(row.sender_id, event);
+  sendToConversation(row, { type: 'edit_dm', messageId, content });
   res.json({ success: true, messageId, content });
 });
+
+// ---- Pins: either person can pin or unpin any message of the conversation ----
+
+// The conversation's pinned messages, most recently pinned first.
+router.get('/dm-pins/:otherUserId', authenticateJWT, async (req, res) => {
+  const me = req.user.id;
+  const other = parseInt(req.params.otherUserId, 10);
+  if (Number.isNaN(other)) return res.status(400).json({ error: 'Invalid user ID' });
+  const rows = await db.all(
+    `${DM_SELECT} WHERE ${IN_CONVERSATION} AND dm.pinned_at IS NOT NULL ORDER BY dm.pinned_at DESC, dm.id DESC`,
+    [me, other, other, me]
+  );
+  res.json(await withReactions(rows));
+});
+
+async function pinRoute(req, res, pinned) {
+  const messageId = parseInt(req.params.id, 10);
+  const row = Number.isInteger(messageId) && await db.get(
+    'SELECT id, sender_id, recipient_id FROM direct_messages WHERE id = ?',
+    [messageId]
+  );
+  if (!row || (row.sender_id !== req.user.id && row.recipient_id !== req.user.id)) {
+    return res.status(404).json({ error: 'Message not found' });
+  }
+  const result = await setPinned(
+    'direct_messages', messageId, req.user.id, pinned,
+    '((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))',
+    [row.sender_id, row.recipient_id, row.recipient_id, row.sender_id]
+  );
+  if (result.error) return res.status(result.status).json({ error: result.error });
+  const pin = { messageId, pinned_at: result.pinned_at, pinned_by: result.pinned_by };
+  if (result.changed) {
+    sendToConversation(row, { type: 'dm_pin', sender_id: row.sender_id, recipient_id: row.recipient_id, ...pin });
+  }
+  res.json(pin);
+}
+
+router.put('/dm-messages/:id/pin', authenticateJWT, (req, res) => pinRoute(req, res, true));
+router.delete('/dm-messages/:id/pin', authenticateJWT, (req, res) => pinRoute(req, res, false));
 
 module.exports = router;

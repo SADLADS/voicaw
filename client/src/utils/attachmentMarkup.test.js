@@ -69,4 +69,9 @@ describe('attachmentMarkup', () => {
     expect(summarizeAttachments(text)).toBe('look 📎 we[ird].png 📎 attachment');
     expect(summarizeAttachments(null)).toBeNull();
   });
+
+  it("doesn't give a spoiler away by its name in previews", () => {
+    const text = '![ending.png](https://s3.test/uploads/x.bin#v=1&k=SECRET&t=image%2Fpng&s=1&sp=1)';
+    expect(summarizeAttachments(text)).toBe('📎 spoiler');
+  });
 });

@@ -19,7 +19,7 @@ describe('attachmentCrypto', () => {
     const url = buildAttachmentUrl('https://s3.test/uploads/abc.bin', { key, type: file.type, size: file.size });
     const meta = parseAttachmentUrl(url);
     expect(meta).toEqual({
-      fileUrl: 'https://s3.test/uploads/abc.bin', key, type: 'image/png', size: 5000, width: null, height: null,
+      fileUrl: 'https://s3.test/uploads/abc.bin', key, type: 'image/png', size: 5000, width: null, height: null, spoiler: false,
     });
 
     const plain = await decryptAttachment(await blob.arrayBuffer(), meta.key);
@@ -67,7 +67,18 @@ describe('attachmentCrypto', () => {
       size: null,
       width: null,
       height: null,
+      spoiler: false,
     });
+  });
+
+  it('marks spoilers in the fragment, and only when asked', () => {
+    const spoiler = buildAttachmentUrl('https://s3.test/x.bin', { key: 'k', type: 'image/png', size: 1, spoiler: true });
+    expect(spoiler).toContain('&sp=1');
+    expect(parseAttachmentUrl(spoiler)).toMatchObject({ spoiler: true, key: 'k' });
+
+    const plain = buildAttachmentUrl('https://s3.test/x.bin', { key: 'k', type: 'image/png', size: 1 });
+    expect(plain).not.toContain('sp=');
+    expect(parseAttachmentUrl(plain).spoiler).toBe(false);
   });
 
   it('carries media dimensions when both are known, and ignores bad ones', () => {

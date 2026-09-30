@@ -8,6 +8,7 @@ const deleteListeners = new Set();
 const editListeners = new Set();
 const reactionAddListeners = new Set();
 const reactionRemoveListeners = new Set();
+const dmPinListeners = new Set();
 const guildListeners = new Set();
 const callListeners = new Set();
 const groupListeners = new Set();
@@ -136,6 +137,9 @@ export function connectWebSocket() {
       else if (data.type === 'reaction_remove') {
         reactionRemoveListeners.forEach((cb) => cb(data));
       }
+      else if (data.type === 'dm_pin') {
+        dmPinListeners.forEach((cb) => cb(data));
+      }
       else if (data.type?.startsWith('guild_')) {
         guildListeners.forEach((cb) => cb(data));
       }
@@ -197,6 +201,7 @@ export function closeWebSocket() {
   editListeners.clear();
   reactionAddListeners.clear();
   reactionRemoveListeners.clear();
+  dmPinListeners.clear();
   guildListeners.clear();
 }
 
@@ -227,10 +232,17 @@ export function onReactionRemove(callback) {
   return () => reactionRemoveListeners.delete(callback);
 }
 
+// A DM was pinned or unpinned: { messageId, sender_id, recipient_id, pinned_at, pinned_by }
+// (pinned_at null: unpinned).
+export function onDmPin(callback) {
+  dmPinListeners.add(callback);
+  return () => dmPinListeners.delete(callback);
+}
+
 // Every guild event, as sent by the server: `{ type: 'guild_add' | 'guild_update' |
 // 'guild_remove' | 'guild_member_add' | 'guild_member_remove' | 'guild_message_new' |
 // 'guild_message_edit' | 'guild_message_delete' | 'guild_reaction_add' |
-// 'guild_reaction_remove' | 'guild_voice_state' | 'guild_mention', ... }` (see CLAUDE.md, Guilds).
+// 'guild_reaction_remove' | 'guild_message_pin' | 'guild_voice_state' | 'guild_mention', ... }` (see CLAUDE.md, Guilds).
 export function onGuildEvent(callback) {
   guildListeners.add(callback);
   return () => guildListeners.delete(callback);
@@ -244,7 +256,7 @@ export function onCallEvent(callback) {
 }
 
 // Group DM events: `group_dm_add` / `_update` ({ group, entry? }), `_remove` ({ groupId }),
-// `_epoch` ({ groupId, epoch }), `_message_new` / `_edit` / `_delete`, `_reaction_add` /
+// `_epoch` ({ groupId, epoch }), `_message_new` / `_edit` / `_delete` / `_pin`, `_reaction_add` /
 // `_remove` (see server/routes/groupDms.js).
 export function onGroupEvent(callback) {
   groupListeners.add(callback);

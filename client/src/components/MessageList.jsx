@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import rehypeHighlight from 'rehype-highlight';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faTrash, faReply, faFaceSmile } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faTrash, faReply, faFaceSmile, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import Attachment from './Attachment';
 import MessageReactions from './MessageReactions';
 import UrlPreviews from './UrlPreviews';
@@ -112,6 +112,66 @@ function urlTransform(url) {
   return placeholderIdFromUrl(url) !== null ? url : defaultUrlTransform(url);
 }
 
+// A message's text as markdown (attachments, emoji, mentions, spoilers). `rehypePlugins` and
+// `mentions` come from useMessageMarkdown, kept stable so the markdown isn't redone needlessly.
+function MessageMarkdown({ msg, rehypePlugins, mentions }) {
+  return (
+    <LocalAttachmentsContext.Provider value={msg.localAttachments ?? null}>
+      <MentionContext.Provider value={mentions}>
+        <ReactMarkdown
+          remarkPlugins={remarkPlugins}
+          rehypePlugins={rehypePlugins}
+          urlTransform={urlTransform}
+          components={markdownComponents}
+        >
+          {msg.plaintext}
+        </ReactMarkdown>
+      </MentionContext.Provider>
+    </LocalAttachmentsContext.Provider>
+  );
+}
+
+// A webhook's embeds (unless it asked for Discord's SUPPRESS_EMBEDS) and files; nothing for
+// anyone else's message. Markdown in embeds is drawn like the message's own text.
+function WebhookParts({ msg, rehypePlugins, mentions }) {
+  if (!msg.webhook_id) return null;
+  const renderMarkdown = (text) => (
+    <MentionContext.Provider value={mentions}>
+      <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} urlTransform={urlTransform} components={markdownComponents}>
+        {text}
+      </ReactMarkdown>
+    </MentionContext.Provider>
+  );
+  const embeds = msg.flags & 4 ? [] : msg.embeds ?? [];
+  return (
+    <>
+      <MessageEmbeds embeds={embeds} renderMarkdown={renderMarkdown} />
+      {/* Files an embed shows (attachment://…) aren't shown again, as in Discord. */}
+      <MessageFiles attachments={msg.attachments} shownElsewhere={embeds.flatMap((e) => [e.image?.url, e.thumbnail?.url])} />
+    </>
+  );
+}
+
+// A message's content on its own, outside the chat (the pinned messages list): as in the chat,
+// without the menu, editor or reactions.
+export function MessageContent({ msg, user, s3Endpoint, reactionNames, mentionRoles, myRoleIds }) {
+  const emojiIndex = useEmojiIndex();
+  const rehypePlugins = useMemo(
+    () => [rehypeHighlight, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)],
+    [emojiIndex, s3Endpoint]
+  );
+  const mentions = useMemo(
+    () => ({ names: reactionNames, roles: mentionRoles, meId: user.id, myRoleIds, everyone: Boolean(msg.mention_everyone) }),
+    [reactionNames, mentionRoles, user.id, myRoleIds, msg.mention_everyone]
+  );
+  return (
+    <div className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}`} data-image-gallery="">
+      <MessageMarkdown msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />
+      <WebhookParts msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />
+    </div>
+  );
+}
+
 // One message (with its reply snippet, hover menu and inline editor). `grouped`: it follows
 // another of the same person's (continuesGroup), so no avatar, name or date, just the time
 // when hovered.
@@ -141,9 +201,12 @@ export function MessageRow({
   focusedMsgId,
   canModerate = false,
   canAddReactions = true,
+  canPin = false,
+  onTogglePin,
   nameColors,
   mentionRoles,
   myRoleIds,
+  encrypted = true,
 }) {
   const emojiIndex = useEmojiIndex();
   useDateFormat(); // redraws the times when Settings → Date & time changes
@@ -173,18 +236,16 @@ export function MessageRow({
     [reactionNames, mentionRoles, user.id, myRoleIds, msg.mention_everyone]
   );
   const mentionsMe = isForMe(msg, user.id, myRoleIds);
-  // Markdown as the message's text is drawn (for embeds' descriptions and fields).
-  const renderMarkdown = (text) => (
-    <MentionContext.Provider value={mentions}>
-      <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} urlTransform={urlTransform} components={markdownComponents}>
-        {text}
-      </ReactMarkdown>
-    </MentionContext.Provider>
-  );
 
 
   // Not before the server has the message (it has no id yet).
-  const canReact = Boolean(onToggleReaction) && msg.status !== 'pending' && msg.status !== 'failed';
+  const sent = msg.status !== 'pending' && msg.status !== 'failed';
+  const canReact = Boolean(onToggleReaction) && sent;
+  const pinned = Boolean(msg.pinned_at);
+  // Pinned: a pin by the time (or after the text, without a header).
+  const pinMark = pinned ? (
+    <FontAwesomeIcon icon={faThumbtack} className="message-pinned" title="Pinned" aria-label="Pinned" />
+  ) : null;
 
   const parent = msg.parent_message_id
     ? {
@@ -234,6 +295,11 @@ export function MessageRow({
               onClick={(e) => onOpenReactionPicker(msg, e.currentTarget)}
             >
               <FontAwesomeIcon icon={faFaceSmile} title="Add reaction" />
+            </button>
+          )}
+          {canPin && sent && onTogglePin && (
+            <button className={`icon-button pin-button${pinned ? ' active' : ''}`} onClick={() => onTogglePin(msg)}>
+              <FontAwesomeIcon icon={faThumbtack} title={pinned ? 'Unpin' : 'Pin'} />
             </button>
           )}
           {msg.sender_id === user.id && (
@@ -294,6 +360,7 @@ export function MessageRow({
         <small>
           <span title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>{formatDateTime(msg.timestamp * 1000)}</span>
           {msg.edited ? <em style={{ marginLeft: '6px' }}>edited</em> : null}
+          {pinMark}
           {/* Group DMs: sent before messages were signed (the sender can't be verified), or a
               signature that doesn't match the sender. */}
           {msg.unsigned ? (
@@ -308,7 +375,7 @@ export function MessageRow({
 
         {/* The image viewer steps through the images within this (utils/imageGallery.js). */}
         <div
-          className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}${grouped && msg.edited ? ' edited-inline' : ''}`}
+          className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}${grouped && (msg.edited || pinned) ? ' edited-inline' : ''}`}
           data-image-gallery=""
         >
           {editingMessageId === msg.id ? (
@@ -342,33 +409,15 @@ export function MessageRow({
               </div>
             </div>
           ) : (
-            <LocalAttachmentsContext.Provider value={msg.localAttachments ?? null}>
-              <MentionContext.Provider value={mentions}>
-                <ReactMarkdown
-                  remarkPlugins={remarkPlugins}
-                  rehypePlugins={rehypePlugins}
-                  urlTransform={urlTransform}
-                  components={markdownComponents}
-                >
-                  {msg.plaintext}
-                </ReactMarkdown>
-              </MentionContext.Provider>
-            </LocalAttachmentsContext.Provider>
+            <MessageMarkdown msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />
           )}
           {/* Without a header to carry it, "edited" goes after the text. */}
           {grouped && msg.edited && editingMessageId !== msg.id ? <small className="message-edited">(edited)</small> : null}
+          {grouped && editingMessageId !== msg.id ? pinMark : null}
 
-          {/* A webhook's embeds (unless it asked Discord's SUPPRESS_EMBEDS) and files. */}
-          {webhook && !(msg.flags & 4) && <MessageEmbeds embeds={msg.embeds} renderMarkdown={renderMarkdown} />}
-          {webhook && (
-            <MessageFiles
-              attachments={msg.attachments}
-              // Files an embed shows (attachment://…) aren't shown again, as in Discord.
-              shownElsewhere={msg.flags & 4 ? [] : (msg.embeds ?? []).flatMap((e) => [e.image?.url, e.thumbnail?.url])}
-            />
-          )}
+          <WebhookParts msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />
 
-          <UrlPreviews text={msg.plaintext} />
+          <UrlPreviews text={msg.plaintext} encrypted={encrypted} />
         </div>
 
         {canReact && (
@@ -428,9 +477,12 @@ export default function MessageList({
   focusedMsgId,
   canModerate,
   canAddReactions,
+  canPin,
+  onTogglePin,
   nameColors,
   mentionRoles,
   myRoleIds,
+  encrypted = true,
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
@@ -475,9 +527,12 @@ export default function MessageList({
     focusedMsgId,
     canModerate,
     canAddReactions,
+    canPin,
+    onTogglePin,
     nameColors,
     mentionRoles,
     myRoleIds,
+    encrypted,
   };
 
   const rememberAnchor = useCallback(() => {
