@@ -1482,6 +1482,21 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   text-align: center;
 }
 
+/* Group DMs: messages whose sender can't be verified. */
+.message-signature {
+  margin-left: 6px;
+  font-size: 11px;
+}
+
+.message-signature.unsigned {
+  color: var(--vc-fg-muted);
+}
+
+.message-signature.unverified {
+  color: var(--vc-danger);
+  font-weight: 600;
+}
+
 /* Mentions (`<@id>`): a tinted "@name", in messages and in the message box. */
 .mention {
   padding: 0 2px;

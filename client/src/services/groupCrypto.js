@@ -1,4 +1,11 @@
-import { decryptMessage, encryptMessage, fromBase64, toBase64 } from './encryptionService';
+import {
+  decryptMessage,
+  decryptReaction,
+  encryptMessage,
+  fromBase64,
+  REACTION_PLAINTEXT_BYTES,
+  toBase64,
+} from './encryptionService';
 
 // Group DM cryptography (see CLAUDE.md, Group DMs):
 // - The membership log: every change is a record (JSON, fixed field order) that its author
@@ -8,8 +15,12 @@ import { decryptMessage, encryptMessage, fromBase64, toBase64 } from './encrypti
 // - Epoch keys: 32 random bytes per key period, wrapped for each member with a key from ECDH
 //   between the epoch's creator and that member (HKDF, its own context), bound to the group,
 //   epoch, membership version, creator and member.
-// - Messages and reactions: AES-GCM with the epoch key (encryptMessage / encryptReaction),
-//   bound to the group, epoch and sender (or message and reactor).
+// - Messages, edits and reactions: AES-GCM with the epoch key, bound to the group, epoch and
+//   sender (or message and reactor), and signed by the sender's identity key. Everyone in the
+//   group has the epoch key, so without the signature a member working with the server could
+//   post as someone else. The signature is inside the encryption (only members see it), in a
+//   `v2.` envelope: "v2." + base64(IV || AES-GCM(signature (64 bytes) || content)). Messages
+//   from before signing are `v1.` (plain encryptMessage / encryptReaction) and show as unsigned.
 
 const te = new TextEncoder();
 const ECDH = { name: 'ECDH', namedCurve: 'P-256' };
@@ -22,6 +33,12 @@ const GROUP_KEY_CONTEXT = 'voicaw/group-key/v1';
 const GROUP_MESSAGE_CONTEXT = 'voicaw/group-msg/v1';
 const GROUP_REACTION_CONTEXT = 'voicaw/group-reaction/v1';
 const GROUP_CALL_KEY_CONTEXT = 'voicaw/group-call-key/v1';
+const MESSAGE_SIGNATURE_CONTEXT = 'voicaw/group-msg-sig/v1';
+const REACTION_SIGNATURE_CONTEXT = 'voicaw/group-reaction-sig/v1';
+
+export const SIGNED_PREFIX = 'v2.';
+// ECDSA P-256 signatures from WebCrypto are r || s.
+export const SIGNATURE_BYTES = 64;
 
 export const MAX_GROUP_MEMBERS = 10;
 
@@ -175,4 +192,94 @@ export function groupReactionContext(groupId, messageId, reactorId) {
 // A group call's key travels encrypted with the group's current epoch key.
 export function groupCallKeyContext(callId, groupId, epoch, callerId) {
   return `${GROUP_CALL_KEY_CONTEXT}|${callId}|${groupId}|${epoch}|${callerId}`;
+}
+
+// ---------------------------------------------------------------- signatures
+
+function concatBytes(...parts) {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let offset = 0;
+  for (const p of parts) {
+    out.set(p, offset);
+    offset += p.length;
+  }
+  return out;
+}
+
+// What a message's signature covers besides its text: the group, epoch, sender, the message it
+// replies to, and for an edit the message edited (so an edit can't be moved to another
+// message, or a reply to another parent).
+export function messageSignatureContext({ groupId, epoch, senderId, replyTo = null, editOf = null }) {
+  return `${MESSAGE_SIGNATURE_CONTEXT}|${groupId}|${epoch}|${senderId}|${replyTo ?? ''}|${editOf ?? ''}`;
+}
+
+export function reactionSignatureContext({ groupId, epoch, messageId, reactorId }) {
+  return `${REACTION_SIGNATURE_CONTEXT}|${groupId}|${epoch}|${messageId}|${reactorId}`;
+}
+
+async function seal(bytes, epochKey, aad, signingKey, signatureContext) {
+  const signature = new Uint8Array(await crypto.subtle.sign(SIGN, signingKey, concatBytes(te.encode(`${signatureContext}\n`), bytes)));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: te.encode(aad) }, epochKey, concatBytes(signature, bytes));
+  return SIGNED_PREFIX + toBase64(concatBytes(iv, new Uint8Array(ciphertext)));
+}
+
+// -> { bytes, verified } (`verified` null when no identity key was given to check against).
+async function open(envelope, epochKey, aad, identityKey, signatureContext) {
+  const data = fromBase64(envelope.slice(SIGNED_PREFIX.length));
+  const plain = new Uint8Array(await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: data.slice(0, 12), additionalData: te.encode(aad) },
+    epochKey,
+    data.slice(12)
+  ));
+  const signature = plain.slice(0, SIGNATURE_BYTES);
+  const bytes = plain.slice(SIGNATURE_BYTES);
+  if (!identityKey) return { bytes, verified: null };
+  let verified = false;
+  try {
+    const key = await crypto.subtle.importKey('raw', fromBase64(identityKey), ECDSA, false, ['verify']);
+    verified = await crypto.subtle.verify(SIGN, key, signature, concatBytes(te.encode(`${signatureContext}\n`), bytes));
+  } catch {
+    verified = false;
+  }
+  return { bytes, verified };
+}
+
+// A group message (or edit), encrypted with the epoch key and signed with `signingKey` (the
+// sender's identity private key).
+export function encryptGroupMessage(text, epochKey, aad, signingKey, signatureContext) {
+  return seal(te.encode(text), epochKey, aad, signingKey, signatureContext);
+}
+
+// -> { text, signed, verified }: `signed` false for a message from before signing (`v1.`);
+// `verified` whether the signature is the sender's (`identityKey`: their key from the group's
+// checked log; null skips the check, as for a reply's preview). Throws if it doesn't decrypt.
+export async function decryptGroupMessage(envelope, epochKey, aad, identityKey, signatureContext) {
+  if (typeof envelope === 'string' && envelope.startsWith(SIGNED_PREFIX)) {
+    const { bytes, verified } = await open(envelope, epochKey, aad, identityKey, signatureContext);
+    return { text: new TextDecoder().decode(bytes), signed: true, verified };
+  }
+  return { text: await decryptMessage(envelope, epochKey, aad), signed: false, verified: false };
+}
+
+// A reaction: the emoji padded to REACTION_PLAINTEXT_BYTES (every signed reaction is the same
+// size), signed and encrypted.
+export function encryptGroupReaction(emoji, epochKey, aad, signingKey, signatureContext) {
+  const bytes = te.encode(emoji);
+  if (bytes.length === 0 || bytes.length > REACTION_PLAINTEXT_BYTES || bytes.includes(0)) throw new Error('Invalid reaction');
+  const padded = new Uint8Array(REACTION_PLAINTEXT_BYTES);
+  padded.set(bytes);
+  return seal(padded, epochKey, aad, signingKey, signatureContext);
+}
+
+// -> { emoji, signed, verified }
+export async function decryptGroupReaction(envelope, epochKey, aad, identityKey, signatureContext) {
+  if (typeof envelope === 'string' && envelope.startsWith(SIGNED_PREFIX)) {
+    const { bytes, verified } = await open(envelope, epochKey, aad, identityKey, signatureContext);
+    const end = bytes.indexOf(0);
+    const emoji = new TextDecoder().decode(end === -1 ? bytes : bytes.slice(0, end));
+    if (!emoji) throw new Error('Empty reaction');
+    return { emoji, signed: true, verified };
+  }
+  return { emoji: await decryptReaction(envelope, epochKey, aad), signed: false, verified: false };
 }

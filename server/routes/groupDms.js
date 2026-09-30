@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { maxPlaintextLength, maxMessageLength } = require('../config');
+const { maxPlaintextLength, getMaxEncryptedLength } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, isViewingConversation } = require('../sockets');
 const { sendPushToUser } = require('../push');
@@ -12,8 +12,23 @@ const calls = require('../calls');
 const router = express.Router();
 
 const MAX_REACTIONS_PER_USER_PER_MESSAGE = 20;
-// An encrypted reaction is always this long (see the client's encryptReaction).
-const REACTION_LENGTH = 127;
+// Messages, edits and reactions are signed inside their encryption (client groupCrypto.js):
+// "v2." envelopes, whose plaintext starts with a 64-byte signature. (Older "v1." ones, from
+// before signing, are still served; new ones must be signed.)
+const SIGNED_PREFIX = 'v2.';
+const SIGNATURE_BYTES = 64;
+const MAX_MESSAGE_LENGTH = getMaxEncryptedLength(maxPlaintextLength + SIGNATURE_BYTES);
+// A signed reaction is always this long: signature + 64 padded bytes.
+const REACTION_LENGTH = getMaxEncryptedLength(SIGNATURE_BYTES + 64);
+const OUTDATED = 'Please update the app (group messages are signed now)';
+
+// A new message or edit's content: signed, and not too long. -> an error message, or null.
+function contentError(content) {
+  if (typeof content !== 'string' || !content.trim()) return 'Missing content';
+  if (!content.startsWith(SIGNED_PREFIX)) return OUTDATED;
+  if (content.length > MAX_MESSAGE_LENGTH) return `Message too long. Max allowed characters: ${maxPlaintextLength}`;
+  return null;
+}
 
 // A message row, as `viewerId` may see it: only messages of epochs they have a key for, and
 // a reply's parent only if they can read that too.
@@ -235,10 +250,8 @@ router.post('/group-dms/:groupId/messages', member, async (req, res) => {
   const { state } = req;
   const groupId = state.group.id;
   const { epoch, content, replyTo } = req.body ?? {};
-  if (typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: 'Missing content' });
-  if (content.length > maxMessageLength) {
-    return res.status(400).json({ error: `Message too long. Max allowed characters: ${maxPlaintextLength}` });
-  }
+  const invalid = contentError(content);
+  if (invalid) return res.status(400).json({ error: invalid });
   const latest = state.latestEpoch;
   if (!latest || epoch !== latest.epoch || latest.log_seq !== state.nextSeq - 1) {
     return res.status(409).json({ error: 'The group changed; its key has to be renewed', code: 'stale_epoch' });
@@ -290,9 +303,8 @@ async function findMessage(req, res, next) {
 // Edit your own message: { content } (encrypted with the message's epoch key).
 router.put('/group-dm-messages/:messageId', authenticateJWT, findMessage, async (req, res) => {
   const { content } = req.body ?? {};
-  if (typeof content !== 'string' || !content.trim() || content.length > maxMessageLength) {
-    return res.status(400).json({ error: 'Invalid content' });
-  }
+  const invalid = contentError(content);
+  if (invalid) return res.status(400).json({ error: invalid });
   if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not your message' });
   await db.run('UPDATE group_dm_messages SET content = ?, edited = 1 WHERE id = ?', [content.trim(), req.message.id]);
   await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_edit', groupId: req.message.group_id, messageId: req.message.id, content: content.trim() });
@@ -311,7 +323,8 @@ router.delete('/group-dm-messages/:messageId', authenticateJWT, findMessage, asy
 // React: { content } (the encrypted, padded emoji; see DM reactions).
 router.post('/group-dm-messages/:messageId/reactions', authenticateJWT, findMessage, async (req, res) => {
   const { content } = req.body ?? {};
-  if (typeof content !== 'string' || content.length !== REACTION_LENGTH || !content.startsWith('v1.')) {
+  if (typeof content === 'string' && content.startsWith('v1.')) return res.status(400).json({ error: OUTDATED });
+  if (typeof content !== 'string' || content.length !== REACTION_LENGTH || !content.startsWith(SIGNED_PREFIX)) {
     return res.status(400).json({ error: 'Invalid reaction' });
   }
   const { n } = await db.get('SELECT COUNT(*) AS n FROM group_dm_reactions WHERE message_id = ? AND user_id = ?', [req.message.id, req.user.id]);

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { generateUserKeys, importEncryptionPrivateKey, importIdentityPrivateKey } from './encryptionService';
+import { encryptMessage, generateUserKeys, importEncryptionPrivateKey, importIdentityPrivateKey } from './encryptionService';
 import {
   entryHash,
   generateGroupKey,
@@ -10,6 +10,16 @@ import {
   verifyGroupLog,
   wrapGroupKey,
   GroupLogError,
+  importGroupKey,
+  groupMessageContext,
+  groupReactionContext,
+  messageSignatureContext,
+  reactionSignatureContext,
+  encryptGroupMessage,
+  decryptGroupMessage,
+  encryptGroupReaction,
+  decryptGroupReaction,
+  SIGNED_PREFIX,
 } from './groupCrypto';
 
 const GROUP = '11111111-2222-4333-8444-555555555555';
@@ -97,5 +107,60 @@ describe('epoch keys', () => {
     expect(opened.type).toBe('secret');
     await expect(unwrapGroupKey(envelope, c.decrypt, a.keys.public.encryptionKey, context)).rejects.toThrow();
     await expect(unwrapGroupKey(envelope, b.decrypt, a.keys.public.encryptionKey, groupKeyContext(GROUP, 3, 5, a.id, b.id))).rejects.toThrow();
+  });
+});
+
+describe('signed messages', () => {
+  let epochKey;
+  beforeAll(async () => {
+    epochKey = await importGroupKey(generateGroupKey());
+  });
+  const sigContext = (senderId, extra = {}) => messageSignatureContext({ groupId: GROUP, epoch: 1, senderId, ...extra });
+
+  it("open with the sender's key, and only theirs", async () => {
+    const [a, b] = people;
+    const envelope = await encryptGroupMessage('hi all', epochKey, groupMessageContext(GROUP, 1, a.id), a.sign, sigContext(a.id));
+    expect(envelope.startsWith(SIGNED_PREFIX)).toBe(true);
+    expect(await decryptGroupMessage(envelope, epochKey, groupMessageContext(GROUP, 1, a.id), a.keys.public.identityKey, sigContext(a.id)))
+      .toEqual({ text: 'hi all', signed: true, verified: true });
+    expect((await decryptGroupMessage(envelope, epochKey, groupMessageContext(GROUP, 1, a.id), b.keys.public.identityKey, sigContext(a.id))).verified).toBe(false);
+  });
+
+  it('catch a member posting as someone else', async () => {
+    // Bea has the epoch key, so she can encrypt "from Ann", but she can only sign as herself.
+    const [a, b] = people;
+    const forged = await encryptGroupMessage('send me money', epochKey, groupMessageContext(GROUP, 1, a.id), b.sign, sigContext(a.id));
+    const result = await decryptGroupMessage(forged, epochKey, groupMessageContext(GROUP, 1, a.id), a.keys.public.identityKey, sigContext(a.id));
+    expect(result.verified).toBe(false);
+  });
+
+  it('catch a reply moved to another message, and an edit moved to another message', async () => {
+    const [a] = people;
+    const aad = groupMessageContext(GROUP, 1, a.id);
+    const reply = await encryptGroupMessage('yes!', epochKey, aad, a.sign, sigContext(a.id, { replyTo: 10 }));
+    expect((await decryptGroupMessage(reply, epochKey, aad, a.keys.public.identityKey, sigContext(a.id, { replyTo: 11 }))).verified).toBe(false);
+    const edit = await encryptGroupMessage('fixed', epochKey, aad, a.sign, sigContext(a.id, { editOf: 5 }));
+    expect((await decryptGroupMessage(edit, epochKey, aad, a.keys.public.identityKey, sigContext(a.id, { editOf: 5 }))).verified).toBe(true);
+    expect((await decryptGroupMessage(edit, epochKey, aad, a.keys.public.identityKey, sigContext(a.id, { editOf: 6 }))).verified).toBe(false);
+    expect((await decryptGroupMessage(edit, epochKey, aad, a.keys.public.identityKey, sigContext(a.id))).verified).toBe(false);
+  });
+
+  it('still read messages from before signing, as unsigned', async () => {
+    const [a] = people;
+    const old = await encryptMessage('from before', epochKey, groupMessageContext(GROUP, 1, a.id));
+    expect(await decryptGroupMessage(old, epochKey, groupMessageContext(GROUP, 1, a.id), a.keys.public.identityKey, sigContext(a.id)))
+      .toEqual({ text: 'from before', signed: false, verified: false });
+  });
+
+  it('sign reactions too, at a fixed size', async () => {
+    const [a, b] = people;
+    const aad = groupReactionContext(GROUP, 7, a.id);
+    const context = reactionSignatureContext({ groupId: GROUP, epoch: 1, messageId: 7, reactorId: a.id });
+    const thumbs = await encryptGroupReaction('👍', epochKey, aad, a.sign, context);
+    const family = await encryptGroupReaction('👨‍👩‍👧', epochKey, aad, a.sign, context);
+    expect(thumbs.length).toBe(family.length);
+    expect(await decryptGroupReaction(thumbs, epochKey, aad, a.keys.public.identityKey, context)).toEqual({ emoji: '👍', signed: true, verified: true });
+    const forged = await encryptGroupReaction('👎', epochKey, aad, b.sign, context);
+    expect((await decryptGroupReaction(forged, epochKey, aad, a.keys.public.identityKey, context)).verified).toBe(false);
   });
 });

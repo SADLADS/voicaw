@@ -9,18 +9,32 @@ import {
   removeGroupReaction,
   sendGroupMessage,
 } from '../services/groupService';
-import { decryptMessage, decryptReaction, encryptMessage, encryptReaction } from '../services/encryptionService';
-import { groupMessageContext, groupReactionContext } from '../services/groupCrypto';
+import {
+  decryptGroupMessage,
+  decryptGroupReaction,
+  encryptGroupMessage,
+  encryptGroupReaction,
+  groupMessageContext,
+  groupReactionContext,
+  messageSignatureContext,
+  reactionSignatureContext,
+} from '../services/groupCrypto';
+import { loadIdentityKey } from '../services/keyStore';
 import { currentEpoch, openGroup } from '../services/groupKeys';
 
 export const GROUP_PAGE_SIZE = 50;
 
 const UNREADABLE = "[This message couldn't be decrypted]";
+const FORGED = "[This message's signature doesn't match its sender, so it isn't shown]";
 
 // One group DM: its keys and checked membership (groupKeys.openGroup), history (decrypted with
 // each message's epoch key), sending (with the current epoch, making the next one when the
 // members changed), edits, deletes, reactions and live updates. The same shape as
 // useConversation for ChatPane, plus `group` (openGroup's result: detail, log, problems),
+// Everything is signed by its sender (groupCrypto.js) and checked against their identity key
+// from the group's checked log: a message whose signature doesn't match isn't shown
+// (`unverified`), one from before signing is marked `unsigned`, reactions that don't match are
+// dropped.
 // `saveReaction` / `deleteReaction`, and `reload()`. Membership changes show in the timeline
 // as system rows ({ system: true, text }).
 export function useGroupConversation({ groupId, user, onRead }) {
@@ -59,13 +73,23 @@ export function useGroupConversation({ groupId, user, onRead }) {
     return opened.keys.get(epoch) ?? null;
   }
 
-  async function decryptText(content, epoch, senderId) {
+  // The signed context of a stored message (see messageSignatureContext).
+  const signatureContextOf = (row) => messageSignatureContext({
+    groupId, epoch: row.epoch, senderId: row.sender_id, replyTo: row.parent_message_id ?? null, editOf: row.edited ? row.id : null,
+  });
+
+  // -> { plaintext, unsigned?, unverified? }. `verify` false for a reply's preview (whose own
+  // signature context the server doesn't send; the message itself is checked where it's shown).
+  async function decryptText(content, epoch, senderId, signatureContext, verify = true) {
     const key = await keyFor(epoch);
-    if (!key) return UNREADABLE;
+    if (!key) return { plaintext: UNREADABLE };
     try {
-      return await decryptMessage(content, key, groupMessageContext(groupId, epoch, senderId));
+      const identityKey = verify ? groupRef.current?.log.identityKeys.get(senderId) ?? 'unknown' : null;
+      const { text, signed, verified } = await decryptGroupMessage(content, key, groupMessageContext(groupId, epoch, senderId), identityKey, signatureContext);
+      if (signed && verified === false) return { plaintext: FORGED, unverified: true };
+      return { plaintext: text, unsigned: !signed };
     } catch {
-      return UNREADABLE;
+      return { plaintext: UNREADABLE };
     }
   }
 
@@ -74,7 +98,13 @@ export function useGroupConversation({ groupId, user, onRead }) {
     const out = [];
     for (const r of reactions ?? []) {
       try {
-        out.push({ id: r.id, user_id: r.user_id, emoji: await decryptReaction(r.content, key, groupReactionContext(groupId, messageId, r.user_id)) });
+        const { emoji, signed, verified } = await decryptGroupReaction(
+          r.content, key, groupReactionContext(groupId, messageId, r.user_id),
+          groupRef.current?.log.identityKeys.get(r.user_id) ?? 'unknown',
+          reactionSignatureContext({ groupId, epoch, messageId, reactorId: r.user_id })
+        );
+        if (signed && !verified) continue;
+        out.push({ id: r.id, user_id: r.user_id, emoji });
       } catch {
         // Skip one that doesn't open.
       }
@@ -83,10 +113,13 @@ export function useGroupConversation({ groupId, user, onRead }) {
   }
 
   async function decryptRow(row) {
+    const text = await decryptText(row.content, row.epoch, row.sender_id, signatureContextOf(row));
     return {
       ...row,
-      plaintext: await decryptText(row.content, row.epoch, row.sender_id),
-      parent_plaintext: row.parent_content ? await decryptText(row.parent_content, row.parent_epoch, row.parent_sender_id) : null,
+      ...text,
+      parent_plaintext: row.parent_content
+        ? (await decryptText(row.parent_content, row.parent_epoch, row.parent_sender_id, null, false)).plaintext
+        : null,
       reactions: await decryptReactions(row.id, row.epoch, row.reactions),
     };
   }
@@ -188,7 +221,10 @@ export function useGroupConversation({ groupId, user, onRead }) {
       const { epoch, key, group: opened } = await currentEpoch(user, groupId, groupRef.current);
       groupRef.current = opened;
       setGroup(opened);
-      const content = await encryptMessage(text, key, groupMessageContext(groupId, epoch, user.id));
+      const content = await encryptGroupMessage(
+        text, key, groupMessageContext(groupId, epoch, user.id), await loadIdentityKey(),
+        messageSignatureContext({ groupId, epoch, senderId: user.id, replyTo: replyToId })
+      );
       try {
         return await sendGroupMessage(groupId, epoch, content, replyToId);
       } catch (err) {
@@ -235,7 +271,10 @@ export function useGroupConversation({ groupId, user, onRead }) {
   async function editMessage(messageId, text) {
     const original = messagesRef.current.find((m) => m.id === messageId);
     const key = await keyFor(original.epoch);
-    await editGroupMessage(messageId, await encryptMessage(text, key, groupMessageContext(groupId, original.epoch, user.id)));
+    const context = messageSignatureContext({
+      groupId, epoch: original.epoch, senderId: user.id, replyTo: original.parent_message_id ?? null, editOf: messageId,
+    });
+    await editGroupMessage(messageId, await encryptGroupMessage(text, key, groupMessageContext(groupId, original.epoch, user.id), await loadIdentityKey(), context));
     updateMessage(messageId, () => ({ plaintext: text, edited: 1 }));
   }
 
@@ -246,7 +285,10 @@ export function useGroupConversation({ groupId, user, onRead }) {
 
   async function saveReaction(msg, emoji) {
     const key = await keyFor(msg.epoch);
-    return addGroupReaction(msg.id, await encryptReaction(emoji, key, groupReactionContext(groupId, msg.id, user.id)));
+    return addGroupReaction(msg.id, await encryptGroupReaction(
+      emoji, key, groupReactionContext(groupId, msg.id, user.id), await loadIdentityKey(),
+      reactionSignatureContext({ groupId, epoch: msg.epoch, messageId: msg.id, reactorId: user.id })
+    ));
   }
 
   useEffect(() => {
@@ -260,8 +302,8 @@ export function useGroupConversation({ groupId, user, onRead }) {
         case 'group_dm_message_edit': {
           const original = messagesRef.current.find((m) => m.id === event.messageId);
           if (!original) break;
-          const plaintext = await decryptText(event.content, original.epoch, original.sender_id);
-          updateMessage(event.messageId, () => ({ plaintext, edited: 1 }));
+          const text = await decryptText(event.content, original.epoch, original.sender_id, signatureContextOf({ ...original, edited: 1 }));
+          updateMessage(event.messageId, () => ({ ...text, edited: 1 }));
           break;
         }
         case 'group_dm_message_delete':

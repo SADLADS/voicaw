@@ -595,13 +595,27 @@ call keys are.
   (they never get those keys), someone removed never gets new keys, and someone re-added keeps
   their old keys: they see the times they were a member, not the gap (decided 2026-09-30;
   "fresh start on rejoin" would be deleting their old `group_dm_epoch_keys` rows on re-add).
-- **Messages** (`group_dm_messages`, `_reactions`, `_reads`): like DMs, encrypted with the
-  epoch key, additional data `groupMessageContext(groupId, epoch, senderId)` (reactions:
-  `groupReactionContext(groupId, messageId, reactorId)`, padded like DM reactions); edits keep
-  the message's epoch. Messages aren't signed: within a group, who sent a message rests on the
-  server's login (a member working with the server could forge one; signing them is a possible
-  next step). Pushes say "New message from <name>" (no preview: the service worker has no epoch
-  keys).
+- **Messages** (`group_dm_messages`, `_reactions`, `_reads`): encrypted with the epoch key,
+  additional data `groupMessageContext(groupId, epoch, senderId)` (reactions:
+  `groupReactionContext(groupId, messageId, reactorId)`); edits keep the message's epoch.
+- **Signed** (since 2026-09-30): everyone in a group has the epoch key, so messages, edits and
+  reactions are also signed with the sender's identity key, or a member working with the server
+  could post as someone else. The signature is inside the encryption (only members see it; the
+  server learns nothing new): a `v2.` envelope, "v2." + base64(IV || AES-GCM(64-byte ECDSA
+  signature || content)) (`encryptGroupMessage` / `encryptGroupReaction` in groupCrypto.js;
+  reactions padded to 64 bytes, so every one is the same size). It covers
+  `messageSignatureContext({ groupId, epoch, senderId, replyTo, editOf })` (so a reply can't be
+  moved to another parent, nor an edit to another message) or `reactionSignatureContext`.
+  `useGroupConversation` checks it against the sender's identity key from the checked log: a
+  mismatch isn't shown ("⚠ unverified sender"), a reaction that doesn't match is dropped, and
+  `v1.` messages from before signing show as "not signed" (a signature can't be told apart
+  from one the server removed). The server takes only `v2.` for anything new (an older app gets
+  "Please update the app"). A reply's preview isn't checked (the server doesn't send the
+  parent's own signed context; the parent is checked where it's shown). Not signed: the group
+  call key (the caller's name comes from the server). DMs aren't signed on purpose: only the
+  two people hold the key, so a message can only be from the other one, and unsigned messages
+  stay deniable. Pushes say "New message from <name>" (no preview: the service worker has no
+  epoch keys).
 - **API** (`routes/groupDms.js`): `GET/POST /group-dms`, `GET /group-dms/:id` (summary, the
   whole log, everyone's public keys, your epoch keys, `latest_epoch`, the group's `call`),
   `PATCH` (rename), `POST /:id/log { entry, epoch? }`, `POST /:id/epochs`, `GET/POST
@@ -823,7 +837,8 @@ their box is reserved before they load.
   new members don't read old ones: per-group epoch keys, renewed after every membership change,
   each member getting a copy wrapped for them (ECDH + HKDF; WebCrypto has no HPKE); membership
   changes signed with identity keys. Re-added members see the times they were in, not the gap.
-  Group messages aren't signed yet. Don't change identity keys or the safety-number derivation
+  Group messages, edits and reactions are signed inside the encryption; DMs deliberately
+  aren't (two people, so no one else could have written it; stays deniable). Don't change identity keys or the safety-number derivation
   casually: every contact would get a "key changed" warning. The server delivering the web app's code stays the
   unfixable gap until native apps.
 - **Guilds aren't encrypted** (decided 2026-09-29): encrypted channels inside guilds were
