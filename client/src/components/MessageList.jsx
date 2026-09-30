@@ -10,6 +10,7 @@ import MessageReactions from './MessageReactions';
 import UrlPreviews from './UrlPreviews';
 import MessageEmbeds from './MessageEmbeds';
 import MessageFiles from './MessageFiles';
+import Poll from './Poll';
 import defaultAvatar from '../assets/images/default.png';
 import { useLongPress } from '../hooks/useLongPress';
 import MessageEditor from '../editor/MessageEditor';
@@ -25,6 +26,7 @@ import { displayName, useProfiles } from '../utils/profiles';
 import ProfilePopover from './ProfilePopover';
 import Avatar from './Avatar';
 import { formatDateTime, formatTime, useDateFormat } from '../utils/dateFormat';
+import { parsePoll } from '../utils/pollMarkup';
 import { mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
@@ -164,9 +166,12 @@ export function MessageContent({ msg, user, s3Endpoint, reactionNames, mentionRo
     () => ({ names: reactionNames, roles: mentionRoles, meId: user.id, myRoleIds, everyone: Boolean(msg.mention_everyone) }),
     [reactionNames, mentionRoles, user.id, myRoleIds, msg.mention_everyone]
   );
+  const poll = useMemo(() => parsePoll(msg.plaintext), [msg.plaintext]);
   return (
     <div className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}`} data-image-gallery="">
-      <MessageMarkdown msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />
+      {poll
+        ? <Poll poll={poll} reactions={msg.reactions} userId={user.id} names={reactionNames} />
+        : <MessageMarkdown msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />}
       <WebhookParts msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />
     </div>
   );
@@ -196,6 +201,7 @@ export function MessageRow({
   maxPlaintextLength,
   onToggleReaction,
   onOpenReactionPicker,
+  onVote,
   reactionNames,
   onOpenActions,
   focusedMsgId,
@@ -236,6 +242,7 @@ export function MessageRow({
     [reactionNames, mentionRoles, user.id, myRoleIds, msg.mention_everyone]
   );
   const mentionsMe = isForMe(msg, user.id, myRoleIds);
+  const poll = useMemo(() => parsePoll(msg.plaintext), [msg.plaintext]);
 
 
   // Not before the server has the message (it has no id yet).
@@ -408,6 +415,14 @@ export function MessageRow({
                 </span>
               </div>
             </div>
+          ) : poll ? (
+            <Poll
+              poll={poll}
+              reactions={msg.reactions}
+              userId={user.id}
+              names={reactionNames}
+              onVote={canReact && onVote ? (optionId) => onVote(msg, optionId) : undefined}
+            />
           ) : (
             <MessageMarkdown msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />
           )}
@@ -417,7 +432,7 @@ export function MessageRow({
 
           <WebhookParts msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />
 
-          <UrlPreviews text={msg.plaintext} encrypted={encrypted} />
+          {!poll && <UrlPreviews text={msg.plaintext} encrypted={encrypted} />}
         </div>
 
         {canReact && (
@@ -472,6 +487,7 @@ export default function MessageList({
   maxPlaintextLength,
   onToggleReaction,
   onOpenReactionPicker,
+  onVote,
   reactionNames,
   onOpenActions,
   focusedMsgId,
@@ -522,6 +538,7 @@ export default function MessageList({
     maxPlaintextLength,
     onToggleReaction,
     onOpenReactionPicker,
+    onVote,
     reactionNames,
     onOpenActions,
     focusedMsgId,

@@ -16,6 +16,10 @@ const router = express.Router();
 
 const MAX_REACTIONS_PER_USER_PER_MESSAGE = 20;
 const MAX_EMOJI_LENGTH = 64;
+// A poll's messages are `poll:v1:` + JSON, and a vote is a reaction `poll:<option id>` (client
+// utils/pollMarkup.js). Voting only needs to see the channel, not Add Reactions.
+const POLL_PREFIX = 'poll:v1:';
+const POLL_VOTE = /^poll:[a-z0-9]{8}$/;
 
 // A webhook's messages (routes/webhooks.js) have sender_id 0 and no user: their name is
 // `webhook_name` (also as sender_username) and their picture `webhook_avatar` (a URL or null).
@@ -82,7 +86,7 @@ async function requireTextChannel(req, res, next) {
 async function requireMessage(req, res, next) {
   const messageId = Number(req.params.messageId);
   const message = Number.isInteger(messageId) && await db.get(
-    'SELECT id, channel_id, sender_id FROM guild_messages WHERE id = ?',
+    'SELECT id, channel_id, sender_id, content FROM guild_messages WHERE id = ?',
     [messageId]
   );
   const access = message && await getChannelAccess(message.channel_id, req.user.id);
@@ -230,7 +234,8 @@ router.post('/guild-messages/:messageId/reactions', authenticateJWT, requireMess
   if (typeof emoji !== 'string' || !emoji || emoji.length > MAX_EMOJI_LENGTH || /\s/.test(emoji)) {
     return res.status(400).json({ error: 'Invalid reaction' });
   }
-  if (!has(req.permissions, PERMISSIONS.ADD_REACTIONS)) return forbidden(res);
+  const vote = POLL_VOTE.test(emoji) && String(req.message.content).startsWith(POLL_PREFIX);
+  if (!vote && !has(req.permissions, PERMISSIONS.ADD_REACTIONS)) return forbidden(res);
   const messageId = req.message.id;
   const { guild_id: guildId, id: channelId } = req.channel;
 

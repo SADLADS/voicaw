@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { parsePoll, planVote, voteKey } from '../utils/pollMarkup';
 
 // Reacting to messages in a conversation (useConversation) or channel (useChannel): adding and
 // removing your own reactions, and which message the reaction picker is open for.
 // `saveReaction(msg, emoji)` stores one (resolving to its `{ id }`) and `deleteReaction(id)`
 // removes one: that's where a DM encrypts and a guild doesn't. Nothing is sent until `ready`.
 // `onError(message)` reports failures. The picker closes when the chat (`chatId`) changes.
+// Poll votes are reactions too (utils/pollMarkup.js): `vote(msg, optionId)`.
 export function useReactions({ chatId, user, ready, saveReaction, deleteReaction, messagesRef, setMessageReactions, onError }) {
   // The message the picker is choosing a reaction for, and (desktop) the rect of the button
   // that opened it, to show it next to.
@@ -62,5 +64,35 @@ export function useReactions({ chatId, user, ready, saveReaction, deleteReaction
     if (!alreadyMine) toggleReaction(msg, emoji);
   }
 
-  return { reactingTo, openPicker, closePicker, toggleReaction, pickReaction };
+  // Votes for `optionId` in the poll `msg` is (or takes the vote back; see planVote).
+  async function vote(msg, optionId) {
+    const key = `${msg.id}|poll`;
+    if (!ready || inFlight.current.has(key)) return;
+    inFlight.current.add(key);
+    try {
+      const current = messagesRef.current.find((m) => m.id === msg.id) ?? msg;
+      const poll = parsePoll(current.plaintext);
+      if (!poll?.options.some((o) => o.id === optionId)) return;
+      const { remove, add } = planVote(poll, current.reactions, user.id, optionId);
+      if (remove.length > 0) {
+        await Promise.all(remove.map((r) => deleteReaction(r.id)));
+        const removed = new Set(remove.map((r) => r.id));
+        setMessageReactions(msg.id, (list) => list.filter((r) => !removed.has(r.id)));
+      }
+      if (add) {
+        const emoji = voteKey(optionId);
+        const saved = await saveReaction(current, emoji);
+        setMessageReactions(msg.id, (list) =>
+          list.some((r) => r.id === saved.id) ? list : [...list, { id: saved.id, user_id: user.id, emoji }]
+        );
+      }
+    } catch (err) {
+      console.error('Failed to vote', err);
+      onError(err.response?.data?.error || "Couldn't save your vote. Try again.");
+    } finally {
+      inFlight.current.delete(key);
+    }
+  }
+
+  return { reactingTo, openPicker, closePicker, toggleReaction, pickReaction, vote };
 }

@@ -42,7 +42,7 @@ try {
   // Alice attaches the picture and marks it as a spoiler in the tray.
   const [chooser] = await Promise.all([
     alice.page.waitForEvent('filechooser'),
-    alice.page.click('.attach-button'),
+    alice.page.click('.attach-button').then(() => alice.page.click('text=Upload a file')),
   ]);
   await chooser.setFiles({ name: 'ending.png', mimeType: 'image/png', buffer: twist });
   await alice.page.click('button[aria-label="Mark ending.png as spoiler"]');

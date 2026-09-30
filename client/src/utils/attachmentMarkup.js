@@ -4,6 +4,8 @@
 // markdown image: `![name](https://…/uploads/<uuid>.bin#…)`. The renderer decides from
 // the URL's metadata whether to show it as an image, a video or a download box.
 
+import { parsePoll, pollSummary } from './pollMarkup';
+
 const PLACEHOLDER_PREFIX = 'attachment:';
 
 // `![alt](url)` where alt may contain backslash-escaped characters.
@@ -63,9 +65,11 @@ function isSpoilerUrl(url) {
 
 // For places that show raw message text (notifications, reply previews): replaces each
 // embed with a short label so attachment URLs and keys aren't shown. A spoiler's name could
-// give it away, so it's just "spoiler".
+// give it away, so it's just "spoiler". A poll is its question.
 export function summarizeAttachments(text) {
   if (!text) return text;
+  const poll = parsePoll(text);
+  if (poll) return pollSummary(poll);
   return text.replace(EMBED_RE, (match, alt, url) =>
     isSpoilerUrl(url) ? '📎 spoiler' : `📎 ${unescapeAltText(alt) || 'attachment'}`
   );

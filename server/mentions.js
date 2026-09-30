@@ -87,6 +87,18 @@ async function saveMentions(message, channel, permissions, allowed) {
   return { mentioned: found.userIds, viewers };
 }
 
+// A poll's question (`poll:v1:` + JSON, see client utils/pollMarkup.js) as notification text,
+// or null for any other message.
+function pollQuestion(content) {
+  if (!String(content).startsWith('poll:v1:')) return null;
+  try {
+    const { q } = JSON.parse(String(content).slice('poll:v1:'.length));
+    return typeof q === 'string' ? `📊 Poll: ${q}` : null;
+  } catch {
+    return null;
+  }
+}
+
 // The message as notification text: mentions by name, custom emoji as :name:, attachments as
 // their names (their links carry keys; spoilers just "spoiler"), spoilers hidden, cut to MAX_PREVIEW_LENGTH.
 async function previewText(content, guildId) {
@@ -97,7 +109,7 @@ async function previewText(content, guildId) {
   const roles = await db.all('SELECT id, name FROM guild_roles WHERE guild_id = ?', [guildId]);
   const userName = new Map(users.map((u) => [u.id, u.display_name || u.username]));
   const roleName = new Map(roles.map((r) => [r.id, r.name]));
-  const text = String(content)
+  const text = pollQuestion(content) ?? String(content)
     .replace(/!\[((?:\\.|[^\]\\])*)\]\(([^)]*)\)/g, (_, alt, url) =>
       /#(?:.*&)?sp=1(?:&|$)/.test(url) ? '📎 spoiler' : `📎 ${alt.replace(/\\(.)/g, '$1') || 'attachment'}`)
     .replace(/<:([A-Za-z0-9_]+):\d+>/g, ':$1:')

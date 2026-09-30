@@ -2574,3 +2574,204 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   overflow-wrap: anywhere;
   color: var(--vc-accent);
 }
+
+/* ---------------------------------------------------------------- POLLS */
+
+/* The composer's + menu: upload a file, create a poll. */
+.attach-wrapper {
+  position: relative;
+}
+
+.composer-add-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  min-width: 190px;
+  padding: 6px;
+  border-radius: 6px;
+  background-color: #111114;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+}
+
+.composer-add-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.composer-add-item:hover:not(:disabled) {
+  background-color: var(--vc-accent);
+  color: var(--vc-fg);
+}
+
+.composer-add-item:disabled {
+  opacity: 0.5;
+}
+
+/* A poll message. */
+.poll {
+  width: 100%;
+  max-width: 440px;
+  margin: 4px 0;
+  padding: 12px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  background-color: var(--vc-bg-subtle);
+}
+
+.poll-question {
+  font-weight: 600;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.poll-kind {
+  margin: 2px 0 10px;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.poll-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.poll-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  overflow: hidden;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 6px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.poll-option:hover:not(:disabled) {
+  border-color: var(--vc-border-light);
+}
+
+.poll-option:disabled {
+  cursor: default;
+}
+
+.poll-option.mine {
+  border-color: var(--vc-accent);
+}
+
+/* Its share of the votes, behind the text. */
+.poll-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background-color: color-mix(in srgb, var(--vc-fg-muted) 16%, transparent);
+  transition: width 0.2s ease;
+}
+
+.poll-option.mine .poll-bar {
+  background-color: color-mix(in srgb, var(--vc-accent) 40%, transparent);
+}
+
+.poll-check,
+.poll-option-text,
+.poll-count {
+  position: relative;
+}
+
+.poll-check {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--vc-fg-muted);
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.poll-check.square {
+  border-radius: 4px;
+}
+
+.poll-option.mine .poll-check {
+  border-color: var(--vc-accent);
+  background-color: var(--vc-accent);
+  color: var(--vc-fg);
+}
+
+.poll-option-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.poll-option.leading .poll-option-text {
+  font-weight: 600;
+}
+
+.poll-count {
+  flex-shrink: 0;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.poll-footer {
+  margin-top: 10px;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+/* Creating or editing one. */
+.poll-dialog-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.poll-dialog-remove {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.poll-dialog-remove:hover:not(:disabled) {
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-danger);
+}
+
+.poll-dialog-remove:disabled {
+  visibility: hidden;
+}
+
+.poll-dialog-add {
+  align-self: flex-start;
+  margin-top: 4px;
+}

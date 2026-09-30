@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
 import EmojiPicker from './EmojiPicker';
 import EmojiSuggestions from './EmojiSuggestions';
 import MentionSuggestions from './MentionSuggestions';
 import AttachmentTray from './AttachmentTray';
+import PollDialog from './PollDialog';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { getSkinTone, recordEmojiUse, skinFor } from '../emoji/emojiUsage';
 import { getKeyboardHeight } from '../utils/keyboardHeight';
@@ -22,6 +23,7 @@ import {
 import { useCustomEmoji } from '../emoji/customEmojiContext';
 import { searchMentions } from '../utils/mentions';
 import { gifMarkup } from '../utils/gifMarkup';
+import { pollMarkup } from '../utils/pollMarkup';
 import { displayName, nameOf, useProfiles } from '../utils/profiles';
 
 // ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
@@ -33,7 +35,7 @@ const MENTION_QUERY = /(?:^|[\s([{])@([^\s@<>]{0,32})$/;
 
 // The message box under a conversation (MessageEditor: `inputRef` is its handle), writing to
 // `chatName` (a person, or "#channel"; null while the chat can't be sent to yet), with
-// attachments (chips in the box, uploaded on send), emoji (picker, ":smi" suggestions,
+// attachments (chips in the box, uploaded on send) and polls (both from the + menu), emoji (picker, ":smi" suggestions,
 // ":shortcode:" conversion), mentions ("@na" suggestions from `people`, [{ id, username }];
 // in a guild also `roles`, [{ id, name, color }], and @everyone/@here with `canMentionEveryone`;
 // `roleInfo` ({ id: { name, color } }) draws role mentions in the box) and the reply bar.
@@ -75,6 +77,10 @@ export default function Composer({
   const [suggestionIndex, setSuggestionIndex] = useState(0);
   // The query (":smi" or "@na") whose suggestions Escape closed.
   const [dismissedQuery, setDismissedQuery] = useState(null);
+  // The + button's menu (upload a file, create a poll), and the poll dialog.
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [creatingPoll, setCreatingPoll] = useState(false);
+  const addMenuRef = useRef(null);
 
   // Emoji from the picker (Unicode, or `<:name:id>`). On mobile the box isn't focused (that
   // would open the keyboard).
@@ -266,14 +272,41 @@ export default function Composer({
     }
   }
 
-  // Escape cancels a reply.
+  // A poll goes out as its own message, replying if a reply is set up (like a GIF). The dialog
+  // stays open (showing the error) if it can't be sent.
+  async function sendPoll(poll) {
+    const text = pollMarkup(poll);
+    if (text.length > maxPlaintextLength) throw new Error('The poll is too long.');
+    await onSend({ text, replyTo });
+    onCancelReply();
+  }
+
+  // The + menu closes on a click outside it or Escape.
   useEffect(() => {
+    if (!addMenuOpen) return undefined;
+    const onDown = (e) => {
+      if (!addMenuRef.current?.contains(e.target)) setAddMenuOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setAddMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [addMenuOpen]);
+
+  // Escape cancels a reply (not while it's closing the poll dialog).
+  useEffect(() => {
+    if (creatingPoll) return undefined;
     const onKeyDown = (e) => {
       if (e.key === 'Escape') onCancelReply();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onCancelReply]);
+  }, [onCancelReply, creatingPoll]);
 
   // The tray only shows drafts still referenced from the text; unreferenced ones are kept
   // until send so that undoing a deletion brings them back.
@@ -332,10 +365,38 @@ export default function Composer({
         <AttachmentTray drafts={visibleDrafts} onRemove={removeDraft} onToggleSpoiler={attachments.toggleSpoiler} />
 
         <form id="dm-chat-form" className="d-flex flex-grow-1" onSubmit={handleSubmit}>
-          <div className="attach-wrapper">
-            <button className="attach-button" type="button" onClick={attachments.pickFiles}>
+          <div className="attach-wrapper" ref={addMenuRef}>
+            <button
+              className="attach-button"
+              type="button"
+              aria-label="Add"
+              aria-haspopup="menu"
+              aria-expanded={addMenuOpen}
+              onClick={() => setAddMenuOpen(!addMenuOpen)}
+            >
               <FontAwesomeIcon icon={faPlus} />
             </button>
+            {addMenuOpen && (
+              <div className="composer-add-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="composer-add-item"
+                  onClick={() => { setAddMenuOpen(false); attachments.pickFiles(); }}
+                >
+                  <FontAwesomeIcon icon={faUpload} fixedWidth /> Upload a file
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="composer-add-item"
+                  disabled={!chatName}
+                  onClick={() => { setAddMenuOpen(false); setCreatingPoll(true); }}
+                >
+                  <FontAwesomeIcon icon={faSquarePollHorizontal} fixedWidth /> Create poll
+                </button>
+              </div>
+            )}
           </div>
 
           <MessageEditor
@@ -382,6 +443,8 @@ export default function Composer({
       {attachments.progress > 0 && (
         <progress value={attachments.progress} max="100" style={{ width: '100%' }} />
       )}
+
+      {creatingPoll && <PollDialog onSubmit={sendPoll} onClose={() => setCreatingPoll(false)} />}
 
       {showEmojiPicker && isMobile && (
         // Where the keyboard would be, the same height.

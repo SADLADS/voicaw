@@ -5,6 +5,7 @@ import Composer from './Composer';
 import MessageActionSheet from './MessageActionSheet';
 import ConfirmDialog from './guild/ConfirmDialog';
 import PinnedMessages from './PinnedMessages';
+import PollDialog from './PollDialog';
 import { ConfigContext, InteractionContext } from '../contexts';
 import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
 import { useReactions } from '../hooks/useReactions';
@@ -14,6 +15,7 @@ import { mentionsToText } from '../utils/mentions';
 import { hideSpoilers } from '../utils/remarkDiscord';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 import { displayName } from '../utils/profiles';
+import { parsePoll, pollMarkup } from '../utils/pollMarkup';
 
 // The body of a chat, shared by DMs (Dm) and guild channels (GuildChannel): the messages, the
 // composer, reactions (the floating or docked picker) and the mobile action sheet, plus the
@@ -78,6 +80,8 @@ export default function ChatPane({
   const closeActions = useCallback(() => setActionsForId(null), []);
   // The message the "Delete message?" dialog is asking about.
   const [confirmingDelete, setConfirmingDelete] = useState(null);
+  // A poll being edited: { msg, poll } (polls are edited in PollDialog, not inline).
+  const [editingPoll, setEditingPoll] = useState(null);
 
   // For jumping to a message, which waits for older pages: always the newest conversation.
   const latestConversation = useRef(conversation);
@@ -132,13 +136,19 @@ export default function ChatPane({
     setComposerError(null);
     setReplyTo(null);
     setEditingMessageId(null);
+    setEditingPoll(null);
   }, [chatId]);
 
   // Remember the keyboard's height (mobile), so the emoji panel can match it.
   useEffect(() => (isMobile ? watchKeyboardHeight() : undefined), [isMobile]);
 
-  // The inline editor opens focused, with the cursor at the end.
+  // The inline editor opens focused, with the cursor at the end. A poll opens its dialog.
   function handleEdit(msg) {
+    const poll = parsePoll(msg.plaintext);
+    if (poll) {
+      setEditingPoll({ msg, poll });
+      return;
+    }
     setEditingMessageId(msg.id);
     setEditingMessageContent(msg.plaintext);
   }
@@ -242,6 +252,7 @@ export default function ChatPane({
             maxPlaintextLength={maxPlaintextLength}
             onToggleReaction={reactions.toggleReaction}
             onOpenReactionPicker={openReactionPicker}
+            onVote={reactions.vote}
             reactionNames={reactionNames}
             onOpenActions={openActions}
             canModerate={canModerate}
@@ -308,6 +319,18 @@ export default function ChatPane({
           </div>
           <p className="vc-hint">Tip: hold Shift when you click delete to skip this.</p>
         </ConfirmDialog>
+      )}
+
+      {editingPoll && (
+        <PollDialog
+          poll={editingPoll.poll}
+          onSubmit={async (poll) => {
+            const text = pollMarkup(poll);
+            if (text.length > maxPlaintextLength) throw new Error('The poll is too long.');
+            await conversation.editMessage(editingPoll.msg.id, text);
+          }}
+          onClose={() => setEditingPoll(null)}
+        />
       )}
 
       {actionsFor && (

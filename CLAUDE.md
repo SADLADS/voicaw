@@ -107,6 +107,7 @@ node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
 node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show), Join Guild, phone
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
+node e2e/polls.mjs [dir]  # polls: + menu, vote live (phone), change vote, edit drops votes, one answer, guild multi
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
@@ -917,6 +918,31 @@ back. Secrets are write-only: the panel only shows where the value comes from an
 characters. `GET /admin`, `PUT /admin/settings/:key { value | null }`, `POST /admin/admins
 { username }`, `DELETE /admin/admins/:id` (not yourself). Only the Klipy key for now; add new
 app-wide keys to `SETTINGS` and read them with `getSetting` rather than from `config.js`.
+
+### Polls
+
+Any chat (DM, notes, group DM, guild text channel) can have polls: the composer's `+` opens a
+menu (Upload a file / Create poll). `PollDialog.jsx` takes a question (300), 1–10 answers (55
+each) and "Allow multiple answers", which can't be changed after posting. A poll is sent as
+its own message (replying if a reply is set, like a GIF).
+- **Format** (`utils/pollMarkup.js`): the message text is `poll:v1:` + JSON `{ q, multi, o:
+  [{ id, t }] }` (ids: 8 random `[a-z0-9]`), so in encrypted chats it's inside the encryption.
+  `MessageList` draws it with `Poll.jsx` (bars, counts, who voted in the tooltip; results are
+  always shown); plain-text places show "📊 Poll: <question>" (`summarizeAttachments`, and
+  `server/mentions.js` for guild pushes). An app from before polls shows the raw text.
+- **Votes are reactions** whose emoji is `poll:<option id>`, so they're stored, encrypted,
+  signed (groups) and delivered exactly like reactions, and in encrypted chats the server can't
+  tell a vote from a reaction. Reaction chips leave them out (`groupReactions`). `useReactions`
+  `vote(msg, optionId)` (`planVote`): tapping your answer again takes the vote back; single
+  choice replaces your vote; your votes for answers that no longer exist are deleted then.
+  `tallyVotes` counts only answers that exist, and one vote per person (the latest) in single
+  choice. In guilds a vote only needs View Channel (not Add Reactions): the server accepts
+  `poll:<8 chars>` on a message that starts with `poll:v1:` without it.
+- **Editing** (the author, Edit opens `PollDialog`, not the inline editor): question and
+  answers can change; an answer whose text changed gets a new id (`editedPoll`), so its votes
+  stop counting. Nobody can delete other people's reactions, so those old votes stay stored
+  until their owner votes again.
+- **Not done yet:** poll end times / closing a poll, hiding results until you vote.
 
 ### Mentions
 
