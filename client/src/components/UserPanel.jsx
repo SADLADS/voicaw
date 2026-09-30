@@ -20,9 +20,9 @@ export default function UserPanel({ user }) {
 
   return (
     <div className="user-panel" aria-label="You">
-      <div className="user-panel-avatar">
+      <div className="user-panel-avatar status-avatar">
         <Avatar userId={user.id} />
-        <span className={`user-panel-status ${status}`} role="img" aria-label={STATUS_LABELS[status]} />
+        <span className={`status-icon user-panel-status ${status}`} role="img" aria-label={STATUS_LABELS[status]} />
       </div>
       <div className="user-panel-text">
         <span className="user-panel-name">{nameOf(user)}</span>

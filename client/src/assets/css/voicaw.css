@@ -519,6 +519,8 @@ body.mobile-mode .settings-nav-item {
   flex-shrink: 0;
   width: 36px;
   height: 36px;
+  --status-size: 9px;
+  --status-center: 5.5px;
 }
 
 .user-panel-avatar img {
@@ -528,23 +530,7 @@ body.mobile-mode .settings-nav-item {
   object-fit: cover;
 }
 
-/* The connection diamond sits on the picture's corner, ringed in the panel's colour (like
-   STATUS ICONS below). */
-.user-panel-status {
-  position: absolute;
-  right: -1px;
-  bottom: -1px;
-  width: 12px;
-  height: 12px;
-  transform: rotate(45deg);
-  border: 2px solid var(--vc-bg-base);
-  background-color: var(--vc-border-light);
-}
-
-.user-panel-status.online {
-  background-color: var(--vc-online);
-}
-
+/* The connection diamond is a STATUS ICON (below) with its own colours. */
 .user-panel-status.connecting {
   background-color: var(--vc-action);
 }
@@ -680,17 +666,31 @@ html {
 }
 
 /* STATUS ICONS
-   Someone's online status (StatusIcon) on the bottom right corner of their picture, which must
-   be position: relative. A diamond (online, idle, offline), or a phone when only active on a
-   phone. The ring around it is the colour behind the row (--status-ring). */
+   Someone's online status (StatusIcon) on the bottom right corner of their picture: a diamond
+   (online, idle, offline), or a phone when only active on a phone. The picture and the icon go
+   in a `.status-avatar`; the icon's shape, plus a gap, is cut out of the picture (a mask), so
+   whatever is behind shows through, on any background. Sizes are set per place with
+   --status-size (the diamond's side), --status-center (its centre's distance from the right and
+   bottom edges) and --status-gap. */
+.status-avatar {
+  position: relative;
+}
+
+:where(.status-avatar) {
+  --status-size: 8px;
+  --status-center: 5px;
+  --status-gap: 2px;
+  --status-phone-width: 10px;
+  --status-phone-height: 14px;
+}
+
 .status-icon {
   position: absolute;
-  right: -1px;
-  bottom: -1px;
-  width: 11px;
-  height: 11px;
+  right: calc(var(--status-center) - var(--status-size) / 2);
+  bottom: calc(var(--status-center) - var(--status-size) / 2);
+  width: var(--status-size);
+  height: var(--status-size);
   transform: rotate(45deg);
-  border: 2px solid var(--status-ring, var(--vc-bg-base));
   background-color: var(--vc-border-light);
 }
 
@@ -704,16 +704,42 @@ html {
 
 .status-icon.mobile {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  right: -2px;
-  bottom: -2px;
-  width: 12px;
-  height: 16px;
+  right: calc(var(--status-center) - var(--status-phone-width) / 2);
+  bottom: calc(var(--status-center) - var(--status-phone-height) / 2);
+  width: var(--status-phone-width);
+  height: var(--status-phone-height);
   transform: none;
-  border-width: 1px;
-  border-radius: 3px;
-  background-color: var(--status-ring, var(--vc-bg-base));
+  background: none;
   color: var(--vc-online);
-  font-size: 12px;
+}
+
+.status-icon.mobile svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* The cut: everything (the second layer) minus the icon's shape, grown by the gap. */
+.status-avatar > :not(.status-icon) {
+  --status-hole: calc((var(--status-size) + 2 * var(--status-gap)) * 1.41421);
+  mask-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 2'%3E%3Cpath d='M1 0L2 1L1 2L0 1Z'/%3E%3C/svg%3E"),
+    linear-gradient(#000 0 0);
+  mask-size: var(--status-hole) var(--status-hole), 100% 100%;
+  mask-position:
+    right calc(var(--status-center) - var(--status-hole) / 2) bottom calc(var(--status-center) - var(--status-hole) / 2),
+    0 0;
+  mask-repeat: no-repeat;
+  mask-composite: exclude;
+}
+
+.status-avatar:has(> .status-icon.mobile) > :not(.status-icon) {
+  --status-hole-width: calc(var(--status-phone-width) + 2 * var(--status-gap));
+  --status-hole-height: calc(var(--status-phone-height) + 2 * var(--status-gap));
+  mask-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 18'%3E%3Crect width='14' height='18' rx='3'/%3E%3C/svg%3E"),
+    linear-gradient(#000 0 0);
+  mask-size: var(--status-hole-width) var(--status-hole-height), 100% 100%;
+  mask-position:
+    right calc(var(--status-center) - var(--status-hole-width) / 2) bottom calc(var(--status-center) - var(--status-hole-height) / 2),
+    0 0;
 }

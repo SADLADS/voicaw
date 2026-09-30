@@ -339,7 +339,9 @@ of a user's sockets (`sockets.js` `statusOf`): any active computer wins, then an
   user's own `status` from the API), `hooks/usePresence.js` returns `presenceOf(user)` →
   `{ status, lastOnline }`. `StatusIcon` draws it the same everywhere (DM list, member lists, group members, profile card) (STATUS ICONS in
   `voicaw.css`): on the bottom right corner of the picture, a diamond coloured by status, a phone
-  for `mobile`. The DM header shows only "Last seen …" (when offline; the icon says the rest);
+  for `mobile`. Picture and icon go in a `.status-avatar`, which cuts the icon's shape (plus a
+  gap) out of the picture with a CSS mask, so it works on any background; sizes are CSS
+  variables per place. The DM header shows only "Last seen …" (when offline; the icon says the rest);
   the profile card shows the status or "Last seen …". Idle and mobile members count as online in
   the member list.
 

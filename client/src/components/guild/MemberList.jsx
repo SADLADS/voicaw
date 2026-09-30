@@ -178,7 +178,7 @@ export default function MemberList({ guild, members: memberList, user, onClose }
           className={`member-row${member.status === 'offline' ? ' offline' : ''}${isSelected ? ' selected' : ''}`}
           onClick={() => setSelectedId(isSelected ? null : member.id)}
         >
-          <span className="member-avatar">
+          <span className="member-avatar status-avatar">
             <Avatar userId={member.id} />
             <StatusIcon status={member.status} />
           </span>

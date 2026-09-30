@@ -182,17 +182,8 @@ small {
 
 /* A DM row's picture, with the status icon on its corner. */
 .dm-user-avatar-wrap {
-  position: relative;
   display: inline-flex;
   flex-shrink: 0;
-}
-
-.dm-user.active {
-  --status-ring: var(--vc-bg-elevated);
-}
-
-.dm-user:hover {
-  --status-ring: var(--vc-bg-subtle);
 }
 
 /* Pending messages */
@@ -1992,7 +1983,11 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   flex-shrink: 0;
   width: 56px;
   height: 56px;
-  --status-ring: var(--vc-bg-elevated);
+  --status-size: 11px;
+  --status-center: 8px;
+  --status-gap: 3px;
+  --status-phone-width: 13px;
+  --status-phone-height: 17px;
 }
 
 .profile-card-avatar img {
@@ -2000,11 +1995,6 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-}
-
-.profile-card-avatar .status-icon:not(.mobile) {
-  width: 14px;
-  height: 14px;
 }
 
 .profile-card-names {

@@ -527,7 +527,6 @@ img.guild-icon {
 .member-row:hover,
 .member-row.selected {
   background-color: var(--vc-bg-hover);
-  --status-ring: var(--vc-bg-hover);
 }
 
 .member-row.offline {

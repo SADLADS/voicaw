@@ -76,7 +76,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
           const { status, lastOnline } = presenceOf(usersById.get(id) ?? { id });
           return (
             <li key={id} className="group-member">
-              <span className="group-member-avatar-wrap">
+              <span className="group-member-avatar-wrap status-avatar">
                 <UserAvatar userId={id} className="group-member-avatar" />
                 <StatusIcon status={status} title={status === 'offline' ? lastSeenText(lastOnline) ?? statusLabel(status) : undefined} />
               </span>

@@ -20,7 +20,7 @@ export default function ProfileCard({ user, color, children, draft, avatarSrc })
   return (
     <div className="profile-card">
       <div className="profile-card-top">
-        <span className="profile-card-avatar">
+        <span className="profile-card-avatar status-avatar">
           <Avatar userId={user.id} src={avatarSrc} />
           <StatusIcon status={presence.status} />
         </span>

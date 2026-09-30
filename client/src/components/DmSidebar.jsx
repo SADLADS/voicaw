@@ -82,7 +82,7 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
               <span className={`userdot${unreadFrom.has(String(id)) && String(id) !== activeId ? ' active' : ''}`} />
 
               <div className="dm-user-container">
-                <span className="dm-user-avatar-wrap">
+                <span className="dm-user-avatar-wrap status-avatar">
                   {avatar(id, name)}
                   <StatusIcon
                     status={status}
