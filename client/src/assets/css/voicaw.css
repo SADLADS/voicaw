@@ -528,15 +528,16 @@ body.mobile-mode .settings-nav-item {
   object-fit: cover;
 }
 
-/* The status dot sits on the picture's edge, ringed in the panel's colour. */
+/* The connection diamond sits on the picture's corner, ringed in the panel's colour (like
+   STATUS ICONS below). */
 .user-panel-status {
   position: absolute;
-  right: -2px;
-  bottom: -2px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 3px solid var(--vc-bg-base);
+  right: -1px;
+  bottom: -1px;
+  width: 12px;
+  height: 12px;
+  transform: rotate(45deg);
+  border: 2px solid var(--vc-bg-base);
   background-color: var(--vc-border-light);
 }
 
