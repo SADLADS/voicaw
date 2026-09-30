@@ -101,6 +101,7 @@ node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mu
 node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, group call, owner leaves
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
+node e2e/spoilers.mjs [dir] # spoiler images: mark in tray, blurred for both, tap/click reveals, reply preview
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
 node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show), Join Guild, phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
@@ -693,13 +694,22 @@ shows it as a "📎 name" chip); the tray
 (`AttachmentTray.jsx`) previews drafts still referenced from the text. On send, each referenced
 draft is encrypted with its own AES-GCM key (`services/attachmentCrypto.js`), uploaded as
 `application/octet-stream` (`services/attachmentUpload.js`; server names it `<uuid>.bin`), and its
-placeholder is replaced with `<fileUrl>#v=1&k=<key>&t=<mime>&s=<size>[&w=<px>&h=<px>]` (image/video
+placeholder is replaced with `<fileUrl>#v=1&k=<key>&t=<mime>&s=<size>[&w=<px>&h=<px>][&sp=1]` (image/video
 dimensions, read at attach time by `utils/mediaDimensions.js`, let the renderer reserve the final
-box before the file loads). The fragment is never sent
+box before the file loads; `sp=1` marks a spoiler, see below). The fragment is never sent
 to S3 and the URL only exists inside the E2EE message. `Attachment.jsx` renders every markdown image:
 placeholders (pending messages, from local blob URLs), encrypted attachments (fetched, decrypted,
 cached in `services/attachmentCache.js`; images/videos inline, anything else a download box), and
-plain URLs (legacy unencrypted uploads, external images) as `<img>`. Because placeholders are
+plain URLs (legacy unencrypted uploads, external images) as `<img>`.
+
+**Spoilers:** an image or video draft can be marked as a spoiler with the eye button in the
+tray (`toggleSpoiler`; the thumbnail blurs), which puts `sp=1` in its URL (inside the
+encryption, like the rest of the fragment). `Attachment`'s `SpoilerCover` shows it blurred
+with "Spoiler" over it for everyone, the sender too, until clicked or tapped; then it stays
+shown (per device, not remembered). Until revealed it's out of the image viewer's gallery (its
+thumbnails would give it away) and a video has no controls. Previews (`summarizeAttachments`,
+guild pushes in `server/mentions.js`) say "📎 spoiler" instead of the file name. GIFs and
+other files can't be marked. Because placeholders are
 shorter than final URLs, the send-time length check uses same-length stand-in URLs.
 
 Clicking an image opens `ImageViewer` (full screen, from `ImageViewerProvider` in `App.jsx`

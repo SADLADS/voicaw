@@ -64,6 +64,11 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     insertAttachments(newDrafts);
   }
 
+  // Marks an image or video as a spoiler (or not): it's sent blurred until clicked.
+  function toggleSpoiler(id) {
+    setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, spoiler: !d.spoiler } : d)));
+  }
+
   function removeDraft(id) {
     const draft = draftsRef.current.find((d) => d.id === id);
     if (draft) URL.revokeObjectURL(draft.previewUrl);
@@ -88,6 +93,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
       size: draft.size,
       width: draft.width,
       height: draft.height,
+      spoiler: draft.spoiler,
     });
   }
 
@@ -109,7 +115,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
           const url = await uploadAttachment(d.file, (bytes) => {
             loaded[d.id] = bytes;
             report();
-          }, dims);
+          }, dims, !!d.spoiler);
           return [d.id, url];
         })
       );
@@ -168,6 +174,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     addFiles,
     pickFiles,
     removeDraft,
+    toggleSpoiler,
     takeDrafts,
     projectedUrl,
     upload,
