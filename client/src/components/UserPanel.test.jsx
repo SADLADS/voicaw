@@ -43,7 +43,7 @@ describe('UserPanel', () => {
     expect(screen.getByText('alice')).toBeInTheDocument();
     expect(screen.getByText('Online')).toBeInTheDocument();
     expect(container.querySelector('.user-panel-avatar img')).toHaveAttribute('src', 'https://s3.test/profile-pics/7/abc.webp');
-    expect(screen.getByRole('link', { name: 'User settings' })).toHaveAttribute('href', '/settings');
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings');
   });
 
   it('follows the connection state', () => {

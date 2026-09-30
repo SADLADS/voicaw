@@ -30,7 +30,7 @@ function matches(section, query) {
   return words.every((word) => haystack.includes(word));
 }
 
-// User Settings (/settings): sections in categories, with a column (on top, on a phone) that
+// Settings (/settings): sections in categories, with a column (on top, on a phone) that
 // searches them and jumps to one. Sections that don't match the search are hidden, not
 // removed, so what's been typed or picked in them stays. `/settings#<section id>` opens
 // scrolled to that section. On a computer the column is drawn beside the rail, above the user
@@ -143,7 +143,7 @@ export default function Settings({ onLogout }) {
 
   const nav = (
       <nav className="settings-nav" aria-label="Settings sections">
-        <h2 className="settings-header">User Settings</h2>
+        <h2 className="settings-header">Settings</h2>
         {user && (
           <button
             type="button"
