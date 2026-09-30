@@ -59,6 +59,25 @@ describe('MessageList', () => {
     expect(screen.getByText('@unknown-user')).toHaveClass('mention');
   });
 
+  it("groups someone's messages sent close together under one name", () => {
+    const messages = [
+      { id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'one', timestamp: 1000 },
+      { id: 2, sender_id: 2, sender_username: 'bob', plaintext: 'two', timestamp: 1060, edited: 1 },
+      { id: 3, sender_id: 1, sender_username: 'alice', plaintext: 'three', timestamp: 1070 },
+      { id: 4, sender_id: 1, sender_username: 'alice', plaintext: 'much later', timestamp: 5000 },
+    ];
+    render(<MessageList {...baseProps({ messages })} />);
+    const row = (text) => screen.getByText(text).closest('.each-dm-message-wrapper');
+    expect(row('one')).not.toHaveClass('grouped');
+    expect(row('two')).toHaveClass('grouped');
+    expect(row('two').querySelector('.message-author')).toBeNull();
+    expect(row('two').querySelector('.message-hover-time')).toBeInTheDocument();
+    expect(row('two').querySelector('.message-edited')).toHaveTextContent('(edited)');
+    expect(row('three')).not.toHaveClass('grouped');
+    expect(row('much later')).not.toHaveClass('grouped');
+    expect(screen.getAllByText('bob', { selector: '.message-author' })).toHaveLength(1);
+  });
+
   it('hides spoilers until clicked, and in reply previews', () => {
     const messages = [
       { id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'the ||butler __did__ it||', timestamp: 1000 },

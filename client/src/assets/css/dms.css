@@ -1898,3 +1898,37 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* A message following another of the same person's (MessageList continuesGroup): no avatar,
+   name or date, and tight to the one above; its time shows in the avatar's column on hover. */
+.each-dm-message-wrapper.grouped .dm-message {
+  padding-top: 0;
+}
+
+.message-hover-time {
+  position: absolute;
+  left: 10px;
+  top: 3px;
+  width: 38px;
+  font-size: 10px;
+  line-height: 18px;
+  color: var(--vc-fg-muted);
+  white-space: nowrap;
+  visibility: hidden;
+}
+
+.each-dm-message-wrapper.grouped:hover .message-hover-time,
+.each-dm-message-wrapper.grouped.focused .message-hover-time {
+  visibility: visible;
+}
+
+/* "(edited)" after a grouped message's text, on the same line when it ends in a paragraph. */
+.dm-message-content.edited-inline > p:last-of-type {
+  display: inline;
+}
+
+.message-edited {
+  margin-left: 4px;
+  font-size: 0.7em;
+  color: var(--vc-fg-muted);
+}

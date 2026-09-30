@@ -866,6 +866,12 @@ or content above resizes. Where that's unsupported (Safari), `MessageList` does 
 by tracking the first visible row's `offsetTop` (layout effect + ResizeObserver, both before paint).
 It also keeps the view pinned to the bottom while the user is there.
 
+Messages are grouped like Discord's (`utils/messageGroups.js` `continuesGroup`): one from the
+same person within 7 minutes of the row above, on the same day and not a reply, drops its
+avatar, name and date (`.grouped`; the time shows in the avatar column on hover, "(edited)"
+goes after the text). A group DM message whose sender isn't verified (unsigned or a bad
+signature) never groups, either way, so it can't pass as the person above.
+
 `hooks/useConversation.js` loads a conversation in exactly one effect (keyed on `id` + the other user's public key,
 ignoring late responses after a chat switch). Older pages (`PAGE_SIZE`, sent as `limit`, server
 clamps 1–100, default 10) are only ever prepended by `loadMoreMessages`, which guards against

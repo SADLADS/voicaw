@@ -18,6 +18,7 @@ import { rehypeTwemoji } from '../emoji/rehypeTwemoji';
 import { customEmojiToText } from '../emoji/customEmoji';
 import { rehypeMentions } from '../utils/rehypeMentions';
 import { hideSpoilers, remarkDiscord } from '../utils/remarkDiscord';
+import { continuesGroup } from '../utils/messageGroups';
 import { mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
@@ -105,9 +106,12 @@ function urlTransform(url) {
   return placeholderIdFromUrl(url) !== null ? url : defaultUrlTransform(url);
 }
 
-// One message (with its reply snippet, hover menu and inline editor).
+// One message (with its reply snippet, hover menu and inline editor). `grouped`: it follows
+// another of the same person's (continuesGroup), so no avatar, name or date, just the time
+// when hovered.
 export function MessageRow({
   msg,
+  grouped = false,
   user,
   s3Endpoint,
   hoveredMsgId,
@@ -169,7 +173,7 @@ export function MessageRow({
 
   return (
     <div
-      className={`each-dm-message-wrapper ${msg.sender_id === user.id ? 'sent' : 'received'}${focused ? ' focused' : ''}${mentionsMe ? ' mentioned' : ''}`}
+      className={`each-dm-message-wrapper ${msg.sender_id === user.id ? 'sent' : 'received'}${focused ? ' focused' : ''}${mentionsMe ? ' mentioned' : ''}${grouped ? ' grouped' : ''}`}
       data-msg-id={msg.id}
       onMouseEnter={() => setHoveredMsgId(msg.id)}
       onMouseLeave={() => setHoveredMsgId(null)}
@@ -242,6 +246,12 @@ export function MessageRow({
           ${msg.status === 'failed' ? 'failed' : ''}
         `}
       >
+        {grouped ? (
+          <small className="message-hover-time" title={new Date(msg.timestamp * 1000).toLocaleString()}>
+            {new Date(msg.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </small>
+        ) : (
+        <>
         <img
           src={imgSrc}
           alt={msg.sender_username}
@@ -265,10 +275,12 @@ export function MessageRow({
             <em className="message-signature unverified" title="The signature doesn't match the sender: it may be forged">⚠ unverified sender</em>
           ) : null}
         </small>
+        </>
+        )}
 
         {/* The image viewer steps through the images within this (utils/imageGallery.js). */}
         <div
-          className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}`}
+          className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}${grouped && msg.edited ? ' edited-inline' : ''}`}
           data-image-gallery=""
         >
           {editingMessageId === msg.id ? (
@@ -315,7 +327,8 @@ export function MessageRow({
               </MentionContext.Provider>
             </LocalAttachmentsContext.Provider>
           )}
-
+          {/* Without a header to carry it, "edited" goes after the text. */}
+          {grouped && msg.edited && editingMessageId !== msg.id ? <small className="message-edited">(edited)</small> : null}
 
           <UrlPreviews text={msg.plaintext} />
         </div>
@@ -509,10 +522,12 @@ export default function MessageList({
       onScroll={handleScroll}
     >
       <div className="message-scroller-content" ref={contentRef}>
-        {messages.map((msg) => (
+        {messages.map((msg, i) => (
           <div key={rowKey(msg)} data-key={rowKey(msg)}>
             {/* Group DMs: membership changes, between the messages. */}
-            {msg.system ? <p className="message-system">{msg.text}</p> : <MessageRow msg={msg} {...rowProps} />}
+            {msg.system
+              ? <p className="message-system">{msg.text}</p>
+              : <MessageRow msg={msg} grouped={continuesGroup(messages[i - 1], msg)} {...rowProps} />}
           </div>
         ))}
       </div>
