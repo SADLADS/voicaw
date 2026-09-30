@@ -356,16 +356,20 @@ function otherParticipant(msg, participantId) {
 }
 
 // Decrypts one DM row from the server (with the message it replies to and its reactions)
-// into { ...row, plaintext, parent_plaintext, reactions }. Anything that fails to decrypt
+// into { ...row, plaintext, parent_plaintext, reactions }; a "poll ended" row (`system`) has no
+// plaintext of its own, and its poll's votes (`poll_reactions`) come decrypted too. Anything that fails to decrypt
 // comes back as null (or is left out, for reactions) rather than throwing.
 export async function decryptMessageRow(msg, key) {
   let plaintext = null;
   let parentPlaintext = null;
 
-  try {
-    plaintext = await decryptMessage(msg.content, key, dmContext(msg.sender_id, msg.recipient_id));
-  } catch (e) {
-    console.warn('Failed to decrypt message', msg.id, e);
+  // A "poll ended" row has no content of its own (see decryptPollEndRow).
+  if (!msg.system) {
+    try {
+      plaintext = await decryptMessage(msg.content, key, dmContext(msg.sender_id, msg.recipient_id));
+    } catch (e) {
+      console.warn('Failed to decrypt message', msg.id, e);
+    }
   }
 
   if (msg.parent_message_id && msg.parent_content) {
@@ -381,7 +385,13 @@ export async function decryptMessageRow(msg, key) {
   }
 
   const reactions = await decryptReactions(msg, msg.reactions, key);
-  return { ...msg, plaintext, parent_plaintext: parentPlaintext, reactions };
+  const row = { ...msg, plaintext, parent_plaintext: parentPlaintext, reactions };
+  if (msg.system === 'poll_end') {
+    // Its poll's votes, bound to the poll (the parent), not this row.
+    const poll = { id: msg.parent_message_id, sender_id: msg.parent_sender_id, recipient_id: otherParticipant(msg, msg.parent_sender_id) };
+    row.poll_reactions = await decryptReactions(poll, msg.poll_reactions, key);
+  }
+  return row;
 }
 
 // Decrypts a page of DM rows.

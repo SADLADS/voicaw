@@ -227,7 +227,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   // Sends `text` (replying to `replyTo`, a message, if given). It shows at once as pending;
   // `resolveText` (async) can turn it into the final text first, e.g. by uploading the
   // attachments it references, whose local copies `localAttachments` shows meanwhile.
-  // Throws if sending failed (the message stays, marked failed).
+  // Resolves to the saved message; throws if sending failed (the message stays, marked failed).
   async function sendMessage({ text, replyTo = null, localAttachments = {}, resolveText }) {
     const tempId = `temp-${Date.now()}`;
     const tempMessage = {
@@ -264,6 +264,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
         parent_plaintext: tempMessage.parent_plaintext,
       }));
       setError(null);
+      return saved;
     } catch (err) {
       console.error('Error sending message:', err);
       updateMessage(tempId, () => ({ status: 'failed' }));

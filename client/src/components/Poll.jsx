@@ -4,13 +4,17 @@ import PollVoters from './PollVoters';
 import ConfirmDialog from './guild/ConfirmDialog';
 import { myVotes, pollEndsAt, tallyVotes, timeLeft } from '../utils/pollMarkup';
 
-// The current time (unix s), redrawn every minute until `endsAt` and once right at it.
+// The current time (unix s), redrawn every minute until `endsAt` and once right at it. A new
+// `endsAt` (the poll was just ended) takes a fresh reading at once, so it shows as closed
+// straight away rather than at the next tick.
 function useNowUntil(endsAt) {
-  const [now, setNow] = useState(() => Date.now() / 1000);
+  const [clock, setClock] = useState(() => ({ endsAt, now: Date.now() / 1000 }));
+  if (clock.endsAt !== endsAt) setClock({ endsAt, now: Date.now() / 1000 });
+  const { now } = clock;
   useEffect(() => {
     if (endsAt == null || now >= endsAt) return undefined;
     const wait = Math.min(endsAt - now, 60) * 1000;
-    const timer = setTimeout(() => setNow(Date.now() / 1000), wait + 50);
+    const timer = setTimeout(() => setClock({ endsAt, now: Date.now() / 1000 }), wait + 50);
     return () => clearTimeout(timer);
   }, [endsAt, now]);
   return now;
@@ -31,7 +35,7 @@ function useNowUntil(endsAt) {
 export default function Poll({ poll, reactions, userId, names, sentAt, onVote, onEnd }) {
   const endsAt = pollEndsAt(poll, sentAt);
   const now = useNowUntil(endsAt);
-  const ended = endsAt != null && now >= endsAt;
+  const ended = Boolean(poll.endedAt) || (endsAt != null && now >= endsAt);
   const { voters, total } = tallyVotes(poll, reactions, endsAt);
   const mine = myVotes(poll, reactions, userId, endsAt);
   const voted = mine.length > 0;

@@ -92,7 +92,9 @@ export function pollEndsAt(poll, sentAt) {
   return byDuration ?? poll.endedAt ?? null;
 }
 
+// Ended early by its author counts at once, whatever this device's clock says.
 export function pollEnded(poll, sentAt, now = Date.now() / 1000) {
+  if (poll.endedAt) return true;
   const endsAt = pollEndsAt(poll, sentAt);
   return endsAt != null && now >= endsAt;
 }
@@ -186,4 +188,22 @@ export function planVotes(poll, reactions, userId, optionIds) {
 export function myVotes(poll, reactions, userId, endsAt = null) {
   const { voters } = tallyVotes(poll, reactions, endsAt);
   return poll.options.filter((o) => voters[o.id].includes(userId)).map((o) => o.id);
+}
+
+// A closed poll's result, for its "poll ended" row: { total (people who voted), winners
+// ([option]; several in a draw, none if nobody voted), votes (each winner's), share (% of
+// voters, rounded) }.
+export function pollResult(poll, reactions, endsAt = null) {
+  const { voters, total } = tallyVotes(poll, reactions, endsAt);
+  const most = Math.max(0, ...poll.options.map((o) => voters[o.id].length));
+  const winners = most > 0 ? poll.options.filter((o) => voters[o.id].length === most) : [];
+  return { total, winners, votes: most, share: total ? Math.round((most / total) * 100) : 0 };
+}
+
+// Whether a "poll ended" row posted at `postedAt` fits its poll (sent at `sentAt`): its author
+// ended it, or its time was up by then (give or take a minute). The server posts these rows,
+// so in an encrypted chat one for a poll that says it's still running isn't shown.
+export function pollEndFits(poll, sentAt, postedAt) {
+  if (poll.endedAt) return true;
+  return Boolean(poll.duration && sentAt && sentAt + poll.duration <= postedAt + 60);
 }

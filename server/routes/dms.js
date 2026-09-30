@@ -5,6 +5,8 @@ const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
 const { buildDmPushPayload, sendPushToUser, getUserImageUrl } = require('../push');
 const { setPinned } = require('../pins');
+const { reactionIdsFor, pollReactionsFor } = require('../polls');
+const { removePollRows } = require('../pollTimers');
 
 // Direct messages. Contents are end-to-end encrypted: the server stores and relays
 // ciphertext only (and checks its length against the encrypted size of the plaintext limit).
@@ -14,10 +16,11 @@ const router = express.Router();
 const DM_SELECT = `
   SELECT
     dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, dm.parent_message_id, dm.edited,
-    dm.pinned_at, dm.pinned_by,
+    dm.pinned_at, dm.pinned_by, dm.system,
     u.username AS sender_username,
     u.display_name AS sender_display_name,
     pm.content AS parent_content,
+    pm.timestamp AS parent_timestamp,
     pu.id AS parent_sender_id,
     pu.username AS parent_username
   FROM direct_messages dm
@@ -27,10 +30,11 @@ const DM_SELECT = `
 
 const IN_CONVERSATION = `((dm.sender_id = ? AND dm.recipient_id = ?) OR (dm.sender_id = ? AND dm.recipient_id = ?))`;
 
-// Adds `reactions` ([{ id, user_id, content, timestamp }], oldest first) to each DM row.
+// Adds `reactions` ([{ id, user_id, content, timestamp }], oldest first) to each DM row (and to
+// a "poll ended" row, its poll's as `poll_reactions`).
 async function withReactions(messages) {
   if (messages.length === 0) return messages;
-  const ids = messages.map((m) => m.id);
+  const ids = reactionIdsFor(messages);
   const rows = await db.all(
     `SELECT id, message_id, user_id, content, timestamp FROM dm_reactions
      WHERE message_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`,
@@ -38,7 +42,7 @@ async function withReactions(messages) {
   );
   const byMessage = new Map(ids.map((id) => [id, []]));
   for (const { message_id: messageId, ...reaction } of rows) byMessage.get(messageId).push(reaction);
-  return messages.map((m) => ({ ...m, reactions: byMessage.get(m.id) }));
+  return messages.map((m) => ({ ...m, reactions: byMessage.get(m.id), ...pollReactionsFor(m, byMessage) }));
 }
 
 // Sends `event` to both people in a message's conversation (once, for notes to yourself).
@@ -173,12 +177,14 @@ router.delete('/messages/:id', authenticateJWT, async (req, res) => {
   if (!row) return res.status(404).json({ error: 'Message not found' });
   if (row.sender_id !== req.user.id) return res.status(403).json({ error: 'Not authorized to delete this message' });
 
-  await db.transaction(async () => {
+  // A poll takes its "poll ended" row with it.
+  const removed = await db.transaction(async () => {
     await db.run('DELETE FROM dm_reactions WHERE message_id = ?', [messageId]);
     await db.run('DELETE FROM direct_messages WHERE id = ?', [messageId]);
+    return removePollRows('dm', messageId);
   });
 
-  sendToConversation(row, { type: 'delete_dm', messageId, sender_id: row.sender_id });
+  for (const id of [messageId, ...removed]) sendToConversation(row, { type: 'delete_dm', messageId: id, sender_id: row.sender_id });
   res.json({ success: true, deletedId: messageId });
 });
 
@@ -196,6 +202,7 @@ router.put('/update-message/:id', authenticateJWT, async (req, res) => {
   const row = await db.get('SELECT * FROM direct_messages WHERE id = ?', [messageId]);
   if (!row) return res.status(404).json({ error: 'Message not found' });
   if (row.sender_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+  if (row.system) return res.status(403).json({ error: "This message can't be edited" });
 
   await db.run('UPDATE direct_messages SET content = ?, edited = 1 WHERE id = ?', [content, messageId]);
 
@@ -242,4 +249,12 @@ async function pinRoute(req, res, pinned) {
 router.put('/dm-messages/:id/pin', authenticateJWT, (req, res) => pinRoute(req, res, true));
 router.delete('/dm-messages/:id/pin', authenticateJWT, (req, res) => pinRoute(req, res, false));
 
+// One DM row as the chat receives it (with its reactions).
+async function loadMessage(id) {
+  const row = await db.get(`${DM_SELECT} WHERE dm.id = ?`, [id]);
+  return row ? (await withReactions([row]))[0] : null;
+}
+
 module.exports = router;
+module.exports.loadMessage = loadMessage;
+module.exports.sendToConversation = sendToConversation;

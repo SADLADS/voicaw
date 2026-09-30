@@ -141,6 +141,7 @@ export default function GroupDm({ user }) {
       <div className="group-dm-body">
         <div className="group-dm-chat">
           <ChatPane
+            pollKind="group"
             chatId={`group-${groupId}`}
             chatName={summary ? groupTitle(summary, user) : null}
             user={user}

@@ -112,7 +112,7 @@ node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (em
 node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, results, Jump into another channel, private channel, phone
 node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertical scroll), back button, guild
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
-node e2e/polls.mjs [dir]  # polls: + menu, answer emoji, select then Vote (phone), results, who voted, edits drop votes, duration, end early, guild multi
+node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
@@ -168,6 +168,7 @@ unexpected errors. The rest:
 - `pins.js`: pinning and unpinning a message, the same for every kind of chat (see Pinned messages).
 - `polls.js`: reading guild polls, when they close, and what an edit may change (see Polls).
 - `usernames.js`: usernames ignore capitals (`findUserByName`, `opaque_id`; see Auth).
+- `pollTimers.js`: when every poll closes and its "poll ended" row (see Polls); `routes/polls.js`.
 - `profiles.js`: display name, custom status and bio (limits, cleaning, `displayNameOf`; see Profiles).
 - `avatars.js` + `avatarImage.js`: profile pictures (processing, storage, the one-off migration;
   see Profiles). `routes/avatars.js` has their routes.
@@ -1054,7 +1055,8 @@ its own message (replying if a reply is set, like a GIF).
 - **Closing** (`pollEndsAt`): `d` seconds after the message's timestamp (the server's, so the
   author's clock doesn't matter), or earlier at `x`: the author's End poll (in the footer, asks
   first) is an edit stamping `x` (so the message shows "edited"). The footer says the time left
-  (`timeLeft`, redrawn each minute) or "Poll closed"; closed polls show final results, take no
+  (`timeLeft`, redrawn each minute, and at once when the poll's end changes; an early end
+  counts as closed at once whatever the device's clock says) or "Poll closed"; closed polls show final results, take no
   votes and can't be edited (no Edit in the menus). Votes count only if their reaction's server
   `timestamp` isn't after the close (reactions keep `timestamp` through decryption for this).
   Polls from before durations have no `d` and never close by themselves. In guilds the server
@@ -1062,8 +1064,28 @@ its own message (replying if a reply is set, like a GIF).
   closed poll, and an edit can't change `multi` or `d`, un-end one, or end it at any time but
   about now. In DMs and groups only clients enforce it: someone with a modified app could still
   add a vote the server timestamps later (it doesn't count) or edit their own poll's `d`.
-- **Not done yet:** a notification when a poll closes, and Discord's "X's poll has closed"
-  line in the chat.
+- **"Poll ended" rows** (`server/pollTimers.js`, `PollEndNotice.jsx`): when a poll closes, a
+  row in the chat says "X's poll Q has closed." with the winning answer and its share of the
+  voters ("won with 60% (3 of 5 votes)"), a draw ("a draw between A and B, 40% each") or
+  "Nobody voted.", and View poll (jumps to it). It works the same in DMs, notes, group DMs and
+  guild channels without the server learning the poll's contents: after sending a poll its
+  author tells the server when it closes (`POST /polls/:kind/:messageId/timer { duration }`,
+  kind `dm`/`group`/`guild`, `services/pollService.js`; `poll_timers`, `ends_at` = the
+  message's timestamp + duration), and End poll does `POST .../end` after the edit. A sweep
+  (every 5 s, only when run as the server; tests call `announceDue`) posts each due row once:
+  a message in that chat's table with `system` = 'poll_end', the poll's author as sender, the
+  poll as parent and empty content, sent as the chat's usual new-message event (no pushes;
+  unread like any message, in a group in the poll's epoch). Rows carry the poll (the parent,
+  still encrypted, plus `parent_timestamp`; in groups also the poll's `parent_reply_to` and
+  `parent_edited`, so its signature is checked) and its votes (`poll_reactions`, still
+  encrypted), and each device works the result out (`pollResult`, votes up to the poll's own
+  end). So the server learns that a message is a poll and when it closes (and who reacted when,
+  as before), never the question, answers or result. It posts the rows, so in an encrypted chat
+  it could post one early: a row that doesn't fit its poll (`pollEndFits`: not ended by then,
+  give or take a minute) isn't shown, and neither is one whose poll can't be read (someone
+  added to a group later never gets it: it's in the poll's epoch). Rows can't be edited;
+  deleting a poll deletes its row (and timer). An app from before this shows them as unreadable.
+- **Not done yet:** a notification when a poll closes.
 
 ### Mentions
 

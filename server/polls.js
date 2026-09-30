@@ -3,6 +3,8 @@
 // (in DMs and groups they're encrypted): there it enforces the end (`d` seconds after the
 // message's timestamp, or `x`, when its author ended it) and keeps edits from reopening one.
 const POLL_PREFIX = 'poll:v1:';
+// A "poll ended" row's `system` (see pollTimers.js).
+const POLL_END = 'poll_end';
 const POLL_VOTE = /^poll:[a-z0-9]{8}$/;
 const MAX_DURATION = 14 * 86400;
 // How far an early end's time may be from the server's clock.
@@ -68,4 +70,18 @@ function pollPreview(content) {
   return poll ? `📊 Poll: ${poll.question}` : null;
 }
 
-module.exports = { POLL_VOTE, parsePoll, pollEndsAt, isClosedPoll, pollEditError, pollPreview };
+// The message ids whose reactions a page of rows needs: each row's own, and for a "poll ended"
+// row its poll's too, since the result is worked out from the poll's votes.
+function reactionIdsFor(messages) {
+  const ids = new Set(messages.map((m) => m.id));
+  for (const m of messages) if (m.system === POLL_END && m.parent_message_id) ids.add(m.parent_message_id);
+  return [...ids];
+}
+
+// A "poll ended" row's `poll_reactions` (the poll's votes), if its reader can see the poll.
+function pollReactionsFor(message, byMessage) {
+  if (message.system !== POLL_END) return {};
+  return { poll_reactions: message.parent_content != null ? byMessage.get(message.parent_message_id) ?? [] : [] };
+}
+
+module.exports = { POLL_END, reactionIdsFor, pollReactionsFor, POLL_VOTE, parsePoll, pollEndsAt, isClosedPoll, pollEditError, pollPreview };

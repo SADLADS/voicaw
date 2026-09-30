@@ -16,6 +16,7 @@ import { hideSpoilers } from '../utils/remarkDiscord';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 import { displayName } from '../utils/profiles';
 import { endPoll, parsePoll, pollEnded, pollMarkup } from '../utils/pollMarkup';
+import { endPollOnServer, registerPollTimer } from '../services/pollService';
 
 // The body of a chat, shared by DMs (Dm) and guild channels (GuildChannel): the messages, the
 // composer, reactions (the floating or docked picker) and the mobile action sheet, plus the
@@ -34,7 +35,8 @@ import { endPoll, parsePoll, pollEnded, pollMarkup } from '../utils/pollMarkup';
 // `suggestRoles` ([{ id, name, color }]) the roles you may mention, and `canMentionEveryone`
 // adds @everyone and @here. `canPin` lets you pin and unpin (always in DMs and groups; Pin
 // Messages in a channel). `pinsAnchor` (the header pin button's rect, or null) opens the
-// pinned messages list; `onClosePins` closes it. `jumpTo` ({ messageId }, a new object each
+// pinned messages list; `onClosePins` closes it. `pollKind` ('dm', 'group' or 'guild') is
+// the chat's kind for the server's poll timers (pollService). `jumpTo` ({ messageId }, a new object each
 // time) scrolls to that message once the chat is loaded, then calls `onJumped`.
 export default function ChatPane({
   chatId,
@@ -61,6 +63,7 @@ export default function ChatPane({
   onJumped,
   nameColors,
   encrypted = true,
+  pollKind,
   emptyText = 'No messages yet. Start the conversation!',
 }) {
   const { s3Endpoint, maxPlaintextLength } = useContext(ConfigContext);
@@ -176,11 +179,27 @@ export default function ChatPane({
     return Boolean(poll && pollEnded(poll, msg.timestamp));
   }
 
-  // The author ends their poll now: an edit that stamps the time (see pollMarkup's endPoll).
+  // Sends a poll, then tells the server when it closes (for its "poll ended" row). If that
+  // fails the poll still closes on time, just without the row.
+  async function sendPoll({ poll, replyTo }) {
+    const text = pollMarkup(poll);
+    if (text.length > maxPlaintextLength) throw new Error('The poll is too long.');
+    const saved = await conversation.sendMessage({ text, replyTo });
+    try {
+      await registerPollTimer(pollKind, saved.id, poll.duration);
+    } catch (err) {
+      console.error('Failed to register the poll', err);
+      setComposerError("The poll was sent, but its result won't be announced when it closes.");
+    }
+  }
+
+  // The author ends their poll now: an edit that stamps the time (see pollMarkup's endPoll),
+  // so it's closed for everyone at once, then the server posts its "poll ended" row.
   async function endPollNow(msg) {
     const poll = parsePoll(msg.plaintext);
     if (!poll || isClosedPoll(msg)) return;
     await conversation.editMessage(msg.id, pollMarkup(endPoll(poll)));
+    await endPollOnServer(pollKind, msg.id);
   }
 
   async function handleDelete(msg) {
@@ -277,6 +296,7 @@ export default function ChatPane({
             onOpenReactionPicker={openReactionPicker}
             onVote={reactions.vote}
             onEndPoll={endPollNow}
+            onJumpToMessage={jumpToMessage}
             reactionNames={reactionNames}
             onOpenActions={openActions}
             canModerate={canModerate}
@@ -320,6 +340,7 @@ export default function ChatPane({
         setShowEmojiPicker={setShowEmojiPicker}
         onInputFocus={reactions.closePicker}
         onSend={conversation.sendMessage}
+        onSendPoll={sendPoll}
         people={people}
         roles={suggestRoles}
         roleInfo={mentionRoles}

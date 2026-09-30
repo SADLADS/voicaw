@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { endPoll, pollEnded, pollEndsAt, timeLeft, editedPoll, parsePoll, planVotes, myVotes, pollMarkup, tallyVotes, voteKey } from './pollMarkup';
+import { pollResult, pollEndFits, endPoll, pollEnded, pollEndsAt, timeLeft, editedPoll, parsePoll, planVotes, myVotes, pollMarkup, tallyVotes, voteKey } from './pollMarkup';
 import { summarizeAttachments } from './attachmentMarkup';
 import { groupReactions } from './reactions';
 
@@ -106,5 +106,28 @@ describe('duration', () => {
     expect(timeLeft(3600)).toBe('1 hour left');
     expect(timeLeft(125)).toBe('2 minutes left');
     expect(timeLeft(30)).toBe('less than a minute left');
+  });
+});
+
+describe('result', () => {
+  it('gives the winner and its share of the voters, a draw, or nobody', () => {
+    const three = { ...poll(true), options: [...poll().options, { id: 'cccc3333', text: 'Salad', emoji: null }] };
+    expect(pollResult(three, [])).toMatchObject({ total: 0, winners: [] });
+    const won = pollResult(three, [vote(1, 1, 'aaaa1111'), vote(2, 2, 'aaaa1111'), vote(3, 3, 'bbbb2222'), vote(4, 1, 'cccc3333')]);
+    expect(won).toMatchObject({ total: 3, votes: 2, share: 67 });
+    expect(won.winners.map((o) => o.text)).toEqual(['Pizza']);
+    const draw = pollResult(three, [vote(1, 1, 'aaaa1111'), vote(2, 2, 'bbbb2222')]);
+    expect(draw.winners.map((o) => o.text)).toEqual(['Pizza', 'Soup']);
+    expect(draw.share).toBe(50);
+    // Votes after the end don't count.
+    expect(pollResult(three, [{ ...vote(1, 1, 'aaaa1111'), timestamp: 50 }], 40).total).toBe(0);
+  });
+
+  it("only fits a row posted once the poll had closed", () => {
+    expect(pollEndFits(poll(), 1000, 4600)).toBe(true);
+    expect(pollEndFits(poll(), 1000, 4550)).toBe(true); // a minute's leeway
+    expect(pollEndFits(poll(), 1000, 3000)).toBe(false); // still running
+    expect(pollEndFits(endPoll(poll(), 2000), 1000, 2001)).toBe(true);
+    expect(pollEndFits({ ...poll(), duration: null }, 1000, 1e9)).toBe(false);
   });
 });

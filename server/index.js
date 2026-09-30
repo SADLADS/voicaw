@@ -45,6 +45,7 @@ app.use('/api', require('./routes/guildEmojis'));
 app.use('/api', require('./routes/voice'));
 app.use('/api', require('./routes/calls'));
 app.use('/api', require('./routes/groupDms'));
+app.use('/api', require('./routes/polls'));
 app.use('/api', require('./routes/push'));
 app.use('/api', require('./routes/uploads'));
 app.use('/api', require('./routes/avatars'));
@@ -82,4 +83,6 @@ if (require.main === module) {
   require('./voice').restoreFromLiveKit();
   // Profile pictures from before they were processed (a one-off; nothing to do afterwards).
   require('./avatars').migrateLegacyAvatars();
+  // Posts "poll ended" rows as polls close.
+  require('./pollTimers').startPollTimers();
 }

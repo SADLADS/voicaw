@@ -398,3 +398,37 @@ describe('group DM pins', () => {
     expect((await api.get(dan, `/group-dms/${groupId}/pins`)).body).toEqual([]);
   });
 });
+
+describe('group polls', () => {
+  it('posts a "poll ended" row only to those who can read the poll, with its votes', async () => {
+    const [ann, bea, cal, dan] = [await makeUser(), await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, dan]);
+    const poll = (await send(ann, groupId, 'poll:v1:{"q":"x","multi":false,"d":3600,"o":[{"id":"aaaa1111","t":"a"}]}')).body;
+    // Only the author registers it.
+    expect((await api.post(bea, `/polls/group/${poll.id}/timer`, { duration: 3600 })).status).toBe(403);
+    expect((await api.post(ann, `/polls/group/${poll.id}/timer`, { duration: 3600 })).body.ends_at).toBe(poll.timestamp + 3600);
+    const vote = await api.post(bea, `/group-dm-messages/${poll.id}/reactions`, { content: 'v2.' + 'A'.repeat(signedReactionLength() - 3) });
+    expect(vote.status).toBe(201);
+    // Cal joins later: no key for the poll's epoch, so no row either.
+    expect((await change(ann, groupId, 'add', cal, [ann, bea, dan, cal])).status).toBe(200);
+    const events = listen(cal);
+    const beaEvents = listen(bea);
+    const ended = await api.post(ann, `/polls/group/${poll.id}/end`);
+    expect(ended.status).toBe(200);
+    const row = beaEvents.find((e) => e.type === 'group_dm_message_new')?.message;
+    expect(row).toMatchObject({ id: ended.body.messageId, system: 'poll_end', parent_message_id: poll.id, sender_id: ann.id, content: '' });
+    expect(row.parent_content).toBe(poll.content);
+    expect(row.poll_reactions.map((r) => r.id)).toEqual([vote.body.id]);
+    expect(events.some((e) => e.type === 'group_dm_message_new')).toBe(false);
+    expect((await api.get(cal, `/group-dms/${groupId}/messages`)).body.some((m) => m.system)).toBe(false);
+    // It can't be edited; deleting the poll takes it too.
+    expect((await api.put(ann, `/group-dm-messages/${row.id}`, { content: poll.content })).status).toBe(403);
+    await api.delete(ann, `/group-dm-messages/${poll.id}`);
+    expect(beaEvents.filter((e) => e.type === 'group_dm_message_delete').map((e) => e.messageId)).toEqual([poll.id, row.id]);
+  });
+});
+
+// A signed group reaction's length (signature + 64 padded bytes, encrypted).
+function signedReactionLength() {
+  return require('../config.js').getMaxEncryptedLength(64 + 64);
+}

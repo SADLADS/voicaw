@@ -1,8 +1,9 @@
 // Polls in a real browser: made from the + menu (with an answer's emoji); picking answers,
 // then Vote (live, encrypted DM, phone); Show results / Back to vote / Remove vote; who voted
 // (popup with a tab per answer); editing an answer (or its emoji) drops its votes; a one-answer
-// poll; durations (24 hours by default, closing on time); a multiple-choice poll in a guild
-// channel, ended early by its author.
+// poll; durations (24 hours by default, closing on time); ending early (closed at once, then a
+// "poll ended" row with the result: a draw in a DM, a winner in a guild channel and a group DM);
+// a multiple-choice poll in a guild channel.
 //   node e2e/serve.mjs &   then   node e2e/polls.mjs [screenshot dir]
 import { launchChrome, signUp, openChat, devices, BASE } from './helpers.mjs';
 
@@ -62,6 +63,17 @@ async function waitForCount(page, question, text, n) {
     await page.waitForTimeout(100);
   }
   throw new Error(`"${text}" never had ${n} votes (${question})`);
+}
+
+// The "poll ended" row for `question`.
+const notice = (page, question) => page.locator(`.poll-end:has(strong:text-is("${question}"))`);
+
+// Its author ends `question` now: closed at once, before the server has answered.
+async function endPoll(page, question) {
+  await pollOf(page, question).locator('button:text-is("End poll")').click();
+  await page.click('.vc-dialog button.btn-danger:has-text("End poll")');
+  await pollOf(page, question).locator('.poll-closed').waitFor({ timeout: 1500 });
+  if (await pollOf(page, question).locator('.poll-footer:has-text("left")').count()) throw new Error('still counting down after End poll');
 }
 
 const browser = await launchChrome();
@@ -209,6 +221,31 @@ try {
   await shot(b, '4c-closed-phone');
   console.log('a poll closes when its time is up');
 
+  // Ending one early: closed at once (no "less than a minute left" first), then a row with the
+  // result for both (here a draw). Deleting the poll takes the row with it.
+  await createPoll(a, 'Tea or coffee?', ['Tea', 'Coffee']);
+  await pollOf(b, 'Tea or coffee?').waitFor({ timeout: 10000 });
+  await castVote(b, 'Tea or coffee?', ['Coffee']);
+  await pollOf(a, 'Tea or coffee?').locator('button:text-is("Back to vote"), button:text-is("Vote")').first().waitFor();
+  if (await pollOf(a, 'Tea or coffee?').locator('button:text-is("Back to vote")').count()) await pollOf(a, 'Tea or coffee?').locator('button:text-is("Back to vote")').click();
+  await castVote(a, 'Tea or coffee?', ['Tea']);
+  await waitForCount(a, 'Tea or coffee?', 'Coffee', 1);
+  await endPoll(a, 'Tea or coffee?');
+  for (const page of [a, b]) {
+    await notice(page, 'Tea or coffee?').waitFor({ timeout: 10000 });
+    const text = await notice(page, 'Tea or coffee?').textContent();
+    if (!text.includes("It's a draw between Tea and Coffee, 50% each.")) throw new Error(`draw row says: ${text}`);
+  }
+  await shot(a, '5b-draw');
+  await shot(b, '5c-draw-phone');
+  await notice(b, 'Tea or coffee?').locator('button:text-is("View poll")').tap();
+  const teaRow = a.locator('.each-dm-message-wrapper:has(.poll-question:text-is("Tea or coffee?"))');
+  await teaRow.hover();
+  await teaRow.locator('.trash-button').click();
+  await a.click('.vc-dialog button.btn-danger:has-text("Delete")');
+  await notice(b, 'Tea or coffee?').waitFor({ state: 'detached', timeout: 10000 });
+  console.log('ending a DM poll: closed at once, a draw announced to both, deleted with the poll');
+
   // A multiple-choice poll in a guild channel.
   const guild = await a.evaluate(async () => {
     const h = { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };
@@ -243,10 +280,13 @@ try {
   // Only the author can end it early; then it's closed for everyone and can't be edited.
   if (await pollOf(b, 'Which days?').locator('button:text-is("End poll")').count()) throw new Error('End poll offered to a voter');
   await pollOf(a, 'Which days?').locator('.poll-footer:has-text("23 hours left")').waitFor();
-  await pollOf(a, 'Which days?').locator('button:text-is("End poll")').click();
-  await a.click('.vc-dialog button.btn-danger:has-text("End poll")');
+  await endPoll(a, 'Which days?');
   await pollOf(b, 'Which days?').locator('.poll-closed').waitFor({ timeout: 10000 });
-  await pollOf(a, 'Which days?').locator('.poll-closed').waitFor();
+  for (const page of [a, b]) {
+    await notice(page, 'Which days?').waitFor({ timeout: 10000 });
+    const text = await notice(page, 'Which days?').textContent();
+    if (!text.includes('Tue won with 100% (1 of 1 vote).')) throw new Error(`guild row says: ${text}`);
+  }
   await waitForCount(b, 'Which days?', 'Tue', 1);
   const guildRow = a.locator('.each-dm-message-wrapper:has(.poll-question:text-is("Which days?"))');
   await guildRow.hover();
@@ -255,6 +295,39 @@ try {
   await shot(b, '8-guild-ended-phone');
   console.log('the author can end a poll early');
   console.log('guild multiple-choice poll works');
+
+  // A group DM: the row reaches its members, the winner worked out on each device.
+  const cal = await signUp(browser, 'cal');
+  const c = cal.page;
+  await a.goto(`${BASE}/dm`);
+  await a.click('button[aria-label="New group"]');
+  await a.fill('input[aria-label="Group name"]', 'Pollsters');
+  await a.check(`.user-picker-row:has-text("${bob.name}") input`);
+  await a.check(`.user-picker-row:has-text("${cal.name}") input`);
+  await a.click('button:has-text("Create Group")');
+  await a.waitForURL('**/dm/g/**');
+  await a.waitForSelector('#dm-input[contenteditable="true"]', { timeout: 20000 });
+  const groupUrl = a.url();
+  await createPoll(a, 'Where to?', ['Beach', 'Hills', 'City'], { emoji: { 1: 'beach' } });
+  for (const page of [b, c]) {
+    await page.goto(groupUrl);
+    await pollOf(page, 'Where to?').waitFor({ timeout: 20000 });
+  }
+  await castVote(b, 'Where to?', ['Beach']);
+  await castVote(c, 'Where to?', ['Beach']);
+  await waitForCount(a, 'Where to?', 'Beach', 2);
+  await endPoll(a, 'Where to?');
+  for (const page of [a, b, c]) {
+    await notice(page, 'Where to?').waitFor({ timeout: 10000 });
+    const text = await notice(page, 'Where to?').textContent();
+    if (!text.includes('Beach won with 100% (2 of 2 votes).')) throw new Error(`group row says: ${text}`);
+  }
+  // Still there after a reload (it's a stored row, not worked out from the timer).
+  await c.reload();
+  await notice(c, 'Where to?').waitFor({ timeout: 20000 });
+  await shot(c, '9-group-ended');
+  await shot(b, '10-group-ended-phone');
+  console.log('group DM poll: the result is announced to every member');
   console.log('polls: ok');
 } catch (err) {
   console.error('polls: FAILED', err.message.split('\n')[0]);

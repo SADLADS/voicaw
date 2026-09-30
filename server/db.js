@@ -470,6 +470,24 @@ for (const table of ['direct_messages', 'guild_messages', 'group_dm_messages']) 
   addColumn(`ALTER TABLE ${table} ADD COLUMN pinned_by INTEGER`);
 }
 
+// POLLS (pollTimers.js): when each poll closes (its author registers it; in DMs and groups
+// that's all the server knows about a poll), and whether its "poll ended" row has been
+// posted. That row is a message with `system` = 'poll_end', the poll's author as sender, the
+// poll as parent and no content: clients work out the result from the poll itself.
+for (const table of ['direct_messages', 'guild_messages', 'group_dm_messages']) {
+  addColumn(`ALTER TABLE ${table} ADD COLUMN system TEXT`);
+}
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS poll_timers (
+  kind TEXT NOT NULL,
+  message_id INTEGER NOT NULL,
+  ends_at INTEGER NOT NULL,
+  announced INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (kind, message_id)
+);
+`);
+sqlite.exec('CREATE INDEX IF NOT EXISTS poll_timers_due ON poll_timers (announced, ends_at)');
+
 // WEBHOOKS (routes/webhooks.js, Discord's API): a URL with a secret token that posts into one
 // text channel, with its own name and picture. Messages it posts are guild_messages with
 // sender_id 0 (no user) and the webhook's name and picture as they were when sent (so old

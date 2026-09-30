@@ -121,7 +121,25 @@ export function useGroupConversation({ groupId, user, onRead }) {
     return out;
   }
 
+  // A "poll ended" row has no content of its own: its poll (the parent, checked against its
+  // author's signature like any message, since its result is shown from it) and the poll's
+  // votes (`poll_reactions`, checked too) are what's shown.
+  async function decryptPollEndRow(row) {
+    const poll = row.parent_content != null ? await decryptText(row.parent_content, row.parent_epoch, row.parent_sender_id, signatureContextOf({
+      id: row.parent_message_id, epoch: row.parent_epoch, sender_id: row.parent_sender_id,
+      parent_message_id: row.parent_reply_to, edited: row.parent_edited,
+    })) : null;
+    return {
+      ...row,
+      plaintext: null,
+      parent_plaintext: poll && !poll.unverified && !poll.unsigned ? poll.plaintext : null,
+      reactions: await decryptReactions(row.id, row.epoch, row.reactions),
+      poll_reactions: row.parent_content != null ? await decryptReactions(row.parent_message_id, row.parent_epoch, row.poll_reactions) : [],
+    };
+  }
+
   async function decryptRow(row) {
+    if (row.system === 'poll_end') return decryptPollEndRow(row);
     const text = await decryptText(row.content, row.epoch, row.sender_id, signatureContextOf(row));
     return {
       ...row,
@@ -270,6 +288,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
         if (prev.some((m) => m.id === saved.id)) return prev.filter((m) => m.id !== tempId);
         return prev.map((m) => (m.id === tempId ? { ...saved, clientKey: tempId, localAttachments, status: 'sent' } : m));
       });
+      return saved;
     } catch (err) {
       console.error('Error sending message:', err);
       updateMessage(tempId, () => ({ status: 'failed' }));

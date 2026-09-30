@@ -8,6 +8,8 @@ const groups = require('../groupDms');
 const calls = require('../calls');
 const { displayNameOf } = require('../profiles');
 const { setPinned } = require('../pins');
+const { reactionIdsFor, pollReactionsFor } = require('../polls');
+const { removePollRows } = require('../pollTimers');
 
 // Group DMs (see groupDms.js): creating one, its membership log (add, remove, leave), key
 // epochs, and its messages and reactions (all ciphertext). Everything 404s for non-members.
@@ -36,11 +38,14 @@ function contentError(content) {
 // a reply's parent only if they can read that too.
 const MESSAGE_SELECT = `
   SELECT m.id, m.group_id, m.epoch, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
-    m.pinned_at, m.pinned_by,
+    m.pinned_at, m.pinned_by, m.system,
     u.username AS sender_username,
     u.display_name AS sender_display_name,
     CASE WHEN pk.user_id IS NOT NULL THEN pm.content END AS parent_content,
     CASE WHEN pk.user_id IS NOT NULL THEN pm.epoch END AS parent_epoch,
+    CASE WHEN pk.user_id IS NOT NULL THEN pm.timestamp END AS parent_timestamp,
+    CASE WHEN pk.user_id IS NOT NULL THEN pm.parent_message_id END AS parent_reply_to,
+    CASE WHEN pk.user_id IS NOT NULL THEN pm.edited END AS parent_edited,
     CASE WHEN pk.user_id IS NOT NULL THEN pm.sender_id END AS parent_sender_id,
     CASE WHEN pk.user_id IS NOT NULL THEN pu.username END AS parent_username
   FROM group_dm_messages m
@@ -52,7 +57,7 @@ const MESSAGE_SELECT = `
 
 async function withReactions(messages) {
   if (messages.length === 0) return messages;
-  const ids = messages.map((m) => m.id);
+  const ids = reactionIdsFor(messages);
   const rows = await db.all(
     `SELECT id, message_id, user_id, content, timestamp FROM group_dm_reactions
      WHERE message_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`,
@@ -60,7 +65,7 @@ async function withReactions(messages) {
   );
   const byMessage = new Map(ids.map((id) => [id, []]));
   for (const { message_id: messageId, ...reaction } of rows) byMessage.get(messageId).push(reaction);
-  return messages.map((m) => ({ ...m, reactions: byMessage.get(m.id) }));
+  return messages.map((m) => ({ ...m, reactions: byMessage.get(m.id), ...pollReactionsFor(m, byMessage) }));
 }
 
 async function messageFor(viewerId, messageId) {
@@ -312,6 +317,7 @@ router.put('/group-dm-messages/:messageId', authenticateJWT, findMessage, async 
   const invalid = contentError(content);
   if (invalid) return res.status(400).json({ error: invalid });
   if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not your message' });
+  if (req.message.system) return res.status(403).json({ error: "This message can't be edited" });
   await db.run('UPDATE group_dm_messages SET content = ?, edited = 1 WHERE id = ?', [content.trim(), req.message.id]);
   await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_edit', groupId: req.message.group_id, messageId: req.message.id, content: content.trim() });
   res.json({ success: true });
@@ -320,11 +326,15 @@ router.put('/group-dm-messages/:messageId', authenticateJWT, findMessage, async 
 // Delete your own message (and its reactions).
 router.delete('/group-dm-messages/:messageId', authenticateJWT, findMessage, async (req, res) => {
   if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not your message' });
-  await db.transaction(async () => {
+  // A poll takes its "poll ended" row with it.
+  const removed = await db.transaction(async () => {
     await db.run('DELETE FROM group_dm_reactions WHERE message_id = ?', [req.message.id]);
     await db.run('DELETE FROM group_dm_messages WHERE id = ?', [req.message.id]);
+    return removePollRows('group', req.message.id);
   });
-  await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_delete', groupId: req.message.group_id, messageId: req.message.id });
+  for (const id of [req.message.id, ...removed]) {
+    await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_delete', groupId: req.message.group_id, messageId: id });
+  }
   res.json({ success: true });
 });
 
@@ -391,3 +401,4 @@ router.post('/group-dms/:groupId/read', member, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.messageFor = messageFor;

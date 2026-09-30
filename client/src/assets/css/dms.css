@@ -3007,3 +3007,62 @@ body.mobile-mode .poll-voters-list {
 .poll-link.poll-end {
   color: var(--vc-danger);
 }
+
+/* A poll's "poll ended" row (PollEndNotice): an icon, whose poll closed, and its result. */
+.poll-end {
+  display: flex;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 4px 1.25rem;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+}
+
+.poll-end strong {
+  color: var(--vc-fg);
+  overflow-wrap: anywhere;
+}
+
+.poll-end-icon {
+  flex-shrink: 0;
+  width: 40px;
+  margin-top: 3px;
+  font-size: 18px;
+  color: var(--vc-accent-alt);
+}
+
+.poll-end-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.poll-end-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 6px;
+  background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg);
+}
+
+.poll-end-trophy {
+  flex-shrink: 0;
+  color: var(--vc-action);
+}
+
+.poll-end-answer .poll-option-emoji {
+  display: inline;
+  margin-right: 4px;
+}
+
+.poll-end-answer .poll-option-emoji img.emoji {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  vertical-align: -3px;
+}
