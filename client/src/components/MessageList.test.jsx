@@ -147,7 +147,7 @@ describe('MessageList', () => {
     fireEvent.click(document.querySelector('[data-icon="reply"]').closest('button'));
 
     expect(handleEdit).toHaveBeenCalledWith(msg);
-    expect(handleDelete).toHaveBeenCalledWith(msg);
+    expect(handleDelete).toHaveBeenCalledWith(msg, expect.objectContaining({ shiftKey: false }));
     expect(handleReply).toHaveBeenCalledWith(msg);
   });
 

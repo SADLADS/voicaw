@@ -92,7 +92,7 @@ vi.mock('./SafetyNumberDialog', () => ({
 vi.mock('./MessageList', () => ({
   default: ({
     messages, loadMoreMessages, hasMore, onToggleReaction, onOpenReactionPicker, onOpenActions, focusedMsgId,
-    handleEdit, editingMessageId, setEditingMessageContent, handleSaveEdit,
+    handleEdit, handleDelete, editingMessageId, setEditingMessageContent, handleSaveEdit,
   }) => (
     <div data-testid="message-list" data-has-more={String(hasMore)} data-focused={focusedMsgId ?? ''}>
       <span data-testid="editing">{editingMessageId ?? ''}</span>
@@ -109,6 +109,7 @@ vi.mock('./MessageList', () => ({
           <button data-testid={`react-${m.id}`} onClick={(e) => onOpenReactionPicker(m, e.currentTarget)} />
           <button data-testid={`hold-${m.id}`} onClick={() => onOpenActions(m)} />
           <button data-testid={`edit-${m.id}`} onClick={() => handleEdit(m)} />
+          <button data-testid={`delete-${m.id}`} onClick={(e) => handleDelete(m, e)} />
         </div>
       ))}
     </div>
@@ -1053,3 +1054,34 @@ describe('Dm mobile message actions', () => {
   });
 });
 
+describe('Dm deleting from the hover menu', () => {
+  async function openChatWith(messages, shown) {
+    fetchMessagesForUser.mockResolvedValue(messages);
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText(shown);
+  }
+  const mine = { id: 21, sender_id: 1, recipient_id: 2, content: 'ENC', timestamp: 1, reactions: [], plaintext: 'see ||the end|| <@2>' };
+
+  it('asks first, showing the message; Cancel keeps it, Delete deletes it', async () => {
+    await openChatWith([mine], /see/);
+    fireEvent.click(screen.getByTestId('delete-21'));
+    const dialog = screen.getByRole('dialog', { name: 'Delete message' });
+    // Spoilers stay hidden, mentions by name.
+    expect(within(dialog).getByText('see [spoiler] @bob')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Delete' })).toHaveFocus();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(deleteMessage).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('delete-21'));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete message' })).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(deleteMessage).toHaveBeenCalledWith(21));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Delete message' })).not.toBeInTheDocument());
+  });
+
+  it('deletes at once with Shift held', async () => {
+    await openChatWith([mine], /see/);
+    fireEvent.click(screen.getByTestId('delete-21'), { shiftKey: true });
+    expect(screen.queryByRole('dialog', { name: 'Delete message' })).not.toBeInTheDocument();
+    await waitFor(() => expect(deleteMessage).toHaveBeenCalledWith(21));
+  });
+});

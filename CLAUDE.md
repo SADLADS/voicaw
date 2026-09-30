@@ -896,7 +896,8 @@ their box is reserved before they load.
   (`hooks/useLongPress.js`, 450ms, cancelled by scrolling) opens `MessageActionSheet`: quick
   reactions (most used first, then 👍❤️😂😮😢🙏) and `+` for the full picker, Reply, Edit,
   Copy text (attachments become their names, never their key-carrying links) and Delete (asks
-  first). The sheet ignores the click Chrome fires when the holding finger lifts (it lands on the
+  first). On desktop the hover menu's delete asks too (`ChatPane`: a "Delete message" dialog
+  showing the message; Enter confirms), unless Shift is held while clicking. The sheet ignores the click Chrome fires when the holding finger lifts (it lands on the
   sheet); only clicks from a touch that started on it count. Messages aren't text-selectable
   on mobile, so the long press isn't taken by text selection.
 - DM view: `Dm.jsx` puts together `hooks/useConversation.js` (keys, history, paging, send/edit/

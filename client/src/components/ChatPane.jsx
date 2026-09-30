@@ -3,12 +3,14 @@ import EmojiPicker from './EmojiPicker';
 import MessageList from './MessageList';
 import Composer from './Composer';
 import MessageActionSheet from './MessageActionSheet';
+import ConfirmDialog from './guild/ConfirmDialog';
 import { ConfigContext, InteractionContext } from '../contexts';
 import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
 import { useReactions } from '../hooks/useReactions';
 import { summarizeAttachments } from '../utils/attachmentMarkup';
 import { customEmojiToText } from '../emoji/customEmoji';
 import { mentionsToText } from '../utils/mentions';
+import { hideSpoilers } from '../utils/remarkDiscord';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 
 // The body of a chat, shared by DMs (Dm) and guild channels (GuildChannel): the messages, the
@@ -66,6 +68,8 @@ export default function ChatPane({
   // Mobile: the message whose action sheet (long press) is open.
   const [actionsForId, setActionsForId] = useState(null);
   const closeActions = useCallback(() => setActionsForId(null), []);
+  // The message the "Delete message?" dialog is asking about.
+  const [confirmingDelete, setConfirmingDelete] = useState(null);
 
   const reactions = useReactions({
     chatId,
@@ -111,6 +115,7 @@ export default function ChatPane({
   // A new chat starts with nothing open.
   useEffect(() => {
     setActionsForId(null);
+    setConfirmingDelete(null);
     setShowEmojiPickerState(false);
     setComposerError(null);
     setReplyTo(null);
@@ -148,6 +153,13 @@ export default function ChatPane({
     }
   }
 
+  // The hover menu's delete: asks first (with the message shown), unless Shift is held. (The
+  // mobile action sheet asks in its own way.)
+  function requestDelete(msg, event) {
+    if (event?.shiftKey) handleDelete(msg);
+    else setConfirmingDelete(msg);
+  }
+
   function handleReply(msg) {
     setReplyTo(msg);
     inputRef.current?.focus();
@@ -175,7 +187,7 @@ export default function ChatPane({
             hoveredMsgId={hoveredMsgId}
             setHoveredMsgId={setHoveredMsgId}
             handleEdit={handleEdit}
-            handleDelete={handleDelete}
+            handleDelete={requestDelete}
             handleReply={handleReply}
             editingMessageId={editingMessageId}
             editingMessageContent={editingMessageContent}
@@ -232,6 +244,25 @@ export default function ChatPane({
         roleInfo={mentionRoles}
         canMentionEveryone={canMentionEveryone}
       />}
+
+      {confirmingDelete && (
+        <ConfirmDialog
+          title="Delete message"
+          message="Are you sure you want to delete this message?"
+          confirmLabel="Delete"
+          focusConfirm
+          onConfirm={() => conversation.deleteMessage(confirmingDelete.id)}
+          onClose={() => setConfirmingDelete(null)}
+        >
+          <div className="delete-preview">
+            <strong style={{ color: nameColors?.[confirmingDelete.sender_id] }}>{confirmingDelete.sender_username}</strong>
+            <span>
+              {mentionsToText(customEmojiToText(hideSpoilers(summarizeAttachments(confirmingDelete.plaintext ?? ''))), reactionNames, mentionRoles)}
+            </span>
+          </div>
+          <p className="vc-hint">Tip: hold Shift when you click delete to skip this.</p>
+        </ConfirmDialog>
+      )}
 
       {actionsFor && (
         <MessageActionSheet

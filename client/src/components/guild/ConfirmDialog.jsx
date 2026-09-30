@@ -3,7 +3,9 @@ import Modal from './Modal';
 import { errorMessage } from '../../utils/guildDisplay';
 
 // "Are you sure?": `onConfirm` (async) runs on the red button; its error is shown here.
-export default function ConfirmDialog({ title, message, confirmLabel, onConfirm, onClose }) {
+// `children` go under the message; with `focusConfirm` the red button starts focused, so Enter
+// confirms (Escape cancels, as always).
+export default function ConfirmDialog({ title, message, confirmLabel, onConfirm, onClose, children, focusConfirm = false }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -26,11 +28,14 @@ export default function ConfirmDialog({ title, message, confirmLabel, onConfirm,
       actions={(
         <>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
-          <button type="button" className="btn btn-danger btn-sm" onClick={confirm} disabled={busy}>{confirmLabel}</button>
+          <button type="button" className="btn btn-danger btn-sm" onClick={confirm} disabled={busy} autoFocus={focusConfirm}>
+            {confirmLabel}
+          </button>
         </>
       )}
     >
       <p>{message}</p>
+      {children}
       {error && <p className="error-msg" role="alert">{error}</p>}
     </Modal>
   );

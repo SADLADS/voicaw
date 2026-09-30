@@ -1875,3 +1875,26 @@ body.mobile-mode .each-dm-message-wrapper textarea {
 .dm-message-content .spoiler:not(.revealed):hover {
   background-color: #111114;
 }
+
+/* "Delete message?" (ChatPane): the message being deleted, cut short if it's long. */
+.delete-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 6px;
+  background-color: var(--vc-bg-subtle);
+  box-shadow: 0 1px 3px var(--vc-shadow);
+}
+
+.delete-preview span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

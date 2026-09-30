@@ -225,7 +225,8 @@ export function MessageRow({
           {(msg.sender_id === user.id || canModerate) && (
             <button
               className="icon-button trash-button"
-              onClick={() => handleDelete(msg)}
+              // Shift+click deletes without asking (ChatPane).
+              onClick={(e) => handleDelete(msg, e)}
             >
               <FontAwesomeIcon icon={faTrash} title="Delete" />
             </button>
