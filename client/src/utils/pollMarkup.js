@@ -1,6 +1,8 @@
 // A poll is a message whose whole text is `poll:v1:` + JSON:
 //   { "q": question, "multi": false, "o": [{ "id": "k3j2h4g5", "t": "Answer", "e": "🍕" }, ...] }
-// (`e`, optional: the answer's emoji, Unicode or a custom `<:name:id>`)
+// (`e`, optional: the answer's emoji, Unicode or a custom `<:name:id>`), plus `d`: how long it
+// runs, in seconds from the message's (server) timestamp, and `x` once its author ends it early
+// (unix s). Polls from before durations have no `d` and never end.
 // so in DMs and group DMs it's inside the encryption like any message. Votes are reactions
 // whose "emoji" is `poll:<option id>` (VOTE_PREFIX): stored, encrypted (DMs, groups), signed
 // (groups) and delivered exactly like reactions, so the server can't tell a vote from a
@@ -14,6 +16,19 @@ export const VOTE_PREFIX = 'poll:';
 export const MAX_POLL_OPTIONS = 10;
 export const MAX_QUESTION_LENGTH = 300;
 export const MAX_OPTION_LENGTH = 55;
+
+// How long a poll can run (Discord's choices); 24 hours unless picked.
+export const POLL_DURATIONS = [
+  { label: '1 hour', seconds: 3600 },
+  { label: '4 hours', seconds: 4 * 3600 },
+  { label: '8 hours', seconds: 8 * 3600 },
+  { label: '24 hours', seconds: 24 * 3600 },
+  { label: '3 days', seconds: 3 * 86400 },
+  { label: '1 week', seconds: 7 * 86400 },
+  { label: '2 weeks', seconds: 14 * 86400 },
+];
+export const DEFAULT_POLL_DURATION = 24 * 3600;
+const MAX_POLL_DURATION = 14 * 86400;
 
 const OPTION_ID = /^[a-z0-9]{8}$/;
 const MAX_EMOJI_LENGTH = 64;
@@ -29,14 +44,18 @@ export function newOptionId() {
   return Array.from(bytes, (b) => ID_CHARS[b % ID_CHARS.length]).join('');
 }
 
-// { question, multi, options: [{ id, text, emoji? }] } -> message text.
-export function pollMarkup({ question, multi, options }) {
+// { question, multi, duration, endedAt?, options: [{ id, text, emoji? }] } -> message text.
+export function pollMarkup({ question, multi, duration, endedAt, options }) {
   return POLL_PREFIX + JSON.stringify({
     q: question,
     multi: Boolean(multi),
+    ...(duration ? { d: duration } : {}),
+    ...(endedAt ? { x: endedAt } : {}),
     o: options.map((o) => (o.emoji ? { id: o.id, t: o.text, e: o.emoji } : { id: o.id, t: o.text })),
   });
 }
+
+const positiveInt = (n, max = Infinity) => (Number.isInteger(n) && n > 0 && n <= max ? n : null);
 
 // The poll in a message's text, or null when it isn't one (or is malformed).
 export function parsePoll(text) {
@@ -56,7 +75,40 @@ export function parsePoll(text) {
     options.push({ id: o.id, text: o.t.slice(0, MAX_OPTION_LENGTH), emoji: cleanEmoji(o.e) });
   }
   if (options.length === 0) return null;
-  return { question: data.q.slice(0, MAX_QUESTION_LENGTH), multi: data.multi === true, options };
+  return {
+    question: data.q.slice(0, MAX_QUESTION_LENGTH),
+    multi: data.multi === true,
+    duration: positiveInt(data.d, MAX_POLL_DURATION),
+    endedAt: positiveInt(data.x),
+    options,
+  };
+}
+
+// When a poll sent at `sentAt` (unix s, the message's timestamp) closes (unix s), or null if
+// it never does: its duration, or earlier if its author ended it.
+export function pollEndsAt(poll, sentAt) {
+  const byDuration = poll.duration && sentAt ? sentAt + poll.duration : null;
+  if (byDuration && poll.endedAt) return Math.min(byDuration, poll.endedAt);
+  return byDuration ?? poll.endedAt ?? null;
+}
+
+export function pollEnded(poll, sentAt, now = Date.now() / 1000) {
+  const endsAt = pollEndsAt(poll, sentAt);
+  return endsAt != null && now >= endsAt;
+}
+
+// The poll ended by its author now.
+export function endPoll(poll, now = Math.floor(Date.now() / 1000)) {
+  return { ...poll, endedAt: now };
+}
+
+// "3 days left", "5 hours left", "12 minutes left", "less than a minute left".
+export function timeLeft(seconds) {
+  const plural = (n, unit) => `${n} ${unit}${n === 1 ? '' : 's'} left`;
+  if (seconds >= 86400) return plural(Math.floor(seconds / 86400), 'day');
+  if (seconds >= 3600) return plural(Math.floor(seconds / 3600), 'hour');
+  if (seconds >= 60) return plural(Math.floor(seconds / 60), 'minute');
+  return 'less than a minute left';
 }
 
 // Whether an answer of `poll` was changed (text or emoji) in `option` ({ id, text, emoji }).
@@ -66,11 +118,14 @@ export function optionChanged(poll, option) {
 }
 
 // The poll after an edit: options keep their id only if their text and emoji are unchanged
-// (so votes on an edited option are dropped); new ones get a new id. `multi` can't change.
+// (so votes on an edited option are dropped); new ones get a new id. `multi`, the duration
+// and an early end can't change.
 export function editedPoll(original, { question, options }) {
   return {
     question,
     multi: original.multi,
+    duration: original.duration,
+    endedAt: original.endedAt,
     options: options.map((o) => ({
       id: o.id && !optionChanged(original, o) ? o.id : newOptionId(),
       text: o.text,
@@ -90,10 +145,14 @@ export const voteOption = (emoji) => (isVote(emoji) ? emoji.slice(VOTE_PREFIX.le
 
 // Who voted for what: { voters: { optionId: [userId] }, total (people who voted) }. Votes for
 // options that no longer exist don't count. In a single-choice poll only each person's latest
-// vote counts (two devices could race).
-export function tallyVotes(poll, reactions) {
+// vote counts (two devices could race). With `endsAt` (unix s, see pollEndsAt), votes the
+// server timestamped after the poll closed don't count either (one without a timestamp, just
+// made on this device, does).
+export function tallyVotes(poll, reactions, endsAt = null) {
   const voters = Object.fromEntries(poll.options.map((o) => [o.id, []]));
-  const votes = (reactions ?? []).filter((r) => voters[voteOption(r.emoji)]);
+  const votes = (reactions ?? []).filter((r) =>
+    voters[voteOption(r.emoji)] && (endsAt == null || r.timestamp == null || r.timestamp <= endsAt)
+  );
   const counted = poll.multi
     ? votes
     : [...new Map(votes.map((r) => [r.user_id, r])).values()];
@@ -124,7 +183,7 @@ export function planVotes(poll, reactions, userId, optionIds) {
 }
 
 // The answers `userId` currently has votes on (as tallyVotes counts them).
-export function myVotes(poll, reactions, userId) {
-  const { voters } = tallyVotes(poll, reactions);
+export function myVotes(poll, reactions, userId, endsAt = null) {
+  const { voters } = tallyVotes(poll, reactions, endsAt);
   return poll.options.filter((o) => voters[o.id].includes(userId)).map((o) => o.id);
 }

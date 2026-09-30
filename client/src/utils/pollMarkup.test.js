@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { editedPoll, parsePoll, planVotes, myVotes, pollMarkup, tallyVotes, voteKey } from './pollMarkup';
+import { endPoll, pollEnded, pollEndsAt, timeLeft, editedPoll, parsePoll, planVotes, myVotes, pollMarkup, tallyVotes, voteKey } from './pollMarkup';
 import { summarizeAttachments } from './attachmentMarkup';
 import { groupReactions } from './reactions';
 
 const poll = (multi = false) => ({
   question: 'Lunch?',
   multi,
+  duration: 3600,
+  endedAt: null,
   options: [{ id: 'aaaa1111', text: 'Pizza', emoji: '🍕' }, { id: 'bbbb2222', text: 'Soup', emoji: null }],
 });
 const vote = (id, userId, optionId) => ({ id, user_id: userId, emoji: voteKey(optionId) });
@@ -73,5 +75,36 @@ describe('voting', () => {
     expect(planVotes(poll(true), [mine], 1, ['aaaa1111', 'bbbb2222'])).toEqual({ remove: [], add: ['bbbb2222'] });
     expect(planVotes(poll(true), [mine, vote(3, 1, 'aaaa1111')], 1, ['aaaa1111'])).toEqual({ remove: [vote(3, 1, 'aaaa1111')], add: [] });
     expect(myVotes(poll(true), [mine, stale, bobs], 1)).toEqual(['aaaa1111']);
+  });
+});
+
+describe('duration', () => {
+  it('closes after its duration from the message time, or when its author ends it', () => {
+    const sentAt = 1000;
+    expect(pollEndsAt(poll(), sentAt)).toBe(4600);
+    expect(pollEnded(poll(), sentAt, 4599)).toBe(false);
+    expect(pollEnded(poll(), sentAt, 4600)).toBe(true);
+    const ended = endPoll(poll(), 2000);
+    expect(pollEndsAt(ended, sentAt)).toBe(2000);
+    expect(parsePoll(pollMarkup(ended))).toMatchObject({ duration: 3600, endedAt: 2000 });
+    // A poll from before durations never ends by itself.
+    const old = parsePoll('poll:v1:{"q":"x","o":[{"id":"aaaa1111","t":"a"}]}');
+    expect(old.duration).toBeNull();
+    expect(pollEnded(old, sentAt, 1e12)).toBe(false);
+    // An edit keeps the duration and an early end.
+    expect(editedPoll(ended, { question: 'y', options: [] })).toMatchObject({ duration: 3600, endedAt: 2000 });
+  });
+
+  it("doesn't count votes made after the end", () => {
+    const votes = [{ ...vote(1, 1, 'aaaa1111'), timestamp: 1500 }, { ...vote(2, 2, 'aaaa1111'), timestamp: 2500 }, vote(3, 3, 'aaaa1111')];
+    expect(tallyVotes(poll(), votes, 2000).voters.aaaa1111).toEqual([1, 3]);
+    expect(tallyVotes(poll(), votes).voters.aaaa1111).toEqual([1, 2, 3]);
+  });
+
+  it('says how long is left', () => {
+    expect(timeLeft(2 * 86400 + 5)).toBe('2 days left');
+    expect(timeLeft(3600)).toBe('1 hour left');
+    expect(timeLeft(125)).toBe('2 minutes left');
+    expect(timeLeft(30)).toBe('less than a minute left');
   });
 });

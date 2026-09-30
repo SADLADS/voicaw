@@ -113,7 +113,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
           reactionSignatureContext({ groupId, epoch, messageId, reactorId: r.user_id })
         );
         if (signed && !verified) continue;
-        out.push({ id: r.id, user_id: r.user_id, emoji });
+        out.push({ id: r.id, user_id: r.user_id, emoji, timestamp: r.timestamp });
       } catch {
         // Skip one that doesn't open.
       }

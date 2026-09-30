@@ -44,7 +44,7 @@ export function useReactions({ chatId, user, ready, saveReaction, deleteReaction
         const saved = await saveReaction(msg, emoji);
         // The websocket may have delivered it already.
         setMessageReactions(msg.id, (list) =>
-          list.some((r) => r.id === saved.id) ? list : [...list, { id: saved.id, user_id: user.id, emoji }]
+          list.some((r) => r.id === saved.id) ? list : [...list, { id: saved.id, user_id: user.id, emoji, timestamp: saved.timestamp }]
         );
       }
     } catch (err) {
@@ -84,7 +84,7 @@ export function useReactions({ chatId, user, ready, saveReaction, deleteReaction
         const emoji = voteKey(optionId);
         const saved = await saveReaction(current, emoji);
         setMessageReactions(msg.id, (list) =>
-          list.some((r) => r.id === saved.id) ? list : [...list, { id: saved.id, user_id: user.id, emoji }]
+          list.some((r) => r.id === saved.id) ? list : [...list, { id: saved.id, user_id: user.id, emoji, timestamp: saved.timestamp }]
         );
       }
     } catch (err) {

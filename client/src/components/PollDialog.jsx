@@ -9,6 +9,8 @@ import {
   MAX_OPTION_LENGTH,
   MAX_POLL_OPTIONS,
   MAX_QUESTION_LENGTH,
+  DEFAULT_POLL_DURATION,
+  POLL_DURATIONS,
   editedPoll,
   newOptionId,
   optionChanged,
@@ -17,7 +19,8 @@ import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 
 // Making a poll, or editing one (`poll`): a question and 1 to MAX_POLL_OPTIONS answers
 // (empty rows are left out), each with an optional emoji (the smiley button: the emoji
-// picker), and whether more than one answer can be picked, which can't be changed afterwards.
+// picker), how long it runs and whether more than one answer can be picked (neither can be
+// changed afterwards).
 // Editing an answer's text or emoji drops its votes (see editedPoll).
 // `onSubmit(poll)` (async) posts or saves it; its error is shown here.
 export default function PollDialog({ poll, onSubmit, onClose }) {
@@ -27,6 +30,7 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
   const [question, setQuestion] = useState(poll?.question ?? '');
   const [options, setOptions] = useState(() => (poll ? poll.options.map(row) : [row(), row()]));
   const [multi, setMulti] = useState(poll?.multi ?? false);
+  const [duration, setDuration] = useState(poll ? poll.duration : DEFAULT_POLL_DURATION);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const listRef = useRef(null);
@@ -62,7 +66,7 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
     const answers = filled.map((o) => ({ id: o.id, text: o.text.trim(), emoji: o.emoji }));
     const next = editing
       ? editedPoll(poll, { question: question.trim(), options: answers })
-      : { question: question.trim(), multi, options: answers.map((o) => ({ ...o, id: newOptionId() })) };
+      : { question: question.trim(), multi, duration, options: answers.map((o) => ({ ...o, id: newOptionId() })) };
     setBusy(true);
     setError(null);
     try {
@@ -162,11 +166,24 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
         )}
         {changed && <p className="vc-hint">Changing an answer removes the votes it had.</p>}
 
+        <label htmlFor="poll-duration">Duration</label>
+        <select
+          id="poll-duration"
+          className="form-select form-control"
+          value={duration ?? ''}
+          disabled={editing}
+          onChange={(e) => setDuration(Number(e.target.value))}
+        >
+          {/* A poll from before durations runs until its author ends it. */}
+          {duration == null && <option value="">No end</option>}
+          {POLL_DURATIONS.map((d) => <option key={d.seconds} value={d.seconds}>{d.label}</option>)}
+        </select>
+
         <label className="role-toggle">
           <input type="checkbox" checked={multi} disabled={editing} onChange={(e) => setMulti(e.target.checked)} />
           <span>
             <strong>Allow multiple answers</strong>
-            <span className="vc-hint">{editing ? "Can't be changed after posting." : "Can't be changed once the poll is posted."}</span>
+            <span className="vc-hint">{editing ? "Can't be changed after posting." : "Neither this nor the duration can be changed once the poll is posted."}</span>
           </span>
         </label>
       </form>

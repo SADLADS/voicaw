@@ -15,7 +15,7 @@ import { mentionsToText } from '../utils/mentions';
 import { hideSpoilers } from '../utils/remarkDiscord';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 import { displayName } from '../utils/profiles';
-import { parsePoll, pollMarkup } from '../utils/pollMarkup';
+import { endPoll, parsePoll, pollEnded, pollMarkup } from '../utils/pollMarkup';
 
 // The body of a chat, shared by DMs (Dm) and guild channels (GuildChannel): the messages, the
 // composer, reactions (the floating or docked picker) and the mobile action sheet, plus the
@@ -149,7 +149,8 @@ export default function ChatPane({
   function handleEdit(msg) {
     const poll = parsePoll(msg.plaintext);
     if (poll) {
-      setEditingPoll({ msg, poll });
+      if (isClosedPoll(msg)) setComposerError("This poll has closed, so it can't be edited.");
+      else setEditingPoll({ msg, poll });
       return;
     }
     setEditingMessageId(msg.id);
@@ -168,6 +169,18 @@ export default function ChatPane({
     } catch (err) {
       console.error('Failed to edit message', err);
     }
+  }
+
+  function isClosedPoll(msg) {
+    const poll = parsePoll(msg.plaintext);
+    return Boolean(poll && pollEnded(poll, msg.timestamp));
+  }
+
+  // The author ends their poll now: an edit that stamps the time (see pollMarkup's endPoll).
+  async function endPollNow(msg) {
+    const poll = parsePoll(msg.plaintext);
+    if (!poll || isClosedPoll(msg)) return;
+    await conversation.editMessage(msg.id, pollMarkup(endPoll(poll)));
   }
 
   async function handleDelete(msg) {
@@ -263,6 +276,7 @@ export default function ChatPane({
             onToggleReaction={reactions.toggleReaction}
             onOpenReactionPicker={openReactionPicker}
             onVote={reactions.vote}
+            onEndPoll={endPollNow}
             reactionNames={reactionNames}
             onOpenActions={openActions}
             canModerate={canModerate}
@@ -353,7 +367,7 @@ export default function ChatPane({
           onReact={(emoji) => reactions.toggleReaction(actionsFor, emoji)}
           onMoreReactions={() => openReactionPicker(actionsFor, null)}
           onReply={() => handleReply(actionsFor)}
-          onEdit={() => handleEdit(actionsFor)}
+          onEdit={isClosedPoll(actionsFor) ? undefined : () => handleEdit(actionsFor)}
           onTogglePin={canPin ? () => togglePin(actionsFor) : undefined}
           onCopy={() => copyMessage(actionsFor)}
           onDelete={() => handleDelete(actionsFor)}
