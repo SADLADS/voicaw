@@ -368,7 +368,7 @@ describe('Dm attachments', () => {
 
     // Pending while uploading, still showing the placeholder text.
     expect(await screen.findByText('hi ![cat.png](attachment:1) [pending]')).toBeInTheDocument();
-    expect(uploadAttachment).toHaveBeenCalledWith(expect.any(File), expect.any(Function), null);
+    expect(uploadAttachment).toHaveBeenCalledWith(expect.any(File), expect.any(Function), null, false);
     expect(uploadAttachment.mock.calls[0][0].name).toBe('cat.png');
     expect(sendMessageToUser).not.toHaveBeenCalled();
     expect(boxText()).toBe('');
