@@ -129,6 +129,39 @@ describe('Attachment', () => {
     expect(loadDecryptedAttachment).not.toHaveBeenCalled();
   });
 
+  it('blurs a spoiler image until clicked, keeping it out of the image viewer until then', async () => {
+    getCachedAttachment.mockReturnValue('blob:twist');
+
+    const { container } = render(<Attachment src={encryptedUrl('image/png', 10, { spoiler: true })} alt="twist.png" />);
+
+    expect(screen.queryByRole('img', { name: 'twist.png' })).not.toBeInTheDocument();
+    expect(container.querySelector('.attachment-spoiler img')).toHaveAttribute('src', 'blob:twist');
+    expect(container.querySelector('[data-gallery-item]')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Spoiler: twist.png, select to reveal' }));
+
+    expect(screen.getByRole('img', { name: 'twist.png' })).toHaveAttribute('src', 'blob:twist');
+    expect(container.querySelector('.attachment-spoiler')).toBeNull();
+  });
+
+  it('covers a spoiler video (without controls) until clicked', () => {
+    getCachedAttachment.mockReturnValue('blob:clip');
+
+    const { container } = render(<Attachment src={encryptedUrl('video/mp4', 10, { spoiler: true })} alt="clip.mp4" />);
+
+    expect(container.querySelector('.attachment-spoiler video')).not.toHaveAttribute('controls');
+    fireEvent.click(screen.getByRole('button', { name: 'Spoiler: clip.mp4, select to reveal' }));
+    expect(container.querySelector('video')).toHaveAttribute('controls');
+  });
+
+  it("covers a pending message's spoiler too", () => {
+    const localAttachments = { 3: { previewUrl: 'blob:local', type: 'image/jpeg', size: 10, spoiler: true } };
+
+    render(<Attachment src="attachment:3" alt="me.jpg" localAttachments={localAttachments} />);
+
+    expect(screen.getByRole('button', { name: 'Spoiler: me.jpg, select to reveal' })).toBeInTheDocument();
+  });
+
   it('shows a placeholder label when a draft placeholder has no local file', () => {
     render(<Attachment src="attachment:7" alt="gone.png" />);
 

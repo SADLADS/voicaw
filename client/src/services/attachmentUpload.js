@@ -24,8 +24,8 @@ function putWithProgress(url, blob, onProgress) {
 
 // Encrypts `file`, uploads the ciphertext and returns the attachment URL to embed in the
 // message (upload URL + decryption key/metadata in the fragment). `dimensions` is the
-// media's { width, height } when known.
-export async function uploadAttachment(file, onProgress, dimensions = null) {
+// media's { width, height } when known; `spoiler` marks it as a spoiler.
+export async function uploadAttachment(file, onProgress, dimensions = null, spoiler = false) {
   const { blob, key } = await encryptAttachment(file);
 
   // Ask for an opaque binary upload so the object's content type doesn't leak what it is.
@@ -41,5 +41,6 @@ export async function uploadAttachment(file, onProgress, dimensions = null) {
     size: file.size,
     width: dimensions?.width,
     height: dimensions?.height,
+    spoiler,
   });
 }

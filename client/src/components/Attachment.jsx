@@ -85,12 +85,44 @@ function ViewableImage({ src, item, style, onError, external = false }) {
   );
 }
 
-function MediaView({ kind, src, name, size, width, height, onDownload, galleryItem }) {
+// A spoiler image or video: blurred, with "SPOILER" over it, until clicked (or Enter); then
+// it stays shown. Until then it's plain media, out of the image viewer's gallery (whose
+// thumbnails would give it away) and without video controls.
+function SpoilerCover({ name, onReveal, children }) {
+  return (
+    <span className="attachment-spoiler">
+      {children}
+      <button
+        type="button"
+        className="attachment-spoiler-reveal"
+        onClick={onReveal}
+        aria-label={`Spoiler: ${name}, select to reveal`}
+      >
+        Spoiler
+      </button>
+    </span>
+  );
+}
+
+function MediaView({ kind, src, name, size, width, height, spoiler, onDownload, galleryItem }) {
   const [failed, setFailed] = useState(false);
+  const [revealed, setRevealed] = useState(false);
   const style = reservedBoxStyle(width, height);
 
   // e.g. a video codec the browser can't play: still let the user download it.
   if (failed) return <FileBox name={name} size={size} onDownload={onDownload} />;
+
+  if (spoiler && !revealed) {
+    return (
+      <SpoilerCover name={name} onReveal={() => setRevealed(true)}>
+        {kind === 'image' ? (
+          <img className="attachment-media" style={style} src={src} alt="" onError={() => setFailed(true)} />
+        ) : (
+          <video className="attachment-media" style={style} src={src} preload="metadata" tabIndex={-1} onError={() => setFailed(true)} />
+        )}
+      </SpoilerCover>
+    );
+  }
 
   if (kind === 'image') {
     return (
@@ -121,6 +153,7 @@ function LocalAttachment({ local, name }) {
       size={local.size}
       width={local.width}
       height={local.height}
+      spoiler={local.spoiler}
       onDownload={download}
       galleryItem={{ src: local.previewUrl, name, size: local.size, width: local.width, height: local.height }}
     />
@@ -171,7 +204,7 @@ function EncryptedAttachment({ url, meta, name }) {
     return (
       <span
         // Still decrypting, but already one of the message's images in the viewer.
-        {...(kind === 'image' ? { ref: galleryItemRef(galleryItem), 'data-gallery-item': '' } : {})}
+        {...(kind === 'image' && !meta.spoiler ? { ref: galleryItemRef(galleryItem), 'data-gallery-item': '' } : {})}
         className={`attachment-loading attachment-loading-${kind}`}
         style={reservedBoxStyle(meta.width, meta.height)}
         aria-label={`Loading ${name}`}
@@ -186,6 +219,7 @@ function EncryptedAttachment({ url, meta, name }) {
       size={meta.size}
       width={meta.width}
       height={meta.height}
+      spoiler={meta.spoiler}
       onDownload={download}
       galleryItem={galleryItem}
     />
