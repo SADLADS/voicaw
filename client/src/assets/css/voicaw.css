@@ -26,6 +26,24 @@
   --vc-shadow: rgba(0, 0, 0, 0.2);
 }
 
+/* TEXT SELECTION: off everywhere (so dragging things, like channels, doesn't select text), except
+   where people type and, on desktop, what's said in the chat: messages, names, times, reply
+   previews and code. (On mobile a long press on a message opens its actions instead.) */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"],
+body:not(.mobile-mode) .each-dm-message-wrapper :is(.dm-message-content, .message-author, small, .reply-author, .reply-preview),
+body:not(.mobile-mode) .message-system,
+body:not(.mobile-mode) .channel-header-topic {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 html,
 body {
   height: 100svh;

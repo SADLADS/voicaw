@@ -506,6 +506,55 @@ router.delete('/guilds/:guildId/channels/:channelId', manageChannels, async (req
   res.json({ success: true });
 });
 
+// Moves a channel you can see (a drag in the channel list): into category `categoryId` (null:
+// above the categories), just before channel `beforeId` (which must be in that category), or
+// with `beforeId` null at the end of it. Channels the mover can't see keep their places, so
+// this works for managers who can't see every private channel (unlike /layout).
+router.put('/guilds/:guildId/channels/:channelId/move', manageChannels, async (req, res) => {
+  const channel = await findChannel(req);
+  if (!channel) return res.status(404).json({ error: 'Channel not found' });
+  const { categoryId = null, beforeId = null } = req.body ?? {};
+  if (categoryId !== null) {
+    const category = Number.isInteger(categoryId) && await db.get(
+      'SELECT id FROM guild_categories WHERE id = ? AND guild_id = ?', [categoryId, req.guild.id]
+    );
+    if (!category) return res.status(400).json({ error: 'Invalid category' });
+  }
+  const all = await db.all('SELECT id, category_id FROM guild_channels WHERE guild_id = ? ORDER BY position, id', [req.guild.id]);
+  const rest = all.filter((c) => c.id !== channel.id);
+  let at;
+  if (beforeId !== null) {
+    at = rest.findIndex((c) => c.id === beforeId && (c.category_id ?? null) === categoryId);
+    if (at < 0) return res.status(400).json({ error: 'Invalid position' });
+  } else {
+    const last = rest.map((c) => c.category_id ?? null).lastIndexOf(categoryId);
+    at = last < 0 ? rest.length : last + 1;
+  }
+  rest.splice(at, 0, { id: channel.id, category_id: categoryId });
+  for (const [position, c] of rest.entries()) {
+    await db.run('UPDATE guild_channels SET position = ?, category_id = ? WHERE id = ?', [position, c.category_id ?? null, c.id]);
+  }
+  await announceGuildUpdate(req.guild.id);
+  res.json(await getGuildLayout(req.guild.id, req.user.id));
+});
+
+// Moves a category just before category `beforeId`, or to the end with `beforeId` null.
+router.put('/guilds/:guildId/categories/:categoryId/move', manageChannels, async (req, res) => {
+  const categoryId = Number(req.params.categoryId);
+  const all = await db.all('SELECT id FROM guild_categories WHERE guild_id = ? ORDER BY position, id', [req.guild.id]);
+  if (!all.some((c) => c.id === categoryId)) return res.status(404).json({ error: 'Category not found' });
+  const beforeId = req.body?.beforeId ?? null;
+  const rest = all.map((c) => c.id).filter((id) => id !== categoryId);
+  const at = beforeId === null ? rest.length : rest.indexOf(beforeId);
+  if (at < 0) return res.status(400).json({ error: 'Invalid position' });
+  rest.splice(at, 0, categoryId);
+  for (const [position, id] of rest.entries()) {
+    await db.run('UPDATE guild_categories SET position = ? WHERE id = ?', [position, id]);
+  }
+  await announceGuildUpdate(req.guild.id);
+  res.json(await getGuildLayout(req.guild.id, req.user.id));
+});
+
 // Reorders everything at once (what a drag and drop produces): `categories` is every category
 // id in order, `channels` every channel as { id, categoryId } in order.
 router.put('/guilds/:guildId/layout', manageChannels, async (req, res) => {

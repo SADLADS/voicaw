@@ -137,6 +137,17 @@ export async function markChannelRead(channelId, messageId) {
   await api.post(`/channels/${channelId}/read`, { messageId });
 }
 
+// Moves a channel into `categoryId` (null: no category), before channel `beforeId` or at the
+// end of it.
+export async function moveChannel(guildId, channelId, { categoryId, beforeId }) {
+  return (await api.put(`/guilds/${guildId}/channels/${channelId}/move`, { categoryId, beforeId })).data;
+}
+
+// Moves a category before category `beforeId`, or last.
+export async function moveCategory(guildId, categoryId, beforeId) {
+  return (await api.put(`/guilds/${guildId}/categories/${categoryId}/move`, { beforeId })).data;
+}
+
 // The ids of the members who can see a channel.
 export async function fetchChannelMembers(channelId) {
   return (await api.get(`/channels/${channelId}/members`)).data;

@@ -179,6 +179,41 @@ img.guild-icon {
   min-height: 0;
   overflow-y: auto;
   padding: 8px 8px 16px;
+  /* The drop line is placed in here. */
+  position: relative;
+}
+
+/* Dragging a channel or category (useChannelDrag): it follows the pointer, a line shows where
+   it will land. */
+.guild-channel-list [data-drag-row] {
+  -webkit-touch-callout: none;
+}
+
+.guild-channel-list.reordering,
+.guild-channel-list.reordering * {
+  cursor: grabbing;
+}
+
+.guild-channel.dragging,
+.guild-category.dragging {
+  position: relative;
+  z-index: 5;
+  border-radius: 4px;
+  background-color: var(--vc-bg-elevated-hover);
+  box-shadow: 0 4px 12px var(--vc-shadow);
+  pointer-events: none;
+}
+
+.channel-drop-line {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+  background-color: var(--vc-online);
+  pointer-events: none;
+  z-index: 6;
 }
 
 .guild-channel-list ul {

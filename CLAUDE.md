@@ -412,8 +412,14 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - Non-members get 404 for a guild, its channels and messages (it doesn't reveal what exists).
 - A new guild gets a "Text Channels" category with `#general`. Channel names are normalised
   Discord style (lower case, spaces to `-`). Channels with no category sit above the
-  categories; deleting a category keeps its channels, uncategorised. `PUT /guilds/:id/layout`
-  sets the whole order at once (every category id, every channel `{id, categoryId}`).
+  categories; deleting a category keeps its channels, uncategorised. With Manage Channels,
+  channels and categories are dragged into order in the channel list (`hooks/useChannelDrag.js`:
+  a channel can go into another category or above them all, a line shows where; the layout
+  changes at once, then saves): `PUT /guilds/:id/channels/:c/move { categoryId, beforeId }`
+  (null `beforeId`: the end of that category) and `PUT /guilds/:id/categories/:c/move
+  { beforeId }`. They only move the one item, so channels the mover can't see keep their places.
+  `PUT /guilds/:id/layout` sets the whole order at once (every category id, every channel
+  `{id, categoryId}`), so it only works for someone who sees every channel.
 - `GET /guilds/:id` (and the `guild_update` event, sent to every member on any change) is the
   layout as that member sees it: guild, `my_permissions`, `my_role_ids`, every role (highest
   first), and the `categories` and `channels` they can see, in order, each channel with its
@@ -454,8 +460,9 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   key is in the plain message, so anyone in the channel can open them); plain uploads can come later.
 - **Server rail order** is per member (`guild_members.position`; `PUT /guilds-order` with every
   guild id, top first; new guilds go at the bottom). `GET /guilds` and `GET /emojis` follow it.
-  In the rail, servers are dragged into order (`hooks/useDragReorder.js`: a mouse drag after a
-  few pixels, a touch drag after holding still, so swiping still scrolls).
+  In the rail, servers are dragged into order (`hooks/useDragReorder.js`, on
+  `hooks/usePointerDrag.js`, which channel dragging shares: a mouse drag after a few pixels, a
+  touch drag after holding still, so swiping still scrolls; the click after a drop is swallowed).
 - **Custom emoji** (`routes/guildEmojis.js`, `guild_emojis`): per guild, plain images (not
   encrypted) in the public `emojis` bucket at `emojis/<id>`, written `<:name:id>` in messages
   (DMs too, inside the encryption). Rendering only needs the id (`emoji/customEmoji.js`
@@ -470,8 +477,7 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   PNG/GIF/WebP/JPEG/AVIF, names 2–32 of `[A-Za-z0-9_]`, unique per guild. Manage Emoji (`MANAGE_EMOJIS`) adds, renames and deletes; members of a guild can use
   its emoji anywhere. The client keeps them in `useGuildList` (`emojis`), and `Layout` provides
   `CustomEmojiContext` (`emoji/customEmojiContext.js`: by guild in rail order, and by id).
-- **Not done yet:** drag-and-drop reordering of channels (the API exists; roles and servers can
-  be dragged), category-level permissions (overrides are per channel), server folders in the
+- **Not done yet:** category-level permissions (overrides are per channel), server folders in the
   rail, per-channel notification settings and muting, a list of your recent mentions. Voice: see
   Voice channels.
 
@@ -896,6 +902,10 @@ their box is reserved before they load.
   `UrlPreviews`) and `Composer.jsx` (message box, emoji, reply bar, attachments via
   `hooks/useAttachmentDrafts.js`). `Dm.jsx` owns what several of them share: reply target, edit
   state, the composer error line, and which emoji picker is open (never both).
+- Text can't be selected except where it's useful (`voicaw.css`, TEXT SELECTION): inputs and
+  editors everywhere, and on desktop the chat's messages, names, times, reply previews and the
+  channel topic. So dragging things (channels, servers) doesn't highlight text. On mobile a long
+  press on a message opens its actions instead.
 - Scrollbars are styled once, in `voicaw.css` (SCROLLBARS): every scroll area inherits the pane
   look (like the message list); small boxes and pop-ups are listed there for the thin one. Don't
   style a new scroll area's scrollbar locally.

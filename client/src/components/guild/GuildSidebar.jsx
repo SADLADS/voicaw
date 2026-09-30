@@ -15,7 +15,8 @@ import {
 import { ConfigContext, InteractionContext, LayoutContext } from '../../contexts';
 import { scrollToRight } from '../../utils/scrollToRight';
 import { groupChannels } from '../../utils/guildDisplay';
-import { leaveGuild } from '../../services/guildService';
+import { leaveGuild, moveCategory, moveChannel } from '../../services/guildService';
+import { useChannelDrag } from '../../hooks/useChannelDrag';
 import InviteDialog from './InviteDialog';
 import ChannelDialog from './ChannelDialog';
 import CategoryDialog from './CategoryDialog';
@@ -41,8 +42,9 @@ function loadCollapsed() {
 // The guild's column next to the server rail (like Discord): its name, with a menu (invite,
 // settings, create channel/category, leave), then its channels, grouped in collapsible
 // categories. Unread channels are bold; private ones have a lock. What's offered follows the
-// member's permissions (Manage Channels: edit buttons, creating; Create Invite; Manage Server,
-// Manage Roles or Ban Members: Server Settings).
+// member's permissions (Manage Channels: edit buttons, creating, dragging channels and
+// categories into a new order (useChannelDrag); Create Invite; Manage Server, Manage Roles or
+// Ban Members: Server Settings).
 export default function GuildSidebar({ guild, user }) {
   const { channelId } = useParams();
   const navigate = useNavigate();
@@ -55,6 +57,22 @@ export default function GuildSidebar({ guild, user }) {
   const [dialog, setDialog] = useState(null);
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   const menuRef = useRef(null);
+  const { drag, listRef, dragProps } = useChannelDrag({
+    guild,
+    enabled: has(guild?.my_permissions, PERMISSIONS.MANAGE_CHANNELS),
+    onLayout: guildList.upsertGuild,
+    save: (move) => (move.kind === 'channel'
+      ? moveChannel(guild.id, move.id, { categoryId: move.categoryId, beforeId: move.beforeId })
+      : moveCategory(guild.id, move.id, move.beforeId)),
+    onError: (err) => {
+      console.warn('Failed to move', err);
+      guildList.loadGuild(guild.id).catch(() => {});
+    },
+  });
+  // The row being dragged follows the pointer.
+  const dragged = (kind, id) => (drag?.kind === kind && drag.id === id
+    ? { className: ' dragging', style: { transform: `translateY(${drag.dy}px)` } }
+    : { className: '', style: undefined });
 
   // The menu closes on any click outside it.
   useEffect(() => {
@@ -117,10 +135,19 @@ export default function GuildSidebar({ guild, user }) {
     const unread = unreadChannels.has(channel.id) && !active;
     const mentions = active ? 0 : channelMentions.get(channel.id) ?? 0;
     const connected = channel.id === inVoice;
+    const moving = dragged('channel', channel.id);
     return (
       <React.Fragment key={channel.id}>
-      <li className={`guild-channel${active ? ' active' : ''}${unread ? ' unread' : ''}${connected ? ' connected' : ''}`}>
+      <li
+        className={`guild-channel${active ? ' active' : ''}${unread ? ' unread' : ''}${connected ? ' connected' : ''}${moving.className}`}
+        style={moving.style}
+        data-drag-row="channel"
+        data-id={channel.id}
+        data-category={channel.category_id ?? ''}
+        {...dragProps('channel', channel.id)}
+      >
         <Link
+          draggable={false}
           to={`/guild/${guild.id}/${channel.id}`}
           onClick={() => openChannel(channel)}
           className="guild-channel-link"
@@ -205,7 +232,8 @@ export default function GuildSidebar({ guild, user }) {
         )}
       </div>
 
-      <nav className="guild-channel-list" aria-label="Channels">
+      <nav className={`guild-channel-list${drag ? ' reordering' : ''}`} aria-label="Channels" ref={listRef}>
+        {drag?.lineTop != null && <div className="channel-drop-line" style={{ top: drag.lineTop }} aria-hidden="true" />}
         <ul>{uncategorized.map(renderChannel)}</ul>
 
         {categories.map((category) => {
@@ -215,9 +243,16 @@ export default function GuildSidebar({ guild, user }) {
           const shown = isCollapsed
             ? category.channels.filter((c) => String(c.id) === channelId || unreadChannels.has(c.id) || c.id === inVoice)
             : category.channels;
+          const moving = dragged('category', category.id);
           return (
-            <div key={category.id} className="guild-category">
-              <div className="guild-category-header">
+            <div
+              key={category.id}
+              className={`guild-category${moving.className}`}
+              style={moving.style}
+              data-category-block=""
+              data-id={category.id}
+            >
+              <div className="guild-category-header" data-drag-row="category" data-id={category.id} {...dragProps('category', category.id)}>
                 <button
                   type="button"
                   className="guild-category-toggle"
