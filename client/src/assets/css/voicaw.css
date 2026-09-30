@@ -662,3 +662,14 @@ html {
   border: 0;
   border-radius: 4px;
 }
+
+/* Settings on a computer: its column sits beside the rail (Layout), above the user panel. */
+.settings-nav-slot {
+  display: flex;
+  min-height: 0;
+}
+
+.settings-nav-slot .settings-nav {
+  flex: 0 0 240px;
+  background-color: var(--vc-bg-base);
+}

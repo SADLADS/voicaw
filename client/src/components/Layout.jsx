@@ -12,7 +12,7 @@ import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';
 import 'highlight.js/styles/atom-one-dark.css';
-import { ConfigContext, LayoutContext } from '../contexts';
+import { ConfigContext, InteractionContext, LayoutContext } from '../contexts';
 import { ensureSubscription, getPushStatus } from '../services/pushService';
 import { useGuildList } from '../hooks/useGuildList';
 import { useGroupList } from '../hooks/useGroupList';
@@ -32,6 +32,12 @@ export default function Layout({ user, onLogout }) {
   // A guild page: /guild/:guildId[/:channelId].
   const guildMatch = /^\/guild\/(\d+)(?:\/(\d+))?/.exec(location.pathname);
   const guildId = guildMatch?.[1];
+  // Settings on a computer: its column of sections goes beside the rail (Settings puts it into
+  // `settingsNavSlot` with a portal), so the user panel sits under it like on other pages. On a
+  // phone it stays at the top of the page.
+  const { isMobile } = useContext(InteractionContext);
+  const settingsColumn = location.pathname.startsWith('/settings') && !isMobile;
+  const [settingsNavSlot, setSettingsNavSlot] = useState(null);
 
   // Leaving (or being removed from) the guild on screen goes back to the DMs.
   const onGuildRemoved = useCallback((removedId) => {
@@ -130,12 +136,15 @@ export default function Layout({ user, onLogout }) {
   }, [user?.id]);
 
   return (
-    <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList, groupList }}>
+    <LayoutContext.Provider value={{
+      fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList, groupList,
+      settingsNavSlot: settingsColumn ? settingsNavSlot : null,
+    }}>
     <CustomEmojiContext.Provider value={customEmoji}>
       <div className={`${isDmPage || guildId ? 'slidey' : ''} main-wrapper d-flex`}>
         {/* The user panel (and the voice bar above it, while in voice) sits under the
-            conversation or channel list (not on e.g. Settings). */}
-        <SidebarWrapper footer={isDmPage || guildId ? <><VoiceBar user={user} /><UserPanel user={user} /></> : null}>
+            conversation or channel list, or Settings' column (not on e.g. an invite page). */}
+        <SidebarWrapper footer={isDmPage || guildId || settingsColumn ? <><VoiceBar user={user} /><UserPanel user={user} /></> : null}>
           {/* Main sidebar always shows */}
           <Sidebar
             user={user}
@@ -150,6 +159,7 @@ export default function Layout({ user, onLogout }) {
           {/* DM sidebar only shows on the /dm route */}
           {isDmPage && <DmSidebar user={user} users={users} groups={groupList.groups} unreadDms={unreadDms} />}
           {guildId && <GuildSidebar guild={guildList.layouts[guildId]} user={user} />}
+          {settingsColumn && <div className="settings-nav-slot" ref={setSettingsNavSlot} />}
         </SidebarWrapper>
 
         <IncomingCall user={user} />

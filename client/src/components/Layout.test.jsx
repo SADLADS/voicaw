@@ -63,7 +63,7 @@ vi.mock('../services/keyStore', () => ({
 
 import Layout from './Layout';
 import { LayoutContext } from '../contexts';
-import { ConfigContext } from '../contexts';
+import { ConfigContext, InteractionContext } from '../contexts';
 import { getPushStatus, ensureSubscription } from '../services/pushService';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';
@@ -86,9 +86,10 @@ function LocationDisplay() {
   return <div data-testid="location">{location.pathname}</div>;
 }
 
-function renderLayout({ path, user = { id: 1, username: 'me' } } = {}) {
+function renderLayout({ path, user = { id: 1, username: 'me' }, isMobile = false } = {}) {
   return render(
     <ConfigContext.Provider value={{ vapidPublicKey: 'VAPID-KEY' }}>
+    <InteractionContext.Provider value={{ isMobile, interactionMode: 'auto', setInteractionMode: vi.fn() }}>
     <MemoryRouter initialEntries={[path]}>
       <LocationDisplay />
       <Routes>
@@ -98,6 +99,7 @@ function renderLayout({ path, user = { id: 1, username: 'me' } } = {}) {
         </Route>
       </Routes>
     </MemoryRouter>
+    </InteractionContext.Provider>
     </ConfigContext.Provider>
   );
 }
@@ -118,15 +120,22 @@ describe('Layout', () => {
     expect(document.getElementById('dm-sidebar')).not.toBeInTheDocument();
   });
 
-  it('shows the user panel with the conversation list, not on Settings', async () => {
+  it("shows the user panel with the conversation list, and under Settings' column on a computer", async () => {
     fetchUsersList.mockResolvedValue([]);
-    const { unmount } = renderLayout({ path: '/dm' });
+    let view = renderLayout({ path: '/dm' });
     expect(screen.getByLabelText('You')).toHaveTextContent('me');
-    unmount();
+    view.unmount();
 
-    renderLayout({ path: '/settings' });
+    view = renderLayout({ path: '/settings' });
+    expect(screen.getByLabelText('You')).toHaveTextContent('me');
+    expect(document.querySelector('.sidebar-wrapper .settings-nav-slot')).toBeInTheDocument();
+    view.unmount();
+
+    // A phone keeps Settings' column in the page, and no user panel there.
+    renderLayout({ path: '/settings', isMobile: true });
     await waitFor(() => expect(api.get).toHaveBeenCalled());
     expect(screen.queryByLabelText('You')).not.toBeInTheDocument();
+    expect(document.querySelector('.settings-nav-slot')).toBeNull();
   });
 
   it('fetches the DM user list on /dm routes and exposes it through LayoutContext', async () => {

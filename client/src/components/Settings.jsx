@@ -1,8 +1,9 @@
 import React, { useState, useContext, useEffect } from "react";
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMagnifyingGlass, faSignOutAlt, faXmark } from '@fortawesome/free-solid-svg-icons';
-import { InteractionContext } from '../contexts';
+import { InteractionContext, LayoutContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
 import AccountSecuritySettings from "./AccountSecuritySettings";
@@ -92,12 +93,14 @@ function ProfilePictureSettings() {
 // User Settings (/settings): sections in categories, with a column (on top, on a phone) that
 // searches them and jumps to one. Sections that don't match the search are hidden, not
 // removed, so what's been typed or picked in them stays. `/settings#<section id>` opens
-// scrolled to that section.
+// scrolled to that section. On a computer the column is drawn beside the rail, above the user
+// panel (Layout's `settingsNavSlot`).
 export default function Settings({ onLogout }) {
   const { interactionMode, setInteractionMode } = useContext(InteractionContext);
   const [query, setQuery] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
+  const navSlot = useContext(LayoutContext)?.settingsNavSlot ?? null;
 
   const sections = [
     {
@@ -197,8 +200,7 @@ export default function Settings({ onLogout }) {
     if (id) document.getElementById(`settings-${id}`)?.scrollIntoView({ block: 'start' });
   }, [location.hash]);
 
-  return (
-    <div className="settings-page">
+  const nav = (
       <nav className="settings-nav" aria-label="Settings sections">
         <h2 className="settings-header">User Settings</h2>
         <div className="settings-search">
@@ -233,6 +235,11 @@ export default function Settings({ onLogout }) {
         })}
         {!visible.length && <p className="settings-nav-empty">No settings match “{query}”.</p>}
       </nav>
+  );
+
+  return (
+    <div className="settings-page">
+      {navSlot ? createPortal(nav, navSlot) : nav}
 
       <div className="settings-content">
         {CATEGORIES.map((category) => {

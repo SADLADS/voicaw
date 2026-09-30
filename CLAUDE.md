@@ -896,7 +896,10 @@ their box is reserved before they load.
   `DmSidebar` draws the unread dots from those counts. `SidebarWrapper` puts the sidebars in a
   row with `UserPanel` across the bottom: your picture, name, this device's connection state
   (`ws-client` `getConnectionState`/`onConnectionState`: online / connecting / offline) and the
-  settings button. It's only shown with the conversation list (DM pages), not on e.g. Settings.
+  settings button. It's shown under the DM list, a guild's channel list, and Settings' column on
+  a computer (Layout adds an empty column, `settingsNavSlot` in `LayoutContext`, and `Settings`
+  draws its column into it with a portal; on a phone the column stays in the page, without
+  the panel).
   Uploading a profile picture calls `announceProfilePictureChange()` so it refreshes.
 - Mobile message actions: there's no hover menu on mobile. A long press on a message
   (`hooks/useLongPress.js`, 450ms, cancelled by scrolling) opens `MessageActionSheet`: quick
@@ -913,7 +916,8 @@ their box is reserved before they load.
   state, the composer error line, and which emoji picker is open (never both).
 - Settings (`Settings.jsx`, `/settings`): sections (each with a category, title and search
   keywords, in its `sections` list) under My Account, App Settings, Admin (only once
-  `AdminSettings` finds you're an admin) and About. The side column (on top on a phone)
+  `AdminSettings` finds you're an admin) and About. The side column (beside the rail, above
+  the user panel, on a computer; on top of the page on a phone)
   searches them (non-matching sections are hidden, not unmounted, so their state stays) and
   jumps to one; `/settings#<section id>` opens scrolled there (e.g. `RecoveryPrompt`'s
   `#account-security`). Add a new setting as a section there.
