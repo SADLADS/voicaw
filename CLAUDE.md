@@ -155,6 +155,8 @@ unexpected errors. The rest:
 - `groupDms.js`: group DMs (membership log checks, epochs, summaries; see Group DMs).
 - `appSettings.js`: app-wide settings a global admin edits (see Admin settings).
 - `profiles.js`: display name, custom status and bio (limits, cleaning, `displayNameOf`; see Profiles).
+- `avatars.js` + `avatarImage.js`: profile pictures (processing, storage, the one-off migration;
+  see Profiles). `routes/avatars.js` has their routes.
 - `routes/`: `auth.js` (OPAQUE register/login, profile), `dms.js` (conversations, send, edit,
   delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `guilds.js` (guilds,
   members, invites, bans, categories, channels), `guildMessages.js` (channel messages, reactions,
@@ -655,12 +657,13 @@ call keys are.
 `server/s3.js` wraps `@aws-sdk/client-s3` against `S3_ENDPOINT` (`forcePathStyle: true`, so this
 targets a self-hosted/MinIO-style endpoint, not raw AWS). It auto-creates and makes public four
 buckets on startup: `uploads`, `profile-pics`, `guild-icons`, `emojis`. Uploads are client-direct: the server only
-issues short-lived (60s) pre-signed PUT URLs (`/api/upload_file`, `/api/upload_profile_pic`); the
+issues short-lived (60s) pre-signed PUT URLs (`/api/upload_file`, and profile pictures' and
+emoji originals, see Profiles and Guilds); the
 client uploads the file straight to S3, bypassing the app server. Both routes require a `size` query
 param, which is signed into the URL together with the content type (`s3.js` `signableHeaders`), so
 the object store rejects a body of any other length or type (verified against the live MinIO).
-Limits: 100MB for attachments (nginx's cap on media.voicaw.com), 8MB for profile pictures, which must
-be `image/*`. Profile pictures are unencrypted.
+Limits: 100MB for attachments (nginx's cap on media.voicaw.com), 8MB for profile picture originals,
+which must be `image/*`. Profile pictures are unencrypted.
 
 ### DM attachments (encrypted, uploaded on send)
 
@@ -873,14 +876,25 @@ stays the unique handle (logins, @username on the card).
   `useProfiles()` to redraw), never `user.username` directly: messages, reply bars, DM list and
   header, member list, voice, calls, groups, mention names and suggestions (which match display
   names and usernames) all do. Admin lists (bans, invites, channel overrides) keep usernames.
+- **Profile pictures** (`server/avatars.js`, `avatarImage.js`, `routes/avatars.js`): `POST
+  /profile/avatar { type, size }` signs an upload of the original (image, up to 8 MB) to
+  `profile-pics/src/<user id>/<upload id>`; `POST /profile/avatar/:uploadId/ready` has the server
+  crop it square and shrink it (`sharp`: 256×256 at most, never enlarged, WebP, animation
+  kept, pixel/frame limits), store it as `profile-pics/<user id>/<avatar id>.webp` (a new name
+  each time, so it's cacheable forever), delete the original and the previous picture, set
+  `users.avatar` and send `user_profile`. `DELETE /profile/avatar` goes back to the default. Push
+  images use `users.avatar` (no requests to the store). Client: the profile store has `avatar`,
+  `avatarUrl(id)` gives the URL (null: default), and **`Avatar` (`components/Avatar.jsx`) draws
+  every profile picture** (`voice/UserAvatar` adds the speaking ring); nothing builds picture
+  URLs itself. Pictures from before (one unprocessed `profile-pics/<user id>` each) are converted
+  when the server starts (`migrateLegacyAvatars`: lists the bucket's top level, converts,
+  deletes; afterwards there's nothing to list).
 - `ProfileCard` (picture with status, names, custom status, bio) is the guild member card's top
   and `ProfilePopover`'s body (clicking a name or avatar in chat). The DM list and member list
   show the custom status under names.
-- Settings → Edit Profile is its own page (`/settings/profile`, `EditProfile.jsx`): picture,
-  display name, custom status, bio, with a live preview; Save uploads the picture (if picked)
-  and saves the rest.
-- Not done: another device's copy of a changed profile picture refreshes only on reload (the
-  URL stays the same; only your own device is told).
+- Settings → Edit Profile is its own page (`/settings/profile`, `EditProfile.jsx`): picture
+  (change or remove), display name, custom status, bio, with a live preview; Save uploads the
+  picture (if picked) or removes it, and saves the rest.
 
 ### DM message list and history loading
 

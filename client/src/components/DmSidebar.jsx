@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUserGroup } from '@fortawesome/free-solid-svg-icons';
@@ -8,9 +8,8 @@ import { lastSeenText, statusLabel } from '../utils/presence';
 import { groupTitle } from '../utils/groupDisplay';
 import StatusIcon from './StatusIcon';
 import NewGroupDialog from './group/NewGroupDialog';
-import defaultpfp from '../assets/images/default.png';
-import { ConfigContext } from '../contexts';
 import { getProfile, nameOf, useProfiles } from '../utils/profiles';
+import Avatar from './Avatar';
 
 // The conversation list: people and group DMs, most recent first. `unreadDms`
 // ([{ from_user_id, count }], from Layout) and each group's `unread` mark conversations with
@@ -18,7 +17,6 @@ import { getProfile, nameOf, useProfiles } from '../utils/profiles';
 export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) {
   useProfiles();
   const { id: activeId, groupId: activeGroupId } = useParams();
-  const { s3Endpoint } = useContext(ConfigContext);
   const presenceOf = usePresence();
   const [newGroup, setNewGroup] = useState(false);
   const unreadFrom = new Set(unreadDms.map((u) => String(u.from_user_id)));
@@ -34,17 +32,7 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
   }
   while (g < byTime.length) entries.push({ group: byTime[g++] });
 
-  const avatar = (id, alt, className = 'dm-user-avatar') => (
-    <img
-      src={`${s3Endpoint}/profile-pics/${id}`}
-      alt={alt}
-      onError={(e) => {
-        e.currentTarget.onerror = null;
-        e.currentTarget.src = defaultpfp;
-      }}
-      className={className}
-    />
-  );
+  const avatar = (id, alt, className = 'dm-user-avatar') => <Avatar userId={id} alt={alt} className={className} />;
 
   return (
     <div id="dm-sidebar">

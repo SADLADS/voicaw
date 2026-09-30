@@ -3,14 +3,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 vi.mock('../utils/api', () => ({
-  default: { get: vi.fn(), put: vi.fn() },
+  default: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
 }));
 
 import api from '../utils/api';
 import EditProfile from './EditProfile';
 import { AuthContext } from '../hooks/useAuth';
 import { ConfigContext } from '../contexts';
-import { clearProfiles, getProfile, mergeProfiles } from '../utils/profiles';
+import { clearProfiles, getProfile, mergeProfiles, setAvatarBase } from '../utils/profiles';
 
 const me = { id: 1, username: 'alice', hasRecoveryCode: true };
 
@@ -76,8 +76,11 @@ describe('EditProfile', () => {
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
   });
 
-  it('uploads a picked picture on save, previewing it first', async () => {
-    api.get.mockResolvedValue({ data: { url: 'https://s3.test/signed-put-url' } });
+  it('uploads a picked picture on save (previewing it first), and shows the processed one', async () => {
+    setAvatarBase('https://s3.test');
+    api.post.mockImplementation(async (url) => (url === '/profile/avatar'
+      ? { data: { uploadId: 'up1', url: 'https://s3.test/signed-put-url' } }
+      : { data: { id: 1, username: 'alice', display_name: 'Alice', custom_status: null, bio: 'Hi there', avatar: 'new1' } }));
     globalThis.fetch.mockResolvedValue({ ok: true });
     renderPage();
     pickFile(imageFile());
@@ -85,22 +88,46 @@ describe('EditProfile', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
     await waitFor(() => expect(screen.getByText('Profile saved.')).toBeInTheDocument());
-    expect(api.get).toHaveBeenCalledWith('/upload_profile_pic', { params: { type: 'image/png', size: 10 } });
+    expect(api.post).toHaveBeenCalledWith('/profile/avatar', { type: 'image/png', size: 10 });
     expect(globalThis.fetch).toHaveBeenCalledWith('https://s3.test/signed-put-url', expect.objectContaining({ method: 'PUT' }));
+    expect(api.post).toHaveBeenCalledWith('/profile/avatar/up1/ready');
     expect(api.put).not.toHaveBeenCalled(); // nothing else changed
+    expect(getProfile(1).avatar).toBe('new1');
+    expect(screen.getByAltText('Your profile picture')).toHaveAttribute('src', 'https://s3.test/profile-pics/1/new1.webp');
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
   });
 
+  it('removes your picture on save', async () => {
+    mergeProfiles([{ id: 1, username: 'alice', avatar: 'old' }]);
+    api.delete.mockResolvedValue({ data: { id: 1, username: 'alice', avatar: null } });
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(screen.getByAltText('Your profile picture').getAttribute('src')).not.toContain('s3.test');
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(screen.getByText('Profile saved.')).toBeInTheDocument());
+    expect(api.delete).toHaveBeenCalledWith('/profile/avatar');
+    expect(getProfile(1).avatar).toBe(null);
+  });
+
   it('shows upload errors', async () => {
-    api.get.mockResolvedValue({ data: {} });
+    api.post.mockResolvedValue({ data: {} });
     renderPage();
     pickFile(imageFile());
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(screen.getByText('Invalid upload URL')).toBeInTheDocument());
 
-    api.get.mockResolvedValue({ data: { url: 'https://s3.test/signed-put-url' } });
+    api.post.mockResolvedValue({ data: { uploadId: 'up2', url: 'https://s3.test/signed-put-url' } });
     globalThis.fetch.mockResolvedValue({ ok: false });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(screen.getByText('Upload failed')).toBeInTheDocument());
+
+    // The server can't use the image.
+    api.post.mockImplementation(async (url) => {
+      if (url === '/profile/avatar') return { data: { uploadId: 'up3', url: 'https://s3.test/signed-put-url' } };
+      throw Object.assign(new Error('400'), { response: { data: { error: "That file isn't an image we can read" } } });
+    });
+    globalThis.fetch.mockResolvedValue({ ok: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(screen.getByText("That file isn't an image we can read")).toBeInTheDocument());
   });
 });

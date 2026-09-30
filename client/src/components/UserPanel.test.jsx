@@ -14,7 +14,7 @@ vi.mock('../utils/ws-client', () => ({
 
 import UserPanel from './UserPanel';
 import { ConfigContext } from '../contexts';
-import { announceProfilePictureChange } from '../utils/profilePicture';
+import { clearProfiles, mergeProfiles, setAvatarBase } from '../utils/profiles';
 
 const user = { id: 7, username: 'alice' };
 
@@ -30,10 +30,12 @@ function renderPanel(props = {}, path = '/dm/2') {
 
 describe('UserPanel', () => {
   it('shows your picture, name and connection, with the settings button', () => {
+    setAvatarBase('https://s3.test');
+    mergeProfiles([{ id: 7, username: 'alice', avatar: 'abc' }]);
     const { container } = renderPanel();
     expect(screen.getByText('alice')).toBeInTheDocument();
     expect(screen.getByText('Online')).toBeInTheDocument();
-    expect(container.querySelector('.user-panel-avatar img')).toHaveAttribute('src', 'https://s3.test/profile-pics/7');
+    expect(container.querySelector('.user-panel-avatar img')).toHaveAttribute('src', 'https://s3.test/profile-pics/7/abc.webp');
     expect(screen.getByRole('link', { name: 'User settings' })).toHaveAttribute('href', '/settings');
   });
 
@@ -48,13 +50,19 @@ describe('UserPanel', () => {
     connection.state = 'online';
   });
 
-  it('falls back to the default picture, and shows a newly uploaded one', () => {
+  it('shows the default picture without one (or if it fails), and a new one as soon as it changes', () => {
+    setAvatarBase('https://s3.test');
+    clearProfiles();
     const { container } = renderPanel();
     const img = () => container.querySelector('.user-panel-avatar img');
-    fireEvent.error(img());
     expect(img().getAttribute('src')).not.toContain('s3.test');
 
-    act(() => announceProfilePictureChange());
-    expect(img().getAttribute('src')).toMatch(/^https:\/\/s3\.test\/profile-pics\/7\?v=\d+$/);
+    act(() => mergeProfiles([{ id: 7, username: 'alice', avatar: 'first' }]));
+    expect(img()).toHaveAttribute('src', 'https://s3.test/profile-pics/7/first.webp');
+    fireEvent.error(img());
+    expect(img().getAttribute('src')).not.toContain('s3.test');
+    // A new picture has a new URL, which is tried again.
+    act(() => mergeProfiles([{ id: 7, username: 'alice', avatar: 'second' }]));
+    expect(img()).toHaveAttribute('src', 'https://s3.test/profile-pics/7/second.webp');
   });
 });

@@ -1,6 +1,6 @@
 const webpush = require('web-push');
 const db = require('./db');
-const { vapid, s3Endpoint } = require('./config');
+const { vapid } = require('./config');
 
 webpush.setVapidDetails(vapid.email, vapid.publicKey, vapid.privateKey);
 
@@ -59,16 +59,10 @@ async function sendPushToUser(userId, payload, options = {}) {
   return { devices: rows.length, delivered: results.filter(Boolean).length };
 }
 
-// The sender's profile picture for the notification, if they have one.
+// The sender's profile picture for the notification (the default one if they have none).
 async function getUserImageUrl(userId) {
-  const url = `${s3Endpoint}/profile-pics/${userId}`;
-  try {
-    const res = await fetch(url, { method: 'HEAD' });
-    if (res.ok) return url;
-  } catch (err) {
-    console.error('Error checking S3 image:', err);
-  }
-  return '/default.png';
+  const user = await db.get('SELECT avatar FROM users WHERE id = ?', [userId]);
+  return require('./avatars').avatarUrl(userId, user?.avatar) ?? '/default.png';
 }
 
 module.exports = { buildDmPushPayload, sendPushToUser, getUserImageUrl };

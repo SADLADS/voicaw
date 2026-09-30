@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const s3 = new S3Client({
@@ -90,4 +90,10 @@ async function putObject(bucket, key, body, contentType) {
     await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }));
 }
 
-module.exports = { s3, getUploadUrl, getObject, putObject, deleteObject };
+// The keys directly in `bucket` (not in "folders": nothing after a '/'), up to 1000.
+async function listTopLevelKeys(bucket) {
+    const res = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Delimiter: '/' }));
+    return (res.Contents ?? []).map((object) => object.Key);
+}
+
+module.exports = { s3, getUploadUrl, getObject, putObject, deleteObject, listTopLevelKeys };

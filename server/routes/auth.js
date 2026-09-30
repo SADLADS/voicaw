@@ -200,7 +200,7 @@ router.get('/profile', authenticateJWT, async (req, res) => {
   const token = req.headers.authorization.split(' ')[1];
   res.json({
     token, id: req.user.id, username: req.user.username, hasRecoveryCode: Boolean(user.recovery_verifier),
-    display_name: user.display_name, custom_status: user.custom_status, bio: user.bio,
+    display_name: user.display_name, custom_status: user.custom_status, bio: user.bio, avatar: user.avatar,
   });
 });
 

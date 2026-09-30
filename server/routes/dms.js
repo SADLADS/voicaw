@@ -43,7 +43,7 @@ async function withReactions(messages) {
 router.get('/dms-list', authenticateJWT, async (req, res) => {
   const me = req.user.id;
   const users = await db.all(
-    `SELECT u.id, u.username, u.display_name, u.custom_status, u.bio,
+    `SELECT u.id, u.username, u.display_name, u.custom_status, u.bio, u.avatar,
             u.identity_key, u.encryption_key, u.encryption_key_signature, u.last_online,
             MAX(m.timestamp) AS last_timestamp
      FROM users u

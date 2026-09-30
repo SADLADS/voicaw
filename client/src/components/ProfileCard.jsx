@@ -1,6 +1,5 @@
-import React, { useContext } from 'react';
-import defaultpfp from '../assets/images/default.png';
-import { ConfigContext } from '../contexts';
+import React from 'react';
+import Avatar from './Avatar';
 import StatusIcon from './StatusIcon';
 import { usePresence } from '../hooks/usePresence';
 import { getProfile, useProfiles } from '../utils/profiles';
@@ -9,30 +8,20 @@ import { lastSeenText, statusLabel } from '../utils/presence';
 // The top of someone's profile: picture (with online status), display name (in `color`, e.g. a
 // guild role's), @username, their status or last seen, custom status and bio. `user` needs
 // { id, username }; the rest comes from the profile store (utils/profiles). `children` go
-// under it (the guild member card's roles and actions). `avatarVersion` busts the image cache.
-// For a preview (Edit Profile): `draft` ({ display_name, custom_status, bio }) replaces the
+// under it (the guild member card's roles and actions). For a preview (Edit Profile): `draft` ({ display_name, custom_status, bio }) replaces the
 // saved profile and `avatarSrc` the picture.
-export default function ProfileCard({ user, color, children, avatarVersion, draft, avatarSrc }) {
-  const { s3Endpoint } = useContext(ConfigContext);
+export default function ProfileCard({ user, color, children, draft, avatarSrc }) {
   useProfiles();
   const presenceOf = usePresence();
   const profile = { ...user, ...getProfile(user.id), ...draft };
   const presence = presenceOf(profile);
   const name = profile.display_name || profile.username;
-  const src = avatarSrc ?? (s3Endpoint ? `${s3Endpoint}/profile-pics/${user.id}${avatarVersion ? `?v=${avatarVersion}` : ''}` : defaultpfp);
 
   return (
     <div className="profile-card">
       <div className="profile-card-top">
         <span className="profile-card-avatar">
-          <img
-            src={src}
-            alt=""
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = defaultpfp;
-            }}
-          />
+          <Avatar userId={user.id} src={avatarSrc} />
           <StatusIcon className="member-status" status={presence.status} />
         </span>
         <div className="profile-card-names">

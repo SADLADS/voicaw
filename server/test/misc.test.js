@@ -54,7 +54,6 @@ describe('upload URL routes', () => {
   const MB = 1024 * 1024;
 
   it('requires auth for upload URLs', async () => {
-    expect((await request(app).get('/api/upload_profile_pic').query({ type: 'image/png', size: 10 })).status).toBe(401);
     expect((await request(app).get('/api/upload_file').query({ type: 'image/png', size: 10 })).status).toBe(401);
   });
 
@@ -78,19 +77,5 @@ describe('upload URL routes', () => {
     expect((await get({ type: 'application/octet-stream', size: 100 * MB + 1 })).status).toBe(413);
     expect((await get({ type: 'application/octet-stream', size: 100 * MB })).status).toBe(201);
     expect((await get({ size: 10 })).status).toBe(400);
-  });
-
-  it('signs profile picture uploads, which must be images of at most 8MB', async () => {
-    const get = (query) => request(app).get('/api/upload_profile_pic').query(query).set(authed());
-
-    const ok = await get({ type: 'image/png', size: 2048 });
-    expect(ok.status).toBe(201);
-    expect(ok.body.url).toContain('mock-s3.test');
-    expect(signedUploads.at(-1)).toMatchObject({ bucket: 'profile-pics', contentType: 'image/png', contentLength: 2048 });
-
-    expect((await get({ type: 'image/png' })).status).toBe(400);
-    expect((await get({ size: 10 })).status).toBe(400);
-    expect((await get({ type: 'text/html', size: 10 })).status).toBe(400);
-    expect((await get({ type: 'image/png', size: 8 * MB + 1 })).status).toBe(413);
   });
 });

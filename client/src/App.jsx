@@ -24,6 +24,7 @@ import UpdateBanner from './components/UpdateBanner';
 import ImageViewerProvider from './components/ImageViewerProvider';
 import { disableNotificationsOnThisDevice } from './services/pushService';
 import { setCustomEmojiBase } from './emoji/customEmoji';
+import { setAvatarBase } from './utils/profiles';
 
 
 
@@ -69,6 +70,7 @@ export default function App() {
         // Everything the server exposes (s3Endpoint, maxPlaintextLength, vapidPublicKey, ...).
         setConfig(res.data);
         setCustomEmojiBase(res.data.s3Endpoint);
+        setAvatarBase(res.data.s3Endpoint);
       } catch (err) {
         console.error('Failed to fetch config', err);
       }

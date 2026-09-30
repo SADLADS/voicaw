@@ -1,10 +1,10 @@
 import React from 'react';
-import defaultpfp from '../assets/images/default.png';
+import Avatar from './Avatar';
 
 // The "@name" autocomplete list shown above the composer, like EmojiSuggestions (and styled
 // the same): `items` from searchMentions (utils/mentions): people, roles (in their colour),
 // @everyone and @here.
-export default function MentionSuggestions({ query, items, activeIndex, onPick, onHover, s3Endpoint }) {
+export default function MentionSuggestions({ query, items, activeIndex, onPick, onHover }) {
   return (
     <div className="emoji-suggestions mention-suggestions" role="listbox" aria-label="Mentions">
       <div className="emoji-suggestions-title">
@@ -25,16 +25,7 @@ export default function MentionSuggestions({ query, items, activeIndex, onPick, 
         >
           {item.kind === 'user' ? (
             <>
-              <img
-                className="mention-suggestion-avatar"
-                src={s3Endpoint ? `${s3Endpoint}/profile-pics/${item.id}` : defaultpfp}
-                alt=""
-                draggable={false}
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = defaultpfp;
-                }}
-              />
+              <Avatar userId={item.id} className="mention-suggestion-avatar" />
               <span>{item.name}</span>
               {item.username && item.username !== item.name && <span className="mention-suggestion-note">{item.username}</span>}
             </>

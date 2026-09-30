@@ -442,6 +442,7 @@ db.run('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0', () =>
 db.run('ALTER TABLE users ADD COLUMN display_name TEXT', () => {});
 db.run('ALTER TABLE users ADD COLUMN custom_status TEXT', () => {});
 db.run('ALTER TABLE users ADD COLUMN bio TEXT', () => {});
+db.run('ALTER TABLE users ADD COLUMN avatar TEXT', () => {});
 db.run(`
 CREATE TABLE IF NOT EXISTS app_settings (
   key TEXT PRIMARY KEY,

@@ -12,7 +12,7 @@ site run from a checkout of `dev` under pm2, voicaw.com is a static build in
 ### 1. Requirements
 
 - Node 24 LTS and npm 11.
-- An S3-compatible object store (e.g. MinIO) for uploads, profile pictures, server icons and
+- An S3-compatible object store (e.g. MinIO) for uploads, profile pictures, guild icons and
   emoji. The server creates its buckets (`uploads`, `profile-pics`, `guild-icons`, `emojis`) and
   makes them public on start.
 - nginx with TLS certificates (certbot), and pm2.

@@ -1,10 +1,9 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import defaultpfp from '../assets/images/default.png';
-import { ConfigContext } from '../contexts';
 import { useAuth } from '../hooks/useAuth';
+import Avatar from './Avatar';
 import ProfileCard from './ProfileCard';
-import { MAX_PROFILE_PIC_BYTES, updateProfile, uploadProfilePicture } from '../services/profileService';
-import { announceProfilePictureChange, onProfilePictureChange } from '../utils/profilePicture';
+import { MAX_PROFILE_PIC_BYTES, removeProfilePicture, updateProfile, uploadProfilePicture } from '../services/profileService';
 import { PROFILE_LIMITS, getProfile, mergeProfiles, useProfiles } from '../utils/profiles';
 
 const FIELDS = ['display_name', 'custom_status', 'bio'];
@@ -12,16 +11,16 @@ const fromProfile = (profile) => Object.fromEntries(FIELDS.map((f) => [f, profil
 
 // Settings → Edit Profile (/settings/profile): picture, display name, custom status and bio,
 // with a preview of your profile card as others will see it. Nothing is saved until Save
-// (which uploads a new picture, if one was picked, and saves the rest); Reset drops changes.
+// (which uploads a new picture, if one was picked, or removes yours, and saves the rest);
+// Reset drops changes.
 export default function EditProfile() {
   const { user } = useAuth();
-  const { s3Endpoint } = useContext(ConfigContext);
   useProfiles();
   const saved = getProfile(user.id);
   const [draft, setDraft] = useState(() => fromProfile(saved));
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null); // the picked picture's blob URL
-  const [pictureVersion, setPictureVersion] = useState(0);
+  const [removing, setRemoving] = useState(false); // back to the default picture on save
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [done, setDone] = useState(false);
@@ -33,12 +32,10 @@ export default function EditProfile() {
     if (!touched.current && saved) setDraft(fromProfile(saved));
   }, [saved]);
 
-  useEffect(() => onProfilePictureChange(() => setPictureVersion(Date.now())), []);
-
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
   const changedFields = FIELDS.filter((f) => (draft[f].trim() || null) !== (saved?.[f] ?? null));
-  const dirty = changedFields.length > 0 || file != null;
+  const dirty = changedFields.length > 0 || file != null || removing;
 
   function change(field, value) {
     touched.current = true;
@@ -60,8 +57,16 @@ export default function EditProfile() {
       return;
     }
     setError(null);
+    setRemoving(false);
     setFile(f);
     setPreview(URL.createObjectURL(f));
+  }
+
+  function removePicture() {
+    setDone(false);
+    setFile(null);
+    setPreview(null);
+    setRemoving(true);
   }
 
   function reset() {
@@ -69,6 +74,7 @@ export default function EditProfile() {
     setDraft(fromProfile(saved));
     setFile(null);
     setPreview(null);
+    setRemoving(false);
     setError(null);
     setDone(false);
   }
@@ -80,10 +86,12 @@ export default function EditProfile() {
     setDone(false);
     try {
       if (file) {
-        await uploadProfilePicture(file);
-        announceProfilePictureChange();
+        mergeProfiles([await uploadProfilePicture(file)]);
         setFile(null);
         setPreview(null);
+      } else if (removing) {
+        mergeProfiles([await removeProfilePicture()]);
+        setRemoving(false);
       }
       if (changedFields.length) {
         const keys = { display_name: 'displayName', custom_status: 'customStatus', bio: 'bio' };
@@ -100,7 +108,8 @@ export default function EditProfile() {
     }
   }
 
-  const currentPicture = s3Endpoint ? `${s3Endpoint}/profile-pics/${user.id}${pictureVersion ? `?v=${pictureVersion}` : ''}` : defaultpfp;
+  // What the picture will be: the picked one, the default (removing), or the saved one.
+  const pictureSrc = preview ?? (removing ? defaultpfp : undefined);
   const counter = (field) => `${draft[field].length}/${PROFILE_LIMITS[field]}`;
 
   return (
@@ -111,17 +120,16 @@ export default function EditProfile() {
           <div className="edit-profile-field">
             <span className="edit-profile-label">Profile picture</span>
             <div className="edit-profile-picture">
-              <img
-                src={preview ?? currentPicture}
-                alt="Your profile picture"
-                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultpfp; }}
-              />
+              <Avatar userId={user.id} src={pictureSrc} alt="Your profile picture" />
               <button type="button" className="btn btn-sm btn-secondary" onClick={() => fileInput.current?.click()}>
                 Change picture
               </button>
+              {(preview || (getProfile(user.id)?.avatar && !removing)) && (
+                <button type="button" className="btn btn-sm btn-outline-danger" onClick={removePicture}>Remove</button>
+              )}
               <input ref={fileInput} type="file" accept="image/*" hidden onChange={pick} aria-label="Choose a profile picture" />
             </div>
-            <span className="vc-hint">PNG, JPEG, GIF or WebP, up to 8 MB. Everyone can see it.</span>
+            <span className="vc-hint">PNG, JPEG, GIF or WebP, up to 8 MB; cropped to a square. Everyone can see it.</span>
           </div>
 
           <label className="edit-profile-field">
@@ -175,7 +183,7 @@ export default function EditProfile() {
             <ProfileCard
               user={{ id: user.id, username: user.username }}
               draft={Object.fromEntries(FIELDS.map((f) => [f, draft[f].trim() || null]))}
-              avatarSrc={preview ?? currentPicture}
+              avatarSrc={pictureSrc}
             />
           </div>
         </div>

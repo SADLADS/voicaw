@@ -39,5 +39,9 @@ require.cache[s3Path] = {
     putObject: async (bucket, key, body, contentType) => {
       objects.set(`${bucket}/${key}`, { body, contentType });
     },
+    listTopLevelKeys: async (bucket) => [...objects.keys()]
+      .filter((k) => k.startsWith(`${bucket}/`))
+      .map((k) => k.slice(bucket.length + 1))
+      .filter((k) => !k.includes('/')),
   },
 };

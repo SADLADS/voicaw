@@ -72,6 +72,10 @@ require.cache[s3Path] = {
     deleteObject: async (bucket, key) => {
       objects.delete(`${bucket}/${key}`);
     },
+    listTopLevelKeys: async (bucket) => [...objects.keys()]
+      .filter((k) => k.startsWith(`${bucket}/`))
+      .map((k) => k.slice(bucket.length + 1))
+      .filter((k) => !k.includes('/')),
   },
 };
 // Load index.js as the main module, so it listens and starts the websocket server.

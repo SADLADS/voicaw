@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-// Everyone's profile (display name, custom status, bio; see server/profiles.js), by user id,
+// Everyone's profile (display name, custom status, bio, picture; see server/profiles.js), by user id,
 // so any name drawn anywhere is the person's current display name. Fed by whatever the API
 // returns with users in it (the users list, guild members, group details, your own profile:
 // `mergeProfiles`) and by `user_profile` events when someone edits theirs (ws-client).
@@ -10,7 +10,20 @@ const profiles = new Map(); // user id (string) -> { id, username, display_name,
 const listeners = new Set();
 let version = 0;
 
-const FIELDS = ['username', 'display_name', 'custom_status', 'bio'];
+const FIELDS = ['username', 'display_name', 'custom_status', 'bio', 'avatar'];
+let avatarBase = '';
+
+// Called once the server config (with the object store's address) has loaded.
+export function setAvatarBase(s3Endpoint) {
+  avatarBase = s3Endpoint ? `${s3Endpoint}/profile-pics/` : '';
+}
+
+// User `id`'s profile picture URL (server/avatars.js: a new name for every picture, so it's
+// never stale), or null when they have none (draw the default one).
+export function avatarUrl(id) {
+  const avatar = getProfile(id)?.avatar;
+  return avatar && avatarBase ? `${avatarBase}${id}/${avatar}.webp` : null;
+}
 
 // Takes users ([{ id, username, display_name?, ... }]); fields they don't have are kept.
 export function mergeProfiles(users) {

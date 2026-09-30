@@ -43,6 +43,7 @@ app.use('/api', require('./routes/calls'));
 app.use('/api', require('./routes/groupDms'));
 app.use('/api', require('./routes/push'));
 app.use('/api', require('./routes/uploads'));
+app.use('/api', require('./routes/avatars'));
 app.use('/api', require('./routes/gifs'));
 app.use('/api', require('./routes/admin'));
 
@@ -72,4 +73,6 @@ if (require.main === module) {
   attachWebSocketServer(server);
   // Who's in voice right now, in case the API restarted while people were talking.
   require('./voice').restoreFromLiveKit();
+  // Profile pictures from before they were processed (a one-off; nothing to do afterwards).
+  require('./avatars').migrateLegacyAvatars();
 }

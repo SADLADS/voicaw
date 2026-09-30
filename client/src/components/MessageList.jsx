@@ -5,7 +5,6 @@ import remarkEmoji from 'remark-emoji';
 import rehypeHighlight from 'rehype-highlight';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faTrash, faReply, faFaceSmile } from '@fortawesome/free-solid-svg-icons';
-import defaultpfp from '../assets/images/default.png';
 import Attachment from './Attachment';
 import MessageReactions from './MessageReactions';
 import UrlPreviews from './UrlPreviews';
@@ -21,6 +20,7 @@ import { hideSpoilers, remarkDiscord } from '../utils/remarkDiscord';
 import { continuesGroup } from '../utils/messageGroups';
 import { displayName, useProfiles } from '../utils/profiles';
 import ProfilePopover from './ProfilePopover';
+import Avatar from './Avatar';
 import { formatDateTime, formatTime, useDateFormat } from '../utils/dateFormat';
 import { mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
 
@@ -169,9 +169,6 @@ export function MessageRow({
   );
   const mentionsMe = isForMe(msg, user.id, myRoleIds);
 
-  const imgSrc = s3Endpoint
-    ? `${s3Endpoint}/profile-pics/${msg.sender_id}`
-    : defaultpfp;
 
   // Not before the server has the message (it has no id yet).
   const canReact = Boolean(onToggleReaction) && msg.status !== 'pending' && msg.status !== 'failed';
@@ -195,15 +192,7 @@ export function MessageRow({
     >
       {parent && (
         <div className="reply-snippet">
-          <img
-            src={s3Endpoint ? `${s3Endpoint}/profile-pics/${parent.sender_id}` : defaultpfp}
-            alt={displayName(parent.sender_id, parent.sender_username)}
-            className="reply-avatar"
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = defaultpfp;
-            }}
-          />
+          <Avatar userId={parent.sender_id} alt={displayName(parent.sender_id, parent.sender_username)} className="reply-avatar" />
           <span className="reply-author" style={{ color: nameColors?.[parent.sender_id] }}>{displayName(parent.sender_id, parent.sender_username)}</span>
           <span
             className="reply-preview"
@@ -266,15 +255,11 @@ export function MessageRow({
           </small>
         ) : (
         <>
-        <img
-          src={imgSrc}
+        <Avatar
+          userId={msg.sender_id}
           alt={senderName}
-          {...profileProps(msg.sender_id, msg.sender_username)}
-          onError={(e) => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src = defaultpfp;
-          }}
           className="message-avatar"
+          {...profileProps(msg.sender_id, msg.sender_username)}
         />
         <strong className="message-author" style={{ color: nameColors?.[msg.sender_id] }} {...profileProps(msg.sender_id, msg.sender_username)}>{senderName}</strong>{' '}
 

@@ -1,9 +1,7 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCrown, faPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
-import defaultpfp from '../../assets/images/default.png';
-import { ConfigContext } from '../../contexts';
 import { banMember, kickMember, setMemberRoles, transferGuild } from '../../services/guildService';
 import { PERMISSIONS, colorToHex, has, memberColor, memberRank, memberRoles } from '../../utils/permissions';
 import { errorMessage, groupMembers } from '../../utils/guildDisplay';
@@ -13,13 +11,13 @@ import { usePresence } from '../../hooks/usePresence';
 import { formatDate } from '../../utils/dateFormat';
 import { getProfile, nameOf, useProfiles } from '../../utils/profiles';
 import ProfileCard from '../ProfileCard';
+import Avatar from '../Avatar';
 
 // The guild's members down the right (like Discord), names in their role colour. Clicking one
 // opens a card: their roles (added and removed there by people who manage roles, for roles
 // below their own), Message, and, as permissions and rank allow, Make owner / Kick / Ban.
 export default function MemberList({ guild, members: memberList, user, onClose }) {
   useProfiles();
-  const { s3Endpoint } = useContext(ConfigContext);
   const presenceOf = usePresence();
   const members = memberList.map((m) => ({ ...m, ...presenceOf(m) }));
   const navigate = useNavigate();
@@ -181,14 +179,7 @@ export default function MemberList({ guild, members: memberList, user, onClose }
           onClick={() => setSelectedId(isSelected ? null : member.id)}
         >
           <span className="member-avatar">
-            <img
-              src={s3Endpoint ? `${s3Endpoint}/profile-pics/${member.id}` : defaultpfp}
-              alt=""
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = defaultpfp;
-              }}
-            />
+            <Avatar userId={member.id} />
             <StatusIcon className="member-status" status={member.status} />
           </span>
           <span className="member-name-block">

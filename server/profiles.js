@@ -6,8 +6,9 @@ const db = require('./db');
 // - display_name: shown instead of the username wherever a name is shown
 // - custom_status: a short line under their name ("Working from home 🏠")
 // - bio: a few lines on their profile card
+// - avatar: their profile picture's id (avatars.js), null for the default one
 const LIMITS = { display_name: 32, custom_status: 128, bio: 190 };
-const PROFILE_COLUMNS = 'display_name, custom_status, bio';
+const PROFILE_COLUMNS = 'display_name, custom_status, bio, avatar';
 
 // A trimmed value within its limit (null when empty), or undefined if it's not valid.
 function clean(field, value) {
