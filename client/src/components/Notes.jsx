@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faNoteSticky } from '@fortawesome/free-solid-svg-icons';
+import { faNoteSticky, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import '../assets/css/dms.css';
+import '../assets/css/voice.css';
 import ChatPane from './ChatPane';
 import { useConversation } from '../hooks/useConversation';
 import { addReaction, removeReaction } from '../services/dmService';
@@ -22,6 +23,14 @@ export default function Notes({ user }) {
   );
   const people = useMemo(() => (user ? [user] : []), [user]);
 
+  // The pinned notes list, under its header button (null: closed).
+  const [pinsAnchor, setPinsAnchor] = useState(null);
+  const closePins = useCallback(() => setPinsAnchor(null), []);
+  const togglePins = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPinsAnchor((open) => (open ? null : rect));
+  };
+
   const saveReaction = async (msg, emoji) => {
     const content = await encryptReaction(
       emoji, sharedKey, reactionContext(msg.id, user.id, msg.sender_id, msg.recipient_id)
@@ -35,6 +44,18 @@ export default function Notes({ user }) {
         <FontAwesomeIcon icon={faNoteSticky} className="notes-header-icon" />
         Notes
         <span className="chat-recipient-status">Only you can read these</span>
+        {sharedKey && (
+          <button
+            type="button"
+            className={`chat-call-button pins-button${pinsAnchor ? ' active' : ''}`}
+            aria-label="Pinned messages"
+            aria-pressed={Boolean(pinsAnchor)}
+            title="Pinned messages"
+            onClick={togglePins}
+          >
+            <FontAwesomeIcon icon={faThumbtack} />
+          </button>
+        )}
       </h4>
       {id && (
         <ChatPane
@@ -47,6 +68,8 @@ export default function Notes({ user }) {
           deleteReaction={removeReaction}
           reactionNames={reactionNames}
           people={people}
+          pinsAnchor={pinsAnchor}
+          onClosePins={closePins}
           emptyText="Nothing here yet. Keep notes, links and files for yourself: they're end-to-end encrypted."
         />
       )}

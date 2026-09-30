@@ -2375,9 +2375,18 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   overflow: hidden;
 }
 
-/* NOTES (a DM to yourself, pinned above the conversations) */
+/* NOTES (a DM to yourself, first under the header, a line between it and the conversations) */
 .dm-notes-link-wrap {
+  flex-shrink: 0;
   padding: 8px 0;
+}
+
+.dm-notes-link-wrap::after {
+  content: '';
+  display: block;
+  height: 1px;
+  margin: 8px 10px 0;
+  background-color: var(--vc-border-light);
 }
 
 .dm-notes-link {

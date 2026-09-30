@@ -100,7 +100,7 @@ node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone
 node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mute, decline, phone
 node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, group call, owner leaves
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
-node e2e/notes.mjs [dir]  # notes: pinned row, send, reload, not leaked to/from DMs, phone login
+node e2e/notes.mjs [dir]  # notes: row under the header, send, pin, reload, not leaked to/from DMs, phone login
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
 node e2e/spoilers.mjs [dir] # spoiler images: mark in tray, blurred for both, tap/click reveals, reply preview
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
@@ -289,12 +289,13 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   per person per message) push `reaction_add` / `reaction_remove`. Deleting a message deletes its
   reactions. No push notifications for reactions.
 - **Notes** (`/dm/notes`, `Notes.jsx`): a DM to yourself (`direct_messages` with sender =
-  recipient), pinned above the conversations in `DmSidebar` (you aren't in `/dms-list`). The
+  recipient), first under the Direct Messages header in `DmSidebar`, with a line between it and
+  the conversations, not scrolling with them (you aren't in `/dms-list`). The
   key is `deriveNotesKey`: ECDH of your own private and public encryption keys, HKDF with
   `voicaw/notes-key/v1` (so it's never a DM key), with your public key from `keyStore`, never
   the server. `useConversation({ notes: true })` skips the contact key check and marking
   read; the server never counts notes unread or pushes them, and sends each event once.
-  Replies, edits, reactions and attachments work as in any DM.
+  Replies, edits, reactions, attachments and pins work as in any DM.
 
 Never log plaintext, session keys, tokens or `OPAQUE_SERVER_SETUP`; server logs end up in pm2.
 The server stores and relays only ciphertext. Message length limits (`MAX_MESSAGE_LENGTH`
