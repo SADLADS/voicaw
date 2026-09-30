@@ -102,6 +102,7 @@ node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, gr
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
+node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show), Join Guild, phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
@@ -444,6 +445,14 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - Invites: 8-character codes, optional expiry (`maxAge` s, up to 30 days) and `maxUses`,
   claimed atomically. Joining marks existing history read. Bans remove and block rejoining.
   The owner has to transfer ownership before leaving.
+- **Invite embeds:** an invite link in a message (`utils/inviteLinks.js`: this app's host or
+  `*voicaw.com`, path `/invite/<code>`) gets a card under it (`guild/InviteEmbed.jsx`, from
+  `UrlPreviews`): the guild's icon, name, member count, and Join Guild (joins, opens the guild)
+  or Go to Guild; membership comes from `guildList`, so it flips as soon as you join. Data is
+  `GET /invites/:code`, asked once per code per session (`fetchInvitePreview`). In guild
+  channels it loads at once; in DMs and group DMs (`ChatPane` `encrypted`, default true) it
+  waits for a tap on Show, since asking would tell the server which invite an encrypted
+  message held.
 - Messages have the DM row shape (`sender_*`, `parent_*`, `reactions`, `edited`) so
   `MessageList` can show both; content is plain text up to `maxPlaintextLength` characters.
   Authors edit; authors or Manage Messages delete. Reactions are plain emoji, one of each per

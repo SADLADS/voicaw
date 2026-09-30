@@ -217,6 +217,7 @@ export default function GuildView({ user }) {
           ) : (
             <ChatPane
               chatId={`channel-${channel.id}`}
+              encrypted={false}
               chatName={`#${channel.name}`}
               user={user}
               conversation={conversation}

@@ -49,6 +49,7 @@ export default function ChatPane({
   cantSendText = "You don't have permission to send messages here.",
   canAddReactions = true,
   nameColors,
+  encrypted = true,
   emptyText = 'No messages yet. Start the conversation!',
 }) {
   const { s3Endpoint, maxPlaintextLength } = useContext(ConfigContext);
@@ -207,6 +208,7 @@ export default function ChatPane({
             nameColors={nameColors}
             mentionRoles={mentionRoles}
             myRoleIds={myRoleIds}
+            encrypted={encrypted}
             // While reacting to a message (or its mobile menu is open), it stays
             // highlighted and the others don't react to hovering.
             focusedMsgId={reactingTo?.msgId ?? actionsForId}
