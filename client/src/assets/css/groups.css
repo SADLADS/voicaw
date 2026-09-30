@@ -217,6 +217,13 @@
 
 .group-member:hover {
   background-color: var(--vc-bg-hover);
+  --status-ring: var(--vc-bg-hover);
+}
+
+.group-member-avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
 }
 
 .group-member-avatar {

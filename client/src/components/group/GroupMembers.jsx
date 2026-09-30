@@ -8,10 +8,13 @@ import Modal from '../guild/Modal';
 import ConfirmDialog from '../guild/ConfirmDialog';
 import UserAvatar from '../voice/UserAvatar';
 import UserPicker from './UserPicker';
+import StatusIcon from '../StatusIcon';
 import { changeMembership } from '../../services/groupKeys';
 import { renameGroup } from '../../services/groupService';
 import { MAX_GROUP_MEMBERS } from '../../services/groupCrypto';
 import { nameOf, useProfiles } from '../../utils/profiles';
+import { usePresence } from '../../hooks/usePresence';
+import { lastSeenText, statusLabel } from '../../utils/presence';
 
 const errorText = (err) => err.response?.data?.error ?? err.message;
 
@@ -19,6 +22,7 @@ const errorText = (err) => err.response?.data?.error ?? err.message;
 // people and renames; the owner removes people; anyone leaves.
 export default function GroupMembers({ group, user, users, onClose }) {
   useProfiles();
+  const presenceOf = usePresence();
   const navigate = useNavigate();
   const [dialog, setDialog] = useState(null); // { type: 'add' | 'remove' | 'leave' | 'rename', ... }
   const [selected, setSelected] = useState(new Set());
@@ -27,6 +31,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
   const [error, setError] = useState(null);
   const { detail, log } = group;
   const names = new Map(detail.users.map((u) => [u.id, nameOf(u)]));
+  const usersById = new Map(detail.users.map((u) => [u.id, u]));
   const memberIds = [...log.members.keys()];
   const isOwner = log.ownerId === user.id;
   const room = MAX_GROUP_MEMBERS - memberIds.length;
@@ -67,24 +72,30 @@ export default function GroupMembers({ group, user, users, onClose }) {
         )}
       </div>
       <ul className="group-members-list">
-        {memberIds.map((id) => (
-          <li key={id} className="group-member">
-            <UserAvatar userId={id} className="group-member-avatar" />
-            <span className="group-member-name">{names.get(id) ?? 'Someone'}{id === user.id ? ' (you)' : ''}</span>
-            {id === log.ownerId && <FontAwesomeIcon icon={faCrown} className="group-owner-crown" title="Group owner" aria-label="Group owner" />}
-            {isOwner && id !== user.id && (
-              <button
-                type="button"
-                className="guild-sidebar-icon-button"
-                aria-label={`Remove ${names.get(id)}`}
-                title="Remove from group"
-                onClick={() => setDialog({ type: 'remove', id })}
-              >
-                <FontAwesomeIcon icon={faUserMinus} />
-              </button>
-            )}
-          </li>
-        ))}
+        {memberIds.map((id) => {
+          const { status, lastOnline } = presenceOf(usersById.get(id) ?? { id });
+          return (
+            <li key={id} className="group-member">
+              <span className="group-member-avatar-wrap">
+                <UserAvatar userId={id} className="group-member-avatar" />
+                <StatusIcon status={status} title={status === 'offline' ? lastSeenText(lastOnline) ?? statusLabel(status) : undefined} />
+              </span>
+              <span className="group-member-name">{names.get(id) ?? 'Someone'}{id === user.id ? ' (you)' : ''}</span>
+              {id === log.ownerId && <FontAwesomeIcon icon={faCrown} className="group-owner-crown" title="Group owner" aria-label="Group owner" />}
+              {isOwner && id !== user.id && (
+                <button
+                  type="button"
+                  className="guild-sidebar-icon-button"
+                  aria-label={`Remove ${names.get(id)}`}
+                  title="Remove from group"
+                  onClick={() => setDialog({ type: 'remove', id })}
+                >
+                  <FontAwesomeIcon icon={faUserMinus} />
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
       <div className="group-members-actions">
         <button type="button" className="group-action" onClick={() => setDialog({ type: 'add' })} disabled={room <= 0}>

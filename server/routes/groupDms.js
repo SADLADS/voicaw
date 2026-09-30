@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { maxPlaintextLength, getMaxEncryptedLength } = require('../config');
 const { authenticateJWT } = require('../auth');
-const { sendToUserSockets, isViewingConversation } = require('../sockets');
+const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
 const { sendPushToUser } = require('../push');
 const groups = require('../groupDms');
 const calls = require('../calls');
@@ -135,7 +135,7 @@ router.get('/group-dms/:groupId', member, async (req, res) => {
   const groupId = req.state.group.id;
   const log = await db.all('SELECT seq, record, signature FROM group_dm_log WHERE group_id = ? ORDER BY seq', [groupId]);
   const users = await db.all(
-    `SELECT id, username, display_name, custom_status, bio, avatar, identity_key, encryption_key, encryption_key_signature FROM users
+    `SELECT id, username, display_name, custom_status, bio, avatar, last_online, identity_key, encryption_key, encryption_key_signature FROM users
      WHERE id IN (SELECT actor_id FROM group_dm_log WHERE group_id = ? UNION SELECT target_id FROM group_dm_log WHERE group_id = ?)`,
     [groupId, groupId]
   );
@@ -148,7 +148,7 @@ router.get('/group-dms/:groupId', member, async (req, res) => {
   res.json({
     ...(await groups.groupSummary(groupId, req.user.id)),
     log,
-    users,
+    users: users.map((u) => ({ ...u, status: getStatus(u.id) })),
     epochs,
     latest_epoch: req.state.latestEpoch ?? null,
     // A call going on in the group (to join), or null.

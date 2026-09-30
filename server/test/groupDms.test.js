@@ -164,6 +164,8 @@ describe('group DMs', () => {
     const log = await verifyGroupLog(groupId, group.log);
     expect([...log.members.keys()]).toEqual([ann.id, bea.id, cal.id]);
     expect(log.ownerId).toBe(ann.id);
+    // Everyone's online status, for the member list.
+    for (const u of group.users) expect(u).toHaveProperty('status', expect.any(String));
 
     expect((await send(bea, groupId, 'hello all')).status).toBe(201);
     expect(await readAll(cal, groupId)).toEqual(['hello all']);

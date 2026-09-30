@@ -333,11 +333,11 @@ of a user's sockets (`sockets.js` `statusOf`): any active computer wins, then an
   event (`lastOnline`); it's also saved for everyone online once a minute, so a crash loses at
   most that. NULL means never seen since this was added.
 - Each identify gets `presence_snapshot { statuses: { id: status } }` (everyone not offline), so a
-  device that was disconnected catches up. `/dms-list` and guild members also carry `status` and
-  `last_online`.
+  device that was disconnected catches up. `/dms-list`, guild members and a group DM's `users`
+  also carry `status` and `last_online`.
 - Client: `utils/presence.js` is the store (snapshot + changes; before the first snapshot, a
   user's own `status` from the API), `hooks/usePresence.js` returns `presenceOf(user)` →
-  `{ status, lastOnline }`. `StatusIcon` draws it the same everywhere (STATUS ICONS in
+  `{ status, lastOnline }`. `StatusIcon` draws it the same everywhere (DM list, member lists, group members, profile card) (STATUS ICONS in
   `voicaw.css`): on the bottom right corner of the picture, a diamond coloured by status, a phone
   for `mobile`. The DM header shows only "Last seen …" (when offline; the icon says the rest);
   the profile card shows the status or "Last seen …". Idle and mobile members count as online in
