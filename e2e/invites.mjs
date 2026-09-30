@@ -19,6 +19,22 @@ try {
   await a.fill('#new-guild-name', 'Invite Test Guild');
   await a.click('button:has-text("Create")');
   await a.waitForSelector('.guild-channel.active:has-text("general")');
+  // A big (600×600) picture, so a card that doesn't size it shows.
+  const guildId = Number(new URL(a.url()).pathname.split('/')[2]);
+  await a.evaluate(async (id) => {
+    const canvas = Object.assign(document.createElement('canvas'), { width: 600, height: 600 });
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#1C9A8C';
+    ctx.fillRect(0, 0, 600, 600);
+    ctx.fillStyle = '#d8b930';
+    ctx.fillRect(150, 150, 300, 300);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    const auth = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+    const { url } = await (await fetch(`/api/upload_guild_icon?guildId=${id}&type=image/png&size=${blob.size}`, { headers: auth })).json();
+    const put = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob });
+    if (!put.ok) throw new Error(`icon upload failed: ${put.status}`);
+    await fetch(`/api/guilds/${id}`, { method: 'PATCH', headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ iconUploaded: true }) });
+  }, guildId);
   await a.click('.guild-header-button');
   await a.click('text=Invite People');
   await a.waitForFunction(() => document.querySelector('#invite-link')?.value);
@@ -29,6 +45,15 @@ try {
   await send(a, `join us ${link}`);
   await a.waitForSelector('.invite-embed .invite-embed-name:has-text("Invite Test Guild")', { timeout: 10000 });
   await a.waitForSelector('.invite-embed button:has-text("Go to Guild")');
+  // The guild's picture: 48px, round, like the rail (not the upload's own size).
+  await a.waitForFunction(() => document.querySelector('.invite-embed img.invite-embed-icon')?.complete);
+  const icon = await a.evaluate(() => {
+    const img = document.querySelector('.invite-embed img.invite-embed-icon');
+    const box = img.getBoundingClientRect();
+    return { w: box.width, h: box.height, radius: getComputedStyle(img).borderRadius, natural: img.naturalWidth };
+  });
+  if (icon.natural < 100) throw new Error(`expected a big uploaded picture, got ${icon.natural}px`);
+  if (icon.w !== 48 || icon.h !== 48 || icon.radius !== '50%') throw new Error(`guild picture is ${icon.w}×${icon.h}, radius ${icon.radius}`);
   await shot(a, 'channel-embed');
   console.log('channel: card loaded by itself, Go to Guild for a member');
 
@@ -59,7 +84,9 @@ try {
   await b.waitForURL(/\/guild\/\d+/, { timeout: 10000 });
   console.log('joined, opened:', b.url().replace(BASE, ''));
 
+  // A reload forgets which invites were shown, so it asks for Show again.
   await openChat(b, alice.id);
+  await b.click('.invite-embed button:has-text("Show")', { timeout: 10000 });
   await b.waitForSelector('.invite-embed button:has-text("Go to Guild")', { timeout: 10000 });
   await shot(b, 'dm-embed-member');
   console.log('invites: ok');

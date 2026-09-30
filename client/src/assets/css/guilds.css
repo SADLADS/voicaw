@@ -919,11 +919,14 @@ img.guild-icon {
   gap: 12px;
 }
 
-.invite-embed-icon {
+/* The rail's size, as a circle. `.invite-embed` first, to beat `.dm-message img` (voicaw.css),
+   which would otherwise show the picture at its full size. */
+.invite-embed .invite-embed-icon {
   flex: none;
-  width: 50px;
-  height: 50px;
-  border-radius: 16px;
+  width: 48px;
+  height: 48px;
+  max-width: none;
+  border-radius: 50%;
   object-fit: cover;
 }
 
