@@ -1257,6 +1257,9 @@ img.emoji,
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 4px;
+  /* As far from the bottom of the message's hover highlight as its avatar is from the top
+     (.dm-message's padding-top). */
+  padding-bottom: 4px;
 }
 
 .reaction-chip {
