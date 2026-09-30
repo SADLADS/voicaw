@@ -23,4 +23,13 @@ describe('continuesGroup', () => {
     expect(continuesGroup(msg({ unverified: true }), msg())).toBe(false);
     expect(continuesGroup(msg(), msg({ unsigned: true }))).toBe(false);
   });
+
+  it("groups a webhook's messages only with the same webhook, name and picture", () => {
+    const hook = (over) => msg({ sender_id: 0, webhook_id: 5, webhook_name: 'CI', webhook_avatar: null, ...over });
+    expect(continuesGroup(hook(), hook({ timestamp: at(12, 1) }))).toBe(true);
+    expect(continuesGroup(hook(), hook({ webhook_id: 6 }))).toBe(false);
+    expect(continuesGroup(hook(), hook({ webhook_name: 'Deploys' }))).toBe(false);
+    expect(continuesGroup(hook(), hook({ webhook_avatar: 'https://x.test/a.png' }))).toBe(false);
+    expect(continuesGroup(msg({ sender_id: 0 }), hook())).toBe(false);
+  });
 });

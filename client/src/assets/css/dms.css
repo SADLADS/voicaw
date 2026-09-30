@@ -2113,3 +2113,164 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   flex-direction: column;
   gap: 4px;
 }
+
+/* WEBHOOK MESSAGES (guilds): the APP tag after the name, Discord's embeds and sent files
+   (MessageEmbeds, MessageFiles). */
+.app-tag {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 3px;
+  background-color: var(--vc-accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  vertical-align: 2px;
+}
+
+.message-embeds {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.embed {
+  display: flex;
+  gap: 16px;
+  max-width: 520px;
+  padding: 8px 16px 12px 12px;
+  border-left: 4px solid var(--embed-color, var(--vc-border-light));
+  border-radius: 4px;
+  background-color: var(--vc-bg-elevated);
+  white-space: normal;
+}
+
+.embed-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.embed-provider,
+.embed-footer {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}
+
+.embed-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.embed-author-icon,
+.embed-footer-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.embed-footer-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.embed-title {
+  font-weight: 700;
+}
+
+.embed a {
+  color: var(--vc-accent);
+}
+
+.embed-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.embed-field {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.embed-field.inline {
+  grid-column: auto;
+}
+
+.embed-field-name {
+  font-weight: 700;
+}
+
+.embed-image {
+  display: block;
+  max-width: 100%;
+  max-height: 300px;
+  width: auto;
+  height: auto;
+  border-radius: 4px;
+  object-fit: contain;
+  object-position: left;
+}
+
+.embed-thumbnail {
+  flex-shrink: 0;
+  max-width: 80px;
+  max-height: 80px;
+  width: auto;
+  height: auto;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.message-files {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.message-file-image img,
+.message-file-video {
+  display: block;
+  max-width: min(400px, 100%);
+  max-height: 300px;
+  width: auto;
+  height: auto;
+  border-radius: 4px;
+}
+
+.message-file-box {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 420px;
+  padding: 10px 12px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 6px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  text-decoration: none;
+}
+
+.message-file-icon {
+  font-size: 22px;
+  color: var(--vc-fg-muted);
+}
+
+.message-file-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--vc-accent);
+}

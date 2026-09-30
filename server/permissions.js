@@ -22,6 +22,7 @@ const PERMISSIONS = {
   CONNECT: 1 << 12,
   SPEAK: 1 << 13,
   MENTION_EVERYONE: 1 << 14,
+  MANAGE_WEBHOOKS: 1 << 15,
 };
 
 const ALL_PERMISSIONS = Object.values(PERMISSIONS).reduce((all, bit) => all | bit, 0);

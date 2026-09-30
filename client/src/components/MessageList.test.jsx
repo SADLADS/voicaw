@@ -485,5 +485,64 @@ describe('MessageList reactions', () => {
     expect(container.querySelector('.message-scroller')).not.toHaveClass('has-focused-message');
     expect(row('second').querySelector('.message-menu')).not.toBeNull();
   });
+
+  describe("a webhook's message", () => {
+    const hookMessage = (over = {}) => ({
+      id: 7, sender_id: 0, sender_username: 'CI', webhook_id: 3, webhook_name: 'CI', webhook_avatar: 'https://ci.test/bot.png',
+      plaintext: 'Build done', content: 'Build done', timestamp: 1000, flags: 0, attachments: [],
+      embeds: [{
+        type: 'rich', title: 'Deploy', url: 'https://ci.test/1', description: 'All **good**', color: 0x57F287,
+        fields: [{ name: 'Branch', value: 'dev', inline: true }], footer: { text: 'CI' },
+        image: { url: 'https://ci.test/chart.png' }, thumbnail: { url: 'https://ci.test/t.png' },
+      }],
+      ...over,
+    });
+
+    it('shows its name and picture with an APP tag, and no profile card', () => {
+      render(<MessageList {...baseProps({ messages: [hookMessage()] })} />);
+      const author = screen.getByText('CI', { selector: '.message-author' });
+      expect(author.nextElementSibling).toHaveTextContent('APP');
+      expect(author).not.toHaveAttribute('role');
+      fireEvent.click(author);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      const avatar = document.querySelector('img.message-avatar');
+      expect(avatar).toHaveAttribute('src', 'https://ci.test/bot.png');
+      expect(avatar).toHaveAttribute('referrerpolicy', 'no-referrer');
+    });
+
+    it('draws its embeds, with markdown, links that tell nobody where they came from, and no-referrer images', () => {
+      const { container } = render(<MessageList {...baseProps({ messages: [hookMessage()] })} />);
+      const embed = container.querySelector('.embed');
+      expect(embed.style.getPropertyValue('--embed-color')).toBe('#57f287');
+      const title = screen.getByRole('link', { name: 'Deploy' });
+      expect(title).toHaveAttribute('href', 'https://ci.test/1');
+      expect(title).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(embed.querySelector('.embed-description strong')).toHaveTextContent('good');
+      expect(embed.querySelector('.embed-field.inline')).toHaveTextContent('Branchdev');
+      expect(embed.querySelector('.embed-image')).toHaveAttribute('referrerpolicy', 'no-referrer');
+      expect(embed.querySelector('.embed-thumbnail')).toHaveAttribute('src', 'https://ci.test/t.png');
+      expect(embed.querySelector('.embed-footer')).toHaveTextContent('CI');
+    });
+
+    it("hides its embeds when it asked (SUPPRESS_EMBEDS), and shows its files", () => {
+      const files = [
+        { id: 'a', filename: 'chart.png', content_type: 'image/png', url: 'https://s3.test/uploads/webhooks/a/chart.png', size: 10, width: 64, height: 32 },
+        { id: 'b', filename: 'log.txt', content_type: 'application/octet-stream', url: 'https://s3.test/uploads/webhooks/b/log.txt', size: 2048 },
+      ];
+      const { container } = render(<MessageList {...baseProps({ messages: [hookMessage({ flags: 4, attachments: files })] })} />);
+      expect(container.querySelector('.embed')).toBeNull();
+      expect(screen.getByAltText('chart.png')).toHaveAttribute('src', files[0].url);
+      const download = screen.getByRole('link', { name: /log\.txt/ });
+      expect(download).toHaveAttribute('download', 'log.txt');
+      expect(download).toHaveTextContent('2.0 KB');
+    });
+
+    it("doesn't show a file twice when an embed shows it", () => {
+      const chart = { id: 'a', filename: 'chart.png', content_type: 'image/png', url: 'https://s3.test/uploads/webhooks/a/chart.png', size: 10 };
+      const { container } = render(<MessageList {...baseProps({ messages: [hookMessage({ attachments: [chart], embeds: [{ type: 'rich', title: 'Load', image: { url: chart.url } }] })] })} />);
+      expect(container.querySelectorAll(`img[src="${chart.url}"]`)).toHaveLength(1);
+      expect(container.querySelector('.message-files')).toBeNull();
+    });
+  });
 });
 

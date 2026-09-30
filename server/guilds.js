@@ -238,6 +238,7 @@ async function deleteChannelContents(channelIdsSql, params) {
   await db.run(`DELETE FROM guild_messages WHERE channel_id IN (${channelIdsSql})`, params);
   await db.run(`DELETE FROM guild_channel_reads WHERE channel_id IN (${channelIdsSql})`, params);
   await db.run(`DELETE FROM guild_channel_overrides WHERE channel_id IN (${channelIdsSql})`, params);
+  await db.run(`DELETE FROM guild_webhooks WHERE channel_id IN (${channelIdsSql})`, params);
 }
 
 // Marks every channel of the guild read up to now for a new member, so joining doesn't show

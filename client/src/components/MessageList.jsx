@@ -8,6 +8,9 @@ import { faEdit, faTrash, faReply, faFaceSmile } from '@fortawesome/free-solid-s
 import Attachment from './Attachment';
 import MessageReactions from './MessageReactions';
 import UrlPreviews from './UrlPreviews';
+import MessageEmbeds from './MessageEmbeds';
+import MessageFiles from './MessageFiles';
+import defaultAvatar from '../assets/images/default.png';
 import { useLongPress } from '../hooks/useLongPress';
 import MessageEditor from '../editor/MessageEditor';
 import { placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
@@ -145,9 +148,11 @@ export function MessageRow({
   const emojiIndex = useEmojiIndex();
   useDateFormat(); // redraws the times when Settings → Date & time changes
   useProfiles(); // and names when someone changes theirs
-  const senderName = displayName(msg.sender_id, msg.sender_username);
+  // A webhook's message (guilds): its own name and picture as sent, no person behind it.
+  const webhook = Boolean(msg.webhook_id);
+  const senderName = webhook ? msg.webhook_name : displayName(msg.sender_id, msg.sender_username);
   // A name or avatar opens that person's profile card.
-  const profileProps = (id, username) => (onOpenProfile ? {
+  const profileProps = (id, username) => (onOpenProfile && !webhook ? {
     role: 'button',
     tabIndex: 0,
     onClick: (e) => { e.stopPropagation(); onOpenProfile({ id, username }, e.currentTarget.getBoundingClientRect()); },
@@ -168,6 +173,14 @@ export function MessageRow({
     [reactionNames, mentionRoles, user.id, myRoleIds, msg.mention_everyone]
   );
   const mentionsMe = isForMe(msg, user.id, myRoleIds);
+  // Markdown as the message's text is drawn (for embeds' descriptions and fields).
+  const renderMarkdown = (text) => (
+    <MentionContext.Provider value={mentions}>
+      <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} urlTransform={urlTransform} components={markdownComponents}>
+        {text}
+      </ReactMarkdown>
+    </MentionContext.Provider>
+  );
 
 
   // Not before the server has the message (it has no id yet).
@@ -257,13 +270,26 @@ export function MessageRow({
           </small>
         ) : (
         <>
-        <Avatar
-          userId={msg.sender_id}
-          alt={senderName}
-          className="message-avatar"
-          {...profileProps(msg.sender_id, msg.sender_username)}
-        />
-        <strong className="message-author" style={{ color: nameColors?.[msg.sender_id] }} {...profileProps(msg.sender_id, msg.sender_username)}>{senderName}</strong>{' '}
+        {webhook ? (
+          // Its picture may be another site's (a webhook's avatar_url): no referrer.
+          <img
+            className="message-avatar"
+            src={msg.webhook_avatar || defaultAvatar}
+            alt={senderName}
+            referrerPolicy="no-referrer"
+            draggable={false}
+            onError={(e) => { e.currentTarget.src = defaultAvatar; }}
+          />
+        ) : (
+          <Avatar
+            userId={msg.sender_id}
+            alt={senderName}
+            className="message-avatar"
+            {...profileProps(msg.sender_id, msg.sender_username)}
+          />
+        )}
+        <strong className="message-author" style={{ color: webhook ? undefined : nameColors?.[msg.sender_id] }} {...profileProps(msg.sender_id, msg.sender_username)}>{senderName}</strong>{' '}
+        {webhook && <span className="app-tag" title="Posted by a webhook">APP</span>}{webhook && ' '}
 
         <small>
           <span title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>{formatDateTime(msg.timestamp * 1000)}</span>
@@ -331,6 +357,16 @@ export function MessageRow({
           )}
           {/* Without a header to carry it, "edited" goes after the text. */}
           {grouped && msg.edited && editingMessageId !== msg.id ? <small className="message-edited">(edited)</small> : null}
+
+          {/* A webhook's embeds (unless it asked Discord's SUPPRESS_EMBEDS) and files. */}
+          {webhook && !(msg.flags & 4) && <MessageEmbeds embeds={msg.embeds} renderMarkdown={renderMarkdown} />}
+          {webhook && (
+            <MessageFiles
+              attachments={msg.attachments}
+              // Files an embed shows (attachment://…) aren't shown again, as in Discord.
+              shownElsewhere={msg.flags & 4 ? [] : (msg.embeds ?? []).flatMap((e) => [e.image?.url, e.thumbnail?.url])}
+            />
+          )}
 
           <UrlPreviews text={msg.plaintext} />
         </div>

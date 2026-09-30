@@ -102,6 +102,7 @@ node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, gr
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
+node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
@@ -161,7 +162,7 @@ unexpected errors. The rest:
   delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `guilds.js` (guilds,
   members, invites, bans, categories, channels), `guildMessages.js` (channel messages, reactions,
   read state), `voice.js` (join token, mute/deafen, leave, LiveKit webhook), `calls.js` (DM
-  calls), `groupDms.js` (group DMs), `push.js`
+  calls), `groupDms.js` (group DMs), `webhooks.js` (Discord-compatible webhooks), `push.js`
   (subscriptions), `uploads.js`, `gifs.js` (Klipy search proxy, GIF favourites), `admin.js`.
 
 Client tests sit next to their source files (`src/**/*.test.{js,jsx}`). The default environment is
@@ -301,7 +302,8 @@ identify themselves post-connect with `{ type: 'identify', token }` (JWT); the s
 Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, `reaction_remove`,
 `user_status` and `presence_snapshot` (see Online status), `user_profile` (someone changed their
 profile, to every logged-in socket; see Profiles), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
-`guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete`,
+`guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete` (a
+webhook's edit also carries `embeds`, `attachments`, `flags`),
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
 `guild_order` (your guild rail order, to your other devices), `guild_voice_state` (someone
 joined, left or (un)muted in a voice channel), `guild_mention` (only to whoever a new message
@@ -408,7 +410,7 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   test checks they match) are Discord's model with a bit field: View Channel, Send Messages,
   Add Reactions, Manage Messages, Manage Channels, Manage Roles, Manage Guild, Create Invite,
   Kick, Ban, Administrator, Manage Emoji, Connect, Speak (voice), Mention Everyone (@everyone,
-  @here and any role; not a default, guild-wide only). Every guild has an `@everyone`
+  @here and any role; not a default, guild-wide only), Manage Webhooks (guild-wide only). Every guild has an `@everyone`
   role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak) plus orderable roles (`guild_roles`: name, colour
   0xRRGGBB or null, `hoist` = shown separately in the member list, `mentionable` = anyone may
   @mention it, position: higher ranks
@@ -497,6 +499,55 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - **Not done yet:** category-level permissions (overrides are per channel), server folders in the
   rail, per-channel notification settings and muting, a list of your recent mentions. Voice: see
   Voice channels.
+
+### Webhooks (Discord's API)
+
+A webhook posts into one text channel from anywhere, with its own name and picture, like
+Discord's; **the API is Discord's** (`server/routes/webhooks.js`), so anything that posts to a
+Discord webhook URL works with ours by changing the URL's start: `https://voicaw.com/api/webhooks/
+<id>/<token>` (also `/api/v6`–`/api/v10/...`, and `api.voicaw.com`). Not end-to-end encrypted,
+like the rest of a guild.
+- **Table** `guild_webhooks` (guild, channel, name, avatar id, token: 68 random characters,
+  stored as Discord does since the URL can be copied again; creator). Deleting a channel deletes
+  its webhooks. Messages are `guild_messages` with `sender_id` 0 (no user; `MESSAGE_SELECT`
+  LEFT JOINs users and uses `webhook_name` as `sender_username`), `webhook_id`, and the name
+  and picture **as sent** (`webhook_name`, `webhook_avatar`: our picture's URL or the post's
+  `avatar_url`), plus `embeds` and `attachments` (JSON, Discord's shapes), `flags` and
+  `edited_at`. Old pictures are never deleted, so old messages keep theirs.
+- **With the token** (no login): `POST` executes (JSON, a form, or multipart with
+  `payload_json` and `files[n]`; `?wait=true` returns Discord's message object, else 204;
+  `thread_id` is refused), `GET/PATCH/DELETE` the webhook (name, avatar as a data URI), and
+  `GET/PATCH/DELETE .../messages/:id` for its own messages (PATCH: content, embeds, flags,
+  `attachments` to keep, new files). Discord's checks and errors (`{ message, code, errors }`:
+  10015 unknown, 50027 bad token, 50006 empty, 50035 invalid form body with the field's path,
+  40005 too large, 50109 bad JSON), embed limits (10 embeds, 6000 characters, title 256,
+  description 4096, 25 fields...), `attachment://<name>` in embeds, `allowed_mentions`, flags
+  SUPPRESS_EMBEDS and SUPPRESS_NOTIFICATIONS (no pushes). Rate limit 5 per 2 s per webhook
+  (429 `{ retry_after }` and `X-RateLimit-*` headers). Like Discord, a webhook may ping
+  @everyone, @here and any role (`mentions.js` `allowed`).
+- **Files** (up to 10, 25 MB together) go to `uploads/webhooks/<uuid>/<name>`, unencrypted;
+  images, videos and sounds are served as themselves, anything else as
+  `application/octet-stream` (never HTML or SVG). Pictures (data URIs, 8 MB) are processed like
+  profile pictures into `profile-pics/webhooks/<id>/<avatar>.webp`. The app's JSON parser skips
+  `/webhooks` paths; the router has its own (12 MB JSON, forms, raw multipart read with
+  `Response.formData()`).
+- **Logged in** (Manage Webhooks and View Channel): `POST/GET /channels/:id/webhooks`, `GET
+  /guilds/:id/webhooks`, `GET/PATCH/DELETE /webhooks/:id` (PATCH can move it to another text
+  channel). Channel settings have a **Webhooks** tab (`guild/ChannelWebhooks.jsx`, for text
+  channels; someone with only Manage Webhooks gets just that tab): New Webhook (named "Captain
+  Hook", like Discord's), each one's picture (shrunk to 512 px in the browser, since nginx
+  takes 1 MB by default), name, Copy Webhook URL (built from the app's own API address,
+  `utils/webhookUrl.js`), delete.
+- **Drawing** (`MessageList`): the webhook's picture and name with an APP tag, no profile card;
+  `MessageEmbeds` (colour bar, provider, author, title link, markdown description and fields,
+  inline fields three across, image, thumbnail, footer and time) and `MessageFiles` (images,
+  video, audio inline, else a download box; a file an embed already shows isn't repeated).
+  Links open without a referrer; images in embeds and an `avatar_url` override come **straight
+  from other sites** (no referrer), so those sites see readers' IP addresses, as with other
+  sites' images in messages. A webhook's messages group only with the same webhook under the
+  same name and picture.
+- **Not done:** Discord's Slack- and GitHub-compatible endpoints (`/slack`, `/github`),
+  components (buttons), polls, threads/forums, and `tts`.
 
 ### Voice channels (LiveKit)
 
@@ -674,7 +725,8 @@ client uploads the file straight to S3, bypassing the app server. Both routes re
 param, which is signed into the URL together with the content type (`s3.js` `signableHeaders`), so
 the object store rejects a body of any other length or type (verified against the live MinIO).
 Limits: 100MB for attachments (nginx's cap on media.voicaw.com), 8MB for profile picture originals,
-which must be `image/*`. Profile pictures are unencrypted.
+which must be `image/*`. Profile pictures are unencrypted. Webhooks' files are the exception to
+client-direct uploads: they arrive in the webhook request and the server stores them (see Webhooks).
 
 ### DM attachments (encrypted, uploaded on send)
 

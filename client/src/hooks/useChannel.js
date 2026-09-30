@@ -200,6 +200,10 @@ export function useChannel({ channelId, user, onRead }) {
               edited: 1,
               mention_everyone: event.mention_everyone,
               mention_roles: event.mention_roles,
+              // A webhook's edits can change these too.
+              ...(event.embeds ? { embeds: event.embeds } : {}),
+              ...(event.attachments ? { attachments: event.attachments } : {}),
+              ...(event.flags !== undefined ? { flags: event.flags } : {}),
             }));
           }
           break;

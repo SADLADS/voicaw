@@ -16,22 +16,25 @@ const router = express.Router();
 const MAX_REACTIONS_PER_USER_PER_MESSAGE = 20;
 const MAX_EMOJI_LENGTH = 64;
 
+// A webhook's messages (routes/webhooks.js) have sender_id 0 and no user: their name is
+// `webhook_name` (also as sender_username) and their picture `webhook_avatar` (a URL or null).
 const MESSAGE_SELECT = `
   SELECT
     m.id, m.channel_id, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
     m.mention_everyone, m.mention_roles,
-    u.username AS sender_username,
+    m.webhook_id, m.webhook_name, m.webhook_avatar, m.embeds, m.attachments, m.flags, m.edited_at,
+    COALESCE(u.username, m.webhook_name) AS sender_username,
     u.display_name AS sender_display_name,
     pm.content AS parent_content,
     pu.id AS parent_sender_id,
-    pu.username AS parent_username
+    COALESCE(pu.username, pm.webhook_name) AS parent_username
   FROM guild_messages m
-  JOIN users u ON m.sender_id = u.id
+  LEFT JOIN users u ON m.sender_id = u.id
   LEFT JOIN guild_messages pm ON m.parent_message_id = pm.id
   LEFT JOIN users pu ON pm.sender_id = pu.id`;
 
 // Adds `reactions` ([{ id, user_id, emoji, timestamp }], oldest first) to each message, and
-// makes `mention_roles` (the roles it pinged) an array.
+// makes `mention_roles` (the roles it pinged), `embeds` and `attachments` arrays.
 async function withReactions(messages) {
   if (messages.length === 0) return messages;
   const ids = messages.map((m) => m.id);
@@ -42,16 +45,25 @@ async function withReactions(messages) {
   );
   const byMessage = new Map(ids.map((id) => [id, []]));
   for (const { message_id: messageId, ...reaction } of rows) byMessage.get(messageId).push(reaction);
-  return messages.map((m) => ({ ...m, mention_roles: parseRoleIds(m.mention_roles), reactions: byMessage.get(m.id) }));
+  return messages.map((m) => ({
+    ...m,
+    mention_roles: parseRoleIds(m.mention_roles),
+    embeds: parseJsonList(m.embeds),
+    attachments: parseJsonList(m.attachments),
+    reactions: byMessage.get(m.id),
+  }));
 }
 
-function parseRoleIds(json) {
+function parseJsonList(json) {
   try {
-    return json ? JSON.parse(json) : [];
+    const value = json ? JSON.parse(json) : [];
+    return Array.isArray(value) ? value : [];
   } catch {
     return [];
   }
 }
+
+const parseRoleIds = parseJsonList;
 
 const forbidden = (res) => res.status(403).json({ error: "You don't have permission to do that" });
 
@@ -154,7 +166,7 @@ router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async 
     return res.status(400).json({ error: `Messages are 1–${maxPlaintextLength} characters` });
   }
   await db.transaction(async () => {
-    await db.run('UPDATE guild_messages SET content = ?, edited = 1 WHERE id = ?', [content, req.message.id]);
+    await db.run("UPDATE guild_messages SET content = ?, edited = 1, edited_at = strftime('%s','now') WHERE id = ?", [content, req.message.id]);
     await saveMentions({ id: req.message.id, content, sender_id: req.user.id }, req.channel, req.permissions);
   });
   const saved = await db.get('SELECT mention_everyone, mention_roles FROM guild_messages WHERE id = ?', [req.message.id]);
@@ -287,3 +299,6 @@ router.get('/guild-unread', authenticateJWT, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.MESSAGE_SELECT = MESSAGE_SELECT;
+module.exports.withReactions = withReactions;
+module.exports.parseJsonList = parseJsonList;

@@ -18,6 +18,7 @@ export const PERMISSIONS = {
   CONNECT: 1 << 12,
   SPEAK: 1 << 13,
   MENTION_EVERYONE: 1 << 14,
+  MANAGE_WEBHOOKS: 1 << 15,
 };
 
 export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
@@ -35,6 +36,7 @@ export const PERMISSION_GROUPS = [
       ['MANAGE_ROLES', 'Manage Roles', 'Lets members create and edit roles below their highest role, give them out, and change channel permissions.'],
       ['MANAGE_GUILD', 'Manage Guild', "Lets members change the guild's name and icon, and see and revoke all invites."],
       ['MANAGE_EMOJIS', 'Manage Emoji', "Lets members add, rename and remove the guild's custom emoji."],
+      ['MANAGE_WEBHOOKS', 'Manage Webhooks', 'Lets members create, edit and delete webhooks, which let other apps and services post messages in text channels.'],
     ],
   },
   {

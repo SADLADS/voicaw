@@ -24,7 +24,7 @@ function createLimiter({ windowMs, max }) {
         windows.set(key, w);
       }
       w.count += 1;
-      return { allowed: w.count <= max, retryAfterMs: w.resetAt - now };
+      return { allowed: w.count <= max, retryAfterMs: w.resetAt - now, remaining: Math.max(0, max - w.count) };
     },
     reset(key) {
       windows.delete(key);

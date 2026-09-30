@@ -160,7 +160,7 @@ export default function GuildSidebar({ guild, user }) {
             <span className="mention-badge" aria-label={`${mentions} mentions`}>{mentions > 99 ? '99+' : mentions}</span>
           )}
         </Link>
-        {managesChannels && (
+        {(managesChannels || (channel.type === 'text' && has(channel.my_permissions, PERMISSIONS.MANAGE_WEBHOOKS))) && (
           <button
             type="button"
             className="guild-sidebar-icon-button"

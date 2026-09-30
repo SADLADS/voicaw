@@ -1596,3 +1596,115 @@ img.emoji.custom-emoji {
   font-size: 12px;
   color: var(--vc-fg-muted);
 }
+
+/* A text channel's settings → Webhooks (ChannelWebhooks). */
+.webhook-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.webhook-row {
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  background-color: var(--vc-bg-base);
+}
+
+.webhook-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--vc-fg);
+  text-align: left;
+}
+
+.webhook-summary:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.webhook-summary-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.webhook-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webhook-chevron {
+  color: var(--vc-fg-muted);
+}
+
+.webhook-avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.webhook-avatar.large {
+  width: 72px;
+  height: 72px;
+}
+
+.webhook-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 12px 12px;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+.webhook-editor-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.webhook-avatar-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.webhook-avatar-picker:hover {
+  color: var(--vc-fg);
+}
+
+.webhook-name-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.webhook-remove-avatar {
+  align-self: flex-start;
+  padding: 0;
+}
+
+.webhook-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

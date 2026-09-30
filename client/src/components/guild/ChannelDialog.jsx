@@ -3,17 +3,27 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHashtag, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import Modal from './Modal';
 import ChannelPermissions from './ChannelPermissions';
+import ChannelWebhooks from './ChannelWebhooks';
 import { createChannel, deleteChannel, updateChannel } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
 import { PERMISSIONS, colorToHex, has, memberRank } from '../../utils/permissions';
 
 // Creating a channel (no `channel`; in `categoryId` if given), optionally private to some
-// roles, or editing one: Overview (name, topic, category, delete) and, with Manage Roles,
-// Permissions (ChannelPermissions). The server checks every permission again.
+// roles, or editing one: Overview (name, topic, category, delete), with Manage Roles
+// Permissions (ChannelPermissions) and, for a text channel with Manage Webhooks, Webhooks
+// (ChannelWebhooks). The server checks every permission again.
 export default function ChannelDialog({ guild, channel, user, categoryId = null, onCreated, onClose }) {
   const editing = Boolean(channel);
   const managesRoles = has(guild.my_permissions, PERMISSIONS.MANAGE_ROLES);
-  const [tab, setTab] = useState('overview');
+  const managesWebhooks = editing && channel.type === 'text' && has(channel.my_permissions ?? guild.my_permissions, PERMISSIONS.MANAGE_WEBHOOKS);
+  // With only Manage Webhooks, a channel's settings are just its webhooks.
+  const managesChannels = has(guild.my_permissions, PERMISSIONS.MANAGE_CHANNELS);
+  const tabs = editing ? [
+    ...(managesChannels ? [['overview', 'Overview']] : []),
+    ...(managesRoles ? [['permissions', 'Permissions']] : []),
+    ...(managesWebhooks ? [['webhooks', 'Webhooks']] : []),
+  ] : [];
+  const [tab, setTab] = useState(tabs[0]?.[0] ?? 'overview');
   const [isPrivate, setIsPrivate] = useState(false);
   const [privateRoleIds, setPrivateRoleIds] = useState([]);
   const myRank = memberRank(guild, user.id, guild.my_role_ids);
@@ -61,8 +71,8 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
     <Modal
       title={editing ? `Edit #${channel.name}` : 'Create channel'}
       onClose={onClose}
-      className={tab === 'permissions' ? 'channel-dialog wide' : 'channel-dialog'}
-      actions={tab === 'permissions' ? (
+      className={tab !== 'overview' ? 'channel-dialog wide' : 'channel-dialog'}
+      actions={tab !== 'overview' ? (
         <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Done</button>
       ) : (
         <>
@@ -90,9 +100,9 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
         </>
       )}
     >
-      {editing && managesRoles && (
+      {tabs.length > 1 && (
         <div className="settings-tabs" role="tablist">
-          {[['overview', 'Overview'], ['permissions', 'Permissions']].map(([key, label]) => (
+          {tabs.map(([key, label]) => (
             <button
               key={key}
               type="button"
@@ -106,7 +116,9 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
           ))}
         </div>
       )}
-      {tab === 'permissions' ? <ChannelPermissions guild={guild} channel={channel} user={user} /> : (
+      {tab === 'permissions' && <ChannelPermissions guild={guild} channel={channel} user={user} />}
+      {tab === 'webhooks' && <ChannelWebhooks channel={channel} />}
+      {tab === 'overview' && (
       <form id="channel-form" className="vc-form" onSubmit={save}>
         {!editing && (
           <fieldset className="channel-type-choice">

@@ -1,4 +1,5 @@
 const db = require('./db');
+const { s3Endpoint } = require('./config');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('./sockets');
 const { sendPushToUser, getUserImageUrl } = require('./push');
 const { PERMISSIONS, has, channelPermissions } = require('./permissions');
@@ -40,8 +41,16 @@ async function channelViewers(channel) {
 
 // Who a message by `senderId` (with `permissions` in the channel) mentions:
 // { everyone: 0/1 (@everyone or @here pinged), roleIds: [], userIds: Set }.
-function resolveMentions(content, { senderId, permissions, viewers, roles }) {
+// `allowed` (webhooks' Discord `allowed_mentions`) narrows it: { parse: Set of 'users', 'roles',
+// 'everyone', users: Set of ids, roles: Set of ids }; without it, whatever the text asks for.
+function resolveMentions(content, { senderId, permissions, viewers, roles, allowed }) {
   const asked = parseMentions(content);
+  if (allowed) {
+    const only = (ids, kind) => new Set([...ids].filter((id) => allowed.parse.has(kind) || allowed[kind].has(id)));
+    asked.userIds = only(asked.userIds, 'users');
+    asked.roleIds = only(asked.roleIds, 'roles');
+    if (!allowed.parse.has('everyone')) asked.everyone = asked.here = false;
+  }
   const massMention = has(permissions, PERMISSIONS.MENTION_EVERYONE);
   const roleIds = roles
     .filter((r) => !r.is_everyone && asked.roleIds.has(r.id) && (r.mentionable || massMention))
@@ -63,10 +72,10 @@ function resolveMentions(content, { senderId, permissions, viewers, roles }) {
 
 // Works out and saves a message's mentions (replacing any from before an edit). Returns
 // { mentioned: Set of user ids, viewers }.
-async function saveMentions(message, channel, permissions) {
+async function saveMentions(message, channel, permissions, allowed) {
   const viewers = await channelViewers(channel);
   const roles = await db.all('SELECT id, name, mentionable, is_everyone FROM guild_roles WHERE guild_id = ?', [channel.guild_id]);
-  const found = resolveMentions(message.content, { senderId: message.sender_id, permissions, viewers, roles });
+  const found = resolveMentions(message.content, { senderId: message.sender_id, permissions, viewers, roles, allowed });
   await db.run(
     'UPDATE guild_messages SET mention_everyone = ?, mention_roles = ? WHERE id = ?',
     [found.everyone, found.roleIds.length ? JSON.stringify(found.roleIds) : null, message.id]
@@ -98,10 +107,19 @@ async function previewText(content, guildId) {
   return text.length > MAX_PREVIEW_LENGTH ? `${text.slice(0, MAX_PREVIEW_LENGTH - 1)}…` : text;
 }
 
+// What a push says for a message with no text (a webhook's embeds or files only).
+function fallbackPreview(message) {
+  const embed = message.embeds?.find((e) => e.title || e.description);
+  if (embed) return String(embed.title || embed.description).slice(0, MAX_PREVIEW_LENGTH);
+  const file = message.attachments?.[0];
+  return file ? `📎 ${file.filename}` : '';
+}
+
 // After a new message: tells the people mentioned (`guild_mention`, for their unread mention
 // counts) and pushes to every viewer whose notification level wants it ('all': every message;
-// 'mentions': when mentioned), unless they're looking at the channel.
-async function notifyNewMessage(message, channel, { mentioned, viewers }) {
+// 'mentions': when mentioned), unless they're looking at the channel. `silent` (a webhook's
+// "suppress notifications" flag, like Discord's): no pushes, the counts still go up.
+async function notifyNewMessage(message, channel, { mentioned, viewers }, { silent = false } = {}) {
   for (const userId of mentioned) {
     sendToUserSockets(userId, { type: 'guild_mention', guildId: channel.guild_id, channelId: channel.id, messageId: message.id });
   }
@@ -115,16 +133,19 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }) {
     if (level === 'none' || (level === 'mentions' && !mentioned.has(userId))) return false;
     return !isViewingConversation(userId, `channel-${channel.id}`);
   });
-  if (!recipients.length) return;
+  if (!recipients.length || silent) return;
 
   const guild = await db.get('SELECT name FROM guilds WHERE id = ?', [channel.guild_id]);
   const payload = {
     type: 'guild',
     title: `${message.sender_display_name || message.sender_username} (#${channel.name}, ${guild.name})`,
-    body: await previewText(message.content, channel.guild_id),
+    body: (await previewText(message.content, channel.guild_id)) || fallbackPreview(message),
     url: `/guild/${channel.guild_id}/${channel.id}`,
     tag: `channel-${channel.id}`,
-    image: await getUserImageUrl(message.sender_id),
+    // A webhook's own picture (ours, never another site's), else the sender's.
+    image: message.webhook_id
+      ? (message.webhook_avatar?.startsWith(s3Endpoint) ? message.webhook_avatar : '/default.png')
+      : await getUserImageUrl(message.sender_id),
     timestamp: message.timestamp,
   };
   for (const userId of recipients) {

@@ -10,7 +10,10 @@ const app = express();
 // nginx (on this machine) proxies every request, so the client's address is the last one it
 // adds to X-Forwarded-For; req.ip then is the visitor, not 127.0.0.1 (rate limits use it).
 app.set('trust proxy', 'loopback');
-app.use(express.json());
+// Webhook routes parse their own bodies (bigger JSON for pictures, forms, files); see
+// routes/webhooks.js.
+const json = express.json();
+app.use((req, res, next) => (/\/webhooks(\/|$)/.test(req.path) ? next() : json(req, res, next)));
 
 app.use(cors({
   origin(origin, callback) {
@@ -46,6 +49,9 @@ app.use('/api', require('./routes/uploads'));
 app.use('/api', require('./routes/avatars'));
 app.use('/api', require('./routes/gifs'));
 app.use('/api', require('./routes/admin'));
+// Discord's API also has versioned paths (/api/v10/webhooks/...); webhook clients use them.
+// (Longest first: Express hands a request to the first path that matches.)
+app.use(['/api/v10', '/api/v9', '/api/v8', '/api/v7', '/api/v6', '/api'], require('./routes/webhooks'));
 
 // Must be registered after all routes: Express only routes errors to error-handling
 // middleware added later in the stack. (Express 5 also sends rejected async handlers here.)

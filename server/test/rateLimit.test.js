@@ -57,4 +57,23 @@ describe('rate limits', () => {
     const res = await request(app).post('/api/initiatelogin').set(from('10.0.5.1')).send({ userIdentifier: { a: 1 }, startLoginRequest: 'x' });
     expect(res.status).toBe(400);
   });
+
+  it("limits each webhook to Discord's 5 requests per 2 seconds, with Discord's headers", async () => {
+    const { response: reg } = await registerUser(app, request, 'hook-owner', 'pw-hook-owner-1');
+    const { response: login } = await loginUser(app, request, 'hook-owner', 'pw-hook-owner-1');
+    const auth = { Authorization: `Bearer ${login.body.token}` };
+    expect(reg.status).toBe(201);
+    const guild = (await request(app).post('/api/guilds').set(auth).send({ name: 'Limits' })).body;
+    const hook = (await request(app).post(`/api/channels/${guild.channels[0].id}/webhooks`).set(auth).send({ name: 'Fast' })).body;
+    const post = () => request(app).post(`/api/webhooks/${hook.id}/${hook.token}`).send({ content: 'hi' });
+    for (let i = 0; i < 5; i++) {
+      const res = await post();
+      expect(res.status).toBe(204);
+      expect(res.headers['x-ratelimit-remaining']).toBe(String(4 - i));
+    }
+    const limited = await post();
+    expect(limited.status).toBe(429);
+    expect(limited.body).toMatchObject({ message: 'You are being rate limited.', global: false, retry_after: expect.any(Number) });
+    expect(limited.body.retry_after).toBeLessThanOrEqual(2);
+  });
 });

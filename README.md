@@ -166,11 +166,14 @@ One site per name, each with a certificate (`certbot --nginx -d <name>`):
 
 | Name | Serves |
 |---|---|
-| `voicaw.com` | static files, `root /opt/voicaw-client`, `try_files $uri $uri/ /index.html` |
+| `voicaw.com` | static files, `root /opt/voicaw-client`, `try_files $uri $uri/ /index.html`; `location /api/` → `http://localhost:3002` with `client_max_body_size 26M` |
 | `test.voicaw.com` | `http://localhost:5173` (vite dev, with websockets for hot reload) |
-| `api.voicaw.com` | `http://localhost:3002` (REST and the websocket) |
+| `api.voicaw.com` | `http://localhost:3002` (REST and the websocket), `client_max_body_size 26M` |
 | `media.voicaw.com` | the object store, `client_max_body_size 100M` |
 | `rtc.voicaw.com` | LiveKit signalling, `http://127.0.0.1:7880` |
+
+The API's `client_max_body_size 26M` is for webhooks (Discord's API): a post can carry up to
+25 MB of files, and nginx's default of 1 MB would refuse most of them.
 
 LiveKit's signalling is a long-lived websocket:
 

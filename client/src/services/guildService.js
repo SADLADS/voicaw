@@ -229,3 +229,24 @@ export async function deleteGuildEmoji(guildId, emojiId) {
 export async function saveGuildOrder(guildIds) {
   await api.put('/guilds-order', { guildIds });
 }
+
+// ---- Webhooks (server/routes/webhooks.js; Discord's API) ----
+
+// A channel's webhooks ([{ id, name, avatar_url, token, url, user, created_at }]).
+export async function fetchChannelWebhooks(channelId) {
+  return (await api.get(`/channels/${channelId}/webhooks`)).data;
+}
+
+// `avatar`: a data: URI (the server makes it a picture), as Discord's API takes it.
+export async function createWebhook(channelId, { name, avatar } = {}) {
+  return (await api.post(`/channels/${channelId}/webhooks`, { name, ...(avatar ? { avatar } : {}) })).data;
+}
+
+// Any of { name, avatar (data: URI, or null for none) }.
+export async function updateWebhook(webhookId, changes) {
+  return (await api.patch(`/webhooks/${webhookId}`, changes)).data;
+}
+
+export async function deleteWebhook(webhookId) {
+  await api.delete(`/webhooks/${webhookId}`);
+}

@@ -459,6 +459,31 @@ CREATE TABLE IF NOT EXISTS gif_favorites (
 );
 `);
 
+// WEBHOOKS (routes/webhooks.js, Discord's API): a URL with a secret token that posts into one
+// text channel, with its own name and picture. Messages it posts are guild_messages with
+// sender_id 0 (no user) and the webhook's name and picture as they were when sent (so old
+// messages keep them), plus Discord's embeds and attachments (JSON).
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_webhooks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id INTEGER NOT NULL,
+  channel_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  avatar TEXT,
+  token TEXT NOT NULL,
+  creator_id INTEGER,
+  created_at INTEGER NOT NULL
+);
+`);
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_webhooks_channel ON guild_webhooks (channel_id)');
+addColumn('ALTER TABLE guild_messages ADD COLUMN webhook_id INTEGER');
+addColumn('ALTER TABLE guild_messages ADD COLUMN webhook_name TEXT');
+addColumn('ALTER TABLE guild_messages ADD COLUMN webhook_avatar TEXT');
+addColumn('ALTER TABLE guild_messages ADD COLUMN embeds TEXT');
+addColumn('ALTER TABLE guild_messages ADD COLUMN attachments TEXT');
+addColumn('ALTER TABLE guild_messages ADD COLUMN flags INTEGER NOT NULL DEFAULT 0');
+addColumn('ALTER TABLE guild_messages ADD COLUMN edited_at INTEGER');
+
 // Changes to existing data that must happen once, numbered in SQLite's user_version (add the
 // next one at the end; each runs in its own transaction with its version bump):
 const MIGRATIONS = [
