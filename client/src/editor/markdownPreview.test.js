@@ -13,9 +13,18 @@ describe('markdownPreview', () => {
       ['syntax', '**'], ['bold', 'hello'], ['syntax', '**'],
       ['syntax', '*'], ['italic', 'world'], ['syntax', '*'],
     ]);
-    expect(spans('__b__ _i_ ~~s~~').map(([c]) => c)).toEqual([
-      'syntax', 'bold', 'syntax', 'syntax', 'italic', 'syntax', 'syntax', 'strike', 'syntax',
+    expect(spans('__u__ _i_ ~~s~~').map(([c]) => c)).toEqual([
+      'syntax', 'underline', 'syntax', 'syntax', 'italic', 'syntax', 'syntax', 'strike', 'syntax',
     ]);
+  });
+
+  it('shows spoilers, spaces inside allowed, with formatting inside', () => {
+    expect(spans('||secret|| and || **big** one ||')).toEqual([
+      ['syntax', '||'], ['spoiler', 'secret'], ['syntax', '||'],
+      ['syntax', '||'], ['spoiler', ' **big** one '], ['syntax', '**'], ['bold', 'big'], ['syntax', '**'], ['syntax', '||'],
+    ]);
+    expect(spans('||||')).toEqual([]);
+    expect(spans('a || b')).toEqual([]);
   });
 
   it('nests: ***both***, and bold inside italic', () => {
@@ -44,12 +53,12 @@ describe('markdownPreview', () => {
     expect(spans('\\*not italic*')).toEqual([['syntax', '\\']]);
   });
 
-  it('marks headings, quotes and code blocks as whole lines', () => {
+  it('marks quotes and code blocks as whole lines, but not headings (like Discord)', () => {
     const lines = markdownPreview(['# Title **x**', '> quoted', '```js', 'const a = **1**;', '```', 'after *it*', '#nope']);
     expect(lines.map((l) => l.block)).toEqual([
-      'md-heading md-h1', 'md-quote', 'md-code-block md-code-block-start', 'md-code-block', 'md-code-block md-code-block-end', null, null,
+      null, 'md-quote', 'md-code-block md-code-block-start', 'md-code-block', 'md-code-block md-code-block-end', null, null,
     ]);
-    expect(lines[0].spans.map((s) => s.className)).toEqual(['md-syntax', 'md-syntax', 'md-bold', 'md-syntax']);
+    expect(lines[0].spans.map((s) => s.className)).toEqual(['md-syntax', 'md-bold', 'md-syntax']);
     expect(lines[3].spans).toEqual([]);
     expect(lines[5].spans.map((s) => s.className)).toEqual(['md-syntax', 'md-italic', 'md-syntax']);
   });

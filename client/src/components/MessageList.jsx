@@ -17,6 +17,7 @@ import { isEmojiOnly } from '../emoji/emojiIndex';
 import { rehypeTwemoji } from '../emoji/rehypeTwemoji';
 import { customEmojiToText } from '../emoji/customEmoji';
 import { rehypeMentions } from '../utils/rehypeMentions';
+import { hideSpoilers, remarkDiscord } from '../utils/remarkDiscord';
 import { mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
@@ -27,11 +28,34 @@ const LocalAttachmentsContext = createContext(null);
 // meId, myRoleIds, everyone (whether it pinged @everyone/@here) }.
 const MentionContext = createContext(null);
 
+// A spoiler (`||text||`, from remarkDiscord): hidden until clicked (or Enter), then stays shown.
+function Spoiler({ children }) {
+  const [revealed, setRevealed] = useState(false);
+  if (revealed) return <span className="spoiler revealed">{children}</span>;
+  const reveal = (e) => {
+    e.stopPropagation();
+    setRevealed(true);
+  };
+  return (
+    <span
+      className="spoiler"
+      role="button"
+      tabIndex={0}
+      aria-label="Spoiler, select to reveal"
+      onClick={reveal}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); reveal(e); } }}
+    >
+      <span aria-hidden="true">{children}</span>
+    </span>
+  );
+}
+
 // A mention (from rehypeMentions): `@name`, highlighted more when it's you; a role in its colour;
 // @everyone/@here as a mention only if the message pinged them (else plain text).
-// Other spans (code highlighting) only have a class.
+// Spoilers (remarkDiscord) are drawn by Spoiler. Other spans (code highlighting) only have a class.
 function MarkdownSpan({ className, children, ...rest }) {
   const mentions = useContext(MentionContext);
+  if (className === 'spoiler') return <Spoiler>{children}</Spoiler>;
   const id = rest['data-mention-id'];
   const roleId = rest['data-role-mention-id'];
   const everyone = rest['data-mention-everyone'];
@@ -72,6 +96,8 @@ function MarkdownImage({ src, alt, className, title, ...rest }) {
 }
 
 const markdownComponents = { img: MarkdownImage, span: MarkdownSpan };
+// Discord's flavour: GFM for strikethrough and bare links, then remarkDiscord.
+const remarkPlugins = [remarkGfm, remarkDiscord, remarkEmoji];
 
 // react-markdown blanks URLs with unknown schemes; let draft placeholders through so
 // pending messages can show their attachments while uploading.
@@ -170,7 +196,7 @@ export function MessageRow({
               if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
             }}
           >
-            {mentionsToText(customEmojiToText(summarizeAttachments(parent.plaintext)), reactionNames, mentionRoles)?.slice(0, 80) || "…"}
+            {mentionsToText(customEmojiToText(hideSpoilers(summarizeAttachments(parent.plaintext))), reactionNames, mentionRoles)?.slice(0, 80) || "…"}
           </span>
         </div>
       )}
@@ -278,7 +304,7 @@ export function MessageRow({
             <LocalAttachmentsContext.Provider value={msg.localAttachments ?? null}>
               <MentionContext.Provider value={mentions}>
                 <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkEmoji]}
+                  remarkPlugins={remarkPlugins}
                   rehypePlugins={rehypePlugins}
                   urlTransform={urlTransform}
                   components={markdownComponents}

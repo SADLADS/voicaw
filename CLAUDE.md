@@ -714,8 +714,9 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   their exact `![name](url)`, so the link and its key never show), custom emoji `<:name:id>` are inline images. Markdown shows as
   it will look while typing, like Discord's box (`editor/markdownPreview.js`, drawn as
   decorations, so the text and its markers stay exactly as typed, markers dimmed): bold,
-  italic, strikethrough, inline code, ``` code blocks, `#`–`###` headings and `>` quotes. It's
-  a line-by-line approximation of CommonMark (what messages are rendered with). Unicode emoji stay text, drawn by the Twemoji font, so
+  italic, underline, strikethrough, spoilers, inline code, ``` code blocks and `>` quotes (not
+  headings: Discord doesn't preview them either). It's a line-by-line approximation of how
+  messages are rendered (see Message markdown). Unicode emoji stay text, drawn by the Twemoji font, so
   typing, autocorrect, IME and copy/paste stay plain. Pasting is always plain text (files go to
   attachments); edits past the length limit are refused. Saving an edit left empty or
   only whitespace cancels it (`ChatPane`). Enter sends on desktop, Shift+Enter is a
@@ -758,6 +759,20 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   menu's smiley opens `EmojiPicker` for it: floating by the button on desktop
   (`reactionPickerPosition`, a zero-size fixed `.reaction-picker-anchor`), docked in the keyboard's
   place on mobile, closing after the pick. Search matches several words ("thumbs up").
+
+### Message markdown (Discord's set)
+
+Messages are rendered by react-markdown with `remark-gfm` (strikethrough, bare links) and
+`utils/remarkDiscord.js`, which makes it Discord's markdown: `__text__` is underline (`<u>`),
+`||text||` a spoiler (hidden until clicked, `Spoiler` in `MessageList`; formatting works inside,
+code doesn't turn into one), and what Discord doesn't have stays as typed (micromark constructs
+switched off: indented code, `---` rules, `===` headings, tables, task lists, footnotes,
+`[x]: url` definitions; `####` and deeper headings are turned back into text). Kept: bold,
+italic, strikethrough, code, code blocks, `#`–`###` headings, `>` quotes, lists, links.
+Plain-text places hide spoilers as `[spoiler]` (`hideSpoilers`: reply previews, DM push
+previews; `server/mentions.js` does the same for guild pushes). Copying a message keeps its
+markdown. Styles are at the end of `dms.css` (MESSAGE MARKDOWN); only the text inside blocks
+keeps its line breaks (`pre-wrap`), so newlines between blocks don't show as blank lines.
 
 ### GIFs (Klipy)
 

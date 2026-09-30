@@ -1736,6 +1736,20 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   text-decoration: line-through;
 }
 
+.message-editor .md-underline {
+  text-decoration: underline;
+}
+
+.message-editor .md-strike.md-underline,
+.message-editor .md-underline .md-strike {
+  text-decoration: underline line-through;
+}
+
+.message-editor .md-spoiler {
+  border-radius: 3px;
+  background-color: var(--vc-bg-base);
+}
+
 .message-editor .md-code,
 .message-editor .md-code-block {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -1772,19 +1786,89 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   border-left: 3px solid var(--vc-border-light);
 }
 
-.message-editor p.md-heading {
+/* MESSAGE MARKDOWN (Discord's set, utils/remarkDiscord). Newlines between blocks are markup,
+   not text: only the text inside blocks keeps its line breaks. */
+.dm-message-content {
+  white-space: normal;
+}
+
+.dm-message-content :is(p, li, h1, h2, h3, td, th) {
+  white-space: pre-wrap;
+}
+
+.dm-message-content p {
+  margin: 0;
+}
+
+.dm-message-content :is(h1, h2, h3) {
+  margin: 4px 0 2px;
   font-weight: 700;
   line-height: 1.3;
 }
 
-.message-editor p.md-h1 {
-  font-size: 1.5em;
+.dm-message-content h1 {
+  font-size: 1.5rem;
 }
 
-.message-editor p.md-h2 {
-  font-size: 1.25em;
+.dm-message-content h2 {
+  font-size: 1.25rem;
 }
 
-.message-editor p.md-h3 {
-  font-size: 1.1em;
+.dm-message-content h3 {
+  font-size: 1rem;
+}
+
+.dm-message-content :is(ul, ol) {
+  margin: 0;
+  padding-left: 1.5em;
+}
+
+.dm-message-content blockquote {
+  margin: 0;
+  padding-left: 12px;
+  border-left: 4px solid var(--vc-border-light);
+}
+
+.dm-message-content :not(pre) > code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background-color: var(--vc-bg-elevated);
+  font-size: 0.875em;
+}
+
+.dm-message-content pre {
+  margin: 4px 0;
+  max-width: 90%;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 4px;
+  background-color: var(--vc-bg-base);
+}
+
+.dm-message-content pre code {
+  display: block;
+  padding: 8px;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* A spoiler: a dark block until clicked, then its text on a faint background. */
+.dm-message-content .spoiler {
+  border-radius: 3px;
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.dm-message-content .spoiler:not(.revealed) {
+  background-color: var(--vc-bg-base);
+  color: transparent;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.dm-message-content .spoiler:not(.revealed) * {
+  visibility: hidden;
+}
+
+.dm-message-content .spoiler:not(.revealed):hover {
+  background-color: #111114;
 }

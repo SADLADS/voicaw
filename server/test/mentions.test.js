@@ -86,7 +86,7 @@ describe('guild mentions', () => {
     const { owner, members: [bob, carol], general, guild } = await setUp(2);
     const bobEvents = connect(bob);
     const since = sentPushes.length;
-    const res = await say(owner, general, `hey <@${bob.id}> see ![cat\\_1.png](https://media.test/a.bin#k=SECRET) <:blob:9>`);
+    const res = await say(owner, general, `hey <@${bob.id}> see ![cat\\_1.png](https://media.test/a.bin#k=SECRET) <:blob:9> ||ending||`);
     expect(res.status).toBe(201);
 
     const pushes = await pushesSince(since);
@@ -94,7 +94,7 @@ describe('guild mentions', () => {
     expect(pushes[0].payload).toMatchObject({
       type: 'guild',
       title: `${owner.username} (#general, Pings)`,
-      body: `hey @${bob.username} see 📎 cat_1.png :blob:`,
+      body: `hey @${bob.username} see 📎 cat_1.png :blob: [spoiler]`,
       url: `/guild/${guild.id}/${general.id}`,
       tag: `channel-${general.id}`,
     });

@@ -59,6 +59,23 @@ describe('MessageList', () => {
     expect(screen.getByText('@unknown-user')).toHaveClass('mention');
   });
 
+  it('hides spoilers until clicked, and in reply previews', () => {
+    const messages = [
+      { id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'the ||butler __did__ it||', timestamp: 1000 },
+      {
+        id: 2, sender_id: 1, sender_username: 'alice', plaintext: 'no way', timestamp: 1001,
+        parent_message_id: 1, parent_plaintext: 'the ||butler __did__ it||', parent_username: 'bob', parent_sender_id: 2,
+      },
+    ];
+    render(<MessageList {...baseProps({ messages })} />);
+    const spoiler = screen.getByRole('button', { name: 'Spoiler, select to reveal' });
+    expect(spoiler.querySelector('u')).toHaveTextContent('did');
+    expect(screen.getByText('the [spoiler]')).toHaveClass('reply-preview');
+    fireEvent.click(spoiler);
+    expect(screen.queryByRole('button', { name: /Spoiler/ })).toBeNull();
+    expect(document.querySelector('.spoiler.revealed')).toHaveTextContent('butler did it');
+  });
+
   it('draws role mentions in their colour, and @everyone only when it pinged', () => {
     const messages = [
       { id: 1, sender_id: 2, sender_username: 'bob', plaintext: '<@&7> raid', timestamp: 1000, mention_roles: [7] },

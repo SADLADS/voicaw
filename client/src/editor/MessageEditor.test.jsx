@@ -59,9 +59,9 @@ describe('MessageEditor', () => {
     expect(element.querySelector('.md-italic')).toHaveTextContent('world');
     expect([...element.querySelectorAll('.md-syntax')].map((e) => e.textContent)).toEqual(['**', '**', '*', '*']);
     // A chip before it takes one position, so the styling still lines up.
-    act(() => ref.current.setText('![a.png](attachment:1) ~~gone~~\n# Title'));
+    act(() => ref.current.setText('![a.png](attachment:1) ~~gone~~\n> quote'));
     expect(element.querySelector('.md-strike')).toHaveTextContent('gone');
-    expect(element.querySelectorAll('p')[1]).toHaveClass('md-heading', 'md-h1');
+    expect(element.querySelectorAll('p')[1]).toHaveClass('md-quote');
   });
 
   it('reports text and the line up to the cursor', () => {

@@ -1,10 +1,13 @@
 // Markdown as you type (like Discord's message box): the text stays exactly as typed, markers
-// included, but is shown the way the message will look: **bold** (also __bold__), *italic*
-// (also _italic_), ~~strikethrough~~, `code`, ``` code blocks ```, # headings and > quotes. The
-// markers themselves are dimmed. This only draws (editor decorations); it never changes the text.
+// included, but is shown the way the message will look: **bold**, __underline__, *italic* (also
+// _italic_), ~~strikethrough~~, ||spoilers||, `code`, ``` code blocks ``` and > quotes (like
+// Discord, # headings aren't previewed, though messages show them). The markers themselves are
+// dimmed. This only draws (editor decorations); it never changes the text. Messages are drawn
+// with utils/remarkDiscord.
 //
 // It's a small approximation of CommonMark (what messages are rendered with), line by line:
-// emphasis only opens before a non-space and closes after one, `_` doesn't work inside words,
+// emphasis only opens before a non-space and closes after one (spoilers needn't), `_` doesn't
+// work inside words,
 // a backslash escapes the next character, and nothing inside `code` is formatted.
 
 // Each line becomes { block, spans }: `block` a class for the whole line (or null), `spans`
@@ -20,13 +23,6 @@ export function markdownPreview(lines) {
       return {
         block: `md-code-block${opening ? ' md-code-block-start' : ''}${fence && !opening ? ' md-code-block-end' : ''}`,
         spans: fence ? [{ from: 0, to: line.length, className: 'md-syntax' }] : [],
-      };
-    }
-    const heading = /^(#{1,3}) (?=\S)/.exec(line);
-    if (heading) {
-      return {
-        block: `md-heading md-h${heading[1].length}`,
-        spans: [{ from: 0, to: heading[0].length, className: 'md-syntax' }, ...inlineSpans(line, heading[0].length, line.length)],
       };
     }
     const quote = /^> /.exec(line);
@@ -46,8 +42,9 @@ const isWordChar = (ch) => ch !== undefined && /[\p{L}\p{N}]/u.test(ch);
 // Emphasis-like markers, longest first so ** is tried before *.
 const MARKERS = [
   { text: '**', className: 'md-bold' },
-  { text: '__', className: 'md-bold', wordBound: true },
+  { text: '__', className: 'md-underline', wordBound: true },
   { text: '~~', className: 'md-strike' },
+  { text: '||', className: 'md-spoiler', loose: true },
   { text: '*', className: 'md-italic' },
   { text: '_', className: 'md-italic', wordBound: true },
 ];
@@ -77,7 +74,7 @@ function findClose(line, marker, start, to) {
       let at = -1;
       if (len === 2 && run >= 2) at = r - 2;
       else if (len === 1 && run !== 2) at = r - 1;
-      if (at >= start + len + 1 && !isSpace(line[at - 1]) && !(marker.wordBound && isWordChar(line[at + len]))) {
+      if (at >= start + len + 1 && (marker.loose || !isSpace(line[at - 1])) && !(marker.wordBound && isWordChar(line[at + len]))) {
         return at;
       }
       j = r - 1;
@@ -127,7 +124,7 @@ function inlineSpans(line, from, to) {
     const marker = MARKERS.find((m) => line.startsWith(m.text, i));
     if (marker) {
       const len = marker.text.length;
-      const opens = !isSpace(line[i + len]) && !(marker.wordBound && isWordChar(line[i - 1]));
+      const opens = (marker.loose || !isSpace(line[i + len])) && !(marker.wordBound && isWordChar(line[i - 1]));
       const close = opens ? findClose(line, marker, i, to) : -1;
       if (close > 0) {
         spans.push(
