@@ -20,6 +20,6 @@ describe('UrlPreviews', () => {
     );
     const frames = container.querySelectorAll('iframe');
     expect(frames).toHaveLength(1);
-    expect(frames[0]).toHaveAttribute('src', 'https://www.youtube.com/embed/dQw4w9WgXcQ');
+    expect(frames[0]).toHaveAttribute('src', 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
   });
 });
