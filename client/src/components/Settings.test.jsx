@@ -13,6 +13,7 @@ import api from '../utils/api';
 import Settings from './Settings';
 import { InteractionContext } from '../contexts';
 import { AuthContext } from '../hooks/useAuth';
+import { MemoryRouter } from 'react-router-dom';
 
 function renderSettings({ onLogout = vi.fn(), interactionOverrides = {} } = {}) {
   const setInteractionMode = vi.fn();
@@ -21,7 +22,7 @@ function renderSettings({ onLogout = vi.fn(), interactionOverrides = {} } = {}) 
       <InteractionContext.Provider
         value={{ interactionMode: 'auto', setInteractionMode, ...interactionOverrides }}
       >
-        <Settings onLogout={onLogout} />
+        <MemoryRouter><Settings onLogout={onLogout} /></MemoryRouter>
       </InteractionContext.Provider>
     </AuthContext.Provider>
   );
@@ -111,7 +112,7 @@ describe('Settings', () => {
   it('calls setInteractionMode when the select changes', () => {
     const { setInteractionMode } = renderSettings();
 
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'mobile' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Interaction mode' }), { target: { value: 'mobile' } });
 
     expect(setInteractionMode).toHaveBeenCalledWith('mobile');
   });
@@ -135,3 +136,35 @@ describe('Settings', () => {
   });
 });
 
+describe('Settings layout, search and date formats', () => {
+  it('groups sections in categories, and a link jumps to its section', () => {
+    renderSettings();
+    const nav = screen.getByRole('navigation', { name: 'Settings sections' });
+    expect([...nav.querySelectorAll('.settings-nav-category')].map((e) => e.textContent)).toEqual(['My Account', 'App Settings', 'About']);
+    const scroll = vi.fn();
+    document.getElementById('settings-date-time').scrollIntoView = scroll;
+    fireEvent.click(screen.getByRole('button', { name: 'Date & time' }));
+    expect(scroll).toHaveBeenCalled();
+  });
+
+  it('search hides the sections that do not match, keeping them in the page', () => {
+    renderSettings();
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: '24-hour' } });
+    const nav = screen.getByRole('navigation', { name: 'Settings sections' });
+    expect([...nav.querySelectorAll('.settings-nav-item')].map((e) => e.textContent)).toEqual(['Date & time']);
+    expect(document.getElementById('settings-date-time')).not.toHaveAttribute('hidden');
+    expect(document.getElementById('settings-profile-picture')).toHaveAttribute('hidden');
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: 'zzz' } });
+    expect(screen.getByText('No settings match “zzz”.')).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('searchbox', { name: 'Search settings' }), { key: 'Escape' });
+    expect(document.getElementById('settings-profile-picture')).not.toHaveAttribute('hidden');
+  });
+
+  it('changes the date and time formats', () => {
+    renderSettings();
+    fireEvent.change(screen.getByLabelText('Date format'), { target: { value: 'ymd' } });
+    fireEvent.change(screen.getByLabelText('Time format'), { target: { value: '24' } });
+    expect(JSON.parse(localStorage.getItem('dateFormat'))).toEqual({ date: 'ymd', time: '24' });
+    expect(screen.getByText(/Messages will show: \d{4}-\d{2}-\d{2}, \d{2}:\d{2}\./)).toBeInTheDocument();
+  });
+});

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 
@@ -141,14 +141,21 @@ function AdminList({ admins, onChange, me }) {
 
 // Settings → Admin: app-wide settings, only shown to global admins (the server says who).
 // Changes apply at once on the server; other people's apps pick them up when they next load.
-export default function AdminSettings() {
+// `onAvailable()` runs once it turns out you're an admin (Settings shows the Admin category then).
+export default function AdminSettings({ onAvailable }) {
   const { user } = useAuth();
   const [data, setData] = useState(null);
+  const onAvailableRef = useRef(onAvailable);
+  onAvailableRef.current = onAvailable;
 
   useEffect(() => {
     let live = true;
     api.get('/admin').then(
-      ({ data: body }) => { if (live && body?.settings) setData(body); },
+      ({ data: body }) => {
+        if (!live || !body?.settings) return;
+        setData(body);
+        onAvailableRef.current?.();
+      },
       () => {} // 403: not an admin, nothing to show
     );
     return () => { live = false; };

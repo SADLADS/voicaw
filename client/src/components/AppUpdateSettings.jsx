@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { formatDateTime, useDateFormat } from '../utils/dateFormat';
 import { applyUpdate, checkForUpdates, useAppUpdate } from '../utils/appUpdate';
 
 const BUILD_TIME = import.meta.env.VITE_BUILD_TIME;
 
 // Settings card: which version this device runs, and a manual "Check for updates".
 export default function AppUpdateSettings() {
+  useDateFormat();
   const { available } = useAppUpdate();
   const [status, setStatus] = useState(null); // 'checking' | 'current' | 'unsupported' | 'error'
   const [updating, setUpdating] = useState(false);
@@ -37,7 +39,7 @@ export default function AppUpdateSettings() {
     <div className="settings-card">
       <h5>App Version</h5>
       {BUILD_TIME && (
-        <p className="app-version">Built {new Date(BUILD_TIME).toLocaleString()}</p>
+        <p className="app-version">Built {formatDateTime(BUILD_TIME)}</p>
       )}
       {message && <p className="notification-settings-status" role="status">{message}</p>}
       <div className="notification-settings-actions">

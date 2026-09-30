@@ -3,6 +3,9 @@
 // and sends a snapshot of everyone not offline each time this device (re)connects, then
 // changes (`user_status`, with `lastOnline` when someone goes offline). Until the first
 // snapshot, a user's own `status` / `last_online` fields (from the API) are used.
+
+import { formatDate } from './dateFormat';
+
 let haveSnapshot = false;
 const statuses = new Map(); // user id (string) -> status, for everyone not offline
 const lastOnlineById = new Map(); // user id -> unix seconds, from live offline events
@@ -71,7 +74,7 @@ export function lastSeenText(lastOnline, now = Date.now()) {
   if (hours < 24) return `Last seen ${rtf.format(-hours, 'hour')}`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `Last seen ${rtf.format(-days, 'day')}`;
-  return `Last seen ${new Date(lastOnline * 1000).toLocaleDateString()}`;
+  return `Last seen ${formatDate(lastOnline * 1000)}`;
 }
 
 // Whether this device is a phone or tablet (not the chosen layout: someone on a computer

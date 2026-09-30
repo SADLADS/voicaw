@@ -19,6 +19,7 @@ import { customEmojiToText } from '../emoji/customEmoji';
 import { rehypeMentions } from '../utils/rehypeMentions';
 import { hideSpoilers, remarkDiscord } from '../utils/remarkDiscord';
 import { continuesGroup } from '../utils/messageGroups';
+import { formatDateTime, formatTime, useDateFormat } from '../utils/dateFormat';
 import { mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
@@ -139,6 +140,7 @@ export function MessageRow({
   myRoleIds,
 }) {
   const emojiIndex = useEmojiIndex();
+  useDateFormat(); // redraws the times when Settings → Date & time changes
   // A picker or menu is open for this message: it stays highlighted with its menu showing.
   const focused = focusedMsgId === msg.id;
   // Mobile: touch and hold opens the message's action sheet (there's no hover there).
@@ -247,8 +249,8 @@ export function MessageRow({
         `}
       >
         {grouped ? (
-          <small className="message-hover-time" title={new Date(msg.timestamp * 1000).toLocaleString()}>
-            {new Date(msg.timestamp * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+          <small className="message-hover-time" title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>
+            {formatTime(msg.timestamp * 1000)}
           </small>
         ) : (
         <>
@@ -264,7 +266,7 @@ export function MessageRow({
         <strong className="message-author" style={{ color: nameColors?.[msg.sender_id] }}> {msg.sender_username}</strong>{' '}
 
         <small>
-          {new Date(msg.timestamp * 1000).toLocaleString()}
+          <span title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>{formatDateTime(msg.timestamp * 1000)}</span>
           {msg.edited ? <em style={{ marginLeft: '6px' }}>edited</em> : null}
           {/* Group DMs: sent before messages were signed (the sender can't be verified), or a
               signature that doesn't match the sender. */}

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Modal from './Modal';
 import { createInvite } from '../../services/guildService';
 import { errorMessage, inviteLink } from '../../utils/guildDisplay';
+import { formatDateTime } from '../../utils/dateFormat';
 
 const EXPIRY_OPTIONS = [
   [30 * 60, '30 minutes'],
@@ -49,7 +50,7 @@ export default function InviteDialog({ guild, onClose }) {
 
   const link = invite ? inviteLink(invite.code) : '';
   const summary = invite && [
-    invite.expires_at ? `Expires ${new Date(invite.expires_at * 1000).toLocaleString()}` : 'Never expires',
+    invite.expires_at ? `Expires ${formatDateTime(invite.expires_at * 1000)}` : 'Never expires',
     invite.max_uses ? `${invite.max_uses} use${invite.max_uses === 1 ? '' : 's'}` : null,
   ].filter(Boolean).join(' · ');
 

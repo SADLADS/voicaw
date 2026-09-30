@@ -911,6 +911,16 @@ their box is reserved before they load.
   `UrlPreviews`) and `Composer.jsx` (message box, emoji, reply bar, attachments via
   `hooks/useAttachmentDrafts.js`). `Dm.jsx` owns what several of them share: reply target, edit
   state, the composer error line, and which emoji picker is open (never both).
+- Settings (`Settings.jsx`, `/settings`): sections (each with a category, title and search
+  keywords, in its `sections` list) under My Account, App Settings, Admin (only once
+  `AdminSettings` finds you're an admin) and About. The side column (on top on a phone)
+  searches them (non-matching sections are hidden, not unmounted, so their state stays) and
+  jumps to one; `/settings#<section id>` opens scrolled there (e.g. `RecoveryPrompt`'s
+  `#account-security`). Add a new setting as a section there.
+- Dates and times all go through `utils/dateFormat.js` (`formatDate`, `formatTime`,
+  `formatDateTime`; components call `useDateFormat()` so they redraw): Settings → Date & time
+  picks the date format (automatic from the browser, DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD) and
+  12/24-hour time, per device (`localStorage dateFormat`). Don't call `toLocaleString` directly.
 - Text can't be selected except where it's useful (`voicaw.css`, TEXT SELECTION): inputs and
   editors everywhere, and on desktop the chat's messages, names, times, reply previews and the
   channel topic. So dragging things (channels, guilds) doesn't highlight text. On mobile a long

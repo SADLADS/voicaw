@@ -14,6 +14,7 @@ import {
   uploadGuildIcon,
 } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
+import { formatDateTime } from '../../utils/dateFormat';
 import { PERMISSIONS, has } from '../../utils/permissions';
 
 const MAX_ICON_BYTES = 8 * 1024 * 1024;
@@ -119,7 +120,7 @@ function Invites({ guild }) {
           <span className="guild-settings-code">{invite.code}</span>
           <span className="vc-hint">
             by {invite.creator_username} · {invite.uses}{invite.max_uses ? `/${invite.max_uses}` : ''} {(invite.max_uses || invite.uses) === 1 ? 'use' : 'uses'}
-            {invite.expires_at ? ` · expires ${new Date(invite.expires_at * 1000).toLocaleString()}` : ''}
+            {invite.expires_at ? ` · expires ${formatDateTime(invite.expires_at * 1000)}` : ''}
           </span>
           <button
             type="button"

@@ -11,6 +11,7 @@ import ConfirmDialog from './ConfirmDialog';
 import StatusIcon from '../StatusIcon';
 import { usePresence } from '../../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../../utils/presence';
+import { formatDate } from '../../utils/dateFormat';
 
 // The guild's members down the right (like Discord), names in their role colour. Clicking one
 // opens a card: their roles (added and removed there by people who manage roles, for roles
@@ -67,7 +68,7 @@ export default function MemberList({ guild, members: memberList, user, onClose }
         <div className={`member-card-status ${member.status}`}>
           {member.status === 'offline' ? lastSeenText(member.lastOnline) ?? statusLabel(member.status) : statusLabel(member.status)}
         </div>
-        <div className="vc-hint">Member since {new Date(member.joined_at * 1000).toLocaleDateString()}</div>
+        <div className="vc-hint">Member since {formatDate(member.joined_at * 1000)}</div>
 
         {(roles.length > 0 || editsRoles) && (
           <div className="member-card-roles">
