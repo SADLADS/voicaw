@@ -6,7 +6,7 @@ import '../../assets/css/voice.css';
 import { useCall } from '../../hooks/useCall';
 import { acceptCall, declineCall } from '../../voice/callClient';
 import UserAvatar from '../voice/UserAvatar';
-import { scrollToRight } from '../../utils/scrollToRight';
+import { showContent } from '../../utils/mobilePanes';
 import { LayoutContext } from '../../contexts';
 import { groupTitle } from '../../utils/groupDisplay';
 import { displayName, useProfiles } from '../../utils/profiles';
@@ -37,7 +37,7 @@ export default function IncomingCall({ user }) {
       <button type="button" className="call-button accept" aria-label="Accept" title="Accept" onClick={() => {
         acceptCall();
         navigate(call.groupId ? `/dm/g/${call.groupId}` : `/dm/${call.peerId}`);
-        scrollToRight();
+        showContent();
       }} disabled={answering}>
         <FontAwesomeIcon icon={faPhone} />
       </button>

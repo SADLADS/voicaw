@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { HashRouter, BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { ConfigContext, InteractionContext } from './contexts';
-import { scrollToRight } from './utils/scrollToRight';
+import { showContent } from './utils/mobilePanes';
 
 import Login from './components/Login.jsx';
 import Layout from './components/Layout.jsx';
@@ -42,6 +42,7 @@ function SWMessageHandler() {
           } else {
             navigate(event.data.url);
           }
+          showContent();
         }
       };
 
@@ -49,9 +50,6 @@ function SWMessageHandler() {
       return () => navigator.serviceWorker.removeEventListener('message', handler);
     }
   }, [navigate]);
-
-  // Mobile: open on the content pane rather than the sidebar.
-  useEffect(scrollToRight, []);
 
   return null;
 }
