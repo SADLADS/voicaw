@@ -88,10 +88,6 @@
   color: var(--vc-fg-muted);
 }
 
-.group-dot {
-  visibility: hidden;
-}
-
 /* Dialogs */
 .group-dialog .vc-dialog-body {
   display: flex;

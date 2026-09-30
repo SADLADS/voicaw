@@ -22,7 +22,7 @@ export default function ProfileCard({ user, color, children, draft, avatarSrc })
       <div className="profile-card-top">
         <span className="profile-card-avatar">
           <Avatar userId={user.id} src={avatarSrc} />
-          <StatusIcon className="member-status" status={presence.status} />
+          <StatusIcon status={presence.status} />
         </span>
         <div className="profile-card-names">
           <div className="profile-card-name" style={color ? { color } : undefined}>{name}</div>

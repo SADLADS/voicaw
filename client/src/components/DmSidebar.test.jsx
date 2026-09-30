@@ -46,7 +46,7 @@ describe('DmSidebar', () => {
     expect(aliceLink.className).not.toContain('active');
   });
 
-  const dotOf = (name) => screen.getByText(name).closest('a').querySelector('.online-dot');
+  const dotOf = (name) => screen.getByText(name).closest('a').querySelector('.status-icon');
 
   it('shows the status the API gave until the live one arrives', () => {
     renderSidebar(users);

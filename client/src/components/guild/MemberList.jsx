@@ -180,7 +180,7 @@ export default function MemberList({ guild, members: memberList, user, onClose }
         >
           <span className="member-avatar">
             <Avatar userId={member.id} />
-            <StatusIcon className="member-status" status={member.status} />
+            <StatusIcon status={member.status} />
           </span>
           <span className="member-name-block">
             <span className="member-name" style={{ color: color ?? undefined }}>{nameOf(member)}</span>

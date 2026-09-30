@@ -72,9 +72,9 @@ export default function Dm({ user }) {
         <>
           <h4 className="chat-recipient-header">
             {chatName || 'User'}
-            {presence && (
-              <span className={`chat-recipient-status ${presence.status}`}>
-                {presence.status === 'offline' ? lastSeenText(presence.lastOnline) ?? statusLabel(presence.status) : statusLabel(presence.status)}
+            {presence?.status === 'offline' && (
+              <span className="chat-recipient-status">
+                {lastSeenText(presence.lastOnline) ?? statusLabel('offline')}
               </span>
             )}
             {voiceEnabled && chatUser && sharedKey && !keyBlocked && (

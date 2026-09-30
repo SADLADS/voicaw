@@ -677,3 +677,42 @@ html {
 .settings-nav-item.active {
   background-color: var(--vc-bg-elevated-hover);
 }
+
+/* STATUS ICONS
+   Someone's online status (StatusIcon) on the bottom right corner of their picture, which must
+   be position: relative. A diamond (online, idle, offline), or a phone when only active on a
+   phone. The ring around it is the colour behind the row (--status-ring). */
+.status-icon {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  transform: rotate(45deg);
+  border: 2px solid var(--status-ring, var(--vc-bg-base));
+  background-color: var(--vc-border-light);
+}
+
+.status-icon.online {
+  background-color: var(--vc-online);
+}
+
+.status-icon.idle {
+  background-color: var(--vc-idle);
+}
+
+.status-icon.mobile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  right: -2px;
+  bottom: -2px;
+  width: 12px;
+  height: 16px;
+  transform: none;
+  border-width: 1px;
+  border-radius: 3px;
+  background-color: var(--status-ring, var(--vc-bg-base));
+  color: var(--vc-online);
+  font-size: 12px;
+}

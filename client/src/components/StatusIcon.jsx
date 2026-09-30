@@ -3,12 +3,13 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMobileScreenButton } from '@fortawesome/free-solid-svg-icons';
 import { statusLabel } from '../utils/presence';
 
-// Someone's online status as a dot (styled by `className` + the status: online, mobile, idle,
-// offline); a phone when they're only active on a phone.
-export default function StatusIcon({ status, className, title }) {
+// Someone's online status on the corner of their picture (the parent must be position:
+// relative): a diamond coloured by the status (online, idle, offline), or a phone when they're
+// only active on a phone. Styles: STATUS ICONS in voicaw.css.
+export default function StatusIcon({ status, title }) {
   const label = title ?? statusLabel(status);
   return (
-    <span className={`${className} ${status}`} title={label} role="img" aria-label={label}>
+    <span className={`status-icon ${status}`} title={label} role="img" aria-label={label}>
       {status === 'mobile' && <FontAwesomeIcon icon={faMobileScreenButton} />}
     </span>
   );

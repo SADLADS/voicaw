@@ -55,7 +55,6 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
                 onClick={scrollToRight}
                 className={`dm-user dm-group ${active ? 'active' : ''}`}
               >
-                <span className="online-dot group-dot" />
                 <span className={`userdot${group.unread > 0 && !active ? ' active' : ''}`} />
                 <div className="dm-user-container">
                   <span className="group-avatar">
@@ -80,15 +79,16 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
               onClick={scrollToRight}
               className={`dm-user ${id.toString() === activeId ? 'active' : ''}`}
             >
-              <StatusIcon
-                className="online-dot"
-                status={status}
-                title={status === 'offline' ? lastSeenText(lastOnline) ?? statusLabel(status) : undefined}
-              />
               <span className={`userdot${unreadFrom.has(String(id)) && String(id) !== activeId ? ' active' : ''}`} />
 
               <div className="dm-user-container">
-                <span>{avatar(id, name)}</span>
+                <span className="dm-user-avatar-wrap">
+                  {avatar(id, name)}
+                  <StatusIcon
+                    status={status}
+                    title={status === 'offline' ? lastSeenText(lastOnline) ?? statusLabel(status) : undefined}
+                  />
+                </span>
                 <span className="dm-user-names">
                   <span className="dm-user-name">{name}</span>
                   {profile.custom_status && <span className="dm-user-custom-status">{profile.custom_status}</span>}

@@ -19,10 +19,10 @@ try {
   const alice = await signUp(browser, 'alice');
   const bob = await signUp(browser, 'bob', { viewport: { width: 1100, height: 750 }, deviceScaleFactor: 2 });
   await openChat(bob.page, alice.id);
-  const dot = `a[href="/dm/${alice.id}"] .online-dot`;
+  const dot = `a[href="/dm/${alice.id}"] .status-icon`;
   const waitStatus = (status) => bob.page.waitForSelector(`${dot}.${status}`, { timeout: 30000 });
   await waitStatus('online');
-  await bob.page.waitForSelector('.chat-recipient-status.online:has-text("Online")');
+  if (await bob.page.$('.chat-recipient-status')) throw new Error('status text in the DM header while online');
 
   // Every class alice's dot has on bob's screen from now on.
   await bob.page.evaluate((sel) => {
@@ -42,7 +42,6 @@ try {
   // Ten minutes without input: idle.
   await alice.page.clock.fastForward('10:30');
   await waitStatus('idle');
-  await bob.page.waitForSelector('.chat-recipient-status.idle:has-text("Idle")');
   if (shots) await bob.page.locator(`a[href="/dm/${alice.id}"]`).screenshot({ path: `${shots}/presence-dm-idle.png` });
 
   // Alice on her phone too: her computer is idle, so mobile.
@@ -63,22 +62,22 @@ try {
   const invite = await api(bob.page, 'POST', `/guilds/${guild.id}/invites`);
   await api(phone, 'POST', `/invites/${invite.code}`);
   await bob.page.goto(`${BASE}/guild/${guild.id}`);
-  await bob.page.waitForSelector('.member-status.mobile');
+  await bob.page.waitForSelector('.member-avatar .status-icon.mobile');
   await shot(bob.page, 'presence-member-mobile');
   await bob.page.click(`.member-row:has-text("${alice.name}")`);
-  await bob.page.waitForSelector('.member-card-status.mobile:has-text("Online on mobile")');
+  await bob.page.waitForSelector('.profile-card-presence.mobile:has-text("Online on mobile")');
   await shot(bob.page, 'presence-member-card');
   if (shots) await bob.page.locator('.member-list').screenshot({ path: `${shots}/presence-members-mobile.png` });
 
   // Back at the computer: online beats mobile.
   await alice.page.mouse.move(200, 200);
   await alice.page.mouse.move(300, 300);
-  await bob.page.waitForSelector('.member-card-status.online:has-text("Online")', { timeout: 30000 });
+  await bob.page.waitForSelector('.profile-card-presence.online:has-text("Online")', { timeout: 30000 });
 
   // Neither touched for ten minutes: idle.
   await alice.page.clock.fastForward('10:30');
   await phone.clock.fastForward('10:30');
-  await bob.page.waitForSelector('.member-status.idle', { timeout: 30000 });
+  await bob.page.waitForSelector('.member-avatar .status-icon.idle', { timeout: 30000 });
   if (shots) await bob.page.locator('.member-list').screenshot({ path: `${shots}/presence-members-idle.png` });
   await bob.page.goBack();
   await bob.page.waitForSelector(dot);
@@ -92,7 +91,7 @@ try {
   if (await bob.page.$(`${dot}.offline`)) throw new Error('offline before the grace period');
   await waitStatus('offline');
   await bob.page.waitForSelector(`${dot}[title="Last seen just now"]`);
-  await bob.page.waitForSelector('.chat-recipient-status.offline:has-text("Last seen just now")');
+  await bob.page.waitForSelector('.chat-recipient-status:has-text("Last seen just now")');
   await shot(bob.page, 'presence-dm-offline');
   console.log('presence e2e: ok');
 } catch (err) {

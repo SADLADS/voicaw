@@ -180,38 +180,20 @@ small {
   }
 }
 
-.online-dot {
-  display: inline-block;
-  flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  margin-right: 6px;
-  transform: rotate(45deg);
-}
-
-.online-dot.online {
-  background-color: var(--vc-online);
-}
-
-.online-dot.idle {
-  background-color: var(--vc-idle);
-}
-
-.online-dot.offline {
-  background-color: var(--vc-border-light);
-}
-
-/* Active only on a phone: a phone instead of the diamond. */
-.online-dot.mobile {
+/* A DM row's picture, with the status icon on its corner. */
+.dm-user-avatar-wrap {
+  position: relative;
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transform: none;
-  color: var(--vc-online);
-  font-size: 11px;
+  flex-shrink: 0;
 }
 
+.dm-user.active {
+  --status-ring: var(--vc-bg-elevated);
+}
 
+.dm-user:hover {
+  --status-ring: var(--vc-bg-subtle);
+}
 
 /* Pending messages */
 .dm-message.pending {
@@ -750,15 +732,6 @@ small {
   font-weight: normal;
   color: var(--vc-fg-muted);
   vertical-align: middle;
-}
-
-.chat-recipient-status.online,
-.chat-recipient-status.mobile {
-  color: var(--vc-online);
-}
-
-.chat-recipient-status.idle {
-  color: var(--vc-idle);
 }
 
 .chat-recipient-header .key-status-badge {
@@ -2019,6 +1992,7 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   flex-shrink: 0;
   width: 56px;
   height: 56px;
+  --status-ring: var(--vc-bg-elevated);
 }
 
 .profile-card-avatar img {
@@ -2028,10 +2002,9 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   object-fit: cover;
 }
 
-.profile-card-avatar .member-status {
-  width: 16px;
-  height: 16px;
-  border-color: var(--vc-bg-elevated);
+.profile-card-avatar .status-icon:not(.mobile) {
+  width: 14px;
+  height: 14px;
 }
 
 .profile-card-names {
@@ -2058,6 +2031,10 @@ body.mobile-mode .each-dm-message-wrapper textarea {
 .profile-card-presence.online,
 .profile-card-presence.mobile {
   color: var(--vc-online);
+}
+
+.profile-card-presence.idle {
+  color: var(--vc-idle);
 }
 
 .profile-card-custom-status {

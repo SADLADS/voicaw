@@ -527,6 +527,7 @@ img.guild-icon {
 .member-row:hover,
 .member-row.selected {
   background-color: var(--vc-bg-hover);
+  --status-ring: var(--vc-bg-hover);
 }
 
 .member-row.offline {
@@ -550,66 +551,6 @@ img.guild-icon {
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-}
-
-.member-status {
-  position: absolute;
-  right: -2px;
-  bottom: -2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid var(--vc-bg-base);
-  background-color: var(--vc-border-light);
-}
-
-.member-status.online {
-  background-color: var(--vc-online);
-}
-
-/* Idle: a moon (a dot with a bite out of its top left). */
-.member-status.idle {
-  background-color: var(--vc-idle);
-  overflow: hidden;
-}
-
-.member-status.idle::after {
-  content: '';
-  position: absolute;
-  top: -3px;
-  left: -3px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background-color: var(--vc-bg-base);
-}
-
-/* Active only on a phone: a phone instead of the dot. */
-.member-status.mobile {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 12px;
-  height: 16px;
-  border-width: 1px;
-  border-radius: 3px;
-  background-color: var(--vc-bg-base);
-  color: var(--vc-online);
-  font-size: 12px;
-}
-
-.member-card-status {
-  font-size: 13px;
-  color: var(--vc-fg-muted);
-}
-
-.member-card-status.online,
-.member-card-status.mobile {
-  color: var(--vc-online);
-}
-
-.member-card-status.idle {
-  color: var(--vc-idle);
 }
 
 .member-name {
