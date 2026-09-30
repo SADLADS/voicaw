@@ -227,7 +227,9 @@ small {
 }
 
 .dm-message-content {
-  margin-left: 38px;
+  /* The avatar's column: wide enough for a grouped message's hover time ("10:18 AM"). The name
+     starts at the same place (.message-avatar's margin). */
+  margin-left: 56px;
 }
 
 
@@ -366,7 +368,7 @@ small {
   position: relative;
   display: flex;
   align-items: top;
-  padding-left: 82px;
+  padding-left: 100px;
   border-radius: 4px;
   overflow: hidden;
   cursor: pointer;
@@ -376,7 +378,7 @@ small {
   content: "";
   position: absolute;
   left: 25px;
-  width: 30px;
+  width: 48px;
   height: 50%;
   top: 11px;
   border-left: 2px solid var(--vc-fg-muted);
@@ -420,7 +422,7 @@ small {
   border-radius: 50%;
   object-fit: cover;
   margin: 5px;
-  margin-left: 60px;
+  margin-left: 78px;
 }
 
 .dm-message-content {
@@ -1452,6 +1454,8 @@ body.mobile-mode .reaction-chip.reaction-add {
 
 .dm-message img.message-avatar {
   display: inline;
+  /* So the name lines up with the text below (.dm-message-content's margin). */
+  margin-right: 20px;
 }
 
 /* Mobile message actions (MessageActionSheet): a sheet from the bottom over a dimmed page. */
@@ -1909,7 +1913,8 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   position: absolute;
   left: 10px;
   top: 3px;
-  width: 38px;
+  width: 50px;
+  text-align: center;
   font-size: 10px;
   line-height: 18px;
   color: var(--vc-fg-muted);

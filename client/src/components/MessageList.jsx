@@ -248,7 +248,7 @@ export function MessageRow({
       >
         {grouped ? (
           <small className="message-hover-time" title={new Date(msg.timestamp * 1000).toLocaleString()}>
-            {new Date(msg.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {new Date(msg.timestamp * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
           </small>
         ) : (
         <>
