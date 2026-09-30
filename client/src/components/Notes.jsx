@@ -59,6 +59,7 @@ export default function Notes({ user }) {
       </h4>
       {id && (
         <ChatPane
+          pollKind="dm"
           chatId="notes"
           chatName="Notes"
           user={user}

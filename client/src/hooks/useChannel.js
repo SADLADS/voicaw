@@ -15,7 +15,8 @@ export const CHANNEL_PAGE_SIZE = 50;
 
 // Guild messages are plain text; the message list reads `plaintext` (as for decrypted DMs).
 export function toChatMessage(row) {
-  return { ...row, plaintext: row.content, parent_plaintext: row.parent_content ?? null, reactions: row.reactions ?? [] };
+  // A "poll ended" row has no text of its own.
+  return { ...row, plaintext: row.system ? null : row.content, parent_plaintext: row.parent_content ?? null, reactions: row.reactions ?? [] };
 }
 
 // One guild text channel: loads and pages its history, sends, edits and deletes, applies live
@@ -172,6 +173,7 @@ export function useChannel({ channelId, user, onRead }) {
         if (prev.some((m) => m.id === saved.id)) return prev.filter((m) => m.id !== tempId);
         return prev.map((m) => (m.id === tempId ? { ...saved, clientKey: tempId, localAttachments, status: 'sent' } : m));
       });
+      return saved;
     } catch (err) {
       console.error('Error sending message:', err);
       updateMessage(tempId, () => ({ status: 'failed' }));

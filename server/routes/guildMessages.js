@@ -6,7 +6,8 @@ const { PERMISSIONS, has, channelPermissions } = require('../permissions');
 const { getChannelAccess, getMember, getOverrides, sendToChannel, getChannelViewers } = require('../guilds');
 const { saveMentions, notifyNewMessage } = require('../mentions');
 const { setPinned } = require('../pins');
-const { POLL_VOTE, parsePoll, isClosedPoll, pollEditError } = require('../polls');
+const { POLL_VOTE, parsePoll, isClosedPoll, pollEditError, reactionIdsFor, pollReactionsFor } = require('../polls');
+const { removePollRows } = require('../pollTimers');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
 // same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
@@ -23,11 +24,12 @@ const MAX_EMOJI_LENGTH = 64;
 const MESSAGE_SELECT = `
   SELECT
     m.id, m.channel_id, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
-    m.mention_everyone, m.mention_roles, m.pinned_at, m.pinned_by,
+    m.mention_everyone, m.mention_roles, m.pinned_at, m.pinned_by, m.system,
     m.webhook_id, m.webhook_name, m.webhook_avatar, m.embeds, m.attachments, m.flags, m.edited_at,
     COALESCE(u.username, m.webhook_name) AS sender_username,
     u.display_name AS sender_display_name,
     pm.content AS parent_content,
+    pm.timestamp AS parent_timestamp,
     pu.id AS parent_sender_id,
     COALESCE(pu.username, pm.webhook_name) AS parent_username
   FROM guild_messages m
@@ -39,7 +41,7 @@ const MESSAGE_SELECT = `
 // makes `mention_roles` (the roles it pinged), `embeds` and `attachments` arrays.
 async function withReactions(messages) {
   if (messages.length === 0) return messages;
-  const ids = messages.map((m) => m.id);
+  const ids = reactionIdsFor(messages);
   const rows = await db.all(
     `SELECT id, message_id, user_id, emoji, timestamp FROM guild_reactions
      WHERE message_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`,
@@ -53,6 +55,7 @@ async function withReactions(messages) {
     embeds: parseJsonList(m.embeds),
     attachments: parseJsonList(m.attachments),
     reactions: byMessage.get(m.id),
+    ...pollReactionsFor(m, byMessage),
   }));
 }
 
@@ -83,7 +86,7 @@ async function requireTextChannel(req, res, next) {
 async function requireMessage(req, res, next) {
   const messageId = Number(req.params.messageId);
   const message = Number.isInteger(messageId) && await db.get(
-    'SELECT id, channel_id, sender_id, content, timestamp FROM guild_messages WHERE id = ?',
+    'SELECT id, channel_id, sender_id, content, timestamp, system FROM guild_messages WHERE id = ?',
     [messageId]
   );
   const access = message && await getChannelAccess(message.channel_id, req.user.id);
@@ -164,6 +167,7 @@ router.post('/channels/:channelId/messages', authenticateJWT, requireTextChannel
 // Only the author can edit. Mentions are worked out again (without pushes, like Discord).
 router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async (req, res) => {
   if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+  if (req.message.system) return res.status(403).json({ error: "This message can't be edited" });
   const content = cleanContent(req.body?.content);
   if (!content) {
     return res.status(400).json({ error: `Messages are 1–${maxPlaintextLength} characters` });
@@ -194,13 +198,17 @@ router.delete('/guild-messages/:messageId', authenticateJWT, requireMessage, asy
   if (senderId !== req.user.id && !has(req.permissions, PERMISSIONS.MANAGE_MESSAGES)) {
     return res.status(403).json({ error: 'Not authorized to delete this message' });
   }
-  await db.transaction(async () => {
+  // A poll takes its "poll ended" row with it.
+  const removed = await db.transaction(async () => {
     await db.run('DELETE FROM guild_reactions WHERE message_id = ?', [id]);
     await db.run('DELETE FROM guild_mentions WHERE message_id = ?', [id]);
     await db.run('DELETE FROM guild_messages WHERE id = ?', [id]);
+    return removePollRows('guild', id);
   });
   const { guild_id: guildId, id: channelId } = req.channel;
-  await sendToChannel(req.channel, { type: 'guild_message_delete', guildId, channelId, messageId: id });
+  for (const messageId of [id, ...removed]) {
+    await sendToChannel(req.channel, { type: 'guild_message_delete', guildId, channelId, messageId });
+  }
   res.json({ success: true, deletedId: id });
 });
 

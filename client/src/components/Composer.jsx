@@ -23,7 +23,6 @@ import {
 import { useCustomEmoji } from '../emoji/customEmojiContext';
 import { searchMentions } from '../utils/mentions';
 import { gifMarkup } from '../utils/gifMarkup';
-import { pollMarkup } from '../utils/pollMarkup';
 import { displayName, nameOf, useProfiles } from '../utils/profiles';
 
 // ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
@@ -41,7 +40,8 @@ const MENTION_QUERY = /(?:^|[\s([{])@([^\s@<>]{0,32})$/;
 // `roleInfo` ({ id: { name, color } }) draws role mentions in the box) and the reply bar.
 //
 // `onSend({ text, replyTo, localAttachments, resolveText })` sends (see useConversation's
-// sendMessage). `error` is shown above the box (Dm reports its own errors there too). On
+// sendMessage); `onSendPoll({ poll, replyTo })` sends a poll made in PollDialog (see ChatPane).
+// `error` is shown above the box (Dm reports its own errors there too). On
 // mobile the emoji panel (`showEmojiPicker`) takes the keyboard's place; `onInputFocus`
 // runs when the keyboard is about to come up.
 export default function Composer({
@@ -59,6 +59,7 @@ export default function Composer({
   setShowEmojiPicker,
   onInputFocus,
   onSend,
+  onSendPoll,
   people,
   roles,
   roleInfo,
@@ -275,9 +276,7 @@ export default function Composer({
   // A poll goes out as its own message, replying if a reply is set up (like a GIF). The dialog
   // stays open (showing the error) if it can't be sent.
   async function sendPoll(poll) {
-    const text = pollMarkup(poll);
-    if (text.length > maxPlaintextLength) throw new Error('The poll is too long.');
-    await onSend({ text, replyTo });
+    await onSendPoll({ poll, replyTo });
     onCancelReply();
   }
 

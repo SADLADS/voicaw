@@ -11,6 +11,7 @@ import UrlPreviews from './UrlPreviews';
 import MessageEmbeds from './MessageEmbeds';
 import MessageFiles from './MessageFiles';
 import Poll from './Poll';
+import PollEndNotice from './PollEndNotice';
 import defaultAvatar from '../assets/images/default.png';
 import { useLongPress } from '../hooks/useLongPress';
 import MessageEditor from '../editor/MessageEditor';
@@ -493,6 +494,7 @@ export default function MessageList({
   onOpenReactionPicker,
   onVote,
   onEndPoll,
+  onJumpToMessage,
   reactionNames,
   onOpenActions,
   focusedMsgId,
@@ -646,8 +648,10 @@ export default function MessageList({
       <div className="message-scroller-content" ref={contentRef}>
         {messages.map((msg, i) => (
           <div key={rowKey(msg)} data-key={rowKey(msg)}>
-            {/* Group DMs: membership changes, between the messages. */}
-            {msg.system
+            {/* A poll's result when it closed; group DMs: membership changes, between the messages. */}
+            {msg.system === 'poll_end'
+              ? <PollEndNotice msg={msg} onJump={onJumpToMessage} />
+              : msg.system
               ? <p className="message-system">{msg.text}</p>
               : <MessageRow msg={msg} grouped={continuesGroup(messages[i - 1], msg)} {...rowProps} />}
           </div>

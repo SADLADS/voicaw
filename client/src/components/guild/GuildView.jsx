@@ -258,6 +258,7 @@ export default function GuildView({ user }) {
             <VoiceChannelView guild={guild} channel={channel} nameColors={nameColors} />
           ) : (
             <ChatPane
+              pollKind="guild"
               chatId={`channel-${channel.id}`}
               encrypted={false}
               chatName={`#${channel.name}`}

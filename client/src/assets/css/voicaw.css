@@ -39,6 +39,7 @@ textarea,
 [contenteditable="true"],
 body:not(.mobile-mode) .each-dm-message-wrapper :is(.dm-message-content, .message-author, small, .reply-author, .reply-preview),
 body:not(.mobile-mode) .message-system,
+body:not(.mobile-mode) .poll-end,
 body:not(.mobile-mode) .channel-header-topic {
   -webkit-user-select: text;
   user-select: text;

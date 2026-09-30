@@ -142,6 +142,7 @@ export default function Dm({ user }) {
 
           {!keyBlocked && (
             <ChatPane
+              pollKind="dm"
               chatId={id}
               chatName={chatName}
               user={user}

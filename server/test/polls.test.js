@@ -5,8 +5,18 @@ import request from 'supertest';
 import { registerUser, loginUser } from './helpers/authFlow.js';
 
 // Polls are messages (`poll:v1:` + JSON) and their votes reactions (`poll:<option id>`, client
-// utils/pollMarkup.js); the server only treats them specially in guilds.
+// utils/pollMarkup.js); the server only reads them in guilds. Everywhere, their authors register
+// when they close, and a "poll ended" row is posted then (pollTimers.js).
 const app = require('../index.js');
+const { announceDue } = require('../pollTimers.js');
+const clients = app.locals.clients;
+
+function listen(user) {
+  const events = [];
+  const ws = { readyState: 1, send: (m) => events.push(JSON.parse(m)) };
+  clients.set(String(user.id), [...(clients.get(String(user.id)) || []), ws]);
+  return events;
+}
 const { PERMISSIONS: P } = require('../permissions.js');
 
 let userCount = 0;
@@ -20,6 +30,7 @@ async function makeUser(prefix = 'poll-user') {
 
 const authed = (user) => ({ Authorization: `Bearer ${user.token}` });
 const api = {
+  get: (user, url) => request(app).get(`/api${url}`).set(authed(user)),
   post: (user, url, body = {}) => request(app).post(`/api${url}`).set(authed(user)).send(body),
   put: (user, url, body = {}) => request(app).put(`/api${url}`).set(authed(user)).send(body),
   delete: (user, url) => request(app).delete(`/api${url}`).set(authed(user)),
@@ -93,5 +104,73 @@ describe('guild polls', () => {
     expect((await edit(pollText({ x: now() }))).status).toBe(200);
     expect((await api.post(bob, `/guild-messages/${poll.id}/reactions`, { emoji: 'poll:aaaa1111' })).status).toBe(403);
     expect((await edit(pollText())).status).toBe(403); // closed for good
+  });
+});
+
+// In a DM the server only sees ciphertext; it doesn't need anything else.
+describe('DM polls', () => {
+  const REACTION = 'v1.' + 'A'.repeat(123) + '=';
+
+  it('posts a "poll ended" row when the poll is due, with the poll and its votes', async () => {
+    const [ann, bob] = [await makeUser('dmpoll'), await makeUser('dmpoll')];
+    const poll = (await api.post(ann, '/dm-send', { recipient_id: bob.id, content: 'v1.encrypted-poll' })).body;
+    expect((await api.post(bob, `/polls/dm/${poll.id}/timer`, { duration: 60 })).status).toBe(403);
+    expect((await api.post(ann, `/polls/dm/${poll.id}/timer`, { duration: 20 * 86400 })).status).toBe(400);
+    expect((await api.post(ann, `/polls/dm/${poll.id}/timer`, { duration: 60 })).body.ends_at).toBe(poll.timestamp + 60);
+    expect((await api.post(ann, `/polls/dm/${poll.id}/timer`, { duration: 5 })).status).toBe(409);
+    const vote = (await api.post(bob, '/dm-reactions', { messageId: poll.id, content: REACTION })).body;
+    await api.post(bob, `/dm-mark-read/${ann.id}`);
+
+    const bobEvents = listen(bob);
+    await announceDue();
+    expect(bobEvents.some((e) => e.type === 'new_dm')).toBe(false); // not yet
+    await db.run("UPDATE poll_timers SET ends_at = ends_at - 61 WHERE kind = 'dm' AND message_id = ?", [poll.id]);
+    await announceDue();
+    await announceDue(); // only once
+    const rows = bobEvents.filter((e) => e.type === 'new_dm').map((e) => e.message);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      system: 'poll_end', sender_id: ann.id, recipient_id: bob.id, parent_message_id: poll.id,
+      parent_content: 'v1.encrypted-poll', content: '',
+    });
+    expect(rows[0].poll_reactions.map((r) => r.id)).toEqual([vote.id]);
+    const history = (await api.get(bob, `/dm-messages/${ann.id}`)).body;
+    expect(history.at(-1)).toMatchObject({ id: rows[0].id, system: 'poll_end' });
+    expect((await api.get(bob, '/dm-get-unread')).body).toMatchObject([{ from_user_id: ann.id, count: 1 }]);
+    // Ending it now does nothing more; the row can't be edited.
+    expect((await api.post(ann, `/polls/dm/${poll.id}/end`)).status).toBe(409);
+    expect((await api.put(ann, `/update-message/${rows[0].id}`, { content: 'v1.x' })).status).toBe(403);
+  });
+
+  it('ends a poll at once, and deleting the poll deletes its row', async () => {
+    const [ann, bob] = [await makeUser('dmpoll'), await makeUser('dmpoll')];
+    const poll = (await api.post(ann, '/dm-send', { recipient_id: bob.id, content: 'v1.encrypted-poll' })).body;
+    await api.post(ann, `/polls/dm/${poll.id}/timer`, { duration: 3600 });
+    expect((await api.post(bob, `/polls/dm/${poll.id}/end`)).status).toBe(403);
+    const bobEvents = listen(bob);
+    const { messageId } = (await api.post(ann, `/polls/dm/${poll.id}/end`)).body;
+    expect(bobEvents.find((e) => e.type === 'new_dm').message.id).toBe(messageId);
+    await request(app).delete(`/api/messages/${poll.id}`).set(authed(ann));
+    expect(bobEvents.filter((e) => e.type === 'delete_dm').map((e) => e.messageId)).toEqual([poll.id, messageId]);
+    expect((await api.get(bob, `/dm-messages/${ann.id}`)).body).toEqual([]);
+    expect(await db.get("SELECT * FROM poll_timers WHERE kind = 'dm' AND message_id = ?", [poll.id])).toBeUndefined();
+  });
+});
+
+describe('guild poll rows', () => {
+  it('checks the duration against the poll, and needs the poll ended before its row', async () => {
+    const { owner, bob, general } = await setUp();
+    const poll = (await api.post(owner, `/channels/${general.id}/messages`, { content: pollText() })).body;
+    const plain = (await api.post(owner, `/channels/${general.id}/messages`, { content: 'hi' })).body;
+    expect((await api.post(owner, `/polls/guild/${plain.id}/timer`, { duration: 3600 })).status).toBe(400);
+    expect((await api.post(owner, `/polls/guild/${poll.id}/timer`, { duration: 60 })).status).toBe(400);
+    expect((await api.post(owner, `/polls/guild/${poll.id}/timer`, { duration: 3600 })).status).toBe(200);
+    expect((await api.post(owner, `/polls/guild/${poll.id}/end`)).status).toBe(400); // not ended in its text
+    await api.put(owner, `/guild-messages/${poll.id}`, { content: pollText({ x: now() }) });
+    const bobEvents = listen(bob);
+    const { messageId } = (await api.post(owner, `/polls/guild/${poll.id}/end`)).body;
+    const row = bobEvents.find((e) => e.type === 'guild_message_new').message;
+    expect(row).toMatchObject({ id: messageId, system: 'poll_end', parent_message_id: poll.id, poll_reactions: [] });
+    expect(row.parent_content).toContain('poll:v1:');
   });
 });
