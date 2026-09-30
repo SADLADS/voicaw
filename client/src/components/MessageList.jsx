@@ -181,6 +181,7 @@ export function MessageRow({
   nameColors,
   mentionRoles,
   myRoleIds,
+  encrypted = true,
 }) {
   const emojiIndex = useEmojiIndex();
   useDateFormat(); // redraws the times when Settings → Date & time changes
@@ -374,7 +375,7 @@ export function MessageRow({
           {grouped && msg.edited && editingMessageId !== msg.id ? <small className="message-edited">(edited)</small> : null}
           {grouped && editingMessageId !== msg.id ? pinMark : null}
 
-          <UrlPreviews text={msg.plaintext} />
+          <UrlPreviews text={msg.plaintext} encrypted={encrypted} />
         </div>
 
         {canReact && (
@@ -439,6 +440,7 @@ export default function MessageList({
   nameColors,
   mentionRoles,
   myRoleIds,
+  encrypted = true,
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
@@ -488,6 +490,7 @@ export default function MessageList({
     nameColors,
     mentionRoles,
     myRoleIds,
+    encrypted,
   };
 
   const rememberAnchor = useCallback(() => {

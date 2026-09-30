@@ -6,6 +6,7 @@
 // Stored object layout: 12-byte IV || AES-GCM ciphertext (incl. 16-byte tag).
 // URL: <fileUrl>#v=1&k=<base64url raw key>&t=<mime type>&s=<plaintext size in bytes>
 //      [&w=<width>&h=<height>]  (images/videos, so their space is reserved before loading)
+//      [&sp=1]  (marked as a spoiler: shown blurred until clicked)
 
 const IV_LENGTH = 12;
 export const ENCRYPTION_OVERHEAD_BYTES = IV_LENGTH + 16;
@@ -52,12 +53,13 @@ export async function decryptAttachment(encrypted, keyB64Url) {
   );
 }
 
-export function buildAttachmentUrl(fileUrl, { key, type, size, width, height }) {
+export function buildAttachmentUrl(fileUrl, { key, type, size, width, height, spoiler }) {
   const params = new URLSearchParams({ v: '1', k: key, t: type, s: String(size) });
   if (width > 0 && height > 0) {
     params.set('w', String(width));
     params.set('h', String(height));
   }
+  if (spoiler) params.set('sp', '1');
   return `${fileUrl}#${params}`;
 }
 
@@ -65,7 +67,7 @@ function positiveInt(value) {
   return /^[1-9]\d*$/.test(value ?? '') ? Number(value) : null;
 }
 
-// Returns { fileUrl, key, type, size } for an encrypted attachment URL, or null for any
+// Returns { fileUrl, key, type, size, width, height, spoiler } for an encrypted attachment URL, or null for any
 // other URL (legacy unencrypted uploads, external images, …).
 export function parseAttachmentUrl(url) {
   if (typeof url !== 'string') return null;
@@ -86,5 +88,6 @@ export function parseAttachmentUrl(url) {
     size: /^\d+$/.test(size ?? '') ? Number(size) : null,
     width: width && height ? width : null,
     height: width && height ? height : null,
+    spoiler: params.get('sp') === '1',
   };
 }

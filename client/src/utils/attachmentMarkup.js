@@ -54,9 +54,19 @@ export function replacePlaceholders(text, urlsById) {
   });
 }
 
+// Whether an attachment URL is marked as a spoiler (`sp=1` in its fragment, see
+// services/attachmentCrypto).
+function isSpoilerUrl(url) {
+  const hashIndex = url.indexOf('#');
+  return hashIndex !== -1 && new URLSearchParams(url.slice(hashIndex + 1)).get('sp') === '1';
+}
+
 // For places that show raw message text (notifications, reply previews): replaces each
-// embed with a short label so attachment URLs and keys aren't shown.
+// embed with a short label so attachment URLs and keys aren't shown. A spoiler's name could
+// give it away, so it's just "spoiler".
 export function summarizeAttachments(text) {
   if (!text) return text;
-  return text.replace(EMBED_RE, (match, alt) => `📎 ${unescapeAltText(alt) || 'attachment'}`);
+  return text.replace(EMBED_RE, (match, alt, url) =>
+    isSpoilerUrl(url) ? '📎 spoiler' : `📎 ${unescapeAltText(alt) || 'attachment'}`
+  );
 }

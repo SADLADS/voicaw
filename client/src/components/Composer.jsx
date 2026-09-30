@@ -239,7 +239,7 @@ export default function Composer({
         localAttachments: Object.fromEntries(
           sending.map((d) => [
             d.id,
-            { previewUrl: d.previewUrl, type: d.type, size: d.size, width: d.width, height: d.height },
+            { previewUrl: d.previewUrl, type: d.type, size: d.size, width: d.width, height: d.height, spoiler: !!d.spoiler },
           ])
         ),
         resolveText: sending.length > 0 ? async () => {
@@ -329,7 +329,7 @@ export default function Composer({
           </div>
         )}
 
-        <AttachmentTray drafts={visibleDrafts} onRemove={removeDraft} />
+        <AttachmentTray drafts={visibleDrafts} onRemove={removeDraft} onToggleSpoiler={attachments.toggleSpoiler} />
 
         <form id="dm-chat-form" className="d-flex flex-grow-1" onSubmit={handleSubmit}>
           <div className="attach-wrapper">
