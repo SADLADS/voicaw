@@ -6,7 +6,8 @@ import { emojiImageUrl } from '../emoji/emojiIndex';
 import { groupReactions } from '../utils/reactions';
 
 // A reaction's emoji: Unicode (as Twemoji), or a custom emoji's image (`:name:` if deleted).
-function ReactionEmoji({ native }) {
+// Poll answers' emoji too.
+export function ReactionEmoji({ native }) {
   const index = useEmojiIndex();
   const { s3Endpoint } = useContext(ConfigContext);
   const [failed, setFailed] = useState(false);

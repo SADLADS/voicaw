@@ -1,5 +1,5 @@
-// Polls in a real browser: made from the + menu, voted on live (encrypted DM, phone), changing
-// a single-choice vote, editing an answer drops its votes, a multiple-choice poll in a guild
+// Polls in a real browser: made from the + menu (with an answer's emoji), voted on live
+// (encrypted DM, phone), changing a single-choice vote, editing an answer (or its emoji) drops its votes, a multiple-choice poll in a guild
 // channel, and a one-answer poll.
 //   node e2e/serve.mjs &   then   node e2e/polls.mjs [screenshot dir]
 import { launchChrome, signUp, openChat, devices, BASE } from './helpers.mjs';
@@ -9,8 +9,16 @@ const shot = async (page, name) => {
   if (shots) await page.screenshot({ path: `${shots}/${name}.png` });
 };
 
-// Opens the + menu's poll dialog and posts a poll.
-async function createPoll(page, question, answers, { multi = false } = {}) {
+// Gives answer `n` (from 1) the first emoji the picker finds for `search`.
+async function pickAnswerEmoji(page, n, search) {
+  await page.click(`button[aria-label$="emoji to answer ${n}"], button[aria-label="Change the emoji of answer ${n}"]`);
+  await page.fill('.poll-emoji-anchor input[placeholder="Find the perfect emoji"]', search);
+  await page.click('.poll-emoji-anchor .emoji-picker-item >> nth=0');
+  await page.waitForSelector('.poll-emoji-anchor', { state: 'detached' });
+}
+
+// Opens the + menu's poll dialog and posts a poll (`emoji`: { answer number: search }).
+async function createPoll(page, question, answers, { multi = false, emoji = {} } = {}) {
   await page.click('.attach-button');
   await page.click('.composer-add-item:has-text("Create poll")');
   await page.fill('#poll-question', question);
@@ -21,6 +29,8 @@ async function createPoll(page, question, answers, { multi = false } = {}) {
   // A new poll starts with two rows; drop the unused one.
   if (answers.length === 1) await page.click('button[aria-label="Remove answer 2"]');
   if (multi) await page.check('text=Allow multiple answers');
+  for (const [n, search] of Object.entries(emoji)) await pickAnswerEmoji(page, n, search);
+  await shot(page, `dialog-${question.replace(/\W/g, '')}`);
   await page.click('.vc-dialog button:has-text("Post")');
   await page.waitForSelector('.vc-dialog', { state: 'detached' });
 }
@@ -51,8 +61,9 @@ try {
   await shot(a, '1-menu');
   await a.keyboard.press('Escape');
 
-  await createPoll(a, 'Lunch?', ['Pizza', 'Soup']);
+  await createPoll(a, 'Lunch?', ['Pizza', 'Soup'], { emoji: { 1: 'pizza' } });
   await b.waitForSelector('.poll-question:text-is("Lunch?")', { timeout: 10000 });
+  await b.waitForSelector('.poll-option:has-text("Pizza") .poll-option-emoji img.emoji[alt="🍕"]');
   await b.waitForSelector('.poll-kind:text("Select one answer")');
 
   // Bob (phone) votes; Alice sees it live. Then he changes his mind: still one vote.
@@ -89,6 +100,30 @@ try {
   await waitForCount(a, 'Lunch today?', 'Tomato soup', 1);
   console.log('DM poll: editing an answer drops its votes');
 
+  // Changing only an answer's emoji is an edit too; Escape in the picker leaves the dialog open.
+  const edited = a.locator('.each-dm-message-wrapper:has(.poll-question:text-is("Lunch today?"))');
+  await edited.hover();
+  await edited.locator('button:has(svg[data-icon="pen-to-square"])').click();
+  await a.click('button[aria-label="Change the emoji of answer 1"]');
+  await a.waitForSelector('.poll-emoji-anchor .emoji-picker');
+  await a.keyboard.press('Escape');
+  await a.waitForSelector('.poll-emoji-anchor', { state: 'detached' });
+  if (!(await a.isVisible('.vc-dialog:has-text("Edit poll")'))) throw new Error('Escape in the picker closed the dialog');
+  await pickAnswerEmoji(a, 2, 'tomato');
+  await a.waitForSelector('text=Changing an answer removes the votes it had.');
+  await a.click('.vc-dialog button:has-text("Save")');
+  await b.waitForSelector('.poll-option:has-text("Tomato soup") .poll-option-emoji img.emoji', { timeout: 10000 });
+  await waitForCount(a, 'Lunch today?', 'Tomato soup', 0);
+  await waitForCount(a, 'Lunch today?', 'Pizza', 0);
+  // Removing Pizza's emoji is also an edit.
+  await edited.hover();
+  await edited.locator('button:has(svg[data-icon="pen-to-square"])').click();
+  await a.click('button[aria-label="Remove the emoji of answer 1"]');
+  await a.click('.vc-dialog button:has-text("Save")');
+  await b.waitForFunction(() => !document.querySelector('.poll-option-emoji img[alt="🍕"]'), null, { timeout: 10000 });
+  await shot(b, '4b-emoji-phone');
+  console.log('DM poll: answer emoji show, and changing one drops its votes');
+
   // A poll with a single answer, and its reply preview.
   await createPoll(a, 'Anyone?', ['Me']);
   await waitForCount(b, 'Anyone?', 'Me', 0);
@@ -110,7 +145,7 @@ try {
   await b.goto(`${BASE}/guild/${guild.id}/${guild.channel}`);
   await a.waitForSelector('#dm-input');
   await b.waitForSelector('#dm-input');
-  await createPoll(a, 'Which days?', ['Mon', 'Tue', 'Wed'], { multi: true });
+  await createPoll(a, 'Which days?', ['Mon', 'Tue', 'Wed'], { multi: true, emoji: { 3: 'tada' } });
   await b.waitForSelector('.poll-kind:text("Select one or more answers")', { timeout: 10000 });
   await option(b, 'Which days?', 'Mon').tap();
   await waitForCount(a, 'Which days?', 'Mon', 1);

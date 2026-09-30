@@ -1,33 +1,51 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFaceSmile } from '@fortawesome/free-solid-svg-icons';
 import Modal from './guild/Modal';
+import EmojiPicker from './EmojiPicker';
+import { ReactionEmoji } from './MessageReactions';
 import {
   MAX_OPTION_LENGTH,
   MAX_POLL_OPTIONS,
   MAX_QUESTION_LENGTH,
   editedPoll,
   newOptionId,
+  optionChanged,
 } from '../utils/pollMarkup';
+import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 
 // Making a poll, or editing one (`poll`): a question and 1 to MAX_POLL_OPTIONS answers
-// (empty rows are left out), and whether more than one answer can be picked, which can't be
-// changed afterwards. Editing an answer's text drops its votes (see editedPoll).
+// (empty rows are left out), each with an optional emoji (the smiley button: the emoji
+// picker), and whether more than one answer can be picked, which can't be changed afterwards.
+// Editing an answer's text or emoji drops its votes (see editedPoll).
 // `onSubmit(poll)` (async) posts or saves it; its error is shown here.
 export default function PollDialog({ poll, onSubmit, onClose }) {
   const editing = Boolean(poll);
   const nextKey = useRef(0);
-  const row = (option) => ({ key: nextKey.current++, id: option?.id ?? null, text: option?.text ?? '' });
+  const row = (option) => ({ key: nextKey.current++, id: option?.id ?? null, text: option?.text ?? '', emoji: option?.emoji ?? null });
   const [question, setQuestion] = useState(poll?.question ?? '');
   const [options, setOptions] = useState(() => (poll ? poll.options.map(row) : [row(), row()]));
   const [multi, setMulti] = useState(poll?.multi ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const listRef = useRef(null);
+  // The answer whose emoji is being picked: { key, rect } (of its button).
+  const [pickingFor, setPickingFor] = useState(null);
+  const closePicker = useCallback(() => setPickingFor(null), []);
 
   const filled = options.filter((o) => o.text.trim());
   const valid = question.trim() && filled.length > 0;
 
   const setText = (key, text) => setOptions((list) => list.map((o) => (o.key === key ? { ...o, text } : o)));
+  const setEmoji = (key, emoji) => setOptions((list) => list.map((o) => (o.key === key ? { ...o, emoji } : o)));
   const remove = (key) => setOptions((list) => list.filter((o) => o.key !== key));
+
+  function togglePicker(key, button) {
+    if (pickingFor?.key === key) return setPickingFor(null);
+    const { top, bottom, left, right } = button.getBoundingClientRect();
+    setPickingFor({ key, rect: { top, bottom, left, right } });
+  }
 
   function addOption() {
     setOptions((list) => [...list, row()]);
@@ -41,10 +59,10 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
   async function submit(e) {
     e.preventDefault();
     if (!valid || busy) return;
-    const answers = filled.map((o) => ({ id: o.id, text: o.text.trim() }));
+    const answers = filled.map((o) => ({ id: o.id, text: o.text.trim(), emoji: o.emoji }));
     const next = editing
       ? editedPoll(poll, { question: question.trim(), options: answers })
-      : { question: question.trim(), multi, options: answers.map((o) => ({ id: newOptionId(), text: o.text })) };
+      : { question: question.trim(), multi, options: answers.map((o) => ({ ...o, id: newOptionId() })) };
     setBusy(true);
     setError(null);
     try {
@@ -56,14 +74,16 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
     }
   }
 
-  // An answer of an existing poll whose text has been changed loses its votes.
-  const changed = editing && options.some((o) => o.id && poll.options.find((p) => p.id === o.id)?.text !== o.text.trim());
+  // An answer of an existing poll whose text or emoji has been changed loses its votes.
+  const changed = editing && options.some((o) => o.id && o.text.trim() && optionChanged(poll, { ...o, text: o.text.trim() }));
+  const picker = pickingFor && reactionPickerPosition(pickingFor.rect);
 
   return (
     <Modal
       title={editing ? 'Edit poll' : 'Create a poll'}
       className="poll-dialog"
-      onClose={onClose}
+      // A click outside while picking an emoji only closes the picker (so does Escape, see Modal).
+      onClose={pickingFor ? closePicker : onClose}
       actions={(
         <>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
@@ -89,6 +109,31 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
         <div className="poll-dialog-options" ref={listRef}>
           {options.map((o, i) => (
             <div key={o.key} className="vc-form-row">
+              <span className="poll-dialog-emoji">
+                <button
+                  type="button"
+                  className="poll-dialog-emoji-button"
+                  aria-label={o.emoji ? `Change the emoji of answer ${i + 1}` : `Add an emoji to answer ${i + 1}`}
+                  title={o.emoji ? 'Change emoji' : 'Add emoji'}
+                  aria-expanded={pickingFor?.key === o.key}
+                  // Don't let the open picker's outside-click handler close it before this toggles.
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => togglePicker(o.key, e.currentTarget)}
+                >
+                  {o.emoji ? <ReactionEmoji native={o.emoji} /> : <FontAwesomeIcon icon={faFaceSmile} />}
+                </button>
+                {o.emoji && (
+                  <button
+                    type="button"
+                    className="poll-dialog-emoji-clear"
+                    aria-label={`Remove the emoji of answer ${i + 1}`}
+                    title="Remove emoji"
+                    onClick={() => setEmoji(o.key, null)}
+                  >
+                    ×
+                  </button>
+                )}
+              </span>
               <input
                 className="form-control"
                 aria-label={`Answer ${i + 1}`}
@@ -126,6 +171,16 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
         </label>
       </form>
       {error && <p className="error-msg" role="alert">{error}</p>}
+      {picker && createPortal(
+        <div className={`reaction-picker-anchor poll-emoji-anchor${picker.below ? ' below' : ''}`} style={picker.style}>
+          <EmojiPicker
+            autoFocus={false}
+            onSelect={(emoji) => setEmoji(pickingFor.key, emoji)}
+            onClose={closePicker}
+          />
+        </div>,
+        document.body
+      )}
     </Modal>
   );
 }

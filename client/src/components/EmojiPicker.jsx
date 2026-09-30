@@ -158,13 +158,16 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
   // Never leave the keyboard overlaying the page once the picker is gone.
   useEffect(() => () => { if (docked) setKeyboardOverlaysContent(false); }, [docked]);
 
-  // Close on outside click or Escape.
+  // Close on outside click or Escape. The Escape is marked handled, so a dialog the picker is
+  // open over (Modal) stays open.
   useEffect(() => {
     const onDown = (e) => {
       if (rootRef.current && !rootRef.current.contains(e.target)) onClose();
     };
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      onClose();
     };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);

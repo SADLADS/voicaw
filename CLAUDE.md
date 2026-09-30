@@ -107,7 +107,7 @@ node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
 node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show), Join Guild, phone
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
-node e2e/polls.mjs [dir]  # polls: + menu, vote live (phone), change vote, edit drops votes, one answer, guild multi
+node e2e/polls.mjs [dir]  # polls: + menu, answer emoji, vote live (phone), change vote, edits drop votes, guild multi
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
@@ -923,10 +923,12 @@ app-wide keys to `SETTINGS` and read them with `getSetting` rather than from `co
 
 Any chat (DM, notes, group DM, guild text channel) can have polls: the composer's `+` opens a
 menu (Upload a file / Create poll). `PollDialog.jsx` takes a question (300), 1–10 answers (55
-each) and "Allow multiple answers", which can't be changed after posting. A poll is sent as
+each, each with an optional emoji: Unicode or a guild's custom one, from `EmojiPicker` over the
+dialog; Escape there closes only the picker, since `EmojiPicker` marks it handled and `Modal`
+skips handled Escapes) and "Allow multiple answers", which can't be changed after posting. A poll is sent as
 its own message (replying if a reply is set, like a GIF).
 - **Format** (`utils/pollMarkup.js`): the message text is `poll:v1:` + JSON `{ q, multi, o:
-  [{ id, t }] }` (ids: 8 random `[a-z0-9]`), so in encrypted chats it's inside the encryption.
+  [{ id, t, e? }] }` (`e`: the answer's emoji, drawn like a reaction's, `ReactionEmoji`) (ids: 8 random `[a-z0-9]`), so in encrypted chats it's inside the encryption.
   `MessageList` draws it with `Poll.jsx` (bars, counts, who voted in the tooltip; results are
   always shown); plain-text places show "📊 Poll: <question>" (`summarizeAttachments`, and
   `server/mentions.js` for guild pushes). An app from before polls shows the raw text.
@@ -939,7 +941,7 @@ its own message (replying if a reply is set, like a GIF).
   choice. In guilds a vote only needs View Channel (not Add Reactions): the server accepts
   `poll:<8 chars>` on a message that starts with `poll:v1:` without it.
 - **Editing** (the author, Edit opens `PollDialog`, not the inline editor): question and
-  answers can change; an answer whose text changed gets a new id (`editedPoll`), so its votes
+  answers can change; an answer whose text or emoji changed gets a new id (`editedPoll`), so its votes
   stop counting. Nobody can delete other people's reactions, so those old votes stay stored
   until their owner votes again.
 - **Not done yet:** poll end times / closing a poll, hiding results until you vote.

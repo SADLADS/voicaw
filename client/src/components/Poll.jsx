@@ -1,4 +1,5 @@
 import React from 'react';
+import { ReactionEmoji } from './MessageReactions';
 import { tallyVotes } from '../utils/pollMarkup';
 
 // A poll message (utils/pollMarkup.js): the question, then each answer with a bar showing its
@@ -33,6 +34,7 @@ export default function Poll({ poll, reactions, userId, names, onVote }) {
             >
               <span className="poll-bar" style={{ width: `${share}%` }} aria-hidden="true" />
               <span className={`poll-check${poll.multi ? ' square' : ''}`} aria-hidden="true">{mine ? '✓' : ''}</span>
+              {option.emoji && <span className="poll-option-emoji"><ReactionEmoji native={option.emoji} /></span>}
               <span className="poll-option-text">{option.text}</span>
               <span className="poll-count">{who.length > 0 ? `${who.length} · ${share}%` : ''}</span>
             </button>

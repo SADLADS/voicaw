@@ -1,11 +1,12 @@
 // A poll is a message whose whole text is `poll:v1:` + JSON:
-//   { "q": question, "multi": false, "o": [{ "id": "k3j2h4g5", "t": "Answer" }, ...] }
+//   { "q": question, "multi": false, "o": [{ "id": "k3j2h4g5", "t": "Answer", "e": "🍕" }, ...] }
+// (`e`, optional: the answer's emoji, Unicode or a custom `<:name:id>`)
 // so in DMs and group DMs it's inside the encryption like any message. Votes are reactions
 // whose "emoji" is `poll:<option id>` (VOTE_PREFIX): stored, encrypted (DMs, groups), signed
 // (groups) and delivered exactly like reactions, so the server can't tell a vote from a
 // reaction in encrypted chats. Reaction chips leave them out (utils/reactions.js).
 //
-// Editing a poll gives every option whose text changed a new id, so the votes it had stop
+// Editing a poll gives every option whose text or emoji changed a new id, so the votes it had stop
 // counting (they point at an id that's gone). Voting clears your own such leftovers.
 
 export const POLL_PREFIX = 'poll:v1:';
@@ -15,6 +16,12 @@ export const MAX_QUESTION_LENGTH = 300;
 export const MAX_OPTION_LENGTH = 55;
 
 const OPTION_ID = /^[a-z0-9]{8}$/;
+const MAX_EMOJI_LENGTH = 64;
+
+// An answer's emoji if it looks like one (a short string without spaces), else null.
+function cleanEmoji(emoji) {
+  return typeof emoji === 'string' && emoji && emoji.length <= MAX_EMOJI_LENGTH && !/\s/.test(emoji) ? emoji : null;
+}
 const ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
 export function newOptionId() {
@@ -22,12 +29,12 @@ export function newOptionId() {
   return Array.from(bytes, (b) => ID_CHARS[b % ID_CHARS.length]).join('');
 }
 
-// { question, multi, options: [{ id, text }] } -> message text.
+// { question, multi, options: [{ id, text, emoji? }] } -> message text.
 export function pollMarkup({ question, multi, options }) {
   return POLL_PREFIX + JSON.stringify({
     q: question,
     multi: Boolean(multi),
-    o: options.map((o) => ({ id: o.id, t: o.text })),
+    o: options.map((o) => (o.emoji ? { id: o.id, t: o.text, e: o.emoji } : { id: o.id, t: o.text })),
   });
 }
 
@@ -46,26 +53,29 @@ export function parsePoll(text) {
   for (const o of data.o.slice(0, MAX_POLL_OPTIONS)) {
     if (!o || !OPTION_ID.test(o.id) || typeof o.t !== 'string' || !o.t.trim() || ids.has(o.id)) return null;
     ids.add(o.id);
-    options.push({ id: o.id, text: o.t.slice(0, MAX_OPTION_LENGTH) });
+    options.push({ id: o.id, text: o.t.slice(0, MAX_OPTION_LENGTH), emoji: cleanEmoji(o.e) });
   }
   if (options.length === 0) return null;
   return { question: data.q.slice(0, MAX_QUESTION_LENGTH), multi: data.multi === true, options };
 }
 
-// The poll after an edit: options keep their id only if their text is unchanged (so votes on
-// an edited option are dropped); new ones get a new id. `multi` can't change.
+// Whether an answer of `poll` was changed (text or emoji) in `option` ({ id, text, emoji }).
+export function optionChanged(poll, option) {
+  const old = poll.options.find((o) => o.id === option.id);
+  return !old || old.text !== option.text || (old.emoji ?? null) !== (option.emoji ?? null);
+}
+
+// The poll after an edit: options keep their id only if their text and emoji are unchanged
+// (so votes on an edited option are dropped); new ones get a new id. `multi` can't change.
 export function editedPoll(original, { question, options }) {
-  const unused = new Map();
-  for (const o of original.options) {
-    if (!unused.has(o.text)) unused.set(o.text, o.id);
-  }
   return {
     question,
     multi: original.multi,
-    options: options.map((o) => {
-      const keep = o.id && original.options.some((old) => old.id === o.id && old.text === o.text);
-      return { id: keep ? o.id : newOptionId(), text: o.text };
-    }),
+    options: options.map((o) => ({
+      id: o.id && !optionChanged(original, o) ? o.id : newOptionId(),
+      text: o.text,
+      emoji: o.emoji ?? null,
+    })),
   };
 }
 
