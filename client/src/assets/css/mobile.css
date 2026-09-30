@@ -1,29 +1,57 @@
+/* Phone: the list (rail + conversations or channels) underneath, and the content (the chat) on
+   top of it, swiped between (hooks/useSwipePanes.js). At rest the pane off screen is hidden,
+   and the one showing has no transform (it would become the containing block of anything
+   position: fixed inside); while moving, the hook sets the transforms. */
 .mobile-mode .slidey.main-wrapper {
-    display: flex !important;
-    flex-direction: row;
-    overflow-x: scroll !important;
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    height: 100%;
+    position: relative;
+    overflow: hidden;
+    height: 100svh;
     width: 100vw;
 }
 
 .mobile-mode .slidey .sidebar-wrapper,
 .mobile-mode .slidey .main-content-wrapper {
-    flex: 0 0 100vw;
+    position: absolute;
+    inset: 0;
+    width: 100%;
     height: 100svh;
-    scroll-snap-align: start;
-    overflow-y: auto;
 }
 
-.mobile-mode .slidey.main-wrapper::-webkit-scrollbar {
-    display: none;
+.mobile-mode .slidey .main-content-wrapper {
+    z-index: 2;
+    background-color: var(--vc-bg-subtle);
 }
 
-.mobile-mode .slidey.main-wrapper {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+.mobile-mode .slidey .pane-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background-color: #000;
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+}
+
+.mobile-mode .slidey.pane-list:not(.panes-moving) .main-content-wrapper {
+    transform: translate3d(100%, 0, 0);
+    visibility: hidden;
+}
+
+.mobile-mode .slidey.pane-content:not(.panes-moving) .sidebar-wrapper {
+    visibility: hidden;
+}
+
+.mobile-mode .slidey.panes-moving .main-content-wrapper {
+    box-shadow: -6px 0 18px rgba(0, 0, 0, 0.35);
+}
+
+.mobile-mode .slidey.panes-moving .pane-scrim {
+    visibility: visible;
+}
+
+.mobile-mode .slidey.panes-moving .sidebar-wrapper,
+.mobile-mode .slidey.panes-moving .main-content-wrapper {
+    will-change: transform;
 }
 
 /* Mobile has no hover menu: a long press opens MessageActionSheet instead. */

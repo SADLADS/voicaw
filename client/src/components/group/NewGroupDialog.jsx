@@ -6,7 +6,7 @@ import Modal from '../guild/Modal';
 import UserPicker from './UserPicker';
 import { createGroup } from '../../services/groupKeys';
 import { MAX_GROUP_MEMBERS } from '../../services/groupCrypto';
-import { scrollToRight } from '../../utils/scrollToRight';
+import { showContent } from '../../utils/mobilePanes';
 
 // Pick two or more people (and optionally a name) for a new group DM.
 export default function NewGroupDialog({ user, users, onCreated, onClose }) {
@@ -24,7 +24,7 @@ export default function NewGroupDialog({ user, users, onCreated, onClose }) {
       onCreated?.(group);
       onClose();
       navigate(`/dm/g/${group.id}`);
-      scrollToRight();
+      showContent();
     } catch (err) {
       setError(err.response?.data?.error ?? err.message);
       setBusy(false);

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faNoteSticky, faUserGroup } from '@fortawesome/free-solid-svg-icons';
-import { scrollToRight } from '../utils/scrollToRight';
+import { showContent } from '../utils/mobilePanes';
+import { InteractionContext } from '../contexts';
 import { usePresence } from '../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../utils/presence';
 import { groupTitle } from '../utils/groupDisplay';
@@ -19,6 +20,7 @@ import Avatar from './Avatar';
 export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) {
   useProfiles();
   const { id: activeId, groupId: activeGroupId } = useParams();
+  const { isMobile } = useContext(InteractionContext);
   const notesActive = useLocation().pathname === '/dm/notes';
   const presenceOf = usePresence();
   const [newGroup, setNewGroup] = useState(false);
@@ -47,7 +49,7 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
         </button>
       </h4>
       <div className="dm-notes-link-wrap">
-        <Link to="/dm/notes" onClick={scrollToRight} className={`dm-user dm-notes-link ${notesActive ? 'active' : ''}`}>
+        <Link to="/dm/notes" replace={isMobile} onClick={showContent} className={`dm-user dm-notes-link ${notesActive ? 'active' : ''}`}>
           <span className="dm-notes-icon"><FontAwesomeIcon icon={faNoteSticky} /></span>
           <span className="dm-user-name">Notes</span>
         </Link>
@@ -61,7 +63,9 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
               <Link
                 key={`g-${group.id}`}
                 to={`/dm/g/${group.id}`}
-                onClick={scrollToRight}
+                replace={isMobile}
+                replace={isMobile}
+              onClick={showContent}
                 className={`dm-user dm-group ${active ? 'active' : ''}`}
               >
                 <span className={`userdot${group.unread > 0 && !active ? ' active' : ''}`} />
@@ -85,7 +89,8 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
             <Link
               key={id}
               to={`/dm/${id}`}
-              onClick={scrollToRight}
+              replace={isMobile}
+              onClick={showContent}
               className={`dm-user ${id.toString() === activeId ? 'active' : ''}`}
             >
               <span className={`userdot${unreadFrom.has(String(id)) && String(id) !== activeId ? ' active' : ''}`} />

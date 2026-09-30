@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useContext } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useContext } from 'react';
 import { useLocation, Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import DmSidebar from './DmSidebar';
@@ -16,6 +16,7 @@ import { ConfigContext, InteractionContext, LayoutContext } from '../contexts';
 import { ensureSubscription, getPushStatus } from '../services/pushService';
 import { useGuildList } from '../hooks/useGuildList';
 import { useGroupList } from '../hooks/useGroupList';
+import { useSwipePanes } from '../hooks/useSwipePanes';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { clearProfiles, mergeProfiles } from '../utils/profiles';
 
@@ -39,6 +40,14 @@ export default function Layout({ user, onLogout }) {
   const { isMobile } = useContext(InteractionContext);
   const settingsColumn = location.pathname.startsWith('/settings') && !isMobile;
   const [settingsNavSlot, setSettingsNavSlot] = useState(null);
+
+  // Phone: the list and the chat are two panes, swiped between (hooks/useSwipePanes.js).
+  const slidey = isMobile && (isDmPage || Boolean(guildId));
+  const wrapperRef = useRef(null);
+  const listPaneRef = useRef(null);
+  const contentPaneRef = useRef(null);
+  const scrimRef = useRef(null);
+  const pane = useSwipePanes({ enabled: slidey, wrapperRef, listRef: listPaneRef, contentRef: contentPaneRef, scrimRef });
 
   // Leaving (or being removed from) the guild on screen goes back to the DMs.
   const onGuildRemoved = useCallback((removedId) => {
@@ -157,10 +166,10 @@ export default function Layout({ user, onLogout }) {
       settingsNavSlot: settingsColumn ? settingsNavSlot : null,
     }}>
     <CustomEmojiContext.Provider value={customEmoji}>
-      <div className={`${isDmPage || guildId ? 'slidey' : ''} main-wrapper d-flex`}>
+      <div ref={wrapperRef} className={`${slidey ? `slidey pane-${pane}` : ''} main-wrapper d-flex`}>
         {/* The user panel (and the voice bar above it, while in voice) sits under the
             conversation or channel list, or Settings' column (not on e.g. an invite page). */}
-        <SidebarWrapper footer={isDmPage || guildId || settingsColumn ? <><VoiceBar user={user} /><UserPanel user={user} onLogout={onLogout} /></> : null}>
+        <SidebarWrapper ref={listPaneRef} footer={isDmPage || guildId || settingsColumn ? <><VoiceBar user={user} /><UserPanel user={user} onLogout={onLogout} /></> : null}>
           {/* Main sidebar always shows */}
           <Sidebar
             user={user}
@@ -180,8 +189,10 @@ export default function Layout({ user, onLogout }) {
 
         <IncomingCall user={user} />
 
+        {slidey && <div ref={scrimRef} className="pane-scrim" aria-hidden="true" />}
+
         {/* The main page content */}
-        <div className='main-content-wrapper'>
+        <div ref={contentPaneRef} className='main-content-wrapper'>
           <Outlet />
         </div>
       </div>

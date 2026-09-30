@@ -13,7 +13,7 @@ import {
   faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import { ConfigContext, InteractionContext, LayoutContext } from '../../contexts';
-import { scrollToRight } from '../../utils/scrollToRight';
+import { showContent } from '../../utils/mobilePanes';
 import { groupChannels } from '../../utils/guildDisplay';
 import { leaveGuild, moveCategory, moveChannel } from '../../services/guildService';
 import { useChannelDrag } from '../../hooks/useChannelDrag';
@@ -127,7 +127,7 @@ export default function GuildSidebar({ guild, user }) {
     if (channel.type === 'voice' && !isMobile && voiceEnabled && has(channel.my_permissions, PERMISSIONS.CONNECT)) {
       joinVoice(guild.id, channel.id);
     }
-    scrollToRight();
+    showContent();
   }
 
   function renderChannel(channel) {
@@ -149,6 +149,7 @@ export default function GuildSidebar({ guild, user }) {
         <Link
           draggable={false}
           to={`/guild/${guild.id}/${channel.id}`}
+          replace={isMobile}
           onClick={() => openChannel(channel)}
           className="guild-channel-link"
           aria-current={active ? 'page' : undefined}

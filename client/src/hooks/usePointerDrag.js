@@ -4,6 +4,10 @@ const MOUSE_THRESHOLD_PX = 5;
 const TOUCH_HOLD_MS = 350;
 const TOUCH_SLOP_PX = 8;
 
+// A touch drag in progress anywhere, so the phone's pane swipe (useSwipePanes) leaves it alone.
+let touchDrag = null;
+export const isTouchDragging = () => touchDrag !== null;
+
 // The pointer side of dragging things around (useDragReorder builds a list on it): a mouse
 // drag starts after moving a few pixels, a touch drag after holding still for a moment (so a
 // swipe still scrolls), the page doesn't scroll while a touch drag is on, and the click that
@@ -20,6 +24,7 @@ export function usePointerDrag(handlers) {
   const finish = useCallback(() => {
     const state = pending.current;
     pending.current = null;
+    if (touchDrag === state) touchDrag = null;
     clearTimeout(state?.timer);
     window.removeEventListener('pointermove', state?.onMove);
     window.removeEventListener('pointerup', state?.onUp);
@@ -35,6 +40,7 @@ export function usePointerDrag(handlers) {
     const state = { item, pointerType: e.pointerType, startX: e.clientX, startY: e.clientY, dragging: false };
     const begin = (x, y) => {
       state.dragging = true;
+      if (state.pointerType === 'touch') touchDrag = state;
       latest.current.onStart?.(item, { x, y, dy: y - state.startY });
       if (state.pointerType === 'touch') navigator.vibrate?.(10);
     };

@@ -108,6 +108,7 @@ node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild p
 node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show), Join Guild, phone
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
 node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, results, Jump into another channel, private channel, phone
+node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertical scroll), back button, guild
 node e2e/polls.mjs [dir]  # polls: + menu, answer emoji, select then Vote (phone), results, who voted, edits drop votes, guild multi
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
@@ -1181,6 +1182,15 @@ their box is reserved before they load.
 - Scrollbars are styled once, in `voicaw.css` (SCROLLBARS): every scroll area inherits the pane
   look (like the message list); small boxes and pop-ups are listed there for the thin one. Don't
   style a new scroll area's scrollbar locally.
+- Phone panes (`hooks/useSwipePanes.js`, in `Layout`, DM and guild pages): the list (rail +
+  conversations or channels) underneath, the chat on top, Discord style. A sideways swipe
+  (decided after 8px, so scrolling never moves them; not in pickers, sheets, member panels or
+  anything that scrolls sideways itself) drags the chat with the finger, and letting go
+  finishes or undoes it by position and speed (a critically damped spring); the list moves a
+  little and dims behind it. The chat showing is its own history entry (`history.state.voicawPane`),
+  so back slides to the list; list rows navigate with `replace` on phones, so entries don't pile
+  up. Open the chat from elsewhere with `showContent()` (`utils/mobilePanes.js`). The panes only
+  have a transform while moving (a transform would trap `position: fixed` children).
 - Desktop vs. mobile layouts are two separate CSS files (`assets/css/desktop.css` /
   `mobile.css`) toggled via body classes rather than component-level responsive branches
 - PWA support via `vite-plugin-pwa` (`injectManifest` strategy, custom `src/service-worker.js`) —
