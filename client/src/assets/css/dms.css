@@ -393,13 +393,25 @@ small {
 }
 
 
+/* One line: the name keeps its place (it only shrinks past most of the line), and the preview
+   takes what's left, ending in "…" when it doesn't fit (long filenames included). */
 .reply-author {
+  flex-shrink: 0;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: bold;
   color: var(--vc-fg-muted);
   margin-right: 6px;
 }
 
 .reply-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--vc-fg-muted);
 }
 

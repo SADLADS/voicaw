@@ -203,7 +203,9 @@ export function MessageRow({
               if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
             }}
           >
-            {mentionsToText(customEmojiToText(hideSpoilers(summarizeAttachments(parent.plaintext))), reactionNames, mentionRoles)?.slice(0, 80) || "…"}
+            {/* One line (CSS cuts it with "…" where it runs out of room); the start is plenty. */}
+            {mentionsToText(customEmojiToText(hideSpoilers(summarizeAttachments(parent.plaintext))), reactionNames, mentionRoles)
+              ?.replace(/\s+/g, ' ').trim().slice(0, 300) || "…"}
           </span>
         </div>
       )}
