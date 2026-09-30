@@ -435,6 +435,30 @@ db.run(`
     UNIQUE(user_id, endpoint)
   );
   `);
+// ADMIN SETTINGS: app-wide settings a global admin edits (server/appSettings.js). A row
+// overrides the .env value of the same setting; no row falls back to .env.
+db.run('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0', () => {});
+db.run(`
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_by INTEGER,
+  updated_at INTEGER NOT NULL
+);
+`);
+
+// GIF FAVOURITES (the emoji picker's GIFs tab): per user, the GIF as the picker shows it (JSON).
+db.run(`
+CREATE TABLE IF NOT EXISTS gif_favorites (
+  user_id INTEGER NOT NULL,
+  gif_id TEXT NOT NULL,
+  gif TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, gif_id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+`);
+
 // Promise versions of the sqlite3 calls.
 function get(sql, params = []) {
   return new Promise((resolve, reject) =>

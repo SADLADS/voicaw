@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "admin": "node scripts/admin.js"
   },
   "keywords": [],
   "author": "",

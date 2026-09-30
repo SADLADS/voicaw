@@ -5,6 +5,7 @@ import { InteractionContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
 import AccountSecuritySettings from "./AccountSecuritySettings";
+import AdminSettings from "./AdminSettings";
 import { MAX_PROFILE_PIC_BYTES, uploadProfilePicture } from '../services/profileService';
 import { announceProfilePictureChange } from '../utils/profilePicture';
 
@@ -84,6 +85,7 @@ export default function Settings({ onLogout }) {
       </div>
       <NotificationSettings />
       <AppUpdateSettings />
+      <AdminSettings />
       <div className="settings-card">
         <h5>About</h5>
         <p className="settings-attribution">
@@ -94,6 +96,7 @@ export default function Settings({ onLogout }) {
           <a href="https://github.com/mrdrogdrog/twemoji-color-font" target="_blank" rel="noreferrer">twemoji-color-font</a>,
           licensed under the{' '}
           <a href="https://openfontlicense.org/open-font-license-official-text/" target="_blank" rel="noreferrer">SIL Open Font License 1.1</a>.
+          {' '}GIFs from <a href="https://klipy.com" target="_blank" rel="noreferrer">KLIPY</a>.
         </p>
       </div>
       <div className="settings-card">

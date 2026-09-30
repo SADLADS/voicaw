@@ -6,6 +6,7 @@ import { customEmojiText, customEmojiUrl, customUsageId, searchCustomEmoji } fro
 import { useCustomEmoji } from '../emoji/customEmojiContext';
 import { ConfigContext } from '../contexts';
 import GuildIcon from './guild/GuildIcon';
+import GifPicker from './GifPicker';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClock } from '@fortawesome/free-solid-svg-icons';
 import { useVisualViewport } from '../utils/useVisualViewport';
@@ -15,6 +16,12 @@ import { hasVirtualKeyboardApi, setKeyboardOverlaysContent, watchKeyboardRect } 
 const KEYBOARD_DEBUG = typeof location !== 'undefined' && new URLSearchParams(location.search).has('kbdebug');
 
 const TONE_SAMPLE = 'raised_hand';
+
+// The tab (Emoji or GIFs) the picker last had open, per device.
+const TAB_KEY = 'emojiPickerTab';
+function savedTab() {
+  try { return localStorage.getItem(TAB_KEY) === 'gifs' ? 'gifs' : 'emoji'; } catch { return 'emoji'; }
+}
 
 // Emoji images only load once they're within a screen of the picker's visible area. The
 // browser's own `loading="lazy"` looks much further ahead (hundreds of images on open), so
@@ -110,15 +117,21 @@ function CustomEmojiButton({ emoji, s3Endpoint, onPick, onHover, keepFocus }) {
 // categories, in your server rail order, with the server's icon in the category bar.
 // `autoFocus` focuses the search box on open.
 //
+// With `onGif` (the message box, when the server has GIFs set up) there's a GIFs tab too
+// (GifPicker, from Klipy, sharing the search box): picking one calls `onGif(gif)` and closes.
+//
 // `docked` (mobile): the picker takes the on-screen keyboard's place, `height` tall, instead
 // of floating over the chat, and has no hover preview (touch screens don't hover). Its
 // search box isn't focused on open (that would summon the keyboard); tapping it does, and the
 // picker then goes full screen above the keyboard for searching. Picking or going back
 // returns to the docked panel and dismisses the keyboard.
-export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docked = false, height }) {
+export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true, docked = false, height }) {
   const index = useEmojiIndex();
   const custom = useCustomEmoji();
-  const { s3Endpoint } = useContext(ConfigContext);
+  const { s3Endpoint, gifsEnabled } = useContext(ConfigContext) ?? {};
+  const hasGifs = Boolean(onGif && gifsEnabled);
+  const [tab, setTabState] = useState(savedTab);
+  const gifTab = hasGifs && tab === 'gifs';
   const [query, setQuery] = useState('');
   const [tone, setTone] = useState(getSkinTone);
   const [showTones, setShowTones] = useState(false);
@@ -209,6 +222,18 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
     searchRef.current?.blur(); // dismisses the keyboard
   };
 
+  const setTab = (value) => {
+    setTabState(value);
+    setQuery('');
+    try { localStorage.setItem(TAB_KEY, value); } catch { /* private mode */ }
+  };
+
+  const pickGif = (gif) => {
+    onGif(gif);
+    if (docked && searching) stopSearching();
+    onClose();
+  };
+
   const pick = (emoji, skin, event) => {
     if (emoji.guild) {
       recordEmojiUse(customUsageId(emoji.id));
@@ -227,6 +252,14 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
   };
 
   const onSearchKeyDown = (e) => {
+    // GIFs: Enter just puts the keyboard away (the results are already showing).
+    if (gifTab) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (docked) e.currentTarget.blur();
+      }
+      return;
+    }
     // Enter (the keyboard's search key on mobile) picks the top result.
     if (e.key === 'Enter' && results?.length) {
       e.preventDefault();
@@ -269,7 +302,7 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
 
   return (
     <div
-      className={`emoji-picker${docked ? ' docked' : ''}${docked && searching ? ' searching' : ''}`}
+      className={`emoji-picker${docked ? ' docked' : ''}${docked && searching ? ' searching' : ''}${gifTab ? ' gifs' : ''}`}
       style={
         docked && searching
           // Picker plus keyboard fill the screen, with no sliver of the page between them.
@@ -280,6 +313,22 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
       role="dialog"
       aria-label="Emoji picker"
     >
+      {hasGifs && !(docked && searching) && (
+        <div className="emoji-picker-tabs" role="tablist" aria-label="Picker">
+          {[['emoji', 'Emoji'], ['gifs', 'GIFs']].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={(id === 'gifs') === gifTab}
+              className={(id === 'gifs') === gifTab ? 'active' : undefined}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="emoji-picker-header">
         {docked && searching && (
           <button type="button" className="emoji-picker-back" onClick={stopSearching} aria-label="Close search">
@@ -291,7 +340,7 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
           className="emoji-picker-search"
           type="search"
           enterKeyHint="search"
-          placeholder="Find the perfect emoji"
+          placeholder={gifTab ? 'Search KLIPY' : 'Find the perfect emoji'}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onSearchKeyDown}
@@ -300,9 +349,9 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
           onPointerDown={docked ? () => setKeyboardOverlaysContent(true) : undefined}
           onFocus={docked ? () => { setKeyboardOverlaysContent(true); setSearching(true); } : undefined}
           onBlur={docked ? keyboardClosed : undefined}
-          aria-label="Search emoji"
+          aria-label={gifTab ? 'Search GIFs' : 'Search emoji'}
         />
-        {toneSample && !(docked && searching) && (
+        {toneSample && !gifTab && !(docked && searching) && (
           <div className="emoji-picker-tones">
             <button
               type="button"
@@ -333,7 +382,9 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
         )}
       </div>
 
-      {!index ? (
+      {gifTab ? (
+        <GifPicker query={query} onPick={pickGif} keepFocus={docked && searching} />
+      ) : !index ? (
         <div className="emoji-picker-empty">Loading emoji…</div>
       ) : (
         <div className="emoji-picker-body">
@@ -389,7 +440,7 @@ export default function EmojiPicker({ onSelect, onClose, autoFocus = true, docke
         </pre>
       )}
 
-      {!docked && (
+      {!docked && !gifTab && (
         <div className="emoji-picker-preview">
           {hovered?.guild ? (
             <>

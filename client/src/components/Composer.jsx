@@ -21,6 +21,7 @@ import {
 } from '../emoji/customEmoji';
 import { useCustomEmoji } from '../emoji/customEmojiContext';
 import { searchMentions } from '../utils/mentions';
+import { gifMarkup } from '../utils/gifMarkup';
 
 // ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
 const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
@@ -250,6 +251,19 @@ export default function Composer({
     }
   }
 
+  // A GIF from the picker goes straight out as its own message (like Discord), replying if a
+  // reply is set up; whatever is typed in the box stays there.
+  async function sendGif(gif) {
+    if (!chatName) return;
+    setError(null);
+    onCancelReply();
+    try {
+      await onSend({ text: gifMarkup(gif), replyTo });
+    } catch (err) {
+      setError(`GIF failed to send: ${err.message}`);
+    }
+  }
+
   // Escape cancels a reply.
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -268,7 +282,7 @@ export default function Composer({
     <>
       <div className={`dm-chat-wrapper${attachments.isDragOver ? ' drag-over' : ''}`} {...attachments.dropHandlers}>
         {showEmojiPicker && !isMobile && (
-          <EmojiPicker onSelect={insertEmoji} onClose={() => setShowEmojiPicker(false)} />
+          <EmojiPicker onSelect={insertEmoji} onGif={sendGif} onClose={() => setShowEmojiPicker(false)} />
         )}
 
         {emojiSuggestions.length > 0 && (
@@ -373,6 +387,7 @@ export default function Composer({
           docked
           height={getKeyboardHeight()}
           onSelect={insertEmoji}
+          onGif={sendGif}
           onClose={() => setShowEmojiPicker(false)}
         />
       )}

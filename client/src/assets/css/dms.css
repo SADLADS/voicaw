@@ -1008,6 +1008,157 @@ img.emoji,
   white-space: nowrap;
 }
 
+/* Emoji / GIFs tabs at the top of the picker (only when GIFs are set up). */
+.emoji-picker-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 8px 0;
+}
+
+.emoji-picker-tabs button,
+.gif-picker-views button {
+  border: none;
+  background: none;
+  color: var(--vc-fg-muted);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.emoji-picker-tabs button:hover,
+.gif-picker-views button:hover {
+  color: var(--vc-fg);
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.emoji-picker-tabs button.active,
+.gif-picker-views button.active {
+  color: var(--vc-fg);
+  background-color: var(--vc-bg-base);
+}
+
+/* The GIFs tab is wider on desktop, so two columns of GIFs aren't tiny. */
+.emoji-picker.gifs:not(.docked) {
+  width: 420px;
+}
+
+.gif-picker {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gif-picker-views {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px 0;
+}
+
+.gif-picker-views button {
+  font-size: 13px;
+  padding: 3px 8px;
+}
+
+.gif-picker-scroll {
+  padding-top: 8px;
+}
+
+.gif-grid {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.gif-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gif-tile {
+  position: relative;
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: var(--vc-bg-base);
+}
+
+.gif-tile-pick {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.gif-tile-pick img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gif-tile-pick:hover img,
+.gif-tile-pick:focus-visible img {
+  filter: brightness(1.1);
+}
+
+.gif-tile-pick:focus-visible {
+  outline: 2px solid var(--vc-accent);
+  outline-offset: -2px;
+}
+
+.gif-tile-favorite {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.gif-tile:hover .gif-tile-favorite,
+.gif-tile-favorite:focus-visible,
+.gif-tile-favorite.on {
+  opacity: 1;
+}
+
+.gif-tile-favorite.on {
+  color: #f5c518;
+}
+
+/* Touch screens don't hover: the star is always there. */
+@media (hover: none) {
+  .gif-tile-favorite {
+    opacity: 0.85;
+  }
+}
+
+.gif-picker-attribution {
+  padding: 10px 0 2px;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--vc-fg-muted);
+}
+
 /* ":shortcode" autocomplete */
 .emoji-suggestions {
   padding: 4px;

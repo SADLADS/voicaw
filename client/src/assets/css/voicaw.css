@@ -245,6 +245,47 @@ pre code {
   margin-top: 0.5rem;
 }
 
+/* Settings → Admin */
+.admin-setting {
+  max-width: 560px;
+  margin-bottom: 1rem;
+}
+
+.admin-setting > label {
+  font-weight: 600;
+}
+
+.admin-setting-help,
+.admin-setting-state {
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+  margin: 0.25rem 0;
+}
+
+.admin-setting-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-setting-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.admin-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
 .error-msg {
   color: var(--vc-danger);
   margin-top: 0.5rem;

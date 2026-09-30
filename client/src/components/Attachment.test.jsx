@@ -20,6 +20,17 @@ beforeEach(() => {
 });
 
 describe('Attachment', () => {
+  it('shows a GIF from the picker in its final size, without telling the GIF site where', () => {
+    const src = 'https://static.klipy.com/ii/a/b.webp#gif&w=498&h=374';
+    render(<Attachment src={src} alt="GIF" />);
+    const img = screen.getByRole('img', { name: 'GIF' });
+    expect(img).toHaveAttribute('src', src);
+    expect(img).toHaveAttribute('referrerpolicy', 'no-referrer');
+    expect(img.style.width).toBe('420px');
+    expect(img.style.aspectRatio).toBe('498 / 374');
+    expect(loadDecryptedAttachment).not.toHaveBeenCalled();
+  });
+
   it('renders legacy / external image URLs as a plain image without decrypting', () => {
     render(<Attachment src="https://media.voicaw.com/uploads/old.png" alt="old" />);
 

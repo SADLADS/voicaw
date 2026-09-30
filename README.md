@@ -67,6 +67,10 @@ LIVEKIT_URL=wss://rtc.voicaw.com          # what browsers connect to
 LIVEKIT_API_URL=http://127.0.0.1:7880     # how the API reaches LiveKit (default: LIVEKIT_URL over https)
 LIVEKIT_API_KEY=voicaw
 LIVEKIT_API_SECRET=...
+
+# GIFs in the emoji picker (an API key from partner.klipy.com). Optional: without it there's
+# no GIFs tab. A global admin can also set or replace it in Settings → Admin.
+KLIPY_API_KEY=...
 ```
 
 The web origins the API accepts are listed in `server/config.js` (`allowedOrigins`). Change
@@ -152,6 +156,13 @@ npm run build                # the static site, into /opt/voicaw-client
 ```
 
 Never run `pm2 update` on a shared host (see `CLAUDE.md`).
+
+Make yourself a global admin (Settings → Admin: app-wide settings such as the Klipy key, and
+who else is an admin) once you've registered:
+
+```sh
+cd server && npm run admin -- <username>     # --remove takes it away
+```
 
 ### 7. nginx
 

@@ -6,6 +6,9 @@ vi.mock('../utils/api', () => ({
   default: { get: vi.fn() },
 }));
 
+// Has its own tests (AdminSettings.test.jsx).
+vi.mock('./AdminSettings', () => ({ default: () => null }));
+
 import api from '../utils/api';
 import Settings from './Settings';
 import { InteractionContext } from '../contexts';

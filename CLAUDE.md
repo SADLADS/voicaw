@@ -102,6 +102,7 @@ node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, gr
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
+KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
 For voice, `serve.mjs` also runs its own LiveKit (the binary at `LIVEKIT_BIN`, default
@@ -115,7 +116,8 @@ Scripts need the same `E2E_WEB_PORT` as `serve.mjs` when not using the default.
 Never use ports 5173 or 3002 (the live test site and API) or 7880-7882 (the live LiveKit);
 `serve.mjs` refuses them. Kill test
 processes by PID, never `pkill -f` with a pattern that's in your own command line (it kills your
-shell). `e2e/helpers.mjs` has `signUp` (registers a user in its own browser context, unique
+shell). In the throwaway API, anyone whose name starts with `admin` is a global admin
+(`signUp(browser, 'admin')`). `e2e/helpers.mjs` has `signUp` (registers a user in its own browser context, unique
 name; returns its `password` and `recoveryCode` too), `openChat`, `send`, `launchChrome`, and `devices` (e.g. `devices['Pixel 7']` for a phone).
 Vite re-optimises its dependencies (and reloads the page) on its first start after the lockfile
 changes; if the first check fails that way, run it again.
@@ -150,12 +152,13 @@ unexpected errors. The rest:
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).
 - `groupDms.js`: group DMs (membership log checks, epochs, summaries; see Group DMs).
+- `appSettings.js`: app-wide settings a global admin edits (see Admin settings).
 - `routes/`: `auth.js` (OPAQUE register/login, profile), `dms.js` (conversations, send, edit,
   delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `guilds.js` (guilds,
   members, invites, bans, categories, channels), `guildMessages.js` (channel messages, reactions,
   read state), `voice.js` (join token, mute/deafen, leave, LiveKit webhook), `calls.js` (DM
   calls), `groupDms.js` (group DMs), `push.js`
-  (subscriptions), `uploads.js`.
+  (subscriptions), `uploads.js`, `gifs.js` (Klipy search proxy, GIF favourites), `admin.js`.
 
 Client tests sit next to their source files (`src/**/*.test.{js,jsx}`). The default environment is
 `node`; component tests opt into DOM with a `// @vitest-environment jsdom` header on the first
@@ -180,7 +183,8 @@ stop working in the next major version of npm"; it still works, but will need re
 `server/.env`): `JWT_SECRET`, `OPAQUE_SERVER_SETUP`, `VAPID_EMAIL`, `VAPID_PUBLIC_KEY`,
 `VAPID_PRIVATE_KEY`, `S3_ENDPOINT`, `S3_ROOT_USER`, `S3_ROOT_PASSWORD`. Voice channels also need
 `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (and `LIVEKIT_API_URL` to reach LiveKit
-directly); without them voice is just off. `README.md` "Initial setup" has the whole list. VAPID keys are generated
+directly); without them voice is just off. `KLIPY_API_KEY` turns on GIFs (also settable in
+Settings → Admin, see Admin settings). `README.md` "Initial setup" has the whole list. VAPID keys are generated
 via `webpush.generateVAPIDKeys()` (see root `README.md`). `S3_*` vars point at an S3-compatible
 object store (e.g. MinIO) used for uploads and profile pics.
 
@@ -750,6 +754,38 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   menu's smiley opens `EmojiPicker` for it: floating by the button on desktop
   (`reactionPickerPosition`, a zero-size fixed `.reaction-picker-anchor`), docked in the keyboard's
   place on mobile, closing after the pick. Search matches several words ("thumbs up").
+
+### GIFs (Klipy)
+
+The emoji picker in the message box has an Emoji / GIFs tab bar when the server has a Klipy key
+(`/api/config` `gifsEnabled`; read when the app loads). `components/GifPicker.jsx` shares the
+picker's search box (so mobile docked search works the same), shows Trending or Favourites
+without a query, loads pages as you scroll, lays GIFs out in two shortest-first columns, and
+has a star on each for favourites. The last tab is remembered (`localStorage emojiPickerTab`).
+- **Server** (`routes/gifs.js`): `GET /gifs/trending|search?q=&page=` proxy Klipy, so the key
+  stays on the server and Klipy gets an HMAC pseudonym per user (`customer_id`), not who's
+  searching. Results are cut down to `{ id, title, url (hd WebP), width, height, preview (sm),
+  previewWidth, previewHeight }`; ads and anything not on `https://static.klipy.com/` are
+  dropped. Favourites: `gif_favorites`, `GET /gif-favorites` (newest first), `PUT/DELETE
+  /gif-favorites/:id` (max 500; only Klipy URLs), so they follow you between devices.
+- **Sending:** picking one sends it at once as its own message (replying if a reply is set;
+  the typed text stays): `![GIF](<url>#gif&w=<px>&h=<px>)` (`utils/gifMarkup.js`), inside
+  the encryption in DMs/groups. `Attachment` reserves its box from the fragment and loads it
+  straight from Klipy's CDN with `referrerPolicy="no-referrer"`. So in encrypted chats Klipy
+  can see the IP addresses of people viewing a GIF (not the chat or its text). Reply previews
+  show "📎 GIF".
+
+### Admin settings
+
+Global admins (`users.is_admin`; the first made with `npm run admin -- <username>` in
+`server/`, then others from the panel) get an Admin card in Settings (`AdminSettings.jsx`; the
+server's 403 hides it from everyone else). App-wide settings are declared in
+`server/appSettings.js` (`SETTINGS`: label, description, `env` fallback, `secret`); a value saved
+there (`app_settings` table, cached in memory) overrides the `.env` one, and clearing it goes
+back. Secrets are write-only: the panel only shows where the value comes from and its last 4
+characters. `GET /admin`, `PUT /admin/settings/:key { value | null }`, `POST /admin/admins
+{ username }`, `DELETE /admin/admins/:id` (not yourself). Only the Klipy key for now; add new
+app-wide keys to `SETTINGS` and read them with `getSetting` rather than from `config.js`.
 
 ### Mentions
 

@@ -8,6 +8,7 @@ import { placeholderIdFromUrl } from '../utils/attachmentMarkup';
 import { triggerDownload } from '../utils/saveFile';
 import { ImageViewerContext } from '../contexts';
 import { galleryAround, galleryItemRef } from '../utils/imageGallery';
+import { parseGifUrl } from '../utils/gifMarkup';
 
 function kindOf(type) {
   if (type?.startsWith('image/')) return 'image';
@@ -54,10 +55,12 @@ function reservedBoxStyle(width, height) {
 
 // An image in a message; clicking (or Enter) opens it in the full-screen viewer, along with
 // the message's other images. `item` is its gallery item (utils/imageGallery.js).
-function ViewableImage({ src, item, style, onError }) {
+// `external`: from another site (a GIF, an old plain link), which isn't told where it's shown.
+function ViewableImage({ src, item, style, onError, external = false }) {
   const viewer = useContext(ImageViewerContext);
   const { name } = item;
-  if (!viewer) return <img className="attachment-media" style={style} src={src} alt={name} onError={onError} />;
+  const referrerPolicy = external ? 'no-referrer' : undefined;
+  if (!viewer) return <img className="attachment-media" style={style} src={src} alt={name} onError={onError} referrerPolicy={referrerPolicy} />;
   const open = (e) => viewer.openImage(galleryAround(e.currentTarget));
   return (
     <img
@@ -68,6 +71,7 @@ function ViewableImage({ src, item, style, onError }) {
       src={src}
       alt={name}
       onError={onError}
+      referrerPolicy={referrerPolicy}
       role="button"
       tabIndex={0}
       onClick={open}
@@ -202,8 +206,21 @@ export default function Attachment({ src, alt, localAttachments }) {
       : <span className="attachment-missing">📎 {name}</span>;
   }
 
+  // A GIF from the picker (utils/gifMarkup.js): its size is known, so its box is too.
+  const gif = parseGifUrl(src);
+  if (gif) {
+    return (
+      <ViewableImage
+        src={src}
+        item={{ src, name, width: gif.width, height: gif.height }}
+        style={reservedBoxStyle(gif.width, gif.height)}
+        external
+      />
+    );
+  }
+
   const meta = parseAttachmentUrl(src);
-  if (!meta) return <ViewableImage src={src} item={{ src, name }} />;
+  if (!meta) return <ViewableImage src={src} item={{ src, name }} external />;
 
   return <EncryptedAttachment url={src} meta={meta} name={name} />;
 }

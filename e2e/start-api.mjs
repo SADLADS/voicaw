@@ -76,3 +76,17 @@ require.cache[s3Path] = {
 };
 // Load index.js as the main module, so it listens and starts the websocket server.
 require('module')._load(serverIndex, null, true);
+
+// Browser checks of Settings → Admin: anyone who signs up with a name starting "admin" is a
+// global admin here (in the real app, `npm run admin -- <name>` in server/).
+const db = require('./db.js');
+for (let tries = 0; ; tries += 1) {
+  try {
+    await db.run(`CREATE TRIGGER IF NOT EXISTS e2e_admins AFTER INSERT ON users WHEN NEW.username LIKE 'admin%'
+      BEGIN UPDATE users SET is_admin = 1 WHERE id = NEW.id; END`);
+    break;
+  } catch (err) {
+    if (tries > 50) throw err; // the schema is still being made
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
