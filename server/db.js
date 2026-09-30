@@ -439,6 +439,9 @@ addColumn('ALTER TABLE users ADD COLUMN display_name TEXT');
 addColumn('ALTER TABLE users ADD COLUMN custom_status TEXT');
 addColumn('ALTER TABLE users ADD COLUMN bio TEXT');
 addColumn('ALTER TABLE users ADD COLUMN avatar TEXT');
+// The name an account's OPAQUE record was registered under, when it isn't its (lower-case)
+// username: see usernames.js.
+addColumn('ALTER TABLE users ADD COLUMN opaque_id TEXT');
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS app_settings (
   key TEXT PRIMARY KEY,
@@ -511,6 +514,25 @@ function indexRow(row) {
   if (text) sqlite.prepare('INSERT INTO guild_messages_fts (rowid, text) VALUES (?, ?)').run(row.id, text);
 }
 
+// "Alice" becomes "alice", with "Alice" as the display name unless there already is one, and
+// opaque_id keeping "Alice" so the password still works. An account whose lower-case name is
+// already taken keeps its capitals (it logs in with them exactly). Migration 5; exported for
+// its test.
+function lowercaseUsernames() {
+  const users = sqlite.prepare('SELECT id, username, display_name FROM users ORDER BY id').all();
+  const taken = new Set(users.filter((u) => u.username === u.username.toLowerCase()).map((u) => u.username));
+  const rename = sqlite.prepare(
+    'UPDATE users SET username = ?, opaque_id = ?, display_name = COALESCE(display_name, ?) WHERE id = ?'
+  );
+  for (const user of users) {
+    const lower = user.username.toLowerCase();
+    if (lower === user.username || taken.has(lower)) continue;
+    taken.add(lower);
+    // Display names are at most 32 characters (profiles.js); usernames never had a limit.
+    rename.run(lower, user.username, user.username.length <= 32 ? user.username : null, user.id);
+  }
+}
+
 // Changes to existing data that must happen once, numbered in SQLite's user_version (add the
 // next one at the end; each runs in its own transaction with its version bump):
 const MIGRATIONS = [
@@ -531,6 +553,8 @@ const MIGRATIONS = [
   () => {
     for (const row of sqlite.prepare('SELECT id, content, embeds, attachments FROM guild_messages').all()) indexRow(row);
   },
+  // 5. Usernames are lower case (usernames.js).
+  () => lowercaseUsernames(),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');
@@ -637,4 +661,4 @@ async function indexGuildMessage(id) {
   if (row) indexRow(row);
 }
 
-module.exports = { db: sqlite, get, all, run, transaction, indexGuildMessage };
+module.exports = { db: sqlite, get, all, run, transaction, indexGuildMessage, lowercaseUsernames };

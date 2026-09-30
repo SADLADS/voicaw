@@ -4,6 +4,7 @@
 // one admin, they can add others in the app.
 require('dotenv').config({ quiet: true });
 const db = require('../db');
+const { findUserByName } = require('../usernames');
 
 async function main() {
   const args = process.argv.slice(2);
@@ -13,11 +14,12 @@ async function main() {
     console.error('Usage: npm run admin -- <username> [--remove]');
     process.exit(1);
   }
-  const { changes } = await db.run('UPDATE users SET is_admin = ? WHERE username = ?', [remove ? 0 : 1, username]);
-  if (!changes) {
+  const user = await findUserByName(username, 'id');
+  if (!user) {
     console.error(`No user called ${username}`);
     process.exit(1);
   }
+  await db.run('UPDATE users SET is_admin = ? WHERE id = ?', [remove ? 0 : 1, user.id]);
   console.log(remove ? `${username} is no longer an admin` : `${username} is now an admin`);
   db.db.close();
 }

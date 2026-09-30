@@ -167,6 +167,7 @@ unexpected errors. The rest:
 - `appSettings.js`: app-wide settings a global admin edits (see Admin settings).
 - `pins.js`: pinning and unpinning a message, the same for every kind of chat (see Pinned messages).
 - `polls.js`: reading guild polls, when they close, and what an edit may change (see Polls).
+- `usernames.js`: usernames ignore capitals (`findUserByName`, `opaque_id`; see Auth).
 - `profiles.js`: display name, custom status and bio (limits, cleaning, `displayNameOf`; see Profiles).
 - `avatars.js` + `avatarImage.js`: profile pictures (processing, storage, the one-off migration;
   see Profiles). `routes/avatars.js` has their routes.
@@ -215,8 +216,17 @@ operation:
   `checkLoginProof`) and the new record and re-encrypted backup. Other devices stay logged in.
 - Recovery code: see End-to-end encryption.
 
+**Usernames are lower case** and ignore capitals everywhere (login, recovery, making an admin;
+`server/usernames.js` `findUserByName`). Signing up as "Alice" makes the username `alice` with
+"Alice" as the display name. OPAQUE binds a record to the name it was registered under (the
+server derives each account's OPRF key from it), so migration 5, which lower-cased existing
+accounts (copying the old spelling into an empty display name), keeps that spelling in
+`users.opaque_id` for `startLogin`; `/initiateregister` always uses the lower-case name, so a
+password change or recovery clears it. An old account whose lower-case name was already taken
+kept its capitals (an exact match wins at login).
+
 Server-side login state is stored transiently in the `login_states` table (5-minute expiry) keyed
-by username, cleaned up on successful login (expired rows are purged on each login attempt).
+by (lower-case) username, cleaned up on successful login (expired rows are purged on each login attempt).
 
 Logged-out visitors must not be able to tell which usernames exist. `/api/initiatelogin` answers an
 unknown username with OPAQUE's dummy response (`registrationRecord: null`), so it fails at the end
@@ -413,7 +423,7 @@ data that must run exactly once are `MIGRATIONS` at the end of `db.js`, numbered
 `PRAGMA user_version`, each in its own transaction (1: @everyone gets Connect and Speak; 2: clear
 `users.last_online`, which had only ever held the sign-up time; 3: roles and channel overrides
 that allow or deny Manage Messages do the same for Pin Messages; 4: index existing guild messages
-for search); add the next one at the end.
+for search; 5: lower-case usernames, see Auth); add the next one at the end.
 - Queries: `db.get` / `db.all` / `db.run` return promises, as with the old driver (rows are plain
   objects; `undefined` binds as NULL, booleans as 1/0). Prepared statements are cached.
 - **Transactions:** anything that writes more than one row (or one row that depends on another)

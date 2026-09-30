@@ -8,6 +8,7 @@ const { rateLimitsEnabled } = require('../config');
 const { createLimiter, tooManyAttempts } = require('../rateLimit');
 const { LIMITS: PROFILE_LIMITS, PROFILE_COLUMNS, clean: cleanProfile } = require('../profiles');
 const { sendToAllSockets } = require('../sockets');
+const { normalizeUsername, findUserByName, opaqueIdOf, newOpaqueId } = require('../usernames');
 
 // Registration and login use OPAQUE (the password never reaches the server), each in two
 // round trips. Login state between them lives in login_states for 5 minutes.
@@ -45,7 +46,7 @@ function limit(...limiters) {
 }
 
 const byIp = (req) => req.ip;
-const byUsername = (req) => String(req.body?.userIdentifier).slice(0, 100);
+const byUsername = (req) => normalizeUsername(req.body?.userIdentifier).slice(0, 100);
 
 // ECDSA P-256 / SHA-256 over "voicaw/encryption-key/v1\n<encryptionKey>" (see the client's
 // encryptionService); keys and signature are base64.
@@ -73,13 +74,14 @@ router.post('/initiatelogin', limit([limits.loginPerIp, byIp], [limits.loginPerU
   // Forget abandoned login attempts (states are only removed on successful login).
   await db.run('DELETE FROM login_states WHERE expires_at < ?', [now()]);
 
-  const user = await db.get('SELECT password FROM users WHERE username = ?', [userIdentifier]);
+  const user = await findUserByName(userIdentifier, 'username, password, opaque_id');
+  const username = user?.username ?? normalizeUsername(userIdentifier);
   // Unknown usernames get OPAQUE's dummy response (registrationRecord = null), which is
   // indistinguishable from a real one and just fails at the end like a wrong password,
   // so logged-out visitors can't find out which usernames exist.
   const { serverLoginState, loginResponse } = opaque.server.startLogin({
     serverSetup: opaqueServerSetup,
-    userIdentifier,
+    userIdentifier: user ? opaqueIdOf(user) : username,
     registrationRecord: user ? user.password : null,
     startLoginRequest,
   });
@@ -90,12 +92,13 @@ router.post('/initiatelogin', limit([limits.loginPerIp, byIp], [limits.loginPerU
      ON CONFLICT(username) DO UPDATE SET
        server_login_state = excluded.server_login_state,
        expires_at = excluded.expires_at`,
-    [userIdentifier, JSON.stringify(serverLoginState), now() + LOGIN_STATE_SECONDS]
+    [username, JSON.stringify(serverLoginState), now() + LOGIN_STATE_SECONDS]
   );
   res.json({ loginResponse });
 });
 
-// Checks the second half of an OPAQUE login for `username` (started with /initiatelogin).
+// Checks the second half of an OPAQUE login for `username` (started with /initiatelogin; the
+// account's username, or the lower-cased name typed for an unknown one).
 // Resolves to null when it's right, otherwise to [status, error] to answer with.
 async function checkLoginProof(username, finishLoginRequest, clientSessionKey) {
   if (!finishLoginRequest || !clientSessionKey) return [400, 'Missing data'];
@@ -125,21 +128,20 @@ router.post('/finaliselogin', async (req, res) => {
   const { finishLoginRequest, clientSessionKey, userIdentifier } = req.body;
   if (!finishLoginRequest || !clientSessionKey || !userIdentifier || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing data' });
 
-  const failed = await checkLoginProof(userIdentifier, finishLoginRequest, clientSessionKey);
-  if (failed) return res.status(failed[0]).json({ error: failed[1] });
-
-  const user = await db.get(
-    'SELECT id, identity_key, encryption_key, encryption_key_signature, key_backup, recovery_verifier FROM users WHERE username = ?',
-    [userIdentifier]
+  const user = await findUserByName(
+    userIdentifier,
+    'id, username, identity_key, encryption_key, encryption_key_signature, key_backup, recovery_verifier'
   );
+  const failed = await checkLoginProof(user?.username ?? normalizeUsername(userIdentifier), finishLoginRequest, clientSessionKey);
+  if (failed) return res.status(failed[0]).json({ error: failed[1] });
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
   // The client decrypts the backup with its OPAQUE exportKey and checks the published
   // public keys against the ones inside it.
   res.json({
-    token: generateToken({ id: user.id, username: userIdentifier }),
+    token: generateToken(user),
     id: user.id,
-    username: userIdentifier,
+    username: user.username,
     hasRecoveryCode: Boolean(user.recovery_verifier),
     keyBackup: user.key_backup,
     identityKey: user.identity_key,
@@ -153,9 +155,11 @@ router.post('/initiateregister', limit([limits.registerStartPerIp, byIp]), async
   if (!userIdentifier || !registrationRequest || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing username or registrationRequest' });
   await opaque.ready;
 
+  // Always the lower-case name: new accounts get it as their username, and a password change or
+  // recovery stores it as the account's opaque_id when that isn't its username (newOpaqueId).
   const { registrationResponse } = opaque.server.createRegistrationResponse({
     serverSetup: opaqueServerSetup,
-    userIdentifier,
+    userIdentifier: normalizeUsername(userIdentifier),
     registrationRequest,
   });
   res.status(201).json({ registrationResponse });
@@ -174,13 +178,17 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
   const recovery = recoveryVerifier || recoveryBackup ? parseRecovery(req.body) : null;
   if (recovery?.error) return res.status(400).json({ error: recovery.error });
 
+  // Capitals typed in the username become the display name ("Alice": username "alice").
+  const username = normalizeUsername(userIdentifier);
+  const displayName = username === userIdentifier ? null : cleanProfile('display_name', userIdentifier) ?? null;
+  if (await findUserByName(username, 'id')) return res.status(409).json({ error: 'Username already exists' });
   let lastID;
   try {
     ({ lastID } = await db.run(
-      `INSERT INTO users (username, password, identity_key, encryption_key, encryption_key_signature, key_backup,
-         recovery_verifier, recovery_backup, recovery_created)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userIdentifier, registrationRecord, identityKey, encryptionKey, encryptionKeySignature, keyBackup,
+      `INSERT INTO users (username, display_name, password, identity_key, encryption_key, encryption_key_signature,
+         key_backup, recovery_verifier, recovery_backup, recovery_created)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [username, displayName, registrationRecord, identityKey, encryptionKey, encryptionKeySignature, keyBackup,
         recovery?.verifier ?? null, recovery?.backup ?? null, recovery ? now() : null]
     ));
   } catch (err) {
@@ -189,17 +197,20 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
     }
     throw err;
   }
-  const user = { id: lastID, username: userIdentifier };
-  res.status(201).json({ token: generateToken(user), id: user.id, username: user.username, hasRecoveryCode: Boolean(recovery) });
+  const user = { id: lastID, username };
+  res.status(201).json({
+    token: generateToken(user), id: user.id, username, display_name: displayName, hasRecoveryCode: Boolean(recovery),
+  });
 });
 
 // Restores a session from its token (the client keeps it in localStorage).
 router.get('/profile', authenticateJWT, async (req, res) => {
-  const user = await db.get(`SELECT id, recovery_verifier, ${PROFILE_COLUMNS} FROM users WHERE id = ?`, [req.user.id]);
+  const user = await db.get(`SELECT id, username, recovery_verifier, ${PROFILE_COLUMNS} FROM users WHERE id = ?`, [req.user.id]);
   if (!user) return res.status(404).json({ error: 'User not found' });
   const token = req.headers.authorization.split(' ')[1];
   res.json({
-    token, id: req.user.id, username: req.user.username, hasRecoveryCode: Boolean(user.recovery_verifier),
+    // The username from the database: a token from before usernames were lower-cased has the old one.
+    token, id: req.user.id, username: user.username, hasRecoveryCode: Boolean(user.recovery_verifier),
     display_name: user.display_name, custom_status: user.custom_status, bio: user.bio, avatar: user.avatar,
   });
 });
@@ -273,13 +284,20 @@ router.get('/key-backup', authenticateJWT, async (req, res) => {
   res.json({ keyBackup: user.key_backup });
 });
 
+// The logged-in user's username now (their token may be from before it was lower-cased).
+const usernameOf = async (req) => (await db.get('SELECT username FROM users WHERE id = ?', [req.user.id])) ?? { username: '' };
+
 router.post('/change-password', authenticateJWT, async (req, res) => {
   const password = newPassword(req.body);
   if (password.error) return res.status(400).json({ error: password.error });
-  const failed = await checkLoginProof(req.user.username, req.body.finishLoginRequest, req.body.clientSessionKey);
+  const { username } = await usernameOf(req);
+  const failed = await checkLoginProof(username, req.body.finishLoginRequest, req.body.clientSessionKey);
   if (failed) return res.status(failed[0]).json({ error: failed[0] === 401 ? 'Current password is incorrect' : failed[1] });
 
-  await db.run('UPDATE users SET password = ?, key_backup = ? WHERE id = ?', [password.record, password.backup, req.user.id]);
+  await db.run(
+    'UPDATE users SET password = ?, key_backup = ?, opaque_id = ? WHERE id = ?',
+    [password.record, password.backup, newOpaqueId(username), req.user.id]
+  );
   res.json({ ok: true });
 });
 
@@ -287,7 +305,8 @@ router.post('/change-password', authenticateJWT, async (req, res) => {
 router.put('/recovery-code', authenticateJWT, async (req, res) => {
   const recovery = parseRecovery(req.body);
   if (recovery.error) return res.status(400).json({ error: recovery.error });
-  const failed = await checkLoginProof(req.user.username, req.body.finishLoginRequest, req.body.clientSessionKey);
+  const { username } = await usernameOf(req);
+  const failed = await checkLoginProof(username, req.body.finishLoginRequest, req.body.clientSessionKey);
   if (failed) return res.status(failed[0]).json({ error: failed[0] === 401 ? 'Password is incorrect' : failed[1] });
 
   await db.run(
@@ -304,9 +323,9 @@ const DUMMY_VERIFIER = crypto.randomBytes(32);
 // The user if `recoveryAuth` matches their recovery code, else null.
 async function checkRecoveryAuth(username, recoveryAuth) {
   if (typeof username !== 'string' || typeof recoveryAuth !== 'string' || !BASE64.test(recoveryAuth)) return null;
-  const user = await db.get(
-    'SELECT id, username, recovery_verifier, recovery_backup, identity_key, encryption_key, encryption_key_signature FROM users WHERE username = ?',
-    [username]
+  const user = await findUserByName(
+    username,
+    'id, username, recovery_verifier, recovery_backup, identity_key, encryption_key, encryption_key_signature'
   );
   const expected = user?.recovery_verifier ? Buffer.from(user.recovery_verifier, 'base64') : DUMMY_VERIFIER;
   const actual = crypto.createHash('sha256').update(Buffer.from(recoveryAuth, 'base64')).digest();
@@ -338,7 +357,10 @@ router.post('/recover/finish', recoverLimits, async (req, res) => {
   if (password.error) return res.status(400).json({ error: password.error });
 
   await db.transaction(async () => {
-    await db.run('UPDATE users SET password = ?, key_backup = ? WHERE id = ?', [password.record, password.backup, user.id]);
+    await db.run(
+      'UPDATE users SET password = ?, key_backup = ?, opaque_id = ? WHERE id = ?',
+      [password.record, password.backup, newOpaqueId(user.username), user.id]
+    );
     await db.run('DELETE FROM login_states WHERE username = ?', [user.username]);
   });
   limits.loginPerUsername.reset(byUsername(req));

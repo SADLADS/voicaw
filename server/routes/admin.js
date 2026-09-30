@@ -3,6 +3,7 @@
 // `npm run admin -- <username>` in server/ (scripts/admin.js).
 const express = require('express');
 const db = require('../db');
+const { findUserByName } = require('../usernames');
 const { authenticateJWT } = require('../auth');
 const { SETTINGS, MAX_VALUE_LENGTH, setSetting, describeSettings } = require('../appSettings');
 
@@ -44,8 +45,9 @@ router.put('/admin/settings/:key', admin, async (req, res) => {
 router.post('/admin/admins', admin, async (req, res) => {
   const { username } = req.body ?? {};
   if (typeof username !== 'string' || !username.trim()) return res.status(400).json({ error: 'Missing username' });
-  const { changes } = await db.run('UPDATE users SET is_admin = 1 WHERE username = ?', [username.trim()]);
-  if (!changes) return res.status(404).json({ error: 'No user with that name' });
+  const user = await findUserByName(username.trim(), 'id');
+  if (!user) return res.status(404).json({ error: 'No user with that name' });
+  await db.run('UPDATE users SET is_admin = 1 WHERE id = ?', [user.id]);
   res.json({ admins: await listAdmins() });
 });
 
