@@ -226,10 +226,15 @@ small {
   font-style: italic;
 }
 
+.dm-message {
+  /* The avatar's column: wide enough for a grouped message's hover time ("10:18 AM"). The text
+     and the reactions start after it; the name starts at the same place (.message-avatar's
+     margin). */
+  --message-gutter: 56px;
+}
+
 .dm-message-content {
-  /* The avatar's column: wide enough for a grouped message's hover time ("10:18 AM"). The name
-     starts at the same place (.message-avatar's margin). */
-  margin-left: 56px;
+  margin-left: var(--message-gutter);
 }
 
 
@@ -1259,6 +1264,7 @@ img.emoji,
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 4px;
+  margin-left: var(--message-gutter);
   /* As far from the bottom of the message's hover highlight as its avatar is from the top
      (.dm-message's padding-top). */
   padding-bottom: 4px;
