@@ -20,7 +20,7 @@ import {
   searchCustomEmoji,
 } from '../emoji/customEmoji';
 import { useCustomEmoji } from '../emoji/customEmojiContext';
-import { searchPeople } from '../utils/mentions';
+import { searchMentions } from '../utils/mentions';
 
 // ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
 const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
@@ -32,8 +32,9 @@ const MENTION_QUERY = /(?:^|[\s([{])@([^\s@<>]{0,32})$/;
 // The message box under a conversation (MessageEditor: `inputRef` is its handle), writing to
 // `chatName` (a person, or "#channel"; null while the chat can't be sent to yet), with
 // attachments (chips in the box, uploaded on send), emoji (picker, ":smi" suggestions,
-// ":shortcode:" conversion), mentions ("@na" suggestions from `people`, [{ id, username }])
-// and the reply bar.
+// ":shortcode:" conversion), mentions ("@na" suggestions from `people`, [{ id, username }];
+// in a guild also `roles`, [{ id, name, color }], and @everyone/@here with `canMentionEveryone`;
+// `roleInfo` ({ id: { name, color } }) draws role mentions in the box) and the reply bar.
 //
 // `onSend({ text, replyTo, localAttachments, resolveText })` sends (see useConversation's
 // sendMessage). `error` is shown above the box (Dm reports its own errors there too). On
@@ -55,6 +56,9 @@ export default function Composer({
   onInputFocus,
   onSend,
   people,
+  roles,
+  roleInfo,
+  canMentionEveryone = false,
 }) {
   const emojiIndex = useEmojiIndex();
   const mentionNames = Object.fromEntries((people ?? []).map((p) => [p.id, p.username]));
@@ -117,7 +121,7 @@ export default function Composer({
     : [];
   const mentionQuery = people?.length ? MENTION_QUERY.exec(beforeCaret)?.[1] ?? null : null;
   const mentionSuggestions = mentionQuery != null && `@${mentionQuery}` !== dismissedQuery
-    ? searchPeople(people, mentionQuery, 8)
+    ? searchMentions({ people, roles, everyone: canMentionEveryone }, mentionQuery)
     : [];
   // Only one kind can match what's before the cursor.
   const suggestions = emojiSuggestions.length > 0 ? emojiSuggestions : mentionSuggestions;
@@ -128,8 +132,12 @@ export default function Composer({
     else pickMention(item);
   }
 
-  function pickMention(person) {
-    inputRef.current?.replaceBeforeCaretWithMention(mentionQuery.length + 1, { id: person.id, name: person.username });
+  function pickMention(item) {
+    const count = mentionQuery.length + 1;
+    const editor = inputRef.current;
+    if (item.kind === 'role') editor?.replaceBeforeCaretWithRoleMention(count, { id: item.id, name: item.name, color: roleInfo?.[item.id]?.color });
+    else if (item.kind === 'everyone') editor?.replaceBeforeCaret(count, `@${item.name} `);
+    else editor?.replaceBeforeCaretWithMention(count, { id: item.id, name: item.name });
     setSuggestionIndex(0);
   }
 
@@ -277,7 +285,7 @@ export default function Composer({
         {mentionSuggestions.length > 0 && emojiSuggestions.length === 0 && (
           <MentionSuggestions
             query={mentionQuery}
-            people={mentionSuggestions}
+            items={mentionSuggestions}
             activeIndex={activeSuggestion}
             onPick={pickMention}
             onHover={setSuggestionIndex}
@@ -328,6 +336,7 @@ export default function Composer({
             onKeyDown={handleInputKeyDown}
             onPasteFiles={attachments.addFiles}
             mentionNames={mentionNames}
+            mentionRoles={roleInfo}
             // Mobile: the keyboard is coming up, so the emoji panel gives way.
             onFocus={() => {
               if (!isMobile) return;

@@ -18,7 +18,7 @@ const MAX_CATEGORY_NAME = 100;
 const MAX_ROLE_NAME = 100;
 const MAX_TOPIC = 1024;
 
-const ROLE_COLUMNS = 'id, name, color, position, permissions, hoist, is_everyone';
+const ROLE_COLUMNS = 'id, name, color, position, permissions, hoist, mentionable, is_everyone';
 
 // Every role of the guild, highest first (@everyone last).
 async function getRoles(guildId) {
@@ -141,8 +141,10 @@ async function layoutFor(member, overridesByChannel) {
   const visibleCategories = categories.filter((category) => managesChannels ||
     channels.some((c) => c.category_id === category.id) ||
     !allChannels.some((c) => c.category_id === category.id));
+  const own = await db.get('SELECT notify_level FROM guild_members WHERE guild_id = ? AND user_id = ?', [guild.id, member.userId]);
   return {
     ...guild,
+    my_notify_level: own?.notify_level ?? 'mentions',
     my_permissions: member.permissions,
     my_role_ids: member.roles.map((r) => r.id),
     roles: member.allRoles,
@@ -232,6 +234,7 @@ async function deleteChannelContents(channelIdsSql, params) {
        (SELECT id FROM guild_messages WHERE channel_id IN (${channelIdsSql}))`,
     params
   );
+  await db.run(`DELETE FROM guild_mentions WHERE channel_id IN (${channelIdsSql})`, params);
   await db.run(`DELETE FROM guild_messages WHERE channel_id IN (${channelIdsSql})`, params);
   await db.run(`DELETE FROM guild_channel_reads WHERE channel_id IN (${channelIdsSql})`, params);
   await db.run(`DELETE FROM guild_channel_overrides WHERE channel_id IN (${channelIdsSql})`, params);
@@ -263,6 +266,7 @@ module.exports = {
   getGuildLayout,
   getMemberIds,
   getMemberListEntry,
+  getChannelViewers,
   sendToGuild,
   sendToChannel,
   announceGuildUpdate,

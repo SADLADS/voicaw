@@ -137,7 +137,18 @@ export async function markChannelRead(channelId, messageId) {
   await api.post(`/channels/${channelId}/read`, { messageId });
 }
 
-// [{ channel_id, guild_id, count }] for channels with unread messages.
+// The ids of the members who can see a channel.
+export async function fetchChannelMembers(channelId) {
+  return (await api.get(`/channels/${channelId}/members`)).data;
+}
+
+// Your notification level for a guild: 'all', 'mentions' or 'none'.
+export async function setGuildNotifications(guildId, level) {
+  await api.put(`/guilds/${guildId}/notifications`, { level });
+}
+
+// [{ channel_id, guild_id, count, mentions }] for channels with unread messages (`mentions`:
+// how many of them mention you).
 export async function fetchGuildUnread() {
   return (await api.get('/guild-unread')).data;
 }

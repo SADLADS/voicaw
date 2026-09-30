@@ -61,4 +61,12 @@ describe('messageDoc mentions', () => {
     expect(mentions).toEqual([{ id: '2', name: 'Anna' }]);
     expect(docToText(doc)).toBe('hi <@2> and <@9>');
   });
+
+  it('turns role mentions into nodes with their colour, and back', () => {
+    const doc = textToDoc('<@&4> go', { resolveRole: (id) => ({ 4: { name: 'Mods', color: '#e91e63' } })[id] });
+    const roles = [];
+    doc.descendants((n) => { if (n.type === schema.nodes.roleMention) roles.push(n.attrs); });
+    expect(roles).toEqual([{ id: '4', name: 'Mods', color: '#e91e63' }]);
+    expect(docToText(doc)).toBe('<@&4> go');
+  });
 });

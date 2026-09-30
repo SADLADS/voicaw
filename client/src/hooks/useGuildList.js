@@ -7,7 +7,8 @@ import { fetchAllEmojis, fetchGuild, fetchGuilds, fetchGuildUnread, saveGuildOrd
 // - `layouts`: guilds opened so far, by id, with their `categories` and `channels` (a voice
 //   channel's `voice`: who's in it) (`loadGuild(id)` fetches one; websocket updates keep them
 //   current).
-// - `unread`: [{ channel_id, guild_id, count }]; `refreshUnread()` refetches it.
+// - `unread`: [{ channel_id, guild_id, count, mentions }] (`mentions`: how many mention you);
+//   `refreshUnread()` refetches it.
 // - `emojis`: custom emoji by guild id ({ [guildId]: [{ id, guild_id, name, animated }] }).
 // `reorderGuilds(ids)` saves a new rail order (top first); other devices follow.
 // `activeChannelId` is the channel on screen: new messages there don't count as unread.
@@ -144,9 +145,16 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
           if (message.sender_id === userId || String(message.channel_id) === String(active.current)) break;
           setUnread((prev) => (prev.some((u) => u.channel_id === message.channel_id)
             ? prev.map((u) => (u.channel_id === message.channel_id ? { ...u, count: u.count + 1 } : u))
-            : [...prev, { channel_id: message.channel_id, guild_id: event.guildId, count: 1 }]));
+            : [...prev, { channel_id: message.channel_id, guild_id: event.guildId, count: 1, mentions: 0 }]));
           break;
         }
+        // Sent to you, right after the message itself, when it mentions you.
+        case 'guild_mention':
+          if (String(event.channelId) === String(active.current)) break;
+          setUnread((prev) => (prev.some((u) => u.channel_id === event.channelId)
+            ? prev.map((u) => (u.channel_id === event.channelId ? { ...u, mentions: (u.mentions ?? 0) + 1 } : u))
+            : [...prev, { channel_id: event.channelId, guild_id: event.guildId, count: 1, mentions: 1 }]));
+          break;
         default:
       }
     });

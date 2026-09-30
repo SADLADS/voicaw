@@ -1,0 +1,134 @@
+const db = require('./db');
+const { sendToUserSockets, getStatus, isViewingConversation } = require('./sockets');
+const { sendPushToUser, getUserImageUrl } = require('./push');
+const { PERMISSIONS, has, channelPermissions } = require('./permissions');
+const { getAllMembers, getOverrides } = require('./guilds');
+
+// Mentions in guild messages, and the pushes they (and plain messages) cause.
+// In the text: `<@userId>`, `<@&roleId>`, `@everyone` (everyone who can see the channel) and
+// `@here` (those of them not offline). Nothing inside code counts, as in Discord. Roles only
+// ping if they're `mentionable` or the sender has Mention Everyone; @everyone and @here need
+// Mention Everyone (without it they're just text). Only members who can see the channel are
+// ever mentioned, and never the sender.
+
+const MAX_PREVIEW_LENGTH = 200;
+const NOTIFY_LEVELS = ['all', 'mentions', 'none'];
+
+function withoutCode(text) {
+  return text.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`\n]*`/g, ' ');
+}
+
+// What the text asks for (before any permission check).
+function parseMentions(content) {
+  const text = withoutCode(String(content ?? ''));
+  const ids = (re) => new Set([...text.matchAll(re)].map((m) => Number(m[1])));
+  return {
+    userIds: ids(/<@(\d+)>/g),
+    roleIds: ids(/<@&(\d+)>/g),
+    everyone: /(?:^|[^\w@])@everyone\b/.test(text),
+    here: /(?:^|[^\w@])@here\b/.test(text),
+  };
+}
+
+// The channel's viewers as member contexts (guilds.js), by user id.
+async function channelViewers(channel) {
+  const members = await getAllMembers(channel.guild_id);
+  const overrides = (await getOverrides({ channelIds: [channel.id] })).get(channel.id) ?? [];
+  return new Map([...members].filter(([userId, m]) =>
+    has(channelPermissions(m, userId, overrides), PERMISSIONS.VIEW_CHANNEL)));
+}
+
+// Who a message by `senderId` (with `permissions` in the channel) mentions:
+// { everyone: 0/1 (@everyone or @here pinged), roleIds: [], userIds: Set }.
+function resolveMentions(content, { senderId, permissions, viewers, roles }) {
+  const asked = parseMentions(content);
+  const massMention = has(permissions, PERMISSIONS.MENTION_EVERYONE);
+  const roleIds = roles
+    .filter((r) => !r.is_everyone && asked.roleIds.has(r.id) && (r.mentionable || massMention))
+    .map((r) => r.id);
+  const everyone = massMention && asked.everyone;
+  const here = massMention && asked.here && !everyone;
+
+  const userIds = new Set();
+  for (const [userId, member] of viewers) {
+    if (userId === senderId) continue;
+    if (everyone || asked.userIds.has(userId) ||
+      (here && getStatus(userId) !== 'offline') ||
+      member.roles.some((r) => roleIds.includes(r.id))) {
+      userIds.add(userId);
+    }
+  }
+  return { everyone: everyone || here ? 1 : 0, roleIds, userIds };
+}
+
+// Works out and saves a message's mentions (replacing any from before an edit). Returns
+// { mentioned: Set of user ids, viewers }.
+async function saveMentions(message, channel, permissions) {
+  const viewers = await channelViewers(channel);
+  const roles = await db.all('SELECT id, name, mentionable, is_everyone FROM guild_roles WHERE guild_id = ?', [channel.guild_id]);
+  const found = resolveMentions(message.content, { senderId: message.sender_id, permissions, viewers, roles });
+  await db.run(
+    'UPDATE guild_messages SET mention_everyone = ?, mention_roles = ? WHERE id = ?',
+    [found.everyone, found.roleIds.length ? JSON.stringify(found.roleIds) : null, message.id]
+  );
+  await db.run('DELETE FROM guild_mentions WHERE message_id = ?', [message.id]);
+  for (const userId of found.userIds) {
+    await db.run('INSERT INTO guild_mentions (message_id, channel_id, user_id) VALUES (?, ?, ?)', [message.id, channel.id, userId]);
+  }
+  return { mentioned: found.userIds, viewers };
+}
+
+// The message as notification text: mentions by name, custom emoji as :name:, attachments as
+// their names (their links carry keys), cut to MAX_PREVIEW_LENGTH.
+async function previewText(content, guildId) {
+  const userIds = [...String(content).matchAll(/<@(\d+)>/g)].map((m) => Number(m[1]));
+  const users = userIds.length
+    ? await db.all(`SELECT id, username FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`, userIds)
+    : [];
+  const roles = await db.all('SELECT id, name FROM guild_roles WHERE guild_id = ?', [guildId]);
+  const userName = new Map(users.map((u) => [u.id, u.username]));
+  const roleName = new Map(roles.map((r) => [r.id, r.name]));
+  const text = String(content)
+    .replace(/!\[((?:\\.|[^\]\\])*)\]\([^)]*\)/g, (_, alt) => `📎 ${alt.replace(/\\(.)/g, '$1') || 'attachment'}`)
+    .replace(/<:([A-Za-z0-9_]+):\d+>/g, ':$1:')
+    .replace(/<@&(\d+)>/g, (_, id) => `@${roleName.get(Number(id)) ?? 'deleted-role'}`)
+    .replace(/<@(\d+)>/g, (_, id) => `@${userName.get(Number(id)) ?? 'unknown-user'}`)
+    .trim();
+  return text.length > MAX_PREVIEW_LENGTH ? `${text.slice(0, MAX_PREVIEW_LENGTH - 1)}…` : text;
+}
+
+// After a new message: tells the people mentioned (`guild_mention`, for their unread mention
+// counts) and pushes to every viewer whose notification level wants it ('all': every message;
+// 'mentions': when mentioned), unless they're looking at the channel.
+async function notifyNewMessage(message, channel, { mentioned, viewers }) {
+  for (const userId of mentioned) {
+    sendToUserSockets(userId, { type: 'guild_mention', guildId: channel.guild_id, channelId: channel.id, messageId: message.id });
+  }
+  const levels = new Map((await db.all(
+    'SELECT user_id, notify_level FROM guild_members WHERE guild_id = ?',
+    [channel.guild_id]
+  )).map((r) => [r.user_id, r.notify_level]));
+  const recipients = [...viewers.keys()].filter((userId) => {
+    if (userId === message.sender_id) return false;
+    const level = levels.get(userId) ?? 'mentions';
+    if (level === 'none' || (level === 'mentions' && !mentioned.has(userId))) return false;
+    return !isViewingConversation(userId, `channel-${channel.id}`);
+  });
+  if (!recipients.length) return;
+
+  const guild = await db.get('SELECT name FROM guilds WHERE id = ?', [channel.guild_id]);
+  const payload = {
+    type: 'guild',
+    title: `${message.sender_username} (#${channel.name}, ${guild.name})`,
+    body: await previewText(message.content, channel.guild_id),
+    url: `/guild/${channel.guild_id}/${channel.id}`,
+    tag: `channel-${channel.id}`,
+    image: await getUserImageUrl(message.sender_id),
+    timestamp: message.timestamp,
+  };
+  for (const userId of recipients) {
+    sendPushToUser(userId, payload, { urgency: 'high', topic: `channel${channel.id}` }).catch(() => {});
+  }
+}
+
+module.exports = { NOTIFY_LEVELS, parseMentions, resolveMentions, saveMentions, notifyNewMessage, previewText };

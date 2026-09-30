@@ -31,10 +31,16 @@ export default function RolesSettings({ guild, user }) {
   // The editor starts from the selected role as saved.
   useEffect(() => {
     if (!selected) return;
-    setDraft({ name: selected.name, color: selected.color, hoist: Boolean(selected.hoist), permissions: selected.permissions });
+    setDraft({
+      name: selected.name,
+      color: selected.color,
+      hoist: Boolean(selected.hoist),
+      mentionable: Boolean(selected.mentionable),
+      permissions: selected.permissions,
+    });
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected?.id, selected?.name, selected?.color, selected?.hoist, selected?.permissions]);
+  }, [selected?.id, selected?.name, selected?.color, selected?.hoist, selected?.mentionable, selected?.permissions]);
 
   async function run(action) {
     setError(null);
@@ -65,13 +71,14 @@ export default function RolesSettings({ guild, user }) {
   function save() {
     const changes = selected.is_everyone
       ? { permissions: draft.permissions }
-      : { name: draft.name, color: draft.color, hoist: draft.hoist, permissions: draft.permissions };
+      : { name: draft.name, color: draft.color, hoist: draft.hoist, mentionable: draft.mentionable, permissions: draft.permissions };
     run(() => updateRole(guild.id, selected.id, changes));
   }
 
   const dirty = draft && selected && (
     draft.name !== selected.name || draft.color !== selected.color ||
-    draft.hoist !== Boolean(selected.hoist) || draft.permissions !== selected.permissions
+    draft.hoist !== Boolean(selected.hoist) || draft.mentionable !== Boolean(selected.mentionable) ||
+    draft.permissions !== selected.permissions
   );
 
   return (
@@ -184,6 +191,16 @@ export default function RolesSettings({ guild, user }) {
                 <input type="checkbox" checked={draft.hoist} disabled={!editable} onChange={(e) => setDraft({ ...draft, hoist: e.target.checked })} />
                 <span>
                   <strong>Display role members separately from online members</strong>
+                </span>
+              </label>
+
+              <label className="role-toggle">
+                <input type="checkbox" checked={draft.mentionable} disabled={!editable} onChange={(e) => setDraft({ ...draft, mentionable: e.target.checked })} />
+                <span>
+                  <strong>Allow anyone to @mention this role</strong>
+                  <small className="vc-hint d-block">
+                    Members with "Mention @everyone, @here and All Roles" can always mention it.
+                  </small>
                 </span>
               </label>
             </>

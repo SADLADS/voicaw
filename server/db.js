@@ -216,6 +216,25 @@ db.run('CREATE INDEX IF NOT EXISTS guild_emojis_guild ON guild_emojis (guild_id)
 // Each member's own order of their guilds in the server rail (lowest first).
 db.run('ALTER TABLE guild_members ADD COLUMN position INTEGER NOT NULL DEFAULT 0', () => {});
 
+// MENTIONS. Each member chooses which of a guild's messages push to them: 'all', 'mentions'
+// (the default) or 'none'. A role can be `mentionable` by anyone (else only with Mention
+// Everyone). A message keeps whether it pinged @everyone/@here and which roles
+// (`mention_roles`, a JSON array), and guild_mentions who it mentioned (only members who could
+// see the channel then, never the sender), for pushes and unread mention counts.
+db.run("ALTER TABLE guild_members ADD COLUMN notify_level TEXT NOT NULL DEFAULT 'mentions'", () => {});
+db.run('ALTER TABLE guild_roles ADD COLUMN mentionable INTEGER NOT NULL DEFAULT 0', () => {});
+db.run('ALTER TABLE guild_messages ADD COLUMN mention_everyone INTEGER NOT NULL DEFAULT 0', () => {});
+db.run('ALTER TABLE guild_messages ADD COLUMN mention_roles TEXT', () => {});
+db.run(`
+CREATE TABLE IF NOT EXISTS guild_mentions (
+  message_id INTEGER NOT NULL,
+  channel_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  PRIMARY KEY (message_id, user_id)
+);
+`);
+db.run('CREATE INDEX IF NOT EXISTS guild_mentions_user ON guild_mentions (user_id, channel_id, message_id)');
+
 // Guilds from before roles get their @everyone role (with the default permissions).
 db.run(`
 INSERT INTO guild_roles (guild_id, name, position, permissions, is_everyone)

@@ -1567,3 +1567,36 @@ img.emoji.custom-emoji {
   background-color: var(--vc-accent);
   color: var(--vc-fg);
 }
+
+/* Unread mentions of you: a red count, on a channel and on its server's icon in the rail. */
+.mention-badge {
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  margin-left: auto;
+  padding: 0 5px;
+  border-radius: 9px;
+  background-color: var(--vc-danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.rail-mention-badge {
+  position: absolute;
+  right: 6px;
+  bottom: -3px;
+  border: 3px solid var(--vc-bg-base);
+  height: 24px;
+  min-width: 24px;
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+.notify-levels {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

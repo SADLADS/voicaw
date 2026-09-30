@@ -9,6 +9,7 @@ import { customEmojiUrl } from '../emoji/customEmoji';
 //   text `![name](https://…)`, kept exactly as it was (the URL carries the file's key).
 // - customEmoji: a custom emoji, shown as its image; in text `<:name:id>`.
 // - mention: a person, shown as `@name`; in text `<@id>` (utils/mentions).
+// - roleMention: a guild role, shown as `@role` in its colour; in text `<@&id>`.
 // Unicode emoji stay text (the Twemoji font draws them), which keeps typing, autocorrect and
 // copy/paste plain.
 
@@ -70,6 +71,22 @@ export const schema = new Schema({
         `@${node.attrs.name}`,
       ],
     },
+    roleMention: {
+      group: 'inline',
+      inline: true,
+      atom: true,
+      attrs: { id: {}, name: {}, color: { default: null } },
+      toDOM: (node) => [
+        'span',
+        {
+          class: 'mention role-mention editor-mention',
+          'data-role-mention-id': String(node.attrs.id),
+          contenteditable: 'false',
+          ...(node.attrs.color ? { style: `--role-color: ${node.attrs.color}` } : {}),
+        },
+        `@${node.attrs.name}`,
+      ],
+    },
   },
 });
 
@@ -83,6 +100,7 @@ function inlineToText(node) {
   if (node.type === schema.nodes.sentAttachment) return node.attrs.markup;
   if (node.type === schema.nodes.customEmoji) return `<:${node.attrs.name}:${node.attrs.id}>`;
   if (node.type === schema.nodes.mention) return `<@${node.attrs.id}>`;
+  if (node.type === schema.nodes.roleMention) return `<@&${node.attrs.id}>`;
   return '';
 }
 
@@ -97,13 +115,14 @@ export function docToText(doc) {
 }
 
 // A draft attachment placeholder, a sent attachment (or any other markdown image), a custom
-// emoji, or a mention.
-const INLINE_OBJECT_RE = /!\[((?:\\.|[^\]\\])*)\]\((?:attachment:(\d+)|(https?:\/\/[^)\s]+))\)|<:([A-Za-z0-9_]+):(\w+)>|<@(\d+)>/g;
+// emoji, a mention, or a role mention.
+const INLINE_OBJECT_RE = /!\[((?:\\.|[^\]\\])*)\]\((?:attachment:(\d+)|(https?:\/\/[^)\s]+))\)|<:([A-Za-z0-9_]+):(\w+)>|<@(\d+)>|<@&(\d+)>/g;
 
 // Message text -> editor document. `resolveCustomEmoji(id, name)` gives a custom emoji's image
 // URL (by default its place in the object store); without one, `<:name:id>` stays as text.
-// `resolveMention(id)` gives a mentioned person's name; without one, `<@id>` stays as text.
-export function textToDoc(text, { resolveCustomEmoji = (id) => customEmojiUrl(id), resolveMention } = {}) {
+// `resolveMention(id)` gives a mentioned person's name, `resolveRole(id)` a role's
+// { name, color (#rrggbb or null) }; without one, `<@id>` / `<@&id>` stays as text.
+export function textToDoc(text, { resolveCustomEmoji = (id) => customEmojiUrl(id), resolveMention, resolveRole } = {}) {
   const paragraphs = String(text ?? '').split('\n').map((line) => {
     const content = [];
     let last = 0;
@@ -116,6 +135,9 @@ export function textToDoc(text, { resolveCustomEmoji = (id) => customEmojiUrl(id
       } else if (m[6]) {
         const name = resolveMention?.(m[6]);
         if (name != null) node = schema.nodes.mention.create({ id: m[6], name });
+      } else if (m[7]) {
+        const role = resolveRole?.(m[7]);
+        if (role) node = schema.nodes.roleMention.create({ id: m[7], name: role.name, color: role.color ?? null });
       } else {
         const url = resolveCustomEmoji?.(m[5], m[4]);
         if (url) node = schema.nodes.customEmoji.create({ id: m[5], name: m[4], url });

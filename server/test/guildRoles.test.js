@@ -62,7 +62,7 @@ describe('roles', () => {
   it('starts every guild with @everyone and the default permissions', async () => {
     const { owner, members, guild } = await setUp(1);
     expect(guild.roles).toEqual([
-      { id: expect.any(Number), name: '@everyone', color: null, position: 0, permissions: DEFAULT_EVERYONE_PERMISSIONS, hoist: 0, is_everyone: 1 },
+      { id: expect.any(Number), name: '@everyone', color: null, position: 0, permissions: DEFAULT_EVERYONE_PERMISSIONS, hoist: 0, mentionable: 0, is_everyone: 1 },
     ]);
     expect(guild.my_permissions).toBe(ALL_PERMISSIONS);
     expect((await layout(members[0], guild.id)).my_permissions).toBe(DEFAULT_EVERYONE_PERMISSIONS);
@@ -197,7 +197,7 @@ describe('private channels and overrides', () => {
 
     // Unread counts only cover channels you can see.
     expect((await api.get(bob, '/guild-unread')).body).toEqual([]);
-    expect((await api.get(alice, '/guild-unread')).body).toEqual([{ channel_id: channel.id, guild_id: guild.id, count: 1 }]);
+    expect((await api.get(alice, '/guild-unread')).body).toEqual([{ channel_id: channel.id, guild_id: guild.id, count: 1, mentions: 0 }]);
 
     // Taking the role away hides it again, and alice is told.
     const events = listen(alice);

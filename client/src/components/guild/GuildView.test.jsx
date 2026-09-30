@@ -6,6 +6,7 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 const guildListeners = vi.hoisted(() => ({ list: [] }));
 
 vi.mock('../../utils/ws-client', () => ({
+  setActiveChat: vi.fn(),
   onGuildEvent: (cb) => {
     guildListeners.list.push(cb);
     return () => { guildListeners.list = guildListeners.list.filter((x) => x !== cb); };
@@ -19,6 +20,7 @@ vi.mock('../../services/guildService', () => ({
   deleteChannelMessage: vi.fn(async () => {}),
   markChannelRead: vi.fn(async () => {}),
   fetchMembers: vi.fn(async () => []),
+  fetchChannelMembers: vi.fn(async () => [1, 2, 4]),
   addGuildReaction: vi.fn(),
   removeGuildReaction: vi.fn(async () => {}),
 }));
@@ -63,7 +65,9 @@ import {
   markChannelRead,
   addGuildReaction,
   fetchMembers,
+  fetchChannelMembers,
 } from '../../services/guildService';
+import { setActiveChat } from '../../utils/ws-client';
 
 const me = { id: 1, username: 'me' };
 const guild = {
@@ -228,6 +232,35 @@ describe('GuildView', () => {
     renderView('/guild/5/11', { voiceEnabled: false });
     expect(await screen.findByText("Voice isn't set up on this server yet.")).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Join Voice' })).toBeNull();
+  });
+
+  it('lists and suggests only the people who can see the channel, and tells the server what is open', async () => {
+    fetchMembers.mockResolvedValue([
+      { id: 1, username: 'me', joined_at: 1, role_ids: [], status: 'online' },
+      { id: 2, username: 'bob', joined_at: 1, role_ids: [], status: 'online' },
+      { id: 3, username: 'carol', joined_at: 1, role_ids: [], status: 'online' },
+    ]);
+    fetchChannelMembers.mockResolvedValue([1, 2]);
+    renderView('/guild/5/10', {
+      layouts: { 5: { ...guild, my_permissions: 2047 | 16384, roles: guild.roles.map((r) => (r.id === 2 ? { ...r, mentionable: 1 } : r)) } },
+    });
+    await waitFor(() => expect(fetchChannelMembers).toHaveBeenCalledWith(10));
+    expect(setActiveChat).toHaveBeenCalledWith('channel-10');
+    await waitFor(() => expect(screen.queryByText('carol')).toBeNull());
+    expect(screen.getAllByText('bob').length).toBeGreaterThan(0);
+
+    const input = await waitFor(() => document.getElementById('dm-input'));
+    act(() => editorFor(input).insertText('@'));
+    const options = await screen.findAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual([
+      'bob', 'me', '@Mods', '@Plain',
+      '@@everyoneNotify everyone who can see this channel.', '@@hereNotify everyone online who can see this channel.',
+    ]);
+
+    // Someone given access later shows up.
+    fetchChannelMembers.mockResolvedValue([1, 2, 3]);
+    await emit({ type: 'guild_update', guild: { id: 5 } });
+    await waitFor(() => expect(screen.getAllByText('carol').length).toBeGreaterThan(0));
   });
 
   it("loads a guild it doesn't have yet, and says so if it can't", async () => {

@@ -20,20 +20,25 @@ import { registerEditor } from './editorRegistry';
 //   new line (mobile).
 // - maxLength: edits that would make the text longer are refused.
 // - onPasteFiles(files): pasted files. Dropped files are left to the page (Composer).
-// - mentionNames ({ id: username }): who `<@id>` in initial or pasted text is.
+// - mentionNames ({ id: username }) and mentionRoles ({ id: { name, color } }): who `<@id>` and
+//   `<@&id>` in initial or pasted text are.
 // - onFocus / onBlur, placeholder, id, ariaLabel, className, initialText, autoFocus.
 //
 // The ref gives: focus(), blur(), isComposing(), getText(), setText(text), clear(), insertText(text,
 // { focus }), insertAttachments([{ id, name }]), insertCustomEmoji({ id, name, url }),
 // replaceBeforeCaret(count, text, { focus }), replaceBeforeCaretWithCustomEmoji(count, emoji),
-// replaceBeforeCaretWithMention(count, { id, name }), removeAttachment(id), and element.
+// replaceBeforeCaretWithMention(count, { id, name }), replaceBeforeCaretWithRoleMention(count,
+// { id, name, color }), removeAttachment(id), and element.
 const MessageEditor = forwardRef(function MessageEditor(props, ref) {
   const mountRef = useRef(null);
   const viewRef = useRef(null);
   const propsRef = useRef(props);
   propsRef.current = props;
   // How text becomes the document: mentions get the names given.
-  const parseOptions = () => ({ resolveMention: (id) => propsRef.current.mentionNames?.[id] });
+  const parseOptions = () => ({
+    resolveMention: (id) => propsRef.current.mentionNames?.[id],
+    resolveRole: (id) => propsRef.current.mentionRoles?.[id],
+  });
 
   useEffect(() => {
     const current = () => propsRef.current;
@@ -210,6 +215,15 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
           const start = Math.max(from - count, state.selection.$from.start());
           const nodes = Fragment.from([schema.nodes.mention.create({ id: String(person.id), name: person.name }), schema.text(' ')]);
           return tr.replaceWith(start, from, nodes);
+        }, options);
+      },
+      // The same for a role ({ id, name, color }).
+      replaceBeforeCaretWithRoleMention(count, role, options) {
+        run((tr, state) => {
+          const { from } = state.selection;
+          const start = Math.max(from - count, state.selection.$from.start());
+          const node = schema.nodes.roleMention.create({ id: String(role.id), name: role.name, color: role.color ?? null });
+          return tr.replaceWith(start, from, Fragment.from([node, schema.text(' ')]));
         }, options);
       },
       // Replaces the `count` characters before the cursor (e.g. a ":smi" being completed).

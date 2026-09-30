@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { onGuildEvent } from '../utils/ws-client';
+import { onGuildEvent, setActiveChat } from '../utils/ws-client';
 import {
   fetchChannelMessages,
   sendChannelMessage,
@@ -176,6 +176,13 @@ export function useChannel({ channelId, user, onRead }) {
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
   }
 
+  // The server doesn't push messages here while this device is looking at the channel.
+  useEffect(() => {
+    if (!channelId) return undefined;
+    setActiveChat(`channel-${channelId}`);
+    return () => setActiveChat(null);
+  }, [channelId]);
+
   // Live changes for this channel.
   useEffect(() => {
     if (!channelId || !user?.id) return undefined;
@@ -187,7 +194,13 @@ export function useChannel({ channelId, user, onRead }) {
           break;
         case 'guild_message_edit':
           if (event.channelId === id) {
-            updateMessage(event.messageId, () => ({ plaintext: event.content, content: event.content, edited: 1 }));
+            updateMessage(event.messageId, () => ({
+              plaintext: event.content,
+              content: event.content,
+              edited: 1,
+              mention_everyone: event.mention_everyone,
+              mention_roles: event.mention_roles,
+            }));
           }
           break;
         case 'guild_message_delete':

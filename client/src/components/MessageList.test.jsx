@@ -59,6 +59,27 @@ describe('MessageList', () => {
     expect(screen.getByText('@unknown-user')).toHaveClass('mention');
   });
 
+  it('draws role mentions in their colour, and @everyone only when it pinged', () => {
+    const messages = [
+      { id: 1, sender_id: 2, sender_username: 'bob', plaintext: '<@&7> raid', timestamp: 1000, mention_roles: [7] },
+      { id: 2, sender_id: 2, sender_username: 'bob', plaintext: '@everyone hi', timestamp: 1001, mention_everyone: 1 },
+      { id: 3, sender_id: 3, sender_username: 'eve', plaintext: '@everyone nope', timestamp: 1002, mention_everyone: 0 },
+    ];
+    render(<MessageList {...baseProps({
+      messages, reactionNames: {}, mentionRoles: { 7: { name: 'Raiders', color: '#e91e63' } }, myRoleIds: [7],
+    })} />);
+    const role = screen.getByText('@Raiders');
+    expect(role).toHaveClass('mention', 'role-mention', 'mention-me');
+    expect(role.style.getPropertyValue('--role-color')).toBe('#e91e63');
+    expect(role.closest('.each-dm-message-wrapper')).toHaveClass('mentioned');
+    const loud = screen.getByText('@everyone');
+    expect(loud).toHaveClass('mention');
+    expect(loud.closest('.each-dm-message-wrapper')).toHaveClass('mentioned');
+    const quiet = screen.getByText(/nope/);
+    expect(quiet.querySelector('.mention')).toBeNull();
+    expect(quiet.closest('.each-dm-message-wrapper')).not.toHaveClass('mentioned');
+  });
+
   it('marks messages from the current user as sent and others as received', () => {
     const messages = [
       { id: 1, sender_id: 1, sender_username: 'alice', plaintext: 'hi there', timestamp: 1000 },

@@ -23,7 +23,10 @@ import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 // `canAddReactions` false (a guild channel's permissions) take away the composer (showing
 // `cantSendText`) and reacting. `nameColors` ({ userId: '#rrggbb' }) colours names.
 // `reactionNames` ({ userId: username }) names who reacted and who's mentioned; `people`
-// ([{ id, username }]) are who can be mentioned ("@name" suggestions).
+// ([{ id, username }]) are who can be mentioned ("@name" suggestions). In a guild,
+// `mentionRoles` ({ roleId: { name, color } }) draws role mentions, `myRoleIds` are yours,
+// `suggestRoles` ([{ id, name, color }]) the roles you may mention, and `canMentionEveryone`
+// adds @everyone and @here.
 export default function ChatPane({
   chatId,
   chatName,
@@ -34,6 +37,10 @@ export default function ChatPane({
   deleteReaction,
   reactionNames,
   people,
+  mentionRoles,
+  myRoleIds,
+  suggestRoles,
+  canMentionEveryone = false,
   canModerate = false,
   canSend = true,
   cantSendText = "You don't have permission to send messages here.",
@@ -94,7 +101,7 @@ export default function ChatPane({
 // `@name`.
   async function copyMessage(msg) {
     try {
-      await navigator.clipboard.writeText(mentionsToText(customEmojiToText(summarizeAttachments(msg.plaintext)), reactionNames));
+      await navigator.clipboard.writeText(mentionsToText(customEmojiToText(summarizeAttachments(msg.plaintext)), reactionNames, mentionRoles));
     } catch (err) {
       console.error('Copy failed', err);
       setComposerError("Couldn't copy the message.");
@@ -185,6 +192,8 @@ export default function ChatPane({
             canModerate={canModerate}
             canAddReactions={canAddReactions}
             nameColors={nameColors}
+            mentionRoles={mentionRoles}
+            myRoleIds={myRoleIds}
             // While reacting to a message (or its mobile menu is open), it stays
             // highlighted and the others don't react to hovering.
             focusedMsgId={reactingTo?.msgId ?? actionsForId}
@@ -219,6 +228,9 @@ export default function ChatPane({
         onInputFocus={reactions.closePicker}
         onSend={conversation.sendMessage}
         people={people}
+        roles={suggestRoles}
+        roleInfo={mentionRoles}
+        canMentionEveryone={canMentionEveryone}
       />}
 
       {actionsFor && (

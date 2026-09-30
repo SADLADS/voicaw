@@ -92,6 +92,13 @@ describe('GuildSidebar', () => {
     expect(channelRow('general')).not.toHaveClass('unread');
   });
 
+  it('shows unread mentions of you as a red count, except on the open channel', () => {
+    renderSidebar({ unread: [{ channel_id: 11, guild_id: 5, count: 3, mentions: 2 }, { channel_id: 10, guild_id: 5, count: 1, mentions: 1 }] });
+    const memes = screen.getByRole('link', { name: 'memes 2 mentions' }).closest('li');
+    expect(within(memes).getByLabelText('2 mentions')).toHaveTextContent('2');
+    expect(within(channelRow('general')).queryByLabelText(/mentions/)).toBeNull();
+  });
+
   it('collapses a category but keeps unread channels showing, and remembers it', () => {
     renderSidebar({ unread: [{ channel_id: 11, guild_id: 5, count: 1 }] });
     fireEvent.click(screen.getByRole('button', { name: 'Fun' }));
@@ -107,7 +114,7 @@ describe('GuildSidebar', () => {
     fireEvent.click(screen.getByRole('button', { name: /Test Guild/ }));
     const menu = screen.getByRole('menu');
     expect(within(menu).getAllByRole('menuitem').map((b) => b.textContent.trim())).toEqual([
-      'Invite People', 'Server Settings', 'Create Channel', 'Create Category',
+      'Invite People', 'Server Settings', 'Create Channel', 'Create Category', 'Notification Settings',
     ]);
   });
 
@@ -116,7 +123,7 @@ describe('GuildSidebar', () => {
     expect(screen.queryByRole('button', { name: 'Edit general' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Test Guild/ }));
     expect(within(screen.getByRole('menu')).getAllByRole('menuitem').map((b) => b.textContent.trim())).toEqual([
-      'Invite People', 'Leave Server',
+      'Invite People', 'Notification Settings', 'Leave Server',
     ]);
 
     fireEvent.click(screen.getByRole('menuitem', { name: 'Leave Server' }));
@@ -132,7 +139,7 @@ describe('GuildSidebar', () => {
     expect(screen.getByRole('button', { name: 'Edit general' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Test Guild/ }));
     expect(within(screen.getByRole('menu')).getAllByRole('menuitem').map((b) => b.textContent.trim())).toEqual([
-      'Create Channel', 'Create Category', 'Leave Server',
+      'Create Channel', 'Create Category', 'Notification Settings', 'Leave Server',
     ]);
   });
 

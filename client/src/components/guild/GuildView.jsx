@@ -11,9 +11,9 @@ import ChannelIcon from './ChannelIcon';
 import VoiceChannelView from './VoiceChannelView';
 import { useChannel } from '../../hooks/useChannel';
 import { onGuildEvent } from '../../utils/ws-client';
-import { addGuildReaction, fetchMembers, removeGuildReaction } from '../../services/guildService';
+import { addGuildReaction, fetchChannelMembers, fetchMembers, removeGuildReaction } from '../../services/guildService';
 import { defaultChannel, errorMessage, rememberChannel } from '../../utils/guildDisplay';
-import { PERMISSIONS, has, memberColor } from '../../utils/permissions';
+import { PERMISSIONS, colorToHex, has, memberColor } from '../../utils/permissions';
 
 const SHOW_MEMBERS_KEY = 'showMemberList';
 
@@ -92,12 +92,51 @@ export default function GuildView({ user }) {
     };
   }, [guildId]);
 
+  // Who can see the channel (a Set of user ids; null until known): the member list and "@"
+  // suggestions only show them. Fetched again when anything that could change it happens.
+  const [viewers, setViewers] = useState(null);
+  const viewedChannelId = channel?.id ?? null;
+  useEffect(() => {
+    setViewers(null);
+    if (!viewedChannelId) return undefined;
+    let cancelled = false;
+    const load = () => fetchChannelMembers(viewedChannelId)
+      .then((ids) => { if (!cancelled) setViewers(new Set(ids)); })
+      .catch((err) => console.warn('Failed to load who can see the channel', err));
+    load();
+    const id = Number(guildId);
+    const off = onGuildEvent((event) => {
+      if (event.guildId !== id && event.guild?.id !== id) return;
+      if (['guild_update', 'guild_member_add', 'guild_member_remove', 'guild_member_update'].includes(event.type)) load();
+    });
+    return () => {
+      cancelled = true;
+      off();
+    };
+  }, [guildId, viewedChannelId]);
+  const channelMembers = useMemo(
+    () => (viewers ? members.filter((m) => viewers.has(m.id)) : members),
+    [members, viewers]
+  );
+
   const reactionNames = useMemo(
     () => Object.fromEntries(members.map((m) => [m.id, m.username])),
     [members]
   );
   // Each member's name colour: their highest coloured role's (none: the normal colour).
   const roles = guild?.roles;
+  // Roles for mentions: every one to draw them, those you may mention to suggest.
+  const mentionRoles = useMemo(
+    () => Object.fromEntries((roles ?? []).filter((r) => !r.is_everyone)
+      .map((r) => [r.id, { name: r.name, color: r.color != null ? colorToHex(r.color) : null }])),
+    [roles]
+  );
+  const canMentionEveryone = has(guild?.my_permissions, PERMISSIONS.MENTION_EVERYONE);
+  const suggestRoles = useMemo(
+    () => (roles ?? []).filter((r) => !r.is_everyone && (r.mentionable || canMentionEveryone))
+      .map((r) => ({ id: r.id, name: r.name, color: r.color != null ? colorToHex(r.color) : null })),
+    [roles, canMentionEveryone]
+  );
   const nameColors = useMemo(
     () => Object.fromEntries(members.map((m) => [m.id, memberColor(roles, m.role_ids)]).filter(([, c]) => c)),
     [members, roles]
@@ -179,7 +218,11 @@ export default function GuildView({ user }) {
               saveReaction={(msg, emoji) => addGuildReaction(msg.id, emoji)}
               deleteReaction={removeGuildReaction}
               reactionNames={reactionNames}
-              people={members}
+              people={channelMembers}
+              mentionRoles={mentionRoles}
+              myRoleIds={guild.my_role_ids}
+              suggestRoles={suggestRoles}
+              canMentionEveryone={canMentionEveryone}
               canModerate={has(permissions, PERMISSIONS.MANAGE_MESSAGES)}
               canSend={has(permissions, PERMISSIONS.SEND_MESSAGES)}
               cantSendText={`You do not have permission to send messages in #${channel.name}.`}
@@ -193,7 +236,7 @@ export default function GuildView({ user }) {
         {membersVisible && (
           <MemberList
             guild={guild}
-            members={members}
+            members={channelMembers}
             user={user}
             onClose={isMobile ? () => setMembersOpenMobile(false) : undefined}
           />

@@ -45,8 +45,10 @@ try {
   await a.click('#dm-input');
   await a.keyboard.type('hi @');
   await a.waitForSelector('.mention-suggestions');
-  const everyone = await a.$$eval('.mention-suggestions [role=option]', (els) => els.map((e) => e.textContent));
+  const everyone = await a.$$eval('.mention-suggestions .mention-suggestion-user', (els) => els.map((e) => e.textContent));
   check(everyone.length === 3, `"@" lists all three members (${everyone.join(', ')})`);
+  const mass = await a.$$eval('.mention-suggestions .mention-suggestion-everyone', (els) => els.length);
+  check(mass === 2, 'and @everyone and @here, for the owner');
   await a.keyboard.type(bob.name.slice(0, 3));
   const narrowed = await a.$$eval('.mention-suggestions [role=option]', (els) => els.map((e) => e.textContent));
   check(narrowed.length === 1 && narrowed[0] === bob.name, `"@bob" narrows to bob (${narrowed.join(', ')})`);
@@ -85,6 +87,79 @@ try {
   await a.keyboard.press('Enter');
   await bob.page.waitForSelector('text=look at this!', { timeout: 10000 });
   check(Boolean(await bob.page.$('.mentioned .mention-me')), 'the edited message still mentions bob');
+
+  // Carol elsewhere: a mention of her shows as a red count on the server and the channel.
+  const c = carol.page;
+  await c.click('a[aria-label="Direct Messages"]');
+  await c.waitForSelector('#dm-main');
+  await a.click('#dm-input');
+  await a.keyboard.type(`@${carol.name.slice(0, 4)}`);
+  await a.keyboard.press('Enter');
+  await a.keyboard.type('ping');
+  await a.keyboard.press('Enter');
+  const badge = await c.waitForSelector('.rail-mention-badge', { timeout: 10000 });
+  check((await badge.textContent()) === '1', 'the server icon shows 1 mention');
+  await shot(c, 'rail-badge');
+  await c.click(`a[aria-label="Mentions"]`);
+  await c.waitForSelector('#dm-input');
+  await c.waitForFunction(() => !document.querySelector('.rail-mention-badge'), null, { timeout: 10000 });
+  check(true, 'opening the channel clears it');
+
+  // @everyone (the owner may), and roles.
+  await a.keyboard.type('@every');
+  const everyoneOpt = await a.waitForSelector('.mention-suggestions [role=option]:has-text("@everyone")');
+  check(Boolean(everyoneOpt), 'the owner is offered @everyone');
+  await a.keyboard.press('Enter');
+  await a.keyboard.type('meeting now');
+  await a.keyboard.press('Enter');
+  await bob.page.waitForSelector('.mentioned:has-text("meeting now") .mention:has-text("@everyone")', { timeout: 10000 });
+  check(true, 'bob sees @everyone highlighted');
+
+  const role = await api(a, 'POST', `/guilds/${guildId}/roles`, { name: 'Raiders', color: 0x2ecc71, mentionable: true });
+  await api(a, 'PUT', `/guilds/${guildId}/members/${carol.id}/roles`, { roleIds: [role.id] });
+  const b = bob.page;
+  await b.click('#dm-input');
+  await b.keyboard.type('@Rai');
+  await b.waitForSelector('.mention-suggestions [role=option]:has-text("Raiders")');
+  check(!(await b.$('.mention-suggestions [role=option]:has-text("@everyone")')), 'bob (no Mention Everyone) gets the mentionable role but not @everyone');
+  await shot(b, 'role-suggestion');
+  await b.keyboard.press('Enter');
+  await b.keyboard.type('assemble');
+  await b.keyboard.press('Enter');
+  const roleMention = await c.waitForSelector('.mentioned .role-mention', { timeout: 10000 });
+  check((await roleMention.textContent()) === '@Raiders', 'carol sees @Raiders on a message for her');
+  await c.mouse.move(5, 5);
+  await shot(c, 'role-mentioned');
+
+  // A private channel: only the people who can see it are listed and suggested.
+  const secret = await api(a, 'POST', `/guilds/${guildId}/channels`, { name: 'secret', type: 'text' });
+  const everyoneRole = guild.roles.find((r) => r.is_everyone);
+  await api(a, 'PUT', `/guilds/${guildId}/channels/${secret.id}/overrides/role/${everyoneRole.id}`, { allow: 0, deny: 1 });
+  await api(a, 'PUT', `/guilds/${guildId}/channels/${secret.id}/overrides/member/${bob.id}`, { allow: 1, deny: 0 });
+  await a.goto(`${BASE}/guild/${guildId}/${secret.id}`);
+  await a.waitForSelector('#dm-input');
+  await a.waitForFunction((name) => !document.querySelector('.guild-body')?.textContent.includes(name), carol.name, { timeout: 10000 });
+  check(true, "carol isn't in #secret's member list");
+  await a.click('#dm-input');
+  await a.keyboard.type('@');
+  await a.waitForSelector('.mention-suggestions');
+  const inSecret = await a.$$eval('.mention-suggestions [role=option]', (els) => els.map((e) => e.textContent));
+  check(!inSecret.some((t) => t.includes(carol.name)) && inSecret.includes(bob.name), `#secret suggests bob, not carol (${inSecret.join(', ')})`);
+  await shot(a, 'private-suggestions');
+  await a.keyboard.press('Escape');
+  await a.keyboard.press('Backspace');
+
+  // Notification settings.
+  await c.click('.guild-header-button');
+  await c.click('text=Notification Settings');
+  await c.check('input[value="all"]');
+  await shot(c, 'notifications');
+  await c.waitForFunction(async (id) => {
+    const res = await fetch(`/api/guilds/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    return (await res.json()).my_notify_level === 'all';
+  }, guildId, { timeout: 10000 });
+  check(true, 'choosing "All messages" is saved');
+  await c.click('button:has-text("Done")');
 
   // Phone, in a DM: tap a suggestion.
   const dave = await signUp(browser, 'dave', { ...devices['Pixel 7'] });

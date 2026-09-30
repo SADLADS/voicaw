@@ -10,9 +10,10 @@ import { useDragReorder } from '../hooks/useDragReorder';
 
 // The server rail down the left (like Discord's): home, DMs, then each guild (a pill on the
 // left marks unread messages, a taller one the open guild), then "+" to create or join one.
-// `unreadGuildIds` is a Set of guild ids with unread messages. Guilds can be dragged into a
+// `unreadGuildIds` is a Set of guild ids with unread messages, `guildMentions` ({ guildId:
+// count }) how many of them mention you (a red badge on the icon). Guilds can be dragged into a
 // new order (hold, then drag, on touch screens); `onReorderGuilds(ids)` saves it.
-export default function Sidebar({ hasUnreadDms, guilds = [], unreadGuildIds = new Set(), onReorderGuilds }) {
+export default function Sidebar({ hasUnreadDms, guilds = [], unreadGuildIds = new Set(), guildMentions = {}, onReorderGuilds }) {
   const location = useLocation();
   const [adding, setAdding] = useState(false);
   const { drag, itemProps } = useDragReorder(guilds.map((g) => g.id), (ids) => onReorderGuilds?.(ids));
@@ -63,6 +64,11 @@ export default function Sidebar({ hasUnreadDms, guilds = [], unreadGuildIds = ne
               <NavLink to={`/guild/${guild.id}`} className="nav-icon rail-guild" aria-label={guild.name} title={guild.name} draggable={false}>
                 <GuildIcon guild={guild} />
               </NavLink>
+              {guildMentions[guild.id] > 0 && (
+                <span className="mention-badge rail-mention-badge" aria-label={`${guildMentions[guild.id]} mentions`}>
+                  {guildMentions[guild.id] > 99 ? '99+' : guildMentions[guild.id]}
+                </span>
+              )}
             </div>
           );
         })}

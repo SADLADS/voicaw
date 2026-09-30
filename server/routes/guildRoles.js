@@ -46,7 +46,7 @@ async function renumberRoles(guildId, topFirstIds) {
 
 // A new role goes at the bottom (just above @everyone), like in Discord.
 router.post('/guilds/:guildId/roles', manageRoles, async (req, res) => {
-  const { color = null, permissions = 0, hoist = false } = req.body ?? {};
+  const { color = null, permissions = 0, hoist = false, mentionable = false } = req.body ?? {};
   const name = req.body?.name === undefined ? 'new role' : cleanName(req.body.name, MAX_ROLE_NAME);
   if (!name) return res.status(400).json({ error: `Role names are 1–${MAX_ROLE_NAME} characters` });
   if (!validColor(color)) return res.status(400).json({ error: 'Invalid colour' });
@@ -55,15 +55,16 @@ router.post('/guilds/:guildId/roles', manageRoles, async (req, res) => {
 
   await db.run('UPDATE guild_roles SET position = position + 1 WHERE guild_id = ? AND is_everyone = 0', [req.guild.id]);
   const { lastID } = await db.run(
-    'INSERT INTO guild_roles (guild_id, name, color, position, permissions, hoist) VALUES (?, ?, ?, 1, ?, ?)',
-    [req.guild.id, name, color, permissions, hoist ? 1 : 0]
+    'INSERT INTO guild_roles (guild_id, name, color, position, permissions, hoist, mentionable) VALUES (?, ?, ?, 1, ?, ?, ?)',
+    [req.guild.id, name, color, permissions, hoist ? 1 : 0, mentionable ? 1 : 0]
   );
   await announceGuildUpdate(req.guild.id);
   res.status(201).json(await findRole(req.guild.id, lastID));
 });
 
 // Change a role below yours: `name`, `color`, `permissions`, `hoist` (shown separately in the
-// member list). @everyone can only have its permissions changed.
+// member list), `mentionable` (anyone may @mention it). @everyone can only have its permissions
+// changed.
 router.patch('/guilds/:guildId/roles/:roleId', manageRoles, async (req, res) => {
   const role = await findRole(req.guild.id, Number(req.params.roleId));
   if (!role) return res.status(404).json({ error: 'Role not found' });
@@ -72,7 +73,7 @@ router.patch('/guilds/:guildId/roles/:roleId', manageRoles, async (req, res) => 
   const body = req.body ?? {};
   const updates = [];
   const params = [];
-  if (role.is_everyone && (body.name !== undefined || body.color !== undefined || body.hoist !== undefined)) {
+  if (role.is_everyone && (body.name !== undefined || body.color !== undefined || body.hoist !== undefined || body.mentionable !== undefined)) {
     return res.status(400).json({ error: '@everyone can only have its permissions changed' });
   }
   if (body.name !== undefined) {
@@ -89,6 +90,10 @@ router.patch('/guilds/:guildId/roles/:roleId', manageRoles, async (req, res) => 
   if (body.hoist !== undefined) {
     updates.push('hoist = ?');
     params.push(body.hoist ? 1 : 0);
+  }
+  if (body.mentionable !== undefined) {
+    updates.push('mentionable = ?');
+    params.push(body.mentionable ? 1 : 0);
   }
   if (body.permissions !== undefined) {
     if (!validBits(body.permissions)) return res.status(400).json({ error: 'Invalid permissions' });

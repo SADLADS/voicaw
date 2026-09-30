@@ -21,6 +21,7 @@ const PERMISSIONS = {
   MANAGE_EMOJIS: 1 << 11,
   CONNECT: 1 << 12,
   SPEAK: 1 << 13,
+  MENTION_EVERYONE: 1 << 14,
 };
 
 const ALL_PERMISSIONS = Object.values(PERMISSIONS).reduce((all, bit) => all | bit, 0);

@@ -3,13 +3,14 @@ const db = require('../db');
 const { maxPlaintextLength } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has, channelPermissions } = require('../permissions');
-const { getChannelAccess, getMember, getOverrides, sendToChannel } = require('../guilds');
+const { getChannelAccess, getMember, getOverrides, sendToChannel, getChannelViewers } = require('../guilds');
+const { saveMentions, notifyNewMessage } = require('../mentions');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
 // same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
 // needs View Channel (without it the channel doesn't exist, 404), posting Send Messages,
 // reacting Add Reactions. Authors edit their own; authors or Manage Messages delete. Events
-// only go to the members who can see the channel.
+// only go to the members who can see the channel. Mentions and pushes: see mentions.js.
 const router = express.Router();
 
 const MAX_REACTIONS_PER_USER_PER_MESSAGE = 20;
@@ -18,6 +19,7 @@ const MAX_EMOJI_LENGTH = 64;
 const MESSAGE_SELECT = `
   SELECT
     m.id, m.channel_id, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
+    m.mention_everyone, m.mention_roles,
     u.username AS sender_username,
     pm.content AS parent_content,
     pu.id AS parent_sender_id,
@@ -27,7 +29,8 @@ const MESSAGE_SELECT = `
   LEFT JOIN guild_messages pm ON m.parent_message_id = pm.id
   LEFT JOIN users pu ON pm.sender_id = pu.id`;
 
-// Adds `reactions` ([{ id, user_id, emoji, timestamp }], oldest first) to each message.
+// Adds `reactions` ([{ id, user_id, emoji, timestamp }], oldest first) to each message, and
+// makes `mention_roles` (the roles it pinged) an array.
 async function withReactions(messages) {
   if (messages.length === 0) return messages;
   const ids = messages.map((m) => m.id);
@@ -38,7 +41,15 @@ async function withReactions(messages) {
   );
   const byMessage = new Map(ids.map((id) => [id, []]));
   for (const { message_id: messageId, ...reaction } of rows) byMessage.get(messageId).push(reaction);
-  return messages.map((m) => ({ ...m, reactions: byMessage.get(m.id) }));
+  return messages.map((m) => ({ ...m, mention_roles: parseRoleIds(m.mention_roles), reactions: byMessage.get(m.id) }));
+}
+
+function parseRoleIds(json) {
+  try {
+    return json ? JSON.parse(json) : [];
+  } catch {
+    return [];
+  }
 }
 
 const forbidden = (res) => res.status(403).json({ error: "You don't have permission to do that" });
@@ -124,13 +135,15 @@ router.post('/channels/:channelId/messages', authenticateJWT, requireTextChannel
     [req.channel.id, req.user.id, content, parentMessageId]
   );
   await markRead(req.user.id, req.channel.id, lastID);
+  const mentions = await saveMentions({ id: lastID, content, sender_id: req.user.id }, req.channel, req.permissions);
   const [message] = await withReactions([await db.get(`${MESSAGE_SELECT} WHERE m.id = ?`, [lastID])]);
 
   await sendToChannel(req.channel, { type: 'guild_message_new', guildId: req.channel.guild_id, message });
   res.status(201).json(message);
+  notifyNewMessage(message, req.channel, mentions).catch((err) => console.error('Guild push failed:', err.message));
 });
 
-// Only the author can edit.
+// Only the author can edit. Mentions are worked out again (without pushes, like Discord).
 router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async (req, res) => {
   if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
   const content = cleanContent(req.body?.content);
@@ -138,12 +151,16 @@ router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async 
     return res.status(400).json({ error: `Messages are 1–${maxPlaintextLength} characters` });
   }
   await db.run('UPDATE guild_messages SET content = ?, edited = 1 WHERE id = ?', [content, req.message.id]);
+  await saveMentions({ id: req.message.id, content, sender_id: req.user.id }, req.channel, req.permissions);
+  const saved = await db.get('SELECT mention_everyone, mention_roles FROM guild_messages WHERE id = ?', [req.message.id]);
   await sendToChannel(req.channel, {
     type: 'guild_message_edit',
     guildId: req.channel.guild_id,
     channelId: req.channel.id,
     messageId: req.message.id,
     content,
+    mention_everyone: saved.mention_everyone,
+    mention_roles: parseRoleIds(saved.mention_roles),
   });
   res.json({ success: true, messageId: req.message.id, content });
 });
@@ -155,6 +172,7 @@ router.delete('/guild-messages/:messageId', authenticateJWT, requireMessage, asy
     return res.status(403).json({ error: 'Not authorized to delete this message' });
   }
   await db.run('DELETE FROM guild_reactions WHERE message_id = ?', [id]);
+  await db.run('DELETE FROM guild_mentions WHERE message_id = ?', [id]);
   await db.run('DELETE FROM guild_messages WHERE id = ?', [id]);
   const { guild_id: guildId, id: channelId } = req.channel;
   await sendToChannel(req.channel, { type: 'guild_message_delete', guildId, channelId, messageId: id });
@@ -217,6 +235,13 @@ router.delete('/guild-reactions/:reactionId', authenticateJWT, async (req, res) 
   res.json({ success: true });
 });
 
+// Who can see a channel (text or voice): their user ids. For the member list and "@" suggestions.
+router.get('/channels/:channelId/members', authenticateJWT, async (req, res) => {
+  const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
+  if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Channel not found' });
+  res.json(await getChannelViewers(access.channel));
+});
+
 // ---- Read state ----
 
 // Marks the channel read up to `messageId` (never moves backwards).
@@ -228,17 +253,20 @@ router.post('/channels/:channelId/read', authenticateJWT, requireTextChannel, as
 });
 
 // Unread counts for every channel of the caller's guilds that has any and they can see:
-// messages by other people after the caller's read marker.
+// messages by other people after the caller's read marker (`count`), and how many of those
+// mention them (`mentions`).
 router.get('/guild-unread', authenticateJWT, async (req, res) => {
   const me = req.user.id;
   const rows = await db.all(
-    `SELECT c.id AS channel_id, c.guild_id, COUNT(m.id) AS count
+    `SELECT c.id AS channel_id, c.guild_id, COUNT(m.id) AS count,
+       (SELECT COUNT(*) FROM guild_mentions gmn WHERE gmn.user_id = ? AND gmn.channel_id = c.id
+          AND gmn.message_id > COALESCE(r.last_read_id, 0)) AS mentions
      FROM guild_channels c
      JOIN guild_members gm ON gm.guild_id = c.guild_id AND gm.user_id = ?
      LEFT JOIN guild_channel_reads r ON r.channel_id = c.id AND r.user_id = ?
      JOIN guild_messages m ON m.channel_id = c.id AND m.id > COALESCE(r.last_read_id, 0) AND m.sender_id != ?
      GROUP BY c.id`,
-    [me, me, me]
+    [me, me, me, me]
   );
   const visible = [];
   for (const guildId of new Set(rows.map((r) => r.guild_id))) {

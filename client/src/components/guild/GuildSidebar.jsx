@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
+  faBell,
   faChevronDown,
   faChevronRight,
   faFolderPlus,
@@ -20,6 +21,7 @@ import ChannelDialog from './ChannelDialog';
 import CategoryDialog from './CategoryDialog';
 import GuildSettingsDialog from './GuildSettingsDialog';
 import ConfirmDialog from './ConfirmDialog';
+import NotificationDialog from './NotificationDialog';
 import ChannelIcon from './ChannelIcon';
 import VoiceChannelMembers from './VoiceChannelMembers';
 import { useVoice } from '../../hooks/useVoice';
@@ -73,7 +75,9 @@ export default function GuildSidebar({ guild, user }) {
   const managesChannels = can(PERMISSIONS.MANAGE_CHANNELS);
   const opensSettings = can(PERMISSIONS.MANAGE_GUILD) || can(PERMISSIONS.MANAGE_ROLES) ||
     can(PERMISSIONS.MANAGE_EMOJIS) || can(PERMISSIONS.BAN_MEMBERS);
-  const unreadChannels = new Set(guildList.unread.filter((u) => u.guild_id === guild.id).map((u) => u.channel_id));
+  const guildUnread = guildList.unread.filter((u) => u.guild_id === guild.id);
+  const unreadChannels = new Set(guildUnread.map((u) => u.channel_id));
+  const channelMentions = new Map(guildUnread.filter((u) => u.mentions > 0).map((u) => [u.channel_id, u.mentions]));
   const { uncategorized, categories } = groupChannels(guild);
   const inVoice = voice.status !== 'idle' && voice.guildId === guild.id ? voice.channelId : null;
   const speaking = new Set(voice.status === 'connected' ? voice.speaking : []);
@@ -111,6 +115,7 @@ export default function GuildSidebar({ guild, user }) {
   function renderChannel(channel) {
     const active = String(channel.id) === channelId;
     const unread = unreadChannels.has(channel.id) && !active;
+    const mentions = active ? 0 : channelMentions.get(channel.id) ?? 0;
     const connected = channel.id === inVoice;
     return (
       <React.Fragment key={channel.id}>
@@ -123,6 +128,10 @@ export default function GuildSidebar({ guild, user }) {
         >
           <ChannelIcon channel={channel} className="guild-channel-icon" />
           <span className="guild-channel-name">{channel.name}</span>
+          {mentions > 0 && ' '}
+          {mentions > 0 && (
+            <span className="mention-badge" aria-label={`${mentions} mentions`}>{mentions > 99 ? '99+' : mentions}</span>
+          )}
         </Link>
         {managesChannels && (
           <button
@@ -181,6 +190,9 @@ export default function GuildSidebar({ guild, user }) {
                 </button>
               </>
             )}
+            <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'notifications' })}>
+              Notification Settings <FontAwesomeIcon icon={faBell} />
+            </button>
             {!isOwner && (
               <>
                 <div className="guild-menu-separator" />
@@ -249,6 +261,7 @@ export default function GuildSidebar({ guild, user }) {
       </nav>
 
       {dialog?.type === 'invite' && <InviteDialog guild={guild} onClose={closeDialog} />}
+      {dialog?.type === 'notifications' && <NotificationDialog guild={guild} onClose={closeDialog} />}
       {dialog?.type === 'settings' && <GuildSettingsDialog guild={guild} user={user} onClose={closeDialog} />}
       {dialog?.type === 'category' && <CategoryDialog guild={guild} category={dialog.category} onClose={closeDialog} />}
       {dialog?.type === 'channel' && (

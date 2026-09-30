@@ -17,6 +17,7 @@ export const PERMISSIONS = {
   MANAGE_EMOJIS: 1 << 11,
   CONNECT: 1 << 12,
   SPEAK: 1 << 13,
+  MENTION_EVERYONE: 1 << 14,
 };
 
 export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
@@ -50,6 +51,7 @@ export const PERMISSION_GROUPS = [
       ['SEND_MESSAGES', 'Send Messages', 'Lets members post in text channels.'],
       ['ADD_REACTIONS', 'Add Reactions', 'Lets members react to messages.'],
       ['MANAGE_MESSAGES', 'Manage Messages', "Lets members delete other people's messages."],
+      ['MENTION_EVERYONE', 'Mention @everyone, @here and All Roles', 'Lets members notify everyone in a channel (@everyone), everyone online there (@here), and any role, even ones not set to be mentionable.'],
     ],
   },
   {

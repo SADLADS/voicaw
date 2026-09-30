@@ -22,6 +22,7 @@ const {
   deleteChannelContents,
   markGuildRead,
 } = require('../guilds');
+const { NOTIFY_LEVELS } = require('../mentions');
 const { enforceGuild: enforceGuildVoice, disconnectGuild: disconnectGuildVoice } = require('../voice');
 
 // Guilds (servers): creating and managing them, members, bans, invites, categories and
@@ -118,6 +119,17 @@ router.post('/guilds', authenticateJWT, async (req, res) => {
 
 router.get('/guilds/:guildId', member, async (req, res) => {
   res.json(await getGuildLayout(req.guild.id, req.user.id));
+});
+
+// Your own notification level for the guild: 'all', 'mentions' or 'none' (see mentions.js).
+// Your other devices get the new layout.
+router.put('/guilds/:guildId/notifications', member, async (req, res) => {
+  const level = req.body?.level;
+  if (!NOTIFY_LEVELS.includes(level)) return res.status(400).json({ error: 'Invalid notification level' });
+  await db.run('UPDATE guild_members SET notify_level = ? WHERE guild_id = ? AND user_id = ?', [level, req.guild.id, req.user.id]);
+  const guild = await getGuildLayout(req.guild.id, req.user.id);
+  sendToUserSockets(req.user.id, { type: 'guild_update', guild });
+  res.json({ level });
 });
 
 // Rename, and/or `iconUploaded: true` once a new icon is in the object store (see

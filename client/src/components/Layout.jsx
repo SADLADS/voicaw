@@ -46,6 +46,12 @@ export default function Layout({ user, onLogout }) {
   const groupList = useGroupList({ userId: user?.id, activeGroupId: groupId, onRemoved: onGroupRemoved });
   const hasUnreadGroups = groupList.groups.some((g) => g.unread > 0 && g.id !== groupId);
   const unreadGuildIds = useMemo(() => new Set(guildList.unread.map((u) => u.guild_id)), [guildList.unread]);
+  // Unread mentions of you, by guild id.
+  const guildMentions = useMemo(() => {
+    const counts = {};
+    for (const u of guildList.unread) if (u.mentions) counts[u.guild_id] = (counts[u.guild_id] ?? 0) + u.mentions;
+    return counts;
+  }, [guildList.unread]);
   // Custom emoji for the picker and autocomplete: by guild, in rail order.
   const customEmoji = useMemo(() => {
     const guilds = guildList.guilds
@@ -137,6 +143,7 @@ export default function Layout({ user, onLogout }) {
             hasUnreadDms={hasUnreadDms || hasUnreadGroups}
             guilds={guildList.guilds}
             unreadGuildIds={unreadGuildIds}
+            guildMentions={guildMentions}
             onReorderGuilds={guildList.reorderGuilds}
           />
 

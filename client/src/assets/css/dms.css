@@ -1534,3 +1534,26 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   border-radius: 50%;
   object-fit: cover;
 }
+
+/* A role mention in the role's colour (--role-color, set inline; none: a plain mention). */
+.mention.role-mention[style] {
+  color: var(--role-color);
+  background-color: color-mix(in srgb, var(--role-color) 18%, transparent);
+}
+
+.mention-suggestion-at {
+  width: 22px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--vc-fg-muted);
+}
+
+.mention-suggestion-note {
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -101,7 +101,7 @@ node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mu
 node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, group call, owner leaves
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
-node e2e/mentions.mjs [dir] # @ suggestions (guild, phone DM), mention highlight, editing
+node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
 For voice, `serve.mjs` also runs its own LiveKit (the binary at `LIVEKIT_BIN`, default
@@ -300,7 +300,8 @@ Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, 
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete`,
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
 `guild_order` (your server rail order, to your other devices), `guild_voice_state` (someone
-joined, left or (un)muted in a voice channel), for calls `call_incoming`, `call_update`,
+joined, left or (un)muted in a voice channel), `guild_mention` (only to whoever a new message
+mentions, for their red counts), for calls `call_incoming`, `call_update`,
 `call_end`, and for group DMs `group_dm_add` / `_update` / `_remove` / `_epoch` /
 `_message_new` / `_message_edit` / `_message_delete` / `_reaction_add` / `_reaction_remove`. A 30s heartbeat
 (ping/pong) prunes dead connections.
@@ -349,7 +350,8 @@ one user at a time).
   (`localStorage.pushDisabled`). Logout calls `disableNotificationsOnThisDevice()` *before* the token
   is cleared, so the server forgets the device.
 - Server: `sendPushToUser()` (drops 404/410 subscriptions). New DMs are pushed unless
-  `isViewingConversation()` says the recipient is looking at that chat. That uses `presence`
+  `isViewingConversation()` says the recipient is looking at that chat (group DMs: chat id
+  `group-<id>`; guild channels: `channel-<id>`, and which guild messages push is in Mentions). That uses `presence`
   websocket messages (`{visible, chatId}`) that `ws-client` sends on focus/visibility/chat changes
   and every 15s. The server ignores presence older than 35s.
 - Previews stay end-to-end encrypted. The DM push carries the ciphertext (never a key) when it fits
@@ -384,9 +386,11 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - **Permissions** (`server/permissions.js`, copied in `client/src/utils/permissions.js`; a
   test checks they match) are Discord's model with a bit field: View Channel, Send Messages,
   Add Reactions, Manage Messages, Manage Channels, Manage Roles, Manage Server, Create Invite,
-  Kick, Ban, Administrator, Manage Emoji, Connect, Speak (voice). Every guild has an `@everyone`
+  Kick, Ban, Administrator, Manage Emoji, Connect, Speak (voice), Mention Everyone (@everyone,
+  @here and any role; not a default, guild-wide only). Every guild has an `@everyone`
   role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak) plus orderable roles (`guild_roles`: name, colour
-  0xRRGGBB or null, `hoist` = shown separately in the member list, position: higher ranks
+  0xRRGGBB or null, `hoist` = shown separately in the member list, `mentionable` = anyone may
+  @mention it, position: higher ranks
   higher), given out in `guild_member_roles`. Guild permissions are @everyone's plus the
   member's roles'; the owner and Administrator get everything.
 - **Channel overrides** (`guild_channel_overrides`, per role or member, `allow`/`deny` of the
@@ -463,8 +467,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   its emoji anywhere. The client keeps them in `useGuildList` (`emojis`), and `Layout` provides
   `CustomEmojiContext` (`emoji/customEmojiContext.js`: by guild in rail order, and by id).
 - **Not done yet:** drag-and-drop reordering of channels (the API exists; roles and servers can
-  be dragged), category-level permissions (overrides are per channel), guild notifications (no
-  push for guild messages or mentions yet; mentions exist, see Mentions), `@everyone`/role mentions, server folders in the rail. Voice: see
+  be dragged), category-level permissions (overrides are per channel), server folders in the
+  rail, per-channel notification settings and muting, a list of your recent mentions. Voice: see
   Voice channels.
 
 ### Voice channels (LiveKit)
@@ -749,21 +753,44 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
 
 ### Mentions
 
-`<@id>` in message text (DMs, group DMs, channels; inside the encryption where there is one),
-helpers in `utils/mentions.js`. Only the id is stored, so a mention always shows the current
-name, looked up when drawn from the chat's names (`ChatPane`'s `reactionNames`: the two people
-in a DM, everyone in a group's log, a guild's members); anyone else shows as `@unknown-user`.
-- Typing `@` (after a space/bracket or at the start) lists `people` (`ChatPane` → `Composer`:
-  the DM's two, the group's current members, the guild's members; for a private channel that's
-  still every member) in `MentionSuggestions`, narrowing as you type (name starts with, then
-  contains); arrows/Enter/Tab/Escape and clicks work as for `:emoji` suggestions. Picking puts
-  a `mention` node in the editor (`editor/messageDoc.js`, shown as `@name`; the editor's
-  `mentionNames` prop turns `<@id>` in edited or pasted text back into one).
-- `rehypeMentions` (`utils/rehypeMentions.js`) marks them; `MessageList`'s `span` component draws
-  `@name` (`.mention`, `.mention-me` for you), and a message mentioning you gets `.mentioned`
-  (tinted, bar on the left). Plain-text places use `mentionsToText` (reply previews, copying,
-  DM push previews: the push carries `recipientName` for that).
-- Nothing on the server knows about them yet: no notifications or unread badges for mentions.
+Discord's forms, in message text: `<@id>` (a person; DMs, group DMs, channels, inside the
+encryption where there is one), and in guilds only `<@&id>` (a role), `@everyone` and `@here`.
+Helpers in `utils/mentions.js`. Only ids are stored, so a mention always shows the current
+name, looked up when drawn: people from the chat's names (`ChatPane`'s `reactionNames`: the two
+in a DM, everyone in a group's log, a guild's members; anyone else `@unknown-user`), roles from
+`mentionRoles` (`{ id: { name, color } }`; gone: `@deleted-role`).
+- **Who can be mentioned:** typing `@` (after a space/bracket or at the start) lists, in
+  `MentionSuggestions` (`searchMentions`: people, then up to 3 roles, then @everyone/@here),
+  `people` (`ChatPane` → `Composer`: the DM's two, the group's current members, or the members
+  who can see the channel, from `GET /channels/:id/members`, refetched on any guild, member or
+  role change; `GuildView` also shows only them in the member list), the roles you may mention
+  (`mentionable`, or all with Mention Everyone) and, with Mention Everyone, @everyone and
+  @here. Keys and clicks work as for `:emoji` suggestions. Picking puts a `mention` or
+  `roleMention` node in the editor (`editor/messageDoc.js`; the editor's `mentionNames` /
+  `mentionRoles` props turn text back into them); @everyone/@here stay text.
+- **Server** (`server/mentions.js`), guild messages only (it can't read DMs or groups): on send
+  and edit, `saveMentions` works out who's mentioned (nothing inside code; roles only if
+  `mentionable` or the sender has Mention Everyone; @everyone/@here need it, else they're
+  just text; @here = viewers not offline; only members who can see the channel; never the
+  sender), stores them in `guild_mentions` (message, channel, user) and on the message
+  (`mention_everyone` 0/1, `mention_roles` JSON; sent as an array). `/guild-unread` counts them
+  per channel (`mentions`). A new message sends `guild_mention` to each person mentioned and
+  pushes by each member's level for the guild (`guild_members.notify_level`: 'all', 'mentions'
+  (default), 'none'; `PUT /guilds/:id/notifications`, `my_notify_level` in the layout; set in
+  the guild menu's Notification Settings, `guild/NotificationDialog.jsx`), skipping whoever is
+  looking at the channel. Guild pushes are plain text (guilds aren't end-to-end encrypted):
+  title "sender (#channel, Guild)", body with names for mentions, `:name:` for custom emoji and
+  attachment names (never their key-carrying links). Edits don't push (like Discord).
+- **Client:** `rehypeMentions` (`utils/rehypeMentions.js`) marks them; `MessageList`'s `span`
+  component draws `@name` (`.mention`, `.mention-me` for you), roles in their colour
+  (`.role-mention`, `--role-color`), and @everyone/@here as mentions only if the message pinged
+  them. A message for you (`mentionsMe`: names you, pinged @everyone/@here, or one of your
+  roles, `myRoleIds`) gets `.mentioned` (tinted, bar on the left). Unread mentions show as red
+  counts on the channel (`GuildSidebar`) and the server icon (`Sidebar`), from
+  `useGuildList`'s `unread[].mentions`. Plain-text places use `mentionsToText` (reply previews,
+  copying, DM push previews: the push carries `recipientName` for that).
+- DMs and group DMs push every message already; mentioning someone there adds no notification
+  (the server can't see it).
 
 ### DM message list and history loading
 

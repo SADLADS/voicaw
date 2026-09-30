@@ -17,23 +17,41 @@ import { isEmojiOnly } from '../emoji/emojiIndex';
 import { rehypeTwemoji } from '../emoji/rehypeTwemoji';
 import { customEmojiToText } from '../emoji/customEmoji';
 import { rehypeMentions } from '../utils/rehypeMentions';
-import { mentionName, mentionsToText, mentionsUser } from '../utils/mentions';
+import { mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
 // is a new component type to React, which remounts (and reloads) every attachment on any
 // re-render. The per-message local drafts come in through context instead.
 const LocalAttachmentsContext = createContext(null);
-// Who mentions are: { names: { id: username }, meId }.
+// Who mentions are, for one message: { names: { id: username }, roles: { id: { name, color } },
+// meId, myRoleIds, everyone (whether it pinged @everyone/@here) }.
 const MentionContext = createContext(null);
 
-// A mention (from rehypeMentions): `@name`, highlighted more when it's you.
+// A mention (from rehypeMentions): `@name`, highlighted more when it's you; a role in its colour;
+// @everyone/@here as a mention only if the message pinged them (else plain text).
 // Other spans (code highlighting) only have a class.
 function MarkdownSpan({ className, children, ...rest }) {
   const mentions = useContext(MentionContext);
   const id = rest['data-mention-id'];
-  if (id == null) return <span className={className}>{children}</span>;
-  const me = String(mentions?.meId) === id;
-  return <span className={`mention${me ? ' mention-me' : ''}`}>@{mentionName(mentions?.names, id)}</span>;
+  const roleId = rest['data-role-mention-id'];
+  const everyone = rest['data-mention-everyone'];
+  if (id != null) {
+    const me = String(mentions?.meId) === id;
+    return <span className={`mention${me ? ' mention-me' : ''}`}>@{mentionName(mentions?.names, id)}</span>;
+  }
+  if (roleId != null) {
+    const color = mentions?.roles?.[roleId]?.color;
+    const mine = (mentions?.myRoleIds ?? []).some((r) => String(r) === roleId);
+    return (
+      <span className={`mention role-mention${mine ? ' mention-me' : ''}`} style={color ? { '--role-color': color } : undefined}>
+        @{roleName(mentions?.roles, roleId)}
+      </span>
+    );
+  }
+  if (everyone != null) {
+    return mentions?.everyone ? <span className="mention mention-me">@{everyone}</span> : <>@{everyone}</>;
+  }
+  return <span className={className}>{children}</span>;
 }
 
 // A custom emoji; one that's been deleted (image gone) shows as `:name:` text.
@@ -87,6 +105,8 @@ export function MessageRow({
   canModerate = false,
   canAddReactions = true,
   nameColors,
+  mentionRoles,
+  myRoleIds,
 }) {
   const emojiIndex = useEmojiIndex();
   // A picker or menu is open for this message: it stays highlighted with its menu showing.
@@ -99,8 +119,11 @@ export function MessageRow({
     [emojiIndex, s3Endpoint]
   );
 
-  const mentions = useMemo(() => ({ names: reactionNames, meId: user.id }), [reactionNames, user.id]);
-  const mentionsMe = mentionsUser(msg.plaintext, user.id);
+  const mentions = useMemo(
+    () => ({ names: reactionNames, roles: mentionRoles, meId: user.id, myRoleIds, everyone: Boolean(msg.mention_everyone) }),
+    [reactionNames, mentionRoles, user.id, myRoleIds, msg.mention_everyone]
+  );
+  const mentionsMe = isForMe(msg, user.id, myRoleIds);
 
   const imgSrc = s3Endpoint
     ? `${s3Endpoint}/profile-pics/${msg.sender_id}`
@@ -147,7 +170,7 @@ export function MessageRow({
               if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
             }}
           >
-            {mentionsToText(customEmojiToText(summarizeAttachments(parent.plaintext)), reactionNames)?.slice(0, 80) || "…"}
+            {mentionsToText(customEmojiToText(summarizeAttachments(parent.plaintext)), reactionNames, mentionRoles)?.slice(0, 80) || "…"}
           </span>
         </div>
       )}
@@ -230,6 +253,7 @@ export function MessageRow({
                 ariaLabel="Edit message"
                 initialText={editingMessageContent}
                 mentionNames={reactionNames}
+                mentionRoles={mentionRoles}
                 maxLength={maxPlaintextLength}
                 // Mobile: Enter is a new line; "save" below saves.
                 submitOnEnter={!isMobile}
@@ -327,6 +351,8 @@ export default function MessageList({
   canModerate,
   canAddReactions,
   nameColors,
+  mentionRoles,
+  myRoleIds,
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
@@ -366,6 +392,8 @@ export default function MessageList({
     canModerate,
     canAddReactions,
     nameColors,
+    mentionRoles,
+    myRoleIds,
   };
 
   const rememberAnchor = useCallback(() => {
