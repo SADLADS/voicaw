@@ -13,8 +13,6 @@ async function main() {
     console.error('Usage: npm run admin -- <username> [--remove]');
     process.exit(1);
   }
-  // db.js adds the column too, but its statements aren't ordered before ours.
-  await db.run('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0').catch(() => {});
   const { changes } = await db.run('UPDATE users SET is_admin = ? WHERE username = ?', [remove ? 0 : 1, username]);
   if (!changes) {
     console.error(`No user called ${username}`);

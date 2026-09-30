@@ -22,12 +22,14 @@ router.post('/save-subscription', authenticateJWT, async (req, res) => {
 
   // A device (endpoint) belongs to whoever is logged in on it now; otherwise it would
   // keep receiving a previous account's notifications.
-  await db.run('DELETE FROM push_subscriptions WHERE endpoint = ? AND user_id != ?', [endpoint, userId]);
-  await db.run(
-    `INSERT INTO push_subscriptions (user_id, endpoint, subscription) VALUES (?, ?, ?)
-     ON CONFLICT(user_id, endpoint) DO UPDATE SET subscription = excluded.subscription`,
-    [userId, endpoint, JSON.stringify(subObj)]
-  );
+  await db.transaction(async () => {
+    await db.run('DELETE FROM push_subscriptions WHERE endpoint = ? AND user_id != ?', [endpoint, userId]);
+    await db.run(
+      `INSERT INTO push_subscriptions (user_id, endpoint, subscription) VALUES (?, ?, ?)
+       ON CONFLICT(user_id, endpoint) DO UPDATE SET subscription = excluded.subscription`,
+      [userId, endpoint, JSON.stringify(subObj)]
+    );
+  });
   res.json({ success: true });
 });
 

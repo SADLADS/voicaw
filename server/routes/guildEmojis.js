@@ -203,9 +203,11 @@ router.put('/guilds-order', authenticateJWT, async (req, res) => {
     new Set(guildIds).size === guildIds.length && guildIds.every((id) => mine.includes(id));
   if (!valid) return res.status(400).json({ error: 'guildIds must list each of your guilds once' });
 
-  for (const [position, guildId] of guildIds.entries()) {
-    await db.run('UPDATE guild_members SET position = ? WHERE guild_id = ? AND user_id = ?', [position, guildId, req.user.id]);
-  }
+  await db.transaction(async () => {
+    for (const [position, guildId] of guildIds.entries()) {
+      await db.run('UPDATE guild_members SET position = ? WHERE guild_id = ? AND user_id = ?', [position, guildId, req.user.id]);
+    }
+  });
   sendToUserSockets(req.user.id, { type: 'guild_order', guildIds });
   res.json({ success: true });
 });

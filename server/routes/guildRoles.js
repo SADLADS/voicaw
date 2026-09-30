@@ -35,13 +35,15 @@ async function findRole(guildId, roleId) {
 // Renumbers the guild's roles 1..n (bottom to top, @everyone stays 0) in the given order
 // (top first), or their current order.
 async function renumberRoles(guildId, topFirstIds) {
-  const ids = topFirstIds ?? (await db.all(
-    'SELECT id FROM guild_roles WHERE guild_id = ? AND is_everyone = 0 ORDER BY position DESC, id',
-    [guildId]
-  )).map((r) => r.id);
-  for (const [index, id] of ids.entries()) {
-    await db.run('UPDATE guild_roles SET position = ? WHERE id = ?', [ids.length - index, id]);
-  }
+  await db.transaction(async () => {
+    const ids = topFirstIds ?? (await db.all(
+      'SELECT id FROM guild_roles WHERE guild_id = ? AND is_everyone = 0 ORDER BY position DESC, id',
+      [guildId]
+    )).map((r) => r.id);
+    for (const [index, id] of ids.entries()) {
+      await db.run('UPDATE guild_roles SET position = ? WHERE id = ?', [ids.length - index, id]);
+    }
+  });
 }
 
 // A new role goes at the bottom (just above @everyone), like in Discord.
@@ -53,11 +55,13 @@ router.post('/guilds/:guildId/roles', manageRoles, async (req, res) => {
   if (!validBits(permissions)) return res.status(400).json({ error: 'Invalid permissions' });
   if (!mayGrant(req.member, permissions)) return res.status(403).json({ error: "You can't give permissions you don't have" });
 
-  await db.run('UPDATE guild_roles SET position = position + 1 WHERE guild_id = ? AND is_everyone = 0', [req.guild.id]);
-  const { lastID } = await db.run(
-    'INSERT INTO guild_roles (guild_id, name, color, position, permissions, hoist, mentionable) VALUES (?, ?, ?, 1, ?, ?, ?)',
-    [req.guild.id, name, color, permissions, hoist ? 1 : 0, mentionable ? 1 : 0]
-  );
+  const { lastID } = await db.transaction(async () => {
+    await db.run('UPDATE guild_roles SET position = position + 1 WHERE guild_id = ? AND is_everyone = 0', [req.guild.id]);
+    return db.run(
+      'INSERT INTO guild_roles (guild_id, name, color, position, permissions, hoist, mentionable) VALUES (?, ?, ?, 1, ?, ?, ?)',
+      [req.guild.id, name, color, permissions, hoist ? 1 : 0, mentionable ? 1 : 0]
+    );
+  });
   await announceGuildUpdate(req.guild.id);
   res.status(201).json(await findRole(req.guild.id, lastID));
 });
@@ -117,11 +121,14 @@ router.delete('/guilds/:guildId/roles/:roleId', manageRoles, async (req, res) =>
   if (role.is_everyone) return res.status(400).json({ error: "@everyone can't be deleted" });
   if (role.position >= req.member.highest) return res.status(403).json({ error: 'That role is as high as yours or higher' });
 
-  const holders = await db.all('SELECT user_id FROM guild_member_roles WHERE role_id = ?', [role.id]);
-  await db.run('DELETE FROM guild_member_roles WHERE role_id = ?', [role.id]);
-  await db.run(`DELETE FROM guild_channel_overrides WHERE target_type = 'role' AND target_id = ?`, [role.id]);
-  await db.run('DELETE FROM guild_roles WHERE id = ?', [role.id]);
-  await renumberRoles(req.guild.id);
+  const holders = await db.transaction(async () => {
+    const userIds = await db.all('SELECT user_id FROM guild_member_roles WHERE role_id = ?', [role.id]);
+    await db.run('DELETE FROM guild_member_roles WHERE role_id = ?', [role.id]);
+    await db.run(`DELETE FROM guild_channel_overrides WHERE target_type = 'role' AND target_id = ?`, [role.id]);
+    await db.run('DELETE FROM guild_roles WHERE id = ?', [role.id]);
+    await renumberRoles(req.guild.id);
+    return userIds;
+  });
 
   await announceGuildUpdate(req.guild.id);
   for (const { user_id: userId } of holders) {
@@ -168,10 +175,12 @@ router.put('/guilds/:guildId/members/:userId/roles', manageRoles, async (req, re
     return res.status(403).json({ error: "You can't give or take roles as high as yours or higher" });
   }
 
-  await db.run('DELETE FROM guild_member_roles WHERE guild_id = ? AND user_id = ?', [req.guild.id, userId]);
-  for (const roleId of roleIds) {
-    await db.run('INSERT INTO guild_member_roles (guild_id, user_id, role_id) VALUES (?, ?, ?)', [req.guild.id, userId, roleId]);
-  }
+  await db.transaction(async () => {
+    await db.run('DELETE FROM guild_member_roles WHERE guild_id = ? AND user_id = ?', [req.guild.id, userId]);
+    for (const roleId of roleIds) {
+      await db.run('INSERT INTO guild_member_roles (guild_id, user_id, role_id) VALUES (?, ?, ?)', [req.guild.id, userId, roleId]);
+    }
+  });
   await sendToGuild(req.guild.id, { type: 'guild_member_update', guildId: req.guild.id, userId, roleIds });
   // What they can see may have changed.
   await announceGuildUpdate(req.guild.id);

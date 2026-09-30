@@ -337,8 +337,10 @@ router.post('/recover/finish', recoverLimits, async (req, res) => {
   const password = newPassword(req.body);
   if (password.error) return res.status(400).json({ error: password.error });
 
-  await db.run('UPDATE users SET password = ?, key_backup = ? WHERE id = ?', [password.record, password.backup, user.id]);
-  await db.run('DELETE FROM login_states WHERE username = ?', [user.username]);
+  await db.transaction(async () => {
+    await db.run('UPDATE users SET password = ?, key_backup = ? WHERE id = ?', [password.record, password.backup, user.id]);
+    await db.run('DELETE FROM login_states WHERE username = ?', [user.username]);
+  });
   limits.loginPerUsername.reset(byUsername(req));
   res.json({
     token: generateToken({ id: user.id, username: user.username }),

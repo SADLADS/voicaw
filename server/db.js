@@ -1,9 +1,26 @@
-const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database(process.env.DB_PATH || './voicaw.db');
+const { DatabaseSync } = require('node:sqlite');
+const { AsyncLocalStorage } = require('node:async_hooks');
 const { DEFAULT_EVERYONE_PERMISSIONS, PERMISSIONS } = require('./permissions');
 
+// Node's built-in SQLite (synchronous, no native build). WAL: reads never wait for a write, and
+// commits only append to the log. busy_timeout covers other processes (scripts/admin.js).
+// Foreign keys aren't enforced (they never were: deletes aren't ordered for it).
+const sqlite = new DatabaseSync(process.env.DB_PATH || './voicaw.db', { enableForeignKeyConstraints: false });
+sqlite.exec('PRAGMA journal_mode = WAL');
+sqlite.exec('PRAGMA synchronous = NORMAL');
+sqlite.exec('PRAGMA busy_timeout = 5000');
+
+// A column added to an existing table: fails harmlessly ("duplicate column") once it exists.
+function addColumn(sql) {
+  try {
+    sqlite.exec(sql);
+  } catch (err) {
+    if (!/duplicate column/.test(err.message)) throw err;
+  }
+}
+
 // USERS
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
@@ -25,8 +42,7 @@ CREATE TABLE IF NOT EXISTS users (
 // messages (only DMs and group DMs are encrypted). An earlier sketch left unused tables in old
 // databases (roles, user_roles, categories, channels, channel_permissions, messages); they can
 // be dropped. `guilds` is from that sketch too, hence `owner` and the ALTERs that update it.
-db.serialize(() => {
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guilds (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   owner INTEGER NOT NULL,
@@ -37,16 +53,15 @@ CREATE TABLE IF NOT EXISTS guilds (
   FOREIGN KEY (owner) REFERENCES users(id)
 );
 `);
-// Fail harmlessly ("duplicate column") once the columns exist.
 // Recovery code (optional): SHA-256 of the code's auth value, and a second copy of the key
 // backup encrypted with a key derived from the code (see the client's encryptionService).
-db.run('ALTER TABLE users ADD COLUMN recovery_verifier TEXT', () => {});
-db.run('ALTER TABLE users ADD COLUMN recovery_backup TEXT', () => {});
-db.run('ALTER TABLE users ADD COLUMN recovery_created INTEGER', () => {});
-db.run('ALTER TABLE guilds ADD COLUMN icon_version INTEGER NOT NULL DEFAULT 0', () => {});
-db.run('ALTER TABLE guilds ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0', () => {});
+addColumn('ALTER TABLE users ADD COLUMN recovery_verifier TEXT');
+addColumn('ALTER TABLE users ADD COLUMN recovery_backup TEXT');
+addColumn('ALTER TABLE users ADD COLUMN recovery_created INTEGER');
+addColumn('ALTER TABLE guilds ADD COLUMN icon_version INTEGER NOT NULL DEFAULT 0');
+addColumn('ALTER TABLE guilds ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0');
 
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_members (
   guild_id INTEGER NOT NULL,
   user_id INTEGER NOT NULL,
@@ -56,9 +71,9 @@ CREATE TABLE IF NOT EXISTS guild_members (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 `);
-db.run('CREATE INDEX IF NOT EXISTS guild_members_user ON guild_members (user_id)');
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_members_user ON guild_members (user_id)');
 
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_bans (
   guild_id INTEGER NOT NULL,
   user_id INTEGER NOT NULL,
@@ -71,7 +86,7 @@ CREATE TABLE IF NOT EXISTS guild_bans (
 `);
 
 // Invite links: /invite/<code>. No expiry / no use limit when null.
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_invites (
   code TEXT PRIMARY KEY,
   guild_id INTEGER NOT NULL,
@@ -85,7 +100,7 @@ CREATE TABLE IF NOT EXISTS guild_invites (
 );
 `);
 
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   guild_id INTEGER NOT NULL,
@@ -96,7 +111,7 @@ CREATE TABLE IF NOT EXISTS guild_categories (
 `);
 
 // category_id null = above every category, as in Discord.
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_channels (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   guild_id INTEGER NOT NULL,
@@ -110,7 +125,7 @@ CREATE TABLE IF NOT EXISTS guild_channels (
 );
 `);
 
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   channel_id INTEGER NOT NULL,
@@ -123,10 +138,10 @@ CREATE TABLE IF NOT EXISTS guild_messages (
   FOREIGN KEY (sender_id) REFERENCES users(id)
 );
 `);
-db.run('CREATE INDEX IF NOT EXISTS guild_messages_channel ON guild_messages (channel_id, id)');
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_messages_channel ON guild_messages (channel_id, id)');
 
 // Plain emoji (a guild isn't encrypted), one of each per person per message.
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_reactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   message_id INTEGER NOT NULL,
@@ -138,10 +153,10 @@ CREATE TABLE IF NOT EXISTS guild_reactions (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 `);
-db.run('CREATE INDEX IF NOT EXISTS guild_reactions_message ON guild_reactions (message_id)');
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_reactions_message ON guild_reactions (message_id)');
 
 // How far each member has read each channel; unread = newer messages by someone else.
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_channel_reads (
   user_id INTEGER NOT NULL,
   channel_id INTEGER NOT NULL,
@@ -153,7 +168,7 @@ CREATE TABLE IF NOT EXISTS guild_channel_reads (
 // ROLES. Every guild has an @everyone role (is_everyone = 1, position 0, always the bottom);
 // higher positions rank higher. `permissions` is a bit field (permissions.js); `color` is
 // 0xRRGGBB or null (no colour).
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_roles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   guild_id INTEGER NOT NULL,
@@ -166,10 +181,10 @@ CREATE TABLE IF NOT EXISTS guild_roles (
   FOREIGN KEY (guild_id) REFERENCES guilds(id)
 );
 `);
-db.run('CREATE INDEX IF NOT EXISTS guild_roles_guild ON guild_roles (guild_id)');
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_roles_guild ON guild_roles (guild_id)');
 
 // Which roles each member has (@everyone is implied, never stored here).
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_member_roles (
   guild_id INTEGER NOT NULL,
   user_id INTEGER NOT NULL,
@@ -179,11 +194,11 @@ CREATE TABLE IF NOT EXISTS guild_member_roles (
   FOREIGN KEY (role_id) REFERENCES guild_roles(id)
 );
 `);
-db.run('CREATE INDEX IF NOT EXISTS guild_member_roles_guild ON guild_member_roles (guild_id)');
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_member_roles_guild ON guild_member_roles (guild_id)');
 
 // Per-channel permission overrides for a role or a member: bits in `deny` are taken away, bits in
 // `allow` given (a private channel denies VIEW_CHANNEL to @everyone).
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_channel_overrides (
   channel_id INTEGER NOT NULL,
   target_type TEXT CHECK(target_type IN ('role', 'member')) NOT NULL,
@@ -198,7 +213,7 @@ CREATE TABLE IF NOT EXISTS guild_channel_overrides (
 // Custom emoji: plain images (not encrypted), stored as emojis/<id> in the
 // object store and written `<:name:id>` in messages. A row is created before its upload and
 // only counts (available = 1) once the uploader says the upload finished.
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_emojis (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   guild_id INTEGER NOT NULL,
@@ -211,21 +226,21 @@ CREATE TABLE IF NOT EXISTS guild_emojis (
   FOREIGN KEY (creator_id) REFERENCES users(id)
 );
 `);
-db.run('CREATE INDEX IF NOT EXISTS guild_emojis_guild ON guild_emojis (guild_id)');
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_emojis_guild ON guild_emojis (guild_id)');
 
 // Each member's own order of their guilds in the guild rail (lowest first).
-db.run('ALTER TABLE guild_members ADD COLUMN position INTEGER NOT NULL DEFAULT 0', () => {});
+addColumn('ALTER TABLE guild_members ADD COLUMN position INTEGER NOT NULL DEFAULT 0');
 
 // MENTIONS. Each member chooses which of a guild's messages push to them: 'all', 'mentions'
 // (the default) or 'none'. A role can be `mentionable` by anyone (else only with Mention
 // Everyone). A message keeps whether it pinged @everyone/@here and which roles
 // (`mention_roles`, a JSON array), and guild_mentions who it mentioned (only members who could
 // see the channel then, never the sender), for pushes and unread mention counts.
-db.run("ALTER TABLE guild_members ADD COLUMN notify_level TEXT NOT NULL DEFAULT 'mentions'", () => {});
-db.run('ALTER TABLE guild_roles ADD COLUMN mentionable INTEGER NOT NULL DEFAULT 0', () => {});
-db.run('ALTER TABLE guild_messages ADD COLUMN mention_everyone INTEGER NOT NULL DEFAULT 0', () => {});
-db.run('ALTER TABLE guild_messages ADD COLUMN mention_roles TEXT', () => {});
-db.run(`
+addColumn("ALTER TABLE guild_members ADD COLUMN notify_level TEXT NOT NULL DEFAULT 'mentions'");
+addColumn('ALTER TABLE guild_roles ADD COLUMN mentionable INTEGER NOT NULL DEFAULT 0');
+addColumn('ALTER TABLE guild_messages ADD COLUMN mention_everyone INTEGER NOT NULL DEFAULT 0');
+addColumn('ALTER TABLE guild_messages ADD COLUMN mention_roles TEXT');
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_mentions (
   message_id INTEGER NOT NULL,
   channel_id INTEGER NOT NULL,
@@ -233,33 +248,17 @@ CREATE TABLE IF NOT EXISTS guild_mentions (
   PRIMARY KEY (message_id, user_id)
 );
 `);
-db.run('CREATE INDEX IF NOT EXISTS guild_mentions_user ON guild_mentions (user_id, channel_id, message_id)');
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_mentions_user ON guild_mentions (user_id, channel_id, message_id)');
 
 // Guilds from before roles get their @everyone role (with the default permissions).
-db.run(`
+sqlite.exec(`
 INSERT INTO guild_roles (guild_id, name, position, permissions, is_everyone)
 SELECT g.id, '@everyone', 0, ${DEFAULT_EVERYONE_PERMISSIONS}, 1 FROM guilds g
 WHERE NOT EXISTS (SELECT 1 FROM guild_roles r WHERE r.guild_id = g.id AND r.is_everyone = 1)
 `);
 
-// Changes to existing data that must happen once, counted in SQLite's user_version:
-// 1. Voice channels: @everyone gets Connect and Speak, as in new guilds.
-// 2. users.last_online was never updated (it held the sign-up time): unknown until next seen.
-db.get('PRAGMA user_version', (err, row) => {
-  if (err || row.user_version >= 2) return;
-  db.serialize(() => {
-    if (row.user_version < 1) {
-      db.run(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.CONNECT | PERMISSIONS.SPEAK} WHERE is_everyone = 1`);
-      db.run('PRAGMA user_version = 1');
-    }
-    db.run('UPDATE users SET last_online = NULL');
-    db.run('PRAGMA user_version = 2');
-  });
-});
-});
-
 // DIRECT MESSAGES
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS direct_messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   sender_id INTEGER NOT NULL,
@@ -276,8 +275,7 @@ CREATE TABLE IF NOT EXISTS direct_messages (
 // DM REACTIONS
 // The emoji is encrypted (padded to a fixed size, so its length doesn't give it away); which
 // message was reacted to, by whom and when is visible to the server, like reply links are.
-db.serialize(() => {
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS dm_reactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   message_id INTEGER NOT NULL,
@@ -288,13 +286,11 @@ CREATE TABLE IF NOT EXISTS dm_reactions (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 `);
-db.run(`CREATE INDEX IF NOT EXISTS dm_reactions_message ON dm_reactions (message_id)`);
-});
+sqlite.exec(`CREATE INDEX IF NOT EXISTS dm_reactions_message ON dm_reactions (message_id)`);
 
 // GROUP DMS (end-to-end encrypted; see routes/groupDms.js). Ids are UUIDs made by the creator
 // (they're signed into the membership log). `owner_id` is null once the owner has left.
-db.serialize(() => {
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS group_dms (
   id TEXT PRIMARY KEY,
   name TEXT,
@@ -305,7 +301,7 @@ CREATE TABLE IF NOT EXISTS group_dms (
 `);
 
 // Who's in each group now (leaving or being removed deletes the row).
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS group_dm_members (
   group_id TEXT NOT NULL,
   user_id INTEGER NOT NULL,
@@ -315,12 +311,12 @@ CREATE TABLE IF NOT EXISTS group_dm_members (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 `);
-db.run('CREATE INDEX IF NOT EXISTS group_dm_members_user ON group_dm_members (user_id)');
+sqlite.exec('CREATE INDEX IF NOT EXISTS group_dm_members_user ON group_dm_members (user_id)');
 
 // The membership log: every change, as the JSON its author signed with their identity key, in
 // a hash chain (each record names the previous one), so the server can't add, drop or reorder
 // changes without clients noticing.
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS group_dm_log (
   group_id TEXT NOT NULL,
   seq INTEGER NOT NULL,
@@ -337,7 +333,7 @@ CREATE TABLE IF NOT EXISTS group_dm_log (
 
 // Key periods: a new one after every membership change (made by a member, lazily), for the
 // members as of log entry `log_seq`. Each member gets the period's key encrypted for them.
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS group_dm_epochs (
   group_id TEXT NOT NULL,
   epoch INTEGER NOT NULL,
@@ -348,7 +344,7 @@ CREATE TABLE IF NOT EXISTS group_dm_epochs (
   FOREIGN KEY (group_id) REFERENCES group_dms(id)
 );
 `);
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS group_dm_epoch_keys (
   group_id TEXT NOT NULL,
   epoch INTEGER NOT NULL,
@@ -359,7 +355,7 @@ CREATE TABLE IF NOT EXISTS group_dm_epoch_keys (
 );
 `);
 
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS group_dm_messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   group_id TEXT NOT NULL,
@@ -373,10 +369,10 @@ CREATE TABLE IF NOT EXISTS group_dm_messages (
   FOREIGN KEY (sender_id) REFERENCES users(id)
 );
 `);
-db.run('CREATE INDEX IF NOT EXISTS group_dm_messages_group ON group_dm_messages (group_id, id)');
+sqlite.exec('CREATE INDEX IF NOT EXISTS group_dm_messages_group ON group_dm_messages (group_id, id)');
 
 // Encrypted like DM reactions (same fixed size), with the message's epoch key.
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS group_dm_reactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   message_id INTEGER NOT NULL,
@@ -387,10 +383,10 @@ CREATE TABLE IF NOT EXISTS group_dm_reactions (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 `);
-db.run('CREATE INDEX IF NOT EXISTS group_dm_reactions_message ON group_dm_reactions (message_id)');
+sqlite.exec('CREATE INDEX IF NOT EXISTS group_dm_reactions_message ON group_dm_reactions (message_id)');
 
 // How far each member has read; unread = newer messages by others they can read.
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS group_dm_reads (
   user_id INTEGER NOT NULL,
   group_id TEXT NOT NULL,
@@ -398,10 +394,9 @@ CREATE TABLE IF NOT EXISTS group_dm_reads (
   PRIMARY KEY (user_id, group_id)
 );
 `);
-});
 
 // UNREAD DMS
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS dm_unread (
   user_id INTEGER NOT NULL,
   from_user_id INTEGER NOT NULL,
@@ -413,7 +408,7 @@ CREATE TABLE IF NOT EXISTS dm_unread (
 `);
 
 // LOGIN STATES
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS login_states (
   username TEXT NOT NULL,
   server_login_state TEXT NOT NULL,
@@ -425,7 +420,7 @@ CREATE TABLE IF NOT EXISTS login_states (
 `);
 
 // PUSH SUBSCRIPTIONS
-db.run(`
+sqlite.exec(`
   CREATE TABLE IF NOT EXISTS push_subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -437,13 +432,13 @@ db.run(`
   `);
 // ADMIN SETTINGS: app-wide settings a global admin edits (server/appSettings.js). A row
 // overrides the .env value of the same setting; no row falls back to .env.
-db.run('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0', () => {});
+addColumn('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
 // Profiles (profiles.js): all optional, shown to everyone logged in.
-db.run('ALTER TABLE users ADD COLUMN display_name TEXT', () => {});
-db.run('ALTER TABLE users ADD COLUMN custom_status TEXT', () => {});
-db.run('ALTER TABLE users ADD COLUMN bio TEXT', () => {});
-db.run('ALTER TABLE users ADD COLUMN avatar TEXT', () => {});
-db.run(`
+addColumn('ALTER TABLE users ADD COLUMN display_name TEXT');
+addColumn('ALTER TABLE users ADD COLUMN custom_status TEXT');
+addColumn('ALTER TABLE users ADD COLUMN bio TEXT');
+addColumn('ALTER TABLE users ADD COLUMN avatar TEXT');
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS app_settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
@@ -453,7 +448,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
 `);
 
 // GIF FAVOURITES (the emoji picker's GIFs tab): per user, the GIF as the picker shows it (JSON).
-db.run(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS gif_favorites (
   user_id INTEGER NOT NULL,
   gif_id TEXT NOT NULL,
@@ -464,24 +459,110 @@ CREATE TABLE IF NOT EXISTS gif_favorites (
 );
 `);
 
-// Promise versions of the sqlite3 calls.
-function get(sql, params = []) {
-  return new Promise((resolve, reject) =>
-    db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)))
-  );
+// Changes to existing data that must happen once, numbered in SQLite's user_version (add the
+// next one at the end; each runs in its own transaction with its version bump):
+const MIGRATIONS = [
+  // 1. Voice channels: @everyone gets Connect and Speak, as in new guilds.
+  () => sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.CONNECT | PERMISSIONS.SPEAK} WHERE is_everyone = 1`),
+  // 2. users.last_online was never updated (it held the sign-up time): unknown until next seen.
+  () => sqlite.exec('UPDATE users SET last_online = NULL'),
+];
+for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
+  sqlite.exec('BEGIN IMMEDIATE');
+  try {
+    MIGRATIONS[version]();
+    sqlite.exec(`PRAGMA user_version = ${version + 1}`);
+    sqlite.exec('COMMIT');
+  } catch (err) {
+    sqlite.exec('ROLLBACK');
+    throw err;
+  }
 }
 
-function all(sql, params = []) {
-  return new Promise((resolve, reject) =>
-    db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows)))
-  );
+// ---- Queries ----
+// get / all / run return promises (callers await them) though the driver is synchronous, and
+// wait while another request's transaction is open (see transaction).
+
+const statements = new Map();
+function prepare(sql) {
+  let statement = statements.get(sql);
+  if (!statement) {
+    if (statements.size >= 1000) statements.clear();
+    statement = sqlite.prepare(sql);
+    statements.set(sql, statement);
+  }
+  return statement;
+}
+
+// As the old sqlite3 driver bound them: undefined as NULL, booleans as 1/0.
+function bind(params) {
+  const list = Array.isArray(params) ? params : [params];
+  return list.map((p) => (p === undefined ? null : typeof p === 'boolean' ? Number(p) : p));
+}
+
+// Plain objects (the driver's rows have no prototype).
+const plain = (row) => (row ? { ...row } : row);
+
+// The open transaction: { token, done }. Only its own code (same async context) runs queries.
+let open = null;
+const context = new AsyncLocalStorage();
+async function turn() {
+  while (open && context.getStore() !== open.token) await open.done;
+}
+
+async function get(sql, params = []) {
+  await turn();
+  return plain(prepare(sql).get(...bind(params)));
+}
+
+async function all(sql, params = []) {
+  await turn();
+  return prepare(sql).all(...bind(params)).map(plain);
 }
 
 // Resolves to { lastID, changes }.
-function run(sql, params = []) {
-  return new Promise((resolve, reject) =>
-    db.run(sql, params, function (err) { return err ? reject(err) : resolve(this); })
-  );
+async function run(sql, params = []) {
+  await turn();
+  const { lastInsertRowid, changes } = prepare(sql).run(...bind(params));
+  return { lastID: Number(lastInsertRowid), changes: Number(changes) };
 }
 
-module.exports = { db, get, all, run };
+// Runs `fn` (async, using get/all/run as usual) as one transaction: all its writes are kept, or
+// none if it throws (the error is rethrown). Other requests' queries wait until it's done, so keep
+// it to database work (no network, uploads or pushes inside). A nested call is a savepoint: if it
+// throws, only its own writes are undone, and the outer transaction can carry on.
+let savepoints = 0;
+async function transaction(fn) {
+  if (open && context.getStore() === open.token) {
+    const name = `sp${++savepoints}`;
+    sqlite.exec(`SAVEPOINT ${name}`);
+    try {
+      const result = await fn();
+      sqlite.exec(`RELEASE ${name}`);
+      return result;
+    } catch (err) {
+      sqlite.exec(`ROLLBACK TO ${name}`);
+      sqlite.exec(`RELEASE ${name}`);
+      throw err;
+    }
+  }
+  await turn();
+  let finish;
+  open = { token: Symbol('transaction'), done: new Promise((resolve) => { finish = resolve; }) };
+  try {
+    sqlite.exec('BEGIN IMMEDIATE');
+    try {
+      const result = await context.run(open.token, fn);
+      sqlite.exec('COMMIT');
+      return result;
+    } catch (err) {
+      if (sqlite.isTransaction) sqlite.exec('ROLLBACK');
+      throw err;
+    }
+  } finally {
+    open = null;
+    finish();
+  }
+}
+
+module.exports = { db: sqlite, get, all, run, transaction };

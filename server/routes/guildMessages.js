@@ -130,13 +130,15 @@ router.post('/channels/:channelId/messages', authenticateJWT, requireTextChannel
     if (!parent) return res.status(400).json({ error: 'Invalid reply' });
   }
 
-  const { lastID } = await db.run(
-    `INSERT INTO guild_messages (channel_id, sender_id, content, parent_message_id, timestamp)
-     VALUES (?, ?, ?, ?, strftime('%s','now'))`,
-    [req.channel.id, req.user.id, content, parentMessageId]
-  );
-  await markRead(req.user.id, req.channel.id, lastID);
-  const mentions = await saveMentions({ id: lastID, content, sender_id: req.user.id }, req.channel, req.permissions);
+  const { lastID, mentions } = await db.transaction(async () => {
+    const { lastID: id } = await db.run(
+      `INSERT INTO guild_messages (channel_id, sender_id, content, parent_message_id, timestamp)
+       VALUES (?, ?, ?, ?, strftime('%s','now'))`,
+      [req.channel.id, req.user.id, content, parentMessageId]
+    );
+    await markRead(req.user.id, req.channel.id, id);
+    return { lastID: id, mentions: await saveMentions({ id, content, sender_id: req.user.id }, req.channel, req.permissions) };
+  });
   const [message] = await withReactions([await db.get(`${MESSAGE_SELECT} WHERE m.id = ?`, [lastID])]);
 
   await sendToChannel(req.channel, { type: 'guild_message_new', guildId: req.channel.guild_id, message });
@@ -151,8 +153,10 @@ router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async 
   if (!content) {
     return res.status(400).json({ error: `Messages are 1–${maxPlaintextLength} characters` });
   }
-  await db.run('UPDATE guild_messages SET content = ?, edited = 1 WHERE id = ?', [content, req.message.id]);
-  await saveMentions({ id: req.message.id, content, sender_id: req.user.id }, req.channel, req.permissions);
+  await db.transaction(async () => {
+    await db.run('UPDATE guild_messages SET content = ?, edited = 1 WHERE id = ?', [content, req.message.id]);
+    await saveMentions({ id: req.message.id, content, sender_id: req.user.id }, req.channel, req.permissions);
+  });
   const saved = await db.get('SELECT mention_everyone, mention_roles FROM guild_messages WHERE id = ?', [req.message.id]);
   await sendToChannel(req.channel, {
     type: 'guild_message_edit',
@@ -172,9 +176,11 @@ router.delete('/guild-messages/:messageId', authenticateJWT, requireMessage, asy
   if (senderId !== req.user.id && !has(req.permissions, PERMISSIONS.MANAGE_MESSAGES)) {
     return res.status(403).json({ error: 'Not authorized to delete this message' });
   }
-  await db.run('DELETE FROM guild_reactions WHERE message_id = ?', [id]);
-  await db.run('DELETE FROM guild_mentions WHERE message_id = ?', [id]);
-  await db.run('DELETE FROM guild_messages WHERE id = ?', [id]);
+  await db.transaction(async () => {
+    await db.run('DELETE FROM guild_reactions WHERE message_id = ?', [id]);
+    await db.run('DELETE FROM guild_mentions WHERE message_id = ?', [id]);
+    await db.run('DELETE FROM guild_messages WHERE id = ?', [id]);
+  });
   const { guild_id: guildId, id: channelId } = req.channel;
   await sendToChannel(req.channel, { type: 'guild_message_delete', guildId, channelId, messageId: id });
   res.json({ success: true, deletedId: id });

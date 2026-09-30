@@ -110,18 +110,20 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
     if (!parent) return res.status(400).json({ error: 'Invalid reply' });
   }
 
-  const { lastID } = await db.run(
-    `INSERT INTO direct_messages (sender_id, recipient_id, content, parent_message_id, timestamp)
-     VALUES (?, ?, ?, ?, strftime('%s','now'))`,
-    [senderId, recipientId, content.trim(), parentMessageId]
-  );
+  const lastID = await db.transaction(async () => {
+    const { lastID: id } = await db.run(
+      `INSERT INTO direct_messages (sender_id, recipient_id, content, parent_message_id, timestamp)
+       VALUES (?, ?, ?, ?, strftime('%s','now'))`,
+      [senderId, recipientId, content.trim(), parentMessageId]
+    );
+    await db.run(
+      `INSERT INTO dm_unread (user_id, from_user_id, count) VALUES (?, ?, 1)
+       ON CONFLICT(user_id, from_user_id) DO UPDATE SET count = count + 1`,
+      [recipientId, senderId]
+    );
+    return id;
+  });
   const message = await db.get(`${DM_SELECT} WHERE dm.id = ?`, [lastID]);
-
-  await db.run(
-    `INSERT INTO dm_unread (user_id, from_user_id, count) VALUES (?, ?, 1)
-     ON CONFLICT(user_id, from_user_id) DO UPDATE SET count = count + 1`,
-    [recipientId, senderId]
-  );
 
   sendToUserSockets(recipientId, { type: 'new_dm', message });
   sendToUserSockets(senderId, { type: 'new_dm', message });
@@ -162,8 +164,10 @@ router.delete('/messages/:id', authenticateJWT, async (req, res) => {
   if (!row) return res.status(404).json({ error: 'Message not found' });
   if (row.sender_id !== req.user.id) return res.status(403).json({ error: 'Not authorized to delete this message' });
 
-  await db.run('DELETE FROM dm_reactions WHERE message_id = ?', [messageId]);
-  await db.run('DELETE FROM direct_messages WHERE id = ?', [messageId]);
+  await db.transaction(async () => {
+    await db.run('DELETE FROM dm_reactions WHERE message_id = ?', [messageId]);
+    await db.run('DELETE FROM direct_messages WHERE id = ?', [messageId]);
+  });
 
   const event = { type: 'delete_dm', messageId, sender_id: row.sender_id };
   sendToUserSockets(row.recipient_id, event);

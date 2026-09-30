@@ -16,16 +16,12 @@ site run from a checkout of `dev` under pm2, voicaw.com is a static build in
   emoji. The server creates its buckets (`uploads`, `profile-pics`, `guild-icons`, `emojis`) and
   makes them public on start.
 - nginx with TLS certificates (certbot), and pm2.
-- On hosts with glibc older than 2.38 (Debian 12): gcc, make and python3, to compile `sqlite3`
-  (next step).
 
 ### 2. Code and dependencies
 
 ```sh
 git clone <repo> voicaw && cd voicaw
 git checkout dev
-# Only on glibc < 2.38 (check with `ldd --version`): sqlite3's prebuilt binary won't load.
-echo 'build_from_source=sqlite3' > .npmrc
 npm install
 ```
 
@@ -59,7 +55,7 @@ S3_ROOT_PASSWORD=...
 
 # Optional: longest message in characters (default 5000)
 MAX_MESSAGE_LENGTH=5000
-# Optional: database file (default server/voicaw.db)
+# Optional: database file (default server/voicaw.db; its -wal and -shm files go with it)
 # DB_PATH=/path/to/voicaw.db
 
 # Voice channels (step 5). Optional: without them voice channels can't be joined.

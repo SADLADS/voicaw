@@ -140,25 +140,27 @@ function applyToState(state, entry, r) {
 
 // Stores a checked record and applies it to the membership.
 async function storeEntry(groupId, entry, r) {
-  await db.run(
-    `INSERT INTO group_dm_log (group_id, seq, record, signature, type, actor_id, target_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [groupId, r.seq, entry.record, entry.signature, r.type, r.actor, r.type === 'create' ? r.actor : r.target, now()]
-  );
-  if (r.type === 'create' || r.type === 'add') {
-    const userId = r.type === 'create' ? r.actor : r.target;
-    await db.run('INSERT OR IGNORE INTO group_dm_members (group_id, user_id, joined_at) VALUES (?, ?, ?)', [groupId, userId, now()]);
-    // Unread starts now: a new member can't read anything older anyway.
+  await db.transaction(async () => {
     await db.run(
-      `INSERT INTO group_dm_reads (user_id, group_id, last_read_id)
-       VALUES (?, ?, COALESCE((SELECT MAX(id) FROM group_dm_messages WHERE group_id = ?), 0))
-       ON CONFLICT(user_id, group_id) DO UPDATE SET last_read_id = excluded.last_read_id`,
-      [userId, groupId, groupId]
+      `INSERT INTO group_dm_log (group_id, seq, record, signature, type, actor_id, target_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [groupId, r.seq, entry.record, entry.signature, r.type, r.actor, r.type === 'create' ? r.actor : r.target, now()]
     );
-  } else {
-    await db.run('DELETE FROM group_dm_members WHERE group_id = ? AND user_id = ?', [groupId, r.target]);
-    await db.run('UPDATE group_dms SET owner_id = NULL WHERE id = ? AND owner_id = ?', [groupId, r.target]);
-  }
+    if (r.type === 'create' || r.type === 'add') {
+      const userId = r.type === 'create' ? r.actor : r.target;
+      await db.run('INSERT OR IGNORE INTO group_dm_members (group_id, user_id, joined_at) VALUES (?, ?, ?)', [groupId, userId, now()]);
+      // Unread starts now: a new member can't read anything older anyway.
+      await db.run(
+        `INSERT INTO group_dm_reads (user_id, group_id, last_read_id)
+         VALUES (?, ?, COALESCE((SELECT MAX(id) FROM group_dm_messages WHERE group_id = ?), 0))
+         ON CONFLICT(user_id, group_id) DO UPDATE SET last_read_id = excluded.last_read_id`,
+        [userId, groupId, groupId]
+      );
+    } else {
+      await db.run('DELETE FROM group_dm_members WHERE group_id = ? AND user_id = ?', [groupId, r.target]);
+      await db.run('UPDATE group_dms SET owner_id = NULL WHERE id = ? AND owner_id = ?', [groupId, r.target]);
+    }
+  });
 }
 
 // Checks and stores a new epoch: `epoch` must come next, be for the current membership
@@ -176,22 +178,24 @@ async function storeEpoch(state, creatorId, { epoch, logSeq, envelopes }) {
       throw new GroupError(400, 'Invalid keys');
     }
   }
-  try {
-    await db.run(
-      'INSERT INTO group_dm_epochs (group_id, epoch, log_seq, creator_id, created_at) VALUES (?, ?, ?, ?, ?)',
-      [state.group.id, epoch, logSeq, creatorId, now()]
-    );
-  } catch (err) {
-    // Another member made this epoch first.
-    if (/UNIQUE|PRIMARY/.test(err.message)) throw new GroupError(409, 'The group changed meanwhile; try again');
-    throw err;
-  }
-  for (const [userId, envelope] of Object.entries(envelopes)) {
-    await db.run(
-      'INSERT INTO group_dm_epoch_keys (group_id, epoch, user_id, envelope) VALUES (?, ?, ?, ?)',
-      [state.group.id, epoch, Number(userId), envelope]
-    );
-  }
+  await db.transaction(async () => {
+    try {
+      await db.run(
+        'INSERT INTO group_dm_epochs (group_id, epoch, log_seq, creator_id, created_at) VALUES (?, ?, ?, ?, ?)',
+        [state.group.id, epoch, logSeq, creatorId, now()]
+      );
+    } catch (err) {
+      // Another member made this epoch first.
+      if (/UNIQUE|PRIMARY/.test(err.message)) throw new GroupError(409, 'The group changed meanwhile; try again');
+      throw err;
+    }
+    for (const [userId, envelope] of Object.entries(envelopes)) {
+      await db.run(
+        'INSERT INTO group_dm_epoch_keys (group_id, epoch, user_id, envelope) VALUES (?, ?, ?, ?)',
+        [state.group.id, epoch, Number(userId), envelope]
+      );
+    }
+  });
   state.latestEpoch = { epoch, log_seq: logSeq, creator_id: creatorId };
 }
 
@@ -232,11 +236,13 @@ async function sendToGroup(groupId, payload, exceptUserId = null) {
 
 // Everyone who's gone: the group and everything in it goes.
 async function deleteGroup(groupId) {
-  await db.run('DELETE FROM group_dm_reactions WHERE message_id IN (SELECT id FROM group_dm_messages WHERE group_id = ?)', [groupId]);
-  for (const table of ['group_dm_messages', 'group_dm_epoch_keys', 'group_dm_epochs', 'group_dm_log', 'group_dm_reads', 'group_dm_members']) {
-    await db.run(`DELETE FROM ${table} WHERE group_id = ?`, [groupId]);
-  }
-  await db.run('DELETE FROM group_dms WHERE id = ?', [groupId]);
+  await db.transaction(async () => {
+    await db.run('DELETE FROM group_dm_reactions WHERE message_id IN (SELECT id FROM group_dm_messages WHERE group_id = ?)', [groupId]);
+    for (const table of ['group_dm_messages', 'group_dm_epoch_keys', 'group_dm_epochs', 'group_dm_log', 'group_dm_reads', 'group_dm_members']) {
+      await db.run(`DELETE FROM ${table} WHERE group_id = ?`, [groupId]);
+    }
+    await db.run('DELETE FROM group_dms WHERE id = ?', [groupId]);
+  });
 }
 
 module.exports = {

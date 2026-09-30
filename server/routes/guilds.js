@@ -94,23 +94,26 @@ router.post('/guilds', authenticateJWT, async (req, res) => {
   const name = cleanName(req.body?.name, MAX_GUILD_NAME);
   if (!name) return res.status(400).json({ error: `Guild names are 1–${MAX_GUILD_NAME} characters` });
 
-  const { lastID: guildId } = await db.run(
-    'INSERT INTO guilds (owner, name, created_at) VALUES (?, ?, ?)',
-    [req.user.id, name, now()]
-  );
-  await db.run(
-    `INSERT INTO guild_roles (guild_id, name, position, permissions, is_everyone) VALUES (?, '@everyone', 0, ?, 1)`,
-    [guildId, DEFAULT_EVERYONE_PERMISSIONS]
-  );
-  await addMember(guildId, req.user.id);
-  const { lastID: categoryId } = await db.run(
-    'INSERT INTO guild_categories (guild_id, name, position) VALUES (?, ?, 0)',
-    [guildId, 'Text Channels']
-  );
-  await db.run(
-    `INSERT INTO guild_channels (guild_id, category_id, name, type, position) VALUES (?, ?, 'general', 'text', 0)`,
-    [guildId, categoryId]
-  );
+  const guildId = await db.transaction(async () => {
+    const { lastID: id } = await db.run(
+      'INSERT INTO guilds (owner, name, created_at) VALUES (?, ?, ?)',
+      [req.user.id, name, now()]
+    );
+    await db.run(
+      `INSERT INTO guild_roles (guild_id, name, position, permissions, is_everyone) VALUES (?, '@everyone', 0, ?, 1)`,
+      [id, DEFAULT_EVERYONE_PERMISSIONS]
+    );
+    await addMember(id, req.user.id);
+    const { lastID: categoryId } = await db.run(
+      'INSERT INTO guild_categories (guild_id, name, position) VALUES (?, ?, 0)',
+      [id, 'Text Channels']
+    );
+    await db.run(
+      `INSERT INTO guild_channels (guild_id, category_id, name, type, position) VALUES (?, ?, 'general', 'text', 0)`,
+      [id, categoryId]
+    );
+    return id;
+  });
 
   const guild = await getGuildLayout(guildId, req.user.id);
   sendToUserSockets(req.user.id, { type: 'guild_add', guild });
@@ -155,17 +158,19 @@ router.delete('/guilds/:guildId', owner, async (req, res) => {
   const memberIds = await getMemberIds(guildId);
 
   await disconnectGuildVoice(guildId);
-  await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);
   const emojis = await db.all('SELECT id, available FROM guild_emojis WHERE guild_id = ?', [guildId]);
   for (const { id, available } of emojis) await deleteObject('emojis', available ? String(id) : `src/${id}`);
-  for (const table of [
-    'guild_emojis',
-    'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',
-    'guild_member_roles', 'guild_roles', 'guild_members',
-  ]) {
-    await db.run(`DELETE FROM ${table} WHERE guild_id = ?`, [guildId]);
-  }
-  await db.run('DELETE FROM guilds WHERE id = ?', [guildId]);
+  await db.transaction(async () => {
+    await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);
+    for (const table of [
+      'guild_emojis',
+      'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',
+      'guild_member_roles', 'guild_roles', 'guild_members',
+    ]) {
+      await db.run(`DELETE FROM ${table} WHERE guild_id = ?`, [guildId]);
+    }
+    await db.run('DELETE FROM guilds WHERE id = ?', [guildId]);
+  });
 
   for (const userId of memberIds) sendToUserSockets(userId, { type: 'guild_remove', guildId });
   res.json({ success: true });
@@ -200,17 +205,19 @@ router.get('/guilds/:guildId/members', member, async (req, res) => {
 
 // Takes `userId` out of the guild and tells everyone (including them).
 async function removeMember(guildId, userId) {
-  await db.run('DELETE FROM guild_members WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
-  await db.run('DELETE FROM guild_member_roles WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
-  await db.run(
-    `DELETE FROM guild_channel_overrides WHERE target_type = 'member' AND target_id = ?
-     AND channel_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)`,
-    [userId, guildId]
-  );
-  await db.run(
-    'DELETE FROM guild_channel_reads WHERE user_id = ? AND channel_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)',
-    [userId, guildId]
-  );
+  await db.transaction(async () => {
+    await db.run('DELETE FROM guild_members WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+    await db.run('DELETE FROM guild_member_roles WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+    await db.run(
+      `DELETE FROM guild_channel_overrides WHERE target_type = 'member' AND target_id = ?
+       AND channel_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)`,
+      [userId, guildId]
+    );
+    await db.run(
+      'DELETE FROM guild_channel_reads WHERE user_id = ? AND channel_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)',
+      [userId, guildId]
+    );
+  });
   sendToUserSockets(userId, { type: 'guild_remove', guildId });
   await sendToGuild(guildId, { type: 'guild_member_remove', guildId, userId });
   await enforceGuildVoice(guildId);
@@ -348,14 +355,17 @@ router.post('/invites/:code', authenticateJWT, async (req, res) => {
   }
 
   // Claims a use only if the invite is still good (atomic, so the last use can't go twice).
-  const { changes } = await db.run(
-    `UPDATE guild_invites AS i SET uses = uses + 1 WHERE code = ? AND ${INVITE_VALID}`,
-    [req.params.code]
-  );
-  if (!changes) return res.status(404).json({ error: 'This invite is invalid or has expired' });
-
-  await addMember(guildId, userId);
-  await markGuildRead(guildId, userId);
+  const claimed = await db.transaction(async () => {
+    const { changes } = await db.run(
+      `UPDATE guild_invites AS i SET uses = uses + 1 WHERE code = ? AND ${INVITE_VALID}`,
+      [req.params.code]
+    );
+    if (!changes) return false;
+    await addMember(guildId, userId);
+    await markGuildRead(guildId, userId);
+    return true;
+  });
+  if (!claimed) return res.status(404).json({ error: 'This invite is invalid or has expired' });
 
   const guild = await getGuildLayout(guildId, userId);
   const joined = await getMemberListEntry(guildId, userId);
@@ -395,12 +405,15 @@ router.patch('/guilds/:guildId/categories/:categoryId', manageChannels, async (r
 // Its channels move out of it (to the top, uncategorised), as in Discord.
 router.delete('/guilds/:guildId/categories/:categoryId', manageChannels, async (req, res) => {
   const categoryId = Number(req.params.categoryId);
-  const { changes } = await db.run(
-    'DELETE FROM guild_categories WHERE id = ? AND guild_id = ?',
-    [categoryId, req.guild.id]
-  );
-  if (!changes) return res.status(404).json({ error: 'Category not found' });
-  await db.run('UPDATE guild_channels SET category_id = NULL WHERE category_id = ?', [categoryId]);
+  const deleted = await db.transaction(async () => {
+    const { changes } = await db.run(
+      'DELETE FROM guild_categories WHERE id = ? AND guild_id = ?',
+      [categoryId, req.guild.id]
+    );
+    if (changes) await db.run('UPDATE guild_channels SET category_id = NULL WHERE category_id = ?', [categoryId]);
+    return changes > 0;
+  });
+  if (!deleted) return res.status(404).json({ error: 'Category not found' });
   await announceGuildUpdate(req.guild.id);
   res.json({ success: true });
 });
@@ -441,21 +454,25 @@ router.post('/guilds/:guildId/channels', manageChannels, async (req, res) => {
     return res.status(400).json({ error: 'Invalid roles' });
   }
 
-  const position = await nextPosition('guild_channels', 'guild_id = ?', [req.guild.id]);
-  const { lastID } = await db.run(
-    'INSERT INTO guild_channels (guild_id, category_id, name, type, topic, position) VALUES (?, ?, ?, ?, ?, ?)',
-    [req.guild.id, categoryId, name, type, topic?.trim() || null, position]
-  );
-  if (isPrivate) {
-    const view = PERMISSIONS.VIEW_CHANNEL;
-    const addOverride = (targetType, targetId, allow, deny) => db.run(
-      'INSERT INTO guild_channel_overrides (channel_id, target_type, target_id, allow, deny) VALUES (?, ?, ?, ?, ?)',
-      [lastID, targetType, targetId, allow, deny]
+  // One transaction, so a private channel is never briefly visible to everyone.
+  const lastID = await db.transaction(async () => {
+    const position = await nextPosition('guild_channels', 'guild_id = ?', [req.guild.id]);
+    const { lastID: id } = await db.run(
+      'INSERT INTO guild_channels (guild_id, category_id, name, type, topic, position) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.guild.id, categoryId, name, type, topic?.trim() || null, position]
     );
-    await addOverride('role', req.member.everyone.id, 0, view);
-    for (const roleId of roleIds) await addOverride('role', roleId, view, 0);
-    if (!has(req.member.permissions, PERMISSIONS.ADMINISTRATOR)) await addOverride('member', req.user.id, view, 0);
-  }
+    if (isPrivate) {
+      const view = PERMISSIONS.VIEW_CHANNEL;
+      const addOverride = (targetType, targetId, allow, deny) => db.run(
+        'INSERT INTO guild_channel_overrides (channel_id, target_type, target_id, allow, deny) VALUES (?, ?, ?, ?, ?)',
+        [id, targetType, targetId, allow, deny]
+      );
+      await addOverride('role', req.member.everyone.id, 0, view);
+      for (const roleId of roleIds) await addOverride('role', roleId, view, 0);
+      if (!has(req.member.permissions, PERMISSIONS.ADMINISTRATOR)) await addOverride('member', req.user.id, view, 0);
+    }
+    return id;
+  });
   await announceGuildUpdate(req.guild.id);
   res.status(201).json(await db.get(
     'SELECT id, category_id, name, type, topic, position FROM guild_channels WHERE id = ?',
@@ -500,8 +517,10 @@ router.patch('/guilds/:guildId/channels/:channelId', manageChannels, async (req,
 router.delete('/guilds/:guildId/channels/:channelId', manageChannels, async (req, res) => {
   const channel = await findChannel(req);
   if (!channel) return res.status(404).json({ error: 'Channel not found' });
-  await deleteChannelContents('?', [channel.id]);
-  await db.run('DELETE FROM guild_channels WHERE id = ?', [channel.id]);
+  await db.transaction(async () => {
+    await deleteChannelContents('?', [channel.id]);
+    await db.run('DELETE FROM guild_channels WHERE id = ?', [channel.id]);
+  });
   await announceGuildUpdate(req.guild.id);
   res.json({ success: true });
 });
@@ -531,9 +550,11 @@ router.put('/guilds/:guildId/channels/:channelId/move', manageChannels, async (r
     at = last < 0 ? rest.length : last + 1;
   }
   rest.splice(at, 0, { id: channel.id, category_id: categoryId });
-  for (const [position, c] of rest.entries()) {
-    await db.run('UPDATE guild_channels SET position = ?, category_id = ? WHERE id = ?', [position, c.category_id ?? null, c.id]);
-  }
+  await db.transaction(async () => {
+    for (const [position, c] of rest.entries()) {
+      await db.run('UPDATE guild_channels SET position = ?, category_id = ? WHERE id = ?', [position, c.category_id ?? null, c.id]);
+    }
+  });
   await announceGuildUpdate(req.guild.id);
   res.json(await getGuildLayout(req.guild.id, req.user.id));
 });
@@ -548,9 +569,11 @@ router.put('/guilds/:guildId/categories/:categoryId/move', manageChannels, async
   const at = beforeId === null ? rest.length : rest.indexOf(beforeId);
   if (at < 0) return res.status(400).json({ error: 'Invalid position' });
   rest.splice(at, 0, categoryId);
-  for (const [position, id] of rest.entries()) {
-    await db.run('UPDATE guild_categories SET position = ? WHERE id = ?', [position, id]);
-  }
+  await db.transaction(async () => {
+    for (const [position, id] of rest.entries()) {
+      await db.run('UPDATE guild_categories SET position = ? WHERE id = ?', [position, id]);
+    }
+  });
   await announceGuildUpdate(req.guild.id);
   res.json(await getGuildLayout(req.guild.id, req.user.id));
 });
@@ -576,12 +599,14 @@ router.put('/guilds/:guildId/layout', manageChannels, async (req, res) => {
     return res.status(400).json({ error: 'Invalid category' });
   }
 
-  for (const [position, id] of categories.entries()) {
-    await db.run('UPDATE guild_categories SET position = ? WHERE id = ?', [position, id]);
-  }
-  for (const [position, { id, categoryId }] of channels.entries()) {
-    await db.run('UPDATE guild_channels SET position = ?, category_id = ? WHERE id = ?', [position, categoryId ?? null, id]);
-  }
+  await db.transaction(async () => {
+    for (const [position, id] of categories.entries()) {
+      await db.run('UPDATE guild_categories SET position = ? WHERE id = ?', [position, id]);
+    }
+    for (const [position, { id, categoryId }] of channels.entries()) {
+      await db.run('UPDATE guild_channels SET position = ?, category_id = ? WHERE id = ?', [position, categoryId ?? null, id]);
+    }
+  });
   await announceGuildUpdate(req.guild.id);
   res.json(await getGuildLayout(req.guild.id, req.user.id));
 });

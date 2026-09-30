@@ -28,8 +28,7 @@ Each feature is worked on in its own chat, on its own branch, in its own worktre
   changes what test.voicaw.com serves and stops deploys. Use a worktree per feature:
   ```
   git -C ~/git/voicaw worktree add ~/git/voicaw-<feature> -b <feature> dev
-  cp ~/git/voicaw/.npmrc ~/git/voicaw-<feature>/    # git-ignored; needed on this host (see below)
-  cd ~/git/voicaw-<feature> && npm install          # compiles sqlite3, ~1.5 min
+  cd ~/git/voicaw-<feature> && npm install
   ```
   Chats running at the same time each need their own worktree (and their own e2e ports, see
   Browser checks). Check `git branch --show-current` before committing. Once the user has
@@ -141,7 +140,8 @@ Express 5 sends rejected async handlers to that handler, so routes don't need tr
 unexpected errors. The rest:
 - `config.js`: loads `.env` (required first), checks it, message length limits.
 - `db.js`: schema, plus promise helpers `db.get` / `db.all` / `db.run` (`run` resolves to
-  `{ lastID, changes }`). Use these, not the callback API. The raw handle is `db.db`.
+  `{ lastID, changes }`) and `db.transaction` (see Database). The raw `node:sqlite` handle is
+  `db.db`.
 - `auth.js`: `generateToken`, `verifyToken`, the `authenticateJWT` middleware (attach it per
   route, not with `router.use`, since every router is mounted at `/api`).
 - `sockets.js`: the `clients` map, `sendToUserSockets`, online status (`getStatus`, see Online
@@ -175,13 +175,8 @@ Component tests mock `../utils/api`,
 
 ### Server environment
 
-The host runs Node 24 LTS (NodeSource apt package, shared by every pm2 app on it).
-`sqlite3` 6's prebuilt binary needs glibc >= 2.38. On older hosts (this server runs Debian 12,
-glibc 2.36) `npm install` succeeds but the server then crashes loading it. Such hosts need a
-git-ignored `.npmrc` at the repo root containing `build_from_source=sqlite3` (compiles just
-sqlite3, about 1.5 min, needs gcc/make/python3). After changing it, run
-`npm rebuild sqlite3 --build-from-source`. npm 11 warns that `build_from_source` in `.npmrc` "will
-stop working in the next major version of npm"; it still works, but will need replacing then.
+The host runs Node 24 LTS (NodeSource apt package, shared by every pm2 app on it). The
+database is Node's built-in `node:sqlite`, so there's no native module to build.
 
 `server/config.js` fails fast at startup if any of these env vars are missing (set them in
 `server/.env`): `JWT_SECRET`, `OPAQUE_SERVER_SETUP`, `VAPID_EMAIL`, `VAPID_PUBLIC_KEY`,
@@ -376,14 +371,26 @@ one user at a time).
 
 ### Database
 
-SQLite via `sqlite3`, single file `server/voicaw.db` (overridable with `DB_PATH`), schema created idempotently
-(`CREATE TABLE IF NOT EXISTS`) in `server/db.js` on require. Queries use the small promise helpers
-in `db.js` (no ORM: a new column on an existing table needs an `ALTER TABLE ... ADD COLUMN`
-whose "duplicate column" error is ignored, as `guilds` does). Changes to existing data that must
-run exactly once are numbered with SQLite's `PRAGMA user_version` at the end of the guild block
-(1: @everyone gets Connect and Speak; 2: clear `users.last_online`, which had only ever held the
-sign-up time); add the next one as 3. Guild
-tables are `guilds` plus `guild_*`. An earlier sketch left unused, empty tables in old databases
+SQLite through Node's built-in `node:sqlite` (synchronous; it replaced the `sqlite3` package on
+2026-09-30), single file `server/voicaw.db` (overridable with `DB_PATH`) in WAL mode (reads never
+wait for a write; `voicaw.db-wal` / `-shm` sit next to it and belong with it). Plenty for this
+app's size: SQLite takes thousands of writes a second, and the move to Postgres was considered and
+dropped (2026-09-30) until there's a real need (several API processes). Foreign keys are not
+enforced (they never were). The schema is created idempotently (`CREATE TABLE IF NOT EXISTS`) in
+`server/db.js` on require, in order, before anything else runs (no ORM: a new column on an
+existing table goes through `addColumn`, which ignores "duplicate column"). Changes to existing
+data that must run exactly once are `MIGRATIONS` at the end of `db.js`, numbered with SQLite's
+`PRAGMA user_version`, each in its own transaction (1: @everyone gets Connect and Speak; 2: clear
+`users.last_online`, which had only ever held the sign-up time); add the next one at the end.
+- Queries: `db.get` / `db.all` / `db.run` return promises, as with the old driver (rows are plain
+  objects; `undefined` binds as NULL, booleans as 1/0). Prepared statements are cached.
+- **Transactions:** anything that writes more than one row (or one row that depends on another)
+  goes in `await db.transaction(async () => { ... })`: its writes are all kept, or all undone if it
+  throws. While one is open, other requests' queries wait (the transaction's own code is told
+  apart with `AsyncLocalStorage`), so keep it to database work: no S3, LiveKit, pushes or socket
+  sends inside. A nested call is a savepoint (a failure inside undoes only its own writes, so the
+  outer one can catch it and carry on, as posting a group log entry does with its epoch).
+- Guild tables are `guilds` plus `guild_*`. An earlier sketch left unused, empty tables in old databases
 (`roles`, `user_roles`, `categories`, `channels`, `channel_permissions`, `messages`); nothing
 creates or reads them any more, and they can be dropped.
 
@@ -1019,6 +1026,5 @@ their box is reserved before they load.
     checked on a real iPhone.
   - nginx doesn't compress JS/CSS/SVG (`gzip_types` is commented out in
     `/etc/nginx/nginx.conf`); first visits download the 1.6 MB main bundle uncompressed.
-  - npm 11 warns about `build_from_source` in `.npmrc` (see Server environment), and that the
-    install scripts of `sqlite3` and `esbuild` aren't in an `allowScripts` list yet. They still
-    run today; a future npm will need them approved (`npm install-scripts approve`).
+  - npm 11 warns that the install script of `esbuild` isn't in an `allowScripts` list yet. It
+    still runs today; a future npm will need it approved (`npm install-scripts approve`).

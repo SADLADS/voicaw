@@ -118,14 +118,11 @@ router.post('/group-dms', authenticateJWT, handle(async (req, res) => {
   }
   // Checked against the members about to exist.
   const epochState = { ...state, group: { id } };
-  await db.run('INSERT INTO group_dms (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)', [id, cleanName, req.user.id, Math.floor(Date.now() / 1000)]);
-  try {
+  await db.transaction(async () => {
+    await db.run('INSERT INTO group_dms (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)', [id, cleanName, req.user.id, Math.floor(Date.now() / 1000)]);
     for (const [i, r] of records.entries()) await groups.storeEntry(id, log[i], r);
     await groups.storeEpoch(epochState, req.user.id, epoch ?? {});
-  } catch (err) {
-    await groups.deleteGroup(id);
-    throw err;
-  }
+  });
   for (const userId of state.members) {
     sendToUserSockets(userId, { type: 'group_dm_add', group: await groups.groupSummary(id, userId) });
   }
@@ -183,19 +180,20 @@ router.post('/group-dms/:groupId/log', member, handle(async (req, res) => {
   const before = new Set(state.members);
   const r = await groups.checkEntry(state, entry, req.user.id);
   groups.applyToState(state, entry, r);
-  await groups.storeEntry(groupId, entry, r);
-  if (epoch) {
-    try {
-      await groups.storeEpoch(state, req.user.id, epoch);
-    } catch (err) {
-      // The change stands; the next message makes the epoch.
-      if (!(err instanceof groups.GroupError)) throw err;
+  await db.transaction(async () => {
+    await groups.storeEntry(groupId, entry, r);
+    if (epoch) {
+      try {
+        await groups.storeEpoch(state, req.user.id, epoch);
+      } catch (err) {
+        // The change stands; the next message makes the epoch.
+        if (!(err instanceof groups.GroupError)) throw err;
+      }
     }
-  }
+    if (state.members.size === 0) await groups.deleteGroup(groupId);
+  });
 
-  if (state.members.size === 0) {
-    await groups.deleteGroup(groupId);
-  } else {
+  if (state.members.size > 0) {
     await calls.leaveGroupCall(groupId, r.type === 'add' ? null : r.target);
   }
   const stored = { seq: r.seq, record: entry.record, signature: entry.signature };
@@ -264,16 +262,19 @@ router.post('/group-dms/:groupId/messages', member, async (req, res) => {
     if (!parent || parent.group_id !== groupId) return res.status(400).json({ error: 'Invalid reply' });
     parentId = parent.id;
   }
-  const { lastID } = await db.run(
-    `INSERT INTO group_dm_messages (group_id, epoch, sender_id, content, parent_message_id, timestamp)
-     VALUES (?, ?, ?, ?, ?, strftime('%s','now'))`,
-    [groupId, epoch, req.user.id, content.trim(), parentId]
-  );
-  await db.run(
-    `INSERT INTO group_dm_reads (user_id, group_id, last_read_id) VALUES (?, ?, ?)
-     ON CONFLICT(user_id, group_id) DO UPDATE SET last_read_id = excluded.last_read_id`,
-    [req.user.id, groupId, lastID]
-  );
+  const lastID = await db.transaction(async () => {
+    const { lastID: id } = await db.run(
+      `INSERT INTO group_dm_messages (group_id, epoch, sender_id, content, parent_message_id, timestamp)
+       VALUES (?, ?, ?, ?, ?, strftime('%s','now'))`,
+      [groupId, epoch, req.user.id, content.trim(), parentId]
+    );
+    await db.run(
+      `INSERT INTO group_dm_reads (user_id, group_id, last_read_id) VALUES (?, ?, ?)
+       ON CONFLICT(user_id, group_id) DO UPDATE SET last_read_id = excluded.last_read_id`,
+      [req.user.id, groupId, id]
+    );
+    return id;
+  });
 
   const title = state.group.name || 'Group';
   const senderName = await displayNameOf(req.user.id, req.user.username);
@@ -317,8 +318,10 @@ router.put('/group-dm-messages/:messageId', authenticateJWT, findMessage, async 
 // Delete your own message (and its reactions).
 router.delete('/group-dm-messages/:messageId', authenticateJWT, findMessage, async (req, res) => {
   if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not your message' });
-  await db.run('DELETE FROM group_dm_reactions WHERE message_id = ?', [req.message.id]);
-  await db.run('DELETE FROM group_dm_messages WHERE id = ?', [req.message.id]);
+  await db.transaction(async () => {
+    await db.run('DELETE FROM group_dm_reactions WHERE message_id = ?', [req.message.id]);
+    await db.run('DELETE FROM group_dm_messages WHERE id = ?', [req.message.id]);
+  });
   await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_delete', groupId: req.message.group_id, messageId: req.message.id });
   res.json({ success: true });
 });
