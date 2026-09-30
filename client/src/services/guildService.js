@@ -277,3 +277,12 @@ export async function updateWebhook(webhookId, changes) {
 export async function deleteWebhook(webhookId) {
   await api.delete(`/webhooks/${webhookId}`);
 }
+
+// Searches the guild's messages (routes/guildSearch.js): `params` from parseSearch
+// (utils/searchQuery.js) plus `offset` and `sort_order`. { total_results, messages }.
+export async function searchGuildMessages(guildId, params) {
+  const query = Object.fromEntries(Object.entries(params)
+    .map(([key, value]) => [key, Array.isArray(value) ? value.join(',') : value])
+    .filter(([, value]) => value !== '' && value != null));
+  return (await api.get(`/guilds/${guildId}/messages/search`, { params: query })).data;
+}

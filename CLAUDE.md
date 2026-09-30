@@ -107,6 +107,7 @@ node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
 node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show), Join Guild, phone
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
+node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, results, Jump into another channel, private channel, phone
 node e2e/polls.mjs [dir]  # polls: + menu, answer emoji, select then Vote (phone), results, who voted, edits drop votes, guild multi
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
@@ -167,7 +168,7 @@ unexpected errors. The rest:
 - `routes/`: `auth.js` (OPAQUE register/login, profile), `dms.js` (conversations, send, edit,
   delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `guilds.js` (guilds,
   members, invites, bans, categories, channels), `guildMessages.js` (channel messages, reactions,
-  read state), `voice.js` (join token, mute/deafen, leave, LiveKit webhook), `calls.js` (DM
+  read state), `guildSearch.js` (guild search; see Guild search), `voice.js` (join token, mute/deafen, leave, LiveKit webhook), `calls.js` (DM
   calls), `groupDms.js` (group DMs), `webhooks.js` (Discord-compatible webhooks), `push.js`
   (subscriptions), `uploads.js`, `gifs.js` (Klipy search proxy, GIF favourites), `admin.js`.
 
@@ -403,7 +404,8 @@ existing table goes through `addColumn`, which ignores "duplicate column"). Chan
 data that must run exactly once are `MIGRATIONS` at the end of `db.js`, numbered with SQLite's
 `PRAGMA user_version`, each in its own transaction (1: @everyone gets Connect and Speak; 2: clear
 `users.last_online`, which had only ever held the sign-up time; 3: roles and channel overrides
-that allow or deny Manage Messages do the same for Pin Messages); add the next one at the end.
+that allow or deny Manage Messages do the same for Pin Messages; 4: index existing guild messages
+for search); add the next one at the end.
 - Queries: `db.get` / `db.all` / `db.run` return promises, as with the old driver (rows are plain
   objects; `undefined` binds as NULL, booleans as 1/0). Prepared statements are cached.
 - **Transactions:** anything that writes more than one row (or one row that depends on another)
@@ -522,8 +524,41 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   its emoji anywhere. The client keeps them in `useGuildList` (`emojis`), and `Layout` provides
   `CustomEmojiContext` (`emoji/customEmojiContext.js`: by guild in rail order, and by id).
 - **Not done yet:** category-level permissions (overrides are per channel), server folders in the
-  rail, per-channel notification settings and muting, a list of your recent mentions. Voice: see
+  rail, search dates (see Guild search), per-channel notification settings and muting, a list of your recent mentions. Voice: see
   Voice channels.
+
+### Guild search
+
+Server-side search of a guild's messages, like Discord's (guilds aren't encrypted, so the server
+can; DMs and group DMs can't be searched this way).
+- **Index** (`db.js`, `server/searchText.js`): an FTS5 table `guild_messages_fts` (rowid = the
+  message id, `unicode61` with diacritics removed) holds each message's words (`searchText`:
+  the text without mention ids, attachments by name (never their key-carrying links, GIFs
+  left out), custom emoji by name, a poll's question and answers, a webhook's embeds and file
+  names), and `guild_messages.search_has` its `has:` bits (`searchHas`: link, embed, file,
+  image, video, sound, poll; uploads by the `t=` type in their fragment, GIFs count as images).
+  **Anything that writes a guild message's content, embeds or attachments calls
+  `db.indexGuildMessage(id)` inside its transaction** (sending, editing, webhooks); a trigger
+  removes a deleted message's words. Migration 4 indexed the messages from before.
+- **API** (`routes/guildSearch.js`): `GET /guilds/:id/messages/search` with Discord's
+  parameters: `content` (every word matches a word starting with it, `"quoted"` an exact phrase;
+  something with no letters or digits, like an emoji, is looked for in the text as typed),
+  `author_id` and `channel_id` (any of them; comma separated or repeated), `has` and `mentions`
+  (user ids written in the text as `<@id>`; all of them), `sort_order` (desc/asc), `offset`
+  (pages of 25, up to 5000). Returns `{ total_results, messages }` (channel message rows).
+  Only text channels the caller can view are searched; non-members get 404.
+- **Client:** `guild/GuildSearch.jsx`, at the end of the channel header (on a phone a button that
+  opens it full screen). `utils/searchQuery.js` parses the box (`from:user`, `mentions:user`
+  by username or unique display name, `in:channel`, `has:thing`, quoted values with spaces)
+  into those parameters and reports unknown names instead of searching; it also gives the
+  suggestions (the four filters in an empty box, then members, channels or `has:` values;
+  arrows, Tab or Enter pick; Enter searches once the word is complete). Results float under
+  the box like the pinned list (Newest/Oldest, Load more) and stay open after Jump on a computer.
+  Jump (`GuildView`) opens the message's channel and passes `ChatPane` a `jumpTo` once
+  `useChannel`'s `loadedChannelId` is that channel; `ChatPane` then loads older pages until
+  it's there, as the pinned list's Jump does.
+- **Not done yet:** `before:`/`after:`/`during:`, `pinned:`, author type (webhooks), a
+  "most relevant" order, and search in DMs and group DMs (it would have to run on the device).
 
 ### Webhooks (Discord's API)
 

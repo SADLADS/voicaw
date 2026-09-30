@@ -26,6 +26,8 @@ export function useChannel({ channelId, user, onRead }) {
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  // The channel whose history is loaded (null while loading), so a jump waits for it.
+  const [loadedChannelId, setLoadedChannelId] = useState(null);
   // Bumped whenever a message here is pinned or unpinned (the pins list reloads).
   const [pinsVersion, setPinsVersion] = useState(0);
 
@@ -68,6 +70,7 @@ export function useChannel({ channelId, user, onRead }) {
     setMessages([]);
     setHasMore(true);
     setError(null);
+    setLoadedChannelId(null);
     if (!channelId) {
       setIsLoading(false);
       return undefined;
@@ -81,6 +84,7 @@ export function useChannel({ channelId, user, onRead }) {
         if (cancelled) return;
         setMessages(page.map(toChatMessage));
         setHasMore(page.length >= CHANNEL_PAGE_SIZE);
+        setLoadedChannelId(channelId);
         const newest = page[page.length - 1];
         // Marked read even when empty, so the badge goes.
         markRead(newest ? newest.id : 0);
@@ -256,6 +260,7 @@ export function useChannel({ channelId, user, onRead }) {
     hasMore,
     isLoading,
     error,
+    loadedChannelId,
     loadMoreMessages,
     sendMessage,
     editMessage,

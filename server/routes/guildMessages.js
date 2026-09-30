@@ -154,6 +154,7 @@ router.post('/channels/:channelId/messages', authenticateJWT, requireTextChannel
       [req.channel.id, req.user.id, content, parentMessageId]
     );
     await markRead(req.user.id, req.channel.id, id);
+    await db.indexGuildMessage(id);
     return { lastID: id, mentions: await saveMentions({ id, content, sender_id: req.user.id }, req.channel, req.permissions) };
   });
   const [message] = await withReactions([await db.get(`${MESSAGE_SELECT} WHERE m.id = ?`, [lastID])]);
@@ -173,6 +174,7 @@ router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async 
   await db.transaction(async () => {
     await db.run("UPDATE guild_messages SET content = ?, edited = 1, edited_at = strftime('%s','now') WHERE id = ?", [content, req.message.id]);
     await saveMentions({ id: req.message.id, content, sender_id: req.user.id }, req.channel, req.permissions);
+    await db.indexGuildMessage(req.message.id);
   });
   const saved = await db.get('SELECT mention_everyone, mention_roles FROM guild_messages WHERE id = ?', [req.message.id]);
   await sendToChannel(req.channel, {

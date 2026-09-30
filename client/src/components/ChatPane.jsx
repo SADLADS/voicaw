@@ -34,7 +34,8 @@ import { parsePoll, pollMarkup } from '../utils/pollMarkup';
 // `suggestRoles` ([{ id, name, color }]) the roles you may mention, and `canMentionEveryone`
 // adds @everyone and @here. `canPin` lets you pin and unpin (always in DMs and groups; Pin
 // Messages in a channel). `pinsAnchor` (the header pin button's rect, or null) opens the
-// pinned messages list; `onClosePins` closes it.
+// pinned messages list; `onClosePins` closes it. `jumpTo` ({ messageId }, a new object each
+// time) scrolls to that message once the chat is loaded, then calls `onJumped`.
 export default function ChatPane({
   chatId,
   chatName,
@@ -56,6 +57,8 @@ export default function ChatPane({
   canPin = true,
   pinsAnchor = null,
   onClosePins,
+  jumpTo = null,
+  onJumped,
   nameColors,
   encrypted = true,
   emptyText = 'No messages yet. Start the conversation!',
@@ -212,6 +215,13 @@ export default function ChatPane({
     }
     setComposerError("Couldn't find that message in the chat.");
   }
+
+  useEffect(() => {
+    if (!jumpTo) return;
+    jumpToMessage(jumpTo.messageId);
+    onJumped?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpTo]);
 
   function handleReply(msg) {
     setReplyTo(msg);

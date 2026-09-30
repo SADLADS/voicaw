@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/dms.css';
@@ -9,6 +9,7 @@ import ChatPane from '../ChatPane';
 import MemberList from './MemberList';
 import ChannelIcon from './ChannelIcon';
 import VoiceChannelView from './VoiceChannelView';
+import GuildSearch from './GuildSearch';
 import { useChannel } from '../../hooks/useChannel';
 import { onGuildEvent } from '../../utils/ws-client';
 import { addGuildReaction, fetchChannelMembers, fetchMembers, removeGuildReaction } from '../../services/guildService';
@@ -48,6 +49,15 @@ export default function GuildView({ user }) {
   };
 
   useEffect(() => setPinsAnchor(null), [channelId]);
+
+  // A search result to scroll to ({ channelId, messageId }), once its channel is loaded.
+  const navigate = useNavigate();
+  const [jumpTarget, setJumpTarget] = useState(null);
+  const clearJump = useCallback(() => setJumpTarget(null), []);
+  const jumpToResult = (msg) => {
+    setJumpTarget({ channelId: msg.channel_id, messageId: msg.id });
+    if (String(msg.channel_id) !== channelId) navigate(`/guild/${guildId}/${msg.channel_id}`);
+  };
 
   const channel = guild?.channels.find((c) => String(c.id) === channelId) ?? null;
   const textChannelId = channel?.type === 'text' ? channelId : null;
@@ -228,6 +238,16 @@ export default function GuildView({ user }) {
         >
           <FontAwesomeIcon icon={faUsers} />
         </button>
+        <GuildSearch
+          guild={guild}
+          members={members}
+          user={user}
+          isMobile={isMobile}
+          onJump={jumpToResult}
+          reactionNames={reactionNames}
+          mentionRoles={mentionRoles}
+          nameColors={nameColors}
+        />
       </header>
 
       <div className="guild-body">
@@ -259,6 +279,8 @@ export default function GuildView({ user }) {
               canPin={has(permissions, PERMISSIONS.PIN_MESSAGES)}
               pinsAnchor={pinsAnchor}
               onClosePins={closePins}
+              jumpTo={jumpTarget?.channelId === channel.id && conversation.loadedChannelId === channelId ? jumpTarget : null}
+              onJumped={clearJump}
               nameColors={nameColors}
               emptyText={`Welcome to #${channel.name}! This is the start of the channel.`}
             />

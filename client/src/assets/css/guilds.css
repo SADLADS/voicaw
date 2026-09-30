@@ -443,6 +443,139 @@ img.guild-icon {
   color: var(--vc-fg);
 }
 
+/* GUILD SEARCH (GuildSearch): the box at the end of the channel header (in the results panel
+   on a phone), its suggestions, and results in a .pins-panel. */
+.guild-search {
+  position: relative;
+  flex-shrink: 0;
+  width: 220px;
+  margin-left: auto;
+}
+
+.channel-header-button + .guild-search {
+  margin-left: 6px;
+}
+
+.guild-search-input {
+  width: 100%;
+  height: 28px;
+  padding: 0 28px 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background-color: var(--vc-bg-base);
+  color: var(--vc-fg);
+  font-size: 14px;
+  outline: none;
+  transition: width 0.15s;
+}
+
+.guild-search-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.guild-search-icon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+}
+
+.guild-search-icon.clear {
+  cursor: pointer;
+}
+
+.guild-search-icon.clear:hover {
+  color: var(--vc-fg);
+}
+
+.guild-search-suggestions {
+  position: absolute;
+  z-index: 410;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  background-color: var(--vc-bg-elevated);
+  box-shadow: 0 8px 24px var(--vc-shadow);
+}
+
+.guild-search-suggestion {
+  min-height: 30px;
+}
+
+.guild-search-hash {
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.search-panel .pins-panel-header .guild-search {
+  flex: 1;
+  width: auto;
+  margin-left: 0;
+}
+
+.search-panel .pins-panel-header .guild-search-input {
+  height: 36px;
+  font-size: 16px; /* no zoom on focus in iOS */
+}
+
+.search-panel .guild-search-suggestions {
+  left: 0;
+  width: auto;
+}
+
+.search-panel-sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 0;
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+}
+
+.search-panel-sort-buttons {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.search-panel-sort-buttons .btn {
+  padding: 1px 8px;
+  font-size: 0.8rem;
+  color: var(--vc-fg-muted);
+}
+
+.search-panel-sort-buttons .btn.active {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.search-result-channel {
+  margin-bottom: 4px;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.search-panel-more {
+  display: block;
+  margin: 4px auto 8px;
+  color: var(--vc-fg);
+}
+
 .guild-body {
   position: relative;
   flex: 1;

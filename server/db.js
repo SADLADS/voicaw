@@ -1,6 +1,7 @@
 const { DatabaseSync } = require('node:sqlite');
 const { AsyncLocalStorage } = require('node:async_hooks');
 const { DEFAULT_EVERYONE_PERMISSIONS, PERMISSIONS } = require('./permissions');
+const { searchHas, searchText } = require('./searchText');
 
 // Node's built-in SQLite (synchronous, no native build). WAL: reads never wait for a write, and
 // commits only append to the log. busy_timeout covers other processes (scripts/admin.js).
@@ -491,6 +492,25 @@ addColumn('ALTER TABLE guild_messages ADD COLUMN attachments TEXT');
 addColumn('ALTER TABLE guild_messages ADD COLUMN flags INTEGER NOT NULL DEFAULT 0');
 addColumn('ALTER TABLE guild_messages ADD COLUMN edited_at INTEGER');
 
+// GUILD SEARCH (routes/guildSearch.js): each message's words (searchText.js) in a full-text
+// index, rowid = the message's id, and what it has (`has:` bits) in `search_has`. Whoever
+// writes a message's content, embeds or attachments calls indexGuildMessage (below); deleting
+// the message takes its words with it (the trigger).
+addColumn('ALTER TABLE guild_messages ADD COLUMN search_has INTEGER NOT NULL DEFAULT 0');
+sqlite.exec("CREATE VIRTUAL TABLE IF NOT EXISTS guild_messages_fts USING fts5(text, tokenize = 'unicode61 remove_diacritics 2')");
+sqlite.exec(`
+CREATE TRIGGER IF NOT EXISTS guild_messages_fts_delete AFTER DELETE ON guild_messages BEGIN
+  DELETE FROM guild_messages_fts WHERE rowid = old.id;
+END;
+`);
+
+function indexRow(row) {
+  sqlite.prepare('UPDATE guild_messages SET search_has = ? WHERE id = ?').run(searchHas(row), row.id);
+  sqlite.prepare('DELETE FROM guild_messages_fts WHERE rowid = ?').run(row.id);
+  const text = searchText(row);
+  if (text) sqlite.prepare('INSERT INTO guild_messages_fts (rowid, text) VALUES (?, ?)').run(row.id, text);
+}
+
 // Changes to existing data that must happen once, numbered in SQLite's user_version (add the
 // next one at the end; each runs in its own transaction with its version bump):
 const MIGRATIONS = [
@@ -506,6 +526,10 @@ const MIGRATIONS = [
     sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${pin} WHERE permissions & ${manage} = ${manage}`);
     sqlite.exec(`UPDATE guild_channel_overrides SET allow = allow | ${pin} WHERE allow & ${manage} = ${manage}`);
     sqlite.exec(`UPDATE guild_channel_overrides SET deny = deny | ${pin} WHERE deny & ${manage} = ${manage}`);
+  },
+  // 4. Guild search is new: index every message sent before it.
+  () => {
+    for (const row of sqlite.prepare('SELECT id, content, embeds, attachments FROM guild_messages').all()) indexRow(row);
   },
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
@@ -606,4 +630,11 @@ async function transaction(fn) {
   }
 }
 
-module.exports = { db: sqlite, get, all, run, transaction };
+// (Re)indexes guild message `id` for search after its content, embeds or attachments changed.
+// Call it inside the transaction that wrote them.
+async function indexGuildMessage(id) {
+  const row = await get('SELECT id, content, embeds, attachments FROM guild_messages WHERE id = ?', [id]);
+  if (row) indexRow(row);
+}
+
+module.exports = { db: sqlite, get, all, run, transaction, indexGuildMessage };

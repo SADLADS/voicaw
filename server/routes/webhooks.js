@@ -561,6 +561,7 @@ router.post('/webhooks/:webhookId/:token', byToken, parseBody, handle(async (req
         attachments.length ? JSON.stringify(attachments) : null, flags]
     );
     const found = await saveMentions({ id: lastID, content, sender_id: 0 }, channel, PERMISSIONS.MENTION_EVERYONE, allowed);
+    await db.indexGuildMessage(lastID);
     return { id: lastID, mentions: found };
   });
   const message = await loadMessage(id);
@@ -611,6 +612,7 @@ router.patch('/webhooks/:webhookId/:token/messages/:messageId', byToken, ownMess
       [content, embeds.length ? JSON.stringify(embeds) : null, attachments.length ? JSON.stringify(attachments) : null, flags, old.id]
     );
     await saveMentions({ id: old.id, content, sender_id: 0 }, channel, PERMISSIONS.MENTION_EVERYONE, allowed);
+    await db.indexGuildMessage(old.id);
   });
   const message = await loadMessage(old.id);
   await sendToChannel(channel, {
