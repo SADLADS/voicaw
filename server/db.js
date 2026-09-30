@@ -459,6 +459,13 @@ CREATE TABLE IF NOT EXISTS gif_favorites (
 );
 `);
 
+// PINNED MESSAGES: when a message was pinned (unix s) and by whom; null = not pinned. Only
+// which message is pinned is visible to the server (like reply links), never its content.
+for (const table of ['direct_messages', 'guild_messages', 'group_dm_messages']) {
+  addColumn(`ALTER TABLE ${table} ADD COLUMN pinned_at INTEGER`);
+  addColumn(`ALTER TABLE ${table} ADD COLUMN pinned_by INTEGER`);
+}
+
 // Changes to existing data that must happen once, numbered in SQLite's user_version (add the
 // next one at the end; each runs in its own transaction with its version bump):
 const MIGRATIONS = [
@@ -466,6 +473,15 @@ const MIGRATIONS = [
   () => sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.CONNECT | PERMISSIONS.SPEAK} WHERE is_everyone = 1`),
   // 2. users.last_online was never updated (it held the sign-up time): unknown until next seen.
   () => sqlite.exec('UPDATE users SET last_online = NULL'),
+  // 3. Pin Messages is new (it used to be part of Manage Messages, as in Discord): roles and
+  // channel overrides that allow (or deny) Manage Messages allow (or deny) pinning too.
+  () => {
+    const manage = PERMISSIONS.MANAGE_MESSAGES;
+    const pin = PERMISSIONS.PIN_MESSAGES;
+    sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${pin} WHERE permissions & ${manage} = ${manage}`);
+    sqlite.exec(`UPDATE guild_channel_overrides SET allow = allow | ${pin} WHERE allow & ${manage} = ${manage}`);
+    sqlite.exec(`UPDATE guild_channel_overrides SET deny = deny | ${pin} WHERE deny & ${manage} = ${manage}`);
+  },
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');

@@ -434,6 +434,10 @@ img.guild-icon {
   margin-left: 0;
 }
 
+.channel-header-button + .channel-header-button {
+  margin-left: 2px;
+}
+
 .channel-header-button:hover,
 .channel-header-button.active {
   color: var(--vc-fg);
@@ -891,6 +895,89 @@ img.guild-icon {
   margin-bottom: 8px;
   border-radius: 24px;
   font-size: 24px;
+}
+
+/* The card under a message with an invite link (InviteEmbed). */
+.invite-embed {
+  width: 100%;
+  max-width: 432px;
+  margin: 6px 0;
+  padding: 12px 16px 16px;
+  border-radius: 8px;
+  background-color: var(--vc-bg-subtle);
+  border: 1px solid var(--vc-border-dark);
+}
+
+.invite-embed-label {
+  margin-bottom: 10px;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.invite-embed-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.invite-embed-icon {
+  flex: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.invite-embed .guild-initials {
+  background-color: var(--vc-accent);
+}
+
+.invite-embed .invite-embed-invalid {
+  background-color: var(--vc-danger);
+}
+
+.invite-embed-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.invite-embed-name {
+  overflow: hidden;
+  color: var(--vc-fg);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invite-embed-hint {
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+}
+
+.invite-embed-hint.invite-embed-error {
+  color: var(--vc-danger);
+}
+
+.invite-embed .btn {
+  flex: none;
+  white-space: nowrap;
+}
+
+.invite-embed-join,
+.invite-embed-join:disabled {
+  background-color: var(--vc-accent-alt);
+  border-color: var(--vc-accent-alt);
+  color: var(--vc-fg);
+}
+
+.invite-embed-join:hover,
+.invite-embed-join:focus {
+  background-color: var(--vc-accent-alt-hover);
+  border-color: var(--vc-accent-alt-hover);
+  color: var(--vc-fg);
 }
 
 /* Inside dialogs and cards (which are the elevated colour), fields and initials need their

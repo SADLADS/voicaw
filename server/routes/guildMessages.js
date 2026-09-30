@@ -5,6 +5,7 @@ const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has, channelPermissions } = require('../permissions');
 const { getChannelAccess, getMember, getOverrides, sendToChannel, getChannelViewers } = require('../guilds');
 const { saveMentions, notifyNewMessage } = require('../mentions');
+const { setPinned } = require('../pins');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
 // same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
@@ -19,7 +20,7 @@ const MAX_EMOJI_LENGTH = 64;
 const MESSAGE_SELECT = `
   SELECT
     m.id, m.channel_id, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
-    m.mention_everyone, m.mention_roles,
+    m.mention_everyone, m.mention_roles, m.pinned_at, m.pinned_by,
     u.username AS sender_username,
     u.display_name AS sender_display_name,
     pm.content AS parent_content,
@@ -185,6 +186,30 @@ router.delete('/guild-messages/:messageId', authenticateJWT, requireMessage, asy
   await sendToChannel(req.channel, { type: 'guild_message_delete', guildId, channelId, messageId: id });
   res.json({ success: true, deletedId: id });
 });
+
+// ---- Pins (Pin Messages in the channel) ----
+
+// The channel's pinned messages, most recently pinned first.
+router.get('/channels/:channelId/pins', authenticateJWT, requireTextChannel, async (req, res) => {
+  const rows = await db.all(
+    `${MESSAGE_SELECT} WHERE m.channel_id = ? AND m.pinned_at IS NOT NULL ORDER BY m.pinned_at DESC, m.id DESC`,
+    [req.channel.id]
+  );
+  res.json(await withReactions(rows));
+});
+
+async function pinRoute(req, res, pinned) {
+  if (!has(req.permissions, PERMISSIONS.PIN_MESSAGES)) return forbidden(res);
+  const { guild_id: guildId, id: channelId } = req.channel;
+  const result = await setPinned('guild_messages', req.message.id, req.user.id, pinned, 'channel_id = ?', [channelId]);
+  if (result.error) return res.status(result.status).json({ error: result.error });
+  const pin = { messageId: req.message.id, pinned_at: result.pinned_at, pinned_by: result.pinned_by };
+  if (result.changed) await sendToChannel(req.channel, { type: 'guild_message_pin', guildId, channelId, ...pin });
+  res.json(pin);
+}
+
+router.put('/guild-messages/:messageId/pin', authenticateJWT, requireMessage, (req, res) => pinRoute(req, res, true));
+router.delete('/guild-messages/:messageId/pin', authenticateJWT, requireMessage, (req, res) => pinRoute(req, res, false));
 
 // ---- Reactions (plain emoji) ----
 

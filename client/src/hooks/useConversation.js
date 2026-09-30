@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { onNewDm, onDeleteDm, onEditDm, onReactionAdd, onReactionRemove, setActiveChat } from '../utils/ws-client';
+import { onNewDm, onDeleteDm, onEditDm, onReactionAdd, onReactionRemove, onDmPin, setActiveChat } from '../utils/ws-client';
 import {
   fetchMessagesForUser,
   sendMessageToUser,
   markMessagesRead,
   editMessage as saveEditedMessage,
   deleteMessage as deleteMessageOnServer,
+  fetchPins,
+  setMessagePinned,
 } from '../services/dmService';
 import {
   encryptMessage,
@@ -29,7 +31,8 @@ export const PAGE_SIZE = 50;
 // the conversation is marked read (to refresh unread badges).
 //
 // Messages are the server's rows plus `plaintext`, `parent_plaintext` and decrypted
-// `reactions` ([{ id, user_id, emoji }]). A message being sent has a temporary id and
+// `reactions` ([{ id, user_id, emoji }]); `pinned_at` / `pinned_by` when it's pinned
+// (`loadPins`, `setPinned`, `pinsVersion`: bumped on every pin change here). A message being sent has a temporary id and
 // `status: 'pending'` (then 'sent' or 'failed'); `clientKey` keeps its list key stable once
 // the real id arrives.
 //
@@ -47,6 +50,8 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   const [keyStatus, setKeyStatus] = useState(null);
   // Bumped to re-run the conversation load (e.g. after accepting a changed key).
   const [keyCheck, setKeyCheck] = useState(0);
+  // Bumped whenever a message here is pinned or unpinned (the pins list reloads).
+  const [pinsVersion, setPinsVersion] = useState(0);
 
   // Always the current render's messages, for handlers that run later.
   const messagesRef = useRef(messages);
@@ -61,6 +66,11 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
 
   const setMessageReactions = (messageId, update) => {
     updateMessage(messageId, (m) => ({ reactions: update(m.reactions ?? []) }));
+  };
+
+  const applyPin = ({ messageId, pinned_at: pinnedAt, pinned_by: pinnedBy }) => {
+    updateMessage(messageId, () => ({ pinned_at: pinnedAt, pinned_by: pinnedBy }));
+    setPinsVersion((n) => n + 1);
   };
 
   const markRead = async () => {
@@ -272,6 +282,16 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
   }
 
+  // The conversation's pinned messages, decrypted, most recently pinned first.
+  async function loadPins() {
+    if (!sharedKey) return [];
+    return decryptMessagesBatch(await fetchPins(chatUser.id), sharedKey);
+  }
+
+  async function setPinned(msg, pinned) {
+    applyPin(await setMessagePinned(msg.id, pinned));
+  }
+
   // Live changes from the websocket.
   useEffect(() => {
     if (!user?.id || !chatUser?.id || !sharedKey) return undefined;
@@ -314,12 +334,18 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
       setMessageReactions(messageId, (list) => list.filter((r) => r.id !== reactionId));
     });
 
+    const unsubscribePin = onDmPin((event) => {
+      const between = [event.sender_id, event.recipient_id].map(String).sort().join();
+      if (between === [user.id, chatUser.id].map(String).sort().join()) applyPin(event);
+    });
+
     return () => {
       unsubscribeNew();
       unsubscribeDelete();
       unsubscribeEdit();
       unsubscribeReactionAdd();
       unsubscribeReactionRemove();
+      unsubscribePin();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatUser?.id, user?.id, sharedKey]);
@@ -339,5 +365,8 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     editMessage,
     deleteMessage,
     setMessageReactions,
+    pinsVersion,
+    loadPins,
+    setPinned,
   };
 }

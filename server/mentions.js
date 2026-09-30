@@ -79,7 +79,7 @@ async function saveMentions(message, channel, permissions) {
 }
 
 // The message as notification text: mentions by name, custom emoji as :name:, attachments as
-// their names (their links carry keys), spoilers hidden, cut to MAX_PREVIEW_LENGTH.
+// their names (their links carry keys; spoilers just "spoiler"), spoilers hidden, cut to MAX_PREVIEW_LENGTH.
 async function previewText(content, guildId) {
   const userIds = [...String(content).matchAll(/<@(\d+)>/g)].map((m) => Number(m[1]));
   const users = userIds.length
@@ -89,7 +89,8 @@ async function previewText(content, guildId) {
   const userName = new Map(users.map((u) => [u.id, u.display_name || u.username]));
   const roleName = new Map(roles.map((r) => [r.id, r.name]));
   const text = String(content)
-    .replace(/!\[((?:\\.|[^\]\\])*)\]\([^)]*\)/g, (_, alt) => `📎 ${alt.replace(/\\(.)/g, '$1') || 'attachment'}`)
+    .replace(/!\[((?:\\.|[^\]\\])*)\]\(([^)]*)\)/g, (_, alt, url) =>
+      /#(?:.*&)?sp=1(?:&|$)/.test(url) ? '📎 spoiler' : `📎 ${alt.replace(/\\(.)/g, '$1') || 'attachment'}`)
     .replace(/<:([A-Za-z0-9_]+):\d+>/g, ':$1:')
     .replace(/\|\|(?!\|)([\s\S]+?)\|\|/g, '[spoiler]')
     .replace(/<@&(\d+)>/g, (_, id) => `@${roleName.get(Number(id)) ?? 'deleted-role'}`)

@@ -8,6 +8,8 @@ import {
   markGroupRead,
   removeGroupReaction,
   sendGroupMessage,
+  fetchGroupPins,
+  setGroupMessagePinned,
 } from '../services/groupService';
 import {
   decryptGroupMessage,
@@ -44,6 +46,8 @@ export function useGroupConversation({ groupId, user, onRead }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [group, setGroup] = useState(null);
+  // Bumped whenever a message here is pinned or unpinned (the pins list reloads).
+  const [pinsVersion, setPinsVersion] = useState(0);
 
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -59,6 +63,10 @@ export function useGroupConversation({ groupId, user, onRead }) {
   };
   const setMessageReactions = (messageId, update) => {
     updateMessage(messageId, (m) => ({ reactions: update(m.reactions ?? []) }));
+  };
+  const applyPin = ({ messageId, pinned_at: pinnedAt, pinned_by: pinnedBy }) => {
+    updateMessage(messageId, () => ({ pinned_at: pinnedAt, pinned_by: pinnedBy }));
+    setPinsVersion((n) => n + 1);
   };
 
   // The group with fresh keys (after a membership change or a new epoch).
@@ -284,6 +292,15 @@ export function useGroupConversation({ groupId, user, onRead }) {
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
   }
 
+  // The pinned messages you can read, decrypted and checked, most recently pinned first.
+  async function loadPins() {
+    return Promise.all((await fetchGroupPins(groupId)).map(decryptRow));
+  }
+
+  async function setPinned(msg, pinned) {
+    applyPin(await setGroupMessagePinned(msg.id, pinned));
+  }
+
   async function saveReaction(msg, emoji) {
     const key = await keyFor(msg.epoch);
     return addGroupReaction(msg.id, await encryptGroupReaction(
@@ -317,6 +334,9 @@ export function useGroupConversation({ groupId, user, onRead }) {
           if (reaction) setMessageReactions(msg.id, (list) => (list.some((r) => r.id === reaction.id) ? list : [...list, reaction]));
           break;
         }
+        case 'group_dm_message_pin':
+          applyPin(event);
+          break;
         case 'group_dm_reaction_remove':
           setMessageReactions(event.messageId, (list) => list.filter((r) => r.id !== event.reactionId));
           break;
@@ -374,5 +394,8 @@ export function useGroupConversation({ groupId, user, onRead }) {
     deleteReaction: removeGroupReaction,
     group,
     reload,
+    pinsVersion,
+    loadPins,
+    setPinned,
   };
 }

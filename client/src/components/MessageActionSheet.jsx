@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCopy, faEdit, faReply, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faCopy, faEdit, faReply, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { frequentEmojiIds, getSkinTone, skinFor } from '../emoji/emojiUsage';
@@ -20,9 +20,10 @@ function quickReactions(index) {
 }
 
 // Mobile: what a long press on a message opens (in place of the desktop hover menu). A row of
-// quick reactions (plus the full picker), then Reply / Edit / Copy text / Delete. Actions the
+// quick reactions (plus the full picker), then Reply / Edit / Pin (or Unpin) / Copy text / Delete. Actions the
 // message doesn't allow are left out: nothing but copying for one still sending or failed,
-// and editing only your own (deleting: your own, or `canDelete`, e.g. a guild's owner).
+// and editing only your own (deleting: your own, or `canDelete`, e.g. a guild's owner; pinning:
+// `onTogglePin`, when you may).
 // `onClose` also runs after any action.
 export default function MessageActionSheet({
   msg,
@@ -34,6 +35,7 @@ export default function MessageActionSheet({
   onMoreReactions,
   onReply,
   onEdit,
+  onTogglePin,
   onCopy,
   onDelete,
   onClose,
@@ -121,6 +123,11 @@ export default function MessageActionSheet({
             {sent && isOwn && (
               <button type="button" className="action-sheet-item" onClick={act(onEdit)}>
                 <FontAwesomeIcon icon={faEdit} /> Edit
+              </button>
+            )}
+            {sent && onTogglePin && (
+              <button type="button" className="action-sheet-item" onClick={act(onTogglePin)}>
+                <FontAwesomeIcon icon={faThumbtack} /> {msg.pinned_at ? 'Unpin message' : 'Pin message'}
               </button>
             )}
             {msg.plaintext && (

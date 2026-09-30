@@ -4,6 +4,7 @@ import MessageList from './MessageList';
 import Composer from './Composer';
 import MessageActionSheet from './MessageActionSheet';
 import ConfirmDialog from './guild/ConfirmDialog';
+import PinnedMessages from './PinnedMessages';
 import { ConfigContext, InteractionContext } from '../contexts';
 import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
 import { useReactions } from '../hooks/useReactions';
@@ -29,7 +30,9 @@ import { displayName } from '../utils/profiles';
 // ([{ id, username }]) are who can be mentioned ("@name" suggestions). In a guild,
 // `mentionRoles` ({ roleId: { name, color } }) draws role mentions, `myRoleIds` are yours,
 // `suggestRoles` ([{ id, name, color }]) the roles you may mention, and `canMentionEveryone`
-// adds @everyone and @here.
+// adds @everyone and @here. `canPin` lets you pin and unpin (always in DMs and groups; Pin
+// Messages in a channel). `pinsAnchor` (the header pin button's rect, or null) opens the
+// pinned messages list; `onClosePins` closes it.
 export default function ChatPane({
   chatId,
   chatName,
@@ -48,7 +51,11 @@ export default function ChatPane({
   canSend = true,
   cantSendText = "You don't have permission to send messages here.",
   canAddReactions = true,
+  canPin = true,
+  pinsAnchor = null,
+  onClosePins,
   nameColors,
+  encrypted = true,
   emptyText = 'No messages yet. Start the conversation!',
 }) {
   const { s3Endpoint, maxPlaintextLength } = useContext(ConfigContext);
@@ -71,6 +78,10 @@ export default function ChatPane({
   const closeActions = useCallback(() => setActionsForId(null), []);
   // The message the "Delete message?" dialog is asking about.
   const [confirmingDelete, setConfirmingDelete] = useState(null);
+
+  // For jumping to a message, which waits for older pages: always the newest conversation.
+  const latestConversation = useRef(conversation);
+  latestConversation.current = conversation;
 
   const reactions = useReactions({
     chatId,
@@ -161,6 +172,37 @@ export default function ChatPane({
     else setConfirmingDelete(msg);
   }
 
+  async function togglePin(msg) {
+    try {
+      await conversation.setPinned(msg, !msg.pinned_at);
+    } catch (err) {
+      console.error('Failed to pin message', err);
+      setComposerError(err.response?.data?.error || `Couldn't ${msg.pinned_at ? 'unpin' : 'pin'} the message.`);
+    }
+  }
+
+  // Scrolls the chat to message `id` (loading older history until it's there) and flashes it.
+  async function jumpToMessage(id) {
+    if (isMobile) onClosePins?.();
+    const deadline = Date.now() + 20000;
+    while (Date.now() < deadline) {
+      const row = document.querySelector(`.message-scroller [data-msg-id="${id}"]`);
+      if (row) {
+        row.scrollIntoView({ block: 'center' });
+        row.classList.remove('jump-highlight');
+        void row.offsetWidth; // restarts the animation when jumping to the same one again
+        row.classList.add('jump-highlight');
+        setTimeout(() => row.classList.remove('jump-highlight'), 2000);
+        return;
+      }
+      const current = latestConversation.current;
+      if (!current.hasMore) break;
+      await current.loadMoreMessages();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    setComposerError("Couldn't find that message in the chat.");
+  }
+
   function handleReply(msg) {
     setReplyTo(msg);
     inputRef.current?.focus();
@@ -204,9 +246,12 @@ export default function ChatPane({
             onOpenActions={openActions}
             canModerate={canModerate}
             canAddReactions={canAddReactions}
+            canPin={canPin}
+            onTogglePin={togglePin}
             nameColors={nameColors}
             mentionRoles={mentionRoles}
             myRoleIds={myRoleIds}
+            encrypted={encrypted}
             // While reacting to a message (or its mobile menu is open), it stays
             // highlighted and the others don't react to hovering.
             focusedMsgId={reactingTo?.msgId ?? actionsForId}
@@ -276,9 +321,29 @@ export default function ChatPane({
           onMoreReactions={() => openReactionPicker(actionsFor, null)}
           onReply={() => handleReply(actionsFor)}
           onEdit={() => handleEdit(actionsFor)}
+          onTogglePin={canPin ? () => togglePin(actionsFor) : undefined}
           onCopy={() => copyMessage(actionsFor)}
           onDelete={() => handleDelete(actionsFor)}
           onClose={closeActions}
+        />
+      )}
+
+      {pinsAnchor && (
+        <PinnedMessages
+          anchor={pinsAnchor}
+          isMobile={isMobile}
+          loadPins={conversation.loadPins}
+          pinsVersion={conversation.pinsVersion}
+          canPin={canPin}
+          onUnpin={(msg) => conversation.setPinned(msg, false)}
+          onJump={(msg) => jumpToMessage(msg.id)}
+          onClose={onClosePins}
+          user={user}
+          s3Endpoint={s3Endpoint}
+          reactionNames={reactionNames}
+          mentionRoles={mentionRoles}
+          myRoleIds={myRoleIds}
+          nameColors={nameColors}
         />
       )}
 
