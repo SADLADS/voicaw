@@ -109,10 +109,6 @@ export default function App() {
 
   if (loading) return <div></div>;
 
-  const isElectron = () => {
-    return typeof window !== 'undefined' && window.navigator.userAgent.toLowerCase().includes('electron');
-  };
-
   async function handleLogout() {
     // Before the token goes: the server must forget this device, or it would keep
     // receiving this account's notifications after logout.
@@ -133,7 +129,9 @@ export default function App() {
     setUser(null);
   }
 
-  const Router = isElectron() ? HashRouter : BrowserRouter;
+  // A page opened from a file (no server to answer every route) needs hash URLs; the desktop
+  // app serves real paths (electron/protocol.js).
+  const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
 
   return (
     <ConfigContext.Provider value={config}>

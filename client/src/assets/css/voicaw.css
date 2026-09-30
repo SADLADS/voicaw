@@ -272,6 +272,35 @@ pre code {
   margin-top: 0.5rem;
 }
 
+/* Settings → Desktop App */
+.desktop-shortcuts-title {
+  margin-top: 1rem;
+}
+
+.desktop-shortcut {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.desktop-shortcut-label {
+  min-width: 120px;
+}
+
+.desktop-shortcut-key {
+  min-width: 140px;
+}
+
+.desktop-shortcut-key.recording {
+  outline: 2px solid var(--vc-accent);
+}
+
+.desktop-shortcut-error {
+  margin: 0;
+}
+
 /* Settings → Admin */
 .admin-setting {
   max-width: 560px;

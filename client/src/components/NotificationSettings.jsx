@@ -8,6 +8,7 @@ import {
   sendTestNotification,
 } from '../services/pushService';
 import { getSetting, setSetting } from '../services/settingsStore';
+import { isDesktopApp } from '../utils/desktop';
 
 const STATUS_TEXT = {
   granted: 'Notifications are on for this device.',
@@ -85,6 +86,7 @@ export default function NotificationSettings() {
         {status === 'granted' && registrationError
           ? `Notifications are allowed, but this device couldn't be registered: ${registrationError}`
           : STATUS_TEXT[status]}
+        {status === 'granted' && isDesktopApp() && ' They arrive while the app is running, in the tray too.'}
       </p>
 
       <div className="notification-settings-actions">

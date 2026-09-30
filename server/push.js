@@ -33,14 +33,16 @@ function buildDmPushPayload(message, imageUrl, recipientName) {
   return payload;
 }
 
-// Sends a web push to every device the user has subscribed; forgets devices whose
-// subscription is gone. Resolves to { devices, delivered }.
+// Sends a web push to every device the user has subscribed (forgetting devices whose
+// subscription is gone), and the same payload to their desktop apps over the websocket.
+// Resolves to { devices, delivered } (desktop apps count as both).
 async function sendPushToUser(userId, payload, options = {}) {
+  const desktop = require('./sockets').sendToDesktopSockets(userId, payload);
   let rows;
   try {
     rows = await db.all('SELECT id, subscription FROM push_subscriptions WHERE user_id = ?', [userId]);
   } catch {
-    return { devices: 0, delivered: 0 };
+    return { devices: desktop, delivered: desktop };
   }
   const body = JSON.stringify(payload);
   const results = await Promise.all(rows.map(async (row) => {
@@ -56,7 +58,7 @@ async function sendPushToUser(userId, payload, options = {}) {
       return false;
     }
   }));
-  return { devices: rows.length, delivered: results.filter(Boolean).length };
+  return { devices: rows.length + desktop, delivered: results.filter(Boolean).length + desktop };
 }
 
 // The sender's profile picture for the notification (the default one if they have none).

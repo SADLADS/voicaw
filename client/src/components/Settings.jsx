@@ -10,6 +10,8 @@ import AccountSecuritySettings from "./AccountSecuritySettings";
 import AdminSettings from "./AdminSettings";
 import DateTimeSettings from "./DateTimeSettings";
 import SpellcheckSettings from "./SpellcheckSettings";
+import DesktopAppSettings from "./DesktopAppSettings";
+import { isDesktopApp } from '../utils/desktop';
 import EditProfile from "./EditProfile";
 import Avatar from "./Avatar";
 import { useAuth } from '../hooks/useAuth';
@@ -100,6 +102,12 @@ export default function Settings({ onLogout }) {
       id: 'notifications', category: 'app', title: 'Notifications',
       keywords: 'push alerts previews',
       content: <NotificationSettings />,
+    },
+    {
+      id: 'desktop-app', category: 'app', title: 'Desktop app',
+      keywords: 'tray close minimise minimize start login startup boot keyboard shortcut hotkey keybind mute deafen global',
+      available: isDesktopApp(),
+      content: isDesktopApp() ? <DesktopAppSettings /> : null,
     },
     {
       id: 'app-version', category: 'app', title: 'App version',

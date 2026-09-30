@@ -1,0 +1,21 @@
+{
+  "name": "voicaw-desktop",
+  "productName": "Voicaw",
+  "version": "0.1.0",
+  "description": "Voicaw desktop app",
+  "private": true,
+  "main": "main.js",
+  "author": "Voicaw",
+  "scripts": {
+    "test": "vitest run",
+    "dist": "npm run build:electron --workspace=client && electron-builder --config builder.config.js"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "vitest": "^4.1.11"
+  }
+}

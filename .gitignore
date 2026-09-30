@@ -144,3 +144,7 @@ server/*.db-shm
 
 # Host-specific npm settings (e.g. build_from_source=sqlite3 on old glibc)
 .npmrc
+
+# Desktop app: the client built for it, and the packaged installers
+/build/
+/dist-desktop/

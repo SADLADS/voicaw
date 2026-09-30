@@ -32,6 +32,21 @@ function sendToUserSockets(userId, payload) {
   }
 }
 
+// The desktop app (Electron) can't get web push, so whatever would be pushed to a user also
+// goes to their desktop app sockets as `notification { payload }` (see push.js), and the app
+// shows it. A socket says it's the desktop app with notifications on in its presence message.
+function sendToDesktopSockets(userId, payload) {
+  const message = JSON.stringify({ type: 'notification', payload });
+  let sent = 0;
+  for (const socket of clients.get(String(userId)) || []) {
+    if (socket.readyState === WebSocket.OPEN && socket.presence?.desktopNotifications) {
+      socket.send(message);
+      sent++;
+    }
+  }
+  return sent;
+}
+
 // To every logged-in socket (anyone can open a websocket; only identified ones are in `clients`).
 function sendToAllSockets(payload) {
   for (const userId of clients.keys()) sendToUserSockets(userId, payload);
@@ -154,6 +169,7 @@ function attachWebSocketServer(server) {
           visible: data.visible === true,
           chatId: data.chatId != null ? String(data.chatId) : null,
           mobile: data.mobile === true,
+          desktopNotifications: data.desktopNotifications === true,
           activeUntil: now + idleIn,
           at: now,
         };
@@ -192,5 +208,5 @@ function attachWebSocketServer(server) {
 }
 
 module.exports = {
-  clients, sendToUserSockets, sendToAllSockets, getStatus, refreshStatus, isViewingConversation, attachWebSocketServer,
+  clients, sendToUserSockets, sendToAllSockets, sendToDesktopSockets, getStatus, refreshStatus, isViewingConversation, attachWebSocketServer,
 };

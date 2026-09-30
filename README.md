@@ -211,3 +211,31 @@ The media ports can't go through nginx. Forward them straight to the host, on th
 numbers. There's no TURN server yet, so people on networks that allow neither UDP 7882 nor TCP
 7881 (some corporate and school networks) can't join voice until one is added. That would be
 TURN over TLS on 443, which needs its own IP or an nginx `stream` SNI split.
+
+### 9. Desktop app (optional)
+
+The desktop app (`electron/`) ships its own copy of the client and talks to the same API
+(`voicaw://app` is already an allowed origin in `server/config.js`; the object store must allow
+it too, which MinIO does by default). Build the installers on each system you want them for
+(Windows ones on Windows, macOS ones on a Mac):
+
+```bash
+npm run dist:electron   # client build for the app (../build), then installers in dist-desktop/
+```
+
+The client build uses `client/.env.production`, unless there's a `client/.env.electron` with its
+own `VITE_API_BASE_URL` / `VITE_WS_URL`.
+
+Installed copies update themselves (`electron/updater.js`) from `https://voicaw.com/desktop/`
+(set `VOICAW_UPDATE_URL` when building to use another address): serve a folder there and, for
+each release, raise `version` in `electron/package.json`, build, and copy the installers and
+the `latest*.yml` files from `dist-desktop/` into it. On `voicaw.com`:
+
+```nginx
+location /desktop/ {
+    alias /opt/voicaw-desktop/;
+}
+```
+
+Linux AppImages, `.deb` packages and Windows installers update this way. macOS only updates a
+signed app (an Apple developer account); unsigned, people download new versions by hand.

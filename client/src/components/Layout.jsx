@@ -17,6 +17,7 @@ import { ensureSubscription, getPushStatus } from '../services/pushService';
 import { useGuildList } from '../hooks/useGuildList';
 import { useGroupList } from '../hooks/useGroupList';
 import { useSwipePanes } from '../hooks/useSwipePanes';
+import { useDesktopApp } from '../hooks/useDesktopApp';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { clearProfiles, mergeProfiles } from '../utils/profiles';
 
@@ -152,6 +153,9 @@ export default function Layout({ user, onLogout }) {
       return () => unsubscribe();
     }
   }, [user?.id]);
+
+  // The desktop app: notifications, the unread badge, mute/deafen shortcuts.
+  useDesktopApp({ navigate, unreadDms, groups: groupList.groups, guildUnread: guildList.unread });
 
   // DM calls: ringing, from any page.
   useEffect(() => {

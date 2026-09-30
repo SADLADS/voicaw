@@ -1,5 +1,6 @@
 import { applyPresenceSnapshot, applyUserStatus, isMobileDevice, resetPresence } from './presence';
 import { mergeProfiles } from './profiles';
+import { desktopNotificationsOn } from '../services/pushService';
 
 let ws;
 let token;
@@ -12,6 +13,7 @@ const dmPinListeners = new Set();
 const guildListeners = new Set();
 const callListeners = new Set();
 const groupListeners = new Set();
+const notificationListeners = new Set();
 let reconnectTimeout = null;
 
 // This client's own connection: 'connecting' | 'online' | 'offline' (logged out, or the
@@ -56,7 +58,11 @@ function sendPresence() {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   const visible = typeof document === 'undefined' ||
     (document.visibilityState === 'visible' && document.hasFocus());
-  ws.send(JSON.stringify({ type: 'presence', visible, chatId: activeChatId, mobile: mobileDevice, idleIn: idleIn() }));
+  ws.send(JSON.stringify({
+    type: 'presence', visible, chatId: activeChatId, mobile: mobileDevice, idleIn: idleIn(),
+    // The desktop app gets its notifications here instead of by web push (see onNotification).
+    desktopNotifications: desktopNotificationsOn(),
+  }));
 }
 
 // Input (or coming back to the app): active again, which the server hears at once if this
@@ -149,6 +155,9 @@ export function connectWebSocket() {
       else if (data.type?.startsWith('group_dm_')) {
         groupListeners.forEach((cb) => cb(data));
       }
+      else if (data.type === 'notification') {
+        notificationListeners.forEach((cb) => cb(data.payload));
+      }
       else if (data.type === 'user_profile') {
         mergeProfiles([data.user]);
       }
@@ -203,6 +212,17 @@ export function closeWebSocket() {
   reactionRemoveListeners.clear();
   dmPinListeners.clear();
   guildListeners.clear();
+}
+
+// The desktop app's notifications: what would be a web push, as its payload.
+export function onNotification(callback) {
+  notificationListeners.add(callback);
+  return () => notificationListeners.delete(callback);
+}
+
+// Tells the server again whether to send this device notifications (after turning them on or off).
+export function refreshPresence() {
+  sendPresence();
 }
 
 export function onNewDm(callback) {

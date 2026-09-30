@@ -9,7 +9,8 @@ Voicaw is a Discord-style chat web app: end-to-end encrypted direct messages and
 (Discord-style servers, always called guilds in the app: text and voice channels, roles and
 private channels; not encrypted, see Guilds). It's an npm workspaces monorepo with
 three packages: `client` (React/Vite SPA, also packaged as an Electron desktop app), `server`
-(Express + ws API), and `electron` (thin desktop shell wrapping the built client).
+(Express + ws API), and `electron` (the desktop app: the built client plus notifications, tray,
+shortcuts and updates; see Desktop app).
 
 ## Working on Voicaw (read first)
 
@@ -55,16 +56,17 @@ Run from the repo root unless noted.
 - `npm run build` — build the client for web deployment (outputs to `/opt/voicaw-client`)
 - `npm run start:server` — start the Express/WebSocket server (`server/index.js`)
 - `npm run start:electron` — build the client in Electron mode, then launch the Electron shell
+- `npm run dist:electron` — the same build, then installers in `dist-desktop/` (electron-builder)
 
 Client-only (run inside `client/`):
 - `npm run lint` — ESLint over `client/src`
-- `npm run build:electron` — Vite build with `ELECTRON=true` (outputs to `../build`, relative
-  base path, used by `electron/main.js`)
+- `npm run build:electron` — Vite build with `ELECTRON=true` (outputs to `../build`, served by
+  `electron/protocol.js`; uses `.env.production` unless there's a `.env.electron`)
 
 ### Tests (Vitest)
 
-- `npm test` (root) — runs server tests, then client tests
-- `npm test` inside `server/` or `client/` — run one package's suite
+- `npm test` (root) — runs server tests, then client tests, then the desktop app's
+- `npm test` inside `server/`, `client/` or `electron/` — run one package's suite
 - Single file / single test: `npx vitest run test/dm.test.js` (in `server/`) or
   `npx vitest run src/components/Dm.test.jsx -t "test name"` (in `client/`)
 
@@ -109,6 +111,7 @@ node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
 node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, results, Jump into another channel, private channel, phone
 node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertical scroll), back button, guild
+node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
 node e2e/polls.mjs [dir]  # polls: + menu, answer emoji, select then Vote (phone), results, who voted, edits drop votes, duration, end early, guild multi
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
@@ -390,6 +393,9 @@ one user at a time).
   keys, or the device is logged out. Notifications are tagged per conversation.
 - `pushsubscriptionchange` posts to the unauthenticated `/api/update-subscription`, keyed by the
   old endpoint. `/api/test-push` sends a test notification to all of the caller's devices.
+- The desktop app has no web push: `sendPushToUser` also sends the payload to the user's sockets
+  whose presence says `desktopNotifications` (the app, notifications on) as `notification
+  { payload }`, so the same checks apply (viewing, levels, previews). See Desktop app.
 - The PWA manifest is `public/manifest.json` only (VitePWA `manifest: false`). The dev server also
   serves the real service worker (`devOptions`), so push works on test.voicaw.com.
 
@@ -656,7 +662,8 @@ LiveKit carries the audio.
   (status, channel link, disconnect, errors); `UserPanel` has mute and deafen
   (`voice/VoiceControls.jsx`). A guild reopens on its last *text* channel.
 - **Not done yet:** device selection, per-user volume, push-to-talk and voice activity
-  settings, server mute/move (Mute Members, Move Members), the Electron global push-to-talk key,
+  settings, server mute/move (Mute Members, Move Members), a global push-to-talk key in the
+  desktop app (it has global mute/deafen toggles; holding a key needs a native keyboard hook),
   voice isolation stages, screen share, and a TURN server for networks that block UDP 7882 and
   TCP 7881. Phones: a PWA's audio stops when it's in the background (iOS also when locked).
 
@@ -776,6 +783,53 @@ call keys are.
   mixes groups in with people by latest message and has the "New group" button
   (`group/NewGroupDialog.jsx`).
 
+
+### Desktop app (Electron)
+
+`electron/` wraps the client for Windows, macOS and Linux, adding only what a browser can't do.
+Electron can't start on this server (no display): its main-process
+logic has unit tests (`electron/test/`), and `e2e/desktop.mjs` checks the page side in Chrome
+with a stand-in for the bridge. Check real behaviour on a desktop.
+- **The page ships inside the app** (`protocol.js`): the client build (`npm run
+  build:electron`, into `build/`, packaged as the `app` resource) is served at `voicaw://app/`, a
+  privileged standard scheme, so it has a real origin (in the API's `allowedOrigins`), web
+  security stays on, and routes are real paths (`BrowserRouter`; unknown paths get
+  `index.html`, missing files 404, nothing outside the folder). The code holding the keys is
+  what was installed, not what a server sends that day. No service worker there.
+- **Window** (`main.js`): one instance (a second start focuses it), size and place remembered,
+  no menu (a minimal one on macOS for copy/paste), dev tools only in a development run
+  (Ctrl+Shift+I). Links to other sites open in the browser; the window never leaves
+  `voicaw://app`. Only the app's pages get permissions (microphone, not camera; notifications).
+  `backgroundThrottling` is off so ringing and voice work from the tray.
+- **Bridge** (`preload.js` → `window.voicawDesktop`, wrapped by `client/src/utils/desktop.js`
+  `desktop`, null in a browser): `notify`, `setUnread`, `getSettings` / `updateSettings`,
+  `checkForUpdates` / `installUpdate`, `onNavigate`, `onShortcut`, `onUpdateReady`. The main
+  process only answers the app's own frames and checks what it's given (`cleanNotification`,
+  `cleanChanges`).
+- **Notifications** (`notifications.js`): the server sends what would be a web push over the
+  websocket (see Push notifications); `hooks/useDesktopApp.js` (in `Layout`) turns it into
+  text with the service worker's `notificationFromPush` (DM previews decrypted on the device,
+  same previews setting) and a data-URL picture, and the app shows it, one per tag. A click
+  shows the window and navigates to its `url`. On/off is Settings → Notifications
+  (`pushService` treats the app as always permitted).
+- **Tray and badge** (`tray.js`): Open / Quit menu, a red dot on the icon while anything is
+  unread, the count (`unreadSummary`: unread DMs and group messages plus guild mentions) as
+  the macOS dock badge, a Windows taskbar overlay, or the Linux launcher count.
+- **Settings → Desktop App** (`DesktopAppSettings.jsx`, only in the app; stored by
+  `desktopSettings.js` as `desktop-settings.json` in the app's data folder): keep running in
+  the tray when closed (default on; macOS always), start at login (`autoStart.js`: login items,
+  or `~/.config/autostart/voicaw.desktop` on Linux; starts in the tray with `--hidden`), and
+  global shortcuts for toggle mute / toggle deafen (`shortcuts.js`, `globalShortcut`; recorded
+  from a key press with a modifier, `acceleratorFromEvent`; a key another app holds is
+  reported).
+- **Updates** (`updater.js`, electron-updater): the installed app looks for a new version at
+  start and every 4 hours on the generic feed in `builder.config.js` (`https://voicaw.com/desktop/`,
+  README "Desktop app"), downloads it, and the page offers "Update now" (UpdateBanner,
+  Settings → App version, which also shows the app's version); that restarts onto it. A
+  development run or an unsigned macOS app can't update itself ('unsupported'). Releases are
+  only as trustworthy as that server (no signature of our own on the feed yet).
+- **Not done yet:** push-to-talk (held key), screen share's source picker, notifications while
+  the app isn't running, code signing (Windows SmartScreen warns about unsigned installers).
 
 ### File uploads (S3-compatible object store)
 
@@ -1140,8 +1194,8 @@ their box is reserved before they load.
 - `AuthProvider.jsx` — fetches `/api/profile` on mount to restore the session (id, username, JWT)
   into `useAuth`; the keys come from IndexedDB (`keyStore`). `services/authService.js` does the
   OPAQUE login/register (`Login.jsx` is just the form).
-- `App.jsx` — top-level routing; swaps `BrowserRouter` for `HashRouter` when running inside
-  Electron (detected via user-agent sniffing); provides `ConfigContext` (fetched from
+- `App.jsx` — top-level routing (`BrowserRouter`; `HashRouter` only for a page opened from a
+  file); provides `ConfigContext` (fetched from
   `/api/config`) and `InteractionContext` (mobile vs. desktop interaction mode, persisted to
   `localStorage`, auto-detected via user-agent unless overridden)
 - `Layout.jsx` — the logged-in shell: sidebars, users list and unread counts (`LayoutContext`).
@@ -1219,7 +1273,8 @@ their box is reserved before they load.
   a new worker on navigation, so it also checks every 30 min and when the app comes back into view
   (at most once a minute). Settings (`AppUpdateSettings`) shows the build time
   (`VITE_BUILD_TIME`) and has "Check for updates". Other tabs, and pages whose lazily loaded chunks
-  are gone from the server (`vite:preloadError`), are offered a reload.
+  are gone from the server (`vite:preloadError`), are offered a reload. The desktop app has no
+  service worker: `watchDesktopUpdates` offers its own updates the same way (see Desktop app).
 
 ## Decisions, plans and known issues
 

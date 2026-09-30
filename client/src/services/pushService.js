@@ -1,7 +1,12 @@
 import api from '../utils/api';
+import { isDesktopApp } from '../utils/desktop';
+import { refreshPresence } from '../utils/ws-client';
 
 // Web push for this device: permission, the browser's push subscription, and keeping the
 // server's copy of it current. Notifications themselves are shown by service-worker.js.
+//
+// The desktop app has no web push: the server sends it the same notifications over the
+// websocket while it runs (utils/desktopNotifications.js), so there it's only on or off.
 
 // Set when the user turns notifications off on this device, so opening the app doesn't
 // quietly subscribe again just because the browser permission is still granted.
@@ -28,10 +33,16 @@ function pushSupported() {
 //   'can-enable'    - not asked yet
 //   'granted'       - allowed
 export function getPushStatus() {
+  if (isDesktopApp()) return localStorage.getItem(DISABLED_KEY) === '1' ? 'off' : 'granted';
   if (!pushSupported()) return isIOS() && !isInstalledApp() ? 'needs-install' : 'unsupported';
   if (Notification.permission === 'denied') return 'denied';
   if (localStorage.getItem(DISABLED_KEY) === '1') return 'off';
   return Notification.permission === 'granted' ? 'granted' : 'can-enable';
+}
+
+// Whether this is the desktop app with notifications on (it says so to the server).
+export function desktopNotificationsOn() {
+  return isDesktopApp() && localStorage.getItem(DISABLED_KEY) !== '1';
 }
 
 function urlBase64ToUint8Array(base64String) {
@@ -75,6 +86,7 @@ function explainSubscribeError(err) {
 // Makes sure this device has a push subscription for our VAPID key and that the server
 // has it. Safe to call on every app start: subscriptions can change or expire.
 export async function ensureSubscription(vapidPublicKey) {
+  if (isDesktopApp()) return null;
   if (!vapidPublicKey) throw new Error('Missing VAPID public key');
   const registration = await serviceWorkerReady();
   const key = urlBase64ToUint8Array(vapidPublicKey);
@@ -102,6 +114,11 @@ export async function ensureSubscription(vapidPublicKey) {
 // Call directly from a click/tap handler: iOS only shows the permission prompt in response
 // to a user gesture, and awaiting anything before requestPermission() loses the gesture.
 export async function enableNotifications(vapidPublicKey) {
+  if (isDesktopApp()) {
+    localStorage.removeItem(DISABLED_KEY);
+    refreshPresence();
+    return 'granted';
+  }
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return permission;
   localStorage.removeItem(DISABLED_KEY);
@@ -114,6 +131,10 @@ export async function enableNotifications(vapidPublicKey) {
 // so the next person to log in here gets notifications if the permission is granted.
 export async function disableNotificationsOnThisDevice({ remember = false } = {}) {
   if (remember) localStorage.setItem(DISABLED_KEY, '1');
+  if (isDesktopApp()) {
+    refreshPresence();
+    return;
+  }
   if (!('serviceWorker' in navigator)) return;
 
   const registration = await navigator.serviceWorker.getRegistration();

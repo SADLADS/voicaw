@@ -18,6 +18,7 @@ let state = { available: false, seq: 0 };
 const listeners = new Set();
 let apply = null;
 let registration = null;
+let desktopApp = null;
 let lastCheck = 0;
 
 function setState(next) {
@@ -46,10 +47,13 @@ export async function applyUpdate() {
   }
 }
 
-// Asks the browser to look for a new version now. Resolves to 'available', 'current' or
-// 'unsupported' (no service worker, e.g. Electron or an old browser).
+// Asks the browser to look for a new version now. Resolves to 'available', 'current',
+// 'downloading' (the desktop app, getting one) or 'unsupported' (no service worker, e.g. an old
+// browser, or a desktop app that can't update itself).
 export async function checkForUpdates() {
   if (state.available) return 'available';
+  // The desktop app: it may also say 'downloading' (it gets the whole app, then offers it).
+  if (desktopApp) return desktopApp.checkForUpdates();
   if (!registration) return 'unsupported';
   lastCheck = Date.now();
   await registration.update();
@@ -83,6 +87,13 @@ export function watchForUpdates(reg) {
     if (document.visibilityState === 'visible') checkQuietly();
   });
   window.addEventListener('online', checkQuietly);
+}
+
+// The desktop app updates itself (electron/updater.js): once it has downloaded a new version,
+// "Update now" restarts onto it.
+export function watchDesktopUpdates(app) {
+  desktopApp = app;
+  app.onUpdateReady(() => setUpdateAvailable(() => app.installUpdate()));
 }
 
 // Another tab applied an update (this one is now controlled by the new version's service

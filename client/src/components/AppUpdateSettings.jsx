@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { formatDateTime, useDateFormat } from '../utils/dateFormat';
 import { applyUpdate, checkForUpdates, useAppUpdate } from '../utils/appUpdate';
+import { desktop } from '../utils/desktop';
 
 const BUILD_TIME = import.meta.env.VITE_BUILD_TIME;
 
@@ -10,6 +11,11 @@ export default function AppUpdateSettings() {
   const { available } = useAppUpdate();
   const [status, setStatus] = useState(null); // 'checking' | 'current' | 'unsupported' | 'error'
   const [updating, setUpdating] = useState(false);
+  // The desktop app's own version (it ships its page).
+  const [desktopVersion, setDesktopVersion] = useState(null);
+  useEffect(() => {
+    desktop?.getInfo().then((info) => setDesktopVersion(info?.version ?? null)).catch(() => {});
+  }, []);
 
   const check = async () => {
     setStatus('checking');
@@ -31,13 +37,17 @@ export default function AppUpdateSettings() {
     : {
       checking: 'Checking…',
       current: "You're on the latest version.",
-      unsupported: "This app can't update itself here. Reload the page to get the latest version.",
+      downloading: 'Downloading a new version… It will be offered here once it’s ready.',
+      unsupported: desktop
+        ? "This copy of the app can't update itself. Download the latest version from the website."
+        : "This app can't update itself here. Reload the page to get the latest version.",
       error: "Couldn't check for updates. Are you online?",
     }[status];
 
   return (
     <div className="settings-card">
       <h5>App Version</h5>
+      {desktopVersion && <p className="app-version">Desktop app {desktopVersion}</p>}
       {BUILD_TIME && (
         <p className="app-version">Built {formatDateTime(BUILD_TIME)}</p>
       )}

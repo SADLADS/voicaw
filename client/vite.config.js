@@ -35,14 +35,22 @@ function twemojiAssets() {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  const isElectron = env.ELECTRON === 'true';
+  // The desktop app talks to the real server: without a .env.electron, it uses the
+  // production settings (.env.production).
+  if (isElectron && !env.VITE_API_BASE_URL) {
+    const production = loadEnv('production', process.cwd(), 'VITE_');
+    for (const [key, value] of Object.entries(production)) process.env[key] ??= value;
+    env.VITE_API_BASE_URL = production.VITE_API_BASE_URL;
+  }
 
   console.log('Loaded ENV for mode:', mode);
   console.log('VITE_API_BASE_URL:', env.VITE_API_BASE_URL);
 
-  const isElectron = env.ELECTRON === 'true';
-
   return {
-    base: isElectron ? './' : '/',
+    // The desktop app serves the build at voicaw://app/ (electron/protocol.js), so absolute
+    // paths work there too.
+    base: '/',
     plugins: [
       react(),
       twemojiAssets(),
