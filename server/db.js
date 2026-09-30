@@ -465,6 +465,7 @@ for (const table of ['direct_messages', 'guild_messages', 'group_dm_messages']) 
   addColumn(`ALTER TABLE ${table} ADD COLUMN pinned_at INTEGER`);
   addColumn(`ALTER TABLE ${table} ADD COLUMN pinned_by INTEGER`);
 }
+
 // WEBHOOKS (routes/webhooks.js, Discord's API): a URL with a secret token that posts into one
 // text channel, with its own name and picture. Messages it posts are guild_messages with
 // sender_id 0 (no user) and the webhook's name and picture as they were when sent (so old
