@@ -421,7 +421,7 @@ export function MessageRow({
               reactions={msg.reactions}
               userId={user.id}
               names={reactionNames}
-              onVote={canReact && onVote ? (optionId) => onVote(msg, optionId) : undefined}
+              onVote={canReact && onVote ? (optionIds) => onVote(msg, optionIds) : undefined}
             />
           ) : (
             <MessageMarkdown msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />

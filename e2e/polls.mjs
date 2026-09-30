@@ -1,6 +1,7 @@
-// Polls in a real browser: made from the + menu (with an answer's emoji), voted on live
-// (encrypted DM, phone), changing a single-choice vote, editing an answer (or its emoji) drops its votes, a multiple-choice poll in a guild
-// channel, and a one-answer poll.
+// Polls in a real browser: made from the + menu (with an answer's emoji); picking answers,
+// then Vote (live, encrypted DM, phone); Show results / Back to vote / Remove vote; who voted
+// (popup with a tab per answer); editing an answer (or its emoji) drops its votes; a one-answer
+// poll; a multiple-choice poll in a guild channel.
 //   node e2e/serve.mjs &   then   node e2e/polls.mjs [screenshot dir]
 import { launchChrome, signUp, openChat, devices, BASE } from './helpers.mjs';
 
@@ -35,12 +36,27 @@ async function createPoll(page, question, answers, { multi = false, emoji = {} }
   await page.waitForSelector('.vc-dialog', { state: 'detached' });
 }
 
-const option = (page, question, text) => page.locator(`.poll:has(.poll-question:text-is("${question}")) .poll-option:has-text("${text}")`);
-const countOf = async (page, question, text) => (await option(page, question, text).getAttribute('aria-label')).match(/: (\d+) vote/)[1];
+const pollOf = (page, question) => page.locator(`.poll:has(.poll-question:text-is("${question}"))`);
+const option = (page, question, text) => pollOf(page, question).locator(`.poll-option:has-text("${text}")`);
+// Taps (phone) or clicks.
+const press = (page, locator) => (page.context()._options?.hasTouch ? locator.tap() : locator.click());
+
+// Selects `texts` and presses Vote.
+async function castVote(page, question, texts) {
+  for (const text of texts) await press(page, option(page, question, text));
+  await press(page, pollOf(page, question).locator('button:text-is("Vote")'));
+  await pollOf(page, question).locator('button:text-is("Remove vote")').waitFor({ timeout: 10000 });
+}
+
+// The count an answer shows in the results (opening them with Show results if needed).
 async function waitForCount(page, question, text, n) {
   const deadline = Date.now() + 10000;
   while (Date.now() < deadline) {
-    if (await option(page, question, text).count() && Number(await countOf(page, question, text)) === n) return;
+    const show = pollOf(page, question).locator('button:text-is("Show results")');
+    if (await show.count()) await press(page, show);
+    const row = option(page, question, text);
+    const label = (await row.count()) ? await row.getAttribute('aria-label') : null;
+    if (label && Number(label.match(/: (\d+) vote/)?.[1]) === n) return;
     await page.waitForTimeout(100);
   }
   throw new Error(`"${text}" never had ${n} votes (${question})`);
@@ -66,19 +82,57 @@ try {
   await b.waitForSelector('.poll-option:has-text("Pizza") .poll-option-emoji img.emoji[alt="🍕"]');
   await b.waitForSelector('.poll-kind:text("Select one answer")');
 
-  // Bob (phone) votes; Alice sees it live. Then he changes his mind: still one vote.
+  // Bob (phone) picks Pizza: nothing is sent until he presses Vote.
+  if (!(await pollOf(b, 'Lunch?').locator('button:text-is("Vote")').isDisabled())) throw new Error('Vote enabled with nothing picked');
   await option(b, 'Lunch?', 'Pizza').tap();
-  await waitForCount(a, 'Lunch?', 'Pizza', 1);
-  await option(b, 'Lunch?', 'Soup').tap();
+  await option(b, 'Lunch?', 'Soup').tap(); // single choice: moves the pick
+  if (await b.locator('.poll-option.selected').count() !== 1) throw new Error('single choice selected two');
+  await shot(b, '2a-selecting-phone');
+  await a.waitForTimeout(1000);
+  await waitForCount(a, 'Lunch?', 'Soup', 0);
+  await shot(a, '2b-results-before-voting');
+  await press(b, pollOf(b, 'Lunch?').locator('button:text-is("Vote")'));
   await waitForCount(a, 'Lunch?', 'Soup', 1);
-  await waitForCount(a, 'Lunch?', 'Pizza', 0);
-  await option(a, 'Lunch?', 'Soup').click();
-  await waitForCount(b, 'Lunch?', 'Soup', 2);
+  // He changes his mind: Remove vote, then vote again. Still one vote.
+  await option(b, 'Lunch?', 'Soup').waitFor();
+  await b.tap('button:text-is("Remove vote")');
+  await waitForCount(a, 'Lunch?', 'Soup', 0);
+  await castVote(b, 'Lunch?', ['Pizza']);
+  await waitForCount(a, 'Lunch?', 'Pizza', 1);
+  // Alice, looking at the results, goes back and votes too.
+  await a.click('button:text-is("Back to vote")');
+  await castVote(a, 'Lunch?', ['Pizza']);
+  await waitForCount(b, 'Lunch?', 'Pizza', 2);
   // Votes aren't reaction chips.
   if (await a.locator('.reaction-chip:not(.reaction-add)').count()) throw new Error('a vote showed as a reaction');
   await shot(a, '2-voted');
   await shot(b, '3-voted-phone');
-  console.log('DM poll: voting and changing a vote work');
+  console.log('DM poll: select, Vote, Show results, Remove vote work');
+
+  // Who voted: a popup with a tab per answer.
+  await option(a, 'Lunch?', 'Pizza').click();
+  await a.waitForSelector('.poll-voters-list li:has-text("(you)")');
+  await a.waitForSelector(`.poll-voters-list li:has-text("${bob.name}")`);
+  await a.click('.poll-voters-tab:has-text("Soup")');
+  await a.waitForSelector('.poll-voters-list:has-text("Nobody has voted for this answer.")');
+  await a.click('.poll-voters-tab:has-text("Pizza")');
+  await shot(a, '3b-voters');
+  await a.keyboard.press('Escape');
+  await a.waitForSelector('.poll-voters', { state: 'detached' });
+  await option(b, 'Lunch?', 'Pizza').tap();
+  await b.waitForSelector(`.poll-voters-list li:has-text("${alice.name}")`);
+  // Holding a finger on it (long enough for a long press) doesn't open the message's actions.
+  const box = await b.locator('.poll-voters-list li').first().boundingBox();
+  const cdp = await b.context().newCDPSession(b);
+  const point = { x: box.x + 20, y: box.y + box.height / 2 };
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+  await b.waitForTimeout(800);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await b.waitForTimeout(200);
+  if (await b.locator('.action-sheet').count()) throw new Error('a long press in the popup opened the message actions');
+  await shot(b, '3c-voters-phone');
+  await b.tap('.vc-dialog-close');
+  console.log('who voted: popup with tabs works');
 
   // Alice edits the poll: renaming "Soup" drops its votes, the question and "Pizza" keep theirs.
   const row = a.locator('.each-dm-message-wrapper:has(.poll-question:text-is("Lunch?"))');
@@ -94,10 +148,12 @@ try {
   await b.waitForSelector('.poll-question:text-is("Lunch today?")', { timeout: 10000 });
   await waitForCount(b, 'Lunch today?', 'Tomato soup', 0);
   await waitForCount(a, 'Lunch today?', 'Tomato soup', 0);
-  if (await b.locator('.poll-footer:text("0 votes")').count() !== 1) throw new Error('old votes still counted');
+  await waitForCount(a, 'Lunch today?', 'Pizza', 2);
   // Bob votes again: his old vote (for the renamed answer) is cleared, not left behind.
-  await option(b, 'Lunch today?', 'Tomato soup').tap();
+  await b.tap('button:text-is("Remove vote")');
+  await castVote(b, 'Lunch today?', ['Tomato soup']);
   await waitForCount(a, 'Lunch today?', 'Tomato soup', 1);
+  await waitForCount(a, 'Lunch today?', 'Pizza', 1);
   console.log('DM poll: editing an answer drops its votes');
 
   // Changing only an answer's emoji is an edit too; Escape in the picker leaves the dialog open.
@@ -114,20 +170,21 @@ try {
   await a.click('.vc-dialog button:has-text("Save")');
   await b.waitForSelector('.poll-option:has-text("Tomato soup") .poll-option-emoji img.emoji', { timeout: 10000 });
   await waitForCount(a, 'Lunch today?', 'Tomato soup', 0);
-  await waitForCount(a, 'Lunch today?', 'Pizza', 0);
+  await waitForCount(a, 'Lunch today?', 'Pizza', 1);
   // Removing Pizza's emoji is also an edit.
   await edited.hover();
   await edited.locator('button:has(svg[data-icon="pen-to-square"])').click();
   await a.click('button[aria-label="Remove the emoji of answer 1"]');
   await a.click('.vc-dialog button:has-text("Save")');
   await b.waitForFunction(() => !document.querySelector('.poll-option-emoji img[alt="🍕"]'), null, { timeout: 10000 });
+  await waitForCount(b, 'Lunch today?', 'Pizza', 0);
   await shot(b, '4b-emoji-phone');
   console.log('DM poll: answer emoji show, and changing one drops its votes');
 
   // A poll with a single answer, and its reply preview.
   await createPoll(a, 'Anyone?', ['Me']);
-  await waitForCount(b, 'Anyone?', 'Me', 0);
-  await option(b, 'Anyone?', 'Me').tap();
+  await pollOf(b, 'Anyone?').waitFor({ timeout: 10000 });
+  await castVote(b, 'Anyone?', ['Me']);
   await waitForCount(a, 'Anyone?', 'Me', 1);
   console.log('one-answer poll works');
 
@@ -148,15 +205,17 @@ try {
   await createPoll(a, 'Which days?', ['Mon', 'Tue', 'Wed'], { multi: true, emoji: { 3: 'tada' } });
   await b.waitForSelector('.poll-kind:text("Select one or more answers")', { timeout: 10000 });
   await option(b, 'Which days?', 'Mon').tap();
-  await waitForCount(a, 'Which days?', 'Mon', 1);
   await option(b, 'Which days?', 'Wed').tap();
+  await shot(b, '5a-guild-selecting-phone');
+  await press(b, pollOf(b, 'Which days?').locator('button:text-is("Vote")'));
   await waitForCount(a, 'Which days?', 'Wed', 1);
   await waitForCount(a, 'Which days?', 'Mon', 1);
-  // Tapping again takes the vote back.
-  await option(b, 'Which days?', 'Mon').tap();
-  await waitForCount(a, 'Which days?', 'Mon', 0);
   await shot(a, '5-guild');
   await shot(b, '6-guild-phone');
+  // Remove vote takes both back.
+  await b.tap('button:text-is("Remove vote")');
+  await waitForCount(a, 'Which days?', 'Mon', 0);
+  await waitForCount(a, 'Which days?', 'Wed', 0);
   console.log('guild multiple-choice poll works');
   console.log('polls: ok');
 } catch (err) {

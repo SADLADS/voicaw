@@ -107,7 +107,7 @@ node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
 node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show), Join Guild, phone
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
-node e2e/polls.mjs [dir]  # polls: + menu, answer emoji, vote live (phone), change vote, edits drop votes, guild multi
+node e2e/polls.mjs [dir]  # polls: + menu, answer emoji, select then Vote (phone), results, who voted, edits drop votes, guild multi
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
@@ -929,14 +929,17 @@ skips handled Escapes) and "Allow multiple answers", which can't be changed afte
 its own message (replying if a reply is set, like a GIF).
 - **Format** (`utils/pollMarkup.js`): the message text is `poll:v1:` + JSON `{ q, multi, o:
   [{ id, t, e? }] }` (`e`: the answer's emoji, drawn like a reaction's, `ReactionEmoji`) (ids: 8 random `[a-z0-9]`), so in encrypted chats it's inside the encryption.
-  `MessageList` draws it with `Poll.jsx` (bars, counts, who voted in the tooltip; results are
-  always shown); plain-text places show "📊 Poll: <question>" (`summarizeAttachments`, and
+  `MessageList` draws it with `Poll.jsx` in two phases, like Discord's: **voting** (tapping
+  answers only selects them; Vote sends the choice, Show results peeks) and **results** (once
+  you've voted: bars and counts; Remove vote, or Back to vote if you only peeked). Tapping an
+  answer in the results opens `PollVoters.jsx` (a tab per answer, who voted for it). The
+  pinned list shows results only; plain-text places show "📊 Poll: <question>" (`summarizeAttachments`, and
   `server/mentions.js` for guild pushes). An app from before polls shows the raw text.
 - **Votes are reactions** whose emoji is `poll:<option id>`, so they're stored, encrypted,
   signed (groups) and delivered exactly like reactions, and in encrypted chats the server can't
   tell a vote from a reaction. Reaction chips leave them out (`groupReactions`). `useReactions`
-  `vote(msg, optionId)` (`planVote`): tapping your answer again takes the vote back; single
-  choice replaces your vote; your votes for answers that no longer exist are deleted then.
+  `vote(msg, optionIds)` (`planVotes`) makes your votes exactly that choice (`[]`: removes
+  them), deleting your votes for answers that no longer exist too.
   `tallyVotes` counts only answers that exist, and one vote per person (the latest) in single
   choice. In guilds a vote only needs View Channel (not Add Reactions): the server accepts
   `poll:<8 chars>` on a message that starts with `poll:v1:` without it.
@@ -944,7 +947,7 @@ its own message (replying if a reply is set, like a GIF).
   answers can change; an answer whose text or emoji changed gets a new id (`editedPoll`), so its votes
   stop counting. Nobody can delete other people's reactions, so those old votes stay stored
   until their owner votes again.
-- **Not done yet:** poll end times / closing a poll, hiding results until you vote.
+- **Not done yet:** poll end times / closing a poll.
 
 ### Mentions
 

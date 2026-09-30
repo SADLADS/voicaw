@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { editedPoll, parsePoll, planVote, pollMarkup, tallyVotes, voteKey } from './pollMarkup';
+import { editedPoll, parsePoll, planVotes, myVotes, pollMarkup, tallyVotes, voteKey } from './pollMarkup';
 import { summarizeAttachments } from './attachmentMarkup';
 import { groupReactions } from './reactions';
 
@@ -62,12 +62,16 @@ describe('voting', () => {
     expect(tally.total).toBe(1);
   });
 
-  it('replaces a single-choice vote, toggles a multiple-choice one, and clears stale votes', () => {
+  it('sets your votes to exactly your choice, and clears stale ones', () => {
     const stale = vote(9, 1, 'zzzz9999');
     const mine = vote(1, 1, 'aaaa1111');
-    expect(planVote(poll(), [mine, stale], 1, 'bbbb2222')).toEqual({ remove: [stale, mine], add: true });
-    expect(planVote(poll(), [mine], 1, 'aaaa1111')).toEqual({ remove: [mine], add: false });
-    expect(planVote(poll(true), [mine], 1, 'bbbb2222')).toEqual({ remove: [], add: true });
-    expect(planVote(poll(true), [mine, vote(2, 2, 'bbbb2222')], 1, 'bbbb2222')).toEqual({ remove: [], add: true });
+    const bobs = vote(2, 2, 'bbbb2222');
+    expect(planVotes(poll(), [mine, stale, bobs], 1, ['bbbb2222'])).toEqual({ remove: [mine, stale], add: ['bbbb2222'] });
+    expect(planVotes(poll(), [mine], 1, [])).toEqual({ remove: [mine], add: [] });
+    // A single-choice poll takes one answer.
+    expect(planVotes(poll(), [], 1, ['aaaa1111', 'bbbb2222'])).toEqual({ remove: [], add: ['aaaa1111'] });
+    expect(planVotes(poll(true), [mine], 1, ['aaaa1111', 'bbbb2222'])).toEqual({ remove: [], add: ['bbbb2222'] });
+    expect(planVotes(poll(true), [mine, vote(3, 1, 'aaaa1111')], 1, ['aaaa1111'])).toEqual({ remove: [vote(3, 1, 'aaaa1111')], add: [] });
+    expect(myVotes(poll(true), [mine, stale, bobs], 1)).toEqual(['aaaa1111']);
   });
 });

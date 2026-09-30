@@ -2674,8 +2674,13 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   cursor: default;
 }
 
-.poll-option.mine {
+.poll-option.mine,
+.poll-option.selected {
   border-color: var(--vc-accent);
+}
+
+.poll-option.selected {
+  background-color: color-mix(in srgb, var(--vc-accent) 18%, var(--vc-bg-elevated));
 }
 
 /* Its share of the votes, behind the text. */
@@ -2714,7 +2719,7 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   border-radius: 4px;
 }
 
-.poll-option.mine .poll-check {
+.poll-option.selected .poll-check {
   border-color: var(--vc-accent);
   background-color: var(--vc-accent);
   color: var(--vc-fg);
@@ -2737,10 +2742,157 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   font-variant-numeric: tabular-nums;
 }
 
+.poll-mine-mark {
+  position: relative;
+  flex-shrink: 0;
+  color: var(--vc-fg);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .poll-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 30px;
   margin-top: 10px;
   color: var(--vc-fg-muted);
   font-size: 12px;
+}
+
+.poll-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.poll-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vc-fg);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.poll-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.poll-vote {
+  min-width: 64px;
+}
+
+/* Who voted: answers as tabs (a column on a computer, a scrolling row on a phone), voters. */
+.vc-dialog.poll-voters-dialog {
+  max-width: 560px;
+}
+
+.poll-voters {
+  display: flex;
+  gap: 12px;
+  min-height: 240px;
+  max-height: 60svh;
+}
+
+.poll-voters-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 42%;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+.poll-voters-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+  text-align: left;
+}
+
+.poll-voters-tab:hover {
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+}
+
+.poll-voters-tab.active {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.poll-voters-tab-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.poll-voters-tab-count {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.poll-voters-list {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding-left: 12px;
+  border-left: 1px solid var(--vc-border-dark);
+}
+
+.poll-voters-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.poll-voters-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  overflow-wrap: anywhere;
+}
+
+.poll-voter-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+body.mobile-mode .poll-voters {
+  flex-direction: column;
+  gap: 8px;
+}
+
+body.mobile-mode .poll-voters-tabs {
+  flex-direction: row;
+  width: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+body.mobile-mode .poll-voters-tab {
+  width: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+body.mobile-mode .poll-voters-list {
+  padding-left: 0;
+  padding-top: 8px;
+  border-left: 0;
+  border-top: 1px solid var(--vc-border-dark);
 }
 
 /* Creating or editing one. */

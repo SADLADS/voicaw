@@ -106,15 +106,25 @@ export function tallyVotes(poll, reactions) {
   return { voters, total: people.size };
 }
 
-// What voting for `optionId` does with `userId`'s votes: { remove: [reaction], add: bool }.
-// Voting for an option you already voted for takes the vote back. A single-choice poll
-// replaces your vote; either way your votes for options that no longer exist are cleared.
-export function planVote(poll, reactions, userId, optionId) {
+// What voting for exactly `optionIds` (your whole choice; [] takes your vote back) does with
+// `userId`'s votes: { remove: [reaction], add: [optionId] }. Votes for answers that no longer
+// exist are cleared too.
+export function planVotes(poll, reactions, userId, optionIds) {
   const live = new Set(poll.options.map((o) => o.id));
+  const wanted = new Set(optionIds.filter((id) => live.has(id)).slice(0, poll.multi ? undefined : 1));
   const mine = (reactions ?? []).filter((r) => r.user_id === userId && isVote(r.emoji));
-  const stale = mine.filter((r) => !live.has(voteOption(r.emoji)));
-  const same = mine.filter((r) => voteOption(r.emoji) === optionId);
-  if (same.length > 0) return { remove: [...stale, ...same], add: false };
-  const others = poll.multi ? [] : mine.filter((r) => live.has(voteOption(r.emoji)));
-  return { remove: [...stale, ...others], add: true };
+  const kept = new Set();
+  const remove = [];
+  for (const r of mine) {
+    const option = voteOption(r.emoji);
+    if (wanted.has(option) && !kept.has(option)) kept.add(option);
+    else remove.push(r);
+  }
+  return { remove, add: [...wanted].filter((id) => !kept.has(id)) };
+}
+
+// The answers `userId` currently has votes on (as tallyVotes counts them).
+export function myVotes(poll, reactions, userId) {
+  const { voters } = tallyVotes(poll, reactions);
+  return poll.options.filter((o) => voters[o.id].includes(userId)).map((o) => o.id);
 }
