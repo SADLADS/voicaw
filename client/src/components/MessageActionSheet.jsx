@@ -120,7 +120,7 @@ export default function MessageActionSheet({
                 <FontAwesomeIcon icon={faReply} /> Reply
               </button>
             )}
-            {sent && isOwn && (
+            {sent && isOwn && onEdit && (
               <button type="button" className="action-sheet-item" onClick={act(onEdit)}>
                 <FontAwesomeIcon icon={faEdit} /> Edit
               </button>

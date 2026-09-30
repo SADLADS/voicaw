@@ -341,7 +341,7 @@ export async function decryptReactions(msg, reactions, key) {
       const emoji = await decryptReaction(
         r.content, key, reactionContext(msg.id, r.user_id, msg.sender_id, msg.recipient_id)
       );
-      return { id: r.id, user_id: r.user_id, emoji };
+      return { id: r.id, user_id: r.user_id, emoji, timestamp: r.timestamp };
     } catch (e) {
       console.warn('Failed to decrypt reaction', r.id, e);
       return null;

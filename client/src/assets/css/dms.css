@@ -2997,3 +2997,13 @@ body.mobile-mode .poll-voters-list {
 .reaction-picker-anchor.poll-emoji-anchor {
   z-index: 110;
 }
+
+/* A poll's footer: "Poll closed" once it has ended; End poll (its author) in red. */
+.poll-closed {
+  color: var(--vc-fg);
+  font-weight: 600;
+}
+
+.poll-link.poll-end {
+  color: var(--vc-danger);
+}

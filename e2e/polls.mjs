@@ -1,7 +1,8 @@
 // Polls in a real browser: made from the + menu (with an answer's emoji); picking answers,
 // then Vote (live, encrypted DM, phone); Show results / Back to vote / Remove vote; who voted
 // (popup with a tab per answer); editing an answer (or its emoji) drops its votes; a one-answer
-// poll; a multiple-choice poll in a guild channel.
+// poll; durations (24 hours by default, closing on time); a multiple-choice poll in a guild
+// channel, ended early by its author.
 //   node e2e/serve.mjs &   then   node e2e/polls.mjs [screenshot dir]
 import { launchChrome, signUp, openChat, devices, BASE } from './helpers.mjs';
 
@@ -19,7 +20,7 @@ async function pickAnswerEmoji(page, n, search) {
 }
 
 // Opens the + menu's poll dialog and posts a poll (`emoji`: { answer number: search }).
-async function createPoll(page, question, answers, { multi = false, emoji = {} } = {}) {
+async function createPoll(page, question, answers, { multi = false, emoji = {}, duration } = {}) {
   await page.click('.attach-button');
   await page.click('.composer-add-item:has-text("Create poll")');
   await page.fill('#poll-question', question);
@@ -30,6 +31,7 @@ async function createPoll(page, question, answers, { multi = false, emoji = {} }
   // A new poll starts with two rows; drop the unused one.
   if (answers.length === 1) await page.click('button[aria-label="Remove answer 2"]');
   if (multi) await page.check('text=Allow multiple answers');
+  if (duration) await page.selectOption('#poll-duration', { label: duration });
   for (const [n, search] of Object.entries(emoji)) await pickAnswerEmoji(page, n, search);
   await shot(page, `dialog-${question.replace(/\W/g, '')}`);
   await page.click('.vc-dialog button:has-text("Post")');
@@ -188,6 +190,25 @@ try {
   await waitForCount(a, 'Anyone?', 'Me', 1);
   console.log('one-answer poll works');
 
+  // Durations: 24 hours unless picked. A 1-hour poll closes on its own (Bob's clock is moved on:
+  // the vote he made in time still counts, and he can't vote or remove it any more).
+  await a.click('.attach-button');
+  await a.click('.composer-add-item:has-text("Create poll")');
+  if (await a.$eval('#poll-duration option:checked', (o) => o.textContent) !== '24 hours') throw new Error('default duration is not 24 hours');
+  await a.keyboard.press('Escape');
+  await b.clock.install();
+  await b.reload();
+  await createPoll(a, 'Quick?', ['Yes', 'No'], { duration: '1 hour' });
+  await pollOf(b, 'Quick?').waitFor({ timeout: 15000 });
+  await pollOf(b, 'Quick?').locator('.poll-footer:has-text("59 minutes left")').waitFor();
+  await castVote(b, 'Quick?', ['Yes']);
+  await b.clock.fastForward('01:01:00');
+  await pollOf(b, 'Quick?').locator('.poll-closed:text("Poll closed")').waitFor({ timeout: 5000 });
+  await waitForCount(b, 'Quick?', 'Yes', 1);
+  if (await pollOf(b, 'Quick?').locator('button:text-is("Remove vote"), button:text-is("Vote")').count()) throw new Error('a closed poll still takes votes');
+  await shot(b, '4c-closed-phone');
+  console.log('a poll closes when its time is up');
+
   // A multiple-choice poll in a guild channel.
   const guild = await a.evaluate(async () => {
     const h = { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };
@@ -216,6 +237,23 @@ try {
   await b.tap('button:text-is("Remove vote")');
   await waitForCount(a, 'Which days?', 'Mon', 0);
   await waitForCount(a, 'Which days?', 'Wed', 0);
+  await castVote(b, 'Which days?', ['Tue']);
+  await waitForCount(a, 'Which days?', 'Tue', 1);
+
+  // Only the author can end it early; then it's closed for everyone and can't be edited.
+  if (await pollOf(b, 'Which days?').locator('button:text-is("End poll")').count()) throw new Error('End poll offered to a voter');
+  await pollOf(a, 'Which days?').locator('.poll-footer:has-text("23 hours left")').waitFor();
+  await pollOf(a, 'Which days?').locator('button:text-is("End poll")').click();
+  await a.click('.vc-dialog button.btn-danger:has-text("End poll")');
+  await pollOf(b, 'Which days?').locator('.poll-closed').waitFor({ timeout: 10000 });
+  await pollOf(a, 'Which days?').locator('.poll-closed').waitFor();
+  await waitForCount(b, 'Which days?', 'Tue', 1);
+  const guildRow = a.locator('.each-dm-message-wrapper:has(.poll-question:text-is("Which days?"))');
+  await guildRow.hover();
+  if (await guildRow.locator('button:has(svg[data-icon="pen-to-square"])').count()) throw new Error('a closed poll can be edited');
+  await shot(a, '7-guild-ended');
+  await shot(b, '8-guild-ended-phone');
+  console.log('the author can end a poll early');
   console.log('guild multiple-choice poll works');
   console.log('polls: ok');
 } catch (err) {

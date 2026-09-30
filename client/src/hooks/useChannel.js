@@ -230,9 +230,9 @@ export function useChannel({ channelId, user, onRead }) {
           break;
         case 'guild_reaction_add': {
           if (event.channelId !== id) break;
-          const { id: reactionId, message_id: messageId, user_id: userId, emoji } = event.reaction;
+          const { id: reactionId, message_id: messageId, user_id: userId, emoji, timestamp } = event.reaction;
           setMessageReactions(messageId, (list) =>
-            list.some((r) => r.id === reactionId) ? list : [...list, { id: reactionId, user_id: userId, emoji }]
+            list.some((r) => r.id === reactionId) ? list : [...list, { id: reactionId, user_id: userId, emoji, timestamp }]
           );
           break;
         }

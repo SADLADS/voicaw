@@ -26,7 +26,7 @@ import { displayName, useProfiles } from '../utils/profiles';
 import ProfilePopover from './ProfilePopover';
 import Avatar from './Avatar';
 import { formatDateTime, formatTime, useDateFormat } from '../utils/dateFormat';
-import { parsePoll } from '../utils/pollMarkup';
+import { parsePoll, pollEnded } from '../utils/pollMarkup';
 import { mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
@@ -170,7 +170,7 @@ export function MessageContent({ msg, user, s3Endpoint, reactionNames, mentionRo
   return (
     <div className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}`} data-image-gallery="">
       {poll
-        ? <Poll poll={poll} reactions={msg.reactions} userId={user.id} names={reactionNames} />
+        ? <Poll poll={poll} reactions={msg.reactions} userId={user.id} names={reactionNames} sentAt={msg.timestamp} />
         : <MessageMarkdown msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />}
       <WebhookParts msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />
     </div>
@@ -202,6 +202,7 @@ export function MessageRow({
   onToggleReaction,
   onOpenReactionPicker,
   onVote,
+  onEndPoll,
   reactionNames,
   onOpenActions,
   focusedMsgId,
@@ -309,7 +310,8 @@ export function MessageRow({
               <FontAwesomeIcon icon={faThumbtack} title={pinned ? 'Unpin' : 'Pin'} />
             </button>
           )}
-          {msg.sender_id === user.id && (
+          {/* A closed poll can't be edited. */}
+          {msg.sender_id === user.id && !(poll && pollEnded(poll, msg.timestamp)) && (
             <button className="icon-button" onClick={() => handleEdit(msg)}>
               <FontAwesomeIcon icon={faEdit} title="Edit" />
             </button>
@@ -421,7 +423,9 @@ export function MessageRow({
               reactions={msg.reactions}
               userId={user.id}
               names={reactionNames}
+              sentAt={msg.timestamp}
               onVote={canReact && onVote ? (optionIds) => onVote(msg, optionIds) : undefined}
+              onEnd={sent && msg.sender_id === user.id && onEndPoll ? () => onEndPoll(msg) : undefined}
             />
           ) : (
             <MessageMarkdown msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />
@@ -488,6 +492,7 @@ export default function MessageList({
   onToggleReaction,
   onOpenReactionPicker,
   onVote,
+  onEndPoll,
   reactionNames,
   onOpenActions,
   focusedMsgId,
@@ -539,6 +544,7 @@ export default function MessageList({
     onToggleReaction,
     onOpenReactionPicker,
     onVote,
+    onEndPoll,
     reactionNames,
     onOpenActions,
     focusedMsgId,

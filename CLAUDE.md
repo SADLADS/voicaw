@@ -108,7 +108,7 @@ node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild p
 node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show), Join Guild, phone
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
 node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertical scroll), back button, guild
-node e2e/polls.mjs [dir]  # polls: + menu, answer emoji, select then Vote (phone), results, who voted, edits drop votes, guild multi
+node e2e/polls.mjs [dir]  # polls: + menu, answer emoji, select then Vote (phone), results, who voted, edits drop votes, duration, end early, guild multi
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
@@ -162,6 +162,7 @@ unexpected errors. The rest:
 - `groupDms.js`: group DMs (membership log checks, epochs, summaries; see Group DMs).
 - `appSettings.js`: app-wide settings a global admin edits (see Admin settings).
 - `pins.js`: pinning and unpinning a message, the same for every kind of chat (see Pinned messages).
+- `polls.js`: reading guild polls, when they close, and what an edit may change (see Polls).
 - `profiles.js`: display name, custom status and bio (limits, cleaning, `displayNameOf`; see Profiles).
 - `avatars.js` + `avatarImage.js`: profile pictures (processing, storage, the one-off migration;
   see Profiles). `routes/avatars.js` has their routes.
@@ -926,10 +927,13 @@ Any chat (DM, notes, group DM, guild text channel) can have polls: the composer'
 menu (Upload a file / Create poll). `PollDialog.jsx` takes a question (300), 1–10 answers (55
 each, each with an optional emoji: Unicode or a guild's custom one, from `EmojiPicker` over the
 dialog; Escape there closes only the picker, since `EmojiPicker` marks it handled and `Modal`
-skips handled Escapes) and "Allow multiple answers", which can't be changed after posting. A poll is sent as
+skips handled Escapes), a duration (1h, 4h, 8h, 24h (default), 3d, 1w, 2w) and "Allow multiple
+answers"; neither of those two can be changed after posting. A poll is sent as
 its own message (replying if a reply is set, like a GIF).
-- **Format** (`utils/pollMarkup.js`): the message text is `poll:v1:` + JSON `{ q, multi, o:
-  [{ id, t, e? }] }` (`e`: the answer's emoji, drawn like a reaction's, `ReactionEmoji`) (ids: 8 random `[a-z0-9]`), so in encrypted chats it's inside the encryption.
+- **Format** (`utils/pollMarkup.js`): the message text is `poll:v1:` + JSON `{ q, multi, d, x?,
+  o: [{ id, t, e? }] }` (`e`: the answer's emoji, drawn like a reaction's, `ReactionEmoji`; ids:
+  8 random `[a-z0-9]`; `d`: seconds it runs; `x`: unix s its author ended it), so in encrypted
+  chats it's inside the encryption.
   `MessageList` draws it with `Poll.jsx` in two phases, like Discord's: **voting** (tapping
   answers only selects them; Vote sends the choice, Show results peeks) and **results** (once
   you've voted: bars and counts; Remove vote, or Back to vote if you only peeked). Tapping an
@@ -948,7 +952,19 @@ its own message (replying if a reply is set, like a GIF).
   answers can change; an answer whose text or emoji changed gets a new id (`editedPoll`), so its votes
   stop counting. Nobody can delete other people's reactions, so those old votes stay stored
   until their owner votes again.
-- **Not done yet:** poll end times / closing a poll.
+- **Closing** (`pollEndsAt`): `d` seconds after the message's timestamp (the server's, so the
+  author's clock doesn't matter), or earlier at `x`: the author's End poll (in the footer, asks
+  first) is an edit stamping `x` (so the message shows "edited"). The footer says the time left
+  (`timeLeft`, redrawn each minute) or "Poll closed"; closed polls show final results, take no
+  votes and can't be edited (no Edit in the menus). Votes count only if their reaction's server
+  `timestamp` isn't after the close (reactions keep `timestamp` through decryption for this).
+  Polls from before durations have no `d` and never close by themselves. In guilds the server
+  enforces it too (`server/polls.js`): no votes or vote removals once closed, no edits of a
+  closed poll, and an edit can't change `multi` or `d`, un-end one, or end it at any time but
+  about now. In DMs and groups only clients enforce it: someone with a modified app could still
+  add a vote the server timestamps later (it doesn't count) or edit their own poll's `d`.
+- **Not done yet:** a notification when a poll closes, and Discord's "X's poll has closed"
+  line in the chat.
 
 ### Mentions
 

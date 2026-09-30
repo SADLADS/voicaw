@@ -6,6 +6,7 @@ const { PERMISSIONS, has, channelPermissions } = require('../permissions');
 const { getChannelAccess, getMember, getOverrides, sendToChannel, getChannelViewers } = require('../guilds');
 const { saveMentions, notifyNewMessage } = require('../mentions');
 const { setPinned } = require('../pins');
+const { POLL_VOTE, parsePoll, isClosedPoll, pollEditError } = require('../polls');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
 // same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
@@ -16,10 +17,6 @@ const router = express.Router();
 
 const MAX_REACTIONS_PER_USER_PER_MESSAGE = 20;
 const MAX_EMOJI_LENGTH = 64;
-// A poll's messages are `poll:v1:` + JSON, and a vote is a reaction `poll:<option id>` (client
-// utils/pollMarkup.js). Voting only needs to see the channel, not Add Reactions.
-const POLL_PREFIX = 'poll:v1:';
-const POLL_VOTE = /^poll:[a-z0-9]{8}$/;
 
 // A webhook's messages (routes/webhooks.js) have sender_id 0 and no user: their name is
 // `webhook_name` (also as sender_username) and their picture `webhook_avatar` (a URL or null).
@@ -86,7 +83,7 @@ async function requireTextChannel(req, res, next) {
 async function requireMessage(req, res, next) {
   const messageId = Number(req.params.messageId);
   const message = Number.isInteger(messageId) && await db.get(
-    'SELECT id, channel_id, sender_id, content FROM guild_messages WHERE id = ?',
+    'SELECT id, channel_id, sender_id, content, timestamp FROM guild_messages WHERE id = ?',
     [messageId]
   );
   const access = message && await getChannelAccess(message.channel_id, req.user.id);
@@ -170,6 +167,8 @@ router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async 
   if (!content) {
     return res.status(400).json({ error: `Messages are 1–${maxPlaintextLength} characters` });
   }
+  const pollError = pollEditError(req.message, content);
+  if (pollError) return res.status(403).json({ error: pollError });
   await db.transaction(async () => {
     await db.run("UPDATE guild_messages SET content = ?, edited = 1, edited_at = strftime('%s','now') WHERE id = ?", [content, req.message.id]);
     await saveMentions({ id: req.message.id, content, sender_id: req.user.id }, req.channel, req.permissions);
@@ -234,7 +233,10 @@ router.post('/guild-messages/:messageId/reactions', authenticateJWT, requireMess
   if (typeof emoji !== 'string' || !emoji || emoji.length > MAX_EMOJI_LENGTH || /\s/.test(emoji)) {
     return res.status(400).json({ error: 'Invalid reaction' });
   }
-  const vote = POLL_VOTE.test(emoji) && String(req.message.content).startsWith(POLL_PREFIX);
+  // A poll's votes (see polls.js) only need to see the channel, not Add Reactions, and stop
+  // when it closes.
+  const vote = POLL_VOTE.test(emoji) && Boolean(parsePoll(req.message.content));
+  if (vote && isClosedPoll(req.message)) return res.status(403).json({ error: 'This poll has closed' });
   if (!vote && !has(req.permissions, PERMISSIONS.ADD_REACTIONS)) return forbidden(res);
   const messageId = req.message.id;
   const { guild_id: guildId, id: channelId } = req.channel;
@@ -264,13 +266,15 @@ router.post('/guild-messages/:messageId/reactions', authenticateJWT, requireMess
 router.delete('/guild-reactions/:reactionId', authenticateJWT, async (req, res) => {
   const reactionId = Number(req.params.reactionId);
   const reaction = Number.isInteger(reactionId) && await db.get(
-    `SELECT r.id, r.message_id, r.user_id, m.channel_id FROM guild_reactions r
+    `SELECT r.id, r.message_id, r.user_id, r.emoji, m.channel_id, m.content, m.timestamp FROM guild_reactions r
      JOIN guild_messages m ON m.id = r.message_id WHERE r.id = ?`,
     [reactionId]
   );
   const access = reaction && await getChannelAccess(reaction.channel_id, req.user.id);
   if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Reaction not found' });
   if (reaction.user_id !== req.user.id) return res.status(403).json({ error: 'Not your reaction' });
+  // A closed poll's votes are final.
+  if (POLL_VOTE.test(reaction.emoji) && isClosedPoll(reaction)) return res.status(403).json({ error: 'This poll has closed' });
 
   const { channel } = access;
   await db.run('DELETE FROM guild_reactions WHERE id = ?', [reactionId]);

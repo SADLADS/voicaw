@@ -323,7 +323,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
           reaction.content, sharedKey, reactionContext(msg.id, reaction.user_id, msg.sender_id, msg.recipient_id)
         );
         setMessageReactions(msg.id, (list) =>
-          list.some((r) => r.id === reaction.id) ? list : [...list, { id: reaction.id, user_id: reaction.user_id, emoji }]
+          list.some((r) => r.id === reaction.id) ? list : [...list, { id: reaction.id, user_id: reaction.user_id, emoji, timestamp: reaction.timestamp }]
         );
       } catch (err) {
         console.warn('Failed to decrypt reaction', reaction.id, err);
