@@ -1789,6 +1789,11 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   margin: 0;
 }
 
+/* A blank line typed between blocks (remarkDiscord): empty, one line high. */
+.dm-message-content .blank-line::before {
+  content: '\200b';
+}
+
 .dm-message-content :is(h1, h2, h3) {
   margin: 4px 0 2px;
   font-weight: 700;

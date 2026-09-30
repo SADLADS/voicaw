@@ -27,7 +27,7 @@ describe('remarkDiscord', () => {
   it("leaves what Discord doesn't have as typed", () => {
     expect(render('#### Four')).toBe('<p>#### Four</p>');
     expect(render('text\n===')).toBe('<p>text\n===</p>');
-    expect(render('a\n\n---\n\nb')).toBe('<p>a</p>\n<p>---</p>\n<p>b</p>');
+    expect(render('a\n---\nb')).toBe('<p>a\n---\nb</p>');
     expect(render('    indented')).toBe('<p>indented</p>');
     expect(render('| a | b |\n| - | - |\n| 1 | 2 |')).not.toContain('<table');
     expect(render('- [ ] task')).not.toContain('checkbox');
@@ -42,6 +42,16 @@ describe('remarkDiscord', () => {
     expect(render('*||in italics||*')).toBe('<p><em><span class="spoiler">in italics</span></em></p>');
     expect(render('`||code||` ||||')).toBe('<p><code>||code||</code> ||||</p>');
     expect(render('a || b')).toBe('<p>a || b</p>');
+  });
+
+  it('shows every blank line between blocks', () => {
+    const blank = '<p class="blank-line"></p>';
+    expect(render('a\nb')).toBe('<p>a\nb</p>');
+    expect(render('a\n\nb')).toBe(`<p>a</p>\n${blank}\n<p>b</p>`);
+    expect(render('a\n\n\n\nb')).toBe(`<p>a</p>\n${blank}\n${blank}\n${blank}\n<p>b</p>`);
+    expect(render('# Title\n\n\ntext')).toBe(`<h1>Title</h1>\n${blank}\n${blank}\n<p>text</p>`);
+    expect(render('> one\n>\n> two')).toBe(`<blockquote>\n<p>one</p>\n${blank}\n<p>two</p>\n</blockquote>`);
+    expect(render('```\nx\n\n\ny\n```')).toContain('x\n\n\ny');
   });
 
   it('hides spoilers in plain text', () => {

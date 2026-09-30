@@ -4,6 +4,8 @@
 //   as typed.
 // - `__text__` is underline (CommonMark makes it bold); `**text**` stays bold.
 // - `||text||` is a spoiler (hidden until clicked; MessageList's span component draws it).
+// - Blank lines between blocks show, as many as were typed (markdown folds any number of them
+//   into one paragraph break): each is an empty `.blank-line` paragraph, a line high (dms.css).
 // Code, inline or in blocks, is left alone.
 
 // micromark constructs (by name) that Discord doesn't have.
@@ -23,6 +25,7 @@ export function remarkDiscord() {
 
 function transform(node, source) {
   if (!node.children) return;
+  if (node.type === 'root' || node.type === 'blockquote') addBlankLines(node, source);
   node.children.forEach((child, i) => {
     // Discord's headings stop at ###: deeper ones are the text they were typed as.
     if (child.type === 'heading' && child.depth > 3) {
@@ -39,6 +42,28 @@ function transform(node, source) {
   node.children.forEach((child) => transform(child, source));
   wrapSpoilers(node);
 }
+
+// Between two blocks, every newline after the first is a blank line the sender typed.
+function addBlankLines(parent, source) {
+  const kids = [];
+  parent.children.forEach((child, i) => {
+    const prev = parent.children[i - 1];
+    const from = prev?.position?.end.offset;
+    const to = child.position?.start.offset;
+    if (from != null && to != null) {
+      const newlines = source.slice(from, to).split('\n').length - 1;
+      for (let n = 1; n < newlines; n++) kids.push(blankLine());
+    }
+    kids.push(child);
+  });
+  parent.children = kids;
+}
+
+const blankLine = () => ({
+  type: 'paragraph',
+  children: [],
+  data: { hProperties: { className: ['blank-line'] } },
+});
 
 // Wraps what's between each pair of `||` (in this node's own text children; they can have
 // other formatting in between) in a spoiler.

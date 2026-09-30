@@ -796,7 +796,9 @@ italic, strikethrough, code, code blocks, `#`–`###` headings, `>` quotes, list
 Plain-text places hide spoilers as `[spoiler]` (`hideSpoilers`: reply previews, DM push
 previews; `server/mentions.js` does the same for guild pushes). Copying a message keeps its
 markdown. Styles are at the end of `dms.css` (MESSAGE MARKDOWN); only the text inside blocks
-keeps its line breaks (`pre-wrap`), so newlines between blocks don't show as blank lines.
+keeps its line breaks (`pre-wrap`), and blank lines between blocks (which markdown folds into
+one paragraph break) are counted from the source and drawn as empty `.blank-line` paragraphs,
+so every newline typed shows.
 
 ### GIFs (Klipy)
 
