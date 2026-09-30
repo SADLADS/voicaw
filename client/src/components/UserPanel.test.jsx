@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+
+const updateProfile = vi.hoisted(() => vi.fn());
+vi.mock('../services/profileService', () => ({ updateProfile }));
 
 const connection = vi.hoisted(() => ({ state: 'online', listeners: new Set() }));
 vi.mock('../utils/ws-client', () => ({
@@ -23,6 +26,10 @@ function renderPanel(props = {}, path = '/dm/2') {
     <ConfigContext.Provider value={{ s3Endpoint: 'https://s3.test' }}>
       <MemoryRouter initialEntries={[path]}>
         <UserPanel user={user} {...props} />
+        <Routes>
+          <Route path="/settings/profile" element={<p>Edit Profile page</p>} />
+          <Route path="*" element={null} />
+        </Routes>
       </MemoryRouter>
     </ConfigContext.Provider>
   );
@@ -64,5 +71,74 @@ describe('UserPanel', () => {
     // A new picture has a new URL, which is tried again.
     act(() => mergeProfiles([{ id: 7, username: 'alice', avatar: 'second' }]));
     expect(img()).toHaveAttribute('src', 'https://s3.test/profile-pics/7/second.webp');
+  });
+
+  describe('menu', () => {
+    const openMenu = () => fireEvent.click(screen.getByRole('button', { name: /Online/ }));
+
+    it('opens from your picture and name, and closes on a second click, Escape or outside', () => {
+      clearProfiles();
+      mergeProfiles([{ id: 7, username: 'alice', display_name: 'Alice A', custom_status: 'busy' }]);
+      renderPanel();
+      openMenu();
+      const menu = screen.getByRole('dialog', { name: 'Your account' });
+      expect(menu).toHaveTextContent('Alice A');
+      expect(menu).toHaveTextContent('busy');
+      openMenu();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      openMenu();
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      openMenu();
+      fireEvent.mouseDown(document.body);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('goes to Edit Profile and logs out', () => {
+      const onLogout = vi.fn();
+      renderPanel({ onLogout });
+      openMenu();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+      expect(screen.getByText('Edit Profile page')).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      openMenu();
+      fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
+      expect(onLogout).toHaveBeenCalled();
+    });
+
+    it('sets and clears your custom status', async () => {
+      clearProfiles();
+      mergeProfiles([{ id: 7, username: 'alice' }]);
+      updateProfile.mockResolvedValueOnce({ id: 7, username: 'alice', custom_status: 'coding' });
+      renderPanel();
+      openMenu();
+      fireEvent.click(screen.getByRole('button', { name: 'Set a custom status' }));
+      const input = screen.getByRole('textbox', { name: 'Custom status' });
+      fireEvent.change(input, { target: { value: '  coding ' } });
+      await act(async () => fireEvent.keyDown(input, { key: 'Enter' }));
+      expect(updateProfile).toHaveBeenCalledWith({ customStatus: 'coding' });
+      expect(updateProfile).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: 'coding' })).toBeInTheDocument();
+
+      updateProfile.mockResolvedValueOnce({ id: 7, username: 'alice', custom_status: null });
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Clear custom status' })));
+      expect(updateProfile).toHaveBeenLastCalledWith({ customStatus: null });
+      expect(screen.getByRole('button', { name: 'Set a custom status' })).toBeInTheDocument();
+    });
+
+    it('keeps the status when editing is cancelled with Escape (and the menu open)', () => {
+      clearProfiles();
+      mergeProfiles([{ id: 7, username: 'alice', custom_status: 'busy' }]);
+      updateProfile.mockClear();
+      renderPanel();
+      openMenu();
+      fireEvent.click(screen.getByRole('button', { name: 'busy' }));
+      const input = screen.getByRole('textbox', { name: 'Custom status' });
+      fireEvent.change(input, { target: { value: 'other' } });
+      fireEvent.keyDown(input, { key: 'Escape' });
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'busy' })).toBeInTheDocument();
+      expect(updateProfile).not.toHaveBeenCalled();
+    });
   });
 });

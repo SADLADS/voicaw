@@ -76,12 +76,12 @@ describe('Settings layout, search and date formats', () => {
     expect(document.getElementById('settings-account-security')).not.toHaveAttribute('hidden');
   });
 
-  it('has Edit Profile first under My Account, opening its own page', () => {
+  it('has your name and Edit Profile above the search, whatever is searched', () => {
     renderSettings();
-    const items = [...document.querySelectorAll('.settings-nav-group')[0].querySelectorAll('.settings-nav-item')].map((e) => e.textContent);
-    expect(items[0]).toBe('Edit Profile');
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: 'bio' } });
-    expect([...document.querySelectorAll('.settings-nav-item')].map((e) => e.textContent)).toEqual(['Edit Profile']);
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: 'zzz' } });
+    const link = screen.getByRole('button', { name: /me\s*Edit Profile/ });
+    expect(link.compareDocumentPosition(screen.getByRole('searchbox')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect([...document.querySelectorAll('.settings-nav-item')].map((e) => e.textContent)).not.toContain('Edit Profile');
   });
 
   it('changes the date and time formats', () => {

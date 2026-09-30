@@ -160,7 +160,7 @@ export default function Layout({ user, onLogout }) {
       <div className={`${isDmPage || guildId ? 'slidey' : ''} main-wrapper d-flex`}>
         {/* The user panel (and the voice bar above it, while in voice) sits under the
             conversation or channel list, or Settings' column (not on e.g. an invite page). */}
-        <SidebarWrapper footer={isDmPage || guildId || settingsColumn ? <><VoiceBar user={user} /><UserPanel user={user} /></> : null}>
+        <SidebarWrapper footer={isDmPage || guildId || settingsColumn ? <><VoiceBar user={user} /><UserPanel user={user} onLogout={onLogout} /></> : null}>
           {/* Main sidebar always shows */}
           <Sidebar
             user={user}

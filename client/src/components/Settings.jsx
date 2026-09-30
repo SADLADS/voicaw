@@ -10,6 +10,9 @@ import AccountSecuritySettings from "./AccountSecuritySettings";
 import AdminSettings from "./AdminSettings";
 import DateTimeSettings from "./DateTimeSettings";
 import EditProfile from "./EditProfile";
+import Avatar from "./Avatar";
+import { useAuth } from '../hooks/useAuth';
+import { nameOf, useProfiles } from '../utils/profiles';
 
 const CATEGORIES = [
   { id: 'account', title: 'My Account' },
@@ -32,8 +35,10 @@ function matches(section, query) {
 // removed, so what's been typed or picked in them stays. `/settings#<section id>` opens
 // scrolled to that section. On a computer the column is drawn beside the rail, above the user
 // panel (Layout's `settingsNavSlot`). Edit Profile is a page of its own (/settings/profile),
-// reached from the column like a section (a section with a `link`).
+// reached from the card with your picture and name at the top of the column.
 export default function Settings({ onLogout }) {
+  useProfiles();
+  const { user } = useAuth() ?? {};
   const { interactionMode, setInteractionMode } = useContext(InteractionContext);
   const [query, setQuery] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
@@ -43,11 +48,6 @@ export default function Settings({ onLogout }) {
   const navSlot = useContext(LayoutContext)?.settingsNavSlot ?? null;
 
   const sections = [
-    {
-      id: 'edit-profile', category: 'account', title: 'Edit Profile',
-      keywords: 'profile picture avatar photo image upload pic display name nickname bio about me custom status',
-      link: '/settings/profile',
-    },
     {
       id: 'account-security', category: 'account', title: 'Password & recovery code',
       keywords: 'change password security recovery code forgot',
@@ -131,8 +131,7 @@ export default function Settings({ onLogout }) {
   const visible = sections.filter(shown);
 
   function open(section) {
-    if (section.link) navigate(section.link);
-    else if (onProfilePage) navigate(`/settings#${section.id}`);
+    if (onProfilePage) navigate(`/settings#${section.id}`);
     else document.getElementById(`settings-${section.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -145,6 +144,20 @@ export default function Settings({ onLogout }) {
   const nav = (
       <nav className="settings-nav" aria-label="Settings sections">
         <h2 className="settings-header">User Settings</h2>
+        {user && (
+          <button
+            type="button"
+            className={`settings-profile-link${onProfilePage ? ' active' : ''}`}
+            aria-current={onProfilePage ? 'page' : undefined}
+            onClick={() => navigate('/settings/profile')}
+          >
+            <Avatar userId={user.id} className="settings-profile-avatar" />
+            <span className="settings-profile-text">
+              <span className="settings-profile-name">{nameOf(user)}</span>
+              <span className="settings-profile-action">Edit Profile</span>
+            </span>
+          </button>
+        )}
         <div className="settings-search">
           <FontAwesomeIcon icon={faMagnifyingGlass} className="settings-search-icon" />
           <input
@@ -171,8 +184,7 @@ export default function Settings({ onLogout }) {
                 <button
                   key={section.id}
                   type="button"
-                  className={`settings-nav-item${onProfilePage && section.link === '/settings/profile' ? ' active' : ''}`}
-                  aria-current={onProfilePage && section.link === '/settings/profile' ? 'page' : undefined}
+                  className="settings-nav-item"
                   onClick={() => open(section)}
                 >
                   {section.title}
@@ -192,7 +204,7 @@ export default function Settings({ onLogout }) {
       <div className="settings-content">
         {onProfilePage && <EditProfile />}
         {!onProfilePage && CATEGORIES.map((category) => {
-          const inCategory = sections.filter((s) => s.category === category.id && !s.link);
+          const inCategory = sections.filter((s) => s.category === category.id);
           return (
             <section key={category.id} className="settings-category" hidden={!inCategory.some(shown)} aria-label={category.title}>
               <h3 className="settings-category-title">{category.title}</h3>

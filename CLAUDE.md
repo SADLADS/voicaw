@@ -948,7 +948,8 @@ their box is reserved before they load.
   `DmSidebar` draws the unread dots from those counts. `SidebarWrapper` puts the sidebars in a
   row with `UserPanel` across the bottom: your picture, name, this device's connection state
   (`ws-client` `getConnectionState`/`onConnectionState`: online / connecting / offline) and the
-  settings button. It's shown under the DM list, a guild's channel list, and Settings' column on
+  settings button. Clicking the picture and name opens `UserMenu` above it: your picture, name
+  and custom status (click to change it there), Edit Profile and Log out. It's shown under the DM list, a guild's channel list, and Settings' column on
   a computer (Layout adds an empty column, `settingsNavSlot` in `LayoutContext`, and `Settings`
   draws its column into it with a portal; on a phone the column stays in the page, without
   the panel).
@@ -967,12 +968,12 @@ their box is reserved before they load.
   `hooks/useAttachmentDrafts.js`). `Dm.jsx` owns what several of them share: reply target, edit
   state, the composer error line, and which emoji picker is open (never both).
 - Settings (`Settings.jsx`, `/settings`): sections (each with a category, title and search
-  keywords, in its `sections` list; one with a `link` is a page of its own, like Edit Profile
-  at `/settings/profile`) under My Account, App Settings, Admin (only once
+  keywords, in its `sections` list) under My Account, App Settings, Admin (only once
   `AdminSettings` finds you're an admin) and About. The side column (beside the rail, above
   the user panel, on a computer; on top of the page on a phone)
   searches them (non-matching sections are hidden, not unmounted, so their state stays) and
-  jumps to one; `/settings#<section id>` opens scrolled there (e.g. `RecoveryPrompt`'s
+  jumps to one; above its search, a card with your picture and name opens Edit Profile (its own
+  page, `/settings/profile`); `/settings#<section id>` opens scrolled there (e.g. `RecoveryPrompt`'s
   `#account-security`). Add a new setting as a section there.
 - Dates and times all go through `utils/dateFormat.js` (`formatDate`, `formatTime`,
   `formatDateTime`; components call `useDateFormat()` so they redraw): Settings → Date & time

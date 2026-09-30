@@ -378,6 +378,52 @@ body.mobile-mode .settings-nav-item {
   padding: 2px 10px;
 }
 
+/* Your picture and name, to Edit Profile: above the search, apart from the sections. */
+.settings-profile-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 8px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  background: none;
+  color: var(--vc-fg);
+  text-align: left;
+}
+
+.settings-profile-link:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.settings-profile-avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.settings-profile-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.settings-profile-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.settings-profile-action {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}
+
 .settings-search {
   position: relative;
   margin: 0 0 12px;
@@ -535,6 +581,27 @@ body.mobile-mode .settings-nav-item {
   background-color: var(--vc-action);
 }
 
+/* The picture and name: a button opening UserMenu. */
+.user-panel-me {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 -4px -6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+
+.user-panel-me:hover,
+.user-panel-me.open {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
 .user-panel-text {
   flex: 1;
   min-width: 0;
@@ -554,6 +621,162 @@ body.mobile-mode .settings-nav-item {
 .user-panel-state {
   font-size: 12px;
   color: var(--vc-fg-muted);
+}
+
+/* UserMenu: above the user panel. */
+.user-menu {
+  position: fixed;
+  z-index: 400;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  padding: 12px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.user-menu-top {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.user-menu-avatar {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  --status-size: 11px;
+  --status-center: 8px;
+  --status-gap: 3px;
+  --status-phone-width: 13px;
+  --status-phone-height: 17px;
+}
+
+.user-menu-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-menu-names {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-menu-name {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-menu-username {
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+}
+
+.user-menu-status-row {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.user-menu-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-left: -6px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--vc-fg);
+  font-size: 13px;
+  text-align: left;
+}
+
+.user-menu-status span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-menu-status.empty {
+  color: var(--vc-fg-muted);
+}
+
+.user-menu-status:hover {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.user-menu-status-clear {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.user-menu-status-clear:hover {
+  color: var(--vc-fg);
+}
+
+.user-menu-status-input {
+  width: 100%;
+  margin-top: 4px;
+  padding: 3px 6px;
+  border: 1px solid var(--vc-accent);
+  border-radius: 4px;
+  background-color: var(--vc-bg-base);
+  color: var(--vc-fg);
+  font-size: 13px;
+  outline: none;
+}
+
+.user-menu-error {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--vc-danger);
+}
+
+.user-menu-actions {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--vc-fg);
+  text-align: left;
+}
+
+.user-menu-item svg {
+  width: 16px;
+}
+
+.user-menu-item:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.user-menu-item.danger {
+  color: var(--vc-danger);
 }
 
 .user-panel-button {
@@ -661,7 +884,7 @@ html {
   background-color: var(--vc-bg-base);
 }
 
-.settings-nav-item.active {
+.settings-profile-link.active {
   background-color: var(--vc-bg-elevated-hover);
 }
 
