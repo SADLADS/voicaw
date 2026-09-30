@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Voicaw is a Discord-style chat web app: end-to-end encrypted direct messages and group DMs
 (with calls), and guilds
-(servers with text and voice channels, roles and private channels; not encrypted, see Guilds). It's an npm workspaces monorepo with
+(Discord-style servers, always called guilds in the app: text and voice channels, roles and
+private channels; not encrypted, see Guilds). It's an npm workspaces monorepo with
 three packages: `client` (React/Vite SPA, also packaged as an Electron desktop app), `server`
 (Express + ws API), and `electron` (thin desktop shell wrapping the built client).
 
@@ -303,7 +304,7 @@ Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, 
 `user_status` and `presence_snapshot` (see Online status), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete`,
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
-`guild_order` (your server rail order, to your other devices), `guild_voice_state` (someone
+`guild_order` (your guild rail order, to your other devices), `guild_voice_state` (someone
 joined, left or (un)muted in a voice channel), `guild_mention` (only to whoever a new message
 mentions, for their red counts), for calls `call_incoming`, `call_update`,
 `call_end`, and for group DMs `group_dm_add` / `_update` / `_remove` / `_epoch` /
@@ -384,12 +385,13 @@ creates or reads them any more, and they can be dropped.
 
 ### Guilds
 
-Discord-style servers. **Not end-to-end encrypted**, on purpose: the server reads guild
+Discord-style servers, always called **guilds** in the app and its code (never "servers": that
+word is kept for the app's own server). **Not end-to-end encrypted**, on purpose: the server reads guild
 messages, so it can do mentions, search and moderation. Encryption stays for DMs and (planned)
 group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - **Permissions** (`server/permissions.js`, copied in `client/src/utils/permissions.js`; a
   test checks they match) are Discord's model with a bit field: View Channel, Send Messages,
-  Add Reactions, Manage Messages, Manage Channels, Manage Roles, Manage Server, Create Invite,
+  Add Reactions, Manage Messages, Manage Channels, Manage Roles, Manage Guild, Create Invite,
   Kick, Ban, Administrator, Manage Emoji, Connect, Speak (voice), Mention Everyone (@everyone,
   @here and any role; not a default, guild-wide only). Every guild has an `@everyone`
   role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak) plus orderable roles (`guild_roles`: name, colour
@@ -433,14 +435,14 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   person.
 - Unread: `guild_channel_reads` holds each member's last read message per channel;
   `GET /guild-unread` counts newer messages by others. Sending marks your own channel read.
-- Icons: `GET /upload_guild_icon` (Manage Server, image, 8MB) signs `guild-icons/<guild id>`; then
+- Icons: `GET /upload_guild_icon` (Manage Guild, image, 8MB) signs `guild-icons/<guild id>`; then
   `PATCH /guilds/:id {iconUploaded: true}` bumps `icon_version` (use it as `?v=` to bust caches).
 - **Client:** routes `/guild/:guildId/:channelId?` (`guild/GuildView.jsx`; without a channel it
   opens the last one viewed there, `localStorage guildChannel:<id>`, or the first text one) and
   `/invite/:code` (`guild/InvitePage.jsx`; logged out, that URL shows the login form, then the
   invite). `hooks/useGuildList.js` (in `Layout`, exposed as `LayoutContext.guildList`) holds the
   guild list, the layouts opened so far, and unread counts, kept current by `onGuildEvent`
-  (`ws-client`, every `guild_*` event). `Sidebar` is the server rail (guild icons with unread
+  (`ws-client`, every `guild_*` event). `Sidebar` is the guild rail (guild icons with unread
   pills, `+` → `AddGuildDialog`: create or join). `guild/GuildSidebar.jsx` is the channel column
   (header menu: invite, settings, create channel/category, leave; collapsible categories,
   remembered in `localStorage collapsedCategories`; edit buttons for Manage Channels; what's
@@ -452,15 +454,15 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   the normal colour), in chat (`nameColors`) and the member list. A channel without Send
   Messages shows a notice instead of the composer. `guild/MemberList.jsx`: grouped under
   hoisted roles, then Online, Offline; click for a card with roles (add/remove below your
-  rank), Message / Make owner / Kick / Ban (a panel over the chat on mobile). Server Settings
+  rank), Message / Make owner / Kick / Ban (a panel over the chat on mobile). Guild Settings
   (`GuildSettingsDialog`) has tabs by permission: Overview, Roles (`RolesSettings`: drag or
   arrows to reorder, colour swatches, permissions), Emoji (`EmojiSettings`), Invites, Bans. A channel's settings have a
   Permissions tab (`ChannelPermissions`: private toggle, ✕ / / ✓ per role or member). Dialogs use `guild/Modal.jsx`; styles are
   `assets/css/guilds.css`. Attachments in channels still go through the encrypted upload (the
   key is in the plain message, so anyone in the channel can open them); plain uploads can come later.
-- **Server rail order** is per member (`guild_members.position`; `PUT /guilds-order` with every
+- **Guild rail order** is per member (`guild_members.position`; `PUT /guilds-order` with every
   guild id, top first; new guilds go at the bottom). `GET /guilds` and `GET /emojis` follow it.
-  In the rail, servers are dragged into order (`hooks/useDragReorder.js`, on
+  In the rail, guilds are dragged into order (`hooks/useDragReorder.js`, on
   `hooks/usePointerDrag.js`, which channel dragging shares: a mouse drag after a few pixels, a
   touch drag after holding still, so swiping still scrolls; the click after a drop is swallowed).
 - **Custom emoji** (`routes/guildEmojis.js`, `guild_emojis`): per guild, plain images (not
@@ -752,8 +754,8 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   search box, so the picker can't shrink mid-tap. `MessageList` keeps the chat pinned
   to the bottom when the list's own height changes (a `ResizeObserver` on the scroller, plus
   ignoring the browser's scroll-anchoring nudge during that resize).
-- Custom (guild) emoji (see Guilds): the picker shows each of your servers' emoji after Frequently
-  Used and before the standard categories, in your rail order, with the server's icon in the
+- Custom (guild) emoji (see Guilds): the picker shows each of your guilds' emoji after Frequently
+  Used and before the standard categories, in your rail order, with the guild's icon in the
   category bar; search, `:name` suggestions and a typed `:name:` include them (standard
   shortcodes win a name clash). Picking gives `<:name:id>` (Frequently Used keeps them as
   `custom:<id>`). `rehypeTwemoji` renders them in messages (`data-custom-emoji`, which
@@ -904,7 +906,7 @@ their box is reserved before they load.
   state, the composer error line, and which emoji picker is open (never both).
 - Text can't be selected except where it's useful (`voicaw.css`, TEXT SELECTION): inputs and
   editors everywhere, and on desktop the chat's messages, names, times, reply previews and the
-  channel topic. So dragging things (channels, servers) doesn't highlight text. On mobile a long
+  channel topic. So dragging things (channels, guilds) doesn't highlight text. On mobile a long
   press on a message opens its actions instead.
 - Scrollbars are styled once, in `voicaw.css` (SCROLLBARS): every scroll area inherits the pane
   look (like the message list); small boxes and pop-ups are listed there for the thin one. Don't

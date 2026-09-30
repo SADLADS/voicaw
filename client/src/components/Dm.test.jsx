@@ -672,7 +672,7 @@ describe('Dm emoji', () => {
       expect(textarea.querySelector('img.emoji')).toHaveAttribute('src', 'https://s3.test/emojis/10');
     });
 
-    it('suggests custom emoji first, with their server', async () => {
+    it('suggests custom emoji first, with their guild', async () => {
       const textarea = await openCustomChat();
       type(textarea, 'hi :blo');
       const options = within(screen.getByRole('listbox', { name: 'Emoji matching :blo' })).getAllByRole('option');

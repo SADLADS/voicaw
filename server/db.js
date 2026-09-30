@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 `);
 
-// GUILDS (servers, Discord style). Plain, not end-to-end encrypted: the server reads guild
+// GUILDS (Discord style). Plain, not end-to-end encrypted: the server reads guild
 // messages (only DMs and group DMs are encrypted). An earlier sketch left unused tables in old
 // databases (roles, user_roles, categories, channels, channel_permissions, messages); they can
 // be dropped. `guilds` is from that sketch too, hence `owner` and the ALTERs that update it.
@@ -213,7 +213,7 @@ CREATE TABLE IF NOT EXISTS guild_emojis (
 `);
 db.run('CREATE INDEX IF NOT EXISTS guild_emojis_guild ON guild_emojis (guild_id)');
 
-// Each member's own order of their guilds in the server rail (lowest first).
+// Each member's own order of their guilds in the guild rail (lowest first).
 db.run('ALTER TABLE guild_members ADD COLUMN position INTEGER NOT NULL DEFAULT 0', () => {});
 
 // MENTIONS. Each member chooses which of a guild's messages push to them: 'all', 'mentions'

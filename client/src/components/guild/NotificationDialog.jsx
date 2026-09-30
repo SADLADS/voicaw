@@ -6,7 +6,7 @@ import { errorMessage } from '../../utils/guildDisplay';
 const LEVELS = [
   ['all', 'All messages', 'A notification for every message in the channels you can see.'],
   ['mentions', 'Only @mentions', 'When someone mentions you, @everyone or @here, or one of your roles.'],
-  ['none', 'Nothing', 'No notifications from this server. Mentions still show in red.'],
+  ['none', 'Nothing', 'No notifications from this guild. Mentions still show in red.'],
 ];
 
 // Your notification level for the guild (all messages, only mentions, nothing): which of its
@@ -34,7 +34,7 @@ export default function NotificationDialog({ guild, onClose }) {
       actions={<button type="button" className="btn btn-primary btn-sm vc-button" onClick={onClose}>Done</button>}
     >
       <fieldset className="notify-levels">
-        <legend className="vc-label">Server notifications</legend>
+        <legend className="vc-label">Guild notifications</legend>
         {LEVELS.map(([value, label, hint]) => (
           <label key={value} className="role-toggle">
             <input type="radio" name="notify-level" value={value} checked={level === value} onChange={() => pick(value)} />

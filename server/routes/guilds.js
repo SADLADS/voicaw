@@ -25,7 +25,7 @@ const {
 const { NOTIFY_LEVELS } = require('../mentions');
 const { enforceGuild: enforceGuildVoice, disconnectGuild: disconnectGuildVoice } = require('../voice');
 
-// Guilds (servers): creating and managing them, members, bans, invites, categories and
+// Guilds: creating and managing them, members, bans, invites, categories and
 // channels. Roles and channel overrides are in routes/guildRoles.js, messages in
 // routes/guildMessages.js. What each member may do comes from their roles (permissions.js).
 const router = express.Router();
@@ -70,7 +70,7 @@ async function outranks(actor, targetId) {
 
 // ---- Guilds ----
 
-// Adds `userId` to the guild, at the bottom of their server rail.
+// Adds `userId` to the guild, at the bottom of their guild rail.
 async function addMember(guildId, userId) {
   await db.run(
     `INSERT OR IGNORE INTO guild_members (guild_id, user_id, position)
@@ -79,7 +79,7 @@ async function addMember(guildId, userId) {
   );
 }
 
-// The caller's guilds, in their server rail order (PUT /guilds-order).
+// The caller's guilds, in their guild rail order (PUT /guilds-order).
 router.get('/guilds', authenticateJWT, async (req, res) => {
   res.json(await db.all(
     `SELECT g.id, g.name, g.owner, g.icon_version, g.created_at

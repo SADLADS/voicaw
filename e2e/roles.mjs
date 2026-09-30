@@ -1,5 +1,5 @@
 // Roles and private channels in a real browser: the owner makes a coloured, separately shown
-// role in Server Settings, gives it to Bob from the member list, and makes a private channel
+// role in Guild Settings, gives it to Bob from the member list, and makes a private channel
 // only that role can see; Carol (no role) never sees it. Then channel permissions.
 //   node e2e/serve.mjs &   then   node e2e/roles.mjs [screenshot dir]
 import { launchChrome, signUp, BASE } from './helpers.mjs';
@@ -30,7 +30,7 @@ try {
   const b = bob.page;
   const c = carol.page;
 
-  await a.click('button[aria-label="Add a server"]');
+  await a.click('button[aria-label="Add a guild"]');
   await a.fill('#new-guild-name', 'Role Play');
   await a.click('button:has-text("Create")');
   await a.waitForSelector('#dm-input');
@@ -44,9 +44,9 @@ try {
   await sendInChannel(b, 'hello from bob');
   await a.waitForSelector('.dm-message-content:has-text("hello from bob")');
 
-  // Server Settings → Roles → Create Role: "Mods", pink, shown separately, Manage Messages.
+  // Guild Settings → Roles → Create Role: "Mods", pink, shown separately, Manage Messages.
   await a.click('.guild-header-button');
-  await a.click('text=Server Settings');
+  await a.click('text=Guild Settings');
   await a.click('.settings-tab:has-text("Roles")');
   await a.click('button:has-text("Create Role")');
   await a.waitForSelector('.roles-list-item:has-text("new role")');
@@ -141,7 +141,7 @@ try {
   // The roles editor on a phone-sized screen.
   await a.setViewportSize({ width: 400, height: 820 });
   await a.click('.guild-header-button');
-  await a.click('text=Server Settings');
+  await a.click('text=Guild Settings');
   await a.click('.settings-tab:has-text("Roles")');
   await a.waitForSelector('.role-editor');
   await shot(a, 'roles-settings-narrow');

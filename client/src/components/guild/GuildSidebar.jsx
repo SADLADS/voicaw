@@ -39,12 +39,12 @@ function loadCollapsed() {
   }
 }
 
-// The guild's column next to the server rail (like Discord): its name, with a menu (invite,
+// The guild's column next to the guild rail (like Discord): its name, with a menu (invite,
 // settings, create channel/category, leave), then its channels, grouped in collapsible
 // categories. Unread channels are bold; private ones have a lock. What's offered follows the
 // member's permissions (Manage Channels: edit buttons, creating, dragging channels and
-// categories into a new order (useChannelDrag); Create Invite; Manage Server, Manage Roles or
-// Ban Members: Server Settings).
+// categories into a new order (useChannelDrag); Create Invite; Manage Guild, Manage Roles or
+// Ban Members: Guild Settings).
 export default function GuildSidebar({ guild, user }) {
   const { channelId } = useParams();
   const navigate = useNavigate();
@@ -204,7 +204,7 @@ export default function GuildSidebar({ guild, user }) {
             )}
             {opensSettings && (
               <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'settings' })}>
-                Server Settings <FontAwesomeIcon icon={faGear} />
+                Guild Settings <FontAwesomeIcon icon={faGear} />
               </button>
             )}
             {managesChannels && (
@@ -224,7 +224,7 @@ export default function GuildSidebar({ guild, user }) {
               <>
                 <div className="guild-menu-separator" />
                 <button type="button" role="menuitem" className="guild-menu-item danger" onClick={() => openDialog({ type: 'leave' })}>
-                  Leave Server <FontAwesomeIcon icon={faRightFromBracket} />
+                  Leave Guild <FontAwesomeIcon icon={faRightFromBracket} />
                 </button>
               </>
             )}
@@ -313,7 +313,7 @@ export default function GuildSidebar({ guild, user }) {
         <ConfirmDialog
           title={`Leave '${guild.name}'`}
           message={`Are you sure you want to leave ${guild.name}? You won't be able to rejoin unless you are re-invited.`}
-          confirmLabel="Leave Server"
+          confirmLabel="Leave Guild"
           onConfirm={async () => {
             await leaveGuild(guild.id);
             guildList.removeGuild(guild.id);

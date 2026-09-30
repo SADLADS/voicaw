@@ -11,7 +11,7 @@ const SWATCHES = [
   0x11806a, 0x1f8b4c, 0x206694, 0x71368a, 0xad1457, 0xc27c0e, 0xa84300, 0x992d22, 0x979c9f, 0x546e7a,
 ];
 
-// Server Settings → Roles: the roles top to bottom (drag, or the arrows, to reorder; @everyone
+// Guild Settings → Roles: the roles top to bottom (drag, or the arrows, to reorder; @everyone
 // always last), "Create Role", and an editor for the selected one: name, colour, "display
 // separately", permissions. Roles as high as yours or higher are locked, and permissions you
 // don't have can't be switched on. `guild` is the live layout (it updates as roles change).
@@ -138,7 +138,7 @@ export default function RolesSettings({ guild, user }) {
         <div className="role-editor" aria-label={`Edit ${selected.name}`}>
           <h6>{selected.is_everyone ? 'Default permissions (@everyone)' : `Edit role — ${selected.name}`}</h6>
           {!editable && <p className="vc-hint">This role is as high as your highest role, so you can't change it.</p>}
-          {Boolean(selected.is_everyone) && <p className="vc-hint">Everyone in the server has these, whatever other roles they have.</p>}
+          {Boolean(selected.is_everyone) && <p className="vc-hint">Everyone in the guild has these, whatever other roles they have.</p>}
 
           {!selected.is_everyone && (
             <>

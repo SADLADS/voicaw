@@ -36,7 +36,7 @@ describe('custom emoji helpers', () => {
     expect(searchCustomEmoji(custom, '')).toEqual([]);
   });
 
-  it('finds an emoji by name, in rail order when several servers have one', () => {
+  it('finds an emoji by name, in rail order when several guilds have one', () => {
     expect(customEmojiByName(custom, 'blob').id).toBe(10);
     expect(customEmojiByName(custom, 'blobcat').id).toBe(21);
     expect(customEmojiByName(custom, 'nope')).toBeNull();

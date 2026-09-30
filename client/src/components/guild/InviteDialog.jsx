@@ -55,7 +55,7 @@ export default function InviteDialog({ guild, onClose }) {
 
   return (
     <Modal title={`Invite friends to ${guild.name}`} onClose={onClose}>
-      <label htmlFor="invite-link">Send a server invite link to a friend</label>
+      <label htmlFor="invite-link">Send a guild invite link to a friend</label>
       <div className="vc-form-row">
         <input id="invite-link" className="form-control" readOnly value={link} onFocus={(e) => e.target.select()} />
         <button type="button" className="btn btn-primary vc-button" onClick={copy} disabled={!invite}>

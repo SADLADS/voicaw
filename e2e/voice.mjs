@@ -38,7 +38,7 @@ try {
     });
   }
 
-  await a.click('button[aria-label="Add a server"]');
+  await a.click('button[aria-label="Add a guild"]');
   await a.fill('#new-guild-name', 'Voice Test');
   await a.click('button:has-text("Create")');
   await a.waitForSelector('#dm-input');

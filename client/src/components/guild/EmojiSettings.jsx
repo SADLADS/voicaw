@@ -67,8 +67,8 @@ function EmojiRow({ guild, emoji, s3Endpoint, onError }) {
   );
 }
 
-// Server Settings → Emoji (Manage Emoji): upload (named from the file, renamed in place) and
-// delete the server's custom emoji. Everyone in the server can use them, anywhere.
+// Guild Settings → Emoji (Manage Emoji): upload (named from the file, renamed in place) and
+// delete the guild's custom emoji. Everyone in the guild can use them, anywhere.
 export default function EmojiSettings({ guild }) {
   const { s3Endpoint } = useContext(ConfigContext);
   const { guildList } = useContext(LayoutContext);
@@ -78,7 +78,7 @@ export default function EmojiSettings({ guild }) {
   const [error, setError] = useState(null);
   const fileInput = useRef(null);
 
-  // The list with who added each; fetched again whenever the server's emoji change.
+  // The list with who added each; fetched again whenever the guild's emoji change.
   useEffect(() => {
     fetchGuildEmojis(guild.id).then(setEmojis).catch((err) => setError(errorMessage(err)));
   }, [guild.id, live]);
@@ -109,7 +109,7 @@ export default function EmojiSettings({ guild }) {
   return (
     <div className="emoji-settings">
       <p className="vc-hint">
-        Add up to {MAX_EMOJIS} custom emoji anyone in the server can use. PNG, GIF, WebP, JPEG or AVIF up to
+        Add up to {MAX_EMOJIS} custom emoji anyone in the guild can use. PNG, GIF, WebP, JPEG or AVIF up to
         10 MB; they're shrunk to 128×128, and animated ones stay animated. Names are letters, numbers and
         underscores.
       </p>

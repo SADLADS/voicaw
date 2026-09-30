@@ -13,7 +13,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_KEY_ENVELOPE = 200;
 
 function requireVoice(req, res, next) {
-  if (!config.livekit) return res.status(503).json({ error: "Calls aren't set up on this server" });
+  if (!config.livekit) return res.status(503).json({ error: "Calls aren't set up yet" });
   next();
 }
 

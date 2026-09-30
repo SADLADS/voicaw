@@ -44,14 +44,14 @@ export default function AddGuildDialog({ onClose }) {
   }
 
   return (
-    <Modal title="Add a server" onClose={onClose}>
+    <Modal title="Add a guild" onClose={onClose}>
       <form onSubmit={create} className="vc-form">
         <label htmlFor="new-guild-name">Create your own</label>
         <div className="vc-form-row">
           <input
             id="new-guild-name"
             className="form-control"
-            placeholder="Server name"
+            placeholder="Guild name"
             maxLength={100}
             value={name}
             onChange={(e) => setName(e.target.value)}

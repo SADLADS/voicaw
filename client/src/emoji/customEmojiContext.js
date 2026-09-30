@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 
 // The custom emoji you can use (Layout provides it): { guilds: [{ guild, emojis }] in your
-// server rail order, byId: Map(id -> emoji, each with its `guild`) }.
+// guild rail order, byId: Map(id -> emoji, each with its `guild`) }.
 export const CustomEmojiContext = createContext({ guilds: [], byId: new Map() });
 
 export function useCustomEmoji() {

@@ -8,7 +8,7 @@ const { PERMISSIONS, has } = require('../permissions');
 const { getMember, getMemberIds } = require('../guilds');
 
 // Custom emoji (per guild, like Discord's) and each member's order of their guilds in the
-// server rail (which is also the order of the emoji picker's guild sections).
+// guild rail (which is also the order of the emoji picker's guild sections).
 //
 // Emoji are plain images (not encrypted), stored as emojis/<id> in the public "emojis" bucket
 // and written `<:name:id>` in messages, so showing one needs nothing but its id. Adding one
@@ -113,10 +113,10 @@ router.post('/guilds/:guildId/emojis', manage, async (req, res) => {
   }
   const { count } = await db.get('SELECT COUNT(*) AS count FROM guild_emojis WHERE guild_id = ?', [req.guild.id]);
   if (count >= MAX_EMOJIS_PER_GUILD) {
-    return res.status(400).json({ error: `A server can have at most ${MAX_EMOJIS_PER_GUILD} emoji` });
+    return res.status(400).json({ error: `A guild can have at most ${MAX_EMOJIS_PER_GUILD} emoji` });
   }
   if (await db.get('SELECT 1 FROM guild_emojis WHERE guild_id = ? AND name = ?', [req.guild.id, name])) {
-    return res.status(409).json({ error: `This server already has an emoji called :${name}:` });
+    return res.status(409).json({ error: `This guild already has an emoji called :${name}:` });
   }
 
   const { lastID } = await db.run(
@@ -175,7 +175,7 @@ router.patch('/guilds/:guildId/emojis/:emojiId', manage, async (req, res) => {
     return res.status(400).json({ error: 'Emoji names are 2–32 letters, numbers or underscores' });
   }
   if (await db.get('SELECT 1 FROM guild_emojis WHERE guild_id = ? AND name = ? AND id != ?', [req.guild.id, name, emoji.id])) {
-    return res.status(409).json({ error: `This server already has an emoji called :${name}:` });
+    return res.status(409).json({ error: `This guild already has an emoji called :${name}:` });
   }
   await db.run('UPDATE guild_emojis SET name = ? WHERE id = ?', [name, emoji.id]);
   await announceEmojis(req.guild.id);
@@ -192,7 +192,7 @@ router.delete('/guilds/:guildId/emojis/:emojiId', manage, async (req, res) => {
   res.json({ success: true });
 });
 
-// ---- Server rail order ----
+// ---- Guild rail order ----
 
 // Sets the caller's order of their guilds: `guildIds`, every guild they're in, top first.
 // Their other devices follow (`guild_order`).

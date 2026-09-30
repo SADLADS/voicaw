@@ -113,8 +113,8 @@ function CustomEmojiButton({ emoji, s3Endpoint, onPick, onHover, keepFocus }) {
 
 // Discord-style picker: search, categories, frequently used, skin tone. `onSelect(text)` gets
 // the Unicode emoji, or `<:name:id>` for a custom one; shift+click picks without closing.
-// The custom emoji of each of your servers come after Frequently Used and before the standard
-// categories, in your server rail order, with the server's icon in the category bar.
+// The custom emoji of each of your guilds come after Frequently Used and before the standard
+// categories, in your guild rail order, with the guild's icon in the category bar.
 // `autoFocus` focuses the search box on open.
 //
 // With `onGif` (the message box, when the server has GIFs set up) there's a GIFs tab too

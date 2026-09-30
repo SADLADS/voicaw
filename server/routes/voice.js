@@ -10,7 +10,7 @@ const voice = require('../voice');
 const router = express.Router();
 
 function requireVoice(req, res, next) {
-  if (!config.livekit) return res.status(503).json({ error: "Voice isn't set up on this server" });
+  if (!config.livekit) return res.status(503).json({ error: "Voice isn't set up yet" });
   next();
 }
 

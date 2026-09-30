@@ -32,7 +32,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
       </div>
     );
   } else if (!voiceEnabled) {
-    footer = <p className="voice-view-note">Voice isn&apos;t set up on this server yet.</p>;
+    footer = <p className="voice-view-note">Voice isn&apos;t set up yet.</p>;
   } else if (!canConnect) {
     footer = <p className="voice-view-note">You don&apos;t have permission to join this channel.</p>;
   } else {

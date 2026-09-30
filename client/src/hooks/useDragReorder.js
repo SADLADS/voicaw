@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { usePointerDrag } from './usePointerDrag';
 
-// Reordering a vertical list by dragging (Discord's server list), on usePointerDrag. The item
+// Reordering a vertical list by dragging (the guild rail), on usePointerDrag. The item
 // follows the pointer, and `onReorder(newIds)` gets the new order on drop.
 // Spread `itemProps(id)` on each item's element; `drag` is { id, dy, targetIndex } while
 // dragging, for styling (the item at `targetIndex` is where it will land).

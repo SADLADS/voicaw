@@ -40,7 +40,7 @@ router.get('/upload_profile_pic', authenticateJWT, async (req, res) => {
   }
 });
 
-// A guild's icon (Manage Server), stored as guild-icons/<guild id>. Once it's uploaded the
+// A guild's icon (Manage Guild), stored as guild-icons/<guild id>. Once it's uploaded the
 // client sends PATCH /guilds/:id { iconUploaded: true }, which bumps the icon's version.
 router.get('/upload_guild_icon', authenticateJWT, async (req, res) => {
   const { type } = req.query;

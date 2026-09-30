@@ -61,7 +61,7 @@ function Overview({ guild, isOwner }) {
           </button>
           <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickIcon} />
           <form className="vc-form flex-grow-1" onSubmit={saveName}>
-            <label htmlFor="guild-name">Server name</label>
+            <label htmlFor="guild-name">Guild name</label>
             <div className="vc-form-row">
               <input id="guild-name" className="form-control" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
               <button type="submit" className="btn btn-primary btn-sm vc-button" disabled={!name.trim() || name.trim() === guild.name}>Save</button>
@@ -79,10 +79,10 @@ function Overview({ guild, isOwner }) {
 
       {isOwner && (
         <section className="guild-settings-danger">
-          <h6>Delete server</h6>
-          <p className="vc-hint">This deletes every channel and message. It can't be undone. Type the server's name to confirm.</p>
+          <h6>Delete guild</h6>
+          <p className="vc-hint">This deletes every channel and message. It can't be undone. Type the guild's name to confirm.</p>
           <div className="vc-form-row">
-            <input className="form-control" aria-label="Server name to confirm" value={deleteText} onChange={(e) => setDeleteText(e.target.value)} />
+            <input className="form-control" aria-label="Guild name to confirm" value={deleteText} onChange={(e) => setDeleteText(e.target.value)} />
             <button
               type="button"
               className="btn btn-danger btn-sm"
@@ -92,7 +92,7 @@ function Overview({ guild, isOwner }) {
                 guildList.removeGuild(guild.id);
               })}
             >
-              Delete server
+              Delete guild
             </button>
           </div>
         </section>
@@ -177,8 +177,8 @@ function Bans({ guild }) {
   );
 }
 
-// Server settings: the tabs you have permission for (Overview and Invites: Manage Server;
-// Roles: Manage Roles; Emoji: Manage Emoji; Bans: Ban Members). Deleting the server is the owner's alone.
+// Guild settings: the tabs you have permission for (Overview and Invites: Manage Guild;
+// Roles: Manage Roles; Emoji: Manage Emoji; Bans: Ban Members). Deleting the guild is the owner's alone.
 export default function GuildSettingsDialog({ guild, user, onClose }) {
   const can = (bit) => has(guild.my_permissions, bit);
   const tabs = [
@@ -191,7 +191,7 @@ export default function GuildSettingsDialog({ guild, user, onClose }) {
   const [tab, setTab] = useState(tabs[0]?.[0]);
 
   return (
-    <Modal title="Server settings" onClose={onClose} className="guild-settings-dialog">
+    <Modal title="Guild settings" onClose={onClose} className="guild-settings-dialog">
       <div className="settings-tabs" role="tablist">
         {tabs.map(([key, label]) => (
           <button

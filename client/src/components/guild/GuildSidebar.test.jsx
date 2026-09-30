@@ -114,7 +114,7 @@ describe('GuildSidebar', () => {
     fireEvent.click(screen.getByRole('button', { name: /Test Guild/ }));
     const menu = screen.getByRole('menu');
     expect(within(menu).getAllByRole('menuitem').map((b) => b.textContent.trim())).toEqual([
-      'Invite People', 'Server Settings', 'Create Channel', 'Create Category', 'Notification Settings',
+      'Invite People', 'Guild Settings', 'Create Channel', 'Create Category', 'Notification Settings',
     ]);
   });
 
@@ -123,12 +123,12 @@ describe('GuildSidebar', () => {
     expect(screen.queryByRole('button', { name: 'Edit general' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Test Guild/ }));
     expect(within(screen.getByRole('menu')).getAllByRole('menuitem').map((b) => b.textContent.trim())).toEqual([
-      'Invite People', 'Notification Settings', 'Leave Server',
+      'Invite People', 'Notification Settings', 'Leave Guild',
     ]);
 
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Leave Server' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Leave Guild' }));
     const dialog = screen.getByRole('dialog', { name: "Leave 'Test Guild'" });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Leave Server' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Leave Guild' }));
     await waitFor(() => expect(leaveGuild).toHaveBeenCalledWith(5));
     expect(guildList.removeGuild).toHaveBeenCalledWith(5);
   });
@@ -139,7 +139,7 @@ describe('GuildSidebar', () => {
     expect(screen.getByRole('button', { name: 'Edit general' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Test Guild/ }));
     expect(within(screen.getByRole('menu')).getAllByRole('menuitem').map((b) => b.textContent.trim())).toEqual([
-      'Create Channel', 'Create Category', 'Notification Settings', 'Leave Server',
+      'Create Channel', 'Create Category', 'Notification Settings', 'Leave Guild',
     ]);
   });
 

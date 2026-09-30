@@ -1,4 +1,4 @@
-/* GUILDS: the server rail's guild icons, the channel sidebar, the channel page, the member
+/* GUILDS: the guild rail's icons, the channel sidebar, the channel page, the member
    list, dialogs and the invite page. Laid out like Discord. */
 
 /* ---- Server rail ---- */
@@ -1477,7 +1477,7 @@ img.guild-icon {
   font-size: 13px;
 }
 
-/* Dragging a server in the rail: it follows the pointer, the others slide out of its way. */
+/* Dragging a guild in the rail: it follows the pointer, the others slide out of its way. */
 .rail-guilds .nav-item {
   -webkit-touch-callout: none;
   user-select: none;
@@ -1555,7 +1555,7 @@ img.guild-icon {
   color: var(--vc-danger);
 }
 
-/* The picker's category bar: a server's icon for its emoji, a clock for Frequently Used. */
+/* The picker's category bar: a guild's icon for its emoji, a clock for Frequently Used. */
 .emoji-picker-nav .emoji-picker-guild-icon {
   width: 22px;
   height: 22px;

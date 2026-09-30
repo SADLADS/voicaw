@@ -198,7 +198,7 @@ export async function setChannelOverride(guildId, channelId, targetType, targetI
   return (await api.put(`/guilds/${guildId}/channels/${channelId}/overrides/${targetType}/${targetId}`, { allow, deny })).data;
 }
 
-// ---- Custom emoji and the server rail order ----
+// ---- Custom emoji and the guild rail order ----
 
 // Every emoji of every guild you're in: [{ id, guild_id, name, animated }].
 export async function fetchAllEmojis() {
@@ -225,7 +225,7 @@ export async function deleteGuildEmoji(guildId, emojiId) {
   await api.delete(`/guilds/${guildId}/emojis/${emojiId}`);
 }
 
-// Your guilds, top first, as the server rail should show them.
+// Your guilds, top first, as the guild rail should show them.
 export async function saveGuildOrder(guildIds) {
   await api.put('/guilds-order', { guildIds });
 }

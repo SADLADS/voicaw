@@ -66,7 +66,7 @@ function cleanGif(gif) {
 
 async function klipy(req, res, path, params) {
   const key = await getSetting('klipyApiKey');
-  if (!key) return res.status(503).json({ error: 'GIFs are not set up on this server' });
+  if (!key) return res.status(503).json({ error: "GIFs aren't set up yet" });
   const page = Math.max(1, Math.min(50, parseInt(req.query.page, 10) || 1));
   const url = new URL(`${KLIPY_API}/${encodeURIComponent(key)}/gifs/${path}`);
   for (const [name, value] of Object.entries({ ...params, page, per_page: PER_PAGE, customer_id: customerId(req.user.id) })) {

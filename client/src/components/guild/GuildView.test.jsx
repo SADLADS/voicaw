@@ -230,7 +230,7 @@ describe('GuildView', () => {
 
   it("says so when voice isn't set up", async () => {
     renderView('/guild/5/11', { voiceEnabled: false });
-    expect(await screen.findByText("Voice isn't set up on this server yet.")).toBeInTheDocument();
+    expect(await screen.findByText("Voice isn't set up yet.")).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Join Voice' })).toBeNull();
   });
 

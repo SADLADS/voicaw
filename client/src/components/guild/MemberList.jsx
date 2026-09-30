@@ -158,7 +158,7 @@ export default function MemberList({ guild, members: memberList, user, onClose }
               className="btn btn-danger btn-sm"
               onClick={() => setConfirm({
                 title: `Ban ${member.username}`,
-                message: `${member.username} will be removed from ${guild.name} and can't rejoin until unbanned (Server Settings).`,
+                message: `${member.username} will be removed from ${guild.name} and can't rejoin until unbanned (Guild Settings).`,
                 confirmLabel: 'Ban',
                 onConfirm: () => banMember(guild.id, member.id),
               })}
@@ -194,7 +194,7 @@ export default function MemberList({ guild, members: memberList, user, onClose }
             <StatusIcon className="member-status" status={member.status} />
           </span>
           <span className="member-name" style={{ color: color ?? undefined }}>{member.username}</span>
-          {member.id === guild.owner && <FontAwesomeIcon icon={faCrown} className="member-owner" title="Server owner" />}
+          {member.id === guild.owner && <FontAwesomeIcon icon={faCrown} className="member-owner" title="Guild owner" />}
         </button>
         {isSelected && selected && renderCard(selected)}
       </li>

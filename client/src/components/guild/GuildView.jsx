@@ -145,7 +145,7 @@ export default function GuildView({ user }) {
   if (loadError) {
     return (
       <div id="guild-main" className="guild-main">
-        <p className="guild-placeholder">{loadError === 'Guild not found' ? "This server doesn't exist, or you're not in it." : loadError}</p>
+        <p className="guild-placeholder">{loadError === 'Guild not found' ? "This guild doesn't exist, or you're not in it." : loadError}</p>
       </div>
     );
   }
@@ -156,7 +156,7 @@ export default function GuildView({ user }) {
     if (target) return <Navigate to={`/guild/${guild.id}/${target.id}`} replace />;
     return (
       <div id="guild-main" className="guild-main">
-        <p className="guild-placeholder">This server has no channels yet.</p>
+        <p className="guild-placeholder">This guild has no channels yet.</p>
       </div>
     );
   }

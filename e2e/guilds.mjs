@@ -22,10 +22,10 @@ try {
   const b = bob.page;
 
   // Alice creates a guild from the rail's "+".
-  await a.click('button[aria-label="Add a server"]');
-  await a.fill('#new-guild-name', 'Test Server');
+  await a.click('button[aria-label="Add a guild"]');
+  await a.fill('#new-guild-name', 'Test Guild');
   await a.click('button:has-text("Create")');
-  await a.waitForSelector('.guild-header-name:has-text("Test Server")');
+  await a.waitForSelector('.guild-header-name:has-text("Test Guild")');
   await a.waitForSelector('.guild-channel.active:has-text("general")');
   await a.waitForSelector('#dm-input');
   console.log('created guild, opened #general:', a.url());
@@ -108,7 +108,7 @@ try {
   // Owner menu and settings dialog render.
   await a.click('.guild-header-button');
   await shot(a, 'desktop-menu');
-  await a.click('text=Server Settings');
+  await a.click('text=Guild Settings');
   await a.waitForSelector('.guild-settings-dialog');
   await shot(a, 'desktop-settings');
   await a.click('.settings-tab:has-text("Invites")');
@@ -141,8 +141,8 @@ try {
 
   // Bob leaves: Alice's member list drops him.
   await b.click('.guild-header-button');
-  await b.click('text=Leave Server');
-  await b.click('.vc-dialog button:has-text("Leave Server")');
+  await b.click('text=Leave Guild');
+  await b.click('.vc-dialog button:has-text("Leave Guild")');
   await b.waitForURL(/\/dm/);
   await a.waitForSelector(`.member-row:has-text("${bob.name}")`, { state: 'detached', timeout: 10000 });
   console.log('leave works; bob gone from member list');

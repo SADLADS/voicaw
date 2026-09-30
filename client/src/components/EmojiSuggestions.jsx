@@ -4,7 +4,7 @@ import { getSkinTone, skinFor } from '../emoji/emojiUsage';
 import { customEmojiUrl } from '../emoji/customEmoji';
 
 // The ":shortcode" autocomplete list shown above the composer (like Discord's). Custom emoji
-// (with a `guild`) show their server's name.
+// (with a `guild`) show their guild's name.
 export default function EmojiSuggestions({ query, emojis, activeIndex, onPick, onHover, s3Endpoint }) {
   const tone = getSkinTone();
   return (

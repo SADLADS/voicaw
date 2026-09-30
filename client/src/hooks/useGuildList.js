@@ -3,7 +3,7 @@ import { onGuildEvent } from '../utils/ws-client';
 import { fetchAllEmojis, fetchGuild, fetchGuilds, fetchGuildUnread, saveGuildOrder } from '../services/guildService';
 
 // The logged-in user's guilds, for the whole layout (Layout puts this in LayoutContext):
-// - `guilds`: the list for the server rail ([{ id, name, owner, icon_version }]).
+// - `guilds`: the list for the guild rail ([{ id, name, owner, icon_version }]).
 // - `layouts`: guilds opened so far, by id, with their `categories` and `channels` (a voice
 //   channel's `voice`: who's in it) (`loadGuild(id)` fetches one; websocket updates keep them
 //   current).
@@ -101,7 +101,7 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
     try {
       await saveGuildOrder(guildIds);
     } catch (err) {
-      console.warn('Failed to save the server order', err);
+      console.warn('Failed to save the guild order', err);
       fetchGuilds().then(setGuilds).catch(() => {});
     }
   }, [applyOrder]);

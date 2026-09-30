@@ -6,7 +6,7 @@ import GuildIcon from './GuildIcon';
 import { acceptInvite, fetchInvite } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
 
-// /invite/:code: who invited you to which server, and a button to join (or open it, if
+// /invite/:code: who invited you to which guild, and a button to join (or open it, if
 // you're already in).
 export default function InvitePage() {
   const { code } = useParams();
@@ -59,7 +59,7 @@ export default function InvitePage() {
             <p className="vc-hint">{invite.member_count} {invite.member_count === 1 ? 'member' : 'members'}</p>
             {invite.is_member ? (
               <button type="button" className="btn btn-primary vc-button" onClick={() => navigate(`/guild/${invite.guild_id}`)}>
-                Go to server
+                Go to guild
               </button>
             ) : (
               <button type="button" className="btn btn-primary vc-button" onClick={join} disabled={joining}>

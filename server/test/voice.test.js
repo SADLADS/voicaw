@@ -230,7 +230,7 @@ describe('voice channels', () => {
     expect(calls).toContainEqual(['remove', `channel-${lounge.id}`, String(alice.id)]);
   });
 
-  it('gives new servers Connect and Speak for everyone', async () => {
+  it('gives new guilds Connect and Speak for everyone', async () => {
     const { everyone } = await setUp(0);
     expect(everyone.permissions & (P.CONNECT | P.SPEAK)).toBe(P.CONNECT | P.SPEAK);
   });

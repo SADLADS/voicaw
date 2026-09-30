@@ -1,6 +1,6 @@
-// Custom emoji and the server rail order in a real browser: upload emoji in Server Settings,
+// Custom emoji and the guild rail order in a real browser: upload emoji in Guild Settings,
 // see each server's section in the picker (in your rail order, with the server's icon), use
-// them by picker, :name: and as reactions (in a server and a DM), and drag servers around
+// them by picker, :name: and as reactions (in a guild and a DM), and drag guilds around
 // the rail (mouse, and a long press on a phone).
 //   node e2e/serve.mjs &   then   node e2e/emoji.mjs [screenshot dir]
 import fs from 'node:fs';
@@ -60,7 +60,7 @@ function discPng(file, [r, g, b], size = 64, noisy = false) {
 }
 
 async function createGuild(page, name) {
-  await page.click('button[aria-label="Add a server"]');
+  await page.click('button[aria-label="Add a guild"]');
   await page.fill('#new-guild-name', name);
   await page.click('.vc-dialog button:has-text("Create")');
   await page.waitForSelector(`.guild-header-name:has-text("${name}")`);
@@ -87,7 +87,7 @@ async function uploadEmoji(page, guildId, files) {
   await page.click(`.rail-guild[href="/guild/${guildId}"]`);
   await page.waitForSelector('#dm-input');
   await page.click('.guild-header-button');
-  await page.click('text=Server Settings');
+  await page.click('text=Guild Settings');
   await page.click('.settings-tab:has-text("Emoji")');
   await page.setInputFiles('input[aria-label="Emoji images"]', files);
   for (const file of files) {
@@ -108,9 +108,9 @@ try {
   const a = alice.page;
   const b = bob.page;
 
-  const alpha = await createGuild(a, 'Alpha Server');
+  const alpha = await createGuild(a, 'Alpha Guild');
   const alphaLink = await inviteLink(a);
-  const beta = await createGuild(a, 'Beta Server');
+  const beta = await createGuild(a, 'Beta Guild');
   const betaLink = await inviteLink(a);
   await join(b, alphaLink);
   await join(b, betaLink);
@@ -141,13 +141,13 @@ try {
   await a.mouse.move(betaIcon.x + 24, betaIcon.y + 10, { steps: 3 });
   await a.mouse.move(alphaIcon.x + 24, alphaIcon.y + 8, { steps: 8 });
   await a.mouse.up();
-  await a.waitForFunction(() => document.querySelector('.rail-guild')?.getAttribute('aria-label') === 'Beta Server');
+  await a.waitForFunction(() => document.querySelector('.rail-guild')?.getAttribute('aria-label') === 'Beta Guild');
   console.log('alice rail after drag:', (await railOrder(a)).join(', '));
   await a.reload();
   await a.waitForSelector('.rail-guild');
   const afterReload = await railOrder(a);
   console.log('alice rail after reload:', afterReload.join(', '));
-  if (afterReload[0] !== 'Beta Server') throw new Error('rail order not saved');
+  if (afterReload[0] !== 'Beta Guild') throw new Error('rail order not saved');
 
   // The picker follows each person's own rail order.
   await a.click(`.rail-guild[href="/guild/${alpha}"]`);
@@ -156,7 +156,7 @@ try {
   await a.waitForSelector('.emoji-picker-section-title');
   const aliceSections = await pickerHeadings(a);
   console.log('alice picker sections:', aliceSections.slice(0, 3).join(', '));
-  if (aliceSections[0] !== 'Beta Server' || aliceSections[1] !== 'Alpha Server') throw new Error('wrong section order for alice');
+  if (aliceSections[0] !== 'Beta Guild' || aliceSections[1] !== 'Alpha Guild') throw new Error('wrong section order for alice');
   await a.waitForFunction(() => [...document.querySelectorAll('.emoji-picker-item img')].slice(0, 3).every((i) => i.complete && i.naturalWidth > 0));
   await a.hover('.emoji-picker-item[aria-label=":blob:"]');
   await shot(a, 'picker-custom');
@@ -168,7 +168,7 @@ try {
   await b.waitForSelector('.emoji-picker-section-title');
   const bobSections = await pickerHeadings(b);
   console.log('bob picker sections:', bobSections.slice(0, 3).join(', '));
-  if (bobSections[0] !== 'Alpha Server' || bobSections[1] !== 'Beta Server') throw new Error('wrong section order for bob');
+  if (bobSections[0] !== 'Alpha Guild' || bobSections[1] !== 'Beta Guild') throw new Error('wrong section order for bob');
   await b.keyboard.press('Escape');
 
   // Alice sends: the picked :blob:, then a typed :wave_hi: and an emoji-only message.
@@ -203,7 +203,7 @@ try {
   await b.waitForSelector('.dm-message-content img.custom-emoji[alt=":blob:"]');
   console.log('custom emoji works in a DM');
 
-  // A phone: hold a server, then drag it.
+  // A phone: hold a guild, then drag it.
   const carol = await signUp(browser, 'carol', devices['Pixel 7']);
   const c = carol.page;
   await join(c, alphaLink);
@@ -223,7 +223,7 @@ try {
     await c.waitForTimeout(30);
   }
   await touch('touchEnd');
-  await c.waitForFunction(() => document.querySelector('.rail-guild')?.getAttribute('aria-label') === 'Beta Server');
+  await c.waitForFunction(() => document.querySelector('.rail-guild')?.getAttribute('aria-label') === 'Beta Guild');
   console.log('carol rail after long-press drag:', (await railOrder(c)).join(', '));
   // The docked picker on the phone, with the servers' sections.
   await c.goto(`${BASE}/guild/${alpha}`);

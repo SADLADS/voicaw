@@ -8,7 +8,7 @@ import '../assets/css/guilds.css';
 import AddGuildDialog from './guild/AddGuildDialog';
 import { useDragReorder } from '../hooks/useDragReorder';
 
-// The server rail down the left (like Discord's): home, DMs, then each guild (a pill on the
+// The guild rail down the left (like Discord's): home, DMs, then each guild (a pill on the
 // left marks unread messages, a taller one the open guild), then "+" to create or join one.
 // `unreadGuildIds` is a Set of guild ids with unread messages, `guildMentions` ({ guildId:
 // count }) how many of them mention you (a red badge on the icon). Guilds can be dragged into a
@@ -44,7 +44,7 @@ export default function Sidebar({ hasUnreadDms, guilds = [], unreadGuildIds = ne
 
       {guilds.length > 0 && <div className="rail-separator" />}
 
-      <nav className={`rail-guilds${drag ? ' reordering' : ''}`} aria-label="Servers">
+      <nav className={`rail-guilds${drag ? ' reordering' : ''}`} aria-label="Guilds">
         {guilds.map((guild, index) => {
           const dragging = drag?.id === guild.id;
           // Items between where it was and where it's going shift by one slot.
@@ -75,7 +75,7 @@ export default function Sidebar({ hasUnreadDms, guilds = [], unreadGuildIds = ne
       </nav>
 
       <div className="nav-item">
-        <button type="button" className="nav-icon rail-add" aria-label="Add a server" title="Add a server" onClick={() => setAdding(true)}>
+        <button type="button" className="nav-icon rail-add" aria-label="Add a guild" title="Add a guild" onClick={() => setAdding(true)}>
           <FontAwesomeIcon icon={faPlus} />
         </button>
       </div>

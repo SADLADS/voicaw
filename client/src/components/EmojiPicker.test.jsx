@@ -105,7 +105,7 @@ describe('EmojiPicker', () => {
 
 
 describe('EmojiPicker custom emoji', () => {
-  const guildOne = { id: 1, name: 'Cool Server', icon_version: 0 };
+  const guildOne = { id: 1, name: 'Cool Guild', icon_version: 0 };
   const guildTwo = { id: 2, name: 'Blob Land', icon_version: 0 };
   const blob = { id: 10, name: 'blob', guild: guildTwo };
   const cat = { id: 11, name: 'blobcat', guild: guildTwo };
@@ -130,15 +130,15 @@ describe('EmojiPicker custom emoji', () => {
     return { onSelect };
   }
 
-  it("puts each server's emoji after Frequently Used and before the standard ones, in rail order", () => {
+  it("puts each guild's emoji after Frequently Used and before the standard ones, in rail order", () => {
     localStorage.setItem('emojiFrequent', JSON.stringify({ grinning: 3, 'custom:20': 5 }));
     renderWithCustom();
     const headings = screen.getAllByRole('heading').map((h) => h.textContent);
-    expect(headings.slice(0, 4)).toEqual(['Frequently Used', 'Blob Land', 'Cool Server', 'Smileys & People']);
+    expect(headings.slice(0, 4)).toEqual(['Frequently Used', 'Blob Land', 'Cool Guild', 'Smileys & People']);
     // Frequently used mixes custom and standard emoji.
     const frequent = screen.getByRole('heading', { name: 'Frequently Used' }).closest('section');
     expect(within(frequent).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([':wave_hi:', 'Grinning Face']);
-    // The category bar shows the server's icon (initials here).
+    // The category bar shows the guild's icon (initials here).
     const nav = screen.getByRole('navigation', { name: 'Emoji categories' });
     expect(within(nav).getByRole('button', { name: 'Blob Land' })).toHaveTextContent('BL');
   });

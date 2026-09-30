@@ -222,7 +222,7 @@ describe('emoji images', () => {
   });
 });
 
-describe('server rail order', () => {
+describe('guild rail order', () => {
   it('lists guilds in your own order, new ones at the bottom', async () => {
     const alice = await makeUser();
     const bob = await makeUser();

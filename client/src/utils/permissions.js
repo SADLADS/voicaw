@@ -33,14 +33,14 @@ export const PERMISSION_GROUPS = [
       ['VIEW_CHANNEL', 'View Channels', 'Lets members see channels (private channels aside).'],
       ['MANAGE_CHANNELS', 'Manage Channels', 'Lets members create, edit and delete channels and categories.'],
       ['MANAGE_ROLES', 'Manage Roles', 'Lets members create and edit roles below their highest role, give them out, and change channel permissions.'],
-      ['MANAGE_GUILD', 'Manage Server', "Lets members change the server's name and icon, and see and revoke all invites."],
-      ['MANAGE_EMOJIS', 'Manage Emoji', "Lets members add, rename and remove the server's custom emoji."],
+      ['MANAGE_GUILD', 'Manage Guild', "Lets members change the guild's name and icon, and see and revoke all invites."],
+      ['MANAGE_EMOJIS', 'Manage Emoji', "Lets members add, rename and remove the guild's custom emoji."],
     ],
   },
   {
     title: 'Membership',
     items: [
-      ['CREATE_INVITE', 'Create Invite', 'Lets members invite people to this server.'],
+      ['CREATE_INVITE', 'Create Invite', 'Lets members invite people to this guild.'],
       ['KICK_MEMBERS', 'Kick Members', 'Lets members remove people ranked below them. They can rejoin with an invite.'],
       ['BAN_MEMBERS', 'Ban Members', 'Lets members remove people ranked below them for good (until unbanned).'],
     ],
