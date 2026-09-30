@@ -9,6 +9,7 @@ import { clearVoiceError, leaveVoice, resumeAudio } from '../../voice/voiceClien
 import { hangUp } from '../../voice/callClient';
 import { useCall } from '../../hooks/useCall';
 import { groupTitle } from '../../utils/groupDisplay';
+import { displayName, useProfiles } from '../../utils/profiles';
 
 const STATUS_TEXT = {
   connecting: 'Connecting…',
@@ -19,6 +20,7 @@ const STATUS_TEXT = {
 // Above the user panel while you're in voice (like Discord): the connection state, which
 // channel or call (a link to it) and the disconnect button. Also where voice errors show.
 export default function VoiceBar({ user }) {
+  useProfiles();
   const voice = useVoice();
   const call = useCall();
   const { guildList, groupList } = useContext(LayoutContext);
@@ -55,7 +57,7 @@ export default function VoiceBar({ user }) {
             </Link>
           ) : inCall ? (
             <Link to={`/dm/${call?.peerId ?? ''}`} className="voice-bar-channel">
-              {call ? `Call with ${call.peerName}` : 'Call'}
+              {call ? `Call with ${displayName(call.peerId, call.peerName)}` : 'Call'}
             </Link>
           ) : (
             <Link to={`/guild/${voice.guildId}/${voice.channelId}`} className="voice-bar-channel">

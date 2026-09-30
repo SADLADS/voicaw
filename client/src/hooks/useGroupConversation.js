@@ -21,6 +21,7 @@ import {
 } from '../services/groupCrypto';
 import { loadIdentityKey } from '../services/keyStore';
 import { currentEpoch, openGroup } from '../services/groupKeys';
+import { nameOf } from '../utils/profiles';
 
 export const GROUP_PAGE_SIZE = 50;
 
@@ -332,7 +333,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
   // Membership changes in the timeline, from the time you were first in the group.
   const display = useMemo(() => {
     if (!group) return messages;
-    const names = new Map(group.detail.users.map((u) => [u.id, u.username]));
+    const names = new Map(group.detail.users.map((u) => [u.id, nameOf(u)]));
     const name = (id) => (id === user.id ? 'You' : names.get(id) ?? 'Someone');
     const records = group.log.records;
     const firstIn = records.findIndex((r) => (r.type === 'create' ? r.actor : r.target) === user.id && (r.type === 'create' || r.type === 'add'));

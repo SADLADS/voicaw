@@ -154,6 +154,7 @@ unexpected errors. The rest:
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).
 - `groupDms.js`: group DMs (membership log checks, epochs, summaries; see Group DMs).
 - `appSettings.js`: app-wide settings a global admin edits (see Admin settings).
+- `profiles.js`: display name, custom status and bio (limits, cleaning, `displayNameOf`; see Profiles).
 - `routes/`: `auth.js` (OPAQUE register/login, profile), `dms.js` (conversations, send, edit,
   delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `guilds.js` (guilds,
   members, invites, bans, categories, channels), `guildMessages.js` (channel messages, reactions,
@@ -301,7 +302,8 @@ module-level in `sockets.js`, so routes can push events (and tests can fake sock
 identify themselves post-connect with `{ type: 'identify', token }` (JWT); the server maps
 `userId -> [sockets]` in an in-memory `clients` Map (a user can have multiple open sockets/tabs).
 Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, `reaction_remove`,
-`user_status` and `presence_snapshot` (see Online status), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
+`user_status` and `presence_snapshot` (see Online status), `user_profile` (someone changed their
+profile, to every logged-in socket; see Profiles), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete`,
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
 `guild_order` (your guild rail order, to your other devices), `guild_voice_state` (someone
@@ -855,6 +857,31 @@ in a DM, everyone in a group's log, a guild's members; anyone else `@unknown-use
 - DMs and group DMs push every message already; mentioning someone there adds no notification
   (the server can't see it).
 
+### Profiles
+
+Everyone has an optional display name (32 characters), custom status (a line of text, 128;
+not an online status: those stay automatic) and bio (190), in `users` (`display_name`,
+`custom_status`, `bio`; `server/profiles.js`), visible to everyone logged in. The username
+stays the unique handle (logins, @username on the card).
+- `PUT /api/profile { displayName, customStatus, bio }` (null or "" clears one) saves and
+  sends `user_profile { user }` to every logged-in socket. `GET /profile`, `/dms-list`, guild
+  members and group details include the fields; message rows carry `sender_display_name`, used
+  for push titles (DMs, guild pushes, group pushes, calls use `displayNameOf`).
+- Client: `utils/profiles.js` is the store (by user id), fed by `Layout` (your profile and the
+  users list, once per login), guild members, the DM list and `user_profile` events.
+  **Draw names with `displayName(id, fallbackUsername)` / `nameOf(user)`** (components call
+  `useProfiles()` to redraw), never `user.username` directly: messages, reply bars, DM list and
+  header, member list, voice, calls, groups, mention names and suggestions (which match display
+  names and usernames) all do. Admin lists (bans, invites, channel overrides) keep usernames.
+- `ProfileCard` (picture with status, names, custom status, bio) is the guild member card's top
+  and `ProfilePopover`'s body (clicking a name or avatar in chat). The DM list and member list
+  show the custom status under names.
+- Settings → Edit Profile is its own page (`/settings/profile`, `EditProfile.jsx`): picture,
+  display name, custom status, bio, with a live preview; Save uploads the picture (if picked)
+  and saves the rest.
+- Not done: another device's copy of a changed profile picture refreshes only on reload (the
+  URL stays the same; only your own device is told).
+
 ### DM message list and history loading
 
 `MessageList` is deliberately **not virtualized**: every loaded message is rendered in a plain
@@ -915,7 +942,8 @@ their box is reserved before they load.
   `hooks/useAttachmentDrafts.js`). `Dm.jsx` owns what several of them share: reply target, edit
   state, the composer error line, and which emoji picker is open (never both).
 - Settings (`Settings.jsx`, `/settings`): sections (each with a category, title and search
-  keywords, in its `sections` list) under My Account, App Settings, Admin (only once
+  keywords, in its `sections` list; one with a `link` is a page of its own, like Edit Profile
+  at `/settings/profile`) under My Account, App Settings, Admin (only once
   `AdminSettings` finds you're an admin) and About. The side column (beside the rail, above
   the user panel, on a computer; on top of the page on a phone)
   searches them (non-matching sections are hidden, not unmounted, so their state stays) and

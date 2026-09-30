@@ -6,6 +6,7 @@ const { sendToUserSockets, isViewingConversation } = require('../sockets');
 const { sendPushToUser } = require('../push');
 const groups = require('../groupDms');
 const calls = require('../calls');
+const { displayNameOf } = require('../profiles');
 
 // Group DMs (see groupDms.js): creating one, its membership log (add, remove, leave), key
 // epochs, and its messages and reactions (all ciphertext). Everything 404s for non-members.
@@ -35,6 +36,7 @@ function contentError(content) {
 const MESSAGE_SELECT = `
   SELECT m.id, m.group_id, m.epoch, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
     u.username AS sender_username,
+    u.display_name AS sender_display_name,
     CASE WHEN pk.user_id IS NOT NULL THEN pm.content END AS parent_content,
     CASE WHEN pk.user_id IS NOT NULL THEN pm.epoch END AS parent_epoch,
     CASE WHEN pk.user_id IS NOT NULL THEN pm.sender_id END AS parent_sender_id,
@@ -136,7 +138,7 @@ router.get('/group-dms/:groupId', member, async (req, res) => {
   const groupId = req.state.group.id;
   const log = await db.all('SELECT seq, record, signature FROM group_dm_log WHERE group_id = ? ORDER BY seq', [groupId]);
   const users = await db.all(
-    `SELECT id, username, identity_key, encryption_key, encryption_key_signature FROM users
+    `SELECT id, username, display_name, custom_status, bio, identity_key, encryption_key, encryption_key_signature FROM users
      WHERE id IN (SELECT actor_id FROM group_dm_log WHERE group_id = ? UNION SELECT target_id FROM group_dm_log WHERE group_id = ?)`,
     [groupId, groupId]
   );
@@ -274,13 +276,14 @@ router.post('/group-dms/:groupId/messages', member, async (req, res) => {
   );
 
   const title = state.group.name || 'Group';
+  const senderName = await displayNameOf(req.user.id, req.user.username);
   for (const userId of state.members) {
     sendToUserSockets(userId, { type: 'group_dm_message_new', groupId, message: await messageFor(userId, lastID) });
     if (userId !== req.user.id && !isViewingConversation(userId, `group-${groupId}`)) {
       sendPushToUser(userId, {
         type: 'group',
         title,
-        body: `New message from ${req.user.username}`,
+        body: `New message from ${senderName}`,
         url: `/dm/g/${groupId}`,
         tag: `group-${groupId}`,
         timestamp: Math.floor(Date.now() / 1000),

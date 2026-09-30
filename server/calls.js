@@ -2,6 +2,7 @@ const db = require('./db');
 const { sendToUserSockets } = require('./sockets');
 const { sendPushToUser, getUserImageUrl } = require('./push');
 const voice = require('./voice');
+const { displayNameOf } = require('./profiles');
 
 // DM and group DM voice calls, through LiveKit (room `call-<id>`), end-to-end encrypted: the
 // caller makes the call's key and sends it encrypted (`key_envelope`, which this server can't
@@ -173,7 +174,7 @@ async function startCall({ id, caller, callee, keyEnvelope }) {
   const call = newCall({
     id,
     callerId: caller.id,
-    callerName: caller.username,
+    callerName: await displayNameOf(caller.id, caller.username),
     calleeId: callee.id,
     calleeName: callee.username,
     keyEnvelope,
@@ -204,7 +205,7 @@ async function startGroupCall({ id, group, caller, keyEnvelope, keyEpoch, member
     groupId: group.id,
     groupName: group.name,
     callerId: caller.id,
-    callerName: caller.username,
+    callerName: await displayNameOf(caller.id, caller.username),
     keyEnvelope,
     keyEpoch,
     state: 'active',

@@ -11,12 +11,14 @@ import UserPicker from './UserPicker';
 import { changeMembership } from '../../services/groupKeys';
 import { renameGroup } from '../../services/groupService';
 import { MAX_GROUP_MEMBERS } from '../../services/groupCrypto';
+import { nameOf, useProfiles } from '../../utils/profiles';
 
 const errorText = (err) => err.response?.data?.error ?? err.message;
 
 // A group DM's members (from its checked membership log), with the owner's crown. Anyone adds
 // people and renames; the owner removes people; anyone leaves.
 export default function GroupMembers({ group, user, users, onClose }) {
+  useProfiles();
   const navigate = useNavigate();
   const [dialog, setDialog] = useState(null); // { type: 'add' | 'remove' | 'leave' | 'rename', ... }
   const [selected, setSelected] = useState(new Set());
@@ -24,7 +26,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const { detail, log } = group;
-  const names = new Map(detail.users.map((u) => [u.id, u.username]));
+  const names = new Map(detail.users.map((u) => [u.id, nameOf(u)]));
   const memberIds = [...log.members.keys()];
   const isOwner = log.ownerId === user.id;
   const room = MAX_GROUP_MEMBERS - memberIds.length;

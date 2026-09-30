@@ -36,6 +36,7 @@ export default function MentionSuggestions({ query, items, activeIndex, onPick, 
                 }}
               />
               <span>{item.name}</span>
+              {item.username && item.username !== item.name && <span className="mention-suggestion-note">{item.username}</span>}
             </>
           ) : (
             <>

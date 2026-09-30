@@ -18,3 +18,9 @@ export async function uploadProfilePicture(file) {
   });
   if (!res.ok) throw new Error('Upload failed');
 }
+
+// Saves your profile: any of { displayName, customStatus, bio } (null or "" clears one).
+// Resolves to the saved profile ({ id, username, display_name, custom_status, bio }).
+export async function updateProfile(changes) {
+  return (await api.put('/profile', changes)).data;
+}

@@ -200,7 +200,7 @@ async function groupSummary(groupId, userId) {
   const group = await db.get('SELECT id, name, owner_id, created_at FROM group_dms WHERE id = ?', [groupId]);
   if (!group) return null;
   const members = await db.all(
-    `SELECT u.id, u.username FROM group_dm_members gm JOIN users u ON u.id = gm.user_id
+    `SELECT u.id, u.username, u.display_name FROM group_dm_members gm JOIN users u ON u.id = gm.user_id
      WHERE gm.group_id = ? ORDER BY gm.joined_at, u.id`,
     [groupId]
   );

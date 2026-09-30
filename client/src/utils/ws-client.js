@@ -1,4 +1,5 @@
 import { applyPresenceSnapshot, applyUserStatus, isMobileDevice, resetPresence } from './presence';
+import { mergeProfiles } from './profiles';
 
 let ws;
 let token;
@@ -143,6 +144,9 @@ export function connectWebSocket() {
       }
       else if (data.type?.startsWith('group_dm_')) {
         groupListeners.forEach((cb) => cb(data));
+      }
+      else if (data.type === 'user_profile') {
+        mergeProfiles([data.user]);
       }
       else if (data.type === 'user_status') {
         applyUserStatus(data);

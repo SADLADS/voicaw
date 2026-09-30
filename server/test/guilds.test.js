@@ -170,7 +170,7 @@ describe('guild members, invites and bans', () => {
     expect(ownerEvents).toEqual([{
       type: 'guild_member_add',
       guildId: guild.id,
-      member: { id: joiner.id, username: joiner.username, last_online: expect.any(Number), joined_at: expect.any(Number), role_ids: [], status: expect.any(String) },
+      member: { id: joiner.id, username: joiner.username, display_name: null, custom_status: null, bio: null, last_online: expect.any(Number), joined_at: expect.any(Number), role_ids: [], status: expect.any(String) },
     }]);
 
     const members = await api.get(owner, `/guilds/${guild.id}/members`);

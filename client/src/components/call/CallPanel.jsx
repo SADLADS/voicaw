@@ -8,6 +8,7 @@ import { hangUp } from '../../voice/callClient';
 import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
 import { MicIcon } from '../voice/VoiceIcons';
+import { nameOf } from '../../utils/profiles';
 
 function useDuration(since) {
   const [now, setNow] = useState(() => Date.now());
@@ -42,7 +43,7 @@ export default function CallPanel({ user, peer }) {
   else status = duration;
 
   return (
-    <div className="call-panel" aria-label={`Call with ${peer.username}`}>
+    <div className="call-panel" aria-label={`Call with ${nameOf(peer)}`}>
       <div className="call-panel-people">
         {[[user, selfMuted], [peer, peerMuted]].map(([person, muted]) => (
           <div key={person.id} className="call-panel-person">

@@ -83,10 +83,10 @@ async function saveMentions(message, channel, permissions) {
 async function previewText(content, guildId) {
   const userIds = [...String(content).matchAll(/<@(\d+)>/g)].map((m) => Number(m[1]));
   const users = userIds.length
-    ? await db.all(`SELECT id, username FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`, userIds)
+    ? await db.all(`SELECT id, username, display_name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`, userIds)
     : [];
   const roles = await db.all('SELECT id, name FROM guild_roles WHERE guild_id = ?', [guildId]);
-  const userName = new Map(users.map((u) => [u.id, u.username]));
+  const userName = new Map(users.map((u) => [u.id, u.display_name || u.username]));
   const roleName = new Map(roles.map((r) => [r.id, r.name]));
   const text = String(content)
     .replace(/!\[((?:\\.|[^\]\\])*)\]\([^)]*\)/g, (_, alt) => `📎 ${alt.replace(/\\(.)/g, '$1') || 'attachment'}`)
@@ -120,7 +120,7 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }) {
   const guild = await db.get('SELECT name FROM guilds WHERE id = ?', [channel.guild_id]);
   const payload = {
     type: 'guild',
-    title: `${message.sender_username} (#${channel.name}, ${guild.name})`,
+    title: `${message.sender_display_name || message.sender_username} (#${channel.name}, ${guild.name})`,
     body: await previewText(message.content, channel.guild_id),
     url: `/guild/${channel.guild_id}/${channel.id}`,
     tag: `channel-${channel.id}`,

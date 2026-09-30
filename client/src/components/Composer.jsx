@@ -22,6 +22,7 @@ import {
 import { useCustomEmoji } from '../emoji/customEmojiContext';
 import { searchMentions } from '../utils/mentions';
 import { gifMarkup } from '../utils/gifMarkup';
+import { displayName, nameOf, useProfiles } from '../utils/profiles';
 
 // ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
 const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
@@ -62,7 +63,8 @@ export default function Composer({
   canMentionEveryone = false,
 }) {
   const emojiIndex = useEmojiIndex();
-  const mentionNames = Object.fromEntries((people ?? []).map((p) => [p.id, p.username]));
+  useProfiles();
+  const mentionNames = Object.fromEntries((people ?? []).map((p) => [p.id, nameOf(p)]));
   const custom = useCustomEmoji();
   // What the editor needs to show a custom emoji.
   const customNode = (emoji) => ({ id: String(emoji.id), name: emoji.name, url: customEmojiUrl(emoji.id, s3Endpoint) });
@@ -310,7 +312,7 @@ export default function Composer({
         {replyTo && (
           <div className="reply-bar">
             <span>
-              Replying to <strong>{replyTo.sender_username}</strong>
+              Replying to <strong>{displayName(replyTo.sender_id, replyTo.sender_username)}</strong>
             </span>
             <button className="reply-close" onClick={onCancelReply} type="button">
               ×

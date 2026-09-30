@@ -10,13 +10,15 @@ import { errorMessage, groupMembers } from '../../utils/guildDisplay';
 import ConfirmDialog from './ConfirmDialog';
 import StatusIcon from '../StatusIcon';
 import { usePresence } from '../../hooks/usePresence';
-import { lastSeenText, statusLabel } from '../../utils/presence';
 import { formatDate } from '../../utils/dateFormat';
+import { getProfile, nameOf, useProfiles } from '../../utils/profiles';
+import ProfileCard from '../ProfileCard';
 
 // The guild's members down the right (like Discord), names in their role colour. Clicking one
 // opens a card: their roles (added and removed there by people who manage roles, for roles
 // below their own), Message, and, as permissions and rank allow, Make owner / Kick / Ban.
 export default function MemberList({ guild, members: memberList, user, onClose }) {
+  useProfiles();
   const { s3Endpoint } = useContext(ConfigContext);
   const presenceOf = usePresence();
   const members = memberList.map((m) => ({ ...m, ...presenceOf(m) }));
@@ -61,13 +63,8 @@ export default function MemberList({ guild, members: memberList, user, onClose }
     const assignable = (guild.roles ?? []).filter((r) => !r.is_everyone && r.position < myRank && !member.role_ids?.includes(r.id));
     const isOwnerViewing = guild.owner === user.id;
     return (
-      <div className="member-card" ref={cardRef} role="dialog" aria-label={member.username}>
-        <div className="member-card-name" style={{ color: memberColor(guild.roles, member.role_ids) ?? undefined }}>
-          {member.username}
-        </div>
-        <div className={`member-card-status ${member.status}`}>
-          {member.status === 'offline' ? lastSeenText(member.lastOnline) ?? statusLabel(member.status) : statusLabel(member.status)}
-        </div>
+      <div className="member-card" ref={cardRef} role="dialog" aria-label={nameOf(member)}>
+        <ProfileCard user={member} color={memberColor(guild.roles, member.role_ids) ?? undefined} />
         <div className="vc-hint">Member since {formatDate(member.joined_at * 1000)}</div>
 
         {(roles.length > 0 || editsRoles) && (
@@ -130,8 +127,8 @@ export default function MemberList({ guild, members: memberList, user, onClose }
               type="button"
               className="btn btn-outline-secondary btn-sm"
               onClick={() => setConfirm({
-                title: `Transfer ownership to ${member.username}`,
-                message: `${member.username} will own ${guild.name} and be able to manage everything, including removing you. This can't be undone by you.`,
+                title: `Transfer ownership to ${nameOf(member)}`,
+                message: `${nameOf(member)} will own ${guild.name} and be able to manage everything, including removing you. This can't be undone by you.`,
                 confirmLabel: 'Transfer ownership',
                 onConfirm: () => transferGuild(guild.id, member.id),
               })}
@@ -144,8 +141,8 @@ export default function MemberList({ guild, members: memberList, user, onClose }
               type="button"
               className="btn btn-outline-danger btn-sm"
               onClick={() => setConfirm({
-                title: `Kick ${member.username}`,
-                message: `${member.username} will be removed from ${guild.name}. They can rejoin with a new invite.`,
+                title: `Kick ${nameOf(member)}`,
+                message: `${nameOf(member)} will be removed from ${guild.name}. They can rejoin with a new invite.`,
                 confirmLabel: 'Kick',
                 onConfirm: () => kickMember(guild.id, member.id),
               })}
@@ -158,8 +155,8 @@ export default function MemberList({ guild, members: memberList, user, onClose }
               type="button"
               className="btn btn-danger btn-sm"
               onClick={() => setConfirm({
-                title: `Ban ${member.username}`,
-                message: `${member.username} will be removed from ${guild.name} and can't rejoin until unbanned (Guild Settings).`,
+                title: `Ban ${nameOf(member)}`,
+                message: `${nameOf(member)} will be removed from ${guild.name} and can't rejoin until unbanned (Guild Settings).`,
                 confirmLabel: 'Ban',
                 onConfirm: () => banMember(guild.id, member.id),
               })}
@@ -194,7 +191,10 @@ export default function MemberList({ guild, members: memberList, user, onClose }
             />
             <StatusIcon className="member-status" status={member.status} />
           </span>
-          <span className="member-name" style={{ color: color ?? undefined }}>{member.username}</span>
+          <span className="member-name-block">
+            <span className="member-name" style={{ color: color ?? undefined }}>{nameOf(member)}</span>
+            {getProfile(member.id)?.custom_status && <span className="member-custom-status">{getProfile(member.id).custom_status}</span>}
+          </span>
           {member.id === guild.owner && <FontAwesomeIcon icon={faCrown} className="member-owner" title="Guild owner" />}
         </button>
         {isSelected && selected && renderCard(selected)}

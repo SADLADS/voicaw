@@ -19,6 +19,8 @@ import { customEmojiToText } from '../emoji/customEmoji';
 import { rehypeMentions } from '../utils/rehypeMentions';
 import { hideSpoilers, remarkDiscord } from '../utils/remarkDiscord';
 import { continuesGroup } from '../utils/messageGroups';
+import { displayName, useProfiles } from '../utils/profiles';
+import ProfilePopover from './ProfilePopover';
 import { formatDateTime, formatTime, useDateFormat } from '../utils/dateFormat';
 import { mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
 
@@ -113,6 +115,7 @@ function urlTransform(url) {
 export function MessageRow({
   msg,
   grouped = false,
+  onOpenProfile,
   user,
   s3Endpoint,
   hoveredMsgId,
@@ -141,6 +144,15 @@ export function MessageRow({
 }) {
   const emojiIndex = useEmojiIndex();
   useDateFormat(); // redraws the times when Settings → Date & time changes
+  useProfiles(); // and names when someone changes theirs
+  const senderName = displayName(msg.sender_id, msg.sender_username);
+  // A name or avatar opens that person's profile card.
+  const profileProps = (id, username) => (onOpenProfile ? {
+    role: 'button',
+    tabIndex: 0,
+    onClick: (e) => { e.stopPropagation(); onOpenProfile({ id, username }, e.currentTarget.getBoundingClientRect()); },
+    onKeyDown: (e) => { if (e.key === 'Enter') onOpenProfile({ id, username }, e.currentTarget.getBoundingClientRect()); },
+  } : {});
   // A picker or menu is open for this message: it stays highlighted with its menu showing.
   const focused = focusedMsgId === msg.id;
   // Mobile: touch and hold opens the message's action sheet (there's no hover there).
@@ -185,14 +197,14 @@ export function MessageRow({
         <div className="reply-snippet">
           <img
             src={s3Endpoint ? `${s3Endpoint}/profile-pics/${parent.sender_id}` : defaultpfp}
-            alt={parent.sender_username}
+            alt={displayName(parent.sender_id, parent.sender_username)}
             className="reply-avatar"
             onError={(e) => {
               e.currentTarget.onerror = null;
               e.currentTarget.src = defaultpfp;
             }}
           />
-          <span className="reply-author" style={{ color: nameColors?.[parent.sender_id] }}>{parent.sender_username}</span>
+          <span className="reply-author" style={{ color: nameColors?.[parent.sender_id] }}>{displayName(parent.sender_id, parent.sender_username)}</span>
           <span
             className="reply-preview"
             onClick={() => {
@@ -256,14 +268,15 @@ export function MessageRow({
         <>
         <img
           src={imgSrc}
-          alt={msg.sender_username}
+          alt={senderName}
+          {...profileProps(msg.sender_id, msg.sender_username)}
           onError={(e) => {
             e.currentTarget.onerror = null;
             e.currentTarget.src = defaultpfp;
           }}
           className="message-avatar"
         />
-        <strong className="message-author" style={{ color: nameColors?.[msg.sender_id] }}> {msg.sender_username}</strong>{' '}
+        <strong className="message-author" style={{ color: nameColors?.[msg.sender_id] }} {...profileProps(msg.sender_id, msg.sender_username)}>{senderName}</strong>{' '}
 
         <small>
           <span title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>{formatDateTime(msg.timestamp * 1000)}</span>
@@ -410,7 +423,13 @@ export default function MessageList({
   const latest = useRef({ hasMore, loadMoreMessages });
   latest.current = { hasMore, loadMoreMessages };
 
+  // The profile card open from a name or avatar: { user, anchor (rect) }.
+  const [profileFor, setProfileFor] = useState(null);
+  const closeProfile = useCallback(() => setProfileFor(null), []);
+  const openProfile = useCallback((person, anchor) => setProfileFor({ user: person, anchor }), []);
+
   const rowProps = {
+    onOpenProfile: openProfile,
     user,
     s3Endpoint,
     hoveredMsgId,
@@ -533,6 +552,7 @@ export default function MessageList({
           </div>
         ))}
       </div>
+      {profileFor && <ProfilePopover user={profileFor.user} anchor={profileFor.anchor} onClose={closeProfile} />}
     </div>
   );
 }

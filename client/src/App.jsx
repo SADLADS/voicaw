@@ -152,6 +152,7 @@ export default function App() {
             {user && (
               <Route element={<Layout user={user} />}>
                 <Route path="/settings" element={<Settings onLogout={handleLogout} />} />
+                <Route path="/settings/profile" element={<Settings onLogout={handleLogout} />} />
                 <Route path="/dm/:id?" element={<Dm user={user} />} />
                 <Route path="/dm/g/:groupId" element={<GroupDm user={user} />} />
                 <Route path="/guild/:guildId/:channelId?" element={<GuildView user={user} />} />

@@ -21,6 +21,7 @@ const MESSAGE_SELECT = `
     m.id, m.channel_id, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
     m.mention_everyone, m.mention_roles,
     u.username AS sender_username,
+    u.display_name AS sender_display_name,
     pm.content AS parent_content,
     pu.id AS parent_sender_id,
     pu.username AS parent_username

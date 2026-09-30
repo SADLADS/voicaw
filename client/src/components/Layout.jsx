@@ -17,6 +17,7 @@ import { ensureSubscription, getPushStatus } from '../services/pushService';
 import { useGuildList } from '../hooks/useGuildList';
 import { useGroupList } from '../hooks/useGroupList';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
+import { clearProfiles, mergeProfiles } from '../utils/profiles';
 
 export default function Layout({ user, onLogout }) {
   const location = useLocation();
@@ -66,6 +67,20 @@ export default function Layout({ user, onLogout }) {
     return { guilds, byId: new Map(guilds.flatMap((g) => g.emojis.map((e) => [String(e.id), e]))) };
   }, [guildList.guilds, guildList.emojis]);
 
+  // Everyone's profile (and yours) for names everywhere (utils/profiles), once per login; the
+  // users list is fetched again on DM pages below.
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    let cancelled = false;
+    Promise.all([api.get('/profile'), fetchUsersList()])
+      .then(([own, everyone]) => { if (!cancelled) mergeProfiles([own.data, ...everyone]); })
+      .catch((err) => console.warn('Failed to load profiles', err));
+    return () => {
+      cancelled = true;
+      clearProfiles();
+    };
+  }, [user?.id]);
+
   useEffect(() => {
     // Only fetch users if we are on the DM page to avoid unnecessary API calls
     if (isDmPage) {
@@ -73,6 +88,7 @@ export default function Layout({ user, onLogout }) {
         try {
           const data = await fetchUsersList();
           setUsers(data);
+          mergeProfiles(data);
           setErrorUsers(null);
           // If user lands on /dm without an ID, redirect to the first user
           if (location.pathname === '/dm' && data.length > 0) {

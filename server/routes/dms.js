@@ -14,6 +14,7 @@ const DM_SELECT = `
   SELECT
     dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, dm.parent_message_id, dm.edited,
     u.username AS sender_username,
+    u.display_name AS sender_display_name,
     pm.content AS parent_content,
     pu.id AS parent_sender_id,
     pu.username AS parent_username
@@ -42,7 +43,8 @@ async function withReactions(messages) {
 router.get('/dms-list', authenticateJWT, async (req, res) => {
   const me = req.user.id;
   const users = await db.all(
-    `SELECT u.id, u.username, u.identity_key, u.encryption_key, u.encryption_key_signature, u.last_online,
+    `SELECT u.id, u.username, u.display_name, u.custom_status, u.bio,
+            u.identity_key, u.encryption_key, u.encryption_key_signature, u.last_online,
             MAX(m.timestamp) AS last_timestamp
      FROM users u
      LEFT JOIN direct_messages m

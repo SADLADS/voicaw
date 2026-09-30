@@ -10,11 +10,13 @@ import StatusIcon from './StatusIcon';
 import NewGroupDialog from './group/NewGroupDialog';
 import defaultpfp from '../assets/images/default.png';
 import { ConfigContext } from '../contexts';
+import { getProfile, nameOf, useProfiles } from '../utils/profiles';
 
 // The conversation list: people and group DMs, most recent first. `unreadDms`
 // ([{ from_user_id, count }], from Layout) and each group's `unread` mark conversations with
 // unread messages, except the one being viewed. The header's button makes a new group.
 export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) {
+  useProfiles();
   const { id: activeId, groupId: activeGroupId } = useParams();
   const { s3Endpoint } = useContext(ConfigContext);
   const presenceOf = usePresence();
@@ -79,7 +81,9 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
               </Link>
             );
           }
-          const { id, username } = person;
+          const { id } = person;
+          const profile = getProfile(id) ?? person;
+          const name = nameOf(person);
           const { status, lastOnline } = presenceOf(person);
           return (
             <Link
@@ -96,7 +100,12 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
               <span className={`userdot${unreadFrom.has(String(id)) && String(id) !== activeId ? ' active' : ''}`} />
 
               <div className="dm-user-container">
-                <span>{avatar(id, username)}</span><span> {username}</span></div>
+                <span>{avatar(id, name)}</span>
+                <span className="dm-user-names">
+                  <span className="dm-user-name">{name}</span>
+                  {profile.custom_status && <span className="dm-user-custom-status">{profile.custom_status}</span>}
+                </span>
+              </div>
             </Link>
           );
         })}

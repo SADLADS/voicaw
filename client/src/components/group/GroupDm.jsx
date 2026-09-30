@@ -14,6 +14,7 @@ import { useCall } from '../../hooks/useCall';
 import { acceptChangedKeys } from '../../services/groupKeys';
 import { noteGroupCall, startGroupCall } from '../../voice/callClient';
 import { groupTitle } from '../../utils/groupDisplay';
+import { nameOf, useProfiles } from '../../utils/profiles';
 
 const SHOW_MEMBERS_KEY = 'showGroupMembers';
 
@@ -41,7 +42,9 @@ export default function GroupDm({ user }) {
     if (group) noteGroupCall(groupId, group.detail.call);
   }, [group, groupId]);
 
-  const names = useMemo(() => new Map((group?.detail.users ?? []).map((u) => [u.id, u.username])), [group]);
+  const profilesVersion = useProfiles();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const names = useMemo(() => new Map((group?.detail.users ?? []).map((u) => [u.id, nameOf(u)])), [group, profilesVersion]);
   const reactionNames = useMemo(() => Object.fromEntries(names), [names]);
   const problems = group?.problems ?? [];
   const changed = problems.filter((p) => p.kind === 'changed');
@@ -89,7 +92,7 @@ export default function GroupDm({ user }) {
       {problems.length > 0 && (
         <div className="contact-key-warning" role="alert">
           <p>
-            {problems.map((p) => p.user.username).join(', ')}
+            {problems.map((p) => nameOf(p.user)).join(', ')}
             {problems.length === 1 ? ' has' : ' have'} a different security key than when added to this group.
             Until that&apos;s sorted out, nothing can be sent here.
           </p>

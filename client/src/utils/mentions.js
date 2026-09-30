@@ -1,3 +1,5 @@
+import { nameOf } from './profiles';
+
 // Mentions, written like Discord's in message text: `<@id>` (a person), `<@&id>` (a guild role),
 // and `@everyone` / `@here` (in a guild, everyone who can see the channel / those of them
 // online; only with Mention Everyone, else plain text). Only ids are stored, so a name is
@@ -57,12 +59,14 @@ const rank = (name, q) => {
 
 const byRankThenName = (a, b) => a[0] - b[0] || a[1].localeCompare(b[1], undefined, { sensitivity: 'base' });
 
-// People ([{ id, username }]) matching what's been typed after "@", best first: name starting
-// with it, then containing it; alphabetical within each. An empty query gives everyone.
+// People ([{ id, username }]) matching what's been typed after "@" in their display name or
+// username, best first: starting with it, then containing it; alphabetical (by the name shown)
+// within each. An empty query gives everyone.
 export function searchPeople(people, query, limit = 8) {
   const q = query.toLowerCase();
+  const bestRank = (a, b) => (a < 0 ? b : b < 0 ? a : Math.min(a, b));
   return people
-    .map((p) => [rank(p.username, q), p.username, p])
+    .map((p) => [bestRank(rank(nameOf(p), q), rank(p.username, q)), nameOf(p), p])
     .filter(([r]) => r >= 0)
     .sort(byRankThenName)
     .slice(0, limit)
@@ -79,7 +83,7 @@ const EVERYONE_ITEMS = [
 // { kind: 'user', id, name } | { kind: 'role', id, name, color } | { kind: 'everyone', name, description }.
 export function searchMentions({ people = [], roles = [], everyone = false }, query, limit = 10) {
   const q = query.toLowerCase();
-  const users = searchPeople(people, query, limit).map((p) => ({ kind: 'user', id: p.id, name: p.username }));
+  const users = searchPeople(people, query, limit).map((p) => ({ kind: 'user', id: p.id, name: nameOf(p), username: p.username }));
   const matchingRoles = roles
     .map((r) => [rank(r.name, q), r.name, r])
     .filter(([r]) => r >= 0)

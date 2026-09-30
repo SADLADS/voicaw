@@ -12,6 +12,7 @@ import { customEmojiToText } from '../emoji/customEmoji';
 import { mentionsToText } from '../utils/mentions';
 import { hideSpoilers } from '../utils/remarkDiscord';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
+import { displayName } from '../utils/profiles';
 
 // The body of a chat, shared by DMs (Dm) and guild channels (GuildChannel): the messages, the
 // composer, reactions (the floating or docked picker) and the mobile action sheet, plus the
@@ -255,7 +256,7 @@ export default function ChatPane({
           onClose={() => setConfirmingDelete(null)}
         >
           <div className="delete-preview">
-            <strong style={{ color: nameColors?.[confirmingDelete.sender_id] }}>{confirmingDelete.sender_username}</strong>
+            <strong style={{ color: nameColors?.[confirmingDelete.sender_id] }}>{displayName(confirmingDelete.sender_id, confirmingDelete.sender_username)}</strong>
             <span>
               {mentionsToText(customEmojiToText(hideSpoilers(summarizeAttachments(confirmingDelete.plaintext ?? ''))), reactionNames, mentionRoles)}
             </span>

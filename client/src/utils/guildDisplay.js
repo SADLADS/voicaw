@@ -1,3 +1,5 @@
+import { nameOf } from './profiles';
+
 // "Test Guild" -> "TG", "voicaw" -> "v": what a guild without an icon shows (like Discord).
 export function guildInitials(name) {
   return (name ?? '')
@@ -71,7 +73,7 @@ export function errorMessage(err) {
 // `status` is the member's online status (utils/presence.js); idle and mobile count as online.
 export function groupMembers(members, roles) {
   const hoisted = (roles ?? []).filter((r) => !r.is_everyone && r.hoist);
-  const byName = (a, b) => a.username.localeCompare(b.username, undefined, { sensitivity: 'base' });
+  const byName = (a, b) => nameOf(a).localeCompare(nameOf(b), undefined, { sensitivity: 'base' });
   const groups = hoisted.map((role) => ({ key: `role-${role.id}`, title: role.name, members: [] }));
   const online = { key: 'online', title: 'Online', members: [] };
   const offline = { key: 'offline', title: 'Offline', members: [] };

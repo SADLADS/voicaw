@@ -673,3 +673,7 @@ html {
   flex: 0 0 240px;
   background-color: var(--vc-bg-base);
 }
+
+.settings-nav-item.active {
+  background-color: var(--vc-bg-elevated-hover);
+}

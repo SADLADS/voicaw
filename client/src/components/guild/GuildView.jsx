@@ -14,6 +14,7 @@ import { onGuildEvent } from '../../utils/ws-client';
 import { addGuildReaction, fetchChannelMembers, fetchMembers, removeGuildReaction } from '../../services/guildService';
 import { defaultChannel, errorMessage, rememberChannel } from '../../utils/guildDisplay';
 import { PERMISSIONS, colorToHex, has, memberColor } from '../../utils/permissions';
+import { mergeProfiles, nameOf, useProfiles } from '../../utils/profiles';
 
 const SHOW_MEMBERS_KEY = 'showMemberList';
 
@@ -72,14 +73,17 @@ export default function GuildView({ user }) {
     let cancelled = false;
     setMembers([]);
     fetchMembers(guildId)
-      .then((list) => { if (!cancelled) setMembers(list); })
+      .then((list) => {
+        mergeProfiles(list);
+        if (!cancelled) setMembers(list);
+      })
       .catch((err) => console.warn('Failed to load members', err));
     const id = Number(guildId);
     const offGuild = onGuildEvent((event) => {
       if (event.guildId !== id) return;
       if (event.type === 'guild_member_add') {
         setMembers((prev) => (prev.some((m) => m.id === event.member.id) ? prev : [...prev, event.member]
-          .sort((a, b) => a.username.localeCompare(b.username, undefined, { sensitivity: 'base' }))));
+          .sort((a, b) => nameOf(a).localeCompare(nameOf(b), undefined, { sensitivity: 'base' }))));
       } else if (event.type === 'guild_member_remove') {
         setMembers((prev) => prev.filter((m) => m.id !== event.userId));
       } else if (event.type === 'guild_member_update') {
@@ -119,9 +123,11 @@ export default function GuildView({ user }) {
     [members, viewers]
   );
 
+  const profilesVersion = useProfiles();
   const reactionNames = useMemo(
-    () => Object.fromEntries(members.map((m) => [m.id, m.username])),
-    [members]
+    () => Object.fromEntries(members.map((m) => [m.id, nameOf(m)])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [members, profilesVersion]
   );
   // Each member's name colour: their highest coloured role's (none: the normal colour).
   const roles = guild?.roles;

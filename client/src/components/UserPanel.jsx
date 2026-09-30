@@ -7,12 +7,14 @@ import { ConfigContext } from '../contexts';
 import { getConnectionState, onConnectionState } from '../utils/ws-client';
 import { onProfilePictureChange } from '../utils/profilePicture';
 import VoiceControls from './voice/VoiceControls';
+import { nameOf, useProfiles } from '../utils/profiles';
 
 const STATUS_LABELS = { online: 'Online', connecting: 'Connecting…', offline: 'Offline' };
 
 // You, at the bottom of the sidebar (like Discord): profile picture, name, and whether this
 // device is connected, with mute, deafen (voice) and the settings button.
 export default function UserPanel({ user }) {
+  useProfiles();
   const { s3Endpoint, voiceEnabled } = useContext(ConfigContext);
   const status = useSyncExternalStore(onConnectionState, getConnectionState);
   // Bumped when a new picture is uploaded, to skip the browser's cached one.
@@ -36,7 +38,7 @@ export default function UserPanel({ user }) {
         <span className={`user-panel-status ${status}`} role="img" aria-label={STATUS_LABELS[status]} />
       </div>
       <div className="user-panel-text">
-        <span className="user-panel-name">{user.username}</span>
+        <span className="user-panel-name">{nameOf(user)}</span>
         <span className="user-panel-state">{STATUS_LABELS[status]}</span>
       </div>
       {voiceEnabled && <VoiceControls />}

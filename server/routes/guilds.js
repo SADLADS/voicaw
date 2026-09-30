@@ -187,7 +187,7 @@ router.post('/guilds/:guildId/transfer', owner, async (req, res) => {
 // Everyone in the guild, with their role ids (for colours, grouping and the member card).
 router.get('/guilds/:guildId/members', member, async (req, res) => {
   const members = await db.all(
-    `SELECT u.id, u.username, u.last_online, gm.joined_at
+    `SELECT u.id, u.username, u.display_name, u.custom_status, u.bio, u.last_online, gm.joined_at
      FROM guild_members gm JOIN users u ON u.id = gm.user_id
      WHERE gm.guild_id = ? ORDER BY u.username COLLATE NOCASE`,
     [req.guild.id]

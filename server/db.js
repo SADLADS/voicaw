@@ -438,6 +438,10 @@ db.run(`
 // ADMIN SETTINGS: app-wide settings a global admin edits (server/appSettings.js). A row
 // overrides the .env value of the same setting; no row falls back to .env.
 db.run('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0', () => {});
+// Profiles (profiles.js): all optional, shown to everyone logged in.
+db.run('ALTER TABLE users ADD COLUMN display_name TEXT', () => {});
+db.run('ALTER TABLE users ADD COLUMN custom_status TEXT', () => {});
+db.run('ALTER TABLE users ADD COLUMN bio TEXT', () => {});
 db.run(`
 CREATE TABLE IF NOT EXISTS app_settings (
   key TEXT PRIMARY KEY,

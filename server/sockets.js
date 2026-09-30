@@ -192,5 +192,5 @@ function attachWebSocketServer(server) {
 }
 
 module.exports = {
-  clients, sendToUserSockets, getStatus, refreshStatus, isViewingConversation, attachWebSocketServer,
+  clients, sendToUserSockets, sendToAllSockets, getStatus, refreshStatus, isViewingConversation, attachWebSocketServer,
 };

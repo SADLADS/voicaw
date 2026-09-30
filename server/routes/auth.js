@@ -6,6 +6,8 @@ const { opaqueServerSetup } = require('../config');
 const { generateToken, authenticateJWT } = require('../auth');
 const { rateLimitsEnabled } = require('../config');
 const { createLimiter, tooManyAttempts } = require('../rateLimit');
+const { LIMITS: PROFILE_LIMITS, PROFILE_COLUMNS, clean: cleanProfile } = require('../profiles');
+const { sendToAllSockets } = require('../sockets');
 
 // Registration and login use OPAQUE (the password never reaches the server), each in two
 // round trips. Login state between them lives in login_states for 5 minutes.
@@ -193,10 +195,34 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
 
 // Restores a session from its token (the client keeps it in localStorage).
 router.get('/profile', authenticateJWT, async (req, res) => {
-  const user = await db.get('SELECT id, recovery_verifier FROM users WHERE id = ?', [req.user.id]);
+  const user = await db.get(`SELECT id, recovery_verifier, ${PROFILE_COLUMNS} FROM users WHERE id = ?`, [req.user.id]);
   if (!user) return res.status(404).json({ error: 'User not found' });
   const token = req.headers.authorization.split(' ')[1];
-  res.json({ token, id: req.user.id, username: req.user.username, hasRecoveryCode: Boolean(user.recovery_verifier) });
+  res.json({
+    token, id: req.user.id, username: req.user.username, hasRecoveryCode: Boolean(user.recovery_verifier),
+    display_name: user.display_name, custom_status: user.custom_status, bio: user.bio,
+  });
+});
+
+// Changes your profile (profiles.js): any of `displayName`, `customStatus`, `bio` (null or
+// "" clears one). Everyone logged in gets `user_profile` with the new one.
+router.put('/profile', authenticateJWT, async (req, res) => {
+  const fields = { displayName: 'display_name', customStatus: 'custom_status', bio: 'bio' };
+  const updates = [];
+  const params = [];
+  for (const [key, column] of Object.entries(fields)) {
+    if (req.body?.[key] === undefined) continue;
+    const value = cleanProfile(column, req.body[key]);
+    if (value === undefined) {
+      return res.status(400).json({ error: `That ${column.replace('_', ' ')} is too long (at most ${PROFILE_LIMITS[column]} characters)` });
+    }
+    updates.push(`${column} = ?`);
+    params.push(value);
+  }
+  if (updates.length) await db.run(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, [...params, req.user.id]);
+  const profile = await db.get(`SELECT id, username, ${PROFILE_COLUMNS} FROM users WHERE id = ?`, [req.user.id]);
+  if (updates.length) sendToAllSockets({ type: 'user_profile', user: profile });
+  res.json(profile);
 });
 
 // ---------------------------------------------------------------- password and recovery code

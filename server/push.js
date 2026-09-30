@@ -13,7 +13,7 @@ const MAX_PUSH_CIPHERTEXT_LENGTH = 2800;
 function buildDmPushPayload(message, imageUrl, recipientName) {
   const payload = {
     type: 'dm',
-    title: message.sender_username,
+    title: message.sender_display_name || message.sender_username,
     // What service workers from before previews existed show (the current one decrypts
     // `ciphertext` instead); keeps notifications readable until every device updates.
     body: 'New message',

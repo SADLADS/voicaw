@@ -18,6 +18,7 @@ import { addReaction, removeReaction } from '../services/dmService';
 import { encryptReaction, reactionContext } from '../services/encryptionService';
 import { usePresence } from '../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../utils/presence';
+import { nameOf, useProfiles } from '../utils/profiles';
 
 // The "Verified / Not verified" badge and safety number dialog. Hidden for now: too confusing
 // for most people. The keys are still pinned and a changed key still blocks the chat.
@@ -38,9 +39,12 @@ export default function Dm({ user }) {
   const conversation = useConversation({ id, user, chatUser, onRead: fetchUnreadMessages });
   const { keyStatus, sharedKey } = conversation;
   const [showSafetyNumber, setShowSafetyNumber] = useState(false);
+  const profilesVersion = useProfiles();
+  const chatName = chatUser ? nameOf(chatUser) : null;
   const reactionNames = useMemo(
-    () => ({ [user?.id]: user?.username, [chatUser?.id]: chatUser?.username }),
-    [user?.id, user?.username, chatUser?.id, chatUser?.username]
+    () => ({ [user?.id]: nameOf(user), [chatUser?.id]: nameOf(chatUser) }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user?.id, user?.username, chatUser?.id, chatUser?.username, profilesVersion]
   );
   const people = useMemo(() => (chatUser ? [chatUser, user] : []), [chatUser, user]);
 
@@ -67,7 +71,7 @@ export default function Dm({ user }) {
       {id && (
         <>
           <h4 className="chat-recipient-header">
-            {chatUser?.username || 'User'}
+            {chatName || 'User'}
             {presence && (
               <span className={`chat-recipient-status ${presence.status}`}>
                 {presence.status === 'offline' ? lastSeenText(presence.lastOnline) ?? statusLabel(presence.status) : statusLabel(presence.status)}
@@ -77,8 +81,8 @@ export default function Dm({ user }) {
               <button
                 type="button"
                 className="chat-call-button"
-                aria-label={`Call ${chatUser.username}`}
-                title={call ? "You're already in a call" : `Start a voice call with ${chatUser.username}`}
+                aria-label={`Call ${chatName}`}
+                title={call ? "You're already in a call" : `Start a voice call with ${chatName}`}
                 disabled={Boolean(call)}
                 onClick={() => startCall(chatUser)}
               >
@@ -110,13 +114,13 @@ export default function Dm({ user }) {
           {chatUser && <CallPanel user={user} peer={chatUser} />}
 
           {keyBlocked && (
-            <ContactKeyWarning status={keyStatus} username={chatUser?.username} onAccept={conversation.acceptChangedKey} />
+            <ContactKeyWarning status={keyStatus} username={chatName} onAccept={conversation.acceptChangedKey} />
           )}
 
           {!keyBlocked && (
             <ChatPane
               chatId={id}
-              chatName={chatUser?.username}
+              chatName={chatName}
               user={user}
               conversation={conversation}
               reactionsReady={Boolean(sharedKey)}

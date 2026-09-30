@@ -31,6 +31,12 @@ describe('mentions', () => {
     expect(mentionsMe({ plaintext: '<@&7>', mention_roles: [] }, 1, [7])).toBe(false);
   });
 
+  it('finds people by display name or username, showing the display name', () => {
+    const found = searchMentions({ people: [{ id: 5, username: 'zed99', display_name: 'Zoe' }] }, 'zo');
+    expect(found).toEqual([{ kind: 'user', id: 5, name: 'Zoe', username: 'zed99' }]);
+    expect(searchMentions({ people: [{ id: 5, username: 'zed99', display_name: 'Zoe' }] }, 'zed')).toHaveLength(1);
+  });
+
   it('suggests people, then roles, then @everyone and @here', () => {
     const roles = [{ id: 9, name: 'Anniversary', color: '#ff0000' }];
     expect(searchMentions({ people, roles, everyone: true }, 'an').map((i) => `${i.kind}:${i.name}`))

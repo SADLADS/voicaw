@@ -112,11 +112,12 @@ beforeEach(() => {
 });
 
 describe('Layout', () => {
-  it('does not fetch the DM user list on non-DM routes', async () => {
+  it("loads everyone's profile once on other pages, without the DM list", async () => {
     renderLayout({ path: '/settings' });
 
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/dm-get-unread'));
-    expect(fetchUsersList).not.toHaveBeenCalled();
+    await waitFor(() => expect(fetchUsersList).toHaveBeenCalledTimes(1));
+    expect(api.get).toHaveBeenCalledWith('/profile');
     expect(document.getElementById('dm-sidebar')).not.toBeInTheDocument();
   });
 

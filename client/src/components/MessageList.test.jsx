@@ -9,6 +9,7 @@ vi.mock('../services/attachmentCache', () => ({
 }));
 
 import MessageList from './MessageList';
+import { clearProfiles, mergeProfiles } from '../utils/profiles';
 import { editorFor } from '../editor/editorRegistry';
 import emojiData from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../emoji/emojiIndex';
@@ -57,6 +58,21 @@ describe('MessageList', () => {
     expect(other).not.toHaveClass('mention-me');
     expect(other.closest('.each-dm-message-wrapper')).not.toHaveClass('mentioned');
     expect(screen.getByText('@unknown-user')).toHaveClass('mention');
+  });
+
+  it('shows display names, and a name opens that person\'s profile card', () => {
+    mergeProfiles([{ id: 2, username: 'bob', display_name: 'Bobby', custom_status: 'Fishing', bio: 'I like boats.' }]);
+    render(<MessageList {...baseProps({ messages: [{ id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'ahoy', timestamp: 1000 }] })} />);
+    const author = screen.getByText('Bobby', { selector: '.message-author' });
+    fireEvent.click(author);
+    const card = screen.getByRole('dialog', { name: 'Profile of bob' });
+    expect(card).toHaveTextContent('Bobby');
+    expect(card).toHaveTextContent('bob');
+    expect(card).toHaveTextContent('Fishing');
+    expect(card).toHaveTextContent('I like boats.');
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Profile of bob' })).toBeNull();
+    clearProfiles();
   });
 
   it("groups someone's messages sent close together under one name", () => {

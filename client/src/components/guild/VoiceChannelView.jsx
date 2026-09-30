@@ -9,11 +9,13 @@ import { PERMISSIONS, has } from '../../utils/permissions';
 import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
 import { HeadphonesIcon, MicIcon } from '../voice/VoiceIcons';
+import { displayName, useProfiles } from '../../utils/profiles';
 
 // A voice channel's page: everyone in it as tiles (ringed while they talk, if you're in there
 // too), and joining, or mute/deafen/disconnect once you're in. On mobile this is where you
 // join (tapping the channel only opens it); on desktop clicking the channel already joined.
 export default function VoiceChannelView({ guild, channel, nameColors }) {
+  useProfiles();
   const { voiceEnabled } = useContext(ConfigContext);
   const voice = useVoice();
   const members = channel.voice ?? [];
@@ -58,7 +60,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
               <li key={m.user_id} className={`voice-tile${talking ? ' speaking' : ''}`}>
                 <UserAvatar userId={m.user_id} className="voice-tile-avatar" speaking={talking} />
                 <span className="voice-tile-name" style={nameColors?.[m.user_id] ? { color: nameColors[m.user_id] } : undefined}>
-                  {m.username}
+                  {displayName(m.user_id, m.username)}
                 </span>
                 {(m.self_mute || m.self_deaf) && (
                   <span className="voice-tile-icons">

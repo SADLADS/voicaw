@@ -9,21 +9,23 @@ import UserAvatar from '../voice/UserAvatar';
 import { scrollToRight } from '../../utils/scrollToRight';
 import { LayoutContext } from '../../contexts';
 import { groupTitle } from '../../utils/groupDisplay';
+import { displayName, useProfiles } from '../../utils/profiles';
 
 // Someone calling you, over whatever page is open (like a phone's incoming call screen).
 // Answering opens your chat with them, where the call is.
 export default function IncomingCall({ user }) {
+  useProfiles();
   const call = useCall();
   const navigate = useNavigate();
   const { groupList } = useContext(LayoutContext);
   if (!call || call.outgoing || call.state === 'active') return null;
   const answering = call.state === 'connecting';
   const group = call.groupId && (groupList?.groups.find((g) => g.id === call.groupId) ?? { name: call.groupName });
-  const title = group ? groupTitle(group, user) : call.peerName;
+  const title = group ? groupTitle(group, user) : displayName(call.peerId, call.peerName);
   const subtitle = group ? `${call.callerName} started a call` : 'Incoming voice call';
   const avatarId = call.callerId ?? call.peerId ?? null;
   return (
-    <div className="incoming-call" role="alertdialog" aria-label={`Incoming call from ${group ? title : call.peerName}`}>
+    <div className="incoming-call" role="alertdialog" aria-label={`Incoming call from ${title}`}>
       {avatarId != null && <UserAvatar userId={avatarId} className="incoming-call-avatar" speaking={!answering} />}
       <div className="incoming-call-text">
         <strong>{title}</strong>

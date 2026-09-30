@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from "react";
 import { createPortal } from 'react-dom';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMagnifyingGlass, faSignOutAlt, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { InteractionContext, LayoutContext } from '../contexts';
@@ -9,8 +9,7 @@ import AppUpdateSettings from "./AppUpdateSettings";
 import AccountSecuritySettings from "./AccountSecuritySettings";
 import AdminSettings from "./AdminSettings";
 import DateTimeSettings from "./DateTimeSettings";
-import { MAX_PROFILE_PIC_BYTES, uploadProfilePicture } from '../services/profileService';
-import { announceProfilePictureChange } from '../utils/profilePicture';
+import EditProfile from "./EditProfile";
 
 const CATEGORIES = [
   { id: 'account', title: 'My Account' },
@@ -28,85 +27,26 @@ function matches(section, query) {
   return words.every((word) => haystack.includes(word));
 }
 
-function ProfilePictureSettings() {
-  const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
-
-  const handleFileSelect = (e) => {
-    const f = e.target.files[0];
-    if (!f || !f.type.startsWith("image/")) {
-      setError("Only image files are allowed.");
-    } else if (f.size > MAX_PROFILE_PIC_BYTES) {
-      setError("That image is too large (max 8 MB).");
-    } else {
-      setFile(f);
-      setError(null);
-    }
-  };
-
-  const uploadFile = async () => {
-    if (!file) return;
-    setUploading(true);
-    setError(null);
-    setSuccess(false);
-
-    try {
-      await uploadProfilePicture(file);
-      announceProfilePictureChange();
-      setSuccess(true);
-      setFile(null);
-    } catch (err) {
-      setError(err.message || "Upload error");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  return (
-    <div className="settings-card">
-      <h5>Change Profile Pic</h5>
-      <input
-        type="file"
-        accept="image/*"   // allow any image type
-        onChange={handleFileSelect}
-        style={{ marginBottom: "1rem" }}
-      />
-      <br />
-      <button
-        className="uploadbutton btn"
-        onClick={uploadFile}
-        disabled={!file || uploading}
-        style={{
-          cursor: uploading ? "not-allowed" : "pointer",
-        }}
-      >
-        {uploading ? "Uploading..." : "Upload"}
-      </button>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {success && <p style={{ color: "green" }}>Upload successful!</p>}
-    </div>
-  );
-}
-
 // User Settings (/settings): sections in categories, with a column (on top, on a phone) that
 // searches them and jumps to one. Sections that don't match the search are hidden, not
 // removed, so what's been typed or picked in them stays. `/settings#<section id>` opens
 // scrolled to that section. On a computer the column is drawn beside the rail, above the user
-// panel (Layout's `settingsNavSlot`).
+// panel (Layout's `settingsNavSlot`). Edit Profile is a page of its own (/settings/profile),
+// reached from the column like a section (a section with a `link`).
 export default function Settings({ onLogout }) {
   const { interactionMode, setInteractionMode } = useContext(InteractionContext);
   const [query, setQuery] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const onProfilePage = location.pathname.startsWith('/settings/profile');
   const navSlot = useContext(LayoutContext)?.settingsNavSlot ?? null;
 
   const sections = [
     {
-      id: 'profile-picture', category: 'account', title: 'Profile picture',
-      keywords: 'avatar photo image upload pic',
-      content: <ProfilePictureSettings />,
+      id: 'edit-profile', category: 'account', title: 'Edit Profile',
+      keywords: 'profile picture avatar photo image upload pic display name nickname bio about me custom status',
+      link: '/settings/profile',
     },
     {
       id: 'account-security', category: 'account', title: 'Password & recovery code',
@@ -190,8 +130,10 @@ export default function Settings({ onLogout }) {
   const shown = (section) => section.available !== false && matches(section, query);
   const visible = sections.filter(shown);
 
-  function jumpTo(id) {
-    document.getElementById(`settings-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  function open(section) {
+    if (section.link) navigate(section.link);
+    else if (onProfilePage) navigate(`/settings#${section.id}`);
+    else document.getElementById(`settings-${section.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   // /settings#<id>: scrolled there on arrival.
@@ -226,7 +168,13 @@ export default function Settings({ onLogout }) {
             <div key={category.id} className="settings-nav-group">
               <div className="settings-nav-category">{category.title}</div>
               {items.map((section) => (
-                <button key={section.id} type="button" className="settings-nav-item" onClick={() => jumpTo(section.id)}>
+                <button
+                  key={section.id}
+                  type="button"
+                  className={`settings-nav-item${onProfilePage && section.link === '/settings/profile' ? ' active' : ''}`}
+                  aria-current={onProfilePage && section.link === '/settings/profile' ? 'page' : undefined}
+                  onClick={() => open(section)}
+                >
                   {section.title}
                 </button>
               ))}
@@ -242,8 +190,9 @@ export default function Settings({ onLogout }) {
       {navSlot ? createPortal(nav, navSlot) : nav}
 
       <div className="settings-content">
-        {CATEGORIES.map((category) => {
-          const inCategory = sections.filter((s) => s.category === category.id);
+        {onProfilePage && <EditProfile />}
+        {!onProfilePage && CATEGORIES.map((category) => {
+          const inCategory = sections.filter((s) => s.category === category.id && !s.link);
           return (
             <section key={category.id} className="settings-category" hidden={!inCategory.some(shown)} aria-label={category.title}>
               <h3 className="settings-category-title">{category.title}</h3>
