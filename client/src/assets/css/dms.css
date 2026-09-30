@@ -2113,3 +2113,33 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   flex-direction: column;
   gap: 4px;
 }
+
+/* NOTES (a DM to yourself, pinned above the conversations) */
+.dm-notes-link-wrap {
+  padding: 8px 0;
+}
+
+.dm-notes-link {
+  gap: 8px;
+}
+
+.dm-notes-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+}
+
+.dm-notes-link.active .dm-notes-icon {
+  color: var(--vc-fg);
+}
+
+.notes-header-icon {
+  margin-right: 8px;
+  color: var(--vc-fg-muted);
+}

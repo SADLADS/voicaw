@@ -18,6 +18,7 @@ const KEY_BACKUP_CONTEXT = 'voicaw/key-backup/v1';
 const RECOVERY_BACKUP_CONTEXT = 'voicaw/recovery-backup/v1';
 const RECOVERY_AUTH_CONTEXT = 'voicaw/recovery-auth/v1';
 const DM_KEY_CONTEXT = 'voicaw/dm-key/v1';
+const NOTES_KEY_CONTEXT = 'voicaw/notes-key/v1';
 const DM_MESSAGE_CONTEXT = 'voicaw/dm/v1';
 const DM_REACTION_CONTEXT = 'voicaw/dm-reaction/v1';
 const CALL_KEY_CONTEXT = 'voicaw/call-key/v1';
@@ -209,12 +210,24 @@ export async function unwrapRecoveryBackup(code, backup) {
 // ---------------------------------------------------------------- direct messages
 
 // The key for a DM conversation: ECDH between my encryption key and theirs, run through HKDF.
-export async function deriveConversationKey(myEncryptionPrivateKey, theirEncryptionKey) {
+export function deriveConversationKey(myEncryptionPrivateKey, theirEncryptionKey) {
+  return deriveEcdhKey(myEncryptionPrivateKey, theirEncryptionKey, DM_KEY_CONTEXT);
+}
+
+// The key for your notes (a DM to yourself): ECDH between your own private and public
+// encryption keys, so only your key pair can open them. Its own HKDF label keeps it apart
+// from any DM key. `myEncryptionKey` must be your public key from this device (keyStore),
+// never the server's copy.
+export function deriveNotesKey(myEncryptionPrivateKey, myEncryptionKey) {
+  return deriveEcdhKey(myEncryptionPrivateKey, myEncryptionKey, NOTES_KEY_CONTEXT);
+}
+
+async function deriveEcdhKey(myEncryptionPrivateKey, theirEncryptionKey, context) {
   const theirs = await crypto.subtle.importKey('raw', fromBase64(theirEncryptionKey), ECDH, false, []);
   const secret = await crypto.subtle.deriveBits({ name: 'ECDH', public: theirs }, myEncryptionPrivateKey, 256);
   const material = await crypto.subtle.importKey('raw', secret, 'HKDF', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: te.encode(DM_KEY_CONTEXT) },
+    { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: te.encode(context) },
     material,
     { name: 'AES-GCM', length: 256 },
     false,

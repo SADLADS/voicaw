@@ -6,6 +6,7 @@ import {
   unwrapKeyBackup,
   importEncryptionPrivateKey,
   deriveConversationKey,
+  deriveNotesKey,
   dmContext,
   encryptMessage,
   decryptMessage,
@@ -106,6 +107,26 @@ describe('direct messages', () => {
     const envelope = await encryptMessage('secret', aliceKey, dmContext(1, 2));
 
     await expect(decryptMessage(envelope, malloryKey, dmContext(1, 2))).rejects.toThrow();
+  });
+
+  it('notes: only your own key pair opens them, and their key is no DM key', async () => {
+    const alice = await generateUserKeys();
+    const mallory = await generateUserKeys();
+    const alicePrivate = await importEncryptionPrivateKey(alice.private.encryptionKey);
+    const notesKey = await deriveNotesKey(alicePrivate, alice.public.encryptionKey);
+    const envelope = await encryptMessage('my note', notesKey, dmContext(1, 1));
+
+    // Same derivation later (another device, after logging in again) opens it.
+    const again = await deriveNotesKey(await importEncryptionPrivateKey(alice.private.encryptionKey), alice.public.encryptionKey);
+    expect(await decryptMessage(envelope, again, dmContext(1, 1))).toBe('my note');
+
+    // A DM key from the same ECDH (a DM to yourself) is a different key.
+    const dmKey = await deriveConversationKey(alicePrivate, alice.public.encryptionKey);
+    await expect(decryptMessage(envelope, dmKey, dmContext(1, 1))).rejects.toThrow();
+
+    // Someone else, even with Alice's public key, derives something else.
+    const malloryKey = await deriveNotesKey(await importEncryptionPrivateKey(mallory.private.encryptionKey), alice.public.encryptionKey);
+    await expect(decryptMessage(envelope, malloryKey, dmContext(1, 1))).rejects.toThrow();
   });
 
   it('rejects unversioned or unknown formats', async () => {
