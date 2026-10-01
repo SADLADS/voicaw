@@ -6,6 +6,7 @@
   "private": true,
   "main": "main.js",
   "author": "Voicaw",
+  "homepage": "https://voicaw.com",
   "scripts": {
     "test": "vitest run",
     "dist": "npm run build:electron --workspace=client && electron-builder --config builder.config.js"

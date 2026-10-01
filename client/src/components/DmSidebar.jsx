@@ -64,8 +64,7 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
                 key={`g-${group.id}`}
                 to={`/dm/g/${group.id}`}
                 replace={isMobile}
-                replace={isMobile}
-              onClick={showContent}
+                onClick={showContent}
                 className={`dm-user dm-group ${active ? 'active' : ''}`}
               >
                 <span className={`userdot${group.unread > 0 && !active ? ' active' : ''}`} />
