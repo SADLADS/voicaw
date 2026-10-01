@@ -4,6 +4,10 @@ import {
   captureOptions, getAudioSettings, inputGainStage, onAudioSettingsChange, outputSinkId, processingChanged,
 } from './audioSettings';
 import { playSound } from '../sounds/sounds';
+import { isMobileDevice } from '../utils/presence';
+import {
+  joinRefused, REJOIN_FOR_MS, rejoinDelay, shouldRejoin, STALE_AFTER_HIDDEN_MS, TAKE_OVER_AFTER_MS,
+} from './rejoin';
 
 // This device's voice connection (one at a time, like Discord): a voice channel or a DM
 // call, the microphone, mute and deafen, and who's talking. The audio goes through a LiveKit
@@ -23,8 +27,13 @@ import { playSound } from '../sounds/sounds';
 // shares it) goes out as LiveKit screen-share tracks. Others only receive a stream while they
 // watch it (subscriptions are ours to decide, not automatic), so a stream nobody watches
 // costs nobody's download.
+//
+// A voice channel connection that's lost (not left, removed or replaced) is joined again
+// (rejoin.js): the voice bar says "Reconnecting…" meanwhile. Phones wait until the app is
+// visible again (iOS stops a page's microphone and connection in the background).
 
 const PREFS_KEY = 'voicePrefs';
+const CONNECT_TIMEOUT_MS = 20 * 1000;
 
 function loadPrefs() {
   try {
@@ -84,6 +93,9 @@ export function onVoiceChange(listener) {
 
 let livekit = null; // the livekit-client module
 let room = null;
+// Rooms that finished joining: a Disconnected before that is a failed join, which connect()
+// handles (LiveKit emits one for it too).
+const joinedRooms = new WeakSet();
 let e2eeWorker = null;
 // Bumped by every join and leave, so a join that's overtaken stops where it is.
 let attempt = 0;
@@ -171,6 +183,7 @@ function disconnectMessage(reason) {
 }
 
 async function teardown() {
+  clearTakeOver();
   const old = room;
   room = null;
   if (old) {
@@ -290,11 +303,13 @@ function watch(newRoom, current) {
     .on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
       if (!stale()) update({ speaking: speakers.map((p) => p.identity) });
     })
-    .on(RoomEvent.Reconnecting, () => {
-      if (!stale()) update({ status: 'reconnecting' });
-    })
+    // SignalReconnecting: only the signalling connection is being resumed (the audio may
+    // still flow), as after a phone's app comes back from the background.
+    .on(RoomEvent.Reconnecting, () => reconnecting(current))
+    .on(RoomEvent.SignalReconnecting, () => reconnecting(current))
     .on(RoomEvent.Reconnected, () => {
       if (stale()) return;
+      clearTakeOver();
       update({ status: 'connected' });
       updateTracks();
     })
@@ -309,9 +324,13 @@ function watch(newRoom, current) {
       if (!snapshot.canStream && participant.isScreenShareEnabled) stopScreenShare();
     })
     .on(RoomEvent.Disconnected, (reason) => {
-      if (stale()) return;
+      if (stale() || !joinedRooms.has(newRoom)) return;
       attempt++;
       teardown();
+      if (snapshot.channelId != null && shouldRejoin(reason)) {
+        startRejoin(snapshot.guildId, snapshot.channelId);
+        return;
+      }
       playSound('disconnect');
       // A call's end is callClient.js's to explain (the server closes its room on hang-up).
       update({ ...NOT_IN_VOICE, error: snapshot.callId ? null : disconnectMessage(reason) });
@@ -339,11 +358,15 @@ async function e2eeOptions(key) {
 }
 
 // Connects to a room: `target` is what the snapshot says we're in, `getToken()` resolves to
-// { url, token }, `e2eeKey` (calls) turns on end-to-end encryption.
-async function connect(target, getToken, e2eeKey) {
+// { url, token }, `e2eeKey` (calls) turns on end-to-end encryption. `rejoining`: a rejoin
+// attempt, which reports a failure (`{ error }`) instead of showing it; true once connected.
+async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
+  if (!rejoining) cancelRejoin();
   const current = ++attempt;
   await teardown();
-  update({ ...NOT_IN_VOICE, ...target, status: 'connecting', error: null, micError: null, audioBlocked: false });
+  update({
+    ...NOT_IN_VOICE, ...target, status: rejoining ? 'reconnecting' : 'connecting', error: null, micError: null, audioBlocked: false,
+  });
   try {
     livekit ??= await import('livekit-client');
     const { url, token } = await getToken();
@@ -360,8 +383,17 @@ async function connect(target, getToken, e2eeKey) {
     watch(newRoom, current);
     if (e2ee) await newRoom.setE2EEEnabled(true);
     // Subscriptions are ours (syncSubscriptions): screen shares only while watched.
-    await newRoom.connect(url, token, { autoSubscribe: false });
+    // (Bounded: when WebSockets are blocked but LiveKit answers HTTP, its connect keeps
+    // switching between its two signalling paths and never settles.)
+    let timer;
+    await Promise.race([
+      newRoom.connect(url, token, { autoSubscribe: false }),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Timed out connecting to voice')), CONNECT_TIMEOUT_MS);
+      }),
+    ]).finally(() => clearTimeout(timer));
     if (current !== attempt) return;
+    joinedRooms.add(newRoom);
     await newRoom.startAudio().catch(() => {});
     update({
       status: 'connected',
@@ -372,11 +404,13 @@ async function connect(target, getToken, e2eeKey) {
     playSound('userJoin');
     updateStreams();
     await applyMicrophone();
+    return true;
   } catch (err) {
     if (current !== attempt) return;
     console.warn('Could not connect to voice', err);
     attempt++;
     await teardown();
+    if (rejoining) return { error: err };
     update({ ...NOT_IN_VOICE, error: errorMessage(err, err?.message?.startsWith('This browser') ? err.message : 'Could not connect to voice.') });
   }
 }
@@ -386,7 +420,7 @@ async function connect(target, getToken, e2eeKey) {
 export async function joinVoice(guildId, channelId) {
   guildId = Number(guildId);
   channelId = Number(channelId);
-  if (snapshot.channelId === channelId && snapshot.status !== 'idle') return;
+  if (snapshot.channelId === channelId && snapshot.status !== 'idle' && !rejoin) return;
   await connect({ guildId, channelId }, () => fetchVoiceToken(guildId, channelId, prefs()));
 }
 
@@ -399,12 +433,124 @@ export async function joinCall({ callId, url, token, key }) {
 export async function leaveVoice() {
   const inChannel = snapshot.status !== 'idle' && snapshot.channelId != null;
   const wasConnected = snapshot.status === 'connected' || snapshot.status === 'reconnecting';
+  cancelRejoin();
   attempt++;
   await teardown();
   if (wasConnected) playSound('disconnect');
   update({ ...NOT_IN_VOICE, error: null, micError: null, audioBlocked: false });
   // In case LiveKit couldn't be told (lost connection): the API takes us out too.
   if (inChannel) await leaveVoiceChannel().catch(() => {});
+}
+
+// Rejoining a lost voice channel connection (see rejoin.js). `rejoin` is the channel being
+// rejoined: { guildId, channelId, since, tries, timer }.
+let rejoin = null;
+let hiddenSince = null;
+// LiveKit retrying a voice channel connection: after TAKE_OVER_AFTER_MS we rejoin instead.
+let takeOverTimer = null;
+
+function clearTakeOver() {
+  clearTimeout(takeOverTimer);
+  takeOverTimer = null;
+}
+
+function reconnecting(current) {
+  if (current !== attempt) return;
+  update({ status: 'reconnecting' });
+  if (snapshot.channelId == null || takeOverTimer) return;
+  takeOverTimer = setTimeout(() => {
+    takeOverTimer = null;
+    if (current !== attempt || snapshot.status !== 'reconnecting') return;
+    takeOver();
+  }, TAKE_OVER_AFTER_MS);
+}
+
+// Drops LiveKit's own attempt and rejoins the channel with a new token.
+function takeOver() {
+  const { guildId, channelId } = snapshot;
+  attempt++;
+  teardown();
+  startRejoin(guildId, channelId);
+}
+
+const waitForVisible = () => isMobileDevice() && document.visibilityState === 'hidden';
+
+function cancelRejoin() {
+  if (rejoin?.timer) clearTimeout(rejoin.timer);
+  rejoin = null;
+}
+
+function startRejoin(guildId, channelId) {
+  cancelRejoin();
+  rejoin = { guildId, channelId, since: Date.now(), tries: 0, timer: null };
+  update({ ...NOT_IN_VOICE, guildId, channelId, status: 'reconnecting', error: null, audioBlocked: false });
+  scheduleRejoin();
+}
+
+function scheduleRejoin() {
+  if (!rejoin) return;
+  if (rejoin.timer) clearTimeout(rejoin.timer);
+  rejoin.timer = null;
+  if (Date.now() - rejoin.since > REJOIN_FOR_MS) {
+    giveUpRejoin('Lost the connection to voice.');
+    return;
+  }
+  if (waitForVisible()) return; // visibilitychange tries again
+  rejoin.timer = setTimeout(tryRejoin, rejoinDelay(rejoin.tries));
+}
+
+async function tryRejoin() {
+  const current = rejoin;
+  if (!current) return;
+  current.timer = null;
+  if (waitForVisible()) return;
+  current.tries++;
+  const { guildId, channelId } = current;
+  const result = await connect({ guildId, channelId }, () => fetchVoiceToken(guildId, channelId, prefs()), undefined, { rejoining: true });
+  if (rejoin !== current) return; // left, or joined something else
+  if (result === true) {
+    rejoin = null;
+    return;
+  }
+  if (result?.error && joinRefused(result.error)) {
+    giveUpRejoin(errorMessage(result.error, 'Lost the connection to voice.'));
+    return;
+  }
+  update({ ...NOT_IN_VOICE, guildId, channelId, status: 'reconnecting' });
+  scheduleRejoin();
+}
+
+function giveUpRejoin(error) {
+  cancelRejoin();
+  playSound('disconnect');
+  update({ ...NOT_IN_VOICE, error });
+}
+
+// Back in view (or back online): rejoin now. A phone whose connection was frozen in the
+// background is most likely out already, so it doesn't wait for LiveKit's own retries.
+function retryNow() {
+  if (rejoin) {
+    rejoin.tries = 0;
+    scheduleRejoin();
+  }
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      hiddenSince = Date.now();
+      return;
+    }
+    const hiddenFor = hiddenSince == null ? 0 : Date.now() - hiddenSince;
+    hiddenSince = null;
+    if (rejoin) {
+      retryNow();
+    } else if (room && snapshot.status === 'reconnecting' && snapshot.channelId != null
+      && isMobileDevice() && hiddenFor > STALE_AFTER_HIDDEN_MS) {
+      takeOver();
+    }
+  });
+  window.addEventListener('online', retryNow);
 }
 
 // Shows `error` in the voice bar (e.g. why a call couldn't start).

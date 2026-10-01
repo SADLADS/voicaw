@@ -104,6 +104,7 @@ node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permission
 node e2e/auditlog.mjs [dir] # audit log: mod deletes a message, role change, details, filters, no access, phone
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
+node e2e/rejoin.mjs [dir] # voice after a lost connection: Reconnecting, rejoins by itself, phone waits until back in view, leave stays left
 node e2e/screenshare.mjs [dir] # screen share: own preview, Live, no download until Watch, phone watches, Video taken away
 node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mute, decline, phone
 node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, group call, owner leaves
@@ -862,8 +863,21 @@ LiveKit carries the audio.
   mic is released (`stopMicTrackOnMute`, the browser's recording light goes off); deafened, the
   `<audio>` elements are muted and you're muted too; unmuting undeafens (Discord's rules). Mute
   and deafen are remembered per device (`localStorage voicePrefs`) and work outside a call.
-  `speaking` is LiveKit's active speakers. A lost connection, being removed, or joining the same
-  channel elsewhere ends it with a message in the voice bar.
+  `speaking` is LiveKit's active speakers. Being removed, or joining the same channel
+  elsewhere, ends it with a message in the voice bar.
+- **Lost connections** (voice channels; `voice/rejoin.js`): the bar says "Reconnecting…"
+  (LiveKit's `Reconnecting` and `SignalReconnecting`, the latter being a signalling-only resume,
+  e.g. after a phone's app was in the background). LiveKit's own retries can take minutes to
+  give up and can't get in with an expired token, so after 15 s (`TAKE_OVER_AFTER_MS`), or once
+  it gives up with a reason that isn't meant (`shouldRejoin`: not left, removed, replaced or
+  room gone), `voiceClient` drops it and joins the channel again with a new token, backing off
+  (0, 1, 2, 5, 10 s) for up to 5 minutes; an API refusal (`joinRefused`) stops it. Phones only
+  try while the app is visible (iOS stops a page's microphone and connection in the background)
+  and, back in view after over 10 s with the connection still recovering, rejoin at once. Each
+  join is capped at 20 s (LiveKit's `connect` can loop forever when WebSockets are blocked but
+  its HTTP answers). A `Disconnected` before a room finished joining is a failed join, handled
+  by `connect` (`joinedRooms`). DM and group calls don't rejoin (their token and key come from
+  `callClient`).
 - **Screen sharing** (guild voice channels, with Video): the token lets you publish
   `screen_share` and `screen_share_audio` only with Video (`publishPermission`), and
   `enforceGuild` changes that live (LiveKit then ends a stream that's no longer allowed; the
@@ -918,7 +932,10 @@ LiveKit carries the audio.
   native keyboard hook), voice isolation stages, screen share in DM/group calls (LiveKit's E2EE
   would cover the video too), webcam video, stream quality settings, and a TURN server for
   networks that block UDP 7882 and
-  TCP 7881. Phones: a PWA's audio stops when it's in the background (iOS also when locked).
+  TCP 7881. Phones: a PWA's audio stops when it's in the background (iOS also when locked; it
+  rejoins when the app is back, see Lost connections). Staying in while locked needs a native
+  app: background audio, and voice through LiveKit's native SDK (iOS also pauses microphone
+  capture in a Capacitor WebView).
 
 ### DM calls
 
