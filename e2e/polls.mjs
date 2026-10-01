@@ -91,6 +91,21 @@ try {
   await shot(a, '1-menu');
   await a.keyboard.press('Escape');
 
+  // Tab: question → each answer → Add another answer (not the emoji or remove buttons).
+  await a.click('.attach-button');
+  await a.click('.composer-add-item:has-text("Create poll")');
+  await a.click('text=+ Add another answer');
+  await a.focus('#poll-question');
+  const order = [];
+  for (let i = 0; i < 4; i++) {
+    await a.keyboard.press('Tab');
+    order.push(await a.evaluate(() => document.activeElement.getAttribute('aria-label') || document.activeElement.textContent.trim()));
+  }
+  if (order.join(' | ') !== 'Answer 1 | Answer 2 | Answer 3 | + Add another answer') throw new Error(`Tab order: ${order.join(' | ')}`);
+  await a.keyboard.press('Escape');
+  await a.waitForSelector('.vc-dialog', { state: 'detached' });
+  console.log('poll dialog: Tab goes through the question, the answers, then Add another answer');
+
   await createPoll(a, 'Lunch?', ['Pizza', 'Soup'], { emoji: { 1: 'pizza' } });
   await b.waitForSelector('.poll-question:text-is("Lunch?")', { timeout: 10000 });
   await b.waitForSelector('.poll-option:has-text("Pizza") .poll-option-emoji img.emoji[alt="🍕"]');

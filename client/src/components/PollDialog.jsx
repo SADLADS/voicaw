@@ -110,6 +110,8 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
         />
 
         <label>Answers</label>
+        {/* Tab goes question → each answer → Add another answer: the emoji and remove buttons
+            beside each answer are left out of it (they're for the mouse or a tap). */}
         <div className="poll-dialog-options" ref={listRef}>
           {options.map((o, i) => (
             <div key={o.key} className="vc-form-row">
@@ -117,6 +119,7 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
                 <button
                   type="button"
                   className="poll-dialog-emoji-button"
+                  tabIndex={-1}
                   aria-label={o.emoji ? `Change the emoji of answer ${i + 1}` : `Add an emoji to answer ${i + 1}`}
                   title={o.emoji ? 'Change emoji' : 'Add emoji'}
                   aria-expanded={pickingFor?.key === o.key}
@@ -130,6 +133,7 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
                   <button
                     type="button"
                     className="poll-dialog-emoji-clear"
+                    tabIndex={-1}
                     aria-label={`Remove the emoji of answer ${i + 1}`}
                     title="Remove emoji"
                     onClick={() => setEmoji(o.key, null)}
@@ -149,6 +153,7 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
               <button
                 type="button"
                 className="poll-dialog-remove"
+                tabIndex={-1}
                 aria-label={`Remove answer ${i + 1}`}
                 title="Remove answer"
                 disabled={options.length <= 1}
