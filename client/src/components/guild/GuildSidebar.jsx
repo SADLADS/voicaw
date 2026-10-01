@@ -17,7 +17,7 @@ import {
 import { ConfigContext, InteractionContext, LayoutContext } from '../../contexts';
 import { showContent } from '../../utils/mobilePanes';
 import { groupChannels } from '../../utils/guildDisplay';
-import { leaveGuild, moveCategory, moveChannel } from '../../services/guildService';
+import { deleteCategory, deleteChannel, leaveGuild, moveCategory, moveChannel } from '../../services/guildService';
 import { useChannelDrag } from '../../hooks/useChannelDrag';
 import InviteDialog from './InviteDialog';
 import ChannelDialog from './ChannelDialog';
@@ -26,7 +26,9 @@ import GuildSettingsDialog from './GuildSettingsDialog';
 import ConfirmDialog from './ConfirmDialog';
 import NotificationDialog from './NotificationDialog';
 import AuditLogDialog from './AuditLogDialog';
-import ChannelMuteMenu from './ChannelMuteMenu';
+import ChannelMenu from './ChannelMenu';
+import CategoryMenu from './CategoryMenu';
+import CloneChannelDialog from './CloneChannelDialog';
 import ChannelIcon from './ChannelIcon';
 import VoiceChannelMembers from './VoiceChannelMembers';
 import { useVoice } from '../../hooks/useVoice';
@@ -46,11 +48,12 @@ function loadCollapsed() {
 // The guild's column next to the guild rail (like Discord): its name, with a menu (invite,
 // settings, audit log, create channel/category, leave), then its channels, grouped in collapsible
 // categories. Unread channels are bold; private ones have a lock; muted ones are dimmed, with a
-// crossed-out bell (right-click a channel to mute or unmute it: ChannelMuteMenu, also the bell in
-// the channel header). What's offered follows the
-// member's permissions (Manage Channels: edit buttons, creating, dragging channels and
-// categories into a new order (useChannelDrag); Create Invite; Manage Guild, Manage Roles or
-// Ban Members: Guild Settings; View Audit Log: the audit log).
+// crossed-out bell. Right-clicking a channel or category (touch and hold on a phone) opens its
+// menu (ChannelMenu, CategoryMenu: read, mute, notifications, copy link, edit, duplicate,
+// delete...). What's offered follows the member's permissions (Manage Channels: edit buttons
+// on hover (on a computer; a phone has only the menu), creating, dragging channels and
+// categories into a new order (useChannelDrag: on a phone, hold then move); Create Invite;
+// Manage Guild, Manage Roles or Ban Members: Guild Settings; View Audit Log: the audit log).
 export default function GuildSidebar({ guild, user }) {
   const { channelId } = useParams();
   const navigate = useNavigate();
@@ -59,12 +62,13 @@ export default function GuildSidebar({ guild, user }) {
   const { voiceEnabled } = useContext(ConfigContext);
   const voice = useVoice();
   const [menuOpen, setMenuOpen] = useState(false);
-  // { type: 'invite' | 'settings' | 'audit' | 'channel' | 'category' | 'leave', ...props }
+  // { type: 'invite' | 'settings' | 'audit' | 'channel' | 'category' | 'clone' | 'deleteChannel' |
+  //   'deleteCategory' | 'leave', ...props }
   const [dialog, setDialog] = useState(null);
   const [collapsed, setCollapsed] = useState(loadCollapsed);
-  // The mute menu of a right-clicked channel ({ channel, anchor }).
-  const [muteMenu, setMuteMenu] = useState(null);
-  const closeMuteMenu = useCallback(() => setMuteMenu(null), []);
+  // The menu of a right-clicked or long-pressed channel or category ({ kind, id, anchor }).
+  const [rowMenu, setRowMenu] = useState(null);
+  const closeRowMenu = useCallback(() => setRowMenu(null), []);
   const menuRef = useRef(null);
   const { drag, listRef, dragProps } = useChannelDrag({
     guild,
@@ -77,6 +81,7 @@ export default function GuildSidebar({ guild, user }) {
       console.warn('Failed to move', err);
       guildList.loadGuild(guild.id).catch(() => {});
     },
+    onMenu: (item, anchor) => setRowMenu({ ...item, anchor }),
   });
   // The row being dragged follows the pointer.
   const dragged = (kind, id) => (drag?.kind === kind && drag.id === id
@@ -107,6 +112,9 @@ export default function GuildSidebar({ guild, user }) {
   const unreadChannels = new Set(guildUnread.filter((u) => !guildList.isMuted(u.channel_id)).map((u) => u.channel_id));
   const channelMentions = new Map(guildUnread.filter((u) => u.mentions > 0).map((u) => [u.channel_id, u.mentions]));
   const { uncategorized, categories } = groupChannels(guild);
+  // The row whose menu is open (gone if it was deleted meanwhile).
+  const menuChannel = rowMenu?.kind === 'channel' ? guild.channels.find((c) => c.id === rowMenu.id) : null;
+  const menuCategory = rowMenu?.kind === 'category' ? guild.categories.find((c) => c.id === rowMenu.id) : null;
   const inVoice = voice.status !== 'idle' && voice.guildId === guild.id ? voice.channelId : null;
   const speaking = new Set(voice.status === 'connected' ? voice.speaking : []);
 
@@ -162,10 +170,6 @@ export default function GuildSidebar({ guild, user }) {
           to={`/guild/${guild.id}/${channel.id}`}
           replace={isMobile}
           onClick={() => openChannel(channel)}
-          onContextMenu={channel.type === 'voice' ? undefined : (e) => {
-            e.preventDefault();
-            setMuteMenu({ channel, anchor: { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY } });
-          }}
           className="guild-channel-link"
           aria-current={active ? 'page' : undefined}
         >
@@ -177,7 +181,7 @@ export default function GuildSidebar({ guild, user }) {
             <span className="mention-badge" aria-label={`${mentions} mentions`}>{mentions > 99 ? '99+' : mentions}</span>
           )}
         </Link>
-        {(managesChannels || (channel.type === 'text' && has(channel.my_permissions, PERMISSIONS.MANAGE_WEBHOOKS))) && (
+        {!isMobile && (managesChannels || (channel.type === 'text' && has(channel.my_permissions, PERMISSIONS.MANAGE_WEBHOOKS))) && (
           <button
             type="button"
             className="guild-sidebar-icon-button"
@@ -284,7 +288,7 @@ export default function GuildSidebar({ guild, user }) {
                   <FontAwesomeIcon icon={isCollapsed ? faChevronRight : faChevronDown} className="guild-category-chevron" />
                   <span>{category.name}</span>
                 </button>
-                {managesChannels && (
+                {managesChannels && !isMobile && (
                   <>
                     <button
                       type="button"
@@ -317,7 +321,33 @@ export default function GuildSidebar({ guild, user }) {
         )}
       </nav>
 
-      {muteMenu && <ChannelMuteMenu channel={muteMenu.channel} anchor={muteMenu.anchor} onClose={closeMuteMenu} />}
+      {menuChannel && (
+        <ChannelMenu
+          guild={guild}
+          channel={menuChannel}
+          anchor={rowMenu.anchor}
+          sheet={isMobile}
+          onEdit={() => openDialog({ type: 'channel', channel: menuChannel })}
+          onClone={() => openDialog({ type: 'clone', channel: menuChannel })}
+          onDelete={() => openDialog({ type: 'deleteChannel', channel: menuChannel })}
+          onClose={closeRowMenu}
+        />
+      )}
+      {menuCategory && (
+        <CategoryMenu
+          guild={guild}
+          category={menuCategory}
+          channels={guild.channels.filter((c) => c.category_id === menuCategory.id)}
+          collapsed={collapsed.has(menuCategory.id)}
+          anchor={rowMenu.anchor}
+          sheet={isMobile}
+          onToggle={() => toggleCategory(menuCategory.id)}
+          onEdit={() => openDialog({ type: 'category', category: menuCategory })}
+          onCreateChannel={() => openDialog({ type: 'channel', categoryId: menuCategory.id })}
+          onDelete={() => openDialog({ type: 'deleteCategory', category: menuCategory })}
+          onClose={closeRowMenu}
+        />
+      )}
       {dialog?.type === 'invite' && <InviteDialog guild={guild} onClose={closeDialog} />}
       {dialog?.type === 'audit' && <AuditLogDialog guild={guild} user={user} onClose={closeDialog} />}
       {dialog?.type === 'notifications' && <NotificationDialog guild={guild} onClose={closeDialog} />}
@@ -330,6 +360,37 @@ export default function GuildSidebar({ guild, user }) {
           channel={dialog.channel}
           categoryId={dialog.categoryId}
           onCreated={(created) => navigate(`/guild/${guild.id}/${created.id}`)}
+          onClose={closeDialog}
+        />
+      )}
+      {dialog?.type === 'clone' && (
+        <CloneChannelDialog
+          guild={guild}
+          channel={dialog.channel}
+          onCreated={(created) => navigate(`/guild/${guild.id}/${created.id}`)}
+          onClose={closeDialog}
+        />
+      )}
+      {dialog?.type === 'deleteChannel' && (
+        <ConfirmDialog
+          title={`Delete #${dialog.channel.name}`}
+          message={`Delete #${dialog.channel.name} and all its ${{ list: 'tasks', doc: 'documents' }[dialog.channel.type] ?? 'messages'}? This can't be undone.`}
+          confirmLabel="Delete Channel"
+          focusConfirm
+          onConfirm={async () => {
+            await deleteChannel(guild.id, dialog.channel.id);
+            if (String(dialog.channel.id) === channelId) navigate(`/guild/${guild.id}`, { replace: true });
+          }}
+          onClose={closeDialog}
+        />
+      )}
+      {dialog?.type === 'deleteCategory' && (
+        <ConfirmDialog
+          title={`Delete '${dialog.category.name}'`}
+          message={`Delete the category ${dialog.category.name}? Its channels stay, without a category.`}
+          confirmLabel="Delete Category"
+          focusConfirm
+          onConfirm={() => deleteCategory(guild.id, dialog.category.id)}
           onClose={closeDialog}
         />
       )}

@@ -262,6 +262,17 @@ CREATE TABLE IF NOT EXISTS guild_channel_mutes (
 );
 `);
 
+// A member's own notification level for one channel (channelMutes.js), overriding their level
+// for the guild ('all', 'mentions' or 'none'); no row: the guild's.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_channel_notify (
+  user_id INTEGER NOT NULL,
+  channel_id INTEGER NOT NULL,
+  level TEXT NOT NULL,
+  PRIMARY KEY (user_id, channel_id)
+);
+`);
+
 // Guilds from before roles get their @everyone role (with the default permissions).
 sqlite.exec(`
 INSERT INTO guild_roles (guild_id, name, position, permissions, is_everyone)

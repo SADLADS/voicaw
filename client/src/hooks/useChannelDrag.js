@@ -13,6 +13,10 @@ import { usePointerDrag } from './usePointerDrag';
 // `[data-category-block][data-id]` (a category with its channels). `drag` is
 // { kind, id, dy, lineTop } while dragging (lineTop: where to draw the line, in the list's
 // scrolled coordinates).
+//
+// `onMenu(item, anchor)` (optional) opens a row's menu: on a right-click (anchor: the pointer)
+// or a touch held still and lifted (anchor: the row's rect); a touch held and then moved drags
+// instead (with `enabled`).
 
 const EDGE_PX = 32;
 const EDGE_SCROLL_PX = 12;
@@ -81,11 +85,13 @@ function categoryMoveChanges(guild, categoryId, move) {
   return order(applyCategoryMove(guild, categoryId, move)) !== order(guild);
 }
 
-export function useChannelDrag({ guild, enabled, onLayout, save, onError }) {
+export function useChannelDrag({ guild, enabled, onLayout, save, onError, onMenu }) {
   const [drag, setDrag] = useState(null);
   const listRef = useRef(null);
-  const latest = useRef({ guild, onLayout, save, onError });
-  latest.current = { guild, onLayout, save, onError };
+  const latest = useRef({ guild, onLayout, save, onError, onMenu, enabled });
+  latest.current = { guild, onLayout, save, onError, onMenu, enabled };
+  // The row element each pointer went down on, for a long press's anchor.
+  const pressedRow = useRef(null);
 
   // The drop target for the pointer at `y` while dragging `item` ({ kind, id }).
   const targetAt = useCallback((item, y) => {
@@ -125,6 +131,11 @@ export function useChannelDrag({ guild, enabled, onLayout, save, onError }) {
   }, [targetAt]);
 
   const { pointerDown, contextMenu } = usePointerDrag({
+    canDrag: () => latest.current.enabled,
+    onLongPress: onMenu ? (item) => {
+      const rect = pressedRow.current?.getBoundingClientRect();
+      latest.current.onMenu?.(item, rect ?? { left: 0, right: 0, top: 0, bottom: 0 });
+    } : undefined,
     onStart: show,
     onMove: show,
     onCancel: () => setDrag(null),
@@ -152,10 +163,19 @@ export function useChannelDrag({ guild, enabled, onLayout, save, onError }) {
   });
 
   // Spread on a draggable row (a channel's or a category header's element).
-  const dragProps = useCallback((kind, id) => (enabled ? {
-    onPointerDown: (e) => pointerDown({ kind, id }, e),
-    onContextMenu: contextMenu,
-  } : {}), [enabled, pointerDown, contextMenu]);
+  const hasMenu = Boolean(onMenu);
+  const dragProps = useCallback((kind, id) => (enabled || hasMenu ? {
+    onPointerDown: (e) => {
+      pressedRow.current = e.currentTarget;
+      pointerDown({ kind, id }, e);
+    },
+    onContextMenu: (e) => {
+      // A touch held down: the long press (or drag) handles it.
+      if (contextMenu(e) || !latest.current.onMenu) return;
+      e.preventDefault();
+      latest.current.onMenu({ kind, id }, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY });
+    },
+  } : {}), [enabled, hasMenu, pointerDown, contextMenu]);
 
   return { drag, listRef, dragProps };
 }

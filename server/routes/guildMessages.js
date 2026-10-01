@@ -9,7 +9,7 @@ const { setPinned } = require('../pins');
 const { POLL_VOTE, parsePoll, isClosedPoll, pollEditError, reactionIdsFor, pollReactionsFor } = require('../polls');
 const { removePollRows } = require('../pollTimers');
 const { logAudit } = require('../auditLog');
-const { parseDuration, listMutes, setMute } = require('../channelMutes');
+const { parseDuration, listMutes, setMute, CHANNEL_NOTIFY_LEVELS, listChannelLevels, setChannelLevel } = require('../channelMutes');
 const { sendToUserSockets } = require('../sockets');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
@@ -388,9 +388,12 @@ router.get('/channels/:channelId/members', authenticateJWT, async (req, res) => 
 
 // ---- Read state ----
 
-// Marks the channel read up to `messageId` (never moves backwards).
+// Marks the channel read up to `messageId` (never moves backwards), or with `latest: true` up
+// to its newest message (document replies included; the channel list's Mark As Read).
 router.post('/channels/:channelId/read', authenticateJWT, requireReadableChannel, async (req, res) => {
-  const messageId = Number(req.body?.messageId);
+  const messageId = req.body?.latest === true
+    ? (await db.get('SELECT MAX(id) AS id FROM guild_messages WHERE channel_id = ?', [req.channel.id])).id ?? 0
+    : Number(req.body?.messageId);
   if (!Number.isInteger(messageId) || messageId < 0) return res.status(400).json({ error: 'Invalid messageId' });
   await markRead(req.user.id, req.channel.id, messageId);
   res.json({ success: true });
@@ -443,6 +446,24 @@ async function changeMute(req, res, muted) {
 
 router.put('/channels/:channelId/mute', authenticateJWT, (req, res) => changeMute(req, res, true));
 router.delete('/channels/:channelId/mute', authenticateJWT, (req, res) => changeMute(req, res, false));
+
+// Your own notification levels for channels (channelMutes.js): [{ channel_id, guild_id, level }].
+router.get('/channel-notifications', authenticateJWT, async (req, res) => {
+  res.json(await listChannelLevels(req.user.id));
+});
+
+// Sets your notification level for a channel you can see: 'all', 'mentions', 'none', or null
+// for the guild's. Your other devices get `guild_channel_notify`.
+router.put('/channels/:channelId/notifications', authenticateJWT, async (req, res) => {
+  const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
+  if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Channel not found' });
+  const level = req.body?.level ?? null;
+  if (level !== null && !CHANNEL_NOTIFY_LEVELS.includes(level)) return res.status(400).json({ error: 'Invalid notification level' });
+  await setChannelLevel(req.user.id, access.channel.id, level);
+  const result = { guildId: access.channel.guild_id, channelId: access.channel.id, level };
+  sendToUserSockets(req.user.id, { type: 'guild_channel_notify', ...result });
+  res.json(result);
+});
 
 module.exports = router;
 module.exports.MESSAGE_SELECT = MESSAGE_SELECT;

@@ -1,4 +1,4 @@
-// Muted channels: right-click a channel → Mute, it's dimmed; its messages don't mark it (or the
+// Muted channels: right-click a channel → Mute Channel → for how long, it's dimmed; its messages don't mark it (or the
 // guild's icon) unread, but a mention of you still shows; the header bell unmutes it (saying
 // until when); a phone mutes from the header bell.
 //   node e2e/serve.mjs &   then   node e2e/mutes.mjs [screenshot dir]
@@ -45,13 +45,14 @@ try {
   await b.waitForSelector('#dm-input');
   const randomRow = () => b.locator('.guild-channel', { has: b.locator('.guild-channel-name', { hasText: 'random' }) });
   await randomRow().locator('.guild-channel-link').click({ button: 'right' });
-  await b.waitForSelector('.channel-mute-menu');
+  await b.hover('.context-menu >> text=Mute Channel');
+  await b.waitForSelector('.context-submenu');
   await shot(b, 'menu');
-  await b.click('.channel-mute-menu >> text=For 1 hour');
+  await b.click('.context-submenu >> text=For 1 hour');
   await b.waitForSelector('.guild-channel.muted');
   check(await randomRow().evaluate((el) => el.classList.contains('muted')), '#random shows as muted');
   check(await randomRow().locator('[aria-label="Muted"]').count() === 1, 'with a crossed-out bell');
-  check(!(await b.$('.channel-mute-menu')), 'the menu closed');
+  check(!(await b.$('.context-menu')), 'the menu closed');
 
   // Away from the guild: a message in #random doesn't light the guild up.
   await b.goto(`${BASE}/dm`);
@@ -82,7 +83,7 @@ try {
   await b.waitForSelector('.mute-button[aria-label="Unmute channel"]');
   await b.click('.mute-button');
   const until = await b.textContent('.channel-mute-until');
-  check(/^Muted until \d{1,2}:\d{2}/.test(until), `the menu says "${until}"`);
+  check(/^Muted until (.*, )?\d{1,2}:\d{2}/.test(until), `the menu says "${until}"`);
   await shot(b, 'header-menu');
   await b.click('.channel-mute-menu >> text=Unmute Channel');
   await b.waitForSelector('.mute-button[aria-label="Mute channel"]');

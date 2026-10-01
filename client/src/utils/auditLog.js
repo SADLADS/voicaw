@@ -75,7 +75,9 @@ export function describeEntry(entry, names) {
     case 'role_create': return [actor, ' created the role ', { name: d.name }];
     case 'role_update': return [actor, ' changed the role ', { name: d.name }];
     case 'role_delete': return [actor, ' deleted the role ', { name: d.name }];
-    case 'channel_create': return [actor, ` created the ${CHANNEL_KINDS[d.type] ?? ''}channel `, channel(d.name)];
+    case 'channel_create': return d.clonedFrom
+      ? [actor, ` created the ${CHANNEL_KINDS[d.type] ?? ''}channel `, channel(d.name), ' as a copy of ', channel(d.clonedFrom)]
+      : [actor, ` created the ${CHANNEL_KINDS[d.type] ?? ''}channel `, channel(d.name)];
     case 'channel_update': return [actor, ' changed the channel ', channel(d.name)];
     case 'channel_delete': return [actor, ` deleted the ${CHANNEL_KINDS[d.type] ?? ''}channel `, channel(d.name)];
     case 'channel_override_update': {

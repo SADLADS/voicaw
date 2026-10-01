@@ -15,7 +15,12 @@ export const isTouchDragging = () => touchDrag !== null;
 //
 // Call `pointerDown(item, event)` from an element's onPointerDown. `handlers` (read when
 // needed) get: onStart(item, { x, y, dy }), onMove(item, { x, y, dy }), onDrop(item, { x, y }),
-// onCancel(item). `contextMenu(event)` keeps a long press from opening the browser's menu.
+// onCancel(item); `canDrag(item)` (default yes) can turn dragging off for an item.
+// With `onLongPress(item)`, a touch held still and lifted is a long press (a menu, like a
+// message's), and a touch held still and then moved is a drag: holding arms it (a short
+// vibration), lifting calls onLongPress (its click swallowed), moving starts the drag.
+// `contextMenu(event)` keeps a long press from opening the browser's menu; it returns whether
+// a touch is down (so a right-click handler can tell the two apart).
 export function usePointerDrag(handlers) {
   const pending = useRef(null);
   const latest = useRef(handlers);
@@ -37,7 +42,8 @@ export function usePointerDrag(handlers) {
   const pointerDown = useCallback((item, e) => {
     if (e.button !== 0) return;
     finish();
-    const state = { item, pointerType: e.pointerType, startX: e.clientX, startY: e.clientY, dragging: false };
+    const draggable = latest.current.canDrag?.(item) ?? true;
+    const state = { item, pointerType: e.pointerType, startX: e.clientX, startY: e.clientY, dragging: false, armed: false };
     const begin = (x, y) => {
       state.dragging = true;
       if (state.pointerType === 'touch') touchDrag = state;
@@ -50,23 +56,39 @@ export function usePointerDrag(handlers) {
       const dy = ev.clientY - state.startY;
       if (!state.dragging) {
         if (state.pointerType === 'touch') {
+          if (Math.hypot(dx, dy) <= TOUCH_SLOP_PX) return;
+          // Moving after the hold (with a long press waiting): the drag starts here.
+          if (state.armed && draggable) {
+            state.armed = false;
+            begin(ev.clientX, ev.clientY);
+            return;
+          }
           // Moving before the hold is up: it's a scroll, not a drag.
-          if (Math.hypot(dx, dy) > TOUCH_SLOP_PX) finish();
+          finish();
           return;
         }
-        if (Math.hypot(dx, dy) < MOUSE_THRESHOLD_PX) return;
+        if (!draggable || Math.hypot(dx, dy) < MOUSE_THRESHOLD_PX) return;
         begin(ev.clientX, ev.clientY);
         return;
       }
       latest.current.onMove?.(item, { x: ev.clientX, y: ev.clientY, dy });
     };
-    state.onUp = (ev) => {
-      const wasDragging = state.dragging;
-      finish();
-      if (!wasDragging) return;
+    // The click that follows lifting the finger or mouse doesn't reach what was under it.
+    const swallowClick = () => {
       const swallow = (click) => { click.preventDefault(); click.stopPropagation(); };
       window.addEventListener('click', swallow, { capture: true, once: true });
       setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);
+    };
+    state.onUp = (ev) => {
+      const { dragging: wasDragging, armed: wasArmed } = state;
+      finish();
+      if (wasArmed) {
+        swallowClick();
+        latest.current.onLongPress?.(item);
+        return;
+      }
+      if (!wasDragging) return;
+      swallowClick();
       latest.current.onDrop?.(item, { x: ev.clientX, y: ev.clientY });
     };
     state.onCancel = () => {
@@ -75,10 +97,18 @@ export function usePointerDrag(handlers) {
       if (wasDragging) latest.current.onCancel?.(item);
     };
     state.onTouchMove = (ev) => {
-      if (state.dragging) ev.preventDefault();
+      if (state.dragging || (state.armed && draggable)) ev.preventDefault();
     };
-    if (state.pointerType === 'touch') {
-      state.timer = setTimeout(() => begin(state.startX, state.startY), TOUCH_HOLD_MS);
+    if (state.pointerType === 'touch' && (draggable || latest.current.onLongPress)) {
+      state.timer = setTimeout(() => {
+        if (!latest.current.onLongPress) {
+          begin(state.startX, state.startY);
+          return;
+        }
+        state.armed = true;
+        if (draggable) touchDrag = state;
+        navigator.vibrate?.(10);
+      }, TOUCH_HOLD_MS);
     }
 
     pending.current = state;
@@ -89,7 +119,9 @@ export function usePointerDrag(handlers) {
   }, [finish]);
 
   const contextMenu = useCallback((e) => {
-    if (pending.current?.pointerType === 'touch') e.preventDefault();
+    if (pending.current?.pointerType !== 'touch') return false;
+    e.preventDefault();
+    return true;
   }, []);
 
   return { pointerDown, contextMenu };

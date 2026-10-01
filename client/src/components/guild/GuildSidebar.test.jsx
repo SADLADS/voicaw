@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
 vi.mock('../../services/guildService', () => ({
@@ -10,6 +10,13 @@ vi.mock('../../services/guildService', () => ({
     guildId: 5, channelId, muted: true, until: duration == null ? null : Math.floor(Date.now() / 1000) + duration,
   })),
   unmuteChannel: vi.fn(async (channelId) => ({ guildId: 5, channelId, muted: false, until: null })),
+  setChannelNotifications: vi.fn(async (channelId, level) => ({ guildId: 5, channelId, level })),
+  markChannelReadToLatest: vi.fn(async () => {}),
+  deleteChannel: vi.fn(async () => {}),
+  deleteCategory: vi.fn(async () => {}),
+  cloneChannel: vi.fn(async (guildId, channelId, name) => ({ id: 99, name, type: 'text', category_id: 2 })),
+  moveChannel: vi.fn(async () => {}),
+  moveCategory: vi.fn(async () => {}),
 }));
 
 const voice = vi.hoisted(() => ({ snapshot: { status: 'idle', guildId: null, channelId: null, speaking: [] } }));
@@ -22,7 +29,16 @@ vi.mock('../../voice/voiceClient', () => ({
 import GuildSidebar from './GuildSidebar';
 import { ConfigContext, InteractionContext, LayoutContext } from '../../contexts';
 import { joinVoice } from '../../voice/voiceClient';
-import { leaveGuild, muteChannel, unmuteChannel } from '../../services/guildService';
+import {
+  cloneChannel,
+  deleteCategory,
+  deleteChannel,
+  leaveGuild,
+  markChannelReadToLatest,
+  muteChannel,
+  setChannelNotifications,
+  unmuteChannel,
+} from '../../services/guildService';
 
 const owner = { id: 1, username: 'owner' };
 const member = { id: 2, username: 'member' };
@@ -53,8 +69,11 @@ function Where() {
   return <div data-testid="where">{useLocation().pathname}</div>;
 }
 
-function renderSidebar({ user = owner, unread = [], mutes = {}, path = '/guild/5/10', permissions, isMobile = false } = {}) {
-  const guildList = { unread, mutes, isMuted: (id) => Boolean(mutes[id]), applyMute: vi.fn(), removeGuild: vi.fn() };
+function renderSidebar({ user = owner, unread = [], mutes = {}, channelLevels = {}, path = '/guild/5/10', permissions, isMobile = false } = {}) {
+  const guildList = {
+    unread, mutes, channelLevels, isMuted: (id) => Boolean(mutes[id]), applyMute: vi.fn(), applyChannelLevel: vi.fn(),
+    clearUnread: vi.fn(), removeGuild: vi.fn(), upsertGuild: vi.fn(), loadGuild: vi.fn(async () => {}),
+  };
   const guild = { ...baseGuild, my_permissions: permissions ?? (user.id === baseGuild.owner ? ALL : DEFAULT) };
   render(
     <ConfigContext.Provider value={{ s3Endpoint: '', voiceEnabled: true }}>
@@ -120,20 +139,136 @@ describe('GuildSidebar', () => {
     expect(screen.queryByRole('link', { name: /^lounge/ })).toBeNull();
   });
 
-  it('mutes and unmutes a channel from its right-click menu', async () => {
+  const menuItems = (menu) => [...menu.querySelectorAll('[role^="menuitem"]')].map((b) => b.firstChild.firstChild.textContent);
+
+  it("right-clicking a channel opens its menu: a member's", () => {
+    renderSidebar({ user: member, unread: [{ channel_id: 11, guild_id: 5, count: 2, mentions: 0 }] });
+    fireEvent.contextMenu(screen.getByRole('link', { name: 'memes' }));
+    expect(menuItems(screen.getByRole('menu', { name: '#memes' }))).toEqual([
+      'Mark As Read', 'Mute Channel', 'Notification Settings', 'Copy Link',
+    ]);
+  });
+
+  it("an owner's channel menu also edits, duplicates and deletes; a voice channel's has no mute", () => {
+    renderSidebar();
+    fireEvent.contextMenu(screen.getByRole('link', { name: 'general' }));
+    expect(menuItems(screen.getByRole('menu', { name: '#general' }))).toEqual([
+      'Mute Channel', 'Notification Settings', 'Copy Link', 'Edit Channel', 'Duplicate Channel', 'Delete Channel',
+    ]);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    fireEvent.contextMenu(screen.getByRole('link', { name: 'lounge' }));
+    expect(menuItems(screen.getByRole('menu', { name: '#lounge' }))).toEqual([
+      'Copy Link', 'Edit Channel', 'Duplicate Channel', 'Delete Channel',
+    ]);
+  });
+
+  it('marks a channel read from its menu', async () => {
+    const guildList = renderSidebar({ unread: [{ channel_id: 11, guild_id: 5, count: 2, mentions: 1 }] });
+    fireEvent.contextMenu(screen.getByRole('link', { name: /^memes/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mark As Read' }));
+    await waitFor(() => expect(markChannelReadToLatest).toHaveBeenCalledWith(11));
+    await waitFor(() => expect(guildList.clearUnread).toHaveBeenCalledWith(11));
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('mutes a channel from its menu, for as long as picked', async () => {
     const guildList = renderSidebar();
     fireEvent.contextMenu(screen.getByRole('link', { name: 'memes' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'For 1 hour' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mute Channel' }));
+    fireEvent.click(within(screen.getByRole('menu', { name: 'Mute Channel' })).getByRole('menuitem', { name: 'For 1 hour' }));
     await waitFor(() => expect(muteChannel).toHaveBeenCalledWith(11, 3600));
     await waitFor(() => expect(guildList.applyMute).toHaveBeenCalledWith(expect.objectContaining({ channelId: 11, muted: true })));
     expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it("sets a channel's own notification level, or back to the guild's", async () => {
+    const guildList = renderSidebar({ channelLevels: { 11: { guildId: 5, level: 'none' } } });
+    fireEvent.contextMenu(screen.getByRole('link', { name: 'memes' }));
+    fireEvent.mouseEnter(screen.getByRole('menuitem', { name: /^Notification Settings/ }));
+    const levels = screen.getByRole('menu', { name: 'Notification Settings' });
+    expect(within(levels).getByRole('menuitemradio', { name: /^Nothing/ })).toHaveAttribute('aria-checked', 'true');
+    expect(within(levels).getByRole('menuitemradio', { name: /^Use Guild Default/ })).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(within(levels).getByRole('menuitemradio', { name: /^All messages/ }));
+    await waitFor(() => expect(setChannelNotifications).toHaveBeenCalledWith(11, 'all'));
+    await waitFor(() => expect(guildList.applyChannelLevel).toHaveBeenCalledWith({ guildId: 5, channelId: 11, level: 'all' }));
+
+    fireEvent.contextMenu(screen.getByRole('link', { name: 'memes' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Notification Settings/ }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /^Use Guild Default/ }));
+    await waitFor(() => expect(setChannelNotifications).toHaveBeenCalledWith(11, null));
+  });
+
+  it('copies a link to the channel', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    renderSidebar({ user: member });
+    fireEvent.contextMenu(screen.getByRole('link', { name: 'memes' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy Link' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/guild/5/11`));
+    expect(await screen.findByText('Link copied')).toBeInTheDocument();
+  });
+
+  it('duplicates and deletes a channel from its menu', async () => {
+    renderSidebar({ path: '/guild/5/11' });
+    fireEvent.contextMenu(screen.getByRole('link', { name: 'memes' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Duplicate Channel' }));
+    const name = await screen.findByLabelText('Channel name');
+    expect(name).toHaveValue('memes');
+    fireEvent.change(name, { target: { value: 'memes 2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate Channel' }));
+    await waitFor(() => expect(cloneChannel).toHaveBeenCalledWith(5, 11, 'memes 2'));
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/guild/5/99'));
+
+    fireEvent.contextMenu(screen.getByRole('link', { name: 'general' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete Channel' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Channel' }));
+    await waitFor(() => expect(deleteChannel).toHaveBeenCalledWith(5, 10));
+  });
+
+  it("a category's menu collapses it and, for managers, edits and deletes it", async () => {
+    renderSidebar();
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Fun' }));
+    expect(menuItems(screen.getByRole('menu', { name: 'Fun' }))).toEqual([
+      'Collapse Category', 'Edit Category', 'Create Channel', 'Delete Category',
+    ]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Collapse Category' }));
+    await waitFor(() => expect(screen.queryByRole('link', { name: 'lounge' })).toBeNull());
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Fun' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete Category' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Category' }));
+    await waitFor(() => expect(deleteCategory).toHaveBeenCalledWith(5, 2));
+  });
+
+  it('on a phone: no edit buttons, and touch and hold opens the menu as a sheet', async () => {
+    vi.useFakeTimers();
+    try {
+      renderSidebar({ isMobile: true });
+      expect(screen.queryByRole('button', { name: 'Edit general' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Create channel in Fun' })).toBeNull();
+      const link = screen.getByRole('link', { name: 'memes' });
+      fireEvent.pointerDown(link, { pointerType: 'touch', button: 0, clientX: 10, clientY: 10 });
+      act(() => vi.advanceTimersByTime(400));
+      fireEvent.pointerUp(window, { pointerType: 'touch', clientX: 10, clientY: 10 });
+      act(() => vi.advanceTimersByTime(10));
+      const sheet = screen.getByRole('menu', { name: '#memes' });
+      expect(sheet).toHaveClass('action-sheet');
+      // A submenu replaces the sheet's items, with a way back.
+      fireEvent.pointerDown(sheet);
+      fireEvent.click(within(sheet).getByRole('menuitem', { name: 'Mute Channel' }));
+      expect(within(sheet).getByRole('menuitem', { name: 'For 15 minutes' })).toBeInTheDocument();
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Back' }));
+      expect(within(sheet).getByRole('menuitem', { name: 'Copy Link' })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('offers to unmute a muted channel, saying until when', async () => {
     const guildList = renderSidebar({ mutes: { 11: { guildId: 5, until: null } } });
     fireEvent.contextMenu(screen.getByRole('link', { name: /^memes/ }));
     expect(screen.getByText('Muted until you unmute it')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Unmute Channel' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Unmute Channel/ }));
     await waitFor(() => expect(unmuteChannel).toHaveBeenCalledWith(11));
     await waitFor(() => expect(guildList.applyMute).toHaveBeenCalledWith(expect.objectContaining({ channelId: 11, muted: false })));
   });

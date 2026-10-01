@@ -370,7 +370,129 @@ img.guild-icon {
   color: var(--vc-danger);
 }
 
-/* Owner's edit buttons: on hover (desktop), always (touch, where there's no hover). */
+/* A channel's or category's menu (ContextMenu): floating on a computer, submenus beside it. */
+.guild-menu.context-menu {
+  position: fixed;
+  right: auto;
+  min-width: 210px;
+  max-width: min(280px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  z-index: 1060;
+}
+
+.guild-menu-item.open {
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+}
+
+.guild-menu-item svg {
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.context-menu-label {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.context-menu-label small {
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+.guild-menu-item:hover .context-menu-label small {
+  color: inherit;
+}
+
+.context-menu-check {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 12px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  font-size: 10px;
+}
+
+.context-menu-check.on {
+  border-color: var(--vc-accent);
+  background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
+}
+
+.guild-menu-item:hover .context-menu-check.on {
+  border-color: var(--vc-on-accent);
+}
+
+.context-menu-check svg {
+  margin: 0;
+}
+
+/* On a phone: a sheet from the bottom (the message action sheet's look). */
+.context-sheet-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 8px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--vc-border-dark);
+  font-size: 16px;
+  font-weight: 700;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.context-sheet-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: -6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--vc-fg);
+}
+
+.context-sheet-icon {
+  color: var(--vc-fg-muted);
+}
+
+.context-sheet-separator {
+  height: 1px;
+  margin: 4px 8px;
+  background-color: var(--vc-border-dark);
+}
+
+.context-sheet .context-menu-label {
+  flex: 1;
+}
+
+.context-sheet .context-menu-label small {
+  font-size: 13px;
+}
+
+.context-sheet-end {
+  flex-shrink: 0;
+  color: var(--vc-fg-muted);
+}
+
+.context-sheet .error-msg {
+  margin: 8px;
+}
+
+/* Owner's edit buttons: on hover (desktop; a phone has the long-press menu instead). */
 .guild-sidebar-icon-button {
   flex-shrink: 0;
   display: flex;

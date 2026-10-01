@@ -227,7 +227,7 @@ async function nextPosition(table, where, params) {
   return row.max == null ? 0 : row.max + 1;
 }
 
-// Deletes channels' messages, their reactions, read markers, mutes, overrides, tasks and
+// Deletes channels' messages, their reactions, read markers, mutes, notification levels, overrides, tasks and
 // documents (not the channels).
 async function deleteChannelContents(channelIdsSql, params) {
   await require('./guildTasks').deleteChannelTasks(channelIdsSql, params);
@@ -241,6 +241,7 @@ async function deleteChannelContents(channelIdsSql, params) {
   await db.run(`DELETE FROM guild_messages WHERE channel_id IN (${channelIdsSql})`, params);
   await db.run(`DELETE FROM guild_channel_reads WHERE channel_id IN (${channelIdsSql})`, params);
   await db.run(`DELETE FROM guild_channel_mutes WHERE channel_id IN (${channelIdsSql})`, params);
+  await db.run(`DELETE FROM guild_channel_notify WHERE channel_id IN (${channelIdsSql})`, params);
   await db.run(`DELETE FROM guild_channel_overrides WHERE channel_id IN (${channelIdsSql})`, params);
   await db.run(`DELETE FROM guild_webhooks WHERE channel_id IN (${channelIdsSql})`, params);
 }
@@ -267,7 +268,7 @@ async function removeMember(guildId, userId) {
        AND channel_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)`,
       [userId, guildId]
     );
-    for (const table of ['guild_channel_reads', 'guild_channel_mutes']) {
+    for (const table of ['guild_channel_reads', 'guild_channel_mutes', 'guild_channel_notify']) {
       await db.run(
         `DELETE FROM ${table} WHERE user_id = ? AND channel_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)`,
         [userId, guildId]

@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onConnectionState, onGuildEvent } from '../utils/ws-client';
-import { fetchAllEmojis, fetchChannelMutes, fetchGuild, fetchGuilds, fetchGuildUnread, saveGuildOrder } from '../services/guildService';
+import {
+  fetchAllEmojis,
+  fetchChannelMutes,
+  fetchChannelNotifications,
+  fetchGuild,
+  fetchGuilds,
+  fetchGuildUnread,
+  saveGuildOrder,
+} from '../services/guildService';
 
 // The logged-in user's guilds, for the whole layout (Layout puts this in LayoutContext):
 // - `guilds`: the list for the guild rail ([{ id, name, owner, icon_version }]).
@@ -14,6 +22,10 @@ import { fetchAllEmojis, fetchChannelMutes, fetchGuild, fetchGuilds, fetchGuildU
 //   dropped as they run out; `isMuted(channelId)`; `applyMute(event)` takes what muting
 //   returned (as the `guild_channel_mute` event other devices get). A muted channel's unread
 //   messages don't count (`activeUnread`: the unread rows that do, or that mention you).
+// - `channelLevels`: your own notification level per channel ({ [channelId]: { guildId, level } },
+//   'all' | 'mentions' | 'none'; none set: the guild's); `applyChannelLevel(event)` takes what
+//   setting one returned (as the `guild_channel_notify` event other devices get).
+// `clearUnread(channelId)` drops a channel's unread row (after Mark As Read).
 // `reorderGuilds(ids)` saves a new rail order (top first); other devices follow.
 // `activeChannelId` is the channel on screen: new messages there don't count as unread.
 // `onRemoved(guildId)` runs when you leave, are removed from, or delete a guild.
@@ -23,6 +35,7 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
   const [unread, setUnread] = useState([]);
   const [emojis, setEmojis] = useState({});
   const [mutes, setMutes] = useState({});
+  const [channelLevels, setChannelLevels] = useState({});
   const [loaded, setLoaded] = useState(false);
 
   const active = useRef(activeChannelId);
@@ -58,6 +71,7 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
       return rest;
     });
     setMutes((prev) => Object.fromEntries(Object.entries(prev).filter(([, m]) => m.guildId !== guildId)));
+    setChannelLevels((prev) => Object.fromEntries(Object.entries(prev).filter(([, l]) => l.guildId !== guildId)));
     onRemovedRef.current?.(guildId);
   }, []);
 
@@ -68,12 +82,30 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
     });
   }, []);
 
+  const applyChannelLevel = useCallback(({ channelId, guildId, level }) => {
+    setChannelLevels((prev) => {
+      const { [channelId]: _old, ...rest } = prev;
+      return level ? { ...rest, [channelId]: { guildId, level } } : rest;
+    });
+  }, []);
+
+  const clearUnread = useCallback((channelId) => {
+    setUnread((prev) => prev.filter((u) => u.channel_id !== channelId));
+  }, []);
+
+  // Mutes and channel notification levels.
   const loadMutes = useCallback(async () => {
     try {
       const list = await fetchChannelMutes();
       setMutes(Object.fromEntries(list.map((m) => [m.channel_id, { guildId: m.guild_id, until: m.until }])));
     } catch (err) {
       console.warn('Failed to load muted channels', err);
+    }
+    try {
+      const list = await fetchChannelNotifications();
+      setChannelLevels(Object.fromEntries(list.map((l) => [l.channel_id, { guildId: l.guild_id, level: l.level }])));
+    } catch (err) {
+      console.warn('Failed to load channel notification settings', err);
     }
   }, []);
 
@@ -174,6 +206,9 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
         case 'guild_channel_mute':
           applyMute(event);
           break;
+        case 'guild_channel_notify':
+          applyChannelLevel(event);
+          break;
         case 'guild_voice_state':
           setLayouts((prev) => {
             const guild = prev[event.guildId];
@@ -209,10 +244,10 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
         default:
       }
     });
-  }, [userId, upsertGuild, removeGuild, applyOrder, applyMute]);
+  }, [userId, upsertGuild, removeGuild, applyOrder, applyMute, applyChannelLevel]);
 
   return {
-    guilds, layouts, unread, activeUnread, emojis, mutes, isMuted, applyMute, loaded,
-    loadGuild, upsertGuild, removeGuild, refreshUnread, reorderGuilds,
+    guilds, layouts, unread, activeUnread, emojis, mutes, isMuted, applyMute, channelLevels, applyChannelLevel, loaded,
+    loadGuild, upsertGuild, removeGuild, refreshUnread, clearUnread, reorderGuilds,
   };
 }

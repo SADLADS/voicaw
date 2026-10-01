@@ -141,3 +141,76 @@ describe('channel mutes', () => {
     expect((await api.get(bob, '/channel-mutes')).body).toEqual([]);
   });
 });
+
+describe('Mark As Read', () => {
+  it('marks a channel read up to its newest message', async () => {
+    const { owner, members: [bob], general } = await setUp(1);
+    await say(owner, general, 'one');
+    await say(owner, general, 'two');
+    expect(await unreadFor(bob, general)).toMatchObject({ count: 2 });
+    expect((await api.post(bob, `/channels/${general.id}/read`, { latest: true })).status).toBe(200);
+    expect(await unreadFor(bob, general)).toBeUndefined();
+    await say(owner, general, 'three');
+    expect(await unreadFor(bob, general)).toMatchObject({ count: 1 });
+  });
+});
+
+describe('channel notification levels', () => {
+  it('sets, lists and clears your own level for a channel, on your other devices too', async () => {
+    const { members: [bob, carol], guild, general } = await setUp();
+    const events = connect(bob);
+    const res = await api.put(bob, `/channels/${general.id}/notifications`, { level: 'all' });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ guildId: guild.id, channelId: general.id, level: 'all' });
+    expect(events).toContainEqual({ type: 'guild_channel_notify', ...res.body });
+    expect((await api.get(bob, '/channel-notifications')).body).toEqual([{ channel_id: general.id, guild_id: guild.id, level: 'all' }]);
+    expect((await api.get(carol, '/channel-notifications')).body).toEqual([]);
+    expect((await api.put(bob, `/channels/${general.id}/notifications`, { level: null })).body.level).toBe(null);
+    expect((await api.get(bob, '/channel-notifications')).body).toEqual([]);
+    events.stop();
+  });
+
+  it("refuses bad levels and channels you can't see", async () => {
+    const { owner, members: [bob], guild, general, everyone } = await setUp(1);
+    for (const level of ['loud', 3, 'default']) {
+      expect((await api.put(bob, `/channels/${general.id}/notifications`, { level })).status).toBe(400);
+    }
+    const secret = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'secret' })).body;
+    await api.put(owner, `/guilds/${guild.id}/channels/${secret.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.VIEW_CHANNEL });
+    expect((await api.put(bob, `/channels/${secret.id}/notifications`, { level: 'all' })).status).toBe(404);
+  });
+
+  it("overrides the guild's level for that channel only", async () => {
+    const { owner, members: [bob, carol], guild, general } = await setUp();
+    const other = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'other' })).body;
+    // Bob: guild on mentions, #general on all. Carol: guild on all, #general on nothing.
+    await api.put(bob, `/channels/${general.id}/notifications`, { level: 'all' });
+    await api.put(carol, `/guilds/${guild.id}/notifications`, { level: 'all' });
+    await api.put(carol, `/channels/${general.id}/notifications`, { level: 'none' });
+
+    let since = sentPushes.length;
+    await say(owner, general, 'in general');
+    expect((await pushesSince(since)).map((p) => p.endpoint)).toEqual([bob.endpoint]);
+
+    since = sentPushes.length;
+    await say(owner, other, 'in other');
+    expect((await pushesSince(since)).map((p) => p.endpoint)).toEqual([carol.endpoint]);
+
+    // 'none' silences mentions too; a mute still beats 'all'.
+    await api.put(bob, `/channels/${general.id}/mute`, {});
+    since = sentPushes.length;
+    await say(owner, general, `hey <@${carol.id}>`);
+    expect(await pushesSince(since)).toEqual([]);
+  });
+
+  it('goes with leaving the guild or deleting the channel', async () => {
+    const { owner, members: [bob], guild, general } = await setUp(1);
+    const other = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'other' })).body;
+    await api.put(bob, `/channels/${other.id}/notifications`, { level: 'none' });
+    await api.put(bob, `/channels/${general.id}/notifications`, { level: 'all' });
+    await api.delete(owner, `/guilds/${guild.id}/channels/${other.id}`);
+    expect((await api.get(bob, '/channel-notifications')).body.map((m) => m.channel_id)).toEqual([general.id]);
+    await api.delete(bob, `/guilds/${guild.id}/members/me`);
+    expect((await api.get(bob, '/channel-notifications')).body).toEqual([]);
+  });
+});
