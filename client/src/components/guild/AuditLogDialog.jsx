@@ -1,16 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
 import Avatar from '../Avatar';
-import { fetchAuditLog, fetchMembers } from '../../services/guildService';
+import ConfirmDialog from './ConfirmDialog';
+import { clearAuditLog, fetchAuditLog, fetchMembers } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
 import { formatDateTime, useDateFormat } from '../../utils/dateFormat';
 import { displayName, mergeProfiles, useProfiles } from '../../utils/profiles';
-import { AUDIT_FILTERS, describeEntry, entryChanges } from '../../utils/auditLog';
+import { AUDIT_FILTERS, CLEAR_CHOICES, describeEntry, entryChanges } from '../../utils/auditLog';
 
 // The guild's audit log (View Audit Log; server/auditLog.js): who did what, newest first,
 // filtered by who did it and what kind of thing, a page at a time. Entries about channels you
-// can't see aren't sent. Clicking an entry with details opens what changed.
-export default function AuditLogDialog({ guild, onClose }) {
+// can't see aren't sent. Clicking an entry with details opens what changed. Entries are kept
+// for good; the owner can clear old ones (asks first; the clear is logged).
+export default function AuditLogDialog({ guild, user, onClose }) {
   useProfiles();
   useDateFormat();
   const [members, setMembers] = useState([]);
@@ -22,7 +24,10 @@ export default function AuditLogDialog({ guild, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [open, setOpen] = useState(() => new Set());
+  const [clearAge, setClearAge] = useState(90);
+  const [confirmClear, setConfirmClear] = useState(false);
   const request = useRef(0);
+  const isOwner = guild.owner === user?.id;
 
   useEffect(() => {
     fetchMembers(guild.id).then((list) => {
@@ -137,7 +142,34 @@ export default function AuditLogDialog({ guild, onClose }) {
           {loading ? 'Loading…' : 'Load more'}
         </button>
       )}
-      <p className="vc-hint audit-log-note">Entries are kept for 90 days. Deleted messages&apos; text isn&apos;t kept.</p>
+      <p className="vc-hint audit-log-note">Deleted messages&apos; text isn&apos;t kept.</p>
+
+      {isOwner && (
+        <div className="audit-log-clear">
+          <span className="vc-label">Clear old entries</span>
+          <div className="vc-form-row">
+            <select className="form-select form-control" value={clearAge} onChange={(e) => setClearAge(Number(e.target.value))} aria-label="Entries to clear">
+              {CLEAR_CHOICES.map(([days, label]) => <option key={days} value={days}>{label}</option>)}
+            </select>
+            <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => setConfirmClear(true)}>Clear</button>
+          </div>
+          <p className="vc-hint">Only you, the owner, can do this. Everyone who can see the log will see that you did.</p>
+        </div>
+      )}
+      {confirmClear && (
+        <ConfirmDialog
+          title="Clear audit log"
+          message={clearAge
+            ? `Delete every audit log entry ${CLEAR_CHOICES.find(([d]) => d === clearAge)[1].toLowerCase()}? This can't be undone.`
+            : "Delete the whole audit log? This can't be undone."}
+          confirmLabel="Clear"
+          onConfirm={async () => {
+            await clearAuditLog(guild.id, clearAge);
+            load();
+          }}
+          onClose={() => setConfirmClear(false)}
+        />
+      )}
     </Modal>
   );
 }

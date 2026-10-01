@@ -1092,6 +1092,21 @@ button.audit-log-row:focus-visible {
   font-size: 12px;
 }
 
+.audit-log-clear {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+.audit-log-clear .vc-form-row {
+  margin-top: 4px;
+}
+
+.audit-log-dialog .audit-log-clear .vc-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
 /* ---- Invite page ---- */
 
 .invite-page {

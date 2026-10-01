@@ -37,6 +37,13 @@ describe('audit log wording', () => {
     expect(entryChanges({ action: 'invite_create', details: { maxUses: 1, maxAge: 86400 } })).toEqual(['Up to 1 use', 'Expires after 1 day']);
   });
 
+  it('says what the owner cleared', () => {
+    expect(text(describeEntry({ action: 'audit_log_clear', actor_id: 1, details: { olderThanDays: 90, deleted: 12 } }, names)))
+      .toBe('[Alice] cleared entries older than 90 days (12 entries)');
+    expect(text(describeEntry({ action: 'audit_log_clear', actor_id: 1, details: { olderThanDays: 0, deleted: 1 } }, names)))
+      .toBe('[Alice] cleared the whole audit log (1 entry)');
+  });
+
   it('labels every permission, and every filter has actions', () => {
     expect(permissionNames(PERMISSIONS.VIEW_AUDIT_LOG)).toEqual(['View Audit Log']);
     for (const filter of AUDIT_FILTERS) expect(filter.actions.length).toBeGreaterThan(0);

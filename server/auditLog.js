@@ -22,10 +22,15 @@ const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 //   webhook_create / webhook_delete { name, channelName }, webhook_update { name, changes }
 //   message_delete { messageId, sentAt, channelName, webhookName? } (target: the author)
 //   message_pin / message_unpin { messageId, channelName } (target: the author)
+//   audit_log_clear { olderThanDays (0: everything), deleted }
 // Never a message's content: deleting it should get rid of it.
+//
+// Entries are kept until the guild is deleted, or until its owner clears old ones
+// (clearAuditLog), which is itself logged, so a clear can't go unnoticed.
 
-const RETENTION_DAYS = 90;
 const MAX_PAGE = 100;
+// What the owner may clear: entries older than these many days (0: all of them).
+const CLEAR_CHOICES = [30, 90, 365, 0];
 
 const now = () => Math.floor(Date.now() / 1000);
 
@@ -42,7 +47,7 @@ async function isPrivateChannel(channelId) {
 }
 
 // Records one entry. `actorId` is the user who did it; a webhook acting with its token passes
-// `webhookId` instead. Entries older than RETENTION_DAYS are dropped as new ones come in.
+// `webhookId` instead.
 async function logAudit({ guildId, action, actorId = null, webhookId = null, targetType = null, targetId = null, channelId = null, details = null }) {
   const isPrivate = channelId != null && await isPrivateChannel(channelId);
   await db.run(
@@ -52,7 +57,18 @@ async function logAudit({ guildId, action, actorId = null, webhookId = null, tar
     [guildId, action, actorId, webhookId, targetType, targetId == null ? null : String(targetId),
       channelId, isPrivate ? 1 : 0, details ? JSON.stringify(details) : null, now()]
   );
-  await db.run('DELETE FROM guild_audit_log WHERE guild_id = ? AND created_at < ?', [guildId, now() - RETENTION_DAYS * 86400]);
+}
+
+// Deletes the guild's entries older than `olderThanDays` (one of CLEAR_CHOICES; 0: all), then
+// records that `actorId` did. -> how many were deleted.
+async function clearAuditLog(guildId, actorId, olderThanDays) {
+  return db.transaction(async () => {
+    const { changes } = olderThanDays
+      ? await db.run('DELETE FROM guild_audit_log WHERE guild_id = ? AND created_at < ?', [guildId, now() - olderThanDays * 86400])
+      : await db.run('DELETE FROM guild_audit_log WHERE guild_id = ?', [guildId]);
+    await logAudit({ guildId, action: 'audit_log_clear', actorId, details: { olderThanDays, deleted: changes } });
+    return changes;
+  });
 }
 
 // [before, after] for each field of `after` that differs from `before` (undefined ones skipped).
@@ -131,4 +147,4 @@ async function readAuditLog(member, { before = null, limit = 50, actions = null,
   return { entries, users, webhooks, next };
 }
 
-module.exports = { RETENTION_DAYS, logAudit, diff, readAuditLog };
+module.exports = { CLEAR_CHOICES, logAudit, diff, readAuditLog, clearAuditLog };

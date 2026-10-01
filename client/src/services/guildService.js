@@ -290,6 +290,11 @@ export async function searchGuildMessages(guildId, params) {
 // A page of the guild's audit log (server/auditLog.js; View Audit Log), newest first:
 // { entries, users, webhooks, next }. `before` is the last page's `next`; `actions` limits it
 // to those actions, `userId` to what that member did.
+// Deletes audit log entries older than `olderThanDays` (30, 90, 365; 0: all). Owner only.
+export async function clearAuditLog(guildId, olderThanDays) {
+  return (await api.post(`/guilds/${guildId}/audit-log/clear`, { olderThanDays })).data;
+}
+
 export async function fetchAuditLog(guildId, { before, actions, userId } = {}) {
   const params = { before, actions: actions?.join(','), userId };
   return (await api.get(`/guilds/${guildId}/audit-log`, {

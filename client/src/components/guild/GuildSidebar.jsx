@@ -304,7 +304,7 @@ export default function GuildSidebar({ guild, user }) {
       </nav>
 
       {dialog?.type === 'invite' && <InviteDialog guild={guild} onClose={closeDialog} />}
-      {dialog?.type === 'audit' && <AuditLogDialog guild={guild} onClose={closeDialog} />}
+      {dialog?.type === 'audit' && <AuditLogDialog guild={guild} user={user} onClose={closeDialog} />}
       {dialog?.type === 'notifications' && <NotificationDialog guild={guild} onClose={closeDialog} />}
       {dialog?.type === 'settings' && <GuildSettingsDialog guild={guild} user={user} onClose={closeDialog} />}
       {dialog?.type === 'category' && <CategoryDialog guild={guild} category={dialog.category} onClose={closeDialog} />}

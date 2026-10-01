@@ -17,7 +17,15 @@ export const AUDIT_FILTERS = [
   { key: 'invites', label: 'Invites', actions: ['invite_create', 'invite_delete'] },
   { key: 'emoji', label: 'Emoji', actions: ['emoji_create', 'emoji_update', 'emoji_delete'] },
   { key: 'webhooks', label: 'Webhooks', actions: ['webhook_create', 'webhook_update', 'webhook_delete'] },
-  { key: 'guild', label: 'Guild settings', actions: ['guild_update'] },
+  { key: 'guild', label: 'Guild settings', actions: ['guild_update', 'audit_log_clear'] },
+];
+
+// What the owner can clear (server/auditLog.js CLEAR_CHOICES): entries older than these days, 0 all.
+export const CLEAR_CHOICES = [
+  [30, 'Older than 30 days'],
+  [90, 'Older than 90 days'],
+  [365, 'Older than a year'],
+  [0, 'Everything'],
 ];
 
 const PERMISSION_LABELS = Object.fromEntries(
@@ -79,6 +87,10 @@ export function describeEntry(entry, names) {
     case 'webhook_update': return [actor, ' changed the webhook ', { name: d.name }];
     case 'webhook_delete': return [actor, ' deleted the webhook ', { name: d.name }];
     case 'guild_update': return [actor, ' changed the guild settings'];
+    case 'audit_log_clear': {
+      const what = d.olderThanDays ? `entries older than ${clearAge(d.olderThanDays)}` : 'the whole audit log';
+      return [actor, ` cleared ${what} (${d.deleted} ${d.deleted === 1 ? 'entry' : 'entries'})`];
+    }
     default: return [actor, ` did something (${entry.action})`];
   }
 }
@@ -134,6 +146,11 @@ export function entryChanges(entry) {
     lines.push(d.maxAge ? `Expires after ${formatAge(d.maxAge)}` : 'Never expires');
   }
   return lines;
+}
+
+function clearAge(days) {
+  if (days === 365) return 'a year';
+  return `${days} ${days === 1 ? 'day' : 'days'}`;
 }
 
 function formatAge(seconds) {

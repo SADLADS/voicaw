@@ -1,10 +1,10 @@
 const express = require('express');
 const { authenticateJWT } = require('../auth');
 const { PERMISSIONS } = require('../permissions');
-const { readAuditLog } = require('../auditLog');
+const { CLEAR_CHOICES, readAuditLog, clearAuditLog } = require('../auditLog');
 const { requireMember, requirePermission } = require('./guilds');
 
-// The guild's audit log (auditLog.js), for members with View Audit Log.
+// The guild's audit log (auditLog.js), for members with View Audit Log; only the owner clears it.
 const router = express.Router();
 
 const ACTION = /^[a-z_]{1,40}$/;
@@ -30,6 +30,15 @@ router.get('/guilds/:guildId/audit-log', authenticateJWT, requireMember, require
     if (!Number.isInteger(options.actorId)) return res.status(400).json({ error: 'Invalid userId' });
   }
   res.json(await readAuditLog(req.member, options));
+});
+
+// Clears entries older than `olderThanDays` (30, 90 or 365; 0: all). Only the owner: anyone
+// else could hide what they did. -> { deleted }
+router.post('/guilds/:guildId/audit-log/clear', authenticateJWT, requireMember, async (req, res) => {
+  if (!req.member.isOwner) return res.status(403).json({ error: 'Only the owner can clear the audit log' });
+  const olderThanDays = req.body?.olderThanDays;
+  if (!CLEAR_CHOICES.includes(olderThanDays)) return res.status(400).json({ error: 'Invalid olderThanDays' });
+  res.json({ deleted: await clearAuditLog(req.guild.id, req.user.id, olderThanDays) });
 });
 
 module.exports = router;

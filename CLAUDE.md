@@ -565,7 +565,10 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   changed), channels and categories (create/change/delete), channel overrides (before/after),
   invites (create/revoke), emoji, webhooks, guild name/icon. Not logged: reordering roles,
   channels and categories, joins and leaves, edits, reactions, voice. `details` keeps names as
-  they were. Kept 90 days (`RETENTION_DAYS`, pruned as entries come in); deleted with the guild.
+  they were. Kept for good (deleted with the guild); the owner alone (not Administrator: they
+  could hide their own doings) can clear entries older than 30/90/365 days or all (`POST
+  /guilds/:id/audit-log/clear { olderThanDays }`, `clearAuditLog`), which logs an
+  `audit_log_clear` entry.
   Reading (`GET /guilds/:id/audit-log?before&limit&actions=a,b&userId`, `{ entries, users,
   webhooks, next }`) needs View Audit Log (owner and Administrator have it); an entry about a
   channel shows only to those who can see it, and once the channel is deleted, only to

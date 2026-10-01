@@ -6,7 +6,6 @@ import { registerUser, loginUser } from './helpers/authFlow.js';
 const app = require('../index.js');
 const db = require('../db.js');
 const { PERMISSIONS: P } = require('../permissions.js');
-const { RETENTION_DAYS } = require('../auditLog.js');
 
 let userCount = 0;
 async function makeUser(prefix = 'audit-user') {
@@ -198,13 +197,39 @@ describe('guild audit log', () => {
     expect(webhooks).toEqual([]); // gone now; entries keep its name
   });
 
-  it('drops entries older than the retention period', async () => {
+  it('keeps entries however old they are', async () => {
     const { owner, guild } = await setUp(0);
-    await api.post(owner, `/guilds/${guild.id}/categories`, { name: 'old' });
-    await db.run('UPDATE guild_audit_log SET created_at = created_at - ? WHERE guild_id = ?', [(RETENTION_DAYS + 1) * 86400, guild.id]);
+    await api.post(owner, `/guilds/${guild.id}/categories`, { name: 'ancient' });
+    await db.run('UPDATE guild_audit_log SET created_at = created_at - ? WHERE guild_id = ?', [5 * 365 * 86400, guild.id]);
     await api.post(owner, `/guilds/${guild.id}/categories`, { name: 'new' });
     const { entries } = await auditLog(owner, guild.id);
-    expect(entries.map((e) => e.details.name)).toEqual(['new']);
+    expect(entries.map((e) => e.details.name)).toEqual(['new', 'ancient']);
+  });
+
+  it('the owner clears old entries, and the clear is logged', async () => {
+    const { owner, members: [admin], guild } = await setUp(1);
+    await grant(owner, guild.id, admin, P.ADMINISTRATOR);
+    await api.post(owner, `/guilds/${guild.id}/categories`, { name: 'old' });
+    await db.run('UPDATE guild_audit_log SET created_at = created_at - ? WHERE guild_id = ?', [100 * 86400, guild.id]);
+    await api.post(owner, `/guilds/${guild.id}/categories`, { name: 'recent' });
+
+    // Not an administrator (they could hide their own doings), and only the offered choices.
+    expect((await api.post(admin, `/guilds/${guild.id}/audit-log/clear`, { olderThanDays: 90 })).status).toBe(403);
+    expect((await api.post(owner, `/guilds/${guild.id}/audit-log/clear`, { olderThanDays: 7 })).status).toBe(400);
+
+    const cleared = await api.post(owner, `/guilds/${guild.id}/audit-log/clear`, { olderThanDays: 90 });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.deleted).toBeGreaterThan(0);
+    const { entries } = await auditLog(admin, guild.id);
+    expect(entries[0]).toMatchObject({ action: 'audit_log_clear', actor_id: owner.id, details: { olderThanDays: 90, deleted: cleared.body.deleted } });
+    expect(entries.some((e) => e.details.name === 'recent')).toBe(true);
+    expect(entries.some((e) => e.details.name === 'old')).toBe(false);
+
+    // Everything: only the clear itself is left.
+    await api.post(owner, `/guilds/${guild.id}/audit-log/clear`, { olderThanDays: 0 });
+    const after = await auditLog(owner, guild.id);
+    expect(after.entries.map((e) => e.action)).toEqual(['audit_log_clear']);
+    expect(after.entries[0].details.olderThanDays).toBe(0);
   });
 
   it('is deleted with the guild', async () => {

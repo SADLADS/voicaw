@@ -111,7 +111,24 @@ try {
     return dialog.right > window.innerWidth + 0.5 || document.documentElement.scrollWidth > window.innerWidth;
   });
   check(!overflow, 'fits the phone width');
+  check(!(await c.$('.audit-log-clear')), "a moderator can't clear it");
   await shot(c, 'audit-log-phone');
+
+  // Alice (the owner) clears everything: only the clear is left, and it says so.
+  await a.click('.guild-header-button');
+  await a.click('.guild-menu-item:has-text("Audit Log")');
+  await a.waitForSelector('.audit-log-clear');
+  await a.selectOption('select[aria-label="Entries to clear"]', '0');
+  await a.click('.audit-log-clear button:has-text("Clear")');
+  await shot(a, 'audit-log-clear-confirm');
+  await a.click('.vc-dialog-actions button.btn-danger');
+  await a.waitForFunction(() => {
+    const rows = [...document.querySelectorAll('.audit-log-entry')];
+    return rows.length === 1 && rows[0].dataset.action === 'audit_log_clear';
+  });
+  const summary = await a.textContent('.audit-log-summary');
+  check(/cleared the whole audit log \(\d+ entries\)/.test(summary), `after clearing: ${summary}`);
+  await shot(a, 'audit-log-cleared');
   console.log('audit log checks passed');
 } finally {
   await browser.close();
