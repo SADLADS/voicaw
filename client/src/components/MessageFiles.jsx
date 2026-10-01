@@ -1,6 +1,8 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFile } from '@fortawesome/free-solid-svg-icons';
+import VideoPlayer from './VideoPlayer';
+import { saveUrlAs } from '../utils/saveFile';
 
 function fileSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -26,7 +28,17 @@ export default function MessageFiles({ attachments, shownElsewhere = [] }) {
           );
         }
         if (type.startsWith('video/')) {
-          return <video key={file.id} className="message-file-video" src={file.url} controls preload="metadata" />;
+          return (
+            <VideoPlayer
+              key={file.id}
+              src={file.url}
+              name={file.filename}
+              size={file.size}
+              width={file.width}
+              height={file.height}
+              onDownload={() => saveUrlAs(file.url, file.filename)}
+            />
+          );
         }
         if (type.startsWith('audio/')) {
           return (

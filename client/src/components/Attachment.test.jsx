@@ -5,18 +5,37 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 vi.mock('../services/attachmentCache', () => ({
   loadDecryptedAttachment: vi.fn(),
   getCachedAttachment: vi.fn(() => null),
+  loadDecryptedPoster: vi.fn(),
+  getCachedPoster: vi.fn(() => null),
+}));
+
+vi.mock('../services/videoStream', () => ({
+  canStream: vi.fn(async () => false),
+  streamUrl: vi.fn(() => '/__voicaw-media/stream-1'),
+  isStreamUrl: vi.fn((url) => url.startsWith('/__voicaw-media/')),
+  streamFailed: vi.fn(async () => true),
+  releaseStream: vi.fn(),
 }));
 
 import Attachment from './Attachment';
-import { loadDecryptedAttachment, getCachedAttachment } from '../services/attachmentCache';
+import {
+  loadDecryptedAttachment, getCachedAttachment, loadDecryptedPoster, getCachedPoster,
+} from '../services/attachmentCache';
+import { canStream, streamUrl, streamFailed } from '../services/videoStream';
 import { buildAttachmentUrl } from '../services/attachmentCrypto';
 
 const encryptedUrl = (type, size = 2048, dims = {}) =>
   buildAttachmentUrl('https://s3.test/uploads/abc.bin', { key: 'KEY', type, size, ...dims });
+// A streamable (v2) video.
+const videoUrl = (extra = {}) => encryptedUrl('video/mp4', 5_000_000, {
+  width: 640, height: 360, nonce: 'NNNNNNNNNNNNNNNN', duration: 75, poster: 'poster-1.bin', ...extra,
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
   getCachedAttachment.mockReturnValue(null);
+  getCachedPoster.mockReturnValue(null);
+  canStream.mockResolvedValue(false);
 });
 
 describe('Attachment', () => {
@@ -79,18 +98,83 @@ describe('Attachment', () => {
     loadDecryptedAttachment.mockReturnValue(new Promise(() => {}));
 
     // 600x1200 scaled to 360 tall -> 180 wide.
-    render(<Attachment src={encryptedUrl('video/mp4', 10, { width: 600, height: 1200 })} alt="tall.mp4" />);
+    render(<Attachment src={encryptedUrl('image/png', 10, { width: 600, height: 1200 })} alt="tall.png" />);
 
-    expect(screen.getByLabelText('Loading tall.mp4').style.width).toBe('180px');
+    expect(screen.getByLabelText('Loading tall.png').style.width).toBe('180px');
   });
 
-  it('shows an encrypted video inline with controls', async () => {
+  it('shows a video as its poster, length and size, downloading nothing else until played', async () => {
+    loadDecryptedPoster.mockResolvedValue('blob:poster');
+
+    const { container } = render(<Attachment src={videoUrl()} alt="clip.mp4" />);
+
+    await waitFor(() => expect(container.querySelector('.video-poster')).toHaveAttribute('src', 'blob:poster'));
+    expect(loadDecryptedPoster).toHaveBeenCalledWith(expect.objectContaining({ posterUrl: 'https://s3.test/uploads/poster-1.bin' }));
+    expect(container.querySelector('video')).toBeNull();
+    expect(loadDecryptedAttachment).not.toHaveBeenCalled();
+    expect(screen.getByText('1:15')).toBeInTheDocument();
+    expect(screen.getByText('4.8 MB')).toBeInTheDocument();
+    const player = container.querySelector('.video-player');
+    expect(player.style.width).toBe('420px');
+    expect(player.style.aspectRatio).toBe('640 / 360');
+  });
+
+  it('streams a video through the service worker when it can', async () => {
+    loadDecryptedPoster.mockResolvedValue('blob:poster');
+    canStream.mockResolvedValue(true);
+
+    const { container } = render(<Attachment src={videoUrl()} alt="clip.mp4" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Play clip.mp4' }));
+
+    await waitFor(() => expect(container.querySelector('video')).toHaveAttribute('src', '/__voicaw-media/stream-1'));
+    expect(streamUrl).toHaveBeenCalledWith(expect.objectContaining({ nonce: 'NNNNNNNNNNNNNNNN', size: 5_000_000 }));
+    expect(loadDecryptedAttachment).not.toHaveBeenCalled();
+    expect(screen.getByRole('slider', { name: 'Seek' })).toBeInTheDocument();
+  });
+
+  it('downloads the whole video when played if it cannot stream (an older video, no service worker)', async () => {
     loadDecryptedAttachment.mockResolvedValue('blob:decrypted-video');
 
     const { container } = render(<Attachment src={encryptedUrl('video/mp4')} alt="clip.mp4" />);
+    expect(loadDecryptedAttachment).not.toHaveBeenCalled();
+    expect(container.querySelector('.video-placeholder')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Play clip.mp4' }));
 
     await waitFor(() => expect(container.querySelector('video')).toHaveAttribute('src', 'blob:decrypted-video'));
-    expect(container.querySelector('video')).toHaveAttribute('controls');
+    expect(loadDecryptedAttachment).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to the whole file when streaming fails, and says so when the browser cannot play it', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    loadDecryptedPoster.mockResolvedValue('blob:poster');
+    canStream.mockResolvedValue(true);
+    loadDecryptedAttachment.mockResolvedValue('blob:whole');
+
+    const { container } = render(<Attachment src={videoUrl()} alt="clip.mp4" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Play clip.mp4' }));
+    await waitFor(() => expect(container.querySelector('video')).toHaveAttribute('src', '/__voicaw-media/stream-1'));
+
+    fireEvent.error(container.querySelector('video'));
+    await waitFor(() => expect(container.querySelector('video')).toHaveAttribute('src', 'blob:whole'));
+    expect(streamFailed).toHaveBeenCalledWith('/__voicaw-media/stream-1');
+
+    fireEvent.error(container.querySelector('video'));
+    expect(await screen.findByText("This video can't play in this browser.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Download clip.mp4' })).toBeInTheDocument();
+  });
+
+  it('downloads a video to save it, with the decrypted file', async () => {
+    loadDecryptedPoster.mockResolvedValue('blob:poster');
+    loadDecryptedAttachment.mockResolvedValue('blob:whole');
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    render(<Attachment src={videoUrl()} alt="clip.mp4" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Download clip.mp4' }));
+
+    await waitFor(() => expect(click).toHaveBeenCalled());
+    expect(loadDecryptedAttachment).toHaveBeenCalledTimes(1);
+    click.mockRestore();
   });
 
   it('shows other files as a download box and only fetches when downloading', async () => {
@@ -144,14 +228,16 @@ describe('Attachment', () => {
     expect(container.querySelector('.attachment-spoiler')).toBeNull();
   });
 
-  it('covers a spoiler video (without controls) until clicked', () => {
-    getCachedAttachment.mockReturnValue('blob:clip');
+  it('covers a spoiler video (its poster blurred) until clicked', () => {
+    getCachedPoster.mockReturnValue('blob:poster');
 
-    const { container } = render(<Attachment src={encryptedUrl('video/mp4', 10, { spoiler: true })} alt="clip.mp4" />);
+    const { container } = render(<Attachment src={videoUrl({ spoiler: true })} alt="clip.mp4" />);
 
-    expect(container.querySelector('.attachment-spoiler video')).not.toHaveAttribute('controls');
+    expect(container.querySelector('.attachment-spoiler img')).toHaveAttribute('src', 'blob:poster');
+    expect(screen.queryByRole('button', { name: 'Play clip.mp4' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Spoiler: clip.mp4, select to reveal' }));
-    expect(container.querySelector('video')).toHaveAttribute('controls');
+    expect(screen.getByRole('button', { name: 'Play clip.mp4' })).toBeInTheDocument();
+    expect(container.querySelector('.attachment-spoiler')).toBeNull();
   });
 
   it("covers a pending message's spoiler too", () => {

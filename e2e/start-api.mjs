@@ -16,6 +16,7 @@ const vapid = webpush.generateVAPIDKeys();
 const s3Port = process.env.E2E_S3_PORT || String(Number(process.env.E2E_API_PORT || 3099) + 1);
 const s3Endpoint = `http://localhost:${s3Port}`;
 const objects = new Map();
+const reads = [];
 http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, PUT');
@@ -31,9 +32,30 @@ http.createServer((req, res) => {
     });
     return undefined;
   }
+  // What was read (bucket/key, range, bytes), so checks can see what a page downloaded.
+  if (key === '__reads') return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(reads));
+  if (key === '__reads/clear') {
+    reads.length = 0;
+    return res.writeHead(204).end();
+  }
   const object = objects.get(key);
   if (!object) return res.writeHead(404).end();
-  res.writeHead(200, { 'Content-Type': object.contentType, 'Content-Length': object.body.length });
+  // One byte range, as MinIO serves them (videos are streamed a piece at a time).
+  const range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range ?? '');
+  if (range && Number(range[1]) < object.body.length) {
+    const start = Number(range[1]);
+    const end = Math.min(range[2] ? Number(range[2]) : Infinity, object.body.length - 1);
+    if (req.method === 'GET') reads.push({ key, start, end, bytes: end - start + 1 });
+    res.writeHead(206, {
+      'Content-Type': object.contentType,
+      'Content-Length': end - start + 1,
+      'Content-Range': `bytes ${start}-${end}/${object.body.length}`,
+      'Accept-Ranges': 'bytes',
+    });
+    return res.end(req.method === 'HEAD' ? undefined : object.body.subarray(start, end + 1));
+  }
+  if (req.method === 'GET') reads.push({ key, start: 0, end: object.body.length - 1, bytes: object.body.length });
+  res.writeHead(200, { 'Content-Type': object.contentType, 'Content-Length': object.body.length, 'Accept-Ranges': 'bytes' });
   return res.end(req.method === 'HEAD' ? undefined : object.body);
 }).listen(Number(s3Port));
 Object.assign(process.env, {

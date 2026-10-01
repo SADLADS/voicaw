@@ -5,6 +5,7 @@ import {
   buildAttachmentUrl,
   parseAttachmentUrl,
   ENCRYPTION_OVERHEAD_BYTES,
+  isStreamable,
 } from './attachmentCrypto';
 
 describe('attachmentCrypto', () => {
@@ -19,7 +20,7 @@ describe('attachmentCrypto', () => {
     const url = buildAttachmentUrl('https://s3.test/uploads/abc.bin', { key, type: file.type, size: file.size });
     const meta = parseAttachmentUrl(url);
     expect(meta).toEqual({
-      fileUrl: 'https://s3.test/uploads/abc.bin', key, type: 'image/png', size: 5000, width: null, height: null, spoiler: false,
+      version: 1, fileUrl: 'https://s3.test/uploads/abc.bin', key, type: 'image/png', size: 5000, width: null, height: null, spoiler: false,
     });
 
     const plain = await decryptAttachment(await blob.arrayBuffer(), meta.key);
@@ -55,12 +56,16 @@ describe('attachmentCrypto', () => {
   it('returns null for URLs that are not encrypted attachments', () => {
     expect(parseAttachmentUrl('https://media.voicaw.com/uploads/old.png')).toBeNull();
     expect(parseAttachmentUrl('https://example.com/page#section')).toBeNull();
-    expect(parseAttachmentUrl('https://s3.test/x.bin#v=2&k=abc')).toBeNull();
+    expect(parseAttachmentUrl('https://s3.test/x.bin#v=3&k=abc')).toBeNull();
+    // v2 needs its nonce and size.
+    expect(parseAttachmentUrl('https://s3.test/x.bin#v=2&k=abc&s=5')).toBeNull();
+    expect(parseAttachmentUrl('https://s3.test/x.bin#v=2&k=abc&n=AAAAAAAAAAAAAAAA')).toBeNull();
     expect(parseAttachmentUrl(undefined)).toBeNull();
   });
 
   it('defaults a missing type and tolerates a missing size', () => {
     expect(parseAttachmentUrl('https://s3.test/x.bin#v=1&k=abc')).toEqual({
+      version: 1,
       fileUrl: 'https://s3.test/x.bin',
       key: 'abc',
       type: 'application/octet-stream',
@@ -92,5 +97,37 @@ describe('attachmentCrypto', () => {
     expect(parseAttachmentUrl('https://s3.test/x.bin#v=1&k=k&w=800')).toMatchObject({ width: null, height: null });
     expect(parseAttachmentUrl('https://s3.test/x.bin#v=1&k=k&w=0&h=5')).toMatchObject({ width: null, height: null });
     expect(parseAttachmentUrl('https://s3.test/x.bin#v=1&k=k&w=-1&h=5')).toMatchObject({ width: null, height: null });
+  });
+
+  it('builds and reads a streamable video (v2) with its nonce, duration and poster', () => {
+    const url = buildAttachmentUrl('https://s3.test/uploads/abc.bin', {
+      key: 'KEY', type: 'video/mp4', size: 123, width: 640, height: 360,
+      nonce: 'NNNNNNNNNNNNNNNN', duration: 12.345, poster: 'def-1.bin',
+    });
+    expect(parseAttachmentUrl(url)).toEqual({
+      version: 2,
+      fileUrl: 'https://s3.test/uploads/abc.bin',
+      key: 'KEY',
+      type: 'video/mp4',
+      size: 123,
+      width: 640,
+      height: 360,
+      spoiler: false,
+      nonce: 'NNNNNNNNNNNNNNNN',
+      duration: 12.3,
+      posterUrl: 'https://s3.test/uploads/def-1.bin',
+    });
+  });
+
+  it("never lets a poster name point outside the file's folder", () => {
+    const meta = parseAttachmentUrl('https://s3.test/uploads/a.bin#v=2&k=K&s=1&n=NNNNNNNNNNNNNNNN&p=..%2Fprofile-pics%2Fx.bin');
+    expect(meta.posterUrl).toBeNull();
+    expect(parseAttachmentUrl('https://s3.test/uploads/a.bin#v=2&k=K&s=1&n=NNNNNNNNNNNNNNNN&p=https://evil.test/x.bin').posterUrl).toBeNull();
+  });
+
+  it('only streams videos', () => {
+    expect(isStreamable('video/mp4')).toBe(true);
+    expect(isStreamable('image/png')).toBe(false);
+    expect(isStreamable(undefined)).toBe(false);
   });
 });

@@ -89,7 +89,8 @@ app with an in-memory SQLite DB:
 
 Unit tests can't see layout, scrolling, focus, touch or the editor. For those, `e2e/` runs the
 real app against a throwaway API (in-memory database, fresh secrets, rate limits off, and a
-stand-in object store in memory, so uploads, profile pictures and emoji work) and drives it with Playwright (`playwright-core`, using the system Chrome
+stand-in object store in memory, so uploads, profile pictures and emoji work; it serves byte
+ranges like MinIO and lists what was read at `/__reads`) and drives it with Playwright (`playwright-core`, using the system Chrome
 at `/usr/bin/google-chrome`, headless):
 ```
 node e2e/serve.mjs &     # web :5199, API :3099, object store :3100, LiveKit :3101-3103;
@@ -120,6 +121,7 @@ node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notificati
 node e2e/lists.mjs [dir]  # list channels: add, subtask, drag to nest/reorder, assign, due date, comments, read-only, phone
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
 node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>
+node e2e/video.mjs [dir]  # videos: only the poster before Play, streamed in pieces, seek reads nothing before it, download, keys, full screen, spoiler, phone (needs ffmpeg)
 node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
@@ -974,7 +976,8 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   Settings → App version, which also shows the app's version); that restarts onto it. A
   development run or an unsigned macOS app can't update itself ('unsupported'). Releases are
   only as trustworthy as that server (no signature of our own on the feed yet).
-- **Not done yet:** push-to-talk (held key), screen share's source picker, notifications while
+- **Not done yet:** push-to-talk (held key), screen share's source picker, streaming videos (no
+  service worker: they download whole on Play; `protocol.js` could serve them instead), notifications while
   the app isn't running, code signing (Windows SmartScreen warns about unsigned installers).
 
 ### File uploads (S3-compatible object store)
@@ -1004,8 +1007,35 @@ dimensions, read at attach time by `utils/mediaDimensions.js`, let the renderer 
 box before the file loads; `sp=1` marks a spoiler, see below). The fragment is never sent
 to S3 and the URL only exists inside the E2EE message. `Attachment.jsx` renders every markdown image:
 placeholders (pending messages, from local blob URLs), encrypted attachments (fetched, decrypted,
-cached in `services/attachmentCache.js`; images/videos inline, anything else a download box), and
-plain URLs (legacy unencrypted uploads, external images) as `<img>`.
+cached in `services/attachmentCache.js`; images inline, videos in the player below, anything else
+a download box), and plain URLs (legacy unencrypted uploads, external images) as `<img>`.
+
+**Videos** (since 2026-10-01) are `v=2` (`services/chunkedAttachment.js`): encrypted in 256 KiB
+chunks, each its own AES-GCM message (IV = base nonce `n` XOR chunk index; additional data binds
+the index and a last-chunk flag, so chunks can't be reordered or the file cut short), so any byte
+range can be fetched, checked and decrypted alone. At attach time `mediaDimensions.js` also reads
+the duration (`d`) and grabs the first frame as a JPEG poster (canvas, no processing of the video),
+uploaded encrypted with the same key as its own `<uuid>.bin` (`p`, a name in the same folder; its
+own additional data, so it can't pass for a chunk). Old `v=1` videos still play.
+- **Nothing but the poster downloads before Play.** `components/VideoPlayer.jsx` is the player
+  (also for webhook videos in `MessageFiles`): poster, length and size, then our own controls
+  (seek bar showing what's buffered, time, volume and mute remembered per device in
+  `localStorage videoPrefs`, download with progress, full screen; keys k/space, ←/→, m, f; they
+  fade while playing; a tap on a phone shows them first). One video plays at a time.
+- **Streaming** (`services/videoStream.js` page side, `services/mediaStreamWorker.js` in the
+  service worker): the `<video>` plays `/__voicaw-media/<random id>`; the worker asks the page
+  for that id's file, key and size (over a `MessageChannel`, never in a URL), answers the
+  browser's Range requests by fetching only the encrypted chunks they cover (`Range` on the object
+  store, allowed by media.voicaw.com's CORS) and passes the bytes on only as the player reads them
+  (`highWaterMark: 0`), with a small cache of decrypted chunks. So a seek to the middle downloads
+  nothing before it, and the browser's own buffering decides how far ahead it reads (Chrome:
+  ~6 MB at the start, then topping up as it plays). Needs a worker controlling the page that
+  answers `voicaw-media-ping`: not the desktop app, a first visit, or an older worker. There (and
+  for `v=1`), Play downloads and decrypts the whole file first, with a progress figure. If
+  streaming fails (the worker reports `voicaw-media-failed`, or never served it), the player
+  falls back to that; if the browser can't decode the video (e.g. HEVC from an iPhone in many
+  desktop browsers) it says so over the poster and offers Download. That case used to show as a
+  plain download box, the likely cause of "videos turned into download links" (not confirmed).
 
 **Spoilers:** an image or video draft can be marked as a spoiler with the eye button in the
 tray (`toggleSpoiler`; the thumbnail blurs), which puts `sp=1` in its URL (inside the

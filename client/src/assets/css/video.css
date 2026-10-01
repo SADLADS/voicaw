@@ -1,0 +1,444 @@
+/* The video player (components/VideoPlayer.jsx). Spans throughout: it sits inside a
+   message's <p>. Its box (width and aspect ratio) is set inline. */
+.video-player {
+  /* A brighter take on the app accent, to stand out on any picture. */
+  --video-accent: #9a83e6;
+  position: relative;
+  display: block;
+  max-width: min(100%, 420px);
+  max-height: 360px;
+  margin: 4px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #000;
+  color: #fff;
+  isolation: isolate;
+  container: video-player / inline-size;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.video-player:focus-visible {
+  box-shadow: 0 0 0 2px var(--video-accent);
+}
+
+.video-element,
+.video-poster,
+.video-placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background-color: #000;
+}
+
+.video-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--vc-bg-elevated), var(--vc-bg-subtle));
+  color: var(--vc-fg-muted);
+  font-size: 32px;
+}
+
+/* Takes the clicks on the picture (play/pause; a double click is full screen). */
+.video-surface {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+}
+
+.video-player.playing:not(.controls-shown) .video-surface {
+  cursor: none;
+}
+
+/* Before it's played: a big play button, its length and size, and a download button. */
+.video-big-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 0 4px;
+  border: none;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 22px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.video-big-play:hover,
+.video-big-play:focus-visible {
+  transform: translate(-50%, -50%) scale(1.08);
+  background-color: var(--vc-accent);
+  outline: none;
+}
+
+.video-badge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.video-badge > span {
+  padding: 2px 7px;
+  border-radius: 10px;
+  background-color: rgba(0, 0, 0, 0.65);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+}
+
+.video-badge > span:empty {
+  display: none;
+}
+
+.video-corner-download {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: rgba(0, 0, 0, 0.6) !important;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.video-player:hover .video-corner-download,
+.video-corner-download:focus-visible,
+.video-corner-download[aria-busy="true"],
+.mobile-mode .video-corner-download {
+  opacity: 1;
+}
+
+/* Loading (downloading the whole file, or waiting for more of a stream). */
+.video-loading {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.video-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: video-spin 0.8s linear infinite;
+}
+
+@keyframes video-spin {
+  to { transform: rotate(360deg); }
+}
+
+.video-loading-text {
+  padding: 1px 6px;
+  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.6);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.video-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background-color: rgba(0, 0, 0, 0.72);
+  font-size: 14px;
+  text-align: center;
+}
+
+.video-error-icon {
+  font-size: 22px;
+  color: var(--vc-action);
+}
+
+.video-error-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.video-error-button,
+.video-player .video-error-button.video-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.video-error-button:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+/* The controls: a seek bar over a row of buttons, on a gradient; they fade out while
+   playing until the pointer moves. */
+.video-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 8px 4px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.35) 60%, transparent);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+}
+
+.video-player.controls-shown .video-controls {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.15s ease;
+}
+
+.video-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.video-controls-spacer {
+  flex: 1;
+}
+
+.video-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.video-button:hover,
+.video-button:focus-visible {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.15);
+  outline: none;
+}
+
+.video-time {
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.video-time-total {
+  opacity: 0.7;
+}
+
+/* Download progress: a ring that fills. */
+.video-download-progress {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: conic-gradient(#fff var(--progress), rgba(255, 255, 255, 0.25) 0);
+  -webkit-mask: radial-gradient(circle, transparent 4.5px, #000 5px);
+  mask: radial-gradient(circle, transparent 4.5px, #000 5px);
+}
+
+/* Volume: the slider opens beside the button on hover (just the button on touch screens). */
+.video-volume {
+  display: inline-flex;
+  align-items: center;
+}
+
+.video-volume-slider {
+  width: 0;
+  height: 4px;
+  margin: 0;
+  opacity: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 2px;
+  background: linear-gradient(to right, #fff var(--volume), rgba(255, 255, 255, 0.3) var(--volume));
+  cursor: pointer;
+  transition: width 0.15s ease, opacity 0.15s ease, margin 0.15s ease;
+}
+
+.video-volume:hover .video-volume-slider,
+.video-volume:focus-within .video-volume-slider {
+  width: 64px;
+  margin: 0 6px 0 2px;
+  opacity: 1;
+}
+
+.mobile-mode .video-volume-slider {
+  display: none;
+}
+
+.video-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.video-volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.video-volume-slider:focus-visible {
+  outline: 2px solid var(--video-accent);
+  outline-offset: 3px;
+}
+
+/* The seek bar: a tall hit area around a thin track that thickens under the pointer. */
+.video-seek {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 16px;
+  margin: 0 6px;
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+}
+
+.video-seek-track {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.25);
+  transition: height 0.1s ease;
+}
+
+.video-seek:hover .video-seek-track,
+.video-seek.dragging .video-seek-track,
+.video-seek:focus-visible .video-seek-track {
+  height: 6px;
+}
+
+.video-seek-buffered,
+.video-seek-played {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+}
+
+.video-seek-buffered {
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+.video-seek-played {
+  left: 0;
+  background-color: var(--video-accent);
+}
+
+.video-seek-thumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #fff;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.1s ease;
+}
+
+.video-seek:hover .video-seek-thumb,
+.video-seek.dragging .video-seek-thumb,
+.video-seek:focus-visible .video-seek-thumb,
+.mobile-mode .video-seek-thumb {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.video-seek:focus-visible .video-seek-thumb {
+  box-shadow: 0 0 0 2px var(--video-accent);
+}
+
+.video-seek-tooltip {
+  position: absolute;
+  bottom: 18px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.85);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transform: translateX(-50%);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Full screen: the player fills the screen, whatever box it had in the chat. */
+.video-player.fullscreen {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: auto !important;
+  margin: 0;
+  border-radius: 0;
+}
+
+.video-player.fullscreen .video-controls {
+  padding: 40px 16px 10px;
+}
+
+/* Small players (a tall video, a narrow phone): the total time goes first. */
+@container video-player (max-width: 260px) {
+  .video-time-total {
+    display: none;
+  }
+}
+
+/* A spoiler video without a poster: a blank, blurred box. */
+.attachment-spoiler-blank {
+  display: block;
+  background: linear-gradient(135deg, var(--vc-bg-elevated), var(--vc-bg-subtle));
+}

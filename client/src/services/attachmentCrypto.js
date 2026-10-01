@@ -7,23 +7,19 @@
 // URL: <fileUrl>#v=1&k=<base64url raw key>&t=<mime type>&s=<plaintext size in bytes>
 //      [&w=<width>&h=<height>]  (images/videos, so their space is reserved before loading)
 //      [&sp=1]  (marked as a spoiler: shown blurred until clicked)
+// Videos are v=2 (chunkedAttachment.js: encrypted in pieces, so they can be streamed and
+// seeked), plus &n=<base nonce> and optionally &d=<duration in seconds> and
+// &p=<the poster's object name, next to the file>.
+
+import { toBase64Url, fromBase64Url } from './chunkedAttachment';
 
 const IV_LENGTH = 12;
+
+// Videos are encrypted in pieces (v2), so they can be streamed and seeked.
+export function isStreamable(type) {
+  return typeof type === 'string' && type.startsWith('video/');
+}
 export const ENCRYPTION_OVERHEAD_BYTES = IV_LENGTH + 16;
-
-function toBase64Url(buffer) {
-  let binary = '';
-  for (const byte of new Uint8Array(buffer)) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function fromBase64Url(b64url) {
-  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
-  const binary = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
 
 export async function encryptAttachment(file) {
   const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
@@ -53,12 +49,15 @@ export async function decryptAttachment(encrypted, keyB64Url) {
   );
 }
 
-export function buildAttachmentUrl(fileUrl, { key, type, size, width, height, spoiler }) {
-  const params = new URLSearchParams({ v: '1', k: key, t: type, s: String(size) });
+export function buildAttachmentUrl(fileUrl, { key, type, size, width, height, spoiler, nonce, duration, poster }) {
+  const params = new URLSearchParams({ v: nonce ? '2' : '1', k: key, t: type, s: String(size) });
+  if (nonce) params.set('n', nonce);
   if (width > 0 && height > 0) {
     params.set('w', String(width));
     params.set('h', String(height));
   }
+  if (nonce && duration > 0) params.set('d', String(Math.round(duration * 10) / 10));
+  if (nonce && poster) params.set('p', poster);
   if (spoiler) params.set('sp', '1');
   return `${fileUrl}#${params}`;
 }
@@ -67,8 +66,9 @@ function positiveInt(value) {
   return /^[1-9]\d*$/.test(value ?? '') ? Number(value) : null;
 }
 
-// Returns { fileUrl, key, type, size, width, height, spoiler } for an encrypted attachment URL, or null for any
-// other URL (legacy unencrypted uploads, external images, …).
+// Returns { version, fileUrl, key, type, size, width, height, spoiler } for an encrypted
+// attachment URL, or null for any other URL (legacy unencrypted uploads, external images, …).
+// v2 adds { nonce, duration, posterUrl }.
 export function parseAttachmentUrl(url) {
   if (typeof url !== 'string') return null;
   const hashIndex = url.indexOf('#');
@@ -76,18 +76,33 @@ export function parseAttachmentUrl(url) {
 
   const params = new URLSearchParams(url.slice(hashIndex + 1));
   const key = params.get('k');
-  if (params.get('v') !== '1' || !key) return null;
+  const version = params.get('v');
+  if ((version !== '1' && version !== '2') || !key) return null;
 
   const size = params.get('s');
   const width = positiveInt(params.get('w'));
   const height = positiveInt(params.get('h'));
+  const fileUrl = url.slice(0, hashIndex);
+  const v2 = {};
+  if (version === '2') {
+    const nonce = params.get('n');
+    if (!/^[A-Za-z0-9_-]{16}$/.test(nonce ?? '') || !/^\d+$/.test(size ?? '')) return null;
+    const duration = Number(params.get('d'));
+    const poster = params.get('p');
+    v2.nonce = nonce;
+    v2.duration = Number.isFinite(duration) && duration > 0 ? duration : null;
+    // Only a plain name in the same folder: the URL can't point the poster anywhere else.
+    v2.posterUrl = /^[A-Za-z0-9_-]+\.bin$/.test(poster ?? '') ? fileUrl.replace(/[^/]*$/, poster) : null;
+  }
   return {
-    fileUrl: url.slice(0, hashIndex),
+    version: Number(version),
+    fileUrl,
     key,
     type: params.get('t') || 'application/octet-stream',
     size: /^\d+$/.test(size ?? '') ? Number(size) : null,
     width: width && height ? width : null,
     height: width && height ? height : null,
     spoiler: params.get('sp') === '1',
+    ...v2,
   };
 }

@@ -1,14 +1,19 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFile, faDownload } from '@fortawesome/free-solid-svg-icons';
 import { parseAttachmentUrl } from '../services/attachmentCrypto';
-import { loadDecryptedAttachment, getCachedAttachment } from '../services/attachmentCache';
+import {
+  loadDecryptedAttachment, getCachedAttachment, loadDecryptedPoster, getCachedPoster,
+} from '../services/attachmentCache';
+import { canStream, streamUrl, isStreamUrl, streamFailed, releaseStream } from '../services/videoStream';
 import { formatBytes } from '../utils/formatBytes';
 import { placeholderIdFromUrl } from '../utils/attachmentMarkup';
 import { triggerDownload } from '../utils/saveFile';
 import { ImageViewerContext } from '../contexts';
 import { galleryAround, galleryItemRef } from '../utils/imageGallery';
 import { parseGifUrl } from '../utils/gifMarkup';
+import { reservedBoxStyle, mediaBoxStyle } from '../utils/mediaBox';
+import VideoPlayer from './VideoPlayer';
 
 function kindOf(type) {
   if (type?.startsWith('image/')) return 'image';
@@ -39,18 +44,6 @@ function FileBox({ name, size, onDownload, status }) {
       </button>
     </span>
   );
-}
-
-// Must match the .attachment-media max-width/max-height in dms.css.
-const MAX_MEDIA_WIDTH = 420;
-const MAX_MEDIA_HEIGHT = 360;
-
-// When the media's size is known, give it (and its loading placeholder) its final box up
-// front, so the message doesn't change height when the file arrives.
-function reservedBoxStyle(width, height) {
-  if (!width || !height) return undefined;
-  const scale = Math.min(1, MAX_MEDIA_WIDTH / width, MAX_MEDIA_HEIGHT / height);
-  return { width: `${Math.round(width * scale)}px`, height: 'auto', aspectRatio: `${width} / ${height}` };
 }
 
 // An image in a message; clicking (or Enter) opens it in the full-screen viewer, along with
@@ -104,50 +97,58 @@ function SpoilerCover({ name, onReveal, children }) {
   );
 }
 
-function MediaView({ kind, src, name, size, width, height, spoiler, onDownload, galleryItem }) {
+function MediaView({ src, name, size, width, height, spoiler, onDownload, galleryItem }) {
   const [failed, setFailed] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const style = reservedBoxStyle(width, height);
 
-  // e.g. a video codec the browser can't play: still let the user download it.
   if (failed) return <FileBox name={name} size={size} onDownload={onDownload} />;
 
   if (spoiler && !revealed) {
     return (
       <SpoilerCover name={name} onReveal={() => setRevealed(true)}>
-        {kind === 'image' ? (
-          <img className="attachment-media" style={style} src={src} alt="" onError={() => setFailed(true)} />
-        ) : (
-          <video className="attachment-media" style={style} src={src} preload="metadata" tabIndex={-1} onError={() => setFailed(true)} />
-        )}
+        <img className="attachment-media" style={style} src={src} alt="" onError={() => setFailed(true)} />
       </SpoilerCover>
     );
   }
+  return <ViewableImage src={src} item={galleryItem} style={style} onError={() => setFailed(true)} />;
+}
 
-  if (kind === 'image') {
+// A video (VideoPlayer), behind a spoiler cover (over its poster, blurred) if it's one.
+function VideoView({ spoiler, poster, width, height, ...player }) {
+  const [revealed, setRevealed] = useState(false);
+  if (spoiler && !revealed) {
     return (
-      <ViewableImage src={src} item={galleryItem} style={style} onError={() => setFailed(true)} />
+      <SpoilerCover name={player.name} onReveal={() => setRevealed(true)}>
+        {poster
+          ? <img className="attachment-media" style={mediaBoxStyle(width, height)} src={poster} alt="" />
+          : <span className="attachment-media attachment-spoiler-blank" style={mediaBoxStyle(width, height)} />}
+      </SpoilerCover>
     );
   }
-  return (
-    <video
-      className="attachment-media"
-      style={style}
-      src={src}
-      controls
-      preload="metadata"
-      onError={() => setFailed(true)}
-    />
-  );
+  return <VideoPlayer poster={poster} width={width} height={height} {...player} />;
 }
 
 function LocalAttachment({ local, name }) {
   const kind = kindOf(local.type);
   const download = () => triggerDownload(local.previewUrl, name);
   if (kind === 'file') return <FileBox name={name} size={local.size} onDownload={download} />;
+  if (kind === 'video') {
+    return (
+      <VideoView
+        src={local.previewUrl}
+        name={name}
+        size={local.size}
+        width={local.width}
+        height={local.height}
+        duration={local.duration}
+        spoiler={local.spoiler}
+        onDownload={async () => download()}
+      />
+    );
+  }
   return (
     <MediaView
-      kind={kind}
       src={local.previewUrl}
       name={name}
       size={local.size}
@@ -156,6 +157,60 @@ function LocalAttachment({ local, name }) {
       spoiler={local.spoiler}
       onDownload={download}
       galleryItem={{ src: local.previewUrl, name, size: local.size, width: local.width, height: local.height }}
+    />
+  );
+}
+
+// An encrypted video: nothing but its poster is downloaded until it's played. A v2 one is then
+// streamed through the service worker (services/videoStream.js), a piece at a time, from
+// wherever it's played; an older one (or where streaming isn't available) is downloaded in
+// full first.
+function EncryptedVideo({ url, meta, name }) {
+  const [poster, setPoster] = useState(() => (meta.posterUrl ? getCachedPoster(meta) : null));
+  const stream = useRef(null);
+
+  useEffect(() => {
+    if (!meta.posterUrl || poster) return undefined;
+    let live = true;
+    loadDecryptedPoster(meta).then((objectUrl) => live && setPoster(objectUrl), (err) => {
+      console.error('Failed to load video poster', err);
+    });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
+
+  useEffect(() => () => releaseStream(stream.current), []);
+
+  const loadWhole = (onProgress) => loadDecryptedAttachment(url, meta, onProgress);
+  const load = async (onProgress) => {
+    const whole = getCachedAttachment(url); // e.g. downloaded to save it
+    if (whole) return whole;
+    if (meta.version === 2 && await canStream()) {
+      releaseStream(stream.current);
+      stream.current = streamUrl(meta);
+      return stream.current;
+    }
+    return loadWhole(onProgress);
+  };
+  // Streaming failed (not the video itself): download it whole instead.
+  const recover = async (failedSrc, onProgress) => (
+    isStreamUrl(failedSrc) && await streamFailed(failedSrc) ? loadWhole(onProgress) : null
+  );
+  const download = async (onProgress) => triggerDownload(await loadWhole(onProgress), name);
+
+  return (
+    <VideoView
+      src={getCachedAttachment(url)}
+      load={load}
+      recover={recover}
+      poster={poster}
+      name={name}
+      size={meta.size}
+      width={meta.width}
+      height={meta.height}
+      duration={meta.duration}
+      spoiler={meta.spoiler}
+      onDownload={download}
     />
   );
 }
@@ -182,9 +237,9 @@ function EncryptedAttachment({ url, meta, name }) {
     );
   };
 
-  // Images and videos load as soon as they're rendered; other files only on request.
+  // Images load as soon as they're rendered; other files only on request.
   useEffect(() => {
-    if (kind !== 'file' && !state.objectUrl) load();
+    if (kind === 'image' && !state.objectUrl) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
@@ -204,7 +259,7 @@ function EncryptedAttachment({ url, meta, name }) {
     return (
       <span
         // Still decrypting, but already one of the message's images in the viewer.
-        {...(kind === 'image' && !meta.spoiler ? { ref: galleryItemRef(galleryItem), 'data-gallery-item': '' } : {})}
+        {...(!meta.spoiler ? { ref: galleryItemRef(galleryItem), 'data-gallery-item': '' } : {})}
         className={`attachment-loading attachment-loading-${kind}`}
         style={reservedBoxStyle(meta.width, meta.height)}
         aria-label={`Loading ${name}`}
@@ -213,7 +268,6 @@ function EncryptedAttachment({ url, meta, name }) {
   }
   return (
     <MediaView
-      kind={kind}
       src={state.objectUrl}
       name={name}
       size={meta.size}
@@ -256,5 +310,6 @@ export default function Attachment({ src, alt, localAttachments }) {
   const meta = parseAttachmentUrl(src);
   if (!meta) return <ViewableImage src={src} item={{ src, name }} external />;
 
+  if (kindOf(meta.type) === 'video') return <EncryptedVideo url={src} meta={meta} name={name} />;
   return <EncryptedAttachment url={src} meta={meta} name={name} />;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { uploadAttachment, MAX_ATTACHMENT_BYTES } from '../services/attachmentUpload';
-import { buildAttachmentUrl, ENCRYPTION_OVERHEAD_BYTES } from '../services/attachmentCrypto';
+import { buildAttachmentUrl, isStreamable, ENCRYPTION_OVERHEAD_BYTES } from '../services/attachmentCrypto';
 import { formatBytes } from '../utils/formatBytes';
 import { readMediaDimensions } from '../utils/mediaDimensions';
 
@@ -54,7 +54,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     setDrafts((prev) => [...prev, ...newDrafts]);
 
     // Record image/video sizes (sent in the attachment URL) so receivers can reserve the
-    // right space before the file loads.
+    // right space before the file loads; for videos also the duration and a poster.
     newDrafts.forEach((d) => {
       readMediaDimensions(d.file, d.previewUrl).then((dims) => {
         if (dims) setDrafts((prev) => prev.map((x) => (x.id === d.id ? { ...x, ...dims } : x)));
@@ -87,6 +87,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
   // The final attachment URL has a fixed shape (see attachmentCrypto/attachmentUpload), so
   // a same-length stand-in lets us check the message length before uploading anything.
   function projectedUrl(draft) {
+    const streamable = isStreamable(draft.type);
     return buildAttachmentUrl(`${s3Endpoint}/uploads/${'0'.repeat(36)}.bin`, {
       key: 'A'.repeat(43),
       type: draft.type,
@@ -94,6 +95,11 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
       width: draft.width,
       height: draft.height,
       spoiler: draft.spoiler,
+      ...(streamable ? {
+        nonce: 'A'.repeat(16),
+        duration: draft.duration,
+        poster: draft.poster ? `${'0'.repeat(36)}.bin` : null,
+      } : {}),
     });
   }
 
@@ -111,11 +117,13 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     try {
       const entries = await Promise.all(
         attachments.map(async (d) => {
-          const dims = d.width && d.height ? { width: d.width, height: d.height } : null;
+          const info = d.width && d.height
+            ? { width: d.width, height: d.height, duration: d.duration, poster: d.poster }
+            : null;
           const url = await uploadAttachment(d.file, (bytes) => {
             loaded[d.id] = bytes;
             report();
-          }, dims, !!d.spoiler);
+          }, info, !!d.spoiler);
           return [d.id, url];
         })
       );
