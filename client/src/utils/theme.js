@@ -6,8 +6,11 @@ import { useSyncExternalStore } from 'react';
 //
 // It's put on <html> as data-theme (our colours, voicaw.css), data-bs-theme (Bootstrap's) and
 // through those the CSS color-scheme, which is what makes the browser's own parts match: form
-// controls, scrollbars and, on iPhones and iPads, the on-screen keyboard. (Android keyboards
-// follow the system or the keyboard's own setting; no page or app can choose.)
+// controls and scrollbars. Not the on-screen keyboard: on iPhones and iPads it follows the
+// system's light/dark mode (WebKit gives every field UIKeyboardAppearanceDefault and never
+// looks at the page), and Android keyboards follow the system or their own setting. Only a
+// native app can choose on iOS (UITextInputTraits.keyboardAppearance; in a Capacitor wrapper,
+// @capacitor/keyboard's setStyle); on Android not even that.
 //
 // index.html has a copy of `resolve` that runs before the CSS, so a light page never starts dark.
 

@@ -45,7 +45,7 @@
 
 /* THEMES: dark above is the default; light is chosen per device in Settings → Appearance
    (utils/theme.js puts data-theme on <html>). color-scheme makes the browser's own parts match:
-   form controls, scrollbars, and the on-screen keyboard on iPhones and iPads. Use the tokens
+   form controls and scrollbars (not the on-screen keyboard: see utils/theme.js). Use the tokens
    for colours, not literal ones, so both themes work. */
 :root[data-theme="light"] {
   --vc-accent-hover: #57487a;
