@@ -55,7 +55,7 @@ function SWMessageHandler() {
 }
 
 export default function App() {
-  const { user, setUser, loading } = useAuth();
+  const { user, setUser, loading, unreachable } = useAuth();
   const [config, setConfig] = useState({ s3Endpoint: '' });
 
   const [interactionMode, setInteractionMode] = useState("auto");
@@ -111,7 +111,10 @@ export default function App() {
 
 
 
-  if (loading) return <div></div>;
+  // The saved login is kept while the server can't be reached; AuthProvider keeps asking.
+  if (loading) {
+    return unreachable ? <div className="auth-unreachable">Can&apos;t reach Voicaw. Trying again…</div> : <div></div>;
+  }
 
   async function handleLogout() {
     // Before the token goes: the server must forget this device, or it would keep

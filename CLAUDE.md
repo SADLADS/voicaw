@@ -254,10 +254,19 @@ nginx's `X-Forwarded-For` (`trust proxy: 'loopback'`). test.voicaw.com goes thro
 to the public API, so its visitors all share one address there. The websocket `user_status`
 broadcast only goes to identified sockets.
 
-On successful login/register, the server issues a JWT (`generateToken`, 1-day expiry, see
-`server/auth.js`) which the client stores in `localStorage` and sends as `Authorization: Bearer
-<token>` (see `client/src/utils/api.js`). `authenticateJWT` middleware protects all `/api/*`
-routes except config/login/register.
+On successful login/register, the server issues a JWT (`generateToken`, see `server/auth.js`)
+which the client stores in `localStorage` and sends as `Authorization: Bearer <token>` (see
+`client/src/utils/api.js`). `authenticateJWT` middleware protects all `/api/*` routes except
+config/login/register.
+- **Sessions last while the app is used:** a token is good for 30 days (`SESSION_SECONDS`), and
+  any authenticated request with one older than a day (`RENEW_AFTER_SECONDS`) gets a new one in
+  the `X-Voicaw-Token` response header (exposed by CORS). `api.js` stores it, only if it renews
+  the token that request was sent with (not after a logout or another login). So only a device
+  unused for 30 days has to log in again. Tokens can't be revoked (logout just forgets it on
+  the device); a server-side sessions table would be the way to add that.
+- On start, `AuthProvider` only drops the session when `/profile` answers 401/403/404. With no
+  answer or a server error (no network yet after boot, an API restart) it keeps the token and
+  asks again every 3 s, while `App` shows "Can't reach Voicaw. Trying again…".
 
 ### Deleting an account
 
