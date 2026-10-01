@@ -216,11 +216,13 @@ TURN over TLS on 443, which needs its own IP or an nginx `stream` SNI split.
 
 The desktop app (`electron/`) ships its own copy of the client and talks to the same API
 (`voicaw://app` is already an allowed origin in `server/config.js`; the object store must allow
-it too, which MinIO does by default). Build the installers on each system you want them for
-(Windows ones on Windows, macOS ones on a Mac):
+it too, which MinIO does by default). `npm run dist:electron` builds the installers for the
+system it runs on; on Linux, the Windows one is built in Docker (electron-builder's image, with
+wine); macOS ones need a Mac:
 
 ```bash
-npm run dist:electron   # client build for the app (../build), then installers in dist-desktop/
+npm run dist:electron       # client build for the app (../build), then installers in dist-desktop/
+npm run dist:electron:win   # the same, then the Windows installer, via Docker (electron/dist-win.sh)
 ```
 
 The client build uses `client/.env.production`, unless there's a `client/.env.electron` with its

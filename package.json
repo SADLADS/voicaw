@@ -12,7 +12,8 @@
     "start:server": "npm run start --workspace=server",
     "start:electron": "npm run build:electron --workspace=client && electron electron/main.js",
     "test": "npm run test --workspace=server && npm run test --workspace=client && npm run test --workspace=electron",
-    "dist:electron": "npm run dist --workspace=electron"
+    "dist:electron": "npm run dist --workspace=electron",
+    "dist:electron:win": "npm run build:electron --workspace=client && sh electron/dist-win.sh"
   },
   "devDependencies": {
     "cross-env": "^10.0.0",

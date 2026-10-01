@@ -57,6 +57,8 @@ Run from the repo root unless noted.
 - `npm run start:server` — start the Express/WebSocket server (`server/index.js`)
 - `npm run start:electron` — build the client in Electron mode, then launch the Electron shell
 - `npm run dist:electron` — the same build, then installers in `dist-desktop/` (electron-builder)
+- `npm run dist:electron:win` — the same build, then the Windows installer in Docker with wine
+  (`electron/dist-win.sh`, electron-builder's image; unsigned)
 
 Client-only (run inside `client/`):
 - `npm run lint` — ESLint over `client/src`
