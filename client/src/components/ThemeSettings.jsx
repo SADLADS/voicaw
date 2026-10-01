@@ -51,8 +51,7 @@ export default function ThemeSettings() {
       </div>
       <p className="vc-hint">
         {choice === 'system' && <>Your system is using {theme} mode now. </>}
-        Saved on this device only. The on-screen keyboard follows your device&apos;s own light
-        or dark setting.
+        Saved on this device only.
       </p>
     </div>
   );
