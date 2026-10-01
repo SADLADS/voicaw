@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
+import { spritePosition } from '../emoji/emojiSheets';
 import { frequentEmojiIds, getSkinTone, recordEmojiUse, setSkinTone, skinFor } from '../emoji/emojiUsage';
 import { customEmojiText, customEmojiUrl, customUsageId, searchCustomEmoji } from '../emoji/customEmoji';
 import { useCustomEmoji } from '../emoji/customEmojiContext';
@@ -23,7 +24,7 @@ function savedTab() {
   try { return localStorage.getItem(TAB_KEY) === 'gifs' ? 'gifs' : 'emoji'; } catch { return 'emoji'; }
 }
 
-// Emoji images only load once they're within a screen of the picker's visible area. The
+// Custom emoji images only load once they're within a screen of the picker's visible area. The
 // browser's own `loading="lazy"` looks much further ahead (hundreds of images on open), so
 // the emoji actually on screen had to queue behind ones nobody could see yet.
 const NearbyContext = createContext(null);
@@ -54,7 +55,24 @@ function useNearbyObserver(rootRef, ready) {
   return observer;
 }
 
-function EmojiImage({ unified, src, alt }) {
+// A standard emoji: its cell of a sprite sheet (emojiSheets.js), so a whole category shows at
+// once, or its own SVG if it isn't on one. The sheets' CSS is the picker's <style>.
+function SheetEmoji({ unified, alt = '' }) {
+  const index = useEmojiIndex();
+  const sprite = index?.sprites.get(unified);
+  if (!sprite) return <img className="emoji" src={emojiImageUrl(unified)} alt={alt} draggable={false} />;
+  return (
+    <span
+      className={`emoji emoji-sprite emoji-sheet-${sprite.sheet}`}
+      role={alt ? 'img' : undefined}
+      aria-label={alt || undefined}
+      aria-hidden={alt ? undefined : true}
+      style={{ backgroundPosition: spritePosition(sprite) }}
+    />
+  );
+}
+
+function EmojiImage({ src, alt }) {
   const nearby = useContext(NearbyContext);
   const ref = useRef(null);
   const [near, setNear] = useState(false);
@@ -65,7 +83,7 @@ function EmojiImage({ unified, src, alt }) {
     <img
       ref={ref}
       className="emoji"
-      src={show ? src ?? emojiImageUrl(unified) : undefined}
+      src={show ? src : undefined}
       alt={alt}
       loading={CAN_OBSERVE ? undefined : 'lazy'}
       draggable={false}
@@ -88,7 +106,7 @@ function EmojiButton({ emoji, tone, onPick, onHover, keepFocus }) {
       aria-label={emoji.name}
       title={`:${emoji.id}:`}
     >
-      <EmojiImage unified={skin.unified} alt={skin.native} />
+      <SheetEmoji unified={skin.unified} alt={skin.native} />
     </button>
   );
 }
@@ -316,6 +334,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
       role="dialog"
       aria-label="Emoji picker"
     >
+      {index && <style>{index.sheetCss}</style>}
       {hasGifs && !(docked && searching) && (
         <div className="emoji-picker-tabs" role="tablist" aria-label="Picker">
           {[['emoji', 'Emoji'], ['gifs', 'GIFs']].map(([id, label]) => (
@@ -363,7 +382,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
               aria-label="Skin tone"
               aria-expanded={showTones}
             >
-              <img className="emoji" src={emojiImageUrl(skinFor(toneSample, tone).unified)} alt="" draggable={false} />
+              <SheetEmoji unified={skinFor(toneSample, tone).unified} />
             </button>
             {showTones && (
               <div className="emoji-picker-tone-menu" role="menu">
@@ -376,7 +395,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
                     aria-label={`Skin tone ${value}`}
                     onClick={() => chooseTone(value)}
                   >
-                    <img className="emoji" src={emojiImageUrl(skin.unified)} alt="" draggable={false} />
+                    <SheetEmoji unified={skin.unified} />
                   </button>
                 ))}
               </div>
@@ -400,7 +419,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
                   ) : section.id === 'frequent' ? (
                     <FontAwesomeIcon icon={faClock} className="emoji-picker-frequent-icon" />
                   ) : (
-                    <img className="emoji" src={emojiImageUrl(section.emojis[0].skins[0].unified)} alt="" draggable={false} />
+                    <SheetEmoji unified={section.emojis[0].skins[0].unified} />
                   )}
                 </button>
               ))}
@@ -453,7 +472,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
             </>
           ) : preview ? (
             <>
-              <img className="emoji" src={emojiImageUrl(preview.unified)} alt="" draggable={false} />
+              <SheetEmoji unified={preview.unified} />
               <span className="emoji-picker-preview-code">:{hovered.id}:</span>
             </>
           ) : (

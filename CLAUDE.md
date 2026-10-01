@@ -103,6 +103,7 @@ node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots int
 node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permissions
 node e2e/auditlog.mjs [dir] # audit log: mod deletes a message, role change, details, filters, no access, phone
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
+node e2e/emojisheets.mjs [dir] # picker sprite sheets: no per-emoji SVGs, time to draw (cold, worker's copy), skin tone sheet, phone
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
 node e2e/rejoin.mjs [dir] # voice after a lost connection: Reconnecting, rejoins by itself, phone waits until back in view, leave stays left
 node e2e/screenshare.mjs [dir] # screen share: own preview, Live, no download until Watch, phone watches, Video taken away
@@ -1232,9 +1233,22 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   `client/vite.config.js`: served from the npm package in dev, copied into the build otherwise,
   and not precached. There is no CDN and no setup for a new install. The artwork is CC-BY 4.0,
   so keep the attribution in Settings. The service worker caches them cache-first (cache
-  `emoji-<twemoji version>`), so each is fetched once per device. The picker only sets an
-  image's `src` once it's within a screen of the visible area (its own `IntersectionObserver`,
-  not `loading="lazy"`, which queued hundreds of offscreen images ahead of the visible ones).
+  `emoji-<twemoji version>`), so each is fetched once per device.
+- **The picker draws standard emoji from sprite sheets**, like Discord (`emoji/emojiSheets.js`):
+  one WebP per category (default tone) plus one per skin tone holding only the emoji with
+  tones, 16 columns of 56px cells, ~1.7 MB for the eight category sheets. One SVG per emoji used to
+  fill in a cell at a time on any device that hadn't seen them. The layout comes from the
+  emoji data (`spriteMap`, in the index as `sprites`), so there's no map file; each cell is a
+  span with an `emoji-sheet-<name>` class (the picker's `<style>`, `sheetCss`) and an inline
+  `background-position`. `twemojiAssets` makes them with `sharp` (a client dev dependency)
+  once per key into Vite's cache folder (`node_modules/.vite/emoji-sheets/`, ~10 s), and
+  serves or copies them at `/emoji/sheets/<key>/<name>.webp`; the key holds the Twemoji and
+  emoji data versions, `LAYOUT_VERSION` and the cell size, so a change gets new URLs. The
+  service worker caches them like the SVGs and fetches the category sheets (and the six
+  default quick reactions' SVGs) when it installs, so even the first picker is instant.
+  Custom emoji in the picker still load one by one, only once within a screen of the visible
+  area (its own `IntersectionObserver`, not `loading="lazy"`, which queued hundreds of
+  offscreen images ahead of the visible ones).
 - Everywhere else (the message box while typing, names, previews, buttons) emoji are Twemoji
   too, via a colour font: `assets/css/twemoji-font.css` is first in the body font stack, limited
   by `unicode-range` to its emoji (not the digits, `#`, `*`, ©, ® it also has). A text box can't

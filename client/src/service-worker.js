@@ -1,5 +1,7 @@
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { version as twemojiVersion } from '@twemoji/svg/package.json';
+import { version as dataVersion } from '@emoji-mart/data/package.json';
+import { CATEGORY_SHEETS, sheetKey, sheetPath } from './emoji/emojiSheets';
 import { notificationFromPush } from './services/pushNotifications';
 import { isMediaRequest, handleMediaFetch, MEDIA_PING } from './services/mediaStreamWorker';
 
@@ -20,11 +22,36 @@ self.addEventListener('fetch', (event) => {
   if (isMediaRequest(event.request)) handleMediaFetch(event);
 });
 
-// Emoji images (/emoji/<codepoints>.svg, see vite.config.js): cache-first, kept per Twemoji
+// Emoji images (/emoji/<codepoints>.svg and the picker's sprite sheets,
+// /emoji/sheets/<key>/<name>.webp, see vite.config.js): cache-first, kept per Twemoji
 // version. Once an emoji has been shown it never touches the network again, so the picker and
 // messages draw instantly on later visits, without any server-side cache configuration.
 const EMOJI_CACHE = `emoji-${twemojiVersion}`;
-const EMOJI_PATH = /\/emoji\/[0-9a-f-]+\.svg$/;
+const EMOJI_PATH = /\/emoji\/([0-9a-f-]+\.svg|sheets\/[^/]+\/[a-z0-9]+\.webp)$/;
+const SHEET_KEY = sheetKey(twemojiVersion, dataVersion);
+const emojiPath = (file) => new URL(`emoji/${file}`, self.registration.scope).pathname;
+// Fetched as soon as this worker installs, so even the first picker opened shows at once:
+// the default-tone sheets, and the message action sheet's default quick reactions
+// (MessageActionSheet.jsx: 👍 ❤️ 😂 😮 😢 🙏).
+const EMOJI_WARM = [
+  ...CATEGORY_SHEETS.map((name) => sheetPath(SHEET_KEY, name)),
+  ...['1f44d', '2764', '1f602', '1f62e', '1f622', '1f64f'].map((file) => `${file}.svg`),
+].map(emojiPath);
+
+self.addEventListener('install', (event) => {
+  event.waitUntil((async () => {
+    try {
+      const cache = await caches.open(EMOJI_CACHE);
+      await Promise.all(EMOJI_WARM.map(async (path) => {
+        if (await cache.match(path)) return;
+        const response = await fetch(path);
+        if (response.ok) await cache.put(path, response);
+      }));
+    } catch {
+      // Offline or the like: they're fetched when first shown instead.
+    }
+  })());
+});
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
@@ -43,6 +70,14 @@ self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const names = await caches.keys();
     await Promise.all(names.filter((n) => n.startsWith('emoji-') && n !== EMOJI_CACHE).map((n) => caches.delete(n)));
+    // Sprite sheets of an older layout (a new emoji data version or LAYOUT_VERSION).
+    const cache = await caches.open(EMOJI_CACHE);
+    const current = emojiPath(`sheets/${SHEET_KEY}/`);
+    const stale = (await cache.keys()).filter((request) => {
+      const { pathname } = new URL(request.url);
+      return pathname.includes('/emoji/sheets/') && !pathname.startsWith(current);
+    });
+    await Promise.all(stale.map((request) => cache.delete(request)));
   })());
 });
 
