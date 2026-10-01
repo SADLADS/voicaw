@@ -113,6 +113,7 @@ node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild p
 node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show), Join Guild, phone
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
 node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, results, Jump into another channel, private channel, phone
+node e2e/days.mjs [dir]   # day dividers between days and above the first message (desktop + phone)
 node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertical scroll), back button, guild
 node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
@@ -1384,6 +1385,12 @@ same person within 7 minutes of the row above, on the same day and not a reply, 
 avatar, name and date (`.grouped`; the time shows in the avatar column on hover, "(edited)"
 goes after the text). A group DM message whose sender isn't verified (unsigned or a bad
 signature) never groups, either way, so it can't pass as the person above.
+
+Where a new day starts (on the device's calendar), a line with the date in words goes across
+the chat, like Discord's (`startsNewDay` in the same file, `DayDivider` in `MessageList`,
+`formatLongDate`: "11 September 2026" in the Date & time setting's order). The first loaded
+row only gets one once there's no older history (`hasMore` false). Client-side only; it's
+drawn inside the row's wrapper, so row keys and scroll anchoring are unchanged.
 
 `hooks/useConversation.js` loads a conversation in exactly one effect (keyed on `id` + the other user's public key,
 ignoring late responses after a chat switch). Older pages (`PAGE_SIZE`, sent as `limit`, server

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { formatDate, formatDateTime, formatTime } from './dateFormat';
+import { formatDate, formatDateTime, formatLongDate, formatTime } from './dateFormat';
 
 const when = new Date(2026, 8, 3, 16, 7, 5); // 3 Sep 2026, 16:07:05 local
 
@@ -28,5 +28,15 @@ describe('dateFormat', () => {
 
   it('puts both together, and takes unix milliseconds too', () => {
     expect(formatDateTime(when.getTime(), { date: 'ymd', time: '24' })).toBe('2026-09-03, 16:07');
+  });
+
+  it('writes the month out for day dividers, in the chosen order', () => {
+    vi.stubGlobal('navigator', { language: '' });
+    expect(formatLongDate(when, { date: 'auto' })).toBe('3 September 2026');
+    expect(formatLongDate(when, { date: 'dmy' })).toBe('3 September 2026');
+    expect(formatLongDate(when, { date: 'mdy' })).toBe('September 3, 2026');
+    expect(formatLongDate(when, { date: 'ymd' })).toBe('2026-09-03');
+    vi.stubGlobal('navigator', { language: 'en-US' });
+    expect(formatLongDate(when, { date: 'auto' })).toBe('September 3, 2026');
   });
 });

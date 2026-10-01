@@ -17,3 +17,14 @@ export function continuesGroup(prev, msg) {
   if (!(gap >= 0 && gap < GROUP_WINDOW_S)) return false;
   return new Date(prev.timestamp * 1000).toDateString() === new Date(msg.timestamp * 1000).toDateString();
 }
+
+// A row's time in ms; a message still sending has no timestamp yet: it's now.
+export const rowTime = (msg) => (msg.timestamp != null ? msg.timestamp * 1000 : Date.now());
+
+// Whether a day divider goes above `msg` (like Discord's): it's on another day (on this
+// device's calendar) than the row above. The first loaded row only gets one once there's no
+// older history to load, since until then the day above it isn't known.
+export function startsNewDay(prev, msg, { hasMore = false } = {}) {
+  if (!prev) return !hasMore;
+  return new Date(rowTime(prev)).toDateString() !== new Date(rowTime(msg)).toDateString();
+}
