@@ -153,6 +153,24 @@ describe('document channels', () => {
     expect(screen.getByText(/1 reply$/)).toBeTruthy();
   });
 
+  it('reacts to a document from its card without opening it', async () => {
+    fetchDocuments.mockResolvedValue([card(2, 'Second', { reactions: [{ id: 5, user_id: 2, emoji: '👍', timestamp: 1 }] }), card(1, 'First')]);
+    addDocumentReaction.mockResolvedValue({ id: 6, document_id: 2, user_id: 1, emoji: '👍', timestamp: 2 });
+    renderView('/guild/5/20');
+    fireEvent.click(await screen.findByRole('button', { name: /👍 1/ }));
+    await waitFor(() => expect(addDocumentReaction).toHaveBeenCalledWith(2, '👍'));
+    await waitFor(() => expect(screen.getByRole('button', { name: /👍 2/ })).toBeTruthy());
+    expect(where()).toBe('/guild/5/20');
+    // A card without reactions still offers one, with Add Reactions.
+    expect(screen.getAllByRole('button', { name: 'Add reaction' })).toHaveLength(2);
+  });
+
+  it('offers no new reactions on cards without Add Reactions', async () => {
+    renderView('/guild/5/20', { permissions: P.VIEW_CHANNEL | P.SEND_MESSAGES });
+    await screen.findByText('Second');
+    expect(screen.queryByRole('button', { name: 'Add reaction' })).toBeNull();
+  });
+
   it('opens a document with its replies, and reacts to it', async () => {
     const doc = full(card(2, 'Second', { reactions: [{ id: 5, user_id: 2, emoji: '👍', timestamp: 1 }] }));
     fetchDocument.mockResolvedValue(doc);
