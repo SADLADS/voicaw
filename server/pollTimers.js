@@ -122,10 +122,11 @@ async function insertRow(kind, poll) {
       [poll.group_id, poll.epoch, poll.sender_id, poll.id, POLL_END]
     );
   }
+  // A poll in a document's replies gets its row there too.
   return db.run(
-    `INSERT INTO guild_messages (channel_id, sender_id, content, parent_message_id, system, timestamp)
-     VALUES (?, ?, '', ?, ?, strftime('%s','now'))`,
-    [poll.channel_id, poll.sender_id, poll.id, POLL_END]
+    `INSERT INTO guild_messages (channel_id, sender_id, content, parent_message_id, system, document_id, timestamp)
+     VALUES (?, ?, '', ?, ?, ?, strftime('%s','now'))`,
+    [poll.channel_id, poll.sender_id, poll.id, POLL_END, poll.document_id ?? null]
   );
 }
 

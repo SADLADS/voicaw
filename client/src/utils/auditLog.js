@@ -6,7 +6,7 @@ import { PERMISSIONS, PERMISSION_GROUPS, colorToHex } from './permissions';
 
 // The action filter's choices, and the actions each covers.
 export const AUDIT_FILTERS = [
-  { key: 'messages', label: 'Messages', actions: ['message_delete', 'message_pin', 'message_unpin'] },
+  { key: 'messages', label: 'Messages', actions: ['message_delete', 'message_pin', 'message_unpin', 'document_delete'] },
   { key: 'members', label: 'Members', actions: ['member_kick', 'member_ban_add', 'member_ban_remove', 'member_role_update', 'guild_owner_transfer'] },
   { key: 'roles', label: 'Roles', actions: ['role_create', 'role_update', 'role_delete'] },
   {
@@ -38,7 +38,7 @@ export function permissionNames(bits) {
 }
 
 const channel = (name) => ({ name: `#${name ?? 'deleted-channel'}` });
-const CHANNEL_KINDS = { voice: 'voice ', list: 'list ' };
+const CHANNEL_KINDS = { voice: 'voice ', list: 'list ', doc: 'document ' };
 
 // The sentence for `entry`. `names` has `user(id)` and `webhook(id, fallback)`, which give a
 // display name. -> [string | { name }]
@@ -61,6 +61,12 @@ export function describeEntry(entry, names) {
     }
     case 'message_pin': return [actor, ' pinned a message by ', target(), ' in ', channel(d.channelName)];
     case 'message_unpin': return [actor, ' unpinned a message by ', target(), ' in ', channel(d.channelName)];
+    case 'document_delete': {
+      const own = entry.actor_id != null && String(entry.actor_id) === entry.target_id;
+      return own
+        ? [actor, ' deleted their own document in ', channel(d.channelName)]
+        : [actor, ' deleted a document by ', target(), ' in ', channel(d.channelName)];
+    }
     case 'member_kick': return [actor, ' kicked ', target()];
     case 'member_ban_add': return [actor, ' banned ', target()];
     case 'member_ban_remove': return [actor, ' unbanned ', target()];

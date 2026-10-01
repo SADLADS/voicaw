@@ -23,12 +23,23 @@ export function remarkDiscord() {
   };
 }
 
-function transform(node, source) {
+// Documents (document channels) are full markdown: all of GFM (tables, task lists, rules,
+// every heading level), with blank lines folded as usual. Only `__underline__` and
+// `||spoilers||` are the app's own, as in messages. The document editor parses with this too
+// (documents/documentMarkdown.js), so it and the page always agree.
+export function remarkDocument() {
+  return (tree, file) => {
+    const source = String(file.value ?? '');
+    transform(tree, source, { document: true });
+  };
+}
+
+function transform(node, source, { document = false } = {}) {
   if (!node.children) return;
-  if (node.type === 'root' || node.type === 'blockquote') addBlankLines(node, source);
+  if (!document && (node.type === 'root' || node.type === 'blockquote')) addBlankLines(node, source);
   node.children.forEach((child, i) => {
     // Discord's headings stop at ###: deeper ones are the text they were typed as.
-    if (child.type === 'heading' && child.depth > 3) {
+    if (!document && child.type === 'heading' && child.depth > 3) {
       node.children[i] = {
         type: 'paragraph',
         children: [{ type: 'text', value: `${'#'.repeat(child.depth)} ` }, ...child.children],
@@ -39,7 +50,7 @@ function transform(node, source) {
       child.data = { ...child.data, hName: 'u' };
     }
   });
-  node.children.forEach((child) => transform(child, source));
+  node.children.forEach((child) => transform(child, source, { document }));
   wrapSpoilers(node);
 }
 

@@ -78,8 +78,9 @@
 }
 
 /* TEXT SELECTION: off everywhere (so dragging things, like channels, doesn't select text), except
-   where people type and, on desktop, what's said in the chat: messages, names, times, reply
-   previews and code. (On mobile a long press on a message opens its actions instead.) */
+   where people type, documents (on phones too: they have no long-press menu) and, on desktop,
+   what's said in the chat: messages, names, times, reply previews and code. (On mobile a long
+   press on a message opens its actions instead.) */
 body {
   -webkit-user-select: none;
   user-select: none;
@@ -88,6 +89,7 @@ body {
 input,
 textarea,
 [contenteditable="true"],
+.document-page-inner :is(.document-title, .document-body),
 body:not(.mobile-mode) .each-dm-message-wrapper :is(.dm-message-content, .message-author, small, .reply-author, .reply-preview),
 body:not(.mobile-mode) .message-system,
 body:not(.mobile-mode) .day-divider,
@@ -1101,6 +1103,8 @@ html {
 .guild-channel-list,
 .attachment-tray,
 .image-viewer-thumbnails,
+.doc-toolbar,
+.document-body :is(table, .tableWrapper),
 .dm-message-content pre code {
   scrollbar-width: thin;
   scrollbar-color: var(--vc-border-light) transparent;

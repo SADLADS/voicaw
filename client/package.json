@@ -23,10 +23,16 @@
     "highlight.js": "^11.11.1",
     "livekit-client": "^2.22.3",
     "prosemirror-commands": "^1.7.2",
+    "prosemirror-dropcursor": "^1.8.4",
+    "prosemirror-gapcursor": "^1.4.1",
     "prosemirror-history": "^1.5.1",
+    "prosemirror-inputrules": "^1.5.1",
     "prosemirror-keymap": "^1.2.3",
+    "prosemirror-markdown": "^1.13.8",
     "prosemirror-model": "^1.25.12",
+    "prosemirror-schema-list": "^1.5.1",
     "prosemirror-state": "^1.4.4",
+    "prosemirror-tables": "^1.8.5",
     "prosemirror-view": "^1.42.6",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -34,7 +40,9 @@
     "react-router-dom": "^7.7.1",
     "rehype-highlight": "^7.0.2",
     "remark-emoji": "^5.0.1",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

@@ -8,8 +8,9 @@ import { join } from 'path';
 export { devices };
 export const BASE = `http://localhost:${process.env.E2E_WEB_PORT || 5199}`;
 
+// The system Chrome (`CHROME_PATH` elsewhere than the server's, e.g. on Windows or macOS).
 export function launchChrome(options = {}) {
-  return chromium.launch({ executablePath: '/usr/bin/google-chrome', ...options });
+  return chromium.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome', ...options });
 }
 
 // Registers a new user (names get a unique suffix; the database lives as long as serve.mjs)

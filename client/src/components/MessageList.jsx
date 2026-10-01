@@ -23,7 +23,7 @@ import { customEmojiToText } from '../emoji/customEmoji';
 import { rehypeMentions } from '../utils/rehypeMentions';
 import { rehypeHighlightShared } from '../utils/rehypeHighlightShared';
 import { isPlainText } from '../utils/plainText';
-import { hideSpoilers, remarkDiscord } from '../utils/remarkDiscord';
+import { hideSpoilers, remarkDiscord, remarkDocument } from '../utils/remarkDiscord';
 import { continuesGroup, rowTime, startsNewDay } from '../utils/messageGroups';
 import { displayName, useProfiles } from '../utils/profiles';
 import ProfilePopover from './ProfilePopover';
@@ -196,6 +196,31 @@ const WebhookParts = memo(function WebhookParts({ webhookId, embeds: sent, attac
       {/* Files an embed shows (attachment://…) aren't shown again, as in Discord. */}
       <MessageFiles attachments={attachments} shownElsewhere={embeds.flatMap((e) => [e.image?.url, e.thumbnail?.url])} />
     </>
+  );
+});
+
+// Documents (document channels) are full markdown (remarkDocument: tables, task lists, every
+// heading level), drawn with the same mentions, emoji, spoilers and attachments as messages.
+const documentRemarkPlugins = [remarkGfm, remarkDocument, remarkEmoji];
+
+export const DocumentMarkdown = memo(function DocumentMarkdown({ text, user, s3Endpoint, reactionNames, mentionRoles, myRoleIds }) {
+  const emojiIndex = useEmojiIndex();
+  const rehypePlugins = useMemo(
+    () => [rehypeHighlightShared, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)],
+    [emojiIndex, s3Endpoint]
+  );
+  const mentions = useMemo(
+    () => ({ names: reactionNames, roles: mentionRoles, meId: user.id, myRoleIds, everyone: false }),
+    [reactionNames, mentionRoles, user.id, myRoleIds]
+  );
+  return (
+    <div className="document-body dm-message-content" data-image-gallery="">
+      <MentionContext.Provider value={mentions}>
+        <ReactMarkdown remarkPlugins={documentRemarkPlugins} rehypePlugins={rehypePlugins} urlTransform={defaultUrlTransform} components={markdownComponents}>
+          {text}
+        </ReactMarkdown>
+      </MentionContext.Provider>
+    </div>
   );
 });
 

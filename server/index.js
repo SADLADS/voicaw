@@ -12,9 +12,15 @@ const app = express();
 // adds to X-Forwarded-For; req.ip then is the visitor, not 127.0.0.1 (rate limits use it).
 app.set('trust proxy', 'loopback');
 // Webhook routes parse their own bodies (bigger JSON for pictures, forms, files); see
-// routes/webhooks.js.
+// routes/webhooks.js. Saving a document (routes/guildDocuments.js, up to 100,000 characters)
+// takes more than express's default 100 kB (nginx takes 1 MB).
 const json = express.json();
-app.use((req, res, next) => (/\/webhooks(\/|$)/.test(req.path) ? next() : json(req, res, next)));
+const documentJson = express.json({ limit: '1mb' });
+const DOCUMENT_PATH = /^\/api\/(channels\/\d+\/documents|documents\/\d+)$/;
+app.use((req, res, next) => {
+  if (/\/webhooks(\/|$)/.test(req.path)) return next();
+  return (DOCUMENT_PATH.test(req.path) ? documentJson : json)(req, res, next);
+});
 
 app.use(cors({
   origin(origin, callback) {
@@ -46,6 +52,7 @@ app.use('/api', require('./routes/guildSearch'));
 app.use('/api', require('./routes/guildRoles'));
 app.use('/api', require('./routes/guildEmojis'));
 app.use('/api', require('./routes/guildTasks'));
+app.use('/api', require('./routes/guildDocuments'));
 app.use('/api', require('./routes/auditLog'));
 app.use('/api', require('./routes/voice'));
 app.use('/api', require('./routes/calls'));
