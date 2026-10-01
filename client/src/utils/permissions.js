@@ -21,10 +21,13 @@ export const PERMISSIONS = {
   PIN_MESSAGES: 1 << 15,
   MANAGE_WEBHOOKS: 1 << 16,
   VIEW_AUDIT_LOG: 1 << 17,
+  EDIT_TASKS: 1 << 18,
+  STREAM: 1 << 19,
 };
 
 export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
-  PERMISSIONS.ADD_REACTIONS | PERMISSIONS.CREATE_INVITE | PERMISSIONS.CONNECT | PERMISSIONS.SPEAK;
+  PERMISSIONS.ADD_REACTIONS | PERMISSIONS.CREATE_INVITE | PERMISSIONS.CONNECT | PERMISSIONS.SPEAK |
+  PERMISSIONS.EDIT_TASKS | PERMISSIONS.STREAM;
 
 export const has = (permissions, bit) => ((permissions ?? 0) & bit) === bit;
 
@@ -65,6 +68,13 @@ export const PERMISSION_GROUPS = [
     items: [
       ['CONNECT', 'Connect', 'Lets members join voice channels and hear others.'],
       ['SPEAK', 'Speak', 'Lets members talk in voice channels. Without it they can only listen.'],
+      ['STREAM', 'Video', 'Lets members share their screen in voice channels.'],
+    ],
+  },
+  {
+    title: 'List channels',
+    items: [
+      ['EDIT_TASKS', 'Edit Tasks', 'Lets members add, edit, assign, complete, reorder and delete tasks in list channels. Commenting on tasks follows Send Messages.'],
     ],
   },
   {
@@ -88,6 +98,13 @@ const CHANNEL_PERMISSION_ITEMS = {
     ['VIEW_CHANNEL', 'View Channel'],
     ['CONNECT', 'Connect'],
     ['SPEAK', 'Speak'],
+    ['STREAM', 'Video'],
+  ],
+  list: [
+    ['VIEW_CHANNEL', 'View Channel'],
+    ['EDIT_TASKS', 'Edit Tasks'],
+    ['SEND_MESSAGES', 'Comment on Tasks'],
+    ['MANAGE_MESSAGES', 'Manage Comments'],
   ],
 };
 

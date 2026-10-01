@@ -91,6 +91,21 @@ try {
   await shot(a, '1-menu');
   await a.keyboard.press('Escape');
 
+  // Tab: question → each answer → Add another answer (not the emoji or remove buttons).
+  await a.click('.attach-button');
+  await a.click('.composer-add-item:has-text("Create poll")');
+  await a.click('text=+ Add another answer');
+  await a.focus('#poll-question');
+  const order = [];
+  for (let i = 0; i < 4; i++) {
+    await a.keyboard.press('Tab');
+    order.push(await a.evaluate(() => document.activeElement.getAttribute('aria-label') || document.activeElement.textContent.trim()));
+  }
+  if (order.join(' | ') !== 'Answer 1 | Answer 2 | Answer 3 | + Add another answer') throw new Error(`Tab order: ${order.join(' | ')}`);
+  await a.keyboard.press('Escape');
+  await a.waitForSelector('.vc-dialog', { state: 'detached' });
+  console.log('poll dialog: Tab goes through the question, the answers, then Add another answer');
+
   await createPoll(a, 'Lunch?', ['Pizza', 'Soup'], { emoji: { 1: 'pizza' } });
   await b.waitForSelector('.poll-question:text-is("Lunch?")', { timeout: 10000 });
   await b.waitForSelector('.poll-option:has-text("Pizza") .poll-option-emoji img.emoji[alt="🍕"]');
@@ -268,6 +283,12 @@ try {
   await press(b, pollOf(b, 'Which days?').locator('button:text-is("Vote")'));
   await waitForCount(a, 'Which days?', 'Wed', 1);
   await waitForCount(a, 'Which days?', 'Mon', 1);
+  // Shares are of the votes cast (2), not of the people who voted (1).
+  for (const day of ['Mon', 'Wed']) {
+    const count = await option(a, 'Which days?', day).locator('.poll-count').textContent();
+    if (count !== '1 · 50%') throw new Error(`${day} shows ${count}`);
+  }
+  await pollOf(a, 'Which days?').locator('.poll-footer:has-text("2 votes")').waitFor();
   await shot(a, '5-guild');
   await shot(b, '6-guild-phone');
   // Remove vote takes both back.

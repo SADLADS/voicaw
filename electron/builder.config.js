@@ -4,7 +4,7 @@
 //
 // Updates (updater.js) come from UPDATE_URL: after building, upload the installers and the
 // latest*.yml files next to them there. VOICAW_UPDATE_URL overrides it at build time.
-const UPDATE_URL = process.env.VOICAW_UPDATE_URL || 'https://voicaw.com/desktop/';
+const UPDATE_URL = process.env.VOICAW_UPDATE_URL || 'https://updates.voicaw.com/desktop/';
 
 module.exports = {
     appId: 'com.voicaw.app',

@@ -48,6 +48,20 @@ function subscribe(listener) {
 }
 
 const pad = (n) => String(n).padStart(2, '0');
+
+// Making an Intl formatter is slow (toLocaleTimeString makes one per call) and every message
+// shows a time, so they're kept, by locale and options.
+const formatters = new Map();
+function formatter(options) {
+  const locale = userLocale();
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let found = formatters.get(key);
+  if (!found) {
+    found = new Intl.DateTimeFormat(locale, options);
+    formatters.set(key, found);
+  }
+  return found;
+}
 const toDate = (value) => (value instanceof Date ? value : new Date(value));
 
 // The date alone: 30/09/2026 (or as chosen).
@@ -57,7 +71,20 @@ export function formatDate(value, { date = settings.date } = {}) {
     case 'dmy': return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
     case 'mdy': return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()}`;
     case 'ymd': return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    default: return d.toLocaleDateString(userLocale());
+    default: return formatter({}).format(d);
+  }
+}
+
+// The date in words, for the day dividers in chats: 11 September 2026, or September 11, 2026
+// for month first (the browser's way when automatic; 2026-09-11 when that's chosen).
+export function formatLongDate(value, { date = settings.date } = {}) {
+  const d = toDate(value);
+  const month = d.toLocaleDateString(userLocale(), { month: 'long' });
+  switch (date) {
+    case 'dmy': return `${d.getDate()} ${month} ${d.getFullYear()}`;
+    case 'mdy': return `${month} ${d.getDate()}, ${d.getFullYear()}`;
+    case 'ymd': return formatDate(d, { date });
+    default: return d.toLocaleDateString(userLocale(), { day: 'numeric', month: 'long', year: 'numeric' });
   }
 }
 
@@ -69,7 +96,7 @@ export function formatTime(value, { seconds = false, time = settings.time } = {}
     options.hourCycle = 'h23';
     options.hour = '2-digit';
   }
-  return toDate(value).toLocaleTimeString(userLocale(), options);
+  return formatter(options).format(toDate(value));
 }
 
 // Both: 30/09/2026, 16:37.

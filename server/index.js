@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { clients, attachWebSocketServer } = require('./sockets');
 const { getSetting } = require('./appSettings');
+const { RENEWED_TOKEN_HEADER } = require('./auth');
 
 // The HTTP API (all under /api). Required by tests as-is; the port and the websocket server
 // only exist when this file is run as the server (`node index.js`).
@@ -21,6 +22,8 @@ app.use(cors({
     else callback(new Error(`Origin ${origin} Not allowed by CORS`));
   },
   credentials: true,
+  // A renewed login token (auth.js), which the page must be able to read.
+  exposedHeaders: [RENEWED_TOKEN_HEADER],
 }));
 
 app.get('/api/config', async (req, res) => {
@@ -42,6 +45,7 @@ app.use('/api', require('./routes/guildMessages'));
 app.use('/api', require('./routes/guildSearch'));
 app.use('/api', require('./routes/guildRoles'));
 app.use('/api', require('./routes/guildEmojis'));
+app.use('/api', require('./routes/guildTasks'));
 app.use('/api', require('./routes/auditLog'));
 app.use('/api', require('./routes/voice'));
 app.use('/api', require('./routes/calls'));

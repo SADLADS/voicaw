@@ -3,6 +3,19 @@
 
 <head>
   <meta charset="UTF-8" />
+  <script>
+    // The theme before anything is drawn, so a light page never flashes dark (utils/theme.js).
+    (function () {
+      var t = 'dark';
+      try {
+        var v = localStorage.getItem('theme');
+        if (v === 'light') t = 'light';
+        else if (v === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches) t = 'light';
+      } catch (e) { /* dark, then */ }
+      document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.setAttribute('data-bs-theme', t);
+    })();
+  </script>
   <title>Voicaw</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"

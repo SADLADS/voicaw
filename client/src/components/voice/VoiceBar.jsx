@@ -5,7 +5,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPhoneSlash, faSignal, faTriangleExclamation, faVolumeHigh, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
-import { clearVoiceError, leaveVoice, resumeAudio } from '../../voice/voiceClient';
+import { clearStreamError, clearVoiceError, leaveVoice, resumeAudio } from '../../voice/voiceClient';
+import ScreenShareButton from './ScreenShareButton';
 import { hangUp } from '../../voice/callClient';
 import { useCall } from '../../hooks/useCall';
 import { groupTitle } from '../../utils/groupDisplay';
@@ -18,7 +19,8 @@ const STATUS_TEXT = {
 };
 
 // Above the user panel while you're in voice (like Discord): the connection state, which
-// channel or call (a link to it) and the disconnect button. Also where voice errors show.
+// channel or call (a link to it), share screen and the disconnect button. Also where voice
+// errors show.
 export default function VoiceBar({ user }) {
   useProfiles();
   const voice = useVoice();
@@ -65,6 +67,7 @@ export default function VoiceBar({ user }) {
             </Link>
           )}
         </div>
+        {!inCall && <ScreenShareButton />}
         <button
           type="button"
           className="user-panel-button voice-bar-leave"
@@ -81,6 +84,15 @@ export default function VoiceBar({ user }) {
         </button>
       )}
       {voice.micError && <p className="voice-bar-message voice-bar-mic-error">{voice.micError}</p>}
+      {voice.streaming && <p className="voice-bar-message voice-bar-live">You&apos;re sharing your screen.</p>}
+      {voice.streamError && (
+        <div className="voice-bar-row">
+          <p className="voice-bar-message voice-bar-mic-error">{voice.streamError}</p>
+          <button type="button" className="user-panel-button" aria-label="Dismiss" title="Dismiss" onClick={clearStreamError}>
+            <FontAwesomeIcon icon={faXmark} />
+          </button>
+        </div>
+      )}
       {!voice.canSpeak && voice.status === 'connected' && (
         <p className="voice-bar-message">You don&apos;t have permission to speak here.</p>
       )}

@@ -25,13 +25,13 @@ export default function PollEndNotice({ msg, onJump }) {
   useDateFormat();
   const poll = parsePoll(msg.parent_plaintext);
   if (!poll || !pollEndFits(poll, msg.parent_timestamp, msg.timestamp)) return null;
-  const { total, winners, votes, share } = pollResult(poll, msg.poll_reactions, pollEndsAt(poll, msg.parent_timestamp));
+  const { cast, winners, votes, share } = pollResult(poll, msg.poll_reactions, pollEndsAt(poll, msg.parent_timestamp));
   const author = displayName(msg.sender_id, msg.sender_username);
 
   let result;
-  if (total === 0) result = 'Nobody voted.';
+  if (cast === 0) result = 'Nobody voted.';
   else if (winners.length === 1) {
-    result = <><Answer option={winners[0]} /> won with {share}% ({votes} of {total} {total === 1 ? 'vote' : 'votes'}).</>;
+    result = <><Answer option={winners[0]} /> won with {share}% ({votes} of {cast} {cast === 1 ? 'vote' : 'votes'}).</>;
   } else {
     result = (
       <>

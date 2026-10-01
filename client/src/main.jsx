@@ -5,6 +5,7 @@ import { registerSW } from 'virtual:pwa-register';
 import { setUpdateAvailable, watchDesktopUpdates, watchForUpdates, watchForStaleApp } from './utils/appUpdate';
 import { desktop } from './utils/desktop';
 import { applySpellcheck } from './utils/spellcheck';
+import { applyTheme } from './utils/theme';
 
 
 // Import Bootstrap CSS
@@ -32,6 +33,7 @@ if (desktop) {
 }
 watchForStaleApp();
 applySpellcheck();
+applyTheme();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <AuthProvider>

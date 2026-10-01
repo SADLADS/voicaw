@@ -62,6 +62,7 @@ describe('voting', () => {
     const tally = tallyVotes(poll(true), [vote(1, 1, 'aaaa1111'), vote(2, 1, 'bbbb2222')]);
     expect(tally.voters).toEqual({ aaaa1111: [1], bbbb2222: [1] });
     expect(tally.total).toBe(1);
+    expect(tally.cast).toBe(2);
   });
 
   it('sets your votes to exactly your choice, and clears stale ones', () => {
@@ -112,15 +113,20 @@ describe('duration', () => {
 describe('result', () => {
   it('gives the winner and its share of the voters, a draw, or nobody', () => {
     const three = { ...poll(true), options: [...poll().options, { id: 'cccc3333', text: 'Salad', emoji: null }] };
-    expect(pollResult(three, [])).toMatchObject({ total: 0, winners: [] });
+    expect(pollResult(three, [])).toMatchObject({ cast: 0, winners: [] });
     const won = pollResult(three, [vote(1, 1, 'aaaa1111'), vote(2, 2, 'aaaa1111'), vote(3, 3, 'bbbb2222'), vote(4, 1, 'cccc3333')]);
-    expect(won).toMatchObject({ total: 3, votes: 2, share: 67 });
+    // Person 1 voted twice (it's multiple choice): 4 votes cast, Pizza has 2 of them.
+    expect(won).toMatchObject({ cast: 4, votes: 2, share: 50 });
     expect(won.winners.map((o) => o.text)).toEqual(['Pizza']);
     const draw = pollResult(three, [vote(1, 1, 'aaaa1111'), vote(2, 2, 'bbbb2222')]);
     expect(draw.winners.map((o) => o.text)).toEqual(['Pizza', 'Soup']);
     expect(draw.share).toBe(50);
     // Votes after the end don't count.
-    expect(pollResult(three, [{ ...vote(1, 1, 'aaaa1111'), timestamp: 50 }], 40).total).toBe(0);
+    expect(pollResult(three, [{ ...vote(1, 1, 'aaaa1111'), timestamp: 50 }], 40).cast).toBe(0);
+    // One person picking two of three answers: a draw at 50% each, not 100%.
+    const both = pollResult(three, [vote(1, 1, 'aaaa1111'), vote(2, 1, 'cccc3333')]);
+    expect(both.winners.map((o) => o.text)).toEqual(['Pizza', 'Salad']);
+    expect(both).toMatchObject({ cast: 2, votes: 1, share: 50 });
   });
 
   it("only fits a row posted once the poll had closed", () => {

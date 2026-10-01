@@ -50,7 +50,7 @@ body {
   position: relative;
   padding: 8px;
   border-radius: 8px;
-  color: white;
+  color: var(--vc-fg);
   text-decoration: none;
   display: flex;
   border: 1px solid var(--vc-bg-base);
@@ -231,7 +231,7 @@ small {
 .send-button {
   background-color: var(--vc-accent);
   border: none;
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
   border-radius: 8px;
   transition: background-color 0.2s ease;
   padding: 8px;
@@ -239,6 +239,7 @@ small {
 
 .send-button:hover {
   background-color: var(--vc-accent-hover);
+  color: var(--vc-on-accent);
 }
 
 
@@ -331,7 +332,7 @@ small {
 }
 
 .reply-close:hover {
-  color: #fff;
+  color: var(--vc-fg);
 }
 
 
@@ -550,6 +551,7 @@ small {
 
 .attachment-draft-remove:hover {
   background-color: var(--vc-danger);
+  color: var(--vc-on-accent);
 }
 
 /* Spoiler toggle (images and videos), left of the remove button. */
@@ -573,6 +575,7 @@ small {
 .attachment-draft-spoiler:hover,
 .attachment-draft-spoiler.active {
   background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
 }
 
 .attachment-draft.spoiler img,
@@ -708,12 +711,13 @@ small {
   border-radius: 6px;
   padding: 6px 9px;
   background-color: var(--vc-accent);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
   cursor: pointer;
 }
 
 .attachment-file-download:hover {
   background-color: var(--vc-accent-hover);
+  color: var(--vc-on-accent);
 }
 
 .attachment-file-download:disabled {
@@ -771,11 +775,12 @@ small {
   border-radius: 6px;
   padding: 3px 12px;
   background-color: var(--vc-accent);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
 }
 
 .notification-prompt-enable:hover {
   background-color: var(--vc-accent-hover);
+  color: var(--vc-on-accent);
 }
 
 .notification-settings-status {
@@ -1456,13 +1461,14 @@ body.mobile-mode .reaction-chip.reaction-add {
   border-radius: 8px;
   padding: 7px 14px;
   background-color: var(--vc-accent);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
   font-size: 14px;
   font-weight: 600;
 }
 
 .update-banner-button:hover:not(:disabled) {
   background-color: var(--vc-accent-hover);
+  color: var(--vc-on-accent);
 }
 
 .update-banner-button:disabled {
@@ -1710,6 +1716,25 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   font-size: 13px;
   color: var(--vc-fg-muted);
   text-align: center;
+}
+
+/* Where a new day starts: a line across the chat with the date in the middle (Discord's). */
+.day-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 1.25rem 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vc-fg-muted);
+}
+
+.day-divider::before,
+.day-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--vc-border-light);
 }
 
 /* Group DMs: messages whose sender can't be verified. */
@@ -1960,7 +1985,7 @@ body.mobile-mode .each-dm-message-wrapper textarea {
 }
 
 .dm-message-content .spoiler:not(.revealed) {
-  background-color: var(--vc-bg-base);
+  background-color: var(--vc-spoiler);
   color: transparent;
   cursor: pointer;
   user-select: none;
@@ -1972,7 +1997,7 @@ body.mobile-mode .each-dm-message-wrapper textarea {
 }
 
 .dm-message-content .spoiler:not(.revealed):hover {
-  background-color: #111114;
+  background-color: var(--vc-spoiler-hover);
 }
 
 /* "Delete message?" (ChatPane): the message being deleted, cut short if it's long. */
@@ -2614,8 +2639,8 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   min-width: 190px;
   padding: 6px;
   border-radius: 6px;
-  background-color: #111114;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+  background-color: var(--vc-popup);
+  box-shadow: 0 8px 16px var(--vc-popup-shadow);
 }
 
 .composer-add-item {
@@ -2636,7 +2661,7 @@ body.mobile-mode .each-dm-message-wrapper textarea {
 
 .composer-add-item:hover:not(:disabled) {
   background-color: var(--vc-accent);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
 }
 
 .composer-add-item:disabled {
@@ -2746,7 +2771,7 @@ body.mobile-mode .each-dm-message-wrapper textarea {
 .poll-option.selected .poll-check {
   border-color: var(--vc-accent);
   background-color: var(--vc-accent);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
 }
 
 .poll-option-text {
@@ -3015,6 +3040,7 @@ body.mobile-mode .poll-voters-list {
 
 .poll-dialog-emoji-clear:hover {
   background: var(--vc-danger);
+  color: var(--vc-on-accent);
 }
 
 /* Over the poll dialog (whose backdrop is z-index 100). */

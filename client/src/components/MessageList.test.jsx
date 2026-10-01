@@ -305,6 +305,26 @@ describe('MessageList', () => {
     expect(props.setEditingMessageId).toHaveBeenCalledWith(null);
   });
 
+  it('goes back to the bottom when you send a message, not when someone else does', () => {
+    const older = [{ id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'hi', timestamp: 1000 }];
+    const { container, rerender } = render(<MessageList {...baseProps({ messages: older })} />);
+    // jsdom has no layout: a 2000px list in a 500px view, scrolled up to 100.
+    const scroller = container.querySelector('.message-scroller');
+    let top = 100;
+    Object.defineProperty(scroller, 'scrollHeight', { configurable: true, get: () => 2000 });
+    Object.defineProperty(scroller, 'clientHeight', { configurable: true, get: () => 500 });
+    Object.defineProperty(scroller, 'scrollTop', { configurable: true, get: () => top, set: (v) => { top = v; } });
+    fireEvent.scroll(scroller);
+
+    const theirs = [...older, { id: 2, sender_id: 2, sender_username: 'bob', plaintext: 'yo', timestamp: 1001 }];
+    rerender(<MessageList {...baseProps({ messages: theirs })} />);
+    expect(top).toBe(100);
+
+    const mine = [...theirs, { id: 'temp-1', sender_id: 1, sender_username: 'alice', plaintext: 'hey', timestamp: 1002, status: 'pending' }];
+    rerender(<MessageList {...baseProps({ messages: mine })} />);
+    expect(top).toBe(2000);
+  });
+
   describe('loading older messages', () => {
     // jsdom has no layout: give the scroller a height so "near the top" means something
     // (its scrollTop is always 0 there, i.e. at the very top).

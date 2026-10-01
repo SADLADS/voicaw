@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS guild_channels (
   guild_id INTEGER NOT NULL,
   category_id INTEGER,
   name TEXT NOT NULL,
-  type TEXT CHECK(type IN ('text', 'voice')) NOT NULL DEFAULT 'text',
+  type TEXT CHECK(type IN ('text', 'voice', 'list')) NOT NULL DEFAULT 'text',
   topic TEXT,
   position INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (guild_id) REFERENCES guilds(id),
@@ -538,6 +538,45 @@ CREATE TABLE IF NOT EXISTS guild_audit_log (
 `);
 sqlite.exec('CREATE INDEX IF NOT EXISTS guild_audit_log_guild ON guild_audit_log (guild_id, id)');
 
+// LIST CHANNELS (routes/guildTasks.js, guildTasks.js): a board's tasks, in a tree (`parent_id`
+// null: top level; `position` orders siblings), who each is assigned to, and comments on each.
+// `due_date` is a day ('YYYY-MM-DD', no time zone); `completed_at` unix s or null.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_tasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  channel_id INTEGER NOT NULL,
+  parent_id INTEGER,
+  position INTEGER NOT NULL DEFAULT 0,
+  title TEXT NOT NULL,
+  description TEXT,
+  due_date TEXT,
+  completed_at INTEGER,
+  completed_by INTEGER,
+  created_by INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS guild_tasks_channel ON guild_tasks (channel_id, parent_id, position);
+CREATE TABLE IF NOT EXISTS guild_task_assignees (
+  task_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  assigned_by INTEGER,
+  assigned_at INTEGER NOT NULL,
+  PRIMARY KEY (task_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS guild_task_assignees_user ON guild_task_assignees (user_id);
+CREATE TABLE IF NOT EXISTS guild_task_comments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id INTEGER NOT NULL,
+  channel_id INTEGER NOT NULL,
+  sender_id INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  timestamp INTEGER NOT NULL,
+  edited_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS guild_task_comments_task ON guild_task_comments (task_id, id);
+`);
+
 // GUILD SEARCH (routes/guildSearch.js): each message's words (searchText.js) in a full-text
 // index, rowid = the message's id, and what it has (`has:` bits) in `search_has`. Whoever
 // writes a message's content, embeds or attachments calls indexGuildMessage (below); deleting
@@ -598,6 +637,36 @@ const MIGRATIONS = [
   },
   // 5. Usernames are lower case (usernames.js).
   () => lowercaseUsernames(),
+  // 6. List channels: guild_channels' type CHECK gains 'list' (SQLite can't change a CHECK, so
+  // the table is copied into a new one), and @everyone gets Edit Tasks, as in new guilds.
+  () => {
+    const { sql } = sqlite.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'guild_channels'").get();
+    if (!sql.includes("'list'")) {
+      // Keep the id counter, so deleted channels' ids (the audit log has them) aren't reused.
+      const seq = sqlite.prepare("SELECT seq FROM sqlite_sequence WHERE name = 'guild_channels'").get()?.seq ?? 0;
+      sqlite.exec(`
+        CREATE TABLE guild_channels_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          guild_id INTEGER NOT NULL,
+          category_id INTEGER,
+          name TEXT NOT NULL,
+          type TEXT CHECK(type IN ('text', 'voice', 'list')) NOT NULL DEFAULT 'text',
+          topic TEXT,
+          position INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY (guild_id) REFERENCES guilds(id),
+          FOREIGN KEY (category_id) REFERENCES guild_categories(id)
+        );
+        INSERT INTO guild_channels_new (id, guild_id, category_id, name, type, topic, position)
+          SELECT id, guild_id, category_id, name, type, topic, position FROM guild_channels;
+        DROP TABLE guild_channels;
+        ALTER TABLE guild_channels_new RENAME TO guild_channels;
+      `);
+      sqlite.prepare("UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = 'guild_channels'").run(seq);
+    }
+    sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.EDIT_TASKS} WHERE is_everyone = 1`);
+  },
+  // 7. Screen sharing: @everyone gets Video (Stream), as in new guilds.
+  () => sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.STREAM} WHERE is_everyone = 1`),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');

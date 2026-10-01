@@ -11,6 +11,8 @@ import DeleteAccountSettings from "./DeleteAccountSettings";
 import AdminSettings from "./AdminSettings";
 import DateTimeSettings from "./DateTimeSettings";
 import SpellcheckSettings from "./SpellcheckSettings";
+import ThemeSettings from "./ThemeSettings";
+import SoundSettings from "./SoundSettings";
 import DesktopAppSettings from "./DesktopAppSettings";
 import { isDesktopApp } from '../utils/desktop';
 import EditProfile from "./EditProfile";
@@ -77,6 +79,11 @@ export default function Settings({ onLogout }) {
       content: <DeleteAccountSettings onDeleted={onLogout} />,
     },
     {
+      id: 'appearance', category: 'app', title: 'Appearance',
+      keywords: 'theme dark mode light mode night colours colors system keyboard',
+      content: <ThemeSettings />,
+    },
+    {
       id: 'interaction-mode', category: 'app', title: 'Interaction mode',
       keywords: 'desktop mobile phone touch layout auto',
       content: (
@@ -108,6 +115,11 @@ export default function Settings({ onLogout }) {
       id: 'notifications', category: 'app', title: 'Notifications',
       keywords: 'push alerts previews',
       content: <NotificationSettings />,
+    },
+    {
+      id: 'sounds', category: 'app', title: 'Sounds',
+      keywords: 'sound effects audio volume ding chime ring ringtone message mute unmute deafen join leave disconnect',
+      content: <SoundSettings />,
     },
     {
       id: 'desktop-app', category: 'app', title: 'Desktop app',

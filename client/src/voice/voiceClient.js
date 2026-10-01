@@ -1,5 +1,6 @@
 import { fetchVoiceToken, leaveVoiceChannel, saveVoiceState } from '../services/voiceService';
 import { createVoiceChain } from './voiceChain';
+import { playSound } from '../sounds/sounds';
 
 // This device's voice connection (one at a time, like Discord): a voice channel or a DM
 // call, the microphone, mute and deafen, and who's talking. The audio goes through a LiveKit
@@ -11,6 +12,13 @@ import { createVoiceChain } from './voiceChain';
 // Components read it through hooks/useVoice.js (getVoiceSnapshot / onVoiceChange).
 // Mute and deafen are remembered on this device, like Discord. Muted, the microphone is
 // released (the browser's recording indicator goes off); deafened, you also can't be heard.
+// Sounds, like Discord's: joining (yours and others'), leaving, being disconnected, mute and
+// deafen (sounds/).
+//
+// Screen sharing (voice channels, with Video): your screen (and its sound, where the browser
+// shares it) goes out as LiveKit screen-share tracks. Others only receive a stream while they
+// watch it (subscriptions are ours to decide, not automatic), so a stream nobody watches
+// costs nobody's download.
 
 const PREFS_KEY = 'voicePrefs';
 
@@ -33,11 +41,29 @@ function loadPrefs() {
 // browser wants a click before it plays sound.
 // In a voice channel: `guildId`, `channelId`; in a call: `callId`. `muted` holds the others
 // whose microphone is off (in a call, where the API doesn't track it).
-const NOT_IN_VOICE = { status: 'idle', guildId: null, channelId: null, callId: null, speaking: [], muted: [] };
+// `identity`: our own user id (a string) in the room.
+// Screen sharing: `canStream` (Video), `streaming` (yours is live), `streams` (the user ids,
+// strings, sharing in this room, you included), `watching` (whose stream this device shows,
+// or null), `watchingReady` (its video has arrived), `streamError`.
+const NOT_IN_VOICE = {
+  status: 'idle',
+  guildId: null,
+  channelId: null,
+  callId: null,
+  speaking: [],
+  muted: [],
+  identity: null,
+  streaming: false,
+  streams: [],
+  watching: null,
+  watchingReady: false,
+  streamError: null,
+};
 let snapshot = {
   ...NOT_IN_VOICE,
   ...loadPrefs(),
   canSpeak: true,
+  canStream: false,
   error: null,
   micError: null,
   audioBlocked: false,
@@ -74,6 +100,52 @@ function audioElements() {
   return audioContainer;
 }
 
+// What this device has asked LiveKit for, per track publication (see syncSubscriptions).
+let subscriptions = new WeakMap();
+
+const isScreenSource = (source) =>
+  source === livekit.Track.Source.ScreenShare || source === livekit.Track.Source.ScreenShareAudio;
+
+// Microphones always; a screen share and its sound only while we watch that person.
+function syncSubscriptions() {
+  if (!room) return;
+  for (const participant of room.remoteParticipants.values()) {
+    for (const publication of participant.trackPublications.values()) {
+      const wanted = !isScreenSource(publication.source) || snapshot.watching === participant.identity;
+      if (subscriptions.get(publication) === wanted) continue;
+      subscriptions.set(publication, wanted);
+      publication.setSubscribed(wanted);
+    }
+  }
+}
+
+// The video track of `identity`'s screen share, once there (yours is local).
+function screenTrack(identity) {
+  if (!room || identity == null) return null;
+  const participant = identity === room.localParticipant.identity
+    ? room.localParticipant
+    : room.remoteParticipants.get(identity);
+  return participant?.getTrackPublication(livekit.Track.Source.ScreenShare)?.track ?? null;
+}
+
+// Who's sharing, and whether the one we watch has arrived; stops watching a stream that ended.
+function updateStreams() {
+  if (!room) return;
+  const { Track } = livekit;
+  const participants = [room.localParticipant, ...room.remoteParticipants.values()];
+  const streams = participants
+    .filter((p) => p.getTrackPublication(Track.Source.ScreenShare))
+    .map((p) => p.identity);
+  const watching = streams.includes(snapshot.watching) ? snapshot.watching : null;
+  update({
+    streams,
+    streaming: room.localParticipant.isScreenShareEnabled,
+    watching,
+    watchingReady: Boolean(screenTrack(watching)),
+  });
+  syncSubscriptions();
+}
+
 function errorMessage(err, fallback) {
   return err?.response?.data?.error ?? fallback;
 }
@@ -104,6 +176,7 @@ async function teardown() {
   }
   e2eeWorker?.terminate();
   e2eeWorker = null;
+  subscriptions = new WeakMap();
   if (audioContainer) audioContainer.replaceChildren();
 }
 
@@ -146,21 +219,38 @@ function watch(newRoom, current) {
     const muted = [...newRoom.remoteParticipants.values()].filter((p) => !p.isMicrophoneEnabled).map((p) => p.identity);
     update({ muted });
   };
+  const updateTracks = () => {
+    if (stale()) return;
+    updateMuted();
+    updateStreams();
+  };
   newRoom
-    .on(RoomEvent.ParticipantConnected, updateMuted)
-    .on(RoomEvent.ParticipantDisconnected, updateMuted)
-    .on(RoomEvent.TrackPublished, updateMuted)
-    .on(RoomEvent.TrackUnpublished, updateMuted)
+    .on(RoomEvent.ParticipantConnected, () => {
+      if (!stale()) playSound('userJoin');
+      updateTracks();
+    })
+    .on(RoomEvent.ParticipantDisconnected, () => {
+      if (!stale()) playSound('userLeave');
+      updateTracks();
+    })
+    .on(RoomEvent.TrackPublished, updateTracks)
+    .on(RoomEvent.TrackUnpublished, updateTracks)
+    .on(RoomEvent.LocalTrackPublished, updateTracks)
+    // Also when the browser's own "Stop sharing" ended it.
+    .on(RoomEvent.LocalTrackUnpublished, updateTracks)
     .on(RoomEvent.TrackMuted, updateMuted)
     .on(RoomEvent.TrackUnmuted, updateMuted)
     .on(RoomEvent.TrackSubscribed, (track) => {
+      updateTracks();
+      // Video (a screen share) is drawn by whoever shows it (attachStream).
       if (track.kind !== Track.Kind.Audio) return;
       const element = track.attach();
       element.muted = snapshot.selfDeaf;
       audioElements().appendChild(element);
     })
     .on(RoomEvent.TrackUnsubscribed, (track) => {
-      for (const element of track.detach()) element.remove();
+      if (track.kind === Track.Kind.Audio) for (const element of track.detach()) element.remove();
+      updateTracks();
     })
     .on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
       if (!stale()) update({ speaking: speakers.map((p) => p.identity) });
@@ -169,23 +259,38 @@ function watch(newRoom, current) {
       if (!stale()) update({ status: 'reconnecting' });
     })
     .on(RoomEvent.Reconnected, () => {
-      if (!stale()) update({ status: 'connected' });
+      if (stale()) return;
+      update({ status: 'connected' });
+      updateTracks();
     })
     .on(RoomEvent.AudioPlaybackStatusChanged, () => {
       if (!stale()) update({ audioBlocked: !newRoom.canPlaybackAudio });
     })
     .on(RoomEvent.ParticipantPermissionsChanged, (_previous, participant) => {
       if (stale() || participant !== newRoom.localParticipant) return;
-      update({ canSpeak: participant.permissions?.canPublish ?? false });
+      update(publishRights(participant));
       applyMicrophone();
+      // Video taken away: LiveKit has stopped the stream; let go of the capture too.
+      if (!snapshot.canStream && participant.isScreenShareEnabled) stopScreenShare();
     })
     .on(RoomEvent.Disconnected, (reason) => {
       if (stale()) return;
       attempt++;
       teardown();
+      playSound('disconnect');
       // A call's end is callClient.js's to explain (the server closes its room on hang-up).
       update({ ...NOT_IN_VOICE, error: snapshot.callId ? null : disconnectMessage(reason) });
     });
+}
+
+// What our token lets us publish (LiveKit's participant permissions).
+function publishRights(participant) {
+  const permissions = participant.permissions;
+  if (!permissions) return { canSpeak: true, canStream: false };
+  const sources = permissions.canPublishSources ?? [];
+  const allows = (source) => permissions.canPublish && (sources.length === 0 || sources.includes(source));
+  // TrackSource numbers, as LiveKit's protocol has them: 2 microphone, 3 screen share.
+  return { canSpeak: allows(2), canStream: allows(3) };
 }
 
 // LiveKit's end-to-end encryption with `key` (32 bytes): every audio frame is encrypted in a
@@ -218,14 +323,18 @@ async function connect(target, getToken, e2eeKey) {
     room = newRoom;
     watch(newRoom, current);
     if (e2ee) await newRoom.setE2EEEnabled(true);
-    await newRoom.connect(url, token);
+    // Subscriptions are ours (syncSubscriptions): screen shares only while watched.
+    await newRoom.connect(url, token, { autoSubscribe: false });
     if (current !== attempt) return;
     await newRoom.startAudio().catch(() => {});
     update({
       status: 'connected',
-      canSpeak: newRoom.localParticipant.permissions?.canPublish ?? true,
+      identity: newRoom.localParticipant.identity,
+      ...publishRights(newRoom.localParticipant),
       audioBlocked: !newRoom.canPlaybackAudio,
     });
+    playSound('userJoin');
+    updateStreams();
     await applyMicrophone();
   } catch (err) {
     if (current !== attempt) return;
@@ -253,8 +362,10 @@ export async function joinCall({ callId, url, token, key }) {
 // Leaves the voice channel or call (hanging up a call is callClient.js's hangUp).
 export async function leaveVoice() {
   const inChannel = snapshot.status !== 'idle' && snapshot.channelId != null;
+  const wasConnected = snapshot.status === 'connected' || snapshot.status === 'reconnecting';
   attempt++;
   await teardown();
+  if (wasConnected) playSound('disconnect');
   update({ ...NOT_IN_VOICE, error: null, micError: null, audioBlocked: false });
   // In case LiveKit couldn't be told (lost connection): the API takes us out too.
   if (inChannel) await leaveVoiceChannel().catch(() => {});
@@ -283,10 +394,12 @@ function setPrefs(changes, extra = {}) {
 
 // Unmuting while deafened undeafens too (like Discord).
 export function setSelfMute(selfMute) {
+  playSound(selfMute ? 'mute' : 'unmute');
   setPrefs(selfMute || !snapshot.selfDeaf ? { selfMute } : { selfMute, selfDeaf: false }, { micError: null });
 }
 
 export function setSelfDeaf(selfDeaf) {
+  playSound(selfDeaf ? 'deafen' : 'undeafen');
   setPrefs({ selfDeaf });
 }
 
@@ -297,4 +410,69 @@ export function resumeAudio() {
 
 export function clearVoiceError() {
   update({ error: null });
+}
+
+// Shares your screen (a voice channel, with Video). Must be called from a click: the browser
+// asks which screen, window or tab, and whether to share its sound. Your own stream is shown
+// at once, like Discord's preview.
+export async function startScreenShare() {
+  const current = room;
+  if (!current || snapshot.status !== 'connected' || !snapshot.canStream) return;
+  update({ streamError: null });
+  try {
+    await current.localParticipant.setScreenShareEnabled(true, {
+      audio: true,
+      systemAudio: 'include',
+      selfBrowserSurface: 'exclude',
+      surfaceSwitching: 'include',
+    });
+    if (room !== current) return;
+    update({ watching: current.localParticipant.identity });
+    updateStreams();
+  } catch (err) {
+    if (room !== current) return;
+    // Cancelling the browser's picker is a NotAllowedError too: nothing to say then.
+    const cancelled = err?.name === 'NotAllowedError' || err?.name === 'AbortError';
+    if (!cancelled) console.warn('Could not share the screen', err);
+    update({ streamError: cancelled ? null : screenErrorMessage(err) });
+    updateStreams();
+  }
+}
+
+function screenErrorMessage(err) {
+  if (err?.name === 'NotSupportedError' || !canShareScreen()) return "This browser can't share the screen.";
+  return 'Could not share your screen.';
+}
+
+export async function stopScreenShare() {
+  const current = room;
+  if (!current) return;
+  await current.localParticipant.setScreenShareEnabled(false).catch(() => {});
+  if (room === current) updateStreams();
+}
+
+// Can this browser share a screen at all? (Phones' browsers can't; they can still watch.)
+export function canShareScreen() {
+  return typeof navigator !== 'undefined' && typeof navigator.mediaDevices?.getDisplayMedia === 'function';
+}
+
+// Shows `identity`'s stream on this device (null: stop watching). Only watched streams are
+// downloaded.
+export function watchStream(identity) {
+  const watching = identity == null ? null : String(identity);
+  if (watching === snapshot.watching) return;
+  update({ watching, watchingReady: Boolean(screenTrack(watching)) });
+  syncSubscriptions();
+}
+
+// Plays the watched stream in `element` (a <video>); returns a function that stops it.
+export function attachStream(identity, element) {
+  const track = screenTrack(String(identity));
+  if (!track || !element) return () => {};
+  track.attach(element);
+  return () => track.detach(element);
+}
+
+export function clearStreamError() {
+  update({ streamError: null });
 }

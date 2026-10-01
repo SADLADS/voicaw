@@ -20,7 +20,7 @@ import {
   startGroupCallRequest,
 } from '../services/callService';
 import { getVoiceSnapshot, joinCall, leaveVoice, setVoiceError } from './voiceClient';
-import { startTone, stopTone } from './ringtone';
+import { startLoop, stopLoop } from '../sounds/sounds';
 
 // DM and group DM voice calls: ringing, being rung, answering or joining, declining and
 // hanging up (server/calls.js). The audio is voiceClient.js's (joinCall), end-to-end encrypted
@@ -69,7 +69,7 @@ export function onCallChange(listener) {
 }
 
 function clear() {
-  stopTone();
+  stopLoop();
   inCall = false;
   incoming = null;
   set(null);
@@ -111,7 +111,7 @@ function handleEvent(event) {
     if (current) return; // busy on this device
     incoming = event.call;
     set(localCall(event.call, { outgoing: false, state: 'ringing' }));
-    startTone('incoming');
+    startLoop('incomingRing');
   } else if (event.type === 'call_update') {
     const call = event.call;
     if (!current || current.id !== call.id) return;
@@ -127,7 +127,7 @@ function handleEvent(event) {
       clear();
       return;
     }
-    stopTone();
+    stopLoop();
     set({ ...current, state: 'active', answeredAt: call.answered_at });
   } else if (event.type === 'call_end') {
     for (const [groupId, call] of Object.entries(snapshot.groupCalls)) {
@@ -183,7 +183,7 @@ export async function startCall(peer) {
   const id = crypto.randomUUID();
   set({ id, groupId: null, peerId: peer.id, peerName: peer.username, callerName: me.username, outgoing: true, state: 'ringing', answeredAt: null });
   inCall = true;
-  startTone('ringback');
+  startLoop('outgoingRing');
   try {
     const key = generateCallKey();
     const envelope = await encryptCallKey(key, await conversationKey(peer), callKeyContext(id, me.id, peer.id));
@@ -201,7 +201,7 @@ export async function startCall(peer) {
 
 // Joins a group's call (`call`: the server's shape), opening its key with the group's epoch key.
 async function joinGroupCall(call) {
-  stopTone();
+  stopLoop();
   inCall = true;
   set(localCall(call, { outgoing: call.caller_id === me.id, state: 'connecting' }));
   try {
@@ -277,7 +277,7 @@ export async function acceptCall() {
     await joinGroupCall(offer);
     return;
   }
-  stopTone();
+  stopLoop();
   inCall = true;
   set({ ...call, state: 'connecting' });
   try {
