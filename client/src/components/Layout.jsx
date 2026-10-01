@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import DmSidebar from './DmSidebar';
 import GuildSidebar from './guild/GuildSidebar';
 import SidebarWrapper from './SidebarWrapper';
+import SidebarResizer from './SidebarResizer';
 import UserPanel from './UserPanel';
 import VoiceBar from './voice/VoiceBar';
 import IncomingCall from './call/IncomingCall';
@@ -21,6 +22,7 @@ import { useSwipePanes } from '../hooks/useSwipePanes';
 import { useDesktopApp } from '../hooks/useDesktopApp';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { clearProfiles, mergeProfiles } from '../utils/profiles';
+import { loadSidebarWidth, onSidebarWidthStorage, saveSidebarWidth } from '../utils/sidebarWidth';
 
 export default function Layout({ user, onLogout }) {
   const location = useLocation();
@@ -42,6 +44,15 @@ export default function Layout({ user, onLogout }) {
   const { isMobile } = useContext(InteractionContext);
   const settingsColumn = location.pathname.startsWith('/settings') && !isMobile;
   const [settingsNavSlot, setSettingsNavSlot] = useState(null);
+  // On a computer the column beside the rail (DM list, channel list, Settings) is one width,
+  // dragged by its edge and remembered per device (utils/sidebarWidth.js). Phones: full width.
+  const hasColumn = isDmPage || Boolean(guildId) || settingsColumn;
+  const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
+  useEffect(() => onSidebarWidthStorage(setSidebarWidth), []);
+  const changeSidebarWidth = useCallback((width) => {
+    setSidebarWidth(width);
+    saveSidebarWidth(width);
+  }, []);
 
   // Phone: the list and the chat are two panes, swiped between (hooks/useSwipePanes.js).
   const slidey = isMobile && (isDmPage || Boolean(guildId));
@@ -192,10 +203,18 @@ export default function Layout({ user, onLogout }) {
     }}>
     <CustomEmojiContext.Provider value={customEmoji}>
     <ChannelMentionContext.Provider value={channelMentions}>
-      <div ref={wrapperRef} className={`${slidey ? `slidey pane-${pane}` : ''} main-wrapper d-flex`}>
+      <div
+        ref={wrapperRef}
+        className={`${slidey ? `slidey pane-${pane}` : ''} main-wrapper d-flex`}
+        style={isMobile ? undefined : { '--vc-sidebar-width': `${sidebarWidth}px` }}
+      >
         {/* The user panel (and the voice bar above it, while in voice) sits under the
             conversation or channel list, or Settings' column (not on e.g. an invite page). */}
-        <SidebarWrapper ref={listPaneRef} footer={isDmPage || guildId || settingsColumn ? <><VoiceBar user={user} /><UserPanel user={user} onLogout={onLogout} /></> : null}>
+        <SidebarWrapper
+          ref={listPaneRef}
+          footer={hasColumn ? <><VoiceBar user={user} /><UserPanel user={user} onLogout={onLogout} /></> : null}
+          resizer={hasColumn && !isMobile ? <SidebarResizer width={sidebarWidth} onChange={changeSidebarWidth} targetRef={wrapperRef} /> : null}
+        >
           {/* Main sidebar always shows */}
           <Sidebar
             user={user}

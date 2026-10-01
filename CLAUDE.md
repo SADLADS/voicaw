@@ -135,6 +135,7 @@ node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big p
 node e2e/video.mjs [dir]  # videos: only the poster before Play, streamed in pieces, seek reads nothing before it, download, keys, full screen, spoiler, phone (needs ffmpeg)
 node e2e/voicesettings.mjs [dir] # Settings → Voice & video: fake devices listed, mic test meter, input volume 0 silences you in a call, new mic / processing kept, speakers + output volume, phone
 node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
+node e2e/sidebar.mjs [dir] # one sidebar width (DM list, channels, Settings), headers line up, drag/keys/reset, kept; phone untouched
 node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept per device, no dark flash, Match system, color-scheme, phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
@@ -1732,6 +1733,15 @@ these (2026-10-01) it froze for seconds; now opening takes ~0.2 s of script on a
   setting. Only a native app can choose, and only on iOS (`keyboardAppearance`; in a
   Capacitor wrapper, `@capacitor/keyboard` `setStyle`). Code highlighting is Atom One Dark plus
   `hljs-light.css` (Atom One Light under `[data-theme="light"]`).
+- **Sidebar width and headers** (computer): the column beside the rail (DM list, a guild's
+  channel list, Settings' sections) is one width, `--vc-sidebar-width` (default 260px), which
+  `Layout` sets on `.main-wrapper` from `utils/sidebarWidth.js` (per device, `localStorage
+  sidebarWidth`, 200–420px, synced between tabs). `SidebarResizer` is its right edge: drag
+  (writes the variable directly while moving, saves on release), arrow keys, double click for
+  the default. Every page's top header (guild name, channel, Direct Messages, a DM's or group's
+  chat, Settings and its first category) is `--vc-header-height` (50px, borders included), so
+  their lines meet; use both tokens for anything new there. DM banners (notifications, recovery
+  code) go under the chat header. Phones: lists stay full width and Settings one screen.
 - Scrollbars are styled once, in `voicaw.css` (SCROLLBARS): every scroll area inherits the pane
   look (like the message list); small boxes and pop-ups are listed there for the thin one. Don't
   style a new scroll area's scrollbar locally.

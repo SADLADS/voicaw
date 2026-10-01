@@ -13,7 +13,7 @@ body {
 
 #dm-sidebar {
   position: relative;
-  width: 300px;
+  width: var(--vc-sidebar-width);
   background-color: var(--vc-bg-base);
   color: var(--vc-fg);
   padding: 0;
@@ -126,19 +126,19 @@ small {
 
 
 
-.chat-recipient-header {
-  margin: 0px;
-  padding: 0.5rem;
-  border-top: 1px solid var(--vc-border-light);
-  border-bottom: 1px solid var(--vc-border-light);
-  padding-left: 1.25rem;
-}
-
+/* Headers: the same height and type as a guild's (--vc-header-height), so the sidebar's and the
+   chat's line up. */
+.chat-recipient-header,
 .direct-messages-header {
+  flex-shrink: 0;
+  height: var(--vc-header-height);
   margin: 0;
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--vc-border-light);
+  padding: 0 12px 0 16px;
   border-top: 1px solid var(--vc-border-light);
+  border-bottom: 1px solid var(--vc-border-light);
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .userdot {
@@ -178,6 +178,11 @@ small {
   #dm-sidebar {
     width: calc(100% - 72px);
   }
+}
+
+.mobile-mode #dm-sidebar {
+  flex: 1;
+  width: auto;
 }
 
 /* A DM row's picture, with the status icon on its corner. */
