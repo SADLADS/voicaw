@@ -67,7 +67,7 @@ export default function AddGuildDialog({ onClose }) {
           <input
             id="join-guild-invite"
             className="form-control"
-            placeholder="https://voicaw.com/invite/hTKzmak or hTKzmak"
+            placeholder="https://app.voicaw.com/invite/hTKzmak or hTKzmak"
             value={invite}
             onChange={(e) => setInvite(e.target.value)}
           />

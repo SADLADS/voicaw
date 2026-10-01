@@ -19,8 +19,9 @@ Each feature is worked on in its own chat, on its own branch, in its own worktre
 - **`dev` is the deploy branch.** A push to it makes the webhook (`~/code/gitWebhookListener.js`,
   not in git) pull `/home/otto/git/voicaw`, run `npm install` if the lockfile changed, and
   restart pm2 `voicaw-api` (the live API on :3002, with the real database) and `voicaw-test`
-  (test.voicaw.com: `vite dev` on :5173, using the live API). voicaw.com itself is a static build
-  in `/opt/voicaw-client`, only updated by running `npm run build` by hand. Voice runs on a
+  (test.voicaw.com: `vite dev` on :5173, using the live API). The web app at app.voicaw.com is a
+  static build in `/opt/voicaw-client`, only updated by running `npm run build` by hand;
+  voicaw.com is the info and download site (`website/`, `/opt/voicaw-site`, see Info site). Voice runs on a
   self-hosted LiveKit server, pm2 `voicaw-livekit` (`~/livekit`, not in git; the webhook doesn't
   touch it).
 - **Never commit to, merge into, push, reset or otherwise move `dev`.** Branch off it
@@ -54,6 +55,8 @@ Run from the repo root unless noted.
 - `npm run dev` — start the client Vite dev server (port 5173, proxies `/api` to
   `https://api.voicaw.com`)
 - `npm run build` — build the client for web deployment (outputs to `/opt/voicaw-client`)
+- `npm run build:site` — build voicaw.com, the info and download site (`website/`, outputs to
+  `/opt/voicaw-site`; also run by `updates/publish.mjs` after every desktop release)
 - `npm run start:server` — start the Express/WebSocket server (`server/index.js`)
 - `npm run start:electron` — build the client in Electron mode, then launch the Electron shell
 - `npm run dist:electron` — the same build, then installers in `dist-desktop/` (electron-builder)
@@ -659,7 +662,7 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   computer (hover, click or arrow keys), a bottom sheet on a phone (a submenu replaces it, with
   Back). `ChannelMenu`: Mark As Read (`POST /channels/:id/read { latest: true }`), Mute Channel
   ▸ / Unmute, Notification Settings ▸ (see Mentions), Copy Link (`channelLink`: this site's
-  address, voicaw.com from the desktop app), and with Manage Channels Edit, Duplicate
+  address, app.voicaw.com from the desktop app), and with Manage Channels Edit, Duplicate
   (`CloneChannelDialog`) and Delete; voice channels only the last four. `CategoryMenu`: Mark
   As Read, Collapse/Expand, Edit, Create Channel, Delete. On a phone the long press shares the
   touch with dragging (`usePointerDrag` `onLongPress`): hold and lift opens the menu, hold and
@@ -1142,6 +1145,21 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   service worker: they download whole on Play; `protocol.js` could serve them instead), code
   signing (Windows SmartScreen warns about unsigned installers). Notifications while the app
   isn't running aren't wanted (decided 2026-10-01).
+
+### Info site (voicaw.com)
+
+The app is at app.voicaw.com; voicaw.com is a static info and download page (`website/`,
+README "voicaw.com and app.voicaw.com"). `website/build.mjs` fills `website/src/index.html`'s
+`{{PLACEHOLDERS}}` with the newest desktop version and installer links (from the update site's
+`desktop/releases.json`, linking to updates.voicaw.com), so the page needs no script for them;
+a small inline one only offers the visitor's own system first and tells a home screen icon from
+before the move that the app has moved. `updates/publish.mjs` rebuilds it after publishing (not
+for a try-out folder, unless `VOICAW_SITE_DIR` is set), so `desktop-release/release.sh` keeps it
+current. nginx (`website/nginx/voicaw.com`) keeps voicaw.com's `/api/` (installed desktop apps,
+older builds and copied webhook URLs use it) and redirects any other unknown path to the same
+one on app.voicaw.com; `website/src/service-worker.js` replaces the old app's service worker
+in browsers that installed it there, and removes itself. Keep the page's claims true to what
+the app does (e.g. guilds aren't end-to-end encrypted).
 
 ### File uploads (S3-compatible object store)
 

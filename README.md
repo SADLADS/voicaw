@@ -6,8 +6,9 @@ text and voice channels. See `CLAUDE.md` for how it works and how to develop on 
 ## Initial setup
 
 How a fresh host is set up, in order. The live host is set up like this: the API and the test
-site run from a checkout of `dev` under pm2, voicaw.com is a static build in
-`/opt/voicaw-client`, and nginx handles TLS for all of them.
+site run from a checkout of `dev` under pm2, the web app at app.voicaw.com is a static build in
+`/opt/voicaw-client`, voicaw.com is an info and download site (`website/`, section 10), and nginx
+handles TLS for all of them.
 
 ### 1. Requirements
 
@@ -166,7 +167,8 @@ One site per name, each with a certificate (`certbot --nginx -d <name>`):
 
 | Name | Serves |
 |---|---|
-| `voicaw.com` | static files, `root /opt/voicaw-client`, `try_files $uri $uri/ /index.html`; `location /api/` → `http://localhost:3002` with `client_max_body_size 26M` |
+| `app.voicaw.com` | the web app: static files, `root /opt/voicaw-client`, `try_files $uri $uri/ /index.html`; `location /api/` → `http://localhost:3002` with `client_max_body_size 26M` (config: `website/nginx/app.voicaw.com`) |
+| `voicaw.com` | the info and download site, `root /opt/voicaw-site`, its `/api/` like the app's, anything else redirected to app.voicaw.com (section 10; config: `website/nginx/voicaw.com`) |
 | `test.voicaw.com` | `http://localhost:5173` (vite dev, with websockets for hot reload) |
 | `api.voicaw.com` | `http://localhost:3002` (REST and the websocket), `client_max_body_size 26M` |
 | `media.voicaw.com` | the object store, `client_max_body_size 100M` |
@@ -262,3 +264,51 @@ page are served uncached; installers (their names carry the version) are cached 
 
 Linux AppImages, `.deb` packages and Windows installers update this way. macOS only updates a
 signed app (an Apple developer account); unsigned, people download new versions by hand.
+
+### 10. voicaw.com and app.voicaw.com
+
+The web app lives at `app.voicaw.com`; `voicaw.com` is a small info and download site
+(`website/`): what Voicaw is, a button for the newest desktop installer (the visitor's own system
+when there's a build for it, else Windows) with its version, and every installer below. The
+version and links are written into the page when it's built, from the update site's
+`desktop/releases.json`, so it needs no script to show them. `updates/publish.mjs` rebuilds it
+after every release (so `desktop-release/release.sh` keeps it current); to rebuild it by hand
+(after editing `website/src/`):
+
+```bash
+npm run build:site        # into /opt/voicaw-site (or: node website/build.mjs <dir>, VOICAW_SITE_DIR)
+```
+
+voicaw.com keeps proxying `/api/` to the API for good (installed desktop apps, older builds and
+webhook URLs people copied use `https://voicaw.com/api/`), and redirects every other path it
+doesn't have (invite links, channel links) to the same path on app.voicaw.com. Browsers that
+installed the app from voicaw.com get `website/src/service-worker.js` at the old service worker's
+address: it removes the old app's caches and itself, so they stop being served the old app
+(people then log in again at app.voicaw.com: keys and sessions are per address). A home screen
+icon added before the move opens voicaw.com, which then says the app has moved.
+
+Set it up once:
+
+1. DNS: an `A` record for `app.voicaw.com` pointing at the host.
+2. The site's folder, writable by the user who publishes releases, and a first build:
+   ```bash
+   sudo mkdir -p /opt/voicaw-site
+   sudo chown "$USER":www-data /opt/voicaw-site
+   npm run build:site
+   ```
+3. The app's site, then HTTPS for it:
+   ```bash
+   sudo cp website/nginx/app.voicaw.com /etc/nginx/sites-available/
+   sudo ln -s /etc/nginx/sites-available/app.voicaw.com /etc/nginx/sites-enabled/
+   sudo nginx -t && sudo systemctl reload nginx
+   sudo certbot --nginx -d app.voicaw.com
+   ```
+4. The client's API address in `client/.env.production` (section 4): with
+   `VITE_API_BASE_URL=https://voicaw.com/api/`, change it to `https://app.voicaw.com/api/` (or
+   `https://api.voicaw.com/api/`), then `npm run build`. Check the app at app.voicaw.com.
+5. Switch voicaw.com over (it uses its existing certificate):
+   ```bash
+   sudo cp /etc/nginx/sites-available/voicaw.com ~/voicaw.com.nginx.bak
+   sudo cp website/nginx/voicaw.com /etc/nginx/sites-available/voicaw.com
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
