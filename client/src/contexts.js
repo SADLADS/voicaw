@@ -9,12 +9,8 @@ export const ConfigContext = createContext({
   maxPlaintextLength: 5000,
 });
 
-// Desktop or mobile interaction (App): chosen in Settings, or detected ("auto").
-export const InteractionContext = createContext({
-  interactionMode: 'auto',
-  isMobile: false,
-  setInteractionMode: () => { },
-});
+// Desktop or mobile interaction (App), detected from the device.
+export const InteractionContext = createContext({ isMobile: false });
 
 // The logged-in layout's shared data (Layout): users list, unread counts.
 export const LayoutContext = createContext();

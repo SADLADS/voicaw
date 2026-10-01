@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMagnifyingGlass, faSignOutAlt, faXmark } from '@fortawesome/free-solid-svg-icons';
-import { InteractionContext, LayoutContext } from '../contexts';
+import { LayoutContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
 import AccountSecuritySettings from "./AccountSecuritySettings";
@@ -46,7 +46,6 @@ function matches(section, query) {
 export default function Settings({ onLogout }) {
   useProfiles();
   const { user } = useAuth() ?? {};
-  const { interactionMode, setInteractionMode } = useContext(InteractionContext);
   const [query, setQuery] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
@@ -83,24 +82,6 @@ export default function Settings({ onLogout }) {
       id: 'appearance', category: 'app', title: 'Appearance',
       keywords: 'theme dark mode light mode night colours colors system keyboard',
       content: <ThemeSettings />,
-    },
-    {
-      id: 'interaction-mode', category: 'app', title: 'Interaction mode',
-      keywords: 'desktop mobile phone touch layout auto',
-      content: (
-        <div className="settings-card">
-          <h5>Interaction Mode</h5>
-          <select
-            aria-label="Interaction mode"
-            value={interactionMode}
-            onChange={(e) => setInteractionMode(e.target.value)}
-          >
-            <option value="desktop">Desktop</option>
-            <option value="mobile">Mobile</option>
-            <option value="auto">Auto</option>
-          </select>
-        </div>
-      ),
     },
     {
       id: 'date-time', category: 'app', title: 'Date & time',

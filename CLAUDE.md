@@ -1608,8 +1608,8 @@ these (2026-10-01) it froze for seconds; now opening takes ~0.2 s of script on a
   OPAQUE login/register (`Login.jsx` is just the form).
 - `App.jsx` — top-level routing (`BrowserRouter`; `HashRouter` only for a page opened from a
   file); provides `ConfigContext` (fetched from
-  `/api/config`) and `InteractionContext` (mobile vs. desktop interaction mode, persisted to
-  `localStorage`, auto-detected via user-agent unless overridden)
+  `/api/config`) and `InteractionContext` (`isMobile`: the phone or computer layout, detected
+  from the user agent; not a setting, since the wrong one is unusable, removed 2026-10-01)
 - `Layout.jsx` — the logged-in shell: sidebars, users list and unread counts (`LayoutContext`).
   `DmSidebar` draws the unread dots from those counts. `SidebarWrapper` puts the sidebars in a
   row with `UserPanel` across the bottom: your picture, name, this device's connection state

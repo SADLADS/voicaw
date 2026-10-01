@@ -89,7 +89,7 @@ function LocationDisplay() {
 function renderLayout({ path, user = { id: 1, username: 'me' }, isMobile = false } = {}) {
   return render(
     <ConfigContext.Provider value={{ vapidPublicKey: 'VAPID-KEY' }}>
-    <InteractionContext.Provider value={{ isMobile, interactionMode: 'auto', setInteractionMode: vi.fn() }}>
+    <InteractionContext.Provider value={{ isMobile }}>
     <MemoryRouter initialEntries={[path]}>
       <LocationDisplay />
       <Routes>

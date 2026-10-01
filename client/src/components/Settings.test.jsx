@@ -10,22 +10,16 @@ vi.mock('../utils/api', () => ({
 vi.mock('./AdminSettings', () => ({ default: () => null }));
 
 import Settings from './Settings';
-import { InteractionContext } from '../contexts';
 import { AuthContext } from '../hooks/useAuth';
 import { MemoryRouter } from 'react-router-dom';
 
-function renderSettings({ onLogout = vi.fn(), interactionOverrides = {} } = {}) {
-  const setInteractionMode = vi.fn();
+function renderSettings({ onLogout = vi.fn() } = {}) {
   const utils = render(
     <AuthContext.Provider value={{ user: { id: 1, username: 'me', hasRecoveryCode: true }, setUser: vi.fn() }}>
-      <InteractionContext.Provider
-        value={{ interactionMode: 'auto', setInteractionMode, ...interactionOverrides }}
-      >
-        <MemoryRouter><Settings onLogout={onLogout} /></MemoryRouter>
-      </InteractionContext.Provider>
+      <MemoryRouter><Settings onLogout={onLogout} /></MemoryRouter>
     </AuthContext.Provider>
   );
-  return { ...utils, setInteractionMode, onLogout };
+  return { ...utils, onLogout };
 }
 
 beforeEach(() => {
@@ -34,12 +28,9 @@ beforeEach(() => {
 });
 
 describe('Settings', () => {
-  it('calls setInteractionMode when the select changes', () => {
-    const { setInteractionMode } = renderSettings();
-
-    fireEvent.change(screen.getByRole('combobox', { name: 'Interaction mode' }), { target: { value: 'mobile' } });
-
-    expect(setInteractionMode).toHaveBeenCalledWith('mobile');
+  it('has no interaction mode choice (the layout follows the device)', () => {
+    renderSettings();
+    expect(screen.queryByText(/interaction mode/i)).toBeNull();
   });
 
   it('calls onLogout when the logout button is clicked', () => {

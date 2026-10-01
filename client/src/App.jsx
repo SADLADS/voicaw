@@ -54,12 +54,15 @@ function SWMessageHandler() {
   return null;
 }
 
+// The phone or computer layout, from the device. It can't be chosen: the phone layout on a
+// computer (or the other way round) isn't usable.
+const isMobile = typeof navigator !== 'undefined' &&
+  (navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+const interaction = { isMobile };
+
 export default function App() {
   const { user, setUser, loading, unreachable } = useAuth();
   const [config, setConfig] = useState({ s3Endpoint: '' });
-
-  const [interactionMode, setInteractionMode] = useState("auto");
-  const [isMobile, setIsMobile] = useState(false);
   const logoutRef = useRef(null);
 
   // The account was deleted on another device: this one logs out too.
@@ -79,35 +82,16 @@ export default function App() {
       }
     }
 
-    const saved = localStorage.getItem("interactionMode");
-    if (saved) {
-      setInteractionMode(saved);
-    }
-
     console.log("fetch config")
     fetchConfig();
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("interactionMode", interactionMode);
-
-    let resolvedMode = interactionMode;
-    let resolvedIsMobile = false;
-
-    if (interactionMode === "auto") {
-      resolvedIsMobile =
-        navigator.userAgentData?.mobile ??
-        /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      resolvedMode = resolvedIsMobile ? "mobile" : "desktop";
-    } else {
-      resolvedIsMobile = interactionMode === "mobile";
-    }
-
-    setIsMobile(resolvedIsMobile);
-
-    document.body.classList.toggle("mobile-mode", resolvedMode === "mobile");
-    document.body.classList.toggle("desktop-mode", resolvedMode === "desktop");
-  }, [interactionMode]);
+    // Left over from when the layout could be picked in Settings.
+    try { localStorage.removeItem("interactionMode"); } catch { /* storage blocked */ }
+    document.body.classList.toggle("mobile-mode", isMobile);
+    document.body.classList.toggle("desktop-mode", !isMobile);
+  }, []);
 
 
 
@@ -144,7 +128,7 @@ export default function App() {
   return (
     <ConfigContext.Provider value={config}>
       <EmojiProvider>
-      <InteractionContext.Provider value={{ interactionMode, setInteractionMode, isMobile }}>
+      <InteractionContext.Provider value={interaction}>
         <ImageViewerProvider>
         <Router>
           <SWMessageHandler />
