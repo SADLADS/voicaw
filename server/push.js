@@ -33,11 +33,17 @@ function buildDmPushPayload(message, imageUrl, recipientName) {
   return payload;
 }
 
+// Pushes about a new message: each of the user's open pages also gets `message_sound`, and
+// plays the Message sound if it's in front (or is the desktop app; see client sounds/).
+const MESSAGE_PUSHES = new Set(['dm', 'group', 'guild']);
+
 // Sends a web push to every device the user has subscribed (forgetting devices whose
 // subscription is gone), and the same payload to their desktop apps over the websocket.
 // Resolves to { devices, delivered } (desktop apps count as both).
 async function sendPushToUser(userId, payload, options = {}) {
-  const desktop = require('./sockets').sendToDesktopSockets(userId, payload);
+  const sockets = require('./sockets');
+  const desktop = sockets.sendToDesktopSockets(userId, payload);
+  if (MESSAGE_PUSHES.has(payload.type)) sockets.sendToUserSockets(userId, { type: 'message_sound' });
   let rows;
   try {
     rows = await db.all('SELECT id, subscription FROM push_subscriptions WHERE user_id = ?', [userId]);

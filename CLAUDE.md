@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Voicaw is a Discord-style chat web app: end-to-end encrypted direct messages and group DMs
 (with calls), and guilds
-(Discord-style servers, always called guilds in the app: text and voice channels, roles and
-private channels; not encrypted, see Guilds). It's an npm workspaces monorepo with
+(Discord-style servers, always called guilds in the app: text, voice and list (task board)
+channels, roles and private channels; not encrypted, see Guilds). It's an npm workspaces monorepo with
 three packages: `client` (React/Vite SPA, also packaged as an Electron desktop app), `server`
 (Express + ws API), and `electron` (the desktop app: the built client plus notifications, tray,
 shortcuts and updates; see Desktop app).
@@ -116,7 +116,9 @@ node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, 
 node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertical scroll), back button, guild
 node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
+node e2e/lists.mjs [dir]  # list channels: add, subtask, drag to nest/reorder, assign, due date, comments, read-only, phone
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
+node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
@@ -165,6 +167,8 @@ unexpected errors. The rest:
 - `push.js`: web push sending and the DM push payload.
 - `s3.js`: pre-signed upload URLs. Bucket setup at startup logs and carries on if the store is down.
 - `guilds.js`: shared guild helpers (membership checks, `getGuildLayout`, `sendToGuild`).
+- `guildTasks.js`: list channels' tasks (tree helpers, limits, the assignment notification; see
+  List channels); `routes/guildTasks.js` has their routes.
 - `auditLog.js`: a guild's audit log (`logAudit`, `readAuditLog`; see Guilds); `routes/auditLog.js`.
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).
@@ -367,13 +371,15 @@ Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, 
 `dm_pin` (see Pinned messages),
 `user_status` and `presence_snapshot` (see Online status), `user_profile` (someone changed their
 profile, to every logged-in socket; see Profiles), `account_deleted` (to your own sockets: log
-out; see Deleting an account), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
+out; see Deleting an account), `message_sound` (play the Message sound; see Sounds), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete` / `_pin` (a
 webhook's edit also carries `embeds`, `attachments`, `flags`),
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
 `guild_order` (your guild rail order, to your other devices), `guild_voice_state` (someone
 joined, left or (un)muted in a voice channel), `guild_mention` (only to whoever a new message
-mentions, for their red counts), for calls `call_incoming`, `call_update`,
+mentions, for their red counts), `guild_task_upsert` / `_delete` / `guild_tasks_move` /
+`guild_task_comment_new` / `_edit` / `_delete` (to whoever can see the list channel) and
+`guild_task_assigned` (only to whoever was just assigned; see List channels), for calls `call_incoming`, `call_update`,
 `call_end`, and for group DMs `group_dm_add` / `_update` / `_remove` / `_epoch` /
 `_message_new` / `_message_edit` / `_message_delete` / `_message_pin` / `_reaction_add` / `_reaction_remove`. A 30s heartbeat
 (ping/pong) prunes dead connections.
@@ -441,6 +447,9 @@ one user at a time).
 - The desktop app has no web push: `sendPushToUser` also sends the payload to the user's sockets
   whose presence says `desktopNotifications` (the app, notifications on) as `notification
   { payload }`, so the same checks apply (viewing, levels, previews). See Desktop app.
+- Message pushes (`dm`, `group`, `guild`) also send `message_sound` to every socket of the user
+  (see Sounds). While a window of the app is focused, the service worker shows those
+  notifications `silent` (the page plays the Message sound instead).
 - The PWA manifest is `public/manifest.json` only (VitePWA `manifest: false`). The dev server also
   serves the real service worker (`devOptions`), so push works on test.voicaw.com.
 
@@ -458,8 +467,9 @@ data that must run exactly once are `MIGRATIONS` at the end of `db.js`, numbered
 `PRAGMA user_version`, each in its own transaction (1: @everyone gets Connect and Speak; 2: clear
 `users.last_online`, which had only ever held the sign-up time; 3: roles and channel overrides
 that allow or deny Manage Messages do the same for Pin Messages; 4: index existing guild messages
-for search; 5: lower-case usernames, see Auth; 6: @everyone gets Video, for screen sharing);
-add the next one at the end.
+for search; 5: lower-case usernames, see Auth; 6: `guild_channels`' type CHECK gains `'list'`
+(the table is copied into a new one, keeping its id counter) and @everyone gets Edit Tasks; 7: @everyone gets Video, for
+screen sharing); add the next one at the end.
 - Queries: `db.get` / `db.all` / `db.run` return promises, as with the old driver (rows are plain
   objects; `undefined` binds as NULL, booleans as 1/0). Prepared statements are cached.
 - **Transactions:** anything that writes more than one row (or one row that depends on another)
@@ -485,15 +495,16 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   voice), Mention Everyone (@everyone,
   @here and any role; not a default, guild-wide only), Pin Messages (not a default; split out of
   Manage Messages like Discord did, migration 3), Manage Webhooks (guild-wide only), View Audit
-  Log (not a default, guild-wide only; see Audit log). Every guild has an `@everyone`
-  role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak, video) plus orderable roles (`guild_roles`: name, colour
+  Log (not a default, guild-wide only; see Audit log), Edit Tasks (list channels; see List
+  channels). Every guild has an `@everyone`
+  role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak, edit tasks, video) plus orderable roles (`guild_roles`: name, colour
   0xRRGGBB or null, `hoist` = shown separately in the member list, `mentionable` = anyone may
   @mention it, position: higher ranks
   higher), given out in `guild_member_roles`. Guild permissions are @everyone's plus the
   member's roles'; the owner and Administrator get everything.
 - **Channel overrides** (`guild_channel_overrides`, per role or member, `allow`/`deny` of the
-  channel permissions: View, Send, React, Manage Messages, Pin Messages, Connect, Speak, Video; the editor shows a
-  text channel's or a voice channel's) apply in order: @everyone's, the member's roles' (all denies, then
+  channel permissions: View, Send, React, Manage Messages, Pin Messages, Connect, Speak, Video, Edit
+  Tasks; the editor shows a text, voice or list channel's) apply in order: @everyone's, the member's roles' (all denies, then
   all allows), the member's own. A **private channel** is @everyone denied View Channel. A
   channel you can't view doesn't exist for you: left out of your layout, 404, no events
   (`sendToChannel`), not in unread counts.
@@ -600,6 +611,51 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - **Not done yet:** category-level permissions (overrides are per channel), server folders in the
   rail, search dates (see Guild search), per-channel notification settings and muting, a list of your recent mentions. Voice: see
   Voice channels.
+
+### List channels (tasks)
+
+Guilded's lists as a guild channel type, `list`: a board of tasks, each with a title (200),
+description (4000, markdown like messages), assignees (up to 10), a due date (a day,
+`YYYY-MM-DD`, no time zone), completion (who and when), subtasks (nested up to `MAX_DEPTH` 5
+levels), and comments (2000). Not end-to-end encrypted, like the rest of a guild. A board holds
+up to 2000 tasks.
+- **Permissions are the board's** (the channel's overrides, per role or member); a task has none
+  of its own. View Channel sees the board (without it: 404, no events, not assignable), **Edit
+  Tasks** (`EDIT_TASKS`, a channel permission, on for @everyone by default) adds, edits,
+  assigns, completes, reorders, nests and deletes tasks; Send Messages comments ("Comment on
+  Tasks" in a list channel's Permissions tab) and Manage Messages deletes others' comments
+  ("Manage Comments"). Managing the board itself (rename, permissions, delete) is Manage
+  Channels / Manage Roles as for any channel. So a read-only board is @everyone denied Edit
+  Tasks with a role or member allowed it, and a private one is View Channel as usual.
+- **Server** (`server/guildTasks.js`, `routes/guildTasks.js`; tables `guild_tasks` (tree:
+  `parent_id`, siblings ordered by `position`), `guild_task_assignees`, `guild_task_comments`):
+  `GET/POST /channels/:id/tasks` (every task flat, with `assignees` and `comment_count`; the
+  client builds the tree), `PATCH /tasks/:id { title, description, dueDate, assigneeIds,
+  completed }`, `PUT /tasks/:id/move { parentId, beforeId }` (not into its own subtasks or past
+  the depth limit; renumbers that parent's subtasks and sends them all), `DELETE /tasks/:id`
+  (with its subtasks and their comments), `GET/POST /tasks/:id/comments`, `PATCH/DELETE
+  /task-comments/:id`. Assignees must be able to see the board. Deleting the channel (or guild)
+  deletes its tasks; leaving a guild unassigns you from its tasks. Not in the audit log.
+- **Assignment notification:** whoever is newly assigned (never the person assigning) gets
+  `guild_task_assigned` and a push (`type: 'task'`, "X assigned you a task (#board, Guild)", the
+  task's title, url `/guild/<g>/<c>?task=<id>`, tag `task-<id>`; the desktop app shows it too),
+  unless their notification level for the guild is 'none' or they're looking at the board
+  (chat id `channel-<id>`, like a text channel).
+- **Client:** `GuildView` shows `guild/ListChannelView.jsx` for a list channel (no member list
+  there; the task details use that space). `hooks/useTaskBoard.js` loads and keeps the tasks
+  (events, reload after a reconnect; moving and completing show at once and roll back if
+  refused), `utils/taskTree.js` builds the tree and decides what shows (filters All / Open /
+  Assigned to me keep a match's parents, dimmed; collapsed tasks in `localStorage
+  taskCollapsed:<channel>`), where a drop lands and due-date urgency. Dragging a row (on
+  `usePointerDrag`: mouse after a few pixels, touch after holding) onto a row's top or bottom
+  30% puts it before or after, onto the middle makes it a subtask (last); below an open task
+  with subtasks means its first subtask. `guild/TaskDetail.jsx` (beside the board; full screen
+  on a phone; opened by `?task=<id>`, so links and notifications open it): completion, title,
+  assignees (picker of the board's viewers, "Assign me"), due date, description, subtasks,
+  comments. `TaskBits.jsx` has the checkbox and due chip; styles are `assets/css/tasks.css`.
+- **Not done yet:** a list of everything assigned to you across boards (and unread/assigned
+  badges in the channel list), notifications for comments, due-date reminders, recurring
+  tasks, moving a task to another board, keyboard reordering, and tasks in guild search.
 
 ### Guild search
 
@@ -745,7 +801,7 @@ LiveKit carries the audio.
   tap only opens it and you join from its page (`guild/VoiceChannelView.jsx`: tiles, Join Voice,
   mute/deafen/share screen/disconnect). `voice/VoiceBar.jsx` sits above the user panel while
   connected (status, channel link, share screen, disconnect, errors); `UserPanel` has mute and deafen
-  (`voice/VoiceControls.jsx`). A guild reopens on its last *text* channel.
+  (`voice/VoiceControls.jsx`). A guild reopens on its last *text* (or list) channel.
 - **Not done yet:** device selection, per-user volume, push-to-talk and voice activity
   settings, server mute/move (Mute Members, Move Members), a global push-to-talk key in the
   desktop app (it has global mute/deafen toggles; holding a key needs a native keyboard hook),
@@ -785,7 +841,7 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
   opens the chat), `call/CallPanel.jsx` at the top of the DM (both people, speaking rings, the
   other's mute, the duration, controls, "End-to-end encrypted"), the voice bar ("Call with …",
   hang up; why a call ended: declined, didn't answer, missed call). Ring and ringback sounds are
-  Web Audio (`voice/ringtone.js`). Reloading or leaving the page leaves the call.
+  the Incoming/Outgoing ring loops (see Sounds). Reloading or leaving the page leaves the call.
 - **Group calls** (from a group DM's header): the call key is encrypted with the group's
   current epoch key (`groupCallKeyContext(callId, groupId, epoch, callerId)`, `key_epoch`), so
   only members of that epoch can open it; members added during a call join the next one.
@@ -897,7 +953,8 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   websocket (see Push notifications); `hooks/useDesktopApp.js` (in `Layout`) turns it into
   text with the service worker's `notificationFromPush` (DM previews decrypted on the device,
   same previews setting) and a data-URL picture, and the app shows it, one per tag. A click
-  shows the window and navigates to its `url`. On/off is Settings → Notifications
+  shows the window and navigates to its `url`. They're `silent`: the page plays the app's own
+  sounds (see Sounds). On/off is Settings → Notifications
   (`pushService` treats the app as always permitted).
 - **Tray and badge** (`tray.js`): Open / Quit menu, a red dot on the icon while anything is
   unread, the count (`unreadSummary`: unread DMs and group messages plus guild mentions) as
@@ -1097,13 +1154,39 @@ characters. `GET /admin`, `PUT /admin/settings/:key { value | null }`, `POST /ad
 { username }`, `DELETE /admin/admins/:id` (not yourself). Only the Klipy key for now; add new
 app-wide keys to `SETTINGS` and read them with `getSetting` rather than from `config.js`.
 
+### Sounds
+
+Discord's sound effects, for what Voicaw has (`client/src/sounds/`). `soundList.js` lists them
+(`SOUNDS`): Message, Mute, Unmute, Deafen, Undeafen, User join, User leave, Voice disconnected,
+Incoming ring, Outgoing ring. Each is a `tone` drawn with Web Audio oscillators (notes, volume,
+wave, `bell` or `flat` shape); **a sound with a `file`** (e.g. `/sounds/message.ogg` in
+`client/public/sounds/`) plays that instead, falling back to its tone if it can't load, so real
+recordings can replace tones one at a time. `every` makes it a loop (rings), `minGap` stops
+repeats (a burst of messages dings once).
+- `sounds.js`: one shared `AudioContext`, started on the first click or key press (browsers
+  refuse sound before one; until then sounds are skipped); `playSound(name, { preview })`,
+  `startLoop` / `stopLoop` (one loop at a time, cut off at once). Prefs per device
+  (`localStorage soundPrefs`: `volume` 0–1, `off` list), Settings → Sounds (`SoundSettings.jsx`:
+  volume, a switch and a play button per sound).
+- Where they play: `voiceClient` (join on connecting; LiveKit participant joined/left; disconnect
+  on leaving, a call ending or the connection lost; mute/deafen from `setSelfMute`/`setSelfDeaf`,
+  not the automatic mute when the microphone fails), `callClient` (the rings). Message: the
+  server decides (`sendPushToUser`, so it follows exactly what notifies: not the chat you're
+  looking at, guild notification levels, no SUPPRESS_NOTIFICATIONS webhooks) and sends
+  `message_sound`; `playMessageSound` plays it in a browser page only while it's visible and
+  focused (that page's push notification is then silent; otherwise the system notification
+  makes the sound), and always in the desktop app (whose notifications are silent).
+- **Not done yet** (Discord has them; the features don't exist yet): push-to-talk on/off,
+  stream started/ended and viewer join/leave, activities, stage, user moved.
+
 ### Polls
 
 Any chat (DM, notes, group DM, guild text channel) can have polls: the composer's `+` opens a
 menu (Upload a file / Create poll). `PollDialog.jsx` takes a question (300), 1–10 answers (55
 each, each with an optional emoji: Unicode or a guild's custom one, from `EmojiPicker` over the
 dialog; Escape there closes only the picker, since `EmojiPicker` marks it handled and `Modal`
-skips handled Escapes), a duration (1h, 4h, 8h, 24h (default), 3d, 1w, 2w) and "Allow multiple
+skips handled Escapes; Tab goes question → answers → Add another answer, skipping the emoji
+and remove buttons), a duration (1h, 4h, 8h, 24h (default), 3d, 1w, 2w) and "Allow multiple
 answers"; neither of those two can be changed after posting. A poll is sent as
 its own message (replying if a reply is set, like a GIF).
 - **Format** (`utils/pollMarkup.js`): the message text is `poll:v1:` + JSON `{ q, multi, d, x?,
@@ -1122,7 +1205,8 @@ its own message (replying if a reply is set, like a GIF).
   `vote(msg, optionIds)` (`planVotes`) makes your votes exactly that choice (`[]`: removes
   them), deleting your votes for answers that no longer exist too.
   `tallyVotes` counts only answers that exist, and one vote per person (the latest) in single
-  choice. In guilds a vote only needs View Channel (not Add Reactions): the server accepts
+  choice. Percentages and "N votes" are of the votes cast (`cast`, `voteShare`), so in a
+  multiple-choice poll they still add up to 100%. In guilds a vote only needs View Channel (not Add Reactions): the server accepts
   `poll:<8 chars>` on a message that starts with `poll:v1:` without it.
 - **Editing** (the author, Edit opens `PollDialog`, not the inline editor): question and
   answers can change; an answer whose text or emoji changed gets a new id (`editedPoll`), so its votes
@@ -1142,7 +1226,7 @@ its own message (replying if a reply is set, like a GIF).
   add a vote the server timestamps later (it doesn't count) or edit their own poll's `d`.
 - **"Poll ended" rows** (`server/pollTimers.js`, `PollEndNotice.jsx`): when a poll closes, a
   row in the chat says "X's poll Q has closed." with the winning answer and its share of the
-  voters ("won with 60% (3 of 5 votes)"), a draw ("a draw between A and B, 40% each") or
+  votes cast ("won with 60% (3 of 5 votes)"), a draw ("a draw between A and B, 40% each") or
   "Nobody voted.", and View poll (jumps to it). It works the same in DMs, notes, group DMs and
   guild channels without the server learning the poll's contents: after sending a poll its
   author tells the server when it closes (`POST /polls/:kind/:messageId/timer { duration }`,

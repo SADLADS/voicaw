@@ -1,7 +1,8 @@
 // System notifications for the desktop app. The page gets them over the websocket (whatever
 // would be a web push, see server/push.js), works out the text (decrypting DM previews on the
 // device, as the service worker does) and hands them here. One per `tag`: a newer one
-// replaces the last. Clicking one opens the window on its chat.
+// replaces the last. Clicking one opens the window on its chat. They're silent: the page
+// plays the app's own sounds (client sounds/), which the user can turn off there.
 const { Notification, nativeImage } = require('electron');
 
 const MAX_TITLE = 200;
@@ -36,6 +37,7 @@ function createNotifier({ onClick }) {
             title: n.title,
             body: n.body,
             icon: n.icon ? nativeImage.createFromDataURL(n.icon) : undefined,
+            silent: true,
         });
         notification.on('click', () => onClick(n.url));
         notification.on('close', () => {

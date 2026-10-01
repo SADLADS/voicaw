@@ -23,7 +23,7 @@ vi.mock('./voiceClient', () => ({
   leaveVoice: vi.fn(async () => {}),
   setVoiceError: vi.fn(),
 }));
-vi.mock('./ringtone', () => ({ startTone: vi.fn(), stopTone: vi.fn() }));
+vi.mock('../sounds/sounds', () => ({ startLoop: vi.fn(), stopLoop: vi.fn(), playSound: vi.fn() }));
 
 import { acceptCall, getCallSnapshot, hangUp, initCalls, startCall } from './callClient';
 import { acceptCallRequest, hangUpRequest, startCallRequest } from '../services/callService';
@@ -31,7 +31,7 @@ import { fetchUsersList } from '../services/dmService';
 import { checkContactKeys } from '../services/contactKeys';
 import { loadEncryptionKey } from '../services/keyStore';
 import { getVoiceSnapshot, joinCall, leaveVoice, setVoiceError } from './voiceClient';
-import { startTone } from './ringtone';
+import { startLoop } from '../sounds/sounds';
 import {
   generateUserKeys,
   importEncryptionPrivateKey,
@@ -62,7 +62,7 @@ describe('callClient', () => {
   it('sends an encrypted key that the person called opens to the same key', async () => {
     await as(alice);
     await startCall(bob.row);
-    expect(startTone).toHaveBeenCalledWith('ringback');
+    expect(startLoop).toHaveBeenCalledWith('outgoingRing');
     const [calleeId, callId, envelope] = startCallRequest.mock.calls[0];
     expect(calleeId).toBe(2);
     expect(envelope).toMatch(/^v1\./);
@@ -76,7 +76,7 @@ describe('callClient', () => {
     fetchUsersList.mockResolvedValue([alice.row]);
     emit({ type: 'call_incoming', call: { id: callId, caller_id: 1, caller_username: 'alice', key_envelope: envelope, state: 'ringing' } });
     expect(getCallSnapshot().call).toMatchObject({ id: callId, peerName: 'alice', outgoing: false, state: 'ringing' });
-    expect(startTone).toHaveBeenCalledWith('incoming');
+    expect(startLoop).toHaveBeenCalledWith('incomingRing');
     await acceptCall();
     expect(acceptCallRequest).toHaveBeenCalledWith(callId);
     expect(joinCall.mock.calls[0][0].key).toEqual(callerKey);

@@ -9,6 +9,7 @@ import ChatPane from '../ChatPane';
 import MemberList from './MemberList';
 import ChannelIcon from './ChannelIcon';
 import VoiceChannelView from './VoiceChannelView';
+import ListChannelView from './ListChannelView';
 import GuildSearch from './GuildSearch';
 import { useChannel } from '../../hooks/useChannel';
 import { onGuildEvent } from '../../utils/ws-client';
@@ -81,9 +82,9 @@ export default function GuildView({ user }) {
     loadGuild(guildId).catch(() => {}).finally(() => setCheckedMissing(channelId));
   }, [missingChannel, guildId, channelId, loadGuild]);
 
-  // The guild reopens on the last text channel (a voice one would just show who's talking).
+  // The guild reopens on the last text or list channel (a voice one would just show who's talking).
   useEffect(() => {
-    if (channel?.type === 'text') rememberChannel(guildId, channel.id);
+    if (channel?.type === 'text' || channel?.type === 'list') rememberChannel(guildId, channel.id);
   }, [guildId, channel]);
 
   useEffect(() => setMembersOpenMobile(false), [channelId]);
@@ -213,7 +214,9 @@ export default function GuildView({ user }) {
     });
   }
 
-  const membersVisible = isMobile ? membersOpenMobile : showMembers;
+  // A list channel uses the space for its tasks' details instead.
+  const isList = channel?.type === 'list';
+  const membersVisible = !isList && (isMobile ? membersOpenMobile : showMembers);
   const permissions = channel?.my_permissions ?? 0;
 
   return (
@@ -239,6 +242,7 @@ export default function GuildView({ user }) {
             <FontAwesomeIcon icon={faThumbtack} />
           </button>
         )}
+        {!isList && (
         <button
           type="button"
           className={`channel-header-button${membersVisible ? ' active' : ''}`}
@@ -249,6 +253,7 @@ export default function GuildView({ user }) {
         >
           <FontAwesomeIcon icon={faUsers} />
         </button>
+        )}
         <GuildSearch
           guild={guild}
           members={members}
@@ -267,6 +272,17 @@ export default function GuildView({ user }) {
             <p className="guild-placeholder">Loading…</p>
           ) : channel.type === 'voice' ? (
             <VoiceChannelView guild={guild} channel={channel} nameColors={nameColors} />
+          ) : channel.type === 'list' ? (
+            <ListChannelView
+              guild={guild}
+              channel={channel}
+              user={user}
+              people={channelMembers}
+              reactionNames={reactionNames}
+              mentionRoles={mentionRoles}
+              nameColors={nameColors}
+              isMobile={isMobile}
+            />
           ) : (
             <ChatPane
               pollKind="guild"

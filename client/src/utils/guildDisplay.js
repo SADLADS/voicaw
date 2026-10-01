@@ -26,7 +26,7 @@ export function groupChannels(guild) {
 }
 
 // The channel a guild opens on: the last one viewed there (on this device) if it still
-// exists, otherwise the first text channel.
+// exists, otherwise the first text channel (then the first list channel).
 export function defaultChannel(guild) {
   let remembered = null;
   try {
@@ -38,6 +38,7 @@ export function defaultChannel(guild) {
   const ordered = [...uncategorized, ...categories.flatMap((c) => c.channels)];
   return ordered.find((c) => String(c.id) === remembered)
     ?? ordered.find((c) => c.type === 'text')
+    ?? ordered.find((c) => c.type === 'list')
     ?? ordered[0]
     ?? null;
 }

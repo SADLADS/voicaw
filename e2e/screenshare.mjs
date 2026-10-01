@@ -152,7 +152,7 @@ try {
     const res = await fetch(`/api/guilds/${guildId}/channels/${channelId}/overrides/member/${bobId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ allow: 0, deny: 1 << 18 }),
+      body: JSON.stringify({ allow: 0, deny: 1 << 19 }), // Video
     });
     if (!res.ok) throw new Error(`override: ${res.status}`);
   }, { guildId, channelId, bobId: bob.id });
