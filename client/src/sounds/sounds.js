@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { SOUNDS } from './soundList';
 import { isDesktopApp } from '../utils/desktop';
+import { onAudioSettingsChange, outputSinkId } from '../voice/audioSettings';
 
 // The app's sound effects (soundList.js has them all): played with one shared Web Audio
 // context, as oscillator tones or, for a sound with a `file`, that file. Per device, the user
@@ -59,9 +60,21 @@ export const isSoundOn = (name) => prefs.volume > 0 && !prefs.off.includes(name)
 
 let context = null;
 
+// Plays through the speakers chosen in Settings → Voice & video, where the browser can.
+function applySink(ctx) {
+  ctx?.setSinkId?.(outputSinkId()).catch?.(() => {});
+}
+
+onAudioSettingsChange((next, previous) => {
+  if (context && next.outputDeviceId !== previous.outputDeviceId) applySink(context);
+});
+
 function audioContext() {
   if (typeof AudioContext === 'undefined') return null;
-  context ??= new AudioContext();
+  if (!context) {
+    context = new AudioContext();
+    if (outputSinkId()) applySink(context);
+  }
   if (context.state === 'suspended') context.resume().catch(() => {});
   return context;
 }

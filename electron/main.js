@@ -1,9 +1,9 @@
 // The desktop app: one window showing the client build that ships inside the app (see
 // protocol.js), plus what a browser tab can't do: notifications without web push, a tray
 // icon with the unread count, closing to the tray, starting at login, global mute/deafen
-// shortcuts and updating itself. The page reaches these through preload.js.
+// shortcuts, a screen picker for screen sharing and updating itself. The page reaches these through preload.js.
 const path = require('path');
-const { app, BrowserWindow, Menu, globalShortcut, ipcMain, net, protocol, screen, session, shell } = require('electron');
+const { app, BrowserWindow, Menu, desktopCapturer, globalShortcut, ipcMain, net, protocol, screen, session, shell } = require('electron');
 const { setUpSpellcheck } = require('./spellcheck');
 const { ORIGIN, registerScheme, handleScheme } = require('./protocol');
 const { createSettingsStore } = require('./desktopSettings');
@@ -12,11 +12,13 @@ const { createNotifier } = require('./notifications');
 const { applyShortcuts } = require('./shortcuts');
 const { createUpdater } = require('./updater');
 const { setStartAtLogin, startedHidden } = require('./autoStart');
+const { createScreenShare } = require('./screenShare');
 
 const APP_ID = 'com.voicaw.app';
 const BUILD_DIR = app.isPackaged ? path.join(process.resourcesPath, 'app') : path.join(__dirname, '../build');
-// Only the app's own pages get these (microphone, notifications, copying, full screen video).
-const ALLOWED_PERMISSIONS = new Set(['media', 'notifications', 'clipboard-sanitized-write', 'fullscreen']);
+// Only the app's own pages get these (microphone, notifications, copying, full screen video,
+// and screen capture, which only ever gets what the person picked in our picker).
+const ALLOWED_PERMISSIONS = new Set(['media', 'notifications', 'clipboard-sanitized-write', 'fullscreen', 'display-capture']);
 
 registerScheme(protocol);
 
@@ -26,6 +28,7 @@ let settings;
 let tray;
 let notifier;
 let updater;
+let screenShare;
 
 // One app at a time: starting it again brings the running one forward.
 if (!app.requestSingleInstanceLock()) {
@@ -134,9 +137,11 @@ function setUpPermissions() {
     const ses = session.defaultSession;
     ses.setPermissionRequestHandler((webContents, permission, callback, details) => {
         const ours = (details.requestingUrl ?? '').startsWith(`${ORIGIN}/`);
+        // The microphone, not the camera (screen capture goes through the handler below).
         const audioOnly = permission !== 'media' || !details.mediaTypes?.includes('video');
         callback(ours && ALLOWED_PERMISSIONS.has(permission) && audioOnly);
     });
+    ses.setDisplayMediaRequestHandler((request, callback) => screenShare.handleRequest(request, callback));
     ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) =>
         requestingOrigin === ORIGIN && ALLOWED_PERMISSIONS.has(permission));
 }
@@ -158,6 +163,9 @@ function setUpIpc() {
     });
     ipcMain.on('desktop:notify', (event, notification) => { if (fromApp(event)) notifier.show(notification); });
     ipcMain.on('desktop:unread', (event, unread) => { if (fromApp(event)) tray.setUnread(win, unread); });
+    ipcMain.handle('desktop:screen-sources', (event) => (fromApp(event) ? screenShare.listSources() : null));
+    ipcMain.handle('desktop:choose-screen-source', (event, id, audio) =>
+        (fromApp(event) && typeof id === 'string' ? screenShare.choose(id, audio === true) : false));
     ipcMain.handle('desktop:check-updates', (event) => (fromApp(event) ? updater.check() : null));
     ipcMain.on('desktop:install-update', (event) => {
         if (!fromApp(event) || !updater.isReady()) return;
@@ -169,6 +177,12 @@ function setUpIpc() {
 function start() {
     settings = createSettingsStore(app.getPath('userData'));
     handleScheme(protocol, net, path.resolve(BUILD_DIR));
+    screenShare = createScreenShare({
+        desktopCapturer,
+        platform: process.platform,
+        origin: ORIGIN,
+        ownSourceId: () => (win && !win.isDestroyed() ? win.getMediaSourceId() : null),
+    });
     setUpPermissions();
     notifier = createNotifier({
         onClick(url) {

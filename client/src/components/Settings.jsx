@@ -13,6 +13,7 @@ import DateTimeSettings from "./DateTimeSettings";
 import SpellcheckSettings from "./SpellcheckSettings";
 import ThemeSettings from "./ThemeSettings";
 import SoundSettings from "./SoundSettings";
+import VoiceSettings from "./VoiceSettings";
 import DesktopAppSettings from "./DesktopAppSettings";
 import { isDesktopApp } from '../utils/desktop';
 import EditProfile from "./EditProfile";
@@ -120,6 +121,11 @@ export default function Settings({ onLogout }) {
       id: 'sounds', category: 'app', title: 'Sounds',
       keywords: 'sound effects audio volume ding chime ring ringtone message mute unmute deafen join leave disconnect',
       content: <SoundSettings />,
+    },
+    {
+      id: 'voice-video', category: 'app', title: 'Voice & video',
+      keywords: 'microphone mic input output speakers headphones headset device audio volume test echo noise suppression gain',
+      content: <VoiceSettings />,
     },
     {
       id: 'desktop-app', category: 'app', title: 'Desktop app',

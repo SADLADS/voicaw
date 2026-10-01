@@ -1,5 +1,8 @@
 import { fetchVoiceToken, leaveVoiceChannel, saveVoiceState } from '../services/voiceService';
 import { createVoiceChain } from './voiceChain';
+import {
+  captureOptions, getAudioSettings, inputGainStage, onAudioSettingsChange, outputSinkId, processingChanged,
+} from './audioSettings';
 import { playSound } from '../sounds/sounds';
 
 // This device's voice connection (one at a time, like Discord): a voice channel or a DM
@@ -13,7 +16,8 @@ import { playSound } from '../sounds/sounds';
 // Mute and deafen are remembered on this device, like Discord. Muted, the microphone is
 // released (the browser's recording indicator goes off); deafened, you also can't be heard.
 // Sounds, like Discord's: joining (yours and others'), leaving, being disconnected, mute and
-// deafen (sounds/).
+// deafen (sounds/). The microphone, speakers and their volumes are the device's voice
+// settings (audioSettings.js, Settings → Voice & video), applied as they change.
 //
 // Screen sharing (voice channels, with Video): your screen (and its sound, where the browser
 // shares it) goes out as LiveKit screen-share tracks. Others only receive a stream while they
@@ -21,10 +25,6 @@ import { playSound } from '../sounds/sounds';
 // costs nobody's download.
 
 const PREFS_KEY = 'voicePrefs';
-
-// What the browser does to the microphone before our own chain (voiceChain.js):
-// voiceIsolation is Chrome's stronger noise suppression, where it has it.
-const CAPTURE = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, voiceIsolation: true };
 
 function loadPrefs() {
   try {
@@ -88,6 +88,9 @@ let e2eeWorker = null;
 // Bumped by every join and leave, so a join that's overtaken stops where it is.
 let attempt = 0;
 let audioContainer = null;
+// Each remote audio track's <audio> element. (By the time a track is unsubscribed LiveKit may
+// have detached it already, so `detach()` can't be relied on to find it.)
+let audioElementsByTrack = new Map();
 
 // Remote audio plays through <audio> elements kept here, out of sight.
 function audioElements() {
@@ -177,6 +180,7 @@ async function teardown() {
   e2eeWorker?.terminate();
   e2eeWorker = null;
   subscriptions = new WeakMap();
+  audioElementsByTrack = new Map();
   if (audioContainer) audioContainer.replaceChildren();
 }
 
@@ -188,12 +192,12 @@ async function applyMicrophone() {
   const participant = current.localParticipant;
   try {
     if (wanted) {
-      const publication = await participant.setMicrophoneEnabled(true, CAPTURE);
+      const publication = await participant.setMicrophoneEnabled(true, captureOptions());
       // Our chain goes on once per track (LiveKit keeps it through mute and mic changes). It
       // can't be passed with the capture options: LiveKit applies those before the track has
       // the AudioContext a processor needs.
       const track = publication?.audioTrack;
-      if (track && !track.getProcessor()) await track.setProcessor(createVoiceChain());
+      if (track && !track.getProcessor()) await track.setProcessor(createVoiceChain([inputGainStage]));
       if (room === current) update({ micError: null });
     } else if (participant.isMicrophoneEnabled) {
       await participant.setMicrophoneEnabled(false);
@@ -205,6 +209,31 @@ async function applyMicrophone() {
     setPrefs({ selfMute: true }, { micError: micErrorMessage(err) });
   }
 }
+
+// Voice settings changed (Settings → Voice & video): a new microphone or processing means
+// capturing it again (or, while muted, dropping the track so unmuting captures it afresh).
+onAudioSettingsChange(async (next, previous) => {
+  const current = room;
+  if (!current) return;
+  if (audioContainer) for (const element of audioContainer.querySelectorAll('audio')) element.volume = next.outputVolume;
+  if (next.outputDeviceId !== previous.outputDeviceId) {
+    await current.switchActiveDevice('audiooutput', outputSinkId(next) || 'default')
+      .catch((err) => console.warn('Could not switch speakers', err));
+  }
+  if (next.inputDeviceId === previous.inputDeviceId && !processingChanged(next, previous)) return;
+  current.options.audioCaptureDefaults = { ...current.options.audioCaptureDefaults, ...captureOptions(next) };
+  const participant = current.localParticipant;
+  const publication = participant.getTrackPublication(livekit.Track.Source.Microphone);
+  const track = publication?.audioTrack;
+  if (!track) return;
+  try {
+    if (participant.isMicrophoneEnabled) await track.restartTrack(captureOptions(next));
+    else await participant.unpublishTrack(track);
+  } catch (err) {
+    console.warn('Could not switch microphone', err);
+    if (room === current) update({ micError: micErrorMessage(err) });
+  }
+});
 
 function applyDeafen() {
   if (!audioContainer) return;
@@ -246,10 +275,16 @@ function watch(newRoom, current) {
       if (track.kind !== Track.Kind.Audio) return;
       const element = track.attach();
       element.muted = snapshot.selfDeaf;
+      element.volume = getAudioSettings().outputVolume;
+      audioElementsByTrack.set(track, element);
       audioElements().appendChild(element);
     })
     .on(RoomEvent.TrackUnsubscribed, (track) => {
-      if (track.kind === Track.Kind.Audio) for (const element of track.detach()) element.remove();
+      if (track.kind === Track.Kind.Audio) {
+        for (const element of track.detach()) element.remove();
+        audioElementsByTrack.get(track)?.remove();
+        audioElementsByTrack.delete(track);
+      }
       updateTracks();
     })
     .on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
@@ -316,7 +351,8 @@ async function connect(target, getToken, e2eeKey) {
     const e2ee = e2eeKey ? await e2eeOptions(e2eeKey) : undefined;
     const newRoom = new livekit.Room({
       stopMicTrackOnMute: true,
-      audioCaptureDefaults: CAPTURE,
+      audioCaptureDefaults: captureOptions(),
+      audioOutput: { deviceId: outputSinkId() || 'default' },
       publishDefaults: { dtx: true, red: true },
       e2ee,
     });
@@ -413,15 +449,16 @@ export function clearVoiceError() {
 }
 
 // Shares your screen (a voice channel, with Video). Must be called from a click: the browser
-// asks which screen, window or tab, and whether to share its sound. Your own stream is shown
-// at once, like Discord's preview.
-export async function startScreenShare() {
+// asks which screen, window or tab, and whether to share its sound (in the desktop app, our
+// picker has asked already: `audio` is its answer). Your own stream is shown at once, like
+// Discord's preview.
+export async function startScreenShare({ audio = true } = {}) {
   const current = room;
   if (!current || snapshot.status !== 'connected' || !snapshot.canStream) return;
   update({ streamError: null });
   try {
     await current.localParticipant.setScreenShareEnabled(true, {
-      audio: true,
+      audio,
       systemAudio: 'include',
       selfBrowserSurface: 'exclude',
       surfaceSwitching: 'include',

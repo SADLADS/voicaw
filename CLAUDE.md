@@ -126,6 +126,7 @@ node e2e/docs.mjs [dir]   # document channels: write (typed markdown, toolbar, c
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
 node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>
 node e2e/video.mjs [dir]  # videos: only the poster before Play, streamed in pieces, seek reads nothing before it, download, keys, full screen, spoiler, phone (needs ffmpeg)
+node e2e/voicesettings.mjs [dir] # Settings → Voice & video: fake devices listed, mic test meter, input volume 0 silences you in a call, new mic / processing kept, speakers + output volume, phone
 node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
 node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept per device, no dark flash, Match system, color-scheme, phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
@@ -158,6 +159,20 @@ Tips:
 - Firefox and WebKit builds are cached in `~/.cache/ms-playwright` (firefox-1522, webkit-2287),
   which match `playwright-core@1.60.0`: install that version in a scratch directory to use
   them. That WebKit build crashes when the emoji picker opens (also without any recent change).
+- **The real desktop app** runs here under Xvfb (installed): build the client for it pointed at
+  the throwaway API (a temporary, git-ignored `client/.env.electron` with
+  `VITE_API_BASE_URL=http://localhost:<api>/api/` and `VITE_WS_URL=ws://localhost:<api>`; delete
+  it after), start `Xvfb :97 -screen 0 1600x1000x24`, then with `DISPLAY=:97` and
+  `XDG_CONFIG_HOME=<scratch dir>` (its own settings and session) run the binary itself,
+  `node_modules/electron/dist/electron electron/main.js --no-sandbox --remote-debugging-port=9333`,
+  and drive it with `chromium.connectOverCDP('http://127.0.0.1:9333')` (the page is
+  `voicaw://app/`). Traps: `node_modules/.bin/electron` is a wrapper, so killing its PID leaves
+  Electron running, and the single-instance lock then makes every new start quit at once
+  (check for leftovers with `pgrep -af electron/dist/electron` and kill them by PID); Chrome's
+  `--use-fake-ui-for-media-stream` / `--use-fake-device-for-media-stream` take over screen
+  capture and skip the app's display media handler, so don't pass them when testing screen
+  sharing (without them the microphone just fails, and you stay in voice muted); Xvfb has no
+  window manager, so only screens are listed, no windows.
 
 ### Server layout
 
@@ -865,26 +880,42 @@ LiveKit carries the audio.
   stream big above the tiles (`voice/StreamView.jsx`: full screen, stop watching; the people
   become a row), and the share button (`voice/ScreenShareButton.jsx`) in the voice bar and the
   channel page. Not offered where the browser has no `getDisplayMedia` (phones, which can
-  still watch) nor in the desktop app (it needs its own source picker, see Desktop app).
+  still watch). The desktop app shows our own picker first (`voice/ScreenPicker.jsx`, see
+  Desktop app).
   Bandwidth: the sharer uploads once; LiveKit sends a copy to each viewer.
 - **Microphone chain** (`voice/voiceChain.js`): the browser captures with echo cancellation,
   noise suppression, auto gain and `voiceIsolation` (Chrome's stronger suppression, where it has
   it); then our own LiveKit audio processor runs the mic through a list of Web Audio stages
-  (none yet: it passes through). **Voice isolation goes in here** as a stage (RNNoise, then
+  (just the input volume, `inputGainStage`). **Voice isolation goes in here** as a stage (RNNoise, then
   DeepFilterNet, each an AudioWorklet). The processor is set on the track after the mic is on
   (LiveKit applies capture-time processors before the track has its AudioContext), and it
   keeps the AudioContext from `init`, because LiveKit calls `restart` (after an unmute or a mic
   change) without one.
+- **Voice settings** (`voice/audioSettings.js`, Settings → Voice & video, `VoiceSettings.jsx`;
+  per device, `localStorage audioSettings`; video settings go in the same section later):
+  input and output device (output only where the browser has `setSinkId`), input volume
+  (0–200%, a gain in the microphone chain, changed live) and output volume (0–100%, the
+  `<audio>` elements' volume), echo cancellation, noise suppression (with `voiceIsolation`)
+  and automatic gain control (`captureOptions`; devices as `{ ideal }`, so an unplugged one
+  falls back to the default). `voiceClient` applies a change at once: speakers through
+  LiveKit's `switchActiveDevice`; a new microphone or processing re-captures it
+  (`restartTrack`), or while muted drops the track so unmuting captures it afresh. A mic test
+  (`voice/micTest.js`, like Discord's "Let's Check"): the microphone as a call would send it,
+  a level meter (`levelOf`), played back through the chosen speakers. The app's sounds play
+  through the chosen speakers too (`AudioContext.setSinkId`). Browsers name devices only once
+  the page may use the microphone ("Allow it"). Each remote voice's `<audio>` element is kept
+  per track (`audioElementsByTrack`): LiveKit has often detached it already by the time it
+  says the track is gone, so `detach()` alone left empty elements behind.
 - **UI:** in the channel list, people in a voice channel are listed under it (ringed while
   talking, when you're in there too). Clicking a voice channel joins it on desktop; on mobile a
   tap only opens it and you join from its page (`guild/VoiceChannelView.jsx`: tiles, Join Voice,
   mute/deafen/share screen/disconnect). `voice/VoiceBar.jsx` sits above the user panel while
   connected (status, channel link, share screen, disconnect, errors); `UserPanel` has mute and deafen
   (`voice/VoiceControls.jsx`). A guild reopens on its last *text* (or list) channel.
-- **Not done yet:** device selection, per-user volume, push-to-talk and voice activity
-  settings, server mute/move (Mute Members, Move Members), a global push-to-talk key in the
-  desktop app (it has global mute/deafen toggles; holding a key needs a native keyboard hook),
-  voice isolation stages, screen share in the desktop app and in DM/group calls (LiveKit's E2EE
+- **Not done yet:** per-user volume, push-to-talk and voice activity (input sensitivity)
+  settings, output volume above 100%, server mute/move (Mute Members, Move Members), a global
+  push-to-talk key in the desktop app (it has global mute/deafen toggles; holding a key needs a
+  native keyboard hook), voice isolation stages, screen share in DM/group calls (LiveKit's E2EE
   would cover the video too), webcam video, stream quality settings, and a TURN server for
   networks that block UDP 7882 and
   TCP 7881. Phones: a PWA's audio stops when it's in the background (iOS also when locked).
@@ -1021,11 +1052,13 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
 - **Window** (`main.js`): one instance (a second start focuses it), size and place remembered,
   no menu (a minimal one on macOS for copy/paste), dev tools only in a development run
   (Ctrl+Shift+I). Links to other sites open in the browser; the window never leaves
-  `voicaw://app`. Only the app's pages get permissions (microphone, not camera; notifications).
+  `voicaw://app`. Only the app's pages get permissions (microphone, not camera; notifications;
+  screen capture, only of what was picked).
   `backgroundThrottling` is off so ringing and voice work from the tray.
 - **Bridge** (`preload.js` → `window.voicawDesktop`, wrapped by `client/src/utils/desktop.js`
   `desktop`, null in a browser): `notify`, `setUnread`, `getSettings` / `updateSettings`,
-  `checkForUpdates` / `installUpdate`, `onNavigate`, `onShortcut`, `onUpdateReady`. The main
+  `checkForUpdates` / `installUpdate`, `getScreenSources` / `chooseScreenSource`, `onNavigate`,
+  `onShortcut`, `onUpdateReady`. The main
   process only answers the app's own frames and checks what it's given (`cleanNotification`,
   `cleanChanges`).
 - **Notifications** (`notifications.js`): the server sends what would be a web push over the
@@ -1035,6 +1068,18 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   shows the window and navigates to its `url`. They're `silent`: the page plays the app's own
   sounds (see Sounds). On/off is Settings → Notifications
   (`pushService` treats the app as always permitted).
+- **Screen sharing** (`screenShare.js`): Electron has no picker of its own for
+  `getDisplayMedia`, so the share button opens ours (`voice/ScreenPicker.jsx`: Screens and
+  Windows tabs with thumbnails from `desktopCapturer`, refreshed every 4 s, the app's own
+  window left out; double click or Go Live). The page then says which (`chooseScreenSource`)
+  and calls `getDisplayMedia` as a browser would; the session's display media handler answers
+  with that source, once, within a minute, only for a source just listed and only for the
+  app's own page; anything else is refused (the page gets an AbortError, shown as nothing).
+  **Sound** ("Share sound", off by default) only on Windows: Electron's only option is the
+  whole system's sound (`loopback`), which includes the call's own voices, so viewers hear
+  themselves (the picker says so); Discord avoids that with a native per-process capture.
+  macOS needs Screen Recording permission (the picker says where); Wayland goes through the
+  system's portal picker.
 - **Tray and badge** (`tray.js`): Open / Quit menu, a red dot on the icon while anything is
   unread, the count (`unreadSummary`: unread DMs and group messages plus guild mentions) as
   the macOS dock badge, a Windows taskbar overlay, or the Linux launcher count.
@@ -1052,9 +1097,11 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   Settings → App version, which also shows the app's version); that restarts onto it. A
   development run or an unsigned macOS app can't update itself ('unsupported'). Releases are
   only as trustworthy as that server (no signature of our own on the feed yet).
-- **Not done yet:** push-to-talk (held key), screen share's source picker, streaming videos (no
-  service worker: they download whole on Play; `protocol.js` could serve them instead), notifications while
-  the app isn't running, code signing (Windows SmartScreen warns about unsigned installers).
+- **Not done yet:** push-to-talk (held key), screen share sound without the call's own voices
+  (a native per-process loopback), streaming videos (no
+  service worker: they download whole on Play; `protocol.js` could serve them instead), code
+  signing (Windows SmartScreen warns about unsigned installers). Notifications while the app
+  isn't running aren't wanted (decided 2026-10-01).
 
 ### File uploads (S3-compatible object store)
 
@@ -1275,7 +1322,8 @@ repeats (a burst of messages dings once).
   refuse sound before one; until then sounds are skipped); `playSound(name, { preview })`,
   `startLoop` / `stopLoop` (one loop at a time, cut off at once). Prefs per device
   (`localStorage soundPrefs`: `volume` 0–1, `off` list), Settings → Sounds (`SoundSettings.jsx`:
-  volume, a switch and a play button per sound).
+  volume, a switch and a play button per sound). They play through the speakers chosen in
+  Settings → Voice & video.
 - Where they play: `voiceClient` (join on connecting; LiveKit participant joined/left; disconnect
   on leaving, a call ending or the connection lost; mute/deafen from `setSelfMute`/`setSelfDeaf`,
   not the automatic mute when the microphone fails), `callClient` (the rings). Message: the

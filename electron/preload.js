@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
     // 'available' | 'downloading' | 'current' | 'unsupported' | 'error'
     checkForUpdates: () => ipcRenderer.invoke('desktop:check-updates'),
     installUpdate: () => ipcRenderer.send('desktop:install-update'),
+    // Screen sharing: { canShareSound, sources: [{ id, name, kind, thumbnail, icon }] }; then
+    // chooseScreenSource(id, audio) before getDisplayMedia (electron/screenShare.js).
+    getScreenSources: () => ipcRenderer.invoke('desktop:screen-sources'),
+    chooseScreenSource: (id, audio) => ipcRenderer.invoke('desktop:choose-screen-source', id, audio),
     onNavigate: listen('desktop:navigate'),
     onShortcut: listen('desktop:shortcut'),
     onUpdateReady: listen('desktop:update-ready'),
