@@ -118,6 +118,7 @@ node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, lo
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
 node e2e/lists.mjs [dir]  # list channels: add, subtask, drag to nest/reorder, assign, due date, comments, read-only, phone
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
+node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>
 node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
@@ -1391,6 +1392,16 @@ overlapping loads and drops ids already present. Rows are keyed by `clientKey ??
 (`clientKey` carries a sent message's temp id). react-markdown's `components` must be a stable
 object, or attachments remount on every render. Image/video attachments carry their dimensions so
 their box is reserved before they load.
+
+Drawing markdown is what makes rows expensive (a webhook embed is a dozen bits of it), and rows
+redraw on every hover, page load and name change, so: `MessageMarkdown` and `WebhookParts` are
+`memo`ed and take only what they draw (keep their props stable); react-markdown re-runs every
+plugin's setup on each render, so plugins with costly setup must do it once
+(`utils/rehypeHighlightShared.js`: rehype-highlight registers ~40 languages); text with nothing
+for markdown to do skips the parser (`utils/plainText.js` `isPlainText`, tested against
+react-markdown's output); Intl formatters are cached (`dateFormat.js`). `e2e/embedperf.mjs`
+measures a channel of 150 embeds (open, hover, scroll; computer and a 4× slowed phone). Before
+these (2026-10-01) it froze for seconds; now opening takes ~0.2 s of script on a computer.
 
 ### Client structure
 

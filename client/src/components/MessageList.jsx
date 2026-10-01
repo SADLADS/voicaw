@@ -1,9 +1,8 @@
-import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
-import rehypeHighlight from 'rehype-highlight';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faTrash, faReply, faFaceSmile, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import Attachment from './Attachment';
@@ -22,6 +21,8 @@ import { isEmojiOnly } from '../emoji/emojiIndex';
 import { rehypeTwemoji } from '../emoji/rehypeTwemoji';
 import { customEmojiToText } from '../emoji/customEmoji';
 import { rehypeMentions } from '../utils/rehypeMentions';
+import { rehypeHighlightShared } from '../utils/rehypeHighlightShared';
+import { isPlainText } from '../utils/plainText';
 import { hideSpoilers, remarkDiscord } from '../utils/remarkDiscord';
 import { continuesGroup } from '../utils/messageGroups';
 import { displayName, useProfiles } from '../utils/profiles';
@@ -153,52 +154,61 @@ function urlTransform(url) {
   return placeholderIdFromUrl(url) !== null ? url : defaultUrlTransform(url);
 }
 
-// A message's text as markdown (attachments, emoji, mentions, spoilers). `rehypePlugins` and
-// `mentions` come from useMessageMarkdown, kept stable so the markdown isn't redone needlessly.
-function MessageMarkdown({ msg, rehypePlugins, mentions }) {
+// Markdown with Discord's flavour and our plugins. Text with nothing for markdown to do (most
+// embed fields) skips the parser: it would draw the same paragraph (isPlainText).
+function MarkdownBody({ text, rehypePlugins }) {
+  if (isPlainText(text)) return <p>{text}</p>;
   return (
-    <LocalAttachmentsContext.Provider value={msg.localAttachments ?? null}>
-      <MentionContext.Provider value={mentions}>
-        <ReactMarkdown
-          remarkPlugins={remarkPlugins}
-          rehypePlugins={rehypePlugins}
-          urlTransform={urlTransform}
-          components={markdownComponents}
-        >
-          {msg.plaintext}
-        </ReactMarkdown>
-      </MentionContext.Provider>
-    </LocalAttachmentsContext.Provider>
+    <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} urlTransform={urlTransform} components={markdownComponents}>
+      {text}
+    </ReactMarkdown>
   );
 }
 
+// A message's text as markdown (attachments, emoji, mentions, spoilers). `rehypePlugins` and
+// `mentions` come from useMessageMarkdown, kept stable so the markdown isn't redone needlessly.
+// Memoised: parsing markdown is the costliest part of drawing a message, and rows redraw on
+// every hover, page load or name change.
+const MessageMarkdown = memo(function MessageMarkdown({ text, localAttachments, rehypePlugins, mentions }) {
+  return (
+    <LocalAttachmentsContext.Provider value={localAttachments ?? null}>
+      <MentionContext.Provider value={mentions}>
+        <MarkdownBody text={text} rehypePlugins={rehypePlugins} />
+      </MentionContext.Provider>
+    </LocalAttachmentsContext.Provider>
+  );
+});
+
 // A webhook's embeds (unless it asked for Discord's SUPPRESS_EMBEDS) and files; nothing for
-// anyone else's message. Markdown in embeds is drawn like the message's own text.
-function WebhookParts({ msg, rehypePlugins, mentions }) {
-  if (!msg.webhook_id) return null;
+// anyone else's message. Markdown in embeds is drawn like the message's own text. Memoised
+// like MessageMarkdown: an embed can hold a dozen bits of markdown.
+const WebhookParts = memo(function WebhookParts({ webhookId, embeds: sent, attachments, flags, rehypePlugins, mentions }) {
+  if (!webhookId) return null;
   const renderMarkdown = (text) => (
     <MentionContext.Provider value={mentions}>
-      <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} urlTransform={urlTransform} components={markdownComponents}>
-        {text}
-      </ReactMarkdown>
+      <MarkdownBody text={text} rehypePlugins={rehypePlugins} />
     </MentionContext.Provider>
   );
-  const embeds = msg.flags & 4 ? [] : msg.embeds ?? [];
+  const embeds = flags & 4 ? [] : sent ?? [];
   return (
     <>
       <MessageEmbeds embeds={embeds} renderMarkdown={renderMarkdown} />
       {/* Files an embed shows (attachment://…) aren't shown again, as in Discord. */}
-      <MessageFiles attachments={msg.attachments} shownElsewhere={embeds.flatMap((e) => [e.image?.url, e.thumbnail?.url])} />
+      <MessageFiles attachments={attachments} shownElsewhere={embeds.flatMap((e) => [e.image?.url, e.thumbnail?.url])} />
     </>
   );
-}
+});
+
+// What MessageMarkdown and WebhookParts take from a message (only what they draw, so memo works).
+const markdownProps = (msg) => ({ text: msg.plaintext, localAttachments: msg.localAttachments });
+const webhookProps = (msg) => ({ webhookId: msg.webhook_id, embeds: msg.embeds, attachments: msg.attachments, flags: msg.flags });
 
 // A message's content on its own, outside the chat (the pinned messages list): as in the chat,
 // without the menu, editor or reactions.
 export function MessageContent({ msg, user, s3Endpoint, reactionNames, mentionRoles, myRoleIds }) {
   const emojiIndex = useEmojiIndex();
   const rehypePlugins = useMemo(
-    () => [rehypeHighlight, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)],
+    () => [rehypeHighlightShared, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)],
     [emojiIndex, s3Endpoint]
   );
   const mentions = useMemo(
@@ -210,8 +220,8 @@ export function MessageContent({ msg, user, s3Endpoint, reactionNames, mentionRo
     <div className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}`} data-image-gallery="">
       {poll
         ? <Poll poll={poll} reactions={msg.reactions} userId={user.id} names={reactionNames} sentAt={msg.timestamp} />
-        : <MessageMarkdown msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />}
-      <WebhookParts msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />
+        : <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />}
+      <WebhookParts {...webhookProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
     </div>
   );
 }
@@ -273,7 +283,7 @@ export function MessageRow({
   const longPress = useLongPress(() => onOpenActions(msg), { enabled: isMobile && Boolean(onOpenActions) });
   // Stable per emoji index (a new plugin list every render would re-run markdown needlessly).
   const rehypePlugins = useMemo(
-    () => [rehypeHighlight, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)],
+    () => [rehypeHighlightShared, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)],
     [emojiIndex, s3Endpoint]
   );
 
@@ -468,13 +478,13 @@ export function MessageRow({
               onEnd={sent && msg.sender_id === user.id && onEndPoll ? () => onEndPoll(msg) : undefined}
             />
           ) : (
-            <MessageMarkdown msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />
+            <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
           )}
           {/* Without a header to carry it, "edited" goes after the text. */}
           {grouped && msg.edited && editingMessageId !== msg.id ? <small className="message-edited">(edited)</small> : null}
           {grouped && editingMessageId !== msg.id ? pinMark : null}
 
-          <WebhookParts msg={msg} rehypePlugins={rehypePlugins} mentions={mentions} />
+          <WebhookParts {...webhookProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
 
           {!poll && <UrlPreviews text={msg.plaintext} encrypted={encrypted} />}
         </div>
