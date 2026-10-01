@@ -128,7 +128,8 @@ node e2e/docs.mjs [dir]   # document channels: write (typed markdown, toolbar, c
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
 node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>
 node e2e/video.mjs [dir]  # videos: only the poster before Play, streamed in pieces, seek reads nothing before it, download, keys, full screen, spoiler, phone (needs ffmpeg)
-node e2e/voicesettings.mjs [dir] # Settings → Voice & video: fake devices listed, mic test meter, input volume 0 silences you in a call, new mic / processing kept, speakers + output volume, phone
+node e2e/voicesettings.mjs [dir] # Settings → Voice & video: fake devices listed, mic test meter, input volume 0 silences you in a call, new mic / each noise suppression kept, speakers + output volume, phone
+node e2e/noise.mjs [dir]  # noise suppression + gate: each mode on a made-up recording (fan, clicks, voice) measured, DeepFilterNet speed, sensitivity by hand, Strong in the mic test, phone
 node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
 node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept per device, no dark flash, Match system, color-scheme, phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
@@ -901,25 +902,58 @@ LiveKit carries the audio.
   still watch). The desktop app shows our own picker first (`voice/ScreenPicker.jsx`, see
   Desktop app).
   Bandwidth: the sharer uploads once; LiveKit sends a copy to each viewer.
-- **Microphone chain** (`voice/voiceChain.js`): the browser captures with echo cancellation,
-  noise suppression, auto gain and `voiceIsolation` (Chrome's stronger suppression, where it has
-  it); then our own LiveKit audio processor runs the mic through a list of Web Audio stages
-  (just the input volume, `inputGainStage`). **Voice isolation goes in here** as a stage (RNNoise, then
-  DeepFilterNet, each an AudioWorklet). The processor is set on the track after the mic is on
-  (LiveKit applies capture-time processors before the track has its AudioContext), and it
-  keeps the AudioContext from `init`, because LiveKit calls `restart` (after an unmute or a mic
-  change) without one.
+- **Microphone chain** (`voice/voiceChain.js`): the browser captures with echo cancellation and
+  auto gain (its own noise suppression and `voiceIsolation` only when that's the one chosen:
+  two suppressors in a row sound worse); then our own LiveKit audio processor runs the mic
+  through Web Audio stages: the input volume (`inputGainStage`), then noise suppression and the
+  gate (`voice/noise/noiseStages.js` `voiceProcessingStage`). The processor is set on the track
+  after the mic is on (LiveKit applies capture-time processors before the track has its
+  AudioContext), and it keeps the AudioContext from `init`, because LiveKit calls `restart`
+  (after an unmute, a mic change or `restartTrack`) without one; every (re)build reads the
+  settings afresh. RNNoise and DeepFilterNet only work at 48 kHz, so when LiveKit's context
+  runs at another rate (the device's, often 44.1 kHz) the chain makes its own 48 kHz one.
+- **Noise suppression and the gate** (`voice/noise/`, all on the device: nothing is sent
+  anywhere, no third party; Discord's Krisp needs LiveKit Cloud or a licence). Modes
+  (`audioSettings` `noiseSuppression`): **Standard** (default) is RNNoise, Xiph's small network,
+  ~150 KB of WebAssembly from `@sapphi-red/web-noise-suppressor` (only its `.wasm` files; its
+  own worklet throws away the speech probability), driven directly by `rnnoise.js`; **Strong**
+  is DeepFilterNet 3 (Krisp-like: removes typing even while you talk), our own build of its
+  `libDF` WebAssembly with the model compiled in (`noise/deepfilter/`, 17 MB, 10 MB gzipped,
+  not precached: it downloads the first time someone picks Strong; computers only,
+  `canSuppressStrongly`); **Browser** is the browser's own (good for fans, lets typing
+  through); **Off**. Two AudioWorklets (bundled with Vite's `?worker&url`, each module added
+  once per AudioContext, WebAssembly compiled once per page and passed in): `voiceWorklet.js`
+  runs RNNoise on every 10 ms frame in every mode (`frames.js` reblocks the worklet's
+  128-sample blocks), sends its denoised audio for Standard (and for Strong when DeepFilterNet
+  isn't there), then the **gate** (`gate.js`, Discord's input sensitivity): automatic opens on
+  RNNoise's speech probability (two frames of ≥0.6 in a row: a key click can score one frame
+  that high, never two; stays open while ≥0.3), or by hand on loudness above a threshold in dB
+  (-100: always open); it looks two frames ahead (opens from the frame before speech), holds
+  300 ms and fades, so 30 ms of delay in all. `deepFilterWorklet.js` comes before it for
+  Strong (`workletPolyfills.js` gives the glue the TextDecoder and crypto a worklet lacks); it
+  times itself and, if a device can't keep up (over 80% of each frame's time for 3 s), steps
+  aside for RNNoise (`isDeepFilterSlow`, Settings says so). It costs about half a core of this
+  server's Intel N100 (RNNoise ~2%). Anything that fails to load leaves the audio as it was, so
+  the mic never goes silent over it. Gate settings reach running worklets at once; a mode
+  change re-captures (`processingChanged`). `scripts/build-deepfilternet.sh` rebuilds
+  `deepfilter/` from DeepFilterNet's source at a pinned commit, with
+  `scripts/deepfilternet-wasm.patch` (adds `df_create_default` and `df_destroy`); needs Rust
+  with the wasm32 target and wasm-pack, ~12 min. `e2e/noise.mjs` renders a made-up recording
+  (fan, key clicks, voice) through every mode and measures it.
 - **Voice settings** (`voice/audioSettings.js`, Settings → Voice & video, `VoiceSettings.jsx`;
   per device, `localStorage audioSettings`; video settings go in the same section later):
   input and output device (output only where the browser has `setSinkId`), input volume
   (0–200%, a gain in the microphone chain, changed live) and output volume (0–100%, the
-  `<audio>` elements' volume), echo cancellation, noise suppression (with `voiceIsolation`)
-  and automatic gain control (`captureOptions`; devices as `{ ideal }`, so an unplugged one
-  falls back to the default). `voiceClient` applies a change at once: speakers through
+  `<audio>` elements' volume), echo cancellation, noise suppression (Standard, Strong, Your
+  browser's, Off; see above), input sensitivity (Automatic, or a dB slider over a meter of the
+  level the gate sees, green while open, during the mic test) and automatic gain control
+  (`captureOptions`; devices as `{ ideal }`, so an unplugged one falls back to the default).
+  Saved `noiseSuppression: true/false` from before the modes reads as Standard/Off. `voiceClient` applies a change at once: speakers through
   LiveKit's `switchActiveDevice`; a new microphone or processing re-captures it
   (`restartTrack`), or while muted drops the track so unmuting captures it afresh. A mic test
   (`voice/micTest.js`, like Discord's "Let's Check"): the microphone as a call would send it,
-  a level meter (`levelOf`), played back through the chosen speakers. The app's sounds play
+  through the same noise suppression and gate (in its own 48 kHz context), a level meter
+  (`levelOf`), played back through the chosen speakers. The app's sounds play
   through the chosen speakers too (`AudioContext.setSinkId`). Browsers name devices only once
   the page may use the microphone ("Allow it"). Each remote voice's `<audio>` element is kept
   per track (`audioElementsByTrack`): LiveKit has often detached it already by the time it
@@ -930,10 +964,10 @@ LiveKit carries the audio.
   mute/deafen/share screen/disconnect). `voice/VoiceBar.jsx` sits above the user panel while
   connected (status, channel link, share screen, disconnect, errors); `UserPanel` has mute and deafen
   (`voice/VoiceControls.jsx`). A guild reopens on its last *text* (or list) channel.
-- **Not done yet:** per-user volume, push-to-talk and voice activity (input sensitivity)
-  settings, output volume above 100%, server mute/move (Mute Members, Move Members), a global
+- **Not done yet:** per-user volume, push-to-talk, output volume above 100%, server mute/move (Mute Members, Move Members), a global
   push-to-talk key in the desktop app (it has global mute/deafen toggles; holding a key needs a
-  native keyboard hook), voice isolation stages, screen share in DM/group calls (LiveKit's E2EE
+  native keyboard hook), noise suppression and the gate on the other side (for people whose
+  app doesn't, like Discord's "suppress others' noise"), screen share in DM/group calls (LiveKit's E2EE
   would cover the video too), webcam video, stream quality settings, and a TURN server for
   networks that block UDP 7882 and
   TCP 7881. Phones: a PWA's audio stops when it's in the background (iOS also when locked; it
@@ -1719,10 +1753,11 @@ these (2026-10-01) it froze for seconds; now opening takes ~0.2 s of script on a
 - **Voice** (decided 2026-09-29): a self-hosted LiveKit SFU (setup in `README.md`), not
   peer-to-peer mesh, so channels scale past a handful of people. The API only checks permissions
   and hands out short-lived LiveKit tokens. Guild voice isn't end-to-end encrypted (like guild
-  text). DM calls are (LiveKit's E2EE with a per-call key sent inside the DM encryption). Build the microphone
-  path as a Web Audio chain (capture with echo cancellation → processing slot → gain/voice
-  activity → published track), so voice isolation (RNNoise, then DeepFilterNet, in an
-  AudioWorklet) drops into the slot later. Krisp needs LiveKit Cloud or a licence, so it's out.
+  text). DM calls are (LiveKit's E2EE with a per-call key sent inside the DM encryption). The microphone
+  path is a Web Audio chain (capture with echo cancellation → input volume → noise
+  suppression → gate → published track). Krisp needs LiveKit Cloud or a licence, so it's out:
+  noise suppression is RNNoise by default and DeepFilterNet as Strong (decided 2026-10-01),
+  both running on the device.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only
@@ -1733,6 +1768,7 @@ these (2026-10-01) it froze for seconds; now opening takes ~0.2 s of script on a
   - The Playwright WebKit build crashes opening the emoji picker (see Browser checks); not yet
     checked on a real iPhone.
   - nginx doesn't compress JS/CSS/SVG (`gzip_types` is commented out in
-    `/etc/nginx/nginx.conf`); first visits download the 1.6 MB main bundle uncompressed.
+    `/etc/nginx/nginx.conf`); first visits download the 1.6 MB main bundle uncompressed, and
+    Strong noise suppression's 17 MB (10 MB compressed) WebAssembly whole.
   - npm 11 warns that the install script of `esbuild` isn't in an `allowScripts` list yet. It
     still runs today; a future npm will need it approved (`npm install-scripts approve`).

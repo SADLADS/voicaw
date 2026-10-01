@@ -1,14 +1,27 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   canChooseOutput, listAudioDevices, onDeviceChange, resetAudioSettings, setAudioSettings, useAudioSettings,
 } from '../voice/audioSettings';
 import { startMicTest } from '../voice/micTest';
+import { ALWAYS_OPEN_DB } from '../voice/noise/gate';
+import {
+  canSuppressNoise, canSuppressStrongly, isDeepFilterSlow, onDeepFilterSlow,
+} from '../voice/noise/noiseStages';
 
 const PROCESSING = [
   ['echoCancellation', 'Echo cancellation', 'Stops others hearing themselves through your speakers.'],
-  ['noiseSuppression', 'Noise suppression', 'Filters out background noise like fans and typing.'],
   ['autoGainControl', 'Automatic gain control', 'Evens out your volume when you move closer or further away.'],
 ];
+
+const NOISE_MODES = [
+  ['standard', 'Standard', 'Removes background noise like fans, traffic and typing. Light on your device.'],
+  ['strong', 'Strong', 'Removes more, even while you talk, using more of your computer. A 17 MB download the first time.'],
+  ['browser', "Your browser's", 'Good for steady noise like fans; lets typing through.'],
+  ['off', 'Off', 'Your microphone as it is.'],
+];
+
+// The sensitivity meter's scale, in dB (the slider's range).
+const meterShare = (db) => Math.min(1, Math.max(0, (db - ALWAYS_OPEN_DB) / -ALWAYS_OPEN_DB));
 
 function micTestError(err) {
   if (err?.name === 'NotAllowedError') return 'Microphone access is blocked. Allow it to test.';
@@ -25,7 +38,11 @@ export default function VoiceSettings() {
   const [testing, setTesting] = useState(false);
   const [level, setLevel] = useState(0);
   const [testError, setTestError] = useState(null);
+  const [gate, setGate] = useState(null); // { db, open } while testing
   const stopTest = useRef(null);
+  const strongSlow = useSyncExternalStore(onDeepFilterSlow, isDeepFilterSlow);
+  const suppressionAvailable = canSuppressNoise();
+  const strongAvailable = canSuppressStrongly();
 
   const refreshDevices = useCallback(() => {
     listAudioDevices().then(setDevices).catch(() => {});
@@ -53,7 +70,7 @@ export default function VoiceSettings() {
     if (!testing) return undefined;
     let cancelled = false;
     setTestError(null);
-    startMicTest({ onLevel: setLevel })
+    startMicTest({ onLevel: setLevel, onGate: (db, open) => setGate({ db, open }) })
       .then((stop) => {
         if (cancelled) stop();
         else stopTest.current = stop;
@@ -68,6 +85,7 @@ export default function VoiceSettings() {
       cancelled = true;
       stopTest.current?.();
       stopTest.current = null;
+      setGate(null);
     };
   }, [testing, inputDeviceId, echoCancellation, noiseSuppression, autoGainControl, refreshDevices]);
 
@@ -160,6 +178,74 @@ export default function VoiceSettings() {
         </div>
       </div>
       {testError && <p className="error-text">{testError}</p>}
+
+      <h6 className="voice-settings-heading">Noise suppression</h6>
+      <div role="radiogroup" aria-label="Noise suppression">
+        {NOISE_MODES.map(([mode, label, hint]) => {
+          const unavailable = (mode === 'standard' && !suppressionAvailable)
+            || (mode === 'strong' && !strongAvailable);
+          return (
+            <label key={mode} className={`settings-toggle voice-settings-toggle${unavailable ? ' disabled' : ''}`}>
+              <input
+                type="radio" name="noise-suppression" value={mode}
+                checked={settings.noiseSuppression === mode}
+                disabled={unavailable}
+                onChange={() => setAudioSettings({ noiseSuppression: mode })}
+              />
+              <span>
+                {label}
+                <span className="vc-hint">
+                  {mode === 'strong' && !strongAvailable ? 'Only on computers, in an up-to-date browser.' : hint}
+                </span>
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      {settings.noiseSuppression === 'strong' && strongSlow && (
+        <p className="error-text">This computer can&apos;t keep up with Strong, so Standard is being used instead.</p>
+      )}
+
+      <h6 className="voice-settings-heading">Input sensitivity</h6>
+      <label className="settings-toggle voice-settings-toggle">
+        <input
+          type="checkbox" checked={settings.autoSensitivity}
+          onChange={(e) => setAudioSettings({ autoSensitivity: e.target.checked })}
+        />
+        <span>
+          Automatic
+          <span className="vc-hint">
+            Sends your voice only while you talk, so typing and clicks in between aren&apos;t heard.
+          </span>
+        </span>
+      </label>
+      {!settings.autoSensitivity && (
+        <div className="voice-sensitivity">
+          <input
+            type="range" min={ALWAYS_OPEN_DB} max="0" step="1"
+            aria-label="Input sensitivity"
+            value={settings.sensitivity}
+            onChange={(e) => setAudioSettings({ sensitivity: Number(e.target.value) })}
+          />
+          <div
+            className="voice-sensitivity-meter"
+            role="meter" aria-label="Level against input sensitivity" aria-valuemin={ALWAYS_OPEN_DB} aria-valuemax={0}
+            aria-valuenow={gate ? Math.round(gate.db) : ALWAYS_OPEN_DB}
+          >
+            <div
+              className={`voice-sensitivity-level${gate?.open ? ' open' : ''}`}
+              style={{ transform: `scaleX(${gate ? meterShare(gate.db) : 0})` }}
+            />
+            <div className="voice-sensitivity-mark" style={{ left: `${meterShare(settings.sensitivity) * 100}%` }} />
+          </div>
+          <p className="vc-hint">
+            {settings.sensitivity <= ALWAYS_OPEN_DB
+              ? 'Always sending.'
+              : `Sends sound louder than ${settings.sensitivity} dB.`}
+            {!testing && " Use Let's check to see your level against it."}
+          </p>
+        </div>
+      )}
 
       <h6 className="voice-settings-heading">Voice processing</h6>
       {PROCESSING.map(([key, label, hint]) => (

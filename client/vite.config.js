@@ -64,6 +64,11 @@ export default defineConfig(({ mode }) => {
         // The app links public/manifest.json itself (served as application/json; nginx has
         // no MIME type for .webmanifest), so don't generate a second manifest.
         manifest: false,
+        injectManifest: {
+          // DeepFilterNet (17 MB, "Strong" noise suppression) only downloads for those who
+          // choose it.
+          globIgnores: ['**/df_bg-*.wasm'],
+        },
         // Serve the real service worker from the dev server too, so push notifications can
         // be tested on test.voicaw.com (which runs `vite dev`).
         devOptions: {
