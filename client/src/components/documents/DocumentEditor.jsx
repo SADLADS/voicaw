@@ -266,7 +266,7 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
         <span className="doc-editor-status" role="status">
           {uploading > 0 ? 'Uploading image…' : saving ? 'Saving…' : ''}
         </span>
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => save()} disabled={saving || uploading > 0}>
+        <button type="button" className="btn btn-primary btn-sm vc-button" onClick={() => save()} disabled={saving || uploading > 0}>
           {document ? 'Save' : 'Publish'}
         </button>
       </div>
@@ -334,7 +334,7 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
               onChange={(e) => setLinkDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setLinkDraft(null); view?.focus(); } }}
             />
-            <button type="submit" className="btn btn-primary btn-sm">Add link</button>
+            <button type="submit" className="btn btn-primary btn-sm vc-button">Add link</button>
           </form>
         )}
         <input ref={fileRef} type="file" accept="image/*" multiple hidden aria-label="Image file" onChange={(e) => { addImages(e.target.files); e.target.value = ''; }} />

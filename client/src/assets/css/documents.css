@@ -111,15 +111,21 @@
   font-size: 0.85rem;
 }
 
-.document-card-reaction {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+/* Reactions sit above the card's open button, so they can be tapped (and an open picker
+   above the cards below). */
+.document-card-footer .document-reactions {
+  position: relative;
+  z-index: 2;
 }
 
-.document-card-reaction .emoji {
-  width: 16px;
-  height: 16px;
+.document-card-footer .document-reactions:has(.reaction-picker-anchor) {
+  z-index: 20;
+}
+
+.document-card-error {
+  position: relative;
+  z-index: 2;
+  margin: 6px 0 0;
 }
 
 .document-card-replies {
@@ -256,6 +262,20 @@
   margin-top: 28px;
   padding-top: 16px;
   border-top: 1px solid var(--vc-border-dark);
+}
+
+/* The add button is hidden until a chat message is hovered (dms.css); a document isn't one,
+   so it always shows on the page, and on a card while it's hovered or focused. */
+.document-reactions:not(.compact) .reaction-chip.reaction-add,
+.document-card:hover .reaction-chip.reaction-add,
+.document-card:focus-within .reaction-chip.reaction-add {
+  opacity: 1;
+}
+
+.document-reactions.compact {
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .document-reactions .message-reactions {
@@ -425,6 +445,7 @@ div.document-body .contains-task-list > li {
 
 div.document-body li > input[type="checkbox"] {
   margin-right: 0.5em;
+  accent-color: var(--vc-accent);
   vertical-align: middle;
 }
 
@@ -655,6 +676,7 @@ div.document-body .attachment-media {
 
 .doc-editor-check {
   flex: none;
+  accent-color: var(--vc-accent);
   cursor: pointer;
 }
 

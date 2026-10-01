@@ -122,7 +122,7 @@ node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertic
 node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
 node e2e/lists.mjs [dir]  # list channels: add, subtask, drag to nest/reorder, assign, due date, comments, read-only, phone
-node e2e/docs.mjs [dir]   # document channels: write (typed markdown, toolbar, checklist, table, cover), card live, react, reply thread, edit live, phone tabs
+node e2e/docs.mjs [dir]   # document channels: write (typed markdown, toolbar, checklist, table, cover), card live, react (page and card), reply thread, edit live, phone tabs
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
 node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>
 node e2e/video.mjs [dir]  # videos: only the poster before Play, streamed in pieces, seek reads nothing before it, download, keys, full screen, spoiler, phone (needs ffmpeg)

@@ -179,6 +179,8 @@ try {
   await a.waitForSelector('.document-reactions .reaction-chip:not(.mine)');
   await a.waitForSelector('.document-replies .dm-message-content:has-text("Thanks, very useful!")');
   await shot(a, 'document-with-reply');
+  // With a reaction there, the page still offers adding another (not only on hover).
+  if (await a.$eval('.document-page .document-reactions .reaction-add', (el) => getComputedStyle(el).opacity) !== '1') throw new Error('document + hidden');
   console.log('alice: reaction and reply live');
 
   // Alice edits; Bob's open page follows.
@@ -197,14 +199,35 @@ try {
   await a.waitForSelector('.document-card-replies:has-text("1 reply")');
   console.log('feed: 1 reply');
 
+  // Reacting from the card, without opening the document: Alice adds to Bob's 👍, then picks
+  // another; Bob's feed follows.
+  const docUrl = new URL(b.url());
+  await b.click('button[aria-label="All documents"]');
+  await b.waitForSelector('.document-card');
+  await a.click('.document-card .reaction-chip:not(.reaction-add):not(.mine)');
+  await a.waitForSelector('.document-card .reaction-chip.mine .reaction-count:has-text("2")');
+  // The add button shows while the card is hovered.
+  await a.hover('.document-card');
+  if (await a.$eval('.document-card .reaction-add', (el) => getComputedStyle(el).opacity) !== '1') throw new Error('card + hidden on hover');
+  await a.click('.document-card .reaction-add');
+  await a.fill('.emoji-picker input', 'heart');
+  await a.click('.emoji-picker-item >> nth=0');
+  await a.waitForFunction(() => document.querySelectorAll('.document-card .reaction-chip.mine').length === 2);
+  if (new URL(a.url()).searchParams.get('doc')) throw new Error('reacting on a card opened the document');
+  await b.waitForFunction(() => document.querySelectorAll('.document-card .reaction-chip:not(.reaction-add)').length === 2);
+  // New document is the app's accent colour, not Bootstrap's blue.
+  const newDocColor = await a.$eval('.document-feed-header .btn', (el) => getComputedStyle(el).backgroundColor);
+  if (newDocColor === 'rgb(13, 110, 253)') throw new Error('New document is Bootstrap blue');
+  await shot(a, 'feed-reactions');
+  console.log('feed: reacted from the card; bob\'s card followed');
+
   // A phone: tabs, nothing wider than the screen.
   const phone = await browser.newContext({ ...devices['Pixel 7'] });
   const p = await phone.newPage();
   p.on('pageerror', (e) => console.log('[phone] page error:', e.message));
   await p.goto(`${BASE}/`);
   await p.evaluate((token) => localStorage.setItem('token', token), await b.evaluate(() => localStorage.getItem('token')));
-  const url = new URL(b.url());
-  await p.goto(`${BASE}${url.pathname}${url.search}`);
+  await p.goto(`${BASE}${docUrl.pathname}${docUrl.search}`);
   await p.waitForSelector('.document-page h1.document-title');
   await imageShown(p, '.document-page-cover img');
   await noOverflow(p, 'phone document');

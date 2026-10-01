@@ -5,7 +5,7 @@ import { faChevronLeft, faComment, faFaceSmile, faPen, faPlus, faTrash } from '@
 import '../../assets/css/documents.css';
 import ChatPane from '../ChatPane';
 import EmojiPicker from '../EmojiPicker';
-import MessageReactions, { ReactionEmoji } from '../MessageReactions';
+import MessageReactions from '../MessageReactions';
 import { DocumentMarkdown } from '../MessageList';
 import Avatar from '../Avatar';
 import ConfirmDialog from '../guild/ConfirmDialog';
@@ -20,7 +20,6 @@ import { displayName, useProfiles } from '../../utils/profiles';
 import { formatDate, formatDateTime, useDateFormat } from '../../utils/dateFormat';
 import { reactionPickerPosition } from '../../utils/reactionPickerPosition';
 import { getKeyboardHeight } from '../../utils/keyboardHeight';
-import { groupReactions } from '../../utils/reactions';
 import { errorMessage } from '../../utils/guildDisplay';
 
 // The editor (ProseMirror, tables, markdown) is only loaded once someone writes.
@@ -49,10 +48,13 @@ function Byline({ document, nameColors }) {
 }
 
 // A document in the feed: its cover (if any), title, who wrote it, how it starts, reactions
-// and replies. The whole card opens it.
-function DocumentCard({ document, nameColors, onOpen }) {
+// (which can be toggled and added from here) and replies. The rest of the card opens it.
+function DocumentCard({ document, user, reactionNames, canReact, isMobile, nameColors, onOpen, onToggle }) {
   const excerpt = useMemo(() => documentExcerpt(document.content_start), [document.content_start]);
-  const reactions = groupReactions(document.reactions);
+  const [reactError, setReactError] = useState(null);
+  const toggle = (emoji) => onToggle(document, emoji)
+    .then(() => setReactError(null))
+    .catch((err) => setReactError(errorMessage(err)));
   return (
     <article className={`document-card${document.cover ? ' has-cover' : ''}`}>
       <button type="button" className="document-card-open" aria-label={`Open ${document.title}`} onClick={onOpen} />
@@ -61,11 +63,17 @@ function DocumentCard({ document, nameColors, onOpen }) {
         <h3 className="document-card-title">{document.title}</h3>
         <Byline document={document} nameColors={nameColors} />
         {excerpt && <p className="document-card-excerpt">{excerpt}</p>}
-        {(reactions.length > 0 || document.reply_count > 0) && (
+        {(document.reactions.length > 0 || document.reply_count > 0 || canReact) && (
           <div className="document-card-footer">
-            {reactions.slice(0, 6).map(({ emoji, userIds }) => (
-              <span key={emoji} className="document-card-reaction"><ReactionEmoji native={emoji} /> {userIds.length}</span>
-            ))}
+            <DocumentReactions
+              compact
+              document={document}
+              user={user}
+              reactionNames={reactionNames}
+              canReact={canReact}
+              isMobile={isMobile}
+              onToggle={toggle}
+            />
             {document.reply_count > 0 && (
               <span className="document-card-replies">
                 <FontAwesomeIcon icon={faComment} /> {document.reply_count} {document.reply_count === 1 ? 'reply' : 'replies'}
@@ -73,13 +81,16 @@ function DocumentCard({ document, nameColors, onOpen }) {
             )}
           </div>
         )}
+        {reactError && <p className="error-msg document-card-error" role="alert">{reactError}</p>}
       </div>
     </article>
   );
 }
 
-function DocumentFeed({ channel, feed, canCreate, nameColors, onOpen, onNew }) {
-  const { documents, loaded, error } = feed;
+function DocumentFeed({ channel, feed, user, reactionNames, isMobile, canCreate, nameColors, onOpen, onNew }) {
+  const { documents, loaded, error, apply } = feed;
+  const canReact = has(channel.my_permissions, PERMISSIONS.ADD_REACTIONS);
+  const toggle = (document, emoji) => toggleDocumentReaction(document, user.id, emoji, apply);
   return (
     <div className="document-feed">
       <div className="document-feed-inner">
@@ -89,7 +100,7 @@ function DocumentFeed({ channel, feed, canCreate, nameColors, onOpen, onNew }) {
             {channel.topic && <p className="vc-hint">{channel.topic}</p>}
           </div>
           {canCreate && (
-            <button type="button" className="btn btn-primary btn-sm" onClick={onNew}>
+            <button type="button" className="btn btn-primary btn-sm vc-button" onClick={onNew}>
               <FontAwesomeIcon icon={faPlus} /> New document
             </button>
           )}
@@ -101,7 +112,19 @@ function DocumentFeed({ channel, feed, canCreate, nameColors, onOpen, onNew }) {
           </p>
         )}
         <div className="document-cards">
-          {documents.map((d) => <DocumentCard key={d.id} document={d} nameColors={nameColors} onOpen={() => onOpen(d.id)} />)}
+          {documents.map((d) => (
+            <DocumentCard
+              key={d.id}
+              document={d}
+              user={user}
+              reactionNames={reactionNames}
+              canReact={canReact}
+              isMobile={isMobile}
+              nameColors={nameColors}
+              onOpen={() => onOpen(d.id)}
+              onToggle={toggle}
+            />
+          ))}
         </div>
       </div>
     </div>
@@ -109,8 +132,9 @@ function DocumentFeed({ channel, feed, canCreate, nameColors, onOpen, onNew }) {
 }
 
 // Reactions under a document: its chips, and a button for the picker (floating on a
-// computer, docked in the keyboard's place on a phone).
-function DocumentReactions({ document, user, reactionNames, canReact, isMobile, onToggle }) {
+// computer, docked in the keyboard's place on a phone). `compact` (a feed card): no rule
+// above, and the button is just the smiley.
+function DocumentReactions({ document, user, reactionNames, canReact, isMobile, onToggle, compact = false }) {
   const [pickerRect, setPickerRect] = useState(null);
   const open = (anchor) => setPickerRect(anchor.getBoundingClientRect());
   const close = () => setPickerRect(null);
@@ -120,7 +144,7 @@ function DocumentReactions({ document, user, reactionNames, canReact, isMobile, 
   };
   const hasAny = document.reactions.length > 0;
   return (
-    <div className="document-reactions">
+    <div className={`document-reactions${compact ? ' compact' : ''}`}>
       <MessageReactions
         reactions={document.reactions}
         userId={user.id}
@@ -132,10 +156,12 @@ function DocumentReactions({ document, user, reactionNames, canReact, isMobile, 
         <button
           type="button"
           className="reaction-chip reaction-add document-react"
+          aria-label={compact ? 'Add reaction' : undefined}
+          title={compact ? 'Add reaction' : undefined}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => open(e.currentTarget)}
         >
-          <FontAwesomeIcon icon={faFaceSmile} /> React
+          <FontAwesomeIcon icon={faFaceSmile} />{!compact && ' React'}
         </button>
       )}
       {pickerRect && !isMobile && (() => {
@@ -347,6 +373,9 @@ export default function DocChannelView({ guild, channel, user, isMobile, nameCol
     <DocumentFeed
       channel={channel}
       feed={feed}
+      user={user}
+      reactionNames={chatProps.reactionNames}
+      isMobile={isMobile}
       canCreate={canCreate}
       nameColors={nameColors}
       onOpen={(id) => go(id)}
