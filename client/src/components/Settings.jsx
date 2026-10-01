@@ -7,6 +7,7 @@ import { InteractionContext, LayoutContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
 import AccountSecuritySettings from "./AccountSecuritySettings";
+import DeleteAccountSettings from "./DeleteAccountSettings";
 import AdminSettings from "./AdminSettings";
 import DateTimeSettings from "./DateTimeSettings";
 import SpellcheckSettings from "./SpellcheckSettings";
@@ -69,6 +70,11 @@ export default function Settings({ onLogout }) {
           </div>
         </div>
       ),
+    },
+    {
+      id: 'delete-account', category: 'account', title: 'Delete account',
+      keywords: 'delete remove close account erase leave',
+      content: <DeleteAccountSettings onDeleted={onLogout} />,
     },
     {
       id: 'interaction-mode', category: 'app', title: 'Interaction mode',

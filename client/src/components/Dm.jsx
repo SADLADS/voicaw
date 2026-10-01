@@ -18,7 +18,7 @@ import { addReaction, removeReaction } from '../services/dmService';
 import { encryptReaction, reactionContext } from '../services/encryptionService';
 import { usePresence } from '../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../utils/presence';
-import { nameOf, useProfiles } from '../utils/profiles';
+import { isDeleted, nameOf, useProfiles } from '../utils/profiles';
 
 // The "Verified / Not verified" badge and safety number dialog. Hidden for now: too confusing
 // for most people. The keys are still pinned and a changed key still blocks the chat.
@@ -49,6 +49,7 @@ export default function Dm({ user }) {
   };
   const profilesVersion = useProfiles();
   const chatName = chatUser ? nameOf(chatUser) : null;
+  const deleted = isDeleted(chatUser);
   const reactionNames = useMemo(
     () => ({ [user?.id]: nameOf(user), [chatUser?.id]: nameOf(chatUser) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,7 +89,7 @@ export default function Dm({ user }) {
                 {lastSeenText(presence.lastOnline) ?? statusLabel('offline')}
               </span>
             )}
-            {voiceEnabled && chatUser && sharedKey && !keyBlocked && (
+            {voiceEnabled && chatUser && sharedKey && !keyBlocked && !deleted && (
               <button
                 type="button"
                 className="chat-call-button"
@@ -154,6 +155,8 @@ export default function Dm({ user }) {
               people={people}
               pinsAnchor={pinsAnchor}
               onClosePins={closePins}
+              canSend={!deleted}
+              cantSendText="This account has been deleted. You can still read your conversation."
             />
           )}
         </>

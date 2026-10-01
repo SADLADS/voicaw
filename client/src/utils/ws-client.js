@@ -14,6 +14,7 @@ const guildListeners = new Set();
 const callListeners = new Set();
 const groupListeners = new Set();
 const notificationListeners = new Set();
+const accountDeletedListeners = new Set();
 let reconnectTimeout = null;
 
 // This client's own connection: 'connecting' | 'online' | 'offline' (logged out, or the
@@ -158,6 +159,9 @@ export function connectWebSocket() {
       else if (data.type === 'notification') {
         notificationListeners.forEach((cb) => cb(data.payload));
       }
+      else if (data.type === 'account_deleted') {
+        accountDeletedListeners.forEach((cb) => cb());
+      }
       else if (data.type === 'user_profile') {
         mergeProfiles([data.user]);
       }
@@ -273,6 +277,12 @@ export function onGuildEvent(callback) {
 export function onCallEvent(callback) {
   callListeners.add(callback);
   return () => callListeners.delete(callback);
+}
+
+// This account was deleted (on another device): time to log out.
+export function onAccountDeleted(callback) {
+  accountDeletedListeners.add(callback);
+  return () => accountDeletedListeners.delete(callback);
 }
 
 // Group DM events: `group_dm_add` / `_update` ({ group, entry? }), `_remove` ({ groupId }),

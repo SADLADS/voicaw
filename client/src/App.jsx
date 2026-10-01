@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { HashRouter, BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { ConfigContext, InteractionContext } from './contexts';
@@ -16,7 +16,7 @@ import api from './utils/api';
 import './assets/css/mobile.css';
 import './assets/css/desktop.css';
 
-import { closeWebSocket } from './utils/ws-client';
+import { closeWebSocket, onAccountDeleted } from './utils/ws-client';
 import { leaveVoice } from './voice/voiceClient';
 import { hangUp } from './voice/callClient';
 import { clearUserKeys } from './services/keyStore';
@@ -60,6 +60,10 @@ export default function App() {
 
   const [interactionMode, setInteractionMode] = useState("auto");
   const [isMobile, setIsMobile] = useState(false);
+  const logoutRef = useRef(null);
+
+  // The account was deleted on another device: this one logs out too.
+  useEffect(() => onAccountDeleted(() => logoutRef.current?.()), []);
 
   useEffect(() => {
     // Fetch server config once at app start
@@ -128,6 +132,7 @@ export default function App() {
     closeWebSocket();
     setUser(null);
   }
+  logoutRef.current = handleLogout;
 
   // A page opened from a file (no server to answer every route) needs hash URLs; the desktop
   // app serves real paths (electron/protocol.js).

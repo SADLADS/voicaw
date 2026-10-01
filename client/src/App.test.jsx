@@ -11,8 +11,13 @@ vi.mock('./utils/api', () => ({
   default: { get: vi.fn() },
 }));
 
+const accountDeleted = vi.hoisted(() => ({ listener: null }));
 vi.mock('./utils/ws-client', () => ({
   closeWebSocket: vi.fn(),
+  onAccountDeleted: vi.fn((cb) => {
+    accountDeleted.listener = cb;
+    return () => {};
+  }),
 }));
 
 vi.mock('./services/keyStore', () => ({
@@ -130,6 +135,20 @@ describe('App routing', () => {
     expect(closeWebSocket).toHaveBeenCalled();
     expect(localStorage.getItem('token')).toBeNull();
     expect(clearUserKeys).toHaveBeenCalled();
+  });
+
+  it('logs out when the account is deleted on another device', async () => {
+    const setUser = vi.fn();
+    useAuth.mockReturnValue({ user: { id: 1, username: 'alice' }, setUser, loading: false });
+    setPath('/dm');
+    localStorage.setItem('token', 'jwt-abc');
+
+    render(<App />);
+    await waitFor(() => expect(accountDeleted.listener).toBeTruthy());
+    accountDeleted.listener();
+
+    await waitFor(() => expect(setUser).toHaveBeenCalledWith(null));
+    expect(localStorage.getItem('token')).toBeNull();
   });
 });
 

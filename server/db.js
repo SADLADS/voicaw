@@ -442,6 +442,8 @@ addColumn('ALTER TABLE users ADD COLUMN avatar TEXT');
 // The name an account's OPAQUE record was registered under, when it isn't its (lower-case)
 // username: see usernames.js.
 addColumn('ALTER TABLE users ADD COLUMN opaque_id TEXT');
+// When the account was deleted (unix s; accounts.js), else NULL. The row stays as a tombstone.
+addColumn('ALTER TABLE users ADD COLUMN deleted_at INTEGER');
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS app_settings (
   key TEXT PRIMARY KEY,

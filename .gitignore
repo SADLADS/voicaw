@@ -141,6 +141,9 @@ server/sessions.sqlite
 server/*.db
 server/*.db-wal
 server/*.db-shm
+/*.db
+/*.db-wal
+/*.db-shm
 
 # Host-specific npm settings (e.g. build_from_source=sqlite3 on old glibc)
 .npmrc

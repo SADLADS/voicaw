@@ -51,18 +51,21 @@ function sendToConversation(message, event) {
   if (message.recipient_id !== message.sender_id) sendToUserSockets(message.recipient_id, event);
 }
 
-// Everyone else (not your notes, a DM to yourself), most recent conversation first, with their public keys, status and last seen.
+// Everyone else (not your notes, a DM to yourself), most recent conversation first, with their
+// public keys, status and last seen. Deleted accounts only when you had a conversation with
+// them (`deleted_at` set: it can be read, not answered).
 router.get('/dms-list', authenticateJWT, async (req, res) => {
   const me = req.user.id;
   const users = await db.all(
     `SELECT u.id, u.username, u.display_name, u.custom_status, u.bio, u.avatar,
-            u.identity_key, u.encryption_key, u.encryption_key_signature, u.last_online,
+            u.identity_key, u.encryption_key, u.encryption_key_signature, u.last_online, u.deleted_at,
             MAX(m.timestamp) AS last_timestamp
      FROM users u
      LEFT JOIN direct_messages m
        ON ((m.sender_id = ? AND m.recipient_id = u.id) OR (m.recipient_id = ? AND m.sender_id = u.id))
      WHERE u.id != ?
      GROUP BY u.id
+     HAVING u.deleted_at IS NULL OR last_timestamp IS NOT NULL
      ORDER BY last_timestamp DESC NULLS LAST`,
     [me, me, me]
   );
@@ -107,7 +110,7 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
   if (!Number.isInteger(recipientId)) {
     return res.status(400).json({ error: 'Invalid recipient' });
   }
-  if (!(await db.get('SELECT id FROM users WHERE id = ?', [recipientId]))) {
+  if (!(await db.get('SELECT id FROM users WHERE id = ? AND deleted_at IS NULL', [recipientId]))) {
     return res.status(404).json({ error: 'Recipient not found' });
   }
 

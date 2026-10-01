@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import UserAvatar from '../voice/UserAvatar';
-import { nameOf, useProfiles } from '../../utils/profiles';
+import { isDeleted, nameOf, useProfiles } from '../../utils/profiles';
 
 // A searchable list of people to tick (new group, adding members). `users`: rows from the DM
-// list; `selected`: Set of ids; `max`: how many may be ticked.
+// list (deleted accounts left out); `selected`: Set of ids; `max`: how many may be ticked.
 export default function UserPicker({ users, selected, onChange, max }) {
   useProfiles();
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
-  const shown = users.filter((u) => u.username.toLowerCase().includes(q) || nameOf(u).toLowerCase().includes(q));
+  const shown = users.filter((u) => !isDeleted(u)).filter((u) => u.username.toLowerCase().includes(q) || nameOf(u).toLowerCase().includes(q));
   const toggle = (id) => {
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);

@@ -204,15 +204,7 @@ router.post('/group-dms/:groupId/log', member, handle(async (req, res) => {
     await calls.leaveGroupCall(groupId, r.type === 'add' ? null : r.target);
   }
   const stored = { seq: r.seq, record: entry.record, signature: entry.signature };
-  for (const userId of new Set([...before, ...state.members])) {
-    if (!state.members.has(userId)) {
-      sendToUserSockets(userId, { type: 'group_dm_remove', groupId });
-    } else if (!before.has(userId)) {
-      sendToUserSockets(userId, { type: 'group_dm_add', group: await groups.groupSummary(groupId, userId) });
-    } else {
-      sendToUserSockets(userId, { type: 'group_dm_update', group: await groups.groupSummary(groupId, userId), entry: stored });
-    }
-  }
+  await groups.announceEntry(state, before, stored);
   if (state.latestEpoch && epoch && state.latestEpoch.epoch === epoch.epoch) {
     await announceEpoch(groupId, state.latestEpoch);
   }

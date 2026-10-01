@@ -209,6 +209,12 @@ export async function changeMembership(me, groupId, type, user = null) {
   throw new Error('The group keeps changing; try again.');
 }
 
+// A signed `leave` entry for the group as it is now (deleting the account sends one per group).
+export async function leaveEntry(me, groupId) {
+  const group = await openGroup(me, groupId);
+  return signedEntry({ groupId, seq: group.log.nextSeq, prev: group.log.prevHash, type: 'leave', actor: me.id, target: me.id });
+}
+
 // After a "key changed" warning: trust their new key (like accepting it in a DM).
 export async function acceptChangedKeys(me, users) {
   for (const user of users) await acceptContactKeys(me.id, user);
