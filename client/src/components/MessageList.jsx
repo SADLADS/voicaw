@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
+import { useNavigate } from 'react-router-dom';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import rehypeHighlight from 'rehype-highlight';
@@ -28,7 +29,10 @@ import ProfilePopover from './ProfilePopover';
 import Avatar from './Avatar';
 import { formatDateTime, formatTime, useDateFormat } from '../utils/dateFormat';
 import { parsePoll, pollEnded } from '../utils/pollMarkup';
-import { mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
+import { UNKNOWN_CHANNEL, mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
+import { ChannelMentionContext } from '../contexts';
+import ChannelIcon from './guild/ChannelIcon';
+import { showContent } from '../utils/mobilePanes';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
 // is a new component type to React, which remounts (and reloads) every attachment on any
@@ -60,6 +64,38 @@ function Spoiler({ children }) {
   );
 }
 
+// A channel mention (`<#id>`): its icon and current name; clicking opens it. One not known yet
+// opens the rest of your guilds (ChannelMentionContext); still unknown (you can't see it, or it's
+// gone), it's `#unknown-channel` and does nothing.
+function ChannelMention({ id }) {
+  const directory = useContext(ChannelMentionContext);
+  const navigate = useNavigate();
+  const channel = directory?.channels[id];
+  const loadAll = directory?.loadAll;
+  useEffect(() => {
+    if (!channel) loadAll?.();
+  }, [channel, loadAll]);
+  if (!channel) {
+    return <span className="mention channel-mention unknown"><ChannelIcon className="channel-mention-icon" />{UNKNOWN_CHANNEL}</span>;
+  }
+  const open = (e) => {
+    e.stopPropagation();
+    showContent();
+    navigate(`/guild/${channel.guildId}/${channel.id}`);
+  };
+  return (
+    <span
+      className="mention channel-mention"
+      role="link"
+      tabIndex={0}
+      onClick={open}
+      onKeyDown={(e) => { if (e.key === 'Enter') open(e); }}
+    >
+      <ChannelIcon channel={channel} className="channel-mention-icon" />{channel.name}
+    </span>
+  );
+}
+
 // A mention (from rehypeMentions): `@name`, highlighted more when it's you; a role in its colour;
 // @everyone/@here as a mention only if the message pinged them (else plain text).
 // Spoilers (remarkDiscord) are drawn by Spoiler. Other spans (code highlighting) only have a class.
@@ -69,6 +105,8 @@ function MarkdownSpan({ className, children, ...rest }) {
   const id = rest['data-mention-id'];
   const roleId = rest['data-role-mention-id'];
   const everyone = rest['data-mention-everyone'];
+  const channelId = rest['data-channel-mention-id'];
+  if (channelId != null) return <ChannelMention id={channelId} />;
   if (id != null) {
     const me = String(mentions?.meId) === id;
     return <span className={`mention${me ? ' mention-me' : ''}`}>@{mentionName(mentions?.names, id)}</span>;
@@ -244,6 +282,7 @@ export function MessageRow({
     [reactionNames, mentionRoles, user.id, myRoleIds, msg.mention_everyone]
   );
   const mentionsMe = isForMe(msg, user.id, myRoleIds);
+  const mentionChannels = useContext(ChannelMentionContext)?.channels;
   const poll = useMemo(() => parsePoll(msg.plaintext), [msg.plaintext]);
 
 
@@ -287,7 +326,7 @@ export function MessageRow({
             }}
           >
             {/* One line (CSS cuts it with "…" where it runs out of room); the start is plenty. */}
-            {mentionsToText(customEmojiToText(hideSpoilers(summarizeAttachments(parent.plaintext))), reactionNames, mentionRoles)
+            {mentionsToText(customEmojiToText(hideSpoilers(summarizeAttachments(parent.plaintext))), reactionNames, mentionRoles, mentionChannels)
               ?.replace(/\s+/g, ' ').trim().slice(0, 300) || "…"}
           </span>
         </div>

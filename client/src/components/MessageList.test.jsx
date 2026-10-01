@@ -9,6 +9,8 @@ vi.mock('../services/attachmentCache', () => ({
 }));
 
 import MessageList from './MessageList';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { ChannelMentionContext } from '../contexts';
 import { clearProfiles, mergeProfiles } from '../utils/profiles';
 import { editorFor } from '../editor/editorRegistry';
 import emojiData from '@emoji-mart/data/sets/15/twitter.json';
@@ -130,6 +132,26 @@ describe('MessageList', () => {
     const quiet = screen.getByText(/nope/);
     expect(quiet.querySelector('.mention')).toBeNull();
     expect(quiet.closest('.each-dm-message-wrapper')).not.toHaveClass('mentioned');
+  });
+
+  it('draws channel mentions as links to the channel, and asks for the rest of the guilds when one is unknown', () => {
+    const messages = [{ id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'see <#5> or <#6>', timestamp: 1000 }];
+    const loadAll = vi.fn();
+    const channels = { 5: { id: 5, guildId: 9, name: 'general', type: 'text', private: false } };
+    function Where() {
+      return <span data-testid="where">{useLocation().pathname}</span>;
+    }
+    render(
+      <MemoryRouter initialEntries={['/dm/2']}>
+        <ChannelMentionContext.Provider value={{ channels, loadAll }}>
+          <Routes><Route path="*" element={<><MessageList {...baseProps({ messages })} /><Where /></>} /></Routes>
+        </ChannelMentionContext.Provider>
+      </MemoryRouter>
+    );
+    expect(screen.getByText('unknown-channel')).toHaveClass('mention', 'channel-mention', 'unknown');
+    expect(loadAll).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('link', { name: /general/ }));
+    expect(screen.getByTestId('where')).toHaveTextContent('/guild/9/5');
   });
 
   it('marks messages from the current user as sent and others as received', () => {

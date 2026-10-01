@@ -1771,6 +1771,30 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   background-color: color-mix(in srgb, var(--role-color) 18%, transparent);
 }
 
+/* A channel mention (`<#id>`): its icon and name, a link to it (underlined on hover). */
+.mention.channel-mention:not(.editor-mention) {
+  cursor: pointer;
+}
+
+.mention.channel-mention:not(.unknown, .editor-mention):hover,
+.mention.channel-mention:focus-visible {
+  text-decoration: underline;
+}
+
+.mention.channel-mention.unknown {
+  cursor: default;
+  color: var(--vc-fg-muted);
+}
+
+.channel-mention-icon {
+  margin-right: 2px;
+  font-size: 0.85em;
+}
+
+.channel-mention-icon .channel-icon-lock {
+  display: none;
+}
+
 .mention-suggestion-at {
   width: 22px;
   text-align: center;

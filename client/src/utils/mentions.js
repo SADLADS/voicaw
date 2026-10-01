@@ -1,6 +1,7 @@
 import { nameOf } from './profiles';
 
 // Mentions, written like Discord's in message text: `<@id>` (a person), `<@&id>` (a guild role),
+// `<#id>` (a guild channel: anywhere, DMs too; a link to it, notifying nobody),
 // and `@everyone` / `@here` (in a guild, everyone who can see the channel / those of them
 // online; only with Mention Everyone, else plain text). Only ids are stored, so a name is
 // always the current one, looked up when drawn: `names` ({ id: username }) for people, `roles`
@@ -10,13 +11,17 @@ import { nameOf } from './profiles';
 // Fresh global regexes each call (they're stateful).
 export const mentionPattern = () => /<@(\d+)>/g;
 export const roleMentionPattern = () => /<@&(\d+)>/g;
+export const channelMentionPattern = () => /<#(\d+)>/g;
 
 export const mentionText = (id) => `<@${id}>`;
 export const roleMentionText = (id) => `<@&${id}>`;
+export const channelMentionText = (id) => `<#${id}>`;
 
-// Someone who isn't in the chat (any more), a role that's gone.
+// Someone who isn't in the chat (any more), a role that's gone, a channel you can't see (or
+// that's gone).
 export const UNKNOWN_MENTION = 'unknown-user';
 export const UNKNOWN_ROLE = 'deleted-role';
+export const UNKNOWN_CHANNEL = 'unknown-channel';
 
 export function mentionName(names, id) {
   return names?.[id] ?? UNKNOWN_MENTION;
@@ -26,11 +31,16 @@ export function roleName(roles, id) {
   return roles?.[id]?.name ?? UNKNOWN_ROLE;
 }
 
+export function channelName(channels, id) {
+  return channels?.[id]?.name ?? UNKNOWN_CHANNEL;
+}
+
 // For plain-text places (reply previews, notifications, copying): `<@id>` → `@name`,
-// `<@&id>` → `@role`.
-export function mentionsToText(text, names, roles) {
+// `<@&id>` → `@role`, `<#id>` → `#channel` (`channels`: { id: { name } }).
+export function mentionsToText(text, names, roles, channels) {
   if (text == null) return text;
   return String(text)
+    .replace(channelMentionPattern(), (_, id) => `#${channelName(channels, id)}`)
     .replace(roleMentionPattern(), (_, id) => `@${roleName(roles, id)}`)
     .replace(mentionPattern(), (_, id) => `@${mentionName(names, id)}`);
 }
@@ -93,4 +103,17 @@ export function searchMentions({ people = [], roles = [], everyone = false }, qu
   // Keep room for the roles and @everyone/@here when there are many people.
   const others = [...matchingRoles.slice(0, 3), ...mass];
   return [...users.slice(0, Math.max(limit - others.length, 5)), ...others].slice(0, limit);
+}
+
+// Channels ([{ id, name, type }], in the guild's order) matching what's been typed after "#",
+// best first: names starting with it, then containing it; the guild's order within each. An
+// empty query gives them all (up to `limit`).
+export function searchChannels(channels, query, limit = 10) {
+  const q = query.toLowerCase();
+  return channels
+    .map((c, i) => [rank(c.name, q), i, c])
+    .filter(([r]) => r >= 0)
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1])
+    .slice(0, limit)
+    .map(([, , c]) => ({ kind: 'channel', id: c.id, name: c.name, type: c.type, private: Boolean(c.private), category: c.category ?? null }));
 }

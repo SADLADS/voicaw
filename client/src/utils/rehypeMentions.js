@@ -1,16 +1,18 @@
 // Rehype plugin (for react-markdown): marks mentions in message text so MessageList can draw
 // them with current names (the plugin needn't know names, and stays the same object):
 // `<@id>` → <span class="mention" data-mention-id>, `<@&id>` → <span data-role-mention-id>,
+// `<#id>` → <span data-channel-mention-id>,
 // `@everyone` / `@here` → <span data-mention-everyone> (drawn as a mention only if the message
 // really pinged them). Code stays as typed.
 const SKIP = new Set(['code', 'pre']);
 
-// A person, a role, or @everyone/@here (not inside a word or an address).
-const MENTION_RE = /<@(\d+)>|<@&(\d+)>|(^|[^\w@])@(everyone|here)\b/g;
+// A person, a role, @everyone/@here (not inside a word or an address), or a channel.
+const MENTION_RE = /<@(\d+)>|<@&(\d+)>|(^|[^\w@])@(everyone|here)\b|<#(\d+)>/g;
 
 function mentionNode(m) {
   if (m[1]) return { dataMentionId: m[1] };
   if (m[2]) return { dataRoleMentionId: m[2] };
+  if (m[5]) return { dataChannelMentionId: m[5] };
   return { dataMentionEveryone: m[4] };
 }
 

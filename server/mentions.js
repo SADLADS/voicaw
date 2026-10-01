@@ -3,7 +3,7 @@ const { s3Endpoint } = require('./config');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('./sockets');
 const { sendPushToUser, getUserImageUrl } = require('./push');
 const { PERMISSIONS, has, channelPermissions } = require('./permissions');
-const { getAllMembers, getOverrides } = require('./guilds');
+const { getAllMembers, getOverrides, getChannelViewers } = require('./guilds');
 const { pollPreview } = require('./polls');
 
 // Mentions in guild messages, and the pushes they (and plain messages) cause.
@@ -88,9 +88,10 @@ async function saveMentions(message, channel, permissions, allowed) {
   return { mentioned: found.userIds, viewers };
 }
 
-// The message as notification text: mentions by name, custom emoji as :name:, attachments as
+// The message as notification text: mentions by name (channels `channelNames` gives, { id: name }:
+// those the reader can see; others are #unknown-channel, as in the app), custom emoji as :name:, attachments as
 // their names (their links carry keys; spoilers just "spoiler"), spoilers hidden, cut to MAX_PREVIEW_LENGTH.
-async function previewText(content, guildId) {
+async function previewText(content, guildId, channelNames = {}) {
   const userIds = [...String(content).matchAll(/<@(\d+)>/g)].map((m) => Number(m[1]));
   const users = userIds.length
     ? await db.all(`SELECT id, username, display_name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`, userIds)
@@ -105,8 +106,21 @@ async function previewText(content, guildId) {
     .replace(/\|\|(?!\|)([\s\S]+?)\|\|/g, '[spoiler]')
     .replace(/<@&(\d+)>/g, (_, id) => `@${roleName.get(Number(id)) ?? 'deleted-role'}`)
     .replace(/<@(\d+)>/g, (_, id) => `@${userName.get(Number(id)) ?? 'unknown-user'}`)
+    .replace(/<#(\d+)>/g, (_, id) => `#${channelNames[id] ?? 'unknown-channel'}`)
     .trim();
   return text.length > MAX_PREVIEW_LENGTH ? `${text.slice(0, MAX_PREVIEW_LENGTH - 1)}…` : text;
+}
+
+// The guild's channels that `content` mentions (`<#id>`), with who can see each:
+// [{ id, name, viewers: Set of user ids }].
+async function mentionedChannels(content, guildId) {
+  const ids = [...new Set([...String(content).matchAll(/<#(\d+)>/g)].map((m) => Number(m[1])))];
+  const found = [];
+  for (const id of ids) {
+    const channel = await db.get('SELECT id, guild_id, name FROM guild_channels WHERE id = ? AND guild_id = ?', [id, guildId]);
+    if (channel) found.push({ id, name: channel.name, viewers: new Set(await getChannelViewers(channel)) });
+  }
+  return found;
 }
 
 // What a push says for a message with no text (a webhook's embeds or files only).
@@ -138,10 +152,17 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }, { sile
   if (!recipients.length || silent) return;
 
   const guild = await db.get('SELECT name FROM guilds WHERE id = ?', [channel.guild_id]);
+  // Channel mentions are named only for those who can see that channel, so the text can differ.
+  const channels = await mentionedChannels(message.content, channel.guild_id);
+  const bodyFor = async (userId) => (await previewText(
+    message.content,
+    channel.guild_id,
+    Object.fromEntries(channels.filter((c) => c.viewers.has(userId)).map((c) => [c.id, c.name]))
+  )) || fallbackPreview(message);
+  const sharedBody = channels.length ? null : await bodyFor(null);
   const payload = {
     type: 'guild',
     title: `${message.sender_display_name || message.sender_username} (#${channel.name}, ${guild.name})`,
-    body: (await previewText(message.content, channel.guild_id)) || fallbackPreview(message),
     url: `/guild/${channel.guild_id}/${channel.id}`,
     tag: `channel-${channel.id}`,
     // A webhook's own picture (ours, never another site's), else the sender's.
@@ -151,7 +172,8 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }, { sile
     timestamp: message.timestamp,
   };
   for (const userId of recipients) {
-    sendPushToUser(userId, payload, { urgency: 'high', topic: `channel${channel.id}` }).catch(() => {});
+    const body = sharedBody ?? await bodyFor(userId);
+    sendPushToUser(userId, { ...payload, body }, { urgency: 'high', topic: `channel${channel.id}` }).catch(() => {});
   }
 }
 

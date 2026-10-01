@@ -6,7 +6,7 @@ import MessageActionSheet from './MessageActionSheet';
 import ConfirmDialog from './guild/ConfirmDialog';
 import PinnedMessages from './PinnedMessages';
 import PollDialog from './PollDialog';
-import { ConfigContext, InteractionContext } from '../contexts';
+import { ChannelMentionContext, ConfigContext, InteractionContext } from '../contexts';
 import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
 import { useReactions } from '../hooks/useReactions';
 import { summarizeAttachments } from '../utils/attachmentMarkup';
@@ -33,7 +33,8 @@ import { endPollOnServer, registerPollTimer } from '../services/pollService';
 // ([{ id, username }]) are who can be mentioned ("@name" suggestions). In a guild,
 // `mentionRoles` ({ roleId: { name, color } }) draws role mentions, `myRoleIds` are yours,
 // `suggestRoles` ([{ id, name, color }]) the roles you may mention, and `canMentionEveryone`
-// adds @everyone and @here. `canPin` lets you pin and unpin (always in DMs and groups; Pin
+// adds @everyone and @here; `channels` ([{ id, name, type, private, category }]) are the
+// channels "#name" suggests. `canPin` lets you pin and unpin (always in DMs and groups; Pin
 // Messages in a channel). `pinsAnchor` (the header pin button's rect, or null) opens the
 // pinned messages list; `onClosePins` closes it. `pollKind` ('dm', 'group' or 'guild') is
 // the chat's kind for the server's poll timers (pollService). `jumpTo` ({ messageId }, a new object each
@@ -52,6 +53,7 @@ export default function ChatPane({
   myRoleIds,
   suggestRoles,
   canMentionEveryone = false,
+  channels,
   canModerate = false,
   canSend = true,
   cantSendText = "You don't have permission to send messages here.",
@@ -68,6 +70,7 @@ export default function ChatPane({
 }) {
   const { s3Endpoint, maxPlaintextLength } = useContext(ConfigContext);
   const { isMobile } = useContext(InteractionContext);
+  const mentionChannels = useContext(ChannelMentionContext)?.channels;
   const { messages } = conversation;
 
   const inputRef = useRef(null);
@@ -127,7 +130,7 @@ export default function ChatPane({
 // `@name`.
   async function copyMessage(msg) {
     try {
-      await navigator.clipboard.writeText(mentionsToText(customEmojiToText(summarizeAttachments(msg.plaintext)), reactionNames, mentionRoles));
+      await navigator.clipboard.writeText(mentionsToText(customEmojiToText(summarizeAttachments(msg.plaintext)), reactionNames, mentionRoles, mentionChannels));
     } catch (err) {
       console.error('Copy failed', err);
       setComposerError("Couldn't copy the message.");
@@ -345,6 +348,7 @@ export default function ChatPane({
         roles={suggestRoles}
         roleInfo={mentionRoles}
         canMentionEveryone={canMentionEveryone}
+        channels={channels}
       />}
 
       {confirmingDelete && (
@@ -359,7 +363,7 @@ export default function ChatPane({
           <div className="delete-preview">
             <strong style={{ color: nameColors?.[confirmingDelete.sender_id] }}>{displayName(confirmingDelete.sender_id, confirmingDelete.sender_username)}</strong>
             <span>
-              {mentionsToText(customEmojiToText(hideSpoilers(summarizeAttachments(confirmingDelete.plaintext ?? ''))), reactionNames, mentionRoles)}
+              {mentionsToText(customEmojiToText(hideSpoilers(summarizeAttachments(confirmingDelete.plaintext ?? ''))), reactionNames, mentionRoles, mentionChannels)}
             </span>
           </div>
           <p className="vc-hint">Tip: hold Shift when you click delete to skip this.</p>

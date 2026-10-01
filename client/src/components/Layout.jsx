@@ -12,7 +12,7 @@ import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';
 import 'highlight.js/styles/atom-one-dark.css';
-import { ConfigContext, InteractionContext, LayoutContext } from '../contexts';
+import { ChannelMentionContext, ConfigContext, InteractionContext, LayoutContext } from '../contexts';
 import { ensureSubscription, getPushStatus } from '../services/pushService';
 import { useGuildList } from '../hooks/useGuildList';
 import { useGroupList } from '../hooks/useGroupList';
@@ -76,6 +76,25 @@ export default function Layout({ user, onLogout }) {
       .filter((g) => g.emojis.length > 0);
     return { guilds, byId: new Map(guilds.flatMap((g) => g.emojis.map((e) => [String(e.id), e]))) };
   }, [guildList.guilds, guildList.emojis]);
+  // Channels for `<#id>` mentions (ChannelMentionContext).
+  const { layouts, guilds: guildSummaries, loaded: guildsLoaded, loadGuild } = guildList;
+  const loadedAllGuilds = useRef(false);
+  const loadAllGuilds = useCallback(() => {
+    if (loadedAllGuilds.current || !guildsLoaded) return;
+    loadedAllGuilds.current = true;
+    for (const g of guildSummaries) {
+      if (!layouts[g.id]) loadGuild(g.id).catch(() => {});
+    }
+  }, [guildsLoaded, guildSummaries, layouts, loadGuild]);
+  const channelMentions = useMemo(() => {
+    const channels = {};
+    for (const guild of Object.values(layouts)) {
+      for (const c of guild.channels ?? []) {
+        channels[c.id] = { id: c.id, guildId: guild.id, name: c.name, type: c.type, private: Boolean(c.private) };
+      }
+    }
+    return { channels, loadAll: loadAllGuilds };
+  }, [layouts, loadAllGuilds]);
 
   // Everyone's profile (and yours) for names everywhere (utils/profiles), once per login; the
   // users list is fetched again on DM pages below.
@@ -170,6 +189,7 @@ export default function Layout({ user, onLogout }) {
       settingsNavSlot: settingsColumn ? settingsNavSlot : null,
     }}>
     <CustomEmojiContext.Provider value={customEmoji}>
+    <ChannelMentionContext.Provider value={channelMentions}>
       <div ref={wrapperRef} className={`${slidey ? `slidey pane-${pane}` : ''} main-wrapper d-flex`}>
         {/* The user panel (and the voice bar above it, while in voice) sits under the
             conversation or channel list, or Settings' column (not on e.g. an invite page). */}
@@ -200,6 +220,7 @@ export default function Layout({ user, onLogout }) {
           <Outlet />
         </div>
       </div>
+    </ChannelMentionContext.Provider>
     </CustomEmojiContext.Provider>
     </LayoutContext.Provider>
   );

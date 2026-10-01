@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import React, { forwardRef, useContext, useEffect, useImperativeHandle, useRef } from 'react';
 import { EditorState, Plugin, TextSelection } from 'prosemirror-state';
 import { Decoration, DecorationSet, EditorView } from 'prosemirror-view';
 import { keymap } from 'prosemirror-keymap';
@@ -10,6 +10,7 @@ import { OBJECT_CHAR, docToText, schema, textBeforeCaret, textToDoc, textToSlice
 import { markdownPreview } from './markdownPreview';
 import { registerEditor } from './editorRegistry';
 import { userLocale } from '../utils/locale';
+import { ChannelMentionContext } from '../contexts';
 
 
 // The message box: a small ProseMirror editor whose value is message text (see messageDoc),
@@ -24,14 +25,15 @@ import { userLocale } from '../utils/locale';
 // - maxLength: edits that would make the text longer are refused.
 // - onPasteFiles(files): pasted files. Dropped files are left to the page (Composer).
 // - mentionNames ({ id: username }) and mentionRoles ({ id: { name, color } }): who `<@id>` and
-//   `<@&id>` in initial or pasted text are.
+//   `<@&id>` in initial or pasted text are (`<#id>` channels come from ChannelMentionContext).
 // - onFocus / onBlur, placeholder, id, ariaLabel, className, initialText, autoFocus.
 //
 // The ref gives: focus(), blur(), isComposing(), getText(), setText(text), clear(), insertText(text,
 // { focus }), insertAttachments([{ id, name }]), insertCustomEmoji({ id, name, url }),
 // replaceBeforeCaret(count, text, { focus }), replaceBeforeCaretWithCustomEmoji(count, emoji),
 // replaceBeforeCaretWithMention(count, { id, name }), replaceBeforeCaretWithRoleMention(count,
-// { id, name, color }), removeAttachment(id), and element.
+// { id, name, color }), replaceBeforeCaretWithChannelMention(count, { id, name }),
+// removeAttachment(id), and element.
 // The document's markdown as decorations: a class on each styled line, and on each styled
 // stretch of text (see markdownPreview; chips and custom emoji count as one character, as they
 // take one position).
@@ -56,10 +58,13 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
   const viewRef = useRef(null);
   const propsRef = useRef(props);
   propsRef.current = props;
+  const channelsRef = useRef(null);
+  channelsRef.current = useContext(ChannelMentionContext)?.channels;
   // How text becomes the document: mentions get the names given.
   const parseOptions = () => ({
     resolveMention: (id) => propsRef.current.mentionNames?.[id],
     resolveRole: (id) => propsRef.current.mentionRoles?.[id],
+    resolveChannel: (id) => channelsRef.current?.[id],
   });
 
   useEffect(() => {
@@ -259,6 +264,15 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
           const { from } = state.selection;
           const start = Math.max(from - count, state.selection.$from.start());
           const node = schema.nodes.roleMention.create({ id: String(role.id), name: role.name, color: role.color ?? null });
+          return tr.replaceWith(start, from, Fragment.from([node, schema.text(' ')]));
+        }, options);
+      },
+      // The same for a channel ({ id, name }).
+      replaceBeforeCaretWithChannelMention(count, channel, options) {
+        run((tr, state) => {
+          const { from } = state.selection;
+          const start = Math.max(from - count, state.selection.$from.start());
+          const node = schema.nodes.channelMention.create({ id: String(channel.id), name: channel.name });
           return tr.replaceWith(start, from, Fragment.from([node, schema.text(' ')]));
         }, options);
       },

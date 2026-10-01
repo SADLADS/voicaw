@@ -69,4 +69,12 @@ describe('messageDoc mentions', () => {
     expect(roles).toEqual([{ id: '4', name: 'Mods', color: '#e91e63' }]);
     expect(docToText(doc)).toBe('<@&4> go');
   });
+
+  it('turns channel mentions of known channels into #name nodes and back', () => {
+    const doc = textToDoc('see <#5> and <#6>', { resolveChannel: (id) => ({ 5: { name: 'general' } })[id] });
+    const channels = [];
+    doc.descendants((n) => { if (n.type === schema.nodes.channelMention) channels.push(n.attrs); });
+    expect(channels).toEqual([{ id: '5', name: 'general' }]);
+    expect(docToText(doc)).toBe('see <#5> and <#6>');
+  });
 });

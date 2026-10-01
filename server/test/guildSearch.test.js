@@ -50,11 +50,11 @@ const upload = (name, type) => `![${name}](https://media.example/uploads/abc.bin
 
 describe('what gets indexed', () => {
   it('keeps names and words, not links, keys or mention ids', () => {
-    const text = searchText({ content: `hello <@12> <@&3> <:party_parrot:99> ${upload('holiday.png', 'image/png')} ![GIF](https://static.klipy.com/x.webp#gif&w=1&h=1)` });
+    const text = searchText({ content: `hello <@12> <@&3> <#45> <:party_parrot:99> ${upload('holiday.png', 'image/png')} ![GIF](https://static.klipy.com/x.webp#gif&w=1&h=1)` });
     expect(text).toContain('hello');
     expect(text).toContain('party_parrot');
     expect(text).toContain('holiday.png');
-    expect(text).not.toMatch(/secretkey|klipy|12|GIF/);
+    expect(text).not.toMatch(/secretkey|klipy|12|45|GIF/);
     expect(searchText({ content: 'poll:v1:{"q":"Lunch?","multi":false,"o":[{"id":"aaaaaaaa","t":"Pizza"}]}' })).toBe('Lunch?\nPizza');
     expect(searchText({ content: '', embeds: JSON.stringify([{ title: 'Build', fields: [{ name: 'Status', value: 'green' }] }]), attachments: JSON.stringify([{ filename: 'log.txt' }]) }))
       .toBe('Build\nStatus\ngreen\nlog.txt');

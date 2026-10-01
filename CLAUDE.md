@@ -106,6 +106,7 @@ node e2e/notes.mjs [dir]  # notes: row under the header, send, pin, reload, not 
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
 node e2e/spoilers.mjs [dir] # spoiler images: mark in tray, blurred for both, tap/click reveals, reply preview
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
+node e2e/channel-mentions.mjs [dir] # # suggestions, #channel links (click opens), private = unknown, edit, DM, phone
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
 node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show), Join Guild, phone
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
@@ -1127,6 +1128,20 @@ in a DM, everyone in a group's log, a guild's members; anyone else `@unknown-use
   copying, DM push previews: the push carries `recipientName` for that).
 - DMs and group DMs push every message already; mentioning someone there adds no notification
   (the server can't see it).
+- **Channel mentions** `<#id>` (Discord's form): a link to a guild channel, notifying nobody;
+  usable anywhere (DMs and groups too, inside the encryption). In a guild channel, typing `#`
+  lists the channels you can see (`searchChannels`, the channel list's order with each one's
+  category; `GuildView` → `ChatPane` `channels` → `Composer`), and picking puts a
+  `channelMention` node (`#name`) in the editor. Names come from `ChannelMentionContext`
+  (`contexts.js`, provided by `Layout`): every channel in the guild layouts opened so far.
+  `MessageList`'s `ChannelMention` draws the icon and current name; clicking navigates to
+  `/guild/<guild>/<channel>`. One not known yet calls `loadAll()`, which opens all your other
+  guilds' layouts once (never a request about that one channel, so an encrypted message's
+  channel isn't revealed); still unknown (can't see it, deleted, not your guild) it's
+  `#unknown-channel`. Plain-text places pass the channels to `mentionsToText`; the service
+  worker has none, so DM push previews say `#unknown-channel`. Guild pushes name a channel only
+  for recipients who can see it (`mentionedChannels`, so the body can differ per person); search
+  doesn't index the ids.
 
 ### Pinned messages
 

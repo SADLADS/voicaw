@@ -163,6 +163,17 @@ export default function GuildView({ user }) {
       .map((r) => ({ id: r.id, name: r.name, color: r.color != null ? colorToHex(r.color) : null })),
     [roles, canMentionEveryone]
   );
+  // Channels "#name" suggests: those you can see, in the channel list's order, with their category.
+  const layoutChannels = guild?.channels;
+  const layoutCategories = guild?.categories;
+  const mentionChannels = useMemo(() => {
+    const all = layoutChannels ?? [];
+    const withCategory = (c, category) => ({ id: c.id, name: c.name, type: c.type, private: c.private, category: category?.name ?? null });
+    return [
+      ...all.filter((c) => c.category_id == null).map((c) => withCategory(c, null)),
+      ...(layoutCategories ?? []).flatMap((cat) => all.filter((c) => c.category_id === cat.id).map((c) => withCategory(c, cat))),
+    ];
+  }, [layoutChannels, layoutCategories]);
   const nameColors = useMemo(
     () => Object.fromEntries(members.map((m) => [m.id, memberColor(roles, m.role_ids)]).filter(([, c]) => c)),
     [members, roles]
@@ -273,6 +284,7 @@ export default function GuildView({ user }) {
               myRoleIds={guild.my_role_ids}
               suggestRoles={suggestRoles}
               canMentionEveryone={canMentionEveryone}
+              channels={mentionChannels}
               canModerate={has(permissions, PERMISSIONS.MANAGE_MESSAGES)}
               canSend={has(permissions, PERMISSIONS.SEND_MESSAGES)}
               cantSendText={`You do not have permission to send messages in #${channel.name}.`}
