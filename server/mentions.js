@@ -5,7 +5,7 @@ const { sendPushToUser, getUserImageUrl } = require('./push');
 const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 const { getAllMembers, getOverrides, getChannelViewers } = require('./guilds');
 const { pollPreview } = require('./polls');
-const { mutedUserIds } = require('./channelMutes');
+const { mutedUserIds, channelLevels } = require('./channelMutes');
 
 // Mentions in guild messages, and the pushes they (and plain messages) cause.
 // In the text: `<@userId>`, `<@&roleId>`, `@everyone` (everyone who can see the channel) and
@@ -134,7 +134,8 @@ function fallbackPreview(message) {
 
 // After a new message: tells the people mentioned (`guild_mention`, for their unread mention
 // counts) and pushes to every viewer whose notification level wants it ('all': every message;
-// 'mentions': when mentioned), unless they're looking at the channel or have muted it (then
+// 'mentions': when mentioned; their own level for the channel, if they set one, else the
+// guild's), unless they're looking at the channel or have muted it (then
 // only when mentioned, like Discord; channelMutes.js). `silent` (a webhook's
 // "suppress notifications" flag, like Discord's): no pushes, the counts still go up.
 async function notifyNewMessage(message, channel, { mentioned, viewers }, { silent = false } = {}) {
@@ -146,9 +147,10 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }, { sile
     [channel.guild_id]
   )).map((r) => [r.user_id, r.notify_level]));
   const muted = await mutedUserIds(channel.id);
+  const ownLevels = await channelLevels(channel.id);
   const recipients = [...viewers.keys()].filter((userId) => {
     if (userId === message.sender_id) return false;
-    const level = levels.get(userId) ?? 'mentions';
+    const level = ownLevels.get(userId) ?? levels.get(userId) ?? 'mentions';
     const wants = mentioned.has(userId) ? level !== 'none' : level === 'all' && !muted.has(userId);
     if (!wants) return false;
     return !isViewingConversation(userId, `channel-${channel.id}`);

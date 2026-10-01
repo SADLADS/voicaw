@@ -113,6 +113,7 @@ node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, co
 node e2e/spoilers.mjs [dir] # spoiler images: mark in tray, blurred for both, tap/click reveals, reply preview
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
 node e2e/mutes.mjs [dir]  # muted channels: right-click mute, dimmed, no unread (mentions still count), header bell unmutes, phone
+node e2e/channelmenu.mjs [dir] # channel/category menus: read, mute, notify level, copy link, duplicate, delete, keys, edge; phone hold = sheet, hold+move = drag
 node e2e/channel-mentions.mjs [dir] # # suggestions, #channel links (click opens), private = unknown, edit, DM, phone
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
 node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show), Join Guild, phone
@@ -196,7 +197,7 @@ unexpected errors. The rest:
   List channels); `routes/guildTasks.js` has their routes.
 - `guildDocuments.js`: document channels' documents (rows, limits, cleanup; see Document
   channels); `routes/guildDocuments.js` has their routes.
-- `channelMutes.js`: each member's muted channels (see Mentions).
+- `channelMutes.js`: each member's muted channels and own channel notification levels (see Mentions).
 - `auditLog.js`: a guild's audit log (`logAudit`, `readAuditLog`; see Guilds); `routes/auditLog.js`.
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).
@@ -413,7 +414,8 @@ out; see Deleting an account), `message_sound` (play the Message sound; see Soun
 webhook's edit also carries `embeds`, `attachments`, `flags`),
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
 `guild_order` (your guild rail order, to your other devices), `guild_channel_mute` (you muted or
-unmuted a channel, to your other devices; see Mentions), `guild_voice_state` (someone
+unmuted a channel, to your other devices; see Mentions), `guild_channel_notify` (you set a
+channel's notification level, to your other devices), `guild_voice_state` (someone
 joined, left or (un)muted in a voice channel), `guild_mention` (only to whoever a new message
 mentions, for their red counts), `guild_task_upsert` / `_delete` / `guild_tasks_move` /
 `guild_task_comment_new` / `_edit` / `_delete` (to whoever can see the list channel) and
@@ -649,9 +651,25 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   PNG/GIF/WebP/JPEG/AVIF, names 2–32 of `[A-Za-z0-9_]`, unique per guild. Manage Emoji (`MANAGE_EMOJIS`) adds, renames and deletes; members of a guild can use
   its emoji anywhere. The client keeps them in `useGuildList` (`emojis`), and `Layout` provides
   `CustomEmojiContext` (`emoji/customEmojiContext.js`: by guild in rail order, and by id).
+- **Channel and category menus** (like Discord's): right-click a channel or category in the
+  channel list, or touch and hold on a phone (where there are no cog buttons: the menu is the
+  only way in). `guild/ContextMenu.jsx` draws one: floating with submenus beside it on a
+  computer (hover, click or arrow keys), a bottom sheet on a phone (a submenu replaces it, with
+  Back). `ChannelMenu`: Mark As Read (`POST /channels/:id/read { latest: true }`), Mute Channel
+  ▸ / Unmute, Notification Settings ▸ (see Mentions), Copy Link (`channelLink`: this site's
+  address, voicaw.com from the desktop app), and with Manage Channels Edit, Duplicate
+  (`CloneChannelDialog`) and Delete; voice channels only the last four. `CategoryMenu`: Mark
+  As Read, Collapse/Expand, Edit, Create Channel, Delete. On a phone the long press shares the
+  touch with dragging (`usePointerDrag` `onLongPress`): hold and lift opens the menu, hold and
+  move drags (with Manage Channels).
+- **Duplicating a channel** (Discord's Clone Channel): `POST /guilds/:id/channels/:c/clone
+  { name? }` (Manage Channels) makes a channel just below it with the same type, topic,
+  category and overrides, none of its content; copying overrides needs Manage Roles, and every
+  bit they allow or deny must be one you have in the guild. Logged as `channel_create` with
+  `clonedFrom`.
 - **Not done yet:** category-level permissions (overrides are per channel), server folders in the
-  rail, search dates (see Guild search), per-channel notification levels (only muting, see
-  Mentions), muting a category or a whole guild, a list of your recent mentions. Voice: see
+  rail, search dates (see Guild search), muting a category or a whole guild, a list of your
+  recent mentions. Voice: see
   Voice channels.
 
 ### List channels (tasks)
@@ -1455,8 +1473,14 @@ in a DM, everyone in a group's log, a guild's members; anyone else `@unknown-use
   `/guild-unread` still counts it (the client hides it: `useGuildList` `mutes`, `isMuted`,
   `activeUnread`, dropping a mute when it runs out). Leaving the guild or deleting the
   channel deletes the mute. Client: `guild/ChannelMuteMenu.jsx`, from the bell in the channel
-  header (crossed out and red while muted) or a right-click on a channel; muted channels are
+  header (crossed out and red while muted), or the channel menu (see Guilds); muted channels are
   dimmed with a crossed-out bell. Assignment pushes (list channels) aren't muted.
+- **Channel notification levels** (Discord's per-channel Notification Settings;
+  `guild_channel_notify`: member, channel, level): your own 'all' / 'mentions' / 'none' for one
+  channel, overriding your guild level for its messages (`notifyNewMessage`); no row means the
+  guild's. `PUT /channels/:id/notifications { level | null }`, `GET /channel-notifications`
+  (`useGuildList` `channelLevels`). A mute still wins over 'all'. Set from the channel menu;
+  leaving the guild or deleting the channel deletes it.
 - DMs and group DMs push every message already; mentioning someone there adds no notification
   (the server can't see it).
 - **Channel mentions** `<#id>` (Discord's form): a link to a guild channel, notifying nobody;

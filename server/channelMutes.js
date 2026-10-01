@@ -52,4 +52,47 @@ async function mutedUserIds(channelId) {
   return new Set(rows.map((r) => r.user_id));
 }
 
-module.exports = { MAX_MUTE_SECONDS, parseDuration, listMutes, setMute, mutedUserIds };
+// Each member's own notification level for a channel ('all', 'mentions', 'none'), overriding
+// their guild's (guild_members.notify_level) for that channel's messages, like Discord's
+// per-channel Notification Settings. Muting still wins over 'all' (mentions get through).
+const CHANNEL_NOTIFY_LEVELS = ['all', 'mentions', 'none'];
+
+// `userId`'s channel levels: [{ channel_id, guild_id, level }].
+async function listChannelLevels(userId) {
+  return db.all(
+    `SELECT n.channel_id, c.guild_id, n.level FROM guild_channel_notify n
+     JOIN guild_channels c ON c.id = n.channel_id WHERE n.user_id = ? ORDER BY n.channel_id`,
+    [userId]
+  );
+}
+
+// Sets `userId`'s level for the channel, or with null goes back to the guild's.
+async function setChannelLevel(userId, channelId, level) {
+  if (level == null) {
+    await db.run('DELETE FROM guild_channel_notify WHERE user_id = ? AND channel_id = ?', [userId, channelId]);
+    return;
+  }
+  await db.run(
+    `INSERT INTO guild_channel_notify (user_id, channel_id, level) VALUES (?, ?, ?)
+     ON CONFLICT(user_id, channel_id) DO UPDATE SET level = excluded.level`,
+    [userId, channelId, level]
+  );
+}
+
+// Everyone's level for the channel: Map(userId -> level), only those who set one.
+async function channelLevels(channelId) {
+  const rows = await db.all('SELECT user_id, level FROM guild_channel_notify WHERE channel_id = ?', [channelId]);
+  return new Map(rows.map((r) => [r.user_id, r.level]));
+}
+
+module.exports = {
+  MAX_MUTE_SECONDS,
+  parseDuration,
+  listMutes,
+  setMute,
+  mutedUserIds,
+  CHANNEL_NOTIFY_LEVELS,
+  listChannelLevels,
+  setChannelLevel,
+  channelLevels,
+};

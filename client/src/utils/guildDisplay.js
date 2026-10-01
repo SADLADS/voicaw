@@ -51,9 +51,20 @@ export function rememberChannel(guildId, channelId) {
   }
 }
 
+// Where links to share point: this site, or voicaw.com from the desktop app (whose own
+// voicaw://app address only opens inside it).
+export function shareOrigin() {
+  return /^https?:$/.test(window.location.protocol) ? window.location.origin : 'https://voicaw.com';
+}
+
 // The link to share for an invite code.
 export function inviteLink(code) {
-  return `${window.location.origin}/invite/${code}`;
+  return `${shareOrigin()}/invite/${code}`;
+}
+
+// The link to a guild channel (Copy Link in the channel menu).
+export function channelLink(guildId, channelId) {
+  return `${shareOrigin()}/guild/${guildId}/${channelId}`;
 }
 
 // The invite code in something pasted: a whole link or just the code.

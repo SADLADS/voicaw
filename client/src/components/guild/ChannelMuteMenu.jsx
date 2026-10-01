@@ -5,30 +5,14 @@ import { faBell, faBellSlash } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../../contexts';
 import { muteChannel, unmuteChannel } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
-import { formatDateTime, formatTime, useDateFormat } from '../../utils/dateFormat';
+import { useDateFormat } from '../../utils/dateFormat';
+import { MUTE_DURATIONS, mutedUntilText } from '../../utils/channelMutes';
 
 const MARGIN = 8;
 
-// Discord's choices.
-const DURATIONS = [
-  ['For 15 minutes', 15 * 60],
-  ['For 1 hour', 60 * 60],
-  ['For 3 hours', 3 * 60 * 60],
-  ['For 8 hours', 8 * 60 * 60],
-  ['For 24 hours', 24 * 60 * 60],
-  ['Until I turn it back on', null],
-];
-
-// When a mute ends, in words: "Muted until 16:37" (another day: with the date).
-function mutedUntilText(until) {
-  if (until == null) return 'Muted until you unmute it';
-  const end = new Date(until * 1000);
-  return `Muted until ${end.toDateString() === new Date().toDateString() ? formatTime(end) : formatDateTime(end)}`;
-}
-
 // Mute or unmute a channel (your own setting, like Discord's): a menu floating by `anchor` (a
-// rect: the header's bell button, or where the channel list was right-clicked; `align` 'end'
-// lines its right edge up with the anchor's), kept on screen; closes on a pick, a click
+// rect: the channel header's bell button; `align` 'end' lines its right edge up with the
+// anchor's; the channel list's menu, ChannelMenu, has the same choices), kept on screen; closes on a pick, a click
 // elsewhere or Escape. A muted channel isn't marked unread and doesn't notify, except when
 // someone mentions you.
 export default function ChannelMuteMenu({ channel, anchor, align = 'start', onClose }) {
@@ -83,7 +67,7 @@ export default function ChannelMuteMenu({ channel, anchor, align = 'start', onCl
       ) : (
         <>
           <p className="channel-mute-title"><FontAwesomeIcon icon={faBellSlash} /> Mute Channel</p>
-          {DURATIONS.map(([label, duration]) => (
+          {MUTE_DURATIONS.map(([label, duration]) => (
             <button
               key={label}
               type="button"

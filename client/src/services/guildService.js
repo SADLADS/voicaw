@@ -124,6 +124,11 @@ export async function updateChannel(guildId, channelId, changes) {
   return (await api.patch(`/guilds/${guildId}/channels/${channelId}`, changes)).data;
 }
 
+// A copy of a channel (type, topic, category, permissions; none of its content), just below it.
+export async function cloneChannel(guildId, channelId, name) {
+  return (await api.post(`/guilds/${guildId}/channels/${channelId}/clone`, { name })).data;
+}
+
 export async function deleteChannel(guildId, channelId) {
   await api.delete(`/guilds/${guildId}/channels/${channelId}`);
 }
@@ -166,6 +171,11 @@ export async function markChannelRead(channelId, messageId) {
   await api.post(`/channels/${channelId}/read`, { messageId });
 }
 
+// Marks a channel read up to its newest message (Mark As Read).
+export async function markChannelReadToLatest(channelId) {
+  await api.post(`/channels/${channelId}/read`, { latest: true });
+}
+
 // Moves a channel into `categoryId` (null: no category), before channel `beforeId` or at the
 // end of it.
 export async function moveChannel(guildId, channelId, { categoryId, beforeId }) {
@@ -199,6 +209,16 @@ export async function muteChannel(channelId, duration = null) {
 
 export async function unmuteChannel(channelId) {
   return (await api.delete(`/channels/${channelId}/mute`)).data;
+}
+
+// Your own notification levels for channels: [{ channel_id, guild_id, level }].
+export async function fetchChannelNotifications() {
+  return (await api.get('/channel-notifications')).data;
+}
+
+// Your notification level for one channel: 'all', 'mentions', 'none', or null for the guild's.
+export async function setChannelNotifications(channelId, level) {
+  return (await api.put(`/channels/${channelId}/notifications`, { level })).data;
 }
 
 // [{ channel_id, guild_id, count, mentions }] for channels with unread messages (`mentions`:

@@ -483,6 +483,64 @@ router.post('/guilds/:guildId/channels', manageChannels, async (req, res) => {
   ));
 });
 
+// A copy of a channel you can see (Discord's Clone Channel): same type, topic, category and
+// permission overrides, just below it, named `name` (default: the same name). Nothing in it
+// is copied (messages, tasks, documents, webhooks). Copying overrides needs Manage Roles, and
+// every permission they allow or deny must be one you have in the guild (as for roles), so a
+// read-only channel can be copied by someone who can't send there.
+router.post('/guilds/:guildId/channels/:channelId/clone', manageChannels, async (req, res) => {
+  const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
+  if (!access || access.channel.guild_id !== req.guild.id || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) {
+    return res.status(404).json({ error: 'Channel not found' });
+  }
+  const source = access.channel;
+  const name = req.body?.name === undefined ? source.name : normalizeChannelName(req.body.name);
+  if (!name) return res.status(400).json({ error: 'Channel names are 1–100 characters' });
+  const overrides = await db.all(
+    'SELECT target_type, target_id, allow, deny FROM guild_channel_overrides WHERE channel_id = ?',
+    [source.id]
+  );
+  if (overrides.length) {
+    if (!has(req.member.permissions, PERMISSIONS.MANAGE_ROLES)) {
+      return res.status(403).json({ error: 'Copying a channel\'s permissions needs Manage Roles' });
+    }
+    const bits = overrides.reduce((all, o) => all | o.allow | o.deny, 0);
+    if ((bits & ~req.member.permissions) !== 0) {
+      return res.status(403).json({ error: "This channel's permissions include some you don't have" });
+    }
+  }
+
+  const id = await db.transaction(async () => {
+    await db.run(
+      'UPDATE guild_channels SET position = position + 1 WHERE guild_id = ? AND position > ?',
+      [req.guild.id, source.position]
+    );
+    const { lastID } = await db.run(
+      'INSERT INTO guild_channels (guild_id, category_id, name, type, topic, position) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.guild.id, source.category_id, name, source.type, source.topic, source.position + 1]
+    );
+    for (const o of overrides) {
+      await db.run(
+        'INSERT INTO guild_channel_overrides (channel_id, target_type, target_id, allow, deny) VALUES (?, ?, ?, ?, ?)',
+        [lastID, o.target_type, o.target_id, o.allow, o.deny]
+      );
+    }
+    await audit(req, {
+      action: 'channel_create',
+      targetType: 'channel',
+      targetId: lastID,
+      channelId: lastID,
+      details: { name, type: source.type, clonedFrom: source.name },
+    });
+    return lastID;
+  });
+  await announceGuildUpdate(req.guild.id);
+  res.status(201).json(await db.get(
+    'SELECT id, category_id, name, type, topic, position FROM guild_channels WHERE id = ?',
+    [id]
+  ));
+});
+
 // Rename, change the topic, or move to another category.
 router.patch('/guilds/:guildId/channels/:channelId', manageChannels, async (req, res) => {
   const channel = await findChannel(req);
