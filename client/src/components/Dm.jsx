@@ -73,10 +73,12 @@ export default function Dm({ user }) {
   // A changed or invalid contact key blocks the conversation until resolved.
   const keyBlocked = keyStatus === 'changed' || keyStatus === 'invalid';
 
+  const prompts = <><RecoveryPrompt user={user} /><NotificationPrompt /></>;
+
   return (
     <div id="dm-main" data-current-user-id={user?.id} data-other-user-id={chatUser?.id}>
-      <RecoveryPrompt user={user} />
-      <NotificationPrompt />
+      {/* Banners go under the header (when there is one), so it lines up with the list's. */}
+      {!id && prompts}
       {errorUsers && <p className="error-text">Error loading users: {errorUsers}</p>}
       {users.length === 0 && !errorUsers && !id && <p>No recent conversations found.</p>}
 
@@ -124,6 +126,7 @@ export default function Dm({ user }) {
               </button>
             )}
           </h4>
+          {prompts}
 
           {showSafetyNumber && (
             <SafetyNumberDialog

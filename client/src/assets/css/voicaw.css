@@ -40,6 +40,14 @@
   /* Placeholder text in form fields. */
   --vc-placeholder: var(--vc-border-light);
 
+  /* Sizes shared by every page, so they line up from page to page. The header along the top of
+     a sidebar and of the page beside it (guild name and channel name, Direct Messages and the
+     chat, Settings), borders included. The width of the column beside the rail (DM list,
+     channel list, Settings' sections) on a computer: Layout sets it from what you dragged it to
+     (utils/sidebarWidth.js). */
+  --vc-header-height: 50px;
+  --vc-sidebar-width: 260px;
+
   color-scheme: dark;
 }
 
@@ -427,8 +435,34 @@ pre code {
   background: var(--box);
 }
 
-.settings-header{
-  padding: 0.5rem
+.settings-header {
+  margin: 0;
+  padding: 0.5rem;
+}
+
+/* On a computer, Settings' title is a header like the other pages' (the nav's padding is
+   12px), and each category's title is as tall, so the first one's line meets it. */
+body:not(.mobile-mode) .settings-header {
+  display: flex;
+  align-items: center;
+  height: var(--vc-header-height);
+  margin: 0 -12px 12px;
+  padding: 0 16px;
+  border-top: 1px solid var(--vc-border-light);
+  border-bottom: 1px solid var(--vc-border-light);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+body:not(.mobile-mode) .settings-content {
+  border-top: 1px solid var(--vc-border-light);
+}
+
+body:not(.mobile-mode) .settings-category-title {
+  display: flex;
+  align-items: flex-end;
+  height: calc(var(--vc-header-height) - 2px);
+  padding-top: 0;
 }
 
 .settings-toggle {
@@ -597,7 +631,7 @@ pre code {
 }
 
 .settings-nav {
-  flex: 0 0 240px;
+  flex: 0 0 var(--vc-sidebar-width);
   overflow-y: auto;
   padding: 0 12px 1rem;
   border-right: 1px solid var(--vc-border-dark);
@@ -805,10 +839,52 @@ body.mobile-mode .settings-nav-item {
 /* The left side: the icon column and (on DM pages) the conversation list side by side, with
    the user panel across the bottom. */
 .sidebar-wrapper {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100svh;
   background-color: var(--vc-bg-base);
+}
+
+/* SidebarResizer: the column's right edge (computer only). A strip a few pixels wide over the
+   edge, showing a line on hover, while dragging and when focused. */
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  z-index: 30;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.sidebar-resizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 2px;
+  background-color: transparent;
+  transition: background-color 0.15s;
+}
+
+.sidebar-resizer:hover::after,
+.sidebar-resizer:focus-visible::after,
+body.sidebar-resizing .sidebar-resizer::after {
+  background-color: var(--vc-accent);
+}
+
+.sidebar-resizer:focus {
+  outline: none;
+}
+
+/* While dragging, the pointer stays a resize arrow over anything, and nothing gets selected. */
+body.sidebar-resizing,
+body.sidebar-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 .sidebar-columns {
@@ -1157,7 +1233,7 @@ html {
 }
 
 .settings-nav-slot .settings-nav {
-  flex: 0 0 240px;
+  flex: 0 0 var(--vc-sidebar-width);
   background-color: var(--vc-bg-base);
 }
 

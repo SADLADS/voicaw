@@ -66,7 +66,7 @@ img.guild-icon {
 
 .guild-sidebar {
   position: relative;
-  width: 260px;
+  width: var(--vc-sidebar-width);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -97,7 +97,7 @@ img.guild-icon {
   align-items: center;
   gap: 8px;
   width: 100%;
-  height: 48px;
+  height: calc(var(--vc-header-height) - 2px);
   padding: 0 16px;
   border: 0;
   background: transparent;
@@ -542,7 +542,7 @@ img.guild-icon {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 49px;
+  height: var(--vc-header-height);
   padding: 0 12px 0 16px;
   border-top: 1px solid var(--vc-border-light);
   border-bottom: 1px solid var(--vc-border-light);
