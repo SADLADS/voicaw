@@ -61,6 +61,19 @@ export function formatDate(value, { date = settings.date } = {}) {
   }
 }
 
+// The date in words, for the day dividers in chats: 11 September 2026, or September 11, 2026
+// for month first (the browser's way when automatic; 2026-09-11 when that's chosen).
+export function formatLongDate(value, { date = settings.date } = {}) {
+  const d = toDate(value);
+  const month = d.toLocaleDateString(userLocale(), { month: 'long' });
+  switch (date) {
+    case 'dmy': return `${d.getDate()} ${month} ${d.getFullYear()}`;
+    case 'mdy': return `${month} ${d.getDate()}, ${d.getFullYear()}`;
+    case 'ymd': return formatDate(d, { date });
+    default: return d.toLocaleDateString(userLocale(), { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+}
+
 // The time alone: 4:37 PM or 16:37 (or the browser's way), with seconds if asked.
 export function formatTime(value, { seconds = false, time = settings.time } = {}) {
   const options = { hour: 'numeric', minute: '2-digit', ...(seconds ? { second: '2-digit' } : {}) };

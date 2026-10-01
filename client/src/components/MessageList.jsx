@@ -23,11 +23,11 @@ import { rehypeTwemoji } from '../emoji/rehypeTwemoji';
 import { customEmojiToText } from '../emoji/customEmoji';
 import { rehypeMentions } from '../utils/rehypeMentions';
 import { hideSpoilers, remarkDiscord } from '../utils/remarkDiscord';
-import { continuesGroup } from '../utils/messageGroups';
+import { continuesGroup, rowTime, startsNewDay } from '../utils/messageGroups';
 import { displayName, useProfiles } from '../utils/profiles';
 import ProfilePopover from './ProfilePopover';
 import Avatar from './Avatar';
-import { formatDateTime, formatTime, useDateFormat } from '../utils/dateFormat';
+import { formatDateTime, formatLongDate, formatTime, useDateFormat } from '../utils/dateFormat';
 import { parsePoll, pollEnded } from '../utils/pollMarkup';
 import { UNKNOWN_CHANNEL, mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
 import { ChannelMentionContext } from '../contexts';
@@ -502,6 +502,16 @@ const PINNED_TOLERANCE_PX = 4;
 
 const rowKey = (msg) => String(msg.clientKey ?? msg.id);
 
+// The line with the date across the chat where a new day starts (startsNewDay).
+function DayDivider({ time }) {
+  useDateFormat(); // redraws when Settings → Date & time changes
+  return (
+    <div className="day-divider" role="separator">
+      <span>{formatLongDate(time)}</span>
+    </div>
+  );
+}
+
 // Chrome/Firefox keep the visible content still when things above it change size or are
 // inserted (CSS scroll anchoring). Safari doesn't, so there we do it ourselves.
 const NATIVE_SCROLL_ANCHORING =
@@ -687,6 +697,7 @@ export default function MessageList({
       <div className="message-scroller-content" ref={contentRef}>
         {messages.map((msg, i) => (
           <div key={rowKey(msg)} data-key={rowKey(msg)}>
+            {startsNewDay(messages[i - 1], msg, { hasMore }) && <DayDivider time={rowTime(msg)} />}
             {/* A poll's result when it closed; group DMs: membership changes, between the messages. */}
             {msg.system === 'poll_end'
               ? <PollEndNotice msg={msg} onJump={onJumpToMessage} />

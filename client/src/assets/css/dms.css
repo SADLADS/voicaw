@@ -1712,6 +1712,25 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   text-align: center;
 }
 
+/* Where a new day starts: a line across the chat with the date in the middle (Discord's). */
+.day-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 1.25rem 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vc-fg-muted);
+}
+
+.day-divider::before,
+.day-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--vc-border-light);
+}
+
 /* Group DMs: messages whose sender can't be verified. */
 .message-signature {
   margin-left: 6px;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { continuesGroup } from './messageGroups';
+import { continuesGroup, startsNewDay } from './messageGroups';
 
 const at = (h, m) => new Date(2026, 8, 30, h, m).getTime() / 1000;
 const msg = (over) => ({ id: 1, sender_id: 1, timestamp: at(12, 0), ...over });
@@ -31,5 +31,23 @@ describe('continuesGroup', () => {
     expect(continuesGroup(hook(), hook({ webhook_name: 'Deploys' }))).toBe(false);
     expect(continuesGroup(hook(), hook({ webhook_avatar: 'https://x.test/a.png' }))).toBe(false);
     expect(continuesGroup(msg({ sender_id: 0 }), hook())).toBe(false);
+  });
+});
+
+describe('startsNewDay', () => {
+  it('divides rows on different days, however close together', () => {
+    expect(startsNewDay(msg({ timestamp: at(23, 30) }), msg({ timestamp: at(23, 30) + 45 * 60 }))).toBe(true);
+    expect(startsNewDay(msg({ timestamp: at(0, 5) }), msg({ timestamp: at(23, 55) }))).toBe(false);
+    expect(startsNewDay({ system: true, timestamp: at(12, 0) - 86400 }, msg())).toBe(true);
+  });
+
+  it('puts one above the first row only once there is no older history', () => {
+    expect(startsNewDay(undefined, msg(), { hasMore: true })).toBe(false);
+    expect(startsNewDay(undefined, msg(), { hasMore: false })).toBe(true);
+  });
+
+  it('counts a message still sending (no timestamp) as now', () => {
+    expect(startsNewDay(msg({ timestamp: Date.now() / 1000 }), msg({ timestamp: undefined }))).toBe(false);
+    expect(startsNewDay(msg({ timestamp: Date.now() / 1000 - 3 * 86400 }), msg({ timestamp: undefined }))).toBe(true);
   });
 });
