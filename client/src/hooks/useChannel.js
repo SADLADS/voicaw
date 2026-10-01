@@ -19,10 +19,11 @@ export function toChatMessage(row) {
   return { ...row, plaintext: row.system ? null : row.content, parent_plaintext: row.parent_content ?? null, reactions: row.reactions ?? [] };
 }
 
-// One guild text channel: loads and pages its history, sends, edits and deletes, applies live
+// One guild text channel (or, with `documentId`, one document's replies in a document channel):
+// loads and pages its history, sends, edits and deletes, applies live
 // changes from the websocket, and keeps the channel marked read while it's shown (`onRead`
 // runs after, to refresh unread badges). The same shape as useConversation, for ChatPane.
-export function useChannel({ channelId, user, onRead }) {
+export function useChannel({ channelId, documentId = null, user, onRead }) {
   const [messages, setMessages] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,8 +36,11 @@ export function useChannel({ channelId, user, onRead }) {
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
   const loadingOlder = useRef(false);
-  // The channel being shown, so late responses for a previous one are ignored.
-  const activeChannelId = useRef(channelId);
+  // The channel (and document) being shown, so late responses for a previous one are ignored.
+  const chatKey = `${channelId}/${documentId ?? ''}`;
+  const activeChannelId = useRef(chatKey);
+  // Fetch parameters for this chat (a document channel's: which document).
+  const pageParams = (params) => (documentId ? { ...params, document: documentId } : params);
   const onReadRef = useRef(onRead);
   onReadRef.current = onRead;
 
@@ -66,7 +70,7 @@ export function useChannel({ channelId, user, onRead }) {
   // Load the newest page; the only place history is (re)loaded (older pages are prepended by
   // loadMoreMessages).
   useEffect(() => {
-    activeChannelId.current = channelId;
+    activeChannelId.current = chatKey;
     loadingOlder.current = false;
     setMessages([]);
     setHasMore(true);
@@ -81,7 +85,7 @@ export function useChannel({ channelId, user, onRead }) {
     setIsLoading(true);
     (async () => {
       try {
-        const page = await fetchChannelMessages(channelId, { limit: CHANNEL_PAGE_SIZE });
+        const page = await fetchChannelMessages(channelId, pageParams({ limit: CHANNEL_PAGE_SIZE }));
         if (cancelled) return;
         setMessages(page.map(toChatMessage));
         setHasMore(page.length >= CHANNEL_PAGE_SIZE);
@@ -101,7 +105,7 @@ export function useChannel({ channelId, user, onRead }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelId]);
+  }, [chatKey]);
 
   const loadMoreMessages = async () => {
     if (loadingOlder.current || !hasMore) return;
@@ -109,9 +113,9 @@ export function useChannel({ channelId, user, onRead }) {
     if (!oldest) return;
 
     loadingOlder.current = true;
-    const requestedFor = channelId;
+    const requestedFor = chatKey;
     try {
-      const page = await fetchChannelMessages(requestedFor, { before: oldest.id, limit: CHANNEL_PAGE_SIZE });
+      const page = await fetchChannelMessages(channelId, pageParams({ before: oldest.id, limit: CHANNEL_PAGE_SIZE }));
       if (activeChannelId.current !== requestedFor) return;
       const known = new Set(messagesRef.current.map((m) => m.id));
       const fresh = page.map(toChatMessage).filter((m) => !known.has(m.id));
@@ -149,6 +153,7 @@ export function useChannel({ channelId, user, onRead }) {
     const tempMessage = {
       id: tempId,
       channel_id: channelId,
+      document_id: documentId,
       sender_id: user.id,
       plaintext: text,
       status: 'pending',
@@ -167,7 +172,7 @@ export function useChannel({ channelId, user, onRead }) {
       const finalText = resolveText ? await resolveText() : text;
       if (finalText !== text) updateMessage(tempId, () => ({ plaintext: finalText }));
 
-      const saved = toChatMessage(await sendChannelMessage(channelId, finalText, replyTo?.id ?? null));
+      const saved = toChatMessage(await sendChannelMessage(channelId, finalText, replyTo?.id ?? null, documentId));
       setMessages((prev) => {
         // The websocket echo may already have replaced it (then it has the real id).
         if (prev.some((m) => m.id === saved.id)) return prev.filter((m) => m.id !== tempId);
@@ -214,7 +219,10 @@ export function useChannel({ channelId, user, onRead }) {
     return onGuildEvent((event) => {
       switch (event.type) {
         case 'guild_message_new':
-          if (event.message.channel_id === id) addIncomingMessage(toChatMessage(event.message));
+          // Only this chat's: in a document channel, this document's replies.
+          if (event.message.channel_id === id && (event.message.document_id ?? null) === (documentId ?? null)) {
+            addIncomingMessage(toChatMessage(event.message));
+          }
           break;
         case 'guild_message_edit':
           if (event.channelId === id) {
@@ -254,7 +262,7 @@ export function useChannel({ channelId, user, onRead }) {
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelId, user?.id]);
+  }, [chatKey, user?.id]);
 
   return {
     messages,

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHashtag, faListCheck, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
+import { faFileLines, faHashtag, faListCheck, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import Modal from './Modal';
 import ChannelPermissions from './ChannelPermissions';
 import ChannelWebhooks from './ChannelWebhooks';
@@ -83,7 +83,7 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
           )}
           {confirmingDelete ? (
             <>
-              <span className="me-auto vc-hint">Delete #{channel.name} and all its {channel.type === 'list' ? 'tasks' : 'messages'}?</span>
+              <span className="me-auto vc-hint">Delete #{channel.name} and all its {{ list: 'tasks', doc: 'documents' }[channel.type] ?? 'messages'}?</span>
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirmingDelete(false)}>Cancel</button>
               <button type="button" className="btn btn-danger btn-sm" disabled={busy} onClick={() => run(() => deleteChannel(guild.id, channel.id))}>
                 Delete
@@ -135,6 +135,10 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
               <input type="radio" name="channel-type" value="list" checked={type === 'list'} onChange={() => setType('list')} />
               <FontAwesomeIcon icon={faListCheck} /> List
             </label>
+            <label className={type === 'doc' ? 'selected' : ''}>
+              <input type="radio" name="channel-type" value="doc" checked={type === 'doc'} onChange={() => setType('doc')} />
+              <FontAwesomeIcon icon={faFileLines} /> Documents
+            </label>
           </fieldset>
         )}
 
@@ -150,7 +154,7 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
         />
         {preview && preview !== name && <p className="vc-hint">Will be #{preview}</p>}
 
-        {['text', 'list'].includes(editing ? channel.type : type) && (
+        {['text', 'list', 'doc'].includes(editing ? channel.type : type) && (
           <>
             <label htmlFor="channel-topic">Topic</label>
             <input
@@ -184,6 +188,7 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
                 <span className="vc-hint">
                   Only the roles you pick (and admins) will see it.
                   {type === 'list' && ' Who may edit its tasks is set in its Permissions tab (Edit Tasks).'}
+                  {type === 'doc' && ' Who may write documents is set in its Permissions tab (Create Documents).'}
                 </span>
               </span>
             </label>

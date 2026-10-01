@@ -38,7 +38,7 @@ export function defaultChannel(guild) {
   const ordered = [...uncategorized, ...categories.flatMap((c) => c.channels)];
   return ordered.find((c) => String(c.id) === remembered)
     ?? ordered.find((c) => c.type === 'text')
-    ?? ordered.find((c) => c.type === 'list')
+    ?? ordered.find((c) => c.type === 'list' || c.type === 'doc')
     ?? ordered[0]
     ?? null;
 }

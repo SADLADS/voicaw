@@ -128,12 +128,14 @@ export async function deleteChannel(guildId, channelId) {
   await api.delete(`/guilds/${guildId}/channels/${channelId}`);
 }
 
+// In a document channel, `params.document` is the document whose replies to fetch.
 export async function fetchChannelMessages(channelId, params = {}) {
   return (await api.get(`/channels/${channelId}/messages`, { params })).data;
 }
 
-export async function sendChannelMessage(channelId, content, replyTo = null) {
-  return (await api.post(`/channels/${channelId}/messages`, { content, replyTo })).data;
+// `documentId`: in a document channel, the document this replies to.
+export async function sendChannelMessage(channelId, content, replyTo = null, documentId = null) {
+  return (await api.post(`/channels/${channelId}/messages`, { content, replyTo, ...(documentId ? { documentId } : {}) })).data;
 }
 
 export async function editChannelMessage(messageId, content) {
@@ -340,4 +342,38 @@ export async function editTaskComment(commentId, content) {
 
 export async function deleteTaskComment(commentId) {
   await api.delete(`/task-comments/${commentId}`);
+}
+
+// ---- Document channels (routes/guildDocuments.js) ----
+
+// The feed: every document, newest first, without content (`content_start` instead).
+export async function fetchDocuments(channelId) {
+  return (await api.get(`/channels/${channelId}/documents`)).data;
+}
+
+// { title, cover?, content? }
+export async function createDocument(channelId, document) {
+  return (await api.post(`/channels/${channelId}/documents`, document)).data;
+}
+
+export async function fetchDocument(documentId) {
+  return (await api.get(`/documents/${documentId}`)).data;
+}
+
+// { version (the one the edit started from), title?, cover?, content? }. A 409 means someone
+// else saved first; its `document` is theirs.
+export async function saveDocument(documentId, changes) {
+  return (await api.patch(`/documents/${documentId}`, changes)).data;
+}
+
+export async function deleteDocument(documentId) {
+  await api.delete(`/documents/${documentId}`);
+}
+
+export async function addDocumentReaction(documentId, emoji) {
+  return (await api.post(`/documents/${documentId}/reactions`, { emoji })).data;
+}
+
+export async function removeDocumentReaction(reactionId) {
+  await api.delete(`/document-reactions/${reactionId}`);
 }

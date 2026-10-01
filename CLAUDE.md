@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Voicaw is a Discord-style chat web app: end-to-end encrypted direct messages and group DMs
 (with calls), and guilds
-(Discord-style servers, always called guilds in the app: text, voice and list (task board)
-channels, roles and private channels; not encrypted, see Guilds). It's an npm workspaces monorepo with
+(Discord-style servers, always called guilds in the app: text, voice, list (task board)
+and document channels, roles and private channels; not encrypted, see Guilds). It's an npm workspaces monorepo with
 three packages: `client` (React/Vite SPA, also packaged as an Electron desktop app), `server`
 (Express + ws API), and `electron` (the desktop app: the built client plus notifications, tray,
 shortcuts and updates; see Desktop app).
@@ -91,7 +91,8 @@ Unit tests can't see layout, scrolling, focus, touch or the editor. For those, `
 real app against a throwaway API (in-memory database, fresh secrets, rate limits off, and a
 stand-in object store in memory, so uploads, profile pictures and emoji work; it serves byte
 ranges like MinIO and lists what was read at `/__reads`) and drives it with Playwright (`playwright-core`, using the system Chrome
-at `/usr/bin/google-chrome`, headless):
+at `/usr/bin/google-chrome`, or `CHROME_PATH` elsewhere, headless; the harness also runs on
+Windows, without voice unless `LIVEKIT_BIN` points at a LiveKit):
 ```
 node e2e/serve.mjs &     # web :5199, API :3099, object store :3100, LiveKit :3101-3103;
                          # E2E_WEB/API/S3/LIVEKIT_PORT
@@ -119,10 +120,12 @@ node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertic
 node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
 node e2e/lists.mjs [dir]  # list channels: add, subtask, drag to nest/reorder, assign, due date, comments, read-only, phone
+node e2e/docs.mjs [dir]   # document channels: write (typed markdown, toolbar, checklist, table, cover), card live, react, reply thread, edit live, phone tabs
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
 node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>
 node e2e/video.mjs [dir]  # videos: only the poster before Play, streamed in pieces, seek reads nothing before it, download, keys, full screen, spoiler, phone (needs ffmpeg)
 node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
+node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept per device, no dark flash, Match system, color-scheme (keyboard), phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
@@ -173,6 +176,8 @@ unexpected errors. The rest:
 - `guilds.js`: shared guild helpers (membership checks, `getGuildLayout`, `sendToGuild`).
 - `guildTasks.js`: list channels' tasks (tree helpers, limits, the assignment notification; see
   List channels); `routes/guildTasks.js` has their routes.
+- `guildDocuments.js`: document channels' documents (rows, limits, cleanup; see Document
+  channels); `routes/guildDocuments.js` has their routes.
 - `auditLog.js`: a guild's audit log (`logAudit`, `readAuditLog`; see Guilds); `routes/auditLog.js`.
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).
@@ -257,10 +262,19 @@ nginx's `X-Forwarded-For` (`trust proxy: 'loopback'`). test.voicaw.com goes thro
 to the public API, so its visitors all share one address there. The websocket `user_status`
 broadcast only goes to identified sockets.
 
-On successful login/register, the server issues a JWT (`generateToken`, 1-day expiry, see
-`server/auth.js`) which the client stores in `localStorage` and sends as `Authorization: Bearer
-<token>` (see `client/src/utils/api.js`). `authenticateJWT` middleware protects all `/api/*`
-routes except config/login/register.
+On successful login/register, the server issues a JWT (`generateToken`, see `server/auth.js`)
+which the client stores in `localStorage` and sends as `Authorization: Bearer <token>` (see
+`client/src/utils/api.js`). `authenticateJWT` middleware protects all `/api/*` routes except
+config/login/register.
+- **Sessions last while the app is used:** a token is good for 30 days (`SESSION_SECONDS`), and
+  any authenticated request with one older than a day (`RENEW_AFTER_SECONDS`) gets a new one in
+  the `X-Voicaw-Token` response header (exposed by CORS). `api.js` stores it, only if it renews
+  the token that request was sent with (not after a logout or another login). So only a device
+  unused for 30 days has to log in again. Tokens can't be revoked (logout just forgets it on
+  the device); a server-side sessions table would be the way to add that.
+- On start, `AuthProvider` only drops the session when `/profile` answers 401/403/404. With no
+  answer or a server error (no network yet after boot, an API restart) it keeps the token and
+  asks again every 3 s, while `App` shows "Can't reach Voicaw. Trying again…".
 
 ### Deleting an account
 
@@ -383,7 +397,9 @@ webhook's edit also carries `embeds`, `attachments`, `flags`),
 joined, left or (un)muted in a voice channel), `guild_mention` (only to whoever a new message
 mentions, for their red counts), `guild_task_upsert` / `_delete` / `guild_tasks_move` /
 `guild_task_comment_new` / `_edit` / `_delete` (to whoever can see the list channel) and
-`guild_task_assigned` (only to whoever was just assigned; see List channels), for calls `call_incoming`, `call_update`,
+`guild_task_assigned` (only to whoever was just assigned; see List channels),
+`guild_document_upsert` (a feed card) / `_update` (the whole document, after a save) / `_delete` /
+`guild_document_reaction_add` / `_remove` (to whoever can see the document channel), for calls `call_incoming`, `call_update`,
 `call_end`, and for group DMs `group_dm_add` / `_update` / `_remove` / `_epoch` /
 `_message_new` / `_message_edit` / `_message_delete` / `_message_pin` / `_reaction_add` / `_reaction_remove`. A 30s heartbeat
 (ping/pong) prunes dead connections.
@@ -473,7 +489,8 @@ data that must run exactly once are `MIGRATIONS` at the end of `db.js`, numbered
 that allow or deny Manage Messages do the same for Pin Messages; 4: index existing guild messages
 for search; 5: lower-case usernames, see Auth; 6: `guild_channels`' type CHECK gains `'list'`
 (the table is copied into a new one, keeping its id counter) and @everyone gets Edit Tasks; 7: @everyone gets Video, for
-screen sharing); add the next one at the end.
+screen sharing; 8: the type CHECK gains `'doc'` (`allowEveryChannelType`, as 6 did) and @everyone gets
+Create Documents); add the next one at the end.
 - Queries: `db.get` / `db.all` / `db.run` return promises, as with the old driver (rows are plain
   objects; `undefined` binds as NULL, booleans as 1/0). Prepared statements are cached.
 - **Transactions:** anything that writes more than one row (or one row that depends on another)
@@ -500,15 +517,15 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   @here and any role; not a default, guild-wide only), Pin Messages (not a default; split out of
   Manage Messages like Discord did, migration 3), Manage Webhooks (guild-wide only), View Audit
   Log (not a default, guild-wide only; see Audit log), Edit Tasks (list channels; see List
-  channels). Every guild has an `@everyone`
-  role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak, edit tasks, video) plus orderable roles (`guild_roles`: name, colour
+  channels), Create Documents (`CREATE_DOCUMENTS`, document channels; see Document channels). Every guild has an `@everyone`
+  role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak, edit tasks, video, create documents) plus orderable roles (`guild_roles`: name, colour
   0xRRGGBB or null, `hoist` = shown separately in the member list, `mentionable` = anyone may
   @mention it, position: higher ranks
   higher), given out in `guild_member_roles`. Guild permissions are @everyone's plus the
   member's roles'; the owner and Administrator get everything.
 - **Channel overrides** (`guild_channel_overrides`, per role or member, `allow`/`deny` of the
   channel permissions: View, Send, React, Manage Messages, Pin Messages, Connect, Speak, Video, Edit
-  Tasks; the editor shows a text, voice or list channel's) apply in order: @everyone's, the member's roles' (all denies, then
+  Tasks, Create Documents; the editor shows a text, voice, list or document channel's) apply in order: @everyone's, the member's roles' (all denies, then
   all allows), the member's own. A **private channel** is @everyone denied View Channel. A
   channel you can't view doesn't exist for you: left out of your layout, 404, no events
   (`sendToChannel`), not in unread counts.
@@ -660,6 +677,62 @@ up to 2000 tasks.
 - **Not done yet:** a list of everything assigned to you across boards (and unread/assigned
   badges in the channel list), notifications for comments, due-date reminders, recurring
   tasks, moving a task to another board, keyboard reordering, and tasks in guild search.
+
+### Document channels
+
+Guilded's docs as a guild channel type, `doc`: a feed of documents, newest first, each a card
+(cover image if it has one, title, author and date, a plain-text excerpt, reactions, reply
+count) that opens to the document, with reactions and a thread of replies that are ordinary
+chat messages. Documents are **full markdown** (not Discord's subset): every heading level,
+tables, task lists, rules, plus the app's `__underline__` and `||spoilers||`. Not end-to-end
+encrypted, like the rest of a guild. A title is 200 characters, a document 100,000 (the routes
+take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
+- **Permissions are the channel's:** View Channel sees the feed (without it: 404, no events),
+  **Create Documents** (a channel permission, on for @everyone) writes new ones and edits your
+  own, Manage Messages ("Manage Documents and Replies") edits and deletes anyone's (and their
+  replies), Send Messages replies, Add Reactions reacts. Taking Create Documents away also stops
+  editing your own.
+- **Server** (`server/guildDocuments.js`, `routes/guildDocuments.js`; tables
+  `guild_documents`, `guild_document_reactions`): `GET/POST /channels/:id/documents` (cards: no
+  `content`, `content_start` = its first 1000 characters, `reply_count`, `last_reply_at`,
+  `last_reply_id`, `reactions`), `GET/PATCH/DELETE /documents/:id`, `POST
+  /documents/:id/reactions`, `DELETE /document-reactions/:id` (own only). The cover is an upload
+  of ours (`<S3_ENDPOINT>/uploads/…`, an encrypted channel attachment's URL with its key, like
+  images in messages). **Saving needs `version`** (the one the edit started from; every save
+  bumps it): a stale one is 409 with the newer `document`, so nobody's save is silently
+  overwritten (no live co-editing; that would need a CRDT and its own sync). Deleting is in the
+  audit log as `document_delete` (never its title or text) and takes its replies and reactions.
+- **Replies are `guild_messages` with `document_id`** (null for every other message), so
+  mentions, pushes (url `/guild/<g>/<c>?doc=<id>`), edits, deletes, reactions, polls (their
+  "poll ended" row too) and the audit log work as in a text channel. `GET/POST
+  /channels/:id/messages` in a document channel need `document` (query) / `documentId` (body),
+  and a reply's parent must be in the same document; a text channel refuses one. No pins there.
+  Unread counts the channel's new replies; opening the feed marks the channel read up to its
+  newest reply. Guild search only searches text channels, so replies aren't searched.
+- **Client:** `GuildView` shows `documents/DocChannelView.jsx` for a document channel (no member
+  list): the feed, or `?doc=<id>` (the document, its replies in a `ChatPane` over
+  `useChannel({ channelId, documentId })` beside it, tabs Document / Replies on a phone),
+  `?doc=new` and `&edit=1` (the editor). `hooks/useDocuments.js` keeps the feed and an open
+  document current. `DocumentMarkdown` (`MessageList.jsx`) renders a document with
+  `remarkDocument` (`utils/remarkDiscord.js`) and the messages' mentions, emoji and attachments.
+- **The editor** (`documents/DocumentEditor.jsx`, lazily loaded with ProseMirror,
+  prosemirror-tables and prosemirror-markdown, its own chunk): title, cover (Add / Change /
+  Remove), a Word-like toolbar (text style, bold, italic, underline, strikethrough, code,
+  spoiler, link, bulleted / numbered / checklist, quote, image, table with row/column tools,
+  rule, undo/redo) and the usual shortcuts (Ctrl/⌘+B/I/U, Ctrl/⌘+S saves), plus markdown typed
+  as in a message turning into formatting at once (`# `, `- `, `1. `, `[ ] `, `> `, `` ``` ``,
+  `---`, `**x**`…; `documents/editorSetup.js`). Images (picked, pasted or dropped) and the
+  cover are uploaded encrypted like attachments. **Markdown is the format**:
+  `documents/documentSchema.js` only has what markdown can hold (no colours, sizes or alignment,
+  on purpose), `documentMarkdown.js` parses with the page's own remark pipeline
+  (`documentText.js`) and writes markdown back (a test checks every construct round-trips
+  exactly). A 409 shows "Load their version" / "Save mine over it". Styles are
+  `assets/css/documents.css`. ProseMirror reads the selection from the browser's
+  `selectionchange`, so a script pressing keys back to back must pause after one that only moves
+  the selection (`e2e/docs.mjs` `move`); people can't type that fast.
+- **Not done yet:** live co-editing, a document's history (old versions), mentions in a
+  document notifying anyone, searching documents (and their replies), pinning or ordering
+  documents in the feed, comments on a passage, and templates.
 
 ### Guild search
 
@@ -971,8 +1044,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   from a key press with a modifier, `acceleratorFromEvent`; a key another app holds is
   reported).
 - **Updates** (`updater.js`, electron-updater): the installed app looks for a new version at
-  start and every 4 hours on the generic feed in `builder.config.js` (`https://voicaw.com/desktop/`,
-  README "Desktop app"), downloads it, and the page offers "Update now" (UpdateBanner,
+  start and every 4 hours on the generic feed in `builder.config.js` (`https://updates.voicaw.com/desktop/`: its own static
+  site, `/opt/voicaw-updates`, nginx config in `updates/nginx/`, a download page from
+  `updates/site/`, filled by `node updates/publish.mjs`; README "Desktop app"), downloads it, and the page offers "Update now" (UpdateBanner,
   Settings → App version, which also shows the app's version); that restarts onto it. A
   development run or an unsigned macOS app can't update itself ('unsupported'). Releases are
   only as trustworthy as that server (no signature of our own on the feed yet).
@@ -1408,7 +1482,8 @@ scrolling up. Measured in headless Chrome, the plain list has no such jumps. The
 scroll anchoring (`overflow-anchor`) keeps visible messages still when older pages are prepended
 or content above resizes. Where that's unsupported (Safari), `MessageList` does the same manually
 by tracking the first visible row's `offsetTop` (layout effect + ResizeObserver, both before paint).
-It also keeps the view pinned to the bottom while the user is there.
+It also keeps the view pinned to the bottom while the user is there, and sending a message
+(a new pending row of your own at the end) goes back there, like Discord.
 
 Messages are grouped like Discord's (`utils/messageGroups.js` `continuesGroup`): one from the
 same person within 7 minutes of the row above, on the same day and not a reply, drops its
@@ -1503,6 +1578,18 @@ these (2026-10-01) it froze for seconds; now opening takes ~0.2 s of script on a
   editors everywhere, and on desktop the chat's messages, names, times, reply previews and the
   channel topic. So dragging things (channels, guilds) doesn't highlight text. On mobile a long
   press on a message opens its actions instead.
+- **Themes** (`utils/theme.js`, Settings → Appearance, `ThemeSettings.jsx`): Dark (default),
+  Light or Match system (follows `prefers-color-scheme` live), **per device only**
+  (`localStorage theme`; never sent to the server). It's `<html data-theme>` (and Bootstrap's
+  `data-bs-theme`); a copy of the logic inline in `index.html` sets it before the CSS loads, so a
+  light page never starts dark. Colours are the `--vc-*` tokens on `:root` in `voicaw.css`,
+  overridden under `:root[data-theme="light"]` (THEMES there): **use tokens, not literal
+  colours**, in new CSS (`--vc-on-accent` for text on coloured fills, `--vc-popup` for menus;
+  literal black/white is only for overlays on images and video). Each theme sets CSS
+  `color-scheme`, which makes the browser's own controls and scrollbars match and, on iPhones
+  and iPads, the on-screen keyboard (Android keyboards follow the system or their own setting;
+  neither a page nor an app can choose). Code highlighting is Atom One Dark plus
+  `hljs-light.css` (Atom One Light under `[data-theme="light"]`).
 - Scrollbars are styled once, in `voicaw.css` (SCROLLBARS): every scroll area inherits the pane
   look (like the message list); small boxes and pop-ups are listed there for the thin one. Don't
   style a new scroll area's scrollbar locally.

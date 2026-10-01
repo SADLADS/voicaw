@@ -24,11 +24,63 @@
   --vc-fg-muted: #AAAAAA;
 
   --vc-shadow: rgba(0, 0, 0, 0.2);
+
+  /* Text on a coloured fill (accent, danger, teal, online buttons and badges): white in both
+     themes. On the yellow action colour, dark text. */
+  --vc-on-accent: #fff;
+  --vc-on-action: #1a1a1f;
+  /* Menus that pop up over everything (guild menu, composer +). */
+  --vc-popup: #111114;
+  --vc-popup-shadow: rgba(0, 0, 0, 0.35);
+  /* The accent as text (it's too dark to read on the background as it is). */
+  --vc-accent-text: #a898d8;
+  /* A spoiler before it's revealed. */
+  --vc-spoiler: var(--vc-bg-base);
+  --vc-spoiler-hover: #111114;
+  /* Placeholder text in form fields. */
+  --vc-placeholder: var(--vc-border-light);
+
+  color-scheme: dark;
+}
+
+/* THEMES: dark above is the default; light is chosen per device in Settings → Appearance
+   (utils/theme.js puts data-theme on <html>). color-scheme makes the browser's own parts match:
+   form controls, scrollbars, and the on-screen keyboard on iPhones and iPads. Use the tokens
+   for colours, not literal ones, so both themes work. */
+:root[data-theme="light"] {
+  --vc-accent-hover: #57487a;
+  --vc-accent-alt-hover: #157f73;
+
+  --vc-bg-base: #e3e4e8;
+  --vc-bg-hover: #e6e7eb;
+  --vc-bg-subtle: #ffffff;
+  --vc-bg-elevated: #f2f3f5;
+  --vc-bg-elevated-hover: #e3e4e8;
+  --vc-border-dark: #e1e2e6;
+  --vc-border-light: #c4c6cc;
+
+  --vc-online: #23a55a;
+  --vc-idle: #d9961a;
+
+  --vc-fg: #2e3035;
+  --vc-fg-muted: #5c5e66;
+
+  --vc-shadow: rgba(0, 0, 0, 0.1);
+
+  --vc-popup: #ffffff;
+  --vc-popup-shadow: rgba(0, 0, 0, 0.16);
+  --vc-accent-text: #5a4a8a;
+  --vc-spoiler: #c4c6cc;
+  --vc-spoiler-hover: #b3b5bc;
+  --vc-placeholder: #8e9099;
+
+  color-scheme: light;
 }
 
 /* TEXT SELECTION: off everywhere (so dragging things, like channels, doesn't select text), except
-   where people type and, on desktop, what's said in the chat: messages, names, times, reply
-   previews and code. (On mobile a long press on a message opens its actions instead.) */
+   where people type, documents (on phones too: they have no long-press menu) and, on desktop,
+   what's said in the chat: messages, names, times, reply previews and code. (On mobile a long
+   press on a message opens its actions instead.) */
 body {
   -webkit-user-select: none;
   user-select: none;
@@ -37,6 +89,7 @@ body {
 input,
 textarea,
 [contenteditable="true"],
+.document-page-inner :is(.document-title, .document-body),
 body:not(.mobile-mode) .each-dm-message-wrapper :is(.dm-message-content, .message-author, small, .reply-author, .reply-preview),
 body:not(.mobile-mode) .message-system,
 body:not(.mobile-mode) .day-divider,
@@ -55,6 +108,18 @@ body {
 body {
   background-color: var(--vc-bg-subtle);
   color: var(--vc-fg)
+}
+
+/* Shown instead of the app while a saved login waits for the server (AuthProvider). */
+.auth-unreachable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100svh;
+  box-sizing: border-box;
+  padding: 16px;
+  text-align: center;
+  color: var(--vc-fg-muted, var(--vc-fg));
 }
 
 /* Chat Page */
@@ -171,11 +236,12 @@ body {
 }
 
 .form-control::placeholder {
-  color: var(--vc-border-light) !important;
+  color: var(--vc-placeholder) !important;
 }
 
 .btn-danger{
   background-color: var(--vc-danger);
+  color: var(--vc-on-accent);
 }
 
 
@@ -211,17 +277,19 @@ pre code {
 .uploadbutton{
   background-color: var(--vc-accent);
   border: none;
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
   border-radius: 8px;
   transition: background-color 0.2s ease;
 }
 
 .uploadbutton:hover{
   background-color: var(--vc-accent-hover);
+  color: var(--vc-on-accent);
 }
 
 .uploadbutton:disabled{
   background-color: var(--vc-accent-alt); /* change this at some point */
+  color: var(--vc-on-accent);
 }
 
 .attach-wrapper {
@@ -258,6 +326,105 @@ pre code {
   margin-bottom: 1rem;
   width: 100%;
   border-top: 1px solid var(--vc-border-dark);
+}
+
+/* Settings → Appearance (ThemeSettings): a tile per theme with a little picture of it. The
+   pictures keep their own colours whatever the current theme is. */
+.theme-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 8px;
+  border: 2px solid var(--vc-border-dark);
+  border-radius: 8px;
+  background: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.theme-option:hover {
+  border-color: var(--vc-border-light);
+  color: var(--vc-fg);
+}
+
+.theme-option.selected {
+  border-color: var(--vc-accent);
+  color: var(--vc-fg);
+}
+
+.theme-preview {
+  --side: #1a1a1f;
+  --chat: #232329;
+  --line: #54545d;
+  --box: #2d2d34;
+  display: flex;
+  width: 104px;
+  height: 64px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--chat);
+}
+
+.theme-preview-light {
+  --side: #e3e4e8;
+  --chat: #ffffff;
+  --line: #c4c6cc;
+  --box: #f2f3f5;
+  box-shadow: inset 0 0 0 1px #e1e2e6;
+}
+
+/* Match system: half of each. */
+.theme-preview-system {
+  background: linear-gradient(135deg, #232329 50%, #ffffff 50%);
+}
+
+.theme-preview-system .theme-preview-side {
+  background: linear-gradient(135deg, #1a1a1f 70%, #e3e4e8 70%);
+}
+
+.theme-preview-system .theme-preview-line,
+.theme-preview-system .theme-preview-box {
+  background: #8e9099;
+}
+
+.theme-preview-side {
+  width: 26px;
+  background: var(--side);
+}
+
+.theme-preview-chat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 8px 8px;
+}
+
+.theme-preview-line {
+  width: 80%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+}
+
+.theme-preview-line.short {
+  width: 50%;
+}
+
+.theme-preview-box {
+  height: 12px;
+  margin-top: auto;
+  border-radius: 3px;
+  background: var(--box);
 }
 
 .settings-header{
@@ -936,6 +1103,8 @@ html {
 .guild-channel-list,
 .attachment-tray,
 .image-viewer-thumbnails,
+.doc-toolbar,
+.document-body :is(table, .tableWrapper),
 .dm-message-content pre code {
   scrollbar-width: thin;
   scrollbar-color: var(--vc-border-light) transparent;

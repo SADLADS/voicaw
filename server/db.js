@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS guild_channels (
   guild_id INTEGER NOT NULL,
   category_id INTEGER,
   name TEXT NOT NULL,
-  type TEXT CHECK(type IN ('text', 'voice', 'list')) NOT NULL DEFAULT 'text',
+  type TEXT CHECK(type IN ('text', 'voice', 'list', 'doc')) NOT NULL DEFAULT 'text',
   topic TEXT,
   position INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (guild_id) REFERENCES guilds(id),
@@ -577,6 +577,37 @@ CREATE TABLE IF NOT EXISTS guild_task_comments (
 CREATE INDEX IF NOT EXISTS guild_task_comments_task ON guild_task_comments (task_id, id);
 `);
 
+// DOCUMENT CHANNELS (routes/guildDocuments.js, guildDocuments.js): each document's title,
+// optional cover image (an upload's URL, like a message attachment's), markdown content, who
+// wrote and last changed it, and `version` (bumped on every save, so a save over someone
+// else's newer one is refused). Reactions on a document; replies are guild_messages with
+// `document_id` set (null: an ordinary channel message).
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_documents (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  channel_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  cover TEXT,
+  content TEXT NOT NULL DEFAULT '',
+  created_by INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_by INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS guild_documents_channel ON guild_documents (channel_id, id);
+CREATE TABLE IF NOT EXISTS guild_document_reactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  document_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  emoji TEXT NOT NULL,
+  timestamp INTEGER NOT NULL,
+  UNIQUE (document_id, user_id, emoji)
+);
+`);
+addColumn('ALTER TABLE guild_messages ADD COLUMN document_id INTEGER');
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_messages_document ON guild_messages (document_id, id) WHERE document_id IS NOT NULL');
+
 // GUILD SEARCH (routes/guildSearch.js): each message's words (searchText.js) in a full-text
 // index, rowid = the message's id, and what it has (`has:` bits) in `search_has`. Whoever
 // writes a message's content, embeds or attachments calls indexGuildMessage (below); deleting
@@ -615,6 +646,33 @@ function lowercaseUsernames() {
   }
 }
 
+// Migrations 6 and 8: unless guild_channels' type CHECK already has `type` (SQL-quoted), copies
+// the table into a new one whose CHECK has every type there is now (SQLite can't change a CHECK).
+function allowEveryChannelType(type) {
+  const { sql } = sqlite.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'guild_channels'").get();
+  if (sql.includes(type)) return;
+  // Keep the id counter, so deleted channels' ids (the audit log has them) aren't reused.
+  const seq = sqlite.prepare("SELECT seq FROM sqlite_sequence WHERE name = 'guild_channels'").get()?.seq ?? 0;
+  sqlite.exec(`
+    CREATE TABLE guild_channels_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id INTEGER NOT NULL,
+      category_id INTEGER,
+      name TEXT NOT NULL,
+      type TEXT CHECK(type IN ('text', 'voice', 'list', 'doc')) NOT NULL DEFAULT 'text',
+      topic TEXT,
+      position INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (guild_id) REFERENCES guilds(id),
+      FOREIGN KEY (category_id) REFERENCES guild_categories(id)
+    );
+    INSERT INTO guild_channels_new (id, guild_id, category_id, name, type, topic, position)
+      SELECT id, guild_id, category_id, name, type, topic, position FROM guild_channels;
+    DROP TABLE guild_channels;
+    ALTER TABLE guild_channels_new RENAME TO guild_channels;
+  `);
+  sqlite.prepare("UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = 'guild_channels'").run(seq);
+}
+
 // Changes to existing data that must happen once, numbered in SQLite's user_version (add the
 // next one at the end; each runs in its own transaction with its version bump):
 const MIGRATIONS = [
@@ -640,33 +698,17 @@ const MIGRATIONS = [
   // 6. List channels: guild_channels' type CHECK gains 'list' (SQLite can't change a CHECK, so
   // the table is copied into a new one), and @everyone gets Edit Tasks, as in new guilds.
   () => {
-    const { sql } = sqlite.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'guild_channels'").get();
-    if (!sql.includes("'list'")) {
-      // Keep the id counter, so deleted channels' ids (the audit log has them) aren't reused.
-      const seq = sqlite.prepare("SELECT seq FROM sqlite_sequence WHERE name = 'guild_channels'").get()?.seq ?? 0;
-      sqlite.exec(`
-        CREATE TABLE guild_channels_new (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          guild_id INTEGER NOT NULL,
-          category_id INTEGER,
-          name TEXT NOT NULL,
-          type TEXT CHECK(type IN ('text', 'voice', 'list')) NOT NULL DEFAULT 'text',
-          topic TEXT,
-          position INTEGER NOT NULL DEFAULT 0,
-          FOREIGN KEY (guild_id) REFERENCES guilds(id),
-          FOREIGN KEY (category_id) REFERENCES guild_categories(id)
-        );
-        INSERT INTO guild_channels_new (id, guild_id, category_id, name, type, topic, position)
-          SELECT id, guild_id, category_id, name, type, topic, position FROM guild_channels;
-        DROP TABLE guild_channels;
-        ALTER TABLE guild_channels_new RENAME TO guild_channels;
-      `);
-      sqlite.prepare("UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = 'guild_channels'").run(seq);
-    }
+    allowEveryChannelType("'list'");
     sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.EDIT_TASKS} WHERE is_everyone = 1`);
   },
   // 7. Screen sharing: @everyone gets Video (Stream), as in new guilds.
   () => sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.STREAM} WHERE is_everyone = 1`),
+  // 8. Document channels: the type CHECK gains 'doc' (as in 6), and @everyone gets Create
+  // Documents, as in new guilds.
+  () => {
+    allowEveryChannelType("'doc'");
+    sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.CREATE_DOCUMENTS} WHERE is_everyone = 1`);
+  },
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');

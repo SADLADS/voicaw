@@ -10,6 +10,7 @@ import MemberList from './MemberList';
 import ChannelIcon from './ChannelIcon';
 import VoiceChannelView from './VoiceChannelView';
 import ListChannelView from './ListChannelView';
+import DocChannelView from '../documents/DocChannelView';
 import GuildSearch from './GuildSearch';
 import { useChannel } from '../../hooks/useChannel';
 import { onGuildEvent } from '../../utils/ws-client';
@@ -82,9 +83,10 @@ export default function GuildView({ user }) {
     loadGuild(guildId).catch(() => {}).finally(() => setCheckedMissing(channelId));
   }, [missingChannel, guildId, channelId, loadGuild]);
 
-  // The guild reopens on the last text or list channel (a voice one would just show who's talking).
+  // The guild reopens on the last text, list or document channel (a voice one would just show
+  // who's talking).
   useEffect(() => {
-    if (channel?.type === 'text' || channel?.type === 'list') rememberChannel(guildId, channel.id);
+    if (['text', 'list', 'doc'].includes(channel?.type)) rememberChannel(guildId, channel.id);
   }, [guildId, channel]);
 
   useEffect(() => setMembersOpenMobile(false), [channelId]);
@@ -214,10 +216,32 @@ export default function GuildView({ user }) {
     });
   }
 
-  // A list channel uses the space for its tasks' details instead.
-  const isList = channel?.type === 'list';
+  // A list channel uses the space for its tasks' details instead, a document channel for replies.
+  const isList = channel?.type === 'list' || channel?.type === 'doc';
   const membersVisible = !isList && (isMobile ? membersOpenMobile : showMembers);
   const permissions = channel?.my_permissions ?? 0;
+  // What a channel's chat (ChatPane) takes from the guild, for a document channel's replies.
+  const chatProps = channel && {
+    pollKind: 'guild',
+    encrypted: false,
+    user,
+    reactionsReady: true,
+    saveReaction: (msg, emoji) => addGuildReaction(msg.id, emoji),
+    deleteReaction: removeGuildReaction,
+    reactionNames,
+    people: channelMembers,
+    mentionRoles,
+    myRoleIds: guild.my_role_ids,
+    suggestRoles,
+    canMentionEveryone,
+    channels: mentionChannels,
+    canModerate: has(permissions, PERMISSIONS.MANAGE_MESSAGES),
+    canSend: has(permissions, PERMISSIONS.SEND_MESSAGES),
+    cantSendText: `You do not have permission to reply in #${channel.name}.`,
+    canAddReactions: has(permissions, PERMISSIONS.ADD_REACTIONS),
+    nameColors,
+    onRead: guildList.refreshUnread,
+  };
 
   return (
     <div id="guild-main" className="guild-main">
@@ -282,6 +306,15 @@ export default function GuildView({ user }) {
               mentionRoles={mentionRoles}
               nameColors={nameColors}
               isMobile={isMobile}
+            />
+          ) : channel.type === 'doc' ? (
+            <DocChannelView
+              guild={guild}
+              channel={channel}
+              user={user}
+              isMobile={isMobile}
+              nameColors={nameColors}
+              chatProps={chatProps}
             />
           ) : (
             <ChatPane

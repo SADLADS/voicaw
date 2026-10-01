@@ -25,7 +25,7 @@ const MAX_EMOJI_LENGTH = 64;
 const MESSAGE_SELECT = `
   SELECT
     m.id, m.channel_id, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
-    m.mention_everyone, m.mention_roles, m.pinned_at, m.pinned_by, m.system,
+    m.mention_everyone, m.mention_roles, m.pinned_at, m.pinned_by, m.system, m.document_id,
     m.webhook_id, m.webhook_name, m.webhook_avatar, m.embeds, m.attachments, m.flags, m.edited_at,
     COALESCE(u.username, m.webhook_name) AS sender_username,
     u.display_name AS sender_display_name,
@@ -83,6 +83,42 @@ async function requireTextChannel(req, res, next) {
   next();
 }
 
+// As requireTextChannel, but a document channel too: its messages are replies to one of its
+// documents, whose id comes as `document` (query) or `documentId` (body) and is req.documentId
+// (null in a text channel, where none may be given).
+async function requireChatChannel(req, res, next) {
+  const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
+  if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Channel not found' });
+  const given = req.query.document ?? req.body?.documentId;
+  if (access.channel.type === 'text') {
+    if (given != null) return res.status(400).json({ error: 'Not a document channel' });
+    req.documentId = null;
+  } else if (access.channel.type === 'doc') {
+    const documentId = Number(given);
+    const document = Number.isInteger(documentId) && await db.get(
+      'SELECT id FROM guild_documents WHERE id = ? AND channel_id = ?',
+      [documentId, access.channel.id]
+    );
+    if (!document) return res.status(404).json({ error: 'Document not found' });
+    req.documentId = documentId;
+  } else {
+    return res.status(400).json({ error: 'Not a text channel' });
+  }
+  req.channel = access.channel;
+  req.permissions = access.permissions;
+  next();
+}
+
+// Marking read works for document channels too (the feed marks the whole channel read).
+async function requireReadableChannel(req, res, next) {
+  const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
+  if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Channel not found' });
+  if (!['text', 'doc'].includes(access.channel.type)) return res.status(400).json({ error: 'Not a text channel' });
+  req.channel = access.channel;
+  req.permissions = access.permissions;
+  next();
+}
+
 // Loads req.message, its req.channel and req.permissions if the caller can see it.
 async function requireMessage(req, res, next) {
   const messageId = Number(req.params.messageId);
@@ -113,15 +149,19 @@ async function markRead(userId, channelId, messageId) {
   );
 }
 
-// A page of a channel, oldest first: the newest `limit` messages (1–100, default 50), or
-// those before message id `before`.
-router.get('/channels/:channelId/messages', authenticateJWT, requireTextChannel, async (req, res) => {
+// A page of a channel (or of a document's replies, `document`), oldest first: the newest
+// `limit` messages (1–100, default 50), or those before message id `before`.
+router.get('/channels/:channelId/messages', authenticateJWT, requireChatChannel, async (req, res) => {
   const requestedLimit = parseInt(req.query.limit, 10);
   const limit = Number.isNaN(requestedLimit) ? 50 : Math.min(Math.max(requestedLimit, 1), 100);
   const before = parseInt(req.query.before, 10);
 
   const params = [req.channel.id];
   let where = 'm.channel_id = ?';
+  if (req.documentId) {
+    where += ' AND m.document_id = ?';
+    params.push(req.documentId);
+  }
   if (!Number.isNaN(before)) {
     where += ' AND m.id < ?';
     params.push(before);
@@ -130,29 +170,30 @@ router.get('/channels/:channelId/messages', authenticateJWT, requireTextChannel,
   res.json(await withReactions(rows.reverse()));
 });
 
-router.post('/channels/:channelId/messages', authenticateJWT, requireTextChannel, async (req, res) => {
+// In a document channel, `documentId` says which document it replies to.
+router.post('/channels/:channelId/messages', authenticateJWT, requireChatChannel, async (req, res) => {
   if (!has(req.permissions, PERMISSIONS.SEND_MESSAGES)) return forbidden(res);
   const content = cleanContent(req.body?.content);
   if (!content) {
     return res.status(400).json({ error: `Messages are 1–${maxPlaintextLength} characters` });
   }
 
-  // A reply must point at a message in this same channel.
+  // A reply must point at a message in this same channel (and document).
   let parentMessageId = null;
   if (req.body.replyTo != null) {
     parentMessageId = Number(req.body.replyTo);
     const parent = Number.isInteger(parentMessageId) && await db.get(
-      'SELECT id FROM guild_messages WHERE id = ? AND channel_id = ?',
-      [parentMessageId, req.channel.id]
+      'SELECT id FROM guild_messages WHERE id = ? AND channel_id = ? AND document_id IS ?',
+      [parentMessageId, req.channel.id, req.documentId]
     );
     if (!parent) return res.status(400).json({ error: 'Invalid reply' });
   }
 
   const { lastID, mentions } = await db.transaction(async () => {
     const { lastID: id } = await db.run(
-      `INSERT INTO guild_messages (channel_id, sender_id, content, parent_message_id, timestamp)
-       VALUES (?, ?, ?, ?, strftime('%s','now'))`,
-      [req.channel.id, req.user.id, content, parentMessageId]
+      `INSERT INTO guild_messages (channel_id, sender_id, content, parent_message_id, document_id, timestamp)
+       VALUES (?, ?, ?, ?, ?, strftime('%s','now'))`,
+      [req.channel.id, req.user.id, content, parentMessageId, req.documentId]
     );
     await markRead(req.user.id, req.channel.id, id);
     await db.indexGuildMessage(id);
@@ -249,7 +290,9 @@ router.get('/channels/:channelId/pins', authenticateJWT, requireTextChannel, asy
   res.json(await withReactions(rows));
 });
 
+// Only in text channels (a document channel's replies have no pinned list).
 async function pinRoute(req, res, pinned) {
+  if (req.channel.type !== 'text') return res.status(400).json({ error: 'Not a text channel' });
   if (!has(req.permissions, PERMISSIONS.PIN_MESSAGES)) return forbidden(res);
   const { guild_id: guildId, id: channelId } = req.channel;
   const result = await setPinned('guild_messages', req.message.id, req.user.id, pinned, 'channel_id = ?', [channelId]);
@@ -344,7 +387,7 @@ router.get('/channels/:channelId/members', authenticateJWT, async (req, res) => 
 // ---- Read state ----
 
 // Marks the channel read up to `messageId` (never moves backwards).
-router.post('/channels/:channelId/read', authenticateJWT, requireTextChannel, async (req, res) => {
+router.post('/channels/:channelId/read', authenticateJWT, requireReadableChannel, async (req, res) => {
   const messageId = Number(req.body?.messageId);
   if (!Number.isInteger(messageId) || messageId < 0) return res.status(400).json({ error: 'Invalid messageId' });
   await markRead(req.user.id, req.channel.id, messageId);

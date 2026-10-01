@@ -163,7 +163,8 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }, { sile
   const payload = {
     type: 'guild',
     title: `${message.sender_display_name || message.sender_username} (#${channel.name}, ${guild.name})`,
-    url: `/guild/${channel.guild_id}/${channel.id}`,
+    // A reply to a document opens that document.
+    url: `/guild/${channel.guild_id}/${channel.id}${message.document_id ? `?doc=${message.document_id}` : ''}`,
     tag: `channel-${channel.id}`,
     // A webhook's own picture (ours, never another site's), else the sender's.
     image: message.webhook_id

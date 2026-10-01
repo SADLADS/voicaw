@@ -73,12 +73,13 @@
 .recovery-code-display .btn-vc,
 .account-security-form .btn-vc {
   background-color: var(--vc-accent);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
 }
 
 .recovery-code-display .btn-vc:hover,
 .account-security-form .btn-vc:hover {
   background-color: var(--vc-accent-hover);
+  color: var(--vc-on-accent);
 }
 
 .recovery-code-display .recovery-error {

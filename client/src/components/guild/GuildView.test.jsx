@@ -160,7 +160,7 @@ describe('GuildView', () => {
 
     act(() => editorFor(document.getElementById('dm-input')).setText('hi all'));
     fireEvent.submit(document.getElementById('dm-chat-form'));
-    await waitFor(() => expect(sendChannelMessage).toHaveBeenCalledWith('10', 'hi all', null));
+    await waitFor(() => expect(sendChannelMessage).toHaveBeenCalledWith('10', 'hi all', null, null));
     await waitFor(() => expect(messageTexts()).toEqual(['me: hi all [sent]']));
 
     await emit({ type: 'guild_message_new', guildId: 5, message: row(5, 'hi all', 1) });

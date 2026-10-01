@@ -13,12 +13,13 @@ body {
   
   .btn-vc {
     background-color: var(--vc-accent);
-    color: var(--vc-fg);
+    color: var(--vc-on-accent);
   }
   
   .btn-vc:hover {
     background-color: var(--vc-accent-hover);
-  }
+    color: var(--vc-on-accent);
+}
 
   .login-header{
     color: var(--vc-fg);
@@ -26,13 +27,13 @@ body {
 
   .btn-secondary {
     background-color: var(--vc-action);
-    color: var(--vc-bg-base);
+    color: var(--vc-on-action);
     border:1px solid var(--vc-action);
   }
 
   .btn-secondary:hover {
     background-color: var(--vc-action-hover);
-    color: var(--vc-bg-base);
+    color: var(--vc-on-action);
     border:1px solid var(--vc-action-hover);
   }
 .register-password-hint {

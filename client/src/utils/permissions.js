@@ -23,11 +23,12 @@ export const PERMISSIONS = {
   VIEW_AUDIT_LOG: 1 << 17,
   EDIT_TASKS: 1 << 18,
   STREAM: 1 << 19,
+  CREATE_DOCUMENTS: 1 << 20,
 };
 
 export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
   PERMISSIONS.ADD_REACTIONS | PERMISSIONS.CREATE_INVITE | PERMISSIONS.CONNECT | PERMISSIONS.SPEAK |
-  PERMISSIONS.EDIT_TASKS | PERMISSIONS.STREAM;
+  PERMISSIONS.EDIT_TASKS | PERMISSIONS.STREAM | PERMISSIONS.CREATE_DOCUMENTS;
 
 export const has = (permissions, bit) => ((permissions ?? 0) & bit) === bit;
 
@@ -78,6 +79,12 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
+    title: 'Document channels',
+    items: [
+      ['CREATE_DOCUMENTS', 'Create Documents', "Lets members write documents in document channels and edit their own. Editing and deleting other people's follows Manage Messages; replying follows Send Messages."],
+    ],
+  },
+  {
     title: 'Advanced',
     items: [
       ['ADMINISTRATOR', 'Administrator', 'Every permission, in every channel, whatever the channel settings. Handle with care.'],
@@ -105,6 +112,13 @@ const CHANNEL_PERMISSION_ITEMS = {
     ['EDIT_TASKS', 'Edit Tasks'],
     ['SEND_MESSAGES', 'Comment on Tasks'],
     ['MANAGE_MESSAGES', 'Manage Comments'],
+  ],
+  doc: [
+    ['VIEW_CHANNEL', 'View Channel'],
+    ['CREATE_DOCUMENTS', 'Create Documents'],
+    ['SEND_MESSAGES', 'Reply to Documents'],
+    ['ADD_REACTIONS', 'Add Reactions'],
+    ['MANAGE_MESSAGES', 'Manage Documents and Replies'],
   ],
 };
 
