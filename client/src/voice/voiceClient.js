@@ -1,5 +1,6 @@
 import { fetchVoiceToken, leaveVoiceChannel, saveVoiceState } from '../services/voiceService';
 import { createVoiceChain } from './voiceChain';
+import { VOICE_SAMPLE_RATE, voiceProcessingStage } from './noise/noiseStages';
 import {
   captureOptions, getAudioSettings, inputGainStage, onAudioSettingsChange, outputSinkId, processingChanged,
 } from './audioSettings';
@@ -210,7 +211,9 @@ async function applyMicrophone() {
       // can't be passed with the capture options: LiveKit applies those before the track has
       // the AudioContext a processor needs.
       const track = publication?.audioTrack;
-      if (track && !track.getProcessor()) await track.setProcessor(createVoiceChain([inputGainStage]));
+      if (track && !track.getProcessor()) {
+        await track.setProcessor(createVoiceChain([inputGainStage, voiceProcessingStage], { sampleRate: VOICE_SAMPLE_RATE }));
+      }
       if (room === current) update({ micError: null });
     } else if (participant.isMicrophoneEnabled) {
       await participant.setMicrophoneEnabled(false);

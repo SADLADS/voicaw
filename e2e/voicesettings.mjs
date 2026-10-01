@@ -1,7 +1,7 @@
 // Voice settings (Settings → Voice & video), with Chrome's fake microphones and speakers and
 // the e2e LiveKit: the devices are listed, the mic test's meter moves; then in a voice channel,
 // Alice's input volume at 0 silences her for Bob (her "speaking" ring goes out) and back at
-// 100% she's heard again; a new microphone and turning noise suppression off keep her heard;
+// 100% she's heard again; a new microphone and each noise suppression (Strong, Off, Standard) keep her heard;
 // Bob's output volume and speakers apply to the voices he's playing. Phone layout at the end.
 //   node e2e/serve.mjs &   then   node e2e/voicesettings.mjs [screenshot dir]
 import { launchChrome, signUp, devices, fakeMicArgs, BASE } from './helpers.mjs';
@@ -119,18 +119,21 @@ try {
   await b.waitForSelector(`${tile(alice.name)}.speaking`, { timeout: 15000 });
   console.log('back at 100%: heard again');
 
-  // Another microphone, and noise suppression off: captured again, still heard.
+  // Another microphone, and each noise suppression: captured again, still heard.
   const otherMic = inputs.find(([value]) => value)?.[0];
   await a.selectOption('select[aria-label="Input device"]', otherMic);
   await a.waitForTimeout(1500);
   await b.waitForSelector(`${tile(alice.name)}.speaking`, { timeout: 15000 });
   const micLabel = await a.evaluate(() => [...document.querySelectorAll('select[aria-label="Input device"] option')].find((o) => o.selected)?.textContent);
   console.log(`alice switched to "${micLabel}": still heard`);
-  await a.click('label:has-text("Noise suppression") input');
-  await a.waitForTimeout(1500);
-  await b.waitForSelector(`${tile(alice.name)}.speaking`, { timeout: 15000 });
-  if (await a.$('.voice-bar .voice-bar-error, .voice-mic-error')) console.log('note: a mic error is shown');
-  console.log('noise suppression off: still heard');
+  for (const mode of ['strong', 'off', 'standard']) {
+    await a.check(`input[name="noise-suppression"][value="${mode}"]`);
+    // Strong loads DeepFilterNet (17 MB) the first time.
+    await a.waitForTimeout(mode === 'strong' ? 4000 : 1500);
+    await b.waitForSelector(`${tile(alice.name)}.speaking`, { timeout: 15000 });
+    if (await a.$('.voice-bar .voice-bar-error, .voice-mic-error')) console.log('note: a mic error is shown');
+    console.log(`noise suppression ${mode}: still heard`);
+  }
   if (await a.$('.voice-bar-status.connected') === null) throw new Error('alice left voice');
   await shot(a, '02-alice-settings-in-call');
 

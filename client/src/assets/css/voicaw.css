@@ -1321,6 +1321,56 @@ html {
   margin: 0;
 }
 
+.voice-settings-toggle.disabled {
+  opacity: 0.55;
+}
+
+/* Input sensitivity set by hand: the slider over a meter of the level the gate sees, green
+   while it's open, with a mark at the threshold. Both span the same -100–0 dB. */
+.voice-sensitivity {
+  max-width: 360px;
+  margin: 0.25rem 0 0.5rem 24px;
+}
+
+.voice-sensitivity input[type="range"] {
+  width: 100%;
+  display: block;
+  accent-color: var(--vc-accent);
+}
+
+.voice-sensitivity-meter {
+  position: relative;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--vc-bg-hover);
+}
+
+.voice-sensitivity-level {
+  height: 100%;
+  background: var(--vc-fg-muted);
+  transform-origin: left;
+  transition: transform 60ms linear;
+}
+
+.voice-sensitivity-level.open {
+  background: var(--vc-online);
+}
+
+.voice-sensitivity-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--vc-fg);
+}
+
+.voice-sensitivity .vc-hint {
+  margin: 4px 0 0;
+}
+
 .voice-settings-footer {
   display: flex;
   align-items: center;

@@ -1,8 +1,10 @@
 import { useSyncExternalStore } from 'react';
+import { ALWAYS_OPEN_DB } from './noise/gate';
 
 // Voice settings on this device (Settings → Voice & video, localStorage `audioSettings`):
-// which microphone and speakers, their volumes, and what the browser does to the microphone
-// (echo cancellation, noise suppression, automatic gain). voiceClient.js applies them to the
+// which microphone and speakers, their volumes, what's done to the microphone (echo
+// cancellation and automatic gain by the browser; noise suppression; the gate's input
+// sensitivity, see noise/gate.js). voiceClient.js applies them to the
 // call you're in as they change; the microphone test (micTest.js) and the app's sounds use
 // them too. Device ids are the browser's, so they only mean something on this device; one
 // that's gone (unplugged) falls back to the system's default.
@@ -15,12 +17,27 @@ export const DEFAULT_AUDIO_SETTINGS = {
   inputVolume: 1, // 0–2: a gain on the microphone, before it's sent
   outputVolume: 1, // 0–1: everyone else's voices
   echoCancellation: true,
-  noiseSuppression: true,
+  noiseSuppression: 'standard', // one of NOISE_SUPPRESSION
   autoGainControl: true,
+  autoSensitivity: true, // the gate opens on speech (RNNoise's); else on loudness:
+  sensitivity: -50, // dB, -100 (ALWAYS_OPEN_DB) to 0
 };
+
+// Noise suppression: Standard is RNNoise (noise/rnnoise.js), Strong DeepFilterNet
+// (noise/deepFilterWorklet.js, a big download, computers only), Browser the browser's own
+// (with Chrome's voiceIsolation), Off nothing. Only one ever runs: two in a row make a voice
+// sound worse.
+export const NOISE_SUPPRESSION = ['standard', 'strong', 'browser', 'off'];
 
 const clamp = (value, min, max, fallback) =>
   (Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback);
+
+// Saved before the modes, it was on (now Standard) or off.
+function noiseMode(value) {
+  if (NOISE_SUPPRESSION.includes(value)) return value;
+  if (value === false) return 'off';
+  return DEFAULT_AUDIO_SETTINGS.noiseSuppression;
+}
 
 export function cleanAudioSettings(raw) {
   const d = DEFAULT_AUDIO_SETTINGS;
@@ -33,8 +50,10 @@ export function cleanAudioSettings(raw) {
     inputVolume: clamp(saved.inputVolume, 0, 2, d.inputVolume),
     outputVolume: clamp(saved.outputVolume, 0, 1, d.outputVolume),
     echoCancellation: bool('echoCancellation'),
-    noiseSuppression: bool('noiseSuppression'),
+    noiseSuppression: noiseMode(saved.noiseSuppression),
     autoGainControl: bool('autoGainControl'),
+    autoSensitivity: bool('autoSensitivity'),
+    sensitivity: clamp(saved.sensitivity, ALWAYS_OPEN_DB, 0, d.sensitivity),
   };
 }
 
@@ -75,22 +94,30 @@ export function resetAudioSettings() {
 }
 
 // The microphone as LiveKit (and getUserMedia) take it. `ideal`, so a device that's gone
-// falls back to another rather than failing. Voice isolation (Chrome's stronger noise
-// suppression) goes with noise suppression.
+// falls back to another rather than failing. The browser's noise suppression (and voice
+// isolation, Chrome's stronger one) only when it's the one chosen.
 export function captureOptions(s = settings) {
+  const browserSuppression = s.noiseSuppression === 'browser';
   return {
     ...(s.inputDeviceId ? { deviceId: { ideal: s.inputDeviceId } } : {}),
     echoCancellation: s.echoCancellation,
-    noiseSuppression: s.noiseSuppression,
+    noiseSuppression: browserSuppression,
     autoGainControl: s.autoGainControl,
-    voiceIsolation: s.noiseSuppression,
+    voiceIsolation: browserSuppression,
   };
 }
 
-// Whether the processing changed (the microphone has to be captured again for that).
+// Whether the processing changed: the microphone has to be captured again (and the chain
+// rebuilt) for that. The gate's settings apply live.
 export const processingChanged = (a, b) =>
   a.echoCancellation !== b.echoCancellation || a.noiseSuppression !== b.noiseSuppression ||
   a.autoGainControl !== b.autoGainControl;
+
+// The gate's options (noise/gate.js).
+export const gateOptions = (s = settings) => ({
+  auto: s.autoSensitivity,
+  thresholdDb: s.sensitivity,
+});
 
 // The speakers, for setSinkId ('' is the default).
 export const outputSinkId = (s = settings) => s.outputDeviceId || '';

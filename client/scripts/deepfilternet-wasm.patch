@@ -1,0 +1,22 @@
+--- a/libDF/src/wasm.rs
++++ b/libDF/src/wasm.rs
+@@ -86,3 +86,19 @@
+     let _lsnr = state.0.process(input, output_view).expect("Failed to process DF frame");
+     js_sys::Float32Array::from(output.as_slice().unwrap())
+ }
++
++/// Create a DeepFilterNet model from the one compiled in (DeepFilterNet3), so it isn't
++/// downloaded a second time. (Added by Voicaw.)
++#[wasm_bindgen]
++pub unsafe fn df_create_default(atten_lim: f32) -> *mut DFState {
++    let r_params = RuntimeParams::default_with_ch(1).with_atten_lim(atten_lim);
++    let m = DfTract::new(DfParams::default(), &r_params)
++        .expect("Could not initialize DeepFilter runtime.");
++    Box::into_raw(DFState(m).boxed())
++}
++
++/// Free a model made by df_create or df_create_default. (Added by Voicaw.)
++#[wasm_bindgen]
++pub unsafe fn df_destroy(st: *mut DFState) {
++    drop(Box::from_raw(st));
++}

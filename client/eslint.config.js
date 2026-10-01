@@ -5,7 +5,8 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // DeepFilterNet's generated wasm-bindgen glue (scripts/build-deepfilternet.sh).
+  globalIgnores(['dist', 'src/voice/noise/deepfilter']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
