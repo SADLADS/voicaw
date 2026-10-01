@@ -41,21 +41,43 @@ export async function readMediaDimensions(file, objectUrl) {
 // Longest side of a poster: sharp at the chat's size (420×360) on a high-density screen.
 const POSTER_MAX = 720;
 
-// The first frame of a loaded <video>, as a JPEG.
+// The first frame of a loaded <video>, as a JPEG. Safari (iPhones especially) often won't
+// decode a frame of a video nobody has played: seeking to the first instant usually makes it,
+// and failing that a muted play and pause does.
 function capturePoster(video) {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('timed out')), 5000);
-    const draw = () => {
-      clearTimeout(timer);
+    let done = false;
+    const timers = [];
+    const events = ['loadeddata', 'seeked', 'playing'];
+    const finish = () => {
+      done = true;
+      timers.forEach(clearTimeout);
+      events.forEach((name) => video.removeEventListener(name, draw));
+    };
+    function draw() {
+      if (done || video.readyState < 2) return;
+      finish();
+      video.pause();
       const scale = Math.min(1, POSTER_MAX / Math.max(video.videoWidth, video.videoHeight));
       const canvas = document.createElement('canvas');
       canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
       canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
       canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('no poster'))), 'image/jpeg', 0.8);
-    };
-    if (video.readyState >= 2) draw();
-    else video.addEventListener('loadeddata', draw, { once: true });
+    }
+    events.forEach((name) => video.addEventListener(name, draw));
+    timers.push(setTimeout(() => {
+      finish();
+      reject(new Error('timed out'));
+    }, 8000));
+    if (video.readyState >= 2) {
+      draw();
+      return;
+    }
+    video.currentTime = 0.001;
+    timers.push(setTimeout(() => {
+      if (!done) Promise.resolve(video.play()).catch(() => {});
+    }, 1500));
   });
 }
 

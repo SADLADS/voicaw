@@ -26,14 +26,14 @@ if (made.status !== 0) throw new Error(`ffmpeg failed: ${made.stderr}`);
 const video = readFileSync(file);
 const size = statSync(file).size;
 
-const attach = async (page, name, { spoiler = false } = {}) => {
+const attach = async (page, name, { spoiler = false, wait = true } = {}) => {
   const [chooser] = await Promise.all([
     page.waitForEvent('filechooser'),
     page.click('.attach-button').then(() => page.click('text=Upload a file')),
   ]);
   await chooser.setFiles({ name, mimeType: 'video/mp4', buffer: video });
   // The poster and length are read from the file before sending.
-  await page.waitForTimeout(1500);
+  if (wait) await page.waitForTimeout(1500);
   if (spoiler) await page.click(`button[aria-label="Mark ${name} as spoiler"]`);
 };
 
@@ -153,6 +153,11 @@ try {
   await shot(alice.page, '5-fullscreen');
   await alice.page.keyboard.press('f');
   await alice.page.waitForFunction(() => !document.fullscreenElement, null, { timeout: 5000 });
+
+  // Sent straight after attaching, before the poster was read: it still gets one.
+  await attach(alice.page, 'quick.mp4', { wait: false });
+  await send(alice.page, 'sent at once');
+  await bob.page.waitForSelector(`${row('sent at once')} .video-poster`, { timeout: 30000 });
 
   // A spoiler: the poster blurred under the cover for Bob, the player once tapped.
   await attach(alice.page, 'twist.mp4', { spoiler: true });

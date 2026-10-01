@@ -18,6 +18,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
   const draftsRef = useRef(drafts);
   draftsRef.current = drafts;
   const nextDraftId = useRef(1);
+  const mediaInfo = useRef(new Map()); // draft id -> Promise of readMediaDimensions
   const [progress, setProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
   const dragDepth = useRef(0);
@@ -56,7 +57,9 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     // Record image/video sizes (sent in the attachment URL) so receivers can reserve the
     // right space before the file loads; for videos also the duration and a poster.
     newDrafts.forEach((d) => {
-      readMediaDimensions(d.file, d.previewUrl).then((dims) => {
+      const reading = readMediaDimensions(d.file, d.previewUrl);
+      mediaInfo.current.set(d.id, reading);
+      reading.then((dims) => {
         if (dims) setDrafts((prev) => prev.map((x) => (x.id === d.id ? { ...x, ...dims } : x)));
       });
     });
@@ -117,8 +120,14 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     try {
       const entries = await Promise.all(
         attachments.map(async (d) => {
-          const info = d.width && d.height
-            ? { width: d.width, height: d.height, duration: d.duration, poster: d.poster }
+          // Sent before its size and poster were read (a video on a slow phone): wait for
+          // them, so others still get the poster. They're limited by timeouts.
+          const read = (await mediaInfo.current.get(d.id)) ?? {};
+          mediaInfo.current.delete(d.id);
+          const width = d.width ?? read.width;
+          const height = d.height ?? read.height;
+          const info = width && height
+            ? { width, height, duration: d.duration ?? read.duration, poster: d.poster ?? read.poster }
             : null;
           const url = await uploadAttachment(d.file, (bytes) => {
             loaded[d.id] = bytes;
