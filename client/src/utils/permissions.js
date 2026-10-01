@@ -21,10 +21,12 @@ export const PERMISSIONS = {
   PIN_MESSAGES: 1 << 15,
   MANAGE_WEBHOOKS: 1 << 16,
   VIEW_AUDIT_LOG: 1 << 17,
+  STREAM: 1 << 18,
 };
 
 export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
-  PERMISSIONS.ADD_REACTIONS | PERMISSIONS.CREATE_INVITE | PERMISSIONS.CONNECT | PERMISSIONS.SPEAK;
+  PERMISSIONS.ADD_REACTIONS | PERMISSIONS.CREATE_INVITE | PERMISSIONS.CONNECT | PERMISSIONS.SPEAK |
+  PERMISSIONS.STREAM;
 
 export const has = (permissions, bit) => ((permissions ?? 0) & bit) === bit;
 
@@ -65,6 +67,7 @@ export const PERMISSION_GROUPS = [
     items: [
       ['CONNECT', 'Connect', 'Lets members join voice channels and hear others.'],
       ['SPEAK', 'Speak', 'Lets members talk in voice channels. Without it they can only listen.'],
+      ['STREAM', 'Video', 'Lets members share their screen in voice channels.'],
     ],
   },
   {
@@ -88,6 +91,7 @@ const CHANNEL_PERMISSION_ITEMS = {
     ['VIEW_CHANNEL', 'View Channel'],
     ['CONNECT', 'Connect'],
     ['SPEAK', 'Speak'],
+    ['STREAM', 'Video'],
   ],
 };
 

@@ -42,7 +42,6 @@ try {
   await a.fill('#new-guild-name', 'Voice Test');
   await a.click('button:has-text("Create")');
   await a.waitForSelector('#dm-input');
-  const guildId = /\/guild\/(\d+)/.exec(a.url())[1];
 
   // Create Channel → Voice → "Lounge". Creating it opens it, without joining.
   await a.click('.guild-header-button');
@@ -98,11 +97,10 @@ try {
   await b.waitForSelector(`${tile(alice.name)}.speaking`, { timeout: 15000 });
   console.log('alice unmuted: speaking again');
 
-  // Carol on a phone: tapping the channel only opens it; she joins from its page.
+  // Carol on a phone: opening the channel doesn't join it; she joins from its page.
   await joinWith(c, link);
-  await c.goto(`${BASE}/guild/${guildId}`);
-  await c.waitForSelector('.guild-channel-link:has-text("lounge")');
-  await c.click('.guild-channel-link:has-text("lounge")');
+  // (On a phone the guild opens on a channel, its list underneath: open the voice one directly.)
+  await c.goto(loungeUrl.replace(/^https?:\/\/[^/]+/, BASE));
   await c.waitForSelector('.voice-view-join');
   await c.waitForTimeout(600); // the slide over to the content
   await shot(c, '05-carol-phone-before-joining');

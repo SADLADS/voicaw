@@ -4,16 +4,20 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPhoneSlash, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import { ConfigContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
-import { joinVoice, leaveVoice } from '../../voice/voiceClient';
+import { joinVoice, leaveVoice, watchStream } from '../../voice/voiceClient';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
+import ScreenShareButton from '../voice/ScreenShareButton';
+import StreamView from '../voice/StreamView';
 import { HeadphonesIcon, MicIcon } from '../voice/VoiceIcons';
 import { displayName, useProfiles } from '../../utils/profiles';
 
 // A voice channel's page: everyone in it as tiles (ringed while they talk, if you're in there
-// too), and joining, or mute/deafen/disconnect once you're in. On mobile this is where you
-// join (tapping the channel only opens it); on desktop clicking the channel already joined.
+// too), and joining, or mute/deafen/share screen/disconnect once you're in. On mobile this is
+// where you join (tapping the channel only opens it); on desktop clicking the channel already
+// joined. Someone sharing their screen is marked Live; once you're in, Watch Stream shows it
+// big above the tiles (only watched streams are downloaded).
 export default function VoiceChannelView({ guild, channel, nameColors }) {
   useProfiles();
   const { voiceEnabled } = useContext(ConfigContext);
@@ -22,12 +26,15 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
   const here = voice.channelId === channel.id && voice.status !== 'idle';
   const speaking = new Set(here ? voice.speaking : []);
   const canConnect = has(channel.my_permissions, PERMISSIONS.CONNECT);
+  const streams = new Set(here ? voice.streams : []);
+  const watched = here && voice.watching != null ? members.find((m) => String(m.user_id) === voice.watching) : null;
 
   let footer;
   if (here) {
     footer = (
       <div className="voice-view-controls">
         <VoiceControls className="voice-view-button" />
+        <ScreenShareButton className="voice-view-button" />
         <button type="button" className="voice-view-button leave" aria-label="Disconnect" title="Disconnect" onClick={leaveVoice}>
           <FontAwesomeIcon icon={faPhoneSlash} fixedWidth />
         </button>
@@ -46,7 +53,15 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
   }
 
   return (
-    <div className="voice-view">
+    <div className={`voice-view${watched ? ' watching' : ''}`}>
+      {watched && (
+        <StreamView
+          key={watched.user_id}
+          userId={watched.user_id}
+          name={displayName(watched.user_id, watched.username)}
+          own={voice.watching === voice.identity}
+        />
+      )}
       {members.length === 0 ? (
         <div className="voice-view-empty">
           <FontAwesomeIcon icon={faVolumeHigh} size="2x" />
@@ -56,23 +71,32 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
         <ul className="voice-view-tiles" aria-label={`In ${channel.name}`}>
           {members.map((m) => {
             const talking = speaking.has(String(m.user_id));
+            const live = m.self_stream || streams.has(String(m.user_id));
+            const watchable = streams.has(String(m.user_id)) && voice.watching !== String(m.user_id);
             return (
-              <li key={m.user_id} className={`voice-tile${talking ? ' speaking' : ''}`}>
+              <li key={m.user_id} className={`voice-tile${talking ? ' speaking' : ''}${live ? ' live' : ''}`}>
                 <UserAvatar userId={m.user_id} className="voice-tile-avatar" speaking={talking} />
                 <span className="voice-tile-name" style={nameColors?.[m.user_id] ? { color: nameColors[m.user_id] } : undefined}>
                   {displayName(m.user_id, m.username)}
                 </span>
-                {(m.self_mute || m.self_deaf) && (
+                {(m.self_mute || m.self_deaf || live) && (
                   <span className="voice-tile-icons">
-                    <span title="Muted" aria-label="Muted"><MicIcon muted /></span>
+                    {live && <span className="voice-live-badge">Live</span>}
+                    {(m.self_mute || m.self_deaf) && <span title="Muted" aria-label="Muted"><MicIcon muted /></span>}
                     {m.self_deaf && <span title="Deafened" aria-label="Deafened"><HeadphonesIcon deafened /></span>}
                   </span>
+                )}
+                {watchable && (
+                  <button type="button" className="voice-tile-watch" onClick={() => watchStream(m.user_id)}>
+                    Watch Stream
+                  </button>
                 )}
               </li>
             );
           })}
         </ul>
       )}
+      {here && voice.streamError && <p className="voice-view-note voice-view-error" role="alert">{voice.streamError}</p>}
       <div className="voice-view-footer">
         {voice.status === 'connecting' && voice.channelId === channel.id ? <p className="voice-view-note">Connecting…</p> : footer}
       </div>

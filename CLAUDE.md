@@ -100,6 +100,7 @@ node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permission
 node e2e/auditlog.mjs [dir] # audit log: mod deletes a message, role change, details, filters, no access, phone
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
+node e2e/screenshare.mjs [dir] # screen share: own preview, Live, no download until Watch, phone watches, Video taken away
 node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mute, decline, phone
 node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, group call, owner leaves
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
@@ -457,7 +458,8 @@ data that must run exactly once are `MIGRATIONS` at the end of `db.js`, numbered
 `PRAGMA user_version`, each in its own transaction (1: @everyone gets Connect and Speak; 2: clear
 `users.last_online`, which had only ever held the sign-up time; 3: roles and channel overrides
 that allow or deny Manage Messages do the same for Pin Messages; 4: index existing guild messages
-for search; 5: lower-case usernames, see Auth); add the next one at the end.
+for search; 5: lower-case usernames, see Auth; 6: @everyone gets Video, for screen sharing);
+add the next one at the end.
 - Queries: `db.get` / `db.all` / `db.run` return promises, as with the old driver (rows are plain
   objects; `undefined` binds as NULL, booleans as 1/0). Prepared statements are cached.
 - **Transactions:** anything that writes more than one row (or one row that depends on another)
@@ -479,17 +481,18 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - **Permissions** (`server/permissions.js`, copied in `client/src/utils/permissions.js`; a
   test checks they match) are Discord's model with a bit field: View Channel, Send Messages,
   Add Reactions, Manage Messages, Manage Channels, Manage Roles, Manage Guild, Create Invite,
-  Kick, Ban, Administrator, Manage Emoji, Connect, Speak (voice), Mention Everyone (@everyone,
+  Kick, Ban, Administrator, Manage Emoji, Connect, Speak, Video (`STREAM`: share your screen;
+  voice), Mention Everyone (@everyone,
   @here and any role; not a default, guild-wide only), Pin Messages (not a default; split out of
   Manage Messages like Discord did, migration 3), Manage Webhooks (guild-wide only), View Audit
   Log (not a default, guild-wide only; see Audit log). Every guild has an `@everyone`
-  role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak) plus orderable roles (`guild_roles`: name, colour
+  role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak, video) plus orderable roles (`guild_roles`: name, colour
   0xRRGGBB or null, `hoist` = shown separately in the member list, `mentionable` = anyone may
   @mention it, position: higher ranks
   higher), given out in `guild_member_roles`. Guild permissions are @everyone's plus the
   member's roles'; the owner and Administrator get everything.
 - **Channel overrides** (`guild_channel_overrides`, per role or member, `allow`/`deny` of the
-  channel permissions: View, Send, React, Manage Messages, Pin Messages, Connect, Speak; the editor shows a
+  channel permissions: View, Send, React, Manage Messages, Pin Messages, Connect, Speak, Video; the editor shows a
   text channel's or a voice channel's) apply in order: @everyone's, the member's roles' (all denies, then
   all allows), the member's own. A **private channel** is @everyone denied View Channel. A
   channel you can't view doesn't exist for you: left out of your layout, 404, no events
@@ -700,7 +703,8 @@ LiveKit carries the audio.
   takes away Speak live. Self mute/deafen: `PUT /voice/state` (kept in LiveKit participant
   attributes too, so a restart keeps them); `DELETE /voice` leaves. Everyone who can see the
   channel gets `guild_voice_state { guildId, channelId, userId, state }` (`state` null: left),
-  and a voice channel in the layout has `voice: [{ user_id, username, self_mute, self_deaf }]`.
+  and a voice channel in the layout has `voice: [{ user_id, username, self_mute, self_deaf,
+  self_stream }]`.
   Without `LIVEKIT_*` settings voice is off: `/api/config` says `voiceEnabled: false`, joins 503.
 - **Client** (`voice/voiceClient.js`, read with `hooks/useVoice.js`): one connection per
   device, a module-level store like `ws-client`. `livekit-client` is loaded on the first join
@@ -710,6 +714,24 @@ LiveKit carries the audio.
   and deafen are remembered per device (`localStorage voicePrefs`) and work outside a call.
   `speaking` is LiveKit's active speakers. A lost connection, being removed, or joining the same
   channel elsewhere ends it with a message in the voice bar.
+- **Screen sharing** (guild voice channels, with Video): the token lets you publish
+  `screen_share` and `screen_share_audio` only with Video (`publishPermission`), and
+  `enforceGuild` changes that live (LiveKit then ends a stream that's no longer allowed; the
+  client lets go of the capture). Who's live (`self_stream`) comes from LiveKit's
+  `track_published` / `track_unpublished` webhooks (screen share tracks of the session that's
+  in), so it's what LiveKit really carries. Client: `startScreenShare` (from a click; the
+  browser asks what to share and whether with its sound; LiveKit's default 1080p at 15 fps)
+  shows your own stream at once; `stopScreenShare`, also noticed when the browser's own "Stop
+  sharing" ends it. **Nobody downloads a stream they aren't watching:** `voiceClient` connects
+  with `autoSubscribe: false` and `syncSubscriptions` subscribes every microphone, and a screen
+  share (and its sound) only for the one person `watching` (`watchStream(id)`; `attachStream`
+  plays it in a `<video>`). The stream's sound plays like the others' (deafen mutes it). UI: a
+  Live badge in the channel list and on tiles, Watch Stream on a live tile once you're in, the
+  stream big above the tiles (`voice/StreamView.jsx`: full screen, stop watching; the people
+  become a row), and the share button (`voice/ScreenShareButton.jsx`) in the voice bar and the
+  channel page. Not offered where the browser has no `getDisplayMedia` (phones, which can
+  still watch) nor in the desktop app (it needs its own source picker, see Desktop app).
+  Bandwidth: the sharer uploads once; LiveKit sends a copy to each viewer.
 - **Microphone chain** (`voice/voiceChain.js`): the browser captures with echo cancellation,
   noise suppression, auto gain and `voiceIsolation` (Chrome's stronger suppression, where it has
   it); then our own LiveKit audio processor runs the mic through a list of Web Audio stages
@@ -721,13 +743,15 @@ LiveKit carries the audio.
 - **UI:** in the channel list, people in a voice channel are listed under it (ringed while
   talking, when you're in there too). Clicking a voice channel joins it on desktop; on mobile a
   tap only opens it and you join from its page (`guild/VoiceChannelView.jsx`: tiles, Join Voice,
-  mute/deafen/disconnect). `voice/VoiceBar.jsx` sits above the user panel while connected
-  (status, channel link, disconnect, errors); `UserPanel` has mute and deafen
+  mute/deafen/share screen/disconnect). `voice/VoiceBar.jsx` sits above the user panel while
+  connected (status, channel link, share screen, disconnect, errors); `UserPanel` has mute and deafen
   (`voice/VoiceControls.jsx`). A guild reopens on its last *text* channel.
 - **Not done yet:** device selection, per-user volume, push-to-talk and voice activity
   settings, server mute/move (Mute Members, Move Members), a global push-to-talk key in the
   desktop app (it has global mute/deafen toggles; holding a key needs a native keyboard hook),
-  voice isolation stages, screen share, and a TURN server for networks that block UDP 7882 and
+  voice isolation stages, screen share in the desktop app and in DM/group calls (LiveKit's E2EE
+  would cover the video too), webcam video, stream quality settings, and a TURN server for
+  networks that block UDP 7882 and
   TCP 7881. Phones: a PWA's audio stops when it's in the background (iOS also when locked).
 
 ### DM calls

@@ -598,6 +598,8 @@ const MIGRATIONS = [
   },
   // 5. Usernames are lower case (usernames.js).
   () => lowercaseUsernames(),
+  // 6. Screen sharing: @everyone gets Video (Stream), as in new guilds.
+  () => sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.STREAM} WHERE is_everyone = 1`),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');
