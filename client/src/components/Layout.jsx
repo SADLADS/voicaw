@@ -12,6 +12,7 @@ import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';
 import 'highlight.js/styles/atom-one-dark.css';
+import '../assets/css/hljs-light.css';
 import { ChannelMentionContext, ConfigContext, InteractionContext, LayoutContext } from '../contexts';
 import { ensureSubscription, getPushStatus } from '../services/pushService';
 import { useGuildList } from '../hooks/useGuildList';

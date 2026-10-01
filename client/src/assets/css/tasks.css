@@ -231,6 +231,7 @@
 .task-check.done {
   background: var(--vc-accent-alt);
   border-color: var(--vc-accent-alt);
+  color: var(--vc-on-accent);
 }
 
 .task-check:disabled {

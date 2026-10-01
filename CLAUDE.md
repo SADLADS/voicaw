@@ -121,6 +121,7 @@ node e2e/lists.mjs [dir]  # list channels: add, subtask, drag to nest/reorder, a
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
 node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>
 node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
+node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept per device, no dark flash, Match system, color-scheme (keyboard), phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
@@ -1482,6 +1483,18 @@ these (2026-10-01) it froze for seconds; now opening takes ~0.2 s of script on a
   editors everywhere, and on desktop the chat's messages, names, times, reply previews and the
   channel topic. So dragging things (channels, guilds) doesn't highlight text. On mobile a long
   press on a message opens its actions instead.
+- **Themes** (`utils/theme.js`, Settings → Appearance, `ThemeSettings.jsx`): Dark (default),
+  Light or Match system (follows `prefers-color-scheme` live), **per device only**
+  (`localStorage theme`; never sent to the server). It's `<html data-theme>` (and Bootstrap's
+  `data-bs-theme`); a copy of the logic inline in `index.html` sets it before the CSS loads, so a
+  light page never starts dark. Colours are the `--vc-*` tokens on `:root` in `voicaw.css`,
+  overridden under `:root[data-theme="light"]` (THEMES there): **use tokens, not literal
+  colours**, in new CSS (`--vc-on-accent` for text on coloured fills, `--vc-popup` for menus;
+  literal black/white is only for overlays on images and video). Each theme sets CSS
+  `color-scheme`, which makes the browser's own controls and scrollbars match and, on iPhones
+  and iPads, the on-screen keyboard (Android keyboards follow the system or their own setting;
+  neither a page nor an app can choose). Code highlighting is Atom One Dark plus
+  `hljs-light.css` (Atom One Light under `[data-theme="light"]`).
 - Scrollbars are styled once, in `voicaw.css` (SCROLLBARS): every scroll area inherits the pane
   look (like the message list); small boxes and pop-ups are listed there for the thin one. Don't
   style a new scroll area's scrollbar locally.

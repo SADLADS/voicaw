@@ -11,6 +11,7 @@ import DeleteAccountSettings from "./DeleteAccountSettings";
 import AdminSettings from "./AdminSettings";
 import DateTimeSettings from "./DateTimeSettings";
 import SpellcheckSettings from "./SpellcheckSettings";
+import ThemeSettings from "./ThemeSettings";
 import SoundSettings from "./SoundSettings";
 import DesktopAppSettings from "./DesktopAppSettings";
 import { isDesktopApp } from '../utils/desktop';
@@ -76,6 +77,11 @@ export default function Settings({ onLogout }) {
       id: 'delete-account', category: 'account', title: 'Delete account',
       keywords: 'delete remove close account erase leave',
       content: <DeleteAccountSettings onDeleted={onLogout} />,
+    },
+    {
+      id: 'appearance', category: 'app', title: 'Appearance',
+      keywords: 'theme dark mode light mode night colours colors system keyboard',
+      content: <ThemeSettings />,
     },
     {
       id: 'interaction-mode', category: 'app', title: 'Interaction mode',

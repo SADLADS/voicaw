@@ -40,7 +40,7 @@
 
 .nav-icon.rail-add:hover {
   background-color: var(--vc-online);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
 }
 
 /* ---- Guild icon (picture or initials) ---- */
@@ -127,8 +127,8 @@ img.guild-icon {
   z-index: 40;
   padding: 6px;
   border-radius: 6px;
-  background-color: #111114;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+  background-color: var(--vc-popup);
+  box-shadow: 0 8px 16px var(--vc-popup-shadow);
 }
 
 .guild-menu-item {
@@ -148,11 +148,11 @@ img.guild-icon {
 
 .guild-menu-item:hover {
   background-color: var(--vc-accent);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
 }
 
 .guild-menu-item.accent {
-  color: #a898d8;
+  color: var(--vc-accent-text);
 }
 
 .guild-menu-item.accent:hover {
@@ -165,7 +165,7 @@ img.guild-icon {
 
 .guild-menu-item.danger:hover {
   background-color: var(--vc-danger);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
 }
 
 .guild-menu-separator {
@@ -836,14 +836,14 @@ img.guild-icon {
 .vc-button:disabled {
   background-color: var(--vc-accent);
   border-color: var(--vc-accent);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
 }
 
 .vc-button:hover,
 .vc-button:focus {
   background-color: var(--vc-accent-hover);
   border-color: var(--vc-accent-hover);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
 }
 
 .invite-options {
@@ -1187,10 +1187,12 @@ button.audit-log-row:focus-visible {
 
 .invite-embed .guild-initials {
   background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
 }
 
 .invite-embed .invite-embed-invalid {
   background-color: var(--vc-danger);
+  color: var(--vc-on-accent);
 }
 
 .invite-embed-text {
@@ -1224,14 +1226,14 @@ button.audit-log-row:focus-visible {
 .invite-embed-join:disabled {
   background-color: var(--vc-accent-alt);
   border-color: var(--vc-accent-alt);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
 }
 
 .invite-embed-join:hover,
 .invite-embed-join:focus {
   background-color: var(--vc-accent-alt-hover);
   border-color: var(--vc-accent-alt-hover);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
 }
 
 /* Inside dialogs and cards (which are the elevated colour), fields and initials need their
@@ -1244,6 +1246,7 @@ button.audit-log-row:focus-visible {
 .vc-dialog .guild-initials,
 .invite-card .guild-initials {
   background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
 }
 
 /* ---- Roles and permissions ---- */
@@ -1716,7 +1719,7 @@ button.audit-log-row:focus-visible {
 
 .override-state.deny.selected {
   background-color: var(--vc-danger);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
 }
 
 .override-state.inherit.selected {
@@ -1881,7 +1884,7 @@ img.emoji.custom-emoji {
 
 .emoji-picker-nav .guild-initials {
   background-color: var(--vc-accent);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
 }
 
 /* Unread mentions of you: a red count, on a channel and on its server's icon in the rail. */

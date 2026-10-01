@@ -133,12 +133,13 @@ button.user-panel-button {
   border: 0;
   border-radius: 4px;
   background-color: var(--vc-accent);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
   font-size: 13px;
 }
 
 .voice-bar-audio:hover {
   background-color: var(--vc-accent-hover);
+  color: var(--vc-on-accent);
 }
 
 /* ---- In the channel list ---- */
@@ -314,6 +315,7 @@ button.user-panel-button {
 
 .voice-view-button.leave {
   background-color: var(--vc-danger);
+  color: var(--vc-on-accent);
 }
 
 .voice-view-button.leave:hover {
@@ -358,13 +360,14 @@ button.user-panel-button {
   border: 0;
   border-radius: 4px;
   background-color: var(--vc-accent);
-  color: var(--vc-fg);
+  color: var(--vc-on-accent);
   font-size: 13px;
   font-weight: 600;
 }
 
 .voice-tile-watch:hover {
   background-color: var(--vc-accent-hover);
+  color: var(--vc-on-accent);
 }
 
 .voice-view-error {
@@ -615,10 +618,12 @@ button.user-panel-button {
 
 .call-button.accept {
   background-color: var(--vc-online);
+  color: var(--vc-on-accent);
 }
 
 .call-button.decline {
   background-color: var(--vc-danger);
+  color: var(--vc-on-accent);
 }
 
 .call-button:hover:not(:disabled) {
