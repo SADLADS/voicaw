@@ -1,7 +1,7 @@
 # voicaw
 
 A Discord-style chat app: end-to-end encrypted direct messages, and guilds (Discord-style servers) with
-text and voice channels. See `CLAUDE.md` for how it works and how to develop on it.
+text and voice channels. See `CLAUDE.md` and `docs/` for how it works and how to develop on it.
 
 ## Initial setup
 

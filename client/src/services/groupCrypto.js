@@ -7,7 +7,7 @@ import {
   toBase64,
 } from './encryptionService';
 
-// Group DM cryptography (see CLAUDE.md, Group DMs):
+// Group DM cryptography (see docs/group-dms.md):
 // - The membership log: every change is a record (JSON, fixed field order) that its author
 //   signs with their identity key, naming the previous entry's hash. verifyGroupLog replays
 //   it with the rules (anyone adds, the owner removes, you leave yourself), so the server

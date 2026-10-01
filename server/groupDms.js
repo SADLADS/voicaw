@@ -3,7 +3,7 @@ const db = require('./db');
 const { sendToUserSockets } = require('./sockets');
 
 // Group DMs: end-to-end encrypted like DMs, for up to MAX_MEMBERS people. The server keeps
-// the membership and relays ciphertext; clients hold the keys (see CLAUDE.md, Group DMs).
+// the membership and relays ciphertext; clients hold the keys (see docs/group-dms.md).
 //
 // Membership changes are a log of records that their author signed with their identity key,
 // in a hash chain. The server checks each record the same way clients do (who may do what,

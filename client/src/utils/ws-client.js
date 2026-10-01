@@ -271,7 +271,7 @@ export function onDmPin(callback) {
 // 'guild_remove' | 'guild_member_add' | 'guild_member_remove' | 'guild_message_new' |
 // 'guild_message_edit' | 'guild_message_delete' | 'guild_reaction_add' |
 // 'guild_reaction_remove' | 'guild_message_pin' | 'guild_voice_state' | 'guild_mention' |
-// 'guild_channel_mute' | 'guild_channel_notify', ... }` (see CLAUDE.md, Guilds).
+// 'guild_channel_mute' | 'guild_channel_notify', ... }` (see docs/guilds.md).
 export function onGuildEvent(callback) {
   guildListeners.add(callback);
   return () => guildListeners.delete(callback);
