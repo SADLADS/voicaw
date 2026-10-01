@@ -114,8 +114,8 @@ async function checkEntry(state, entry, actorId) {
 
   // Who's named must be who the server knows, with their real identity key.
   const subject = r.type === 'create' ? actorId : r.target;
-  const user = Number.isInteger(subject) && await db.get('SELECT id, identity_key FROM users WHERE id = ?', [subject]);
-  if (!user) throw new GroupError(404, 'User not found');
+  const user = Number.isInteger(subject) && await db.get('SELECT id, identity_key, deleted_at FROM users WHERE id = ?', [subject]);
+  if (!user || (user.deleted_at && r.type !== 'leave' && r.type !== 'remove')) throw new GroupError(404, 'User not found');
   if ((r.type === 'create' || r.type === 'add') && r.targetIdentityKey !== user.identity_key) {
     throw new GroupError(400, 'Invalid membership change');
   }
@@ -234,6 +234,22 @@ async function sendToGroup(groupId, payload, exceptUserId = null) {
   }
 }
 
+// Tells everyone a stored log entry concerns: whoever it took out gets `group_dm_remove`,
+// whoever it added `group_dm_add`, everyone else `group_dm_update` with the entry. `before`:
+// the members before it; `state`: after it.
+async function announceEntry(state, before, stored) {
+  const groupId = state.group.id;
+  for (const userId of new Set([...before, ...state.members])) {
+    if (!state.members.has(userId)) {
+      sendToUserSockets(userId, { type: 'group_dm_remove', groupId });
+    } else if (!before.has(userId)) {
+      sendToUserSockets(userId, { type: 'group_dm_add', group: await groupSummary(groupId, userId) });
+    } else {
+      sendToUserSockets(userId, { type: 'group_dm_update', group: await groupSummary(groupId, userId), entry: stored });
+    }
+  }
+}
+
 // Everyone who's gone: the group and everything in it goes.
 async function deleteGroup(groupId) {
   await db.transaction(async () => {
@@ -258,6 +274,7 @@ module.exports = {
   storeEntry,
   storeEpoch,
   groupSummary,
+  announceEntry,
   memberIds,
   sendToGroup,
   deleteGroup,

@@ -1,16 +1,21 @@
 const jwt = require('jsonwebtoken');
 const { jwtSecret } = require('./config');
+const db = require('./db');
 
 // Logins last a day. The payload is just who the user is.
 function generateToken(user) {
   return jwt.sign({ id: user.id, username: user.username }, jwtSecret, { expiresIn: '1d' });
 }
 
-// Resolves to the token's user ({ id, username }), or null if it isn't valid.
-function verifyToken(token) {
-  return new Promise((resolve) => {
-    jwt.verify(token, jwtSecret, (err, user) => resolve(err ? null : user));
+// Resolves to the token's user ({ id, username }), or null if it isn't valid (or the account
+// has been deleted since).
+async function verifyToken(token) {
+  const user = await new Promise((resolve) => {
+    jwt.verify(token, jwtSecret, (err, payload) => resolve(err ? null : payload));
   });
+  if (!user) return null;
+  const row = await db.get('SELECT deleted_at FROM users WHERE id = ?', [user.id]);
+  return row && !row.deleted_at ? user : null;
 }
 
 // Express middleware for routes that need a logged-in user (`req.user`).

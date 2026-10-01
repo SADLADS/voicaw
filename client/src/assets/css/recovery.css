@@ -85,3 +85,25 @@
   color: var(--vc-danger);
   margin-top: 0.75rem;
 }
+
+/* Settings → Delete Account */
+.delete-account-form {
+  max-width: 480px;
+  color: var(--vc-fg);
+}
+
+.delete-account-list {
+  padding-left: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.delete-account-guilds {
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--vc-border-light);
+}
+
+.delete-account-guilds .recovery-confirm {
+  margin-bottom: 0;
+}

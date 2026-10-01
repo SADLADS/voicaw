@@ -10,7 +10,8 @@ const profiles = new Map(); // user id (string) -> { id, username, display_name,
 const listeners = new Set();
 let version = 0;
 
-const FIELDS = ['username', 'display_name', 'custom_status', 'bio', 'avatar'];
+// `deleted_at`: set once the account is deleted (server/accounts.js; shown as "Deleted User").
+const FIELDS = ['username', 'display_name', 'custom_status', 'bio', 'avatar', 'deleted_at'];
 let avatarBase = '';
 
 // Called once the server config (with the object store's address) has loaded.
@@ -61,6 +62,12 @@ export function displayName(id, fallback = '') {
 export function nameOf(user) {
   if (!user) return '';
   return displayName(user.id, user.display_name || user.username);
+}
+
+// Whether `user`'s account has been deleted (its chats can be read, not answered).
+export function isDeleted(user) {
+  if (!user) return false;
+  return Boolean(getProfile(user.id)?.deleted_at ?? user.deleted_at);
 }
 
 // Forgets everyone (logging out).

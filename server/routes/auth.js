@@ -9,6 +9,7 @@ const { createLimiter, tooManyAttempts } = require('../rateLimit');
 const { LIMITS: PROFILE_LIMITS, PROFILE_COLUMNS, clean: cleanProfile } = require('../profiles');
 const { sendToAllSockets } = require('../sockets');
 const { normalizeUsername, findUserByName, opaqueIdOf, newOpaqueId } = require('../usernames');
+const accounts = require('../accounts');
 
 // Registration and login use OPAQUE (the password never reaches the server), each in two
 // round trips. Login state between them lives in login_states for 5 minutes.
@@ -313,6 +314,30 @@ router.put('/recovery-code', authenticateJWT, async (req, res) => {
     'UPDATE users SET recovery_verifier = ?, recovery_backup = ?, recovery_created = ? WHERE id = ?',
     [recovery.verifier, recovery.backup, now(), req.user.id]
   );
+  res.json({ ok: true });
+});
+
+// Your guilds that would stop the account being deleted (Settings shows them up front).
+router.get('/account/owned-guilds', authenticateJWT, async (req, res) => {
+  res.json(await accounts.ownedGuilds(req.user.id));
+});
+
+// Deletes your account (accounts.js), with a login proof of the password like the routes above:
+// { finishLoginRequest, clientSessionKey, deleteOwnedGuilds?, groupLeaves: { groupId: entry } }.
+// Everything is checked before the proof is used, so a refusal doesn't cost a login.
+router.delete('/account', authenticateJWT, async (req, res) => {
+  let plan;
+  try {
+    plan = await accounts.checkDeletion(req.user.id, req.body ?? {});
+  } catch (err) {
+    if (err instanceof accounts.DeletionError) return res.status(err.status).json({ error: err.message, ...err.extra });
+    throw err;
+  }
+  const { username } = await usernameOf(req);
+  const failed = await checkLoginProof(username, req.body.finishLoginRequest, req.body.clientSessionKey);
+  if (failed) return res.status(failed[0]).json({ error: failed[0] === 401 ? 'Password is incorrect' : failed[1] });
+
+  await accounts.deleteAccount(req.user.id, plan);
   res.json({ ok: true });
 });
 

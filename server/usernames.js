@@ -10,11 +10,11 @@ const db = require('./db');
 
 const normalizeUsername = (name) => String(name).toLowerCase();
 
-// The user called `name` (any capitals), with `columns`, or undefined. An exact match wins: the
+// The user called `name` (any capitals), with `columns`, or undefined (also for deleted accounts). An exact match wins: the
 // migration left an account's capitals alone when lower-casing would have clashed with another.
 async function findUserByName(name, columns) {
   if (typeof name !== 'string' || !name) return undefined;
-  const sql = `SELECT ${columns} FROM users WHERE username = ?`;
+  const sql = `SELECT ${columns} FROM users WHERE username = ? AND deleted_at IS NULL`;
   return (await db.get(sql, [name])) ?? (await db.get(sql, [normalizeUsername(name)]));
 }
 

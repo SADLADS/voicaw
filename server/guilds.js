@@ -253,6 +253,49 @@ async function markGuildRead(guildId, userId) {
   );
 }
 
+// Takes `userId` out of the guild and tells everyone (including them).
+async function removeMember(guildId, userId) {
+  await db.transaction(async () => {
+    await db.run('DELETE FROM guild_members WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+    await db.run('DELETE FROM guild_member_roles WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+    await db.run(
+      `DELETE FROM guild_channel_overrides WHERE target_type = 'member' AND target_id = ?
+       AND channel_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)`,
+      [userId, guildId]
+    );
+    await db.run(
+      'DELETE FROM guild_channel_reads WHERE user_id = ? AND channel_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)',
+      [userId, guildId]
+    );
+  });
+  sendToUserSockets(userId, { type: 'guild_remove', guildId });
+  await sendToGuild(guildId, { type: 'guild_member_remove', guildId, userId });
+  await require('./voice').enforceGuild(guildId);
+}
+
+// Deletes the guild and everything in it (its emoji images too), and tells its members.
+async function deleteGuild(guildId) {
+  const memberIds = await getMemberIds(guildId);
+  const { deleteObject } = require('./s3');
+
+  await require('./voice').disconnectGuild(guildId);
+  const emojis = await db.all('SELECT id, available FROM guild_emojis WHERE guild_id = ?', [guildId]);
+  for (const { id, available } of emojis) await deleteObject('emojis', available ? String(id) : `src/${id}`);
+  await db.transaction(async () => {
+    await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);
+    for (const table of [
+      'guild_emojis',
+      'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',
+      'guild_member_roles', 'guild_roles', 'guild_members',
+    ]) {
+      await db.run(`DELETE FROM ${table} WHERE guild_id = ?`, [guildId]);
+    }
+    await db.run('DELETE FROM guilds WHERE id = ?', [guildId]);
+  });
+
+  for (const userId of memberIds) sendToUserSockets(userId, { type: 'guild_remove', guildId });
+}
+
 module.exports = {
   MAX_GUILD_NAME,
   MAX_CATEGORY_NAME,
@@ -276,4 +319,6 @@ module.exports = {
   nextPosition,
   deleteChannelContents,
   markGuildRead,
+  removeMember,
+  deleteGuild,
 };

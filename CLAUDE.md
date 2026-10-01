@@ -111,6 +111,7 @@ node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
 node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, results, Jump into another channel, private channel, phone
 node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertical scroll), back button, guild
+node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
@@ -167,6 +168,7 @@ unexpected errors. The rest:
 - `appSettings.js`: app-wide settings a global admin edits (see Admin settings).
 - `pins.js`: pinning and unpinning a message, the same for every kind of chat (see Pinned messages).
 - `polls.js`: reading guild polls, when they close, and what an edit may change (see Polls).
+- `accounts.js`: deleting an account (see Deleting an account).
 - `usernames.js`: usernames ignore capitals (`findUserByName`, `opaque_id`; see Auth).
 - `pollTimers.js`: when every poll closes and its "poll ended" row (see Polls); `routes/polls.js`.
 - `profiles.js`: display name, custom status and bio (limits, cleaning, `displayNameOf`; see Profiles).
@@ -247,6 +249,33 @@ On successful login/register, the server issues a JWT (`generateToken`, 1-day ex
 `server/auth.js`) which the client stores in `localStorage` and sends as `Authorization: Bearer
 <token>` (see `client/src/utils/api.js`). `authenticateJWT` middleware protects all `/api/*`
 routes except config/login/register.
+
+### Deleting an account
+
+Settings → Delete account (`DeleteAccountSettings.jsx`, `authService` `deleteAccount`), like
+Discord's: the person goes, what they wrote stays under "Deleted User".
+- **Server** (`server/accounts.js`, `DELETE /api/account` in `routes/auth.js`, with a login
+  proof of the password like change-password): `checkDeletion` checks everything first, so a
+  refusal doesn't use up the proof. Guilds you own block it (409 `code: 'owns_guilds'` with
+  `guilds`; `GET /account/owned-guilds`) unless `deleteOwnedGuilds: true`, which deletes them
+  (`guilds.js` `deleteGuild`). Group DMs: only you can sign leaving, so the client signs a
+  `leave` entry for every group (`groupKeys.js` `leaveEntry`) and sends `groupLeaves: { groupId:
+  entry }`; each is checked with `checkEntry` (missing or stale: 409 `groups_changed`, the client
+  signs again). Then: calls and voice ended, the leaves stored (a group left empty is deleted),
+  notes deleted (with their reactions and poll timers), unread counts, push subscriptions, GIF
+  favourites and mentions of them deleted, every other guild left (`removeMember`), the picture
+  removed, `user_profile` to everyone, `account_deleted` to their sockets, which are closed.
+- **The `users` row stays as a tombstone** (messages, reactions and group logs point at it):
+  `deleted_at` set, username `Deleted-User-<id>` (sign-ups are lower case, so nobody can take
+  it, and the old name is free), display name "Deleted User", password, key backups, recovery
+  code, profile and admin cleared. The public keys stay, so contacts can still open the DMs
+  they had. `verifyToken` refuses deleted accounts (every request and socket identify looks
+  them up), `findUserByName` skips them, `/dm-send` and calls to them are 404, and a group can't
+  add them. `/dms-list` only lists them to people who had a conversation with them, with
+  `deleted_at`; the client's profile store keeps it (`isDeleted`), so their DM is read-only (no
+  composer, no call button) and the group pickers leave them out.
+- Guild messages, DMs and group messages they sent, and their reactions, are kept (the server
+  can't delete what others' devices already decrypted anyway).
 
 ### End-to-end encryption
 
@@ -333,7 +362,8 @@ identify themselves post-connect with `{ type: 'identify', token }` (JWT); the s
 Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, `reaction_remove`,
 `dm_pin` (see Pinned messages),
 `user_status` and `presence_snapshot` (see Online status), `user_profile` (someone changed their
-profile, to every logged-in socket; see Profiles), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
+profile, to every logged-in socket; see Profiles), `account_deleted` (to your own sockets: log
+out; see Deleting an account), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete` / `_pin` (a
 webhook's edit also carries `embeds`, `attachments`, `flags`),
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,

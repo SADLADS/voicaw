@@ -2,7 +2,6 @@ const crypto = require('crypto');
 const express = require('express');
 const db = require('../db');
 const { authenticateJWT } = require('../auth');
-const { deleteObject } = require('../s3');
 const { sendToUserSockets, getStatus } = require('../sockets');
 const { PERMISSIONS, DEFAULT_EVERYONE_PERMISSIONS, has } = require('../permissions');
 const {
@@ -12,7 +11,6 @@ const {
   getMember,
   getChannelAccess,
   getGuildLayout,
-  getMemberIds,
   getMemberListEntry,
   sendToGuild,
   announceGuildUpdate,
@@ -20,10 +18,11 @@ const {
   cleanName,
   nextPosition,
   deleteChannelContents,
+  deleteGuild,
+  removeMember,
   markGuildRead,
 } = require('../guilds');
 const { NOTIFY_LEVELS } = require('../mentions');
-const { enforceGuild: enforceGuildVoice, disconnectGuild: disconnectGuildVoice } = require('../voice');
 
 // Guilds: creating and managing them, members, bans, invites, categories and
 // channels. Roles and channel overrides are in routes/guildRoles.js, messages in
@@ -154,25 +153,7 @@ router.patch('/guilds/:guildId', withPermission(PERMISSIONS.MANAGE_GUILD), async
 });
 
 router.delete('/guilds/:guildId', owner, async (req, res) => {
-  const guildId = req.guild.id;
-  const memberIds = await getMemberIds(guildId);
-
-  await disconnectGuildVoice(guildId);
-  const emojis = await db.all('SELECT id, available FROM guild_emojis WHERE guild_id = ?', [guildId]);
-  for (const { id, available } of emojis) await deleteObject('emojis', available ? String(id) : `src/${id}`);
-  await db.transaction(async () => {
-    await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);
-    for (const table of [
-      'guild_emojis',
-      'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',
-      'guild_member_roles', 'guild_roles', 'guild_members',
-    ]) {
-      await db.run(`DELETE FROM ${table} WHERE guild_id = ?`, [guildId]);
-    }
-    await db.run('DELETE FROM guilds WHERE id = ?', [guildId]);
-  });
-
-  for (const userId of memberIds) sendToUserSockets(userId, { type: 'guild_remove', guildId });
+  await deleteGuild(req.guild.id);
   res.json({ success: true });
 });
 
@@ -202,26 +183,6 @@ router.get('/guilds/:guildId/members', member, async (req, res) => {
   for (const { user_id: userId, role_id: roleId } of roleRows) roleIds.get(userId)?.push(roleId);
   res.json(members.map((m) => ({ ...m, role_ids: roleIds.get(m.id), status: getStatus(m.id) })));
 });
-
-// Takes `userId` out of the guild and tells everyone (including them).
-async function removeMember(guildId, userId) {
-  await db.transaction(async () => {
-    await db.run('DELETE FROM guild_members WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
-    await db.run('DELETE FROM guild_member_roles WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
-    await db.run(
-      `DELETE FROM guild_channel_overrides WHERE target_type = 'member' AND target_id = ?
-       AND channel_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)`,
-      [userId, guildId]
-    );
-    await db.run(
-      'DELETE FROM guild_channel_reads WHERE user_id = ? AND channel_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)',
-      [userId, guildId]
-    );
-  });
-  sendToUserSockets(userId, { type: 'guild_remove', guildId });
-  await sendToGuild(guildId, { type: 'guild_member_remove', guildId, userId });
-  await enforceGuildVoice(guildId);
-}
 
 // Leave. The owner has to hand the guild over (or delete it) first.
 router.delete('/guilds/:guildId/members/me', member, async (req, res) => {

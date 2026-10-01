@@ -5,6 +5,8 @@ import {
   recoveryVerifier, wrapRecoveryBackup, unwrapRecoveryBackup,
 } from './encryptionService';
 import { storeUserKeys } from './keyStore';
+import { fetchGroups } from './groupService';
+import { leaveEntry } from './groupKeys';
 
 // Logging in and registering: OPAQUE (the password never leaves the device) plus the
 // encryption keys, which the server keeps only as a backup encrypted with OPAQUE's
@@ -175,6 +177,30 @@ export async function createRecoveryCode(username, password) {
   const code = generateRecoveryCode();
   await saveRecoveryCode(username, password, code);
   return code;
+}
+
+// Your guilds that stop the account being deleted until they're handed over or deleted.
+export async function fetchOwnedGuilds() {
+  return send('get', '/account/owned-guilds');
+}
+
+// Logged in: deletes the account (see server/accounts.js). Signs a `leave` for each group DM
+// here (only this device can), and with `deleteOwnedGuilds` deletes the guilds you own; without
+// it, owning any is refused (the error has `guilds`). The caller logs out afterwards.
+export async function deleteAccount(user, password, { deleteOwnedGuilds = false } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    const { proof } = await unlockWithPassword(user.username, password);
+    const groupLeaves = {};
+    for (const group of await fetchGroups()) groupLeaves[group.id] = await leaveEntry(user, group.id);
+    try {
+      return (await api.delete('/account', { data: { ...proof, groupLeaves, deleteOwnedGuilds } })).data;
+    } catch (err) {
+      const data = err.response?.data;
+      // A group changed meanwhile: sign again.
+      if (data?.code === 'groups_changed' && attempt < 2) continue;
+      throw Object.assign(new Error(data?.error || err.message), { code: data?.code, guilds: data?.guilds });
+    }
+  }
 }
 
 // A new code, not stored yet (see saveRecoveryCode): after logging in to an account that has
