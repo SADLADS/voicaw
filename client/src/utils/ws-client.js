@@ -1,6 +1,7 @@
 import { applyPresenceSnapshot, applyUserStatus, isMobileDevice, resetPresence } from './presence';
 import { mergeProfiles } from './profiles';
 import { desktopNotificationsOn } from '../services/pushService';
+import { playMessageSound } from '../sounds/sounds';
 
 let ws;
 let token;
@@ -158,6 +159,9 @@ export function connectWebSocket() {
       }
       else if (data.type === 'notification') {
         notificationListeners.forEach((cb) => cb(data.payload));
+      }
+      else if (data.type === 'message_sound') {
+        playMessageSound();
       }
       else if (data.type === 'account_deleted') {
         accountDeletedListeners.forEach((cb) => cb());

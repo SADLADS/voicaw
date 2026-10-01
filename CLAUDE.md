@@ -116,6 +116,7 @@ node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertic
 node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
+node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
@@ -366,7 +367,7 @@ Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, 
 `dm_pin` (see Pinned messages),
 `user_status` and `presence_snapshot` (see Online status), `user_profile` (someone changed their
 profile, to every logged-in socket; see Profiles), `account_deleted` (to your own sockets: log
-out; see Deleting an account), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
+out; see Deleting an account), `message_sound` (play the Message sound; see Sounds), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete` / `_pin` (a
 webhook's edit also carries `embeds`, `attachments`, `flags`),
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
@@ -440,6 +441,9 @@ one user at a time).
 - The desktop app has no web push: `sendPushToUser` also sends the payload to the user's sockets
   whose presence says `desktopNotifications` (the app, notifications on) as `notification
   { payload }`, so the same checks apply (viewing, levels, previews). See Desktop app.
+- Message pushes (`dm`, `group`, `guild`) also send `message_sound` to every socket of the user
+  (see Sounds). While a window of the app is focused, the service worker shows those
+  notifications `silent` (the page plays the Message sound instead).
 - The PWA manifest is `public/manifest.json` only (VitePWA `manifest: false`). The dev server also
   serves the real service worker (`devOptions`), so push works on test.voicaw.com.
 
@@ -761,7 +765,7 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
   opens the chat), `call/CallPanel.jsx` at the top of the DM (both people, speaking rings, the
   other's mute, the duration, controls, "End-to-end encrypted"), the voice bar ("Call with …",
   hang up; why a call ended: declined, didn't answer, missed call). Ring and ringback sounds are
-  Web Audio (`voice/ringtone.js`). Reloading or leaving the page leaves the call.
+  the Incoming/Outgoing ring loops (see Sounds). Reloading or leaving the page leaves the call.
 - **Group calls** (from a group DM's header): the call key is encrypted with the group's
   current epoch key (`groupCallKeyContext(callId, groupId, epoch, callerId)`, `key_epoch`), so
   only members of that epoch can open it; members added during a call join the next one.
@@ -873,7 +877,8 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   websocket (see Push notifications); `hooks/useDesktopApp.js` (in `Layout`) turns it into
   text with the service worker's `notificationFromPush` (DM previews decrypted on the device,
   same previews setting) and a data-URL picture, and the app shows it, one per tag. A click
-  shows the window and navigates to its `url`. On/off is Settings → Notifications
+  shows the window and navigates to its `url`. They're `silent`: the page plays the app's own
+  sounds (see Sounds). On/off is Settings → Notifications
   (`pushService` treats the app as always permitted).
 - **Tray and badge** (`tray.js`): Open / Quit menu, a red dot on the icon while anything is
   unread, the count (`unreadSummary`: unread DMs and group messages plus guild mentions) as
@@ -1072,6 +1077,31 @@ back. Secrets are write-only: the panel only shows where the value comes from an
 characters. `GET /admin`, `PUT /admin/settings/:key { value | null }`, `POST /admin/admins
 { username }`, `DELETE /admin/admins/:id` (not yourself). Only the Klipy key for now; add new
 app-wide keys to `SETTINGS` and read them with `getSetting` rather than from `config.js`.
+
+### Sounds
+
+Discord's sound effects, for what Voicaw has (`client/src/sounds/`). `soundList.js` lists them
+(`SOUNDS`): Message, Mute, Unmute, Deafen, Undeafen, User join, User leave, Voice disconnected,
+Incoming ring, Outgoing ring. Each is a `tone` drawn with Web Audio oscillators (notes, volume,
+wave, `bell` or `flat` shape); **a sound with a `file`** (e.g. `/sounds/message.ogg` in
+`client/public/sounds/`) plays that instead, falling back to its tone if it can't load, so real
+recordings can replace tones one at a time. `every` makes it a loop (rings), `minGap` stops
+repeats (a burst of messages dings once).
+- `sounds.js`: one shared `AudioContext`, started on the first click or key press (browsers
+  refuse sound before one; until then sounds are skipped); `playSound(name, { preview })`,
+  `startLoop` / `stopLoop` (one loop at a time, cut off at once). Prefs per device
+  (`localStorage soundPrefs`: `volume` 0–1, `off` list), Settings → Sounds (`SoundSettings.jsx`:
+  volume, a switch and a play button per sound).
+- Where they play: `voiceClient` (join on connecting; LiveKit participant joined/left; disconnect
+  on leaving, a call ending or the connection lost; mute/deafen from `setSelfMute`/`setSelfDeaf`,
+  not the automatic mute when the microphone fails), `callClient` (the rings). Message: the
+  server decides (`sendPushToUser`, so it follows exactly what notifies: not the chat you're
+  looking at, guild notification levels, no SUPPRESS_NOTIFICATIONS webhooks) and sends
+  `message_sound`; `playMessageSound` plays it in a browser page only while it's visible and
+  focused (that page's push notification is then silent; otherwise the system notification
+  makes the sound), and always in the desktop app (whose notifications are silent).
+- **Not done yet** (Discord has them; the features don't exist yet): push-to-talk on/off,
+  stream started/ended and viewer join/leave, activities, stage, user moved.
 
 ### Polls
 

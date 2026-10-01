@@ -38,6 +38,9 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
+// Pushes about new messages (server/push.js MESSAGE_PUSHES).
+const MESSAGE_PUSHES = new Set(['dm', 'group', 'guild']);
+
 self.addEventListener('push', (event) => {
   event.waitUntil((async () => {
     let data;
@@ -50,6 +53,12 @@ self.addEventListener('push', (event) => {
     // Every push must show a notification (browsers, Safari especially, revoke push for
     // sites that don't). The server skips pushes for a chat the user is looking at.
     const { title, options } = await notificationFromPush(data);
+    // A page in front plays the app's own Message sound for it (sounds/sounds.js), so the
+    // notification itself stays quiet.
+    if (MESSAGE_PUSHES.has(data.type)) {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      if (windows.some((client) => client.focused)) options.silent = true;
+    }
     await self.registration.showNotification(title, options);
   })());
 });

@@ -273,6 +273,71 @@ pre code {
   margin-top: 0.5rem;
 }
 
+/* Settings → Sounds */
+.sound-volume {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0.75rem;
+}
+
+.sound-volume input {
+  flex: 1;
+  max-width: 260px;
+  accent-color: var(--vc-accent);
+}
+
+.sound-volume-value {
+  min-width: 3em;
+  color: var(--vc-fg-muted);
+}
+
+.sound-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sound-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 480px;
+}
+
+.sound-list .settings-toggle {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.sound-list .settings-toggle input {
+  margin-top: 4px;
+}
+
+.sound-description {
+  display: block;
+  margin: 0;
+}
+
+.sound-preview {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.sound-preview:hover {
+  background: var(--vc-accent);
+  color: #fff;
+}
+
 /* Settings → Desktop App */
 .desktop-shortcuts-title {
   margin-top: 1rem;

@@ -68,4 +68,28 @@ describe('desktop app notifications', () => {
     expect(res.body).toEqual({ devices: 1, delivered: 1 });
     expect(notifications(desktop)).toHaveLength(1);
   });
+
+  it('tells every open page to play the message sound, but not for a chat being looked at', async () => {
+    const alice = await makeUser();
+    const bob = await makeUser();
+    const desktop = connect(bob, { desktopNotifications: true });
+    const browser = connect(bob, {});
+    const sounds = (events) => events.filter((e) => e.type === 'message_sound');
+
+    expect((await send(alice, '/dm-send', { recipient_id: bob.id, content: 'v1.ding' })).status).toBe(201);
+    await expect.poll(() => sounds(browser).length).toBe(1);
+    expect(sounds(desktop)).toHaveLength(1);
+
+    const watching = connect(bob, { visible: true, chatId: String(alice.id) });
+    expect((await send(alice, '/dm-send', { recipient_id: bob.id, content: 'v1.seen' })).status).toBe(201);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(sounds(watching)).toEqual([]);
+    expect(sounds(browser)).toHaveLength(1);
+
+    // Not for the test notification or calls.
+    const carol = await makeUser();
+    const page = connect(carol, {});
+    await send(carol, '/test-push', {});
+    expect(sounds(page)).toEqual([]);
+  });
 });

@@ -1,5 +1,6 @@
 import { fetchVoiceToken, leaveVoiceChannel, saveVoiceState } from '../services/voiceService';
 import { createVoiceChain } from './voiceChain';
+import { playSound } from '../sounds/sounds';
 
 // This device's voice connection (one at a time, like Discord): a voice channel or a DM
 // call, the microphone, mute and deafen, and who's talking. The audio goes through a LiveKit
@@ -11,6 +12,8 @@ import { createVoiceChain } from './voiceChain';
 // Components read it through hooks/useVoice.js (getVoiceSnapshot / onVoiceChange).
 // Mute and deafen are remembered on this device, like Discord. Muted, the microphone is
 // released (the browser's recording indicator goes off); deafened, you also can't be heard.
+// Sounds, like Discord's: joining (yours and others'), leaving, being disconnected, mute and
+// deafen (sounds/).
 
 const PREFS_KEY = 'voicePrefs';
 
@@ -147,8 +150,14 @@ function watch(newRoom, current) {
     update({ muted });
   };
   newRoom
-    .on(RoomEvent.ParticipantConnected, updateMuted)
-    .on(RoomEvent.ParticipantDisconnected, updateMuted)
+    .on(RoomEvent.ParticipantConnected, () => {
+      if (!stale()) playSound('userJoin');
+      updateMuted();
+    })
+    .on(RoomEvent.ParticipantDisconnected, () => {
+      if (!stale()) playSound('userLeave');
+      updateMuted();
+    })
     .on(RoomEvent.TrackPublished, updateMuted)
     .on(RoomEvent.TrackUnpublished, updateMuted)
     .on(RoomEvent.TrackMuted, updateMuted)
@@ -183,6 +192,7 @@ function watch(newRoom, current) {
       if (stale()) return;
       attempt++;
       teardown();
+      playSound('disconnect');
       // A call's end is callClient.js's to explain (the server closes its room on hang-up).
       update({ ...NOT_IN_VOICE, error: snapshot.callId ? null : disconnectMessage(reason) });
     });
@@ -226,6 +236,7 @@ async function connect(target, getToken, e2eeKey) {
       canSpeak: newRoom.localParticipant.permissions?.canPublish ?? true,
       audioBlocked: !newRoom.canPlaybackAudio,
     });
+    playSound('userJoin');
     await applyMicrophone();
   } catch (err) {
     if (current !== attempt) return;
@@ -253,8 +264,10 @@ export async function joinCall({ callId, url, token, key }) {
 // Leaves the voice channel or call (hanging up a call is callClient.js's hangUp).
 export async function leaveVoice() {
   const inChannel = snapshot.status !== 'idle' && snapshot.channelId != null;
+  const wasConnected = snapshot.status === 'connected' || snapshot.status === 'reconnecting';
   attempt++;
   await teardown();
+  if (wasConnected) playSound('disconnect');
   update({ ...NOT_IN_VOICE, error: null, micError: null, audioBlocked: false });
   // In case LiveKit couldn't be told (lost connection): the API takes us out too.
   if (inChannel) await leaveVoiceChannel().catch(() => {});
@@ -283,10 +296,12 @@ function setPrefs(changes, extra = {}) {
 
 // Unmuting while deafened undeafens too (like Discord).
 export function setSelfMute(selfMute) {
+  playSound(selfMute ? 'mute' : 'unmute');
   setPrefs(selfMute || !snapshot.selfDeaf ? { selfMute } : { selfMute, selfDeaf: false }, { micError: null });
 }
 
 export function setSelfDeaf(selfDeaf) {
+  playSound(selfDeaf ? 'deafen' : 'undeafen');
   setPrefs({ selfDeaf });
 }
 
