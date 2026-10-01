@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 
 vi.mock('./utils/api', () => ({
   default: { get: vi.fn() },
@@ -23,6 +23,8 @@ function Consumer() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
+  localStorage.setItem('token', 'saved-jwt');
 });
 
 describe('AuthProvider', () => {
@@ -66,8 +68,8 @@ describe('AuthProvider', () => {
     await waitFor(() => expect(screen.getByText('no user')).toBeInTheDocument());
   });
 
-  it('sets user to null when the profile request fails', async () => {
-    api.get.mockRejectedValue(new Error('network error'));
+  it('sets user to null when the server refuses the saved login', async () => {
+    api.get.mockRejectedValue(Object.assign(new Error('forbidden'), { response: { status: 403 } }));
 
     render(
       <AuthProvider>
@@ -76,5 +78,45 @@ describe('AuthProvider', () => {
     );
 
     await waitFor(() => expect(screen.getByText('no user')).toBeInTheDocument());
+  });
+
+  it('keeps the saved login and tries again while the server is out of reach', async () => {
+    vi.useFakeTimers();
+    try {
+      api.get
+        .mockRejectedValueOnce(new Error('Network Error'))
+        .mockRejectedValueOnce(Object.assign(new Error('bad gateway'), { response: { status: 502 } }))
+        .mockResolvedValue({ data: { id: 7, username: 'alice', token: 'saved-jwt' } });
+
+      render(
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      );
+
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      expect(screen.getByText('loading')).toBeInTheDocument();
+      await act(() => vi.advanceTimersByTimeAsync(3000));
+      expect(screen.getByText('loading')).toBeInTheDocument();
+      await act(() => vi.advanceTimersByTimeAsync(3000));
+      expect(screen.getByText(/logged in as alice/)).toBeInTheDocument();
+      expect(api.get).toHaveBeenCalledTimes(3);
+      expect(localStorage.getItem('token')).toBe('saved-jwt');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not ask the server without a saved login', async () => {
+    localStorage.removeItem('token');
+
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(screen.getByText('no user')).toBeInTheDocument());
+    expect(api.get).not.toHaveBeenCalled();
   });
 });

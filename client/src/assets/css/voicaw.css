@@ -57,6 +57,18 @@ body {
   color: var(--vc-fg)
 }
 
+/* Shown instead of the app while a saved login waits for the server (AuthProvider). */
+.auth-unreachable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100svh;
+  box-sizing: border-box;
+  padding: 16px;
+  text-align: center;
+  color: var(--vc-fg-muted, var(--vc-fg));
+}
+
 /* Chat Page */
 .navbar {
   background-color: var(--vc-accent);
