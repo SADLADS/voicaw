@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "npm run dev --workspace=client",
     "build": "npm run build --workspace=client",
+    "build:site": "node website/build.mjs",
     "start:server": "npm run start --workspace=server",
     "start:electron": "npm run build:electron --workspace=client && electron electron/main.js",
     "test": "npm run test --workspace=server && npm run test --workspace=client && npm run test --workspace=electron",

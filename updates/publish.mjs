@@ -12,9 +12,14 @@
 // blockmaps, then releases.json (what the page lists), then the latest*.yml files last, each
 // written to a hidden temporary file and renamed, so an installed app never sees a feed naming
 // a file that isn't there yet. Older installers stay (people may be mid-download).
+//
+// Then it rebuilds voicaw.com (website/build.mjs) with the new version and installers, unless
+// this run went to some other folder than the real update site (a try-out) and VOICAW_SITE_DIR
+// doesn't say where its website goes.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildSite } from '../website/build.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -125,3 +130,16 @@ for (const name of feeds) {
     console.log(`  ${name}`);
 }
 console.log(`Published to ${siteDir}.`);
+
+// 4. voicaw.com's version and download links. The release is out either way; a failure here
+// only means the page shows the previous one until `npm run build:site`.
+const tryOut = (process.argv[3] || process.env.VOICAW_UPDATES_DIR) && !process.env.VOICAW_SITE_DIR;
+if (tryOut) {
+    console.log('Not the real update site: voicaw.com left alone (set VOICAW_SITE_DIR to build one).');
+} else {
+    try {
+        await buildSite({ releases });
+    } catch (err) {
+        console.warn(`voicaw.com wasn't rebuilt: ${err.message}`);
+    }
+}

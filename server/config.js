@@ -57,7 +57,7 @@ module.exports = {
     privateKey: process.env.VAPID_PRIVATE_KEY,
   },
   // voicaw://app: the desktop app's own pages (electron/protocol.js).
-  allowedOrigins: ['https://test.voicaw.com', 'https://voicaw.com', 'http://test.voicaw.com', 'http://voicaw.com', 'voicaw://app'],
+  allowedOrigins: ['https://app.voicaw.com', 'https://test.voicaw.com', 'https://voicaw.com', 'http://test.voicaw.com', 'http://voicaw.com', 'voicaw://app'],
   maxPlaintextLength,
   livekit,
   // Login/registration attempt limits (see routes/auth.js). Tests turn them off, since they
