@@ -1,38 +1,25 @@
-import { useEffect, useState, createContext } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useContext } from 'react';
 import { useLocation, Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import DmSidebar from './DmSidebar';
+import GuildSidebar from './guild/GuildSidebar';
 import SidebarWrapper from './SidebarWrapper';
+import UserPanel from './UserPanel';
+import VoiceBar from './voice/VoiceBar';
+import IncomingCall from './call/IncomingCall';
+import { initCalls } from '../voice/callClient';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';
-import notificationSound from '../assets/sounds/notification.mp3';
-import logoIcon from '../assets/images/logo.svg';
 import 'highlight.js/styles/atom-one-dark.css';
-import { decryptMessage, deriveSharedKey } from '../services/encryptionService';
-
-export const LayoutContext = createContext();
-
-export function scrollToRight() {
-  const wrapper = document.querySelector('.main-wrapper');
-  if (wrapper) {
-    requestAnimationFrame(() => {
-      wrapper.scrollBy({ left: window.innerWidth, behavior: 'smooth' });
-    });
-  }
-}
-
-
-// ask the user for consent to show notifications
-export function requestNotificationPermission() {
-  if (typeof Notification !== 'undefined' && Notification.requestPermission) {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        console.log('Notifications enabled');
-      }
-    });
-  }
-}
+import { ChannelMentionContext, ConfigContext, InteractionContext, LayoutContext } from '../contexts';
+import { ensureSubscription, getPushStatus } from '../services/pushService';
+import { useGuildList } from '../hooks/useGuildList';
+import { useGroupList } from '../hooks/useGroupList';
+import { useSwipePanes } from '../hooks/useSwipePanes';
+import { useDesktopApp } from '../hooks/useDesktopApp';
+import { CustomEmojiContext } from '../emoji/customEmojiContext';
+import { clearProfiles, mergeProfiles } from '../utils/profiles';
 
 export default function Layout({ user, onLogout }) {
   const location = useLocation();
@@ -45,6 +32,83 @@ export default function Layout({ user, onLogout }) {
   
   // Check if we are on the DM page
   const isDmPage = location.pathname.startsWith('/dm');
+  // A guild page: /guild/:guildId[/:channelId].
+  const guildMatch = /^\/guild\/(\d+)(?:\/(\d+))?/.exec(location.pathname);
+  const guildId = guildMatch?.[1];
+  // Settings on a computer: its column of sections goes beside the rail (Settings puts it into
+  // `settingsNavSlot` with a portal), so the user panel sits under it like on other pages. On a
+  // phone it stays at the top of the page.
+  const { isMobile } = useContext(InteractionContext);
+  const settingsColumn = location.pathname.startsWith('/settings') && !isMobile;
+  const [settingsNavSlot, setSettingsNavSlot] = useState(null);
+
+  // Phone: the list and the chat are two panes, swiped between (hooks/useSwipePanes.js).
+  const slidey = isMobile && (isDmPage || Boolean(guildId));
+  const wrapperRef = useRef(null);
+  const listPaneRef = useRef(null);
+  const contentPaneRef = useRef(null);
+  const scrimRef = useRef(null);
+  const pane = useSwipePanes({ enabled: slidey, wrapperRef, listRef: listPaneRef, contentRef: contentPaneRef, scrimRef });
+
+  // Leaving (or being removed from) the guild on screen goes back to the DMs.
+  const onGuildRemoved = useCallback((removedId) => {
+    if (String(removedId) === guildId) navigate('/dm', { replace: true });
+  }, [guildId, navigate]);
+  const guildList = useGuildList({ userId: user?.id, activeChannelId: guildMatch?.[2] ?? null, onRemoved: onGuildRemoved });
+  // Group DMs: /dm/g/:groupId. Leaving (or being removed from) the one on screen goes back.
+  const groupId = /^\/dm\/g\/([0-9a-f-]+)/.exec(location.pathname)?.[1] ?? null;
+  const onGroupRemoved = useCallback((removedId) => {
+    if (removedId === groupId) navigate('/dm', { replace: true });
+  }, [groupId, navigate]);
+  const groupList = useGroupList({ userId: user?.id, activeGroupId: groupId, onRemoved: onGroupRemoved });
+  const hasUnreadGroups = groupList.groups.some((g) => g.unread > 0 && g.id !== groupId);
+  const unreadGuildIds = useMemo(() => new Set(guildList.unread.map((u) => u.guild_id)), [guildList.unread]);
+  // Unread mentions of you, by guild id.
+  const guildMentions = useMemo(() => {
+    const counts = {};
+    for (const u of guildList.unread) if (u.mentions) counts[u.guild_id] = (counts[u.guild_id] ?? 0) + u.mentions;
+    return counts;
+  }, [guildList.unread]);
+  // Custom emoji for the picker and autocomplete: by guild, in rail order.
+  const customEmoji = useMemo(() => {
+    const guilds = guildList.guilds
+      .map((guild) => ({ guild, emojis: (guildList.emojis[guild.id] ?? []).map((e) => ({ ...e, guild })) }))
+      .filter((g) => g.emojis.length > 0);
+    return { guilds, byId: new Map(guilds.flatMap((g) => g.emojis.map((e) => [String(e.id), e]))) };
+  }, [guildList.guilds, guildList.emojis]);
+  // Channels for `<#id>` mentions (ChannelMentionContext).
+  const { layouts, guilds: guildSummaries, loaded: guildsLoaded, loadGuild } = guildList;
+  const loadedAllGuilds = useRef(false);
+  const loadAllGuilds = useCallback(() => {
+    if (loadedAllGuilds.current || !guildsLoaded) return;
+    loadedAllGuilds.current = true;
+    for (const g of guildSummaries) {
+      if (!layouts[g.id]) loadGuild(g.id).catch(() => {});
+    }
+  }, [guildsLoaded, guildSummaries, layouts, loadGuild]);
+  const channelMentions = useMemo(() => {
+    const channels = {};
+    for (const guild of Object.values(layouts)) {
+      for (const c of guild.channels ?? []) {
+        channels[c.id] = { id: c.id, guildId: guild.id, name: c.name, type: c.type, private: Boolean(c.private) };
+      }
+    }
+    return { channels, loadAll: loadAllGuilds };
+  }, [layouts, loadAllGuilds]);
+
+  // Everyone's profile (and yours) for names everywhere (utils/profiles), once per login; the
+  // users list is fetched again on DM pages below.
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    let cancelled = false;
+    Promise.all([api.get('/profile'), fetchUsersList()])
+      .then(([own, everyone]) => { if (!cancelled) mergeProfiles([own.data, ...everyone]); })
+      .catch((err) => console.warn('Failed to load profiles', err));
+    return () => {
+      cancelled = true;
+      clearProfiles();
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     // Only fetch users if we are on the DM page to avoid unnecessary API calls
@@ -53,6 +117,7 @@ export default function Layout({ user, onLogout }) {
         try {
           const data = await fetchUsersList();
           setUsers(data);
+          mergeProfiles(data);
           setErrorUsers(null);
           // If user lands on /dm without an ID, redirect to the first user
           if (location.pathname === '/dm' && data.length > 0) {
@@ -78,97 +143,85 @@ export default function Layout({ user, onLogout }) {
     }
   }
 
+  const { vapidPublicKey } = useContext(ConfigContext);
+
+  // Push subscriptions can change or expire, and permission may have been granted since
+  // the last visit, so re-sync this device's subscription with the server on every start.
+  // (Asking for permission needs a tap, so that's left to NotificationPrompt/Settings.)
   useEffect(() => {
-    if (user?.id) {
-      requestNotificationPermission();
-    }
-  }, [user?.id]);
+    if (!user?.id || !vapidPublicKey || getPushStatus() !== 'granted') return;
+    ensureSubscription(vapidPublicKey).catch((err) =>
+      console.warn('Could not refresh push subscription:', err)
+    );
+  }, [user?.id, vapidPublicKey]);
 
   useEffect(() => {
     fetchUnreadMessages();
   }, []);
 
-  useEffect(() => {
-    if (!navigator.serviceWorker) return;
-  
-    const listener = (event) => {
-      const data = event.data;
-      if (!data) return;
-  
-      if (data.action === 'navigate' && data.url) {
-        scrollToRight();
-        navigate(data.url);
-      }
-    };
-  
-    navigator.serviceWorker.addEventListener('message', listener);
-  
-    return () => {
-      navigator.serviceWorker.removeEventListener('message', listener);
-    };
-  }, []);
 
   useEffect(() => {
     if (user?.id) {
       connectWebSocket(user.id);
 
-      const unsubscribe = onNewDm(async (message) => {
+      // Notifications come from web push (service-worker.js); here just refresh the badge.
+      const unsubscribe = onNewDm(() => {
         fetchUnreadMessages();
-
-        const dmMatch = location.pathname.match(/^\/dm\/(\d+)/);
-        const currentDmId = dmMatch ? dmMatch[1] : null;
-
-        if (currentDmId && currentDmId === message.sender_id.toString() && document.hasFocus()) return;
-
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          
-          const sharedKey = await deriveSharedKey(localStorage.getItem('privateKey'), message.public_key);
-          const plaintext = await decryptMessage(message.content, sharedKey);
-
-          const audio = new Audio(notificationSound);
-          audio.play().catch(err => {
-            console.warn('Autoplay failed:', err);
-          });
-          const notif = new Notification(`${message.sender_username || 'User'}`, {
-            body: plaintext,
-            icon: logoIcon,
-            silent: true
-          });
-          notif.onclick = async () => {
-            console.log("notif clicked!")
-            try {
-              window.focus();
-              await api.post(`/dm-mark-read/${message.sender_id}`);
-            } catch (err) {
-              console.error("Failed to mark DM as read:", err);
-            } finally {
-              scrollToRight();
-              navigate(`/dm/${message.sender_id}`);
-            }
-          };
-        }
       });
 
       return () => unsubscribe();
     }
-  }, [user?.id, location]);
+  }, [user?.id]);
+
+  // The desktop app: notifications, the unread badge, mute/deafen shortcuts.
+  useDesktopApp({ navigate, unreadDms, groups: groupList.groups, guildUnread: guildList.unread });
+
+  // DM calls: ringing, from any page.
+  useEffect(() => {
+    initCalls(user?.id ? user : null);
+    return () => initCalls(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   return (
-    <LayoutContext.Provider value={{ fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers }}>
-      <div className={`${isDmPage ? 'slidey' : ''} main-wrapper d-flex`}>
-        <SidebarWrapper>
+    <LayoutContext.Provider value={{
+      fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList, groupList,
+      settingsNavSlot: settingsColumn ? settingsNavSlot : null,
+    }}>
+    <CustomEmojiContext.Provider value={customEmoji}>
+    <ChannelMentionContext.Provider value={channelMentions}>
+      <div ref={wrapperRef} className={`${slidey ? `slidey pane-${pane}` : ''} main-wrapper d-flex`}>
+        {/* The user panel (and the voice bar above it, while in voice) sits under the
+            conversation or channel list, or Settings' column (not on e.g. an invite page). */}
+        <SidebarWrapper ref={listPaneRef} footer={isDmPage || guildId || settingsColumn ? <><VoiceBar user={user} /><UserPanel user={user} onLogout={onLogout} /></> : null}>
           {/* Main sidebar always shows */}
-          <Sidebar user={user} onLogout={onLogout} hasUnreadDms={hasUnreadDms} />
+          <Sidebar
+            user={user}
+            onLogout={onLogout}
+            hasUnreadDms={hasUnreadDms || hasUnreadGroups}
+            guilds={guildList.guilds}
+            unreadGuildIds={unreadGuildIds}
+            guildMentions={guildMentions}
+            onReorderGuilds={guildList.reorderGuilds}
+          />
 
           {/* DM sidebar only shows on the /dm route */}
-          {isDmPage && <DmSidebar users={users} />}
+          {isDmPage && <DmSidebar user={user} users={users} groups={groupList.groups} unreadDms={unreadDms} />}
+          {guildId && <GuildSidebar guild={guildList.layouts[guildId]} user={user} />}
+          {settingsColumn && <div className="settings-nav-slot" ref={setSettingsNavSlot} />}
         </SidebarWrapper>
 
+        <IncomingCall user={user} />
+
+        {slidey && <div ref={scrimRef} className="pane-scrim" aria-hidden="true" />}
+
         {/* The main page content */}
-        <div className='main-content-wrapper'>
+        <div ref={contentPaneRef} className='main-content-wrapper'>
           <Outlet />
         </div>
       </div>
+    </ChannelMentionContext.Provider>
+    </CustomEmojiContext.Provider>
     </LayoutContext.Provider>
   );
 }

@@ -1,30 +1,40 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from './utils/api';
-
-const AuthContext = createContext();
+import { AuthContext } from './hooks/useAuth';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Try to fetch current user session from backend
-    api.get('/profile')
-      .then(res => {
-        if (res.data.user) setUser(res.data.user);
-        else setUser(null);
-      })
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+    async function fetchProfile() {
+      try {
+        const res = await api.get('/profile');
+
+        if (res.data && res.data.id) {
+          setUser({
+            id: res.data.id,
+            username: res.data.username,
+            token: res.data.token,
+            hasRecoveryCode: res.data.hasRecoveryCode,
+          });
+        } else {
+          setUser(null);
+        }
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProfile();
   }, []);
+
 
   return (
     <AuthContext.Provider value={{ user, setUser, loading }}>
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }

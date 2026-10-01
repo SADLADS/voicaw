@@ -10,10 +10,12 @@
     "dev": "npm run dev --workspace=client",
     "build": "npm run build --workspace=client",
     "start:server": "npm run start --workspace=server",
-    "start:electron": "npm run build:electron --workspace=client && electron electron/main.js"
+    "start:electron": "npm run build:electron --workspace=client && electron electron/main.js",
+    "test": "npm run test --workspace=server && npm run test --workspace=client && npm run test --workspace=electron",
+    "dist:electron": "npm run dist --workspace=electron"
   },
   "devDependencies": {
     "cross-env": "^10.0.0",
-    "electron": "^37.2.4"
+    "playwright-core": "^1.63.0"
   }
 }

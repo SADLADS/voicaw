@@ -1,68 +1,118 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { onUserStatus } from '../utils/ws-client';
-import { scrollToRight } from './Layout';
-import defaultpfp from '../assets/images/default.png';
-import { ConfigContext } from '../App';
+import React, { useContext, useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faNoteSticky, faUserGroup } from '@fortawesome/free-solid-svg-icons';
+import { showContent } from '../utils/mobilePanes';
+import { InteractionContext } from '../contexts';
+import { usePresence } from '../hooks/usePresence';
+import { lastSeenText, statusLabel } from '../utils/presence';
+import { groupTitle } from '../utils/groupDisplay';
+import StatusIcon from './StatusIcon';
+import NewGroupDialog from './group/NewGroupDialog';
+import { getProfile, nameOf, useProfiles } from '../utils/profiles';
+import Avatar from './Avatar';
 
-export default function DmSidebar({ users }) {
-  const { id: activeId } = useParams();
-  const [userList, setUserList] = useState(users);
-  const { s3Endpoint } = useContext(ConfigContext);
-  
-  useEffect(() => {
-    // Keep initial users from props
-    setUserList(users);
-  }, [users]);
+// The conversation list: people and group DMs, most recent first. `unreadDms`
+// ([{ from_user_id, count }], from Layout) and each group's `unread` mark conversations with
+// unread messages, except the one being viewed. The header's button makes a new group.
+// Your notes (a DM to yourself) come first under the header, with a line between them and
+// the conversations; they don't scroll with the list.
+export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) {
+  useProfiles();
+  const { id: activeId, groupId: activeGroupId } = useParams();
+  const { isMobile } = useContext(InteractionContext);
+  const notesActive = useLocation().pathname === '/dm/notes';
+  const presenceOf = usePresence();
+  const [newGroup, setNewGroup] = useState(false);
+  const unreadFrom = new Set(unreadDms.map((u) => String(u.from_user_id)));
 
-  useEffect(() => {
-    const unsubscribe = onUserStatus(({ userId, status }) => {
-      setUserList((prev) =>
-        prev.map((u) =>
-          u.id.toString() === userId.toString()
-            ? { ...u, online: status === 'online' }
-            : u
-        )
-      );
-    });
-    return unsubscribe; // cleanup listener
-  }, []);
+  // People keep the server's order among themselves (latest DM first); groups go in by their
+  // latest message.
+  const entries = [];
+  const byTime = [...groups].sort((a, b) => b.last_timestamp - a.last_timestamp);
+  let g = 0;
+  for (const person of users) {
+    while (g < byTime.length && byTime[g].last_timestamp >= (person.last_timestamp ?? 0)) entries.push({ group: byTime[g++] });
+    entries.push({ person });
+  }
+  while (g < byTime.length) entries.push({ group: byTime[g++] });
+
+  const avatar = (id, alt, className = 'dm-user-avatar') => <Avatar userId={id} alt={alt} className={className} />;
 
   return (
     <div id="dm-sidebar">
-      <h4 className="direct-messages-header">Direct Messages</h4>
+      <h4 className="direct-messages-header">
+        Direct Messages
+        <button type="button" className="new-group-button" aria-label="New group" title="New group" onClick={() => setNewGroup(true)}>
+          <FontAwesomeIcon icon={faUserGroup} />
+          <span className="new-group-plus">+</span>
+        </button>
+      </h4>
+      <div className="dm-notes-link-wrap">
+        <Link to="/dm/notes" replace={isMobile} onClick={showContent} className={`dm-user dm-notes-link ${notesActive ? 'active' : ''}`}>
+          <span className="dm-notes-icon"><FontAwesomeIcon icon={faNoteSticky} /></span>
+          <span className="dm-user-name">Notes</span>
+        </Link>
+      </div>
       <div className="dm-user-list-container">
-        {userList.map(({ id, username, online }) => {
-          const imgSrc = `${s3Endpoint}/profile-pics/${id}`;
+        {entries.map(({ person, group }) => {
+          if (group) {
+            const others = group.members.filter((m) => m.id !== user?.id);
+            const active = group.id === activeGroupId;
+            return (
+              <Link
+                key={`g-${group.id}`}
+                to={`/dm/g/${group.id}`}
+                replace={isMobile}
+                replace={isMobile}
+              onClick={showContent}
+                className={`dm-user dm-group ${active ? 'active' : ''}`}
+              >
+                <span className={`userdot${group.unread > 0 && !active ? ' active' : ''}`} />
+                <div className="dm-user-container">
+                  <span className="group-avatar">
+                    {others.slice(0, 2).map((m) => <span key={m.id}>{avatar(m.id, '', 'group-avatar-img')}</span>)}
+                  </span>
+                  <span className="dm-group-text">
+                    <span className="dm-group-name">{groupTitle(group, user)}</span>
+                    <span className="dm-group-count">{group.members.length} members</span>
+                  </span>
+                </div>
+              </Link>
+            );
+          }
+          const { id } = person;
+          const profile = getProfile(id) ?? person;
+          const name = nameOf(person);
+          const { status, lastOnline } = presenceOf(person);
           return (
             <Link
               key={id}
               to={`/dm/${id}`}
-              onClick={scrollToRight}
+              replace={isMobile}
+              onClick={showContent}
               className={`dm-user ${id.toString() === activeId ? 'active' : ''}`}
             >
-              <span className={`online-dot ${online ? 'online' : 'offline'}`} />
-              <span className="userdot" id={`user-dot-${id.toString()}`} />
+              <span className={`userdot${unreadFrom.has(String(id)) && String(id) !== activeId ? ' active' : ''}`} />
 
               <div className="dm-user-container">
-                <span><img
-                  src={imgSrc}
-                  alt={username}
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = defaultpfp;
-                  }}
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                  }}
-                /></span><span> {username}</span></div>
+                <span className="dm-user-avatar-wrap status-avatar">
+                  {avatar(id, name)}
+                  <StatusIcon
+                    status={status}
+                    title={status === 'offline' ? lastSeenText(lastOnline) ?? statusLabel(status) : undefined}
+                  />
+                </span>
+                <span className="dm-user-names">
+                  <span className="dm-user-name">{name}</span>
+                  {profile.custom_status && <span className="dm-user-custom-status">{profile.custom_status}</span>}
+                </span>
+              </div>
             </Link>
           );
         })}
       </div>
+      {newGroup && <NewGroupDialog user={user} users={users} onClose={() => setNewGroup(false)} />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const s3 = new S3Client({
@@ -43,26 +43,57 @@ async function makeBucketPublic(bucketName) {
 }
 
 
-async function getUploadUrl(filename, bucket, contentType = "application/octet-stream") {
+// `contentLength` is signed into the URL: the object store rejects an upload whose
+// Content-Length differs, which is what enforces the server's size limits.
+async function getUploadUrl(filename, bucket, contentType, contentLength) {
     const command = new PutObjectCommand({
         Bucket: bucket,
         Key: filename,
         ContentType: contentType,
+        ContentLength: contentLength,
     });
-    return await getSignedUrl(s3, command, { expiresIn: 60 });
+    return await getSignedUrl(s3, command, {
+        expiresIn: 60,
+        signableHeaders: new Set(["content-type", "content-length"]),
+    });
 }
 
-// Generate a pre-signed download URL
-async function getDownloadUrl(filename) {
-    const command = new GetObjectCommand({
-        Bucket: "uploads",
-        Key: filename,
-    });
-    return await getSignedUrl(s3, command, { expiresIn: 60 });
+// The buckets exist and are publicly readable (attachments are encrypted; profile pictures
+// and guild icons are public on purpose). If the object store is unreachable, log it rather than crash the
+// server: messaging works without it, and the next start tries again.
+async function setUpBuckets() {
+    for (const bucket of ["uploads", "profile-pics", "guild-icons", "emojis"]) {
+        await ensureBucketExists(bucket);
+        await makeBucketPublic(bucket);
+    }
 }
 
-ensureBucketExists("uploads")
-ensureBucketExists("profile-pics")
-makeBucketPublic("profile-pics")
+setUpBuckets().catch((err) => console.error("Failed to set up S3 buckets:", err.code || err.name, err.message));
 
-module.exports = { s3, getUploadUrl, getDownloadUrl };
+// Removes an object (e.g. a deleted custom emoji's image). Failures are logged, not thrown:
+// the row is already gone, and a leftover file only takes space.
+async function deleteObject(bucket, key) {
+    try {
+        await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    } catch (err) {
+        console.error("Failed to delete object:", bucket, key, err.code || err.name);
+    }
+}
+
+// An object's contents, as a Buffer.
+async function getObject(bucket, key) {
+    const res = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    return Buffer.from(await res.Body.transformToByteArray());
+}
+
+async function putObject(bucket, key, body, contentType) {
+    await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }));
+}
+
+// The keys directly in `bucket` (not in "folders": nothing after a '/'), up to 1000.
+async function listTopLevelKeys(bucket) {
+    const res = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Delimiter: '/' }));
+    return (res.Contents ?? []).map((object) => object.Key);
+}
+
+module.exports = { s3, getUploadUrl, getObject, putObject, deleteObject, listTopLevelKeys };

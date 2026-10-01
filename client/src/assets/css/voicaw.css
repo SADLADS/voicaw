@@ -6,24 +6,48 @@
   --vc-action-hover: #bfa62f;
 
   --vc-accent-alt: #1C9A8C;
+  --vc-accent-alt-hover: #165C56;
   --vc-danger: #E94F37;
 
   --vc-bg-base: #1a1a1f;
+  --vc-bg-hover: #35353d;
   --vc-bg-subtle: #232329;
   --vc-bg-elevated: #2d2d34;
-  --vc-bg-hover: #35353d;
+  --vc-bg-elevated-hover: #3a3a42;
   --vc-border-dark: #3a3a42;
   --vc-border-light: #54545d;
 
   --vc-online: #2ECC71;
+  --vc-idle: #F0B232;
 
   --vc-fg: #F0F0F0;
-  --vc-fg-muted: #E6E8EB;
+  --vc-fg-muted: #AAAAAA;
+
+  --vc-shadow: rgba(0, 0, 0, 0.2);
+}
+
+/* TEXT SELECTION: off everywhere (so dragging things, like channels, doesn't select text), except
+   where people type and, on desktop, what's said in the chat: messages, names, times, reply
+   previews and code. (On mobile a long press on a message opens its actions instead.) */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"],
+body:not(.mobile-mode) .each-dm-message-wrapper :is(.dm-message-content, .message-author, small, .reply-author, .reply-preview),
+body:not(.mobile-mode) .message-system,
+body:not(.mobile-mode) .poll-end,
+body:not(.mobile-mode) .channel-header-topic {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 html,
 body {
-  height: 100dvh;
+  height: 100svh;
   overscroll-behavior-y: contain;
 }
 
@@ -54,8 +78,13 @@ body {
   font-weight: bold;
 }
 
-a {
+.message a {
   text-decoration: none;
+  color:var(--vc-accent-alt);
+}
+
+.message a:hover {
+  text-decoration: underline;
 }
 
 .nav-item {
@@ -114,6 +143,7 @@ a {
 
 .sidebar{
   overflow-y: auto;
+  scrollbar-width: none;
   background-color: var(--vc-bg-base);
   border-right: 1px solid var(--vc-border-light);
 }
@@ -147,15 +177,6 @@ a {
   background-color: var(--vc-danger);
 }
 
-.auto-resize-textarea {
-  resize: none;
-  overflow-y: auto;
-  max-height: 200px;
-  line-height: 1.5;
-  padding: 0.5rem;
-  transition: height 0.1s ease-in-out;
-  scrollbar-color: var(--vc-bg-subtle) var(--vc-bg-elevated);
-}
 
 /* stuff shrink stuff in smaller screens */
 pre code {
@@ -173,15 +194,16 @@ pre code {
 
 /* message input placeholder text */
 
-.auto-resize-textarea::placeholder {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
-}
 
 .main-content-wrapper{
   width: 100%;
+  /* A flex item: without this it won't shrink below its widest content (e.g. a long select)
+     and runs off a phone's screen. */
+  min-width: 0;
+  /* An explicit height (like the sidebar's), so pages inside size to the screen rather than
+     to their content. Without it the row takes the tallest child's height, and the DM view
+     grows to fit every message instead of scrolling. */
+  height: 100svh;
 }
 
 
@@ -199,4 +221,788 @@ pre code {
 
 .uploadbutton:disabled{
   background-color: var(--vc-accent-alt); /* change this at some point */
+}
+
+.attach-wrapper {
+  height: 40px;
+  width: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.attach-button {
+  color: var(--vc-bg-elevated);
+  background: var(--vc-fg-muted);
+  border: none;
+  padding: 0;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.full-height {
+  height: 100svh;
+}
+
+.settings-card {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-bottom: 1.5rem;
+  margin-bottom: 1rem;
+  width: 100%;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+.settings-header{
+  padding: 0.5rem
+}
+
+.settings-toggle {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.settings-card h5 {
+  margin-bottom: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Settings → Desktop App */
+.desktop-shortcuts-title {
+  margin-top: 1rem;
+}
+
+.desktop-shortcut {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.desktop-shortcut-label {
+  min-width: 120px;
+}
+
+.desktop-shortcut-key {
+  min-width: 140px;
+}
+
+.desktop-shortcut-key.recording {
+  outline: 2px solid var(--vc-accent);
+}
+
+.desktop-shortcut-error {
+  margin: 0;
+}
+
+/* Settings → Admin */
+.admin-setting {
+  max-width: 560px;
+  margin-bottom: 1rem;
+}
+
+.admin-setting > label {
+  font-weight: 600;
+}
+
+.admin-setting-help,
+.admin-setting-state {
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+  margin: 0.25rem 0;
+}
+
+.admin-setting-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-setting-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.admin-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.error-msg {
+  color: var(--vc-danger);
+  margin-top: 0.5rem;
+}
+
+.success-msg {
+  color: var(--vc-online);
+  margin-top: 0.5rem;
+}
+
+/* The app is a fixed-height screen (the chat scrolls inside itself; the page never does), so
+   pages that can be taller than the window scroll on their own. Settings: a column of
+   categories and a search box beside the sections (desktop), each scrolling on its own; on a
+   phone the column goes on top and the whole page scrolls. */
+.settings-page {
+  height: 100%;
+  display: flex;
+  min-height: 0;
+}
+
+.settings-nav {
+  flex: 0 0 240px;
+  overflow-y: auto;
+  padding: 0 12px 1rem;
+  border-right: 1px solid var(--vc-border-dark);
+  background-color: var(--vc-bg-subtle);
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+body.mobile-mode .settings-page {
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+body.mobile-mode .settings-nav {
+  flex: none;
+  overflow: visible;
+  border-right: 0;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+body.mobile-mode .settings-content {
+  flex: none;
+  overflow: visible;
+}
+
+body.mobile-mode .settings-nav-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+body.mobile-mode .settings-nav-category {
+  flex-basis: 100%;
+}
+
+body.mobile-mode .settings-nav-item {
+  width: auto;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 14px;
+  padding: 2px 10px;
+}
+
+/* Your picture and name, to Edit Profile: above the search, apart from the sections. */
+.settings-profile-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 8px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  background: none;
+  color: var(--vc-fg);
+  text-align: left;
+}
+
+.settings-profile-link:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.settings-profile-avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.settings-profile-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.settings-profile-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.settings-profile-action {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}
+
+.settings-search {
+  position: relative;
+  margin: 0 0 12px;
+}
+
+.settings-search input {
+  width: 100%;
+  padding: 6px 30px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 6px;
+  background-color: var(--vc-bg-base);
+  color: var(--vc-fg);
+  outline: none;
+}
+
+.settings-search input:focus {
+  border-color: var(--vc-accent);
+}
+
+/* The browser's own clear button: ours is used instead. */
+.settings-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.settings-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.settings-search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  color: var(--vc-fg-muted);
+}
+
+.settings-nav-group {
+  margin-bottom: 12px;
+}
+
+.settings-nav-category {
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--vc-fg-muted);
+}
+
+.settings-nav-item {
+  display: block;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--vc-fg);
+  text-align: left;
+}
+
+.settings-nav-item:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.settings-nav-empty {
+  padding: 4px 8px;
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+}
+
+.settings-category-title {
+  margin: 0;
+  padding: 1rem 1.5rem 0.5rem;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--vc-fg-muted);
+}
+
+.settings-section {
+  scroll-margin-top: 8px;
+}
+
+.date-time-settings select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.date-time-settings {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 320px);
+  gap: 8px 12px;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.login-page {
+  height: 100svh;
+  overflow-y: auto;
+  padding: 0 1rem env(safe-area-inset-bottom);
+}
+
+/* The left side: the icon column and (on DM pages) the conversation list side by side, with
+   the user panel across the bottom. */
+.sidebar-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100svh;
+  background-color: var(--vc-bg-base);
+}
+
+.sidebar-columns {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* You (UserPanel). */
+.user-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom)) 10px;
+  border-top: 1px solid var(--vc-border-dark);
+  background-color: var(--vc-bg-base);
+  color: var(--vc-fg);
+}
+
+.user-panel-avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  --status-size: 9px;
+  --status-center: 5.5px;
+}
+
+.user-panel-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* The connection diamond is a STATUS ICON (below) with its own colours. */
+.user-panel-status.connecting {
+  background-color: var(--vc-action);
+}
+
+/* The picture and name: a button opening UserMenu. */
+.user-panel-me {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 -4px -6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+
+.user-panel-me:hover,
+.user-panel-me.open {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.user-panel-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.user-panel-name {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-panel-state {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}
+
+/* UserMenu: above the user panel. */
+.user-menu {
+  position: fixed;
+  z-index: 400;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  padding: 12px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.user-menu-top {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.user-menu-avatar {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  --status-size: 11px;
+  --status-center: 8px;
+  --status-gap: 3px;
+  --status-phone-width: 13px;
+  --status-phone-height: 17px;
+}
+
+.user-menu-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-menu-names {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-menu-name {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-menu-username {
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+}
+
+.user-menu-status-row {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.user-menu-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-left: -6px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--vc-fg);
+  font-size: 13px;
+  text-align: left;
+}
+
+.user-menu-status span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-menu-status.empty {
+  color: var(--vc-fg-muted);
+}
+
+.user-menu-status:hover {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.user-menu-status-clear {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.user-menu-status-clear:hover {
+  color: var(--vc-fg);
+}
+
+.user-menu-status-input {
+  width: 100%;
+  margin-top: 4px;
+  padding: 3px 6px;
+  border: 1px solid var(--vc-accent);
+  border-radius: 4px;
+  background-color: var(--vc-bg-base);
+  color: var(--vc-fg);
+  font-size: 13px;
+  outline: none;
+}
+
+.user-menu-error {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--vc-danger);
+}
+
+.user-menu-actions {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--vc-fg);
+  text-align: left;
+}
+
+.user-menu-item svg {
+  width: 16px;
+}
+
+.user-menu-item:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.user-menu-item.danger {
+  color: var(--vc-danger);
+}
+
+.user-panel-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: var(--vc-fg-muted);
+  font-size: 17px;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.user-panel-button:hover {
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+}
+
+.user-panel-button.active {
+  background-color: color-mix(in srgb, var(--vc-accent) 30%, transparent);
+  color: var(--vc-fg);
+}
+
+.user-panel-button:hover svg {
+  transform: rotate(45deg);
+}
+
+.user-panel-button svg {
+  transition: transform 0.3s ease;
+}
+
+
+/* SCROLLBARS
+   Two looks, set here for the whole app:
+   - Panes (the message list, conversation list, Settings, …): a normal-width bar, grey thumb
+     on the pane's own background. This is the default: every scrolling element inherits it
+     (scrollbar-color inherits), including ones added later.
+   - Small boxes and pop-ups (emoji picker, suggestions, action sheet, attachment tray, image
+    viewer thumbnails, code) and a guild's channel list:
+     a thin bar, listed below.
+   The message editor keeps its own (.message-editor). Chrome and Firefox use the standard
+   properties; the ::-webkit-scrollbar rules are for Safari, which doesn't support them (Chrome
+   ignores those rules wherever scrollbar-color applies). */
+html {
+  scrollbar-color: var(--vc-fg-muted) transparent;
+}
+
+.emoji-picker-scroll,
+.emoji-suggestions,
+.action-sheet,
+.pins-panel-list,
+.guild-search-suggestions,
+.guild-channel-list,
+.attachment-tray,
+.image-viewer-thumbnails,
+.dm-message-content pre code {
+  scrollbar-width: thin;
+  scrollbar-color: var(--vc-border-light) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--vc-fg-muted);
+  border: 3px solid transparent;
+  border-radius: 6px;
+  background-clip: padding-box;
+}
+
+.emoji-picker-scroll::-webkit-scrollbar,
+.emoji-suggestions::-webkit-scrollbar,
+.action-sheet::-webkit-scrollbar,
+.guild-channel-list::-webkit-scrollbar,
+.attachment-tray::-webkit-scrollbar,
+.image-viewer-thumbnails::-webkit-scrollbar,
+.dm-message-content pre code::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.emoji-picker-scroll::-webkit-scrollbar-thumb,
+.emoji-suggestions::-webkit-scrollbar-thumb,
+.action-sheet::-webkit-scrollbar-thumb,
+.guild-channel-list::-webkit-scrollbar-thumb,
+.attachment-tray::-webkit-scrollbar-thumb,
+.image-viewer-thumbnails::-webkit-scrollbar-thumb,
+.dm-message-content pre code::-webkit-scrollbar-thumb {
+  background-color: var(--vc-border-light);
+  border: 0;
+  border-radius: 4px;
+}
+
+/* Settings on a computer: its column sits beside the rail (Layout), above the user panel. */
+.settings-nav-slot {
+  display: flex;
+  min-height: 0;
+}
+
+.settings-nav-slot .settings-nav {
+  flex: 0 0 240px;
+  background-color: var(--vc-bg-base);
+}
+
+.settings-profile-link.active {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+/* STATUS ICONS
+   Someone's online status (StatusIcon) on the bottom right corner of their picture: a diamond
+   (online, idle, offline), or a phone when only active on a phone. The picture and the icon go
+   in a `.status-avatar`; the icon's shape, plus a gap, is cut out of the picture (a mask), so
+   whatever is behind shows through, on any background. Sizes are set per place with
+   --status-size (the diamond's side), --status-center (its centre's distance from the right and
+   bottom edges) and --status-gap. */
+.status-avatar {
+  position: relative;
+}
+
+:where(.status-avatar) {
+  --status-size: 8px;
+  --status-center: 5px;
+  --status-gap: 2px;
+  --status-phone-width: 10px;
+  --status-phone-height: 14px;
+}
+
+.status-icon {
+  position: absolute;
+  right: calc(var(--status-center) - var(--status-size) / 2);
+  bottom: calc(var(--status-center) - var(--status-size) / 2);
+  width: var(--status-size);
+  height: var(--status-size);
+  transform: rotate(45deg);
+  background-color: var(--vc-border-light);
+}
+
+.status-icon.online {
+  background-color: var(--vc-online);
+}
+
+.status-icon.idle {
+  background-color: var(--vc-idle);
+}
+
+.status-icon.mobile {
+  display: flex;
+  right: calc(var(--status-center) - var(--status-phone-width) / 2);
+  bottom: calc(var(--status-center) - var(--status-phone-height) / 2);
+  width: var(--status-phone-width);
+  height: var(--status-phone-height);
+  transform: none;
+  background: none;
+  color: var(--vc-online);
+}
+
+.status-icon.mobile svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* The cut: everything (the second layer) minus the icon's shape, grown by the gap. */
+.status-avatar > :not(.status-icon) {
+  --status-hole: calc((var(--status-size) + 2 * var(--status-gap)) * 1.41421);
+  mask-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 2'%3E%3Cpath d='M1 0L2 1L1 2L0 1Z'/%3E%3C/svg%3E"),
+    linear-gradient(#000 0 0);
+  mask-size: var(--status-hole) var(--status-hole), 100% 100%;
+  mask-position:
+    right calc(var(--status-center) - var(--status-hole) / 2) bottom calc(var(--status-center) - var(--status-hole) / 2),
+    0 0;
+  mask-repeat: no-repeat;
+  mask-composite: exclude;
+}
+
+.status-avatar:has(> .status-icon.mobile) > :not(.status-icon) {
+  --status-hole-width: calc(var(--status-phone-width) + 2 * var(--status-gap));
+  --status-hole-height: calc(var(--status-phone-height) + 2 * var(--status-gap));
+  mask-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 18'%3E%3Crect width='14' height='18' rx='3'/%3E%3C/svg%3E"),
+    linear-gradient(#000 0 0);
+  mask-size: var(--status-hole-width) var(--status-hole-height), 100% 100%;
+  mask-position:
+    right calc(var(--status-center) - var(--status-hole-width) / 2) bottom calc(var(--status-center) - var(--status-hole-height) / 2),
+    0 0;
 }

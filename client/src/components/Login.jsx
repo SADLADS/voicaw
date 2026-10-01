@@ -1,98 +1,40 @@
 import React, { useState } from 'react';
 import '../assets/css/login.css';
-import api from '../utils/api';
-import * as opaque from "@serenity-kit/opaque";
-import { generateECDH_P256_PEM, encryptPrivateKey, decryptPrivateKey } from '../services/encryptionService';
-import { connectWebSocket } from "../utils/ws-client"
+import '../assets/css/recovery.css';
+import { connectWebSocket } from '../utils/ws-client';
+import {
+  MIN_PASSWORD_LENGTH, logIn, register, recoverAccount, generateRecoveryCode, saveRecoveryCode,
+} from '../services/authService';
+import RecoveryCodeDisplay from './RecoveryCodeDisplay';
 
 export default function Login({ onLoginSuccess }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [registerData, setRegisterData] = useState({ username: '', password: '' });
+  const [recoverData, setRecoverData] = useState({ username: '', code: '', password: '', confirm: '' });
+  // 'login' (log in or register), 'recover' (forgot password), or { user, recoveryCode,
+  // password? } while a new code is shown: after registering (already stored), or after
+  // logging in to an account without one (`password` set: stored once the user continues).
+  const [mode, setMode] = useState('login');
   const [error, setError] = useState('');
-  const [Loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const switchTo = (next) => {
+    setError('');
+    setMode(next);
+  };
 
   async function handleLogin(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const password = loginData.password;
-      const username = loginData.username;
-      if (!username || !password) {
-        throw new Error('Username and password are required');
+      const user = await logIn(loginData.username, loginData.password);
+      // Accounts from before recovery codes get one now.
+      if (!user.hasRecoveryCode) {
+        setMode({ user, recoveryCode: generateRecoveryCode(), password: loginData.password });
+        return;
       }
-      const { clientLoginState, startLoginRequest } = opaque.client.startLogin({
-        password,
-      });
-
-      const response1 = await api.post('/initiatelogin', { clientLoginState, startLoginRequest, userIdentifier: username });
-      const loginResponse = response1.data.loginResponse;
-      const loginResult = opaque.client.finishLogin({
-        clientLoginState,
-        loginResponse,
-        password,
-      });
-      if (!loginResult) {
-        throw new Error("Login failed");
-      }
-      const { finishLoginRequest, sessionKey } = loginResult;
-
-      const response2 = await api.post('/finaliselogin', { finishLoginRequest, clientSessionKey: sessionKey, userIdentifier: username });
-
-      if (response2.data.error) throw new Error(response2.data.error || 'Login failed');
-      if (response2.data.token && response2.data.private_key) {
-        const privateKey = await decryptPrivateKey(response2.data.private_key, password);
-        localStorage.setItem('privateKey', privateKey); // Save decrypted private key
-        localStorage.setItem('token', response2.data.token); // Save JWT
-
-        try {
-          if ('serviceWorker' in navigator && 'PushManager' in window) {
-            console.log("Registering service worker...");
-            await navigator.serviceWorker.register('../service-worker.js');
-            const reg = await navigator.serviceWorker.ready;
-            console.log('Service worker ready:', reg);
-            const convertedKey = urlBase64ToUint8Array(response2.data.vapidPubKey);
-
-            const existingSub = await reg.pushManager.getSubscription();
-            if (existingSub) {
-              await existingSub.unsubscribe();
-            }
-            const subscription = await reg.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: convertedKey
-            });
-
-            console.log('Push subscription:', subscription);
-            await api.post('/save-subscription', { subscription });
-          }
-        } catch (pushError) {
-          console.warn('Push subscription failed (non-critical):', pushError);
-          // tell the user that it failed?
-        }
-
-        function urlBase64ToUint8Array(base64String) {
-          const padding = '='.repeat((4 - base64String.length % 4) % 4);
-          const base64 = (base64String + padding)
-            .replace(/\-/g, '+')
-            .replace(/_/g, '/');
-
-          const rawData = window.atob(base64);
-          const outputArray = new Uint8Array(rawData.length);
-
-          for (let i = 0; i < rawData.length; ++i) {
-            outputArray[i] = rawData.charCodeAt(i);
-          }
-          return outputArray;
-        }
-
-
-        console.log("connectWebSocket")
-        connectWebSocket(response2.data.userId);
-        console.log("redirecting...")
-        onLoginSuccess(response2.data); // Pass user info to parent
-      } else {
-        throw new Error('No token or private key received');
-      }
+      enterApp(user);
     } catch (err) {
       setError(err.message);
       console.error('Login error:', err);
@@ -101,47 +43,20 @@ export default function Login({ onLoginSuccess }) {
     }
   }
 
+  function enterApp(user) {
+    // Push notifications are set up after login (Layout re-syncs the subscription;
+    // asking for permission needs a tap, see NotificationPrompt / Settings).
+    connectWebSocket();
+    onLoginSuccess(user);
+  }
+
   async function handleRegister(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const password = registerData.password;
-      const username = registerData.username;
-      if (!username || !password) {
-        throw new Error('Username and password are required');
-      }
-      const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
-
-      const { publicPEM, privatePEM } = await generateECDH_P256_PEM();
-
-      const encryptedPrivatePEM = await encryptPrivateKey(privatePEM, password);
-
-
-
-      const response1 = await api.post('/initiateregister', { userIdentifier: username, registrationRequest: registrationRequest });
-      console.log(response1)
-      if (response1.data.error) throw new Error(response1.data.error || 'Registration failed');
-      console.log("Registration response:", response1.data);
-      const registrationResponse = response1.data.registrationResponse;
-      const { registrationRecord } = opaque.client.finishRegistration({
-        clientRegistrationState,
-        registrationResponse,
-        password,
-      });
-      console.log("Registration record:", registrationRecord);
-
-      const response2 = await api.post('/finaliseregister', { registrationRecord, userIdentifier: username, publicKey: publicPEM, encryptedPrivateKey: encryptedPrivatePEM });
-
-      console.log("Token data:", response2.data);
-
-      if (response2.data.token) {
-        localStorage.setItem('privateKey', privatePEM); // Save decrypted private key - fix this later?
-        localStorage.setItem('token', response2.data.token);
-        onLoginSuccess(response2.data);
-      } else {
-        alert('Registered! You can now log in.');
-      }
+      const { user, recoveryCode } = await register(registerData.username, registerData.password);
+      setMode({ user, recoveryCode });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -149,64 +64,178 @@ export default function Login({ onLoginSuccess }) {
     }
   }
 
+  async function handleRecover(e) {
+    e.preventDefault();
+    setError('');
+    if (recoverData.password !== recoverData.confirm) {
+      setError("The new passwords don't match.");
+      return;
+    }
+    setLoading(true);
+    try {
+      enterApp(await recoverAccount(recoverData.username, recoverData.code, recoverData.password));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
+  async function finishRecoveryCode() {
+    if (mode.password) {
+      await saveRecoveryCode(mode.user.username, mode.password, mode.recoveryCode);
+      enterApp({ ...mode.user, hasRecoveryCode: true });
+    } else if (mode.user) onLoginSuccess(mode.user);
+    else {
+      alert('Registered! You can now log in.');
+      switchTo('login');
+    }
+  }
 
+  if (mode.recoveryCode) {
+    return (
+      <div className="login-page">
+        <div className="form-container">
+          <h3 className="login-header text-center mb-3">Save your recovery code</h3>
+          <RecoveryCodeDisplay
+            code={mode.recoveryCode}
+            username={mode.user?.username ?? registerData.username}
+            intro={mode.password && "Your account doesn't have a recovery code yet, so here's one."}
+            onDone={finishRecoveryCode}
+            onSkip={mode.password ? () => enterApp(mode.user) : undefined}
+          />
+        </div>
+      </div>
+    );
+  }
 
+  if (mode === 'recover') {
+    return (
+      <div className="login-page">
+        <div className="form-container">
+          <h3 className="login-header text-center mb-3">Reset your password</h3>
+          <p className="register-password-hint">
+            Enter the recovery code you saved when you made your account (or in Settings), and
+            choose a new password. Your messages stay.
+          </p>
 
+          {error && <div className="login-error" role="alert">{error}</div>}
+
+          <form onSubmit={handleRecover} className="mb-3">
+            <input
+              name="username"
+              className="form-control mb-2"
+              placeholder="Username"
+              autoComplete="username"
+              required
+              value={recoverData.username}
+              onChange={e => setRecoverData({ ...recoverData, username: e.target.value })}
+            />
+            <input
+              name="recovery-code"
+              className="form-control mb-2"
+              placeholder="Recovery code (XXXXX-XXXXX-…)"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              required
+              value={recoverData.code}
+              onChange={e => setRecoverData({ ...recoverData, code: e.target.value })}
+            />
+            <input
+              type="password"
+              name="new-password"
+              className="form-control mb-2"
+              placeholder="New password"
+              autoComplete="new-password"
+              required
+              value={recoverData.password}
+              onChange={e => setRecoverData({ ...recoverData, password: e.target.value })}
+            />
+            <input
+              type="password"
+              name="confirm-password"
+              className="form-control mb-2"
+              placeholder="New password again"
+              autoComplete="new-password"
+              required
+              value={recoverData.confirm}
+              onChange={e => setRecoverData({ ...recoverData, confirm: e.target.value })}
+            />
+            <button className="btn btn-vc w-100" type="submit" disabled={loading}>
+              {loading ? "Please wait..." : "Reset password and log in"}
+            </button>
+          </form>
+          <button type="button" className="link-button" onClick={() => switchTo('login')}>
+            Back to login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="form-container">
-      <h3 className="login-header text-center mb-3">Voicaw Login</h3>
+    <div className="login-page">
+      <div className="form-container">
+        <h3 className="login-header text-center mb-3">Voicaw Login</h3>
 
-      {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
+        {error && <div className="login-error" role="alert">{error}</div>}
 
-      <form onSubmit={handleLogin} className="mb-3">
-        <input
-          name="username"
-          className="form-control mb-2"
-          placeholder="Username"
-          required
-          value={loginData.username}
-          onChange={e => setLoginData({ ...loginData, username: e.target.value })}
-        />
-        <input
-          type="password"
-          name="password"
-          className="form-control mb-2"
-          placeholder="Password"
-          required
-          value={loginData.password}
-          onChange={e => setLoginData({ ...loginData, password: e.target.value })}
-        />
-        <button className="btn btn-vc w-100" type="submit" disabled={Loading}>
-          {Loading ? "Please wait..." : "Login"}
-        </button>
-      </form>
+        <form onSubmit={handleLogin} className="mb-3">
+          <input
+            name="username"
+            className="form-control mb-2"
+            placeholder="Username"
+            required
+            value={loginData.username}
+            onChange={e => setLoginData({ ...loginData, username: e.target.value })}
+          />
+          <input
+            type="password"
+            name="password"
+            className="form-control mb-2"
+            placeholder="Password"
+            required
+            value={loginData.password}
+            onChange={e => setLoginData({ ...loginData, password: e.target.value })}
+          />
+          <button className="btn btn-vc w-100" type="submit" disabled={loading}>
+            {loading ? "Please wait..." : "Login"}
+          </button>
+          <button type="button" className="link-button mt-2" onClick={() => switchTo('recover')}>
+            Forgot password?
+          </button>
+        </form>
 
-      <hr />
+        <hr />
 
-      <form onSubmit={handleRegister}>
-        <input
-          name="username"
-          className="form-control mb-2"
-          placeholder="New Username"
-          required
-          value={registerData.username}
-          onChange={e => setRegisterData({ ...registerData, username: e.target.value })}
-        />
-        <input
-          type="password"
-          name="password"
-          className="form-control mb-2"
-          placeholder="New Password"
-          required
-          value={registerData.password}
-          onChange={e => setRegisterData({ ...registerData, password: e.target.value })}
-        />
-        <button className="btn btn-secondary w-100" type="submit" disabled={Loading}>
-          {Loading ? "Please wait..." : "Register"}
-        </button>
-      </form>
+        <form onSubmit={handleRegister}>
+          <input
+            name="username"
+            className="form-control mb-2"
+            placeholder="New Username"
+            required
+            value={registerData.username}
+            onChange={e => setRegisterData({ ...registerData, username: e.target.value })}
+          />
+          <input
+            type="password"
+            name="password"
+            className="form-control mb-2"
+            placeholder="New Password"
+            required
+            value={registerData.password}
+            onChange={e => setRegisterData({ ...registerData, password: e.target.value })}
+          />
+          <p className="register-password-hint">
+            At least {MIN_PASSWORD_LENGTH} characters. You'll get a recovery code next: keep it safe,
+            it's the only way to reset a forgotten password.
+          </p>
+          <button className="btn btn-secondary w-100" type="submit" disabled={loading}>
+            {loading ? "Please wait..." : "Register"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

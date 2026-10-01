@@ -1,0 +1,232 @@
+/* Full-screen image viewer (ImageViewer.jsx). */
+
+.image-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: rgba(0, 0, 0, 0.92);
+  color: var(--vc-fg);
+  animation: image-viewer-in 0.12s ease-out;
+}
+
+@keyframes image-viewer-in {
+  from { opacity: 0; }
+}
+
+.image-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: calc(6px + env(safe-area-inset-top, 0px)) calc(8px + env(safe-area-inset-right, 0px)) 6px
+    calc(14px + env(safe-area-inset-left, 0px));
+  background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+  position: relative;
+  z-index: 1;
+}
+
+.image-viewer-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.image-viewer-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-viewer-details {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.image-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.image-viewer-actions button {
+  min-width: 40px;
+  height: 40px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--vc-fg);
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.image-viewer-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.image-viewer-actions button:not(:disabled):hover,
+.image-viewer-actions button:focus-visible {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.image-viewer-actions .image-viewer-percent {
+  min-width: 56px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Phones pinch to zoom: the zoom buttons would only crowd the name. */
+body.mobile-mode .image-viewer-actions .image-viewer-zoom-button {
+  display: none;
+}
+
+.image-viewer-main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.image-viewer-stage {
+  position: absolute;
+  inset: 0;
+  /* A zoomed image runs on under the toolbar; the viewer itself clips it. */
+  overflow: visible;
+  /* The viewer handles every touch gesture itself. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.image-viewer-stage.zoomed {
+  cursor: grab;
+}
+
+.image-viewer-stage.zoomed:active {
+  cursor: grabbing;
+}
+
+.image-viewer-image {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  max-height: none;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.image-viewer-stage:not(.zoomed) .image-viewer-image {
+  cursor: zoom-in;
+}
+
+.image-viewer-image.animate {
+  transition: transform 0.18s ease-out;
+}
+
+.image-viewer-status {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vc-fg-muted);
+}
+
+/* Previous / next, over the image's sides. */
+.image-viewer-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.14);
+  color: var(--vc-fg);
+  font-size: 18px;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.image-viewer-nav.previous {
+  left: calc(12px + env(safe-area-inset-left, 0px));
+}
+
+.image-viewer-nav.next {
+  right: calc(12px + env(safe-area-inset-right, 0px));
+}
+
+.image-viewer-nav:not(:disabled):hover {
+  background-color: rgba(255, 255, 255, 0.26);
+}
+
+.image-viewer-nav:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Phones swipe between images. */
+body.mobile-mode .image-viewer-nav {
+  display: none;
+}
+
+.image-viewer-thumbnails {
+  display: flex;
+  gap: 8px;
+  /* Centred while they fit; scrolls from the start once they don't. */
+  justify-content: safe center;
+  overflow-x: auto;
+  padding: 10px calc(12px + env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px))
+    calc(12px + env(safe-area-inset-left, 0px));
+  background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.6));
+  position: relative;
+  z-index: 1;
+}
+
+.image-viewer-thumbnail {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--vc-bg-elevated);
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.image-viewer-thumbnail:hover,
+.image-viewer-thumbnail:focus-visible {
+  opacity: 0.9;
+}
+
+.image-viewer-thumbnail.current {
+  border-color: var(--vc-fg);
+  opacity: 1;
+}
+
+.image-viewer-thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-viewer-thumbnail-loading {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: attachment-pulse 1.2s ease-in-out infinite;
+}

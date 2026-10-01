@@ -1,0 +1,311 @@
+/* Group DMs: the conversation list entries, the new group / add people dialogs, the group
+   page and its members panel. */
+
+.direct-messages-header {
+  display: flex;
+  align-items: center;
+}
+
+.new-group-button {
+  position: relative;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 15px;
+}
+
+.new-group-button:hover {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.new-group-plus {
+  position: absolute;
+  right: 2px;
+  top: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Two overlapping pictures for a group. */
+.group-avatar {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+}
+
+.group-avatar-img {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--vc-bg-base);
+}
+
+.group-avatar > span:first-child .group-avatar-img {
+  left: 0;
+  top: 0;
+}
+
+.group-avatar > span:nth-child(2) .group-avatar-img {
+  right: 0;
+  bottom: 0;
+}
+
+.dm-group .dm-user-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dm-group-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.dm-group-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-group-count {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}
+
+/* Dialogs */
+.group-dialog .vc-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.user-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user-picker-list {
+  max-height: min(340px, 45vh);
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.user-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.user-picker-row:hover,
+.user-picker-row.selected {
+  background-color: var(--vc-bg-hover);
+}
+
+.user-picker-avatar {
+  width: 30px;
+  height: 30px;
+}
+
+.user-picker-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-picker-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--vc-accent);
+}
+
+.user-picker-empty {
+  padding: 8px;
+  color: var(--vc-fg-muted);
+}
+
+/* The group page */
+.group-dm-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-recipient-header .chat-call-button + .group-members-button {
+  margin-left: 4px;
+}
+
+.group-members-button.active {
+  color: var(--vc-fg);
+}
+
+.group-dm-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.group-dm-chat {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.group-members {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--vc-border-dark);
+  background-color: var(--vc-bg-base);
+}
+
+.mobile-mode .group-members {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  width: auto;
+}
+
+.group-members-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--vc-fg-muted);
+}
+
+.group-members-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.group-member {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-radius: 4px;
+}
+
+.group-member:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.group-member-avatar-wrap {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.group-member-avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.group-member-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-owner-crown {
+  color: var(--vc-action);
+  font-size: 12px;
+}
+
+.group-members-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+.group-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  text-align: left;
+}
+
+.group-action:hover:not(:disabled) {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.group-action.danger {
+  color: var(--vc-danger);
+}
+
+.group-action:disabled {
+  opacity: 0.5;
+}
+
+/* The group's call: smaller tiles, with names. */
+.group-call-panel .call-panel-people {
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+}
+
+.group-call-panel .call-panel-person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 64px;
+}
+
+.call-panel-avatar.small {
+  width: 52px;
+  height: 52px;
+}
+
+.call-panel-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}
+
+.group-call-panel .call-panel-muted {
+  top: 32px;
+  bottom: auto;
+}

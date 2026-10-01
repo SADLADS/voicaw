@@ -2,13 +2,13 @@ html,
 body {
   margin: 0;
   padding: 0;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
 }
 
 .dm-container {
   display: flex;
-  height: 100dvh;
+  height: 100%;
 }
 
 #dm-sidebar {
@@ -17,11 +17,11 @@ body {
   background-color: var(--vc-bg-base);
   color: var(--vc-fg);
   padding: 0;
-  margin:0;
-  border:0;
+  margin: 0;
+  border: 0;
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: 100%;
 }
 
 #dm-sidebar::after {
@@ -30,7 +30,7 @@ body {
   right: 0;
   top: 0;
   width: 4px;
-  height: 100dvh;
+  height: 100%;
   background-color: transparent;
 }
 
@@ -39,7 +39,7 @@ body {
   display: flex;
   flex-grow: 1;
   flex-direction: column;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
   padding: 0rem;
   box-sizing: border-box;
@@ -54,8 +54,8 @@ body {
   text-decoration: none;
   display: flex;
   border: 1px solid var(--vc-bg-base);
-  margin-left:10px;
-  margin-right:10px;
+  margin-left: 10px;
+  margin-right: 10px;
 }
 
 .dm-user.active {
@@ -67,18 +67,18 @@ body {
 }
 
 .dm-message {
+  position: relative;
   border-radius: 0;
-  background-color: var(--vc-bg-subtle);
   color: var(--vc-fg);
   border: none;
-  padding: 10px;
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-top: 4px;
   margin-right: .75rem;
-  border-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 
-.dm-message:hover {
-  background-color: var(--vc-bg-elevated);
-}
 
 #dm-chat-box {
   flex-grow: 1;
@@ -92,7 +92,6 @@ body {
   overflow: hidden;
   margin-bottom: 0rem;
   margin-left: 0.75rem;
-
 }
 
 small {
@@ -105,10 +104,10 @@ small {
   margin: 0.5rem;
 }
 
-.dm-chat-wrapper{
+.dm-chat-wrapper {
   border-radius: 8px;
   margin: 0.75rem;
-  margin-top:0;
+  margin-top: 0;
   border: 1px solid var(--vc-border-light);
   background-color: var(--vc-bg-elevated);
 }
@@ -123,21 +122,9 @@ small {
   transition: border 0.2s ease;
 }
 
-#dm-input::placeholder {
-  color: var(--vc-fg);
-}
 
-#dm-chat-form .btn {
-  background-color: var(--vc-accent);
-  border: none;
-  color: var(--vc-fg);
-  border-radius: 8px;
-  transition: background-color 0.2s ease;
-}
 
-#dm-chat-form .btn:hover {
-  background-color: var(--vc-accent-hover);
-}
+
 
 .chat-recipient-header {
   margin: 0px;
@@ -147,8 +134,8 @@ small {
   padding-left: 1.25rem;
 }
 
-.direct-messages-header{
-  margin:0;
+.direct-messages-header {
+  margin: 0;
   padding: 0.5rem;
   border-bottom: 1px solid var(--vc-border-light);
   border-top: 1px solid var(--vc-border-light);
@@ -164,53 +151,40 @@ small {
   width: 8px;
   height: 8px;
   opacity: 0;
-  margin-left:-15px
+  margin-left: -15px
 }
 
-.userdot.active{
+.userdot.active {
   opacity: 1;
 }
 
-.list-group{
+.list-group {
   border-radius: 0;
 }
 
-.dm-message-wrapper{
+.dm-message-wrapper {
   flex-grow: 1;
   overflow: auto;
-  scrollbar-color: var(--vc-fg-muted) var(--vc-bg-subtle);
+  overflow-x: hidden;
 }
 
 .dm-user-list-container {
   overflow-y: auto;
   flex-grow: 1;
   min-height: 0;
-  scrollbar-color: var(--vc-fg-muted) var(--vc-bg-base);
 }
 
 @media (max-width: 768px) {
-  #dm-sidebar{
-    width:calc(100% - 72px);
+  #dm-sidebar {
+    width: calc(100% - 72px);
   }
 }
 
-.online-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 6px;
-  transform: rotate(45deg);
+/* A DM row's picture, with the status icon on its corner. */
+.dm-user-avatar-wrap {
+  display: inline-flex;
+  flex-shrink: 0;
 }
-
-.online-dot.online {
-  background-color: var(--vc-online);
-}
-
-.online-dot.offline {
-  background-color: var(--vc-border-light);
-}
-
-
 
 /* Pending messages */
 .dm-message.pending {
@@ -225,38 +199,2894 @@ small {
   font-style: italic;
 }
 
-.dm-message-content{
-  margin-left: 38px;
+.dm-message {
+  /* The avatar's column: wide enough for a grouped message's hover time ("10:18 AM"). The text
+     and the reactions start after it; the name starts at the same place (.message-avatar's
+     margin). */
+  --message-gutter: 56px;
+}
+
+.dm-message-content {
+  margin-left: var(--message-gutter);
 }
 
 
 
-@media (max-width: 768px) {
-  .slidey.main-wrapper {
-    display: flex !important;
-    flex-direction: row;
-    overflow-x: scroll !important;
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    height: 100dvh;
-    width: 100vw;
-  }
 
-  .slidey .sidebar-wrapper,
-  .slidey .main-content-wrapper {
-    flex: 0 0 100vw;
-    height: 100dvh;
-    scroll-snap-align: start;
-    overflow-y: auto;
-  }
 
-  .slidey.main-wrapper::-webkit-scrollbar {
+.emoji-button {
+  background: none;
+  border: none;
+  padding: 8px;
+}
+
+.chat-buttons {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  height: auto;
+}
+
+.send-button {
+  background-color: var(--vc-accent);
+  border: none;
+  color: var(--vc-fg);
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+  padding: 8px;
+}
+
+.send-button:hover {
+  background-color: var(--vc-accent-hover);
+}
+
+
+.youtube-wrapper {
+  width: 100%;
+  max-width: 500px;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  margin: 10px 0;
+}
+
+.youtube-wrapper iframe {
+  width: 100%;
+  height: 100%;
+}
+
+
+.message-menu {
+  margin-right: 10px;
+  margin-top: -.5em;
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 8px;
+  background: var(--vc-bg-elevated);
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: .15s ease;
+  z-index: 10;
+  border: 1px solid var(--vc-border-dark);
+  box-shadow: 0 2px 4px var(--vc-shadow);
+  transition: opacity 0.1s ease, box-shadow 0.2s ease;
+  z-index: 10;
+}
+
+.message-menu:hover {
+  box-shadow: 0 4px 8px var(--vc-shadow);
+}
+
+
+.message-menu button {
+  background: none;
+  border: none;
+  color: var(--vc-fg-subtle);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+}
+
+.message-menu button:hover {
+  background: var(--vc-bg-elevated-hover);
+  border-radius: 3px;
+}
+
+.icon-button:hover {
+  color: var(--vc-fg);
+}
+
+.icon-button.trash-button {
+  color: var(--vc-danger);
+}
+
+.icon-button.trash-button:hover {
+  color: var(--vc-danger);
+}
+
+.reply-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 4px 4px 0 0;
+}
+
+.reply-bar strong {
+  color: var(--vc-fg);
+}
+
+.reply-close {
+  background: none;
+  border: none;
+  color: var(--vc-fg-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 6px;
+}
+
+.reply-close:hover {
+  color: #fff;
+}
+
+
+.each-dm-message-wrapper {
+  background-color: var(--vc-bg-subtle);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.reply-snippet {
+  position: relative;
+  display: flex;
+  align-items: top;
+  padding-left: 100px;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.reply-snippet::before {
+  content: "";
+  position: absolute;
+  left: 25px;
+  width: 48px;
+  height: 50%;
+  top: 11px;
+  border-left: 2px solid var(--vc-fg-muted);
+  border-top: 2px solid var(--vc-fg-muted);
+  border-top-left-radius: 6px;
+  box-sizing: border-box;
+}
+
+
+/* One line: the name keeps its place (it only shrinks past most of the line), and the preview
+   takes what's left, ending in "…" when it doesn't fit (long filenames included). */
+.reply-author {
+  flex-shrink: 0;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: bold;
+  color: var(--vc-fg-muted);
+  margin-right: 6px;
+}
+
+.reply-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vc-fg-muted);
+}
+
+
+.each-dm-message-wrapper:hover,
+.each-dm-message-wrapper.focused {
+  background-color: var(--vc-bg-hover);
+}
+
+/* While a picker or menu is open for one message (.focused), the others ignore hovering. */
+.message-scroller.has-focused-message .each-dm-message-wrapper:not(.focused):hover {
+  background-color: var(--vc-bg-subtle);
+}
+
+.each-dm-message-wrapper.focused .message-menu {
+  opacity: 1;
+}
+
+.reply-snippet img.reply-avatar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 5px;
+  margin-left: 78px;
+}
+
+.dm-message-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.edit-message-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.inline-edit-wrapper {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.inline-edit-banner {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+  margin-top: 2px;
+}
+
+.inline-edit-banner a {
+  color: var(--vc-action);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.inline-edit-banner a:hover {
+  text-decoration: underline;
+}
+
+.char-count {
+  font-size: 10px;
+  color: var(--vc-fg-muted);
+  margin: 0;
+  padding-left: 10px;
+}
+
+.dm-chat-wrapper.drag-over {
+  border: 2px dashed var(--vc-accent);
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.dm-chat-wrapper.drag-over #dm-input {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.dm-chat-wrapper.drag-over #dm-chat-form {
+  margin:7px;
+}
+/* ATTACHMENTS */
+
+.composer-error {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--vc-danger);
+  background-color: var(--vc-bg-elevated-hover);
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 4px 4px 0 0;
+}
+
+.attachment-tray {
+  display: flex;
+  gap: 8px;
+  padding: 8px 8px 0;
+  overflow-x: auto;
+}
+
+.attachment-draft {
+  position: relative;
+  flex: 0 0 auto;
+  width: 96px;
+  height: 96px;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: var(--vc-bg-subtle);
+  border: 1px solid var(--vc-border-dark);
+}
+
+.attachment-draft img,
+.attachment-draft video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.attachment-draft-file {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  padding: 6px;
+  color: var(--vc-fg-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.attachment-draft-file svg {
+  font-size: 22px;
+}
+
+.attachment-draft-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vc-fg);
+}
+
+.attachment-draft-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.65);
+  color: var(--vc-fg);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.attachment-draft-remove:hover {
+  background-color: var(--vc-danger);
+}
+
+/* Spoiler toggle (images and videos), left of the remove button. */
+.attachment-draft-spoiler {
+  position: absolute;
+  top: 3px;
+  right: 29px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.65);
+  color: var(--vc-fg);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.attachment-draft-spoiler:hover,
+.attachment-draft-spoiler.active {
+  background-color: var(--vc-accent);
+}
+
+.attachment-draft.spoiler img,
+.attachment-draft.spoiler video {
+  filter: blur(8px);
+}
+
+.attachment-draft-spoiler-label {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  transform: translate(-50%, -50%);
+  padding: 2px 6px;
+  border-radius: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+/* Max size must match MAX_MEDIA_WIDTH/HEIGHT in Attachment.jsx. */
+.dm-message .attachment-media {
+  display: block;
+  max-width: min(100%, 420px);
+  max-height: 360px;
+  border-radius: 6px;
+  margin: 4px 0;
+}
+
+.dm-message .attachment-media.viewable {
+  cursor: zoom-in;
+}
+
+/* A spoiler image or video (Attachment.jsx SpoilerCover): blurred, "SPOILER" over it. The
+   whole cover is the button that reveals it. */
+.attachment-spoiler {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 4px 0;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: var(--vc-bg-elevated);
+}
+
+.dm-message .attachment-spoiler .attachment-media {
+  margin: 0;
+  filter: blur(44px);
+  /* Past the blur's faded edges, which the cover then cuts off. */
+  transform: scale(1.2);
+}
+
+.attachment-spoiler-reveal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background-color: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.attachment-spoiler:hover .attachment-spoiler-reveal {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.attachment-loading {
+  display: block;
+  /* Default size when the media's dimensions are unknown; overridden inline otherwise. */
+  width: 240px;
+  max-width: 100%;
+  height: 160px;
+  margin: 4px 0;
+  border-radius: 6px;
+  background-color: var(--vc-bg-elevated);
+  animation: attachment-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes attachment-pulse {
+  50% { opacity: 0.5; }
+}
+
+.attachment-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(100%, 360px);
+  margin: 4px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--vc-border-light);
+  background-color: var(--vc-bg-elevated);
+  vertical-align: middle;
+}
+
+.attachment-file-icon {
+  font-size: 24px;
+  color: var(--vc-fg-muted);
+  flex-shrink: 0;
+}
+
+.attachment-file-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.attachment-file-name {
+  color: var(--vc-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-file-size {
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.attachment-file-download {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 9px;
+  background-color: var(--vc-accent);
+  color: var(--vc-fg);
+  cursor: pointer;
+}
+
+.attachment-file-download:hover {
+  background-color: var(--vc-accent-hover);
+}
+
+.attachment-file-download:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.attachment-missing {
+  color: var(--vc-fg-muted);
+  font-style: italic;
+}
+
+/* MESSAGE LIST */
+
+.message-scroller {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Browser scroll anchoring keeps the visible messages still when content above changes. */
+  overflow-anchor: auto;
+  /* Rows' offsetTop is measured relative to this (manual anchoring). */
+  position: relative;
+}
+
+/* Room above the first message (its avatar, and its hover menu, which sits half above it) and
+   below the last one's reactions. */
+.message-scroller-content {
+  padding: 16px 0 12px;
+}
+
+/* NOTIFICATIONS */
+
+.notification-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 12px;
+  background-color: var(--vc-bg-elevated);
+  border-bottom: 1px solid var(--vc-border-dark);
+  color: var(--vc-fg);
+  font-size: 14px;
+}
+
+.notification-prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.notification-prompt-enable {
+  border: none;
+  border-radius: 6px;
+  padding: 3px 12px;
+  background-color: var(--vc-accent);
+  color: var(--vc-fg);
+}
+
+.notification-prompt-enable:hover {
+  background-color: var(--vc-accent-hover);
+}
+
+.notification-settings-status {
+  color: var(--vc-fg-muted);
+  margin-bottom: 0.5rem;
+}
+
+.notification-settings-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.notification-settings-previews {
+  display: block;
+  margin-top: 0.75rem;
+}
+
+.notification-settings-message {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+/* CONTACT KEYS / SAFETY NUMBERS */
+
+.chat-recipient-status {
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--vc-fg-muted);
+  vertical-align: middle;
+}
+
+.chat-recipient-header .key-status-badge {
+  margin-left: 10px;
+  font-size: 12px;
+  vertical-align: middle;
+  border: 1px solid var(--vc-border-light);
+  border-radius: 10px;
+  padding: 1px 8px;
+  background: none;
+  color: var(--vc-fg-muted);
+  cursor: pointer;
+}
+
+.chat-recipient-header .key-status-badge.verified {
+  color: var(--vc-online);
+  border-color: var(--vc-online);
+}
+
+.contact-key-warning {
+  margin: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--vc-danger);
+  border-radius: 8px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+}
+
+.contact-key-warning p {
+  color: var(--vc-fg-muted);
+  margin: 0.5rem 0;
+}
+
+.safety-number-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 16px;
+}
+
+.safety-number-dialog {
+  max-width: 420px;
+  width: 100%;
+  padding: 1.25rem;
+  border-radius: 10px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+}
+
+.safety-number-dialog p {
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+}
+
+.safety-number {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  justify-content: center;
+  gap: 8px 16px;
+  margin: 1rem 0;
+  font-family: monospace;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+.safety-number-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* EMOJI */
+
+/* More specific than `.dm-message img` (display: block) in voicaw.css. */
+img.emoji,
+.dm-message img.emoji {
+  display: inline-block;
+  width: 1.375em;
+  height: 1.375em;
+  margin: 0 0.05em;
+  vertical-align: -0.3em;
+  object-fit: contain;
+}
+
+/* Emoji-only messages are shown larger, like Discord. */
+.dm-message-content.emoji-only img.emoji {
+  width: 3rem;
+  height: 3rem;
+  margin: 2px 1px;
+}
+
+/* The emoji picker is positioned against the composer. */
+.dm-chat-wrapper {
+  position: relative;
+}
+
+.emoji-picker {
+  overflow: hidden;
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 50;
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  height: 420px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  border: 1px solid var(--vc-border-dark);
+  background-color: var(--vc-bg-elevated);
+  box-shadow: 0 8px 24px var(--vc-shadow);
+  color: var(--vc-fg);
+}
+
+.emoji-picker-header {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.emoji-picker-search {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 8px;
+  background-color: var(--vc-bg-base);
+  color: var(--vc-fg);
+  outline: none;
+}
+
+.emoji-picker-tones {
+  position: relative;
+}
+
+.emoji-picker-tone-toggle,
+.emoji-picker-tone-menu button,
+.emoji-picker-nav button,
+.emoji-picker-item {
+  border: none;
+  background: none;
+  padding: 4px;
+  border-radius: 4px;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.emoji-picker-tone-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border-radius: 6px;
+  background-color: var(--vc-bg-base);
+  box-shadow: 0 4px 12px var(--vc-shadow);
+}
+
+.emoji-picker .emoji {
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  vertical-align: middle;
+}
+
+.emoji-picker-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.emoji-picker-nav {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 4px;
+  border-right: 1px solid var(--vc-border-dark);
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Still scrolls (wheel/touch) on short screens; a scrollbar here would steal the width the
+     icons need and cause horizontal scrolling. */
+  scrollbar-width: none;
+}
+
+.emoji-picker-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.emoji-picker-nav .emoji {
+  width: 20px;
+  height: 20px;
+  filter: grayscale(0.6);
+}
+
+.emoji-picker-nav button:hover .emoji {
+  filter: none;
+}
+
+.emoji-picker-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 8px 8px;
+}
+
+.emoji-picker-section-title {
+  position: sticky;
+  top: -4px;
+  margin: 0;
+  padding: 6px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--vc-fg-muted);
+  background-color: var(--vc-bg-elevated);
+}
+
+.emoji-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+}
+
+.emoji-picker-item:hover,
+.emoji-picker-item:focus-visible,
+.emoji-picker-nav button:hover,
+.emoji-picker-tone-menu button:hover {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.emoji-picker-item .emoji {
+  width: 28px;
+  height: 28px;
+}
+
+.emoji-picker-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--vc-fg-muted);
+}
+
+.emoji-picker-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--vc-border-dark);
+  background-color: var(--vc-bg-subtle);
+  border-radius: 0 0 8px 8px;
+  font-size: 14px;
+}
+
+.emoji-picker-preview .emoji {
+  width: 28px;
+  height: 28px;
+}
+
+.emoji-picker-preview-code {
+  color: var(--vc-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Emoji / GIFs tabs at the top of the picker (only when GIFs are set up). */
+.emoji-picker-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 8px 0;
+}
+
+.emoji-picker-tabs button,
+.gif-picker-views button {
+  border: none;
+  background: none;
+  color: var(--vc-fg-muted);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.emoji-picker-tabs button:hover,
+.gif-picker-views button:hover {
+  color: var(--vc-fg);
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.emoji-picker-tabs button.active,
+.gif-picker-views button.active {
+  color: var(--vc-fg);
+  background-color: var(--vc-bg-base);
+}
+
+/* The GIFs tab is wider on desktop, so two columns of GIFs aren't tiny. */
+.emoji-picker.gifs:not(.docked) {
+  width: 420px;
+}
+
+.gif-picker {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gif-picker-views {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px 0;
+}
+
+.gif-picker-views button {
+  font-size: 13px;
+  padding: 3px 8px;
+}
+
+.gif-picker-scroll {
+  padding-top: 8px;
+}
+
+.gif-grid {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.gif-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gif-tile {
+  position: relative;
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: var(--vc-bg-base);
+}
+
+.gif-tile-pick {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.gif-tile-pick img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gif-tile-pick:hover img,
+.gif-tile-pick:focus-visible img {
+  filter: brightness(1.1);
+}
+
+.gif-tile-pick:focus-visible {
+  outline: 2px solid var(--vc-accent);
+  outline-offset: -2px;
+}
+
+.gif-tile-favorite {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.gif-tile:hover .gif-tile-favorite,
+.gif-tile-favorite:focus-visible,
+.gif-tile-favorite.on {
+  opacity: 1;
+}
+
+.gif-tile-favorite.on {
+  color: #f5c518;
+}
+
+/* Touch screens don't hover: the star is always there. */
+@media (hover: none) {
+  .gif-tile-favorite {
+    opacity: 0.85;
+  }
+}
+
+.gif-picker-attribution {
+  padding: 10px 0 2px;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--vc-fg-muted);
+}
+
+/* ":shortcode" autocomplete */
+.emoji-suggestions {
+  padding: 4px;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.emoji-suggestions-title {
+  padding: 2px 6px 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--vc-fg-muted);
+}
+
+.emoji-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.emoji-suggestion.active {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.emoji-suggestion .emoji {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+}
+
+.settings-attribution {
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+  margin: 0;
+}
+
+/* Mobile: the picker docks in the keyboard's place (height set inline). */
+.emoji-picker.docked {
+  position: static;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  border-radius: 0;
+  border-width: 1px 0 0;
+  box-shadow: none;
+}
+
+/* Mobile emoji search: the picker fills the screen with the keyboard (geometry inline: either
+   top/height above the keyboard, or the whole screen with the keyboard overlaying its padding). */
+.emoji-picker.docked.searching {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: auto;
+  z-index: 200;
+  border-width: 0;
+}
+
+.emoji-picker-back {
+  border: none;
+  background: none;
+  color: var(--vc-fg);
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 6px;
+  cursor: pointer;
+}
+
+/* ?kbdebug readout (mobile emoji search). */
+.emoji-picker-kbdebug {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  z-index: 1;
+  margin: 0;
+  padding: 4px 6px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #0f0;
+  background: rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+}
+
+/* Reactions under a message (MessageReactions). */
+.message-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  margin-left: var(--message-gutter);
+  /* As far from the bottom of the message's hover highlight as its avatar is from the top
+     (.dm-message's padding-top). */
+  padding-bottom: 4px;
+}
+
+.reaction-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--vc-bg-elevated);
+  color: var(--vc-fg-subtle);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.reaction-chip:hover {
+  border-color: var(--vc-border-dark);
+  background: var(--vc-bg-elevated-hover);
+}
+
+.reaction-chip.mine {
+  border-color: var(--vc-accent);
+  background: color-mix(in srgb, var(--vc-accent) 18%, transparent);
+  color: var(--vc-fg);
+}
+
+.reaction-chip img.emoji {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  vertical-align: middle;
+}
+
+.reaction-chip .reaction-count {
+  min-width: 1ch;
+  font-variant-numeric: tabular-nums;
+}
+
+.reaction-chip.reaction-add {
+  font-size: 16px;
+  opacity: 0;
+}
+
+.each-dm-message-wrapper:hover .reaction-chip.reaction-add,
+.each-dm-message-wrapper.focused .reaction-chip.reaction-add,
+.reaction-chip.reaction-add:focus-visible,
+body.mobile-mode .reaction-chip.reaction-add {
+  opacity: 1;
+}
+
+.desktop-mode .message-scroller.has-focused-message .each-dm-message-wrapper:not(.focused):hover .reaction-chip.reaction-add {
+  opacity: 0;
+}
+
+/* The floating reaction picker (desktop): a zero-size fixed point by the button pressed; the
+   picker hangs above it, right edges aligned, or below it with `.below`. */
+.reaction-picker-anchor {
+  position: fixed;
+  width: 0;
+  height: 0;
+  z-index: 60;
+}
+
+.reaction-picker-anchor.below .emoji-picker {
+  top: 8px;
+  bottom: auto;
+}
+
+/* "Update available" (UpdateBanner): a card that slides in over the top of the app. Full
+   width with margins on phones, capped on wider screens. */
+.update-banner {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 10px);
+  left: 10px;
+  right: 10px;
+  z-index: 1000;
+  max-width: 460px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 12px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 14px;
+  background-color: var(--vc-bg-elevated);
+  box-shadow: 0 10px 30px var(--vc-shadow);
+  color: var(--vc-fg);
+  animation: update-banner-in 0.25s ease-out;
+}
+
+.update-banner-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--vc-accent) 22%, transparent);
+  color: var(--vc-fg);
+  font-size: 15px;
+}
+
+.update-banner-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.update-banner-text strong {
+  font-size: 14px;
+}
+
+.update-banner-text span {
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+}
+
+.update-banner-button {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  background-color: var(--vc-accent);
+  color: var(--vc-fg);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.update-banner-button:hover:not(:disabled) {
+  background-color: var(--vc-accent-hover);
+}
+
+.update-banner-button:disabled {
+  opacity: 0.7;
+}
+
+.update-banner-close {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-left: -4px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.update-banner-close:hover {
+  background: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+}
+
+/* The narrowest phones: the text gets the icon's room. */
+@media (max-width: 360px) {
+  .update-banner-icon {
     display: none;
   }
+}
 
-  .slidey.main-wrapper {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+@keyframes update-banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
   }
+}
+
+.app-version {
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+  margin-bottom: 0.5rem;
+}
+
+/* Profile pictures next to messages and in the conversation list (`.dm-message img` in
+   voicaw.css would otherwise make message avatars full-size blocks). */
+.dm-message img.message-avatar,
+.dm-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.dm-message img.message-avatar {
+  display: inline;
+  /* So the name lines up with the text below (.dm-message-content's margin). */
+  margin-right: 24px;
+}
+
+/* Mobile message actions (MessageActionSheet): a sheet from the bottom over a dimmed page. */
+.action-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.5);
+  animation: action-sheet-fade 0.15s ease-out;
+}
+
+.action-sheet {
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+  border-radius: 16px 16px 0 0;
+  background: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  box-shadow: 0 -8px 24px var(--vc-shadow);
+  animation: action-sheet-rise 0.18s ease-out;
+}
+
+.action-sheet-reactions {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.action-sheet-reaction {
+  flex: 1;
+  max-width: 52px;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+  font-size: 22px;
+}
+
+.action-sheet-reaction img.emoji {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+}
+
+.action-sheet-reaction.mine {
+  border-color: var(--vc-accent);
+  background: color-mix(in srgb, var(--vc-accent) 18%, transparent);
+}
+
+.action-sheet-items,
+.action-sheet-confirm {
+  display: flex;
+  flex-direction: column;
+}
+
+.action-sheet-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--vc-fg);
+  font-size: 16px;
+  text-align: left;
+}
+
+.action-sheet-item:active {
+  background: var(--vc-bg-elevated-hover);
+}
+
+.action-sheet-item.danger {
+  color: var(--vc-danger);
+}
+
+.action-sheet-confirm p {
+  margin: 4px 8px 8px;
+  color: var(--vc-fg-muted);
+}
+
+@keyframes action-sheet-rise {
+  from { transform: translateY(100%); }
+}
+
+@keyframes action-sheet-fade {
+  from { opacity: 0; }
+}
+
+/* Mobile: a long press on a message opens its actions (with "Copy text") instead of
+   selecting text or the browser's own menu. The inline editor stays editable. */
+body.mobile-mode .each-dm-message-wrapper {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+body.mobile-mode .each-dm-message-wrapper textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* MESSAGE EDITOR (editor/MessageEditor): the message box and the inline message editor. */
+.message-editor-wrapper {
+  flex: 1;
+  min-width: 0;
+  align-self: center;
+}
+
+.message-editor {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  line-height: 1.5;
+  color: var(--vc-fg);
+  outline: none;
+  overflow-wrap: anywhere;
+  scrollbar-color: var(--vc-bg-subtle) var(--vc-bg-elevated);
+}
+
+.message-editor p {
+  margin: 0;
+}
+
+.inline-edit-editor {
+  border-radius: 8px;
+  background-color: var(--vc-bg-elevated);
+}
+
+/* Placeholder while empty (the editor puts it on the empty first line), on one line with
+   an ellipsis if it doesn't fit. */
+.message-editor {
+  position: relative;
+}
+
+.message-editor p[data-placeholder]::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--vc-fg-muted);
+  pointer-events: none;
+}
+
+.editor-attachment {
+  display: inline-block;
+  max-width: 16em;
+  margin: 0 1px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+  font-size: 0.9em;
+  line-height: 1.5;
+  vertical-align: bottom;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+.message-editor img.emoji {
+  width: 1.375em;
+  height: 1.375em;
+  margin: 0 0.05em;
+  vertical-align: -0.3em;
+}
+
+/* A group DM's membership changes, between its messages. */
+.message-system {
+  margin: 6px 0;
+  padding: 2px 1.25rem;
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+  text-align: center;
+}
+
+/* Group DMs: messages whose sender can't be verified. */
+.message-signature {
+  margin-left: 6px;
+  font-size: 11px;
+}
+
+.message-signature.unsigned {
+  color: var(--vc-fg-muted);
+}
+
+.message-signature.unverified {
+  color: var(--vc-danger);
+  font-weight: 600;
+}
+
+/* Mentions (`<@id>`): a tinted "@name", in messages and in the message box. */
+.mention {
+  padding: 0 2px;
+  border-radius: 3px;
+  background-color: rgba(102, 85, 140, 0.45);
+  color: var(--vc-fg);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mention.mention-me {
+  background-color: rgba(216, 185, 48, 0.3);
+}
+
+.editor-mention {
+  display: inline-block;
+  line-height: 1.4;
+}
+
+/* A message that mentions you: tinted, with a bar on the left (like Discord). */
+.each-dm-message-wrapper.mentioned,
+.message-scroller.has-focused-message .each-dm-message-wrapper.mentioned:not(.focused):hover {
+  background-color: rgba(216, 185, 48, 0.08);
+  box-shadow: inset 2px 0 0 var(--vc-action);
+}
+
+.each-dm-message-wrapper.mentioned:hover,
+.each-dm-message-wrapper.mentioned.focused {
+  background-color: rgba(216, 185, 48, 0.14);
+}
+
+.mention-suggestion-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* A role mention in the role's colour (--role-color, set inline; none: a plain mention). */
+.mention.role-mention[style] {
+  color: var(--role-color);
+  background-color: color-mix(in srgb, var(--role-color) 18%, transparent);
+}
+
+/* A channel mention (`<#id>`): its icon and name, a link to it (underlined on hover). */
+.mention.channel-mention:not(.editor-mention) {
+  cursor: pointer;
+}
+
+.mention.channel-mention:not(.unknown, .editor-mention):hover,
+.mention.channel-mention:focus-visible {
+  text-decoration: underline;
+}
+
+.mention.channel-mention.unknown {
+  cursor: default;
+  color: var(--vc-fg-muted);
+}
+
+.channel-mention-icon {
+  margin-right: 2px;
+  font-size: 0.85em;
+}
+
+.channel-mention-icon .channel-icon-lock {
+  display: none;
+}
+
+.mention-suggestion-at {
+  width: 22px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--vc-fg-muted);
+}
+
+.mention-suggestion-note {
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Markdown shown as you type (editor/markdownPreview): styled like the message will be, with
+   the markers kept but dimmed. */
+.message-editor .md-syntax {
+  color: var(--vc-fg-muted);
+  font-weight: normal;
+  font-style: normal;
+  text-decoration: none;
+}
+
+.message-editor .md-bold {
+  font-weight: 700;
+}
+
+.message-editor .md-italic {
+  font-style: italic;
+}
+
+.message-editor .md-strike {
+  text-decoration: line-through;
+}
+
+.message-editor .md-underline {
+  text-decoration: underline;
+}
+
+.message-editor .md-strike.md-underline,
+.message-editor .md-underline .md-strike {
+  text-decoration: underline line-through;
+}
+
+.message-editor .md-spoiler {
+  border-radius: 3px;
+  background-color: var(--vc-bg-base);
+}
+
+.message-editor .md-code,
+.message-editor .md-code-block {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.message-editor .md-code {
+  padding: 1px 3px;
+  border-radius: 4px;
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.message-editor p.md-code-block {
+  padding: 0 8px;
+  background-color: var(--vc-bg-subtle);
+  border-left: 1px solid var(--vc-border-dark);
+  border-right: 1px solid var(--vc-border-dark);
+}
+
+.message-editor p.md-code-block-start {
+  padding-top: 2px;
+  border-top: 1px solid var(--vc-border-dark);
+  border-radius: 4px 4px 0 0;
+}
+
+.message-editor p.md-code-block-end {
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--vc-border-dark);
+  border-radius: 0 0 4px 4px;
+}
+
+.message-editor p.md-quote {
+  padding-left: 8px;
+  border-left: 3px solid var(--vc-border-light);
+}
+
+/* MESSAGE MARKDOWN (Discord's set, utils/remarkDiscord). Newlines between blocks are markup,
+   not text: only the text inside blocks keeps its line breaks. */
+.dm-message-content {
+  white-space: normal;
+}
+
+.dm-message-content :is(p, li, h1, h2, h3, td, th) {
+  white-space: pre-wrap;
+}
+
+.dm-message-content p {
+  margin: 0;
+}
+
+/* A blank line typed between blocks (remarkDiscord): empty, one line high. */
+.dm-message-content .blank-line::before {
+  content: '\200b';
+}
+
+.dm-message-content :is(h1, h2, h3) {
+  margin: 4px 0 2px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.dm-message-content h1 {
+  font-size: 1.5rem;
+}
+
+.dm-message-content h2 {
+  font-size: 1.25rem;
+}
+
+.dm-message-content h3 {
+  font-size: 1rem;
+}
+
+.dm-message-content :is(ul, ol) {
+  margin: 0;
+  padding-left: 1.5em;
+}
+
+.dm-message-content blockquote {
+  margin: 0;
+  padding-left: 12px;
+  border-left: 4px solid var(--vc-border-light);
+}
+
+.dm-message-content :not(pre) > code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background-color: var(--vc-bg-elevated);
+  font-size: 0.875em;
+}
+
+.dm-message-content pre {
+  margin: 4px 0;
+  max-width: 90%;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 4px;
+  background-color: var(--vc-bg-base);
+}
+
+.dm-message-content pre code {
+  display: block;
+  padding: 8px;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* A spoiler: a dark block until clicked, then its text on a faint background. */
+.dm-message-content .spoiler {
+  border-radius: 3px;
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.dm-message-content .spoiler:not(.revealed) {
+  background-color: var(--vc-bg-base);
+  color: transparent;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.dm-message-content .spoiler:not(.revealed) * {
+  visibility: hidden;
+}
+
+.dm-message-content .spoiler:not(.revealed):hover {
+  background-color: #111114;
+}
+
+/* "Delete message?" (ChatPane): the message being deleted, cut short if it's long. */
+.delete-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 6px;
+  background-color: var(--vc-bg-subtle);
+  box-shadow: 0 1px 3px var(--vc-shadow);
+}
+
+.delete-preview span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* A message following another of the same person's (MessageList continuesGroup): no avatar,
+   name or date, and tight to the one above; its time shows in the avatar's column on hover. */
+.each-dm-message-wrapper.grouped .dm-message {
+  padding-top: 0;
+}
+
+.message-hover-time {
+  position: absolute;
+  left: 10px;
+  top: 3px;
+  width: 50px;
+  text-align: center;
+  font-size: 10px;
+  line-height: 18px;
+  color: var(--vc-fg-muted);
+  white-space: nowrap;
+  visibility: hidden;
+}
+
+.each-dm-message-wrapper.grouped:hover .message-hover-time,
+.each-dm-message-wrapper.grouped.focused .message-hover-time {
+  visibility: visible;
+}
+
+/* "(edited)" after a grouped message's text, on the same line when it ends in a paragraph. */
+.dm-message-content.edited-inline > p:last-of-type {
+  display: inline;
+}
+
+.message-edited {
+  margin-left: 4px;
+  font-size: 0.7em;
+  color: var(--vc-fg-muted);
+}
+
+/* PROFILES (utils/profiles). A person in the DM list: display name, custom status under it. */
+.dm-user-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dm-user-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.dm-user-name,
+.dm-user-custom-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-user-custom-status {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}
+
+/* A name or avatar in chat opens that person's profile card (ProfilePopover). */
+.dm-message .message-author[role="button"],
+.dm-message .message-avatar[role="button"] {
+  cursor: pointer;
+}
+
+.dm-message .message-author[role="button"]:hover {
+  text-decoration: underline;
+}
+
+.profile-popover {
+  position: fixed;
+  z-index: 400;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  background-color: var(--vc-bg-elevated);
+  box-shadow: 0 8px 24px var(--vc-shadow);
+}
+
+/* ProfileCard: picture, names, status, custom status, bio. */
+.profile-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-card-avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  --status-size: 11px;
+  --status-center: 8px;
+  --status-gap: 3px;
+  --status-phone-width: 13px;
+  --status-phone-height: 17px;
+}
+
+.profile-card-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-card-names {
+  min-width: 0;
+}
+
+.profile-card-name {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.profile-card-username {
+  font-size: 13px;
+  color: var(--vc-fg);
+}
+
+.profile-card-presence {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}
+
+.profile-card-presence.online,
+.profile-card-presence.mobile {
+  color: var(--vc-online);
+}
+
+.profile-card-presence.idle {
+  color: var(--vc-idle);
+}
+
+.profile-card-custom-status {
+  margin-top: 10px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.profile-card-section {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+.profile-card-bio {
+  margin: 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Settings → Edit Profile: the form beside a preview of the card. */
+.edit-profile-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 0 1.5rem 1.5rem;
+}
+
+.edit-profile-form {
+  flex: 1 1 320px;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.edit-profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.edit-profile-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--vc-fg-muted);
+}
+
+.edit-profile-count {
+  font-weight: normal;
+  text-transform: none;
+}
+
+.edit-profile-picture {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.edit-profile-picture img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.edit-profile-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-profile-preview {
+  flex: 0 1 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---- PINNED MESSAGES ---- */
+
+/* The pin by a pinned message's time. */
+.message-pinned {
+  margin-left: 6px;
+  font-size: 0.75em;
+  color: var(--vc-fg-muted);
+  transform: rotate(30deg);
+}
+
+.message-menu .pin-button.active {
+  color: var(--vc-action);
+}
+
+/* A message jumped to from the pinned list: a brief highlight. */
+@keyframes jump-highlight {
+  from { background-color: rgba(216, 185, 48, 0.25); }
+  to { background-color: transparent; }
+}
+
+.each-dm-message-wrapper.jump-highlight {
+  animation: jump-highlight 2s ease-out;
+}
+
+/* Header buttons side by side (call, pins, members). */
+.chat-recipient-header .chat-call-button + .chat-call-button {
+  margin-left: 4px;
+}
+
+.chat-call-button.pins-button:hover:not(:disabled),
+.chat-call-button.pins-button.active {
+  color: var(--vc-fg);
+}
+
+.pins-panel {
+  position: fixed;
+  z-index: 400;
+  width: 420px;
+  max-width: calc(100vw - 16px);
+  max-height: min(70vh, 640px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  background-color: var(--vc-bg-elevated);
+  box-shadow: 0 8px 24px var(--vc-shadow);
+  color: var(--vc-fg);
+}
+
+.pins-panel.mobile {
+  inset: 0;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  background-color: var(--vc-bg-subtle);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.pins-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.pins-panel-header h5 {
+  margin: 0;
+  flex: 1;
+  font-size: 1rem;
+}
+
+.pins-panel .icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--vc-fg-muted);
+}
+
+.pins-panel .icon-button:hover {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.pins-panel-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.pins-panel-note {
+  margin: 8px;
+  color: var(--vc-fg-muted);
+}
+
+.pins-panel-empty {
+  padding: 24px 12px;
+  text-align: center;
+}
+
+.pins-panel-empty p {
+  margin: 0 0 4px;
+}
+
+.pinned-message {
+  position: relative;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 6px;
+  background-color: var(--vc-bg-subtle);
+  overflow-wrap: anywhere;
+}
+
+.pinned-message-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.pinned-message-header small {
+  color: var(--vc-fg-muted);
+  white-space: nowrap;
+}
+
+.pinned-message-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pinned-message-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pinned-message-jump {
+  padding: 1px 8px;
+  font-size: 0.8rem;
+  color: var(--vc-fg);
+  background-color: var(--vc-bg-elevated);
+  border: 1px solid var(--vc-border-light);
+}
+
+.pinned-message-jump:hover {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+/* Not tied to hover on desktop: always visible, but quiet until hovered. */
+.desktop-mode .pinned-message-actions {
+  opacity: 0.6;
+}
+
+.desktop-mode .pinned-message:hover .pinned-message-actions {
+  opacity: 1;
+}
+
+.pinned-message .dm-message-content {
+  max-height: 240px;
+  overflow: hidden;
+}
+
+/* NOTES (a DM to yourself, first under the header, a line between it and the conversations) */
+.dm-notes-link-wrap {
+  flex-shrink: 0;
+  padding: 8px 0;
+}
+
+.dm-notes-link-wrap::after {
+  content: '';
+  display: block;
+  height: 1px;
+  margin: 8px 10px 0;
+  background-color: var(--vc-border-light);
+}
+
+.dm-notes-link {
+  gap: 8px;
+}
+
+.dm-notes-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+}
+
+.dm-notes-link.active .dm-notes-icon {
+  color: var(--vc-fg);
+}
+
+.notes-header-icon {
+  margin-right: 8px;
+  color: var(--vc-fg-muted);
+}
+
+/* WEBHOOK MESSAGES (guilds): the APP tag after the name, Discord's embeds and sent files
+   (MessageEmbeds, MessageFiles). */
+.app-tag {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 3px;
+  background-color: var(--vc-accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  vertical-align: 2px;
+}
+
+.message-embeds {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.embed {
+  display: flex;
+  gap: 16px;
+  max-width: 520px;
+  padding: 8px 16px 12px 12px;
+  border-left: 4px solid var(--embed-color, var(--vc-border-light));
+  border-radius: 4px;
+  background-color: var(--vc-bg-elevated);
+  white-space: normal;
+}
+
+.embed-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.embed-provider,
+.embed-footer {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}
+
+.embed-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.embed-author-icon,
+.embed-footer-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.embed-footer-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.embed-title {
+  font-weight: 700;
+}
+
+.embed a {
+  color: var(--vc-accent);
+}
+
+.embed-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.embed-field {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.embed-field.inline {
+  grid-column: auto;
+}
+
+.embed-field-name {
+  font-weight: 700;
+}
+
+.embed-image {
+  display: block;
+  max-width: 100%;
+  max-height: 300px;
+  width: auto;
+  height: auto;
+  border-radius: 4px;
+  object-fit: contain;
+  object-position: left;
+}
+
+.embed-thumbnail {
+  flex-shrink: 0;
+  max-width: 80px;
+  max-height: 80px;
+  width: auto;
+  height: auto;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.message-files {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.message-file-image img,
+.message-file-video {
+  display: block;
+  max-width: min(400px, 100%);
+  max-height: 300px;
+  width: auto;
+  height: auto;
+  border-radius: 4px;
+}
+
+.message-file-box {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 420px;
+  padding: 10px 12px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 6px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  text-decoration: none;
+}
+
+.message-file-icon {
+  font-size: 22px;
+  color: var(--vc-fg-muted);
+}
+
+.message-file-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--vc-accent);
+}
+
+/* ---------------------------------------------------------------- POLLS */
+
+/* The composer's + menu: upload a file, create a poll. */
+.attach-wrapper {
+  position: relative;
+}
+
+.composer-add-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  min-width: 190px;
+  padding: 6px;
+  border-radius: 6px;
+  background-color: #111114;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+}
+
+.composer-add-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.composer-add-item:hover:not(:disabled) {
+  background-color: var(--vc-accent);
+  color: var(--vc-fg);
+}
+
+.composer-add-item:disabled {
+  opacity: 0.5;
+}
+
+/* A poll message. */
+.poll {
+  width: 100%;
+  max-width: 440px;
+  margin: 4px 0;
+  padding: 12px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  background-color: var(--vc-bg-subtle);
+}
+
+.poll-question {
+  font-weight: 600;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.poll-kind {
+  margin: 2px 0 10px;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.poll-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.poll-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  overflow: hidden;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 6px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.poll-option:hover:not(:disabled) {
+  border-color: var(--vc-border-light);
+}
+
+.poll-option:disabled {
+  cursor: default;
+}
+
+.poll-option.mine,
+.poll-option.selected {
+  border-color: var(--vc-accent);
+}
+
+.poll-option.selected {
+  background-color: color-mix(in srgb, var(--vc-accent) 18%, var(--vc-bg-elevated));
+}
+
+/* Its share of the votes, behind the text. */
+.poll-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background-color: color-mix(in srgb, var(--vc-fg-muted) 16%, transparent);
+  transition: width 0.2s ease;
+}
+
+.poll-option.mine .poll-bar {
+  background-color: color-mix(in srgb, var(--vc-accent) 40%, transparent);
+}
+
+.poll-check,
+.poll-option-text,
+.poll-count {
+  position: relative;
+}
+
+.poll-check {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--vc-fg-muted);
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.poll-check.square {
+  border-radius: 4px;
+}
+
+.poll-option.selected .poll-check {
+  border-color: var(--vc-accent);
+  background-color: var(--vc-accent);
+  color: var(--vc-fg);
+}
+
+.poll-option-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.poll-option.leading .poll-option-text {
+  font-weight: 600;
+}
+
+.poll-count {
+  flex-shrink: 0;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.poll-mine-mark {
+  position: relative;
+  flex-shrink: 0;
+  color: var(--vc-fg);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.poll-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 30px;
+  margin-top: 10px;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.poll-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.poll-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vc-fg);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.poll-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.poll-vote {
+  min-width: 64px;
+}
+
+/* Who voted: answers as tabs (a column on a computer, a scrolling row on a phone), voters. */
+.vc-dialog.poll-voters-dialog {
+  max-width: 560px;
+}
+
+.poll-voters {
+  display: flex;
+  gap: 12px;
+  min-height: 240px;
+  max-height: 60svh;
+}
+
+.poll-voters-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 42%;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+.poll-voters-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+  text-align: left;
+}
+
+.poll-voters-tab:hover {
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+}
+
+.poll-voters-tab.active {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.poll-voters-tab-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.poll-voters-tab-count {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.poll-voters-list {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding-left: 12px;
+  border-left: 1px solid var(--vc-border-dark);
+}
+
+.poll-voters-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.poll-voters-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  overflow-wrap: anywhere;
+}
+
+.poll-voter-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+body.mobile-mode .poll-voters {
+  flex-direction: column;
+  gap: 8px;
+}
+
+body.mobile-mode .poll-voters-tabs {
+  flex-direction: row;
+  width: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+body.mobile-mode .poll-voters-tab {
+  width: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+body.mobile-mode .poll-voters-list {
+  padding-left: 0;
+  padding-top: 8px;
+  border-left: 0;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+/* Creating or editing one. */
+.poll-dialog-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.poll-dialog-remove {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.poll-dialog-remove:hover:not(:disabled) {
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-danger);
+}
+
+.poll-dialog-remove:disabled {
+  visibility: hidden;
+}
+
+.poll-dialog-add {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+/* An answer's emoji in a poll, and its button in the dialog (with × to remove it). */
+.poll-option-emoji {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.poll-option-emoji img.emoji {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+
+.poll-dialog-emoji {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.poll-dialog-emoji-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 6px;
+  background: var(--vc-bg-subtle);
+  color: var(--vc-fg-muted);
+  font-size: 18px;
+}
+
+.poll-dialog-emoji-button:hover,
+.poll-dialog-emoji-button[aria-expanded="true"] {
+  border-color: var(--vc-border-light);
+  color: var(--vc-fg);
+}
+
+.poll-dialog-emoji-button img.emoji {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+}
+
+.poll-dialog-emoji-clear {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--vc-bg-hover);
+  color: var(--vc-fg);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.poll-dialog-emoji-clear:hover {
+  background: var(--vc-danger);
+}
+
+/* Over the poll dialog (whose backdrop is z-index 100). */
+.reaction-picker-anchor.poll-emoji-anchor {
+  z-index: 110;
+}
+
+/* A poll's footer: "Poll closed" once it has ended; End poll (its author) in red. */
+.poll-closed {
+  color: var(--vc-fg);
+  font-weight: 600;
+}
+
+.poll-link.poll-end {
+  color: var(--vc-danger);
+}
+
+/* A poll's "poll ended" row (PollEndNotice): an icon, whose poll closed, and its result. */
+.poll-end {
+  display: flex;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 4px 1.25rem;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+}
+
+.poll-end strong {
+  color: var(--vc-fg);
+  overflow-wrap: anywhere;
+}
+
+.poll-end-icon {
+  flex-shrink: 0;
+  width: 40px;
+  margin-top: 3px;
+  font-size: 18px;
+  color: var(--vc-accent-alt);
+}
+
+.poll-end-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.poll-end-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 6px;
+  background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg);
+}
+
+.poll-end-trophy {
+  flex-shrink: 0;
+  color: var(--vc-action);
+}
+
+.poll-end-answer .poll-option-emoji {
+  display: inline;
+  margin-right: 4px;
+}
+
+.poll-end-answer .poll-option-emoji img.emoji {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  vertical-align: -3px;
 }

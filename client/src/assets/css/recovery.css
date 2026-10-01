@@ -1,0 +1,109 @@
+.recovery-code-display p {
+  color: var(--vc-fg);
+}
+
+.recovery-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.05rem;
+  text-align: center;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: 6px;
+  background: var(--vc-bg-base);
+  border: 1px solid var(--vc-border-light);
+  color: var(--vc-fg);
+  user-select: all;
+}
+
+/* Wrap between groups, never inside one. */
+.recovery-code span {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.recovery-code-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.recovery-hint {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.recovery-confirm {
+  display: block;
+  margin-bottom: 0.75rem;
+  color: var(--vc-fg);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--vc-fg-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: var(--vc-fg);
+}
+
+.account-security-form {
+  max-width: 320px;
+  margin-bottom: 1rem;
+}
+
+.account-security-form input {
+  margin-bottom: 0.5rem;
+}
+
+.account-security-success {
+  color: var(--vc-online);
+}
+
+.recovery-code-panel {
+  max-width: 420px;
+}
+
+/* Bootstrap's .btn can win over login.css's .btn-vc depending on stylesheet order. */
+.recovery-code-display .btn-vc,
+.account-security-form .btn-vc {
+  background-color: var(--vc-accent);
+  color: var(--vc-fg);
+}
+
+.recovery-code-display .btn-vc:hover,
+.account-security-form .btn-vc:hover {
+  background-color: var(--vc-accent-hover);
+}
+
+.recovery-code-display .recovery-error {
+  color: var(--vc-danger);
+  margin-top: 0.75rem;
+}
+
+/* Settings → Delete Account */
+.delete-account-form {
+  max-width: 480px;
+  color: var(--vc-fg);
+}
+
+.delete-account-list {
+  padding-left: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.delete-account-guilds {
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--vc-border-light);
+}
+
+.delete-account-guilds .recovery-confirm {
+  margin-bottom: 0;
+}
