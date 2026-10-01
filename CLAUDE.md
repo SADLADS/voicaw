@@ -978,8 +978,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   from a key press with a modifier, `acceleratorFromEvent`; a key another app holds is
   reported).
 - **Updates** (`updater.js`, electron-updater): the installed app looks for a new version at
-  start and every 4 hours on the generic feed in `builder.config.js` (`https://voicaw.com/desktop/`,
-  README "Desktop app"), downloads it, and the page offers "Update now" (UpdateBanner,
+  start and every 4 hours on the generic feed in `builder.config.js` (`https://updates.voicaw.com/desktop/`: its own static
+  site, `/opt/voicaw-updates`, nginx config in `updates/nginx/`, a download page from
+  `updates/site/`, filled by `node updates/publish.mjs`; README "Desktop app"), downloads it, and the page offers "Update now" (UpdateBanner,
   Settings → App version, which also shows the app's version); that restarts onto it. A
   development run or an unsigned macOS app can't update itself ('unsupported'). Releases are
   only as trustworthy as that server (no signature of our own on the feed yet).
