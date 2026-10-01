@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voicaw for desktop</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root {
+    --bg: #1a1a1f;
+    --card: #232329;
+    --card-hover: #2d2d34;
+    --text: #ececf1;
+    --muted: #a3a3ad;
+    --accent: #66558c;
+    --accent-hover: #5a4e7a;
+    --line: #35353d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 48px 16px;
+  }
+  main { width: 100%; max-width: 560px; }
+  header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; }
+  header img { width: 56px; height: 56px; border-radius: 14px; }
+  h1 { font-size: 1.6rem; margin: 0; }
+  header p { margin: 0; color: var(--muted); }
+  .primary {
+    display: block;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 32px;
+  }
+  .primary:hover { background: var(--accent-hover); }
+  .primary strong { display: block; font-size: 1.1rem; }
+  .primary span { opacity: 0.85; font-size: 0.9rem; }
+  h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 24px 0 8px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li a {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--card);
+    color: var(--text);
+    text-decoration: none;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 6px;
+  }
+  li a:hover { background: var(--card-hover); }
+  li small { color: var(--muted); white-space: nowrap; }
+  .note { color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); margin-top: 32px; padding-top: 16px; }
+  .note a { color: var(--text); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="/logo.png" alt="">
+    <div>
+      <h1>Voicaw for desktop</h1>
+      <p>For Windows, macOS and Linux. It keeps itself up to date.</p>
+    </div>
+  </header>
+  <div id="downloads"><p class="note">Loading…</p></div>
+  <p class="note">
+    Prefer the browser? Voicaw also works at <a href="https://voicaw.com">voicaw.com</a>.
+  </p>
+</main>
+<script>
+  const NAMES = { windows: 'Windows', mac: 'macOS', linux: 'Linux' };
+
+  function guessPlatform() {
+    const p = (navigator.userAgentData?.platform || navigator.platform || navigator.userAgent).toLowerCase();
+    if (p.includes('win')) return 'windows';
+    if (p.includes('mac')) return 'mac';
+    if (p.includes('linux') && !/android/i.test(navigator.userAgent)) return 'linux';
+    return null;
+  }
+
+  function size(bytes) {
+    return `${(bytes / 1024 / 1024).toFixed(0)} MB`;
+  }
+
+  function link(file, className) {
+    const a = document.createElement('a');
+    a.href = `/desktop/${encodeURIComponent(file.name)}`;
+    if (className) a.className = className;
+    return a;
+  }
+
+  function show(platforms) {
+    const box = document.getElementById('downloads');
+    box.replaceChildren();
+    const mine = guessPlatform();
+    const order = ['windows', 'mac', 'linux'].filter((p) => platforms[p]?.files?.length);
+    if (!order.length) {
+      box.innerHTML = '<p class="note">No downloads yet. Check back soon.</p>';
+      return;
+    }
+    if (mine && platforms[mine]) {
+      const release = platforms[mine];
+      const a = link(release.files[0], 'primary');
+      const strong = document.createElement('strong');
+      strong.textContent = `Download for ${NAMES[mine]}`;
+      const span = document.createElement('span');
+      span.textContent = [release.version && `Version ${release.version}`, release.files[0].label, size(release.files[0].size)]
+        .filter(Boolean).join(' · ');
+      a.append(strong, span);
+      box.append(a);
+    }
+    for (const platform of order) {
+      const release = platforms[platform];
+      const h2 = document.createElement('h2');
+      h2.textContent = NAMES[platform] + (release.version ? ` · ${release.version}` : '');
+      const ul = document.createElement('ul');
+      for (const file of release.files) {
+        const li = document.createElement('li');
+        const a = link(file);
+        const label = document.createElement('span');
+        label.textContent = file.label;
+        const small = document.createElement('small');
+        small.textContent = size(file.size);
+        a.append(label, small);
+        li.append(a);
+        ul.append(li);
+      }
+      box.append(h2, ul);
+    }
+  }
+
+  fetch('/desktop/releases.json', { cache: 'no-cache' })
+    .then((r) => (r.ok ? r.json() : { platforms: {} }))
+    .then((data) => show(data.platforms || {}))
+    .catch(() => show({}));
+</script>
+</body>
+</html>

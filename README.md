@@ -226,16 +226,37 @@ npm run dist:electron   # client build for the app (../build), then installers i
 The client build uses `client/.env.production`, unless there's a `client/.env.electron` with its
 own `VITE_API_BASE_URL` / `VITE_WS_URL`.
 
-Installed copies update themselves (`electron/updater.js`) from `https://voicaw.com/desktop/`
-(set `VOICAW_UPDATE_URL` when building to use another address): serve a folder there and, for
-each release, raise `version` in `electron/package.json`, build, and copy the installers and
-the `latest*.yml` files from `dist-desktop/` into it. On `voicaw.com`:
+Installed copies update themselves (`electron/updater.js`) from
+`https://updates.voicaw.com/desktop/` (set `VOICAW_UPDATE_URL` when building to use another
+address). That's its own static site, with a download page at `https://updates.voicaw.com/`
+(`updates/site/`) listing the newest installer for each system. Set it up once:
 
-```nginx
-location /desktop/ {
-    alias /opt/voicaw-desktop/;
-}
+1. DNS: an `A` record for `updates.voicaw.com` pointing at the host.
+2. The folder it serves, writable by the user who publishes:
+   ```bash
+   sudo mkdir -p /opt/voicaw-updates
+   sudo chown "$USER":www-data /opt/voicaw-updates
+   ```
+3. nginx (the config is `updates/nginx/updates.voicaw.com`), then HTTPS:
+   ```bash
+   sudo cp updates/nginx/updates.voicaw.com /etc/nginx/sites-available/
+   sudo ln -s /etc/nginx/sites-available/updates.voicaw.com /etc/nginx/sites-enabled/
+   sudo nginx -t && sudo systemctl reload nginx
+   sudo certbot --nginx -d updates.voicaw.com
+   ```
+
+For each release: raise `version` in `electron/package.json`, build, and publish:
+
+```bash
+npm run dist:electron
+node updates/publish.mjs            # dist-desktop/ into /opt/voicaw-updates (or: <buildDir> <siteDir>)
 ```
+
+The script copies the installers first and the `latest*.yml` feeds last (so an app never sees a
+feed naming a file that isn't there yet), updates the page's list (`desktop/releases.json`), and
+keeps older installers. Installers built on other machines (Windows, macOS) are published the
+same way from their own folder: each run only replaces the systems it brings. The feeds and the
+page are served uncached; installers (their names carry the version) are cached for good.
 
 Linux AppImages, `.deb` packages and Windows installers update this way. macOS only updates a
 signed app (an Apple developer account); unsigned, people download new versions by hand.
