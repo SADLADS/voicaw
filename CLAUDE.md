@@ -16,18 +16,19 @@ shortcuts and updates; see Desktop app).
 
 Each feature is worked on in its own chat, on its own branch, in its own worktree. The rules:
 
-- **`dev` is the deploy branch.** A push to it makes the webhook (`~/code/gitWebhookListener.js`,
-  not in git) pull `/home/otto/git/voicaw`, run `npm install` if the lockfile changed, and
-  restart pm2 `voicaw-api` (the live API on :3002, with the real database) and `voicaw-test`
-  (test.voicaw.com: `vite dev` on :5173, using the live API). The web app at app.voicaw.com is a
-  static build in `/opt/voicaw-client`, only updated by running `npm run build` by hand;
-  voicaw.com is the info and download site (`website/`, `/opt/voicaw-site`, see Info site). Voice runs on a
-  self-hosted LiveKit server, pm2 `voicaw-livekit` (`~/livekit`, not in git; the webhook doesn't
-  touch it).
+- **`dev` is the deploy branch, deployed by hand.** The live API (pm2 `voicaw-api`, :3002, with
+  the real database) runs from `/home/otto/git/voicaw`, checked out on `dev`. Nothing deploys a
+  push any more: the GitHub webhook and the test.voicaw.com dev server (pm2 `voicaw-test`) were
+  removed on 2026-10-02. After a merge, the API is updated with `git pull` there (`npm install`
+  if the lockfile changed) and `pm2 restart voicaw-api`, only when the user asks. The web app at
+  app.voicaw.com is a static build in `/opt/voicaw-client`, only updated by running `npm run
+  build` by hand; voicaw.com is the info and download site (`website/`, `/opt/voicaw-site`, see
+  Info site). Voice runs on a self-hosted LiveKit server, pm2 `voicaw-livekit` (`~/livekit`, not
+  in git).
 - **Never commit to, merge into, push, reset or otherwise move `dev`.** Branch off it
   (`feature-name`), commit there; the user reviews and merges. Don't push branches unless asked.
-- **Never work in `/home/otto/git/voicaw`.** It's the live checkout: switching its branch
-  changes what test.voicaw.com serves and stops deploys. Use a worktree per feature:
+- **Never work in `/home/otto/git/voicaw`.** It's the live checkout: the API runs from it, so
+  switching its branch changes what the next restart serves. Use a worktree per feature:
   ```
   git -C ~/git/voicaw worktree add ~/git/voicaw-<feature> -b <feature> dev
   cd ~/git/voicaw-<feature> && npm install
@@ -147,8 +148,8 @@ noise suppression removes, so it never counts as talking. `serve.mjs` also leave
 address and keys where `livekitInfoPath()` says (scripts that ask LiveKit itself need
 `E2E_API_PORT` too).
 Scripts need the same `E2E_WEB_PORT` as `serve.mjs` when not using the default.
-Never use ports 5173 or 3002 (the live test site and API) or 7880-7882 (the live LiveKit);
-`serve.mjs` refuses them. Kill test
+Never use port 3002 (the live API) or 7880-7882 (the live LiveKit); `serve.mjs` refuses them
+(and 5173, Vite's default). Kill test
 processes by PID, never `pkill -f` with a pattern that's in your own command line (it kills your
 shell). In the throwaway API, anyone whose name starts with `admin` is a global admin
 (`signUp(browser, 'admin')`). `e2e/helpers.mjs` has `signUp` (registers a user in its own browser context, unique
@@ -283,8 +284,8 @@ it (`rateLimit.js`, in memory): login starts per IP (30 / 15 min) and per userna
 applied whether or not the account exists; cleared by a successful login), registrations per IP,
 recovery attempts per IP and username.
 Refusals are 429 with `Retry-After` and a message the login form shows. `req.ip` comes from
-nginx's `X-Forwarded-For` (`trust proxy: 'loopback'`). test.voicaw.com goes through vite's proxy
-to the public API, so its visitors all share one address there. The websocket `user_status`
+nginx's `X-Forwarded-For` (`trust proxy: 'loopback'`). A local `npm run dev` goes through vite's
+proxy to the public API, so everyone using one shares its address there. The websocket `user_status`
 broadcast only goes to identified sockets.
 
 On successful login/register, the server issues a JWT (`generateToken`, see `server/auth.js`)
@@ -498,7 +499,7 @@ one user at a time).
   (see Sounds). While a window of the app is focused, the service worker shows those
   notifications `silent` (the page plays the Message sound instead).
 - The PWA manifest is `public/manifest.json` only (VitePWA `manifest: false`). The dev server also
-  serves the real service worker (`devOptions`), so push works on test.voicaw.com.
+  serves the real service worker (`devOptions`), so push works under `npm run dev`.
 
 ### Database
 
