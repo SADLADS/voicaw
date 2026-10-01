@@ -301,3 +301,43 @@ export async function fetchAuditLog(guildId, { before, actions, userId } = {}) {
     params: Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== '')),
   })).data;
 }
+
+// ---- List channels (routes/guildTasks.js) ----
+
+export async function fetchTasks(channelId) {
+  return (await api.get(`/channels/${channelId}/tasks`)).data;
+}
+
+// { title, description?, dueDate?, assigneeIds?, parentId? }
+export async function createTask(channelId, task) {
+  return (await api.post(`/channels/${channelId}/tasks`, task)).data;
+}
+
+// Any of { title, description, dueDate, assigneeIds, completed }.
+export async function updateTask(taskId, changes) {
+  return (await api.patch(`/tasks/${taskId}`, changes)).data;
+}
+
+export async function moveTask(taskId, { parentId, beforeId }) {
+  return (await api.put(`/tasks/${taskId}/move`, { parentId, beforeId })).data;
+}
+
+export async function deleteTask(taskId) {
+  return (await api.delete(`/tasks/${taskId}`)).data;
+}
+
+export async function fetchTaskComments(taskId) {
+  return (await api.get(`/tasks/${taskId}/comments`)).data;
+}
+
+export async function addTaskComment(taskId, content) {
+  return (await api.post(`/tasks/${taskId}/comments`, { content })).data;
+}
+
+export async function editTaskComment(commentId, content) {
+  return (await api.patch(`/task-comments/${commentId}`, { content })).data;
+}
+
+export async function deleteTaskComment(commentId) {
+  await api.delete(`/task-comments/${commentId}`);
+}
