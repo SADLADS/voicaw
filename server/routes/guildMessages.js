@@ -9,6 +9,8 @@ const { setPinned } = require('../pins');
 const { POLL_VOTE, parsePoll, isClosedPoll, pollEditError, reactionIdsFor, pollReactionsFor } = require('../polls');
 const { removePollRows } = require('../pollTimers');
 const { logAudit } = require('../auditLog');
+const { parseDuration, listMutes, setMute } = require('../channelMutes');
+const { sendToUserSockets } = require('../sockets');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
 // same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
@@ -420,6 +422,27 @@ router.get('/guild-unread', authenticateJWT, async (req, res) => {
   }
   res.json(visible);
 });
+
+// Your muted channels (channelMutes.js): [{ channel_id, guild_id, until }].
+router.get('/channel-mutes', authenticateJWT, async (req, res) => {
+  res.json(await listMutes(req.user.id));
+});
+
+// Mutes a channel you can see for `duration` seconds, or until you unmute it (null or none);
+// DELETE unmutes. Your other devices get `guild_channel_mute`.
+async function changeMute(req, res, muted) {
+  const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
+  if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Channel not found' });
+  const duration = parseDuration(req.body?.duration);
+  if (muted && duration === undefined) return res.status(400).json({ error: 'Invalid mute duration' });
+  const mute = await setMute(req.user.id, access.channel.id, { muted, duration });
+  const result = { guildId: access.channel.guild_id, channelId: access.channel.id, muted, until: mute?.until ?? null };
+  sendToUserSockets(req.user.id, { type: 'guild_channel_mute', ...result });
+  res.json(result);
+}
+
+router.put('/channels/:channelId/mute', authenticateJWT, (req, res) => changeMute(req, res, true));
+router.delete('/channels/:channelId/mute', authenticateJWT, (req, res) => changeMute(req, res, false));
 
 module.exports = router;
 module.exports.MESSAGE_SELECT = MESSAGE_SELECT;

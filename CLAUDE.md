@@ -112,6 +112,7 @@ node e2e/notes.mjs [dir]  # notes: row under the header, send, pin, reload, not 
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
 node e2e/spoilers.mjs [dir] # spoiler images: mark in tray, blurred for both, tap/click reveals, reply preview
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
+node e2e/mutes.mjs [dir]  # muted channels: right-click mute, dimmed, no unread (mentions still count), header bell unmutes, phone
 node e2e/channel-mentions.mjs [dir] # # suggestions, #channel links (click opens), private = unknown, edit, DM, phone
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
 node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show), Join Guild, phone
@@ -195,6 +196,7 @@ unexpected errors. The rest:
   List channels); `routes/guildTasks.js` has their routes.
 - `guildDocuments.js`: document channels' documents (rows, limits, cleanup; see Document
   channels); `routes/guildDocuments.js` has their routes.
+- `channelMutes.js`: each member's muted channels (see Mentions).
 - `auditLog.js`: a guild's audit log (`logAudit`, `readAuditLog`; see Guilds); `routes/auditLog.js`.
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).
@@ -410,7 +412,8 @@ out; see Deleting an account), `message_sound` (play the Message sound; see Soun
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete` / `_pin` (a
 webhook's edit also carries `embeds`, `attachments`, `flags`),
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
-`guild_order` (your guild rail order, to your other devices), `guild_voice_state` (someone
+`guild_order` (your guild rail order, to your other devices), `guild_channel_mute` (you muted or
+unmuted a channel, to your other devices; see Mentions), `guild_voice_state` (someone
 joined, left or (un)muted in a voice channel), `guild_mention` (only to whoever a new message
 mentions, for their red counts), `guild_task_upsert` / `_delete` / `guild_tasks_move` /
 `guild_task_comment_new` / `_edit` / `_delete` (to whoever can see the list channel) and
@@ -647,7 +650,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   its emoji anywhere. The client keeps them in `useGuildList` (`emojis`), and `Layout` provides
   `CustomEmojiContext` (`emoji/customEmojiContext.js`: by guild in rail order, and by id).
 - **Not done yet:** category-level permissions (overrides are per channel), server folders in the
-  rail, search dates (see Guild search), per-channel notification settings and muting, a list of your recent mentions. Voice: see
+  rail, search dates (see Guild search), per-channel notification levels (only muting, see
+  Mentions), muting a category or a whole guild, a list of your recent mentions. Voice: see
   Voice channels.
 
 ### List channels (tasks)
@@ -1441,6 +1445,18 @@ in a DM, everyone in a group's log, a guild's members; anyone else `@unknown-use
   counts on the channel (`GuildSidebar`) and the server icon (`Sidebar`), from
   `useGuildList`'s `unread[].mentions`. Plain-text places use `mentionsToText` (reply previews,
   copying, DM push previews: the push carries `recipientName` for that).
+- **Muted channels** (like Discord's Mute Channel; `server/channelMutes.js`,
+  `guild_channel_mutes`: member, channel, `until` unix s or NULL): each member's own, for 15
+  min, 1, 3, 8 or 24 h, or until unmuted (`PUT /channels/:id/mute { duration: s | null }`,
+  `DELETE` unmutes, `GET /channel-mutes`; needs View Channel; `guild_channel_mute` to your
+  other devices). A muted channel doesn't push (or play the Message sound) except when it
+  mentions you (`notifyNewMessage`), isn't bold or marked unread in the channel list, and
+  doesn't light the guild's rail dot or the desktop app's dot; mention counts still show.
+  `/guild-unread` still counts it (the client hides it: `useGuildList` `mutes`, `isMuted`,
+  `activeUnread`, dropping a mute when it runs out). Leaving the guild or deleting the
+  channel deletes the mute. Client: `guild/ChannelMuteMenu.jsx`, from the bell in the channel
+  header (crossed out and red while muted) or a right-click on a channel; muted channels are
+  dimmed with a crossed-out bell. Assignment pushes (list channels) aren't muted.
 - DMs and group DMs push every message already; mentioning someone there adds no notification
   (the server can't see it).
 - **Channel mentions** `<#id>` (Discord's form): a link to a guild channel, notifying nobody;

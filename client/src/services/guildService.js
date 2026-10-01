@@ -187,6 +187,20 @@ export async function setGuildNotifications(guildId, level) {
   await api.put(`/guilds/${guildId}/notifications`, { level });
 }
 
+// Your muted channels: [{ channel_id, guild_id, until }] (until: unix s, or null until unmuted).
+export async function fetchChannelMutes() {
+  return (await api.get('/channel-mutes')).data;
+}
+
+// Mutes a channel for `duration` seconds, or until it's unmuted (null).
+export async function muteChannel(channelId, duration = null) {
+  return (await api.put(`/channels/${channelId}/mute`, { duration })).data;
+}
+
+export async function unmuteChannel(channelId) {
+  return (await api.delete(`/channels/${channelId}/mute`)).data;
+}
+
 // [{ channel_id, guild_id, count, mentions }] for channels with unread messages (`mentions`:
 // how many of them mention you).
 export async function fetchGuildUnread() {

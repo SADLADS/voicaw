@@ -331,6 +331,45 @@ img.guild-icon {
   background-color: var(--vc-fg);
 }
 
+/* A muted channel (ChannelMuteMenu): dimmed, never bold, a crossed-out bell after the name. */
+.guild-channel.muted:not(.active) .guild-channel-link > :not(.mention-badge) {
+  opacity: 0.45;
+}
+
+.guild-channel.muted:not(.active):hover .guild-channel-link > :not(.mention-badge) {
+  opacity: 0.8;
+}
+
+.guild-channel-muted {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+/* The mute menu: floating by the header's bell or where a channel was right-clicked. */
+.guild-menu.channel-mute-menu {
+  position: fixed;
+  right: auto;
+  width: 220px;
+  z-index: 1060;
+}
+
+.channel-mute-title,
+.channel-mute-until {
+  margin: 0;
+  padding: 6px 8px;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.channel-mute-title {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.channel-header-button.mute-button.muted {
+  color: var(--vc-danger);
+}
+
 /* Owner's edit buttons: on hover (desktop), always (touch, where there's no hover). */
 .guild-sidebar-icon-button {
   flex-shrink: 0;

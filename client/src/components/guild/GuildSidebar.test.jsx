@@ -6,6 +6,10 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 vi.mock('../../services/guildService', () => ({
   leaveGuild: vi.fn(async () => {}),
   createInvite: vi.fn(async () => ({ code: 'abc12345', expires_at: null, max_uses: null })),
+  muteChannel: vi.fn(async (channelId, duration) => ({
+    guildId: 5, channelId, muted: true, until: duration == null ? null : Math.floor(Date.now() / 1000) + duration,
+  })),
+  unmuteChannel: vi.fn(async (channelId) => ({ guildId: 5, channelId, muted: false, until: null })),
 }));
 
 const voice = vi.hoisted(() => ({ snapshot: { status: 'idle', guildId: null, channelId: null, speaking: [] } }));
@@ -18,7 +22,7 @@ vi.mock('../../voice/voiceClient', () => ({
 import GuildSidebar from './GuildSidebar';
 import { ConfigContext, InteractionContext, LayoutContext } from '../../contexts';
 import { joinVoice } from '../../voice/voiceClient';
-import { leaveGuild } from '../../services/guildService';
+import { leaveGuild, muteChannel, unmuteChannel } from '../../services/guildService';
 
 const owner = { id: 1, username: 'owner' };
 const member = { id: 2, username: 'member' };
@@ -49,8 +53,8 @@ function Where() {
   return <div data-testid="where">{useLocation().pathname}</div>;
 }
 
-function renderSidebar({ user = owner, unread = [], path = '/guild/5/10', permissions, isMobile = false } = {}) {
-  const guildList = { unread, removeGuild: vi.fn() };
+function renderSidebar({ user = owner, unread = [], mutes = {}, path = '/guild/5/10', permissions, isMobile = false } = {}) {
+  const guildList = { unread, mutes, isMuted: (id) => Boolean(mutes[id]), applyMute: vi.fn(), removeGuild: vi.fn() };
   const guild = { ...baseGuild, my_permissions: permissions ?? (user.id === baseGuild.owner ? ALL : DEFAULT) };
   render(
     <ConfigContext.Provider value={{ s3Endpoint: '', voiceEnabled: true }}>
@@ -97,6 +101,41 @@ describe('GuildSidebar', () => {
     const memes = screen.getByRole('link', { name: 'memes 2 mentions' }).closest('li');
     expect(within(memes).getByLabelText('2 mentions')).toHaveTextContent('2');
     expect(within(channelRow('general')).queryByLabelText(/mentions/)).toBeNull();
+  });
+
+  it("dims a muted channel and doesn't mark it unread, but still counts mentions of you", () => {
+    renderSidebar({
+      unread: [{ channel_id: 11, guild_id: 5, count: 3, mentions: 1 }, { channel_id: 12, guild_id: 5, count: 2, mentions: 0 }],
+      mutes: { 11: { guildId: 5, until: null }, 12: { guildId: 5, until: null } },
+    });
+    const memes = screen.getByRole('link', { name: /^memes/ }).closest('li');
+    expect(memes).toHaveClass('muted');
+    expect(memes).not.toHaveClass('unread');
+    expect(within(memes).getByLabelText('1 mentions')).toBeInTheDocument();
+    expect(within(memes).getByLabelText('Muted')).toBeInTheDocument();
+    expect(channelRow('lounge')).not.toHaveClass('unread');
+    // Collapsed, the muted channel with a mention still shows; the one without doesn't.
+    fireEvent.click(screen.getByRole('button', { name: 'Fun' }));
+    expect(screen.getByRole('link', { name: /^memes/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^lounge/ })).toBeNull();
+  });
+
+  it('mutes and unmutes a channel from its right-click menu', async () => {
+    const guildList = renderSidebar();
+    fireEvent.contextMenu(screen.getByRole('link', { name: 'memes' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'For 1 hour' }));
+    await waitFor(() => expect(muteChannel).toHaveBeenCalledWith(11, 3600));
+    await waitFor(() => expect(guildList.applyMute).toHaveBeenCalledWith(expect.objectContaining({ channelId: 11, muted: true })));
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('offers to unmute a muted channel, saying until when', async () => {
+    const guildList = renderSidebar({ mutes: { 11: { guildId: 5, until: null } } });
+    fireEvent.contextMenu(screen.getByRole('link', { name: /^memes/ }));
+    expect(screen.getByText('Muted until you unmute it')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Unmute Channel' }));
+    await waitFor(() => expect(unmuteChannel).toHaveBeenCalledWith(11));
+    await waitFor(() => expect(guildList.applyMute).toHaveBeenCalledWith(expect.objectContaining({ channelId: 11, muted: false })));
   });
 
   it('collapses a category but keeps unread channels showing, and remembers it', () => {

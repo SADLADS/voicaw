@@ -5,6 +5,7 @@ const { sendPushToUser, getUserImageUrl } = require('./push');
 const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 const { getAllMembers, getOverrides, getChannelViewers } = require('./guilds');
 const { pollPreview } = require('./polls');
+const { mutedUserIds } = require('./channelMutes');
 
 // Mentions in guild messages, and the pushes they (and plain messages) cause.
 // In the text: `<@userId>`, `<@&roleId>`, `@everyone` (everyone who can see the channel) and
@@ -133,7 +134,8 @@ function fallbackPreview(message) {
 
 // After a new message: tells the people mentioned (`guild_mention`, for their unread mention
 // counts) and pushes to every viewer whose notification level wants it ('all': every message;
-// 'mentions': when mentioned), unless they're looking at the channel. `silent` (a webhook's
+// 'mentions': when mentioned), unless they're looking at the channel or have muted it (then
+// only when mentioned, like Discord; channelMutes.js). `silent` (a webhook's
 // "suppress notifications" flag, like Discord's): no pushes, the counts still go up.
 async function notifyNewMessage(message, channel, { mentioned, viewers }, { silent = false } = {}) {
   for (const userId of mentioned) {
@@ -143,10 +145,12 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }, { sile
     'SELECT user_id, notify_level FROM guild_members WHERE guild_id = ?',
     [channel.guild_id]
   )).map((r) => [r.user_id, r.notify_level]));
+  const muted = await mutedUserIds(channel.id);
   const recipients = [...viewers.keys()].filter((userId) => {
     if (userId === message.sender_id) return false;
     const level = levels.get(userId) ?? 'mentions';
-    if (level === 'none' || (level === 'mentions' && !mentioned.has(userId))) return false;
+    const wants = mentioned.has(userId) ? level !== 'none' : level === 'all' && !muted.has(userId);
+    if (!wants) return false;
     return !isViewingConversation(userId, `channel-${channel.id}`);
   });
   if (!recipients.length || silent) return;

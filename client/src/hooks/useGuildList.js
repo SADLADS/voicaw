@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { onGuildEvent } from '../utils/ws-client';
-import { fetchAllEmojis, fetchGuild, fetchGuilds, fetchGuildUnread, saveGuildOrder } from '../services/guildService';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { onConnectionState, onGuildEvent } from '../utils/ws-client';
+import { fetchAllEmojis, fetchChannelMutes, fetchGuild, fetchGuilds, fetchGuildUnread, saveGuildOrder } from '../services/guildService';
 
 // The logged-in user's guilds, for the whole layout (Layout puts this in LayoutContext):
 // - `guilds`: the list for the guild rail ([{ id, name, owner, icon_version }]).
@@ -10,6 +10,10 @@ import { fetchAllEmojis, fetchGuild, fetchGuilds, fetchGuildUnread, saveGuildOrd
 // - `unread`: [{ channel_id, guild_id, count, mentions }] (`mentions`: how many mention you);
 //   `refreshUnread()` refetches it.
 // - `emojis`: custom emoji by guild id ({ [guildId]: [{ id, guild_id, name, animated }] }).
+// - `mutes`: your muted channels ({ [channelId]: { guildId, until } }, until: unix s or null),
+//   dropped as they run out; `isMuted(channelId)`; `applyMute(event)` takes what muting
+//   returned (as the `guild_channel_mute` event other devices get). A muted channel's unread
+//   messages don't count (`activeUnread`: the unread rows that do, or that mention you).
 // `reorderGuilds(ids)` saves a new rail order (top first); other devices follow.
 // `activeChannelId` is the channel on screen: new messages there don't count as unread.
 // `onRemoved(guildId)` runs when you leave, are removed from, or delete a guild.
@@ -18,6 +22,7 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
   const [layouts, setLayouts] = useState({});
   const [unread, setUnread] = useState([]);
   const [emojis, setEmojis] = useState({});
+  const [mutes, setMutes] = useState({});
   const [loaded, setLoaded] = useState(false);
 
   const active = useRef(activeChannelId);
@@ -52,8 +57,50 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
       const { [guildId]: _removed, ...rest } = prev;
       return rest;
     });
+    setMutes((prev) => Object.fromEntries(Object.entries(prev).filter(([, m]) => m.guildId !== guildId)));
     onRemovedRef.current?.(guildId);
   }, []);
+
+  const applyMute = useCallback(({ channelId, guildId, muted, until }) => {
+    setMutes((prev) => {
+      const { [channelId]: _old, ...rest } = prev;
+      return muted ? { ...rest, [channelId]: { guildId, until: until ?? null } } : rest;
+    });
+  }, []);
+
+  const loadMutes = useCallback(async () => {
+    try {
+      const list = await fetchChannelMutes();
+      setMutes(Object.fromEntries(list.map((m) => [m.channel_id, { guildId: m.guild_id, until: m.until }])));
+    } catch (err) {
+      console.warn('Failed to load muted channels', err);
+    }
+  }, []);
+
+  // Mutes changed on another device while this one was offline are caught up on.
+  useEffect(() => {
+    if (!userId) return undefined;
+    let wasOnline = true;
+    return onConnectionState((state) => {
+      if (state === 'online' && !wasOnline) loadMutes();
+      wasOnline = state === 'online';
+    });
+  }, [userId, loadMutes]);
+
+  // A mute that runs out is dropped then.
+  useEffect(() => {
+    const ends = Object.values(mutes).map((m) => m.until).filter((until) => until != null);
+    if (!ends.length) return undefined;
+    const wait = Math.max(0, Math.min(...ends) * 1000 - Date.now());
+    const timer = setTimeout(() => {
+      const now = Date.now() / 1000;
+      setMutes((prev) => Object.fromEntries(Object.entries(prev).filter(([, m]) => m.until == null || m.until > now)));
+    }, Math.min(wait + 50, 2 ** 31 - 1));
+    return () => clearTimeout(timer);
+  }, [mutes]);
+
+  const isMuted = useCallback((channelId) => Boolean(mutes[channelId]), [mutes]);
+  const activeUnread = useMemo(() => unread.filter((u) => !mutes[u.channel_id] || u.mentions > 0), [unread, mutes]);
 
   const loadGuild = useCallback(async (guildId) => {
     const guild = await fetchGuild(guildId);
@@ -75,6 +122,7 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
       }
     })();
     refreshUnread();
+    loadMutes();
     fetchAllEmojis()
       .then((list) => {
         if (cancelled) return;
@@ -86,7 +134,7 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
     return () => {
       cancelled = true;
     };
-  }, [userId, refreshUnread]);
+  }, [userId, refreshUnread, loadMutes]);
 
   // Puts the guilds in `guildIds` order (any not listed keep their place at the end).
   const applyOrder = useCallback((guildIds) => {
@@ -123,6 +171,9 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
         case 'guild_order':
           applyOrder(event.guildIds);
           break;
+        case 'guild_channel_mute':
+          applyMute(event);
+          break;
         case 'guild_voice_state':
           setLayouts((prev) => {
             const guild = prev[event.guildId];
@@ -158,7 +209,10 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
         default:
       }
     });
-  }, [userId, upsertGuild, removeGuild, applyOrder]);
+  }, [userId, upsertGuild, removeGuild, applyOrder, applyMute]);
 
-  return { guilds, layouts, unread, emojis, loaded, loadGuild, upsertGuild, removeGuild, refreshUnread, reorderGuilds };
+  return {
+    guilds, layouts, unread, activeUnread, emojis, mutes, isMuted, applyMute, loaded,
+    loadGuild, upsertGuild, removeGuild, refreshUnread, reorderGuilds,
+  };
 }

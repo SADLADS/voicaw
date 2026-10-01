@@ -251,6 +251,17 @@ CREATE TABLE IF NOT EXISTS guild_mentions (
 `);
 sqlite.exec('CREATE INDEX IF NOT EXISTS guild_mentions_user ON guild_mentions (user_id, channel_id, message_id)');
 
+// Channels a member muted (channelMutes.js): no unread marker and no pushes for them, except
+// mentions of that member. `until` is unix s, or NULL until they unmute it.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_channel_mutes (
+  user_id INTEGER NOT NULL,
+  channel_id INTEGER NOT NULL,
+  until INTEGER,
+  PRIMARY KEY (user_id, channel_id)
+);
+`);
+
 // Guilds from before roles get their @everyone role (with the default permissions).
 sqlite.exec(`
 INSERT INTO guild_roles (guild_id, name, position, permissions, is_everyone)

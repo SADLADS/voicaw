@@ -63,7 +63,8 @@ export default function Layout({ user, onLogout }) {
   }, [groupId, navigate]);
   const groupList = useGroupList({ userId: user?.id, activeGroupId: groupId, onRemoved: onGroupRemoved });
   const hasUnreadGroups = groupList.groups.some((g) => g.unread > 0 && g.id !== groupId);
-  const unreadGuildIds = useMemo(() => new Set(guildList.unread.map((u) => u.guild_id)), [guildList.unread]);
+  // Muted channels don't count, unless they mention you.
+  const unreadGuildIds = useMemo(() => new Set(guildList.activeUnread.map((u) => u.guild_id)), [guildList.activeUnread]);
   // Unread mentions of you, by guild id.
   const guildMentions = useMemo(() => {
     const counts = {};
@@ -175,7 +176,7 @@ export default function Layout({ user, onLogout }) {
   }, [user?.id]);
 
   // The desktop app: notifications, the unread badge, mute/deafen shortcuts.
-  useDesktopApp({ navigate, unreadDms, groups: groupList.groups, guildUnread: guildList.unread });
+  useDesktopApp({ navigate, unreadDms, groups: groupList.groups, guildUnread: guildList.activeUnread });
 
   // DM calls: ringing, from any page.
   useEffect(() => {

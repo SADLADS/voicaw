@@ -1,0 +1,55 @@
+const db = require('./db');
+
+// Muted channels, each member's own (like Discord's "Mute Channel"): a muted channel's messages
+// don't mark it unread on their devices and don't push to them (nor play the Message sound),
+// except messages that mention them. A mute lasts `duration` seconds or, without one, until
+// they unmute it. Expired rows are just ignored (and cleared the next time they're listed).
+
+const MAX_MUTE_SECONDS = 366 * 24 * 60 * 60;
+
+const now = () => Math.floor(Date.now() / 1000);
+
+// The `duration` a request asked for: null (until unmuted), whole seconds (1 to a year), or
+// undefined if it's neither.
+function parseDuration(value) {
+  if (value === null || value === undefined) return null;
+  const seconds = Number(value);
+  return Number.isInteger(seconds) && seconds > 0 && seconds <= MAX_MUTE_SECONDS ? seconds : undefined;
+}
+
+// `userId`'s mutes that are still on: [{ channel_id, guild_id, until }] (until: unix s or null).
+async function listMutes(userId) {
+  await db.run('DELETE FROM guild_channel_mutes WHERE user_id = ? AND until <= ?', [userId, now()]);
+  return db.all(
+    `SELECT m.channel_id, c.guild_id, m.until FROM guild_channel_mutes m
+     JOIN guild_channels c ON c.id = m.channel_id WHERE m.user_id = ? ORDER BY m.channel_id`,
+    [userId]
+  );
+}
+
+// Mutes (duration: seconds or null) or unmutes (`muted` false) the channel for `userId`.
+// Returns the mute ({ until }) or null.
+async function setMute(userId, channelId, { muted, duration = null }) {
+  if (!muted) {
+    await db.run('DELETE FROM guild_channel_mutes WHERE user_id = ? AND channel_id = ?', [userId, channelId]);
+    return null;
+  }
+  const until = duration == null ? null : now() + duration;
+  await db.run(
+    `INSERT INTO guild_channel_mutes (user_id, channel_id, until) VALUES (?, ?, ?)
+     ON CONFLICT(user_id, channel_id) DO UPDATE SET until = excluded.until`,
+    [userId, channelId, until]
+  );
+  return { until };
+}
+
+// The ids of the users who have the channel muted right now.
+async function mutedUserIds(channelId) {
+  const rows = await db.all(
+    'SELECT user_id FROM guild_channel_mutes WHERE channel_id = ? AND (until IS NULL OR until > ?)',
+    [channelId, now()]
+  );
+  return new Set(rows.map((r) => r.user_id));
+}
+
+module.exports = { MAX_MUTE_SECONDS, parseDuration, listMutes, setMute, mutedUserIds };

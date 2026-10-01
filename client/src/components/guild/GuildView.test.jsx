@@ -103,7 +103,7 @@ function Where() {
 }
 
 function renderView(path, { layouts = { 5: guild }, user = me, voiceEnabled = true } = {}) {
-  const guildList = { layouts, loadGuild: vi.fn(async () => guild), refreshUnread: vi.fn() };
+  const guildList = { mutes: {}, isMuted: () => false, applyMute: vi.fn(), layouts, loadGuild: vi.fn(async () => guild), refreshUnread: vi.fn() };
   render(
     <EmojiContext.Provider value={emojiIndex}>
       <ConfigContext.Provider value={{ s3Endpoint: '', maxPlaintextLength: 5000, voiceEnabled }}>

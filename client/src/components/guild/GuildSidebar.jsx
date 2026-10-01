@@ -1,8 +1,9 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faBell,
+  faBellSlash,
   faChevronDown,
   faChevronRight,
   faClipboardList,
@@ -25,6 +26,7 @@ import GuildSettingsDialog from './GuildSettingsDialog';
 import ConfirmDialog from './ConfirmDialog';
 import NotificationDialog from './NotificationDialog';
 import AuditLogDialog from './AuditLogDialog';
+import ChannelMuteMenu from './ChannelMuteMenu';
 import ChannelIcon from './ChannelIcon';
 import VoiceChannelMembers from './VoiceChannelMembers';
 import { useVoice } from '../../hooks/useVoice';
@@ -43,7 +45,9 @@ function loadCollapsed() {
 
 // The guild's column next to the guild rail (like Discord): its name, with a menu (invite,
 // settings, audit log, create channel/category, leave), then its channels, grouped in collapsible
-// categories. Unread channels are bold; private ones have a lock. What's offered follows the
+// categories. Unread channels are bold; private ones have a lock; muted ones are dimmed, with a
+// crossed-out bell (right-click a channel to mute or unmute it: ChannelMuteMenu, also the bell in
+// the channel header). What's offered follows the
 // member's permissions (Manage Channels: edit buttons, creating, dragging channels and
 // categories into a new order (useChannelDrag); Create Invite; Manage Guild, Manage Roles or
 // Ban Members: Guild Settings; View Audit Log: the audit log).
@@ -58,6 +62,9 @@ export default function GuildSidebar({ guild, user }) {
   // { type: 'invite' | 'settings' | 'audit' | 'channel' | 'category' | 'leave', ...props }
   const [dialog, setDialog] = useState(null);
   const [collapsed, setCollapsed] = useState(loadCollapsed);
+  // The mute menu of a right-clicked channel ({ channel, anchor }).
+  const [muteMenu, setMuteMenu] = useState(null);
+  const closeMuteMenu = useCallback(() => setMuteMenu(null), []);
   const menuRef = useRef(null);
   const { drag, listRef, dragProps } = useChannelDrag({
     guild,
@@ -96,7 +103,8 @@ export default function GuildSidebar({ guild, user }) {
   const opensSettings = can(PERMISSIONS.MANAGE_GUILD) || can(PERMISSIONS.MANAGE_ROLES) ||
     can(PERMISSIONS.MANAGE_EMOJIS) || can(PERMISSIONS.BAN_MEMBERS);
   const guildUnread = guildList.unread.filter((u) => u.guild_id === guild.id);
-  const unreadChannels = new Set(guildUnread.map((u) => u.channel_id));
+  // A muted channel isn't unread (its mentions still count).
+  const unreadChannels = new Set(guildUnread.filter((u) => !guildList.isMuted(u.channel_id)).map((u) => u.channel_id));
   const channelMentions = new Map(guildUnread.filter((u) => u.mentions > 0).map((u) => [u.channel_id, u.mentions]));
   const { uncategorized, categories } = groupChannels(guild);
   const inVoice = voice.status !== 'idle' && voice.guildId === guild.id ? voice.channelId : null;
@@ -137,11 +145,12 @@ export default function GuildSidebar({ guild, user }) {
     const unread = unreadChannels.has(channel.id) && !active;
     const mentions = active ? 0 : channelMentions.get(channel.id) ?? 0;
     const connected = channel.id === inVoice;
+    const muted = guildList.isMuted(channel.id);
     const moving = dragged('channel', channel.id);
     return (
       <React.Fragment key={channel.id}>
       <li
-        className={`guild-channel${active ? ' active' : ''}${unread ? ' unread' : ''}${connected ? ' connected' : ''}${moving.className}`}
+        className={`guild-channel${active ? ' active' : ''}${unread ? ' unread' : ''}${muted ? ' muted' : ''}${connected ? ' connected' : ''}${moving.className}`}
         style={moving.style}
         data-drag-row="channel"
         data-id={channel.id}
@@ -153,11 +162,16 @@ export default function GuildSidebar({ guild, user }) {
           to={`/guild/${guild.id}/${channel.id}`}
           replace={isMobile}
           onClick={() => openChannel(channel)}
+          onContextMenu={channel.type === 'voice' ? undefined : (e) => {
+            e.preventDefault();
+            setMuteMenu({ channel, anchor: { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY } });
+          }}
           className="guild-channel-link"
           aria-current={active ? 'page' : undefined}
         >
           <ChannelIcon channel={channel} className="guild-channel-icon" />
           <span className="guild-channel-name">{channel.name}</span>
+          {muted && <FontAwesomeIcon icon={faBellSlash} className="guild-channel-muted" title="Muted" aria-label="Muted" />}
           {mentions > 0 && ' '}
           {mentions > 0 && (
             <span className="mention-badge" aria-label={`${mentions} mentions`}>{mentions > 99 ? '99+' : mentions}</span>
@@ -249,7 +263,7 @@ export default function GuildSidebar({ guild, user }) {
           // Collapsed, a category still shows the open channel, unread ones and your voice
           // channel (like Discord).
           const shown = isCollapsed
-            ? category.channels.filter((c) => String(c.id) === channelId || unreadChannels.has(c.id) || c.id === inVoice)
+            ? category.channels.filter((c) => String(c.id) === channelId || unreadChannels.has(c.id) || channelMentions.has(c.id) || c.id === inVoice)
             : category.channels;
           const moving = dragged('category', category.id);
           return (
@@ -303,6 +317,7 @@ export default function GuildSidebar({ guild, user }) {
         )}
       </nav>
 
+      {muteMenu && <ChannelMuteMenu channel={muteMenu.channel} anchor={muteMenu.anchor} onClose={closeMuteMenu} />}
       {dialog?.type === 'invite' && <InviteDialog guild={guild} onClose={closeDialog} />}
       {dialog?.type === 'audit' && <AuditLogDialog guild={guild} user={user} onClose={closeDialog} />}
       {dialog?.type === 'notifications' && <NotificationDialog guild={guild} onClose={closeDialog} />}

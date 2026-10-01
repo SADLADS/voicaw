@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faBell, faBellSlash, faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/dms.css';
 import '../../assets/css/guilds.css';
 import { InteractionContext, LayoutContext } from '../../contexts';
@@ -12,6 +12,7 @@ import VoiceChannelView from './VoiceChannelView';
 import ListChannelView from './ListChannelView';
 import DocChannelView from '../documents/DocChannelView';
 import GuildSearch from './GuildSearch';
+import ChannelMuteMenu from './ChannelMuteMenu';
 import { useChannel } from '../../hooks/useChannel';
 import { onGuildEvent } from '../../utils/ws-client';
 import { addGuildReaction, fetchChannelMembers, fetchMembers, removeGuildReaction } from '../../services/guildService';
@@ -50,7 +51,14 @@ export default function GuildView({ user }) {
     setPinsAnchor((open) => (open ? null : rect));
   };
 
-  useEffect(() => setPinsAnchor(null), [channelId]);
+  // The mute menu, under the header's bell (null: closed).
+  const [muteAnchor, setMuteAnchor] = useState(null);
+  const closeMute = useCallback(() => setMuteAnchor(null), []);
+
+  useEffect(() => {
+    setPinsAnchor(null);
+    setMuteAnchor(null);
+  }, [channelId]);
 
   // A search result to scroll to ({ channelId, messageId }), once its channel is loaded.
   const navigate = useNavigate();
@@ -220,6 +228,7 @@ export default function GuildView({ user }) {
   const isList = channel?.type === 'list' || channel?.type === 'doc';
   const membersVisible = !isList && (isMobile ? membersOpenMobile : showMembers);
   const permissions = channel?.my_permissions ?? 0;
+  const muted = Boolean(channel && guildList.isMuted(channel.id));
   // What a channel's chat (ChatPane) takes from the guild, for a document channel's replies.
   const chatProps = channel && {
     pollKind: 'guild',
@@ -254,6 +263,26 @@ export default function GuildView({ user }) {
             <span className="channel-header-topic" title={channel.topic}>{channel.topic}</span>
           </>
         )}
+        {channel && channel.type !== 'voice' && (
+          <button
+            type="button"
+            className={`channel-header-button mute-button${muteAnchor ? ' active' : ''}${muted ? ' muted' : ''}`}
+            aria-label={muted ? 'Unmute channel' : 'Mute channel'}
+            aria-haspopup="menu"
+            aria-expanded={Boolean(muteAnchor)}
+            title={muted ? 'Unmute channel' : 'Mute channel'}
+            // The menu closes itself on a press outside it; this press is its toggle.
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setMuteAnchor((open) => (open ? null : rect));
+            }}
+          >
+            <FontAwesomeIcon icon={muted ? faBellSlash : faBell} />
+          </button>
+        )}
+        {muteAnchor && channel && <ChannelMuteMenu channel={channel} anchor={muteAnchor} align="end" onClose={closeMute} />}
         {channel?.type === 'text' && (
           <button
             type="button"
