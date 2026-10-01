@@ -1162,7 +1162,8 @@ Any chat (DM, notes, group DM, guild text channel) can have polls: the composer'
 menu (Upload a file / Create poll). `PollDialog.jsx` takes a question (300), 1–10 answers (55
 each, each with an optional emoji: Unicode or a guild's custom one, from `EmojiPicker` over the
 dialog; Escape there closes only the picker, since `EmojiPicker` marks it handled and `Modal`
-skips handled Escapes), a duration (1h, 4h, 8h, 24h (default), 3d, 1w, 2w) and "Allow multiple
+skips handled Escapes; Tab goes question → answers → Add another answer, skipping the emoji
+and remove buttons), a duration (1h, 4h, 8h, 24h (default), 3d, 1w, 2w) and "Allow multiple
 answers"; neither of those two can be changed after posting. A poll is sent as
 its own message (replying if a reply is set, like a GIF).
 - **Format** (`utils/pollMarkup.js`): the message text is `poll:v1:` + JSON `{ q, multi, d, x?,
