@@ -268,6 +268,12 @@ try {
   await press(b, pollOf(b, 'Which days?').locator('button:text-is("Vote")'));
   await waitForCount(a, 'Which days?', 'Wed', 1);
   await waitForCount(a, 'Which days?', 'Mon', 1);
+  // Shares are of the votes cast (2), not of the people who voted (1).
+  for (const day of ['Mon', 'Wed']) {
+    const count = await option(a, 'Which days?', day).locator('.poll-count').textContent();
+    if (count !== '1 · 50%') throw new Error(`${day} shows ${count}`);
+  }
+  await pollOf(a, 'Which days?').locator('.poll-footer:has-text("2 votes")').waitFor();
   await shot(a, '5-guild');
   await shot(b, '6-guild-phone');
   // Remove vote takes both back.

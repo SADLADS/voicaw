@@ -145,7 +145,8 @@ export const voteKey = (optionId) => VOTE_PREFIX + optionId;
 export const isVote = (emoji) => typeof emoji === 'string' && emoji.startsWith(VOTE_PREFIX);
 export const voteOption = (emoji) => (isVote(emoji) ? emoji.slice(VOTE_PREFIX.length) : null);
 
-// Who voted for what: { voters: { optionId: [userId] }, total (people who voted) }. Votes for
+// Who voted for what: { voters: { optionId: [userId] }, total (people who voted), cast (votes
+// cast: in a multiple-choice poll one person can cast several, so shares are of this) }. Votes for
 // options that no longer exist don't count. In a single-choice poll only each person's latest
 // vote counts (two devices could race). With `endsAt` (unix s, see pollEndsAt), votes the
 // server timestamped after the poll closed don't count either (one without a timestamp, just
@@ -164,8 +165,12 @@ export function tallyVotes(poll, reactions, endsAt = null) {
     if (!list.includes(r.user_id)) list.push(r.user_id);
     people.add(r.user_id);
   }
-  return { voters, total: people.size };
+  const cast = Object.values(voters).reduce((sum, list) => sum + list.length, 0);
+  return { voters, total: people.size, cast };
 }
+
+// An answer's share of the votes cast, as a rounded percentage.
+export const voteShare = (count, cast) => (cast ? Math.round((count / cast) * 100) : 0);
 
 // What voting for exactly `optionIds` (your whole choice; [] takes your vote back) does with
 // `userId`'s votes: { remove: [reaction], add: [optionId] }. Votes for answers that no longer
@@ -190,14 +195,14 @@ export function myVotes(poll, reactions, userId, endsAt = null) {
   return poll.options.filter((o) => voters[o.id].includes(userId)).map((o) => o.id);
 }
 
-// A closed poll's result, for its "poll ended" row: { total (people who voted), winners
-// ([option]; several in a draw, none if nobody voted), votes (each winner's), share (% of
-// voters, rounded) }.
+// A closed poll's result, for its "poll ended" row: { cast (votes cast), winners ([option];
+// several in a draw, none if nobody voted), votes (each winner's), share (% of the votes cast,
+// rounded) }.
 export function pollResult(poll, reactions, endsAt = null) {
-  const { voters, total } = tallyVotes(poll, reactions, endsAt);
+  const { voters, cast } = tallyVotes(poll, reactions, endsAt);
   const most = Math.max(0, ...poll.options.map((o) => voters[o.id].length));
   const winners = most > 0 ? poll.options.filter((o) => voters[o.id].length === most) : [];
-  return { total, winners, votes: most, share: total ? Math.round((most / total) * 100) : 0 };
+  return { cast, winners, votes: most, share: voteShare(most, cast) };
 }
 
 // Whether a "poll ended" row posted at `postedAt` fits its poll (sent at `sentAt`): its author

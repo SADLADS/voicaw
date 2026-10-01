@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ReactionEmoji } from './MessageReactions';
 import PollVoters from './PollVoters';
 import ConfirmDialog from './guild/ConfirmDialog';
-import { myVotes, pollEndsAt, tallyVotes, timeLeft } from '../utils/pollMarkup';
+import { myVotes, pollEndsAt, tallyVotes, timeLeft, voteShare } from '../utils/pollMarkup';
 
 // The current time (unix s), redrawn every minute until `endsAt` and once right at it. A new
 // `endsAt` (the poll was just ended) takes a fresh reading at once, so it shows as closed
@@ -36,7 +36,7 @@ export default function Poll({ poll, reactions, userId, names, sentAt, onVote, o
   const endsAt = pollEndsAt(poll, sentAt);
   const now = useNowUntil(endsAt);
   const ended = Boolean(poll.endedAt) || (endsAt != null && now >= endsAt);
-  const { voters, total } = tallyVotes(poll, reactions, endsAt);
+  const { voters, cast } = tallyVotes(poll, reactions, endsAt);
   const mine = myVotes(poll, reactions, userId, endsAt);
   const voted = mine.length > 0;
   const [confirmingEnd, setConfirmingEnd] = useState(false);
@@ -98,7 +98,7 @@ export default function Poll({ poll, reactions, userId, names, sentAt, onVote, o
             );
           }
           const who = voters[option.id];
-          const share = total ? Math.round((who.length / total) * 100) : 0;
+          const share = voteShare(who.length, cast);
           const isMine = mine.includes(option.id);
           return (
             <button
@@ -119,7 +119,7 @@ export default function Poll({ poll, reactions, userId, names, sentAt, onVote, o
       </div>
       <div className="poll-footer">
         <span>
-          {total} {total === 1 ? 'vote' : 'votes'}
+          {cast} {cast === 1 ? 'vote' : 'votes'}
           {ended ? <> · <strong className="poll-closed">Poll closed</strong></> : endsAt != null ? ` · ${timeLeft(endsAt - now)}` : null}
         </span>
         {canVote && (
