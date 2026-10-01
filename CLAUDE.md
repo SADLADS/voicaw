@@ -1098,7 +1098,8 @@ its own message (replying if a reply is set, like a GIF).
   `vote(msg, optionIds)` (`planVotes`) makes your votes exactly that choice (`[]`: removes
   them), deleting your votes for answers that no longer exist too.
   `tallyVotes` counts only answers that exist, and one vote per person (the latest) in single
-  choice. In guilds a vote only needs View Channel (not Add Reactions): the server accepts
+  choice. Percentages and "N votes" are of the votes cast (`cast`, `voteShare`), so in a
+  multiple-choice poll they still add up to 100%. In guilds a vote only needs View Channel (not Add Reactions): the server accepts
   `poll:<8 chars>` on a message that starts with `poll:v1:` without it.
 - **Editing** (the author, Edit opens `PollDialog`, not the inline editor): question and
   answers can change; an answer whose text or emoji changed gets a new id (`editedPoll`), so its votes
@@ -1118,7 +1119,7 @@ its own message (replying if a reply is set, like a GIF).
   add a vote the server timestamps later (it doesn't count) or edit their own poll's `d`.
 - **"Poll ended" rows** (`server/pollTimers.js`, `PollEndNotice.jsx`): when a poll closes, a
   row in the chat says "X's poll Q has closed." with the winning answer and its share of the
-  voters ("won with 60% (3 of 5 votes)"), a draw ("a draw between A and B, 40% each") or
+  votes cast ("won with 60% (3 of 5 votes)"), a draw ("a draw between A and B, 40% each") or
   "Nobody voted.", and View poll (jumps to it). It works the same in DMs, notes, group DMs and
   guild channels without the server learning the poll's contents: after sending a poll its
   author tells the server when it closes (`POST /polls/:kind/:messageId/timer { duration }`,
