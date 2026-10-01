@@ -676,13 +676,23 @@ export default function MessageList({
     maybeLoadOlder();
   };
 
+  // The last row's key, to notice a message added at the end.
+  const lastRowKey = useRef(null);
+
   // After messages change (older page prepended, new message appended, …), before paint.
   useLayoutEffect(() => {
+    const last = messages[messages.length - 1];
+    const lastKey = last ? rowKey(last) : null;
+    // Sending a message (it shows at once as pending) goes back to the bottom, like Discord.
+    if (lastKey !== lastRowKey.current && last?.status === 'pending' && last.sender_id === user.id) {
+      pinnedToBottom.current = true;
+    }
+    lastRowKey.current = lastKey;
     keepAnchorInPlace();
     rememberAnchor();
     // Keep fetching until the viewport is filled or history runs out.
     maybeLoadOlder();
-  }, [messages, hasMore, keepAnchorInPlace, rememberAnchor, maybeLoadOlder]);
+  }, [messages, hasMore, user.id, keepAnchorInPlace, rememberAnchor, maybeLoadOlder]);
 
   // Rows changing size (images/videos loading, code highlighting, edits), and the list itself
   // changing height (keyboard or mobile emoji panel opening). ResizeObserver callbacks run

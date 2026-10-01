@@ -1389,7 +1389,8 @@ scrolling up. Measured in headless Chrome, the plain list has no such jumps. The
 scroll anchoring (`overflow-anchor`) keeps visible messages still when older pages are prepended
 or content above resizes. Where that's unsupported (Safari), `MessageList` does the same manually
 by tracking the first visible row's `offsetTop` (layout effect + ResizeObserver, both before paint).
-It also keeps the view pinned to the bottom while the user is there.
+It also keeps the view pinned to the bottom while the user is there, and sending a message
+(a new pending row of your own at the end) goes back there, like Discord.
 
 Messages are grouped like Discord's (`utils/messageGroups.js` `continuesGroup`): one from the
 same person within 7 minutes of the row above, on the same day and not a reply, drops its
