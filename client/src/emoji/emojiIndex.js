@@ -4,7 +4,18 @@
 // from a third party and a new install needs no setup. Messages store plain Unicode emoji;
 // custom (guild) emoji are written `<:name:id>` (see customEmoji.js).
 
+import { version as twemojiVersion } from '@twemoji/svg/package.json';
+import { version as dataVersion } from '@emoji-mart/data/package.json';
+import { sheetCss, sheetKey, sheetPath, spriteMap } from './emojiSheets';
+import { twemojiFile } from './twemojiFile';
+
+export { twemojiFile };
+
 export const EMOJI_BASE_URL = `${import.meta.env.BASE_URL || '/'}emoji/`;
+
+// The picker's sprite sheets (see emojiSheets.js).
+const SHEET_KEY = sheetKey(twemojiVersion, dataVersion);
+export const emojiSheetUrl = (name) => `${EMOJI_BASE_URL}${sheetPath(SHEET_KEY, name)}`;
 
 const CATEGORY_NAMES = {
   people: 'Smileys & People',
@@ -16,16 +27,6 @@ const CATEGORY_NAMES = {
   symbols: 'Symbols',
   flags: 'Flags',
 };
-
-// Twemoji file names: code points without leading zeros, joined by "-", dropping FE0F unless
-// the sequence has a zero-width joiner. One sequence doesn't follow the rule.
-const FILE_EXCEPTIONS = { '1f441-fe0f-200d-1f5e8-fe0f': '1f441-200d-1f5e8' };
-
-export function twemojiFile(unified) {
-  if (FILE_EXCEPTIONS[unified]) return FILE_EXCEPTIONS[unified];
-  const parts = unified.split('-').map((cp) => cp.replace(/^0+(?=.)/, ''));
-  return (unified.includes('200d') ? parts : parts.filter((cp) => cp !== 'fe0f')).join('-');
-}
 
 export function emojiImageUrl(unified) {
   return `${EMOJI_BASE_URL}${twemojiFile(unified)}.svg`;
@@ -110,6 +111,10 @@ export function buildEmojiIndex(data) {
     byShortcode,
     byNative,
     search,
+    // unified -> its cell in the picker's sprite sheets (see emojiSheets.js).
+    sprites: spriteMap(data),
+    // The sheets' CSS (emoji-sheet-<name> classes), for the picker to put on the page.
+    sheetCss: sheetCss(data, emojiSheetUrl),
     // A fresh global regex each call (they're stateful).
     matcher: () => new RegExp(source, 'g'),
   };

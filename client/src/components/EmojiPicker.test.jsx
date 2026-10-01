@@ -27,12 +27,22 @@ function renderPicker(props = {}) {
 }
 
 describe('EmojiPicker', () => {
-  it('shows emoji by category with Twemoji images', () => {
+  it('shows emoji by category from the Twemoji sprite sheets', () => {
     renderPicker();
     expect(screen.getByRole('heading', { name: 'Smileys & People' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Flags' })).toBeInTheDocument();
-    const grinning = screen.getByRole('button', { name: 'Grinning Face' });
-    expect(within(grinning).getByRole('img')).toHaveAttribute('src', '/emoji/1f600.svg');
+    const grinning = within(screen.getByRole('button', { name: 'Grinning Face' })).getByRole('img', { name: '😀' });
+    expect(grinning).toHaveClass('emoji-sheet-people');
+    expect(document.querySelector('.emoji-picker style').textContent).toMatch(/\.emoji-sheet-people\{background-image:url\("\/emoji\/sheets\/[^/]+\/people\.webp"\)/);
+    const pizza = within(screen.getByRole('button', { name: 'Pizza' })).getByRole('img');
+    expect(pizza).toHaveClass('emoji-sheet-foods');
+  });
+
+  it('uses the skin tone sheet for the chosen tone', () => {
+    localStorage.setItem('emojiSkinTone', '3');
+    renderPicker();
+    const thumbs = within(screen.getByRole('button', { name: 'Thumbs Up' })).getByRole('img');
+    expect(thumbs).toHaveClass('emoji-sheet-tone3');
   });
 
   it('searches', () => {
