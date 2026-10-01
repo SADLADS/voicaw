@@ -5,6 +5,7 @@ import {
   faBell,
   faChevronDown,
   faChevronRight,
+  faClipboardList,
   faFolderPlus,
   faGear,
   faPlus,
@@ -23,6 +24,7 @@ import CategoryDialog from './CategoryDialog';
 import GuildSettingsDialog from './GuildSettingsDialog';
 import ConfirmDialog from './ConfirmDialog';
 import NotificationDialog from './NotificationDialog';
+import AuditLogDialog from './AuditLogDialog';
 import ChannelIcon from './ChannelIcon';
 import VoiceChannelMembers from './VoiceChannelMembers';
 import { useVoice } from '../../hooks/useVoice';
@@ -40,11 +42,11 @@ function loadCollapsed() {
 }
 
 // The guild's column next to the guild rail (like Discord): its name, with a menu (invite,
-// settings, create channel/category, leave), then its channels, grouped in collapsible
+// settings, audit log, create channel/category, leave), then its channels, grouped in collapsible
 // categories. Unread channels are bold; private ones have a lock. What's offered follows the
 // member's permissions (Manage Channels: edit buttons, creating, dragging channels and
 // categories into a new order (useChannelDrag); Create Invite; Manage Guild, Manage Roles or
-// Ban Members: Guild Settings).
+// Ban Members: Guild Settings; View Audit Log: the audit log).
 export default function GuildSidebar({ guild, user }) {
   const { channelId } = useParams();
   const navigate = useNavigate();
@@ -53,7 +55,7 @@ export default function GuildSidebar({ guild, user }) {
   const { voiceEnabled } = useContext(ConfigContext);
   const voice = useVoice();
   const [menuOpen, setMenuOpen] = useState(false);
-  // { type: 'invite' | 'settings' | 'channel' | 'category' | 'leave', ...props }
+  // { type: 'invite' | 'settings' | 'audit' | 'channel' | 'category' | 'leave', ...props }
   const [dialog, setDialog] = useState(null);
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   const menuRef = useRef(null);
@@ -208,6 +210,11 @@ export default function GuildSidebar({ guild, user }) {
                 Guild Settings <FontAwesomeIcon icon={faGear} />
               </button>
             )}
+            {can(PERMISSIONS.VIEW_AUDIT_LOG) && (
+              <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'audit' })}>
+                Audit Log <FontAwesomeIcon icon={faClipboardList} />
+              </button>
+            )}
             {managesChannels && (
               <>
                 <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'channel' })}>
@@ -297,6 +304,7 @@ export default function GuildSidebar({ guild, user }) {
       </nav>
 
       {dialog?.type === 'invite' && <InviteDialog guild={guild} onClose={closeDialog} />}
+      {dialog?.type === 'audit' && <AuditLogDialog guild={guild} onClose={closeDialog} />}
       {dialog?.type === 'notifications' && <NotificationDialog guild={guild} onClose={closeDialog} />}
       {dialog?.type === 'settings' && <GuildSettingsDialog guild={guild} user={user} onClose={closeDialog} />}
       {dialog?.type === 'category' && <CategoryDialog guild={guild} category={dialog.category} onClose={closeDialog} />}

@@ -6,6 +6,7 @@ const { getUploadUrl, getObject, putObject, deleteObject } = require('../s3');
 const { shrinkEmoji, EmojiImageError, MAX_EMOJI_UPLOAD_BYTES } = require('../emojiImage');
 const { PERMISSIONS, has } = require('../permissions');
 const { getMember, getMemberIds } = require('../guilds');
+const { logAudit } = require('../auditLog');
 
 // Custom emoji (per guild, like Discord's) and each member's order of their guilds in the
 // guild rail (which is also the order of the emoji picker's guild sections).
@@ -43,6 +44,11 @@ function requireManageEmojis(req, res, next) {
 }
 
 const manage = [authenticateJWT, requireMember, requireManageEmojis];
+
+// An audit log entry (auditLog.js) for something the caller did to an emoji.
+const audit = (req, action, emojiId, details) => logAudit({
+  guildId: req.guild.id, actorId: req.user.id, action, targetType: 'emoji', targetId: emojiId, details,
+});
 
 // The guild's available emoji, oldest first.
 async function guildEmojis(guildId) {
@@ -161,7 +167,10 @@ router.post('/guilds/:guildId/emojis/:emojiId/ready', manage, async (req, res) =
 
   await putObject('emojis', String(emoji.id), image.buffer, image.contentType);
   await deleteObject('emojis', source);
-  await db.run('UPDATE guild_emojis SET available = 1, animated = ? WHERE id = ?', [image.animated ? 1 : 0, emoji.id]);
+  await db.transaction(async () => {
+    await db.run('UPDATE guild_emojis SET available = 1, animated = ? WHERE id = ?', [image.animated ? 1 : 0, emoji.id]);
+    await audit(req, 'emoji_create', emoji.id, { name: emoji.name });
+  });
   await announceEmojis(req.guild.id);
   res.json({ id: emoji.id, guild_id: emoji.guild_id, name: emoji.name, animated: image.animated ? 1 : 0 });
 });
@@ -177,7 +186,10 @@ router.patch('/guilds/:guildId/emojis/:emojiId', manage, async (req, res) => {
   if (await db.get('SELECT 1 FROM guild_emojis WHERE guild_id = ? AND name = ? AND id != ?', [req.guild.id, name, emoji.id])) {
     return res.status(409).json({ error: `This guild already has an emoji called :${name}:` });
   }
-  await db.run('UPDATE guild_emojis SET name = ? WHERE id = ?', [name, emoji.id]);
+  await db.transaction(async () => {
+    await db.run('UPDATE guild_emojis SET name = ? WHERE id = ?', [name, emoji.id]);
+    if (name !== emoji.name) await audit(req, 'emoji_update', emoji.id, { name, changes: { name: [emoji.name, name] } });
+  });
   await announceEmojis(req.guild.id);
   res.json({ id: emoji.id, guild_id: emoji.guild_id, name, animated: emoji.animated });
 });
@@ -186,7 +198,10 @@ router.patch('/guilds/:guildId/emojis/:emojiId', manage, async (req, res) => {
 router.delete('/guilds/:guildId/emojis/:emojiId', manage, async (req, res) => {
   const emoji = await findEmoji(req);
   if (!emoji) return res.status(404).json({ error: 'Emoji not found' });
-  await db.run('DELETE FROM guild_emojis WHERE id = ?', [emoji.id]);
+  await db.transaction(async () => {
+    await db.run('DELETE FROM guild_emojis WHERE id = ?', [emoji.id]);
+    if (emoji.available) await audit(req, 'emoji_delete', emoji.id, { name: emoji.name });
+  });
   await deleteObject('emojis', String(emoji.id));
   await announceEmojis(req.guild.id);
   res.json({ success: true });

@@ -24,6 +24,7 @@ const {
 } = require('../guilds');
 const { NOTIFY_LEVELS } = require('../mentions');
 const { enforceGuild: enforceGuildVoice, disconnectGuild: disconnectGuildVoice } = require('../voice');
+const { logAudit, diff } = require('../auditLog');
 
 // Guilds: creating and managing them, members, bans, invites, categories and
 // channels. Roles and channel overrides are in routes/guildRoles.js, messages in
@@ -60,6 +61,9 @@ function requireOwner(req, res, next) {
 const member = [authenticateJWT, requireMember];
 const withPermission = (bit) => [authenticateJWT, requireMember, requirePermission(bit)];
 const owner = [authenticateJWT, requireMember, requireOwner];
+
+// An audit log entry (auditLog.js) for something the caller did in req.guild.
+const audit = (req, entry) => logAudit({ guildId: req.guild.id, actorId: req.user.id, ...entry });
 
 // Whether `actor` ranks above the member `targetId` (who must be in the guild), so may kick,
 // ban or change their roles. Nobody outranks the owner.
@@ -139,16 +143,21 @@ router.put('/guilds/:guildId/notifications', member, async (req, res) => {
 // /upload_guild_icon), or `icon: null` to remove it.
 router.patch('/guilds/:guildId', withPermission(PERMISSIONS.MANAGE_GUILD), async (req, res) => {
   const { name: rawName, iconUploaded, icon } = req.body ?? {};
+  const details = {};
   if (rawName !== undefined) {
     const name = cleanName(rawName, MAX_GUILD_NAME);
     if (!name) return res.status(400).json({ error: `Guild names are 1–${MAX_GUILD_NAME} characters` });
     await db.run('UPDATE guilds SET name = ? WHERE id = ?', [name, req.guild.id]);
+    if (name !== req.guild.name) details.changes = { name: [req.guild.name, name] };
   }
   if (iconUploaded === true) {
     await db.run('UPDATE guilds SET icon_version = icon_version + 1 WHERE id = ?', [req.guild.id]);
+    details.icon = 'changed';
   } else if (icon === null) {
     await db.run('UPDATE guilds SET icon_version = 0 WHERE id = ?', [req.guild.id]);
+    if (req.guild.icon_version > 0) details.icon = 'removed';
   }
+  if (Object.keys(details).length) await audit(req, { action: 'guild_update', details });
   await announceGuildUpdate(req.guild.id);
   res.json(await getGuildLayout(req.guild.id, req.user.id));
 });
@@ -163,7 +172,7 @@ router.delete('/guilds/:guildId', owner, async (req, res) => {
   await db.transaction(async () => {
     await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);
     for (const table of [
-      'guild_emojis',
+      'guild_emojis', 'guild_audit_log',
       'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',
       'guild_member_roles', 'guild_roles', 'guild_members',
     ]) {
@@ -182,7 +191,10 @@ router.post('/guilds/:guildId/transfer', owner, async (req, res) => {
   if (!(await getMember(req.guild.id, userId))) {
     return res.status(400).json({ error: 'The new owner must be a member' });
   }
-  await db.run('UPDATE guilds SET owner = ? WHERE id = ?', [userId, req.guild.id]);
+  await db.transaction(async () => {
+    await db.run('UPDATE guilds SET owner = ? WHERE id = ?', [userId, req.guild.id]);
+    await audit(req, { action: 'guild_owner_transfer', targetType: 'user', targetId: userId });
+  });
   await announceGuildUpdate(req.guild.id);
   res.json({ success: true });
 });
@@ -238,6 +250,7 @@ router.delete('/guilds/:guildId/members/:userId', withPermission(PERMISSIONS.KIC
   if (userId === req.user.id) return res.status(400).json({ error: "You can't kick yourself" });
   if (!(await getMember(req.guild.id, userId))) return res.status(404).json({ error: 'Not a member' });
   if (!(await outranks(req.member, userId))) return res.status(403).json({ error: 'Their role is as high as yours or higher' });
+  await audit(req, { action: 'member_kick', targetType: 'user', targetId: userId });
   await removeMember(req.guild.id, userId);
   res.json({ success: true });
 });
@@ -258,16 +271,23 @@ router.put('/guilds/:guildId/bans/:userId', withPermission(PERMISSIONS.BAN_MEMBE
     return res.status(404).json({ error: 'User not found' });
   }
   if (!(await outranks(req.member, userId))) return res.status(403).json({ error: 'Their role is as high as yours or higher' });
-  await db.run(
-    'INSERT OR IGNORE INTO guild_bans (guild_id, user_id, banned_by) VALUES (?, ?, ?)',
-    [req.guild.id, userId, req.user.id]
-  );
+  await db.transaction(async () => {
+    const { changes } = await db.run(
+      'INSERT OR IGNORE INTO guild_bans (guild_id, user_id, banned_by) VALUES (?, ?, ?)',
+      [req.guild.id, userId, req.user.id]
+    );
+    if (changes) await audit(req, { action: 'member_ban_add', targetType: 'user', targetId: userId });
+  });
   if (await getMember(req.guild.id, userId)) await removeMember(req.guild.id, userId);
   res.json({ success: true });
 });
 
 router.delete('/guilds/:guildId/bans/:userId', withPermission(PERMISSIONS.BAN_MEMBERS), async (req, res) => {
-  await db.run('DELETE FROM guild_bans WHERE guild_id = ? AND user_id = ?', [req.guild.id, Number(req.params.userId)]);
+  const userId = Number(req.params.userId);
+  await db.transaction(async () => {
+    const { changes } = await db.run('DELETE FROM guild_bans WHERE guild_id = ? AND user_id = ?', [req.guild.id, userId]);
+    if (changes) await audit(req, { action: 'member_ban_remove', targetType: 'user', targetId: userId });
+  });
   res.json({ success: true });
 });
 
@@ -299,10 +319,13 @@ router.post('/guilds/:guildId/invites', withPermission(PERMISSIONS.CREATE_INVITE
     return res.status(400).json({ error: 'Invalid maxUses' });
   }
   const code = newInviteCode();
-  await db.run(
-    'INSERT INTO guild_invites (code, guild_id, creator_id, expires_at, max_uses) VALUES (?, ?, ?, ?, ?)',
-    [code, req.guild.id, req.user.id, maxAge ? now() + maxAge : null, maxUses || null]
-  );
+  await db.transaction(async () => {
+    await db.run(
+      'INSERT INTO guild_invites (code, guild_id, creator_id, expires_at, max_uses) VALUES (?, ?, ?, ?, ?)',
+      [code, req.guild.id, req.user.id, maxAge ? now() + maxAge : null, maxUses || null]
+    );
+    await audit(req, { action: 'invite_create', targetType: 'invite', targetId: code, details: { code, maxAge, maxUses } });
+  });
   res.status(201).json(await db.get(`${INVITE_SELECT} WHERE i.code = ?`, [code]));
 });
 
@@ -324,7 +347,17 @@ router.delete('/invites/:code', authenticateJWT, async (req, res) => {
       return res.status(403).json({ error: 'Not your invite' });
     }
   }
-  await db.run('DELETE FROM guild_invites WHERE code = ?', [invite.code]);
+  await db.transaction(async () => {
+    await db.run('DELETE FROM guild_invites WHERE code = ?', [invite.code]);
+    await logAudit({
+      guildId: invite.guild_id,
+      action: 'invite_delete',
+      actorId: req.user.id,
+      targetType: 'invite',
+      targetId: invite.code,
+      details: { code: invite.code },
+    });
+  });
   res.json({ success: true });
 });
 
@@ -382,10 +415,14 @@ router.post('/guilds/:guildId/categories', manageChannels, async (req, res) => {
   const name = cleanName(req.body?.name, MAX_CATEGORY_NAME);
   if (!name) return res.status(400).json({ error: `Category names are 1–${MAX_CATEGORY_NAME} characters` });
   const position = await nextPosition('guild_categories', 'guild_id = ?', [req.guild.id]);
-  const { lastID } = await db.run(
-    'INSERT INTO guild_categories (guild_id, name, position) VALUES (?, ?, ?)',
-    [req.guild.id, name, position]
-  );
+  const { lastID } = await db.transaction(async () => {
+    const result = await db.run(
+      'INSERT INTO guild_categories (guild_id, name, position) VALUES (?, ?, ?)',
+      [req.guild.id, name, position]
+    );
+    await audit(req, { action: 'category_create', targetType: 'category', targetId: result.lastID, details: { name } });
+    return result;
+  });
   await announceGuildUpdate(req.guild.id);
   res.status(201).json({ id: lastID, name, position });
 });
@@ -393,11 +430,15 @@ router.post('/guilds/:guildId/categories', manageChannels, async (req, res) => {
 router.patch('/guilds/:guildId/categories/:categoryId', manageChannels, async (req, res) => {
   const name = cleanName(req.body?.name, MAX_CATEGORY_NAME);
   if (!name) return res.status(400).json({ error: `Category names are 1–${MAX_CATEGORY_NAME} characters` });
-  const { changes } = await db.run(
-    'UPDATE guild_categories SET name = ? WHERE id = ? AND guild_id = ?',
-    [name, Number(req.params.categoryId), req.guild.id]
-  );
-  if (!changes) return res.status(404).json({ error: 'Category not found' });
+  const categoryId = Number(req.params.categoryId);
+  const category = await db.get('SELECT id, name FROM guild_categories WHERE id = ? AND guild_id = ?', [categoryId, req.guild.id]);
+  if (!category) return res.status(404).json({ error: 'Category not found' });
+  await db.transaction(async () => {
+    await db.run('UPDATE guild_categories SET name = ? WHERE id = ?', [name, category.id]);
+    if (name !== category.name) {
+      await audit(req, { action: 'category_update', targetType: 'category', targetId: category.id, details: { name, changes: { name: [category.name, name] } } });
+    }
+  });
   await announceGuildUpdate(req.guild.id);
   res.json({ success: true });
 });
@@ -406,12 +447,12 @@ router.patch('/guilds/:guildId/categories/:categoryId', manageChannels, async (r
 router.delete('/guilds/:guildId/categories/:categoryId', manageChannels, async (req, res) => {
   const categoryId = Number(req.params.categoryId);
   const deleted = await db.transaction(async () => {
-    const { changes } = await db.run(
-      'DELETE FROM guild_categories WHERE id = ? AND guild_id = ?',
-      [categoryId, req.guild.id]
-    );
-    if (changes) await db.run('UPDATE guild_channels SET category_id = NULL WHERE category_id = ?', [categoryId]);
-    return changes > 0;
+    const category = await db.get('SELECT id, name FROM guild_categories WHERE id = ? AND guild_id = ?', [categoryId, req.guild.id]);
+    if (!category) return false;
+    await db.run('DELETE FROM guild_categories WHERE id = ?', [categoryId]);
+    await db.run('UPDATE guild_channels SET category_id = NULL WHERE category_id = ?', [categoryId]);
+    await audit(req, { action: 'category_delete', targetType: 'category', targetId: categoryId, details: { name: category.name } });
+    return true;
   });
   if (!deleted) return res.status(404).json({ error: 'Category not found' });
   await announceGuildUpdate(req.guild.id);
@@ -471,6 +512,7 @@ router.post('/guilds/:guildId/channels', manageChannels, async (req, res) => {
       for (const roleId of roleIds) await addOverride('role', roleId, view, 0);
       if (!has(req.member.permissions, PERMISSIONS.ADMINISTRATOR)) await addOverride('member', req.user.id, view, 0);
     }
+    await audit(req, { action: 'channel_create', targetType: 'channel', targetId: id, channelId: id, details: { name, type } });
     return id;
   });
   await announceGuildUpdate(req.guild.id);
@@ -507,7 +549,19 @@ router.patch('/guilds/:guildId/channels/:channelId', manageChannels, async (req,
     params.push(body.categoryId);
   }
   if (updates.length) {
-    await db.run(`UPDATE guild_channels SET ${updates.join(', ')} WHERE id = ?`, [...params, channel.id]);
+    await db.transaction(async () => {
+      await db.run(`UPDATE guild_channels SET ${updates.join(', ')} WHERE id = ?`, [...params, channel.id]);
+      const saved = await db.get('SELECT name, topic, category_id FROM guild_channels WHERE id = ?', [channel.id]);
+      const changes = diff(channel, saved);
+      if (changes.category_id) {
+        const names = await db.all('SELECT id, name FROM guild_categories WHERE guild_id = ?', [req.guild.id]);
+        changes.category = changes.category_id.map((id) => names.find((c) => c.id === id)?.name ?? null);
+        delete changes.category_id;
+      }
+      if (Object.keys(changes).length) {
+        await audit(req, { action: 'channel_update', targetType: 'channel', targetId: channel.id, channelId: channel.id, details: { name: saved.name, changes } });
+      }
+    });
     await announceGuildUpdate(req.guild.id);
   }
   res.json(await db.get('SELECT id, category_id, name, type, topic, position FROM guild_channels WHERE id = ?', [channel.id]));
@@ -518,6 +572,7 @@ router.delete('/guilds/:guildId/channels/:channelId', manageChannels, async (req
   const channel = await findChannel(req);
   if (!channel) return res.status(404).json({ error: 'Channel not found' });
   await db.transaction(async () => {
+    await audit(req, { action: 'channel_delete', targetType: 'channel', targetId: channel.id, channelId: channel.id, details: { name: channel.name, type: channel.type } });
     await deleteChannelContents('?', [channel.id]);
     await db.run('DELETE FROM guild_channels WHERE id = ?', [channel.id]);
   });

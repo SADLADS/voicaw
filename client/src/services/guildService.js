@@ -286,3 +286,13 @@ export async function searchGuildMessages(guildId, params) {
     .filter(([, value]) => value !== '' && value != null));
   return (await api.get(`/guilds/${guildId}/messages/search`, { params: query })).data;
 }
+
+// A page of the guild's audit log (server/auditLog.js; View Audit Log), newest first:
+// { entries, users, webhooks, next }. `before` is the last page's `next`; `actions` limits it
+// to those actions, `userId` to what that member did.
+export async function fetchAuditLog(guildId, { before, actions, userId } = {}) {
+  const params = { before, actions: actions?.join(','), userId };
+  return (await api.get(`/guilds/${guildId}/audit-log`, {
+    params: Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== '')),
+  })).data;
+}

@@ -10,7 +10,8 @@ const { saveMentions, notifyNewMessage } = require('../mentions');
 const { putObject } = require('../s3');
 const { processAvatar, AvatarImageError, MAX_AVATAR_UPLOAD_BYTES } = require('../avatarImage');
 const { createLimiter } = require('../rateLimit');
-const { MESSAGE_SELECT, withReactions } = require('./guildMessages');
+const { MESSAGE_SELECT, withReactions, logMessageDelete } = require('./guildMessages');
+const { logAudit, diff } = require('../auditLog');
 
 // Webhooks, with Discord's API (https://discord.com/developers/docs/resources/webhook), so
 // anything that posts to a Discord webhook URL can post to ours by swapping the start of the
@@ -425,6 +426,15 @@ async function createWebhook(req, res) {
       throw err;
     }
   }
+  await logAudit({
+    guildId: channel.guild_id,
+    action: 'webhook_create',
+    actorId: req.user.id,
+    targetType: 'webhook',
+    targetId: lastID,
+    channelId: channel.id,
+    details: { name, channelName: channel.name },
+  });
   const [hook] = await withCreators(req, [await findHook(lastID)]);
   res.status(200).json(hook);
 }
@@ -450,6 +460,22 @@ router.get('/guilds/:guildId/webhooks', authenticateJWT, async (req, res) => {
   res.json(await withCreators(req, visible));
 });
 
+// Audit log entry for something done to req.hook, logged in (by the user) or with its token
+// (by the webhook itself).
+async function logWebhookAction(req, action, details) {
+  const channel = await db.get('SELECT id, name FROM guild_channels WHERE id = ?', [req.hook.channel_id]);
+  await logAudit({
+    guildId: req.hook.guild_id,
+    action,
+    actorId: req.user?.id ?? null,
+    webhookId: req.user ? null : req.hook.id,
+    targetType: 'webhook',
+    targetId: req.hook.id,
+    channelId: req.hook.channel_id,
+    details: { ...details, channelName: channel?.name ?? null },
+  });
+}
+
 // Changes name, avatar (image data, or null for the default) and, logged in, channel_id.
 async function modifyWebhook(req, res, { canMove }) {
   const body = req.body ?? {};
@@ -472,12 +498,23 @@ async function modifyWebhook(req, res, { canMove }) {
     await db.run(`UPDATE guild_webhooks SET ${keys.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`, [...keys.map((k) => updates[k]), req.hook.id]);
   }
   const hook = await findHook(req.hook.id);
+  const changes = diff(req.hook, { name: updates.name, channel_id: updates.channel_id });
+  if (changes.channel_id) {
+    const names = await db.all('SELECT id, name FROM guild_channels WHERE id IN (?, ?)', changes.channel_id);
+    changes.channel = changes.channel_id.map((id) => names.find((c) => c.id === id)?.name ?? null);
+    delete changes.channel_id;
+  }
+  if (updates.avatar !== undefined) changes.avatar = updates.avatar === null ? 'removed' : 'changed';
+  if (Object.keys(changes).length) await logWebhookAction(req, 'webhook_update', { name: hook.name, changes });
   res.json(canMove ? (await withCreators(req, [hook]))[0] : webhookObject(req, hook));
 }
 
 // Messages it sent stay (with the name and picture they were sent with), as in Discord.
 async function deleteWebhook(req, res) {
-  await db.run('DELETE FROM guild_webhooks WHERE id = ?', [req.hook.id]);
+  await db.transaction(async () => {
+    await logWebhookAction(req, 'webhook_delete', { name: req.hook.name });
+    await db.run('DELETE FROM guild_webhooks WHERE id = ?', [req.hook.id]);
+  });
   res.status(204).end();
 }
 
@@ -632,12 +669,13 @@ router.patch('/webhooks/:webhookId/:token/messages/:messageId', byToken, ownMess
 
 router.delete('/webhooks/:webhookId/:token/messages/:messageId', byToken, ownMessage, async (req, res) => {
   const { id, channel_id: channelId } = req.message;
+  const channel = await db.get('SELECT id, guild_id, name FROM guild_channels WHERE id = ?', [channelId]);
   await db.transaction(async () => {
+    if (channel) await logMessageDelete(req.message, channel, { webhookId: req.hook.id });
     await db.run('DELETE FROM guild_reactions WHERE message_id = ?', [id]);
     await db.run('DELETE FROM guild_mentions WHERE message_id = ?', [id]);
     await db.run('DELETE FROM guild_messages WHERE id = ?', [id]);
   });
-  const channel = await db.get('SELECT id, guild_id FROM guild_channels WHERE id = ?', [channelId]);
   if (channel) await sendToChannel(channel, { type: 'guild_message_delete', guildId: channel.guild_id, channelId, messageId: id });
   res.status(204).end();
 });

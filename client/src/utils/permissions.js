@@ -20,6 +20,7 @@ export const PERMISSIONS = {
   MENTION_EVERYONE: 1 << 14,
   PIN_MESSAGES: 1 << 15,
   MANAGE_WEBHOOKS: 1 << 16,
+  VIEW_AUDIT_LOG: 1 << 17,
 };
 
 export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
@@ -38,6 +39,7 @@ export const PERMISSION_GROUPS = [
       ['MANAGE_GUILD', 'Manage Guild', "Lets members change the guild's name and icon, and see and revoke all invites."],
       ['MANAGE_EMOJIS', 'Manage Emoji', "Lets members add, rename and remove the guild's custom emoji."],
       ['MANAGE_WEBHOOKS', 'Manage Webhooks', 'Lets members create, edit and delete webhooks, which let other apps and services post messages in text channels.'],
+      ['VIEW_AUDIT_LOG', 'View Audit Log', "Lets members see the guild's audit log: who deleted which messages, and who changed the guild's settings, channels, roles, invites, emoji and webhooks, or kicked and banned people."],
     ],
   },
   {

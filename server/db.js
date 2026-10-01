@@ -513,6 +513,29 @@ addColumn('ALTER TABLE guild_messages ADD COLUMN attachments TEXT');
 addColumn('ALTER TABLE guild_messages ADD COLUMN flags INTEGER NOT NULL DEFAULT 0');
 addColumn('ALTER TABLE guild_messages ADD COLUMN edited_at INTEGER');
 
+// GUILD AUDIT LOG (auditLog.js): who did what in a guild, and when. `actor_id` is the user
+// (null when a webhook acted with its token: `actor_webhook_id`); `target_type`/`target_id`
+// what it was done to (a user, role, channel, category, invite code, emoji or webhook);
+// `channel_id` the channel it happened in or to, and `private` whether that channel was
+// private then (for entries that outlive it). `details` is JSON with the names as they were
+// and what changed. Never a message's content. Kept RETENTION_DAYS.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  actor_id INTEGER,
+  actor_webhook_id INTEGER,
+  target_type TEXT,
+  target_id TEXT,
+  channel_id INTEGER,
+  private INTEGER NOT NULL DEFAULT 0,
+  details TEXT,
+  created_at INTEGER NOT NULL
+);
+`);
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_audit_log_guild ON guild_audit_log (guild_id, id)');
+
 // GUILD SEARCH (routes/guildSearch.js): each message's words (searchText.js) in a full-text
 // index, rowid = the message's id, and what it has (`has:` bits) in `search_has`. Whoever
 // writes a message's content, embeds or attachments calls indexGuildMessage (below); deleting

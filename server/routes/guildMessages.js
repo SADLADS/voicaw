@@ -8,6 +8,7 @@ const { saveMentions, notifyNewMessage } = require('../mentions');
 const { setPinned } = require('../pins');
 const { POLL_VOTE, parsePoll, isClosedPoll, pollEditError, reactionIdsFor, pollReactionsFor } = require('../polls');
 const { removePollRows } = require('../pollTimers');
+const { logAudit } = require('../auditLog');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
 // same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
@@ -86,7 +87,7 @@ async function requireTextChannel(req, res, next) {
 async function requireMessage(req, res, next) {
   const messageId = Number(req.params.messageId);
   const message = Number.isInteger(messageId) && await db.get(
-    'SELECT id, channel_id, sender_id, content, timestamp, system FROM guild_messages WHERE id = ?',
+    'SELECT id, channel_id, sender_id, content, timestamp, system, webhook_id, webhook_name FROM guild_messages WHERE id = ?',
     [messageId]
   );
   const access = message && await getChannelAccess(message.channel_id, req.user.id);
@@ -192,7 +193,31 @@ router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async 
   res.json({ success: true, messageId: req.message.id, content });
 });
 
-// The author, or anyone with Manage Messages there, can delete; its reactions go with it.
+// The audit log entry for a message being deleted (by `actorId`, or its own webhook `webhookId`).
+function logMessageDelete(message, channel, { actorId = null, webhookId = null }) {
+  return logAudit({
+    guildId: channel.guild_id,
+    action: 'message_delete',
+    actorId,
+    webhookId,
+    ...messageTarget(message),
+    channelId: channel.id,
+    details: {
+      messageId: message.id,
+      sentAt: message.timestamp,
+      channelName: channel.name,
+      ...(message.webhook_id ? { webhookName: message.webhook_name } : {}),
+    },
+  });
+}
+
+// Whose message it is, for the audit log: its author, or the webhook that posted it.
+const messageTarget = (message) => (message.webhook_id
+  ? { targetType: 'webhook', targetId: message.webhook_id }
+  : { targetType: 'user', targetId: message.sender_id });
+
+// The author, or anyone with Manage Messages there, can delete; its reactions go with it. It
+// goes in the audit log (not "poll ended" rows, which go with their poll).
 router.delete('/guild-messages/:messageId', authenticateJWT, requireMessage, async (req, res) => {
   const { id, sender_id: senderId } = req.message;
   if (senderId !== req.user.id && !has(req.permissions, PERMISSIONS.MANAGE_MESSAGES)) {
@@ -200,6 +225,7 @@ router.delete('/guild-messages/:messageId', authenticateJWT, requireMessage, asy
   }
   // A poll takes its "poll ended" row with it.
   const removed = await db.transaction(async () => {
+    if (!req.message.system) await logMessageDelete(req.message, req.channel, { actorId: req.user.id });
     await db.run('DELETE FROM guild_reactions WHERE message_id = ?', [id]);
     await db.run('DELETE FROM guild_mentions WHERE message_id = ?', [id]);
     await db.run('DELETE FROM guild_messages WHERE id = ?', [id]);
@@ -228,6 +254,16 @@ async function pinRoute(req, res, pinned) {
   const { guild_id: guildId, id: channelId } = req.channel;
   const result = await setPinned('guild_messages', req.message.id, req.user.id, pinned, 'channel_id = ?', [channelId]);
   if (result.error) return res.status(result.status).json({ error: result.error });
+  if (result.changed) {
+    await logAudit({
+      guildId,
+      action: pinned ? 'message_pin' : 'message_unpin',
+      actorId: req.user.id,
+      ...messageTarget(req.message),
+      channelId,
+      details: { messageId: req.message.id, channelName: req.channel.name },
+    });
+  }
   const pin = { messageId: req.message.id, pinned_at: result.pinned_at, pinned_by: result.pinned_by };
   if (result.changed) await sendToChannel(req.channel, { type: 'guild_message_pin', guildId, channelId, ...pin });
   res.json(pin);
@@ -346,3 +382,4 @@ module.exports = router;
 module.exports.MESSAGE_SELECT = MESSAGE_SELECT;
 module.exports.withReactions = withReactions;
 module.exports.parseJsonList = parseJsonList;
+module.exports.logMessageDelete = logMessageDelete;

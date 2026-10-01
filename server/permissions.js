@@ -24,6 +24,7 @@ const PERMISSIONS = {
   MENTION_EVERYONE: 1 << 14,
   PIN_MESSAGES: 1 << 15,
   MANAGE_WEBHOOKS: 1 << 16,
+  VIEW_AUDIT_LOG: 1 << 17,
 };
 
 const ALL_PERMISSIONS = Object.values(PERMISSIONS).reduce((all, bit) => all | bit, 0);

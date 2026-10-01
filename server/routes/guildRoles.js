@@ -13,6 +13,7 @@ const {
   cleanName,
 } = require('../guilds');
 const { requireMember, requirePermission, outranks } = require('./guilds');
+const { logAudit, diff } = require('../auditLog');
 
 // Roles (create, edit, delete, reorder, give to members) and channel permission overrides.
 // Everything here needs Manage Roles, and only reaches below the caller's own highest role
@@ -27,6 +28,9 @@ const validBits = (bits, mask = ALL_PERMISSIONS) => Number.isInteger(bits) && bi
 
 // Whether `member` may give out every permission in `bits`.
 const mayGrant = (member, bits) => (bits & ~member.permissions) === 0;
+
+// An audit log entry (auditLog.js) for something the caller did in req.guild.
+const audit = (req, entry) => logAudit({ guildId: req.guild.id, actorId: req.user.id, ...entry });
 
 async function findRole(guildId, roleId) {
   return db.get(`SELECT ${ROLE_COLUMNS} FROM guild_roles WHERE id = ? AND guild_id = ?`, [roleId, guildId]);
@@ -57,10 +61,12 @@ router.post('/guilds/:guildId/roles', manageRoles, async (req, res) => {
 
   const { lastID } = await db.transaction(async () => {
     await db.run('UPDATE guild_roles SET position = position + 1 WHERE guild_id = ? AND is_everyone = 0', [req.guild.id]);
-    return db.run(
+    const result = await db.run(
       'INSERT INTO guild_roles (guild_id, name, color, position, permissions, hoist, mentionable) VALUES (?, ?, ?, 1, ?, ?, ?)',
       [req.guild.id, name, color, permissions, hoist ? 1 : 0, mentionable ? 1 : 0]
     );
+    await audit(req, { action: 'role_create', targetType: 'role', targetId: result.lastID, details: { name, color, permissions } });
+    return result;
   });
   await announceGuildUpdate(req.guild.id);
   res.status(201).json(await findRole(req.guild.id, lastID));
@@ -108,7 +114,12 @@ router.patch('/guilds/:guildId/roles/:roleId', manageRoles, async (req, res) => 
     params.push(body.permissions);
   }
   if (updates.length) {
-    await db.run(`UPDATE guild_roles SET ${updates.join(', ')} WHERE id = ?`, [...params, role.id]);
+    await db.transaction(async () => {
+      await db.run(`UPDATE guild_roles SET ${updates.join(', ')} WHERE id = ?`, [...params, role.id]);
+      const saved = await findRole(req.guild.id, role.id);
+      const changes = diff(role, { name: saved.name, color: saved.color, permissions: saved.permissions, hoist: saved.hoist, mentionable: saved.mentionable });
+      if (Object.keys(changes).length) await audit(req, { action: 'role_update', targetType: 'role', targetId: role.id, details: { name: saved.name, changes } });
+    });
     await announceGuildUpdate(req.guild.id);
   }
   res.json(await findRole(req.guild.id, role.id));
@@ -127,6 +138,7 @@ router.delete('/guilds/:guildId/roles/:roleId', manageRoles, async (req, res) =>
     await db.run(`DELETE FROM guild_channel_overrides WHERE target_type = 'role' AND target_id = ?`, [role.id]);
     await db.run('DELETE FROM guild_roles WHERE id = ?', [role.id]);
     await renumberRoles(req.guild.id);
+    await audit(req, { action: 'role_delete', targetType: 'role', targetId: role.id, details: { name: role.name, color: role.color } });
     return userIds;
   });
 
@@ -180,6 +192,15 @@ router.put('/guilds/:guildId/members/:userId/roles', manageRoles, async (req, re
     for (const roleId of roleIds) {
       await db.run('INSERT INTO guild_member_roles (guild_id, user_id, role_id) VALUES (?, ?, ?)', [req.guild.id, userId, roleId]);
     }
+    if (changed.length) {
+      const named = (ids) => ids.map((id) => ({ id, name: roles.get(id).name }));
+      await audit(req, {
+        action: 'member_role_update',
+        targetType: 'user',
+        targetId: userId,
+        details: { added: named(changed.filter((id) => after.has(id))), removed: named(changed.filter((id) => before.has(id))) },
+      });
+    }
   });
   await sendToGuild(req.guild.id, { type: 'guild_member_update', guildId: req.guild.id, userId, roleIds });
   // What they can see may have changed.
@@ -219,10 +240,12 @@ router.put('/guilds/:guildId/channels/:channelId/overrides/:targetType/:targetId
   if (!validBits(allow, CHANNEL_PERMISSIONS) || !validBits(deny, CHANNEL_PERMISSIONS) || (allow & deny)) {
     return res.status(400).json({ error: 'Invalid permissions' });
   }
+  let targetName = null;
   if (targetType === 'role') {
     const role = await findRole(req.guild.id, targetId);
     if (!role) return res.status(404).json({ error: 'Role not found' });
     if (role.position >= req.member.highest) return res.status(403).json({ error: 'That role is as high as yours or higher' });
+    targetName = role.name;
   } else if (targetType === 'member') {
     if (!(await getMember(req.guild.id, targetId))) return res.status(404).json({ error: 'Not a member' });
   } else {
@@ -238,18 +261,35 @@ router.put('/guilds/:guildId/channels/:channelId/overrides/:targetType/:targetId
     return res.status(403).json({ error: "You can't change permissions you don't have here" });
   }
 
-  if (allow === 0 && deny === 0) {
-    await db.run(
-      'DELETE FROM guild_channel_overrides WHERE channel_id = ? AND target_type = ? AND target_id = ?',
-      [req.channel.id, targetType, targetId]
-    );
-  } else {
-    await db.run(
-      `INSERT INTO guild_channel_overrides (channel_id, target_type, target_id, allow, deny) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(channel_id, target_type, target_id) DO UPDATE SET allow = excluded.allow, deny = excluded.deny`,
-      [req.channel.id, targetType, targetId, allow, deny]
-    );
-  }
+  await db.transaction(async () => {
+    if (allow === 0 && deny === 0) {
+      await db.run(
+        'DELETE FROM guild_channel_overrides WHERE channel_id = ? AND target_type = ? AND target_id = ?',
+        [req.channel.id, targetType, targetId]
+      );
+    } else {
+      await db.run(
+        `INSERT INTO guild_channel_overrides (channel_id, target_type, target_id, allow, deny) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(channel_id, target_type, target_id) DO UPDATE SET allow = excluded.allow, deny = excluded.deny`,
+        [req.channel.id, targetType, targetId, allow, deny]
+      );
+    }
+    if (changedBits) {
+      await audit(req, {
+        action: 'channel_override_update',
+        targetType: targetType === 'role' ? 'role' : 'user',
+        targetId,
+        channelId: req.channel.id,
+        details: {
+          channelName: req.channel.name,
+          channelType: req.channel.type,
+          targetName,
+          before: { allow: existing.allow, deny: existing.deny },
+          after: { allow, deny },
+        },
+      });
+    }
+  });
   await announceGuildUpdate(req.guild.id);
   res.json({ target_type: targetType, target_id: targetId, allow, deny });
 });

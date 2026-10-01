@@ -97,6 +97,7 @@ node e2e/serve.mjs &     # web :5199, API :3099, object store :3100, LiveKit :31
 node e2e/smoke.mjs       # two users, one message delivered live; an example to copy
 node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots into dir
 node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permissions
+node e2e/auditlog.mjs [dir] # audit log: mod deletes a message, role change, details, filters, no access, phone
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
 node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mute, decline, phone
@@ -161,6 +162,7 @@ unexpected errors. The rest:
 - `push.js`: web push sending and the DM push payload.
 - `s3.js`: pre-signed upload URLs. Bucket setup at startup logs and carries on if the store is down.
 - `guilds.js`: shared guild helpers (membership checks, `getGuildLayout`, `sendToGuild`).
+- `auditLog.js`: a guild's audit log (`logAudit`, `readAuditLog`; see Guilds); `routes/auditLog.js`.
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).
 - `groupDms.js`: group DMs (membership log checks, epochs, summaries; see Group DMs).
@@ -448,7 +450,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   Add Reactions, Manage Messages, Manage Channels, Manage Roles, Manage Guild, Create Invite,
   Kick, Ban, Administrator, Manage Emoji, Connect, Speak (voice), Mention Everyone (@everyone,
   @here and any role; not a default, guild-wide only), Pin Messages (not a default; split out of
-  Manage Messages like Discord did, migration 3), Manage Webhooks (guild-wide only). Every guild has an `@everyone`
+  Manage Messages like Discord did, migration 3), Manage Webhooks (guild-wide only), View Audit
+  Log (not a default, guild-wide only; see Audit log). Every guild has an `@everyone`
   role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak) plus orderable roles (`guild_roles`: name, colour
   0xRRGGBB or null, `hoist` = shown separately in the member list, `mentionable` = anyone may
   @mention it, position: higher ranks
@@ -523,6 +526,21 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   Permissions tab (`ChannelPermissions`: private toggle, ✕ / / ✓ per role or member). Dialogs use `guild/Modal.jsx`; styles are
   `assets/css/guilds.css`. Attachments in channels still go through the encrypted upload (the
   key is in the plain message, so anyone in the channel can open them); plain uploads can come later.
+- **Audit log** (`server/auditLog.js`, `routes/auditLog.js`, `guild_audit_log`), like Discord's:
+  who did what, to what, when. Routes call `logAudit` inside their transaction: message deletes
+  (anyone's, own included; whose it was, who deleted it, channel, when it was sent, **never its
+  text**; a webhook deleting its own with its token is the actor), pins/unpins, kicks, bans and
+  unbans, member role changes, ownership transfer, roles (create/change/delete, with what
+  changed), channels and categories (create/change/delete), channel overrides (before/after),
+  invites (create/revoke), emoji, webhooks, guild name/icon. Not logged: reordering roles,
+  channels and categories, joins and leaves, edits, reactions, voice. `details` keeps names as
+  they were. Kept 90 days (`RETENTION_DAYS`, pruned as entries come in); deleted with the guild.
+  Reading (`GET /guilds/:id/audit-log?before&limit&actions=a,b&userId`, `{ entries, users,
+  webhooks, next }`) needs View Audit Log (owner and Administrator have it); an entry about a
+  channel shows only to those who can see it, and once the channel is deleted, only to
+  administrators if it was private then (`private` column). Client: guild menu → Audit Log
+  (`guild/AuditLogDialog.jsx`; wording in `utils/auditLog.js`), filters by who and what, rows open
+  to show what changed, Load more.
 - **Guild rail order** is per member (`guild_members.position`; `PUT /guilds-order` with every
   guild id, top first; new guilds go at the bottom). `GET /guilds` and `GET /emojis` follow it.
   In the rail, guilds are dragged into order (`hooks/useDragReorder.js`, on
