@@ -3,7 +3,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { mentionsMe, mentionsToText, mentionsUser, searchMentions, searchPeople } from './mentions';
+import { mentionsMe, mentionsToText, mentionsUser, searchChannels, searchMentions, searchPeople } from './mentions';
 import { rehypeMentions } from './rehypeMentions';
 
 const people = [
@@ -21,6 +21,24 @@ describe('mentions', () => {
 
   it('shows role mentions by name too', () => {
     expect(mentionsToText('<@&5> and <@&6>, <@2>', { 2: 'Anna' }, { 5: { name: 'Mods' } })).toBe('@Mods and @deleted-role, @Anna');
+  });
+
+  it('shows channel mentions as #name, unknown ones as #unknown-channel', () => {
+    expect(mentionsToText('go to <#5>, not <#6>', {}, {}, { 5: { name: 'general' } })).toBe('go to #general, not #unknown-channel');
+    expect(mentionsToText('<#5>', {})).toBe('#unknown-channel');
+  });
+
+  it('finds channels by the start of their name first, then anywhere, in the guild\'s order', () => {
+    const channels = [
+      { id: 1, name: 'general', type: 'text' },
+      { id: 2, name: 'off-topic', type: 'text' },
+      { id: 3, name: 'General Voice', type: 'voice', private: true, category: 'Voice' },
+      { id: 4, name: 'memes-general', type: 'text' },
+    ];
+    expect(searchChannels(channels, 'gen').map((c) => c.id)).toEqual([1, 3, 4]);
+    expect(searchChannels(channels, '').map((c) => c.id)).toEqual([1, 2, 3, 4]);
+    expect(searchChannels(channels, 'gen')[1]).toEqual({ kind: 'channel', id: 3, name: 'General Voice', type: 'voice', private: true, category: 'Voice' });
+    expect(searchChannels(channels, 'nope')).toEqual([]);
   });
 
   it('tells whether a message is for you: by name, @everyone/@here that pinged, or your roles', () => {
@@ -83,6 +101,11 @@ describe('rehypeMentions', () => {
       + '(<span class="mention" data-mention-everyone="everyone">@everyone</span>) hi@here</p>'
     );
     expect(render('@here')).toBe('<p><span class="mention" data-mention-everyone="here">@here</span></p>');
+  });
+
+  it('marks channel mentions', () => {
+    expect(render('see <#12>')).toBe('<p>see <span class="mention" data-channel-mention-id="12">&lt;#12&gt;</span></p>');
+    expect(render('`<#12>` #12')).not.toContain('mention');
   });
 
   it('leaves code and look-alikes alone', () => {

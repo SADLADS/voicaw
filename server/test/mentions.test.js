@@ -193,6 +193,21 @@ describe('guild mentions', () => {
     expect((await pushesSince(since)).map((p) => p.endpoint)).toEqual([bob.endpoint]);
   });
 
+  it('names channel mentions in pushes only for those who can see the channel', async () => {
+    const { owner, members: [bob, carol], guild, general, everyone } = await setUp(2);
+    const secret = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'secret', type: 'text' })).body;
+    await api.put(owner, `/guilds/${guild.id}/channels/${secret.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.VIEW_CHANNEL });
+    await api.put(owner, `/guilds/${guild.id}/channels/${secret.id}/overrides/member/${bob.id}`, { allow: P.VIEW_CHANNEL, deny: 0 });
+    await api.put(bob, `/guilds/${guild.id}/notifications`, { level: 'all' });
+    await api.put(carol, `/guilds/${guild.id}/notifications`, { level: 'all' });
+
+    const since = sentPushes.length;
+    await say(owner, general, `see <#${general.id}> and <#${secret.id}> and <#999999>`);
+    const bodies = Object.fromEntries((await pushesSince(since)).map((p) => [p.endpoint, p.payload.body]));
+    expect(bodies[bob.endpoint]).toBe('see #general and #secret and #unknown-channel');
+    expect(bodies[carol.endpoint]).toBe('see #general and #unknown-channel and #unknown-channel');
+  });
+
   it('works mentions out again on edit (without pushing), and forgets them on delete', async () => {
     const { owner, members: [bob], general } = await setUp(1);
     const events = connect(bob);

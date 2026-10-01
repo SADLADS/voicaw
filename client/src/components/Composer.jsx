@@ -21,7 +21,7 @@ import {
   searchCustomEmoji,
 } from '../emoji/customEmoji';
 import { useCustomEmoji } from '../emoji/customEmojiContext';
-import { searchMentions } from '../utils/mentions';
+import { searchChannels, searchMentions } from '../utils/mentions';
 import { gifMarkup } from '../utils/gifMarkup';
 import { displayName, nameOf, useProfiles } from '../utils/profiles';
 
@@ -31,13 +31,17 @@ const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
 const EMOJI_SHORTCODE = /(?:^|[\s([{]):([a-z0-9_+-]+):$/i;
 // "@", "@na": a mention being typed (not "a@b").
 const MENTION_QUERY = /(?:^|[\s([{])@([^\s@<>]{0,32})$/;
+// "#", "#gen": a channel being typed (not "a#b").
+const CHANNEL_QUERY = /(?:^|[\s([{])#([^\s#<>]{0,100})$/;
 
 // The message box under a conversation (MessageEditor: `inputRef` is its handle), writing to
 // `chatName` (a person, or "#channel"; null while the chat can't be sent to yet), with
 // attachments (chips in the box, uploaded on send) and polls (both from the + menu), emoji (picker, ":smi" suggestions,
 // ":shortcode:" conversion), mentions ("@na" suggestions from `people`, [{ id, username }];
 // in a guild also `roles`, [{ id, name, color }], and @everyone/@here with `canMentionEveryone`;
-// `roleInfo` ({ id: { name, color } }) draws role mentions in the box) and the reply bar.
+// `roleInfo` ({ id: { name, color } }) draws role mentions in the box), channel mentions in a
+// guild ("#gen" suggestions from `channels`, [{ id, name, type, private, category }]) and the
+// reply bar.
 //
 // `onSend({ text, replyTo, localAttachments, resolveText })` sends (see useConversation's
 // sendMessage); `onSendPoll({ poll, replyTo })` sends a poll made in PollDialog (see ChatPane).
@@ -64,6 +68,7 @@ export default function Composer({
   roles,
   roleInfo,
   canMentionEveryone = false,
+  channels,
 }) {
   const emojiIndex = useEmojiIndex();
   useProfiles();
@@ -133,13 +138,24 @@ export default function Composer({
   const mentionSuggestions = mentionQuery != null && `@${mentionQuery}` !== dismissedQuery
     ? searchMentions({ people, roles, everyone: canMentionEveryone }, mentionQuery)
     : [];
+  const channelQuery = channels?.length ? CHANNEL_QUERY.exec(beforeCaret)?.[1] ?? null : null;
+  const channelSuggestions = channelQuery != null && `#${channelQuery}` !== dismissedQuery
+    ? searchChannels(channels, channelQuery)
+    : [];
   // Only one kind can match what's before the cursor.
-  const suggestions = emojiSuggestions.length > 0 ? emojiSuggestions : mentionSuggestions;
+  const suggestions = emojiSuggestions.length > 0 ? emojiSuggestions
+    : mentionSuggestions.length > 0 ? mentionSuggestions : channelSuggestions;
   const activeSuggestion = Math.min(suggestionIndex, Math.max(suggestions.length - 1, 0));
 
   function pickSuggestion(item) {
     if (emojiSuggestions.length > 0) pickEmoji(item);
+    else if (item.kind === 'channel') pickChannel(item);
     else pickMention(item);
+  }
+
+  function pickChannel(item) {
+    inputRef.current?.replaceBeforeCaretWithChannelMention(channelQuery.length + 1, { id: item.id, name: item.name });
+    setSuggestionIndex(0);
   }
 
   function pickMention(item) {
@@ -208,7 +224,8 @@ export default function Composer({
       }
       if (e.key === 'Escape') {
         e.preventDefault();
-        setDismissedQuery(emojiSuggestions.length > 0 ? emojiQuery : `@${mentionQuery}`);
+        setDismissedQuery(emojiSuggestions.length > 0 ? emojiQuery
+          : mentionSuggestions.length > 0 ? `@${mentionQuery}` : `#${channelQuery}`);
         return;
       }
     }
@@ -338,6 +355,17 @@ export default function Composer({
             onPick={pickMention}
             onHover={setSuggestionIndex}
             s3Endpoint={s3Endpoint}
+          />
+        )}
+
+        {channelSuggestions.length > 0 && mentionSuggestions.length === 0 && emojiSuggestions.length === 0 && (
+          <MentionSuggestions
+            symbol="#"
+            query={channelQuery}
+            items={channelSuggestions}
+            activeIndex={activeSuggestion}
+            onPick={pickChannel}
+            onHover={setSuggestionIndex}
           />
         )}
 

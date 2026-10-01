@@ -1,14 +1,16 @@
 import React from 'react';
 import Avatar from './Avatar';
+import ChannelIcon from './guild/ChannelIcon';
 
 // The "@name" autocomplete list shown above the composer, like EmojiSuggestions (and styled
 // the same): `items` from searchMentions (utils/mentions): people, roles (in their colour),
-// @everyone and @here.
-export default function MentionSuggestions({ query, items, activeIndex, onPick, onHover }) {
+// @everyone and @here. With `symbol` "#", the "#channel" list (items from searchChannels).
+export default function MentionSuggestions({ symbol = '@', query, items, activeIndex, onPick, onHover }) {
+  const channels = symbol === '#';
   return (
-    <div className="emoji-suggestions mention-suggestions" role="listbox" aria-label="Mentions">
+    <div className="emoji-suggestions mention-suggestions" role="listbox" aria-label={channels ? 'Channels' : 'Mentions'}>
       <div className="emoji-suggestions-title">
-        {query ? <>Matching <strong>@{query}</strong></> : 'Members'}
+        {query ? <>Matching <strong>{symbol}{query}</strong></> : channels ? 'Channels' : 'Members'}
       </div>
       {items.map((item, i) => (
         <div
@@ -28,6 +30,12 @@ export default function MentionSuggestions({ query, items, activeIndex, onPick, 
               <Avatar userId={item.id} className="mention-suggestion-avatar" />
               <span>{item.name}</span>
               {item.username && item.username !== item.name && <span className="mention-suggestion-note">{item.username}</span>}
+            </>
+          ) : item.kind === 'channel' ? (
+            <>
+              <ChannelIcon channel={item} className="mention-suggestion-at" />
+              <span>{item.name}</span>
+              {item.category && <span className="mention-suggestion-note">{item.category}</span>}
             </>
           ) : (
             <>

@@ -63,7 +63,7 @@ function searchHas({ content, embeds, attachments }) {
   return bits;
 }
 
-// The words to index: the text without mentions (`mentions:` finds those), attachments by
+// The words to index: the text without mentions (`mentions:` finds people) or channel ids, attachments by
 // name (never their key-carrying links), custom emoji by name, a poll's question and answers,
 // and a webhook's embeds and file names.
 function searchText({ content, embeds, attachments }) {
@@ -76,7 +76,7 @@ function searchText({ content, embeds, attachments }) {
     parts.push(text
       .replace(EMBED_RE, (_, alt, url) => (url.includes('#gif') ? ' ' : ` ${alt.replace(/\\(.)/g, '$1')} `))
       .replace(/<:([A-Za-z0-9_]+):\d+>/g, ' $1 ')
-      .replace(/<@&?\d+>/g, ' '));
+      .replace(/<@&?\d+>|<#\d+>/g, ' '));
   }
   for (const embed of parseJsonList(embeds)) {
     if (!embed || typeof embed !== 'object') continue;
