@@ -1,7 +1,6 @@
 // Themes: Settings → Appearance switches light/dark at once, it's remembered on this device only
 // (after a reload, not in another browser), "Match system" follows the system, and the page's
-// color-scheme (which picks the on-screen keyboard's look on iPhones, and the browser's own
-// controls) follows. Screenshots of the main screens in both themes, computer and phone.
+// color-scheme (the browser's own controls and scrollbars) follows. Screenshots of the main screens in both themes, computer and phone.
 //   node e2e/serve.mjs &   then   node e2e/themes.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
 import { launchChrome, signUp, openChat, send, BASE, devices } from './helpers.mjs';
@@ -26,7 +25,7 @@ const check = (ok, what) => {
 };
 
 // What the page says about its theme: <html data-theme>, the color-scheme the message box
-// really uses (what iOS reads for the keyboard) and the page's background.
+// really uses (the browser's own controls) and the page's background.
 const themeOf = (page) => page.evaluate(() => {
   const input = document.querySelector('#dm-input') || document.body;
   return {
@@ -109,7 +108,7 @@ try {
   await a.goto(`${BASE}/dm/${bob.id}`);
   await a.waitForSelector('#dm-input');
   t = await themeOf(a);
-  check(t.theme === 'light' && t.scheme === 'light', 'still light after a reload; the message box is color-scheme light (iOS keyboard)');
+  check(t.theme === 'light' && t.scheme === 'light', 'still light after a reload; the message box is color-scheme light');
   check((await a.evaluate(() => window.__themeAtLoad)) === 'light', 'set before the app loads (no dark flash)');
   check((await a.evaluate(() => localStorage.getItem('theme'))) === 'light', 'kept in localStorage');
   await a.waitForSelector('.hljs');

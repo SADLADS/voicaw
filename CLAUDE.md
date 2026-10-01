@@ -121,7 +121,7 @@ node e2e/lists.mjs [dir]  # list channels: add, subtask, drag to nest/reorder, a
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
 node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>
 node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
-node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept per device, no dark flash, Match system, color-scheme (keyboard), phone
+node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept per device, no dark flash, Match system, color-scheme, phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```
@@ -1493,9 +1493,12 @@ these (2026-10-01) it froze for seconds; now opening takes ~0.2 s of script on a
   overridden under `:root[data-theme="light"]` (THEMES there): **use tokens, not literal
   colours**, in new CSS (`--vc-on-accent` for text on coloured fills, `--vc-popup` for menus;
   literal black/white is only for overlays on images and video). Each theme sets CSS
-  `color-scheme`, which makes the browser's own controls and scrollbars match and, on iPhones
-  and iPads, the on-screen keyboard (Android keyboards follow the system or their own setting;
-  neither a page nor an app can choose). Code highlighting is Atom One Dark plus
+  `color-scheme`, which makes the browser's own controls and scrollbars match. **Not the
+  on-screen keyboard:** on iPhones and iPads it follows the system's light/dark mode whatever
+  the page says (WebKit gives every field `UIKeyboardAppearanceDefault`; checked in its source
+  and on a real iPhone, 2026-10-01), and Android keyboards follow the system or their own
+  setting. Only a native app can choose, and only on iOS (`keyboardAppearance`; in a
+  Capacitor wrapper, `@capacitor/keyboard` `setStyle`). Code highlighting is Atom One Dark plus
   `hljs-light.css` (Atom One Light under `[data-theme="light"]`).
 - Scrollbars are styled once, in `voicaw.css` (SCROLLBARS): every scroll area inherits the pane
   look (like the message list); small boxes and pop-ups are listed there for the thin one. Don't
