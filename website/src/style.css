@@ -157,6 +157,33 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
 .download li a:hover { background: var(--card-hover); }
 .download li small { color: var(--muted); white-space: nowrap; }
 .note { color: var(--muted); font-size: 0.93rem; }
+
+.stores { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.store {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: var(--text);
+  text-decoration: none;
+}
+a.store:hover { background: var(--card-hover); }
+.store.soon { background: transparent; border-style: dashed; }
+.store svg {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: var(--accent-text);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.store span { display: flex; flex-direction: column; line-height: 1.35; }
+.store small { color: var(--muted); }
 .honest p { color: var(--muted); }
 
 footer {
