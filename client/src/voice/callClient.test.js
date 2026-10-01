@@ -99,6 +99,17 @@ describe('callClient', () => {
     expect(getCallSnapshot().call).toBeNull();
   });
 
+  it("times the call by this device's clock, even when it's behind the server's", async () => {
+    await as(alice);
+    await startCall(bob.row);
+    const { id } = getCallSnapshot().call;
+    const serverNow = Date.now() + 5 * 60 * 1000;
+    emit({ type: 'call_update', call: { id, state: 'active', answered_at: serverNow - 2000, server_now: serverNow } });
+    const { answeredAt } = getCallSnapshot().call;
+    expect(Date.now() - answeredAt).toBeGreaterThanOrEqual(2000);
+    expect(Date.now() - answeredAt).toBeLessThan(3000);
+  });
+
   it('tells the caller why it ended, after leaving', async () => {
     await as(alice);
     await startCall(bob.row);

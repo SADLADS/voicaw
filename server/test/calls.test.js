@@ -90,7 +90,7 @@ describe('DM calls', () => {
     expect(claims.sub).toBe(String(alice.id));
     expect(claims.video).toMatchObject({ room: `call-${callId}`, canPublish: true, canPublishSources: ['microphone'] });
 
-    expect(ofType(bobEvents, 'call_incoming')[0].call).toEqual(res.body.call);
+    expect(ofType(bobEvents, 'call_incoming')[0].call).toEqual({ ...res.body.call, server_now: expect.any(Number) });
     expect(ofType(aliceEvents, 'call_update')[0].call.id).toBe(callId);
     expect((await api.get(bob, '/dm-calls/current')).body.id).toBe(callId);
     expect((await api.get(alice, '/dm-calls/current')).body.id).toBe(callId);

@@ -72,6 +72,9 @@ function publicCall(call) {
     state: call.state,
     created_at: call.createdAt,
     answered_at: call.answeredAt,
+    // The server's clock when this was sent, so a device whose clock is off can turn
+    // answered_at into its own time (else a call timer stays at 0:00 or starts ahead).
+    server_now: Date.now(),
     ringing: [...call.ringing],
     participants: [...call.participants],
   };

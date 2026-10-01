@@ -95,10 +95,16 @@ async function findUser(userId) {
 
 const errorText = (err, fallback) => err?.response?.data?.error ?? err?.message ?? fallback;
 
+// A server timestamp in this device's time (its clock can be off from the server's by minutes).
+function localTime(serverTime, call) {
+  if (!serverTime) return serverTime;
+  return call.server_now ? serverTime - call.server_now + Date.now() : serverTime;
+}
+
 // This device's view of a call the server sent.
 function localCall(call, fields) {
   return call.group_id
-    ? { id: call.id, groupId: call.group_id, groupName: call.group_name, callerId: call.caller_id, callerName: call.caller_username, participants: call.participants, answeredAt: call.answered_at, ...fields }
+    ? { id: call.id, groupId: call.group_id, groupName: call.group_name, callerId: call.caller_id, callerName: call.caller_username, participants: call.participants, answeredAt: localTime(call.answered_at, call), ...fields }
     : { id: call.id, groupId: null, peerId: call.caller_id, peerName: call.caller_username, callerId: call.caller_id, callerName: call.caller_username, answeredAt: null, ...fields };
 }
 
@@ -128,7 +134,7 @@ function handleEvent(event) {
       return;
     }
     stopLoop();
-    set({ ...current, state: 'active', answeredAt: call.answered_at });
+    set({ ...current, state: 'active', answeredAt: localTime(call.answered_at, call) });
   } else if (event.type === 'call_end') {
     for (const [groupId, call] of Object.entries(snapshot.groupCalls)) {
       if (call.id === event.id) setGroupCall(groupId, null);
@@ -285,7 +291,7 @@ export async function acceptCall() {
     const key = await decryptCallKey(offer.key_envelope, await conversationKey(peer), callKeyContext(offer.id, offer.caller_id, me.id));
     const { url, token, call: answered } = await acceptCallRequest(offer.id);
     if (snapshot.call?.id !== offer.id) return;
-    set({ ...snapshot.call, state: 'active', answeredAt: answered.answered_at });
+    set({ ...snapshot.call, state: 'active', answeredAt: localTime(answered.answered_at, answered) });
     await joinCall({ callId: offer.id, url, token, key });
   } catch (err) {
     if (snapshot.call?.id !== offer.id) return;
