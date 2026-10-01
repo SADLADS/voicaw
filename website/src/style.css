@@ -91,9 +91,9 @@ a { color: var(--accent-text); }
   padding: 56px 16px 72px;
   text-align: center;
 }
+/* drop-shadow, not box-shadow: the glow follows the bird, not the image's square. */
 .hero-logo {
-  border-radius: 28px;
-  box-shadow: 0 16px 60px var(--glow);
+  filter: drop-shadow(0 12px 40px var(--glow));
 }
 .hero h1 {
   font-size: clamp(2rem, 5vw, 3.1rem);
