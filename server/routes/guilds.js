@@ -443,7 +443,7 @@ router.post('/guilds/:guildId/channels', manageChannels, async (req, res) => {
   const categoryId = req.body?.categoryId ?? null;
   const name = normalizeChannelName(req.body?.name);
   if (!name) return res.status(400).json({ error: 'Channel names are 1–100 characters' });
-  if (type !== 'text' && type !== 'voice') return res.status(400).json({ error: 'Invalid channel type' });
+  if (!['text', 'voice', 'list'].includes(type)) return res.status(400).json({ error: 'Invalid channel type' });
   if (topic != null && (typeof topic !== 'string' || topic.length > MAX_TOPIC)) {
     return res.status(400).json({ error: 'Invalid topic' });
   }

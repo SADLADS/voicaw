@@ -227,8 +227,9 @@ async function nextPosition(table, where, params) {
   return row.max == null ? 0 : row.max + 1;
 }
 
-// Deletes channels' messages, their reactions, read markers and overrides (not the channels).
+// Deletes channels' messages, their reactions, read markers, overrides and tasks (not the channels).
 async function deleteChannelContents(channelIdsSql, params) {
+  await require('./guildTasks').deleteChannelTasks(channelIdsSql, params);
   await db.run(
     `DELETE FROM guild_reactions WHERE message_id IN
        (SELECT id FROM guild_messages WHERE channel_id IN (${channelIdsSql}))`,
@@ -267,6 +268,7 @@ async function removeMember(guildId, userId) {
       'DELETE FROM guild_channel_reads WHERE user_id = ? AND channel_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)',
       [userId, guildId]
     );
+    await require('./guildTasks').unassignFromGuild(guildId, userId);
   });
   sendToUserSockets(userId, { type: 'guild_remove', guildId });
   await sendToGuild(guildId, { type: 'guild_member_remove', guildId, userId });

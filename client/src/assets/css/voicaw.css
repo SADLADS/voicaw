@@ -852,7 +852,7 @@ body.mobile-mode .settings-nav-item {
      on the pane's own background. This is the default: every scrolling element inherits it
      (scrollbar-color inherits), including ones added later.
    - Small boxes and pop-ups (emoji picker, suggestions, action sheet, attachment tray, image
-    viewer thumbnails, code) and a guild's channel list:
+    viewer thumbnails, code, the task assignee picker) and a guild's channel list:
      a thin bar, listed below.
    The message editor keeps its own (.message-editor). Chrome and Firefox use the standard
    properties; the ::-webkit-scrollbar rules are for Safari, which doesn't support them (Chrome
@@ -866,6 +866,7 @@ html {
 .action-sheet,
 .pins-panel-list,
 .guild-search-suggestions,
+.task-assignee-picker ul,
 .guild-channel-list,
 .attachment-tray,
 .image-viewer-thumbnails,

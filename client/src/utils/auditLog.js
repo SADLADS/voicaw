@@ -30,6 +30,7 @@ export function permissionNames(bits) {
 }
 
 const channel = (name) => ({ name: `#${name ?? 'deleted-channel'}` });
+const CHANNEL_KINDS = { voice: 'voice ', list: 'list ' };
 
 // The sentence for `entry`. `names` has `user(id)` and `webhook(id, fallback)`, which give a
 // display name. -> [string | { name }]
@@ -60,9 +61,9 @@ export function describeEntry(entry, names) {
     case 'role_create': return [actor, ' created the role ', { name: d.name }];
     case 'role_update': return [actor, ' changed the role ', { name: d.name }];
     case 'role_delete': return [actor, ' deleted the role ', { name: d.name }];
-    case 'channel_create': return [actor, ` created the ${d.type === 'voice' ? 'voice ' : ''}channel `, channel(d.name)];
+    case 'channel_create': return [actor, ` created the ${CHANNEL_KINDS[d.type] ?? ''}channel `, channel(d.name)];
     case 'channel_update': return [actor, ' changed the channel ', channel(d.name)];
-    case 'channel_delete': return [actor, ` deleted the ${d.type === 'voice' ? 'voice ' : ''}channel `, channel(d.name)];
+    case 'channel_delete': return [actor, ` deleted the ${CHANNEL_KINDS[d.type] ?? ''}channel `, channel(d.name)];
     case 'channel_override_update': {
       const who = entry.target_type === 'role' ? { name: d.targetName ?? 'a role' } : target();
       return [actor, ' changed the permissions of ', who, ' in ', channel(d.channelName)];

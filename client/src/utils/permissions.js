@@ -21,10 +21,12 @@ export const PERMISSIONS = {
   PIN_MESSAGES: 1 << 15,
   MANAGE_WEBHOOKS: 1 << 16,
   VIEW_AUDIT_LOG: 1 << 17,
+  EDIT_TASKS: 1 << 18,
 };
 
 export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
-  PERMISSIONS.ADD_REACTIONS | PERMISSIONS.CREATE_INVITE | PERMISSIONS.CONNECT | PERMISSIONS.SPEAK;
+  PERMISSIONS.ADD_REACTIONS | PERMISSIONS.CREATE_INVITE | PERMISSIONS.CONNECT | PERMISSIONS.SPEAK |
+  PERMISSIONS.EDIT_TASKS;
 
 export const has = (permissions, bit) => ((permissions ?? 0) & bit) === bit;
 
@@ -68,6 +70,12 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
+    title: 'List channels',
+    items: [
+      ['EDIT_TASKS', 'Edit Tasks', 'Lets members add, edit, assign, complete, reorder and delete tasks in list channels. Commenting on tasks follows Send Messages.'],
+    ],
+  },
+  {
     title: 'Advanced',
     items: [
       ['ADMINISTRATOR', 'Administrator', 'Every permission, in every channel, whatever the channel settings. Handle with care.'],
@@ -88,6 +96,12 @@ const CHANNEL_PERMISSION_ITEMS = {
     ['VIEW_CHANNEL', 'View Channel'],
     ['CONNECT', 'Connect'],
     ['SPEAK', 'Speak'],
+  ],
+  list: [
+    ['VIEW_CHANNEL', 'View Channel'],
+    ['EDIT_TASKS', 'Edit Tasks'],
+    ['SEND_MESSAGES', 'Comment on Tasks'],
+    ['MANAGE_MESSAGES', 'Manage Comments'],
   ],
 };
 
