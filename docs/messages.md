@@ -316,6 +316,12 @@ avatar, name and date (`.grouped`; the time shows in the avatar column on hover,
 goes after the text). A group DM message whose sender isn't verified (unsigned or a bad
 signature) never groups, either way, so it can't pass as the person above.
 
+The first message of a group has its avatar in the gutter (`--message-gutter`), out of the
+text's flow, like Discord's: 44px, from the top of the name to the bottom of the first line of
+text below it (two 24px lines less 2px each end). It's placed in px rather than lined up with
+the text, so a message starting with a heading or big emoji doesn't move it. A reply's
+connecting line comes down to its middle. `e2e/avatar.mjs` measures all of this.
+
 Where a new day starts (on the device's calendar), a line with the date in words goes across
 the chat, like Discord's (`startsNewDay` in the same file, `DayDivider` in `MessageList`,
 `formatLongDate`: "11 September 2026" in the Date & time setting's order). The first loaded
