@@ -6,9 +6,11 @@ import { useSyncExternalStore } from 'react';
 // `inviteEmbedsInEncrypted`: invite cards in DMs and group DMs load by themselves (on by
 // default). Asking the server about an invite tells it which invite an encrypted message held;
 // turned off, the card waits for a tap on Show (guild channels always load them).
+// `sendTyping`: the others in a chat see "… is typing" while you write (on by default). In DMs
+// and group DMs that tells the server when you're typing to whom (never what).
 
 const STORAGE_KEY = 'privacy';
-const DEFAULTS = { inviteEmbedsInEncrypted: true };
+const DEFAULTS = { inviteEmbedsInEncrypted: true, sendTyping: true };
 const listeners = new Set();
 
 function load() {

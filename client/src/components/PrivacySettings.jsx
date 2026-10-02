@@ -24,6 +24,19 @@ export default function PrivacySettings() {
         was in your end-to-end encrypted message. Turn this off and the card waits until you tap
         Show. Guild channels aren&apos;t encrypted, so their invites always show. Saved on this device.
       </p>
+      <label className="settings-toggle">
+        <input
+          type="checkbox"
+          checked={prefs.sendTyping}
+          onChange={(e) => setPrivacyPref('sendTyping', e.target.checked)}
+        />
+        {' '}Let others see when I&apos;m typing
+      </label>
+      <p className="vc-hint">
+        While you write a message, the others in the chat see that you&apos;re typing. In DMs
+        and group DMs this tells the Voicaw server when you&apos;re typing and to whom, though never
+        what. Turn it off and nobody sees you typing; you still see others. Saved on this device.
+      </p>
     </div>
   );
 }

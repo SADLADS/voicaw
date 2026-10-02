@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useRef, useState } from 'rea
 import EmojiPicker from './EmojiPicker';
 import MessageList from './MessageList';
 import Composer from './Composer';
+import TypingIndicator from './TypingIndicator';
 import MessageActionSheet from './MessageActionSheet';
 import ConfirmDialog from './guild/ConfirmDialog';
 import PinnedMessages from './PinnedMessages';
@@ -15,6 +16,7 @@ import { mentionsToText } from '../utils/mentions';
 import { hideSpoilers } from '../utils/remarkDiscord';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 import { displayName } from '../utils/profiles';
+import { clearTyping } from '../utils/typing';
 import { endPoll, parsePoll, pollEnded, pollMarkup } from '../utils/pollMarkup';
 import { endPollOnServer, registerPollTimer } from '../services/pollService';
 
@@ -147,6 +149,12 @@ export default function ChatPane({
     setEditingMessageId(null);
     setEditingPoll(null);
   }, [chatId]);
+
+  // Someone's message arriving means they've stopped typing (it can beat their typing timeout).
+  const newest = messages[messages.length - 1];
+  useEffect(() => {
+    if (newest?.sender_id != null) clearTyping(chatId, newest.sender_id);
+  }, [chatId, newest?.id, newest?.sender_id]);
 
   // Remember the keyboard's height (mobile), so the emoji panel can match it.
   useEffect(() => (isMobile ? watchKeyboardHeight() : undefined), [isMobile]);
@@ -325,6 +333,8 @@ export default function ChatPane({
           </div>
         );
       })()}
+
+      <TypingIndicator chatId={chatId} names={reactionNames} />
 
       {!canSend ? (
         <div className="composer-locked" role="status">{cantSendText}</div>
