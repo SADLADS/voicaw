@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useNavigate } from 'react-router-dom';
 
 const dmListeners = vi.hoisted(() => ({ newDm: [], deleteDm: [], editDm: [], reactionAdd: [], reactionRemove: [], pin: [] }));
 
@@ -126,6 +126,8 @@ vi.mock('./MessageList', () => ({
 
 import Dm from './Dm';
 import { editorFor } from '../editor/editorRegistry';
+import { clearDrafts, saveDraft } from '../services/draftStore';
+import api from '../utils/api';
 
 // The message box is an editor (contenteditable), which jsdom can't type into: tests drive
 // it through its handle.
@@ -152,6 +154,14 @@ const chatUserFull = {
   id: 2, username: 'bob', identity_key: 'bob-identity', encryption_key: 'bob-enc', encryption_key_signature: 'bob-sig',
 };
 const chatUserNoKey = { id: 3, username: 'nokey' };
+const carol = { ...chatUserFull, id: 4, username: 'carol' };
+
+// Lets a test move to another route without remounting the page.
+let navigateTo;
+function NavigateHandle() {
+  navigateTo = useNavigate();
+  return null;
+}
 
 const emojiIndex = buildEmojiIndex(emojiData);
 
@@ -170,6 +180,7 @@ function renderDm({ path, users, user = currentUser, layoutOverrides = {}, isMob
             <Routes>
               <Route path="/dm/:id?" element={<Dm user={user} />} />
             </Routes>
+            <NavigateHandle />
           </MemoryRouter>
         </LayoutContext.Provider>
       </InteractionContext.Provider>
@@ -188,6 +199,7 @@ beforeEach(() => {
   dmListeners.reactionRemove = [];
   dmListeners.pin = [];
   localStorage.clear();
+  clearDrafts();
   fetchPins.mockResolvedValue([]);
   fetchMessagesForUser.mockResolvedValue([]);
   deriveConversationKey.mockResolvedValue('shared-key');
@@ -305,6 +317,74 @@ describe('Dm', () => {
     renderDm({ path: '/dm/2', users: [chatUserFull] });
 
     await waitFor(() => expect(markMessagesRead).toHaveBeenCalledWith(2));
+  });
+});
+
+describe('Dm drafts', () => {
+  const emptyChat = () => screen.findByText('No messages yet. Start the conversation!');
+
+  it('keeps what was typed when leaving the page and coming back', async () => {
+    const first = renderDm({ path: '/dm/2', users: [chatUserFull, carol] });
+    await emptyChat();
+    setBoxText('half a thought');
+    first.unmount();
+
+    const second = renderDm({ path: '/dm/4', users: [chatUserFull, carol] });
+    await emptyChat();
+    expect(boxText()).toBe('');
+    second.unmount();
+
+    renderDm({ path: '/dm/2', users: [chatUserFull, carol] });
+    await emptyChat();
+    expect(boxText()).toBe('half a thought');
+  });
+
+  it('swaps drafts when switching conversation, and sending forgets it', async () => {
+    sendMessageToUser.mockResolvedValue({ id: 99, sender_id: 1, recipient_id: 2, content: 'ENCX', timestamp: 2000 });
+    renderDm({ path: '/dm/2', users: [chatUserFull, carol] });
+    await emptyChat();
+    setBoxText('for bob');
+
+    act(() => navigateTo('/dm/4'));
+    await waitFor(() => expect(box()).toHaveAttribute('aria-label', 'Message carol'));
+    expect(boxText()).toBe('');
+    setBoxText('for carol');
+
+    act(() => navigateTo('/dm/2'));
+    await waitFor(() => expect(boxText()).toBe('for bob'));
+    fireEvent.submit(document.getElementById('dm-chat-form'));
+    expect(await screen.findByText('for bob [sent]')).toBeInTheDocument();
+
+    act(() => navigateTo('/dm/4'));
+    await waitFor(() => expect(boxText()).toBe('for carol'));
+    act(() => navigateTo('/dm/2'));
+    await waitFor(() => expect(box()).toHaveAttribute('aria-label', 'Message bob'));
+    expect(boxText()).toBe('');
+  });
+
+  it("leaves out unsent attachments, which don't come along", async () => {
+    renderDm({ path: '/dm/2', users: [chatUserFull, carol] });
+    await emptyChat();
+    setBoxText('look: ');
+    fireEvent.paste(box(), { clipboardData: { files: [new File(['x'], 'cat.png', { type: 'image/png' })], getData: () => '' } });
+    await waitFor(() => expect(boxText()).toBe('look: ![cat.png](attachment:1)'));
+
+    act(() => navigateTo('/dm/4'));
+    await waitFor(() => expect(box()).toHaveAttribute('aria-label', 'Message carol'));
+    act(() => navigateTo('/dm/2'));
+
+    await waitFor(() => expect(boxText()).toBe('look: '));
+    expect(screen.queryByRole('img', { name: 'cat.png' })).not.toBeInTheDocument();
+  });
+
+  it("putting a draft back doesn't tell the other person you're typing", async () => {
+    saveDraft(4, 'still here');
+
+    renderDm({ path: '/dm/4', users: [carol] });
+    await emptyChat();
+
+    expect(boxText()).toBe('still here');
+    expect(api.post).not.toHaveBeenCalledWith('/typing', expect.anything());
   });
 });
 

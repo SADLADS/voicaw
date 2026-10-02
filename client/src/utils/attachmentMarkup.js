@@ -48,6 +48,11 @@ export function removePlaceholder(text, id) {
   );
 }
 
+// Drops every `attachment:ID` placeholder (sent attachments stay).
+export function removePlaceholders(text) {
+  return text.replace(EMBED_RE, (match, alt, url) => (placeholderIdFromUrl(url) !== null ? '' : match));
+}
+
 // Swaps `attachment:ID` URLs for urlsById[ID], keeping the alt text.
 export function replacePlaceholders(text, urlsById) {
   return text.replace(EMBED_RE, (match, alt, url) => {

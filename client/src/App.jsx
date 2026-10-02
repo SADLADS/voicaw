@@ -25,6 +25,7 @@ import UpdateBanner from './components/UpdateBanner';
 import ImageViewerProvider from './components/ImageViewerProvider';
 import { MessageImageMenus } from './components/ImageMenu';
 import { disableNotificationsOnThisDevice } from './services/pushService';
+import { clearDrafts } from './services/draftStore';
 import { setCustomEmojiBase } from './emoji/customEmoji';
 import { setAvatarBase } from './utils/profiles';
 
@@ -124,6 +125,7 @@ export default function App() {
     } catch (err) {
       console.error('Failed to clear stored keys on logout', err);
     }
+    clearDrafts();
     closeWebSocket();
     setUser(null);
   }

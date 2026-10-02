@@ -25,6 +25,7 @@ import { searchChannels, searchMentions } from '../utils/mentions';
 import { gifMarkup } from '../utils/gifMarkup';
 import { displayName, nameOf, useProfiles } from '../utils/profiles';
 import { noteTyping, typingDone } from '../services/typingService';
+import { getDraft, saveDraft } from '../services/draftStore';
 
 // ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
 const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
@@ -42,7 +43,7 @@ const CHANNEL_QUERY = /(?:^|[\s([{])#([^\s#<>]{0,100})$/;
 // in a guild also `roles`, [{ id, name, color }], and @everyone/@here with `canMentionEveryone`;
 // `roleInfo` ({ id: { name, color } }) draws role mentions in the box), channel mentions in a
 // guild ("#gen" suggestions from `channels`, [{ id, name, type, private, category }]) and the
-// reply bar.
+// reply bar. What's typed is kept per conversation while the app is open (draftStore).
 //
 // `onSend({ text, replyTo, localAttachments, resolveText })` sends (see useConversation's
 // sendMessage); `onSendPoll({ poll, replyTo })` sends a poll made in PollDialog (see ChatPane).
@@ -88,6 +89,9 @@ export default function Composer({
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [creatingPoll, setCreatingPoll] = useState(false);
   const addMenuRef = useRef(null);
+  // The conversation the box's text is saved for, and whether its draft is being put back.
+  const draftChatId = useRef(chatId);
+  const restoringDraft = useRef(false);
 
   // Emoji from the picker (Unicode, or `<:name:id>`). On mobile the box isn't focused (that
   // would open the keyboard).
@@ -183,6 +187,9 @@ export default function Composer({
     setInputValue(text);
     setBeforeCaret(line);
     if (!docChanged) return;
+    saveDraft(draftChatId.current, text);
+    // Putting a draft back isn't typing.
+    if (restoringDraft.current) return;
     if (text.trim()) noteTyping(chatId);
     else typingDone(chatId);
     setSuggestionIndex(0);
@@ -300,6 +307,21 @@ export default function Composer({
     await onSendPoll({ poll, replyTo });
     onCancelReply();
   }
+
+  // Opening a conversation puts back what was left typed in it (after the previous one's
+  // attachments have gone, see useAttachmentDrafts).
+  useEffect(() => {
+    draftChatId.current = chatId;
+    const editor = inputRef.current;
+    const draft = getDraft(chatId);
+    if (!editor || editor.getText() === draft) return;
+    restoringDraft.current = true;
+    try {
+      editor.setText(draft);
+    } finally {
+      restoringDraft.current = false;
+    }
+  }, [chatId, inputRef]);
 
   // The + menu closes on a click outside it or Escape.
   useEffect(() => {

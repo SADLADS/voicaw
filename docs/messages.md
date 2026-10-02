@@ -1,4 +1,4 @@
-# Messages: emoji, markdown, GIFs, polls, mentions, pins, the message list
+# Messages: emoji, markdown, GIFs, polls, mentions, pins, drafts, the message list
 
 ## Emoji (Discord-style, default Unicode set)
 
@@ -302,6 +302,23 @@ chat (`MAX_PINS`, Discord's number; 400 past it).
   a small pin by its time (after the text when grouped).
 - **Not done yet:** a "X pinned a message" line in the chat (Discord's system message) and
   notifications for pins.
+
+## Unsent messages (drafts)
+
+What's typed in a conversation's message box (DM, group DM, notes, guild or document channel)
+is still there after going elsewhere in the app (another conversation, Settings, a guild) and
+back, like Discord. `services/draftStore.js` keeps it by `ChatPane`'s `chatId`; `Composer`
+saves on every edit and puts the draft back when it opens or its `chatId` changes (without
+counting as typing, so no typing event is sent, and without `:shortcode:` conversion). Sending,
+or emptying the box, forgets it.
+
+Drafts are **only in memory**, never in `localStorage`, `sessionStorage` or IndexedDB: the text
+of encrypted chats stays off the disk, as with messages (the device stores no message
+plaintext). So closing the tab, window or app forgets them, and so does a reload. Logging out
+clears them all (`App.jsx`), so the next account on that tab doesn't see them. Attachments
+aren't kept: they're dropped on leaving the conversation (`useAttachmentDrafts`), so their
+placeholders are taken out of the saved text. A reply being set up isn't kept either.
+`e2e/drafts.mjs` checks it in the browser.
 
 ## DM message list and history loading
 
