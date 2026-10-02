@@ -12,6 +12,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClock } from '@fortawesome/free-solid-svg-icons';
 import { useVisualViewport } from '../utils/useVisualViewport';
 import { hasVirtualKeyboardApi, setKeyboardOverlaysContent, watchKeyboardRect } from '../utils/virtualKeyboard';
+import { useSheetDrag } from '../hooks/useSheetDrag';
 
 // `?kbdebug` in the URL shows the keyboard/viewport numbers during mobile emoji search.
 const KEYBOARD_DEBUG = typeof location !== 'undefined' && new URLSearchParams(location.search).has('kbdebug');
@@ -142,7 +143,10 @@ function CustomEmojiButton({ emoji, s3Endpoint, onPick, onHover, keepFocus }) {
 // of floating over the chat, and has no hover preview (touch screens don't hover). Its
 // search box isn't focused on open (that would summon the keyboard); tapping it does, and the
 // picker then goes full screen above the keyboard for searching. Picking or going back
-// returns to the docked panel and dismisses the keyboard.
+// returns to the docked panel and dismisses the keyboard. Swiping the docked panel up (or
+// tapping its handle) makes it full screen, to see more emoji or GIFs at once; swiping down
+// (on its top bar, or on the grid scrolled to the top) or the handle again brings it back
+// (useSheetDrag). It stays full screen after a search from there.
 export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true, docked = false, height }) {
   const index = useEmojiIndex();
   const custom = useCustomEmoji();
@@ -166,6 +170,9 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
   // Chromium: exact keyboard geometry (see utils/virtualKeyboard.js); others: visual viewport.
   const useKeyboardApi = docked && hasVirtualKeyboardApi();
   const [keyboardRect, setKeyboardRect] = useState(null);
+  // Docked only: pulled up to full screen.
+  const [expanded, setExpanded] = useState(false);
+  useSheetDrag({ sheetRef: rootRef, enabled: docked && !searching, expanded, setExpanded, collapsedHeight: height });
   const keyboardOpen = useKeyboardApi ? (keyboardRect?.height ?? 0) > 0 : visible.keyboardOpen;
 
   useEffect(() => {
@@ -322,164 +329,180 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
     : <EmojiButton key={emoji.id} emoji={emoji} tone={tone} onPick={pick} onHover={setHovered} keepFocus={docked && searching} />);
 
   return (
-    <div
-      className={`emoji-picker${docked ? ' docked' : ''}${docked && searching ? ' searching' : ''}${gifTab ? ' gifs' : ''}`}
-      style={
-        docked && searching
-          // Picker plus keyboard fill the screen, with no sliver of the page between them.
-          ? searchBox()
-          : docked && height ? { height: `${height}px` } : undefined
-      }
-      ref={rootRef}
-      role="dialog"
-      aria-label="Emoji picker"
-    >
-      {index && <style>{index.sheetCss}</style>}
-      {hasGifs && !(docked && searching) && (
-        <div className="emoji-picker-tabs" role="tablist" aria-label="Picker">
-          {[['emoji', 'Emoji'], ['gifs', 'GIFs']].map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={(id === 'gifs') === gifTab}
-              className={(id === 'gifs') === gifTab ? 'active' : undefined}
-              onClick={() => setTab(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="emoji-picker-header">
-        {docked && searching && (
-          <button type="button" className="emoji-picker-back" onClick={stopSearching} aria-label="Close search">
-            ←
-          </button>
+    <>
+      <div
+        className={`emoji-picker${docked ? ' docked' : ''}${docked && searching ? ' searching' : ''}${docked && expanded ? ' expanded' : ''}${gifTab ? ' gifs' : ''}`}
+        style={
+          docked && searching
+            // Picker plus keyboard fill the screen, with no sliver of the page between them.
+            ? searchBox()
+            : docked && height && !expanded ? { height: `${height}px` } : undefined
+        }
+        ref={rootRef}
+        role="dialog"
+        aria-label="Emoji picker"
+      >
+        {index && <style>{index.sheetCss}</style>}
+        {docked && !searching && (
+          <button
+            type="button"
+            className="emoji-picker-handle"
+            onClick={() => setExpanded((v) => !v)}
+            aria-label={expanded ? 'Shrink picker' : 'Expand picker'}
+            aria-expanded={expanded}
+          />
         )}
-        <input
-          ref={searchRef}
-          className="emoji-picker-search"
-          type="search"
-          enterKeyHint="search"
-          placeholder={gifTab ? 'Search KLIPY' : 'Find the perfect emoji'}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={onSearchKeyDown}
-          // Docked: tapping the box opens the keyboard (a real tap, so iOS allows it) and goes full screen.
-          // Chromium: have the keyboard overlay the page (exact geometry) before it opens.
-          onPointerDown={docked ? () => setKeyboardOverlaysContent(true) : undefined}
-          onFocus={docked ? () => { setKeyboardOverlaysContent(true); setSearching(true); } : undefined}
-          onBlur={docked ? keyboardClosed : undefined}
-          aria-label={gifTab ? 'Search GIFs' : 'Search emoji'}
-        />
-        {toneSample && !gifTab && !(docked && searching) && (
-          <div className="emoji-picker-tones">
-            <button
-              type="button"
-              className="emoji-picker-tone-toggle"
-              onClick={() => setShowTones((v) => !v)}
-              aria-label="Skin tone"
-              aria-expanded={showTones}
-            >
-              <SheetEmoji unified={skinFor(toneSample, tone).unified} />
+        {hasGifs && !(docked && searching) && (
+          <div className="emoji-picker-tabs" role="tablist" aria-label="Picker">
+            {[['emoji', 'Emoji'], ['gifs', 'GIFs']].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={(id === 'gifs') === gifTab}
+                className={(id === 'gifs') === gifTab ? 'active' : undefined}
+                onClick={() => setTab(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="emoji-picker-header">
+          {docked && searching && (
+            <button type="button" className="emoji-picker-back" onClick={stopSearching} aria-label="Close search">
+              ←
             </button>
-            {showTones && (
-              <div className="emoji-picker-tone-menu" role="menu">
-                {toneSample.skins.map((skin, value) => (
-                  <button
-                    key={skin.unified}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={value === tone}
-                    aria-label={`Skin tone ${value}`}
-                    onClick={() => chooseTone(value)}
-                  >
-                    <SheetEmoji unified={skin.unified} />
+          )}
+          <input
+            ref={searchRef}
+            className="emoji-picker-search"
+            type="search"
+            enterKeyHint="search"
+            placeholder={gifTab ? 'Search KLIPY' : 'Find the perfect emoji'}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={onSearchKeyDown}
+            // Docked: tapping the box opens the keyboard (a real tap, so iOS allows it) and goes full screen.
+            // Chromium: have the keyboard overlay the page (exact geometry) before it opens.
+            onPointerDown={docked ? () => setKeyboardOverlaysContent(true) : undefined}
+            onFocus={docked ? () => { setKeyboardOverlaysContent(true); setSearching(true); } : undefined}
+            onBlur={docked ? keyboardClosed : undefined}
+            aria-label={gifTab ? 'Search GIFs' : 'Search emoji'}
+          />
+          {toneSample && !gifTab && !(docked && searching) && (
+            <div className="emoji-picker-tones">
+              <button
+                type="button"
+                className="emoji-picker-tone-toggle"
+                onClick={() => setShowTones((v) => !v)}
+                aria-label="Skin tone"
+                aria-expanded={showTones}
+              >
+                <SheetEmoji unified={skinFor(toneSample, tone).unified} />
+              </button>
+              {showTones && (
+                <div className="emoji-picker-tone-menu" role="menu">
+                  {toneSample.skins.map((skin, value) => (
+                    <button
+                      key={skin.unified}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={value === tone}
+                      aria-label={`Skin tone ${value}`}
+                      onClick={() => chooseTone(value)}
+                    >
+                      <SheetEmoji unified={skin.unified} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {gifTab ? (
+          <GifPicker query={query} onPick={pickGif} keepFocus={docked && searching} />
+        ) : !index ? (
+          <div className="emoji-picker-empty">Loading emoji…</div>
+        ) : (
+          <div className="emoji-picker-body">
+            {!results && (
+              <nav className="emoji-picker-nav" aria-label="Emoji categories">
+                {sections.map((section) => (
+                  <button key={section.id} type="button" onClick={() => jumpTo(section.id)} title={section.name} aria-label={section.name}>
+                    {section.guild ? (
+                      <GuildIcon guild={section.guild} className="emoji-picker-guild-icon" />
+                    ) : section.id === 'frequent' ? (
+                      <FontAwesomeIcon icon={faClock} className="emoji-picker-frequent-icon" />
+                    ) : (
+                      <SheetEmoji unified={section.emojis[0].skins[0].unified} />
+                    )}
                   </button>
                 ))}
-              </div>
+              </nav>
+            )}
+            <div className="emoji-picker-scroll" ref={scrollRef}>
+              <NearbyContext.Provider value={nearby}>
+                {results ? (
+                  results.length ? (
+                    <div className="emoji-picker-grid">
+                      {results.map(renderItem)}
+                    </div>
+                  ) : (
+                    <div className="emoji-picker-empty">No emoji match "{query}"</div>
+                  )
+                ) : (
+                  sections.map((section) => (
+                    <section key={section.id} data-section={section.id}>
+                      <h6 className="emoji-picker-section-title">{section.name}</h6>
+                      <div className="emoji-picker-grid">
+                        {section.emojis.map(renderItem)}
+                      </div>
+                    </section>
+                  ))
+                )}
+              </NearbyContext.Provider>
+            </div>
+          </div>
+        )}
+
+        {KEYBOARD_DEBUG && docked && searching && (
+          <pre className="emoji-picker-kbdebug">
+            {JSON.stringify({
+              innerHeight: window.innerHeight,
+              visualViewport: { height: visible.height, offsetTop: visible.offsetTop },
+              keyboardApi: useKeyboardApi,
+              keyboardRect: keyboardRect && { y: keyboardRect.y, height: keyboardRect.height },
+              picker: searchBox(),
+            }, null, 1)}
+          </pre>
+        )}
+
+        {!docked && !gifTab && (
+          <div className="emoji-picker-preview">
+            {hovered?.guild ? (
+              <>
+                <img className="emoji" src={customEmojiUrl(hovered.id, s3Endpoint)} alt="" draggable={false} />
+                <span className="emoji-picker-preview-code">:{hovered.name}:</span>
+                <span className="emoji-picker-preview-from">from {hovered.guild.name}</span>
+              </>
+            ) : preview ? (
+              <>
+                <SheetEmoji unified={preview.unified} />
+                <span className="emoji-picker-preview-code">:{hovered.id}:</span>
+              </>
+            ) : (
+              <span className="emoji-picker-preview-name">Pick an emoji</span>
             )}
           </div>
         )}
       </div>
-
-      {gifTab ? (
-        <GifPicker query={query} onPick={pickGif} keepFocus={docked && searching} />
-      ) : !index ? (
-        <div className="emoji-picker-empty">Loading emoji…</div>
-      ) : (
-        <div className="emoji-picker-body">
-          {!results && (
-            <nav className="emoji-picker-nav" aria-label="Emoji categories">
-              {sections.map((section) => (
-                <button key={section.id} type="button" onClick={() => jumpTo(section.id)} title={section.name} aria-label={section.name}>
-                  {section.guild ? (
-                    <GuildIcon guild={section.guild} className="emoji-picker-guild-icon" />
-                  ) : section.id === 'frequent' ? (
-                    <FontAwesomeIcon icon={faClock} className="emoji-picker-frequent-icon" />
-                  ) : (
-                    <SheetEmoji unified={section.emojis[0].skins[0].unified} />
-                  )}
-                </button>
-              ))}
-            </nav>
-          )}
-          <div className="emoji-picker-scroll" ref={scrollRef}>
-            <NearbyContext.Provider value={nearby}>
-              {results ? (
-                results.length ? (
-                  <div className="emoji-picker-grid">
-                    {results.map(renderItem)}
-                  </div>
-                ) : (
-                  <div className="emoji-picker-empty">No emoji match "{query}"</div>
-                )
-              ) : (
-                sections.map((section) => (
-                  <section key={section.id} data-section={section.id}>
-                    <h6 className="emoji-picker-section-title">{section.name}</h6>
-                    <div className="emoji-picker-grid">
-                      {section.emojis.map(renderItem)}
-                    </div>
-                  </section>
-                ))
-              )}
-            </NearbyContext.Provider>
-          </div>
-        </div>
+      {docked && (
+        // Holds the docked panel's place while it's lifted out (full screen or being dragged),
+        // so the chat above doesn't jump.
+        <div className="emoji-picker-spacer" style={height ? { height: `${height}px` } : undefined} aria-hidden="true" />
       )}
-
-      {KEYBOARD_DEBUG && docked && searching && (
-        <pre className="emoji-picker-kbdebug">
-          {JSON.stringify({
-            innerHeight: window.innerHeight,
-            visualViewport: { height: visible.height, offsetTop: visible.offsetTop },
-            keyboardApi: useKeyboardApi,
-            keyboardRect: keyboardRect && { y: keyboardRect.y, height: keyboardRect.height },
-            picker: searchBox(),
-          }, null, 1)}
-        </pre>
-      )}
-
-      {!docked && !gifTab && (
-        <div className="emoji-picker-preview">
-          {hovered?.guild ? (
-            <>
-              <img className="emoji" src={customEmojiUrl(hovered.id, s3Endpoint)} alt="" draggable={false} />
-              <span className="emoji-picker-preview-code">:{hovered.name}:</span>
-              <span className="emoji-picker-preview-from">from {hovered.guild.name}</span>
-            </>
-          ) : preview ? (
-            <>
-              <SheetEmoji unified={preview.unified} />
-              <span className="emoji-picker-preview-code">:{hovered.id}:</span>
-            </>
-          ) : (
-            <span className="emoji-picker-preview-name">Pick an emoji</span>
-          )}
-        </div>
-      )}
-    </div>
+    </>
   );
 }

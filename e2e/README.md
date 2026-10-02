@@ -14,6 +14,7 @@ node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots int
 node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permissions
 node e2e/auditlog.mjs [dir] # audit log: mod deletes a message, role change, details, filters, no access, phone
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
+node e2e/pickerswipe.mjs [dir] # phone emoji panel: swipe up = full screen (follows finger, chat doesn't jump), grid scrolls, swipe down / handle = back, search from full screen
 node e2e/emojisheets.mjs [dir] # picker sprite sheets: no per-emoji SVGs, time to draw (cold, worker's copy), skin tone sheet, phone
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
 node e2e/rejoin.mjs [dir] # voice after a lost connection: Reconnecting, rejoins by itself, phone waits until back in view, leave stays left

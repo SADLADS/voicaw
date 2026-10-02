@@ -734,6 +734,21 @@ describe('Dm emoji', () => {
       expect(document.activeElement).not.toBe(screen.getByRole('searchbox', { name: 'Search emoji' }));
     });
 
+    it('goes full screen from the handle, and back', async () => {
+      localStorage.setItem('keyboardHeight', '300');
+      await openMobileChat();
+      fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));
+      const panel = screen.getByRole('dialog', { name: 'Emoji picker' });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Expand picker' }));
+      expect(panel).toHaveClass('expanded');
+      expect(panel.style.height).toBe(''); // the whole screen (CSS)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Shrink picker' }));
+      expect(panel).not.toHaveClass('expanded');
+      expect(panel.style.height).toBe('300px');
+    });
+
     it('goes full screen above the keyboard to search, and back to the panel after picking', async () => {
       await openMobileChat();
       fireEvent.click(screen.getByRole('button', { name: 'Emoji' }));

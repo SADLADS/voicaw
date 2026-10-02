@@ -62,7 +62,12 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
 - Mobile: the picker is `docked` in the on-screen keyboard's place, at its height
   (`utils/keyboardHeight.js` measures it via `visualViewport` and remembers it per device). It and
   the keyboard are never open together: opening it blurs the message box, and the button (⌨️ while
-  open) or focusing the message box swaps back. Picks don't close it. Searching is the one
+  open) or focusing the message box swaps back. Picks don't close it. It's a bottom sheet
+  (`hooks/useSheetDrag.js`): swiping it up (anywhere: while docked the grid doesn't scroll, the
+  swipe pulls the sheet) or tapping its handle makes it full screen; swiping down on its top bar,
+  or on the grid once it's scrolled to the top, or the handle again, brings it back. It follows
+  the finger and settles by flick speed or a 60px drag; a spacer keeps its place meanwhile so the
+  chat doesn't jump. Emoji and GIFs both, and the reaction picker. Searching is the one
   exception: tapping its search box (never auto-focused, since iOS only opens the keyboard for a
   real tap) switches to full-screen search, sized to the visible area above the keyboard
   (`utils/useVisualViewport.js`, unrounded, plus 1px hidden under the keyboard so no seam shows).
