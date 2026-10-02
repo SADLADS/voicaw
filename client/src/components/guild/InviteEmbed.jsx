@@ -5,15 +5,19 @@ import { LayoutContext } from '../../contexts';
 import GuildIcon from './GuildIcon';
 import { acceptInvite, fetchInvitePreview, invitePreviewRequested } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
+import { usePrivacyPrefs } from '../../utils/privacy';
 
 // The card under a message with an invite link: the guild's picture and name, and Join Guild
 // (or Go to Guild when you're already in it).
 // `autoLoad` false (encrypted chats): the server would learn which invite someone was sent
-// just by the card asking about it, so it only asks once tapped.
+// just by the card asking about it, so it only asks once tapped, unless Settings → Privacy
+// says to load them anyway (utils/privacy).
 export default function InviteEmbed({ code, autoLoad = true }) {
   const navigate = useNavigate();
   const guildList = useContext(LayoutContext)?.guildList;
-  const [load, setLoad] = useState(() => autoLoad || invitePreviewRequested(code));
+  const loadAnyway = usePrivacyPrefs().inviteEmbedsInEncrypted;
+  const [shown, setShown] = useState(() => invitePreviewRequested(code));
+  const load = autoLoad || loadAnyway || shown;
   const [invite, setInvite] = useState(null);
   const [error, setError] = useState(null);
   const [joining, setJoining] = useState(false);
@@ -59,7 +63,7 @@ export default function InviteEmbed({ code, autoLoad = true }) {
     icon = <span className="guild-icon guild-initials invite-embed-icon" aria-hidden="true">?</span>;
     title = 'Guild invite';
     hint = 'Tap Show to see which guild';
-    button = <button type="button" className="btn btn-secondary" onClick={() => setLoad(true)}>Show</button>;
+    button = <button type="button" className="btn btn-secondary" onClick={() => setShown(true)}>Show</button>;
   } else if (error) {
     const invalid = error?.response?.status === 404;
     icon = <span className="guild-icon guild-initials invite-embed-icon invite-embed-invalid" aria-hidden="true">✕</span>;

@@ -42,7 +42,13 @@
   searches them (non-matching sections are hidden, not unmounted, so their state stays) and
   jumps to one; above its search, a card with your picture and name opens Edit Profile (its own
   page, `/settings/profile`); `/settings#<section id>` opens scrolled there (e.g. `RecoveryPrompt`'s
-  `#account-security`). Add a new setting as a section there.
+  `#account-security`). Add a new setting as a section there; a section may have an `icon`
+  (Font Awesome; shown in the column, its card draws it in its heading).
+- **Privacy** (Settings → Privacy, the puzzle piece, `PrivacySettings.jsx`): choices that give
+  the server (or another site) a little more for convenience, per device (`utils/privacy.js`,
+  `localStorage privacy`, JSON, all off by default; never sent to the server). So far:
+  `inviteEmbedsInEncrypted`, invite cards in DMs and group DMs load without Show (see
+  docs/guilds.md, Invite embeds). New privacy trade-offs go here.
 - Dates and times all go through `utils/dateFormat.js` (`formatDate`, `formatTime`,
   `formatDateTime`; components call `useDateFormat()` so they redraw): Settings → Date & time
   picks the date format (automatic from the browser, DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD) and

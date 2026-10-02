@@ -89,6 +89,20 @@ try {
   await b.click('.invite-embed button:has-text("Show")', { timeout: 10000 });
   await b.waitForSelector('.invite-embed button:has-text("Go to Guild")', { timeout: 10000 });
   await shot(b, 'dm-embed-member');
+
+  // Settings → Privacy (puzzle piece) can load them in DMs straight away; kept after a reload.
+  await b.goto(`${BASE}/settings`);
+  await b.waitForSelector('.settings-nav-item:has-text("Privacy") .settings-nav-icon');
+  const toggle = b.getByLabel('Show guild invites in DMs and group DMs straight away');
+  if (await toggle.isChecked()) throw new Error('invites in DMs load straight away by default');
+  await b.click('.settings-nav-item:has-text("Privacy")');
+  await toggle.check();
+  await shot(b, 'settings-privacy');
+  await b.reload();
+  await openChat(b, alice.id);
+  await b.waitForSelector('.invite-embed button:has-text("Go to Guild")', { timeout: 10000 });
+  if (await b.locator('.invite-embed button:has-text("Show")').count()) throw new Error('still asks for Show with the setting on');
+  console.log('privacy setting: DM card loads by itself once turned on');
   console.log('invites: ok');
 } catch (err) {
   console.error('invites: FAILED', err.message.split('\n')[0]);
