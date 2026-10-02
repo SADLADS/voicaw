@@ -29,7 +29,7 @@ node e2e/mutes.mjs [dir]  # muted channels: right-click mute, dimmed, no unread 
 node e2e/channelmenu.mjs [dir] # channel/category menus: read, mute, notify level, copy link, duplicate, delete, keys, edge; phone hold = sheet, hold+move = drag
 node e2e/channel-mentions.mjs [dir] # # suggestions, #channel links (click opens), private = unknown, edit, DM, phone
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
-node e2e/invites.mjs [dir] # invite embeds: channel (loads), DM (only after Show), Join Guild, Settings → Privacy loads them, phone
+node e2e/invites.mjs [dir] # invite embeds: channel and DM (load at once), Join Guild, Settings → Privacy off = Show first, phone
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
 node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, results, Jump into another channel, private channel, phone
 node e2e/days.mjs [dir]   # day dividers between days and above the first message (desktop + phone)

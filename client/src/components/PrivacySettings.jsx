@@ -4,7 +4,7 @@ import { faPuzzlePiece } from '@fortawesome/free-solid-svg-icons';
 import { setPrivacyPref, usePrivacyPrefs } from '../utils/privacy';
 
 // Settings → Privacy: choices that trade a little privacy for convenience, on this device
-// (utils/privacy).
+// (utils/privacy). Each defaults to the convenient option; turning it off is the private one.
 export default function PrivacySettings() {
   const prefs = usePrivacyPrefs();
   return (
@@ -21,7 +21,7 @@ export default function PrivacySettings() {
       <p className="vc-hint">
         A guild invite link in a message gets a card with the guild&apos;s name and picture. To fill
         it in, the app asks the Voicaw server about the invite, which tells the server which invite
-        was in your end-to-end encrypted message. When this is off, the card waits until you tap
+        was in your end-to-end encrypted message. Turn this off and the card waits until you tap
         Show. Guild channels aren&apos;t encrypted, so their invites always show. Saved on this device.
       </p>
     </div>

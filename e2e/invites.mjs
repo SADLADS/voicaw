@@ -1,5 +1,6 @@
-// Invite embeds in a real browser: an invite link in a channel shows its card at once; in a DM
-// (encrypted) only after Show; Join Guild joins and opens it, then the card says Go to Guild.
+// Invite embeds in a real browser: an invite link shows its card at once, in a channel and (by
+// default) in a DM; Join Guild joins and opens it; with Settings → Privacy's option off, a DM's
+// card asks nothing until Show, then says Go to Guild.
 //   node e2e/serve.mjs &   then   node e2e/invites.mjs [screenshot dir]
 import { launchChrome, signUp, openChat, send, devices, BASE } from './helpers.mjs';
 
@@ -57,21 +58,16 @@ try {
   await shot(a, 'channel-embed');
   console.log('channel: card loaded by itself, Go to Guild for a member');
 
-  // In a DM it waits for Show.
+  // In a DM it loads by itself too (Settings → Privacy, on by default).
   await openChat(a, bob.id);
   let inviteRequests = 0;
   b.on('request', (r) => { if (/\/api\/invites\//.test(r.url()) && r.method() === 'GET') inviteRequests += 1; });
   await openChat(b, alice.id);
   await send(a, `here: ${link}`);
-  await b.waitForSelector('.invite-embed .invite-embed-name:has-text("Guild invite")', { timeout: 10000 });
-  await b.waitForTimeout(500);
-  if (inviteRequests !== 0) throw new Error(`DM asked the server about the invite before Show (${inviteRequests})`);
-  await shot(b, 'dm-embed-hidden');
-  await b.click('.invite-embed button:has-text("Show")');
-  await b.waitForSelector('.invite-embed .invite-embed-name:has-text("Invite Test Guild")');
+  await b.waitForSelector('.invite-embed .invite-embed-name:has-text("Invite Test Guild")', { timeout: 10000 });
   await b.waitForSelector('.invite-embed-hint:has-text("1 member")');
-  await shot(b, 'dm-embed-shown');
-  console.log('dm: nothing asked until Show, then the guild');
+  await shot(b, 'dm-embed');
+  console.log('dm: card loaded by itself (default)');
 
   // The card fits the phone's width.
   const overflow = await b.evaluate(() => {
@@ -84,25 +80,25 @@ try {
   await b.waitForURL(/\/guild\/\d+/, { timeout: 10000 });
   console.log('joined, opened:', b.url().replace(BASE, ''));
 
-  // A reload forgets which invites were shown, so it asks for Show again.
-  await openChat(b, alice.id);
-  await b.click('.invite-embed button:has-text("Show")', { timeout: 10000 });
-  await b.waitForSelector('.invite-embed button:has-text("Go to Guild")', { timeout: 10000 });
-  await shot(b, 'dm-embed-member');
-
-  // Settings → Privacy (puzzle piece) can load them in DMs straight away; kept after a reload.
+  // Settings → Privacy (puzzle piece): turned off, a DM's card waits for Show; kept after a reload.
   await b.goto(`${BASE}/settings`);
   await b.waitForSelector('.settings-nav-item:has-text("Privacy") .settings-nav-icon');
   const toggle = b.getByLabel('Show guild invites in DMs and group DMs straight away');
-  if (await toggle.isChecked()) throw new Error('invites in DMs load straight away by default');
+  if (!(await toggle.isChecked())) throw new Error('invites in DMs should load straight away by default');
   await b.click('.settings-nav-item:has-text("Privacy")');
-  await toggle.check();
   await shot(b, 'settings-privacy');
+  await toggle.uncheck();
   await b.reload();
   await openChat(b, alice.id);
+  inviteRequests = 0;
+  await b.waitForSelector('.invite-embed .invite-embed-name:has-text("Guild invite")', { timeout: 10000 });
+  await b.waitForTimeout(500);
+  if (inviteRequests !== 0) throw new Error(`DM asked the server about the invite before Show (${inviteRequests})`);
+  await shot(b, 'dm-embed-hidden');
+  await b.click('.invite-embed button:has-text("Show")');
   await b.waitForSelector('.invite-embed button:has-text("Go to Guild")', { timeout: 10000 });
-  if (await b.locator('.invite-embed button:has-text("Show")').count()) throw new Error('still asks for Show with the setting on');
-  console.log('privacy setting: DM card loads by itself once turned on');
+  await shot(b, 'dm-embed-member');
+  console.log('privacy setting off: nothing asked until Show, then Go to Guild');
   console.log('invites: ok');
 } catch (err) {
   console.error('invites: FAILED', err.message.split('\n')[0]);
