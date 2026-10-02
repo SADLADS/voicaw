@@ -186,7 +186,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   - The Playwright WebKit build crashes opening the emoji picker (see `e2e/README.md`); not yet
     checked on a real iPhone.
   - nginx doesn't compress JS/CSS/SVG (`gzip_types` is commented out in
-    `/etc/nginx/nginx.conf`); first visits download the 1.6 MB main bundle uncompressed, and
+    `/etc/nginx/nginx.conf`); first visits download the 1.7 MB main bundle uncompressed, and
     Strong noise suppression's 17 MB (10 MB compressed) WebAssembly whole.
   - npm 11 warns that the install script of `esbuild` isn't in an `allowScripts` list yet. It
     still runs today; a future npm will need it approved (`npm install-scripts approve`).

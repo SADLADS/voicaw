@@ -148,6 +148,12 @@
   (`VITE_BUILD_TIME`) and has "Check for updates". Other tabs, and pages whose lazily loaded chunks
   are gone from the server (`vite:preloadError`), are offered a reload. The desktop app has no
   service worker: `watchDesktopUpdates` offers its own updates the same way (see Desktop app).
+- Precaching skips any file over 2 MiB (Workbox's `maximumFileSizeToCacheInBytes`), and the build
+  then fails: keep the main bundle (`assets/index-*.js`, 1.7 MB in October 2026) under it by
+  loading big, rarely needed code with `import()`, as OPAQUE is (`authService.js` `loadOpaque`,
+  ~400 kB, only for logging in, signing up and checking a password), the document editor and
+  DeepFilterNet. When a build fails this way, `/opt/voicaw-client` has already been replaced, and
+  its service worker precaches everything but that file.
 
 ## Profiles
 

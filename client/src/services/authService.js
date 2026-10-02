@@ -1,4 +1,3 @@
-import * as opaque from '@serenity-kit/opaque';
 import api from '../utils/api';
 import {
   generateUserKeys, wrapKeyBackup, unwrapKeyBackup, generateRecoveryCode, normalizeRecoveryCode, recoveryAuth,
@@ -33,10 +32,22 @@ async function send(method, path, body) {
 
 const post = (path, body) => send('post', path, body);
 
+// OPAQUE (with its WebAssembly, ~400 kB) loads the first time it's needed: logging in,
+// signing up or checking a password, not with the rest of the app on every start.
+let opaqueModule = null;
+function loadOpaque() {
+  opaqueModule ??= import('@serenity-kit/opaque').then(async (m) => {
+    await m.ready;
+    return m;
+  });
+  return opaqueModule;
+}
+
 // Resolves to the user ({ token, id, username }); throws an Error with a message to show.
 export async function logIn(username, password) {
   if (!username || !password) throw new Error('Username and password are required');
 
+  const opaque = await loadOpaque();
   const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
   // clientLoginState is this device's secret half of the OPAQUE exchange: never send it.
   const started = await post('/initiatelogin', { startLoginRequest, userIdentifier: username });
@@ -84,6 +95,7 @@ function checkNewPassword(password) {
 
 // OPAQUE registration for `password`: { registrationRecord, exportKey }.
 async function registerPassword(username, password) {
+  const opaque = await loadOpaque();
   const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
   const started = await post('/initiateregister', { userIdentifier: username, registrationRequest });
   if (started.error) throw new Error(started.error);
@@ -143,6 +155,7 @@ export async function register(username, password) {
 // backup with it. Resolves to { proof, keys }; `proof` goes along with the change.
 async function unlockWithPassword(username, password) {
   if (!password) throw new Error('Enter your current password');
+  const opaque = await loadOpaque();
   const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
   const started = await post('/initiatelogin', { startLoginRequest, userIdentifier: username });
   const result = opaque.client.finishLogin({ clientLoginState, loginResponse: started.loginResponse, password });
