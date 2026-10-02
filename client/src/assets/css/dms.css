@@ -206,7 +206,7 @@ small {
 
 .dm-message {
   /* The avatar's column: wide enough for a grouped message's hover time ("10:18 AM"). The text
-     and the reactions start after it; the name starts at the same place (.message-avatar's
+     and the reactions start after it; the name starts at the same place (its
      margin). */
   --message-gutter: 56px;
 }
@@ -361,8 +361,9 @@ small {
 .reply-snippet::before {
   content: "";
   position: absolute;
-  left: 25px;
-  width: 48px;
+  /* Down to the middle of the avatar under it (.message-avatar). */
+  left: 31px;
+  width: 42px;
   height: 50%;
   top: 11px;
   border-left: 2px solid var(--vc-fg-muted);
@@ -1488,7 +1489,7 @@ img.emoji,
   gap: 4px;
   margin-top: 4px;
   margin-left: var(--message-gutter);
-  /* As far from the bottom of the message's hover highlight as its avatar is from the top
+  /* As far from the bottom of the message's hover highlight as its name is from the top
      (.dm-message's padding-top). */
   padding-bottom: 4px;
 }
@@ -1682,10 +1683,21 @@ body.mobile-mode .reaction-chip.reaction-add {
   flex-shrink: 0;
 }
 
+/* Like Discord's: in the gutter, out of the text's flow, from the top of the name to the bottom
+   of the first line of text. In px rather than lined up with the text, so a message starting
+   with a heading or big emoji doesn't move it: 2px into the name's 24px line, and 2px short of
+   the end of the first line below it (two lines, 48px, less 4). */
 .dm-message img.message-avatar {
-  display: inline;
-  /* So the name lines up with the text below (.dm-message-content's margin). */
-  margin-right: 24px;
+  position: absolute;
+  left: 10px;
+  top: calc(4px + 2px);
+  width: 44px;
+  height: 44px;
+}
+
+/* The name starts where the text below does (.dm-message-content's margin). */
+.dm-message > .message-author {
+  margin-left: var(--message-gutter);
 }
 
 /* Mobile message actions (MessageActionSheet): a sheet from the bottom over a dimmed page. */
