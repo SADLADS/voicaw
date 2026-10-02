@@ -18,7 +18,11 @@ client-direct uploads: they arrive in the webhook request and the server stores 
 
 Attachments are never uploaded when attached. The composer (`Composer.jsx`, `hooks/useAttachmentDrafts.js`) keeps them as local drafts
 and inserts a markdown placeholder `![name](attachment:ID)` (`utils/attachmentMarkup.js`; the editor
-shows it as a "📎 name" chip); the tray
+shows it as a "📎 name" chip). Files come from the + menu, a paste, or a drop anywhere on the
+window, as in Discord (`hooks/useFileDrop.js` `useWindowFileDrop`, while a composer is shown):
+a file dragged in from outside the page covers the window with "Upload to <chat>"
+(`FileDropOverlay.jsx`); drags that start in the page (an image from a message) and drags while
+an `aria-modal` dialog is open are left alone. The tray
 (`AttachmentTray.jsx`) previews drafts still referenced from the text. On send, each referenced
 draft is encrypted with its own AES-GCM key (`services/attachmentCrypto.js`), uploaded as
 `application/octet-stream` (`services/attachmentUpload.js`; server names it `<uuid>.bin`), and its

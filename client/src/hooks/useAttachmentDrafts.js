@@ -20,8 +20,6 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
   const nextDraftId = useRef(1);
   const mediaInfo = useRef(new Map()); // draft id -> Promise of readMediaDimensions
   const [progress, setProgress] = useState(0);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const dragDepth = useRef(0);
   const onDiscardRef = useRef(onDiscard);
   onDiscardRef.current = onDiscard;
 
@@ -155,39 +153,9 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     input.click();
   }
 
-  // Only react to drags carrying files, so dragging text into the textarea still works.
-  const isFileDrag = (e) => Array.from(e.dataTransfer?.types || []).includes('Files');
-
-  const dropHandlers = {
-    onDragEnter(e) {
-      if (!isFileDrag(e)) return;
-      e.preventDefault();
-      dragDepth.current++;
-      setIsDragOver(true);
-    },
-    onDragLeave(e) {
-      if (!isFileDrag(e)) return;
-      e.preventDefault();
-      dragDepth.current = Math.max(0, dragDepth.current - 1);
-      if (dragDepth.current === 0) setIsDragOver(false);
-    },
-    onDragOver(e) {
-      if (isFileDrag(e)) e.preventDefault();
-    },
-    onDrop(e) {
-      if (!isFileDrag(e)) return;
-      e.preventDefault();
-      dragDepth.current = 0;
-      setIsDragOver(false);
-      addFiles(Array.from(e.dataTransfer.files || []));
-    },
-  };
-
   return {
     drafts,
     progress,
-    isDragOver,
-    dropHandlers,
     addFiles,
     pickFiles,
     removeDraft,

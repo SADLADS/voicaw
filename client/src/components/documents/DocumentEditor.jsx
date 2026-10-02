@@ -51,6 +51,8 @@ async function uploadImage(file) {
 }
 
 const imageFiles = (list) => Array.from(list ?? []).filter((f) => f.type.startsWith('image/'));
+// While dragging, only the types of the files can be read.
+const dragHasImage = (e) => Array.from(e.dataTransfer?.items ?? []).some((i) => i.kind === 'file' && i.type.startsWith('image/'));
 
 function ToolButton({ icon, label, keys, active = false, disabled = false, onRun, children }) {
   return (
@@ -70,7 +72,8 @@ function ToolButton({ icon, label, keys, active = false, disabled = false, onRun
   );
 }
 
-// Writing or editing a document, like a word processor: title, optional cover image, and
+// Writing or editing a document, like a word processor: title, optional cover image (picked, or
+// an image dropped on its button), and
 // the text with a toolbar (styles, bold/italic/underline/strikethrough, lists and checklists,
 // quotes, code, links, images, tables, rules). It saves markdown. `document` is the one being
 // edited (null: a new one in `channel`). Saving refuses to overwrite someone else's newer
@@ -83,6 +86,8 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
   const [, setTick] = useState(0);
   const [title, setTitle] = useState(document?.title ?? '');
   const [cover, setCover] = useState(document?.cover ?? null);
+  // An image is being dragged over "Add a cover image" (dropping it there makes it the cover).
+  const [coverDragOver, setCoverDragOver] = useState(false);
   // The version this edit is based on (a save sends it; the server refuses a stale one).
   const [baseVersion, setBaseVersion] = useState(document?.version ?? null);
   const initial = useRef({ title: document?.title ?? '', cover: document?.cover ?? null, content: document?.content ?? '' });
@@ -365,7 +370,25 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
               </div>
             </div>
           ) : (
-            <button type="button" className="doc-add-cover" onClick={() => coverFileRef.current?.click()}>
+            <button
+              type="button"
+              className={`doc-add-cover${coverDragOver ? ' drag-over' : ''}`}
+              onClick={() => coverFileRef.current?.click()}
+              onDragOver={(e) => {
+                if (!dragHasImage(e)) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+                setCoverDragOver(true);
+              }}
+              onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setCoverDragOver(false); }}
+              onDrop={(e) => {
+                setCoverDragOver(false);
+                const [file] = imageFiles(e.dataTransfer.files);
+                if (!file) return;
+                e.preventDefault();
+                pickCover(file);
+              }}
+            >
               <FontAwesomeIcon icon={faImage} /> Add a cover image
             </button>
           )}

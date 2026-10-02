@@ -5,6 +5,7 @@ import EmojiPicker from './EmojiPicker';
 import EmojiSuggestions from './EmojiSuggestions';
 import MentionSuggestions from './MentionSuggestions';
 import AttachmentTray from './AttachmentTray';
+import FileDropOverlay from './FileDropOverlay';
 import PollDialog from './PollDialog';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { getSkinTone, recordEmojiUse, skinFor } from '../emoji/emojiUsage';
@@ -12,6 +13,7 @@ import { getKeyboardHeight } from '../utils/keyboardHeight';
 import { findPlaceholderIds, replacePlaceholders } from '../utils/attachmentMarkup';
 import { seedAttachmentCache } from '../services/attachmentCache';
 import { useAttachmentDrafts } from '../hooks/useAttachmentDrafts';
+import { useWindowFileDrop } from '../hooks/useFileDrop';
 import MessageEditor from '../editor/MessageEditor';
 import {
   customEmojiByName,
@@ -38,7 +40,7 @@ const CHANNEL_QUERY = /(?:^|[\s([{])#([^\s#<>]{0,100})$/;
 
 // The message box under a conversation (MessageEditor: `inputRef` is its handle), writing to
 // `chatName` (a person, or "#channel"; null while the chat can't be sent to yet), with
-// attachments (chips in the box, uploaded on send) and polls (both from the + menu), emoji (picker, ":smi" suggestions,
+// attachments (chips in the box, uploaded on send; files can be dropped anywhere on the window) and polls (both from the + menu), emoji (picker, ":smi" suggestions,
 // ":shortcode:" conversion), mentions ("@na" suggestions from `people`, [{ id, username }];
 // in a guild also `roles`, [{ id, name, color }], and @everyone/@here with `canMentionEveryone`;
 // `roleInfo` ({ id: { name, color } }) draws role mentions in the box), channel mentions in a
@@ -111,6 +113,9 @@ export default function Composer({
       setError(null);
     },
   });
+
+  // Files dragged in anywhere on the window are attached (FileDropOverlay while dragging).
+  const draggingFiles = useWindowFileDrop({ enabled: !!chatName, onFiles: attachments.addFiles });
 
   function removeDraft(id) {
     attachments.removeDraft(id);
@@ -357,7 +362,8 @@ export default function Composer({
 
   return (
     <>
-      <div className={`dm-chat-wrapper${attachments.isDragOver ? ' drag-over' : ''}`} {...attachments.dropHandlers}>
+      {draggingFiles && <FileDropOverlay chatName={chatName} />}
+      <div className="dm-chat-wrapper">
         {showEmojiPicker && !isMobile && (
           <EmojiPicker onSelect={insertEmoji} onGif={sendGif} onClose={() => setShowEmojiPicker(false)} />
         )}

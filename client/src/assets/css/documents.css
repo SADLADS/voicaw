@@ -578,6 +578,13 @@ div.document-body .attachment-media {
   border-color: var(--vc-fg-muted);
 }
 
+/* An image dragged over it (dropping makes it the cover). */
+.doc-add-cover.drag-over {
+  color: var(--vc-fg);
+  border: 1px dashed var(--vc-accent);
+  background: var(--vc-bg-elevated-hover);
+}
+
 .doc-editor-cover {
   position: relative;
   margin-bottom: 16px;

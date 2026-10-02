@@ -240,7 +240,8 @@ take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
   `remarkDocument` (`utils/remarkDiscord.js`) and the messages' mentions, emoji and attachments.
 - **The editor** (`documents/DocumentEditor.jsx`, lazily loaded with ProseMirror,
   prosemirror-tables and prosemirror-markdown, its own chunk): title, cover (Add / Change /
-  Remove), a Word-like toolbar (text style, bold, italic, underline, strikethrough, code,
+  Remove; an image dropped on "Add a cover image" becomes the cover, one dropped on the text goes
+  into it), a Word-like toolbar (text style, bold, italic, underline, strikethrough, code,
   spoiler, link, bulleted / numbered / checklist, quote, image, table with row/column tools,
   rule, undo/redo) and the usual shortcuts (Ctrl/⌘+B/I/U, Ctrl/⌘+S saves), plus markdown typed
   as in a message turning into formatting at once (`# `, `- `, `1. `, `[ ] `, `> `, `` ``` ``,
