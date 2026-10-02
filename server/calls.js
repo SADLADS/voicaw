@@ -1,6 +1,6 @@
 const db = require('./db');
 const { sendToUserSockets } = require('./sockets');
-const { sendPushToUser, getUserImageUrl } = require('./push');
+const { sendPushToUser, getUserImageUrl, groupNameForPush } = require('./push');
 const voice = require('./voice');
 const { displayNameOf } = require('./profiles');
 const { logCall } = require('./callLog');
@@ -28,7 +28,7 @@ const RING_MS = 45 * 1000;
 const REJOIN_GRACE_MS = 10 * 1000;
 const ROOM_PREFIX = 'call-';
 
-// id -> { id, groupId (null: a 1:1 call), groupName, callerId, callerName, calleeId,
+// id -> { id, groupId (null: a 1:1 call), callerId, callerName, calleeId,
 //         calleeName, keyEnvelope, keyEpoch, state, createdAt, answeredAt, timer,
 //         ringing: Set, participants: Set (group calls: who's in), joined: Set (who has been
 //         in it, for the chat's call row: see callLog.js) }
@@ -64,7 +64,6 @@ function publicCall(call) {
   return {
     id: call.id,
     group_id: call.groupId,
-    group_name: call.groupName,
     caller_id: call.callerId,
     caller_username: call.callerName,
     callee_id: call.calleeId,
@@ -98,7 +97,8 @@ async function push(call, userId, body) {
   try {
     await sendPushToUser(userId, {
       type: 'call',
-      title: call.groupId ? call.groupName || 'Group call' : call.callerName,
+      // A group's name is encrypted: the service worker decrypts it (see push.js).
+      ...(call.groupId ? await groupNameForPush(call.groupId, 'Group call') : { title: call.callerName }),
       body: call.groupId && body === 'Incoming voice call' ? `${call.callerName} started a call` : body,
       url: call.groupId ? `/dm/g/${call.groupId}` : `/dm/${call.callerId}`,
       tag: `call-${call.id}`,
@@ -157,7 +157,6 @@ async function leaveGroupCall(groupId, userId) {
 function newCall(fields) {
   return {
     groupId: null,
-    groupName: null,
     calleeId: null,
     calleeName: null,
     keyEpoch: null,
@@ -210,7 +209,6 @@ async function startGroupCall({ id, group, caller, keyEnvelope, keyEpoch, member
   const call = newCall({
     id,
     groupId: group.id,
-    groupName: group.name,
     callerId: caller.id,
     callerName: await displayNameOf(caller.id, caller.username),
     keyEnvelope,

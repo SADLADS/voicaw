@@ -9,9 +9,8 @@ import ConfirmDialog from '../guild/ConfirmDialog';
 import UserAvatar from '../voice/UserAvatar';
 import UserPicker from './UserPicker';
 import StatusIcon from '../StatusIcon';
-import { changeMembership } from '../../services/groupKeys';
-import { renameGroup } from '../../services/groupService';
-import { MAX_GROUP_MEMBERS } from '../../services/groupCrypto';
+import { changeMembership, renameGroup } from '../../services/groupKeys';
+import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME } from '../../services/groupCrypto';
 import { nameOf, useProfiles } from '../../utils/profiles';
 import { usePresence } from '../../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../../utils/presence';
@@ -101,7 +100,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
         <button type="button" className="group-action" onClick={() => setDialog({ type: 'add' })} disabled={room <= 0}>
           <FontAwesomeIcon icon={faUserPlus} /> Add people
         </button>
-        <button type="button" className="group-action" onClick={() => { setName(detail.name ?? ''); setDialog({ type: 'rename' }); }}>
+        <button type="button" className="group-action" onClick={() => { setName(group.name?.name ?? ''); setDialog({ type: 'rename' }); }}>
           <FontAwesomeIcon icon={faPen} /> Rename
         </button>
         <button type="button" className="group-action danger" onClick={() => setDialog({ type: 'leave' })}>
@@ -136,7 +135,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
           actions={(
             <>
               <button type="button" className="btn btn-secondary btn-sm" onClick={close}>Cancel</button>
-              <button type="button" className="btn btn-primary btn-sm vc-button" onClick={() => run(() => renameGroup(detail.id, name))} disabled={busy}>Save</button>
+              <button type="button" className="btn btn-primary btn-sm vc-button" onClick={() => run(() => renameGroup(user, detail.id, name))} disabled={busy}>Save</button>
             </>
           )}
         >
@@ -144,11 +143,11 @@ export default function GroupMembers({ group, user, users, onClose }) {
             className="form-control"
             placeholder="Group name (empty: the members' names)"
             aria-label="Group name"
-            maxLength={100}
+            maxLength={MAX_GROUP_NAME}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <p className="vc-hint">Group names aren&apos;t encrypted (messages are).</p>
+          <p className="vc-hint">Group names are end-to-end encrypted, like messages.</p>
           {error && <p className="error-msg" role="alert">{error}</p>}
         </Modal>
       )}

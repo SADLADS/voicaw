@@ -25,7 +25,7 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
   useProfiles();
   const { id: activeId, groupId: activeGroupId } = useParams();
   const { isMobile } = useContext(InteractionContext);
-  const { conversationSettings } = useContext(LayoutContext) ?? {};
+  const { conversationSettings, groupList } = useContext(LayoutContext) ?? {};
   const notesActive = useLocation().pathname === '/dm/notes';
   const presenceOf = usePresence();
   const [newGroup, setNewGroup] = useState(false);
@@ -159,7 +159,7 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
           );
         })}
       </div>
-      {newGroup && <NewGroupDialog user={user} users={users} onClose={() => setNewGroup(false)} />}
+      {newGroup && <NewGroupDialog user={user} users={users} onCreated={groupList?.upsert} onClose={() => setNewGroup(false)} />}
       {menu && (
         <DmMenu
           person={menu.person}

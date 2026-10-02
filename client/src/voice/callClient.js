@@ -104,7 +104,7 @@ function localTime(serverTime, call) {
 // This device's view of a call the server sent.
 function localCall(call, fields) {
   return call.group_id
-    ? { id: call.id, groupId: call.group_id, groupName: call.group_name, callerId: call.caller_id, callerName: call.caller_username, participants: call.participants, answeredAt: localTime(call.answered_at, call), ...fields }
+    ? { id: call.id, groupId: call.group_id, callerId: call.caller_id, callerName: call.caller_username, participants: call.participants, answeredAt: localTime(call.answered_at, call), ...fields }
     : { id: call.id, groupId: null, peerId: call.caller_id, peerName: call.caller_username, callerId: call.caller_id, callerName: call.caller_username, answeredAt: null, ...fields };
 }
 

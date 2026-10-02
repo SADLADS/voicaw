@@ -15,15 +15,28 @@ const { sendToUserSockets } = require('./sockets');
 // encrypted for them. Someone added later never gets older keys (and the server doesn't send
 // them older messages); someone removed never gets newer ones. Someone re-added keeps the
 // keys (and the messages) of the times they were a member.
+//
+// The group's name is encrypted too, with the latest epoch's key: whoever makes an epoch
+// re-encrypts the current name for it (the renamer's signature inside stays the same), so
+// everyone in the group, newcomers included, can always read it. That needs whoever makes an
+// epoch to be able to read the name, so an add always comes with its new epoch.
 
 const MAX_MEMBERS = 10;
-const MAX_NAME = 100;
 // An encrypted key: "v1." + base64 of IV, 44 bytes of base64 key, tag.
 const MAX_ENVELOPE = 200;
+// An encrypted name (client groupCrypto.js sealGroupName): "v1." + base64 of IV (12),
+// signature (64), the name record padded to 512 bytes, tag (16). Always this long.
+const NAME_CIPHERTEXT_LENGTH = 3 + 4 * Math.ceil((12 + 64 + 512 + 16) / 3);
+// Rename rows in the timeline: a message with `system` = 'group_name' and the encrypted name
+// as content, in the epoch it was renamed in.
+const NAME_ROW = 'group_name';
+const NAME_OUTDATED = 'Please update the app (group names are encrypted now)';
 const LOG_CONTEXT = 'voicaw/group-log/v1';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const now = () => Math.floor(Date.now() / 1000);
+
+const isNameCiphertext = (value) => typeof value === 'string' && value.startsWith('v1.') && value.length === NAME_CIPHERTEXT_LENGTH;
 
 class GroupError extends Error {
   constructor(status, message) {
@@ -57,7 +70,7 @@ async function verifySignature(identityKey, record, signature) {
 // latestEpoch (row or undefined) }, or null.
 async function groupState(groupId) {
   if (typeof groupId !== 'string' || !UUID.test(groupId)) return null;
-  const group = await db.get('SELECT id, name, owner_id, created_at FROM group_dms WHERE id = ?', [groupId]);
+  const group = await db.get('SELECT id, name, owner_id, created_at, name_epoch, name_version FROM group_dms WHERE id = ?', [groupId]);
   if (!group) return null;
   const members = new Set((await db.all('SELECT user_id FROM group_dm_members WHERE group_id = ?', [groupId])).map((r) => r.user_id));
   const last = await db.get('SELECT seq, record, signature FROM group_dm_log WHERE group_id = ? ORDER BY seq DESC LIMIT 1', [groupId]);
@@ -164,8 +177,11 @@ async function storeEntry(groupId, entry, r) {
 }
 
 // Checks and stores a new epoch: `epoch` must come next, be for the current membership
-// (`logSeq` = the last log entry) and give every member exactly one envelope.
-async function storeEpoch(state, creatorId, { epoch, logSeq, envelopes }) {
+// (`logSeq` = the last log entry) and give every member exactly one envelope. Unless the group
+// still has a name from before names were encrypted (`name_version` 0), it also carries the
+// current name encrypted with the new key: `name`, of version `nameVersion` (409 if the group
+// was renamed meanwhile).
+async function storeEpoch(state, creatorId, { epoch, logSeq, envelopes, name, nameVersion }) {
   const expected = (state.latestEpoch?.epoch ?? 0) + 1;
   if (epoch !== expected || logSeq !== state.nextSeq - 1) throw new GroupError(409, 'The group changed meanwhile; try again');
   if (!envelopes || typeof envelopes !== 'object') throw new GroupError(400, 'Invalid keys');
@@ -178,6 +194,8 @@ async function storeEpoch(state, creatorId, { epoch, logSeq, envelopes }) {
       throw new GroupError(400, 'Invalid keys');
     }
   }
+  const named = state.group.name_version > 0;
+  if (named && !isNameCiphertext(name)) throw new GroupError(400, NAME_OUTDATED);
   await db.transaction(async () => {
     try {
       await db.run(
@@ -195,13 +213,60 @@ async function storeEpoch(state, creatorId, { epoch, logSeq, envelopes }) {
         [state.group.id, epoch, Number(userId), envelope]
       );
     }
+    if (named) {
+      const { changes } = await db.run(
+        'UPDATE group_dms SET name_ciphertext = ?, name_epoch = ? WHERE id = ? AND name_version = ?',
+        [name, epoch, state.group.id, nameVersion]
+      );
+      if (changes !== 1) throw new GroupError(409, 'The group was renamed meanwhile; try again');
+    }
   });
   state.latestEpoch = { epoch, log_seq: logSeq, creator_id: creatorId };
+  if (named) state.group.name_epoch = epoch;
 }
 
-// The group for the list: id, name, owner, members (id, username), last message time, unread.
+// Renames the group: `name` (encrypted with the latest epoch `epoch`, which must be for the
+// current members) becomes version `version` (the current one + 1). `initial`: a group from
+// before encrypted names getting its name encrypted (no rename row). -> the rename row's id,
+// or null. 409 if the group changed meanwhile.
+async function storeName(state, userId, { name, epoch, version, initial = false }) {
+  if (!isNameCiphertext(name) || !Number.isInteger(version) || !Number.isInteger(epoch)) {
+    throw new GroupError(400, NAME_OUTDATED);
+  }
+  if (initial && version !== 1) throw new GroupError(400, 'Invalid name');
+  return db.transaction(async () => {
+    const latest = await db.get('SELECT epoch, log_seq FROM group_dm_epochs WHERE group_id = ? ORDER BY epoch DESC LIMIT 1', [state.group.id]);
+    const last = await db.get('SELECT MAX(seq) AS seq FROM group_dm_log WHERE group_id = ?', [state.group.id]);
+    if (!latest || latest.epoch !== epoch || latest.log_seq !== last.seq) {
+      throw new GroupError(409, 'The group changed; its key has to be renewed');
+    }
+    const { changes } = await db.run(
+      'UPDATE group_dms SET name = NULL, name_ciphertext = ?, name_epoch = ?, name_version = ? WHERE id = ? AND name_version = ?',
+      [name, epoch, version, state.group.id, version - 1]
+    );
+    if (changes !== 1) throw new GroupError(409, 'The group was renamed meanwhile; try again');
+    state.group.name_version = version;
+    state.group.name_epoch = epoch;
+    if (initial) return null;
+    const { lastID } = await db.run(
+      `INSERT INTO group_dm_messages (group_id, epoch, sender_id, content, system, timestamp)
+       VALUES (?, ?, ?, ?, ?, strftime('%s','now'))`,
+      [state.group.id, epoch, userId, name, NAME_ROW]
+    );
+    await db.run(
+      `INSERT INTO group_dm_reads (user_id, group_id, last_read_id) VALUES (?, ?, ?)
+       ON CONFLICT(user_id, group_id) DO UPDATE SET last_read_id = excluded.last_read_id`,
+      [userId, state.group.id, lastID]
+    );
+    return lastID;
+  });
+}
+
+// The group for the list: id, its encrypted name (`name_ciphertext`, `name_epoch`,
+// `name_version`; `name` only for a group from before names were encrypted), owner, members
+// (id, username), last message time, unread.
 async function groupSummary(groupId, userId) {
-  const group = await db.get('SELECT id, name, owner_id, created_at FROM group_dms WHERE id = ?', [groupId]);
+  const group = await db.get('SELECT id, name, name_ciphertext, name_epoch, name_version, owner_id, created_at FROM group_dms WHERE id = ?', [groupId]);
   if (!group) return null;
   const members = await db.all(
     `SELECT u.id, u.username, u.display_name, u.avatar FROM group_dm_members gm JOIN users u ON u.id = gm.user_id
@@ -263,8 +328,10 @@ async function deleteGroup(groupId) {
 
 module.exports = {
   MAX_MEMBERS,
-  MAX_NAME,
+  NAME_ROW,
+  NAME_OUTDATED,
   UUID,
+  isNameCiphertext,
   GroupError,
   entryHash,
   groupState,
@@ -273,6 +340,7 @@ module.exports = {
   applyToState,
   storeEntry,
   storeEpoch,
+  storeName,
   groupSummary,
   announceEntry,
   memberIds,

@@ -6,23 +6,32 @@ import {
   generateGroupKey,
   groupKeyContext,
   importGroupKey,
+  cleanGroupName,
   makeRecord,
+  openGroupName,
+  sealGroupName,
+  signGroupName,
   signRecord,
   unwrapGroupKey,
   verifyGroupLog,
   wrapGroupKey,
 } from './groupCrypto';
-import { createGroupRequest, fetchGroup, postEpoch, postLogEntry } from './groupService';
+import { createGroupRequest, fetchGroup, patchGroupName, postEpoch, postLogEntry } from './groupService';
+import { recallGroup, rememberGroup, rememberGroupName } from './groupCache';
 
 // A group DM as this device sees it, with its keys (see groupCrypto.js for the formats):
 // - openGroup fetches it, replays and checks the membership log, checks each person's identity
-//   key against the one this device pinned for them (as opening a DM does), and opens the
-//   epoch keys it was given (only from epochs made by someone who was a member then).
+//   key against the one this device pinned for them (as opening a DM does), opens the epoch
+//   keys it was given (only from epochs made by someone who was a member then) and the group's
+//   name, and saves what it checked on the device (groupCache.js).
 // - currentEpoch returns the key to send with, making the next epoch first when the
 //   membership changed since the last one (the next sender does that, lazily).
 // - createGroup and changeMembership sign new log records with this device's identity key.
 // New epoch keys only ever go to members taken from the checked log, each with the encryption
 // key their log identity key signed: the server can't slip anyone in.
+// The name is encrypted with the latest epoch's key, so every new epoch carries it, encrypted
+// again with the new key (the renamer's signed record, unchanged). An add always makes its
+// epoch, so whoever makes one can always read the name.
 
 const MAX_ATTEMPTS = 3;
 
@@ -85,19 +94,64 @@ export async function openGroup(me, groupId) {
       console.warn(`Group ${groupId}: can't open the key of epoch ${e.epoch}`, err);
     }
   }
-  return { detail, log, keys, problems, encryptionKeyOf };
+
+  const name = await readName(me, groupId, detail, keys, log);
+  const members = [...log.members.keys()].map((id) => {
+    const user = users.get(id);
+    return { id, name: user ? user.display_name || user.username : '' };
+  });
+  await rememberGroup(me.id, groupId, { keys, identityKeys: log.identityKeys, members, name: name?.legacy ? null : name });
+  return { detail, log, keys, problems, encryptionKeyOf, name };
+}
+
+// The group's name, checked: { name ('' for none), version, renamerId, initial, signed } (the
+// newest this device has seen: an older one from the server is ignored); { name, version: 0,
+// legacy: true } for a plaintext name from before names were encrypted; null if it can't be
+// read.
+async function readName(me, groupId, detail, keys, log) {
+  if (!detail.name_version) return { name: detail.name ?? '', version: 0, legacy: true };
+  let name = null;
+  const key = keys.get(detail.name_epoch);
+  if (key) {
+    try {
+      name = await openGroupName(detail.name_ciphertext, key, groupId, detail.name_epoch, (id) => log.identityKeys.get(id));
+    } catch (err) {
+      console.warn(`Group ${groupId}: can't read its name`, err);
+    }
+  }
+  const seen = (await recallGroup(me.id, groupId))?.name;
+  if (seen && (!name || seen.version > name.version)) {
+    if (name) console.warn(`Group ${groupId}: the server sent an older name than this device has seen`);
+    return { ...seen, initial: false };
+  }
+  return name;
+}
+
+// What a new epoch carries: the current name for the server's version of it, or null for a
+// group whose name isn't encrypted yet. Throws when it can't be read (then no epoch can be made).
+function nameToCarry(group) {
+  if (!group.detail.name_version) return null;
+  if (!group.name?.signed) throw new GroupKeyProblem("Can't read this group's name, so its key can't be renewed. Try again later.");
+  return { signed: group.name.signed, version: group.detail.name_version };
 }
 
 // Every current member's copy of a fresh epoch key (by me), for the membership after log
-// entry `logSeq`. -> { body (for the server), key (CryptoKey) }
-async function makeEpoch(me, groupId, epoch, logSeq, memberIds, encryptionKeyOf) {
+// entry `logSeq`, carrying the group's `name` (nameToCarry's). -> { body (for the server), key
+// (CryptoKey) }
+async function makeEpoch(me, groupId, epoch, logSeq, memberIds, encryptionKeyOf, name) {
   const bytes = generateGroupKey();
   const myKey = await loadEncryptionKey();
   const envelopes = {};
   for (const userId of memberIds) {
     envelopes[userId] = await wrapGroupKey(bytes, myKey, await encryptionKeyOf(userId), groupKeyContext(groupId, epoch, logSeq, me.id, userId));
   }
-  return { body: { epoch, logSeq, envelopes }, key: await importGroupKey(bytes) };
+  const key = await importGroupKey(bytes);
+  const body = { epoch, logSeq, envelopes };
+  if (name) {
+    body.name = await sealGroupName(name.signed, key, groupId, epoch);
+    body.nameVersion = name.version;
+  }
+  return { body, key };
 }
 
 function refuseIfProblems(group) {
@@ -119,11 +173,13 @@ export async function currentEpoch(me, groupId, opened = null) {
     if (upToDate) return { epoch: latest.epoch, key: group.keys.get(latest.epoch), group };
     refuseIfProblems(group);
     const epoch = (latest?.epoch ?? 0) + 1;
-    const made = await makeEpoch(me, groupId, epoch, group.log.nextSeq - 1, [...group.log.members.keys()], group.encryptionKeyOf);
+    const made = await makeEpoch(me, groupId, epoch, group.log.nextSeq - 1, [...group.log.members.keys()], group.encryptionKeyOf, nameToCarry(group));
     try {
       await postEpoch(groupId, made.body);
       group.keys.set(epoch, made.key);
       group.detail.latest_epoch = { epoch, log_seq: made.body.logSeq, creator_id: me.id };
+      if (made.body.name) Object.assign(group.detail, { name_ciphertext: made.body.name, name_epoch: epoch });
+      await rememberGroup(me.id, groupId, { keys: new Map([[epoch, made.key]]), identityKeys: group.log.identityKeys, name: group.name?.legacy ? null : group.name });
       return { epoch, key: made.key, group };
     } catch (err) {
       if (err.response?.status !== 409) throw err;
@@ -169,17 +225,24 @@ export async function createGroup(me, others, name) {
     people.push(user);
   }
   const keyOf = async (userId) => (userId === me.id ? own.encryptionKey : people.find((p) => p.id === userId).encryption_key);
-  const { body: epoch } = await makeEpoch(me, groupId, 1, log.length - 1, [me.id, ...people.map((p) => p.id)], keyOf);
-  return createGroupRequest({ id: groupId, name: name?.trim() || null, log, epoch });
+  // The first name ('' for none) is version 1, not shown as a rename.
+  const signed = await signGroupName({ groupId, version: 1, renamerId: me.id, name, initial: true }, await loadIdentityKey());
+  const { body: epoch } = await makeEpoch(me, groupId, 1, log.length - 1, [me.id, ...people.map((p) => p.id)], keyOf, { signed, version: 1 });
+  // With the name it was given, so the list shows it straight away.
+  return { ...(await createGroupRequest({ id: groupId, log, epoch })), name: cleanGroupName(name) };
 }
 
 // Adds `user` (a row with public keys), removes them (the owner), or leaves (`type: 'leave'`,
-// no user). An add or remove also makes the new epoch right away (a leaver can't: the next
-// member to send does).
+// no user). An add always makes the new epoch with it (so the person added can read the
+// group's name), a remove does if it can; a leaver can't: the next member to send does.
 export async function changeMembership(me, groupId, type, user = null) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const group = await openGroup(me, groupId);
-    if (type === 'add') await trustedUser(me, user);
+    if (type === 'add') {
+      await trustedUser(me, user);
+      refuseIfProblems(group);
+      nameToCarry(group);
+    }
     const target = type === 'leave' ? me.id : user.id;
     const entry = await signedEntry({
       groupId,
@@ -196,8 +259,9 @@ export async function changeMembership(me, groupId, type, user = null) {
       if (type === 'add') members.add(user.id);
       else members.delete(user.id);
       const keyOf = async (userId) => (userId === user.id && type === 'add' ? user.encryption_key : group.encryptionKeyOf(userId));
-      if (!group.problems.length) {
-        epoch = (await makeEpoch(me, groupId, (group.detail.latest_epoch?.epoch ?? 0) + 1, group.log.nextSeq, [...members], keyOf)).body;
+      const canCarryName = !group.detail.name_version || group.name?.signed;
+      if (!group.problems.length && canCarryName) {
+        epoch = (await makeEpoch(me, groupId, (group.detail.latest_epoch?.epoch ?? 0) + 1, group.log.nextSeq, [...members], keyOf, nameToCarry(group))).body;
       }
     }
     try {
@@ -207,6 +271,50 @@ export async function changeMembership(me, groupId, type, user = null) {
     }
   }
   throw new Error('The group keeps changing; try again.');
+}
+
+// Renames the group (any member; '' clears the name): the name signed by me, encrypted with
+// the current epoch (made first if the members changed, so nobody who's left reads it).
+// `initial`: encrypting a name from before names were encrypted (no "renamed" line; nothing
+// to do if another member already has).
+export async function renameGroup(me, groupId, name, { initial = false, opened = null } = {}) {
+  let group = opened;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const current = await currentEpoch(me, groupId, group);
+    group = current.group;
+    if (initial && group.detail.name_version > 0) return null;
+    const version = group.detail.name_version + 1;
+    const signed = await signGroupName({ groupId, version, renamerId: me.id, name, initial }, await loadIdentityKey());
+    try {
+      return await patchGroupName(groupId, {
+        name: await sealGroupName(signed, current.key, groupId, current.epoch), epoch: current.epoch, version, initial,
+      });
+    } catch (err) {
+      if (err.response?.status !== 409) throw err;
+      group = await openGroup(me, groupId);
+    }
+  }
+  throw new Error('The group keeps changing; try again.');
+}
+
+// A group's name for the conversation list, from its summary (GET /group-dms): '' when it has
+// none, null when it can't be read. Uses the keys saved on this device when it can, else opens
+// the group (which checks it all again and saves them).
+export async function groupNameOf(me, summary) {
+  if (!summary.name_version) return summary.name ?? '';
+  const saved = await recallGroup(me.id, summary.id);
+  if (saved?.name && saved.name.version >= summary.name_version) return saved.name.name;
+  const key = saved?.epochs[summary.name_epoch];
+  if (key) {
+    try {
+      const name = await openGroupName(summary.name_ciphertext, key, summary.id, summary.name_epoch, (id) => saved.identityKeys[id]);
+      await rememberGroupName(me.id, summary.id, name);
+      return name.name;
+    } catch {
+      // Renamed by someone this device hasn't seen in the group yet, say: open it.
+    }
+  }
+  return (await openGroup(me, summary.id)).name?.name ?? null;
 }
 
 // A signed `leave` entry for the group as it is now (deleting the account sends one per group).

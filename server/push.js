@@ -33,6 +33,41 @@ function buildDmPushPayload(message, imageUrl, recipientName) {
   return payload;
 }
 
+// A group push also carries the group's encrypted name (~800 characters), so less room is
+// left for the message.
+const MAX_GROUP_PUSH_CIPHERTEXT_LENGTH = 1800;
+
+// The group's name for a push: { nameCiphertext, nameEpoch } for the service worker to
+// decrypt with the group keys the app saved on the device (never a key from the push), or
+// `title` for a group from before names were encrypted.
+async function groupNameForPush(groupId, fallback = 'Group') {
+  const group = await db.get('SELECT name, name_ciphertext, name_epoch, name_version FROM group_dms WHERE id = ?', [groupId]);
+  if (!group?.name_version) return { title: group?.name || fallback };
+  return { title: fallback, groupId, nameCiphertext: group.name_ciphertext, nameEpoch: group.name_epoch };
+}
+
+// A new group message for `recipientId`: titled with the group's name and with the (signed,
+// encrypted) message when they fit, both decrypted on the device like a DM's preview.
+async function buildGroupPushPayload(groupId, message, recipientId, senderName) {
+  const payload = {
+    type: 'group',
+    ...(await groupNameForPush(groupId)),
+    // What's shown when the device can't decrypt (and by apps from before).
+    body: `New message from ${senderName}`,
+    url: `/dm/g/${groupId}`,
+    tag: `group-${groupId}`,
+    timestamp: message.timestamp,
+    groupId,
+    senderId: message.sender_id,
+    senderName,
+    recipientId,
+    epoch: message.epoch,
+    replyTo: message.parent_message_id ?? null,
+  };
+  if (message.content.length <= MAX_GROUP_PUSH_CIPHERTEXT_LENGTH) payload.ciphertext = message.content;
+  return payload;
+}
+
 // Pushes about a new message: each of the user's open pages also gets `message_sound`, and
 // plays the Message sound if it's in front (or is the desktop app; see client sounds/).
 const MESSAGE_PUSHES = new Set(['dm', 'group', 'guild']);
@@ -73,4 +108,4 @@ async function getUserImageUrl(userId) {
   return require('./avatars').avatarUrl(userId, user?.avatar) ?? '/default.png';
 }
 
-module.exports = { buildDmPushPayload, sendPushToUser, getUserImageUrl };
+module.exports = { buildDmPushPayload, buildGroupPushPayload, groupNameForPush, sendPushToUser, getUserImageUrl };

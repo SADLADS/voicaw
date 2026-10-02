@@ -22,6 +22,7 @@ node e2e/screenshare.mjs [dir] # screen share: own preview, Live, no download un
 node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mute, decline, phone
 node e2e/calllog.mjs [dir] # calls in the chat: lasted …, declined, didn't answer / missed (unread), after reload, phone
 node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, group call, owner leaves
+node e2e/groupnames.mjs [dir] # encrypted group names: API never has them, list/header/rename line, new member reads it (phone), desktop notifications decrypted
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 node e2e/notes.mjs [dir]  # notes: row under the header, send, pin, reload, not leaked to/from DMs, phone login
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login

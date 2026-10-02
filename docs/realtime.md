@@ -115,7 +115,9 @@ one user at a time).
   decrypts it on the device with the sender's *pinned* key (`contactKeys`) and the user's key
   (`keyStore`). It falls back to "New message" when the message is too big, previews are off
   (`settingsStore`, IndexedDB, readable by the SW), this device has never checked the sender's
-  keys, or the device is logged out. Notifications are tagged per conversation.
+  keys, or the device is logged out. Group DM pushes do the same with the group keys saved on
+  the device, for the group's name too (see Group names in `docs/group-dms.md`). Notifications are
+  tagged per conversation.
 - `pushsubscriptionchange` posts to the unauthenticated `/api/update-subscription`, keyed by the
   old endpoint. `/api/test-push` sends a test notification to all of the caller's devices.
 - The desktop app has no web push: `sendPushToUser` also sends the payload to the user's sockets

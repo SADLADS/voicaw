@@ -4,7 +4,7 @@ const { CALL_LOG } = require('../callLog');
 const { maxPlaintextLength, getMaxEncryptedLength } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
-const { sendPushToUser } = require('../push');
+const { sendPushToUser, buildGroupPushPayload } = require('../push');
 const { isConversationMuted } = require('../conversationSettings');
 const groups = require('../groupDms');
 const calls = require('../calls');
@@ -104,13 +104,13 @@ router.get('/group-dms', authenticateJWT, async (req, res) => {
   res.json(list);
 });
 
-// A new group: { id (UUID), name?, log: [create, add…] (signed), epoch: { epoch: 1, logSeq,
-// envelopes } }. Everyone in it gets `group_dm_add`.
+// A new group: { id (UUID), log: [create, add…] (signed), epoch: { epoch: 1, logSeq,
+// envelopes, name (encrypted, version 1), nameVersion: 1 } }. Everyone in it gets `group_dm_add`.
 router.post('/group-dms', authenticateJWT, handle(async (req, res) => {
-  const { id, name, log, epoch } = req.body ?? {};
+  const { id, log, epoch } = req.body ?? {};
   if (typeof id !== 'string' || !groups.UUID.test(id)) return res.status(400).json({ error: 'Invalid group id' });
   if (await db.get('SELECT id FROM group_dms WHERE id = ?', [id])) return res.status(409).json({ error: 'Group already exists' });
-  const cleanName = typeof name === 'string' ? name.trim().slice(0, groups.MAX_NAME) || null : null;
+  if (!groups.isNameCiphertext(epoch?.name) || epoch.nameVersion !== 1) return res.status(400).json({ error: groups.NAME_OUTDATED });
   if (!Array.isArray(log) || log.length < 3) return res.status(400).json({ error: 'A group needs at least two other people' });
   if (log.length > groups.MAX_MEMBERS) return res.status(400).json({ error: `Groups have at most ${groups.MAX_MEMBERS} people` });
 
@@ -126,9 +126,9 @@ router.post('/group-dms', authenticateJWT, handle(async (req, res) => {
     records.push(r);
   }
   // Checked against the members about to exist.
-  const epochState = { ...state, group: { id } };
+  const epochState = { ...state, group: { id, name_version: 1 } };
   await db.transaction(async () => {
-    await db.run('INSERT INTO group_dms (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)', [id, cleanName, req.user.id, Math.floor(Date.now() / 1000)]);
+    await db.run('INSERT INTO group_dms (id, owner_id, created_at, name_version) VALUES (?, ?, ?, 1)', [id, req.user.id, Math.floor(Date.now() / 1000)]);
     for (const [i, r] of records.entries()) await groups.storeEntry(id, log[i], r);
     await groups.storeEpoch(epochState, req.user.id, epoch ?? {});
   });
@@ -165,22 +165,24 @@ router.get('/group-dms/:groupId', member, async (req, res) => {
   });
 });
 
-// Rename (any member; not encrypted, like guild names). null or '' clears it.
-router.patch('/group-dms/:groupId', member, async (req, res) => {
-  const { name } = req.body ?? {};
-  if (name != null && typeof name !== 'string') return res.status(400).json({ error: 'Invalid name' });
-  const cleanName = name?.trim().slice(0, groups.MAX_NAME) || null;
-  const groupId = req.state.group.id;
-  await db.run('UPDATE group_dms SET name = ? WHERE id = ?', [cleanName, groupId]);
-  for (const userId of req.state.members) {
+// Rename (any member): { name (encrypted with the latest epoch, signed by the renamer inside),
+// epoch, version (the current one + 1), initial? (encrypting a name from before names were
+// encrypted: no rename row) }. 409 if the group changed meanwhile.
+router.patch('/group-dms/:groupId', member, handle(async (req, res) => {
+  const { state } = req;
+  const groupId = state.group.id;
+  const rowId = await groups.storeName(state, req.user.id, req.body ?? {});
+  for (const userId of state.members) {
     sendToUserSockets(userId, { type: 'group_dm_update', group: await groups.groupSummary(groupId, userId) });
+    if (rowId) sendToUserSockets(userId, { type: 'group_dm_message_new', groupId, message: await messageFor(userId, rowId) });
   }
   res.json(await groups.groupSummary(groupId, req.user.id));
-});
+}));
 
-// A membership change: { entry: { record, signature } } (add, remove, leave), optionally with
-// the next `epoch` for the new membership (the adder can make it straight away; after a leave
-// the next member to send one does). The people affected get `group_dm_add` /
+// A membership change: { entry: { record, signature } } (add, remove, leave), with the next
+// `epoch` for the new membership: always for an add (so whoever's added can read the group's
+// name; if it loses a race the add fails too), optionally for a remove; after a leave the next
+// member to send one makes it. The people affected get `group_dm_add` /
 // `group_dm_remove`, everyone else `group_dm_update` with the entry.
 router.post('/group-dms/:groupId/log', member, handle(async (req, res) => {
   const { state } = req;
@@ -188,6 +190,7 @@ router.post('/group-dms/:groupId/log', member, handle(async (req, res) => {
   const { entry, epoch } = req.body ?? {};
   const before = new Set(state.members);
   const r = await groups.checkEntry(state, entry, req.user.id);
+  if (r.type === 'add' && !epoch) return res.status(400).json({ error: 'Adding someone needs the new key' });
   groups.applyToState(state, entry, r);
   await db.transaction(async () => {
     await groups.storeEntry(groupId, entry, r);
@@ -195,8 +198,8 @@ router.post('/group-dms/:groupId/log', member, handle(async (req, res) => {
       try {
         await groups.storeEpoch(state, req.user.id, epoch);
       } catch (err) {
-        // The change stands; the next message makes the epoch.
-        if (!(err instanceof groups.GroupError)) throw err;
+        // A remove stands; the next message makes the epoch.
+        if (!(err instanceof groups.GroupError) || r.type === 'add') throw err;
       }
     }
     if (state.members.size === 0) await groups.deleteGroup(groupId);
@@ -260,7 +263,7 @@ router.post('/group-dms/:groupId/messages', member, async (req, res) => {
   let parentId = null;
   if (replyTo != null) {
     const parent = await messageFor(req.user.id, Number(replyTo));
-    if (!parent || parent.group_id !== groupId || parent.system === CALL_LOG) return res.status(400).json({ error: 'Invalid reply' });
+    if (!parent || parent.group_id !== groupId || parent.system === CALL_LOG || parent.system === groups.NAME_ROW) return res.status(400).json({ error: 'Invalid reply' });
     parentId = parent.id;
   }
   const lastID = await db.transaction(async () => {
@@ -277,19 +280,14 @@ router.post('/group-dms/:groupId/messages', member, async (req, res) => {
     return id;
   });
 
-  const title = state.group.name || 'Group';
   const senderName = await displayNameOf(req.user.id, req.user.username);
   for (const userId of state.members) {
-    sendToUserSockets(userId, { type: 'group_dm_message_new', groupId, message: await messageFor(userId, lastID) });
+    const message = await messageFor(userId, lastID);
+    sendToUserSockets(userId, { type: 'group_dm_message_new', groupId, message });
     if (userId !== req.user.id && !isViewingConversation(userId, `group-${groupId}`) && !(await isConversationMuted(userId, 'group', groupId))) {
-      sendPushToUser(userId, {
-        type: 'group',
-        title,
-        body: `New message from ${senderName}`,
-        url: `/dm/g/${groupId}`,
-        tag: `group-${groupId}`,
-        timestamp: Math.floor(Date.now() / 1000),
-      }, { urgency: 'high', topic: `group${groupId.replace(/-/g, '').slice(0, 20)}` }).catch(() => {});
+      sendPushToUser(userId, await buildGroupPushPayload(groupId, message, userId, senderName), {
+        urgency: 'high', topic: `group${groupId.replace(/-/g, '').slice(0, 20)}`,
+      }).catch(() => {});
     }
   }
   res.status(201).json(await messageFor(req.user.id, lastID));
@@ -305,9 +303,10 @@ async function findMessage(req, res, next) {
   next();
 }
 
-// Calls in the chat (callLog.js) can't be deleted, reacted to or pinned.
+// Calls in the chat (callLog.js) and renames can't be deleted, reacted to or pinned.
 function notCallRow(req, res, next) {
   if (req.message.system === CALL_LOG) return res.status(403).json({ error: "A call in the chat can't be changed" });
+  if (req.message.system === groups.NAME_ROW) return res.status(403).json({ error: "A rename can't be changed" });
   next();
 }
 

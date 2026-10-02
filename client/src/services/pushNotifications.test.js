@@ -1,16 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('./keyStore', () => ({ loadEncryptionKey: vi.fn() }));
+vi.mock('./keyStore', () => ({ loadEncryptionKey: vi.fn(), loadOwnPublicKeys: vi.fn() }));
+vi.mock('./groupCache', () => ({ recallGroup: vi.fn(), rememberGroupName: vi.fn() }));
 vi.mock('./settingsStore', () => ({ getSetting: vi.fn() }));
 vi.mock('./contactKeys', () => ({ getPinnedContact: vi.fn() }));
 
 import { notificationFromPush } from './pushNotifications';
-import { loadEncryptionKey } from './keyStore';
+import { loadEncryptionKey, loadOwnPublicKeys } from './keyStore';
+import { recallGroup } from './groupCache';
 import { getSetting } from './settingsStore';
 import { getPinnedContact } from './contactKeys';
 import {
-  generateUserKeys, importEncryptionPrivateKey, deriveConversationKey, encryptMessage, dmContext,
+  generateUserKeys, importEncryptionPrivateKey, importIdentityPrivateKey, deriveConversationKey, encryptMessage, dmContext,
 } from './encryptionService';
+import {
+  encryptGroupMessage, generateGroupKey, groupMessageContext, importGroupKey, messageSignatureContext,
+  sealGroupName, signGroupName,
+} from './groupCrypto';
 
 const ALICE = 7; // sender
 const BOB = 3; // this device
@@ -95,5 +101,78 @@ describe('notificationFromPush', () => {
     const { title, options } = await notificationFromPush({ type: 'test', title: 'Voicaw', body: 'Notifications are working.', url: '/settings', tag: 'test' });
     expect(title).toBe('Voicaw');
     expect(options).toMatchObject({ body: 'Notifications are working.', data: { url: '/settings' }, icon: '/logo192.png' });
+  });
+});
+
+describe('group notifications', () => {
+  const GROUP = '11111111-2222-4333-8444-555555555555';
+  let epochKey;
+  let aliceSigns;
+
+  async function groupPush(text, { name = 'Climbing', signer, extra = {} } = {}) {
+    const sealedName = await sealGroupName(
+      await signGroupName({ groupId: GROUP, version: 2, renamerId: ALICE, name }, aliceSigns), epochKey, GROUP, 3
+    );
+    return {
+      type: 'group', title: 'Group', body: 'New message from alice', url: `/dm/g/${GROUP}`, tag: `group-${GROUP}`,
+      groupId: GROUP, senderId: ALICE, senderName: 'alice', recipientId: BOB, epoch: 3, replyTo: null,
+      nameCiphertext: sealedName, nameEpoch: 3,
+      ciphertext: await encryptGroupMessage(
+        text, epochKey, groupMessageContext(GROUP, 3, ALICE), signer ?? aliceSigns,
+        messageSignatureContext({ groupId: GROUP, epoch: 3, senderId: ALICE })
+      ),
+      ...extra,
+    };
+  }
+
+  beforeEach(async () => {
+    epochKey = await importGroupKey(generateGroupKey());
+    aliceSigns = await importIdentityPrivateKey(alice.private.identityKey);
+    loadOwnPublicKeys.mockResolvedValue({ userId: String(BOB) });
+    recallGroup.mockResolvedValue({
+      userId: String(BOB),
+      epochs: { 3: epochKey },
+      identityKeys: { [ALICE]: alice.public.identityKey, [BOB]: bob.public.identityKey },
+      members: [{ id: ALICE, name: 'alice' }, { id: BOB, name: 'bob' }, { id: 9, name: 'cleo' }],
+      name: null,
+    });
+  });
+
+  it("decrypts the group's name and the message with the keys saved on the device", async () => {
+    const { title, options } = await notificationFromPush(await groupPush(`ready <@${BOB}>?`));
+    expect(recallGroup).toHaveBeenCalledWith(String(BOB), GROUP);
+    expect(title).toBe('Climbing');
+    expect(options).toMatchObject({ body: 'alice: ready @bob?', tag: `group-${GROUP}`, data: { url: `/dm/g/${GROUP}` } });
+  });
+
+  it("titles a group without a name with the others' names", async () => {
+    const { title } = await notificationFromPush(await groupPush('hi', { name: '' }));
+    expect(title).toBe('alice, cleo');
+  });
+
+  it("doesn't show a message whose signature isn't its sender's, nor one when previews are off", async () => {
+    const forged = await notificationFromPush(await groupPush('fake', { signer: await importIdentityPrivateKey(bob.private.identityKey) }));
+    expect(forged.title).toBe('Climbing');
+    expect(forged.options.body).toBe('New message from alice');
+    getSetting.mockResolvedValue(false);
+    expect((await notificationFromPush(await groupPush('secret'))).options.body).toBe('New message from alice');
+  });
+
+  it("keeps a newer name the device has seen over an older one in the push", async () => {
+    recallGroup.mockResolvedValue({ ...(await recallGroup()), name: { name: 'Newer', version: 5 } });
+    expect((await notificationFromPush(await groupPush('hi'))).title).toBe('Newer');
+  });
+
+  it('falls back to the push as sent for a group never opened on this device, or a call', async () => {
+    recallGroup.mockResolvedValue(null);
+    const { title, options } = await notificationFromPush(await groupPush('hi'));
+    expect(title).toBe('Group');
+    expect(options.body).toBe('New message from alice');
+
+    recallGroup.mockResolvedValue({ userId: String(BOB), epochs: { 3: epochKey }, identityKeys: { [ALICE]: alice.public.identityKey }, members: [], name: null });
+    const push = await groupPush('');
+    const call = await notificationFromPush({ type: 'call', title: 'Group call', body: 'alice started a call', groupId: GROUP, nameCiphertext: push.nameCiphertext, nameEpoch: 3 });
+    expect(call.title).toBe('Climbing');
+    expect(call.options.body).toBe('alice started a call');
   });
 });

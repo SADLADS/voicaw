@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { randomUUID } from 'crypto';
 import { registerUser, loginUser } from './helpers/authFlow.js';
+import { sealName, openName } from './helpers/groupNames.js';
 import {
   importEncryptionPrivateKey,
   importIdentityPrivateKey,
@@ -25,11 +26,14 @@ import {
   encryptGroupReaction,
   reactionSignatureContext,
   groupReactionContext,
+  sealGroupName,
+  importGroupKey,
 } from '../../client/src/services/groupCrypto.js';
 
 const app = require('../index.js');
 const voice = require('../voice.js');
 const calls = require('../calls.js');
+const db = require('../db.js');
 const clients = app.locals.clients;
 
 let userCount = 0;
@@ -74,16 +78,29 @@ async function entry(actor, { groupId, seq, prev }, type, target = null) {
   return { record, signature: await signRecord(record, actor.signingKey) };
 }
 
-async function epochFor(creator, groupId, epoch, logSeq, members) {
+// An epoch, carrying the group's name (as the server has its version; the creator signs a
+// stand-in, the server can't tell; see 'lets people added read the name' for the real thing).
+async function epochFor(creator, groupId, epoch, logSeq, members, { version, name = '' } = {}) {
   const key = generateGroupKey();
   const envelopes = {};
   for (const m of members) {
     envelopes[m.id] = await wrapGroupKey(key, creator.encryptionKey, m.keys.public.encryptionKey, groupKeyContext(groupId, epoch, logSeq, creator.id, m.id));
   }
-  return { epoch, logSeq, envelopes };
+  const nameVersion = version ?? (await api.get(creator, `/group-dms/${groupId}`)).body.name_version;
+  const body = nameVersion
+    ? { epoch, logSeq, envelopes, name: await sealName(creator, groupId, epoch, { keyBytes: key, name, version: nameVersion }), nameVersion }
+    : { epoch, logSeq, envelopes };
+  // The raw key, for tests that need it (not sent).
+  return Object.defineProperty(body, 'keyBytes', { value: key, enumerable: false });
 }
 
-async function createGroup(owner, others, name = null) {
+// The group's name as `user` reads it: { name, renamerId, version, ... } (checked).
+async function readName(user, groupId) {
+  const group = (await api.get(user, `/group-dms/${groupId}`)).body;
+  return openName(group.name_ciphertext, await keyOf(user, groupId, group.name_epoch), groupId, group.name_epoch, group.users);
+}
+
+async function createGroup(owner, others, name = '') {
   const groupId = randomUUID();
   const log = [];
   let prev = null;
@@ -93,7 +110,7 @@ async function createGroup(owner, others, name = null) {
     prev = await entryHash(e.record, e.signature);
   }
   const res = await api.post(owner, '/group-dms', {
-    id: groupId, name, log, epoch: await epochFor(owner, groupId, 1, log.length - 1, [owner, ...others]),
+    id: groupId, log, epoch: await epochFor(owner, groupId, 1, log.length - 1, [owner, ...others], { version: 1, name }),
   });
   return { groupId, res };
 }
@@ -155,7 +172,7 @@ describe('group DMs', () => {
     const beaEvents = listen(bea);
     const { groupId, res } = await createGroup(ann, [bea, cal], 'Trip');
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ id: groupId, name: 'Trip', owner_id: ann.id, unread: 0 });
+    expect(res.body).toMatchObject({ id: groupId, name: null, name_version: 1, name_epoch: 1, owner_id: ann.id, unread: 0 });
     expect(res.body.members.map((m) => m.id)).toEqual([ann.id, bea.id, cal.id]);
     expect(beaEvents.find((e) => e.type === 'group_dm_add').group.id).toBe(groupId);
     expect((await api.get(bea, '/group-dms')).body.map((g) => g.id)).toContain(groupId);
@@ -169,6 +186,9 @@ describe('group DMs', () => {
 
     expect((await send(bea, groupId, 'hello all')).status).toBe(201);
     expect(await readAll(cal, groupId)).toEqual(['hello all']);
+    // The name is only readable in the group.
+    expect(await readName(cal, groupId)).toMatchObject({ name: 'Trip', renamerId: ann.id, version: 1, initial: true });
+    expect(JSON.stringify(group)).not.toContain('Trip');
   });
 
   it('refuses forged or broken changes', async () => {
@@ -198,23 +218,30 @@ describe('group DMs', () => {
     const { groupId } = await createGroup(ann, [bea, cal]);
     await send(ann, groupId, 'before dan');
     const danEvents = listen(dan);
-    expect((await change(bea, groupId, 'add', dan)).status).toBe(200);
+    // An add needs its epoch (whoever's added must be able to read the name).
+    expect((await change(bea, groupId, 'add', dan)).status).toBe(400);
+    expect((await change(bea, groupId, 'add', dan, [ann, bea, cal, dan])).status).toBe(200);
     expect(danEvents.find((e) => e.type === 'group_dm_add')).toBeTruthy();
+    await send(cal, groupId, 'hi dan');
 
-    // The old epoch no longer fits the members: a new one has to be made first.
+    // After a leave the old epoch no longer fits the members: a new one has to be made first.
+    await change(cal, groupId, 'leave', cal);
     const stale = await send(ann, groupId, 'too soon');
     expect(stale.status).toBe(409);
     expect(stale.body.code).toBe('stale_epoch');
     const at = await next(ann, groupId);
-    const made = await api.post(ann, `/group-dms/${groupId}/epochs`, await epochFor(ann, groupId, 2, at.seq - 1, [ann, bea, cal, dan]));
+    // It carries the name.
+    const { name: _name, ...nameless } = await epochFor(ann, groupId, 3, at.seq - 1, [ann, bea, dan]);
+    expect((await api.post(ann, `/group-dms/${groupId}/epochs`, nameless)).status).toBe(400);
+    const made = await api.post(ann, `/group-dms/${groupId}/epochs`, await epochFor(ann, groupId, 3, at.seq - 1, [ann, bea, dan]));
     expect(made.status).toBe(201);
     // Someone else racing for the same epoch loses.
-    expect((await api.post(bea, `/group-dms/${groupId}/epochs`, await epochFor(bea, groupId, 2, at.seq - 1, [ann, bea, cal, dan]))).status).toBe(409);
-    await send(cal, groupId, 'hi dan');
+    expect((await api.post(bea, `/group-dms/${groupId}/epochs`, await epochFor(bea, groupId, 3, at.seq - 1, [ann, bea, dan]))).status).toBe(409);
+    await send(ann, groupId, 'still here');
 
-    expect(await readAll(dan, groupId)).toEqual(['hi dan']);
+    expect(await readAll(dan, groupId)).toEqual(['hi dan', 'still here']);
     expect(await keyOf(dan, groupId, 1)).toBeNull();
-    expect(await readAll(ann, groupId)).toEqual(['before dan', 'hi dan']);
+    expect(await readAll(ann, groupId)).toEqual(['before dan', 'hi dan', 'still here']);
   });
 
   it('lets the owner remove people and anyone leave; the owner leaving leaves no owner', async () => {
@@ -246,7 +273,7 @@ describe('group DMs', () => {
     let at = await next(ann, groupId);
     await api.post(ann, `/group-dms/${groupId}/epochs`, await epochFor(ann, groupId, 2, at.seq - 1, [ann, bea]));
     await send(ann, groupId, 'while cal was away');
-    await change(bea, groupId, 'add', cal, [ann, bea, cal]);
+    expect((await change(bea, groupId, 'add', cal, [ann, bea, cal])).status).toBe(200);
     await send(bea, groupId, 'welcome back');
     expect(await readAll(cal, groupId)).toEqual(['first', 'welcome back']);
   });
@@ -317,12 +344,115 @@ describe('group DMs', () => {
     expect(res.body.error).toMatch(/update the app/);
   });
 
-  it('renames', async () => {
-    const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
-    const { groupId } = await createGroup(ann, [bea, cal]);
-    const events = listen(cal);
-    expect((await api.patch(bea, `/group-dms/${groupId}`, { name: '  Plans  ' })).body.name).toBe('Plans');
-    expect(events.find((e) => e.type === 'group_dm_update').group.name).toBe('Plans');
+  describe('names', () => {
+    // Renames as `user`, with the latest epoch: -> the response.
+    async function rename(user, groupId, name, { version, initial = false } = {}) {
+      const group = (await api.get(user, `/group-dms/${groupId}`)).body;
+      const epoch = group.latest_epoch.epoch;
+      const v = version ?? group.name_version + 1;
+      const sealed = await sealName(user, groupId, epoch, { key: await keyOf(user, groupId, epoch), name, version: v, initial });
+      return api.patch(user, `/group-dms/${groupId}`, { name: sealed, epoch, version: v, initial });
+    }
+
+    it('renames: encrypted, signed by the renamer, with a row in the timeline', async () => {
+      const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+      const { groupId } = await createGroup(ann, [bea, cal], 'Trip');
+      const events = listen(cal);
+      const res = await rename(bea, groupId, 'Plans');
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ name: null, name_version: 2, name_epoch: 1 });
+      expect(events.find((e) => e.type === 'group_dm_update').group.name_version).toBe(2);
+      expect(await readName(cal, groupId)).toMatchObject({ name: 'Plans', renamerId: bea.id, version: 2, initial: false });
+
+      // The rename row: the same name, from bea; it can't be reacted to, pinned, deleted or replied to.
+      const row = events.find((e) => e.type === 'group_dm_message_new').message;
+      expect(row).toMatchObject({ system: 'group_name', sender_id: bea.id, epoch: 1 });
+      const group = (await api.get(cal, `/group-dms/${groupId}`)).body;
+      expect((await openName(row.content, await keyOf(cal, groupId, 1), groupId, 1, group.users)).name).toBe('Plans');
+      expect((await api.delete(bea, `/group-dm-messages/${row.id}`)).status).toBe(403);
+      expect((await api.put(cal, `/group-dm-messages/${row.id}/pin`)).status).toBe(403);
+      expect((await api.post(cal, `/group-dms/${groupId}/messages`, { epoch: 1, content: 'v2.x', replyTo: row.id })).status).toBe(400);
+
+      // Plaintext (an older app), a skipped or repeated version, or a stale epoch: refused.
+      const plain = await api.patch(bea, `/group-dms/${groupId}`, { name: 'Plaintext' });
+      expect(plain.status).toBe(400);
+      expect(plain.body.error).toMatch(/update the app/);
+      expect((await rename(ann, groupId, 'Again', { version: 2 })).status).toBe(409);
+      expect((await rename(ann, groupId, 'Skip', { version: 4 })).status).toBe(409);
+      await change(cal, groupId, 'leave', cal);
+      expect((await rename(ann, groupId, 'Cal must not read this')).status).toBe(409);
+    });
+
+    it('lets people added read the name: the adder seals the renamer\'s signed name with the new key', async () => {
+      const [ann, bea, cal, dan] = [await makeUser(), await makeUser(), await makeUser(), await makeUser()];
+      const { groupId } = await createGroup(ann, [bea, cal]);
+      expect((await rename(bea, groupId, 'Plans')).status).toBe(200);
+
+      // What the app does: open the current name and seal the same signed record for epoch 2.
+      const current = await readName(ann, groupId);
+      const at = await next(ann, groupId);
+      const epoch = await epochFor(ann, groupId, 2, at.seq, [ann, bea, cal, dan]);
+      const newKey = await importGroupKey(epoch.keyBytes);
+      epoch.name = await sealGroupName(current.signed, newKey, groupId, 2);
+      const added = await api.post(ann, `/group-dms/${groupId}/log`, { entry: await entry(ann, at, 'add', dan), epoch });
+      expect(added.status).toBe(200);
+
+      expect(await readName(dan, groupId)).toMatchObject({ name: 'Plans', renamerId: bea.id, version: 2 });
+      // Dan doesn't see the rename from before he was in.
+      expect((await api.get(dan, `/group-dms/${groupId}/messages`)).body).toEqual([]);
+    });
+
+    it("refuses an add whose epoch lost a race, keeping the log as it was", async () => {
+      const [ann, bea, cal, dan] = [await makeUser(), await makeUser(), await makeUser(), await makeUser()];
+      const { groupId } = await createGroup(ann, [bea, cal]);
+      const at = await next(ann, groupId);
+      // Made for name version 1, but bea renames first.
+      const epoch = await epochFor(ann, groupId, 2, at.seq, [ann, bea, cal, dan]);
+      expect((await rename(bea, groupId, 'Plans')).status).toBe(200);
+      const res = await api.post(ann, `/group-dms/${groupId}/log`, { entry: await entry(ann, at, 'add', dan), epoch });
+      expect(res.status).toBe(409);
+      const group = (await api.get(ann, `/group-dms/${groupId}`)).body;
+      expect(group.log).toHaveLength(at.seq);
+      expect(group.members.map((m) => m.id)).not.toContain(dan.id);
+      expect((await api.get(dan, `/group-dms/${groupId}`)).status).toBe(404);
+    });
+
+    it('pushes the encrypted name and message, never plaintext', async () => {
+      const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+      const { groupId } = await createGroup(ann, [bea, cal], 'Secret plans');
+      const endpoint = `https://push.test/${bea.username}`;
+      await api.post(bea, '/save-subscription', { subscription: { endpoint, keys: { p256dh: 'p', auth: 'a' } } });
+      const since = sentPushes.length;
+      await send(ann, groupId, 'meet at noon');
+      const [push] = (await waitForPushes(1, since)).filter((p) => p.endpoint === endpoint);
+      expect(push.payload).toMatchObject({
+        type: 'group', title: 'Group', groupId, senderId: ann.id, recipientId: bea.id, epoch: 1, nameEpoch: 1,
+        body: `New message from ${ann.username}`,
+      });
+      expect(push.payload.ciphertext).toMatch(/^v2\./);
+      const group = (await api.get(bea, `/group-dms/${groupId}`)).body;
+      expect((await openName(push.payload.nameCiphertext, await keyOf(bea, groupId, 1), groupId, 1, group.users)).name).toBe('Secret plans');
+      expect(JSON.stringify(push.payload)).not.toMatch(/Secret|noon/);
+    });
+
+    it('lets a member encrypt a name from before names were encrypted', async () => {
+      const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+      const { groupId } = await createGroup(ann, [bea, cal]);
+      await db.run("UPDATE group_dms SET name = 'Old name', name_ciphertext = NULL, name_epoch = NULL, name_version = 0 WHERE id = ?", [groupId]);
+      expect((await api.get(bea, '/group-dms')).body.find((g) => g.id === groupId)).toMatchObject({ name: 'Old name', name_version: 0 });
+      // Until then, epochs carry no name.
+      await change(cal, groupId, 'leave', cal);
+      const at = await next(ann, groupId);
+      expect((await api.post(ann, `/group-dms/${groupId}/epochs`, await epochFor(ann, groupId, 2, at.seq - 1, [ann, bea]))).status).toBe(201);
+
+      const events = listen(ann);
+      expect((await rename(bea, groupId, 'Old name', { version: 1, initial: true })).status).toBe(200);
+      expect((await api.get(ann, '/group-dms')).body.find((g) => g.id === groupId)).toMatchObject({ name: null, name_version: 1, name_epoch: 2 });
+      expect(await readName(ann, groupId)).toMatchObject({ name: 'Old name', initial: true });
+      // No rename row for it, and only once.
+      expect(events.some((e) => e.type === 'group_dm_message_new')).toBe(false);
+      expect((await rename(ann, groupId, 'Old name', { version: 1, initial: true })).status).toBe(409);
+    });
   });
 
   describe('group calls', () => {

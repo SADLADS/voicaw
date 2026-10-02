@@ -337,6 +337,13 @@ CREATE TABLE IF NOT EXISTS group_dms (
   FOREIGN KEY (owner_id) REFERENCES users(id)
 );
 `);
+// The group's name, end-to-end encrypted (groupDms.js): `name_ciphertext` under epoch
+// `name_epoch` (always the latest), `name_version` counting renames. `name` is the plaintext
+// name of a group from before that (`name_version` 0); a member's app encrypts it and it's
+// cleared.
+addColumn('ALTER TABLE group_dms ADD COLUMN name_ciphertext TEXT');
+addColumn('ALTER TABLE group_dms ADD COLUMN name_epoch INTEGER');
+addColumn('ALTER TABLE group_dms ADD COLUMN name_version INTEGER NOT NULL DEFAULT 0');
 
 // Who's in each group now (leaving or being removed deletes the row).
 sqlite.exec(`
