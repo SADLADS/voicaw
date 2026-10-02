@@ -4,6 +4,8 @@ const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has } = require('../permissions');
 const { getChannelAccess, sendToChannel } = require('../guilds');
 const { logAudit } = require('../auditLog');
+const { linkUploads, releaseUploads } = require('../uploads');
+const { uploadKeysIn } = require('../uploadKeys');
 const {
   MAX_TITLE,
   MAX_CONTENT,
@@ -71,6 +73,13 @@ router.get('/channels/:channelId/documents', authenticateJWT, requireDocChannel,
   res.json(await channelDocuments(req.access.channel.id));
 });
 
+// Links document `id` to the uploads its text and cover show (uploads.js). Inside the
+// transaction that wrote them.
+async function linkDocumentUploads(id) {
+  const row = await db.get('SELECT content, cover FROM guild_documents WHERE id = ?', [id]);
+  await linkUploads('doc', id, uploadKeysIn([row.content, row.cover].filter(Boolean).join('\n')));
+}
+
 // { title, cover?, content? }
 router.post('/channels/:channelId/documents', authenticateJWT, requireDocChannel, async (req, res) => {
   if (!has(req.access.permissions, PERMISSIONS.CREATE_DOCUMENTS)) return forbidden(res);
@@ -91,6 +100,7 @@ router.post('/channels/:channelId/documents', authenticateJWT, requireDocChannel
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [channel.id, title, cover ?? null, content, req.user.id, at, req.user.id, at]
     );
+    await linkDocumentUploads(lastID);
     return lastID;
   });
   if (!id) return res.status(400).json({ error: `A channel holds at most ${MAX_DOCUMENTS_PER_CHANNEL} documents` });
@@ -127,8 +137,10 @@ router.patch('/documents/:documentId', authenticateJWT, requireDocument, async (
        WHERE id = ? AND version = ?`,
       [...Object.values(changes), req.user.id, now(), req.document.id, body.version]
     );
+    if (updated) await linkDocumentUploads(req.document.id);
     return updated > 0;
   });
+  if (saved) releaseUploads();
   if (!saved) {
     return res.status(409).json({
       error: 'Someone else saved this document since you opened it',
@@ -157,6 +169,7 @@ router.delete('/documents/:documentId', authenticateJWT, requireDocument, async 
     });
     return deleteDocumentRows(req.document.id);
   });
+  releaseUploads();
   await sendToChannel(channel, event(req.access, 'guild_document_delete', { documentId: req.document.id, replyIds }));
   res.json({ success: true, deletedId: req.document.id });
 });

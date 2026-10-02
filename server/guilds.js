@@ -281,7 +281,8 @@ async function removeMember(guildId, userId) {
   await require('./voice').enforceGuild(guildId);
 }
 
-// Deletes the guild and everything in it (its emoji images too), and tells its members.
+// Deletes the guild and everything in it (its icon, emoji images and uploads too), and tells
+// its members.
 async function deleteGuild(guildId) {
   const memberIds = await getMemberIds(guildId);
   const { deleteObject } = require('./s3');
@@ -289,6 +290,8 @@ async function deleteGuild(guildId) {
   await require('./voice').disconnectGuild(guildId);
   const emojis = await db.all('SELECT id, available FROM guild_emojis WHERE guild_id = ?', [guildId]);
   for (const { id, available } of emojis) await deleteObject('emojis', available ? String(id) : `src/${id}`);
+  const guild = await db.get('SELECT icon_version FROM guilds WHERE id = ?', [guildId]);
+  if (guild?.icon_version > 0) await deleteObject('guild-icons', String(guildId));
   await db.transaction(async () => {
     await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);
     for (const table of [
@@ -300,6 +303,7 @@ async function deleteGuild(guildId) {
     }
     await db.run('DELETE FROM guilds WHERE id = ?', [guildId]);
   });
+  require('./uploads').releaseUploads();
 
   for (const userId of memberIds) sendToUserSockets(userId, { type: 'guild_remove', guildId });
 }

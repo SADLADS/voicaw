@@ -292,7 +292,7 @@ describe('Dm', () => {
     fireEvent.change(screen.getByTestId('edit-text'), { target: { value: 'fixed' } });
     fireEvent.click(screen.getByTestId('save-edit'));
 
-    await waitFor(() => expect(editMessage).toHaveBeenCalledWith(11, 'enc(fixed)'));
+    await waitFor(() => expect(editMessage).toHaveBeenCalledWith(11, 'enc(fixed)', []));
     expect(await screen.findByText('fixed [sent]')).toBeInTheDocument();
     expect(screen.getByTestId('editing')).toBeEmptyDOMElement();
   });
@@ -468,7 +468,7 @@ describe('Dm attachments', () => {
 
     expect(await screen.findByText(`hi ![cat.png](${finalUrl}) [sent]`)).toBeInTheDocument();
     expect(encryptMessage).toHaveBeenCalledWith(`hi ![cat.png](${finalUrl})`, 'shared-key', 'ctx:1->2');
-    expect(sendMessageToUser).toHaveBeenCalledWith(2, `enc(hi ![cat.png](${finalUrl}))`, null);
+    expect(sendMessageToUser).toHaveBeenCalledWith(2, `enc(hi ![cat.png](${finalUrl}))`, null, ['abc.bin']);
   });
 
   it('sends image dimensions with the upload so receivers can reserve space', async () => {

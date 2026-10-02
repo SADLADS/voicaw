@@ -20,6 +20,7 @@ const KINDS = {
 };
 const MAX_DURATION = 14 * 86400;
 const SWEEP_MS = 5000;
+const STALE_SWEEP_MS = 60 * 60 * 1000;
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
@@ -166,8 +167,21 @@ async function announceDue() {
   }
 }
 
+// Drops the timers of polls that are gone: deleting a whole chat (a guild, a channel, a group
+// DM) doesn't go through removePollRows.
+async function removeStaleTimers() {
+  for (const [kind, { table }] of Object.entries(KINDS)) {
+    await db.run(
+      `DELETE FROM poll_timers WHERE kind = ? AND NOT EXISTS (SELECT 1 FROM ${table} t WHERE t.id = poll_timers.message_id)`,
+      [kind]
+    );
+  }
+}
+
 function startPollTimers() {
   announceDue();
+  removeStaleTimers().catch((err) => console.error('Poll timer cleanup failed:', err.message));
+  setInterval(() => removeStaleTimers().catch((err) => console.error('Poll timer cleanup failed:', err.message)), STALE_SWEEP_MS);
   return setInterval(announceDue, SWEEP_MS);
 }
 
@@ -185,4 +199,4 @@ async function removePollRows(kind, messageId) {
   return rows.map((r) => r.id);
 }
 
-module.exports = { KINDS, PollError, registerPoll, endPollNow, announceDue, startPollTimers, removePollRows, deliverRow: deliver };
+module.exports = { KINDS, PollError, registerPoll, endPollNow, announceDue, removeStaleTimers, startPollTimers, removePollRows, deliverRow: deliver };

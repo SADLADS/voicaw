@@ -14,6 +14,36 @@ Limits: 100MB for attachments (nginx's cap on media.voicaw.com), 8MB for profile
 which must be `image/*`. Profile pictures are unencrypted. Webhooks' files are the exception to
 client-direct uploads: they arrive in the webhook request and the server stores them (see Webhooks).
 
+## Deleting files
+
+A file in the `uploads` bucket goes once nothing shows it any more (`server/uploads.js`, since
+2026-10-02): deleting the message, document, channel, guild or group DM that showed it, an edit
+that drops it, or deleting an account (their notes). Profile pictures, guild icons and custom
+emoji are deleted by their own code (a deleted guild takes its icon and emoji images).
+- **The registry.** `/upload_file` (and webhooks' `storeFiles`) records every upload in
+  `uploads` (name, uploader, time). `upload_refs` links each to what shows it: `dm`, `group`
+  (message ids), `guild` (a guild message, `db.indexGuildMessage` does it, so every writer of a
+  message's content links it), `doc` (a document's text and cover). Each write replaces its
+  owner's links.
+- **Guild files** are read from the text by the server (`uploadKeys.js` `uploadKeysIn`: every
+  `<S3_ENDPOINT>/uploads/<name>`, plus a video's poster `p=`). **Encrypted chats' files** can't
+  be: the client lists them with the message, `uploads: [names]` on send and edit
+  (`utils/attachmentMarkup.js` `uploadNamesIn`: each encrypted attachment and its poster).
+  Names that aren't registered uploads are ignored, so a list can only keep files, never
+  delete someone else's. **Privacy:** the server learns which uploads each encrypted message
+  holds (it could mostly guess from timing and sizes before), never what they are.
+- **Cleaning up** (`cleanUpUploads`, run after every delete and edit and every 10 minutes):
+  links whose owner is gone are dropped, then every file that was linked and isn't any more, or
+  was never linked within a day (a send that failed or never happened), is deleted, row first;
+  a file the object store fails to delete gets its row back and is tried again next time.
+- **Older clients** (a cached web app, an older desktop app) send no list: such a send keeps
+  every upload of its sender from the last day that isn't linked yet, for good (`kept`), and
+  their edits change nothing.
+- **Files from before the registry** have no row and are never deleted. Migration 9 registered
+  and linked the files guild messages and documents showed; DMs', notes' and group DMs' stay
+  untracked (the server can't read those messages). A guild file from before that someone also
+  pasted into a DM goes with the guild message.
+
 ## DM attachments (encrypted, uploaded on send)
 
 Attachments are never uploaded when attached. The composer (`Composer.jsx`, `hooks/useAttachmentDrafts.js`) keeps them as local drafts

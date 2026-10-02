@@ -2,6 +2,7 @@ const { DatabaseSync } = require('node:sqlite');
 const { AsyncLocalStorage } = require('node:async_hooks');
 const { DEFAULT_EVERYONE_PERMISSIONS, PERMISSIONS } = require('./permissions');
 const { searchHas, searchText } = require('./searchText');
+const { uploadKeysIn } = require('./uploadKeys');
 
 // Node's built-in SQLite (synchronous, no native build). WAL: reads never wait for a write, and
 // commits only append to the log. busy_timeout covers other processes (scripts/admin.js).
@@ -673,6 +674,25 @@ CREATE TABLE IF NOT EXISTS guild_document_reactions (
 addColumn('ALTER TABLE guild_messages ADD COLUMN document_id INTEGER');
 sqlite.exec('CREATE INDEX IF NOT EXISTS guild_messages_document ON guild_messages (document_id, id) WHERE document_id IS NOT NULL');
 
+// UPLOADS (uploads.js): every file in the `uploads` bucket since the registry, and what links
+// to it (`kind` 'dm' | 'group' | 'guild' | 'doc' with the owner's id, or 'kept' with 0). A file
+// is deleted once it was linked and isn't any more, or was never linked within a day.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS uploads (
+  key TEXT PRIMARY KEY,
+  user_id INTEGER,
+  created_at INTEGER NOT NULL,
+  linked INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS upload_refs (
+  kind TEXT NOT NULL,
+  owner_id INTEGER NOT NULL,
+  key TEXT NOT NULL,
+  PRIMARY KEY (kind, owner_id, key)
+);
+CREATE INDEX IF NOT EXISTS upload_refs_key ON upload_refs (key);
+`);
+
 // GUILD SEARCH (routes/guildSearch.js): each message's words (searchText.js) in a full-text
 // index, rowid = the message's id, and what it has (`has:` bits) in `search_has`. Whoever
 // writes a message's content, embeds or attachments calls indexGuildMessage (below); deleting
@@ -738,6 +758,25 @@ function allowEveryChannelType(type) {
   sqlite.prepare("UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = 'guild_channels'").run(seq);
 }
 
+// Migration 9: registers and links every upload guild messages and documents show.
+function linkExistingGuildUploads() {
+  const at = Math.floor(Date.now() / 1000);
+  const register = sqlite.prepare('INSERT OR IGNORE INTO uploads (key, user_id, created_at, linked) VALUES (?, NULL, ?, 1)');
+  const link = sqlite.prepare('INSERT OR IGNORE INTO upload_refs (kind, owner_id, key) VALUES (?, ?, ?)');
+  const add = (kind, id, text) => {
+    for (const key of uploadKeysIn(text)) {
+      register.run(key, at);
+      link.run(kind, id, key);
+    }
+  };
+  for (const row of sqlite.prepare('SELECT id, content, embeds, attachments FROM guild_messages').all()) {
+    add('guild', row.id, [row.content, row.embeds, row.attachments].filter(Boolean).join('\n'));
+  }
+  for (const row of sqlite.prepare('SELECT id, content, cover FROM guild_documents').all()) {
+    add('doc', row.id, [row.content, row.cover].filter(Boolean).join('\n'));
+  }
+}
+
 // Changes to existing data that must happen once, numbered in SQLite's user_version (add the
 // next one at the end; each runs in its own transaction with its version bump):
 const MIGRATIONS = [
@@ -774,6 +813,10 @@ const MIGRATIONS = [
     allowEveryChannelType("'doc'");
     sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.CREATE_DOCUMENTS} WHERE is_everyone = 1`);
   },
+  // 9. Uploads are tracked: the files guild messages and documents show join the registry,
+  // linked to them, so they go when those do. Encrypted chats' files can't be read here: they
+  // stay untracked (never deleted).
+  () => linkExistingGuildUploads(),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');
@@ -877,11 +920,15 @@ async function transaction(fn) {
   }
 }
 
-// (Re)indexes guild message `id` for search after its content, embeds or attachments changed.
-// Call it inside the transaction that wrote them.
+// (Re)indexes guild message `id` for search after its content, embeds or attachments changed,
+// and links it to the uploads it shows (uploads.js). Call it inside the transaction that wrote
+// them.
 async function indexGuildMessage(id) {
   const row = await get('SELECT id, content, embeds, attachments FROM guild_messages WHERE id = ?', [id]);
-  if (row) indexRow(row);
+  if (!row) return;
+  indexRow(row);
+  const uploads = require('./uploads');
+  await uploads.linkUploads('guild', row.id, uploads.guildMessageKeys(row));
 }
 
 module.exports = { db: sqlite, get, all, run, transaction, indexGuildMessage, lowercaseUsernames };

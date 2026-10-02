@@ -33,12 +33,13 @@ export async function fetchGroupMessages(groupId, params = {}) {
   return (await api.get(`/group-dms/${groupId}/messages`, { params })).data;
 }
 
-export async function sendGroupMessage(groupId, epoch, content, replyTo = null) {
-  return (await api.post(`/group-dms/${groupId}/messages`, { epoch, content, replyTo })).data;
+// `uploads`: the names of the files it shows (uploadNamesIn).
+export async function sendGroupMessage(groupId, epoch, content, replyTo = null, uploads = []) {
+  return (await api.post(`/group-dms/${groupId}/messages`, { epoch, content, replyTo, uploads })).data;
 }
 
-export async function editGroupMessage(messageId, content) {
-  await api.put(`/group-dm-messages/${messageId}`, { content });
+export async function editGroupMessage(messageId, content, uploads = []) {
+  await api.put(`/group-dm-messages/${messageId}`, { content, uploads });
 }
 
 export async function deleteGroupMessage(messageId) {

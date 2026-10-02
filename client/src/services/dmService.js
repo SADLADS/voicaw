@@ -11,11 +11,14 @@ export async function fetchMessagesForUser(userId, params = {}) {
 }
 
 
-export async function sendMessageToUser(recipientId, content, replyTo = null) {
+// `uploads`: the names of the files it shows (uploadNamesIn), so the server knows when
+// they're no longer used.
+export async function sendMessageToUser(recipientId, content, replyTo = null, uploads = []) {
   const res = await api.post('/dm-send', {
     recipient_id: recipientId,
     content,
     replyTo,
+    uploads,
   });
   return res.data;
 }
@@ -44,9 +47,9 @@ export async function removeReaction(reactionId) {
   await api.delete(`/dm-reactions/${reactionId}`);
 }
 
-// `content` is the new ciphertext.
-export async function editMessage(messageId, content) {
-  await api.put(`/update-message/${messageId}`, { content });
+// `content` is the new ciphertext, `uploads` the files it shows now.
+export async function editMessage(messageId, content, uploads = []) {
+  await api.put(`/update-message/${messageId}`, { content, uploads });
 }
 
 export async function deleteMessage(messageId) {

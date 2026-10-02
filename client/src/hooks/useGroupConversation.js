@@ -25,6 +25,7 @@ import {
 import { loadIdentityKey } from '../services/keyStore';
 import { currentEpoch, openGroup, renameGroup } from '../services/groupKeys';
 import { nameOf } from '../utils/profiles';
+import { uploadNamesIn } from '../utils/attachmentMarkup';
 
 export const GROUP_PAGE_SIZE = 50;
 
@@ -276,7 +277,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
         messageSignatureContext({ groupId, epoch, senderId: user.id, replyTo: replyToId })
       );
       try {
-        return await sendGroupMessage(groupId, epoch, content, replyToId);
+        return await sendGroupMessage(groupId, epoch, content, replyToId, uploadNamesIn(text));
       } catch (err) {
         if (err.response?.status !== 409 || attempt === 1) throw err;
         groupRef.current = await reload();
@@ -325,7 +326,11 @@ export function useGroupConversation({ groupId, user, onRead }) {
     const context = messageSignatureContext({
       groupId, epoch: original.epoch, senderId: user.id, replyTo: original.parent_message_id ?? null, editOf: messageId,
     });
-    await editGroupMessage(messageId, await encryptGroupMessage(text, key, groupMessageContext(groupId, original.epoch, user.id), await loadIdentityKey(), context));
+    await editGroupMessage(
+      messageId,
+      await encryptGroupMessage(text, key, groupMessageContext(groupId, original.epoch, user.id), await loadIdentityKey(), context),
+      uploadNamesIn(text)
+    );
     updateMessage(messageId, () => ({ plaintext: text, edited: 1 }));
   }
 

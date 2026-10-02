@@ -6,6 +6,7 @@ import {
   removePlaceholder,
   replacePlaceholders,
   summarizeAttachments,
+  uploadNamesIn,
 } from './attachmentMarkup';
 
 describe('attachmentMarkup', () => {
@@ -73,5 +74,16 @@ describe('attachmentMarkup', () => {
   it("doesn't give a spoiler away by its name in previews", () => {
     const text = '![ending.png](https://s3.test/uploads/x.bin#v=1&k=SECRET&t=image%2Fpng&s=1&sp=1)';
     expect(summarizeAttachments(text)).toBe('📎 spoiler');
+  });
+
+  it('lists the uploads an encrypted message shows, posters included, and nothing else', () => {
+    const text = [
+      '![a.png](https://s3.test/uploads/a.bin#v=1&k=K&t=image%2Fpng&s=1)',
+      '![v.mp4](https://s3.test/uploads/v.bin#v=2&k=K&n=AAAAAAAAAAAAAAAA&t=video%2Fmp4&s=9&p=poster.bin)',
+      '![again](https://s3.test/uploads/a.bin#v=1&k=K&t=image%2Fpng&s=1)',
+      '![gif](https://e.com/cat.gif) ![draft](attachment:3) https://s3.test/uploads/plain.bin',
+    ].join(' ');
+    expect(uploadNamesIn(text)).toEqual(['a.bin', 'v.bin', 'poster.bin']);
+    expect(uploadNamesIn('')).toEqual([]);
   });
 });

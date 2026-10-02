@@ -5,6 +5,7 @@
 // the URL's metadata whether to show it as an image, a video or a download box.
 
 import { parsePoll, pollSummary } from './pollMarkup';
+import { parseAttachmentUrl } from '../services/attachmentCrypto';
 
 const PLACEHOLDER_PREFIX = 'attachment:';
 
@@ -78,4 +79,19 @@ export function summarizeAttachments(text) {
   return text.replace(EMBED_RE, (match, alt, url) =>
     isSpoilerUrl(url) ? '📎 spoiler' : `📎 ${unescapeAltText(alt) || 'attachment'}`
   );
+}
+
+// The uploads an encrypted message shows (its attachments, and their videos' posters), by
+// their names in the bucket. Sent with the message: the server can't read it, and deletes
+// files once no message lists them (docs/uploads.md, Deleting files).
+export function uploadNamesIn(text) {
+  const names = new Set();
+  for (const [, , url] of (text ?? '').matchAll(EMBED_RE)) {
+    const meta = parseAttachmentUrl(url);
+    for (const fileUrl of [meta?.fileUrl, meta?.posterUrl]) {
+      const at = fileUrl?.lastIndexOf('/uploads/') ?? -1;
+      if (at !== -1) names.add(fileUrl.slice(at + '/uploads/'.length));
+    }
+  }
+  return [...names];
 }
