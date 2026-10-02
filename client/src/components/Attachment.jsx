@@ -12,6 +12,7 @@ import { triggerDownload } from '../utils/saveFile';
 import { ImageViewerContext } from '../contexts';
 import { galleryAround, galleryItemRef } from '../utils/imageGallery';
 import { parseGifUrl } from '../utils/gifMarkup';
+import { usePrivacyPrefs } from '../utils/privacy';
 import { reservedBoxStyle, mediaBoxStyle } from '../utils/mediaBox';
 import VideoPlayer from './VideoPlayer';
 
@@ -280,6 +281,30 @@ function EncryptedAttachment({ url, meta, name }) {
   );
 }
 
+// GIFs shown since the app was opened, so they stay loaded when the list redraws.
+const shownGifs = new Set();
+
+// A GIF from the picker, loaded from Klipy. With Settings → Privacy's "Show GIFs straight away"
+// off (utils/privacy), a box of its size waits for a tap on Show, so Klipy learns nothing first.
+function GifView({ src, name, width, height }) {
+  const autoLoad = usePrivacyPrefs().gifs;
+  const [shown, setShown] = useState(() => shownGifs.has(src));
+  const style = reservedBoxStyle(width, height);
+  if (autoLoad || shown) {
+    return <ViewableImage src={src} item={{ src, name, width, height }} style={style} external />;
+  }
+  const show = () => {
+    shownGifs.add(src);
+    setShown(true);
+  };
+  return (
+    <span className="attachment-gif-hidden" style={style}>
+      <span className="attachment-gif-hidden-label">GIF from KLIPY</span>
+      <button type="button" className="btn btn-secondary" onClick={show} aria-label="Show GIF">Show</button>
+    </span>
+  );
+}
+
 // Renders a markdown image (`![alt](src)`) from a message: a draft placeholder in a
 // pending message, an encrypted attachment, or a plain image URL (legacy uploads and
 // external images).
@@ -296,16 +321,7 @@ export default function Attachment({ src, alt, localAttachments }) {
 
   // A GIF from the picker (utils/gifMarkup.js): its size is known, so its box is too.
   const gif = parseGifUrl(src);
-  if (gif) {
-    return (
-      <ViewableImage
-        src={src}
-        item={{ src, name, width: gif.width, height: gif.height }}
-        style={reservedBoxStyle(gif.width, gif.height)}
-        external
-      />
-    );
-  }
+  if (gif) return <GifView src={src} name={name} width={gif.width} height={gif.height} />;
 
   const meta = parseAttachmentUrl(src);
   if (!meta) return <ViewableImage src={src} item={{ src, name }} external />;

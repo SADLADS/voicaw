@@ -121,7 +121,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - `docs/voice-and-calls.md`: voice channels (LiveKit, reconnecting, screen sharing, microphone
   chain, noise suppression, voice settings, playback and per-user volume), DM and group calls.
 - `docs/group-dms.md`: group DMs (membership log, epochs, signing).
-- `docs/messages.md`: emoji, message markdown, GIFs, polls, mentions, pinned messages, drafts, the
+- `docs/messages.md`: emoji, message markdown, GIFs, YouTube links, polls, mentions, pinned messages, drafts, the
   message list and history loading.
 - `docs/uploads.md`: the object store, encrypted attachments, video streaming, spoilers, image
   viewer.

@@ -49,7 +49,9 @@
   `localStorage privacy`, JSON; never sent to the server). **Each defaults to the convenient
   (less private) option**; turning it off is for whoever wants the private one. So far:
   `inviteEmbedsInEncrypted`, invite cards in DMs and group DMs load without Show (see
-  docs/guilds.md, Invite embeds). New privacy trade-offs go here.
+  docs/guilds.md, Invite embeds); `sendTyping`; `youtubeEmbeds`, YouTube players load without
+  Play (see docs/messages.md, YouTube links); `gifs`, GIFs load without Show and the GIF picker
+  doesn't warn first (see docs/messages.md, GIFs). New privacy trade-offs go here.
 - Dates and times all go through `utils/dateFormat.js` (`formatDate`, `formatTime`,
   `formatDateTime`; components call `useDateFormat()` so they redraw): Settings → Date & time
   picks the date format (automatic from the browser, DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD) and

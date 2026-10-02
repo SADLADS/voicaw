@@ -57,6 +57,7 @@ node e2e/typing.mjs [dir] # typing indicator: DM (dots, cleared on send, clear o
 node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept per device, no dark flash, Match system, color-scheme, phone
 node e2e/avatar.mjs [dir] # message avatars: top with the name, bottom with the first line of text, reply line to its middle (desktop + phone)
 node e2e/safearea.mjs [dir] # safe areas (CDP-made iPhone insets): user panel above the home indicator, landscape notch, unchanged without insets
+node e2e/embedprivacy.mjs [dir] # Settings → Privacy YouTube/GIFs off: placeholders, nothing asked of YouTube/Klipy until Play/Show, GIF picker warns first; defaults load at once (stand-ins, phone)
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
 ```

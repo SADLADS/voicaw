@@ -8,9 +8,15 @@ import { useSyncExternalStore } from 'react';
 // turned off, the card waits for a tap on Show (guild channels always load them).
 // `sendTyping`: the others in a chat see "… is typing" while you write (on by default). In DMs
 // and group DMs that tells the server when you're typing to whom (never what).
+// `youtubeEmbeds`: YouTube links get a player at once (on by default). Even before it's
+// played, the player tells YouTube your IP address and which video you were sent; turned off,
+// a placeholder (no thumbnail, which would tell it too) waits for a tap on Play.
+// `gifs`: GIFs in messages and the GIF picker's previews load from Klipy at once (on by
+// default), which tells Klipy your IP address and which GIFs you see; turned off, each GIF in a
+// message waits for a tap on Show, and the picker asks first.
 
 const STORAGE_KEY = 'privacy';
-const DEFAULTS = { inviteEmbedsInEncrypted: true, sendTyping: true };
+const DEFAULTS = { inviteEmbedsInEncrypted: true, sendTyping: true, youtubeEmbeds: true, gifs: true };
 const listeners = new Set();
 
 function load() {

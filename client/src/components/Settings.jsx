@@ -102,7 +102,7 @@ export default function Settings({ onLogout }) {
     },
     {
       id: 'privacy', category: 'app', title: 'Privacy', icon: faPuzzlePiece,
-      keywords: 'privacy invite invites embed embeds cards preview encrypted dm dms group server',
+      keywords: 'privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy',
       content: <PrivacySettings />,
     },
     {

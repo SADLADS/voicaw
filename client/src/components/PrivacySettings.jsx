@@ -37,6 +37,33 @@ export default function PrivacySettings() {
         and group DMs this tells the Voicaw server when you&apos;re typing and to whom, though never
         what. Turn it off and nobody sees you typing; you still see others. Saved on this device.
       </p>
+      <label className="settings-toggle">
+        <input
+          type="checkbox"
+          checked={prefs.youtubeEmbeds}
+          onChange={(e) => setPrivacyPref('youtubeEmbeds', e.target.checked)}
+        />
+        {' '}Show YouTube videos straight away
+      </label>
+      <p className="vc-hint">
+        A YouTube link in a message gets a player. Loading it tells YouTube your IP address and
+        which video you were sent, even if you never play it. Turn this off and the player waits
+        until you tap Play; nothing comes from YouTube before then. Saved on this device.
+      </p>
+      <label className="settings-toggle">
+        <input
+          type="checkbox"
+          checked={prefs.gifs}
+          onChange={(e) => setPrivacyPref('gifs', e.target.checked)}
+        />
+        {' '}Show GIFs straight away
+      </label>
+      <p className="vc-hint">
+        GIFs in messages, and the previews in the GIF picker, load from KLIPY, which sees your IP
+        address and which GIFs you see (not the chat or its messages). Turn this off and each GIF
+        waits until you tap Show, and the GIF picker asks before showing previews. Saved on this
+        device.
+      </p>
     </div>
   );
 }
