@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { LayoutContext } from '../../contexts';
 import UrlPreviews from '../UrlPreviews';
 import { acceptInvite, fetchInvitePreview } from '../../services/guildService';
+import { setPrivacyPref } from '../../utils/privacy';
 
 vi.mock('../../services/guildService', () => ({
   fetchInvitePreview: vi.fn(),
@@ -62,6 +63,18 @@ describe('invite embeds', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show' }));
     expect(await screen.findByText('Book Club')).toBeInTheDocument();
     expect(fetchInvitePreview).toHaveBeenCalledWith('Ab3dEf7h');
+  });
+
+  it('loads at once in encrypted chats when Settings → Privacy says so', async () => {
+    renderPreviews({ text: LINK, encrypted: true });
+    expect(screen.getByRole('button', { name: 'Show' })).toBeInTheDocument();
+    try {
+      act(() => setPrivacyPref('inviteEmbedsInEncrypted', true));
+      expect(await screen.findByText('Book Club')).toBeInTheDocument();
+      expect(fetchInvitePreview).toHaveBeenCalledWith('Ab3dEf7h');
+    } finally {
+      act(() => setPrivacyPref('inviteEmbedsInEncrypted', false));
+    }
   });
 
   it('says when an invite is invalid', async () => {

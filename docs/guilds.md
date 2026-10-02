@@ -57,7 +57,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   `GET /invites/:code`, asked once per code per session (`fetchInvitePreview`). In guild
   channels it loads at once; in DMs and group DMs (`ChatPane` `encrypted`, default true) it
   waits for a tap on Show, since asking would tell the server which invite an encrypted
-  message held.
+  message held, unless Settings → Privacy has "Show guild invites in DMs and group DMs
+  straight away" on (per device, off by default; `utils/privacy.js`, applies live).
 - Messages have the DM row shape (`sender_*`, `parent_*`, `reactions`, `edited`) so
   `MessageList` can show both; content is plain text up to `maxPlaintextLength` characters.
   Authors edit; authors or Manage Messages delete. Reactions are plain emoji, one of each per

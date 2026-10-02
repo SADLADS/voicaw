@@ -798,6 +798,14 @@ body.mobile-mode .settings-nav-item {
   background-color: var(--vc-bg-hover);
 }
 
+/* A section's icon (`icon` in Settings.jsx sections), in the column and on its card. */
+.settings-nav-icon,
+.settings-card-icon {
+  width: 1em;
+  margin-right: 8px;
+  color: var(--vc-fg-muted);
+}
+
 .settings-nav-empty {
   padding: 4px 8px;
   font-size: 13px;

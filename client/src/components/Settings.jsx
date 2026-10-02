@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect } from "react";
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMagnifyingGlass, faSignOutAlt, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faMagnifyingGlass, faPuzzlePiece, faSignOutAlt, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
@@ -11,6 +11,7 @@ import DeleteAccountSettings from "./DeleteAccountSettings";
 import AdminSettings from "./AdminSettings";
 import DateTimeSettings from "./DateTimeSettings";
 import SpellcheckSettings from "./SpellcheckSettings";
+import PrivacySettings from "./PrivacySettings";
 import ThemeSettings from "./ThemeSettings";
 import SoundSettings from "./SoundSettings";
 import VoiceSettings from "./VoiceSettings";
@@ -92,6 +93,11 @@ export default function Settings({ onLogout }) {
       id: 'spellcheck', category: 'app', title: 'Spellcheck',
       keywords: 'spelling spell check typos dictionary red underline squiggles language autocorrect',
       content: <SpellcheckSettings />,
+    },
+    {
+      id: 'privacy', category: 'app', title: 'Privacy', icon: faPuzzlePiece,
+      keywords: 'privacy invite invites embed embeds cards preview encrypted dm dms group server',
+      content: <PrivacySettings />,
     },
     {
       id: 'notifications', category: 'app', title: 'Notifications',
@@ -206,6 +212,7 @@ export default function Settings({ onLogout }) {
                   className="settings-nav-item"
                   onClick={() => open(section)}
                 >
+                  {section.icon && <FontAwesomeIcon icon={section.icon} className="settings-nav-icon" />}
                   {section.title}
                 </button>
               ))}
