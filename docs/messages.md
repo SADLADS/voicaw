@@ -359,6 +359,11 @@ text below it (two 24px lines less 2px each end). It's placed in px rather than 
 the text, so a message starting with a heading or big emoji doesn't move it. A reply's
 connecting line comes down to its middle. `e2e/avatar.mjs` measures all of this.
 
+Clicking a reply's snippet (the line above it quoting the message it answers) jumps to that
+message the way search, the pinned list and View poll do (`ChatPane`'s `jumpToMessage`, passed
+down as `onJumpToMessage`): older pages load until it's there, then it's scrolled to the middle
+and flashed (`.jump-highlight`).
+
 Where a new day starts (on the device's calendar), a line with the date in words goes across
 the chat, like Discord's (`startsNewDay` in the same file, `DayDivider` in `MessageList`,
 `formatLongDate`: "11 September 2026" in the Date & time setting's order). The first loaded
