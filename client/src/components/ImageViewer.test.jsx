@@ -87,6 +87,24 @@ describe('ImageViewer', () => {
     expect(openInNewTab).toHaveBeenCalledWith('blob:cat');
   });
 
+  it("right-clicking the image opens its menu (no link: it's encrypted); Escape closes only the menu", async () => {
+    renderImage();
+    fireEvent.click(screen.getByRole('button', { name: 'cat.png' }));
+    fireEvent.contextMenu(document.querySelector('.image-viewer-image'), { clientX: 50, clientY: 60 });
+    const menu = screen.getByRole('menu', { name: 'cat.png' });
+    expect(menu.closest('.context-menu-root')).toHaveClass('over-viewer');
+    expect([...menu.querySelectorAll('[role="menuitem"]')].map((b) => b.firstChild.firstChild.textContent))
+      .toEqual(['Copy Image', 'Save Image', 'Open Image']);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    fireEvent.contextMenu(document.querySelector('.image-viewer-image'), { clientX: 50, clientY: 60 });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Save Image' }));
+    await waitFor(() => expect(saveUrlAs).toHaveBeenCalledWith('blob:cat', 'cat.png'));
+  });
+
   it('closes on Escape without the composer also seeing it', async () => {
     const composerEscape = vi.fn();
     renderImage(composerEscape);

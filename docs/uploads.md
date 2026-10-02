@@ -78,3 +78,15 @@ element (`utils/imageGallery.js` `galleryItemRef`, including ones still decrypti
 order. Its keys are caught at the window's capture phase, so Escape doesn't
 also cancel a reply. Opening it pushes a history entry (keeping the router's state), so the
 back button closes it.
+
+**Image menu** (`components/ImageMenu.jsx`, actions in `utils/imageActions.js`), in place of
+the browser's: right-click a picture in a message (an attachment, a GIF, a webhook's embed or
+file image; `MessageImageMenus` in `App.jsx` listens on the page, not on phones, where holding
+a message opens its actions) or in the viewer (there also by holding it on a phone; the menu
+sits above the viewer, `overViewer`, and has the keys while open, so Escape closes only it).
+Copy Image (a PNG on the clipboard, the one type browsers take, so a GIF copies its first
+frame; other sites' pictures are fetched without a referrer and can't be copied if the site
+doesn't allow it), Save Image, and Copy Link / Open Link for a plain picture. An encrypted
+attachment has no link worth sharing (the file is ciphertext and its key lives only in the
+message), so it offers Open Image instead (the decrypted copy in a new tab). Videos keep their
+player's own download button.

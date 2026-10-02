@@ -1,10 +1,10 @@
 // The browser's own right-click menu is off across the app (our menus replace it where there
 // is something to do: channels, guilds, conversations...), except where it's still the useful
-// one: text boxes (spellcheck suggestions, paste), selected text (copy), and links and pictures
-// inside messages and documents (copy link, open in a new tab, save image).
+// one: text boxes (spellcheck suggestions, paste), selected text (copy), and links inside
+// messages and embeds (copy link, open in a new tab). Pictures have our own menu (ImageMenu).
 
 const EDITABLE = 'input, textarea, select, [contenteditable=""], [contenteditable="true"]';
-const IN_MESSAGE = '.dm-message-content a[href], .dm-message-content img, .message-embeds a[href], .message-embeds img, .message-files a[href], .message-files img';
+const IN_MESSAGE = '.dm-message-content a[href], .message-embeds a[href], .message-files a[href]';
 
 // Whether a right-click on `target` should get the browser's menu, with `selectedText` selected.
 export function allowsNativeMenu(target, selectedText = '') {

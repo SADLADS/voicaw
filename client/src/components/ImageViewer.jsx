@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -21,6 +21,8 @@ import {
   toggleZoomAt,
   zoomAt,
 } from '../utils/imageZoom';
+import { InteractionContext } from '../contexts';
+import ImageMenu from './ImageMenu';
 import '../assets/css/imageViewer.css';
 
 // A press that moves less than this, and lifts sooner than TAP_MS, is a tap.
@@ -29,6 +31,8 @@ const TAP_MS = 350;
 // Two taps this close in time and space are a double tap.
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_PX = 30;
+// Holding a finger still on the image this long opens its menu (ImageMenu).
+const HOLD_MS = 500;
 // A sideways drag of an unzoomed image further than this goes to the next/previous image.
 const SWIPE_MIN_PX = 60;
 const SWIPE_MIN_FRACTION = 0.15;
@@ -44,7 +48,7 @@ function wheelZoomFactor(e) {
 // One image, zoomable and pannable. Remounted for each image (keyed by the viewer), so every
 // image starts fitted. The toolbar drives it through its ref: zoomBy(factor), reset().
 const ImageStage = forwardRef(function ImageStage(
-  { item, onView, onClose, onSwipe, canSwipe },
+  { item, onView, onClose, onSwipe, canSwipe, onMenu },
   ref
 ) {
   const { src, error } = useImageSrc(item);
@@ -156,6 +160,17 @@ const ImageStage = forwardRef(function ImageStage(
         onImage: e.target.classList.contains('image-viewer-image'),
         swipe: !n || !isZoomed(v, s, n),
       };
+      // A finger held still on the image: its menu (and this touch does nothing else).
+      if (e.pointerType === 'touch' && gesture.current.onImage) {
+        const g = gesture.current;
+        g.holdTimer = setTimeout(() => {
+          if (gesture.current !== g || !g.tap || pointers.current.size !== 1) return;
+          g.tap = false;
+          g.held = true;
+          navigator.vibrate?.(10);
+          onMenu({ left: g.startX, right: g.startX, top: g.startY, bottom: g.startY });
+        }, HOLD_MS);
+      }
     } else {
       setSwipeX(0);
       gesture.current = {
@@ -172,6 +187,7 @@ const ImageStage = forwardRef(function ImageStage(
     if (!previous || !gesture.current) return;
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const g = gesture.current;
+    if (g.held) return;
     if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) > TAP_SLOP_PX) g.tap = false;
 
     const { view: v, stage: s, natural: n, canSwipe: can } = live.current;
@@ -202,6 +218,12 @@ const ImageStage = forwardRef(function ImageStage(
       return;
     }
     gesture.current = null;
+    clearTimeout(g?.holdTimer);
+    if (g?.held) {
+      setAnimate(true);
+      setSwipeX(0);
+      return;
+    }
 
     if (g?.swipe && !g.tap) {
       const dx = e.clientX - g.startX;
@@ -240,6 +262,14 @@ const ImageStage = forwardRef(function ImageStage(
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      // Right-click on the image: its menu. A touch's long press is handled above.
+      onContextMenu={(e) => {
+        e.preventDefault();
+        if (e.nativeEvent.pointerType === 'touch' || gesture.current?.held) return;
+        if (e.target.classList.contains('image-viewer-image')) {
+          onMenu({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY });
+        }
+      }}
     >
       {error && <p className="image-viewer-status">Couldn't load this image.</p>}
       {!src && !error && <p className="image-viewer-status">Decrypting…</p>}
@@ -294,10 +324,17 @@ function Thumbnail({ item, index, current, onSelect }) {
 
 // Full-screen view of a message's images: zoom (wheel, pinch, double click/tap, buttons,
 // + - 0 keys), pan (drag), step through them (arrows, ← → keys, swipe, thumbnails), save,
-// open in a new tab. Rendered into <body> by ImageViewerProvider, outside the message list,
+// open in a new tab; right-clicking the image (holding it on a phone) opens its menu
+// (ImageMenu: copy, save, link). Rendered into <body> by ImageViewerProvider, outside the message list,
 // so its touches don't reach the message's long press.
 export default function ImageViewer({ images, index, onIndexChange, onClose }) {
   const item = images[index];
+  const { isMobile } = useContext(InteractionContext);
+  // The image's menu (right-click, or hold on a phone): { anchor }.
+  const [menu, setMenu] = useState(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
+  const menuOpen = useRef(false);
+  menuOpen.current = Boolean(menu);
   const stageRef = useRef(null);
   const closeRef = useRef(null);
   const [viewInfo, setViewInfo] = useState(null);
@@ -314,6 +351,8 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
   // Escape-cancels-reply and other listeners see them.
   useEffect(() => {
     const onKeyDown = (e) => {
+      // The image's menu has the keys while it's open (Escape closes it, not the viewer).
+      if (menuOpen.current) return;
       const actions = {
         Escape: onClose,
         ArrowLeft: () => go(-1),
@@ -404,6 +443,7 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
           onClose={onClose}
           onSwipe={go}
           canSwipe={canSwipe}
+          onMenu={(anchor) => setMenu({ anchor })}
         />
         {multiple && (
           <>
@@ -437,6 +477,7 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
           ))}
         </div>
       )}
+      {menu && <ImageMenu item={item} anchor={menu.anchor} sheet={isMobile} overViewer onClose={closeMenu} />}
     </div>,
     document.body
   );

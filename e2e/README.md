@@ -27,6 +27,7 @@ node e2e/spoilers.mjs [dir] # spoiler images: mark in tray, blurred for both, ta
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
 node e2e/mutes.mjs [dir]  # muted channels: right-click mute, dimmed, no unread (mentions still count), header bell unmutes, phone
 node e2e/channelmenu.mjs [dir] # channel/category menus: read, mute, notify level, copy link, duplicate, delete, keys, edge; phone hold = sheet, hold+move = drag
+node e2e/imagemenu.mjs [dir] # picture menu: plain (copy image as PNG, copy link) vs encrypted (save, open, no link), over the viewer (Escape closes only it), phone hold in the viewer
 node e2e/menus.mjs [dir]  # browser menu off (kept in text boxes, message links); guild icon menu, channel list empty space, DM list pin/mute (no ping, no dot); phone sheets, rail hold+move drags
 node e2e/channel-mentions.mjs [dir] # # suggestions, #channel links (click opens), private = unknown, edit, DM, phone
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone

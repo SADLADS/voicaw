@@ -381,6 +381,12 @@ img.guild-icon {
   z-index: 1060;
 }
 
+/* Over the full-screen image viewer (z-index 2000). */
+.context-menu-root.over-viewer .guild-menu.context-menu,
+.action-sheet-backdrop.over-viewer {
+  z-index: 2100;
+}
+
 .context-menu .guild-menu-item:focus-visible {
   outline: none;
   background-color: var(--vc-bg-elevated-hover);
