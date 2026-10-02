@@ -74,7 +74,8 @@
   conversations in the DM list (`DmMenu.jsx`: Mark As Read, Start/Join Call, Pin / Unpin,
   Mute ▸ / Unmute). **The browser's own menu is off** everywhere else
   (`utils/nativeContextMenu.js`, from `main.jsx`) except in text boxes (spellcheck, paste), on
-  selected text, and on links and pictures in messages and embeds (copy link, save image).
+  selected text, and on links in messages and embeds (copy link, open). Pictures have ours
+  (see Image menu in `docs/uploads.md`).
 - **Pinned and muted conversations** (`server/conversationSettings.js`, table
   `conversation_settings`; `GET /conversation-settings`, `PUT /conversation-settings/:kind/:target
   { pinned?, mute?: { duration } | false }`, kind `dm` (the other person's id) or `group`; the

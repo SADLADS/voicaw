@@ -24,7 +24,8 @@ export async function saveUrlAs(url, name) {
     return;
   }
   try {
-    const res = await fetch(url);
+    // Without a referrer, like other sites' pictures are shown.
+    const res = await fetch(url, { referrerPolicy: 'no-referrer' });
     if (!res.ok) throw new Error(`Download failed (${res.status})`);
     const objectUrl = URL.createObjectURL(await res.blob());
     triggerDownload(objectUrl, name);

@@ -15,6 +15,11 @@ export function galleryItemRef(item) {
   };
 }
 
+// The item registered on `el` (a `data-gallery-item` element), or undefined.
+export function galleryItemOf(el) {
+  return items.get(el);
+}
+
 export function galleryAround(el) {
   const scope = el.closest('[data-image-gallery]');
   const elements = scope ? [...scope.querySelectorAll('[data-gallery-item]')] : [el];

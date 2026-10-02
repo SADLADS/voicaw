@@ -23,6 +23,7 @@ import { clearUserKeys } from './services/keyStore';
 import EmojiProvider from './emoji/EmojiProvider';
 import UpdateBanner from './components/UpdateBanner';
 import ImageViewerProvider from './components/ImageViewerProvider';
+import { MessageImageMenus } from './components/ImageMenu';
 import { disableNotificationsOnThisDevice } from './services/pushService';
 import { setCustomEmojiBase } from './emoji/customEmoji';
 import { setAvatarBase } from './utils/profiles';
@@ -132,6 +133,7 @@ export default function App() {
         <ImageViewerProvider>
         <Router>
           <SWMessageHandler />
+          <MessageImageMenus />
           <UpdateBanner />
           <Routes>
             <Route

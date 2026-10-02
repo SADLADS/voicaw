@@ -15,7 +15,8 @@ const ITEMS = '[role^="menuitem"]:not([disabled])';
 // way back). Picking an item runs `onSelect` and closes the menu once it's done; if it throws,
 // the error shows in the menu instead. `onSelect` returning a string shows it in place of the
 // item's label for a moment first ("Link copied"). Escape, or a click outside, closes it.
-export default function ContextMenu({ title, label, items, anchor, sheet = false, onClose }) {
+// `overViewer`: shown over the full-screen image viewer (which sits above everything else).
+export default function ContextMenu({ title, label, items, anchor, sheet = false, overViewer = false, onClose }) {
   const rootRef = useRef(null);
   const [submenu, setSubmenu] = useState(null); // { key, anchor (desktop: the item's rect) }
   const [error, setError] = useState(null);
@@ -85,12 +86,13 @@ export default function ContextMenu({ title, label, items, anchor, sheet = false
         done={done}
         error={error}
         onClose={onClose}
+        overViewer={overViewer}
       />
     );
   }
 
   return createPortal(
-    <div ref={rootRef} className="context-menu-root">
+    <div ref={rootRef} className={`context-menu-root${overViewer ? ' over-viewer' : ''}`}>
       <MenuPanel
         label={label}
         items={items}
@@ -198,13 +200,13 @@ function MenuPanel({ label, items, anchor, beside = false, openKey, onPick, onHo
 }
 
 // The phone's version: a sheet from the bottom, like a message's actions.
-function SheetMenu({ title, label, items, onBack, onPick, done, error, onClose }) {
+function SheetMenu({ title, label, items, onBack, onPick, done, error, onClose, overViewer }) {
   // A click only counts from a touch that started on the sheet (not the finger lifting from
   // the long press that opened it).
   const touchedHere = useRef(false);
   return createPortal(
     <div
-      className="action-sheet-backdrop"
+      className={`action-sheet-backdrop${overViewer ? ' over-viewer' : ''}`}
       onPointerDown={() => { touchedHere.current = true; }}
       onClickCapture={(e) => {
         if (!touchedHere.current) {
