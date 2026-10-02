@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-// The theme, per device (localStorage `theme`: 'light', 'familiar' (Ol' Familiar, Discord's dark
+// The theme, per device (localStorage `theme`: 'light', 'familiar' (Ol' Familiar, Discord's Ash
 // colours), 'system', or nothing for dark, the default). Never sent to the server, so each
 // browser (and the desktop app) keeps its own. 'system' follows the system's light or dark
 // setting live (prefers-color-scheme).
