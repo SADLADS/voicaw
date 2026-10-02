@@ -726,3 +726,74 @@ button.user-panel-button {
   margin: 12px 0 0;
   font-size: 0.85rem;
 }
+
+/* USER VOLUME: one person's volume, from clicking them in a voice channel or call. */
+.user-volume-menu {
+  width: 260px;
+  padding: 10px 12px 12px;
+}
+
+.user-volume-name {
+  margin-bottom: 8px;
+  overflow: hidden;
+  font-weight: 600;
+  color: var(--vc-fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-volume-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vc-fg-muted);
+  text-transform: uppercase;
+}
+
+.user-volume-value {
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+}
+
+.user-volume-slider {
+  display: block;
+  width: 100%;
+  margin: 8px 0 10px;
+  accent-color: var(--vc-accent);
+}
+
+.user-volume-reset {
+  padding: 4px 0;
+  font-size: 13px;
+  color: var(--vc-fg);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+}
+
+.user-volume-reset:disabled {
+  color: var(--vc-fg-muted);
+  opacity: 0.6;
+}
+
+.user-volume-sheet {
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+.user-volume-sheet .user-volume-head,
+.user-volume-sheet .user-volume-slider,
+.user-volume-sheet .user-volume-reset {
+  margin-left: 8px;
+  margin-right: 8px;
+}
+
+.user-volume-sheet .user-volume-slider {
+  width: calc(100% - 16px);
+  height: 32px;
+}
+
+[data-volume-trigger] {
+  cursor: pointer;
+}

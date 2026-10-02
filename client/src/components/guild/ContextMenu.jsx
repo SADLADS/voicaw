@@ -3,31 +3,9 @@ import { createPortal } from 'react-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheck, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { errorMessage } from '../../utils/guildDisplay';
+import { placeMenu as place } from '../../utils/menuPlacement';
 
-const MARGIN = 8;
 const ITEMS = '[role^="menuitem"]:not([disabled])';
-
-// Places a panel of size `box` by `anchor` (a rect): below it, or above when there's no room
-// below; `beside` puts it to the anchor's right instead (a submenu), or its left when there's
-// no room on the right. Kept on screen.
-function place(anchor, box, beside) {
-  let left;
-  let top;
-  if (beside) {
-    // The item sits inside its menu's padding (6px): clear that, plus a small gap.
-    left = anchor.right + 10;
-    if (left + box.width > window.innerWidth - MARGIN) left = anchor.left - box.width - 10;
-    top = anchor.top - 6;
-  } else {
-    left = anchor.left;
-    top = anchor.bottom + (anchor.bottom > anchor.top ? 6 : 0);
-    if (top + box.height > window.innerHeight - MARGIN) top = anchor.top - box.height;
-  }
-  return {
-    left: Math.max(MARGIN, Math.min(left, window.innerWidth - box.width - MARGIN)),
-    top: Math.max(MARGIN, Math.min(top, window.innerHeight - box.height - MARGIN)),
-  };
-}
 
 // A right-click menu (desktop) or a long press's sheet (phone, `sheet`): `items` are
 // { key, label, icon?, hint? (a line under it), danger?, checked? (true/false: a choice, ticked

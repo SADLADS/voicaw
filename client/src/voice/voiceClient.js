@@ -2,8 +2,9 @@ import { fetchVoiceToken, leaveVoiceChannel, saveVoiceState } from '../services/
 import { createVoiceChain } from './voiceChain';
 import { VOICE_SAMPLE_RATE, voiceProcessingStage } from './noise/noiseStages';
 import {
-  captureOptions, getAudioSettings, inputGainStage, onAudioSettingsChange, outputSinkId, processingChanged,
+  canChooseOutput, captureOptions, getAudioSettings, inputGainStage, onAudioSettingsChange, outputSinkId, processingChanged,
 } from './audioSettings';
+import { getUserVolume, onUserVolumesChange, playbackVolume } from './userVolumes';
 import { playSound } from '../sounds/sounds';
 import { isMobileDevice } from '../utils/presence';
 import {
@@ -22,7 +23,13 @@ import {
 // released (the browser's recording indicator goes off); deafened, you also can't be heard.
 // Sounds, like Discord's: joining (yours and others'), leaving, being disconnected, mute and
 // deafen (sounds/). The microphone, speakers and their volumes are the device's voice
-// settings (audioSettings.js, Settings → Voice & video), applied as they change.
+// settings (audioSettings.js, Settings → Voice & video), applied as they change, and each
+// person's own volume (userVolumes.js) too.
+//
+// Others' voices play through Web Audio (LiveKit's webAudioMix, in our own AudioContext,
+// `playback`), each through its own gain, so one person can be turned up past 100%. Not where
+// the browser can choose the speakers for a media element but not for an AudioContext
+// (Firefox): there they play from the <audio> elements, up to 100%.
 //
 // Screen sharing (voice channels, with Video): your screen (and its sound, where the browser
 // shares it) goes out as LiveKit screen-share tracks. Others only receive a stream while they
@@ -104,6 +111,23 @@ let audioContainer = null;
 // Each remote audio track's <audio> element. (By the time a track is unsubscribed LiveKit may
 // have detached it already, so `detach()` can't be relied on to find it.)
 let audioElementsByTrack = new Map();
+// The AudioContext others' voices play through (webAudioMix), or null (media elements).
+let playback = null;
+
+const playsThroughWebAudio = () => typeof AudioContext !== 'undefined'
+  && ('setSinkId' in AudioContext.prototype || !canChooseOutput());
+
+function newPlaybackContext() {
+  if (!playsThroughWebAudio()) return null;
+  try {
+    const context = new AudioContext({ latencyHint: 'interactive' });
+    const sink = outputSinkId();
+    if (sink && context.setSinkId) context.setSinkId(sink).catch((err) => console.warn('Could not choose speakers', err));
+    return context;
+  } catch {
+    return null;
+  }
+}
 
 // Remote audio plays through <audio> elements kept here, out of sight.
 function audioElements() {
@@ -187,6 +211,8 @@ async function teardown() {
   clearTakeOver();
   const old = room;
   room = null;
+  const oldPlayback = playback;
+  playback = null;
   if (old) {
     old.removeAllListeners();
     await old.disconnect().catch(() => {});
@@ -196,6 +222,7 @@ async function teardown() {
   subscriptions = new WeakMap();
   audioElementsByTrack = new Map();
   if (audioContainer) audioContainer.replaceChildren();
+  oldPlayback?.close().catch(() => {});
 }
 
 // Turns the microphone on or off to match mute, deafen and Speak.
@@ -231,7 +258,7 @@ async function applyMicrophone() {
 onAudioSettingsChange(async (next, previous) => {
   const current = room;
   if (!current) return;
-  if (audioContainer) for (const element of audioContainer.querySelectorAll('audio')) element.volume = next.outputVolume;
+  applyVolumes();
   if (next.outputDeviceId !== previous.outputDeviceId) {
     await current.switchActiveDevice('audiooutput', outputSinkId(next) || 'default')
       .catch((err) => console.warn('Could not switch speakers', err));
@@ -251,10 +278,36 @@ onAudioSettingsChange(async (next, previous) => {
   }
 });
 
-function applyDeafen() {
-  if (!audioContainer) return;
-  for (const element of audioContainer.querySelectorAll('audio')) element.muted = snapshot.selfDeaf;
+// Deafen, the output volume and each person's volume, on every voice we receive. (LiveKit
+// rebuilds a track's gain when the audio is started again, which forgets a volume of 0, so
+// this runs after that too.)
+function volumeOf(identity, source) {
+  return playbackVolume({
+    selfDeaf: snapshot.selfDeaf,
+    outputVolume: getAudioSettings().outputVolume,
+    userVolume: source === livekit.Track.Source.Microphone ? getUserVolume(identity) : undefined,
+    canBoost: Boolean(playback),
+  });
 }
+
+function applyTrackVolume(track, identity, source) {
+  track.setVolume(volumeOf(identity, source));
+  // Media elements only (Web Audio keeps them muted itself).
+  if (!playback) {
+    for (const element of track.attachedElements) element.muted = snapshot.selfDeaf;
+  }
+}
+
+function applyVolumes() {
+  if (!room || !livekit) return;
+  for (const participant of room.remoteParticipants.values()) {
+    for (const publication of participant.audioTrackPublications.values()) {
+      if (publication.track) applyTrackVolume(publication.track, participant.identity, publication.source);
+    }
+  }
+}
+
+onUserVolumesChange(applyVolumes);
 
 function watch(newRoom, current) {
   const { RoomEvent, Track } = livekit;
@@ -285,15 +338,14 @@ function watch(newRoom, current) {
     .on(RoomEvent.LocalTrackUnpublished, updateTracks)
     .on(RoomEvent.TrackMuted, updateMuted)
     .on(RoomEvent.TrackUnmuted, updateMuted)
-    .on(RoomEvent.TrackSubscribed, (track) => {
+    .on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
       updateTracks();
       // Video (a screen share) is drawn by whoever shows it (attachStream).
       if (track.kind !== Track.Kind.Audio) return;
       const element = track.attach();
-      element.muted = snapshot.selfDeaf;
-      element.volume = getAudioSettings().outputVolume;
       audioElementsByTrack.set(track, element);
       audioElements().appendChild(element);
+      applyTrackVolume(track, participant.identity, publication.source);
     })
     .on(RoomEvent.TrackUnsubscribed, (track) => {
       if (track.kind === Track.Kind.Audio) {
@@ -317,7 +369,9 @@ function watch(newRoom, current) {
       updateTracks();
     })
     .on(RoomEvent.AudioPlaybackStatusChanged, () => {
-      if (!stale()) update({ audioBlocked: !newRoom.canPlaybackAudio });
+      if (stale()) return;
+      update({ audioBlocked: !newRoom.canPlaybackAudio });
+      applyVolumes();
     })
     .on(RoomEvent.ParticipantPermissionsChanged, (_previous, participant) => {
       if (stale() || participant !== newRoom.localParticipant) return;
@@ -375,7 +429,9 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
     const { url, token } = await getToken();
     if (current !== attempt) return;
     const e2ee = e2eeKey ? await e2eeOptions(e2eeKey) : undefined;
+    playback = newPlaybackContext();
     const newRoom = new livekit.Room({
+      webAudioMix: playback ? { audioContext: playback } : false,
       stopMicTrackOnMute: true,
       audioCaptureDefaults: captureOptions(),
       audioOutput: { deviceId: outputSinkId() || 'default' },
@@ -398,6 +454,7 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
     if (current !== attempt) return;
     joinedRooms.add(newRoom);
     await newRoom.startAudio().catch(() => {});
+    applyVolumes();
     update({
       status: 'connected',
       identity: newRoom.localParticipant.identity,
@@ -570,7 +627,7 @@ function setPrefs(changes, extra = {}) {
   } catch {
     // Not remembered, then.
   }
-  applyDeafen();
+  applyVolumes();
   applyMicrophone();
   if (snapshot.status !== 'idle' && snapshot.channelId != null) {
     saveVoiceState(prefs()).catch((err) => console.warn('Could not save mute/deafen', err));
@@ -590,7 +647,10 @@ export function setSelfDeaf(selfDeaf) {
 
 // After the browser refused to play sound without a click: call from one.
 export function resumeAudio() {
-  room?.startAudio().then(() => update({ audioBlocked: false })).catch(() => {});
+  room?.startAudio().then(() => {
+    applyVolumes();
+    update({ audioBlocked: false });
+  }).catch(() => {});
 }
 
 export function clearVoiceError() {

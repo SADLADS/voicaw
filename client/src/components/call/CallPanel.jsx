@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLock, faPhoneSlash } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/voice.css';
 import { useCall } from '../../hooks/useCall';
 import { useVoice } from '../../hooks/useVoice';
+import { useVolumeMenu } from '../../hooks/useVolumeMenu';
+import { InteractionContext } from '../../contexts';
 import { hangUp } from '../../voice/callClient';
 import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
+import UserVolumeMenu from '../voice/UserVolumeMenu';
 import { MicIcon } from '../voice/VoiceIcons';
 import { nameOf } from '../../utils/profiles';
 
@@ -26,11 +29,14 @@ function useDuration(since) {
 }
 
 // At the top of a DM while you're calling that person: both of you (ringed while talking,
-// the mic icon when muted), the state or how long it's been going, and the controls.
+// the mic icon when muted), the state or how long it's been going, and the controls. Clicking
+// the other person once you're in sets how loud they are for you.
 export default function CallPanel({ user, peer }) {
   const call = useCall();
   const voice = useVoice();
+  const { isMobile } = useContext(InteractionContext);
   const duration = useDuration(call?.state === 'active' ? call.answeredAt : null);
+  const volumeMenu = useVolumeMenu(call != null && voice.callId === call.id && voice.status !== 'idle');
   if (!call || String(call.peerId) !== String(peer?.id)) return null;
 
   const connected = voice.callId === call.id && voice.status === 'connected';
@@ -46,7 +52,7 @@ export default function CallPanel({ user, peer }) {
     <div className="call-panel" aria-label={`Call with ${nameOf(peer)}`}>
       <div className="call-panel-people">
         {[[user, selfMuted], [peer, peerMuted]].map(([person, muted]) => (
-          <div key={person.id} className="call-panel-person">
+          <div key={person.id} className="call-panel-person" {...volumeMenu.triggerProps(person.id, nameOf(person))}>
             {/* LiveKit's speaker list lags a moment behind a mute. */}
             <UserAvatar userId={person.id} className="call-panel-avatar" speaking={!muted && speaking.has(String(person.id))} />
             {muted && <span className="call-panel-muted" title="Muted" aria-label="Muted"><MicIcon muted /></span>}
@@ -59,6 +65,7 @@ export default function CallPanel({ user, peer }) {
           <FontAwesomeIcon icon={faLock} /> End-to-end encrypted
         </span>
       </div>
+      {volumeMenu.menu && <UserVolumeMenu {...volumeMenu.menu} sheet={isMobile} onClose={volumeMenu.close} />}
       {call.outgoing || call.state !== 'ringing' ? (
         <div className="voice-view-controls">
           <VoiceControls className="voice-view-button" />

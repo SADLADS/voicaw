@@ -195,7 +195,7 @@ export default function GuildSidebar({ guild, user }) {
       </li>
       {channel.voice?.length > 0 && (
         <li className="guild-channel-voice">
-          <VoiceChannelMembers members={channel.voice} speaking={channel.id === inVoice ? speaking : new Set()} />
+          <VoiceChannelMembers members={channel.voice} speaking={channel.id === inVoice ? speaking : new Set()} inChannel={channel.id === inVoice} />
         </li>
       )}
       </React.Fragment>

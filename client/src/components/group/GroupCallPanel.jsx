@@ -1,21 +1,27 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLock, faPhone, faPhoneSlash } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/voice.css';
 import { useCall, useGroupCall } from '../../hooks/useCall';
 import { useVoice } from '../../hooks/useVoice';
+import { useVolumeMenu } from '../../hooks/useVolumeMenu';
+import { InteractionContext } from '../../contexts';
 import { hangUp, joinGroupCallById } from '../../voice/callClient';
 import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
+import UserVolumeMenu from '../voice/UserVolumeMenu';
 import { MicIcon } from '../voice/VoiceIcons';
 
 // A group's call, at the top of the group: who's in it, and Join; once you're in, ringed
-// while talking, the mic icon when muted, and the controls.
+// while talking, the mic icon when muted, and the controls; clicking someone sets how loud
+// they are for you.
 export default function GroupCallPanel({ groupId, names, user }) {
   const groupCall = useGroupCall(groupId);
   const call = useCall();
   const voice = useVoice();
+  const { isMobile } = useContext(InteractionContext);
   const mine = call?.groupId === groupId ? call : null;
+  const volumeMenu = useVolumeMenu(mine != null && voice.callId === mine.id && voice.status !== 'idle');
   if (!groupCall && !mine) return null;
 
   const participants = mine?.participants ?? groupCall?.participants ?? [];
@@ -33,7 +39,7 @@ export default function GroupCallPanel({ groupId, names, user }) {
     <div className="call-panel group-call-panel" aria-label="Group call">
       <div className="call-panel-people">
         {participants.map((id) => (
-          <div key={id} className="call-panel-person" title={names.get(id)}>
+          <div key={id} className="call-panel-person" title={names.get(id)} {...volumeMenu.triggerProps(id, names.get(id) ?? 'Someone')}>
             <UserAvatar userId={id} className="call-panel-avatar small" speaking={connected && !isMuted(id) && speaking.has(String(id))} />
             {connected && isMuted(id) && <span className="call-panel-muted" aria-label="Muted"><MicIcon muted /></span>}
             <span className="call-panel-name">{names.get(id) ?? 'Someone'}</span>
@@ -46,6 +52,7 @@ export default function GroupCallPanel({ groupId, names, user }) {
           <FontAwesomeIcon icon={faLock} /> End-to-end encrypted
         </span>
       </div>
+      {volumeMenu.menu && <UserVolumeMenu {...volumeMenu.menu} sheet={isMobile} onClose={volumeMenu.close} />}
       {mine && mine.state !== 'ringing' ? (
         <div className="voice-view-controls">
           <VoiceControls className="voice-view-button" />

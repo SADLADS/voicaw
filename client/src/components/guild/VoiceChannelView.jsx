@@ -2,14 +2,16 @@ import React, { useContext } from 'react';
 import '../../assets/css/voice.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPhoneSlash, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
-import { ConfigContext } from '../../contexts';
+import { ConfigContext, InteractionContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
+import { useVolumeMenu } from '../../hooks/useVolumeMenu';
 import { joinVoice, leaveVoice, watchStream } from '../../voice/voiceClient';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
 import ScreenShareButton from '../voice/ScreenShareButton';
 import StreamView from '../voice/StreamView';
+import UserVolumeMenu from '../voice/UserVolumeMenu';
 import { HeadphonesIcon, MicIcon } from '../voice/VoiceIcons';
 import { displayName, useProfiles } from '../../utils/profiles';
 
@@ -17,13 +19,16 @@ import { displayName, useProfiles } from '../../utils/profiles';
 // too), and joining, or mute/deafen/share screen/disconnect once you're in. On mobile this is
 // where you join (tapping the channel only opens it); on desktop clicking the channel already
 // joined. Someone sharing their screen is marked Live; once you're in, Watch Stream shows it
-// big above the tiles (only watched streams are downloaded).
+// big above the tiles (only watched streams are downloaded). Clicking someone else's tile
+// while you're in sets how loud they are for you.
 export default function VoiceChannelView({ guild, channel, nameColors }) {
   useProfiles();
   const { voiceEnabled } = useContext(ConfigContext);
+  const { isMobile } = useContext(InteractionContext);
   const voice = useVoice();
   const members = channel.voice ?? [];
   const here = voice.channelId === channel.id && voice.status !== 'idle';
+  const volumeMenu = useVolumeMenu(here);
   const speaking = new Set(here ? voice.speaking : []);
   const canConnect = has(channel.my_permissions, PERMISSIONS.CONNECT);
   const streams = new Set(here ? voice.streams : []);
@@ -74,7 +79,11 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
             const live = m.self_stream || streams.has(String(m.user_id));
             const watchable = streams.has(String(m.user_id)) && voice.watching !== String(m.user_id);
             return (
-              <li key={m.user_id} className={`voice-tile${talking ? ' speaking' : ''}${live ? ' live' : ''}`}>
+              <li
+                key={m.user_id}
+                className={`voice-tile${talking ? ' speaking' : ''}${live ? ' live' : ''}`}
+                {...volumeMenu.triggerProps(m.user_id, displayName(m.user_id, m.username))}
+              >
                 <UserAvatar userId={m.user_id} className="voice-tile-avatar" speaking={talking} />
                 <span className="voice-tile-name" style={nameColors?.[m.user_id] ? { color: nameColors[m.user_id] } : undefined}>
                   {displayName(m.user_id, m.username)}
@@ -87,7 +96,15 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
                   </span>
                 )}
                 {watchable && (
-                  <button type="button" className="voice-tile-watch" onClick={() => watchStream(m.user_id)}>
+                  <button
+                    type="button"
+                    className="voice-tile-watch"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      watchStream(m.user_id);
+                    }}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
                     Watch Stream
                   </button>
                 )}
@@ -96,6 +113,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
           })}
         </ul>
       )}
+      {volumeMenu.menu && <UserVolumeMenu {...volumeMenu.menu} sheet={isMobile} onClose={volumeMenu.close} />}
       {here && voice.streamError && <p className="voice-view-note voice-view-error" role="alert">{voice.streamError}</p>}
       <div className="voice-view-footer">
         {voice.status === 'connecting' && voice.channelId === channel.id ? <p className="voice-view-note">Connecting…</p> : footer}

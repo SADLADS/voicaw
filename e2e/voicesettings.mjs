@@ -31,6 +31,22 @@ async function joinWith(page, link) {
 
 const tile = (name) => `.voice-tile:has-text("${name}")`;
 
+// Others' voices play through Web Audio (a gain per voice, see voiceClient.js): remembers
+// those gains (a MediaStream source into a gain into the speakers) as `window.__voiceGains`.
+const markVoiceGains = () => {
+  window.__voiceGains = [];
+  const connect = AudioNode.prototype.connect;
+  AudioNode.prototype.connect = function marked(target, ...rest) {
+    if (this instanceof MediaStreamAudioSourceNode && target instanceof GainNode) target.__voice = true;
+    if (this.__voice && target instanceof AudioDestinationNode && !window.__voiceGains.includes(this)) window.__voiceGains.push(this);
+    return connect.call(this, target, ...rest);
+  };
+};
+// Each voice playing: its gain, and the speakers its AudioContext plays to.
+const voiceOutputs = (page) => page.evaluate(() => window.__voiceGains
+  .filter((g) => g.context.state !== 'closed')
+  .map((g) => ({ volume: Math.round(g.gain.value * 100) / 100, sinkId: g.context.sinkId })));
+
 const browser = await launchChrome({ args: fakeMicArgs() });
 try {
   const alice = await signUp(browser, 'alice');
@@ -42,6 +58,9 @@ try {
       if (m.type() === 'error' || m.type() === 'warning') console.log(`[${who} ${m.type()}]`, m.text().slice(0, 200));
     });
     page.on('pageerror', (e) => console.log(`[${who}] page error:`, e.message));
+    await page.context().addInitScript(markVoiceGains);
+    await page.reload();
+    await page.waitForSelector('#dm-main');
   }
 
   // Settings: devices listed (Chrome's fake ones), the mic test's meter moves.
@@ -148,7 +167,7 @@ try {
   const speaker = bobOutputs.find((v) => v) ?? null;
   if (speaker) await b.selectOption('select[aria-label="Output device"]', speaker);
   await b.waitForTimeout(1000);
-  const playing = await b.$$eval('[data-voice-audio] audio', (els) => els.map((e) => ({ volume: e.volume, sinkId: e.sinkId })));
+  const playing = await voiceOutputs(b);
   console.log('bob\'s voice audio:', JSON.stringify(playing), 'chosen speaker:', speaker);
   if (!playing.length || playing.some((p) => Math.abs(p.volume - 0.4) > 0.01)) throw new Error('output volume not applied');
   if (speaker && playing.some((p) => p.sinkId !== speaker)) throw new Error('speakers not applied');
@@ -160,9 +179,11 @@ try {
   await a.waitForSelector('.voice-bar-status.connected', { timeout: 20000 });
   await b.waitForFunction(() => document.querySelectorAll('[data-voice-audio] audio').length > 0, null, { timeout: 15000 });
   await b.waitForTimeout(1000);
-  const again = await b.$$eval('[data-voice-audio] audio', (els) => els.map((e) => ({ volume: e.volume, sinkId: e.sinkId })));
+  const elements = await b.$$eval('[data-voice-audio] audio', (els) => els.length);
+  if (elements !== 1) throw new Error(`${elements} audio elements for one voice (old ones left behind)`);
+  // The old voice's gain stays in the list (disconnected): the newest is the one playing.
+  const again = (await voiceOutputs(b)).slice(-1);
   console.log('after alice rejoined:', JSON.stringify(again));
-  if (again.length !== 1) throw new Error(`${again.length} audio elements for one voice (old ones left behind)`);
   if (again.some((p) => Math.abs(p.volume - 0.4) > 0.01 || (speaker && p.sinkId !== speaker))) throw new Error('new voice missed the settings');
   await shot(b, '03-bob-output-settings');
 
