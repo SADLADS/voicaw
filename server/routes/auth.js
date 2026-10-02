@@ -3,7 +3,7 @@ const express = require('express');
 const opaque = require('@serenity-kit/opaque');
 const db = require('../db');
 const { opaqueServerSetup } = require('../config');
-const { generateToken, authenticateJWT } = require('../auth');
+const { startSession, authenticateJWT } = require('../auth');
 const { rateLimitsEnabled } = require('../config');
 const { createLimiter, tooManyAttempts } = require('../rateLimit');
 const { LIMITS: PROFILE_LIMITS, PROFILE_COLUMNS, clean: cleanProfile } = require('../profiles');
@@ -140,7 +140,7 @@ router.post('/finaliselogin', async (req, res) => {
   // The client decrypts the backup with its OPAQUE exportKey and checks the published
   // public keys against the ones inside it.
   res.json({
-    token: generateToken(user),
+    token: await startSession(user, req),
     id: user.id,
     username: user.username,
     hasRecoveryCode: Boolean(user.recovery_verifier),
@@ -200,7 +200,7 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
   }
   const user = { id: lastID, username };
   res.status(201).json({
-    token: generateToken(user), id: user.id, username, display_name: displayName, hasRecoveryCode: Boolean(recovery),
+    token: await startSession(user, req), id: user.id, username, display_name: displayName, hasRecoveryCode: Boolean(recovery),
   });
 });
 
@@ -390,7 +390,7 @@ router.post('/recover/finish', recoverLimits, async (req, res) => {
   });
   limits.loginPerUsername.reset(byUsername(req));
   res.json({
-    token: generateToken({ id: user.id, username: user.username }),
+    token: await startSession(user, req),
     id: user.id,
     username: user.username,
     hasRecoveryCode: true,

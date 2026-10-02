@@ -44,6 +44,7 @@ app.get('/api/config', async (req, res) => {
 });
 
 app.use('/api', require('./routes/auth'));
+app.use('/api', require('./routes/sessions'));
 app.use('/api', require('./routes/dms'));
 app.use('/api', require('./routes/reactions'));
 app.use('/api', require('./routes/guilds'));

@@ -8,14 +8,14 @@ vi.mock('./hooks/useAuth', () => ({
 }));
 
 vi.mock('./utils/api', () => ({
-  default: { get: vi.fn() },
+  default: { get: vi.fn(), post: vi.fn(async () => ({ data: { ok: true } })) },
 }));
 
-const accountDeleted = vi.hoisted(() => ({ listener: null }));
+const loggedOut = vi.hoisted(() => ({ listener: null }));
 vi.mock('./utils/ws-client', () => ({
   closeWebSocket: vi.fn(),
-  onAccountDeleted: vi.fn((cb) => {
-    accountDeleted.listener = cb;
+  onLoggedOutElsewhere: vi.fn((cb) => {
+    loggedOut.listener = cb;
     return () => {};
   }),
 }));
@@ -135,17 +135,18 @@ describe('App routing', () => {
     expect(closeWebSocket).toHaveBeenCalled();
     expect(localStorage.getItem('token')).toBeNull();
     expect(clearUserKeys).toHaveBeenCalled();
+    expect(api.post).toHaveBeenCalledWith('/logout');
   });
 
-  it('logs out when the account is deleted on another device', async () => {
+  it('logs out when logged out from another device (or the account is deleted there)', async () => {
     const setUser = vi.fn();
     useAuth.mockReturnValue({ user: { id: 1, username: 'alice' }, setUser, loading: false });
     setPath('/dm');
     localStorage.setItem('token', 'jwt-abc');
 
     render(<App />);
-    await waitFor(() => expect(accountDeleted.listener).toBeTruthy());
-    accountDeleted.listener();
+    await waitFor(() => expect(loggedOut.listener).toBeTruthy());
+    loggedOut.listener();
 
     await waitFor(() => expect(setUser).toHaveBeenCalledWith(null));
     expect(localStorage.getItem('token')).toBeNull();

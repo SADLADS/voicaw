@@ -39,16 +39,45 @@ nginx's `X-Forwarded-For` (`trust proxy: 'loopback'`). A local `npm run dev` goe
 proxy to the public API, so everyone using one shares its address there. The websocket `user_status`
 broadcast only goes to identified sockets.
 
-On successful login/register, the server issues a JWT (`generateToken`, see `server/auth.js`)
-which the client stores in `localStorage` and sends as `Authorization: Bearer <token>` (see
-`client/src/utils/api.js`). `authenticateJWT` middleware protects all `/api/*` routes except
-config/login/register.
+On successful login/register/recovery, the server starts a login session and issues a JWT for
+it (`startSession`, see `server/auth.js`), which the client stores in `localStorage` and sends
+as `Authorization: Bearer <token>` (see `client/src/utils/api.js`). `authenticateJWT`
+middleware protects all `/api/*` routes except config/login/register.
 - **Sessions last while the app is used:** a token is good for 30 days (`SESSION_SECONDS`), and
   any authenticated request with one older than a day (`RENEW_AFTER_SECONDS`) gets a new one in
   the `X-Voicaw-Token` response header (exposed by CORS). `api.js` stores it, only if it renews
   the token that request was sent with (not after a logout or another login). So only a device
-  unused for 30 days has to log in again. Tokens can't be revoked (logout just forgets it on
-  the device); a server-side sessions table would be the way to add that.
+  unused for 30 days has to log in again.
+
+## Login sessions and Settings → Devices
+
+Every login is a row in `sessions` (random id, user, created, last used, user agent, IP), and
+the token carries its id (`sid`). `verifyToken` (every request and socket identify) refuses a
+token whose row is gone, so a session can be ended on the server. The last use, user agent and
+IP are saved at most every 5 minutes (`SESSION_TOUCH_SECONDS`), not on every request; rows unused
+for longer than a token lasts are cleared at the user's next login. The IP is only kept while
+the session exists, and only shown to the account itself.
+- **Routes** (`routes/sessions.js`, `server/sessions.js`): `GET /api/sessions` (this one first,
+  with `current` and `online`: has an open socket), `DELETE /api/sessions/:id` (one),
+  `DELETE /api/sessions` (every other one), `POST /api/logout` (this one; the client's logout
+  calls it before forgetting the token). Ending a session deletes its row and the push
+  subscriptions saved under it (`push_subscriptions.session_id`, set on every
+  `/save-subscription`, which the app sends at each start), and sends its open sockets
+  `session_revoked` before closing them (1008). No password is asked: someone with a stolen token
+  could log the owner out, but the owner logs back in with the password and logs them out.
+- **The client** (`DeviceSettings.jsx`, Settings → Devices) lists them, names each from its user
+  agent (`utils/deviceName.js`: "Chrome on Windows", "Voicaw desktop app on Linux"), and logs
+  one, or every other one after a confirmation, out. `ws-client` calls `onLoggedOutElsewhere`
+  listeners (App logs out) on `session_revoked`, `account_deleted`, or a socket closed with 1008
+  (the token refused at identify, e.g. a device that was asleep when it was logged out); it
+  doesn't reconnect then.
+- **Tokens from before sessions** (no `sid`) still work: on first use they become a session
+  named after the token's hash (so the requests a device sends at once share one row) and are
+  renewed with a `sid` straight away. Ending any session from Settings sets
+  `users.sessions_reset_at`, which refuses the old tokens issued before it (devices not opened
+  since sessions began then have to log in again) and deletes push subscriptions with no session.
+- Changing the password still leaves other devices logged in (Settings → Devices logs them out).
+- Deleting an account deletes its sessions.
 - On start, `AuthProvider` only drops the session when `/profile` answers 401/403/404. With no
   answer or a server error (no network yet after boot, an API restart) it keeps the token and
   asks again every 3 s, while `App` shows "Can't reach Voicaw. Trying again…".

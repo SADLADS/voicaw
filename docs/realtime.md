@@ -13,7 +13,8 @@ Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, 
 `dm_pin` (see Pinned messages),
 `user_status` and `presence_snapshot` (see Online status), `user_profile` (someone changed their
 profile, to every logged-in socket; see Profiles), `account_deleted` (to your own sockets: log
-out; see Deleting an account), `message_sound` (play the Message sound; see Sounds), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
+out; see Deleting an account), `session_revoked` (to the sockets of a session logged out from
+another device: log out; see Login sessions), `message_sound` (play the Message sound; see Sounds), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete` / `_pin` (a
 webhook's edit also carries `embeds`, `attachments`, `flags`),
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,

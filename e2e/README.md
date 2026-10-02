@@ -37,6 +37,7 @@ node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (em
 node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, results, Jump into another channel, private channel, phone
 node e2e/days.mjs [dir]   # day dividers between days and above the first message (desktop + phone)
 node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertical scroll), back button, guild
+node e2e/devices.mjs [dir] # Settings → Devices: three logins listed, log the phone out (back at login, token dead), all others, phone, logout ends the session
 node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
 node e2e/lists.mjs [dir]  # list channels: add, subtask, drag to nest/reorder, assign, due date, comments, read-only, phone

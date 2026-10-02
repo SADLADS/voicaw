@@ -6,6 +6,7 @@ import {
   onDeleteDm,
   onEditDm,
   setActiveChat,
+  onLoggedOutElsewhere,
 } from './ws-client';
 import { presenceOf } from './presence';
 
@@ -219,6 +220,33 @@ describe('reconnect behavior', () => {
 
     vi.advanceTimersByTime(3000);
     expect(MockWebSocket.instances.length).toBe(2);
+  });
+
+  it('logs out once when logged out elsewhere, and does not reconnect', () => {
+    vi.useFakeTimers();
+    globalThis.localStorage.setItem('token', 'jwt-abc');
+    const loggedOut = vi.fn();
+    onLoggedOutElsewhere(loggedOut);
+    connectWebSocket();
+    const socket = MockWebSocket.instances[0];
+    socket._open();
+
+    // The server tells the socket, then closes it.
+    socket._receive({ type: 'session_revoked' });
+    socket.close(1008, 'Logged out');
+    expect(loggedOut).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(3000);
+    expect(MockWebSocket.instances.length).toBe(1);
+  });
+
+  it('logs out when the server refuses the token', () => {
+    globalThis.localStorage.setItem('token', 'jwt-abc');
+    const loggedOut = vi.fn();
+    onLoggedOutElsewhere(loggedOut);
+    connectWebSocket();
+    MockWebSocket.instances[0].close(1008, 'Invalid token');
+    expect(loggedOut).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -88,6 +88,7 @@ async function deleteAccount(userId, plan) {
     for (const sql of [
       'DELETE FROM dm_unread WHERE user_id = ?',
       'DELETE FROM push_subscriptions WHERE user_id = ?',
+      'DELETE FROM sessions WHERE user_id = ?',
       'DELETE FROM gif_favorites WHERE user_id = ?',
       'DELETE FROM conversation_settings WHERE user_id = ?',
       'DELETE FROM guild_mentions WHERE user_id = ?',

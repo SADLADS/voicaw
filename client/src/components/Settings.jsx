@@ -8,6 +8,7 @@ import NotificationSettings from "./NotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
 import AccountSecuritySettings from "./AccountSecuritySettings";
 import DeleteAccountSettings from "./DeleteAccountSettings";
+import DeviceSettings from "./DeviceSettings";
 import AdminSettings from "./AdminSettings";
 import DateTimeSettings from "./DateTimeSettings";
 import SpellcheckSettings from "./SpellcheckSettings";
@@ -59,6 +60,11 @@ export default function Settings({ onLogout }) {
       id: 'account-security', category: 'account', title: 'Password & recovery code',
       keywords: 'change password security recovery code forgot',
       content: <AccountSecuritySettings />,
+    },
+    {
+      id: 'devices', category: 'account', title: 'Devices',
+      keywords: 'sessions logins logged in devices log out sign out everywhere other devices phone computer browser security',
+      content: <DeviceSettings />,
     },
     {
       id: 'log-out', category: 'account', title: 'Log out',

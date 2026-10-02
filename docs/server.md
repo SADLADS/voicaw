@@ -9,7 +9,8 @@ unexpected errors. The rest:
 - `db.js`: schema, plus promise helpers `db.get` / `db.all` / `db.run` (`run` resolves to
   `{ lastID, changes }`) and `db.transaction` (see Database). The raw `node:sqlite` handle is
   `db.db`.
-- `auth.js`: `generateToken`, `verifyToken`, the `authenticateJWT` middleware (attach it per
+- `auth.js`: `startSession`, `generateToken`, `verifyToken` (checks the token's login session),
+  the `authenticateJWT` middleware (attach it per
   route, not with `router.use`, since every router is mounted at `/api`).
 - `sockets.js`: the `clients` map, `sendToUserSockets`, online status (`getStatus`, see Online
   status), `isViewingConversation`, and
@@ -32,13 +33,14 @@ unexpected errors. The rest:
 - `pins.js`: pinning and unpinning a message, the same for every kind of chat (see Pinned messages).
 - `polls.js`: reading guild polls, when they close, and what an edit may change (see Polls).
 - `accounts.js`: deleting an account (see Deleting an account).
+- `sessions.js`: listing and ending login sessions (see Login sessions and Settings → Devices).
 - `usernames.js`: usernames ignore capitals (`findUserByName`, `opaque_id`; see Auth).
 - `pollTimers.js`: when every poll closes and its "poll ended" row (see Polls); `routes/polls.js`.
 - `routes/typing.js`: "… is typing" (`POST /typing`, relayed as `typing`; see Typing indicator in `docs/realtime.md`).
 - `profiles.js`: display name, custom status and bio (limits, cleaning, `displayNameOf`; see Profiles).
 - `avatars.js` + `avatarImage.js`: profile pictures (processing, storage, the one-off migration;
   see Profiles). `routes/avatars.js` has their routes.
-- `routes/`: `auth.js` (OPAQUE register/login, profile), `dms.js` (conversations, send, edit,
+- `routes/`: `auth.js` (OPAQUE register/login, profile), `sessions.js` (Settings → Devices, logout), `dms.js` (conversations, send, edit,
   delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `guilds.js` (guilds,
   members, invites, bans, categories, channels), `guildMessages.js` (channel messages, reactions,
   read state), `guildSearch.js` (guild search; see Guild search), `voice.js` (join token, mute/deafen, leave, LiveKit webhook), `calls.js` (DM

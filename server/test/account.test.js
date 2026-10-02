@@ -185,6 +185,7 @@ describe('deleting your account', () => {
     expect((await api.get(ann, '/profile')).status).toBe(403);
     expect(annSocket.events).toContainEqual({ type: 'account_deleted' });
     expect(annSocket.ws.closed).toBe(true);
+    expect((await require('../db').get('SELECT COUNT(*) AS n FROM sessions WHERE user_id = ?', [ann.id])).n).toBe(0);
     // Can't log in; the name can be taken again.
     expect((await loginUser(app, request, ann.username, PASSWORD)).failedAt).toBe('finishLogin-client');
     const { response } = await registerUser(app, request, ann.username, PASSWORD);
