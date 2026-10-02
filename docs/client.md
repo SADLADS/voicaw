@@ -46,7 +46,8 @@
   (Font Awesome; shown in the column, its card draws it in its heading).
 - **Privacy** (Settings → Privacy, the puzzle piece, `PrivacySettings.jsx`): choices that give
   the server (or another site) a little more for convenience, per device (`utils/privacy.js`,
-  `localStorage privacy`, JSON, all off by default; never sent to the server). So far:
+  `localStorage privacy`, JSON; never sent to the server). **Each defaults to the convenient
+  (less private) option**; turning it off is for whoever wants the private one. So far:
   `inviteEmbedsInEncrypted`, invite cards in DMs and group DMs load without Show (see
   docs/guilds.md, Invite embeds). New privacy trade-offs go here.
 - Dates and times all go through `utils/dateFormat.js` (`formatDate`, `formatTime`,

@@ -1,12 +1,14 @@
 import { useSyncExternalStore } from 'react';
 
 // Settings → Privacy, per device (localStorage `privacy`, JSON; never sent to the server).
-// `inviteEmbedsInEncrypted`: invite cards in DMs and group DMs load by themselves. Off by
-// default: asking the server about an invite tells it which invite an encrypted message held,
-// so until then the card waits for a tap on Show (guild channels always load them).
+// Each choice trades a little privacy for convenience, and **defaults to the convenient one**;
+// the more private one is there for whoever wants it.
+// `inviteEmbedsInEncrypted`: invite cards in DMs and group DMs load by themselves (on by
+// default). Asking the server about an invite tells it which invite an encrypted message held;
+// turned off, the card waits for a tap on Show (guild channels always load them).
 
 const STORAGE_KEY = 'privacy';
-const DEFAULTS = { inviteEmbedsInEncrypted: false };
+const DEFAULTS = { inviteEmbedsInEncrypted: true };
 const listeners = new Set();
 
 function load() {

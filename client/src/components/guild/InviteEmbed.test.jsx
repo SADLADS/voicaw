@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { LayoutContext } from '../../contexts';
@@ -56,38 +56,44 @@ describe('invite embeds', () => {
     expect(acceptInvite).not.toHaveBeenCalled();
   });
 
-  it('asks the server only once tapped in encrypted chats', async () => {
+  it('loads at once in encrypted chats by default', async () => {
     renderPreviews({ text: LINK, encrypted: true });
-    expect(screen.getByText('Guild invite')).toBeInTheDocument();
-    expect(fetchInvitePreview).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
     expect(await screen.findByText('Book Club')).toBeInTheDocument();
-    expect(fetchInvitePreview).toHaveBeenCalledWith('Ab3dEf7h');
+    expect(screen.queryByRole('button', { name: 'Show' })).not.toBeInTheDocument();
   });
 
-  it('loads at once in encrypted chats when Settings → Privacy says so', async () => {
-    renderPreviews({ text: LINK, encrypted: true });
-    expect(screen.getByRole('button', { name: 'Show' })).toBeInTheDocument();
-    try {
-      act(() => setPrivacyPref('inviteEmbedsInEncrypted', true));
+  describe('with Settings → Privacy turned off', () => {
+    beforeEach(() => setPrivacyPref('inviteEmbedsInEncrypted', false));
+    afterEach(() => setPrivacyPref('inviteEmbedsInEncrypted', true));
+
+    it('asks the server only once tapped in encrypted chats', async () => {
+      renderPreviews({ text: LINK, encrypted: true });
+      expect(screen.getByText('Guild invite')).toBeInTheDocument();
+      expect(fetchInvitePreview).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Show' }));
       expect(await screen.findByText('Book Club')).toBeInTheDocument();
       expect(fetchInvitePreview).toHaveBeenCalledWith('Ab3dEf7h');
-    } finally {
-      act(() => setPrivacyPref('inviteEmbedsInEncrypted', false));
-    }
+    });
+
+    it('loads waiting cards as soon as it is turned back on', async () => {
+      renderPreviews({ text: LINK, encrypted: true });
+      expect(screen.getByRole('button', { name: 'Show' })).toBeInTheDocument();
+      act(() => setPrivacyPref('inviteEmbedsInEncrypted', true));
+      expect(await screen.findByText('Book Club')).toBeInTheDocument();
+    });
+
+    it('embeds each invite once and ignores other sites', () => {
+      renderPreviews({
+        text: `${LINK} ${LINK}/ https://example.com/invite/Zz9yXx8w`,
+        encrypted: true,
+      });
+      expect(screen.getAllByText('Guild invite')).toHaveLength(1);
+    });
   });
 
   it('says when an invite is invalid', async () => {
     fetchInvitePreview.mockRejectedValue({ response: { status: 404 } });
     renderPreviews({ text: LINK, encrypted: false });
     expect(await screen.findByText('Invalid invite')).toBeInTheDocument();
-  });
-
-  it('embeds each invite once and ignores other sites', () => {
-    renderPreviews({
-      text: `${LINK} ${LINK}/ https://example.com/invite/Zz9yXx8w`,
-      encrypted: true,
-    });
-    expect(screen.getAllByText('Guild invite')).toHaveLength(1);
   });
 });
