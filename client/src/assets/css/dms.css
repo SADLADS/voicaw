@@ -2502,7 +2502,7 @@ body.mobile-mode .dm-user-list-container .dm-user {
   color: var(--vc-action);
 }
 
-/* A message jumped to from the pinned list: a brief highlight. */
+/* A message jumped to (search, pinned list, a reply's snippet, View poll): a brief highlight. */
 @keyframes jump-highlight {
   from { background-color: rgba(216, 185, 48, 0.25); }
   to { background-color: transparent; }

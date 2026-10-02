@@ -278,6 +278,7 @@ export function MessageRow({
   onOpenReactionPicker,
   onVote,
   onEndPoll,
+  onJumpToMessage,
   reactionNames,
   onOpenActions,
   focusedMsgId,
@@ -354,12 +355,7 @@ export function MessageRow({
           <span className="reply-author" style={{ color: nameColors?.[parent.sender_id] }}>{displayName(parent.sender_id, parent.sender_username)}</span>
           <span
             className="reply-preview"
-            onClick={() => {
-              const el = document.querySelector(
-                `[data-msg-id="${msg.parent_message_id}"]`
-              );
-              if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }}
+            onClick={() => onJumpToMessage?.(msg.parent_message_id)}
           >
             {/* One line (CSS cuts it with "…" where it runs out of room); the start is plenty. */}
             {mentionsToText(customEmojiToText(hideSpoilers(summarizeAttachments(parent.plaintext))), reactionNames, mentionRoles, mentionChannels)
@@ -632,6 +628,7 @@ export default function MessageList({
     onOpenReactionPicker,
     onVote,
     onEndPoll,
+    onJumpToMessage,
     reactionNames,
     onOpenActions,
     focusedMsgId,
