@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect } from "react";
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEyeSlash, faMagnifyingGlass, faPuzzlePiece, faSignOutAlt, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faMagnifyingGlass, faPuzzlePiece, faSignOutAlt, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
@@ -107,7 +107,7 @@ export default function Settings({ onLogout }) {
       content: <PrivacySettings />,
     },
     {
-      id: 'content', category: 'app', title: 'Content', icon: faEyeSlash,
+      id: 'content', category: 'app', title: 'Content',
       keywords: 'nsfw blur blurred spoiler spoilers media images pictures videos gifs adult explicit sensitive hide',
       content: <ContentSettings />,
     },

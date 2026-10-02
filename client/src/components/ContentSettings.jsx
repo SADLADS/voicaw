@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import { setPreference, usePreferences } from '../utils/preferences';
 
 // Settings → Content: what's covered in messages. Saved to your account (utils/preferences), so
@@ -14,7 +12,7 @@ export default function ContentSettings() {
   };
   return (
     <div className="settings-card">
-      <h5><FontAwesomeIcon icon={faEyeSlash} className="settings-card-icon" />Content</h5>
+      <h5>Content</h5>
       <label className="settings-toggle">
         <input type="checkbox" checked={prefs.blurNsfw} onChange={(e) => change('blurNsfw', e.target.checked)} />
         {' '}Blur media in NSFW channels
