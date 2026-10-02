@@ -1,8 +1,13 @@
 import { useSyncExternalStore } from 'react';
 
-// Light or dark, per device (localStorage `theme`: 'light', 'system', or nothing for dark, the
-// default). Never sent to the server, so each browser (and the desktop app) keeps its own.
-// 'system' follows the system's setting live (prefers-color-scheme).
+// The theme, per device (localStorage `theme`: 'light', 'familiar' (Ol' Familiar, Discord's dark
+// colours), 'system', or nothing for dark, the default). Never sent to the server, so each
+// browser (and the desktop app) keeps its own. 'system' follows the system's light or dark
+// setting live (prefers-color-scheme).
+//
+// A theme is a :root[data-theme] block of colour tokens in voicaw.css; BASES says whether it's
+// light or dark underneath (Bootstrap's data-bs-theme, the browser's color-scheme and code
+// highlighting only have those two).
 //
 // It's put on <html> as data-theme (our colours, voicaw.css), data-bs-theme (Bootstrap's) and
 // through those the CSS color-scheme, which is what makes the browser's own parts match: form
@@ -14,7 +19,8 @@ import { useSyncExternalStore } from 'react';
 //
 // index.html has a copy of `resolve` that runs before the CSS, so a light page never starts dark.
 
-export const THEMES = ['dark', 'light', 'system'];
+export const THEMES = ['dark', 'light', 'familiar', 'system'];
+const BASES = { dark: 'dark', light: 'light', familiar: 'dark' };
 const STORAGE_KEY = 'theme';
 const listeners = new Set();
 
@@ -33,10 +39,10 @@ const systemQuery = typeof window !== 'undefined' && window.matchMedia
   ? window.matchMedia('(prefers-color-scheme: light)')
   : null;
 
-// 'light' or 'dark': what the page actually shows.
+// 'dark', 'light' or 'familiar': what the page actually shows.
 export function resolveTheme(value = choice) {
   if (value === 'system') return systemQuery?.matches ? 'light' : 'dark';
-  return value === 'light' ? 'light' : 'dark';
+  return BASES[value] ? value : 'dark';
 }
 
 export function getThemeChoice() {
@@ -49,7 +55,7 @@ export function applyTheme() {
   const theme = resolveTheme();
   const root = document.documentElement;
   root.dataset.theme = theme;
-  root.dataset.bsTheme = theme;
+  root.dataset.bsTheme = BASES[theme];
 }
 
 export function setThemeChoice(value) {
@@ -85,7 +91,7 @@ function subscribe(listener) {
   return () => listeners.delete(listener);
 }
 
-// { choice: 'dark' | 'light' | 'system', theme: 'dark' | 'light' }
+// { choice: 'dark' | 'light' | 'familiar' | 'system', theme: 'dark' | 'light' | 'familiar' }
 let snapshot = { choice, theme: resolveTheme() };
 function getSnapshot() {
   const theme = resolveTheme();

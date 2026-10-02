@@ -91,7 +91,8 @@
   channel topic. So dragging things (channels, guilds) doesn't highlight text. On mobile a long
   press on a message opens its actions instead.
 - **Themes** (`utils/theme.js`, Settings → Appearance, `ThemeSettings.jsx`): Dark (default),
-  Light or Match system (follows `prefers-color-scheme` live), **per device only**
+  Light, Ol' Familiar or Match system (follows `prefers-color-scheme` live, light or dark),
+  **per device only**
   (`localStorage theme`; never sent to the server). It's `<html data-theme>` (and Bootstrap's
   `data-bs-theme`); a copy of the logic inline in `index.html` sets it before the CSS loads, so a
   light page never starts dark. Colours are the `--vc-*` tokens on `:root` in `voicaw.css`
@@ -118,9 +119,22 @@
     `--vc-on-*` (text on the fill: white on purple, red and green, dark on yellow and dark's
     orange). Bootstrap's buttons, links and selects are mapped onto the tokens (BOOTSTRAP in
     `voicaw.css`); `.btn-secondary` is a neutral button.
+  - Besides the brand colours, a theme sets three roles of its own: `--vc-link` (links),
+    `--vc-unread` (the rail's marker, unread pills and dots) and `--vc-mention-badge` /
+    `--vc-on-mention-badge` (unread mention counts). Dark and Light give them the purple text
+    colour and the bird yellow.
+  - **Ol' Familiar** (`data-theme="familiar"`, added 2026-10-02) is Discord's default dark
+    theme: the 2025 refresh's "Dark" (`.theme-darker` in Discord's CSS), its values read from
+    discord.com's stylesheets on 2026-10-02 (translucent hovers and borders flattened onto
+    their surface). So it breaks Voicaw's colour meanings where Discord does: blurple accent,
+    blue links, white unread markers, red mention counts, Discord's yellow for mentions. It's
+    dark underneath (`BASES` in `utils/theme.js`): Bootstrap's `data-bs-theme="dark"`, dark
+    form controls and code highlighting. Nothing is loaded from Discord; only the colour
+    values are copied.
   - **Another colour scheme** later: a `:root[data-theme="<name>"]` block setting every colour
-    token (copy the light one) and its `color-scheme`, the name in `THEMES` and `resolveTheme`
-    (`utils/theme.js`) and in `index.html`'s copy, and a preview in `ThemeSettings.jsx`. Since
+    token (copy the light one) and its `color-scheme`, the name in `THEMES` and `BASES`
+    (`utils/theme.js`) and in `index.html`'s copy, and a preview in `ThemeSettings.jsx`
+    (`e2e/colours.mjs` with `THEMES=<name>` shoots it). Since
     nothing outside the token blocks has a theme colour of its own, a user-made scheme could
     be applied by setting the tokens inline on `<html>`. Keep `manifest.json`'s and
     `index.html`'s `theme-color`, `electron/main.js`'s `backgroundColor` and `website/` in step

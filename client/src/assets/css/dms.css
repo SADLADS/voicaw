@@ -146,7 +146,7 @@ small {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  background-color: var(--vc-action);
+  background-color: var(--vc-unread);
   border-radius: 4px;
   width: 8px;
   height: 8px;
@@ -2781,7 +2781,7 @@ body.mobile-mode .dm-user-list-container .dm-user {
 }
 
 .embed a {
-  color: var(--vc-accent-text);
+  color: var(--vc-link);
 }
 
 .embed-fields {

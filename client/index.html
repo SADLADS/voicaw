@@ -9,11 +9,11 @@
       var t = 'dark';
       try {
         var v = localStorage.getItem('theme');
-        if (v === 'light') t = 'light';
+        if (v === 'light' || v === 'familiar') t = v;
         else if (v === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches) t = 'light';
       } catch (e) { /* dark, then */ }
       document.documentElement.setAttribute('data-theme', t);
-      document.documentElement.setAttribute('data-bs-theme', t);
+      document.documentElement.setAttribute('data-bs-theme', t === 'light' ? 'light' : 'dark');
     })();
   </script>
   <title>Voicaw</title>

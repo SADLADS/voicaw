@@ -1,6 +1,6 @@
-// Colour scheme screenshots: the same screens in both themes, on a computer and a phone, for
-// comparing colour changes before and after. Nothing is checked; each screen is tried on its own
-// and the run ends with which ones worked.
+// Colour scheme screenshots: the same screens in every theme (THEMES=dark,light,familiar, the
+// default), on a computer and a phone, for comparing colour changes before and after. Nothing is
+// checked; each screen is tried on its own and the run ends with which ones worked.
 //   login (logged out), dm (a mention of the viewer, a link, the viewer's reaction, an unread
 //   DM in the list), guild (rail: active guild, mention badge on another; an unread channel),
 //   settings (Privacy: toggles, the active tab), list (a done and a not-done task), poll (the
@@ -174,7 +174,7 @@ try {
   await carol.page.context().close();
 
   // --- Each theme × device: a fresh context, logged in as alice. ---
-  for (const theme of ['dark', 'light']) {
+  for (const theme of (process.env.THEMES || 'dark,light,familiar').split(',')) {
     for (const device of ['desktop', 'phone']) {
       const phone = device === 'phone';
       const prefix = `${theme}-${device}`;

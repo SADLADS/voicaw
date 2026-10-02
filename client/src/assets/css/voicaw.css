@@ -69,6 +69,13 @@
   --vc-danger-hover: #b3342d;
   --vc-danger-text: #f07a72;
 
+  /* Roles a theme may colour on their own (Ol' Familiar does): links, unread markers (the
+     rail's marker, unread pills and dots) and the count of unread mentions. */
+  --vc-link: #b9a9f5;
+  --vc-unread: #d8b930;
+  --vc-mention-badge: #d8b930;
+  --vc-on-mention-badge: #17151d;
+
   /* Sizes shared by every page, so they line up from page to page. The header along the top of
      a sidebar and of the page beside it (guild name and channel name, Direct Messages and the
      chat, Settings), borders included. The width of the column beside the rail (DM list,
@@ -129,7 +136,67 @@
   --vc-danger-hover: #b3342d;
   --vc-danger-text: #c83c34;
 
+  --vc-link: #5b44b0;
+  --vc-unread: #d8b930;
+  --vc-mention-badge: #d8b930;
+  --vc-on-mention-badge: #17151d;
+
   color-scheme: light;
+}
+
+/* Ol' Familiar: Discord's default dark theme (the 2025 refresh's "Dark", .theme-darker), its
+   values read from discord.com's own CSS on 2026-10-02. Translucent ones (hover, borders) are
+   flattened onto the surface they sit on. Blurple for what you can do, Discord's yellow for
+   mentions, white unread markers, red mention counts, blue links. */
+:root[data-theme="familiar"] {
+  --vc-accent: #5865f2;
+  --vc-accent-hover: #4452bb;
+  --vc-accent-strong: #3a48a3;
+  --vc-accent-text: #949cf7;
+  --vc-accent-soft: rgba(88, 101, 242, 0.24);
+  --vc-on-accent: #ffffff;
+
+  --vc-action: #f0b232;
+  --vc-action-hover: #d49b25;
+  --vc-action-text: #f0b232;
+  --vc-action-soft: rgba(240, 177, 50, 0.1);
+  --vc-on-action: #000000;
+
+  --vc-bg-base: #121214;
+  --vc-bg-subtle: #1a1a1e;
+  --vc-bg-elevated: #242429;
+  --vc-bg-elevated-hover: #2c2d32;
+  --vc-bg-hover: #29292e;
+  --vc-border-dark: #222225;
+  --vc-border-light: #3a3a40;
+
+  --vc-fg: #efeff1;
+  --vc-fg-muted: #96979e;
+  --vc-placeholder: #6c6f7c;
+
+  --vc-popup: #28282d;
+  --vc-spoiler: #666770;
+  --vc-spoiler-hover: #84858d;
+  --vc-shadow: rgba(0, 0, 0, 0.24);
+  --vc-popup-shadow: rgba(0, 0, 0, 0.4);
+
+  --vc-online: #23a55a;
+  --vc-success: #008545;
+  --vc-success-hover: #006c37;
+  --vc-idle: #f0b232;
+  --vc-warning: #ea9800;
+  --vc-warning-hover: #c98300;
+  --vc-on-warning: #000000;
+  --vc-danger: #d22d39;
+  --vc-danger-hover: #a9232e;
+  --vc-danger-text: #f87e7a;
+
+  --vc-link: #4d96ee;
+  --vc-unread: #fbfbfb;
+  --vc-mention-badge: #d22d39;
+  --vc-on-mention-badge: #ffffff;
+
+  color-scheme: dark;
 }
 
 /* TEXT SELECTION: off everywhere (so dragging things, like channels, doesn't select text), except
@@ -210,7 +277,7 @@ body {
 
 .message a {
   text-decoration: none;
-  color: var(--vc-accent-text);
+  color: var(--vc-link);
 }
 
 .message a:hover {
@@ -248,7 +315,7 @@ body {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  background-color: var(--vc-action);
+  background-color: var(--vc-unread);
   border-radius: 4px;
   width: 8px;
   height: 8px;
@@ -308,7 +375,7 @@ body {
    button (Cancel, Back): not yellow, which is for what wants attention. */
 a,
 a:hover {
-  color: var(--vc-accent-text);
+  color: var(--vc-link);
 }
 
 /* The browser's own checkboxes, radios and sliders (blue otherwise). */
@@ -558,6 +625,13 @@ pre code {
   --line: #c6c2cf;
   --box: #f4f3f7;
   box-shadow: inset 0 0 0 1px #e2dfe8;
+}
+
+.theme-preview-familiar {
+  --side: #121214;
+  --chat: #1a1a1e;
+  --line: #3a3a40;
+  --box: #242429;
 }
 
 /* Match system: half of each. */
