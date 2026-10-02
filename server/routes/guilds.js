@@ -429,6 +429,12 @@ async function checkCategory(guildId, categoryId) {
   ));
 }
 
+// A channel as the routes below return it.
+async function channelRow(id) {
+  const row = await db.get('SELECT id, category_id, name, type, topic, nsfw, position FROM guild_channels WHERE id = ?', [id]);
+  return row && { ...row, nsfw: Boolean(row.nsfw) };
+}
+
 // The channel in the URL, if it's in this guild and the caller can see it.
 async function findChannel(req) {
   const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
@@ -437,9 +443,10 @@ async function findChannel(req) {
 }
 
 // `private: true` (needs Manage Roles too) hides it from @everyone, shows it to `roleIds`, and
-// to its creator unless they'd see it anyway (owner, administrators).
+// to its creator unless they'd see it anyway (owner, administrators). `nsfw: true` covers its
+// media until clicked (docs/guilds.md).
 router.post('/guilds/:guildId/channels', manageChannels, async (req, res) => {
-  const { type = 'text', topic, private: isPrivate = false, roleIds = [] } = req.body ?? {};
+  const { type = 'text', topic, private: isPrivate = false, nsfw = false, roleIds = [] } = req.body ?? {};
   const categoryId = req.body?.categoryId ?? null;
   const name = normalizeChannelName(req.body?.name);
   if (!name) return res.status(400).json({ error: 'Channel names are 1–100 characters' });
@@ -447,6 +454,7 @@ router.post('/guilds/:guildId/channels', manageChannels, async (req, res) => {
   if (topic != null && (typeof topic !== 'string' || topic.length > MAX_TOPIC)) {
     return res.status(400).json({ error: 'Invalid topic' });
   }
+  if (typeof nsfw !== 'boolean') return res.status(400).json({ error: 'Invalid nsfw' });
   if (!(await checkCategory(req.guild.id, categoryId))) return res.status(400).json({ error: 'Invalid category' });
   if (isPrivate && !has(req.member.permissions, PERMISSIONS.MANAGE_ROLES)) {
     return res.status(403).json({ error: 'Making a channel private needs Manage Roles' });
@@ -460,8 +468,8 @@ router.post('/guilds/:guildId/channels', manageChannels, async (req, res) => {
   const lastID = await db.transaction(async () => {
     const position = await nextPosition('guild_channels', 'guild_id = ?', [req.guild.id]);
     const { lastID: id } = await db.run(
-      'INSERT INTO guild_channels (guild_id, category_id, name, type, topic, position) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.guild.id, categoryId, name, type, topic?.trim() || null, position]
+      'INSERT INTO guild_channels (guild_id, category_id, name, type, topic, nsfw, position) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [req.guild.id, categoryId, name, type, topic?.trim() || null, nsfw, position]
     );
     if (isPrivate) {
       const view = PERMISSIONS.VIEW_CHANNEL;
@@ -473,18 +481,15 @@ router.post('/guilds/:guildId/channels', manageChannels, async (req, res) => {
       for (const roleId of roleIds) await addOverride('role', roleId, view, 0);
       if (!has(req.member.permissions, PERMISSIONS.ADMINISTRATOR)) await addOverride('member', req.user.id, view, 0);
     }
-    await audit(req, { action: 'channel_create', targetType: 'channel', targetId: id, channelId: id, details: { name, type } });
+    await audit(req, { action: 'channel_create', targetType: 'channel', targetId: id, channelId: id, details: { name, type, ...(nsfw ? { nsfw } : {}) } });
     return id;
   });
   await announceGuildUpdate(req.guild.id);
-  res.status(201).json(await db.get(
-    'SELECT id, category_id, name, type, topic, position FROM guild_channels WHERE id = ?',
-    [lastID]
-  ));
+  res.status(201).json(await channelRow(lastID));
 });
 
-// A copy of a channel you can see (Discord's Clone Channel): same type, topic, category and
-// permission overrides, just below it, named `name` (default: the same name). Nothing in it
+// A copy of a channel you can see (Discord's Clone Channel): same type, topic, NSFW flag,
+// category and permission overrides, just below it, named `name` (default: the same name). Nothing in it
 // is copied (messages, tasks, documents, webhooks). Copying overrides needs Manage Roles, and
 // every permission they allow or deny must be one you have in the guild (as for roles), so a
 // read-only channel can be copied by someone who can't send there.
@@ -516,8 +521,8 @@ router.post('/guilds/:guildId/channels/:channelId/clone', manageChannels, async 
       [req.guild.id, source.position]
     );
     const { lastID } = await db.run(
-      'INSERT INTO guild_channels (guild_id, category_id, name, type, topic, position) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.guild.id, source.category_id, name, source.type, source.topic, source.position + 1]
+      'INSERT INTO guild_channels (guild_id, category_id, name, type, topic, nsfw, position) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [req.guild.id, source.category_id, name, source.type, source.topic, source.nsfw, source.position + 1]
     );
     for (const o of overrides) {
       await db.run(
@@ -535,13 +540,10 @@ router.post('/guilds/:guildId/channels/:channelId/clone', manageChannels, async 
     return lastID;
   });
   await announceGuildUpdate(req.guild.id);
-  res.status(201).json(await db.get(
-    'SELECT id, category_id, name, type, topic, position FROM guild_channels WHERE id = ?',
-    [id]
-  ));
+  res.status(201).json(await channelRow(id));
 });
 
-// Rename, change the topic, or move to another category.
+// Rename, change the topic or the NSFW flag (`nsfw`), or move to another category.
 router.patch('/guilds/:guildId/channels/:channelId', manageChannels, async (req, res) => {
   const channel = await findChannel(req);
   if (!channel) return res.status(404).json({ error: 'Channel not found' });
@@ -562,6 +564,11 @@ router.patch('/guilds/:guildId/channels/:channelId', manageChannels, async (req,
     updates.push('topic = ?');
     params.push(body.topic?.trim() || null);
   }
+  if (body.nsfw !== undefined) {
+    if (typeof body.nsfw !== 'boolean') return res.status(400).json({ error: 'Invalid nsfw' });
+    updates.push('nsfw = ?');
+    params.push(body.nsfw);
+  }
   if (body.categoryId !== undefined) {
     if (!(await checkCategory(req.guild.id, body.categoryId))) return res.status(400).json({ error: 'Invalid category' });
     updates.push('category_id = ?');
@@ -570,8 +577,9 @@ router.patch('/guilds/:guildId/channels/:channelId', manageChannels, async (req,
   if (updates.length) {
     await db.transaction(async () => {
       await db.run(`UPDATE guild_channels SET ${updates.join(', ')} WHERE id = ?`, [...params, channel.id]);
-      const saved = await db.get('SELECT name, topic, category_id FROM guild_channels WHERE id = ?', [channel.id]);
+      const saved = await db.get('SELECT name, topic, nsfw, category_id FROM guild_channels WHERE id = ?', [channel.id]);
       const changes = diff(channel, saved);
+      if (changes.nsfw) changes.nsfw = changes.nsfw.map(Boolean);
       if (changes.category_id) {
         const names = await db.all('SELECT id, name FROM guild_categories WHERE guild_id = ?', [req.guild.id]);
         changes.category = changes.category_id.map((id) => names.find((c) => c.id === id)?.name ?? null);
@@ -583,7 +591,7 @@ router.patch('/guilds/:guildId/channels/:channelId', manageChannels, async (req,
     });
     await announceGuildUpdate(req.guild.id);
   }
-  res.json(await db.get('SELECT id, category_id, name, type, topic, position FROM guild_channels WHERE id = ?', [channel.id]));
+  res.json(await channelRow(channel.id));
 });
 
 // Deletes the channel and its messages.

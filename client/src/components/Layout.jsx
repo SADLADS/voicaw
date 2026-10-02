@@ -19,6 +19,7 @@ import { ensureSubscription, getPushStatus } from '../services/pushService';
 import { useGuildList } from '../hooks/useGuildList';
 import { useGroupList } from '../hooks/useGroupList';
 import { useConversationSettings } from '../hooks/useConversationSettings';
+import { usePreferencesSync } from '../hooks/usePreferencesSync';
 import { useSwipePanes } from '../hooks/useSwipePanes';
 import { useDesktopApp } from '../hooks/useDesktopApp';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
@@ -76,6 +77,8 @@ export default function Layout({ user, onLogout }) {
   const groupList = useGroupList({ userId: user?.id, activeGroupId: groupId, onRemoved: onGroupRemoved });
   // Your pins and mutes for DMs and groups. Muted ones don't light the rail or the desktop app.
   const conversationSettings = useConversationSettings(user?.id);
+  // Your account preferences (utils/preferences), e.g. whether NSFW channels' media is blurred.
+  usePreferencesSync(user?.id);
   const activeGroups = useMemo(
     () => groupList.groups.map((g) => (g.unread && conversationSettings.isMuted('group', g.id) ? { ...g, unread: 0 } : g)),
     [groupList.groups, conversationSettings]

@@ -291,6 +291,29 @@ describe('guild channels and categories', () => {
     expect((await api.get(member, `/channels/${general.id}/messages`)).status).toBe(404);
   });
 
+  it('flags channels as NSFW, kept by clones and in the audit log', async () => {
+    const { owner, member, guild, general } = await guildWithMember();
+    expect(general.nsfw).toBe(false);
+    const created = await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'art', nsfw: true });
+    expect(created.body).toMatchObject({ name: 'art', nsfw: true });
+    expect((await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'x', nsfw: 'yes' })).status).toBe(400);
+
+    const edited = await api.patch(owner, `/guilds/${guild.id}/channels/${general.id}`, { nsfw: true });
+    expect(edited.body).toMatchObject({ id: general.id, nsfw: true });
+    expect((await api.patch(owner, `/guilds/${guild.id}/channels/${general.id}`, { nsfw: 1 })).status).toBe(400);
+    expect((await api.patch(member, `/guilds/${guild.id}/channels/${general.id}`, { nsfw: false })).status).toBe(403);
+
+    const clone = await api.post(owner, `/guilds/${guild.id}/channels/${created.body.id}/clone`, {});
+    expect(clone.body).toMatchObject({ name: 'art', nsfw: true });
+
+    const layout = (await api.get(member, `/guilds/${guild.id}`)).body;
+    expect(layout.channels.map((c) => [c.name, c.nsfw])).toEqual([['general', true], ['art', true], ['art', true]]);
+
+    const log = (await api.get(owner, `/guilds/${guild.id}/audit-log`)).body;
+    const update = log.entries.find((e) => e.action === 'channel_update');
+    expect(update.details.changes).toEqual({ nsfw: [false, true] });
+  });
+
   it('reorders everything at once', async () => {
     const { owner, guild, general } = await guildWithMember();
     const [textCategory] = guild.categories;

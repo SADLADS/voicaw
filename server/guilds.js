@@ -96,7 +96,7 @@ async function getOverrides({ guildId, channelIds }) {
 async function getChannelAccess(channelId, userId) {
   if (!Number.isInteger(channelId)) return null;
   const channel = await db.get(
-    'SELECT id, guild_id, category_id, name, type, topic, position FROM guild_channels WHERE id = ?',
+    'SELECT id, guild_id, category_id, name, type, topic, nsfw, position FROM guild_channels WHERE id = ?',
     [channelId]
   );
   if (!channel) return null;
@@ -114,7 +114,7 @@ function isPrivate(member, overrides) {
 
 // The guild as `member` sees it: its roles (everyone sees every role, as in Discord), their own
 // `my_permissions` and `my_role_ids`, and the categories and channels they can see, in order, each channel with
-// `my_permissions` and `private` (and a voice channel with `voice`, who's in it). Categories left empty by hidden channels are hidden too,
+// `my_permissions`, `private` and `nsfw` (and a voice channel with `voice`, who's in it). Categories left empty by hidden channels are hidden too,
 // except from people who manage channels. What GET /guilds/:id returns and `guild_update` sends.
 async function layoutFor(member, overridesByChannel) {
   const { guild } = member;
@@ -123,7 +123,7 @@ async function layoutFor(member, overridesByChannel) {
     [guild.id]
   );
   const allChannels = await db.all(
-    `SELECT id, category_id, name, type, topic, position FROM guild_channels
+    `SELECT id, category_id, name, type, topic, nsfw, position FROM guild_channels
      WHERE guild_id = ? ORDER BY position, id`,
     [guild.id]
   );
@@ -132,7 +132,7 @@ async function layoutFor(member, overridesByChannel) {
     const overrides = overridesByChannel.get(channel.id) ?? [];
     const permissions = channelPermissions(member, member.userId, overrides);
     if (!has(permissions, PERMISSIONS.VIEW_CHANNEL)) continue;
-    const entry = { ...channel, my_permissions: permissions, private: isPrivate(member, overrides) };
+    const entry = { ...channel, nsfw: Boolean(channel.nsfw), my_permissions: permissions, private: isPrivate(member, overrides) };
     // Who's in it right now (voice.js; required here, since it requires this file).
     if (channel.type === 'voice') entry.voice = require('./voice').membersOf(channel.id);
     channels.push(entry);

@@ -63,7 +63,9 @@ own additional data, so it can't pass for a chunk). Old `v=1` videos still play.
 
 **Spoilers:** an image or video draft can be marked as a spoiler with the eye button in the
 tray (`toggleSpoiler`; the thumbnail blurs), which puts `sp=1` in its URL (inside the
-encryption, like the rest of the fragment). `Attachment`'s `SpoilerCover` shows it blurred
+encryption, like the rest of the fragment). `MediaCover` (also NSFW channels' cover, see NSFW
+channels in `docs/guilds.md`; a spoiler there has just the one cover, "Spoiler", and stays
+covered whatever Settings → Content says) shows it blurred
 with "Spoiler" over it for everyone, the sender too, until clicked or tapped; then it stays
 shown (per device, not remembered). Until revealed it's out of the image viewer's gallery (its
 thumbnails would give it away) and a video has no controls. Previews (`summarizeAttachments`,

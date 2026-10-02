@@ -151,6 +151,20 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   category and overrides, none of its content; copying overrides needs Manage Roles, and every
   bit they allow or deny must be one you have in the guild. Logged as `channel_create` with
   `clonedFrom`.
+- **NSFW channels:** a text, list or document channel can be flagged NSFW (`guild_channels.nsfw`;
+  `nsfw: true` on create or `PATCH`, Manage Channels; the channel dialog's "NSFW channel" switch;
+  kept by Duplicate; logged as an `nsfw` change). The header shows a red NSFW tag. Its media is
+  covered with "NSFW" for everyone until clicked or tapped (`MediaCover.jsx`, the same cover as
+  spoilers, see Spoilers in `docs/uploads.md`): uploaded images and videos, GIFs, other sites'
+  images, webhook embed images and files, and YouTube players (which load nothing from YouTube
+  until uncovered). Emoji, avatars and text aren't covered. It's worked out when drawn, not stored
+  in messages: `GuildView` (and each guild search result) puts the channel's flag in
+  `NsfwChannelContext`, and `hooks/useMediaCover.js` gives each piece of media its cover: a
+  spoiler gets the one "Spoiler" cover (never two), otherwise "NSFW" unless Settings → Content's
+  "Blur media in NSFW channels" is off (`blurNsfw`, an account preference: see Account
+  preferences in `docs/client.md`). Flagging or unflagging a channel changes its old messages
+  too. There's no age check (Discord asks first): the flag is only about not seeing things by
+  surprise.
 - **Not done yet:** category-level permissions (overrides are per channel), server folders in the
   rail, search dates (see Guild search), muting a category or a whole guild, a list of your
   recent mentions. Voice: see

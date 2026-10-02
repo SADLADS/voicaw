@@ -18,6 +18,7 @@ const groupListeners = new Set();
 const notificationListeners = new Set();
 const loggedOutListeners = new Set();
 const conversationSettingsListeners = new Set();
+const preferencesListeners = new Set();
 let reconnectTimeout = null;
 
 // This client's own connection: 'connecting' | 'online' | 'offline' (logged out, or the
@@ -168,6 +169,9 @@ export function connectWebSocket() {
       else if (data.type === 'conversation_settings') {
         conversationSettingsListeners.forEach((cb) => cb(data.setting));
       }
+      else if (data.type === 'preferences') {
+        preferencesListeners.forEach((cb) => cb(data.preferences));
+      }
       else if (data.type === 'account_deleted' || data.type === 'session_revoked') {
         loggedOutElsewhere(socket);
       }
@@ -305,6 +309,12 @@ export function onCallEvent(callback) {
 export function onConversationSettings(callback) {
   conversationSettingsListeners.add(callback);
   return () => conversationSettingsListeners.delete(callback);
+}
+
+// Your account preferences changed on another device (utils/preferences.js).
+export function onPreferences(callback) {
+  preferencesListeners.add(callback);
+  return () => preferencesListeners.delete(callback);
 }
 
 // This device's login has ended elsewhere (logged out from Settings → Devices on another

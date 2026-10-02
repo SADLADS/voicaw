@@ -4,7 +4,9 @@ import { faPlay } from '@fortawesome/free-solid-svg-icons';
 import { youtubeVideoId } from '../utils/youtube';
 import { inviteCodeFromUrl } from '../utils/inviteLinks';
 import { usePrivacyPrefs } from '../utils/privacy';
+import { useMediaCover } from '../hooks/useMediaCover';
 import InviteEmbed from './guild/InviteEmbed';
+import MediaCover from './MediaCover';
 
 const URL_PATTERN = /https?:\/\/[^\s)]+/g;
 
@@ -14,19 +16,23 @@ const playedVideos = new Set();
 // A YouTube player, from youtube-nocookie.com (no cookies until the video is played). With
 // Settings → Privacy's "Show YouTube videos straight away" off (utils/privacy), a placeholder
 // stands in until Play is tapped: nothing, not even a thumbnail, is fetched from YouTube before.
+// In an NSFW channel it's covered first (MediaCover), and the player only loads once uncovered.
 function YouTubeEmbed({ id, link }) {
   const autoLoad = usePrivacyPrefs().youtubeEmbeds;
+  const cover = useMediaCover();
   const [played, setPlayed] = useState(() => playedVideos.has(id));
   if (autoLoad || played) {
     return (
-      <div className="youtube-wrapper">
-        <iframe
-          src={`https://www.youtube-nocookie.com/embed/${id}${played && !autoLoad ? '?autoplay=1' : ''}`}
-          title="YouTube video"
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowFullScreen
-        ></iframe>
-      </div>
+      <MediaCover label={cover} name="YouTube video" placeholder={<div className="youtube-wrapper youtube-placeholder" />}>
+        <div className="youtube-wrapper">
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${id}${played && !autoLoad ? '?autoplay=1' : ''}`}
+            title="YouTube video"
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+          ></iframe>
+        </div>
+      </MediaCover>
     );
   }
   const play = () => {
@@ -34,16 +40,18 @@ function YouTubeEmbed({ id, link }) {
     setPlayed(true);
   };
   return (
-    <div className="youtube-wrapper youtube-placeholder">
-      <button type="button" className="youtube-placeholder-play" onClick={play} aria-label="Play YouTube video">
-        <FontAwesomeIcon icon={faPlay} />
-      </button>
-      <div className="youtube-placeholder-text">
-        <div className="youtube-placeholder-title">YouTube video</div>
-        <a href={link} target="_blank" rel="noreferrer noopener">{link}</a>
-        <div className="youtube-placeholder-hint">Playing loads it from YouTube</div>
+    <MediaCover label={cover} name="YouTube video">
+      <div className="youtube-wrapper youtube-placeholder">
+        <button type="button" className="youtube-placeholder-play" onClick={play} aria-label="Play YouTube video">
+          <FontAwesomeIcon icon={faPlay} />
+        </button>
+        <div className="youtube-placeholder-text">
+          <div className="youtube-placeholder-title">YouTube video</div>
+          <a href={link} target="_blank" rel="noreferrer noopener">{link}</a>
+          <div className="youtube-placeholder-hint">Playing loads it from YouTube</div>
+        </div>
       </div>
-    </div>
+    </MediaCover>
   );
 }
 

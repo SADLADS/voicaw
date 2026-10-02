@@ -118,7 +118,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   end-to-end encryption (keys, backups, recovery code, contact pinning, DMs, reactions, notes).
 - `docs/realtime.md`: websocket events, online status, web push.
 - `docs/guilds.md`: guilds (permissions, overrides, audit log, invites, custom emoji, channel
-  menus), list channels, document channels, guild search, webhooks (Discord's API).
+  menus, NSFW channels), list channels, document channels, guild search, webhooks (Discord's API).
 - `docs/voice-and-calls.md`: voice channels (LiveKit, reconnecting, screen sharing, microphone
   chain, noise suppression, voice settings, playback and per-user volume), DM and group calls.
 - `docs/group-dms.md`: group DMs (membership log, epochs, signing).
@@ -127,8 +127,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - `docs/uploads.md`: the object store, encrypted attachments, video streaming, spoilers, image
   viewer.
 - `docs/client.md`: client structure (contexts, Layout, settings, dates, themes, sidebar, phone
-  panes, PWA updates, right-click menus, pinned and muted conversations), profiles and pictures,
-  sounds, admin settings.
+  panes, PWA updates, right-click menus, pinned and muted conversations, account preferences),
+  profiles and pictures, sounds, admin settings.
 - `docs/desktop-and-site.md`: the Electron app, voicaw.com.
 
 ## Rules that apply everywhere

@@ -2,7 +2,10 @@ import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFile } from '@fortawesome/free-solid-svg-icons';
 import VideoPlayer from './VideoPlayer';
+import MediaCover from './MediaCover';
 import { saveUrlAs } from '../utils/saveFile';
+import { mediaBoxStyle } from '../utils/mediaBox';
+import { useMediaCover } from '../hooks/useMediaCover';
 
 function fileSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -12,8 +15,10 @@ function fileSize(bytes) {
 
 // Files a webhook sent with a message (Discord's `attachments`; plain files in our object store,
 // not encrypted, like the rest of a guild): images, videos and sounds inline, anything else a
-// download box. Files whose URL is in `shownElsewhere` (an embed's image) are left out.
+// download box. Files whose URL is in `shownElsewhere` (an embed's image) are left out. Images
+// and videos are covered in an NSFW channel (MediaCover); a covered video isn't loaded.
 export default function MessageFiles({ attachments, shownElsewhere = [] }) {
+  const cover = useMediaCover();
   const files = (attachments ?? []).filter((file) => !shownElsewhere.includes(file.url));
   if (!files.length) return null;
   return (
@@ -22,22 +27,30 @@ export default function MessageFiles({ attachments, shownElsewhere = [] }) {
         const type = file.content_type ?? '';
         if (type.startsWith('image/')) {
           return (
-            <a key={file.id} href={file.url} target="_blank" rel="noopener noreferrer" className="message-file-image">
-              <img src={file.url} alt={file.description ?? file.filename} width={file.width} height={file.height} loading="lazy" />
-            </a>
+            <MediaCover key={file.id} label={cover} name={file.filename}>
+              <a href={file.url} target="_blank" rel="noopener noreferrer" className="message-file-image">
+                <img src={file.url} alt={file.description ?? file.filename} width={file.width} height={file.height} loading="lazy" />
+              </a>
+            </MediaCover>
           );
         }
         if (type.startsWith('video/')) {
           return (
-            <VideoPlayer
+            <MediaCover
               key={file.id}
-              src={file.url}
+              label={cover}
               name={file.filename}
-              size={file.size}
-              width={file.width}
-              height={file.height}
-              onDownload={() => saveUrlAs(file.url, file.filename)}
-            />
+              placeholder={<span className="attachment-media attachment-spoiler-blank" style={mediaBoxStyle(file.width, file.height)} />}
+            >
+              <VideoPlayer
+                src={file.url}
+                name={file.filename}
+                size={file.size}
+                width={file.width}
+                height={file.height}
+                onDownload={() => saveUrlAs(file.url, file.filename)}
+              />
+            </MediaCover>
           );
         }
         if (type.startsWith('audio/')) {

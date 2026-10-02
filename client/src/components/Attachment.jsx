@@ -14,7 +14,9 @@ import { galleryAround, galleryItemRef } from '../utils/imageGallery';
 import { parseGifUrl } from '../utils/gifMarkup';
 import { usePrivacyPrefs } from '../utils/privacy';
 import { reservedBoxStyle, mediaBoxStyle } from '../utils/mediaBox';
+import { useMediaCover } from '../hooks/useMediaCover';
 import VideoPlayer from './VideoPlayer';
+import MediaCover from './MediaCover';
 
 function kindOf(type) {
   if (type?.startsWith('image/')) return 'image';
@@ -79,55 +81,35 @@ function ViewableImage({ src, item, style, onError, external = false }) {
   );
 }
 
-// A spoiler image or video: blurred, with "SPOILER" over it, until clicked (or Enter); then
-// it stays shown. Until then it's plain media, out of the image viewer's gallery (whose
-// thumbnails would give it away) and without video controls.
-function SpoilerCover({ name, onReveal, children }) {
-  return (
-    <span className="attachment-spoiler">
-      {children}
-      <button
-        type="button"
-        className="attachment-spoiler-reveal"
-        onClick={onReveal}
-        aria-label={`Spoiler: ${name}, select to reveal`}
-      >
-        Spoiler
-      </button>
-    </span>
-  );
-}
-
+// An image, behind a cover (MediaCover) if it's a spoiler or in an NSFW channel.
 function MediaView({ src, name, size, width, height, spoiler, onDownload, galleryItem }) {
   const [failed, setFailed] = useState(false);
-  const [revealed, setRevealed] = useState(false);
+  const cover = useMediaCover(spoiler);
   const style = reservedBoxStyle(width, height);
 
   if (failed) return <FileBox name={name} size={size} onDownload={onDownload} />;
-
-  if (spoiler && !revealed) {
-    return (
-      <SpoilerCover name={name} onReveal={() => setRevealed(true)}>
-        <img className="attachment-media" style={style} src={src} alt="" onError={() => setFailed(true)} />
-      </SpoilerCover>
-    );
-  }
-  return <ViewableImage src={src} item={galleryItem} style={style} onError={() => setFailed(true)} />;
+  return (
+    <MediaCover
+      label={cover}
+      name={name}
+      placeholder={<img className="attachment-media" style={style} src={src} alt="" onError={() => setFailed(true)} />}
+    >
+      <ViewableImage src={src} item={galleryItem} style={style} onError={() => setFailed(true)} />
+    </MediaCover>
+  );
 }
 
-// A video (VideoPlayer), behind a spoiler cover (over its poster, blurred) if it's one.
+// A video (VideoPlayer), likewise; covered, it's its poster (blurred), without controls.
 function VideoView({ spoiler, poster, width, height, ...player }) {
-  const [revealed, setRevealed] = useState(false);
-  if (spoiler && !revealed) {
-    return (
-      <SpoilerCover name={player.name} onReveal={() => setRevealed(true)}>
-        {poster
-          ? <img className="attachment-media" style={mediaBoxStyle(width, height)} src={poster} alt="" />
-          : <span className="attachment-media attachment-spoiler-blank" style={mediaBoxStyle(width, height)} />}
-      </SpoilerCover>
-    );
-  }
-  return <VideoPlayer poster={poster} width={width} height={height} {...player} />;
+  const cover = useMediaCover(spoiler);
+  const placeholder = poster
+    ? <img className="attachment-media" style={mediaBoxStyle(width, height)} src={poster} alt="" />
+    : <span className="attachment-media attachment-spoiler-blank" style={mediaBoxStyle(width, height)} />;
+  return (
+    <MediaCover label={cover} name={player.name} placeholder={placeholder}>
+      <VideoPlayer poster={poster} width={width} height={height} {...player} />
+    </MediaCover>
+  );
 }
 
 function LocalAttachment({ local, name }) {
@@ -218,6 +200,7 @@ function EncryptedVideo({ url, meta, name }) {
 
 function EncryptedAttachment({ url, meta, name }) {
   const kind = kindOf(meta.type);
+  const covered = Boolean(useMediaCover(meta.spoiler));
   const [state, setState] = useState(() => {
     const cached = getCachedAttachment(url);
     return cached ? { status: 'ready', objectUrl: cached } : { status: 'idle', objectUrl: null };
@@ -260,7 +243,7 @@ function EncryptedAttachment({ url, meta, name }) {
     return (
       <span
         // Still decrypting, but already one of the message's images in the viewer.
-        {...(!meta.spoiler ? { ref: galleryItemRef(galleryItem), 'data-gallery-item': '' } : {})}
+        {...(!covered ? { ref: galleryItemRef(galleryItem), 'data-gallery-item': '' } : {})}
         className={`attachment-loading attachment-loading-${kind}`}
         style={reservedBoxStyle(meta.width, meta.height)}
         aria-label={`Loading ${name}`}
@@ -286,22 +269,40 @@ const shownGifs = new Set();
 
 // A GIF from the picker, loaded from Klipy. With Settings → Privacy's "Show GIFs straight away"
 // off (utils/privacy), a box of its size waits for a tap on Show, so Klipy learns nothing first.
+// In an NSFW channel it's covered too (as a GIF can't be a spoiler): the cover comes off first.
 function GifView({ src, name, width, height }) {
   const autoLoad = usePrivacyPrefs().gifs;
+  const cover = useMediaCover();
   const [shown, setShown] = useState(() => shownGifs.has(src));
   const style = reservedBoxStyle(width, height);
   if (autoLoad || shown) {
-    return <ViewableImage src={src} item={{ src, name, width, height }} style={style} external />;
+    return <ExternalImage src={src} item={{ src, name, width, height }} style={style} />;
   }
   const show = () => {
     shownGifs.add(src);
     setShown(true);
   };
   return (
-    <span className="attachment-gif-hidden" style={style}>
-      <span className="attachment-gif-hidden-label">GIF from KLIPY</span>
-      <button type="button" className="btn btn-secondary" onClick={show} aria-label="Show GIF">Show</button>
-    </span>
+    <MediaCover label={cover} name={name}>
+      <span className="attachment-gif-hidden" style={style}>
+        <span className="attachment-gif-hidden-label">GIF from KLIPY</span>
+        <button type="button" className="btn btn-secondary" onClick={show} aria-label="Show GIF">Show</button>
+      </span>
+    </MediaCover>
+  );
+}
+
+// Another site's image (a GIF, a plain link), covered in an NSFW channel.
+function ExternalImage({ src, item, style }) {
+  const cover = useMediaCover();
+  return (
+    <MediaCover
+      label={cover}
+      name={item.name}
+      placeholder={<img className="attachment-media" style={style} src={src} alt="" referrerPolicy="no-referrer" />}
+    >
+      <ViewableImage src={src} item={item} style={style} external />
+    </MediaCover>
   );
 }
 
@@ -324,7 +325,7 @@ export default function Attachment({ src, alt, localAttachments }) {
   if (gif) return <GifView src={src} name={name} width={gif.width} height={gif.height} />;
 
   const meta = parseAttachmentUrl(src);
-  if (!meta) return <ViewableImage src={src} item={{ src, name }} external />;
+  if (!meta) return <ExternalImage src={src} item={{ src, name }} />;
 
   if (kindOf(meta.type) === 'video') return <EncryptedVideo url={src} meta={meta} name={name} />;
   return <EncryptedAttachment url={src} meta={meta} name={name} />;

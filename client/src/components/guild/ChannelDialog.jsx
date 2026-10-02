@@ -9,7 +9,7 @@ import { errorMessage } from '../../utils/guildDisplay';
 import { PERMISSIONS, colorToHex, has, memberRank } from '../../utils/permissions';
 
 // Creating a channel (no `channel`; in `categoryId` if given), optionally private to some
-// roles, or editing one: Overview (name, topic, category, delete), with Manage Roles
+// roles, or editing one: Overview (name, topic, category, NSFW, delete), with Manage Roles
 // Permissions (ChannelPermissions) and, for a text channel with Manage Webhooks, Webhooks
 // (ChannelWebhooks). The server checks every permission again.
 export default function ChannelDialog({ guild, channel, user, categoryId = null, onCreated, onClose }) {
@@ -32,6 +32,7 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
   const [name, setName] = useState(channel?.name ?? '');
   const [topic, setTopic] = useState(channel?.topic ?? '');
   const [category, setCategory] = useState(editing ? channel.category_id : categoryId);
+  const [nsfw, setNsfw] = useState(Boolean(channel?.nsfw));
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -53,10 +54,12 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
     if (!name.trim()) return;
     run(async () => {
       if (editing) {
-        await updateChannel(guild.id, channel.id, { name, topic: topic.trim() || null, categoryId: category });
+        await updateChannel(guild.id, channel.id, {
+          name, topic: topic.trim() || null, categoryId: category, ...(nsfw !== Boolean(channel.nsfw) ? { nsfw } : {}),
+        });
       } else {
         const created = await createChannel(guild.id, {
-          name, type, topic: topic.trim() || null, categoryId: category,
+          name, type, topic: topic.trim() || null, categoryId: category, ...(nsfw ? { nsfw: true } : {}),
           ...(isPrivate ? { private: true, roleIds: privateRoleIds } : {}),
         });
         onCreated?.(created);
@@ -178,6 +181,19 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
           <option value="">No category</option>
           {guild.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
+
+        {['text', 'list', 'doc'].includes(editing ? channel.type : type) && (
+          <label className="role-toggle nsfw-toggle">
+            <input type="checkbox" checked={nsfw} onChange={(e) => setNsfw(e.target.checked)} />
+            <span>
+              <strong>NSFW channel</strong>
+              <span className="vc-hint">
+                Images, videos, GIFs and embeds in it are blurred until clicked, unless someone turns
+                that off in their settings.
+              </span>
+            </span>
+          </label>
+        )}
 
         {!editing && managesRoles && (
           <>

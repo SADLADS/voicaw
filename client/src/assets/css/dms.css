@@ -658,8 +658,8 @@ small {
   cursor: zoom-in;
 }
 
-/* A spoiler image or video (Attachment.jsx SpoilerCover): blurred, "SPOILER" over it. The
-   whole cover is the button that reveals it. */
+/* Covered media, a spoiler or in an NSFW channel (MediaCover.jsx): blurred, "SPOILER" or
+   "NSFW" over it. The whole cover is the button that reveals it. */
 .attachment-spoiler {
   position: relative;
   display: block;
@@ -671,11 +671,16 @@ small {
   background-color: var(--vc-bg-elevated);
 }
 
-.dm-message .attachment-spoiler .attachment-media {
-  margin: 0;
+.attachment-spoiler-content {
+  display: block;
   filter: blur(44px);
   /* Past the blur's faded edges, which the cover then cuts off. */
   transform: scale(1.2);
+}
+
+.dm-message .attachment-spoiler .attachment-media,
+.attachment-spoiler-content > * {
+  margin: 0;
 }
 
 .attachment-spoiler-reveal {

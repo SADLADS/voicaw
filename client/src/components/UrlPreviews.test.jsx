@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { setPrivacyPref } from '../utils/privacy';
+import { NsfwChannelContext } from '../contexts';
 import UrlPreviews from './UrlPreviews';
 import { youtubeVideoId } from '../utils/youtube';
 
@@ -36,5 +37,14 @@ describe('UrlPreviews', () => {
     } finally {
       setPrivacyPref('youtubeEmbeds', true);
     }
+  });
+
+  it('covers a video in an NSFW channel, loading nothing from YouTube until uncovered', () => {
+    const { container } = render(
+      <NsfwChannelContext.Provider value><UrlPreviews text="https://youtu.be/abcdefghijk" /></NsfwChannelContext.Provider>
+    );
+    expect(container.querySelector('iframe')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'NSFW: YouTube video, select to reveal' }));
+    expect(container.querySelector('iframe')).toHaveAttribute('src', 'https://www.youtube-nocookie.com/embed/abcdefghijk');
   });
 });
