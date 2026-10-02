@@ -92,7 +92,6 @@ export function imageMenuItems(item) {
       {
         key: 'open-image',
         label: 'Open Image',
-        hint: 'Encrypted: no link to share',
         icon: faArrowUpRightFromSquare,
         onSelect: async () => openInNewTab(await srcOf(item)),
       },
