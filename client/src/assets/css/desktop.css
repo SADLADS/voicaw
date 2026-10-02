@@ -2,3 +2,9 @@
   opacity: 1;
 }
 
+
+/* People in a voice channel start under the channel's name, past its speaker icon (the link's
+   8px padding + 16px icon + 6px gap). Phones keep them flush with the row. */
+.desktop-mode .guild-channel-list .voice-members {
+  padding-left: 30px;
+}
