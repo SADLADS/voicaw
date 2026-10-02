@@ -56,7 +56,8 @@ Run from the repo root unless noted.
 
 - `npm run dev` — start the client Vite dev server (port 5173, proxies `/api` to
   `https://api.voicaw.com`)
-- `npm run build` — build the client for web deployment (outputs to `/opt/voicaw-client`)
+- `npm run build` — build the client for web deployment (into `build-web/`, then copied to
+  `/opt/voicaw-client` only if it succeeded; see PWA updates in `docs/client.md`)
 - `npm run build:site` — build voicaw.com, the info and download site (`website/`, outputs to
   `/opt/voicaw-site`; also run by `updates/publish.mjs` after every desktop release)
 - `npm run start:server` — start the Express/WebSocket server (`server/index.js`)

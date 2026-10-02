@@ -94,6 +94,31 @@ function twemojiAssets() {
   };
 }
 
+// Libraries the app needs at startup, each in its own file, so no one file outgrows the
+// precache limit (see maximumFileSizeToCacheInBytes). Only libraries that are all loaded at
+// startup anyway: one also used by lazily loaded code (e.g. ProseMirror, shared with the
+// document editor) would drag that code into startup.
+const VENDOR_CHUNKS = {
+  'vendor-react': ['react', 'react-dom', 'scheduler', 'react-router', 'react-router-dom'],
+  'vendor-markdown': [
+    'react-markdown', 'unified', 'bail', 'trough', 'vfile', 'vfile-message', 'devlop', 'is-plain-obj',
+    'property-information', 'space-separated-tokens', 'comma-separated-tokens', 'html-url-attributes',
+    'hast-util-to-jsx-runtime', 'hast-util-whitespace', 'style-to-js', 'style-to-object', 'inline-style-parser',
+    'estree-util-is-identifier-name', 'zwitch', 'longest-streak', 'ccount', 'markdown-table', 'trim-lines',
+    'decode-named-character-reference', 'character-entities', 'mdast-util-*', 'micromark', 'micromark-*',
+    'unist-util-*', 'remark-*', 'rehype-*', 'hast-util-*',
+  ],
+  'vendor-highlight': ['highlight.js', 'lowlight'],
+  'vendor-icons': ['@fortawesome/*'],
+};
+const vendorPatterns = Object.entries(VENDOR_CHUNKS).flatMap(([chunk, names]) => names.map((name) => [
+  chunk,
+  new RegExp(`/node_modules/${name.replace('*', '[^/]+')}/`),
+]));
+function vendorChunk(id) {
+  return vendorPatterns.find(([, pattern]) => pattern.test(id))?.[0];
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const isElectron = env.ELECTRON === 'true';
@@ -129,6 +154,11 @@ export default defineConfig(({ mode }) => {
           // DeepFilterNet (17 MB, "Strong" noise suppression) only downloads for those who
           // choose it.
           globIgnores: ['**/df_bg-*.wasm'],
+          // Workbox skips (and the plugin then fails the build on) any file over this; the
+          // default is 2 MiB. Big libraries get their own files (VENDOR_CHUNKS) to stay well
+          // under it; scripts/publish-web.mjs reports the precache's total, which is what each
+          // device downloads.
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         },
         // Serve the real service worker from the dev server too, so push notifications can
         // be tested on test.voicaw.com (which runs `vite dev`).
@@ -143,10 +173,13 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_BUILD_TIME': JSON.stringify(new Date().toISOString()),
     },
     build: {
-      outDir: isElectron
-        ? path.resolve(__dirname, '../build')
-        : '/opt/voicaw-client',
+      // The web build goes to a staging folder; `npm run build` then copies it to
+      // /opt/voicaw-client only if it succeeded (scripts/publish-web.mjs).
+      outDir: path.resolve(__dirname, isElectron ? '../build' : '../build-web'),
       emptyOutDir: true,
+      rollupOptions: {
+        output: { manualChunks: vendorChunk },
+      },
     },
     server: {
       port: 5173,

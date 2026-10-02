@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/publish-web.mjs",
     "build:electron": "cross-env ELECTRON=true vite build --mode electron",
     "lint": "eslint .",
     "preview": "vite preview",

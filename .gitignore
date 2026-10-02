@@ -150,4 +150,5 @@ server/*.db-shm
 
 # Desktop app: the client built for it, and the packaged installers
 /build/
+/build-web/
 /dist-desktop/

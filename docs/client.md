@@ -148,12 +148,22 @@
   (`VITE_BUILD_TIME`) and has "Check for updates". Other tabs, and pages whose lazily loaded chunks
   are gone from the server (`vite:preloadError`), are offered a reload. The desktop app has no
   service worker: `watchDesktopUpdates` offers its own updates the same way (see Desktop app).
-- Precaching skips any file over 2 MiB (Workbox's `maximumFileSizeToCacheInBytes`), and the build
-  then fails: keep the main bundle (`assets/index-*.js`, 1.7 MB in October 2026) under it by
-  loading big, rarely needed code with `import()`, as OPAQUE is (`authService.js` `loadOpaque`,
-  ~400 kB, only for logging in, signing up and checking a password), the document editor and
-  DeepFilterNet. When a build fails this way, `/opt/voicaw-client` has already been replaced, and
-  its service worker precaches everything but that file.
+- **Build size.** Devices precache the whole build (except DeepFilterNet's WebAssembly) and
+  download it again on every update, so what matters is the total, which `npm run build` prints
+  (4.2 MB in October 2026, warning over 6 MB: `PRECACHE_BUDGET` in `scripts/publish-web.mjs`).
+  Workbox skips any single file over `maximumFileSizeToCacheInBytes` (raised from its 2 MiB
+  default to 4 MiB in `vite.config.js`), and the build then fails. So that no file grows that
+  big, the libraries loaded at startup have their own files (`VENDOR_CHUNKS` in
+  `vite.config.js`: React, markdown, highlight.js, Font Awesome; the app's own code is about
+  0.8 MB). Only list libraries all loaded at startup: one also used by lazily loaded code (e.g.
+  ProseMirror, shared with the document editor) would drag that code into startup. Big, rarely
+  needed code loads with `import()`: OPAQUE (`authService.js` `loadOpaque`, ~400 kB, only for
+  logging in, signing up and checking a password), the document editor, LiveKit and DeepFilterNet.
+- **Publishing.** `npm run build` builds into `build-web/` (not in the repo), then
+  `scripts/publish-web.mjs` checks it (everything `index.html` loads is precached, every
+  precached file exists) and copies it into `/opt/voicaw-client` (`VOICAW_WEB_ROOT` to publish
+  elsewhere) with `rsync --delay-updates --delete-after`: the new files go in together at the
+  end, and only then do the old build's go. A failed build or check changes nothing there.
 
 ## Profiles
 

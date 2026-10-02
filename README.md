@@ -16,7 +16,8 @@ handles TLS for all of them.
 - An S3-compatible object store (e.g. MinIO) for uploads, profile pictures, guild icons and
   emoji. The server creates its buckets (`uploads`, `profile-pics`, `guild-icons`, `emojis`) and
   makes them public on start.
-- nginx with TLS certificates (certbot), and pm2.
+- nginx with TLS certificates (certbot), pm2, and rsync (`npm run build` publishes the web app
+  with it).
 
 ### 2. Code and dependencies
 
@@ -148,7 +149,7 @@ send almost nothing.
 pm2 start server/index.js --name voicaw-api --cwd server           # API on PORT
 pm2 start ~/livekit/livekit-server --name voicaw-livekit --cwd ~/livekit -- --config livekit.yaml
 pm2 save                     # so `pm2 resurrect` (and boot) brings them back
-npm run build                # the static site, into /opt/voicaw-client
+npm run build                # the web app, into /opt/voicaw-client (see Publishing in docs/client.md)
 ```
 
 Never run `pm2 update` on a shared host (see `CLAUDE.md`).
