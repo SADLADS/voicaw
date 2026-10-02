@@ -28,7 +28,7 @@ export default function PollVoters({ poll, voters, names, userId, initialOption,
             >
               {o.emoji && <span className="poll-option-emoji"><ReactionEmoji native={o.emoji} /></span>}
               <span className="poll-voters-tab-text">{o.text}</span>
-              <span className="poll-voters-tab-count">{voters[o.id]?.length ?? 0}</span>
+              <span className="poll-voters-tab-count">({voters[o.id]?.length ?? 0})</span>
             </button>
           ))}
         </div>
