@@ -26,11 +26,27 @@ LiveKit carries the audio.
 - **Client** (`voice/voiceClient.js`, read with `hooks/useVoice.js`): one connection per
   device, a module-level store like `ws-client`. `livekit-client` is loaded on the first join
   (it's big). Joining must come from a click (browsers play sound only after one). Muted, the
-  mic is released (`stopMicTrackOnMute`, the browser's recording light goes off); deafened, the
-  `<audio>` elements are muted and you're muted too; unmuting undeafens (Discord's rules). Mute
+  mic is released (`stopMicTrackOnMute`, the browser's recording light goes off); deafened,
+  everyone's playback volume is 0 and you're muted too; unmuting undeafens (Discord's rules). Mute
   and deafen are remembered per device (`localStorage voicePrefs`) and work outside a call.
   `speaking` is LiveKit's active speakers. Being removed, or joining the same channel
   elsewhere, ends it with a message in the voice bar.
+- **Playback** (`voiceClient`): others' voices play through Web Audio, LiveKit's `webAudioMix`
+  in our own AudioContext (`playback`, one per connection, its `setSinkId` the chosen speakers;
+  LiveKit's own context would miss the speakers chosen before joining): each remote track gets
+  its own GainNode (`track.setVolume`), so volumes can go past 100%. Its `<audio>` element
+  stays attached but muted (Chrome only feeds a remote stream to Web Audio while it plays). Where
+  the browser can pick speakers for elements but not for an AudioContext (Firefox) it plays
+  from the elements instead, capped at 100%. `applyVolumes` sets every track to
+  `playbackVolume` (`userVolumes.js`: 0 deafened, else output volume × the person's volume
+  (microphones only, not a screen share's sound)) on any change, and again after LiveKit
+  restarts the audio (it rebuilds a gain and forgets a volume of 0).
+- **Per-user volume** (like Discord's User Volume; `voice/userVolumes.js`, per device,
+  `localStorage userVolumes`, by user id, 0–200%, the same for channels and calls): click (or
+  right-click, Enter) someone else in a voice channel's list in the sidebar, their tile, or the
+  DM/group call panel, once you're in that channel or call (`hooks/useVolumeMenu.js`), for
+  `voice/UserVolumeMenu.jsx`: a slider and Reset, floating on a computer (placed like
+  `ContextMenu`, `utils/menuPlacement.js`), a sheet on a phone. Applied live.
 - **Lost connections** (voice channels; `voice/rejoin.js`): the bar says "Reconnecting…"
   (LiveKit's `Reconnecting` and `SignalReconnecting`, the latter being a signalling-only resume,
   e.g. after a phone's app was in the background). LiveKit's own retries can take minutes to
@@ -104,8 +120,8 @@ LiveKit carries the audio.
 - **Voice settings** (`voice/audioSettings.js`, Settings → Voice & video, `VoiceSettings.jsx`;
   per device, `localStorage audioSettings`; video settings go in the same section later):
   input and output device (output only where the browser has `setSinkId`), input volume
-  (0–200%, a gain in the microphone chain, changed live) and output volume (0–100%, the
-  `<audio>` elements' volume), echo cancellation, noise suppression (Standard, Strong, Your
+  (0–200%, a gain in the microphone chain, changed live) and output volume (0–100%, a factor
+  in every voice's playback volume, see Playback), echo cancellation, noise suppression (Standard, Strong, Your
   browser's, Off; see above), input sensitivity (Automatic, or a dB slider over a meter of the
   level the gate sees, green while open, during the mic test) and automatic gain control
   (`captureOptions`; devices as `{ ideal }`, so an unplugged one falls back to the default).
@@ -125,7 +141,8 @@ LiveKit carries the audio.
   mute/deafen/share screen/disconnect). `voice/VoiceBar.jsx` sits above the user panel while
   connected (status, channel link, share screen, disconnect, errors); `UserPanel` has mute and deafen
   (`voice/VoiceControls.jsx`). A guild reopens on its last *text* (or list) channel.
-- **Not done yet:** per-user volume, push-to-talk, output volume above 100%, server mute/move (Mute Members, Move Members), a global
+- **Not done yet:** a per-user local mute and a separate volume for someone's stream sound (Discord
+  has both), push-to-talk, output volume above 100%, server mute/move (Mute Members, Move Members), a global
   push-to-talk key in the desktop app (it has global mute/deafen toggles; holding a key needs a
   native keyboard hook), noise suppression and the gate on the other side (for people whose
   app doesn't, like Discord's "suppress others' noise"), screen share in DM/group calls (LiveKit's E2EE

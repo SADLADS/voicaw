@@ -119,7 +119,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - `docs/guilds.md`: guilds (permissions, overrides, audit log, invites, custom emoji, channel
   menus), list channels, document channels, guild search, webhooks (Discord's API).
 - `docs/voice-and-calls.md`: voice channels (LiveKit, reconnecting, screen sharing, microphone
-  chain, noise suppression, voice settings), DM and group calls.
+  chain, noise suppression, voice settings, playback and per-user volume), DM and group calls.
 - `docs/group-dms.md`: group DMs (membership log, epochs, signing).
 - `docs/messages.md`: emoji, message markdown, GIFs, polls, mentions, pinned messages, the
   message list and history loading.

@@ -12,40 +12,58 @@ const shot = async (page, name) => {
   if (shots) await page.screenshot({ path: `${shots}/${name}.png` });
 };
 
-// Taps every GainNode connected to a destination with an analyser, so the page can say how
-// loud what it plays is.
+// Taps each voice LiveKit plays (a MediaStream source into a gain into the speakers) with an
+// analyser before and after its gain, so the page can say how loud it plays, and at what
+// volume (output over input: the talking itself comes and goes).
 const tapOutput = () => {
   window.__taps = [];
   const connect = AudioNode.prototype.connect;
   AudioNode.prototype.connect = function tapped(target, ...rest) {
     const result = connect.call(this, target, ...rest);
-    if (this instanceof GainNode && target instanceof AudioDestinationNode && !this.__tapped) {
+    if (this instanceof MediaStreamAudioSourceNode && target instanceof GainNode) {
+      const input = this.context.createAnalyser();
+      input.fftSize = 2048;
+      connect.call(this, input);
+      target.__input = input;
+    }
+    if (this.__input && target instanceof AudioDestinationNode && !this.__tapped) {
       this.__tapped = true;
-      const analyser = this.context.createAnalyser();
-      analyser.fftSize = 2048;
-      connect.call(this, analyser);
-      window.__taps.push(analyser);
+      const output = this.context.createAnalyser();
+      output.fftSize = 2048;
+      connect.call(this, output);
+      window.__taps.push({ input: this.__input, output });
     }
     return result;
   };
 };
 
-// The loudest RMS any tapped output reaches over `ms`.
+// Over `ms`: `out`, the mean RMS of what plays while the input has sound, and `ratio`, the
+// volume it plays at (output over input on the same frames).
 const level = (page, ms = 1500) => page.evaluate(async (ms) => {
+  const rms = (analyser) => {
+    const data = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(data);
+    return Math.sqrt(data.reduce((s, v) => s + v * v, 0) / data.length);
+  };
   const end = performance.now() + ms;
-  let max = 0;
+  let sumIn = 0;
+  let sumOut = 0;
+  let frames = 0;
   while (performance.now() < end) {
-    for (const analyser of window.__taps ?? []) {
-      if (analyser.context.state === 'closed') continue;
-      const data = new Float32Array(analyser.fftSize);
-      analyser.getFloatTimeDomainData(data);
-      const rms = Math.sqrt(data.reduce((s, v) => s + v * v, 0) / data.length);
-      max = Math.max(max, rms);
+    for (const { input, output } of window.__taps ?? []) {
+      if (input.context.state === 'closed') continue;
+      const i = rms(input);
+      if (i < 0.01) continue;
+      sumIn += i;
+      sumOut += rms(output);
+      frames++;
     }
     await new Promise((r) => setTimeout(r, 30));
   }
-  return max;
+  return { out: frames ? sumOut / frames : 0, ratio: sumIn ? sumOut / sumIn : 0 };
 }, ms);
+
+const near = (ratio, want) => Math.abs(ratio - want) < 0.1 * Math.max(1, want);
 
 const tile = (name) => `.voice-tile:has-text("${name}")`;
 const sidebarMember = (name) => `.voice-member:has-text("${name}")`;
@@ -114,8 +132,9 @@ try {
   check(Boolean(await b.$(`${tile(alice.name)}[data-volume-trigger]`)), "Alice's tile opens a volume");
 
   const normal = await level(b);
-  console.log('alice at 100%:', normal.toFixed(4));
-  check(normal > 0.005, 'Bob hears Alice through Web Audio');
+  console.log('alice at 100%:', JSON.stringify(normal));
+  check(normal.out > 0.005, 'Bob hears Alice through Web Audio');
+  check(near(normal.ratio, 1), 'at 100%');
 
   // The channel list: click her name.
   await b.click(sidebarMember(alice.name));
@@ -127,8 +146,8 @@ try {
   await b.waitForSelector(`${menu} .user-volume-value:has-text("200%")`);
   await b.waitForTimeout(500);
   const loud = await level(b);
-  console.log('alice at 200%:', loud.toFixed(4));
-  check(loud > normal * 1.6, '200% is about twice as loud');
+  console.log('alice at 200%:', JSON.stringify(loud));
+  check(near(loud.ratio, 2), '200% is twice as loud');
   await shot(b, '02-volume-200');
 
   // Keys work on the slider; Escape closes.
@@ -143,8 +162,8 @@ try {
   await setSlider(b, `${menu} .user-volume-slider`, 0);
   await b.waitForTimeout(600);
   const silent = await level(b);
-  console.log('alice at 0%:', silent.toFixed(4));
-  check(silent < normal * 0.05, '0% is silent');
+  console.log('alice at 0%:', JSON.stringify(silent));
+  check(silent.ratio < 0.02, '0% is silent');
   check(await b.$eval(tile(alice.name), (el) => el.classList.contains('speaking')), 'she still shows as speaking');
 
   // Reset; a click outside closes.
@@ -166,9 +185,10 @@ try {
   await b.click('.user-panel button[aria-label="Undeafen"]');
   await b.waitForTimeout(600);
   const back = await level(b);
-  console.log('150%:', boosted.toFixed(4), 'deafened:', deaf.toFixed(4), 'undeafened:', back.toFixed(4));
-  check(deaf < normal * 0.05, 'deafened is silent');
-  check(back > normal * 1.2, 'undeafened keeps her 150%');
+  console.log('150%:', JSON.stringify(boosted), 'deafened:', JSON.stringify(deaf), 'undeafened:', JSON.stringify(back));
+  check(near(boosted.ratio, 1.5), 'at 150%');
+  check(deaf.ratio < 0.02, 'deafened is silent');
+  check(near(back.ratio, 1.5), 'undeafened keeps her 150%');
 
   // Remembered on this device.
   await b.reload();
@@ -179,8 +199,8 @@ try {
   check((await b.textContent(`${menu} .user-volume-value`)).trim() === '150%', 'kept after a reload');
   await b.keyboard.press('Escape');
   const afterReload = await level(b);
-  console.log('after reload:', afterReload.toFixed(4));
-  check(afterReload > normal * 1.2, 'and applied');
+  console.log('after reload:', JSON.stringify(afterReload));
+  check(near(afterReload.ratio, 1.5), 'and applied');
 
   // Carol on a phone: tapping Alice's tile gives a sheet.
   await c.goto(loungeUrl);
@@ -211,7 +231,8 @@ try {
   await b.waitForSelector('.voice-bar-status.connected:has-text("Call Connected")', { timeout: 20000 });
   await b.waitForSelector('.call-panel .user-avatar.speaking', { timeout: 15000 });
   const callNormal = await level(b);
-  check(callNormal > 0.005, 'Bob hears Alice in the encrypted call');
+  check(callNormal.out > 0.005, 'Bob hears Alice in the encrypted call');
+  check(near(callNormal.ratio, 1.5), 'at her 150%');
   // Alice's panel: Bob can be set, Alice herself can't.
   const triggers = await b.$$('.call-panel [data-volume-trigger]');
   check(triggers.length === 1, 'only the other person in the call panel');
@@ -222,8 +243,8 @@ try {
   await setSlider(b, `${menu} .user-volume-slider`, 0);
   await b.waitForTimeout(600);
   const callSilent = await level(b);
-  console.log('call: 150%', callNormal.toFixed(4), '0%', callSilent.toFixed(4));
-  check(callSilent < callNormal * 0.05, '0% silences her in the call');
+  console.log('call: 150%', JSON.stringify(callNormal), '0%', JSON.stringify(callSilent));
+  check(callSilent.ratio < 0.02, '0% silences her in the call');
   await shot(b, '04-call-panel-volume');
   await b.click(`${menu} .user-volume-reset`);
   await b.keyboard.press('Escape');
