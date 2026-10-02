@@ -283,3 +283,77 @@ export async function decryptGroupReaction(envelope, epochKey, aad, identityKey,
   }
   return { emoji: await decryptReaction(envelope, epochKey, aad), signed: false, verified: false };
 }
+
+// ---------------------------------------------------------------- the group's name
+
+// The name is a record the renamer signs with their identity key: JSON `{ v, group, version,
+// renamer, name, initial, at }` (`version` counts renames from 1; `initial`: set at creation,
+// or a name from before names were encrypted, so not shown as a rename), padded with zeros to
+// NAME_RECORD_BYTES so every name is the same size. It's kept encrypted with the latest
+// epoch's key, bound to the group and epoch: "v1." + base64(IV || AES-GCM(signature ||
+// record)). Whoever makes a new epoch encrypts the same signed record again with the new key,
+// so it stays the renamer's words.
+const GROUP_NAME_CONTEXT = 'voicaw/group-name/v1';
+const NAME_SIGNATURE_CONTEXT = 'voicaw/group-name-sig/v1';
+const NAME_PREFIX = 'v1.';
+export const NAME_RECORD_BYTES = 512;
+export const MAX_GROUP_NAME = 100;
+
+export function groupNameContext(groupId, epoch) {
+  return `${GROUP_NAME_CONTEXT}|${groupId}|${epoch}`;
+}
+
+// What a name can be: trimmed, no control characters, at most MAX_GROUP_NAME characters.
+export function cleanGroupName(name) {
+  // eslint-disable-next-line no-control-regex
+  return [...String(name ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim()].slice(0, MAX_GROUP_NAME).join('').trim();
+}
+
+// -> { record (padded bytes), signature (bytes) }: the signed name, to seal under an epoch key.
+export async function signGroupName({ groupId, version, renamerId, name, initial = false, at = Math.floor(Date.now() / 1000) }, identityPrivateKey) {
+  const json = te.encode(JSON.stringify({ v: 1, group: groupId, version, renamer: renamerId, name: cleanGroupName(name), initial, at }));
+  if (json.length > NAME_RECORD_BYTES) throw new Error('That name is too long');
+  const record = new Uint8Array(NAME_RECORD_BYTES);
+  record.set(json);
+  const signature = new Uint8Array(await crypto.subtle.sign(SIGN, identityPrivateKey, concatBytes(te.encode(`${NAME_SIGNATURE_CONTEXT}\n`), record)));
+  return { record, signature };
+}
+
+// The signed name encrypted with an epoch's key (for that epoch).
+export async function sealGroupName(signed, epochKey, groupId, epoch) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: te.encode(groupNameContext(groupId, epoch)) },
+    epochKey,
+    concatBytes(signed.signature, signed.record)
+  );
+  return NAME_PREFIX + toBase64(concatBytes(iv, new Uint8Array(ciphertext)));
+}
+
+// Opens an encrypted name and checks it: for this group, signed by its renamer
+// (`identityKeyOf(userId)`: their identity key from the group's checked log). -> { name,
+// version, renamerId, initial, at, signed } (`signed`, to seal again for a new epoch). Throws
+// if it doesn't decrypt or check out.
+export async function openGroupName(envelope, epochKey, groupId, epoch, identityKeyOf) {
+  if (typeof envelope !== 'string' || !envelope.startsWith(NAME_PREFIX)) throw new Error('Not an encrypted name');
+  const data = fromBase64(envelope.slice(NAME_PREFIX.length));
+  const plain = new Uint8Array(await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: data.slice(0, 12), additionalData: te.encode(groupNameContext(groupId, epoch)) },
+    epochKey,
+    data.slice(12)
+  ));
+  const signature = plain.slice(0, SIGNATURE_BYTES);
+  const record = plain.slice(SIGNATURE_BYTES);
+  const end = record.indexOf(0);
+  const r = JSON.parse(new TextDecoder().decode(end === -1 ? record : record.slice(0, end)));
+  if (r.v !== 1 || r.group !== groupId || !Number.isInteger(r.version) || r.version < 1 || typeof r.name !== 'string') {
+    throw new Error('Not a name for this group');
+  }
+  const identityKey = identityKeyOf(r.renamer);
+  if (!identityKey) throw new Error("The renamer isn't in the group's log");
+  const key = await crypto.subtle.importKey('raw', fromBase64(identityKey), ECDSA, false, ['verify']);
+  if (!(await crypto.subtle.verify(SIGN, key, signature, concatBytes(te.encode(`${NAME_SIGNATURE_CONTEXT}\n`), record)))) {
+    throw new Error("The name's signature doesn't match its renamer");
+  }
+  return { name: r.name, version: r.version, renamerId: r.renamer, initial: r.initial === true, at: r.at, signed: { record, signature } };
+}

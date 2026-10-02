@@ -162,6 +162,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   new members don't read old ones: per-group epoch keys, renewed after every membership change,
   each member getting a copy wrapped for them (ECDH + HKDF; WebCrypto has no HPKE); membership
   changes signed with identity keys. Re-added members see the times they were in, not the gap.
+  Group names are encrypted too (2026-10-02), always under the latest epoch: every new epoch
+  carries the renamer's signed name, and an add always comes with its epoch so the person added
+  can read it; group keys are kept on the device (IndexedDB) for notifications.
   Group messages, edits and reactions are signed inside the encryption; DMs deliberately
   aren't (two people, so no one else could have written it; stays deniable). Don't change identity keys or the safety-number derivation
   casually: every contact would get a "key changed" warning. The server delivering the web app's code stays the

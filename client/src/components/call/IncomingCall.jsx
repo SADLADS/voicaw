@@ -20,7 +20,7 @@ export default function IncomingCall({ user }) {
   const { groupList } = useContext(LayoutContext);
   if (!call || call.outgoing || call.state === 'active') return null;
   const answering = call.state === 'connecting';
-  const group = call.groupId && (groupList?.groups.find((g) => g.id === call.groupId) ?? { name: call.groupName });
+  const group = call.groupId && (groupList?.groups.find((g) => g.id === call.groupId) ?? { name: 'Group call' });
   const title = group ? groupTitle(group, user) : displayName(call.peerId, call.peerName);
   const subtitle = group ? `${call.callerName} started a call` : 'Incoming voice call';
   const avatarId = call.callerId ?? call.peerId ?? null;

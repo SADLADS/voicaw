@@ -16,8 +16,9 @@ export async function createGroupRequest(body) {
   return (await api.post('/group-dms', body)).data;
 }
 
-export async function renameGroup(groupId, name) {
-  return (await api.patch(`/group-dms/${groupId}`, { name })).data;
+// { name (encrypted), epoch, version, initial } (groupKeys.renameGroup makes it).
+export async function patchGroupName(groupId, body) {
+  return (await api.patch(`/group-dms/${groupId}`, body)).data;
 }
 
 export async function postLogEntry(groupId, entry, epoch) {

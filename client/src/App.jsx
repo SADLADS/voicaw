@@ -20,6 +20,7 @@ import { closeWebSocket, onLoggedOutElsewhere } from './utils/ws-client';
 import { leaveVoice } from './voice/voiceClient';
 import { hangUp } from './voice/callClient';
 import { clearUserKeys } from './services/keyStore';
+import { forgetGroups } from './services/groupCache';
 import EmojiProvider from './emoji/EmojiProvider';
 import UpdateBanner from './components/UpdateBanner';
 import ImageViewerProvider from './components/ImageViewerProvider';
@@ -122,6 +123,7 @@ export default function App() {
     try {
       localStorage.removeItem('token');
       await clearUserKeys();
+      await forgetGroups();
     } catch (err) {
       console.error('Failed to clear stored keys on logout', err);
     }

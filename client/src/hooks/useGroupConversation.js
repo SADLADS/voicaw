@@ -19,10 +19,11 @@ import {
   groupMessageContext,
   groupReactionContext,
   messageSignatureContext,
+  openGroupName,
   reactionSignatureContext,
 } from '../services/groupCrypto';
 import { loadIdentityKey } from '../services/keyStore';
-import { currentEpoch, openGroup } from '../services/groupKeys';
+import { currentEpoch, openGroup, renameGroup } from '../services/groupKeys';
 import { nameOf } from '../utils/profiles';
 
 export const GROUP_PAGE_SIZE = 50;
@@ -39,7 +40,10 @@ const FORGED = "[This message's signature doesn't match its sender, so it isn't 
 // (`unverified`), one from before signing is marked `unsigned`, reactions that don't match are
 // dropped.
 // `saveReaction` / `deleteReaction`, and `reload()`. Membership changes show in the timeline
-// as system rows ({ system: true, text }).
+// as system rows ({ system: true, text }), renames too (rows from the server, `system`
+// 'group_name', with the signed name they set, checked like a message).
+// A group whose name is still plaintext (from before names were encrypted) gets it encrypted
+// by the first member to open it.
 export function useGroupConversation({ groupId, user, onRead }) {
   const [messages, setMessages] = useState([]);
   const [hasMore, setHasMore] = useState(true);
@@ -138,8 +142,21 @@ export function useGroupConversation({ groupId, user, onRead }) {
     };
   }
 
+  // A rename: the name it set (`renamedTo`; null if it doesn't check out against its sender).
+  async function decryptRenameRow(row) {
+    let renamedTo = null;
+    try {
+      const name = await openGroupName(row.content, await keyFor(row.epoch), groupId, row.epoch, (id) => groupRef.current?.log.identityKeys.get(id));
+      if (name.renamerId === row.sender_id) renamedTo = name.name;
+    } catch {
+      // Shown as unreadable.
+    }
+    return { ...row, plaintext: null, reactions: [], renamedTo };
+  }
+
   async function decryptRow(row) {
     if (row.system === 'poll_end') return decryptPollEndRow(row);
+    if (row.system === 'group_name') return decryptRenameRow(row);
     // A call (utils/callLog.js): plaintext from the server, shown as a notice.
     if (row.system === 'call') return { ...row, plaintext: null, reactions: [] };
     const text = await decryptText(row.content, row.epoch, row.sender_id, signatureContextOf(row));
@@ -188,6 +205,10 @@ export function useGroupConversation({ groupId, user, onRead }) {
         if (cancelled) return;
         groupRef.current = opened;
         setGroup(opened);
+        if (opened.name?.legacy && !opened.problems.length) {
+          renameGroup(user, groupId, opened.name.name, { initial: true, opened })
+            .catch((err) => console.warn("Failed to encrypt the group's name", err));
+        }
         const page = await fetchGroupMessages(groupId, { limit: GROUP_PAGE_SIZE });
         const rows = await Promise.all(page.map(decryptRow));
         if (cancelled) return;
@@ -390,10 +411,16 @@ export function useGroupConversation({ groupId, user, onRead }) {
             : r.type === 'remove' ? `${name(r.actor)} removed ${name(r.target) === 'You' ? 'you' : name(r.target)}.`
               : `${name(r.actor)} left the group.`,
       }));
+    const shown = messages.map((m) => (m.system === 'group_name' ? {
+      ...m,
+      text: m.renamedTo == null ? `${name(m.sender_id)} renamed the group (the new name couldn't be checked).`
+        : m.renamedTo ? `${name(m.sender_id)} renamed the group to “${m.renamedTo}”.`
+          : `${name(m.sender_id)} removed the group's name.`,
+    } : m));
     // Merged by time; messages keep their order.
     const out = [];
     let i = 0;
-    for (const m of messages) {
+    for (const m of shown) {
       while (i < rows.length && rows[i].timestamp <= (m.timestamp ?? Infinity)) out.push(rows[i++]);
       out.push(m);
     }

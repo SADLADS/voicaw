@@ -55,7 +55,7 @@ export default function VoiceBar({ user }) {
           </span>
           {inCall && call?.groupId ? (
             <Link to={`/dm/g/${call.groupId}`} className="voice-bar-channel">
-              {`Call in ${groupTitle(groupList.groups.find((g) => g.id === call.groupId) ?? { name: call.groupName }, user)}`}
+              {`Call in ${groupTitle(groupList.groups.find((g) => g.id === call.groupId) ?? { name: 'a group' }, user)}`}
             </Link>
           ) : inCall ? (
             <Link to={`/dm/${call?.peerId ?? ''}`} className="voice-bar-channel">

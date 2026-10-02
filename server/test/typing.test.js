@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { randomUUID } from 'crypto';
 import { registerUser, loginUser } from './helpers/authFlow.js';
+import { sealName } from './helpers/groupNames.js';
 import { importEncryptionPrivateKey, importIdentityPrivateKey } from '../../client/src/services/encryptionService.js';
 import { makeRecord, signRecord, entryHash, generateGroupKey, wrapGroupKey, groupKeyContext } from '../../client/src/services/groupCrypto.js';
 
@@ -61,7 +62,7 @@ async function createGroup(owner, others) {
   for (const m of [owner, ...others]) {
     envelopes[m.id] = await wrapGroupKey(key, owner.encryptionKey, m.keys.public.encryptionKey, groupKeyContext(groupId, 1, log.length - 1, owner.id, m.id));
   }
-  const res = await api.post(owner, '/group-dms', { id: groupId, log, epoch: { epoch: 1, logSeq: log.length - 1, envelopes } });
+  const res = await api.post(owner, '/group-dms', { id: groupId, log, epoch: { epoch: 1, logSeq: log.length - 1, envelopes, name: await sealName(owner, groupId, 1, { keyBytes: key }), nameVersion: 1 } });
   expect(res.status).toBe(201);
   return groupId;
 }

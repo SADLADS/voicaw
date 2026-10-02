@@ -5,6 +5,7 @@ import request from 'supertest';
 import opaque from '@serenity-kit/opaque';
 import { randomUUID } from 'crypto';
 import { registerUser, loginUser } from './helpers/authFlow.js';
+import { sealName } from './helpers/groupNames.js';
 import { importIdentityPrivateKey, importEncryptionPrivateKey } from '../../client/src/services/encryptionService.js';
 import {
   makeRecord, signRecord, entryHash, generateGroupKey, wrapGroupKey, groupKeyContext,
@@ -63,7 +64,7 @@ async function epochFor(creator, groupId, logSeq, members) {
   for (const m of members) {
     envelopes[m.id] = await wrapGroupKey(key, creator.encryptionKey, m.keys.public.encryptionKey, groupKeyContext(groupId, 1, logSeq, creator.id, m.id));
   }
-  return { epoch: 1, logSeq, envelopes };
+  return { epoch: 1, logSeq, envelopes, name: await sealName(creator, groupId, 1, { keyBytes: key }), nameVersion: 1 };
 }
 
 // A group made by `owner` with `others` (at least two).

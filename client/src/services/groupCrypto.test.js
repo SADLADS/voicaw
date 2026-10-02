@@ -20,6 +20,10 @@ import {
   encryptGroupReaction,
   decryptGroupReaction,
   SIGNED_PREFIX,
+  cleanGroupName,
+  signGroupName,
+  sealGroupName,
+  openGroupName,
 } from './groupCrypto';
 
 const GROUP = '11111111-2222-4333-8444-555555555555';
@@ -162,5 +166,42 @@ describe('signed messages', () => {
     expect(await decryptGroupReaction(thumbs, epochKey, aad, a.keys.public.identityKey, context)).toEqual({ emoji: '👍', signed: true, verified: true });
     const forged = await encryptGroupReaction('👎', epochKey, aad, b.sign, context);
     expect((await decryptGroupReaction(forged, epochKey, aad, a.keys.public.identityKey, context)).verified).toBe(false);
+  });
+});
+
+describe('group names', () => {
+  const identityKeyOf = (id) => people.find((p) => p.id === id)?.keys.public.identityKey;
+
+  it('signs the name by its renamer, seals it per epoch, and keeps the signature when sealed again', async () => {
+    const [a, b] = people;
+    const epoch1 = await importGroupKey(generateGroupKey());
+    const epoch2 = await importGroupKey(generateGroupKey());
+    const signed = await signGroupName({ groupId: GROUP, version: 2, renamerId: a.id, name: '  Trip 🏕️  ' }, a.sign);
+    const sealed = await sealGroupName(signed, epoch1, GROUP, 1);
+    expect(await openGroupName(sealed, epoch1, GROUP, 1, identityKeyOf)).toMatchObject({ name: 'Trip 🏕️', version: 2, renamerId: a.id, initial: false });
+
+    // b makes epoch 2 and carries a's name over: still a's words.
+    const opened = await openGroupName(sealed, epoch1, GROUP, 1, identityKeyOf);
+    const carried = await sealGroupName(opened.signed, epoch2, GROUP, 2);
+    expect(await openGroupName(carried, epoch2, GROUP, 2, identityKeyOf)).toMatchObject({ name: 'Trip 🏕️', renamerId: a.id });
+
+    // Bound to its epoch and group; a record b signed claiming to be a's doesn't check out.
+    await expect(openGroupName(sealed, epoch1, GROUP, 2, identityKeyOf)).rejects.toThrow();
+    await expect(openGroupName(sealed, epoch1, '99999999-2222-4333-8444-555555555555', 1, identityKeyOf)).rejects.toThrow();
+    const forged = await signGroupName({ groupId: GROUP, version: 3, renamerId: a.id, name: 'Forged' }, b.sign);
+    await expect(openGroupName(await sealGroupName(forged, epoch1, GROUP, 1), epoch1, GROUP, 1, identityKeyOf)).rejects.toThrow(/signature/);
+  });
+
+  it('gives every name the same size (as the server checks), and cleans it', async () => {
+    const [a] = people;
+    const key = await importGroupKey(generateGroupKey());
+    const lengths = new Set();
+    for (const name of ['', 'x', '"'.repeat(100), '🏕️'.repeat(60)]) {
+      lengths.add((await sealGroupName(await signGroupName({ groupId: GROUP, version: 1, renamerId: a.id, name }, a.sign), key, GROUP, 1)).length);
+    }
+    // server/groupDms.js NAME_CIPHERTEXT_LENGTH
+    expect([...lengths]).toEqual([3 + 4 * Math.ceil((12 + 64 + 512 + 16) / 3)]);
+    expect(cleanGroupName(' a\u0000b\nc ')).toBe('abc');
+    expect([...cleanGroupName('é'.repeat(150))]).toHaveLength(100);
   });
 });
