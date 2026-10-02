@@ -16,7 +16,7 @@ import api from './utils/api';
 import './assets/css/mobile.css';
 import './assets/css/desktop.css';
 
-import { closeWebSocket, onAccountDeleted } from './utils/ws-client';
+import { closeWebSocket, onLoggedOutElsewhere } from './utils/ws-client';
 import { leaveVoice } from './voice/voiceClient';
 import { hangUp } from './voice/callClient';
 import { clearUserKeys } from './services/keyStore';
@@ -66,8 +66,9 @@ export default function App() {
   const [config, setConfig] = useState({ s3Endpoint: '' });
   const logoutRef = useRef(null);
 
-  // The account was deleted on another device: this one logs out too.
-  useEffect(() => onAccountDeleted(() => logoutRef.current?.()), []);
+  // Logged out from another device (Settings → Devices), or the account was deleted there:
+  // this one logs out too.
+  useEffect(() => onLoggedOutElsewhere(() => logoutRef.current?.()), []);
 
   useEffect(() => {
     // Fetch server config once at app start
@@ -111,6 +112,12 @@ export default function App() {
     }
     await hangUp();
     await leaveVoice();
+    // The token stops working on the server too (it may already have: logged out elsewhere).
+    try {
+      await api.post('/logout');
+    } catch (err) {
+      if (!err.response) console.error('Failed to end the session on logout', err);
+    }
     try {
       localStorage.removeItem('token');
       await clearUserKeys();

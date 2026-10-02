@@ -113,7 +113,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 
 - `docs/server.md`: server layout (which module does what), env vars, Node/sqlite on the host.
 - `docs/database.md`: `node:sqlite`, query helpers, transactions, migrations.
-- `docs/auth-and-encryption.md`: OPAQUE login, sessions, rate limits, deleting an account,
+- `docs/auth-and-encryption.md`: OPAQUE login, sessions and Settings → Devices, rate limits, deleting an account,
   end-to-end encryption (keys, backups, recovery code, contact pinning, DMs, reactions, notes).
 - `docs/realtime.md`: websocket events, online status, web push.
 - `docs/guilds.md`: guilds (permissions, overrides, audit log, invites, custom emoji, channel

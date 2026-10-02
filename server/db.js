@@ -481,6 +481,24 @@ addColumn('ALTER TABLE users ADD COLUMN avatar TEXT');
 addColumn('ALTER TABLE users ADD COLUMN opaque_id TEXT');
 // When the account was deleted (unix s; accounts.js), else NULL. The row stays as a tombstone.
 addColumn('ALTER TABLE users ADD COLUMN deleted_at INTEGER');
+// LOGIN SESSIONS (sessions.js): one row per logged-in device; a token is only good while its
+// row is there. Tokens from before this table carry no session id: they're refused once issued
+// before sessions_reset_at (set whenever a session is logged out from Settings).
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  last_used_at INTEGER NOT NULL,
+  user_agent TEXT,
+  ip TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS sessions_user ON sessions (user_id);
+`);
+addColumn('ALTER TABLE users ADD COLUMN sessions_reset_at INTEGER');
+// The login a push subscription was saved under, so logging that out stops its notifications.
+addColumn('ALTER TABLE push_subscriptions ADD COLUMN session_id TEXT');
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS app_settings (
   key TEXT PRIMARY KEY,

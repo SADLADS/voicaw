@@ -16,7 +16,7 @@ const guildListeners = new Set();
 const callListeners = new Set();
 const groupListeners = new Set();
 const notificationListeners = new Set();
-const accountDeletedListeners = new Set();
+const loggedOutListeners = new Set();
 const conversationSettingsListeners = new Set();
 let reconnectTimeout = null;
 
@@ -168,8 +168,8 @@ export function connectWebSocket() {
       else if (data.type === 'conversation_settings') {
         conversationSettingsListeners.forEach((cb) => cb(data.setting));
       }
-      else if (data.type === 'account_deleted') {
-        accountDeletedListeners.forEach((cb) => cb());
+      else if (data.type === 'account_deleted' || data.type === 'session_revoked') {
+        loggedOutElsewhere(socket);
       }
       else if (data.type === 'user_profile') {
         mergeProfiles([data.user]);
@@ -192,6 +192,13 @@ export function connectWebSocket() {
     // A socket closed on purpose (logout) or already replaced: nothing to do.
     if (socket !== ws) return;
     clearInterval(presenceInterval);
+    // The server refused this login (logged out from another device, the account deleted,
+    // or the token no longer valid): no point reconnecting with it.
+    if (event.code === 1008) {
+      setConnectionState('offline');
+      loggedOutElsewhere(socket);
+      return;
+    }
     setConnectionState(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'connecting');
     console.warn(`[WS] Connection closed. Code: ${event.code}, Reason: "${event.reason || 'No reason'}"`);
 
@@ -300,10 +307,18 @@ export function onConversationSettings(callback) {
   return () => conversationSettingsListeners.delete(callback);
 }
 
-// This account was deleted (on another device): time to log out.
-export function onAccountDeleted(callback) {
-  accountDeletedListeners.add(callback);
-  return () => accountDeletedListeners.delete(callback);
+// This device's login has ended elsewhere (logged out from Settings → Devices on another
+// device, or the account deleted): time to log out here too.
+export function onLoggedOutElsewhere(callback) {
+  loggedOutListeners.add(callback);
+  return () => loggedOutListeners.delete(callback);
+}
+
+// Once per socket: the server says so, then closes it.
+function loggedOutElsewhere(socket) {
+  if (socket.loggedOut) return;
+  socket.loggedOut = true;
+  loggedOutListeners.forEach((cb) => cb());
 }
 
 // Group DM events: `group_dm_add` / `_update` ({ group, entry? }), `_remove` ({ groupId }),

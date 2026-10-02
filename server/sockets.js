@@ -153,6 +153,7 @@ function attachWebSocketServer(server) {
           return;
         }
         ws.userId = String(user.id);
+        ws.sessionId = user.sid;
         if (!clients.has(ws.userId)) clients.set(ws.userId, []);
         clients.get(ws.userId).push(ws);
         refreshStatus(ws.userId);

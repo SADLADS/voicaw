@@ -6,8 +6,9 @@ vi.mock('../utils/api', () => ({
   default: { get: vi.fn() },
 }));
 
-// Has its own tests (AdminSettings.test.jsx).
+// Have their own tests (AdminSettings.test.jsx, DeviceSettings.test.jsx).
 vi.mock('./AdminSettings', () => ({ default: () => null }));
+vi.mock('./DeviceSettings', () => ({ default: () => null }));
 
 import Settings from './Settings';
 import { AuthContext } from '../hooks/useAuth';

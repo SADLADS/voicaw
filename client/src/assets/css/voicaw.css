@@ -618,6 +618,47 @@ body:not(.mobile-mode) .settings-category-title {
   padding: 2px 0;
 }
 
+/* Settings → Devices (DeviceSettings) */
+.device-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 1rem;
+  max-width: 640px;
+}
+
+.device-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--vc-border-light);
+}
+
+.device-icon {
+  font-size: 20px;
+  color: var(--vc-fg-muted);
+  flex-shrink: 0;
+}
+
+.device-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.device-name {
+  font-weight: 600;
+}
+
+.device-details {
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+  overflow-wrap: anywhere;
+}
+
+.device-online {
+  color: var(--vc-online);
+}
+
 .error-msg {
   color: var(--vc-danger);
   margin-top: 0.5rem;

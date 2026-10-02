@@ -25,9 +25,9 @@ router.post('/save-subscription', authenticateJWT, async (req, res) => {
   await db.transaction(async () => {
     await db.run('DELETE FROM push_subscriptions WHERE endpoint = ? AND user_id != ?', [endpoint, userId]);
     await db.run(
-      `INSERT INTO push_subscriptions (user_id, endpoint, subscription) VALUES (?, ?, ?)
-       ON CONFLICT(user_id, endpoint) DO UPDATE SET subscription = excluded.subscription`,
-      [userId, endpoint, JSON.stringify(subObj)]
+      `INSERT INTO push_subscriptions (user_id, endpoint, subscription, session_id) VALUES (?, ?, ?, ?)
+       ON CONFLICT(user_id, endpoint) DO UPDATE SET subscription = excluded.subscription, session_id = excluded.session_id`,
+      [userId, endpoint, JSON.stringify(subObj), req.user.sid]
     );
   });
   res.json({ success: true });
