@@ -6,7 +6,8 @@
 // a minute, and only for a source we listed.
 //
 // Sound: Electron can only capture the whole system's sound ("loopback"), and only on Windows.
-// That includes this app's own voice chat, which the page warns about.
+// The page asks for it with restrictOwnAudio, and Electron then captures it without this app's
+// own sound (the call's voices), like Discord.
 
 const CHOICE_MS = 60 * 1000;
 const THUMBNAIL = { width: 384, height: 216 };

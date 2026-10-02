@@ -67,7 +67,12 @@ LiveKit carries the audio.
   `track_published` / `track_unpublished` webhooks (screen share tracks of the session that's
   in), so it's what LiveKit really carries. Client: `startScreenShare` (from a click; the
   browser asks what to share and whether with its sound; LiveKit's default 1080p at 15 fps)
-  shows your own stream at once; `stopScreenShare`, also noticed when the browser's own "Stop
+  shows your own stream at once. **A shared screen's sound never carries Voicaw's own** (the
+  call's voices, our sounds; like Discord): the sound is asked for with `restrictOwnAudio`
+  (Chromium 140+ and the desktop app, Windows and macOS; others ignore it). Chrome does it by
+  leaving all of Chrome out of the system sound, so a whole-screen share also loses other
+  tabs' sound (sharing that tab still carries it; Linux browsers have no system sound to
+  share); `stopScreenShare`, also noticed when the browser's own "Stop
   sharing" ends it. **Nobody downloads a stream they aren't watching:** `voiceClient` connects
   with `autoSubscribe: false` and `syncSubscriptions` subscribes every microphone, and a screen
   share (and its sound) only for the one person `watching` (`watchStream(id)`; `attachStream`

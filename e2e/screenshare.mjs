@@ -102,11 +102,25 @@ try {
   await a.waitForSelector(tile(bob.name));
   console.log('alice and bob are in the channel');
 
-  // Alice shares (the voice bar's button): she sees her own stream at once.
+  // Alice shares (the voice bar's button): she sees her own stream at once. Its sound is asked
+  // for without Voicaw's own (restrictOwnAudio), and this Chrome knows the constraint.
+  await a.evaluate(() => {
+    const original = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getDisplayMedia = (options) => {
+      window.__displayMediaOptions = options;
+      return original(options);
+    };
+  });
   await a.click('.voice-bar button[aria-label="Share your screen"]');
   await a.waitForSelector('.voice-bar button[aria-label="Stop sharing your screen"]', { timeout: 10000 });
   await videoPlaying(a);
   console.log('alice is sharing and sees her own stream');
+  const asked = await a.evaluate(() => ({
+    audio: window.__displayMediaOptions?.audio,
+    supported: navigator.mediaDevices.getSupportedConstraints().restrictOwnAudio === true,
+  }));
+  console.log('screen sound asked for with', JSON.stringify(asked));
+  if (asked.audio?.restrictOwnAudio !== true || !asked.supported) throw new Error("the screen's sound could include Voicaw's own");
   await shot(a, '01-alice-sharing-own-preview');
 
   // Bob sees her Live (the LiveKit webhook told the API) but receives no video yet.

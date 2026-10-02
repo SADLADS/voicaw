@@ -72,7 +72,7 @@ export default function ScreenPicker({ onClose }) {
               <input type="checkbox" checked={audio} onChange={(e) => setAudio(e.target.checked)} />
               <span>
                 Share sound
-                <span className="vc-hint">Your computer&apos;s sound, this call&apos;s voices included.</span>
+                <span className="vc-hint">Your computer&apos;s sound, without Voicaw&apos;s.</span>
               </span>
             </label>
           )}
