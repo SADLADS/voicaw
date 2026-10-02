@@ -118,7 +118,7 @@ export default function Poll({ poll, reactions, userId, names, sentAt, onVote, o
         })}
       </div>
       <div className="poll-footer">
-        <span>
+        <span className="poll-status">
           {cast} {cast === 1 ? 'vote' : 'votes'}
           {ended ? <> · <strong className="poll-closed">Poll closed</strong></> : endsAt != null ? ` · ${timeLeft(endsAt - now)}` : null}
         </span>
@@ -128,17 +128,7 @@ export default function Poll({ poll, reactions, userId, names, sentAt, onVote, o
               <button type="button" className="poll-link poll-end" onClick={(e) => { stop(e); setConfirmingEnd(true); }}>End poll</button>
             )}
             {!results && (
-              <>
-                <button type="button" className="poll-link" onClick={(e) => { stop(e); setShowResults(true); }}>Show results</button>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm vc-button poll-vote"
-                  disabled={busy || choice.length === 0}
-                  onClick={(e) => { stop(e); submit(choice); }}
-                >
-                  Vote
-                </button>
-              </>
+              <button type="button" className="poll-link" onClick={(e) => { stop(e); setShowResults(true); }}>Show results</button>
             )}
             {results && voted && (
               <button type="button" className="poll-link" disabled={busy} onClick={(e) => { stop(e); submit([]); }}>Remove vote</button>
@@ -147,6 +137,16 @@ export default function Poll({ poll, reactions, userId, names, sentAt, onVote, o
               <button type="button" className="poll-link" onClick={(e) => { stop(e); setShowResults(false); }}>Back to vote</button>
             )}
           </span>
+        )}
+        {canVote && !results && (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm vc-button poll-vote"
+            disabled={busy || choice.length === 0}
+            onClick={(e) => { stop(e); submit(choice); }}
+          >
+            Vote
+          </button>
         )}
       </div>
       {confirmingEnd && (

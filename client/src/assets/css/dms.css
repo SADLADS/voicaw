@@ -3049,12 +3049,15 @@ body.mobile-mode .dm-user-list-container .dm-user {
 .poll-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
   min-height: 30px;
   margin-top: 10px;
   color: var(--vc-fg-muted);
   font-size: 12px;
+}
+
+.poll-status {
+  margin-right: auto;
 }
 
 .poll-actions {
@@ -3070,6 +3073,7 @@ body.mobile-mode .dm-user-list-container .dm-user {
   color: var(--vc-fg);
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .poll-link:hover:not(:disabled) {
@@ -3078,6 +3082,23 @@ body.mobile-mode .dm-user-list-container .dm-user {
 
 .poll-vote {
   min-width: 64px;
+}
+
+/* On a phone the row is too narrow for everything: Vote gets a line of its own above the
+   count and the links, and the links move under the count (together) if they don't fit
+   beside it. */
+body.mobile-mode .poll-footer {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+
+body.mobile-mode .poll-actions {
+  margin-left: auto;
+}
+
+body.mobile-mode .poll-vote {
+  order: -1;
+  width: 100%;
 }
 
 /* Who voted: answers as tabs (a column on a computer, a scrolling row on a phone), voters. */

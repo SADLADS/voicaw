@@ -162,7 +162,8 @@ its own message (replying if a reply is set, like a GIF).
   8 random `[a-z0-9]`; `d`: seconds it runs; `x`: unix s its author ended it), so in encrypted
   chats it's inside the encryption.
   `MessageList` draws it with `Poll.jsx` in two phases, like Discord's: **voting** (tapping
-  answers only selects them; Vote sends the choice, Show results peeks) and **results** (once
+  answers only selects them; Vote sends the choice, Show results peeks; on a phone Vote gets a
+  full-width line of its own above the footer) and **results** (once
   you've voted: bars and counts; Remove vote, or Back to vote if you only peeked). Tapping an
   answer in the results opens `PollVoters.jsx` (a tab per answer, who voted for it). The
   pinned list shows results only; plain-text places show "📊 Poll: <question>" (`summarizeAttachments`, and
