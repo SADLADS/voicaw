@@ -11,6 +11,8 @@ const s3Path = require.resolve('../../s3.js');
 export const signedUploads = [];
 // Every object the server deleted.
 export const deletedObjects = [];
+// Keys ("bucket/key") whose delete fails, as if the store were down.
+export const failingDeletes = new Set();
 // The store's contents, by "bucket/key" ({ body, contentType }). Tests put uploads here.
 export const objects = new Map();
 export function putMockObject(bucket, key, body, contentType = 'application/octet-stream') {
@@ -28,8 +30,10 @@ require.cache[s3Path] = {
       return `https://mock-s3.test/${bucket}/${filename}?signed=1`;
     },
     deleteObject: async (bucket, key) => {
+      if (failingDeletes.has(`${bucket}/${key}`)) return false;
       deletedObjects.push({ bucket, key });
       objects.delete(`${bucket}/${key}`);
+      return true;
     },
     getObject: async (bucket, key) => {
       const object = objects.get(`${bucket}/${key}`);

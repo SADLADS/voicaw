@@ -9,6 +9,7 @@ const { setPinned } = require('../pins');
 const { reactionIdsFor, pollReactionsFor } = require('../polls');
 const { removePollRows } = require('../pollTimers');
 const { CALL_LOG } = require('../callLog');
+const { listedKeys, linkListed, releaseUploads } = require('../uploads');
 
 // Direct messages. Contents are end-to-end encrypted: the server stores and relays
 // ciphertext only (and checks its length against the encrypted size of the plaintext limit).
@@ -97,6 +98,9 @@ router.get('/dm-messages/:otherUserId', authenticateJWT, async (req, res) => {
 router.post('/dm-send', authenticateJWT, async (req, res) => {
   const senderId = req.user.id;
   const { recipient_id: rawRecipientId, content, replyTo } = req.body;
+  // The uploads the message shows (the server can't read it): see uploads.js.
+  const uploads = listedKeys(req.body?.uploads);
+  if (uploads === null) return res.status(400).json({ error: 'Invalid uploads' });
 
   if (content != null && typeof content !== 'string') {
     return res.status(400).json({ error: 'Invalid content' });
@@ -135,6 +139,7 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
        VALUES (?, ?, ?, ?, strftime('%s','now'))`,
       [senderId, recipientId, content.trim(), parentMessageId]
     );
+    await linkListed('dm', id, uploads, senderId);
     if (!notes) await db.run(
       `INSERT INTO dm_unread (user_id, from_user_id, count) VALUES (?, ?, 1)
        ON CONFLICT(user_id, from_user_id) DO UPDATE SET count = count + 1`,
@@ -189,16 +194,19 @@ router.delete('/messages/:id', authenticateJWT, async (req, res) => {
     await db.run('DELETE FROM direct_messages WHERE id = ?', [messageId]);
     return removePollRows('dm', messageId);
   });
+  releaseUploads();
 
   for (const id of [messageId, ...removed]) sendToConversation(row, { type: 'delete_dm', messageId: id, sender_id: row.sender_id });
   res.json({ success: true, deletedId: messageId });
 });
 
-// Only the sender can edit a message (`content` is the new ciphertext).
+// Only the sender can edit a message (`content` is the new ciphertext, `uploads` what it
+// shows now).
 router.put('/update-message/:id', authenticateJWT, async (req, res) => {
   const messageId = parseInt(req.params.id, 10);
   const { content } = req.body;
-  if (!messageId || !content || typeof content !== 'string') {
+  const uploads = listedKeys(req.body?.uploads);
+  if (!messageId || !content || typeof content !== 'string' || uploads === null) {
     return res.status(400).json({ error: 'Invalid input' });
   }
   if (content.length > maxMessageLength) {
@@ -210,7 +218,11 @@ router.put('/update-message/:id', authenticateJWT, async (req, res) => {
   if (row.sender_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
   if (row.system) return res.status(403).json({ error: "This message can't be edited" });
 
-  await db.run('UPDATE direct_messages SET content = ?, edited = 1 WHERE id = ?', [content, messageId]);
+  await db.transaction(async () => {
+    await db.run('UPDATE direct_messages SET content = ?, edited = 1 WHERE id = ?', [content, messageId]);
+    await linkListed('dm', messageId, uploads, req.user.id, { edit: true });
+  });
+  releaseUploads();
 
   sendToConversation(row, { type: 'edit_dm', messageId, content });
   res.json({ success: true, messageId, content });

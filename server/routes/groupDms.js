@@ -12,6 +12,7 @@ const { displayNameOf } = require('../profiles');
 const { setPinned } = require('../pins');
 const { reactionIdsFor, pollReactionsFor } = require('../polls');
 const { removePollRows } = require('../pollTimers');
+const { listedKeys, linkListed, releaseUploads } = require('../uploads');
 
 // Group DMs (see groupDms.js): creating one, its membership log (add, remove, leave), key
 // epochs, and its messages and reactions (all ciphertext). Everything 404s for non-members.
@@ -204,6 +205,7 @@ router.post('/group-dms/:groupId/log', member, handle(async (req, res) => {
     }
     if (state.members.size === 0) await groups.deleteGroup(groupId);
   });
+  if (state.members.size === 0) releaseUploads();
 
   if (state.members.size > 0) {
     await calls.leaveGroupCall(groupId, r.type === 'add' ? null : r.target);
@@ -248,14 +250,17 @@ router.get('/group-dms/:groupId/messages', member, async (req, res) => {
   res.json(await withReactions(rows.reverse()));
 });
 
-// Send: { epoch, content, replyTo }. The epoch must be the newest, for the current members:
-// otherwise 409 `{ code: 'stale_epoch' }` (make the next one first).
+// Send: { epoch, content, replyTo, uploads }. The epoch must be the newest, for the current
+// members: otherwise 409 `{ code: 'stale_epoch' }` (make the next one first). `uploads`: the
+// files it shows (uploads.js).
 router.post('/group-dms/:groupId/messages', member, async (req, res) => {
   const { state } = req;
   const groupId = state.group.id;
   const { epoch, content, replyTo } = req.body ?? {};
   const invalid = contentError(content);
   if (invalid) return res.status(400).json({ error: invalid });
+  const uploads = listedKeys(req.body?.uploads);
+  if (uploads === null) return res.status(400).json({ error: 'Invalid uploads' });
   const latest = state.latestEpoch;
   if (!latest || epoch !== latest.epoch || latest.log_seq !== state.nextSeq - 1) {
     return res.status(409).json({ error: 'The group changed; its key has to be renewed', code: 'stale_epoch' });
@@ -272,6 +277,7 @@ router.post('/group-dms/:groupId/messages', member, async (req, res) => {
        VALUES (?, ?, ?, ?, ?, strftime('%s','now'))`,
       [groupId, epoch, req.user.id, content.trim(), parentId]
     );
+    await linkListed('group', id, uploads, req.user.id);
     await db.run(
       `INSERT INTO group_dm_reads (user_id, group_id, last_read_id) VALUES (?, ?, ?)
        ON CONFLICT(user_id, group_id) DO UPDATE SET last_read_id = excluded.last_read_id`,
@@ -310,14 +316,20 @@ function notCallRow(req, res, next) {
   next();
 }
 
-// Edit your own message: { content } (encrypted with the message's epoch key).
+// Edit your own message: { content, uploads } (encrypted with the message's epoch key).
 router.put('/group-dm-messages/:messageId', authenticateJWT, findMessage, async (req, res) => {
   const { content } = req.body ?? {};
   const invalid = contentError(content);
   if (invalid) return res.status(400).json({ error: invalid });
+  const uploads = listedKeys(req.body?.uploads);
+  if (uploads === null) return res.status(400).json({ error: 'Invalid uploads' });
   if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not your message' });
   if (req.message.system) return res.status(403).json({ error: "This message can't be edited" });
-  await db.run('UPDATE group_dm_messages SET content = ?, edited = 1 WHERE id = ?', [content.trim(), req.message.id]);
+  await db.transaction(async () => {
+    await db.run('UPDATE group_dm_messages SET content = ?, edited = 1 WHERE id = ?', [content.trim(), req.message.id]);
+    await linkListed('group', req.message.id, uploads, req.user.id, { edit: true });
+  });
+  releaseUploads();
   await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_edit', groupId: req.message.group_id, messageId: req.message.id, content: content.trim() });
   res.json({ success: true });
 });
@@ -331,6 +343,7 @@ router.delete('/group-dm-messages/:messageId', authenticateJWT, findMessage, not
     await db.run('DELETE FROM group_dm_messages WHERE id = ?', [req.message.id]);
     return removePollRows('group', req.message.id);
   });
+  releaseUploads();
   for (const id of [req.message.id, ...removed]) {
     await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_delete', groupId: req.message.group_id, messageId: id });
   }

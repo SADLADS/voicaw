@@ -71,12 +71,15 @@ async function setUpBuckets() {
 setUpBuckets().catch((err) => console.error("Failed to set up S3 buckets:", err.code || err.name, err.message));
 
 // Removes an object (e.g. a deleted custom emoji's image). Failures are logged, not thrown:
-// the row is already gone, and a leftover file only takes space.
+// the row is already gone, and a leftover file only takes space. Returns whether it worked
+// (uploads.js tries again later).
 async function deleteObject(bucket, key) {
     try {
         await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+        return true;
     } catch (err) {
         console.error("Failed to delete object:", bucket, key, err.code || err.name);
+        return false;
     }
 }
 

@@ -24,6 +24,7 @@ const {
 } = require('../guilds');
 const { NOTIFY_LEVELS } = require('../mentions');
 const { logAudit, diff } = require('../auditLog');
+const { releaseUploads } = require('../uploads');
 
 // Guilds: creating and managing them, members, bans, invites, categories and
 // channels. Roles and channel overrides are in routes/guildRoles.js, messages in
@@ -603,6 +604,7 @@ router.delete('/guilds/:guildId/channels/:channelId', manageChannels, async (req
     await deleteChannelContents('?', [channel.id]);
     await db.run('DELETE FROM guild_channels WHERE id = ?', [channel.id]);
   });
+  releaseUploads();
   await announceGuildUpdate(req.guild.id);
   res.json({ success: true });
 });

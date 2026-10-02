@@ -8,6 +8,7 @@ const { saveMentions, notifyNewMessage } = require('../mentions');
 const { setPinned } = require('../pins');
 const { POLL_VOTE, parsePoll, isClosedPoll, pollEditError, reactionIdsFor, pollReactionsFor } = require('../polls');
 const { removePollRows } = require('../pollTimers');
+const { releaseUploads } = require('../uploads');
 const { logAudit } = require('../auditLog');
 const { parseDuration, listMutes, setMute, CHANNEL_NOTIFY_LEVELS, listChannelLevels, setChannelLevel } = require('../channelMutes');
 const { sendToUserSockets } = require('../sockets');
@@ -223,6 +224,7 @@ router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async 
     await saveMentions({ id: req.message.id, content, sender_id: req.user.id }, req.channel, req.permissions);
     await db.indexGuildMessage(req.message.id);
   });
+  releaseUploads();
   const saved = await db.get('SELECT mention_everyone, mention_roles FROM guild_messages WHERE id = ?', [req.message.id]);
   await sendToChannel(req.channel, {
     type: 'guild_message_edit',
@@ -274,6 +276,7 @@ router.delete('/guild-messages/:messageId', authenticateJWT, requireMessage, asy
     await db.run('DELETE FROM guild_messages WHERE id = ?', [id]);
     return removePollRows('guild', id);
   });
+  releaseUploads();
   const { guild_id: guildId, id: channelId } = req.channel;
   for (const messageId of [id, ...removed]) {
     await sendToChannel(req.channel, { type: 'guild_message_delete', guildId, channelId, messageId });

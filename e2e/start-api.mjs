@@ -93,6 +93,7 @@ require.cache[s3Path] = {
     },
     deleteObject: async (bucket, key) => {
       objects.delete(`${bucket}/${key}`);
+      return true;
     },
     listTopLevelKeys: async (bucket) => [...objects.keys()]
       .filter((k) => k.startsWith(`${bucket}/`))

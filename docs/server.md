@@ -17,6 +17,8 @@ unexpected errors. The rest:
   `attachWebSocketServer` (the ws server).
 - `push.js`: web push sending and the DM push payload.
 - `s3.js`: pre-signed upload URLs. Bucket setup at startup logs and carries on if the store is down.
+- `uploads.js`: which uploads exist and what links to them, and deleting the ones nothing uses
+  (see Deleting files in `docs/uploads.md`); `uploadKeys.js` finds upload names in text.
 - `guilds.js`: shared guild helpers (membership checks, `getGuildLayout`, `sendToGuild`).
 - `guildTasks.js`: list channels' tasks (tree helpers, limits, the assignment notification; see
   List channels); `routes/guildTasks.js` has their routes.
@@ -38,7 +40,8 @@ unexpected errors. The rest:
 - `accounts.js`: deleting an account (see Deleting an account).
 - `sessions.js`: listing and ending login sessions (see Login sessions and Settings → Devices).
 - `usernames.js`: usernames ignore capitals (`findUserByName`, `opaque_id`; see Auth).
-- `pollTimers.js`: when every poll closes and its "poll ended" row (see Polls); `routes/polls.js`.
+- `pollTimers.js`: when every poll closes and its "poll ended" row (see Polls), and dropping
+  the timers of polls whose chat was deleted (hourly); `routes/polls.js`.
 - `routes/typing.js`: "… is typing" (`POST /typing`, relayed as `typing`; see Typing indicator in `docs/realtime.md`).
 - `profiles.js`: display name, custom status and bio (limits, cleaning, `displayNameOf`; see Profiles).
 - `avatars.js` + `avatarImage.js`: profile pictures (processing, storage, the one-off migration;

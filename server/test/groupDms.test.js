@@ -1,4 +1,4 @@
-import './helpers/mockS3.js';
+import { objects, putMockObject } from './helpers/mockS3.js';
 import { sentPushes, waitForPushes } from './helpers/mockWebPush.js';
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
@@ -34,6 +34,7 @@ const app = require('../index.js');
 const voice = require('../voice.js');
 const calls = require('../calls.js');
 const db = require('../db.js');
+const { cleanUpUploads } = require('../uploads.js');
 const clients = app.locals.clients;
 
 let userCount = 0;
@@ -137,8 +138,8 @@ async function keyOf(user, groupId, epoch) {
   return unwrapGroupKey(e.envelope, user.encryptionKey, creator.encryption_key, groupKeyContext(groupId, epoch, e.log_seq, e.creator_id, user.id));
 }
 
-// Sends `text` signed, as the app does.
-async function send(user, groupId, text) {
+// Sends `text` signed, as the app does (`extra`: more of the body, e.g. `uploads`).
+async function send(user, groupId, text, extra = {}) {
   const group = (await api.get(user, `/group-dms/${groupId}`)).body;
   const epoch = group.latest_epoch.epoch;
   const key = await keyOf(user, groupId, epoch);
@@ -146,7 +147,7 @@ async function send(user, groupId, text) {
     text, key, groupMessageContext(groupId, epoch, user.id), user.signingKey,
     messageSignatureContext({ groupId, epoch, senderId: user.id })
   );
-  return api.post(user, `/group-dms/${groupId}/messages`, { epoch, content });
+  return api.post(user, `/group-dms/${groupId}/messages`, { epoch, content, ...extra });
 }
 
 async function readAll(user, groupId) {
@@ -263,6 +264,34 @@ describe('group DMs', () => {
     // The last one out: the group is gone.
     expect((await change(bea, groupId, 'leave', bea)).status).toBe(200);
     expect((await api.get(bea, '/group-dms')).body.map((g) => g.id)).not.toContain(groupId);
+  });
+
+  it("deletes the files a message lists when it's deleted, and the rest when everyone has left", async () => {
+    const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+    const { groupId, res: created } = await createGroup(ann, [bea, cal]);
+    expect(created.status).toBe(201);
+    const keys = [];
+    for (let i = 0; i < 2; i++) {
+      const res = await api.get(ann, '/upload_file?type=application/octet-stream&size=10');
+      keys.push(res.body.fileUrl.split('/uploads/')[1]);
+      putMockObject('uploads', keys[i], Buffer.from('x'));
+    }
+    const first = await send(ann, groupId, 'a file', { uploads: [keys[0]] });
+    expect(first.status).toBe(201);
+    expect((await send(ann, groupId, 'another', { uploads: [keys[1]] })).status).toBe(201);
+    expect((await send(ann, groupId, 'bad', { uploads: {} })).status).toBe(400);
+
+    expect((await api.delete(ann, `/group-dm-messages/${first.body.id}`)).status).toBe(200);
+    await cleanUpUploads();
+    expect(keys.map((key) => objects.has(`uploads/${key}`))).toEqual([false, true]);
+
+    await change(ann, groupId, 'leave', ann);
+    await change(bea, groupId, 'leave', bea);
+    await cleanUpUploads();
+    expect(objects.has(`uploads/${keys[1]}`)).toBe(true);
+    await change(cal, groupId, 'leave', cal);
+    await cleanUpUploads();
+    expect(objects.has(`uploads/${keys[1]}`)).toBe(false);
   });
 
   it('lets someone re-added read the times they were in, but not the gap', async () => {

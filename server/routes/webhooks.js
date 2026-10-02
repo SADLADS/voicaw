@@ -8,6 +8,7 @@ const { PERMISSIONS, has } = require('../permissions');
 const { getChannelAccess, getMember, sendToChannel } = require('../guilds');
 const { saveMentions, notifyNewMessage } = require('../mentions');
 const { putObject } = require('../s3');
+const { registerUpload, releaseUploads } = require('../uploads');
 const { processAvatar, AvatarImageError, MAX_AVATAR_UPLOAD_BYTES } = require('../avatarImage');
 const { createLimiter } = require('../rateLimit');
 const { MESSAGE_SELECT, withReactions, logMessageDelete } = require('./guildMessages');
@@ -262,6 +263,7 @@ async function storeFiles(files, meta = []) {
       }
     }
     await putObject(FILE_BUCKET, key, body, contentType);
+    await registerUpload(key, null);
     const url = `${config.s3Endpoint}/${FILE_BUCKET}/${key}`;
     stored.push({
       id, filename, size: body.length, url, proxy_url: url, content_type: contentType, ...size,
@@ -651,6 +653,7 @@ router.patch('/webhooks/:webhookId/:token/messages/:messageId', byToken, ownMess
     await saveMentions({ id: old.id, content, sender_id: 0 }, channel, PERMISSIONS.MENTION_EVERYONE, allowed);
     await db.indexGuildMessage(old.id);
   });
+  releaseUploads();
   const message = await loadMessage(old.id);
   await sendToChannel(channel, {
     type: 'guild_message_edit',
@@ -676,6 +679,7 @@ router.delete('/webhooks/:webhookId/:token/messages/:messageId', byToken, ownMes
     await db.run('DELETE FROM guild_mentions WHERE message_id = ?', [id]);
     await db.run('DELETE FROM guild_messages WHERE id = ?', [id]);
   });
+  releaseUploads();
   if (channel) await sendToChannel(channel, { type: 'guild_message_delete', guildId: channel.guild_id, channelId, messageId: id });
   res.status(204).end();
 });

@@ -101,4 +101,6 @@ if (require.main === module) {
   require('./avatars').migrateLegacyAvatars();
   // Posts "poll ended" rows as polls close.
   require('./pollTimers').startPollTimers();
+  // Deletes files nothing uses any more (uploads.js).
+  require('./uploads').startUploadCleanup();
 }

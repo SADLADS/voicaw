@@ -47,6 +47,7 @@ node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, lo
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
 node e2e/lists.mjs [dir]  # list channels: add, subtask, drag to nest/reorder, assign, due date, comments, read-only, phone
 node e2e/docs.mjs [dir]   # document channels: write (typed markdown, toolbar, checklist, bullets and numbers shown while editing, table, cover), card live, react (page and card), reply thread, edit live, phone tabs
+node e2e/uploads.mjs      # deleting files: a DM send lists its file, deleting the message (DM, guild) removes it from the store, others kept
 node e2e/filedrop.mjs [dir] # files dragged in: "Upload to <chat>" over the window, drop anywhere attaches (DM, guild, document replies), leave/in-page drag/dialog = none, document cover button and body, phone
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
 node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>

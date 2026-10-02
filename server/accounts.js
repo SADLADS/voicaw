@@ -106,6 +106,8 @@ async function deleteAccount(userId, plan) {
     );
   });
   await removeAvatar(userId);
+  // Their notes' and emptied groups' files.
+  require('./uploads').releaseUploads();
 
   // Everyone left in their groups sees them go.
   for (const { state, entry, r, before } of plan.leaves) {

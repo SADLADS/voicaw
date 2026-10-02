@@ -49,15 +49,16 @@ describe('fetchMessagesForUser', () => {
 });
 
 describe('sendMessageToUser', () => {
-  it('POSTs recipient, content and replyTo to /dm-send', async () => {
+  it('POSTs recipient, content, replyTo and the uploads it shows to /dm-send', async () => {
     api.post.mockResolvedValue({ data: { id: 1, content: 'hi' } });
 
-    const result = await sendMessageToUser(7, 'hi', 3);
+    const result = await sendMessageToUser(7, 'hi', 3, ['a.bin']);
 
     expect(api.post).toHaveBeenCalledWith('/dm-send', {
       recipient_id: 7,
       content: 'hi',
       replyTo: 3,
+      uploads: ['a.bin'],
     });
     expect(result).toEqual({ id: 1, content: 'hi' });
   });
@@ -71,6 +72,7 @@ describe('sendMessageToUser', () => {
       recipient_id: 7,
       content: 'hi',
       replyTo: null,
+      uploads: [],
     });
   });
 });

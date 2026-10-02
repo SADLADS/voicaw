@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { onNewDm, onDeleteDm, onEditDm, onReactionAdd, onReactionRemove, onDmPin, setActiveChat } from '../utils/ws-client';
+import { uploadNamesIn } from '../utils/attachmentMarkup';
 import {
   fetchMessagesForUser,
   sendMessageToUser,
@@ -253,7 +254,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
       }
 
       const encrypted = await encryptMessage(finalText, sharedKey, dmContext(user.id, chatUser.id));
-      const saved = await sendMessageToUser(chatUser.id, encrypted, replyTo?.id ?? null);
+      const saved = await sendMessageToUser(chatUser.id, encrypted, replyTo?.id ?? null, uploadNamesIn(finalText));
 
       updateMessage(tempId, () => ({
         ...saved,
@@ -274,7 +275,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
 
   async function editMessage(messageId, text) {
     const encrypted = await encryptMessage(text, sharedKey, dmContext(user.id, chatUser.id));
-    await saveEditedMessage(messageId, encrypted);
+    await saveEditedMessage(messageId, encrypted, uploadNamesIn(text));
     updateMessage(messageId, () => ({ plaintext: text }));
   }
 
