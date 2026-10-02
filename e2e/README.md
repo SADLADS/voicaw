@@ -42,6 +42,7 @@ node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who vot
 node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>
 node e2e/video.mjs [dir]  # videos: only the poster before Play, streamed in pieces, seek reads nothing before it, download, keys, full screen, spoiler, phone (needs ffmpeg)
 node e2e/voicesettings.mjs [dir] # Settings → Voice & video: fake devices listed, mic test meter, input volume 0 silences you in a call, new mic / each noise suppression kept, speakers + output volume, phone
+node e2e/uservolume.mjs [dir] # per-user volume: channel list / tile / call panel, measured 100/200/0%, deafen, kept after reload, phone sheet
 node e2e/noise.mjs [dir]  # noise suppression + gate: each mode on a made-up recording (fan, clicks, voice) measured, DeepFilterNet speed, sensitivity by hand, Strong in the mic test, phone
 node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
 node e2e/sidebar.mjs [dir] # one sidebar width (DM list, channels, Settings), headers line up, drag/keys/reset, kept; phone untouched

@@ -121,8 +121,16 @@ function newPlaybackContext() {
   if (!playsThroughWebAudio()) return null;
   try {
     const context = new AudioContext({ latencyHint: 'interactive' });
+    // LiveKit sets the speakers on it without waiting or catching, and may do so after we've
+    // closed it (a rejoin): that would be an uncaught error.
+    if (context.setSinkId) {
+      const setSinkId = context.setSinkId.bind(context);
+      context.setSinkId = (id) => (context.state === 'closed'
+        ? Promise.resolve()
+        : setSinkId(id).catch((err) => console.warn('Could not choose speakers', err)));
+    }
     const sink = outputSinkId();
-    if (sink && context.setSinkId) context.setSinkId(sink).catch((err) => console.warn('Could not choose speakers', err));
+    if (sink && context.setSinkId) context.setSinkId(sink);
     return context;
   } catch {
     return null;
