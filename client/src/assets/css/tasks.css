@@ -152,7 +152,7 @@
   left: calc(var(--task-depth, 0) * 24px);
   right: 0;
   height: 2px;
-  background: var(--vc-accent-alt);
+  background: var(--vc-online);
   border-radius: 1px;
   pointer-events: none;
 }
@@ -175,8 +175,8 @@
 }
 
 .task-row.drop-inside .task-row-main {
-  box-shadow: inset 0 0 0 2px var(--vc-accent-alt);
-  background: var(--vc-bg-elevated);
+  box-shadow: inset 0 0 0 2px var(--vc-accent);
+  background: var(--vc-accent-soft);
 }
 
 .task-grip {
@@ -216,7 +216,7 @@
   border-radius: 50%;
   border: 2px solid var(--vc-border-light);
   background: none;
-  color: #fff;
+  color: var(--vc-on-accent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -225,12 +225,12 @@
 }
 
 .task-check:not(:disabled):hover {
-  border-color: var(--vc-accent-alt);
+  border-color: var(--vc-online);
 }
 
 .task-check.done {
-  background: var(--vc-accent-alt);
-  border-color: var(--vc-accent-alt);
+  background: var(--vc-success);
+  border-color: var(--vc-success);
   color: var(--vc-on-accent);
 }
 
@@ -258,7 +258,7 @@
 }
 
 .task-progress.complete {
-  color: var(--vc-accent-alt);
+  color: var(--vc-online);
 }
 
 .task-due {
@@ -274,23 +274,23 @@
 }
 
 .task-due.overdue {
-  color: #fff;
+  color: var(--vc-on-accent);
   background: var(--vc-danger);
 }
 
 .task-due-status {
   font-size: 0.8rem;
-  color: var(--vc-idle);
+  color: var(--vc-action-text);
 }
 
 .task-due-status.overdue {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .task-due.today,
 .task-due.soon {
-  color: #1a1a1f;
-  background: var(--vc-idle);
+  color: var(--vc-on-action);
+  background: var(--vc-action);
 }
 
 .task-assignees {
@@ -387,7 +387,7 @@
 }
 
 .task-detail-delete:hover {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .task-breadcrumb {
@@ -514,7 +514,7 @@
 .task-link-button {
   border: 0;
   background: none;
-  color: var(--vc-accent-alt);
+  color: var(--vc-accent-text);
   font-size: 0.85rem;
   padding: 2px 4px;
   border-radius: 4px;

@@ -42,11 +42,11 @@ button.user-panel-button {
 
 /* Mute/deafen buttons: red when off. */
 .voice-toggle.off {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .voice-toggle.off:hover {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 /* ---- Voice bar ---- */
@@ -75,7 +75,7 @@ button.user-panel-button {
 .voice-bar-status {
   font-size: 14px;
   font-weight: 600;
-  color: var(--vc-action);
+  color: var(--vc-warning);
 }
 
 .voice-bar-status.connected {
@@ -97,7 +97,7 @@ button.user-panel-button {
 }
 
 .user-panel-button.voice-bar-leave:hover {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .voice-bar-message {
@@ -114,7 +114,7 @@ button.user-panel-button {
 
 .voice-bar-warning,
 .voice-bar-mic-error {
-  color: var(--vc-action);
+  color: var(--vc-warning);
 }
 
 .voice-bar-audio {
@@ -262,14 +262,14 @@ button.user-panel-button {
   padding: 10px 28px;
   border: 0;
   border-radius: 6px;
-  background-color: var(--vc-online);
-  color: #10301c;
+  background-color: var(--vc-success);
+  color: var(--vc-on-accent);
   font-weight: 700;
   font-size: 15px;
 }
 
 .voice-view-join:hover {
-  filter: brightness(1.1);
+  background-color: var(--vc-success-hover);
 }
 
 .voice-view-note {
@@ -302,7 +302,7 @@ button.user-panel-button {
 }
 
 .voice-view-button.off {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .voice-view-button.leave {
@@ -311,7 +311,7 @@ button.user-panel-button {
 }
 
 .voice-view-button.leave:hover {
-  filter: brightness(1.1);
+  background-color: var(--vc-danger-hover);
 }
 
 /* ---- Screen sharing ---- */
@@ -322,7 +322,7 @@ button.user-panel-button {
   padding: 1px 5px;
   border-radius: 4px;
   background-color: var(--vc-danger);
-  color: #fff;
+  color: var(--vc-on-accent);
   font-size: 10px;
   font-weight: 700;
   line-height: 1.4;
@@ -365,7 +365,7 @@ button.user-panel-button {
 .voice-view-error {
   padding: 0 16px;
   text-align: center;
-  color: var(--vc-action);
+  color: var(--vc-warning);
 }
 
 /* Watching: the stream fills the page, the people become a row under it. */
@@ -532,7 +532,7 @@ button.user-panel-button {
   height: 26px;
   border-radius: 50%;
   background-color: var(--vc-bg-elevated);
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
   font-size: 12px;
 }
 
@@ -566,7 +566,7 @@ button.user-panel-button {
   border: 1px solid var(--vc-border-light);
   border-radius: 12px;
   background-color: var(--vc-bg-elevated);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 8px 30px var(--vc-popup-shadow);
   color: var(--vc-fg);
 }
 
@@ -604,12 +604,12 @@ button.user-panel-button {
   height: 44px;
   border: 0;
   border-radius: 50%;
-  color: #fff;
+  color: var(--vc-on-accent);
   font-size: 17px;
 }
 
 .call-button.accept {
-  background-color: var(--vc-online);
+  background-color: var(--vc-success);
   color: var(--vc-on-accent);
 }
 
@@ -618,8 +618,12 @@ button.user-panel-button {
   color: var(--vc-on-accent);
 }
 
-.call-button:hover:not(:disabled) {
-  filter: brightness(1.1);
+.call-button.accept:hover:not(:disabled) {
+  background-color: var(--vc-success-hover);
+}
+
+.call-button.decline:hover:not(:disabled) {
+  background-color: var(--vc-danger-hover);
 }
 
 .call-button:disabled {

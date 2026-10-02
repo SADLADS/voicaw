@@ -54,6 +54,7 @@ node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deaf
 node e2e/sidebar.mjs [dir] # one sidebar width (DM list, channels, Settings), headers line up, drag/keys/reset, kept; phone untouched
 node e2e/drafts.mjs [dir] # unsent messages: back after another DM, Settings, a guild; no typing event; sent = gone; reload forgets; phone
 node e2e/typing.mjs [dir] # typing indicator: DM (dots, cleared on send, clear of the last message), two typers in a guild channel on a phone, timeout, Privacy off
+node e2e/colours.mjs [dir] # screenshots for colour changes: login, DM (mention, link), guild + rail, menu, Settings, list, poll, voice Join / Connecting…, incoming call; dark + light, desktop + phone (fresh serve.mjs per run)
 node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept per device, no dark flash, Match system, color-scheme, phone
 node e2e/avatar.mjs [dir] # message avatars: top with the name, bottom with the first line of text, reply line to its middle (desktop + phone)
 node e2e/safearea.mjs [dir] # safe areas (CDP-made iPhone insets): user panel above the home indicator, landscape notch, unchanged without insets

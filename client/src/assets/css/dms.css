@@ -146,7 +146,7 @@ small {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  background-color: var(--vc-fg);
+  background-color: var(--vc-action);
   border-radius: 4px;
   width: 8px;
   height: 8px;
@@ -200,7 +200,7 @@ small {
 /* Failed messages */
 .dm-message.failed {
   opacity: 0.6;
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
   font-style: italic;
 }
 
@@ -305,11 +305,11 @@ small {
 }
 
 .icon-button.trash-button {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .icon-button.trash-button:hover {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .reply-bar {
@@ -446,7 +446,7 @@ small {
 }
 
 .inline-edit-banner a {
-  color: var(--vc-action);
+  color: var(--vc-action-text);
   text-decoration: none;
   cursor: pointer;
 }
@@ -520,7 +520,7 @@ small {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
   background-color: var(--vc-bg-elevated-hover);
   font-size: 14px;
   padding: 4px 8px;
@@ -1356,7 +1356,7 @@ img.emoji,
 }
 
 .gif-tile-favorite.on {
-  color: #f5c518;
+  color: var(--vc-action);
 }
 
 /* Touch screens don't hover: the star is always there. */
@@ -1556,7 +1556,7 @@ img.emoji,
 
 .reaction-chip.mine {
   border-color: var(--vc-accent);
-  background: color-mix(in srgb, var(--vc-accent) 18%, transparent);
+  background: var(--vc-accent-soft);
   color: var(--vc-fg);
 }
 
@@ -1632,7 +1632,7 @@ body.mobile-mode .reaction-chip.reaction-add {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--vc-accent) 22%, transparent);
+  background: var(--vc-accent-soft);
   color: var(--vc-fg);
   font-size: 15px;
 }
@@ -1794,7 +1794,7 @@ body.mobile-mode .reaction-chip.reaction-add {
 
 .action-sheet-reaction.mine {
   border-color: var(--vc-accent);
-  background: color-mix(in srgb, var(--vc-accent) 18%, transparent);
+  background: var(--vc-accent-soft);
 }
 
 .action-sheet-items,
@@ -1821,7 +1821,7 @@ body.mobile-mode .reaction-chip.reaction-add {
 }
 
 .action-sheet-item.danger {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .action-sheet-confirm p {
@@ -1958,7 +1958,7 @@ body.mobile-mode .each-dm-message-wrapper textarea {
 }
 
 .message-signature.unverified {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
   font-weight: 600;
 }
 
@@ -1966,14 +1966,15 @@ body.mobile-mode .each-dm-message-wrapper textarea {
 .mention {
   padding: 0 2px;
   border-radius: 3px;
-  background-color: rgba(102, 85, 140, 0.45);
-  color: var(--vc-fg);
+  background-color: var(--vc-accent-soft);
+  color: var(--vc-accent-text);
   font-weight: 500;
   white-space: nowrap;
 }
 
 .mention.mention-me {
-  background-color: rgba(216, 185, 48, 0.3);
+  background-color: color-mix(in srgb, var(--vc-action) 30%, transparent);
+  color: var(--vc-fg);
 }
 
 .editor-mention {
@@ -1984,13 +1985,14 @@ body.mobile-mode .each-dm-message-wrapper textarea {
 /* A message that mentions you: tinted, with a bar on the left (like Discord). */
 .each-dm-message-wrapper.mentioned,
 .message-scroller.has-focused-message .each-dm-message-wrapper.mentioned:not(.focused):hover {
-  background-color: rgba(216, 185, 48, 0.08);
+  background-color: var(--vc-action-soft);
   box-shadow: inset 2px 0 0 var(--vc-action);
 }
 
 .each-dm-message-wrapper.mentioned:hover,
 .each-dm-message-wrapper.mentioned.focused {
-  background-color: rgba(216, 185, 48, 0.14);
+  background-color: var(--vc-action-soft);
+  background-image: linear-gradient(var(--vc-action-soft), var(--vc-action-soft));
 }
 
 .mention-suggestion-avatar {
@@ -2403,7 +2405,7 @@ body.mobile-mode .dm-user-list-container .dm-user {
 }
 
 .profile-card-presence.idle {
-  color: var(--vc-idle);
+  color: var(--vc-action-text);
 }
 
 .profile-card-custom-status {
@@ -2499,12 +2501,12 @@ body.mobile-mode .dm-user-list-container .dm-user {
 }
 
 .message-menu .pin-button.active {
-  color: var(--vc-action);
+  color: var(--vc-action-text);
 }
 
 /* A message jumped to from the pinned list: a brief highlight. */
 @keyframes jump-highlight {
-  from { background-color: rgba(216, 185, 48, 0.25); }
+  from { background-color: color-mix(in srgb, var(--vc-action) 25%, transparent); }
   to { background-color: transparent; }
 }
 
@@ -2711,7 +2713,7 @@ body.mobile-mode .dm-user-list-container .dm-user {
   padding: 0 4px;
   border-radius: 3px;
   background-color: var(--vc-accent);
-  color: #fff;
+  color: var(--vc-on-accent);
   font-size: 10px;
   font-weight: 700;
   line-height: 15px;
@@ -2779,7 +2781,7 @@ body.mobile-mode .dm-user-list-container .dm-user {
 }
 
 .embed a {
-  color: var(--vc-accent);
+  color: var(--vc-accent-text);
 }
 
 .embed-fields {
@@ -2861,7 +2863,7 @@ body.mobile-mode .dm-user-list-container .dm-user {
 .message-file-name {
   min-width: 0;
   overflow-wrap: anywhere;
-  color: var(--vc-accent);
+  color: var(--vc-accent-text);
 }
 
 /* ---------------------------------------------------------------- POLLS */
@@ -3205,7 +3207,7 @@ body.mobile-mode .poll-voters-list {
 
 .poll-dialog-remove:hover:not(:disabled) {
   background-color: var(--vc-bg-elevated-hover);
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .poll-dialog-remove:disabled {
@@ -3295,7 +3297,7 @@ body.mobile-mode .poll-voters-list {
 }
 
 .poll-link.poll-end {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 /* A call in the chat (CallLogNotice): a phone icon and how long it lasted, or red when missed. */
@@ -3317,7 +3319,7 @@ body.mobile-mode .poll-voters-list {
 }
 
 .call-log.missed .call-log-icon {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 /* A poll's "poll ended" row (PollEndNotice): an icon, whose poll closed, and its result. */
@@ -3340,7 +3342,7 @@ body.mobile-mode .poll-voters-list {
   width: 40px;
   margin-top: 3px;
   font-size: 18px;
-  color: var(--vc-accent-alt);
+  color: var(--vc-accent-text);
 }
 
 .poll-end-body {
@@ -3364,7 +3366,7 @@ body.mobile-mode .poll-voters-list {
 
 .poll-end-trophy {
   flex-shrink: 0;
-  color: var(--vc-action);
+  color: var(--vc-action-text);
 }
 
 .poll-end-answer .poll-option-emoji {

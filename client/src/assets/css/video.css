@@ -2,7 +2,7 @@
    message's <p>. Its box (width and aspect ratio) is set inline. */
 .video-player {
   /* A brighter take on the app accent, to stand out on any picture. */
-  --video-accent: #9a83e6;
+  --video-accent: var(--vc-accent);
   position: relative;
   display: block;
   max-width: min(100%, 420px);
@@ -176,7 +176,7 @@
 
 .video-error-icon {
   font-size: 22px;
-  color: var(--vc-action);
+  color: var(--vc-warning);
 }
 
 .video-error-actions {

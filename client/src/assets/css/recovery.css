@@ -83,7 +83,7 @@
 }
 
 .recovery-code-display .recovery-error {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
   margin-top: 0.75rem;
 }
 
