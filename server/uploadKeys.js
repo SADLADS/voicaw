@@ -1,5 +1,5 @@
 // The uploads a piece of text shows: every `<S3_ENDPOINT>/uploads/<name>` in it, plus a video's
-// poster (`p=<name>` in an encrypted attachment's fragment, a name in the same folder; see
+// poster or an image's thumbnail (`p=<name>` in an encrypted attachment's fragment, a name in the same folder; see
 // services/attachmentCrypto.js in the client). Names only, without the bucket. No database
 // here: migrations use it too.
 const { s3Endpoint } = require('./config');

@@ -81,8 +81,8 @@ export function summarizeAttachments(text) {
   );
 }
 
-// The uploads an encrypted message shows (its attachments, and their videos' posters), by
-// their names in the bucket. Sent with the message: the server can't read it, and deletes
+// The uploads an encrypted message shows (its attachments, and their videos' posters and
+// images' thumbnails), by their names in the bucket. Sent with the message: the server can't read it, and deletes
 // files once no message lists them (docs/uploads.md, Deleting files).
 export function uploadNamesIn(text) {
   const names = new Set();

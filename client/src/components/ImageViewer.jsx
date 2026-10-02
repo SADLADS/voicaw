@@ -300,7 +300,7 @@ const ImageStage = forwardRef(function ImageStage(
 });
 
 function Thumbnail({ item, index, current, onSelect }) {
-  const { src } = useImageSrc(item);
+  const { src } = useImageSrc(item, true);
   const ref = useRef(null);
 
   // Keep the current image's thumbnail in view in a long strip.

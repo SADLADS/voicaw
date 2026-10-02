@@ -28,7 +28,7 @@ emoji are deleted by their own code (a deleted guild takes its icon and emoji im
 - **Guild files** are read from the text by the server (`uploadKeys.js` `uploadKeysIn`: every
   `<S3_ENDPOINT>/uploads/<name>`, plus a video's poster `p=`). **Encrypted chats' files** can't
   be: the client lists them with the message, `uploads: [names]` on send and edit
-  (`utils/attachmentMarkup.js` `uploadNamesIn`: each encrypted attachment and its poster).
+  (`utils/attachmentMarkup.js` `uploadNamesIn`: each encrypted attachment and its poster or thumbnail).
   Names that aren't registered uploads are ignored, so a list can only keep files, never
   delete someone else's. **Privacy:** the server learns which uploads each encrypted message
   holds (it could mostly guess from timing and sizes before), never what they are.
@@ -56,13 +56,32 @@ an `aria-modal` dialog is open are left alone. The tray
 (`AttachmentTray.jsx`) previews drafts still referenced from the text. On send, each referenced
 draft is encrypted with its own AES-GCM key (`services/attachmentCrypto.js`), uploaded as
 `application/octet-stream` (`services/attachmentUpload.js`; server names it `<uuid>.bin`), and its
-placeholder is replaced with `<fileUrl>#v=1&k=<key>&t=<mime>&s=<size>[&w=<px>&h=<px>][&sp=1]` (image/video
+placeholder is replaced with `<fileUrl>#v=1&k=<key>&t=<mime>&s=<size>[&w=<px>&h=<px>][&p=<thumbnail>][&sp=1]` (image/video
 dimensions, read at attach time by `utils/mediaDimensions.js`, let the renderer reserve the final
 box before the file loads; `sp=1` marks a spoiler, see below). The fragment is never sent
 to S3 and the URL only exists inside the E2EE message. `Attachment.jsx` renders every markdown image:
 placeholders (pending messages, from local blob URLs), encrypted attachments (fetched, decrypted,
 cached in `services/attachmentCache.js`; images inline, videos in the player below, anything else
 a download box), and plain URLs (legacy unencrypted uploads, external images) as `<img>`.
+
+**Image thumbnails** (since 2026-10-02): a big still image (JPEG, PNG, WebP or BMP that doesn't fit
+the chat's 420×360 box at twice that, 840×720) also gets a smaller copy, made on the device at
+attach time (`utils/mediaDimensions.js` `makeThumbnail`: drawn on a canvas, already turned the
+way its EXIF says, so the copy carries no EXIF; a JPEG, or a WebP when it has transparency, a
+PNG where the browser can't make WebPs). It's encrypted with the image's key, with additional
+data `voicaw/attachment-thumbnail/v1` so neither can pass for the other
+(`attachmentCrypto.js` `encryptAttachment` / `decryptThumbnail`), uploaded as its own
+`<uuid>.bin`, and named in the image's URL as `p=` (like a video's poster, so the upload
+registry and cleanup follow it with no change). The chat shows the copy, as does the viewer's
+thumbnail strip; the file itself downloads only when it's opened in the viewer, saved or copied
+(the sender keeps seeing their local file). **The file is sent exactly as it was chosen**, never
+shrunk or re-encoded, EXIF and all (decided 2026-10-02). No copy is made for GIFs, SVGs and
+anything else, for animated PNGs and WebPs (`mayBeAnimated`: an `acTL` chunk before the image
+data, the VP8X animation flag; a PNG it can't tell about counts as animated), for images that
+already fit, or when the copy wouldn't be under three quarters of the file's size. Messages from
+before, and from older clients, have no `p=` and show the file; older clients ignore `p=` on an
+image. If the copy fails to load, the file is shown. **Privacy:** the server sees two uploads
+where it used to see one (as for videos), never what's in them.
 
 **Videos** (since 2026-10-01) are `v=2` (`services/chunkedAttachment.js`): encrypted in 256 KiB
 chunks, each its own AES-GCM message (IV = base nonce `n` XOR chunk index; additional data binds

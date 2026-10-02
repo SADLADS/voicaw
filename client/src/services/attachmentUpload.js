@@ -36,8 +36,9 @@ async function putEncrypted(blob, onProgress) {
 
 // Encrypts `file`, uploads the ciphertext and returns the attachment URL to embed in the
 // message (upload URL + decryption key/metadata in the fragment). `info` is what's known of
-// the media: { width, height } and, for a video, { duration, poster (a JPEG Blob) };
-// `spoiler` marks it as a spoiler.
+// the media: { width, height }, for a video { duration, poster (a JPEG Blob) }, and for a big
+// image { thumbnail (a Blob) }; `spoiler` marks it as a spoiler. The file itself is sent as it
+// is.
 export async function uploadAttachment(file, onProgress, info = null, spoiler = false) {
   const type = file.type || 'application/octet-stream';
   const fields = { type, size: file.size, width: info?.width, height: info?.height, spoiler };
@@ -55,7 +56,8 @@ export async function uploadAttachment(file, onProgress, info = null, spoiler = 
     });
   }
 
-  const { blob, key } = await encryptAttachment(file);
+  const { blob, key, thumbnail } = await encryptAttachment(file, info?.thumbnail);
+  const thumbnailUrl = thumbnail ? await putEncrypted(thumbnail) : null;
   const fileUrl = await putEncrypted(blob, onProgress);
-  return buildAttachmentUrl(fileUrl, { ...fields, key });
+  return buildAttachmentUrl(fileUrl, { ...fields, key, poster: thumbnailUrl?.split('/').pop() });
 }

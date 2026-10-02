@@ -1,4 +1,4 @@
-import { decryptAttachment } from './attachmentCrypto';
+import { decryptAttachment, decryptThumbnail } from './attachmentCrypto';
 import { decryptChunkedAttachment, decryptPoster, encryptedSize } from './chunkedAttachment';
 
 // Decrypted attachments, keyed by their full attachment URL, as Promise<objectURL>.
@@ -71,13 +71,24 @@ export function loadDecryptedAttachment(url, meta, onProgress) {
   return remember(url, promise);
 }
 
-// A v2 video's poster (a small still), as an object URL.
+// The type of a poster or thumbnail, from its first bytes (a JPEG, or a thumbnail with
+// transparency: a WebP or PNG).
+export function stillType(bytes) {
+  const b = new Uint8Array(bytes, 0, Math.min(12, bytes.byteLength));
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
+  if (String.fromCharCode(...b.subarray(0, 4)) === 'RIFF' && String.fromCharCode(...b.subarray(8, 12)) === 'WEBP') {
+    return 'image/webp';
+  }
+  return 'image/jpeg';
+}
+
+// A v2 video's poster or a v1 image's thumbnail (a small still, `p=`), as an object URL.
 export function loadDecryptedPoster(meta) {
   const key = `poster:${meta.posterUrl}`;
   if (cache.has(key)) return cache.get(key);
   const promise = download(meta.posterUrl)
-    .then((encrypted) => decryptPoster(encrypted, meta.key))
-    .then((plain) => URL.createObjectURL(new Blob([plain], { type: 'image/jpeg' })));
+    .then((encrypted) => (meta.version === 2 ? decryptPoster(encrypted, meta.key) : decryptThumbnail(encrypted, meta.key)))
+    .then((plain) => URL.createObjectURL(new Blob([plain], { type: stillType(plain) })));
   promise.catch(() => cache.delete(key));
   return remember(key, promise);
 }

@@ -85,6 +85,33 @@ describe('Attachment', () => {
     expect(loadDecryptedAttachment).toHaveBeenCalledWith(url, expect.objectContaining({ key: 'KEY', type: 'image/png' }));
   });
 
+  it("shows a big image's thumbnail, downloading nothing of the image itself", async () => {
+    loadDecryptedPoster.mockResolvedValue('blob:thumbnail');
+    const url = encryptedUrl('image/jpeg', 4_000_000, { width: 4000, height: 3000, poster: 'thumb-1.bin' });
+
+    render(<Attachment src={url} alt="photo.jpg" />);
+
+    expect(await screen.findByRole('img', { name: 'photo.jpg' })).toHaveAttribute('src', 'blob:thumbnail');
+    expect(loadDecryptedPoster).toHaveBeenCalledWith(expect.objectContaining({ posterUrl: 'https://s3.test/uploads/thumb-1.bin' }));
+    expect(loadDecryptedAttachment).not.toHaveBeenCalled();
+  });
+
+  it("shows the image itself when its thumbnail can't be had, or it's already decrypted", async () => {
+    loadDecryptedPoster.mockRejectedValue(new Error('gone'));
+    loadDecryptedAttachment.mockResolvedValue('blob:whole');
+    const url = encryptedUrl('image/jpeg', 4_000_000, { width: 4000, height: 3000, poster: 'thumb-1.bin' });
+    const { unmount } = render(<Attachment src={url} alt="photo.jpg" />);
+    expect(await screen.findByRole('img', { name: 'photo.jpg' })).toHaveAttribute('src', 'blob:whole');
+    unmount();
+
+    vi.clearAllMocks();
+    getCachedAttachment.mockReturnValue('blob:sent');
+    getCachedPoster.mockReturnValue('blob:thumbnail');
+    render(<Attachment src={url} alt="photo.jpg" />);
+    expect(screen.getByRole('img', { name: 'photo.jpg' })).toHaveAttribute('src', 'blob:sent');
+    expect(loadDecryptedPoster).not.toHaveBeenCalled();
+  });
+
   it('shows an already-decrypted attachment immediately, with no loading state', () => {
     getCachedAttachment.mockReturnValue('blob:cached-image');
 

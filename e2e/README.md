@@ -51,6 +51,7 @@ node e2e/uploads.mjs      # deleting files: a DM send lists its file, deleting t
 node e2e/filedrop.mjs [dir] # files dragged in: "Upload to <chat>" over the window, drop anywhere attaches (DM, guild, document replies), leave/in-page drag/dialog = none, document cover button and body, phone
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
 node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>
+node e2e/thumbnails.mjs [dir] # image thumbnails: phone downloads only the copy (upright, no EXIF; transparent stays so), viewer opens the file, Save = the file as sent; animated PNG, GIF, small image left alone (needs ffmpeg)
 node e2e/video.mjs [dir]  # videos: only the poster before Play, streamed in pieces, seek reads nothing before it, download, keys, full screen, spoiler, phone (needs ffmpeg)
 node e2e/voicesettings.mjs [dir] # Settings → Voice & video: fake devices listed, mic test meter, input volume 0 silences you in a call, new mic / each noise suppression kept, speakers + output volume, phone
 node e2e/uservolume.mjs [dir] # per-user volume: channel list / tile / call panel, measured 100/200/0%, deafen, kept after reload, phone sheet
