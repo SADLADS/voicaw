@@ -35,6 +35,7 @@ import { UNKNOWN_CHANNEL, mentionName, mentionsMe as isForMe, mentionsToText, ro
 import { ChannelMentionContext } from '../contexts';
 import ChannelIcon from './guild/ChannelIcon';
 import { showContent } from '../utils/mobilePanes';
+import { parseChannelLink } from '../utils/guildDisplay';
 import { pageMenuTarget } from '../utils/pageMenuTarget';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
@@ -69,17 +70,19 @@ function Spoiler({ children }) {
 
 // A channel mention (`<#id>`): its icon and current name; clicking opens it. One not known yet
 // opens the rest of your guilds (ChannelMentionContext); still unknown (you can't see it, or it's
-// gone), it's `#unknown-channel` and does nothing.
-function ChannelMention({ id }) {
+// gone), it's `#unknown-channel` and does nothing. A pasted channel link (MarkdownLink) passes
+// its guild too, and shows `unknown` (the link itself) unless the channel is in that guild.
+function ChannelMention({ id, guildId, unknown }) {
   const directory = useContext(ChannelMentionContext);
   const navigate = useNavigate();
-  const channel = directory?.channels[id];
+  const found = directory?.channels[id];
+  const channel = found && (guildId == null || String(found.guildId) === guildId) ? found : null;
   const loadAll = directory?.loadAll;
   useEffect(() => {
     if (!channel) loadAll?.();
   }, [channel, loadAll]);
   if (!channel) {
-    return <span className="mention channel-mention unknown"><ChannelIcon className="channel-mention-icon" />{UNKNOWN_CHANNEL}</span>;
+    return unknown ?? <span className="mention channel-mention unknown"><ChannelIcon className="channel-mention-icon" />{UNKNOWN_CHANNEL}</span>;
   }
   const open = (e) => {
     e.stopPropagation();
@@ -146,7 +149,17 @@ function MarkdownImage({ src, alt, className, title, ...rest }) {
   return <Attachment src={src} alt={alt} localAttachments={localAttachments} />;
 }
 
-const markdownComponents = { img: MarkdownImage, span: MarkdownSpan };
+// A link. A bare link to a guild channel (channelLink, as Copy Link gives it) is drawn as that
+// channel's mention for those who can see the channel, and stays a link for everyone else.
+function MarkdownLink({ node, href, children, ...rest }) {
+  const link = <a href={href} {...rest}>{children}</a>;
+  const target = parseChannelLink(href);
+  const text = node?.children?.length === 1 ? node.children[0].value : null;
+  if (!target || text !== href) return link;
+  return <ChannelMention id={target.channelId} guildId={target.guildId} unknown={link} />;
+}
+
+const markdownComponents = { a: MarkdownLink, img: MarkdownImage, span: MarkdownSpan };
 // Discord's flavour: GFM for strikethrough and bare links, then remarkDiscord.
 const remarkPlugins = [remarkGfm, remarkDiscord, remarkEmoji];
 

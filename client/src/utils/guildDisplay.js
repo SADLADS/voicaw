@@ -72,6 +72,14 @@ export function channelLink(guildId, channelId) {
   return `${shareOrigin()}/guild/${guildId}/${channelId}`;
 }
 
+// The guild and channel in a channel link (channelLink: this site's or app.voicaw.com's), else
+// null.
+export function parseChannelLink(href) {
+  const match = /^(https?:\/\/[^/]+)\/guild\/(\d+)\/(\d+)\/?$/.exec(href ?? '');
+  if (!match || ![shareOrigin(), 'https://app.voicaw.com'].includes(match[1])) return null;
+  return { guildId: match[2], channelId: match[3] };
+}
+
 // The invite code in something pasted: a whole link or just the code.
 export function parseInviteCode(text) {
   const trimmed = (text ?? '').trim();

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { defaultChannel, groupChannels, guildInitials, parseInviteCode, rememberChannel } from './guildDisplay';
+import { channelLink, defaultChannel, groupChannels, guildInitials, parseChannelLink, parseInviteCode, rememberChannel } from './guildDisplay';
 
 const storage = new Map();
 globalThis.localStorage = {
@@ -53,5 +53,19 @@ describe('guildDisplay', () => {
     expect(parseInviteCode('http://localhost:5199/invite/abc/')).toBe('abc');
     expect(parseInviteCode('not a code!')).toBeNull();
     expect(parseInviteCode('')).toBeNull();
+  });
+
+  it("finds the guild and channel in a link to this site's or app.voicaw.com's channel", () => {
+    globalThis.window = { location: { protocol: 'http:', origin: 'http://localhost:5199' } };
+    try {
+      expect(parseChannelLink(channelLink(7, 12))).toEqual({ guildId: '7', channelId: '12' });
+      expect(parseChannelLink('https://app.voicaw.com/guild/7/12/')).toEqual({ guildId: '7', channelId: '12' });
+      expect(parseChannelLink('https://example.com/guild/7/12')).toBeNull();
+      expect(parseChannelLink('http://localhost:5199/guild/7')).toBeNull();
+      expect(parseChannelLink('http://localhost:5199/guild/7/12?x=1')).toBeNull();
+      expect(parseChannelLink(undefined)).toBeNull();
+    } finally {
+      delete globalThis.window;
+    }
   });
 });

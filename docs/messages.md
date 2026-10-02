@@ -289,6 +289,12 @@ in a DM, everyone in a group's log, a guild's members; anyone else `@unknown-use
   worker has none, so DM push previews say `#unknown-channel`. Guild pushes name a channel only
   for recipients who can see it (`mentionedChannels`, so the body can differ per person); search
   doesn't index the ids.
+- **Channel links** (Copy Link in a channel's menu, `channelLink`): a bare one pasted into a
+  message (the link's text is the link, not `[text](link)`) is drawn as that channel's mention
+  for anyone who can see the channel (`MessageList`'s `MarkdownLink`, `parseChannelLink`: this
+  site's or app.voicaw.com's `/guild/<guild>/<channel>`; the channel must be in that guild).
+  For everyone else it stays the link. The message keeps the link as typed, so plain-text
+  places (reply previews, pushes) show it as it is, and search finds it.
 
 ## Pinned messages
 

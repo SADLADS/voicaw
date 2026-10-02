@@ -1,6 +1,7 @@
 // Channel mentions: "#" suggestions in a guild channel, the `#channel` link (clicking opens
 // it), a private channel showing as #unknown-channel to someone who can't see it, editing
-// keeping the chip, a mention in a DM (guilds not opened yet), and a phone tap.
+// keeping the chip, a mention in a DM (guilds not opened yet), a pasted channel link (#name for
+// those who can see it, else the link), and a phone tap.
 //   node e2e/serve.mjs &   then   node e2e/channel-mentions.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
 import { launchChrome, signUp, openChat, send, BASE, devices } from './helpers.mjs';
@@ -107,6 +108,31 @@ try {
   await dmLink.click();
   await b.waitForURL(`${BASE}/guild/${guild.id}/${offTopic.id}`);
   check(true, 'and clicking it opens the channel');
+
+  // A pasted channel link (Copy Link): bob sees #off-topic, the private one stays a link, and
+  // dave (not in the guild) sees both as links.
+  const offLink = `${BASE}/guild/${guild.id}/${offTopic.id}`;
+  const secretLink = `${BASE}/guild/${guild.id}/${secret.id}`;
+  await openChat(a, bob.id);
+  await send(a, `links ${offLink} and ${secretLink}`);
+  await b.goto(`${BASE}/dm/${alice.id}`);
+  const pasted = await b.waitForSelector('.dm-message-content:has-text("links") .channel-mention:not(.unknown)', { timeout: 15000 });
+  check((await pasted.textContent()) === 'off-topic', 'a pasted link to #off-topic shows as #off-topic');
+  check(await b.$(`.dm-message-content a[href="${secretLink}"]`) !== null, 'one to a channel bob cannot see stays a link');
+  check(!(await b.$(`.dm-message-content a[href="${offLink}"]`)), 'the #off-topic link itself is not shown');
+  await b.mouse.move(5, 5);
+  await shot(b, 'pasted-link');
+  await pasted.click();
+  await b.waitForURL(offLink);
+  check(true, 'clicking it opens the channel');
+  const dave = await signUp(browser, 'dave');
+  await openChat(a, dave.id);
+  await send(a, `try ${offLink}`);
+  await dave.page.goto(`${BASE}/dm/${alice.id}`);
+  await dave.page.waitForSelector(`.dm-message-content a[href="${offLink}"]`, { timeout: 15000 });
+  await dave.page.waitForTimeout(1000);
+  check(!(await dave.page.$('.dm-message-content .channel-mention')), 'someone not in the guild sees the link');
+  await shot(dave.page, 'pasted-link-outsider');
 
   // Carol, on a phone, taps one in a DM: the channel opens, chat pane showing.
   await openChat(a, carol.id);

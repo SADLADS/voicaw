@@ -173,6 +173,37 @@ describe('MessageList', () => {
     expect(screen.getByTestId('where')).toHaveTextContent('/guild/9/5');
   });
 
+  it("draws a pasted channel link as the channel's mention, and leaves it a link for those who can't see it", () => {
+    const origin = window.location.origin;
+    const known = `${origin}/guild/9/5`;
+    const otherGuild = `${origin}/guild/8/5`;
+    const unseen = 'https://app.voicaw.com/guild/9/6';
+    const named = `${origin}/guild/9/5`;
+    const messages = [{
+      id: 1, sender_id: 2, sender_username: 'bob', timestamp: 1000,
+      plaintext: `go ${known} not ${otherGuild} or ${unseen} or [here](${named})`,
+    }];
+    const loadAll = vi.fn();
+    const channels = { 5: { id: 5, guildId: 9, name: 'general', type: 'text', private: false } };
+    function Where() {
+      return <span data-testid="where">{useLocation().pathname}</span>;
+    }
+    render(
+      <MemoryRouter initialEntries={['/dm/2']}>
+        <ChannelMentionContext.Provider value={{ channels, loadAll }}>
+          <Routes><Route path="*" element={<><MessageList {...baseProps({ messages })} /><Where /></>} /></Routes>
+        </ChannelMentionContext.Provider>
+      </MemoryRouter>
+    );
+    expect(screen.queryByText(known)).toBeNull();
+    expect(screen.getByText(otherGuild).tagName).toBe('A');
+    expect(screen.getByText(unseen)).toHaveAttribute('href', unseen);
+    expect(screen.getByText('here')).toHaveAttribute('href', named);
+    expect(loadAll).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('link', { name: /general/ }));
+    expect(screen.getByTestId('where')).toHaveTextContent('/guild/9/5');
+  });
+
   it('marks messages from the current user as sent and others as received', () => {
     const messages = [
       { id: 1, sender_id: 1, sender_username: 'alice', plaintext: 'hi there', timestamp: 1000 },
