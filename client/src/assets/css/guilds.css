@@ -151,6 +151,14 @@ img.guild-icon {
   color: var(--vc-on-accent);
 }
 
+.guild-menu-item:disabled,
+.guild-menu-item:disabled:hover {
+  background: transparent;
+  color: var(--vc-fg-muted);
+  opacity: 0.6;
+  cursor: default;
+}
+
 .guild-menu-item.accent {
   color: var(--vc-accent-text);
 }

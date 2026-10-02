@@ -19,6 +19,7 @@ const notificationListeners = new Set();
 const loggedOutListeners = new Set();
 const conversationSettingsListeners = new Set();
 const preferencesListeners = new Set();
+const dictionaryListeners = new Set();
 let reconnectTimeout = null;
 
 // This client's own connection: 'connecting' | 'online' | 'offline' (logged out, or the
@@ -172,6 +173,9 @@ export function connectWebSocket() {
       else if (data.type === 'preferences') {
         preferencesListeners.forEach((cb) => cb(data.preferences));
       }
+      else if (data.type === 'dictionary') {
+        dictionaryListeners.forEach((cb) => cb({ dictionary: data.dictionary, version: data.version }));
+      }
       else if (data.type === 'account_deleted' || data.type === 'session_revoked') {
         loggedOutElsewhere(socket);
       }
@@ -315,6 +319,12 @@ export function onConversationSettings(callback) {
 export function onPreferences(callback) {
   preferencesListeners.add(callback);
   return () => preferencesListeners.delete(callback);
+}
+
+// Your spellcheck dictionary was saved on another device (spellcheck/personalDictionary.js).
+export function onDictionary(callback) {
+  dictionaryListeners.add(callback);
+  return () => dictionaryListeners.delete(callback);
 }
 
 // This device's login has ended elsewhere (logged out from Settings → Devices on another

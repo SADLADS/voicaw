@@ -10,6 +10,8 @@ import { DocumentMarkdown } from '../MessageList';
 import Avatar from '../Avatar';
 import ConfirmDialog from '../guild/ConfirmDialog';
 import DocumentCover from './DocumentCover';
+import ImageMenu from '../ImageMenu';
+import { useImageHold } from '../../hooks/useImageHold';
 import { ConfigContext } from '../../contexts';
 import { useChannel } from '../../hooks/useChannel';
 import { toggleDocumentReaction, useDocument, useDocumentFeed } from '../../hooks/useDocuments';
@@ -315,7 +317,18 @@ function DocumentPage({ guild, channel, user, documentId, editing, setEditing, o
 // use it), `?doc=new` writes a new one, `&edit=1` edits. Who may write, edit and reply follows
 // the channel's permissions (Create Documents, Manage Messages, Send Messages).
 // `chatProps` are ChatPane's guild-wide props (names, mentions, permissions, colours).
-export default function DocChannelView({ guild, channel, user, isMobile, nameColors, chatProps }) {
+export default function DocChannelView(props) {
+  // Holding a picture (a cover, one in a document or the editor) opens its menu on a phone.
+  const { holdProps, held, closeHeld } = useImageHold();
+  return (
+    <div className="doc-channel" {...holdProps}>
+      <DocChannelContent {...props} />
+      {held && <ImageMenu item={held} sheet onClose={closeHeld} />}
+    </div>
+  );
+}
+
+function DocChannelContent({ guild, channel, user, isMobile, nameColors, chatProps }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const docParam = searchParams.get('doc');
   const writingNew = docParam === 'new';

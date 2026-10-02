@@ -22,6 +22,8 @@ const NOTES_KEY_CONTEXT = 'voicaw/notes-key/v1';
 const DM_MESSAGE_CONTEXT = 'voicaw/dm/v1';
 const DM_REACTION_CONTEXT = 'voicaw/dm-reaction/v1';
 const CALL_KEY_CONTEXT = 'voicaw/call-key/v1';
+const DICTIONARY_KEY_CONTEXT = 'voicaw/dictionary-key/v1';
+const DICTIONARY_CONTEXT = 'voicaw/dictionary/v1';
 export const MESSAGE_PREFIX = 'v1.';
 
 // ---------------------------------------------------------------- encoding
@@ -332,6 +334,39 @@ export async function decryptCallKey(envelope, conversationKey, context) {
   const key = fromBase64(await decryptMessage(envelope, conversationKey, context));
   if (key.length !== 32) throw new Error('Invalid call key');
   return key;
+}
+
+// ---------------------------------------------------------------- spellcheck dictionary
+
+// Your spellcheck dictionary (spellcheck/personalDictionary.js) is encrypted like notes: with a
+// key your own key pair derives, under its own purpose, so it's never a notes or DM key.
+export function deriveDictionaryKey(myEncryptionPrivateKey, myEncryptionKey) {
+  return deriveEcdhKey(myEncryptionPrivateKey, myEncryptionKey, DICTIONARY_KEY_CONTEXT);
+}
+
+export function dictionaryContext(userId) {
+  return `${DICTIONARY_CONTEXT}|${userId}`;
+}
+
+// Padded to steps of this many bytes, so its size only says roughly how many words it holds;
+// the server takes envelopes up to a little over the largest (server/dictionary.js).
+export const DICTIONARY_PAD_BYTES = 1024;
+export const DICTIONARY_MAX_BYTES = 48 * 1024;
+
+// `words` (strings) -> "v1.<base64>". Throws when there are too many to fit.
+export function encryptDictionary(words, key, userId) {
+  const json = JSON.stringify({ v: 1, words });
+  const size = te.encode(json).length;
+  if (size > DICTIONARY_MAX_BYTES) return Promise.reject(new Error('Your dictionary is full'));
+  // JSON allows trailing spaces.
+  const padded = json + ' '.repeat(Math.ceil(size / DICTIONARY_PAD_BYTES) * DICTIONARY_PAD_BYTES - size);
+  return encryptMessage(padded, key, dictionaryContext(userId));
+}
+
+export async function decryptDictionary(envelope, key, userId) {
+  const data = JSON.parse(await decryptMessage(envelope, key, dictionaryContext(userId)));
+  if (data?.v !== 1 || !Array.isArray(data.words)) throw new Error('Unsupported dictionary format');
+  return data.words.filter((word) => typeof word === 'string');
 }
 
 // Decrypts a message's reactions into [{ id, user_id, emoji }], skipping any that fail.

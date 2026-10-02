@@ -1,26 +1,26 @@
-// The browser's own right-click menu is off across the app (our menus replace it where there
-// is something to do: channels, guilds, conversations...), except where it's still the useful
-// one: text boxes (spellcheck suggestions, paste), selected text (copy), and links inside
-// messages and embeds (copy link, open in a new tab). Pictures have our own menu (ImageMenu).
+// The browser's own right-click menu is off across the app: ours replace it everywhere (text
+// boxes, selected text, links and pictures: PageMenus; channels, guilds, conversations,
+// messages...: their own). Two exceptions keep it: Shift+right-click (the way to the
+// browser's own when wanted, e.g. its spelling suggestions in a language we have no
+// dictionary for), and text boxes on a phone, whose own selection handles and paste bar stay.
 
 const EDITABLE = 'input, textarea, select, [contenteditable=""], [contenteditable="true"]';
-const IN_MESSAGE = '.dm-message-content a[href], .message-embeds a[href], .message-files a[href]';
 
-// Whether a right-click on `target` should get the browser's menu, with `selectedText` selected.
-export function allowsNativeMenu(target, selectedText = '') {
+// Whether a right-click on `target` should get the browser's menu.
+export function allowsNativeMenu(target, { shiftKey = false, phone = false } = {}) {
+  if (shiftKey) return true;
   const element = target?.nodeType === 1 ? target : target?.parentElement;
   if (!element) return false;
-  if (element.closest(EDITABLE)) return true;
-  if (selectedText.trim()) return true;
-  return Boolean(element.closest(IN_MESSAGE));
+  return phone && Boolean(element.closest(EDITABLE));
 }
 
-// Turns it off (once, for the page). A menu of ours that already handled the event (it called
-// preventDefault) is left alone.
-export function blockNativeContextMenu(doc = document) {
-  doc.addEventListener('contextmenu', (e) => {
+// Turns it off (once, for the page). Listening on the window, it runs after every other
+// listener: a menu of ours that already handled the event (it called preventDefault) is left
+// alone.
+export function blockNativeContextMenu(win = window) {
+  win.addEventListener('contextmenu', (e) => {
     if (e.defaultPrevented) return;
-    const selected = doc.getSelection?.()?.toString() ?? '';
-    if (!allowsNativeMenu(e.target, selected)) e.preventDefault();
+    const phone = win.document.body.classList.contains('mobile-mode');
+    if (!allowsNativeMenu(e.target, { shiftKey: e.shiftKey, phone })) e.preventDefault();
   });
 }

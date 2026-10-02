@@ -538,7 +538,7 @@ describe('MessageList reactions', () => {
     expect(notPrevented).toBe(false);
     expect(props.onOpenMenu).toHaveBeenCalledWith(msg, { left: 30, right: 30, top: 40, bottom: 40 });
 
-    // A link keeps the browser's menu (copy link, open in a new tab).
+    // A link has its own (copy link, open link: PageMenus).
     props.onOpenMenu.mockClear();
     fireEvent.contextMenu(screen.getByRole('link', { name: 'site' }));
     expect(props.onOpenMenu).not.toHaveBeenCalled();

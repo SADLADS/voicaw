@@ -60,6 +60,7 @@ app.use('/api', require('./routes/calls'));
 app.use('/api', require('./routes/groupDms'));
 app.use('/api', require('./routes/conversationSettings'));
 app.use('/api', require('./routes/preferences'));
+app.use('/api', require('./routes/dictionary'));
 app.use('/api', require('./routes/typing'));
 app.use('/api', require('./routes/polls'));
 app.use('/api', require('./routes/push'));

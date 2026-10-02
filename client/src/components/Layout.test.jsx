@@ -18,6 +18,7 @@ vi.mock('../utils/ws-client', () => ({
   onConnectionState: () => () => {},
   onConversationSettings: () => () => {},
   onPreferences: () => () => {},
+  onDictionary: () => () => {},
 }));
 
 // Group DMs (tested with their hooks and in e2e/groups.mjs): none here.
@@ -62,6 +63,8 @@ vi.mock('../services/pushService', () => ({
 
 vi.mock('../services/keyStore', () => ({
   loadPrivateKey: vi.fn(async () => 'fake-private-key'),
+  loadEncryptionKey: vi.fn(async () => null),
+  loadOwnPublicKeys: vi.fn(async () => null),
 }));
 
 import Layout from './Layout';

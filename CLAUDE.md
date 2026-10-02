@@ -115,7 +115,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - `docs/server.md`: server layout (which module does what), env vars, Node/sqlite on the host.
 - `docs/database.md`: `node:sqlite`, query helpers, transactions, migrations.
 - `docs/auth-and-encryption.md`: OPAQUE login, sessions and Settings → Devices, rate limits, deleting an account,
-  end-to-end encryption (keys, backups, recovery code, contact pinning, DMs, reactions, notes).
+  end-to-end encryption (keys, backups, recovery code, contact pinning, DMs, reactions, notes,
+  the spellcheck dictionary).
 - `docs/realtime.md`: websocket events, online status, web push.
 - `docs/guilds.md`: guilds (permissions, overrides, audit log, invites, custom emoji, channel
   menus, NSFW channels), list channels, document channels, guild search, webhooks (Discord's API).
@@ -127,7 +128,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - `docs/uploads.md`: the object store, encrypted attachments, video streaming, spoilers, image
   viewer.
 - `docs/client.md`: client structure (contexts, Layout, settings, dates, themes, sidebar, phone
-  panes, PWA updates, right-click menus, pinned and muted conversations, account preferences),
+  panes, PWA updates, spellcheck, right-click menus, pinned and muted conversations, account preferences),
   profiles and pictures, sounds, admin settings.
 - `docs/desktop-and-site.md`: the Electron app, voicaw.com.
 
@@ -190,7 +191,12 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   - The Playwright WebKit build crashes opening the emoji picker (see `e2e/README.md`); not yet
     checked on a real iPhone.
   - nginx doesn't compress JS/CSS/SVG (`gzip_types` is commented out in
-    `/etc/nginx/nginx.conf`); first visits download the 1.7 MB main bundle uncompressed, and
-    Strong noise suppression's 17 MB (10 MB compressed) WebAssembly whole.
+    `/etc/nginx/nginx.conf`); first visits download the 1.7 MB main bundle uncompressed,
+    Strong noise suppression's 17 MB (10 MB compressed) WebAssembly whole, and spellcheck's
+    550 KB dictionary (about 200 KB compressed) the first time an editor opens.
+  - Spellcheck draws its own underlines only in the editors (message box, documents): plain
+    text boxes (titles, bio, task fields) keep the browser's, which can disagree with our
+    suggestions there. Our dictionaries are English only (UK, US); other languages fall back
+    to the browser's (or the desktop app's) own checker.
   - npm 11 warns that the install script of `esbuild` isn't in an `allowScripts` list yet. It
     still runs today; a future npm will need it approved (`npm install-scripts approve`).

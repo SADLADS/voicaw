@@ -4,7 +4,7 @@
 // shortcuts, a screen picker for screen sharing and updating itself. The page reaches these through preload.js.
 const path = require('path');
 const { app, BrowserWindow, Menu, desktopCapturer, globalShortcut, ipcMain, net, protocol, screen, session, shell } = require('electron');
-const { setUpSpellcheck } = require('./spellcheck');
+const { setUpSpellcheck, syncSpellingWords } = require('./spellcheck');
 const { ORIGIN, registerScheme, handleScheme } = require('./protocol');
 const { createSettingsStore } = require('./desktopSettings');
 const { createTray } = require('./tray');
@@ -166,6 +166,11 @@ function setUpIpc() {
     ipcMain.handle('desktop:screen-sources', (event) => (fromApp(event) ? screenShare.listSources() : null));
     ipcMain.handle('desktop:choose-screen-source', (event, id, audio) =>
         (fromApp(event) && typeof id === 'string' ? screenShare.choose(id, audio === true) : false));
+    // The page's own right-click menu (client PageMenus): a real paste, and its dictionary.
+    ipcMain.on('desktop:paste', (event) => { if (fromApp(event)) event.sender.paste(); });
+    ipcMain.on('desktop:spelling-words', (event, words) => {
+        if (fromApp(event)) syncSpellingWords(event.sender.session, words).catch(() => {});
+    });
     ipcMain.handle('desktop:check-updates', (event) => (fromApp(event) ? updater.check() : null));
     ipcMain.on('desktop:install-update', (event) => {
         if (!fromApp(event) || !updater.isReady()) return;

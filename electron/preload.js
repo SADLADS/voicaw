@@ -1,6 +1,6 @@
 // The page's window onto the desktop app: `window.voicawDesktop` (client/src/utils/desktop.js
 // wraps it). Only these calls, never Node or ipcRenderer itself.
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
 function listen(channel) {
     return (callback) => {
@@ -25,6 +25,14 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
     // chooseScreenSource(id, audio) before getDisplayMedia (electron/screenShare.js).
     getScreenSources: () => ipcRenderer.invoke('desktop:screen-sources'),
     chooseScreenSource: (id, audio) => ipcRenderer.invoke('desktop:choose-screen-source', id, audio),
+    // The page's right-click menu: Electron's own paste, and its checker for what the page
+    // has no dictionary for (electron/spellcheck.js), kept to the account's words.
+    paste: () => ipcRenderer.send('desktop:paste'),
+    spelling: {
+        isMisspelled: (word) => webFrame.isWordMisspelled(String(word)),
+        suggestions: (word) => webFrame.getWordSuggestions(String(word)),
+    },
+    setSpellingWords: (words) => ipcRenderer.send('desktop:spelling-words', words),
     onNavigate: listen('desktop:navigate'),
     onShortcut: listen('desktop:shortcut'),
     onUpdateReady: listen('desktop:update-ready'),

@@ -2,6 +2,11 @@
 
 /* ---- The feed ---- */
 
+/* Only there to hear a long press on a picture (useImageHold); lays nothing out. */
+.doc-channel {
+  display: contents;
+}
+
 .document-feed {
   flex: 1;
   min-height: 0;

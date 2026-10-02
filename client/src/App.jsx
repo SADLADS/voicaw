@@ -24,7 +24,7 @@ import { forgetGroups } from './services/groupCache';
 import EmojiProvider from './emoji/EmojiProvider';
 import UpdateBanner from './components/UpdateBanner';
 import ImageViewerProvider from './components/ImageViewerProvider';
-import { MessageImageMenus } from './components/ImageMenu';
+import PageMenus from './components/PageMenus';
 import { disableNotificationsOnThisDevice } from './services/pushService';
 import { clearDrafts } from './services/draftStore';
 import { setCustomEmojiBase } from './emoji/customEmoji';
@@ -144,7 +144,7 @@ export default function App() {
         <ImageViewerProvider>
         <Router>
           <SWMessageHandler />
-          <MessageImageMenus />
+          <PageMenus />
           <UpdateBanner />
           <Routes>
             <Route

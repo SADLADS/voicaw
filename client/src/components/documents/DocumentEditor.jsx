@@ -123,7 +123,7 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
     const view = new EditorView(mountRef.current, {
       state: createEditorState(markdownToDoc(initial.current.content)),
       nodeViews,
-      attributes: { class: 'doc-editor-text document-body', 'aria-label': 'Document', spellcheck: 'true' },
+      attributes: { class: 'doc-editor-text document-body', 'aria-label': 'Document' },
       dispatchTransaction(tr) {
         view.updateState(view.state.apply(tr));
         setTick((n) => n + 1);

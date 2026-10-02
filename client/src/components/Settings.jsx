@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMagnifyingGlass, faPuzzlePiece, faSignOutAlt, faXmark } from '@fortawesome/free-solid-svg-icons';
-import { LayoutContext } from '../contexts';
+import { InteractionContext, LayoutContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
 import AccountSecuritySettings from "./AccountSecuritySettings";
@@ -55,6 +55,7 @@ export default function Settings({ onLogout }) {
   const navigate = useNavigate();
   const onProfilePage = location.pathname.startsWith('/settings/profile');
   const navSlot = useContext(LayoutContext)?.settingsNavSlot ?? null;
+  const { isMobile } = useContext(InteractionContext);
 
   const sections = [
     {
@@ -98,7 +99,9 @@ export default function Settings({ onLogout }) {
     },
     {
       id: 'spellcheck', category: 'app', title: 'Spellcheck',
-      keywords: 'spelling spell check typos dictionary red underline squiggles language autocorrect',
+      keywords: 'spelling spell check typos dictionary red underline squiggles language autocorrect words',
+      // Phones check spelling in their own keyboard.
+      available: !isMobile,
       content: <SpellcheckSettings />,
     },
     {

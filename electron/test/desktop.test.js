@@ -10,7 +10,7 @@ const { createSettingsStore, cleanChanges } = require('../desktopSettings.js');
 const { cleanNotification } = require('../notifications.js');
 const { paintDot, unreadLabel } = require('../tray.js');
 const { linuxAutostartEntry } = require('../autoStart.js');
-const { spellcheckLanguages } = require('../spellcheck.js');
+const { spellcheckLanguages, syncSpellingWords } = require('../spellcheck.js');
 
 describe('serving the app (protocol.js)', () => {
     let root;
@@ -117,5 +117,18 @@ describe('spellcheck languages (spellcheck.js)', () => {
     it('picks the system languages it has, else British English', () => {
         expect(spellcheckLanguages(['fr-CA', 'en-US'], ['en-GB', 'en-US', 'fr'])).toEqual(['fr', 'en-US']);
         expect(spellcheckLanguages(['xx'], ['en-GB'])).toEqual(['en-GB']);
+    });
+
+    it("keeps Electron's dictionary to the account's words", async () => {
+        const words = new Set(['old', 'kept']);
+        const session = {
+            listWordsInSpellCheckerDictionary: async () => [...words],
+            addWordToSpellCheckerDictionary: (w) => words.add(w),
+            removeWordFromSpellCheckerDictionary: (w) => words.delete(w),
+        };
+        await syncSpellingWords(session, ['kept', 'Voicaw', 42, '']);
+        expect([...words].sort()).toEqual(['Voicaw', 'kept']);
+        await syncSpellingWords(session, 'nonsense');
+        expect([...words].sort()).toEqual(['Voicaw', 'kept']);
     });
 });

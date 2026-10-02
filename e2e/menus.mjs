@@ -1,5 +1,6 @@
 // Right-click menus beyond the channel list's rows (see channelmenu.mjs for those): the browser's
-// own menu is off except in text boxes and on links in messages; a guild's icon on the rail
+// own menu is off everywhere, ours instead (text boxes, links: see textmenu.mjs), Shift keeps
+// the browser's; a guild's icon on the rail
 // (read, invite, notifications, settings, copy link, leave); the channel list's empty space
 // (create channel/category, invite); a conversation in the DM list (pin to the top, mute so
 // it doesn't ping, call). On a phone, touch and hold opens each as a sheet, and hold-then-move
@@ -45,21 +46,23 @@ try {
   }
   const dm = (from, to, content) => api(from.page, 'POST', '/dm-send', { recipient_id: to.id, content });
 
-  // The browser's menu: off on plain parts of the page, kept in the message box and on links in
-  // messages. (Headless Chrome draws no menu: what counts is whether the event was cancelled.)
+  // The browser's menu: off everywhere (ours in the message box and on links), but Shift keeps
+  // it. (Headless Chrome draws no menu: what counts is whether the event was cancelled.)
   const a = alice.page;
   await a.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE });
   await a.goto(`${BASE}/guild/${guild.id}/${general.id}`);
   await a.waitForSelector('#dm-input');
   await api(a, 'POST', `/channels/${general.id}/messages`, { content: 'see https://example.com' });
   await a.waitForSelector('.dm-message-content a[href]');
-  const cancelled = (selector) => a.evaluate((sel) => {
+  const cancelled = (selector, shiftKey = false) => a.evaluate(([sel, shift]) => {
     const el = document.querySelector(sel);
-    return !el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }));
-  }, selector);
+    return !el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5, shiftKey: shift }));
+  }, [selector, shiftKey]);
   check(await cancelled('.chat-recipient-header, .channel-header, h4'), "the browser's menu is off on the page");
-  check(!(await cancelled('#dm-input')), 'but kept in the message box (spellcheck, paste)');
-  check(!(await cancelled('.dm-message-content a[href]')), 'and on a link in a message');
+  check(await cancelled('#dm-input'), 'and in the message box (ours instead)');
+  check(await cancelled('.dm-message-content a[href]'), 'and on a link in a message (ours instead)');
+  check(!(await cancelled('#dm-input', true)), 'but Shift+right-click keeps it');
+  await a.keyboard.press('Escape');
 
   // The rail: right-click Alpha.
   await a.click('.rail-guild[aria-label="Alpha"]', { button: 'right' });

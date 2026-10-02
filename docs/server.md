@@ -29,6 +29,8 @@ unexpected errors. The rest:
   `docs/client.md`); `routes/conversationSettings.js`.
 - `preferences.js`: each person's account preferences, e.g. blurring NSFW channels' media (see
   Account preferences in `docs/client.md`); `routes/preferences.js`.
+- `dictionary.js`: each person's spellcheck dictionary, one encrypted envelope with a version
+  (see Spellcheck dictionary in `docs/auth-and-encryption.md`); `routes/dictionary.js`.
 - `auditLog.js`: a guild's audit log (`logAudit`, `readAuditLog`; see Guilds); `routes/auditLog.js`.
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).

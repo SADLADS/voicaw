@@ -486,6 +486,9 @@ addColumn('ALTER TABLE users ADD COLUMN bio TEXT');
 addColumn('ALTER TABLE users ADD COLUMN avatar TEXT');
 // Your own settings that follow your account (preferences.js; JSON, only those changed).
 addColumn('ALTER TABLE users ADD COLUMN preferences TEXT');
+// Your spellcheck dictionary, encrypted on your devices (dictionary.js), and its version.
+addColumn('ALTER TABLE users ADD COLUMN dictionary TEXT');
+addColumn('ALTER TABLE users ADD COLUMN dictionary_version INTEGER NOT NULL DEFAULT 0');
 // The name an account's OPAQUE record was registered under, when it isn't its (lower-case)
 // username: see usernames.js.
 addColumn('ALTER TABLE users ADD COLUMN opaque_id TEXT');

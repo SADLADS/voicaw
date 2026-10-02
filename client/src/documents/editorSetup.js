@@ -11,6 +11,8 @@ import { goToNextCell, tableEditing } from 'prosemirror-tables';
 import { schema } from './documentSchema';
 import { parseAttachmentUrl } from '../services/attachmentCrypto';
 import { getCachedAttachment, loadDecryptedAttachment } from '../services/attachmentCache';
+import { spellcheckPlugin } from '../spellcheck/spellcheckPlugin';
+import { galleryItemFromUrl, galleryItemRef } from '../utils/imageGallery';
 
 // The document editor's behaviour (DocumentEditor draws it): Word-like keyboard shortcuts
 // and toolbar commands, plus markdown typed as you'd type it in a message (`# `, `- `, `**x**`)
@@ -278,6 +280,7 @@ export function createEditorState(doc, { placeholderText = 'Start writing…', e
       gapCursor(),
       tableEditing(),
       placeholder(placeholderText),
+      spellcheckPlugin(),
       ...extraPlugins,
     ],
   });
@@ -332,6 +335,9 @@ class ImageView {
     this.dom.className = 'doc-editor-image';
     this.dom.alt = node.attrs.alt;
     this.dom.draggable = true;
+    // Its menu (copy, save...) on right click (PageMenus) or a long press (useImageHold).
+    this.dom.dataset.galleryItem = '';
+    galleryItemRef(galleryItemFromUrl(node.attrs.src, node.attrs.alt || 'image'))(this.dom);
     const meta = parseAttachmentUrl(node.attrs.src);
     if (!meta) {
       this.dom.referrerPolicy = 'no-referrer';

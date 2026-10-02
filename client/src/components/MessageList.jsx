@@ -35,9 +35,7 @@ import { UNKNOWN_CHANNEL, mentionName, mentionsMe as isForMe, mentionsToText, ro
 import { ChannelMentionContext } from '../contexts';
 import ChannelIcon from './guild/ChannelIcon';
 import { showContent } from '../utils/mobilePanes';
-import { allowsNativeMenu } from '../utils/nativeContextMenu';
-import { imageAt } from '../utils/imageActions';
-import { galleryItemOf } from '../utils/imageGallery';
+import { pageMenuTarget } from '../utils/pageMenuTarget';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
 // is a new component type to React, which remounts (and reloads) every attachment on any
@@ -312,11 +310,10 @@ export function MessageRow({
   const focused = focusedMsgId === msg.id;
   // Mobile: touch and hold opens the message's action sheet (there's no hover there).
   const longPress = useLongPress(() => onOpenActions(msg), { enabled: isMobile && Boolean(onOpenActions) });
-  // Desktop: right-clicking opens its menu, except where the browser's or a picture's own is
-  // the useful one (text boxes, selected text, links: utils/nativeContextMenu.js; ImageMenu).
+  // Desktop: right-clicking opens its menu, except on a picture, a link, selected text or a
+  // text box (editing it), which have their own (PageMenus).
   const onContextMenu = !isMobile && onOpenMenu ? (e) => {
-    if (allowsNativeMenu(e.target, document.getSelection()?.toString() ?? '')) return;
-    if (imageAt(e.target, galleryItemOf)) return;
+    if (pageMenuTarget(e.target, document.getSelection()?.toString() ?? '')) return;
     e.preventDefault();
     onOpenMenu(msg, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY });
   } : undefined;

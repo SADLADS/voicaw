@@ -176,6 +176,18 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   the server. `useConversation({ notes: true })` skips the contact key check and marking
   read; the server never counts notes unread or pushes them, and sends each event once.
   Replies, edits, reactions, attachments and pins work as in any DM.
+- **Spellcheck dictionary** (the words you Add to Dictionary; `client/src/spellcheck/
+  personalDictionary.js`, `server/dictionary.js`): one envelope per account in
+  `users.dictionary`, `v1.` AES-GCM like a message, under `deriveDictionaryKey` (ECDH of your own
+  key pair, HKDF with `voicaw/dictionary-key/v1`, like notes but never the notes key) with
+  `voicaw/dictionary/v1|<user id>` as additional data, so it can't be moved to another account.
+  The plaintext is `{"v":1,"words":[…]}` padded with spaces to 1 KiB steps (48 KiB at most;
+  the server takes envelopes up to 70,000 characters), so the server only learns roughly how
+  many words. `GET /dictionary` → `{ dictionary, version }`; `PUT /dictionary { dictionary,
+  version }` saves only over the version it was made from (else 409 with the current one: the
+  device decrypts it, makes its change again on top and saves again), bumps the version and
+  sends `dictionary` to your devices. A change shows at once and is saved in the background;
+  loaded at login and after a reconnect, forgotten on logout. Deleting the account clears it.
 
 Never log plaintext, session keys, tokens or `OPAQUE_SERVER_SETUP`; server logs end up in pm2.
 The server stores and relays only ciphertext. Message length limits (`MAX_MESSAGE_LENGTH`

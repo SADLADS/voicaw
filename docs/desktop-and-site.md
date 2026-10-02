@@ -18,10 +18,18 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `voicaw://app`. Only the app's pages get permissions (microphone, not camera; notifications;
   screen capture, only of what was picked).
   `backgroundThrottling` is off so ringing and voice work from the tray.
+- **Right-click and spellcheck** (`spellcheck.js`): the page draws its own right-click menus and
+  checks spelling itself, as in a browser (see Spellcheck and Right-click menus in
+  `docs/client.md`), so Electron shows no menu. Its own checker (set to the system's languages
+  that have a dictionary, else `en-GB`; Electron downloads dictionaries on first use, macOS uses
+  the system's) still underlines plain text boxes, and everything when the page has no
+  dictionary for the language; the page then asks it for suggestions (`spelling.isMisspelled` /
+  `suggestions`, webFrame in the preload) and keeps its custom dictionary to the account's words
+  (`setSpellingWords` → `syncSpellingWords`). The menu's Paste is Electron's own (`paste`).
 - **Bridge** (`preload.js` → `window.voicawDesktop`, wrapped by `client/src/utils/desktop.js`
   `desktop`, null in a browser): `notify`, `setUnread`, `getSettings` / `updateSettings`,
-  `checkForUpdates` / `installUpdate`, `getScreenSources` / `chooseScreenSource`, `onNavigate`,
-  `onShortcut`, `onUpdateReady`. The main
+  `checkForUpdates` / `installUpdate`, `getScreenSources` / `chooseScreenSource`, `paste`,
+  `spelling` / `setSpellingWords`, `onNavigate`, `onShortcut`, `onUpdateReady`. The main
   process only answers the app's own frames and checks what it's given (`cleanNotification`,
   `cleanChanges`).
 - **Notifications** (`notifications.js`): the server sends what would be a web push over the

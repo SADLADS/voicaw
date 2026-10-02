@@ -119,6 +119,14 @@ function vendorChunk(id) {
   return vendorPatterns.find(([, pattern]) => pattern.test(id))?.[0];
 }
 
+// Spellcheck dictionaries (src/spellcheck/dictionaries.js): the packages only export a Node
+// loader, so their .aff/.dic files are reached through these folders, as `?url` assets.
+const requireHere = createRequire(import.meta.url);
+const DICTIONARY_ALIASES = {
+  '@dictionaries/en-GB': path.dirname(requireHere.resolve('dictionary-en-gb')),
+  '@dictionaries/en-US': path.dirname(requireHere.resolve('dictionary-en')),
+};
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const isElectron = env.ELECTRON === 'true';
@@ -137,6 +145,7 @@ export default defineConfig(({ mode }) => {
     // The desktop app serves the build at voicaw://app/ (electron/protocol.js), so absolute
     // paths work there too.
     base: '/',
+    resolve: { alias: DICTIONARY_ALIASES },
     plugins: [
       react(),
       twemojiAssets(),

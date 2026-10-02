@@ -67,25 +67,50 @@
   "Automatic" (and anything else that needs the user's language) uses `utils/locale.js`
   `userLocale()`: the browser's language, else British English (`en-GB`). The app's own text
   is British English (`<html lang="en-GB">`).
-- Spellcheck (red underlines while typing, suggestions and "Add to dictionary" on right click)
-  is the browser's own, with its dictionaries: nothing is bundled. `utils/spellcheck.js` puts
-  the per-device choice (Settings → Spellcheck, `localStorage spellcheck`, on unless `'off'`) on
-  `<html spellcheck>`, which every text box inherits; the message editor carries
-  `lang={userLocale()}` (Firefox picks its dictionary by it; Chrome uses its own language
-  settings). The desktop app has no right-click menu of its own, so `electron/spellcheck.js`
-  adds one (suggestions, Add to dictionary, cut/copy/paste) and sets the checker to the
-  system's languages that have a dictionary, else `en-GB` (Electron downloads dictionaries on
-  first use; not on macOS, which uses the system's).
+- **Spellcheck** is ours, the same in every browser and the desktop app (`spellcheck/`):
+  [nspell](https://github.com/wooorm/nspell) (Hunspell in JavaScript) in a Web Worker
+  (`spellWorker.js`; a dictionary takes a moment to read), with British and American English
+  (`dictionaries.js`, wooorm's `dictionary-en-gb` / `dictionary-en`, about 550 KB each,
+  self-hosted with the build and fetched only when an editor first needs one; never precached).
+  `checker.js` caches each word's answer and batches the rest to the worker; `words.js` says
+  which words count (not links, emails, @mentions, #channels, :emoji:, words with digits or
+  underscores, ACRONYMS, mixedCase or single letters); `rankSuggestions.js` puts nspell's
+  suggestions closest first. The editors (message box, edits, documents) draw the underlines
+  themselves (`spellcheckPlugin.js`, a ProseMirror plugin: decorations, skipping code, links,
+  chips and the message box's markdown code, and the word being typed until the cursor leaves
+  it) and set `spellcheck="false"`, so the browser's checker doesn't add its own. Plain text
+  boxes (titles, bio, task fields) can't be drawn in, so they keep the browser's underlines;
+  right-clicking a word there still gets our suggestions. Per device (`utils/spellcheck.js`,
+  Settings → Spellcheck, not on a phone, whose keyboard checks spelling): on or off
+  (`localStorage spellcheck`, on unless `'off'`, set on `<html spellcheck>`) and the language
+  (`localStorage spellcheckLanguage`: Automatic picks from the browser's languages, any English
+  but American being British). With no dictionary of ours for the language it's the browser's
+  (or the desktop app's) own checker, as before; the desktop app's suggestions then come from
+  Electron (`window.voicawDesktop.spelling`). **Your dictionary** (Add to Dictionary; listed with
+  remove buttons in Settings) follows your account, end-to-end encrypted
+  (`spellcheck/personalDictionary.js`, started by `hooks/useDictionarySync.js` in `Layout`; see
+  Spellcheck dictionary in `docs/auth-and-encryption.md`); words match whatever their case, and
+  the desktop app's own dictionary is kept to the same words.
 - **Right-click menus** (and touch and hold on a phone) are ours, Discord style:
-  `components/ContextMenu.jsx` draws them (items with icons, hints, ticks and submenus, and an optional `header` above them;
+  `components/ContextMenu.jsx` draws them (items with icons, hints, ticks, disabled items and
+  submenus, and an optional `header` above them;
   floating by the pointer with submenus beside it on a computer, hover/click/arrow keys; a
   bottom sheet on a phone where a submenu replaces it, with Back). Channels, categories, the
   channel list's empty space and guild icons have one (see `docs/guilds.md`), and so do
   conversations in the DM list (`DmMenu.jsx`: Mark As Read, Start/Join Call, Pin / Unpin,
-  Mute ▸ / Unmute). Messages have one too (`MessageMenu.jsx`, see Message actions above). **The browser's own menu is off** everywhere else
-  (`utils/nativeContextMenu.js`, from `main.jsx`) except in text boxes (spellcheck, paste), on
-  selected text, and on links in messages and embeds (copy link, open). Pictures have ours
-  (see Image menu in `docs/uploads.md`).
+  Mute ▸ / Unmute). Messages have one too (`MessageMenu.jsx`, see Message actions above).
+  Everywhere else `components/PageMenus.jsx` (mounted in `App`, listening on the page; what a
+  right-click is on: `utils/pageMenuTarget.js`) has one: a picture (see Image menu in
+  `docs/uploads.md`); a text box (`utils/editActions.js`: spelling fixes for the word clicked,
+  Add to Dictionary, Cut / Copy (with a selection, not in passwords), Paste, Select All, and a
+  Spellcheck tick); a link to another site (Copy Link, Open Link); selected text (Copy). A
+  message's own menu gives way to those. The menu takes the focus, so each action puts it back
+  in the box first. Paste in a browser asks to read the clipboard (the first time, the browser
+  asks the person) and hands it to the editor as a paste (pictures attach); the desktop app
+  pastes for real (`desktop.paste()`, Electron's own). **The browser's own menu is off**
+  (`utils/nativeContextMenu.js`, from `main.jsx`, listening on the window so it runs last),
+  except with **Shift** held (the browser's, e.g. its spelling in a language we have no
+  dictionary for) and in text boxes on a phone, whose own selection handles and paste bar stay.
 - **Pinned and muted conversations** (`server/conversationSettings.js`, table
   `conversation_settings`; `GET /conversation-settings`, `PUT /conversation-settings/:kind/:target
   { pinned?, mute?: { duration } | false }`, kind `dm` (the other person's id) or `group`; the

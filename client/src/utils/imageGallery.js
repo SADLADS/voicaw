@@ -1,4 +1,5 @@
 import { getCachedAttachment, loadDecryptedAttachment } from '../services/attachmentCache';
+import { parseAttachmentUrl } from '../services/attachmentCrypto';
 
 // Which images the viewer can step through: the ones in the same message. Each viewable image
 // (or its loading placeholder) registers its details on its element with `galleryItemRef`;
@@ -38,4 +39,11 @@ export function readyImageSrc(item) {
 // Resolves to the URL to display (decrypting it if needed).
 export function loadImageSrc(item) {
   return item.meta ? loadDecryptedAttachment(item.src, item.meta) : Promise.resolve(item.src);
+}
+
+// The gallery item for a picture known only by its URL (a document's cover, or an image in the
+// document editor): an encrypted upload of ours, or another site's.
+export function galleryItemFromUrl(url, name = 'image') {
+  const meta = parseAttachmentUrl(url);
+  return meta ? { src: url, name, size: meta.size, width: meta.width, height: meta.height, meta } : { src: url, name };
 }

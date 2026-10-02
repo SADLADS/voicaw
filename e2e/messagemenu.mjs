@@ -1,6 +1,6 @@
 // A message's right-click menu (desktop) and its long-press sheet (phone): quick reaction,
 // Add Reaction (the picker), Reply, Edit, Pin, Copy Text, Delete (asks; Shift doesn't); not
-// on someone else's for Edit/Delete; links keep the browser's menu.
+// on someone else's for Edit/Delete; a link gets its own menu (Copy Link, Open Link) instead.
 //   node e2e/serve.mjs &   then   node e2e/messagemenu.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
 import { BASE, launchChrome, signUp, openChat, send, devices } from './helpers.mjs';
@@ -111,18 +111,16 @@ try {
   check(await a.evaluate(() => navigator.clipboard.readText()) === 'hi from bob', 'Copy Text copies it and says so');
   await a.waitForSelector('.context-menu', { state: 'detached' });
 
-  // A link keeps the browser's menu: ours doesn't open (and the event isn't cancelled).
+  // A link gets its own menu instead (PageMenus), not the message's.
   await send(a, 'see https://example.com/page');
   const link = row(a, 'see https://example.com/page').locator('a[href]');
   await link.waitFor({ timeout: 20000 });
-  const cancelled = await link.evaluate((el) => {
-    let prevented = null;
-    document.addEventListener('contextmenu', (e) => { prevented = e.defaultPrevented; }, { once: true });
-    el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }));
-    return prevented;
-  });
-  await a.waitForTimeout(200);
-  check(cancelled === false && await a.locator('.context-menu').count() === 0, "a link keeps the browser's menu");
+  await link.click({ button: 'right' });
+  await a.waitForSelector('.context-menu');
+  const linkItems = await a.$$eval('.context-menu [role^="menuitem"] .context-menu-label', (els) => els.map((e) => e.firstChild.textContent));
+  check(JSON.stringify(linkItems) === JSON.stringify(['Copy Link', 'Open Link']), `a link has its own menu: ${linkItems.join(', ')}`);
+  await a.keyboard.press('Escape');
+  await a.waitForSelector('.context-menu', { state: 'detached' });
 
   await menuOn(a, 'replying via the menu');
   await pick(a, 'Delete Message');

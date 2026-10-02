@@ -260,7 +260,9 @@ take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
   rule, undo/redo) and the usual shortcuts (Ctrl/⌘+B/I/U, Ctrl/⌘+S saves), plus markdown typed
   as in a message turning into formatting at once (`# `, `- `, `1. `, `[ ] `, `> `, `` ``` ``,
   `---`, `**x**`…; `documents/editorSetup.js`). Images (picked, pasted or dropped) and the
-  cover are uploaded encrypted like attachments. **Markdown is the format**:
+  cover are uploaded encrypted like attachments; they (and the cover and pictures on the page)
+  have the picture menu (right-click, or hold on a phone; Image menu in `docs/uploads.md`), and
+  the text our spellcheck (see Spellcheck in `docs/client.md`). **Markdown is the format**:
   `documents/documentSchema.js` only has what markdown can hold (no colours, sizes or alignment,
   on purpose), `documentMarkdown.js` parses with the page's own remark pipeline
   (`documentText.js`) and writes markdown back (a test checks every construct round-trips

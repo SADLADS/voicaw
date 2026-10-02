@@ -199,6 +199,15 @@
   color-scheme: dark;
 }
 
+/* SPELLCHECK: our checker's underlines in the editors (spellcheck/spellcheckPlugin.js), like a
+   browser's own. */
+.spelling-error {
+  text-decoration: underline wavy var(--vc-danger);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
 /* TEXT SELECTION: off everywhere (so dragging things, like channels, doesn't select text), except
    where people type, documents (on phones too: they have no long-press menu) and, on desktop,
    what's said in the chat: messages, names, times, reply previews and code. (On mobile a long
@@ -1113,6 +1122,30 @@ body.mobile-mode .settings-nav-item {
 .date-time-settings select {
   min-width: 0;
   max-width: 100%;
+}
+
+.spellcheck-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.spellcheck-words li {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 2px 2px 10px;
+  border-radius: 999px;
+  background: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+}
+
+.spellcheck-words .btn {
+  padding: 0 6px;
+  color: var(--vc-fg-muted);
 }
 
 .date-time-settings {

@@ -10,6 +10,7 @@ import { OBJECT_CHAR, docToText, schema, textBeforeCaret, textToDoc, textToSlice
 import { markdownPreview } from './markdownPreview';
 import { registerEditor } from './editorRegistry';
 import { userLocale } from '../utils/locale';
+import { spellcheckPlugin } from '../spellcheck/spellcheckPlugin';
 import { ChannelMentionContext } from '../contexts';
 
 
@@ -37,11 +38,16 @@ import { ChannelMentionContext } from '../contexts';
 // The document's markdown as decorations: a class on each styled line, and on each styled
 // stretch of text (see markdownPreview; chips and custom emoji count as one character, as they
 // take one position).
-function markdownDecorations(doc) {
+function previewLines(doc) {
   const paragraphs = [];
   doc.forEach((paragraph, offset) => paragraphs.push({ paragraph, offset }));
   const lines = markdownPreview(paragraphs.map(({ paragraph }) =>
     paragraph.textBetween(0, paragraph.content.size, undefined, () => OBJECT_CHAR)));
+  return { paragraphs, lines };
+}
+
+function markdownDecorations(doc) {
+  const { paragraphs, lines } = previewLines(doc);
   const decorations = [];
   lines.forEach(({ block, spans }, i) => {
     const { paragraph, offset } = paragraphs[i];
@@ -51,6 +57,20 @@ function markdownDecorations(doc) {
     }
   });
   return DecorationSet.create(doc, decorations);
+}
+
+// Where the markdown is code (code blocks and `code`), which spellcheck leaves alone.
+function codeRanges(doc) {
+  const { paragraphs, lines } = previewLines(doc);
+  const ranges = [];
+  lines.forEach(({ block, spans }, i) => {
+    const { paragraph, offset } = paragraphs[i];
+    if (block?.startsWith('md-code-block')) ranges.push([offset, offset + paragraph.nodeSize]);
+    for (const span of spans) {
+      if (span.className === 'md-code') ranges.push([offset + 1 + span.from, offset + 1 + span.to]);
+    }
+  });
+  return ranges;
 }
 
 const MessageEditor = forwardRef(function MessageEditor(props, ref) {
@@ -90,7 +110,8 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
     const isEmpty = (state) => state.doc.childCount === 1 && state.doc.firstChild.content.size === 0;
     const emptyState = new Plugin({
       props: {
-        // `lang`: what's typed is in the user's language, so the browser spellchecks in it.
+        // `lang`: what's typed is in the user's language, so the browser spellchecks in it
+        // (when it's the browser's checker, not ours: spellcheckPlugin).
         attributes: (state) => ({ class: `message-editor${isEmpty(state) ? ' is-empty' : ''}`, lang: userLocale() }),
         // The placeholder, shown on the empty first line (see dms.css).
         decorations: (state) => (isEmpty(state) && current().placeholder
@@ -125,6 +146,7 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
           lengthLimit,
           emptyState,
           markdown,
+          spellcheckPlugin({ skipRanges: codeRanges }),
         ],
       }),
       handleKeyDown(v, event) {

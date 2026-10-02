@@ -117,9 +117,13 @@ back button closes it.
 
 **Image menu** (`components/ImageMenu.jsx`, actions in `utils/imageActions.js`), in place of
 the browser's: right-click a picture in a message (an attachment, a GIF, a webhook's embed or
-file image; `MessageImageMenus` in `App.jsx` listens on the page, not on phones, where holding
-a message opens its actions) or in the viewer (there also by holding it on a phone; the menu
-sits above the viewer, `overViewer`, and has the keys while open, so Escape closes only it).
+file image), a document's cover (feed card, page, editor) or a picture in a document (on its
+page or in the editor; the cover and editor pictures register as gallery items,
+`galleryItemFromUrl`) (`PageMenus` in `App.jsx` listens on the page, not on phones, where
+holding a message opens its actions), or in the viewer (there also by holding it on a phone;
+the menu sits above the viewer, `overViewer`, and has the keys while open, so Escape closes
+only it). On a phone, holding a picture in a document channel (cover, page, editor) opens it
+as a sheet too (`hooks/useImageHold.js`, on `DocChannelView`).
 Copy Image (a PNG on the clipboard, the one type browsers take, so a GIF copies its first
 frame; other sites' pictures are fetched without a referrer and can't be copied if the site
 doesn't allow it), Save Image, and Copy Link / Open Link for a plain picture. An encrypted

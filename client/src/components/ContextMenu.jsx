@@ -8,7 +8,7 @@ import { placeMenu as place } from '../utils/menuPlacement';
 const ITEMS = '[role^="menuitem"]:not([disabled])';
 
 // A right-click menu (desktop) or a long press's sheet (phone, `sheet`): `items` are
-// { key, label, icon?, hint? (a line under it), danger?, checked? (true/false: a choice, ticked
+// { key, label, icon?, hint? (a line under it), danger?, disabled?, checked? (true/false: a choice, ticked
 // when true), onSelect?, submenu?: { title, items } } or { separator: true }. On a computer it
 // floats by `anchor` (a rect) and a submenu opens beside its item on hover, click or →; on a
 // phone the sheet rises from the bottom with `title` on top, and a submenu replaces it (with a
@@ -179,6 +179,7 @@ function MenuPanel({ label, items, header = null, anchor, beside = false, openKe
           <button
             key={item.key}
             type="button"
+            disabled={item.disabled}
             role={item.checked === undefined ? 'menuitem' : 'menuitemradio'}
             aria-checked={item.checked}
             aria-haspopup={item.submenu ? 'menu' : undefined}
@@ -237,6 +238,7 @@ function SheetMenu({ title, label, items, onBack, onPick, done, error, onClose, 
               <button
                 key={item.key}
                 type="button"
+                disabled={item.disabled}
                 role={item.checked === undefined ? 'menuitem' : 'menuitemradio'}
                 aria-checked={item.checked}
                 aria-haspopup={item.submenu ? 'menu' : undefined}

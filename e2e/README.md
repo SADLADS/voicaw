@@ -32,9 +32,10 @@ node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles
 node e2e/mutes.mjs [dir]  # muted channels: right-click mute, dimmed, no unread (mentions still count), header bell unmutes, phone
 node e2e/channelmenu.mjs [dir] # channel/category menus: read, mute, notify level, copy link, duplicate, delete, keys, edge; phone hold = sheet, hold+move = drag
 node e2e/imagemenu.mjs [dir] # picture menu: plain (copy image as PNG, copy link) vs encrypted (save, open, no link), over the viewer (Escape closes only it), phone hold in the viewer
-node e2e/menus.mjs [dir]  # browser menu off (kept in text boxes, message links); guild icon menu, channel list empty space, DM list pin/mute (no ping, no dot); phone sheets, rail hold+move drags
+node e2e/menus.mjs [dir]  # browser menu off everywhere (Shift keeps it); guild icon menu, channel list empty space, DM list pin/mute (no ping, no dot); phone sheets, rail hold+move drags
 node e2e/channel-mentions.mjs [dir] # # suggestions, #channel links (click opens), private = unknown, edit, DM, phone
-node e2e/messagemenu.mjs [dir] # message right-click menu: quick reaction, Add Reaction picker, reply, edit, pin, copy, delete (asks; Shift skips), not on others' for edit/delete, links keep the browser's; phone hold = same actions
+node e2e/textmenu.mjs [dir] # our spellcheck + text box menu: underlines (browser's off), fixes, Add to Dictionary (encrypted on the server, back after reload), cut/copy/paste/select all, toggle, plain field suggestions, selected text, Shift; document cover/pictures menu; phone hold on the cover, no Spellcheck setting
+node e2e/messagemenu.mjs [dir] # message right-click menu: quick reaction, Add Reaction picker, reply, edit, pin, copy, delete (asks; Shift skips), not on others' for edit/delete, a link gets its own (Copy/Open Link); phone hold = same actions
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
 node e2e/replies.mjs [dir] # reply snippet: click jumps to the message (loads older history), flashes it like search/pins, phone tap
 node e2e/invites.mjs [dir] # invite embeds: channel and DM (load at once), Join Guild, Settings → Privacy off = Show first, phone
