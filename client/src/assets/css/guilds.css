@@ -39,7 +39,7 @@
 }
 
 .nav-icon.rail-add:hover {
-  background-color: var(--vc-online);
+  background-color: var(--vc-success);
   color: var(--vc-on-accent);
 }
 
@@ -160,7 +160,7 @@ img.guild-icon {
 }
 
 .guild-menu-item.danger {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .guild-menu-item.danger:hover {
@@ -328,7 +328,7 @@ img.guild-icon {
   height: 8px;
   margin-top: -4px;
   border-radius: 0 4px 4px 0;
-  background-color: var(--vc-fg);
+  background-color: var(--vc-action);
 }
 
 /* A muted channel (ChannelMuteMenu): dimmed, never bold, a crossed-out bell after the name. */
@@ -367,7 +367,7 @@ img.guild-icon {
 }
 
 .channel-header-button.mute-button.muted {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 /* A channel's or category's menu (ContextMenu): floating on a computer, submenus beside it. */
@@ -801,7 +801,7 @@ img.guild-icon {
   bottom: 0;
   z-index: 30;
   width: min(300px, 85vw);
-  box-shadow: -8px 0 16px rgba(0, 0, 0, 0.35);
+  box-shadow: -8px 0 16px var(--vc-popup-shadow);
 }
 
 .member-list-top {
@@ -873,7 +873,7 @@ img.guild-icon {
 
 .member-owner {
   flex-shrink: 0;
-  color: var(--vc-action);
+  color: var(--vc-action-text);
   font-size: 12px;
 }
 
@@ -917,7 +917,7 @@ img.guild-icon {
   border-radius: 10px;
   background-color: var(--vc-bg-elevated);
   color: var(--vc-fg);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 32px var(--vc-popup-shadow);
 }
 
 .vc-dialog-header {
@@ -1159,7 +1159,7 @@ img.guild-icon {
 }
 
 .guild-settings-danger h6 {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 /* Audit log (AuditLogDialog): filters, then one row per entry; rows with details open them. */
@@ -1387,7 +1387,7 @@ button.audit-log-row:focus-visible {
 }
 
 .invite-embed-hint.invite-embed-error {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .invite-embed .btn {
@@ -1397,15 +1397,15 @@ button.audit-log-row:focus-visible {
 
 .invite-embed-join,
 .invite-embed-join:disabled {
-  background-color: var(--vc-accent-alt);
-  border-color: var(--vc-accent-alt);
+  background-color: var(--vc-accent);
+  border-color: var(--vc-accent);
   color: var(--vc-on-accent);
 }
 
 .invite-embed-join:hover,
 .invite-embed-join:focus {
-  background-color: var(--vc-accent-alt-hover);
-  border-color: var(--vc-accent-alt-hover);
+  background-color: var(--vc-accent-hover);
+  border-color: var(--vc-accent-hover);
   color: var(--vc-on-accent);
 }
 
@@ -1505,7 +1505,7 @@ button.audit-log-row:focus-visible {
 }
 
 .role-chip-remove:hover {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .role-chip-add {
@@ -1901,8 +1901,8 @@ button.audit-log-row:focus-visible {
 }
 
 .override-state.allow.selected {
-  background-color: #23a55a;
-  color: var(--vc-fg);
+  background-color: var(--vc-success);
+  color: var(--vc-on-accent);
 }
 
 .override-state:disabled {
@@ -2009,7 +2009,7 @@ button.audit-log-row:focus-visible {
 }
 
 .emoji-settings-delete:hover {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 /* The picker's category bar: a guild's icon for its emoji, a clock for Frequently Used. */
@@ -2060,7 +2060,7 @@ img.emoji.custom-emoji {
   color: var(--vc-on-accent);
 }
 
-/* Unread mentions of you: a red count, on a channel and on its server's icon in the rail. */
+/* Unread mentions of you: a yellow count, on a channel and on its guild's icon in the rail. */
 .mention-badge {
   flex-shrink: 0;
   min-width: 18px;
@@ -2068,8 +2068,8 @@ img.emoji.custom-emoji {
   margin-left: auto;
   padding: 0 5px;
   border-radius: 9px;
-  background-color: var(--vc-danger);
-  color: #fff;
+  background-color: var(--vc-action);
+  color: var(--vc-on-action);
   font-size: 11px;
   font-weight: 700;
   line-height: 18px;

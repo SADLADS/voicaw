@@ -94,10 +94,37 @@
   Light or Match system (follows `prefers-color-scheme` live), **per device only**
   (`localStorage theme`; never sent to the server). It's `<html data-theme>` (and Bootstrap's
   `data-bs-theme`); a copy of the logic inline in `index.html` sets it before the CSS loads, so a
-  light page never starts dark. Colours are the `--vc-*` tokens on `:root` in `voicaw.css`,
-  overridden under `:root[data-theme="light"]` (THEMES there): **use tokens, not literal
-  colours**, in new CSS (`--vc-on-accent` for text on coloured fills, `--vc-popup` for menus;
-  literal black/white is only for overlays on images and video). Each theme sets CSS
+  light page never starts dark. Colours are the `--vc-*` tokens on `:root` in `voicaw.css`
+  (COLOURS there), set again in full under `:root[data-theme="light"]` (THEMES): **use tokens,
+  not literal colours**, in new CSS (literal black/white is only for scrims and controls over
+  images and video; the Appearance previews copy each theme's values on purpose). The scheme
+  (2026-10-02) has two brand colours and fixed meanings:
+  - **Purple (`--vc-accent`) marks what you can do:** primary buttons, selection, focus rings,
+    toggles and checkboxes, links (one link colour, `--vc-accent-text`, everywhere), your own
+    reactions and poll votes, the active settings tab.
+  - **Bird yellow (`--vc-action`, the logo's `#d8b930`, the same in every theme) marks what
+    wants your attention:** the rail's marker (open guild, unread), unread pills and mention
+    counts, mentions (`@you` and the highlighted message), pins, the owner crown, the poll
+    trophy, idle. Never an error; text on it is dark (`--vc-on-action`).
+  - **Status colours only for status:** green for online and done (`--vc-online`, indicators
+    only; `--vc-success` is the green button), orange for warnings and "connecting"
+    (`--vc-warning`), red for errors and destructive actions (`--vc-danger`). There's no third
+    brand colour (the old teal is gone).
+  - Neutrals have a slight purple tint (hue about 260°). Hover: a coloured fill goes one shade
+    darker (its `-hover` token, never `filter: brightness`), a neutral surface one step towards
+    the foreground.
+  - Each colour comes as a fill (`--vc-accent`), `-hover` (and `-strong`, pressed), `-text` (as
+    text on the background: the fills don't read as text), `-soft` (a tinted background) and
+    `--vc-on-*` (text on the fill: white on purple, red and green, dark on yellow and dark's
+    orange). Bootstrap's buttons, links and selects are mapped onto the tokens (BOOTSTRAP in
+    `voicaw.css`); `.btn-secondary` is a neutral button.
+  - **Another colour scheme** later: a `:root[data-theme="<name>"]` block setting every colour
+    token (copy the light one) and its `color-scheme`, the name in `THEMES` and `resolveTheme`
+    (`utils/theme.js`) and in `index.html`'s copy, and a preview in `ThemeSettings.jsx`. Since
+    nothing outside the token blocks has a theme colour of its own, a user-made scheme could
+    be applied by setting the tokens inline on `<html>`. Keep `manifest.json`'s and
+    `index.html`'s `theme-color`, `electron/main.js`'s `backgroundColor` and `website/` in step
+    with the default scheme. Each theme sets CSS
   `color-scheme`, which makes the browser's own controls and scrollbars match. **Not the
   on-screen keyboard:** on iPhones and iPads it follows the system's light/dark mode whatever
   the page says (WebKit gives every field `UIKeyboardAppearanceDefault`; checked in its source

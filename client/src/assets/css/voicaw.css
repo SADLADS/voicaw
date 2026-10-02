@@ -1,44 +1,73 @@
+/* COLOURS: two brand colours and nothing else (docs/client.md, Themes).
+   - Purple (--vc-accent*) marks things you can do: primary buttons, selection, focus rings,
+     toggles and checkboxes, links (one link colour everywhere), your own reactions and poll
+     votes, the active settings tab.
+   - Bird yellow (--vc-action*, the logo's #d8b930, the same in every theme) marks things that
+     want your attention: the active guild on the rail, mentions, pins, the owner crown, unread
+     markers, the poll trophy, idle. Never an error. Text on a yellow fill is dark.
+   - Status colours are for status only: green for online and done, orange for warnings and
+     "connecting", red for errors and destructive actions.
+   - Neutrals carry a slight purple tint (hue about 260°).
+   - One hover rule: a coloured fill goes one shade darker (its -hover token); a neutral surface
+     one step towards the foreground.
+   A colour comes in a few forms: the fill (--vc-accent), its -hover (and -strong, pressed),
+   -text (the colour as text on the background: fills are too dark or too light to read),
+   -soft (a tinted background) and --vc-on-* (text on the fill). */
 :root {
-  --vc-accent: #66558c;
-  --vc-accent-hover: #5a4e7a;
+  /* Purple: white text on it is 5.7:1. */
+  --vc-accent: #6a52c9;
+  --vc-accent-hover: #5b44b0;
+  --vc-accent-strong: #4c3896;
+  --vc-accent-text: #b9a9f5;
+  /* Own reaction, selected poll option, drag-over. */
+  --vc-accent-soft: rgba(106, 82, 201, 0.18);
+  --vc-on-accent: #ffffff;
 
+  /* Bird yellow: never change it. */
   --vc-action: #d8b930;
-  --vc-action-hover: #bfa62f;
+  --vc-action-hover: #bfa22a;
+  --vc-action-text: #d8b930;
+  /* The mention highlight. */
+  --vc-action-soft: rgba(216, 185, 48, 0.12);
+  --vc-on-action: #17151d;
 
-  --vc-accent-alt: #1C9A8C;
-  --vc-accent-alt-hover: #165C56;
-  --vc-danger: #E94F37;
+  --vc-bg-base: #17151d;
+  --vc-bg-subtle: #201d28;
+  --vc-bg-elevated: #2a2633;
+  --vc-bg-elevated-hover: #342f3f;
+  --vc-bg-hover: #2f2a39;
+  --vc-border-dark: #302b3a;
+  --vc-border-light: #4d4759;
 
-  --vc-bg-base: #1a1a1f;
-  --vc-bg-hover: #35353d;
-  --vc-bg-subtle: #232329;
-  --vc-bg-elevated: #2d2d34;
-  --vc-bg-elevated-hover: #3a3a42;
-  --vc-border-dark: #3a3a42;
-  --vc-border-light: #54545d;
-
-  --vc-online: #2ECC71;
-  --vc-idle: #F0B232;
-
-  --vc-fg: #F0F0F0;
-  --vc-fg-muted: #AAAAAA;
-
-  --vc-shadow: rgba(0, 0, 0, 0.2);
-
-  /* Text on a coloured fill (accent, danger, teal, online buttons and badges): white in both
-     themes. On the yellow action colour, dark text. */
-  --vc-on-accent: #fff;
-  --vc-on-action: #1a1a1f;
-  /* Menus that pop up over everything (guild menu, composer +). */
-  --vc-popup: #111114;
-  --vc-popup-shadow: rgba(0, 0, 0, 0.35);
-  /* The accent as text (it's too dark to read on the background as it is). */
-  --vc-accent-text: #a898d8;
-  /* A spoiler before it's revealed. */
-  --vc-spoiler: var(--vc-bg-base);
-  --vc-spoiler-hover: #111114;
+  --vc-fg: #efedf5;
+  --vc-fg-muted: #a7a2b3;
   /* Placeholder text in form fields. */
-  --vc-placeholder: var(--vc-border-light);
+  --vc-placeholder: #7d7889;
+
+  /* Menus that pop up over everything (guild menu, composer +). */
+  --vc-popup: #100e14;
+  /* A spoiler before it's revealed. */
+  --vc-spoiler: #17151d;
+  --vc-spoiler-hover: #100e14;
+  --vc-shadow: rgba(0, 0, 0, 0.25);
+  --vc-popup-shadow: rgba(0, 0, 0, 0.4);
+
+  /* Status. --vc-online is the indicator green (online dots, meters, drop lines, done ticks),
+     never a fill with text on it; --vc-success is the green button (white text, 5:1).
+     --vc-idle is the bird yellow: the app has one yellow, not two. --vc-warning: warnings,
+     "connecting", mic and video problems. --vc-danger is the red fill (white text),
+     --vc-danger-text red as text. */
+  --vc-online: #3fb871;
+  --vc-success: #1d7f48;
+  --vc-success-hover: #16683a;
+  --vc-idle: #d8b930;
+  --vc-warning: #e8833a;
+  --vc-warning-hover: #cf7030;
+  /* Text on the orange: dark on dark's light orange, white on light's dark one. */
+  --vc-on-warning: #17151d;
+  --vc-danger: #cc3f37;
+  --vc-danger-hover: #b3342d;
+  --vc-danger-text: #f07a72;
 
   /* Sizes shared by every page, so they line up from page to page. The header along the top of
      a sidebar and of the page beside it (guild name and channel name, Direct Messages and the
@@ -54,33 +83,51 @@
 /* THEMES: dark above is the default; light is chosen per device in Settings → Appearance
    (utils/theme.js puts data-theme on <html>). color-scheme makes the browser's own parts match:
    form controls and scrollbars (not the on-screen keyboard: see utils/theme.js). Use the tokens
-   for colours, not literal ones, so both themes work. */
+   for colours, not literal ones, so every theme works. A theme sets every colour token, even
+   the ones that match dark, so a new colour scheme starts as a copy of this block. */
 :root[data-theme="light"] {
-  --vc-accent-hover: #57487a;
-  --vc-accent-alt-hover: #157f73;
+  --vc-accent: #6a52c9;
+  --vc-accent-hover: #5b44b0;
+  --vc-accent-strong: #4c3896;
+  --vc-accent-text: #5b44b0;
+  --vc-accent-soft: rgba(106, 82, 201, 0.12);
+  --vc-on-accent: #ffffff;
 
-  --vc-bg-base: #e3e4e8;
-  --vc-bg-hover: #e6e7eb;
+  --vc-action: #d8b930;
+  --vc-action-hover: #bfa22a;
+  /* The bird yellow is 1.9:1 on white: too light to read as text. */
+  --vc-action-text: #8a7114;
+  --vc-action-soft: rgba(216, 185, 48, 0.18);
+  --vc-on-action: #17151d;
+
+  --vc-bg-base: #e4e2ea;
   --vc-bg-subtle: #ffffff;
-  --vc-bg-elevated: #f2f3f5;
-  --vc-bg-elevated-hover: #e3e4e8;
-  --vc-border-dark: #e1e2e6;
-  --vc-border-light: #c4c6cc;
+  --vc-bg-elevated: #f4f3f7;
+  --vc-bg-elevated-hover: #e9e7ef;
+  --vc-bg-hover: #ebe9f0;
+  --vc-border-dark: #e2dfe8;
+  --vc-border-light: #c6c2cf;
 
-  --vc-online: #23a55a;
-  --vc-idle: #d9961a;
-
-  --vc-fg: #2e3035;
-  --vc-fg-muted: #5c5e66;
-
-  --vc-shadow: rgba(0, 0, 0, 0.1);
+  --vc-fg: #2b2833;
+  --vc-fg-muted: #5d5867;
+  --vc-placeholder: #8f8a99;
 
   --vc-popup: #ffffff;
-  --vc-popup-shadow: rgba(0, 0, 0, 0.16);
-  --vc-accent-text: #5a4a8a;
-  --vc-spoiler: #c4c6cc;
-  --vc-spoiler-hover: #b3b5bc;
-  --vc-placeholder: #8e9099;
+  --vc-spoiler: #c6c2cf;
+  --vc-spoiler-hover: #b5b0bf;
+  --vc-shadow: rgba(30, 20, 60, 0.10);
+  --vc-popup-shadow: rgba(30, 20, 60, 0.16);
+
+  --vc-online: #1f8a4f;
+  --vc-success: #1d7f48;
+  --vc-success-hover: #16683a;
+  --vc-idle: #d8b930;
+  --vc-warning: #b85c18;
+  --vc-warning-hover: #9c4e14;
+  --vc-on-warning: #ffffff;
+  --vc-danger: #cc3f37;
+  --vc-danger-hover: #b3342d;
+  --vc-danger-text: #c83c34;
 
   color-scheme: light;
 }
@@ -147,7 +194,7 @@ body {
 }
 
 .navbar-brand {
-  color: white;
+  color: var(--vc-fg);
   font-weight: bold;
 }
 
@@ -157,13 +204,13 @@ body {
 }
 
 .message-user {
-  color: var(--vc-accent);
+  color: var(--vc-accent-text);
   font-weight: bold;
 }
 
 .message a {
   text-decoration: none;
-  color:var(--vc-accent-alt);
+  color: var(--vc-accent-text);
 }
 
 .message a:hover {
@@ -201,7 +248,7 @@ body {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  background-color: var(--vc-fg);
+  background-color: var(--vc-action);
   border-radius: 4px;
   width: 8px;
   height: 8px;
@@ -249,16 +296,128 @@ body {
   color: var(--vc-fg);
   box-shadow: none;
   background-color: var(--vc-bg-elevated);
-  border: 1px solid var(--vc-fg)
+  border: 1px solid var(--vc-accent);
 }
 
 .form-control::placeholder {
   color: var(--vc-placeholder) !important;
 }
 
-.btn-danger{
-  background-color: var(--vc-danger);
-  color: var(--vc-on-accent);
+/* BOOTSTRAP: its buttons, links and selects in our colours (its own are blue), through the
+   variables its classes read, so hover, pressed and disabled follow too. Secondary is a neutral
+   button (Cancel, Back): not yellow, which is for what wants attention. */
+a,
+a:hover {
+  color: var(--vc-accent-text);
+}
+
+/* The browser's own checkboxes, radios and sliders (blue otherwise). */
+input {
+  accent-color: var(--vc-accent);
+}
+
+.btn-primary {
+  --bs-btn-color: var(--vc-on-accent);
+  --bs-btn-bg: var(--vc-accent);
+  --bs-btn-border-color: var(--vc-accent);
+  --bs-btn-hover-color: var(--vc-on-accent);
+  --bs-btn-hover-bg: var(--vc-accent-hover);
+  --bs-btn-hover-border-color: var(--vc-accent-hover);
+  --bs-btn-active-color: var(--vc-on-accent);
+  --bs-btn-active-bg: var(--vc-accent-strong);
+  --bs-btn-active-border-color: var(--vc-accent-strong);
+  --bs-btn-disabled-color: var(--vc-on-accent);
+  --bs-btn-disabled-bg: var(--vc-accent);
+  --bs-btn-disabled-border-color: var(--vc-accent);
+}
+
+.btn-secondary,
+.btn-outline-secondary {
+  --bs-btn-color: var(--vc-fg);
+  --bs-btn-bg: var(--vc-bg-elevated);
+  --bs-btn-border-color: var(--vc-border-light);
+  --bs-btn-hover-color: var(--vc-fg);
+  --bs-btn-hover-bg: var(--vc-bg-elevated-hover);
+  --bs-btn-hover-border-color: var(--vc-border-light);
+  --bs-btn-active-color: var(--vc-fg);
+  --bs-btn-active-bg: var(--vc-bg-elevated-hover);
+  --bs-btn-active-border-color: var(--vc-fg-muted);
+  --bs-btn-disabled-color: var(--vc-fg-muted);
+  --bs-btn-disabled-bg: var(--vc-bg-elevated);
+  --bs-btn-disabled-border-color: var(--vc-border-light);
+}
+
+.btn-outline-secondary {
+  --bs-btn-bg: transparent;
+  --bs-btn-disabled-bg: transparent;
+}
+
+.btn-danger {
+  --bs-btn-color: var(--vc-on-accent);
+  --bs-btn-bg: var(--vc-danger);
+  --bs-btn-border-color: var(--vc-danger);
+  --bs-btn-hover-color: var(--vc-on-accent);
+  --bs-btn-hover-bg: var(--vc-danger-hover);
+  --bs-btn-hover-border-color: var(--vc-danger-hover);
+  --bs-btn-active-color: var(--vc-on-accent);
+  --bs-btn-active-bg: var(--vc-danger-hover);
+  --bs-btn-active-border-color: var(--vc-danger-hover);
+  --bs-btn-disabled-color: var(--vc-on-accent);
+  --bs-btn-disabled-bg: var(--vc-danger);
+  --bs-btn-disabled-border-color: var(--vc-danger);
+}
+
+.btn-outline-danger {
+  --bs-btn-color: var(--vc-danger-text);
+  --bs-btn-border-color: var(--vc-danger-text);
+  --bs-btn-hover-color: var(--vc-on-accent);
+  --bs-btn-hover-bg: var(--vc-danger);
+  --bs-btn-hover-border-color: var(--vc-danger);
+  --bs-btn-active-color: var(--vc-on-accent);
+  --bs-btn-active-bg: var(--vc-danger-hover);
+  --bs-btn-active-border-color: var(--vc-danger-hover);
+  --bs-btn-disabled-color: var(--vc-danger-text);
+  --bs-btn-disabled-border-color: var(--vc-danger-text);
+}
+
+.btn-success {
+  --bs-btn-color: var(--vc-on-accent);
+  --bs-btn-bg: var(--vc-success);
+  --bs-btn-border-color: var(--vc-success);
+  --bs-btn-hover-color: var(--vc-on-accent);
+  --bs-btn-hover-bg: var(--vc-success-hover);
+  --bs-btn-hover-border-color: var(--vc-success-hover);
+  --bs-btn-active-color: var(--vc-on-accent);
+  --bs-btn-active-bg: var(--vc-success-hover);
+  --bs-btn-active-border-color: var(--vc-success-hover);
+}
+
+/* Accepting a contact's new key: a warning, so the warning orange. */
+.btn-warning {
+  --bs-btn-color: var(--vc-on-warning);
+  --bs-btn-bg: var(--vc-warning);
+  --bs-btn-border-color: var(--vc-warning);
+  --bs-btn-hover-color: var(--vc-on-warning);
+  --bs-btn-hover-bg: var(--vc-warning-hover);
+  --bs-btn-hover-border-color: var(--vc-warning-hover);
+  --bs-btn-active-color: var(--vc-on-warning);
+  --bs-btn-active-bg: var(--vc-warning-hover);
+  --bs-btn-active-border-color: var(--vc-warning-hover);
+  --bs-btn-disabled-color: var(--vc-on-warning);
+  --bs-btn-disabled-bg: var(--vc-warning);
+  --bs-btn-disabled-border-color: var(--vc-warning);
+}
+
+/* Focus rings are purple. */
+.btn:focus-visible {
+  box-shadow: none;
+  outline: 2px solid var(--vc-accent-text);
+  outline-offset: 2px;
+}
+
+.form-select:focus {
+  border-color: var(--vc-accent);
+  box-shadow: none;
 }
 
 
@@ -305,8 +464,8 @@ pre code {
 }
 
 .uploadbutton:disabled{
-  background-color: var(--vc-accent-alt); /* change this at some point */
-  color: var(--vc-on-accent);
+  background-color: var(--vc-accent-soft);
+  color: var(--vc-accent-text);
 }
 
 .attach-wrapper {
@@ -378,11 +537,13 @@ pre code {
   color: var(--vc-fg);
 }
 
+/* Each theme drawn in its own colours whatever the current one is, so literal: they copy the
+   THEMES blocks above (keep them in step). */
 .theme-preview {
-  --side: #1a1a1f;
-  --chat: #232329;
-  --line: #54545d;
-  --box: #2d2d34;
+  --side: #17151d;
+  --chat: #201d28;
+  --line: #4d4759;
+  --box: #2a2633;
   display: flex;
   width: 104px;
   height: 64px;
@@ -392,25 +553,25 @@ pre code {
 }
 
 .theme-preview-light {
-  --side: #e3e4e8;
+  --side: #e4e2ea;
   --chat: #ffffff;
-  --line: #c4c6cc;
-  --box: #f2f3f5;
-  box-shadow: inset 0 0 0 1px #e1e2e6;
+  --line: #c6c2cf;
+  --box: #f4f3f7;
+  box-shadow: inset 0 0 0 1px #e2dfe8;
 }
 
 /* Match system: half of each. */
 .theme-preview-system {
-  background: linear-gradient(135deg, #232329 50%, #ffffff 50%);
+  background: linear-gradient(135deg, #201d28 50%, #ffffff 50%);
 }
 
 .theme-preview-system .theme-preview-side {
-  background: linear-gradient(135deg, #1a1a1f 70%, #e3e4e8 70%);
+  background: linear-gradient(135deg, #17151d 70%, #e4e2ea 70%);
 }
 
 .theme-preview-system .theme-preview-line,
 .theme-preview-system .theme-preview-box {
-  background: #8e9099;
+  background: #8f8a99;
 }
 
 .theme-preview-side {
@@ -546,7 +707,7 @@ body:not(.mobile-mode) .settings-category-title {
 
 .sound-preview:hover {
   background: var(--vc-accent);
-  color: #fff;
+  color: var(--vc-on-accent);
 }
 
 /* Settings → Desktop App */
@@ -661,7 +822,7 @@ body:not(.mobile-mode) .settings-category-title {
 }
 
 .error-msg {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
   margin-top: 0.5rem;
 }
 
@@ -982,7 +1143,7 @@ body.sidebar-resizing * {
 
 /* The connection diamond is a STATUS ICON (below) with its own colours. */
 .user-panel-status.connecting {
-  background-color: var(--vc-action);
+  background-color: var(--vc-warning);
 }
 
 /* The picture and name: a button opening UserMenu. */
@@ -1038,7 +1199,7 @@ body.sidebar-resizing * {
   border-radius: 8px;
   background-color: var(--vc-bg-elevated);
   color: var(--vc-fg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px var(--vc-popup-shadow);
 }
 
 .user-menu-top {
@@ -1148,7 +1309,7 @@ body.sidebar-resizing * {
 .user-menu-error {
   margin-top: 4px;
   font-size: 12px;
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .user-menu-actions {
@@ -1180,7 +1341,7 @@ body.sidebar-resizing * {
 }
 
 .user-menu-item.danger {
-  color: var(--vc-danger);
+  color: var(--vc-danger-text);
 }
 
 .user-panel-button {

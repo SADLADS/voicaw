@@ -42,7 +42,7 @@
 }
 
 .mobile-mode .slidey.panes-moving .main-content-wrapper {
-    box-shadow: -6px 0 18px rgba(0, 0, 0, 0.35);
+    box-shadow: -6px 0 18px var(--vc-popup-shadow);
 }
 
 .mobile-mode .slidey.panes-moving .pane-scrim {
