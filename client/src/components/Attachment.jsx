@@ -198,17 +198,31 @@ function EncryptedVideo({ url, meta, name }) {
   );
 }
 
+// What an encrypted image shows in the chat, synchronously if it's at hand: the file itself
+// if it's already decrypted (the sender's own, or opened in the viewer), else its thumbnail.
+function cachedImage(url, meta) {
+  return getCachedAttachment(url) ?? (meta.posterUrl ? getCachedPoster(meta) : null);
+}
+
+// A big image has a thumbnail (`p=`) and shows that: the file itself downloads only when it's
+// opened in the viewer, saved or copied. If the thumbnail can't be had, the file it is.
+function loadShownImage(url, meta) {
+  const whole = () => loadDecryptedAttachment(url, meta);
+  return meta.posterUrl ? loadDecryptedPoster(meta).catch(whole) : whole();
+}
+
 function EncryptedAttachment({ url, meta, name }) {
   const kind = kindOf(meta.type);
   const covered = Boolean(useMediaCover(meta.spoiler));
   const [state, setState] = useState(() => {
-    const cached = getCachedAttachment(url);
+    const cached = kind === 'image' ? cachedImage(url, meta) : getCachedAttachment(url);
     return cached ? { status: 'ready', objectUrl: cached } : { status: 'idle', objectUrl: null };
   });
 
-  const load = () => {
+  // Shows what `loading` resolves to (the file, or an image's thumbnail).
+  const load = (loading) => {
     setState((s) => (s.objectUrl ? s : { status: 'loading', objectUrl: null }));
-    return loadDecryptedAttachment(url, meta).then(
+    return loading.then(
       (objectUrl) => {
         setState({ status: 'ready', objectUrl });
         return objectUrl;
@@ -223,12 +237,18 @@ function EncryptedAttachment({ url, meta, name }) {
 
   // Images load as soon as they're rendered; other files only on request.
   useEffect(() => {
-    if (kind === 'image' && !state.objectUrl) load();
+    if (kind === 'image' && !state.objectUrl) load(loadShownImage(url, meta));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
+  // Always the file itself, never the thumbnail.
   const download = async () => {
-    const objectUrl = state.objectUrl || (await load());
+    const objectUrl = getCachedAttachment(url) || (kind === 'file'
+      ? await load(loadDecryptedAttachment(url, meta))
+      : await loadDecryptedAttachment(url, meta).catch((err) => {
+        console.error('Failed to download attachment', err);
+        return null;
+      }));
     if (objectUrl) triggerDownload(objectUrl, name);
   };
 

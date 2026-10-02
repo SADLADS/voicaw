@@ -1,4 +1,6 @@
-import { getCachedAttachment, loadDecryptedAttachment } from '../services/attachmentCache';
+import {
+  getCachedAttachment, loadDecryptedAttachment, getCachedPoster, loadDecryptedPoster,
+} from '../services/attachmentCache';
 import { parseAttachmentUrl } from '../services/attachmentCrypto';
 
 // Which images the viewer can step through: the ones in the same message. Each viewable image
@@ -31,14 +33,24 @@ export function galleryAround(el) {
   };
 }
 
-// The URL to display, synchronously when there is one already.
-export function readyImageSrc(item) {
-  return item.meta ? getCachedAttachment(item.src) : item.src;
+// Whether to show an encrypted image's thumbnail (`p=`) rather than the file (`preview`, for
+// small pictures such as the viewer's strip).
+const usesThumbnail = (item, preview) => preview && Boolean(item.meta?.posterUrl);
+
+// The URL to display, synchronously when there is one already. With `preview`, the image's
+// thumbnail does too, and so does the file if it's already decrypted.
+export function readyImageSrc(item, preview = false) {
+  if (!item.meta) return item.src;
+  const whole = getCachedAttachment(item.src);
+  return whole || (usesThumbnail(item, preview) ? getCachedPoster(item.meta) : null);
 }
 
-// Resolves to the URL to display (decrypting it if needed).
-export function loadImageSrc(item) {
-  return item.meta ? loadDecryptedAttachment(item.src, item.meta) : Promise.resolve(item.src);
+// Resolves to the URL to display (decrypting it if needed); with `preview`, its thumbnail if
+// it has one (or the file, if the thumbnail fails).
+export function loadImageSrc(item, preview = false) {
+  if (!item.meta) return Promise.resolve(item.src);
+  const whole = () => loadDecryptedAttachment(item.src, item.meta);
+  return usesThumbnail(item, preview) ? loadDecryptedPoster(item.meta).catch(whole) : whole();
 }
 
 // The gallery item for a picture known only by its URL (a document's cover, or an image in the

@@ -7,6 +7,11 @@
 // URL: <fileUrl>#v=1&k=<base64url raw key>&t=<mime type>&s=<plaintext size in bytes>
 //      [&w=<width>&h=<height>]  (images/videos, so their space is reserved before loading)
 //      [&sp=1]  (marked as a spoiler: shown blurred until clicked)
+//      [&p=<the thumbnail's object name, next to the file>]  (a big still image: a smaller
+//      copy shown in the chat, so the file itself only downloads when it's opened, saved or
+//      copied. It's IV || AES-GCM(JPEG/WebP/PNG) under the same key, with additional data
+//      "voicaw/attachment-thumbnail/v1", so neither can pass for the other. Older clients
+//      ignore it and show the file.)
 // Videos are v=2 (chunkedAttachment.js: encrypted in pieces, so they can be streamed and
 // seeked), plus &n=<base nonce> and optionally &d=<duration in seconds> and
 // &p=<the poster's object name, next to the file>.
@@ -21,19 +26,29 @@ export function isStreamable(type) {
 }
 export const ENCRYPTION_OVERHEAD_BYTES = IV_LENGTH + 16;
 
-export async function encryptAttachment(file) {
-  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
-  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
-  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, await file.arrayBuffer());
-  const rawKey = await crypto.subtle.exportKey('raw', key);
+const THUMBNAIL_CONTEXT = new TextEncoder().encode('voicaw/attachment-thumbnail/v1');
 
-  return {
-    blob: new Blob([iv, ciphertext], { type: 'application/octet-stream' }),
-    key: toBase64Url(rawKey),
-  };
+async function seal(key, plain, additionalData) {
+  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, ...(additionalData ? { additionalData } : {}) },
+    key,
+    plain
+  );
+  return new Blob([iv, ciphertext], { type: 'application/octet-stream' });
 }
 
-export async function decryptAttachment(encrypted, keyB64Url) {
+// Encrypts `file` (and its thumbnail, a Blob, if any) with a fresh key.
+// Resolves to { blob, key, thumbnail: Blob | null }.
+export async function encryptAttachment(file, thumbnailBlob = null) {
+  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
+  const blob = await seal(key, await file.arrayBuffer());
+  const thumbnail = thumbnailBlob ? await seal(key, await thumbnailBlob.arrayBuffer(), THUMBNAIL_CONTEXT) : null;
+  const rawKey = await crypto.subtle.exportKey('raw', key);
+  return { blob, key: toBase64Url(rawKey), thumbnail };
+}
+
+async function unseal(encrypted, keyB64Url, additionalData) {
   const bytes = new Uint8Array(encrypted);
   const key = await crypto.subtle.importKey(
     'raw',
@@ -43,10 +58,19 @@ export async function decryptAttachment(encrypted, keyB64Url) {
     ['decrypt']
   );
   return crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: bytes.slice(0, IV_LENGTH) },
+    { name: 'AES-GCM', iv: bytes.slice(0, IV_LENGTH), ...(additionalData ? { additionalData } : {}) },
     key,
     bytes.slice(IV_LENGTH)
   );
+}
+
+export function decryptAttachment(encrypted, keyB64Url) {
+  return unseal(encrypted, keyB64Url);
+}
+
+// A v1 image's thumbnail (`p=`).
+export function decryptThumbnail(encrypted, keyB64Url) {
+  return unseal(encrypted, keyB64Url, THUMBNAIL_CONTEXT);
 }
 
 export function buildAttachmentUrl(fileUrl, { key, type, size, width, height, spoiler, nonce, duration, poster }) {
@@ -57,7 +81,7 @@ export function buildAttachmentUrl(fileUrl, { key, type, size, width, height, sp
     params.set('h', String(height));
   }
   if (nonce && duration > 0) params.set('d', String(Math.round(duration * 10) / 10));
-  if (nonce && poster) params.set('p', poster);
+  if (poster) params.set('p', poster); // a video's poster, an image's thumbnail
   if (spoiler) params.set('sp', '1');
   return `${fileUrl}#${params}`;
 }
@@ -68,7 +92,8 @@ function positiveInt(value) {
 
 // Returns { version, fileUrl, key, type, size, width, height, spoiler } for an encrypted
 // attachment URL, or null for any other URL (legacy unencrypted uploads, external images, …).
-// v2 adds { nonce, duration, posterUrl }.
+// v2 adds { nonce, duration }. `posterUrl` is a video's poster (v2) or an image's thumbnail
+// (v1), or null.
 export function parseAttachmentUrl(url) {
   if (typeof url !== 'string') return null;
   const hashIndex = url.indexOf('#');
@@ -88,12 +113,12 @@ export function parseAttachmentUrl(url) {
     const nonce = params.get('n');
     if (!/^[A-Za-z0-9_-]{16}$/.test(nonce ?? '') || !/^\d+$/.test(size ?? '')) return null;
     const duration = Number(params.get('d'));
-    const poster = params.get('p');
     v2.nonce = nonce;
     v2.duration = Number.isFinite(duration) && duration > 0 ? duration : null;
-    // Only a plain name in the same folder: the URL can't point the poster anywhere else.
-    v2.posterUrl = /^[A-Za-z0-9_-]+\.bin$/.test(poster ?? '') ? fileUrl.replace(/[^/]*$/, poster) : null;
   }
+  const poster = params.get('p');
+  // Only a plain name in the same folder: the URL can't point the poster anywhere else.
+  const posterUrl = /^[A-Za-z0-9_-]+\.bin$/.test(poster ?? '') ? fileUrl.replace(/[^/]*$/, poster) : null;
   return {
     version: Number(version),
     fileUrl,
@@ -103,6 +128,7 @@ export function parseAttachmentUrl(url) {
     width: width && height ? width : null,
     height: width && height ? height : null,
     spoiler: params.get('sp') === '1',
+    posterUrl,
     ...v2,
   };
 }

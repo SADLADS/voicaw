@@ -53,7 +53,8 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     setDrafts((prev) => [...prev, ...newDrafts]);
 
     // Record image/video sizes (sent in the attachment URL) so receivers can reserve the
-    // right space before the file loads; for videos also the duration and a poster.
+    // right space before the file loads; for videos also the duration and a poster, for big
+    // images a thumbnail.
     newDrafts.forEach((d) => {
       const reading = readMediaDimensions(d.file, d.previewUrl);
       mediaInfo.current.set(d.id, reading);
@@ -99,8 +100,8 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
       ...(streamable ? {
         nonce: 'A'.repeat(16),
         duration: draft.duration,
-        poster: draft.poster ? `${'0'.repeat(36)}.bin` : null,
       } : {}),
+      poster: draft.poster || draft.thumbnail ? `${'0'.repeat(36)}.bin` : null,
     });
   }
 
@@ -118,14 +119,20 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     try {
       const entries = await Promise.all(
         attachments.map(async (d) => {
-          // Sent before its size and poster were read (a video on a slow phone): wait for
-          // them, so others still get the poster. They're limited by timeouts.
+          // Sent before its size and poster or thumbnail were read (a video on a slow
+          // phone): wait for them, so others still get them. They're limited by timeouts.
           const read = (await mediaInfo.current.get(d.id)) ?? {};
           mediaInfo.current.delete(d.id);
           const width = d.width ?? read.width;
           const height = d.height ?? read.height;
           const info = width && height
-            ? { width, height, duration: d.duration ?? read.duration, poster: d.poster ?? read.poster }
+            ? {
+              width,
+              height,
+              duration: d.duration ?? read.duration,
+              poster: d.poster ?? read.poster,
+              thumbnail: d.thumbnail ?? read.thumbnail,
+            }
             : null;
           const url = await uploadAttachment(d.file, (bytes) => {
             loaded[d.id] = bytes;

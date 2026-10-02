@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   encryptAttachment,
   decryptAttachment,
+  decryptThumbnail,
   buildAttachmentUrl,
   parseAttachmentUrl,
   ENCRYPTION_OVERHEAD_BYTES,
@@ -20,7 +21,7 @@ describe('attachmentCrypto', () => {
     const url = buildAttachmentUrl('https://s3.test/uploads/abc.bin', { key, type: file.type, size: file.size });
     const meta = parseAttachmentUrl(url);
     expect(meta).toEqual({
-      version: 1, fileUrl: 'https://s3.test/uploads/abc.bin', key, type: 'image/png', size: 5000, width: null, height: null, spoiler: false,
+      version: 1, fileUrl: 'https://s3.test/uploads/abc.bin', key, type: 'image/png', size: 5000, width: null, height: null, spoiler: false, posterUrl: null,
     });
 
     const plain = await decryptAttachment(await blob.arrayBuffer(), meta.key);
@@ -73,7 +74,31 @@ describe('attachmentCrypto', () => {
       width: null,
       height: null,
       spoiler: false,
+      posterUrl: null,
     });
+  });
+
+  it("encrypts an image's thumbnail under the same key, but so neither passes for the other", async () => {
+    const bytes = crypto.getRandomValues(new Uint8Array(5000));
+    const small = crypto.getRandomValues(new Uint8Array(300));
+    const file = new File([bytes], 'photo.jpg', { type: 'image/jpeg' });
+    const { blob, key, thumbnail } = await encryptAttachment(file, new Blob([small], { type: 'image/jpeg' }));
+    expect(thumbnail.type).toBe('application/octet-stream');
+    expect(thumbnail.size).toBe(small.length + ENCRYPTION_OVERHEAD_BYTES);
+
+    expect(new Uint8Array(await decryptThumbnail(await thumbnail.arrayBuffer(), key))).toEqual(small);
+    expect(new Uint8Array(await decryptAttachment(await blob.arrayBuffer(), key))).toEqual(bytes);
+    await expect(decryptAttachment(await thumbnail.arrayBuffer(), key)).rejects.toThrow();
+    await expect(decryptThumbnail(await blob.arrayBuffer(), key)).rejects.toThrow();
+
+    expect((await encryptAttachment(file)).thumbnail).toBeNull();
+  });
+
+  it("names an image's thumbnail in the fragment, only in the file's folder", () => {
+    const url = buildAttachmentUrl('https://s3.test/uploads/abc.bin', { key: 'k', type: 'image/jpeg', size: 9, poster: 'thumb-1.bin' });
+    expect(url).toContain('#v=1&');
+    expect(parseAttachmentUrl(url).posterUrl).toBe('https://s3.test/uploads/thumb-1.bin');
+    expect(parseAttachmentUrl('https://s3.test/uploads/a.bin#v=1&k=K&p=..%2Fprofile-pics%2Fx.bin').posterUrl).toBeNull();
   });
 
   it('marks spoilers in the fragment, and only when asked', () => {
