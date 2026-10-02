@@ -15,7 +15,7 @@ export default function Modal({ title, onClose, children, actions, className = '
 
   return createPortal(
     <div className="vc-dialog-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`vc-dialog ${className}`} role="dialog" aria-label={title}>
+      <div className={`vc-dialog ${className}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="vc-dialog-header">
           <h5>{title}</h5>
           <button type="button" className="vc-dialog-close" aria-label="Close" onClick={onClose}>×</button>

@@ -34,6 +34,7 @@ export default function SafetyNumberDialog({ me, contact, verified, onChange, on
       <div
         className="safety-number-dialog"
         role="dialog"
+        aria-modal="true"
         aria-label={`Safety number with ${contact.username}`}
         onClick={(e) => e.stopPropagation()}
       >

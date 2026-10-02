@@ -462,17 +462,57 @@ small {
   padding-left: 10px;
 }
 
-.dm-chat-wrapper.drag-over {
-  border: 2px dashed var(--vc-accent);
-  background-color: var(--vc-bg-elevated-hover);
+/* Files dragged over the window (FileDropOverlay). It takes the drop, so it doesn't pass
+   pointer events through. */
+.file-drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+  animation: file-drop-in 0.12s ease-out;
 }
 
-.dm-chat-wrapper.drag-over #dm-input {
-  background-color: var(--vc-bg-elevated-hover);
+.file-drop-card {
+  width: min(320px, 100%);
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--vc-accent);
+  color: var(--vc-on-accent);
+  box-shadow: 0 8px 24px var(--vc-popup-shadow);
+  text-align: center;
+  pointer-events: none;
 }
 
-.dm-chat-wrapper.drag-over #dm-chat-form {
-  margin:7px;
+.file-drop-inner {
+  border: 2px dashed var(--vc-on-accent);
+  border-radius: 8px;
+}
+
+.file-drop-icon {
+  font-size: 32px;
+  margin: 28px 0 12px;
+}
+
+.file-drop-title {
+  font-size: 20px;
+  font-weight: 700;
+  padding: 0 16px;
+  overflow-wrap: anywhere;
+}
+
+.file-drop-hint {
+  font-size: 14px;
+  opacity: 0.85;
+  padding: 4px 16px 28px;
+}
+
+@keyframes file-drop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 /* ATTACHMENTS */
 
