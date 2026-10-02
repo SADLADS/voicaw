@@ -10,7 +10,7 @@ import {
 import { LayoutContext } from '../../contexts';
 import { markChannelReadToLatest } from '../../services/guildService';
 import { PERMISSIONS, has } from '../../utils/permissions';
-import ContextMenu from './ContextMenu';
+import ContextMenu from '../ContextMenu';
 
 // A category's menu in the channel list (right-click, or touch and hold on a phone): Mark As
 // Read (every channel in it you can see), Collapse / Expand; with Manage Channels also Edit,

@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheck, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
-import { errorMessage } from '../../utils/guildDisplay';
-import { placeMenu as place } from '../../utils/menuPlacement';
+import { errorMessage } from '../utils/guildDisplay';
+import { placeMenu as place } from '../utils/menuPlacement';
 
 const ITEMS = '[role^="menuitem"]:not([disabled])';
 

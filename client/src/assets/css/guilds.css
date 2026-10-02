@@ -381,6 +381,12 @@ img.guild-icon {
   z-index: 1060;
 }
 
+.context-menu .guild-menu-item:focus-visible {
+  outline: none;
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+}
+
 .guild-menu-item.open {
   background-color: var(--vc-bg-elevated-hover);
   color: var(--vc-fg);

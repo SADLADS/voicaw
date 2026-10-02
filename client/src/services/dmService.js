@@ -23,6 +23,17 @@ export async function sendMessageToUser(recipientId, content, replyTo = null) {
 export async function markMessagesRead(userId) {
   await api.post(`/dm-mark-read/${userId}`);
 }
+
+// Your pins and mutes for DMs and group DMs: [{ kind: 'dm' | 'group', target, pinned_at,
+// muted, mute_until }].
+export async function fetchConversationSettings() {
+  return (await api.get('/conversation-settings')).data;
+}
+
+// Changes one: `{ pinned: true | false }` and/or `{ mute: { duration: s | null } | false }`.
+export async function setConversationSetting(kind, target, changes) {
+  return (await api.put(`/conversation-settings/${kind}/${target}`, changes)).data;
+}
 // `content` is the encrypted emoji (encryptReaction).
 export async function addReaction(messageId, content) {
   const res = await api.post('/dm-reactions', { messageId, content });

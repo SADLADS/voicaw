@@ -16,6 +16,7 @@ const callListeners = new Set();
 const groupListeners = new Set();
 const notificationListeners = new Set();
 const accountDeletedListeners = new Set();
+const conversationSettingsListeners = new Set();
 let reconnectTimeout = null;
 
 // This client's own connection: 'connecting' | 'online' | 'offline' (logged out, or the
@@ -163,6 +164,9 @@ export function connectWebSocket() {
       else if (data.type === 'message_sound') {
         playMessageSound();
       }
+      else if (data.type === 'conversation_settings') {
+        conversationSettingsListeners.forEach((cb) => cb(data.setting));
+      }
       else if (data.type === 'account_deleted') {
         accountDeletedListeners.forEach((cb) => cb());
       }
@@ -282,6 +286,13 @@ export function onGuildEvent(callback) {
 export function onCallEvent(callback) {
   callListeners.add(callback);
   return () => callListeners.delete(callback);
+}
+
+// You pinned, unpinned, muted or unmuted a DM or group DM (on any device): the new setting,
+// { kind, target, pinned_at, muted, mute_until } (server/conversationSettings.js).
+export function onConversationSettings(callback) {
+  conversationSettingsListeners.add(callback);
+  return () => conversationSettingsListeners.delete(callback);
 }
 
 // This account was deleted (on another device): time to log out.

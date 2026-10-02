@@ -240,6 +240,25 @@ describe('GuildSidebar', () => {
     await waitFor(() => expect(deleteCategory).toHaveBeenCalledWith(5, 2));
   });
 
+  it("right-clicking the list's empty space offers creating and inviting, as allowed", async () => {
+    renderSidebar();
+    const list = screen.getByRole('navigation', { name: 'Channels' });
+    fireEvent.contextMenu(list);
+    expect(menuItems(screen.getByRole('menu', { name: 'Test Guild' }))).toEqual(['Create Channel', 'Create Category', 'Invite People']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Create Category' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it("a member's empty-space menu only invites; right-clicking a channel still opens the channel's", () => {
+    renderSidebar({ user: member });
+    fireEvent.contextMenu(screen.getByRole('navigation', { name: 'Channels' }));
+    expect(menuItems(screen.getByRole('menu', { name: 'Test Guild' }))).toEqual(['Invite People']);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.contextMenu(screen.getByRole('link', { name: 'memes' }));
+    expect(screen.getByRole('menu', { name: '#memes' })).toBeInTheDocument();
+    expect(screen.queryByRole('menu', { name: 'Test Guild' })).toBeNull();
+  });
+
   it('on a phone: no edit buttons, and touch and hold opens the menu as a sheet', async () => {
     vi.useFakeTimers();
     try {

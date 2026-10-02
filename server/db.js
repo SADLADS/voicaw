@@ -273,6 +273,21 @@ CREATE TABLE IF NOT EXISTS guild_channel_notify (
 );
 `);
 
+// Each person's own pins and mutes for their DMs and group DMs (conversationSettings.js):
+// kind 'dm' (target: the other person's id) or 'group' (target: the group's id). pinned_at is
+// unix ms (the list's order), mute_until unix s or NULL (until unmuted).
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS conversation_settings (
+  user_id INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  target TEXT NOT NULL,
+  pinned_at INTEGER,
+  muted INTEGER NOT NULL DEFAULT 0,
+  mute_until INTEGER,
+  PRIMARY KEY (user_id, kind, target)
+);
+`);
+
 // Guilds from before roles get their @everyone role (with the default permissions).
 sqlite.exec(`
 INSERT INTO guild_roles (guild_id, name, position, permissions, is_everyone)

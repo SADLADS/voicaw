@@ -89,6 +89,7 @@ async function deleteAccount(userId, plan) {
       'DELETE FROM dm_unread WHERE user_id = ?',
       'DELETE FROM push_subscriptions WHERE user_id = ?',
       'DELETE FROM gif_favorites WHERE user_id = ?',
+      'DELETE FROM conversation_settings WHERE user_id = ?',
       'DELETE FROM guild_mentions WHERE user_id = ?',
     ]) {
       await db.run(sql, [userId]);

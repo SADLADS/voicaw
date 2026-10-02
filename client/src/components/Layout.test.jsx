@@ -16,6 +16,7 @@ vi.mock('../utils/ws-client', () => ({
   onGroupEvent: () => () => {},
   getConnectionState: () => 'online',
   onConnectionState: () => () => {},
+  onConversationSettings: () => () => {},
 }));
 
 // Group DMs (tested with their hooks and in e2e/groups.mjs): none here.
@@ -37,6 +38,7 @@ vi.mock('../utils/api', () => ({
 
 vi.mock('../services/dmService', () => ({
   fetchUsersList: vi.fn(),
+  fetchConversationSettings: vi.fn(async () => []),
 }));
 
 vi.mock('../services/guildService', () => ({

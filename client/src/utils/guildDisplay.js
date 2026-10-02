@@ -62,6 +62,11 @@ export function inviteLink(code) {
   return `${shareOrigin()}/invite/${code}`;
 }
 
+// The link to a guild (Copy Link in its menu on the rail).
+export function guildLink(guildId) {
+  return `${shareOrigin()}/guild/${guildId}`;
+}
+
 // The link to a guild channel (Copy Link in the channel menu).
 export function channelLink(guildId, channelId) {
   return `${shareOrigin()}/guild/${guildId}/${channelId}`;
