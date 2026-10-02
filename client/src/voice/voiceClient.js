@@ -665,6 +665,12 @@ export function clearVoiceError() {
   update({ error: null });
 }
 
+// A screen's sound never includes Voicaw's own (the call's voices, our sounds), like Discord:
+// restrictOwnAudio (Chromium 140+, Windows and macOS; the desktop app too) leaves it out of
+// system sound. Chrome does that by leaving out all of Chrome, so other tabs' sound goes too
+// (sharing that tab still carries its sound). Browsers without it ignore it.
+const SCREEN_AUDIO = { restrictOwnAudio: true };
+
 // Shares your screen (a voice channel, with Video). Must be called from a click: the browser
 // asks which screen, window or tab, and whether to share its sound (in the desktop app, our
 // picker has asked already: `audio` is its answer). Your own stream is shown at once, like
@@ -675,7 +681,7 @@ export async function startScreenShare({ audio = true } = {}) {
   update({ streamError: null });
   try {
     await current.localParticipant.setScreenShareEnabled(true, {
-      audio,
+      audio: audio && SCREEN_AUDIO,
       systemAudio: 'include',
       selfBrowserSurface: 'exclude',
       surfaceSwitching: 'include',

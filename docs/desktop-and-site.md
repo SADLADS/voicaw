@@ -39,8 +39,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   with that source, once, within a minute, only for a source just listed and only for the
   app's own page; anything else is refused (the page gets an AbortError, shown as nothing).
   **Sound** ("Share sound", off by default) only on Windows: Electron's only option is the
-  whole system's sound (`loopback`), which includes the call's own voices, so viewers hear
-  themselves (the picker says so); Discord avoids that with a native per-process capture.
+  whole system's sound (`loopback`); the page asks with `restrictOwnAudio` (see Screen
+  sharing in `voice-and-calls.md`) and Electron (44+) then captures it without the app's own
+  sound, so viewers don't hear themselves, like Discord.
   macOS needs Screen Recording permission (the picker says where); Wayland goes through the
   system's portal picker.
 - **Tray and badge** (`tray.js`): Open / Quit menu, a red dot on the icon while anything is
@@ -60,8 +61,8 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   Settings → App version, which also shows the app's version); that restarts onto it. A
   development run or an unsigned macOS app can't update itself ('unsupported'). Releases are
   only as trustworthy as that server (no signature of our own on the feed yet).
-- **Not done yet:** push-to-talk (held key), screen share sound without the call's own voices
-  (a native per-process loopback), streaming videos (no
+- **Not done yet:** push-to-talk (held key), screen share sound on macOS and
+  Linux (Electron's loopback is Windows only), streaming videos (no
   service worker: they download whole on Play; `protocol.js` could serve them instead), code
   signing (Windows SmartScreen warns about unsigned installers). Notifications while the app
   isn't running aren't wanted (decided 2026-10-01).
