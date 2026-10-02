@@ -112,7 +112,7 @@ export default function Poll({ poll, reactions, userId, names, sentAt, onVote, o
               {emoji}
               <span className="poll-option-text">{option.text}</span>
               {isMine && <span className="poll-mine-mark" title="Your vote" aria-hidden="true">✓</span>}
-              <span className="poll-count">{who.length} · {share}%</span>
+              <span className="poll-count">{who.length} {who.length === 1 ? 'vote' : 'votes'} · {share}%</span>
             </button>
           );
         })}
