@@ -35,6 +35,9 @@ import { UNKNOWN_CHANNEL, mentionName, mentionsMe as isForMe, mentionsToText, ro
 import { ChannelMentionContext } from '../contexts';
 import ChannelIcon from './guild/ChannelIcon';
 import { showContent } from '../utils/mobilePanes';
+import { allowsNativeMenu } from '../utils/nativeContextMenu';
+import { imageAt } from '../utils/imageActions';
+import { galleryItemOf } from '../utils/imageGallery';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
 // is a new component type to React, which remounts (and reloads) every attachment on any
@@ -252,7 +255,7 @@ export function MessageContent({ msg, user, s3Endpoint, reactionNames, mentionRo
   );
 }
 
-// One message (with its reply snippet, hover menu and inline editor). `grouped`: it follows
+// One message (with its reply snippet, hover menu, right-click menu and inline editor). `grouped`: it follows
 // another of the same person's (continuesGroup), so no avatar, name or date, just the time
 // when hovered.
 export function MessageRow({
@@ -281,6 +284,7 @@ export function MessageRow({
   onJumpToMessage,
   reactionNames,
   onOpenActions,
+  onOpenMenu,
   focusedMsgId,
   canModerate = false,
   canAddReactions = true,
@@ -308,6 +312,14 @@ export function MessageRow({
   const focused = focusedMsgId === msg.id;
   // Mobile: touch and hold opens the message's action sheet (there's no hover there).
   const longPress = useLongPress(() => onOpenActions(msg), { enabled: isMobile && Boolean(onOpenActions) });
+  // Desktop: right-clicking opens its menu, except where the browser's or a picture's own is
+  // the useful one (text boxes, selected text, links: utils/nativeContextMenu.js; ImageMenu).
+  const onContextMenu = !isMobile && onOpenMenu ? (e) => {
+    if (allowsNativeMenu(e.target, document.getSelection()?.toString() ?? '')) return;
+    if (imageAt(e.target, galleryItemOf)) return;
+    e.preventDefault();
+    onOpenMenu(msg, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY });
+  } : undefined;
   // Stable per emoji index (a new plugin list every render would re-run markdown needlessly).
   const rehypePlugins = useMemo(
     () => [rehypeHighlightShared, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)],
@@ -347,6 +359,7 @@ export function MessageRow({
       data-msg-id={msg.id}
       onMouseEnter={() => setHoveredMsgId(msg.id)}
       onMouseLeave={() => setHoveredMsgId(null)}
+      onContextMenu={onContextMenu}
       {...longPress}
     >
       {parent && (
@@ -578,6 +591,7 @@ export default function MessageList({
   onJumpToMessage,
   reactionNames,
   onOpenActions,
+  onOpenMenu,
   focusedMsgId,
   canModerate,
   canAddReactions,
@@ -631,6 +645,7 @@ export default function MessageList({
     onJumpToMessage,
     reactionNames,
     onOpenActions,
+    onOpenMenu,
     focusedMsgId,
     canModerate,
     canAddReactions,

@@ -3,21 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCopy, faEdit, faReply, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
-import { frequentEmojiIds, getSkinTone, skinFor } from '../emoji/emojiUsage';
-
-// Offered first, after the person's own most used emoji.
-const DEFAULT_QUICK_REACTIONS = ['+1', 'heart', 'joy', 'open_mouth', 'cry', 'pray'];
-const QUICK_REACTION_COUNT = 6;
-
-function quickReactions(index) {
-  const tone = getSkinTone();
-  const ids = [...new Set([...frequentEmojiIds(QUICK_REACTION_COUNT), ...DEFAULT_QUICK_REACTIONS])];
-  return ids
-    .map((id) => index.emojis.get(id))
-    .filter(Boolean)
-    .slice(0, QUICK_REACTION_COUNT)
-    .map((emoji) => ({ emoji, skin: skinFor(emoji, tone) }));
-}
+import { quickReactions } from '../emoji/quickReactions';
 
 // Mobile: what a long press on a message opens (in place of the desktop hover menu). A row of
 // quick reactions (plus the full picker), then Reply / Edit / Pin (or Unpin) / Copy text / Delete. Actions the

@@ -32,7 +32,7 @@ const SHEET_KEY = sheetKey(twemojiVersion, dataVersion);
 const emojiPath = (file) => new URL(`emoji/${file}`, self.registration.scope).pathname;
 // Fetched as soon as this worker installs, so even the first picker opened shows at once:
 // the default-tone sheets, and the message action sheet's default quick reactions
-// (MessageActionSheet.jsx: 👍 ❤️ 😂 😮 😢 🙏).
+// (emoji/quickReactions.js: 👍 ❤️ 😂 😮 😢 🙏).
 const EMOJI_WARM = [
   ...CATEGORY_SHEETS.map((name) => sheetPath(SHEET_KEY, name)),
   ...['1f44d', '2764', '1f602', '1f62e', '1f622', '1f64f'].map((file) => `${file}.svg`),

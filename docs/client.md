@@ -22,14 +22,22 @@
   draws its column into it with a portal; on a phone the column stays in the page, without
   the panel).
   Uploading a profile picture calls `announceProfilePictureChange()` so it refreshes.
-- Mobile message actions: there's no hover menu on mobile. A long press on a message
-  (`hooks/useLongPress.js`, 450ms, cancelled by scrolling) opens `MessageActionSheet`: quick
-  reactions (most used first, then 👍❤️😂😮😢🙏) and `+` for the full picker, Reply, Edit,
-  Copy text (attachments become their names, never their key-carrying links) and Delete (asks
-  first). On desktop the hover menu's delete asks too (`ChatPane`: a "Delete message" dialog
-  showing the message; Enter confirms), unless Shift is held while clicking. The sheet ignores the click Chrome fires when the holding finger lifts (it lands on the
-  sheet); only clicks from a touch that started on it count. Messages aren't text-selectable
-  on mobile, so the long press isn't taken by text selection.
+- Message actions: on desktop, a hover menu (react, pin, edit, reply, delete) and a
+  right-click menu (`MessageMenu.jsx`, on `ContextMenu`): a row of five quick reactions, then
+  Add Reaction (the full picker, by the pointer), Reply, Edit Message (your own), Pin / Unpin
+  Message (`canPin`), Copy Text and Delete Message (your own, or `canModerate`). Right-clicking a
+  link, selected text, the inline editor or a picture still gets the browser's menu or the
+  image menu instead. There's no hover menu on mobile: a long press on a message
+  (`hooks/useLongPress.js`, 450ms, cancelled by scrolling) opens `MessageActionSheet` with the
+  same actions: quick reactions and `+` for the full picker, Reply, Edit, Pin / Unpin, Copy text
+  and Delete (asks first). Both offer only Copy for a message still sending or failed. Quick
+  reactions (`emoji/quickReactions.js`) are your most used emoji first, then 👍❤️😂😮😢🙏. Copying
+  turns attachments into their names, never their key-carrying links. On desktop, Delete in
+  either menu asks too (`ChatPane`: a "Delete message" dialog showing the message; Enter
+  confirms), unless Shift is held while clicking. The sheet ignores the click Chrome fires when
+  the holding finger lifts (it lands on the sheet); only clicks from a touch that started on
+  it count. Messages aren't text-selectable on mobile, so the long press isn't taken by text
+  selection.
 - DM view: `Dm.jsx` puts together `hooks/useConversation.js` (keys, history, paging, send/edit/
   delete, live websocket updates), `hooks/useReactions.js`, `MessageList.jsx` (+ `MessageReactions`,
   `UrlPreviews`) and `Composer.jsx` (message box, emoji, reply bar, attachments via
@@ -69,12 +77,12 @@
   system's languages that have a dictionary, else `en-GB` (Electron downloads dictionaries on
   first use; not on macOS, which uses the system's).
 - **Right-click menus** (and touch and hold on a phone) are ours, Discord style:
-  `components/ContextMenu.jsx` draws them (items with icons, hints, ticks and submenus;
+  `components/ContextMenu.jsx` draws them (items with icons, hints, ticks and submenus, and an optional `header` above them;
   floating by the pointer with submenus beside it on a computer, hover/click/arrow keys; a
   bottom sheet on a phone where a submenu replaces it, with Back). Channels, categories, the
   channel list's empty space and guild icons have one (see `docs/guilds.md`), and so do
   conversations in the DM list (`DmMenu.jsx`: Mark As Read, Start/Join Call, Pin / Unpin,
-  Mute ▸ / Unmute). **The browser's own menu is off** everywhere else
+  Mute ▸ / Unmute). Messages have one too (`MessageMenu.jsx`, see Message actions above). **The browser's own menu is off** everywhere else
   (`utils/nativeContextMenu.js`, from `main.jsx`) except in text boxes (spellcheck, paste), on
   selected text, and on links in messages and embeds (copy link, open). Pictures have ours
   (see Image menu in `docs/uploads.md`).

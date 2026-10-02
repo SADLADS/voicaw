@@ -33,6 +33,7 @@ node e2e/channelmenu.mjs [dir] # channel/category menus: read, mute, notify leve
 node e2e/imagemenu.mjs [dir] # picture menu: plain (copy image as PNG, copy link) vs encrypted (save, open, no link), over the viewer (Escape closes only it), phone hold in the viewer
 node e2e/menus.mjs [dir]  # browser menu off (kept in text boxes, message links); guild icon menu, channel list empty space, DM list pin/mute (no ping, no dot); phone sheets, rail hold+move drags
 node e2e/channel-mentions.mjs [dir] # # suggestions, #channel links (click opens), private = unknown, edit, DM, phone
+node e2e/messagemenu.mjs [dir] # message right-click menu: quick reaction, Add Reaction picker, reply, edit, pin, copy, delete (asks; Shift skips), not on others' for edit/delete, links keep the browser's; phone hold = same actions
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
 node e2e/replies.mjs [dir] # reply snippet: click jumps to the message (loads older history), flashes it like search/pins, phone tap
 node e2e/invites.mjs [dir] # invite embeds: channel and DM (load at once), Join Guild, Settings → Privacy off = Show first, phone
