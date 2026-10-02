@@ -4,6 +4,7 @@ import MessageList from './MessageList';
 import Composer from './Composer';
 import TypingIndicator from './TypingIndicator';
 import MessageActionSheet from './MessageActionSheet';
+import MessageMenu from './MessageMenu';
 import ConfirmDialog from './guild/ConfirmDialog';
 import PinnedMessages from './PinnedMessages';
 import PollDialog from './PollDialog';
@@ -21,7 +22,8 @@ import { endPoll, parsePoll, pollEnded, pollMarkup } from '../utils/pollMarkup';
 import { endPollOnServer, registerPollTimer } from '../services/pollService';
 
 // The body of a chat, shared by DMs (Dm) and guild channels (GuildChannel): the messages, the
-// composer, reactions (the floating or docked picker) and the mobile action sheet, plus the
+// composer, reactions (the floating or docked picker), the desktop right-click menu and the
+// mobile action sheet, plus the
 // state they share: reply target, the message being edited, the composer's error line and
 // which emoji picker is open (never both).
 //
@@ -89,6 +91,9 @@ export default function ChatPane({
   // Mobile: the message whose action sheet (long press) is open.
   const [actionsForId, setActionsForId] = useState(null);
   const closeActions = useCallback(() => setActionsForId(null), []);
+  // Desktop: the message whose right-click menu is open, { id, anchor (where it was clicked) }.
+  const [menuFor, setMenuFor] = useState(null);
+  const closeMenu = useCallback(() => setMenuFor(null), []);
   // The message the "Delete message?" dialog is asking about.
   const [confirmingDelete, setConfirmingDelete] = useState(null);
   // A poll being edited: { msg, poll } (polls are edited in PollDialog, not inline).
@@ -127,12 +132,22 @@ export default function ChatPane({
     setActionsForId(msg.id);
   }
 
+  function openMenu(msg, anchor) {
+    reactions.closePicker();
+    setMenuFor({ id: msg.id, anchor });
+  }
+
   // Copies what the message says; attachments become their names (their links carry the
   // decryption key, which shouldn't end up pasted elsewhere), custom emoji `:name:`, mentions
-// `@name`.
+  // `@name`. copyText throws if it couldn't (the menu shows that); copyMessage says so above
+  // the message box.
+  function copyText(msg) {
+    return navigator.clipboard.writeText(mentionsToText(customEmojiToText(summarizeAttachments(msg.plaintext)), reactionNames, mentionRoles, mentionChannels));
+  }
+
   async function copyMessage(msg) {
     try {
-      await navigator.clipboard.writeText(mentionsToText(customEmojiToText(summarizeAttachments(msg.plaintext)), reactionNames, mentionRoles, mentionChannels));
+      await copyText(msg);
     } catch (err) {
       console.error('Copy failed', err);
       setComposerError("Couldn't copy the message.");
@@ -142,6 +157,7 @@ export default function ChatPane({
   // A new chat starts with nothing open.
   useEffect(() => {
     setActionsForId(null);
+    setMenuFor(null);
     setConfirmingDelete(null);
     setShowEmojiPickerState(false);
     setComposerError(null);
@@ -221,7 +237,7 @@ export default function ChatPane({
     }
   }
 
-  // The hover menu's delete: asks first (with the message shown), unless Shift is held. (The
+  // The hover and right-click menus' delete: asks first (with the message shown), unless Shift is held. (The
   // mobile action sheet asks in its own way.)
   function requestDelete(msg, event) {
     if (event?.shiftKey) handleDelete(msg);
@@ -273,6 +289,8 @@ export default function ChatPane({
 
   const { reactingTo } = reactions;
   const actionsFor = actionsForId != null ? messages.find((m) => m.id === actionsForId) : null;
+  // Gone if the message was deleted meanwhile.
+  const menuMsg = menuFor ? messages.find((m) => m.id === menuFor.id) : null;
 
   return (
     <>
@@ -310,6 +328,7 @@ export default function ChatPane({
             onJumpToMessage={jumpToMessage}
             reactionNames={reactionNames}
             onOpenActions={openActions}
+            onOpenMenu={openMenu}
             canModerate={canModerate}
             canAddReactions={canAddReactions}
             canPin={canPin}
@@ -318,9 +337,9 @@ export default function ChatPane({
             mentionRoles={mentionRoles}
             myRoleIds={myRoleIds}
             encrypted={encrypted}
-            // While reacting to a message (or its mobile menu is open), it stays
-            // highlighted and the others don't react to hovering.
-            focusedMsgId={reactingTo?.msgId ?? actionsForId}
+            // While reacting to a message (or its menu is open), it stays highlighted and
+            // the others don't react to hovering.
+            focusedMsgId={reactingTo?.msgId ?? actionsForId ?? menuMsg?.id}
           />
         )}
       </div>
@@ -407,6 +426,25 @@ export default function ChatPane({
           onCopy={() => copyMessage(actionsFor)}
           onDelete={() => handleDelete(actionsFor)}
           onClose={closeActions}
+        />
+      )}
+
+      {menuMsg && (
+        <MessageMenu
+          msg={menuMsg}
+          anchor={menuFor.anchor}
+          isOwn={menuMsg.sender_id === user.id}
+          canDelete={menuMsg.sender_id === user.id || canModerate}
+          canReact={canAddReactions}
+          myReactions={new Set((menuMsg.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
+          onReact={(emoji) => reactions.toggleReaction(menuMsg, emoji)}
+          onMoreReactions={(rect) => openReactionPicker(menuMsg, { getBoundingClientRect: () => rect })}
+          onReply={() => handleReply(menuMsg)}
+          onEdit={isClosedPoll(menuMsg) ? undefined : () => handleEdit(menuMsg)}
+          onTogglePin={canPin ? () => togglePin(menuMsg) : undefined}
+          onCopy={() => copyText(menuMsg)}
+          onDelete={(event) => requestDelete(menuMsg, event)}
+          onClose={closeMenu}
         />
       )}
 

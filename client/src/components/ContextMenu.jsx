@@ -14,9 +14,11 @@ const ITEMS = '[role^="menuitem"]:not([disabled])';
 // phone the sheet rises from the bottom with `title` on top, and a submenu replaces it (with a
 // way back). Picking an item runs `onSelect` and closes the menu once it's done; if it throws,
 // the error shows in the menu instead. `onSelect` returning a string shows it in place of the
-// item's label for a moment first ("Link copied"). Escape, or a click outside, closes it.
+// item's label for a moment first ("Link copied"); it's given the click (Shift held...).
+// `header` (desktop) goes above the items, e.g. a message's quick reactions. Escape, or a
+// click outside, closes it.
 // `overViewer`: shown over the full-screen image viewer (which sits above everything else).
-export default function ContextMenu({ title, label, items, anchor, sheet = false, overViewer = false, onClose }) {
+export default function ContextMenu({ title, label, items, header = null, anchor, sheet = false, overViewer = false, onClose }) {
   const rootRef = useRef(null);
   const [submenu, setSubmenu] = useState(null); // { key, anchor (desktop: the item's rect) }
   const [error, setError] = useState(null);
@@ -28,14 +30,14 @@ export default function ContextMenu({ title, label, items, anchor, sheet = false
   const open = submenu && items.find((item) => item.key === submenu.key)?.submenu;
 
   // `fromKeyboard`: Enter, Space or → (the submenu then takes the focus).
-  async function pick(item, target, fromKeyboard = false) {
+  async function pick(item, target, fromKeyboard = false, event = undefined) {
     if (item.submenu) {
       setSubmenu({ key: item.key, anchor: target?.getBoundingClientRect(), target, fromKeyboard });
       return;
     }
     setError(null);
     try {
-      const result = await item.onSelect?.();
+      const result = await item.onSelect?.(event);
       if (typeof result === 'string') {
         setDone({ key: item.key, text: result });
         closeTimer.current = setTimeout(onClose, 700);
@@ -96,6 +98,7 @@ export default function ContextMenu({ title, label, items, anchor, sheet = false
       <MenuPanel
         label={label}
         items={items}
+        header={header}
         anchor={anchor}
         openKey={submenu?.key}
         onPick={pick}
@@ -129,7 +132,7 @@ export default function ContextMenu({ title, label, items, anchor, sheet = false
 }
 
 // One floating panel of the desktop menu (the menu, or a submenu `beside` its item).
-function MenuPanel({ label, items, anchor, beside = false, openKey, onPick, onHover, onBack, done, error, autoFocus }) {
+function MenuPanel({ label, items, header = null, anchor, beside = false, openKey, onPick, onHover, onBack, done, error, autoFocus }) {
   const ref = useRef(null);
   const [position, setPosition] = useState({ left: anchor.left, top: anchor.bottom, visibility: 'hidden' });
 
@@ -169,6 +172,7 @@ function MenuPanel({ label, items, anchor, beside = false, openKey, onPick, onHo
       onKeyDown={onKeyDown}
       onContextMenu={(e) => e.preventDefault()}
     >
+      {header}
       {items.map((item, i) => (item.separator
         ? <div key={`sep-${i}`} className="guild-menu-separator" role="separator" />
         : (
@@ -181,7 +185,7 @@ function MenuPanel({ label, items, anchor, beside = false, openKey, onPick, onHo
             aria-expanded={item.submenu ? openKey === item.key : undefined}
             className={`guild-menu-item${item.danger ? ' danger' : ''}${openKey === item.key ? ' open' : ''}`}
             onMouseEnter={onHover ? (e) => onHover(item, e.currentTarget) : undefined}
-            onClick={(e) => onPick(item, e.currentTarget, e.detail === 0)}
+            onClick={(e) => onPick(item, e.currentTarget, e.detail === 0, e)}
           >
             <span className="context-menu-label">
               {done?.key === item.key ? done.text : item.label}
@@ -237,7 +241,7 @@ function SheetMenu({ title, label, items, onBack, onPick, done, error, onClose, 
                 aria-checked={item.checked}
                 aria-haspopup={item.submenu ? 'menu' : undefined}
                 className={`action-sheet-item${item.danger ? ' danger' : ''}`}
-                onClick={(e) => onPick(item, e.currentTarget)}
+                onClick={(e) => onPick(item, e.currentTarget, false, e)}
               >
                 {item.icon && <FontAwesomeIcon icon={item.icon} fixedWidth />}
                 <span className="context-menu-label">

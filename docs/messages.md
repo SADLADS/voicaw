@@ -309,8 +309,8 @@ chat (`MAX_PINS`, Discord's number; 400 past it).
 - **Client:** the chat hooks (`useConversation`, `useGroupConversation`, `useChannel`) have
   `loadPins()`, `setPinned(msg, pinned)` and `pinsVersion` (bumped on every pin change there,
   so an open list reloads). `ChatPane` takes `canPin`, `pinsAnchor` (the header button's rect)
-  and `onClosePins`: a pin button in the hover menu and "Pin / Unpin message" in the mobile
-  action sheet, and `PinnedMessages` (floating under the header's pin button; full screen on a
+  and `onClosePins`: a pin button in the hover menu, "Pin / Unpin Message" in the right-click
+  menu and "Pin / Unpin message" in the mobile action sheet, and `PinnedMessages` (floating under the header's pin button; full screen on a
   phone; Escape or a click outside closes it), which draws each with `MessageContent`
   (`MessageList`'s markdown, no menu) and has Jump (loads older pages until the message is
   there, then scrolls to it and flashes it, `.jump-highlight`) and Unpin. A pinned message shows

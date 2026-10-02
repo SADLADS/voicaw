@@ -529,6 +529,29 @@ describe('MessageList reactions', () => {
     }
   });
 
+  it('on a computer, right-clicking a message opens its menu where it was clicked', () => {
+    const msg = { id: 5, sender_id: 2, recipient_id: 1, sender_username: 'bob', plaintext: 'click me [site](https://example.com)', timestamp: 1 };
+    const props = reactionProps({ messages: [msg], onOpenMenu: vi.fn() });
+    render(<MessageList {...props} />);
+
+    const notPrevented = fireEvent.contextMenu(screen.getByText(/click me/), { clientX: 30, clientY: 40 });
+    expect(notPrevented).toBe(false);
+    expect(props.onOpenMenu).toHaveBeenCalledWith(msg, { left: 30, right: 30, top: 40, bottom: 40 });
+
+    // A link keeps the browser's menu (copy link, open in a new tab).
+    props.onOpenMenu.mockClear();
+    fireEvent.contextMenu(screen.getByRole('link', { name: 'site' }));
+    expect(props.onOpenMenu).not.toHaveBeenCalled();
+  });
+
+  it('on mobile, right-click (a long press on Android) does not open the desktop menu', () => {
+    const msg = { id: 5, sender_id: 2, recipient_id: 1, sender_username: 'bob', plaintext: 'hold me', timestamp: 1 };
+    const props = reactionProps({ messages: [msg], isMobile: true, onOpenActions: vi.fn(), onOpenMenu: vi.fn() });
+    render(<MessageList {...props} />);
+    fireEvent.contextMenu(screen.getByText('hold me'));
+    expect(props.onOpenMenu).not.toHaveBeenCalled();
+  });
+
   it('keeps the message being reacted to highlighted, and ignores hovering others', () => {
     const a = { id: 5, sender_id: 2, recipient_id: 1, sender_username: 'bob', plaintext: 'first', timestamp: 1 };
     const b = { id: 6, sender_id: 2, recipient_id: 1, sender_username: 'bob', plaintext: 'second', timestamp: 2 };
