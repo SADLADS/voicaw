@@ -436,8 +436,9 @@ div.document-body th {
   font-weight: 700;
 }
 
-/* Checklists (`- [ ]`): the box instead of a bullet. */
-div.document-body li:has(> input[type="checkbox"]),
+/* Checklists (`- [ ]`): the box instead of a bullet. The editor gives every item a checkbox,
+   hidden on ordinary ones, so only a shown box counts. */
+div.document-body li:has(> input[type="checkbox"]:not([hidden])),
 div.document-body .contains-task-list > li {
   list-style: none;
   margin-left: -1.4em;

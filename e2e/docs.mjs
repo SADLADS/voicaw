@@ -125,6 +125,19 @@ try {
   await a.click('button[aria-label="Bold"]');
   await move(a, 'End');
   await a.keyboard.press('Enter');
+  await a.keyboard.type('- Bring a mug');
+  await a.keyboard.press('Enter');
+  await a.keyboard.press('Enter');
+  await a.keyboard.type('1. Sign the forms');
+  await a.keyboard.press('Enter');
+  await a.keyboard.press('Enter');
+  // Bullets and numbers show while editing, not only once published (every editor item has a
+  // hidden checkbox, which the checklist style once took for a checklist).
+  const markers = await a.evaluate(() => ['ul', 'ol', 'li.doc-editor-task'].map((s) => {
+    const li = document.querySelector(`.doc-editor-text ${s === 'li.doc-editor-task' ? s : `${s}:not(:has(.doc-editor-task)) > li`}`);
+    return li && getComputedStyle(li).listStyleType;
+  }));
+  if (JSON.stringify(markers) !== '["disc","decimal","none"]') throw new Error(`editor list markers ${JSON.stringify(markers)}`);
   await a.click('button[aria-label="Insert table"]');
   await a.keyboard.type('Who');
   await a.keyboard.press('Tab');
