@@ -1,4 +1,4 @@
-# Messages: emoji, markdown, GIFs, polls, mentions, pins, drafts, the message list
+# Messages: emoji, markdown, GIFs, YouTube links, polls, mentions, pins, drafts, the message list
 
 ## Emoji (Discord-style, default Unicode set)
 
@@ -132,6 +132,20 @@ has a star on each for favourites. The last tab is remembered (`localStorage emo
   straight from Klipy's CDN with `referrerPolicy="no-referrer"`. So in encrypted chats Klipy
   can see the IP addresses of people viewing a GIF (not the chat or its text). Reply previews
   show "📎 GIF".
+- **Privacy** (Settings → Privacy, "Show GIFs straight away", `gifs`, on by default): turned
+  off, a GIF in a message is a box of its size with Show (`Attachment.jsx` `GifView`), and the
+  picker's GIFs tab says Klipy sees your IP address and which GIFs you look at, loading nothing
+  (not even our search) until "Show GIFs anyway". Both are remembered until the app reloads
+  (per GIF, and for the picker).
+
+## YouTube links
+
+A YouTube watch, share or shorts link (`utils/youtube.js`) gets a player under the message
+(`UrlPreviews.jsx`), from youtube-nocookie.com, which sets no cookies until it's played but
+still tells YouTube the viewer's IP address and the video, in encrypted chats too. With
+Settings → Privacy's "Show YouTube videos straight away" (`youtubeEmbeds`, on by default) off,
+a placeholder with the link and Play stands in (no thumbnail, which would come from YouTube
+too); Play loads the player autoplaying, and it stays loaded until the app reloads.
 
 ## Polls
 

@@ -18,6 +18,7 @@ vi.mock('../services/videoStream', () => ({
 }));
 
 import Attachment from './Attachment';
+import { setPrivacyPref } from '../utils/privacy';
 import {
   loadDecryptedAttachment, getCachedAttachment, loadDecryptedPoster, getCachedPoster,
 } from '../services/attachmentCache';
@@ -39,6 +40,20 @@ beforeEach(() => {
 });
 
 describe('Attachment', () => {
+  it("waits for Show before loading a GIF when Settings → Privacy says not to show GIFs", () => {
+    setPrivacyPref('gifs', false);
+    try {
+      const src = 'https://static.klipy.com/ii/a/hidden.webp#gif&w=498&h=374';
+      const { container } = render(<Attachment src={src} alt="GIF" />);
+      expect(screen.queryByRole('img')).toBeNull();
+      expect(container.querySelector('.attachment-gif-hidden')).toHaveStyle({ width: '420px' });
+      fireEvent.click(screen.getByRole('button', { name: 'Show GIF' }));
+      expect(screen.getByRole('img', { name: 'GIF' })).toHaveAttribute('src', src);
+    } finally {
+      setPrivacyPref('gifs', true);
+    }
+  });
+
   it('shows a GIF from the picker in its final size, without telling the GIF site where', () => {
     const src = 'https://static.klipy.com/ii/a/b.webp#gif&w=498&h=374';
     render(<Attachment src={src} alt="GIF" />);

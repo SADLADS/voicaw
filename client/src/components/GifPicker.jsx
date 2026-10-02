@@ -8,9 +8,13 @@ import {
   searchGifs,
   trendingGifs,
 } from '../services/gifService';
+import { usePrivacyPrefs } from '../utils/privacy';
 
 const SEARCH_DELAY_MS = 300;
 const COLUMNS = 2;
+
+// The privacy warning was accepted since the app was opened (see GifPicker).
+let previewsAccepted = false;
 
 // Favourites, kept between openings of the picker (refreshed from the server on each).
 let favoritesCache = null;
@@ -121,10 +125,8 @@ function GifTile({ gif, favorite, onPick, onToggleFavorite, keepFocus }) {
   );
 }
 
-// The emoji picker's GIFs tab (Klipy). `query` is the picker's search box. Without a query it
-// shows Trending or your Favourites; picking calls `onPick(gif)`. `keepFocus`: taps don't take
-// focus from the search box (mobile search, see EmojiPicker).
-export default function GifPicker({ query, onPick, keepFocus = false }) {
+// The GIFs and their tabs, once they may be shown (GifPicker).
+function GifResults({ query, onPick, keepFocus }) {
   const [debounced, setDebounced] = useState(query.trim());
   useEffect(() => {
     const q = query.trim();
@@ -202,6 +204,44 @@ export default function GifPicker({ query, onPick, keepFocus = false }) {
           </div>
         )}
         {!showFavorites && results.loading && <div className="emoji-picker-empty">Loading GIFs…</div>}
+        <div className="gif-picker-attribution">Powered by KLIPY</div>
+      </div>
+    </div>
+  );
+}
+
+// The emoji picker's GIFs tab (Klipy). `query` is the picker's search box. Without a query it
+// shows Trending or your Favourites; picking calls `onPick(gif)`. `keepFocus`: taps don't take
+// focus from the search box (mobile search, see EmojiPicker).
+// Previews load straight from Klipy's CDN, which sees your IP address and which GIFs you look
+// at (searches go through our server, so it never sees the words). With Settings → Privacy's
+// "Show GIFs straight away" off, the tab says so first and loads nothing until accepted (until
+// the app is reloaded).
+export default function GifPicker({ query, onPick, keepFocus = false }) {
+  const autoLoad = usePrivacyPrefs().gifs;
+  const [accepted, setAccepted] = useState(previewsAccepted);
+  if (autoLoad || accepted) return <GifResults query={query} onPick={onPick} keepFocus={keepFocus} />;
+  const accept = () => {
+    previewsAccepted = true;
+    setAccepted(true);
+  };
+  return (
+    <div className="gif-picker">
+      <div className="emoji-picker-scroll gif-picker-scroll">
+        <div className="gif-picker-warning" role="note">
+          <p>
+            GIF previews load from KLIPY, which sees your IP address and which GIFs you look at.
+            You&apos;ve turned off &ldquo;Show GIFs straight away&rdquo; in Settings → Privacy.
+          </p>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={accept}
+            onMouseDown={keepFocus ? (e) => e.preventDefault() : undefined}
+          >
+            Show GIFs anyway
+          </button>
+        </div>
         <div className="gif-picker-attribution">Powered by KLIPY</div>
       </div>
     </div>

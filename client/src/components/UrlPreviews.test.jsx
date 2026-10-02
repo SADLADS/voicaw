@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { setPrivacyPref } from '../utils/privacy';
 import UrlPreviews from './UrlPreviews';
 import { youtubeVideoId } from '../utils/youtube';
 
@@ -21,5 +22,19 @@ describe('UrlPreviews', () => {
     const frames = container.querySelectorAll('iframe');
     expect(frames).toHaveLength(1);
     expect(frames[0]).toHaveAttribute('src', 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
+  });
+
+  it('waits for Play before loading anything from YouTube when Settings → Privacy says so', () => {
+    setPrivacyPref('youtubeEmbeds', false);
+    try {
+      const { container } = render(<UrlPreviews text="https://youtu.be/abcdefghijk" />);
+      expect(container.querySelector('iframe')).toBeNull();
+      expect(container.querySelector('img')).toBeNull();
+      expect(screen.getByRole('link')).toHaveAttribute('href', 'https://youtu.be/abcdefghijk');
+      fireEvent.click(screen.getByRole('button', { name: 'Play YouTube video' }));
+      expect(container.querySelector('iframe')).toHaveAttribute('src', 'https://www.youtube-nocookie.com/embed/abcdefghijk?autoplay=1');
+    } finally {
+      setPrivacyPref('youtubeEmbeds', true);
+    }
   });
 });

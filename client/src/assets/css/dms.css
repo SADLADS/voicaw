@@ -3378,3 +3378,79 @@ body.mobile-mode .poll-voters-list {
   margin: 0;
   vertical-align: -3px;
 }
+
+/* A YouTube link while Settings → Privacy keeps players from loading (UrlPreviews): no
+   thumbnail, since fetching one would tell YouTube too. */
+.youtube-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  background-color: var(--vc-bg-subtle);
+  border: 1px solid var(--vc-border-dark);
+}
+
+.youtube-placeholder-play {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.youtube-placeholder-play:hover {
+  background-color: var(--vc-accent-hover);
+}
+
+.youtube-placeholder-text {
+  min-width: 0;
+}
+
+.youtube-placeholder-title {
+  color: var(--vc-fg);
+  font-weight: 600;
+}
+
+.youtube-placeholder-text a {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.youtube-placeholder-hint {
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+}
+
+/* A GIF while Settings → Privacy keeps it from loading (Attachment.jsx GifView): its box,
+   with Show. 240×135 when its size is unknown; overridden inline otherwise. */
+.attachment-gif-hidden {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 240px;
+  max-width: min(100%, 420px);
+  min-height: 96px;
+  aspect-ratio: 16 / 9;
+  margin: 4px 0;
+  border-radius: 6px;
+  background-color: var(--vc-bg-subtle);
+  border: 1px solid var(--vc-border-dark);
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+}
+
+/* The GIF picker's notice before previews load (GifPicker). */
+.gif-picker-warning {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--vc-fg-muted);
+}
