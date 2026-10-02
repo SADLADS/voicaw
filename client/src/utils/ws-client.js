@@ -1,5 +1,6 @@
 import { applyPresenceSnapshot, applyUserStatus, isMobileDevice, resetPresence } from './presence';
 import { mergeProfiles } from './profiles';
+import { applyTyping, resetTyping } from './typing';
 import { desktopNotificationsOn } from '../services/pushService';
 import { playMessageSound } from '../sounds/sounds';
 
@@ -175,6 +176,9 @@ export function connectWebSocket() {
       else if (data.type === 'presence_snapshot') {
         applyPresenceSnapshot(data.statuses);
       }
+      else if (data.type === 'typing') {
+        applyTyping(data);
+      }
     } catch (err) {
       console.error('[WS] Failed to parse or handle message:', err);
     }
@@ -213,6 +217,7 @@ export function closeWebSocket() {
   }
   setConnectionState('offline');
   resetPresence();
+  resetTyping();
   newDmlisteners.clear();
   deleteListeners.clear();
   editListeners.clear();

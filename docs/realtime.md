@@ -27,7 +27,8 @@ mentions, for their red counts), `guild_task_upsert` / `_delete` / `guild_tasks_
 `guild_document_upsert` (a feed card) / `_update` (the whole document, after a save) / `_delete` /
 `guild_document_reaction_add` / `_remove` (to whoever can see the document channel), for calls `call_incoming`, `call_update`,
 `call_end`, and for group DMs `group_dm_add` / `_update` / `_remove` / `_epoch` /
-`_message_new` / `_message_edit` / `_message_delete` / `_message_pin` / `_reaction_add` / `_reaction_remove`. A 30s heartbeat
+`_message_new` / `_message_edit` / `_message_delete` / `_message_pin` / `_reaction_add` / `_reaction_remove`, and `typing`
+(see Typing indicator). A 30s heartbeat
 (ping/pong) prunes dead connections.
 
 Client side, `client/src/utils/ws-client.js` wraps this with `connectWebSocket`/`closeWebSocket`
@@ -35,6 +36,29 @@ and a pub/sub listener API (`onNewDm`, `onDeleteDm`, `onEditDm`, `onReactionAdd`
 `onCallEvent`, `onGroupEvent`), auto-reconnecting
 every 3s on close. All non-realtime DM operations (fetch history, send, mark read) go through the
 plain REST API in `client/src/services/dmService.js` / `client/src/utils/api.js` instead.
+
+## Typing indicator
+
+"Alice is typing…" (bold names, three bouncing dots) just above the message box in DMs, group
+DMs, guild text channels and a document's replies; never in notes. Like Discord:
+- Sending: `services/typingService.js` `noteTyping(chatId)`, called by `Composer` on every edit
+  while the box has text, posts `POST /api/typing { chatId }` at most every 8s per chat.
+  Sending the message or emptying the box (`typingDone`) resets that, so the next one tells the
+  others at once. Turned off in Settings → Privacy ("Let others see when I'm typing",
+  `utils/privacy.js` `sendTyping`, on by default), nothing is sent; you still see others.
+- Server (`routes/typing.js`): checks you may write there (the other person exists for a DM;
+  member of the group; View Channel and Send Messages in the channel, or the document's
+  channel), then sends `typing { chatId, userId }` to everyone else who can see the chat, with
+  `chatId` as *they* name it (for a DM, the typer's id). At most one a second per person and
+  chat: sooner gets 429, and the client tries again a second later unless the message was sent
+  or the box emptied by then. Nothing is stored.
+- Showing: `utils/typing.js` keeps who is typing per chat (`useTyping(chatId)`); someone is
+  forgotten 10s after their last event or when their message arrives (`ChatPane` clears the
+  newest message's sender). `TypingIndicator` sits over room kept free at the bottom of the
+  message list (`--vc-typing-height`), so it coming and going moves nothing; the dots stand
+  still with reduced motion.
+- Privacy: in DMs and group DMs this tells the server when you're typing and to whom (it
+  already sees when messages are sent), never what. Hence the Privacy setting.
 
 ## Online status
 

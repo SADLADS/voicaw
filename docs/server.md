@@ -32,6 +32,7 @@ unexpected errors. The rest:
 - `accounts.js`: deleting an account (see Deleting an account).
 - `usernames.js`: usernames ignore capitals (`findUserByName`, `opaque_id`; see Auth).
 - `pollTimers.js`: when every poll closes and its "poll ended" row (see Polls); `routes/polls.js`.
+- `routes/typing.js`: "… is typing" (`POST /typing`, relayed as `typing`; see Typing indicator in `docs/realtime.md`).
 - `profiles.js`: display name, custom status and bio (limits, cleaning, `displayNameOf`; see Profiles).
 - `avatars.js` + `avatarImage.js`: profile pictures (processing, storage, the one-off migration;
   see Profiles). `routes/avatars.js` has their routes.

@@ -24,6 +24,7 @@ import { useCustomEmoji } from '../emoji/customEmojiContext';
 import { searchChannels, searchMentions } from '../utils/mentions';
 import { gifMarkup } from '../utils/gifMarkup';
 import { displayName, nameOf, useProfiles } from '../utils/profiles';
+import { noteTyping, typingDone } from '../services/typingService';
 
 // ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
 const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
@@ -182,6 +183,8 @@ export default function Composer({
     setInputValue(text);
     setBeforeCaret(line);
     if (!docChanged) return;
+    if (text.trim()) noteTyping(chatId);
+    else typingDone(chatId);
     setSuggestionIndex(0);
 
     // Typing the closing colon of a known :shortcode: turns it into the emoji (like Discord):
@@ -252,6 +255,7 @@ export default function Composer({
     setError(null);
 
     inputRef.current?.clear();
+    typingDone(chatId);
     const sending = attachments.takeDrafts(referencedIds);
     onCancelReply();
 

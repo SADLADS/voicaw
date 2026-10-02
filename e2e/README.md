@@ -46,6 +46,7 @@ node e2e/uservolume.mjs [dir] # per-user volume: channel list / tile / call pane
 node e2e/noise.mjs [dir]  # noise suppression + gate: each mode on a made-up recording (fan, clicks, voice) measured, DeepFilterNet speed, sensitivity by hand, Strong in the mic test, phone
 node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
 node e2e/sidebar.mjs [dir] # one sidebar width (DM list, channels, Settings), headers line up, drag/keys/reset, kept; phone untouched
+node e2e/typing.mjs [dir] # typing indicator: DM (dots, cleared on send, clear of the last message), two typers in a guild channel on a phone, timeout, Privacy off
 node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept per device, no dark flash, Match system, color-scheme, phone
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
