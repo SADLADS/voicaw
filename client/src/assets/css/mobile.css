@@ -6,7 +6,7 @@
     position: relative;
     overflow: hidden;
     height: 100svh;
-    width: 100vw;
+    width: 100%;
 }
 
 .mobile-mode .slidey .sidebar-wrapper,

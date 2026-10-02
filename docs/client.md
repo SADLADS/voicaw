@@ -127,6 +127,14 @@
   have a transform while moving (a transform would trap `position: fixed` children).
 - Desktop vs. mobile layouts are two separate CSS files (`assets/css/desktop.css` /
   `mobile.css`) toggled via body classes rather than component-level responsive branches
+- Safe areas (notch, rounded corners, home indicator): the viewport meta has
+  `viewport-fit=cover`, without which iOS reports every `env(safe-area-inset-*)` as 0 (yet the
+  Home Screen app still draws under the home indicator). `#root` pads by the left and right
+  insets (a landscape notch); whatever sits at the bottom edge pads by the bottom inset itself
+  (the user panel with `max(8px, inset)`, composers, sheets). The insets are 0 on computers and
+  phones without them, so nothing moves there. `e2e/safearea.mjs` checks this with insets made
+  up through CDP; Chrome's override ignores `viewport-fit`, so the meta itself only shows on a
+  real iPhone.
 - PWA support via `vite-plugin-pwa` (`injectManifest` strategy, custom `src/service-worker.js`) —
   service worker handles push notifications and posts `navigate` messages back to the app, which
   `SWMessageHandler` in `App.jsx` listens for
