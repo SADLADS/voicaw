@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { onGroupEvent } from '../utils/ws-client';
 import { fetchGroups } from '../services/groupService';
+import { parseCallLog } from '../utils/callLog';
 
 // Your group DMs, for the conversation list (Layout puts this in LayoutContext.groupList):
 // [{ id, name, owner_id, members: [{ id, username }], last_timestamp, unread }], kept current by
@@ -43,7 +44,10 @@ export function useGroupList({ userId, activeGroupId, onRemoved }) {
           break;
         case 'group_dm_message_new': {
           const { message } = event;
-          const unread = message.sender_id !== userId && event.groupId !== active.current;
+          // A call you were in isn't news to you (the server counts it read too).
+          const call = parseCallLog(message);
+          const wasInCall = call?.outcome === 'ended' && call.joined.includes(userId);
+          const unread = message.sender_id !== userId && event.groupId !== active.current && !wasInCall;
           setGroups((prev) => prev.map((g) => (g.id === event.groupId
             ? { ...g, last_timestamp: message.timestamp, unread: unread ? g.unread + 1 : g.unread }
             : g)));

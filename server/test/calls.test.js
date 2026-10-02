@@ -34,6 +34,7 @@ const authed = (user) => ({ Authorization: `Bearer ${user.token}` });
 const api = {
   get: (user, url) => request(app).get(`/api${url}`).set(authed(user)),
   post: (user, url, body = {}) => request(app).post(`/api${url}`).set(authed(user)).send(body),
+  put: (user, url, body = {}) => request(app).put(`/api${url}`).set(authed(user)).send(body),
   delete: (user, url) => request(app).delete(`/api${url}`).set(authed(user)),
 };
 
@@ -208,5 +209,64 @@ describe('DM calls', () => {
 
     await api.post(alice, `/guilds/${guild.id}/channels/${lounge.id}/voice`);
     expect(calls.calls.has(callId)).toBe(false);
+  });
+});
+
+describe('calls in the DM history', () => {
+  const callRows = async (user, other) =>
+    (await api.get(user, `/dm-messages/${other.id}?limit=100`)).body.filter((m) => m.system === 'call');
+  const unreadFrom = async (user, other) =>
+    (await api.get(user, '/dm-get-unread')).body.find((u) => u.from_user_id === other.id)?.count ?? 0;
+
+  it('logs a missed call, unread for the person called, sent like a message', async () => {
+    const [alice, bob] = [await makeUser(), await makeUser()];
+    const bobEvents = listen(bob);
+    const callId = (await ring(alice, bob)).body.call.id;
+    await calls.endCall(calls.calls.get(callId), 'missed');
+
+    const [row] = await callRows(bob, alice);
+    expect(row).toMatchObject({ sender_id: alice.id, recipient_id: bob.id, system: 'call' });
+    expect(JSON.parse(row.content)).toEqual({ v: 1, outcome: 'missed', duration: 0, joined: [] });
+    expect(ofType(bobEvents, 'new_dm').at(-1).message).toMatchObject({ id: row.id, system: 'call' });
+    expect(await unreadFrom(bob, alice)).toBe(1);
+    expect(await unreadFrom(alice, bob)).toBe(0);
+  });
+
+  it('counts a call the caller hung up before an answer as missed, and logs a declined one', async () => {
+    const [alice, bob] = [await makeUser(), await makeUser()];
+    let callId = (await ring(alice, bob)).body.call.id;
+    await api.delete(alice, `/dm-calls/${callId}`);
+    callId = (await ring(alice, bob)).body.call.id;
+    await api.post(bob, `/dm-calls/${callId}/decline`);
+    const outcomes = (await callRows(alice, bob)).map((m) => JSON.parse(m.content).outcome);
+    expect(outcomes).toEqual(['missed', 'declined']);
+  });
+
+  it('logs an answered call with its length, not unread', async () => {
+    const [alice, bob] = [await makeUser(), await makeUser()];
+    const callId = (await ring(alice, bob)).body.call.id;
+    await api.post(bob, `/dm-calls/${callId}/accept`);
+    calls.calls.get(callId).answeredAt -= 125 * 1000;
+    await api.delete(bob, `/dm-calls/${callId}`);
+
+    const [row] = await callRows(alice, bob);
+    const content = JSON.parse(row.content);
+    expect(content).toMatchObject({ outcome: 'ended', joined: [alice.id, bob.id] });
+    expect(content.duration).toBeGreaterThanOrEqual(125);
+    expect(content.duration).toBeLessThan(130);
+    expect(await unreadFrom(bob, alice)).toBe(0);
+  });
+
+  it("can't be edited, deleted, reacted to, pinned or replied to", async () => {
+    const [alice, bob] = [await makeUser(), await makeUser()];
+    const callId = (await ring(alice, bob)).body.call.id;
+    await calls.endCall(calls.calls.get(callId), 'missed');
+    const [row] = await callRows(alice, bob);
+    expect((await api.put(alice, `/update-message/${row.id}`, { content: 'v1.x' })).status).toBe(403);
+    expect((await api.delete(alice, `/messages/${row.id}`)).status).toBe(403);
+    expect((await api.post(bob, '/dm-reactions', { messageId: row.id, content: `v1.${'A'.repeat(123)}=` })).status).toBe(403);
+    expect((await api.put(bob, `/dm-messages/${row.id}/pin`)).status).toBe(403);
+    expect((await api.post(bob, '/dm-send', { recipient_id: alice.id, content: 'v1.reply', replyTo: row.id })).status).toBe(400);
+    expect(await callRows(alice, bob)).toHaveLength(1);
   });
 });

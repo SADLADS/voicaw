@@ -140,6 +140,8 @@ export function useGroupConversation({ groupId, user, onRead }) {
 
   async function decryptRow(row) {
     if (row.system === 'poll_end') return decryptPollEndRow(row);
+    // A call (utils/callLog.js): plaintext from the server, shown as a notice.
+    if (row.system === 'call') return { ...row, plaintext: null, reactions: [] };
     const text = await decryptText(row.content, row.epoch, row.sender_id, signatureContextOf(row));
     return {
       ...row,

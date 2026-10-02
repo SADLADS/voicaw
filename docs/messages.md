@@ -187,7 +187,8 @@ its own message (replying if a reply is set, like a GIF).
   kind `dm`/`group`/`guild`, `services/pollService.js`; `poll_timers`, `ends_at` = the
   message's timestamp + duration), and End poll does `POST .../end` after the edit. A sweep
   (every 5 s, only when run as the server; tests call `announceDue`) posts each due row once:
-  a message in that chat's table with `system` = 'poll_end', the poll's author as sender, the
+  a message in that chat's table with `system` = 'poll_end' (the other system row is a call,
+  see DM calls), the poll's author as sender, the
   poll as parent and empty content, sent as the chat's usual new-message event (no pushes;
   unread like any message, in a group in the poll's epoch). Rows carry the poll (the parent,
   still encrypted, plus `parent_timestamp`; in groups also the poll's `parent_reply_to` and

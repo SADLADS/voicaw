@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { CALL_LOG } = require('../callLog');
 const { maxPlaintextLength, getMaxEncryptedLength } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
@@ -259,7 +260,7 @@ router.post('/group-dms/:groupId/messages', member, async (req, res) => {
   let parentId = null;
   if (replyTo != null) {
     const parent = await messageFor(req.user.id, Number(replyTo));
-    if (!parent || parent.group_id !== groupId) return res.status(400).json({ error: 'Invalid reply' });
+    if (!parent || parent.group_id !== groupId || parent.system === CALL_LOG) return res.status(400).json({ error: 'Invalid reply' });
     parentId = parent.id;
   }
   const lastID = await db.transaction(async () => {
@@ -304,6 +305,12 @@ async function findMessage(req, res, next) {
   next();
 }
 
+// Calls in the chat (callLog.js) can't be deleted, reacted to or pinned.
+function notCallRow(req, res, next) {
+  if (req.message.system === CALL_LOG) return res.status(403).json({ error: "A call in the chat can't be changed" });
+  next();
+}
+
 // Edit your own message: { content } (encrypted with the message's epoch key).
 router.put('/group-dm-messages/:messageId', authenticateJWT, findMessage, async (req, res) => {
   const { content } = req.body ?? {};
@@ -317,7 +324,7 @@ router.put('/group-dm-messages/:messageId', authenticateJWT, findMessage, async 
 });
 
 // Delete your own message (and its reactions).
-router.delete('/group-dm-messages/:messageId', authenticateJWT, findMessage, async (req, res) => {
+router.delete('/group-dm-messages/:messageId', authenticateJWT, findMessage, notCallRow, async (req, res) => {
   if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not your message' });
   // A poll takes its "poll ended" row with it.
   const removed = await db.transaction(async () => {
@@ -332,7 +339,7 @@ router.delete('/group-dm-messages/:messageId', authenticateJWT, findMessage, asy
 });
 
 // React: { content } (the encrypted, padded emoji; see DM reactions).
-router.post('/group-dm-messages/:messageId/reactions', authenticateJWT, findMessage, async (req, res) => {
+router.post('/group-dm-messages/:messageId/reactions', authenticateJWT, findMessage, notCallRow, async (req, res) => {
   const { content } = req.body ?? {};
   if (typeof content === 'string' && content.startsWith('v1.')) return res.status(400).json({ error: OUTDATED });
   if (typeof content !== 'string' || content.length !== REACTION_LENGTH || !content.startsWith(SIGNED_PREFIX)) {
@@ -369,8 +376,8 @@ async function pinRoute(req, res, pinned) {
   res.json(pin);
 }
 
-router.put('/group-dm-messages/:messageId/pin', authenticateJWT, findMessage, (req, res) => pinRoute(req, res, true));
-router.delete('/group-dm-messages/:messageId/pin', authenticateJWT, findMessage, (req, res) => pinRoute(req, res, false));
+router.put('/group-dm-messages/:messageId/pin', authenticateJWT, findMessage, notCallRow, (req, res) => pinRoute(req, res, true));
+router.delete('/group-dm-messages/:messageId/pin', authenticateJWT, findMessage, notCallRow, (req, res) => pinRoute(req, res, false));
 
 router.delete('/group-dm-reactions/:reactionId', authenticateJWT, async (req, res) => {
   const reaction = await db.get('SELECT id, message_id, user_id FROM group_dm_reactions WHERE id = ?', [Number(req.params.reactionId)]);

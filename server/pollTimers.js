@@ -130,7 +130,8 @@ async function insertRow(kind, poll) {
   );
 }
 
-// Sends a new "poll ended" row as the chat's usual new-message event (no pushes).
+// Sends a new system row ("poll ended", or a call: callLog.js) as the chat's usual
+// new-message event (no pushes).
 async function deliver(kind, id) {
   if (kind === 'dm') {
     const { loadMessage, sendToConversation } = require('./routes/dms');
@@ -184,4 +185,4 @@ async function removePollRows(kind, messageId) {
   return rows.map((r) => r.id);
 }
 
-module.exports = { KINDS, PollError, registerPoll, endPollNow, announceDue, startPollTimers, removePollRows };
+module.exports = { KINDS, PollError, registerPoll, endPollNow, announceDue, startPollTimers, removePollRows, deliverRow: deliver };

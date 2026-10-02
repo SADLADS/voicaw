@@ -62,6 +62,25 @@ describe('MessageList', () => {
     expect(screen.getByText('@unknown-user')).toHaveClass('mention');
   });
 
+  it('shows calls in the chat as notices, not messages', () => {
+    mergeProfiles([{ id: 2, username: 'bob', display_name: 'Bobby' }]);
+    const call = (id, sender, data) => ({ id, sender_id: sender, recipient_id: sender === 1 ? 2 : 1, system: 'call', content: JSON.stringify({ v: 1, ...data }), timestamp: 1000 + id });
+    const messages = [
+      call(1, 2, { outcome: 'missed', duration: 0, joined: [] }),
+      call(2, 1, { outcome: 'declined', duration: 0, joined: [] }),
+      call(3, 2, { outcome: 'ended', duration: 300, joined: [1, 2] }),
+    ];
+    const { container } = render(<MessageList {...baseProps({ messages })} />);
+    const notices = [...container.querySelectorAll('.call-log')];
+    expect(notices.map((n) => n.textContent)).toEqual([
+      'You missed a call from Bobby.',
+      'Bobby declined the call.',
+      'Bobby started a call that lasted 5 minutes.',
+    ]);
+    expect(notices.map((n) => n.classList.contains('missed'))).toEqual([true, false, false]);
+    expect(container.querySelector('.each-dm-message-wrapper')).toBeNull();
+  });
+
   it('shows display names, and a name opens that person\'s profile card', () => {
     mergeProfiles([{ id: 2, username: 'bob', display_name: 'Bobby', custom_status: 'Fishing', bio: 'I like boats.' }]);
     render(<MessageList {...baseProps({ messages: [{ id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'ahoy', timestamp: 1000 }] })} />);

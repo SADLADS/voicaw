@@ -28,6 +28,7 @@ unexpected errors. The rest:
 - `auditLog.js`: a guild's audit log (`logAudit`, `readAuditLog`; see Guilds); `routes/auditLog.js`.
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).
+- `callLog.js`: a call's row in its chat's history once it ends (see Calls in the chat history, under DM calls).
 - `groupDms.js`: group DMs (membership log checks, epochs, summaries; see Group DMs).
 - `appSettings.js`: app-wide settings a global admin edits (see Admin settings).
 - `pins.js`: pinning and unpinning a message, the same for every kind of chat (see Pinned messages).
