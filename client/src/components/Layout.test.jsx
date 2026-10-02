@@ -17,6 +17,7 @@ vi.mock('../utils/ws-client', () => ({
   getConnectionState: () => 'online',
   onConnectionState: () => () => {},
   onConversationSettings: () => () => {},
+  onPreferences: () => () => {},
 }));
 
 // Group DMs (tested with their hooks and in e2e/groups.mjs): none here.

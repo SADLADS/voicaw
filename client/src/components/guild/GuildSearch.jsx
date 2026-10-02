@@ -5,7 +5,7 @@ import { faArrowLeft, faHashtag, faMagnifyingGlass, faXmark } from '@fortawesome
 import Avatar from '../Avatar';
 import defaultAvatar from '../../assets/images/default.png';
 import { MessageContent } from '../MessageList';
-import { ConfigContext } from '../../contexts';
+import { ConfigContext, NsfwChannelContext } from '../../contexts';
 import { searchGuildMessages } from '../../services/guildService';
 import { toChatMessage } from '../../hooks/useChannel';
 import { parseSearch, searchContext, searchSuggestions } from '../../utils/searchQuery';
@@ -47,6 +47,8 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
 
   const channels = useMemo(() => guild.channels.filter((c) => c.type === 'text'), [guild.channels]);
   const channelName = (id) => guild.channels.find((c) => c.id === id)?.name ?? 'unknown';
+  // A result from an NSFW channel has its media covered, as in the channel.
+  const isNsfw = (id) => Boolean(guild.channels.find((c) => c.id === id)?.nsfw);
 
   const context = focused ? searchContext(text, caret) : null;
   const suggestions = searchSuggestions(context, { members, channels, nameOf });
@@ -314,14 +316,16 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
                   </button>
                 </span>
               </div>
-              <MessageContent
-                msg={msg}
-                user={user}
-                s3Endpoint={s3Endpoint}
-                reactionNames={reactionNames}
-                mentionRoles={mentionRoles}
-                myRoleIds={guild.my_role_ids}
-              />
+              <NsfwChannelContext.Provider value={isNsfw(msg.channel_id)}>
+                <MessageContent
+                  msg={msg}
+                  user={user}
+                  s3Endpoint={s3Endpoint}
+                  reactionNames={reactionNames}
+                  mentionRoles={mentionRoles}
+                  myRoleIds={guild.my_role_ids}
+                />
+              </NsfwChannelContext.Provider>
             </div>
           );
         })}

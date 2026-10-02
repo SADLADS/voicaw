@@ -25,3 +25,7 @@ export const ImageViewerContext = createContext(null);
 // Opening them all, rather than asking about that one channel, keeps the server from learning
 // which channel an encrypted message named. Null outside Layout.
 export const ChannelMentionContext = createContext(null);
+
+// Whether what's drawn inside is from an NSFW guild channel (GuildView, GuildSearch): its media
+// is covered until clicked, unless Settings turns that off (hooks/useMediaCover.js).
+export const NsfwChannelContext = createContext(false);

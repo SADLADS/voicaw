@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBell, faBellSlash, faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/dms.css';
 import '../../assets/css/guilds.css';
-import { InteractionContext, LayoutContext } from '../../contexts';
+import { InteractionContext, LayoutContext, NsfwChannelContext } from '../../contexts';
 import ChatPane from '../ChatPane';
 import MemberList from './MemberList';
 import ChannelIcon from './ChannelIcon';
@@ -257,6 +257,7 @@ export default function GuildView({ user }) {
       <header className="channel-header">
         <ChannelIcon channel={channel} className="channel-header-icon" />
         <h4 className="channel-header-name">{channel?.name ?? ''}</h4>
+        {channel?.nsfw && <span className="channel-nsfw-tag" title="Media in this channel is blurred until clicked">NSFW</span>}
         {channel?.topic && (
           <>
             <span className="channel-header-divider" />
@@ -321,61 +322,63 @@ export default function GuildView({ user }) {
 
       <div className="guild-body">
         <div className="guild-chat" data-current-user-id={user.id}>
-          {!channel ? (
-            <p className="guild-placeholder">Loading…</p>
-          ) : channel.type === 'voice' ? (
-            <VoiceChannelView guild={guild} channel={channel} nameColors={nameColors} />
-          ) : channel.type === 'list' ? (
-            <ListChannelView
-              guild={guild}
-              channel={channel}
-              user={user}
-              people={channelMembers}
-              reactionNames={reactionNames}
-              mentionRoles={mentionRoles}
-              nameColors={nameColors}
-              isMobile={isMobile}
-            />
-          ) : channel.type === 'doc' ? (
-            <DocChannelView
-              guild={guild}
-              channel={channel}
-              user={user}
-              isMobile={isMobile}
-              nameColors={nameColors}
-              chatProps={chatProps}
-            />
-          ) : (
-            <ChatPane
-              pollKind="guild"
-              chatId={`channel-${channel.id}`}
-              encrypted={false}
-              chatName={`#${channel.name}`}
-              user={user}
-              conversation={conversation}
-              reactionsReady
-              saveReaction={(msg, emoji) => addGuildReaction(msg.id, emoji)}
-              deleteReaction={removeGuildReaction}
-              reactionNames={reactionNames}
-              people={channelMembers}
-              mentionRoles={mentionRoles}
-              myRoleIds={guild.my_role_ids}
-              suggestRoles={suggestRoles}
-              canMentionEveryone={canMentionEveryone}
-              channels={mentionChannels}
-              canModerate={has(permissions, PERMISSIONS.MANAGE_MESSAGES)}
-              canSend={has(permissions, PERMISSIONS.SEND_MESSAGES)}
-              cantSendText={`You do not have permission to send messages in #${channel.name}.`}
-              canAddReactions={has(permissions, PERMISSIONS.ADD_REACTIONS)}
-              canPin={has(permissions, PERMISSIONS.PIN_MESSAGES)}
-              pinsAnchor={pinsAnchor}
-              onClosePins={closePins}
-              jumpTo={jumpTarget?.channelId === channel.id && conversation.loadedChannelId === channelId ? jumpTarget : null}
-              onJumped={clearJump}
-              nameColors={nameColors}
-              emptyText={`Welcome to #${channel.name}! This is the start of the channel.`}
-            />
-          )}
+          <NsfwChannelContext.Provider value={Boolean(channel?.nsfw)}>
+            {!channel ? (
+              <p className="guild-placeholder">Loading…</p>
+            ) : channel.type === 'voice' ? (
+              <VoiceChannelView guild={guild} channel={channel} nameColors={nameColors} />
+            ) : channel.type === 'list' ? (
+              <ListChannelView
+                guild={guild}
+                channel={channel}
+                user={user}
+                people={channelMembers}
+                reactionNames={reactionNames}
+                mentionRoles={mentionRoles}
+                nameColors={nameColors}
+                isMobile={isMobile}
+              />
+            ) : channel.type === 'doc' ? (
+              <DocChannelView
+                guild={guild}
+                channel={channel}
+                user={user}
+                isMobile={isMobile}
+                nameColors={nameColors}
+                chatProps={chatProps}
+              />
+            ) : (
+              <ChatPane
+                pollKind="guild"
+                chatId={`channel-${channel.id}`}
+                encrypted={false}
+                chatName={`#${channel.name}`}
+                user={user}
+                conversation={conversation}
+                reactionsReady
+                saveReaction={(msg, emoji) => addGuildReaction(msg.id, emoji)}
+                deleteReaction={removeGuildReaction}
+                reactionNames={reactionNames}
+                people={channelMembers}
+                mentionRoles={mentionRoles}
+                myRoleIds={guild.my_role_ids}
+                suggestRoles={suggestRoles}
+                canMentionEveryone={canMentionEveryone}
+                channels={mentionChannels}
+                canModerate={has(permissions, PERMISSIONS.MANAGE_MESSAGES)}
+                canSend={has(permissions, PERMISSIONS.SEND_MESSAGES)}
+                cantSendText={`You do not have permission to send messages in #${channel.name}.`}
+                canAddReactions={has(permissions, PERMISSIONS.ADD_REACTIONS)}
+                canPin={has(permissions, PERMISSIONS.PIN_MESSAGES)}
+                pinsAnchor={pinsAnchor}
+                onClosePins={closePins}
+                jumpTo={jumpTarget?.channelId === channel.id && conversation.loadedChannelId === channelId ? jumpTarget : null}
+                onJumped={clearJump}
+                nameColors={nameColors}
+                emptyText={`Welcome to #${channel.name}! This is the start of the channel.`}
+              />
+            )}
+          </NsfwChannelContext.Provider>
         </div>
 
         {membersVisible && (

@@ -88,6 +88,14 @@
   Message sound (calls still ring), is dimmed with a crossed-out bell and no unread dot, and
   doesn't light the rail's DMs icon or the desktop app's badge. The server already knows who
   talks to whom, so this tells it nothing new.
+- **Account preferences** (`server/preferences.js`, JSON in `users.preferences`, only those
+  changed from the default; `GET /preferences`, `PUT /preferences { key: value }`; the
+  `preferences` event to your other devices; `utils/preferences.js`, kept up to date by
+  `hooks/usePreferencesSync.js` in `Layout`): settings that follow your account to every
+  device, unlike the per-device ones in localStorage (Privacy, sounds, theme...). So far just
+  `blurNsfw` (Settings → Content, "Blur media in NSFW channels", on by default; see NSFW
+  channels in `docs/guilds.md`). A new one is a key in both files' `DEFAULTS` (and the
+  server's `isValid`).
 - Text can't be selected except where it's useful (`voicaw.css`, TEXT SELECTION): inputs and
   editors everywhere, and on desktop the chat's messages, names, times, reply previews and the
   channel topic. So dragging things (channels, guilds) doesn't highlight text. On mobile a long

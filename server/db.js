@@ -476,6 +476,8 @@ addColumn('ALTER TABLE users ADD COLUMN display_name TEXT');
 addColumn('ALTER TABLE users ADD COLUMN custom_status TEXT');
 addColumn('ALTER TABLE users ADD COLUMN bio TEXT');
 addColumn('ALTER TABLE users ADD COLUMN avatar TEXT');
+// Your own settings that follow your account (preferences.js; JSON, only those changed).
+addColumn('ALTER TABLE users ADD COLUMN preferences TEXT');
 // The name an account's OPAQUE record was registered under, when it isn't its (lower-case)
 // username: see usernames.js.
 addColumn('ALTER TABLE users ADD COLUMN opaque_id TEXT');
@@ -777,6 +779,10 @@ for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; ver
     throw err;
   }
 }
+
+// NSFW channels (docs/guilds.md): their media is covered until clicked. Added after the
+// migrations, since 6 and 8 copy guild_channels column by column (allowEveryChannelType).
+addColumn('ALTER TABLE guild_channels ADD COLUMN nsfw INTEGER NOT NULL DEFAULT 0');
 
 // ---- Queries ----
 // get / all / run return promises (callers await them) though the driver is synchronous, and

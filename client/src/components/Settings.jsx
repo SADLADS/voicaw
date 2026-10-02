@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect } from "react";
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMagnifyingGlass, faPuzzlePiece, faSignOutAlt, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faEyeSlash, faMagnifyingGlass, faPuzzlePiece, faSignOutAlt, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
@@ -13,6 +13,7 @@ import AdminSettings from "./AdminSettings";
 import DateTimeSettings from "./DateTimeSettings";
 import SpellcheckSettings from "./SpellcheckSettings";
 import PrivacySettings from "./PrivacySettings";
+import ContentSettings from "./ContentSettings";
 import ThemeSettings from "./ThemeSettings";
 import SoundSettings from "./SoundSettings";
 import VoiceSettings from "./VoiceSettings";
@@ -104,6 +105,11 @@ export default function Settings({ onLogout }) {
       id: 'privacy', category: 'app', title: 'Privacy', icon: faPuzzlePiece,
       keywords: 'privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy',
       content: <PrivacySettings />,
+    },
+    {
+      id: 'content', category: 'app', title: 'Content', icon: faEyeSlash,
+      keywords: 'nsfw blur blurred spoiler spoilers media images pictures videos gifs adult explicit sensitive hide',
+      content: <ContentSettings />,
     },
     {
       id: 'notifications', category: 'app', title: 'Notifications',

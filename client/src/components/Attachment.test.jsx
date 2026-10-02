@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 vi.mock('../services/attachmentCache', () => ({
@@ -19,6 +19,8 @@ vi.mock('../services/videoStream', () => ({
 
 import Attachment from './Attachment';
 import { setPrivacyPref } from '../utils/privacy';
+import { applyPreferences } from '../utils/preferences';
+import { NsfwChannelContext } from '../contexts';
 import {
   loadDecryptedAttachment, getCachedAttachment, loadDecryptedPoster, getCachedPoster,
 } from '../services/attachmentCache';
@@ -261,6 +263,58 @@ describe('Attachment', () => {
     render(<Attachment src="attachment:3" alt="me.jpg" localAttachments={localAttachments} />);
 
     expect(screen.getByRole('button', { name: 'Spoiler: me.jpg, select to reveal' })).toBeInTheDocument();
+  });
+
+  describe('in an NSFW channel', () => {
+    const inNsfw = (ui) => <NsfwChannelContext.Provider value>{ui}</NsfwChannelContext.Provider>;
+    afterEach(() => applyPreferences({ blurNsfw: true }));
+
+    it('covers an image with "NSFW" until clicked, out of the image viewer until then', () => {
+      getCachedAttachment.mockReturnValue('blob:art');
+      const { container } = render(inNsfw(<Attachment src={encryptedUrl('image/png', 10)} alt="art.png" />));
+
+      expect(screen.queryByRole('img', { name: 'art.png' })).not.toBeInTheDocument();
+      expect(container.querySelector('[data-gallery-item]')).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'NSFW: art.png, select to reveal' }));
+      expect(screen.getByRole('img', { name: 'art.png' })).toHaveAttribute('src', 'blob:art');
+    });
+
+    it('gives a spoiler just the one cover, labelled Spoiler', () => {
+      getCachedAttachment.mockReturnValue('blob:twist');
+      const { container } = render(inNsfw(<Attachment src={encryptedUrl('image/png', 10, { spoiler: true })} alt="twist.png" />));
+
+      expect(container.querySelectorAll('.attachment-spoiler')).toHaveLength(1);
+      fireEvent.click(screen.getByRole('button', { name: 'Spoiler: twist.png, select to reveal' }));
+      expect(screen.getByRole('img', { name: 'twist.png' })).toBeInTheDocument();
+      expect(container.querySelector('.attachment-spoiler')).toBeNull();
+    });
+
+    it('covers GIFs, other sites\' images and videos too', () => {
+      const { container } = render(inNsfw(
+        <>
+          <Attachment src="https://static.klipy.com/ii/a/b.webp#gif&w=498&h=374" alt="GIF" />
+          <Attachment src="https://example.com/pic.png" alt="pic" />
+          <Attachment src={videoUrl()} alt="clip.mp4" />
+        </>
+      ));
+      expect(container.querySelectorAll('.attachment-spoiler')).toHaveLength(3);
+      expect(screen.queryByRole('button', { name: 'Play clip.mp4' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'NSFW: clip.mp4, select to reveal' }));
+      expect(screen.getByRole('button', { name: 'Play clip.mp4' })).toBeInTheDocument();
+    });
+
+    it('shows media straight away with Settings → Content\'s blur off, but not spoilers', () => {
+      applyPreferences({ blurNsfw: false });
+      getCachedAttachment.mockReturnValue('blob:x');
+      render(inNsfw(
+        <>
+          <Attachment src={encryptedUrl('image/png', 10)} alt="art.png" />
+          <Attachment src={encryptedUrl('image/png', 10, { spoiler: true })} alt="twist.png" />
+        </>
+      ));
+      expect(screen.getByRole('img', { name: 'art.png' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Spoiler: twist.png, select to reveal' })).toBeInTheDocument();
+    });
   });
 
   it('shows a placeholder label when a draft placeholder has no local file', () => {

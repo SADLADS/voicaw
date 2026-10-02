@@ -106,13 +106,13 @@ export function describeEntry(entry, names) {
 
 const FIELD_LABELS = {
   name: 'Name', topic: 'Topic', category: 'Category', color: 'Colour', hoist: 'Shown separately',
-  mentionable: 'Anyone can mention it', channel: 'Channel', permissions: 'Permissions',
+  mentionable: 'Anyone can mention it', channel: 'Channel', permissions: 'Permissions', nsfw: 'NSFW',
 };
 
 function showValue(field, value) {
   if (value === null || value === undefined || value === '') return 'none';
   if (field === 'color') return colorToHex(value);
-  if (field === 'hoist' || field === 'mentionable') return value ? 'yes' : 'no';
+  if (field === 'hoist' || field === 'mentionable' || field === 'nsfw') return value ? 'yes' : 'no';
   if (field === 'channel') return `#${value}`;
   return String(value);
 }

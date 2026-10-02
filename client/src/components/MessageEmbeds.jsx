@@ -1,5 +1,7 @@
 import React from 'react';
 import { formatDateTime, useDateFormat } from '../utils/dateFormat';
+import { useMediaCover } from '../hooks/useMediaCover';
+import MediaCover from './MediaCover';
 
 // Links in embeds open in a new tab, telling the site nothing about where they came from.
 function EmbedLink({ href, className, children }) {
@@ -7,18 +9,22 @@ function EmbedLink({ href, className, children }) {
 }
 
 // An image from the embed: another site's (loaded straight from it, no referrer) or a file sent
-// with the message. Its size, when known, is kept so the box is right before it loads.
+// with the message. Its size, when known, is kept so the box is right before it loads. Covered
+// in an NSFW channel.
 function EmbedImage({ image, className }) {
+  const cover = useMediaCover();
   return (
-    <img
-      className={className}
-      src={image.url}
-      alt=""
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      width={image.width}
-      height={image.height}
-    />
+    <MediaCover label={cover} name="embedded image">
+      <img
+        className={className}
+        src={image.url}
+        alt=""
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        width={image.width}
+        height={image.height}
+      />
+    </MediaCover>
   );
 }
 
