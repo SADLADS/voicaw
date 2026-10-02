@@ -144,8 +144,8 @@
   color-scheme: light;
 }
 
-/* Ol' Familiar: Discord's default dark theme (the 2025 refresh's "Dark", .theme-darker), its
-   values read from discord.com's own CSS on 2026-10-02. Translucent ones (hover, borders) are
+/* Ol' Familiar: Discord's Ash theme (its mid-grey dark one, closest to the classic look; Ash is
+   .theme-dark in Discord's CSS), values read from discord.com's own CSS on 2026-10-02. Translucent ones (hover, borders) are
    flattened onto the surface they sit on. Blurple for what you can do, Discord's yellow for
    mentions, white unread markers, red mention counts, blue links. */
 :root[data-theme="familiar"] {
@@ -162,21 +162,21 @@
   --vc-action-soft: rgba(240, 177, 50, 0.1);
   --vc-on-action: #000000;
 
-  --vc-bg-base: #121214;
-  --vc-bg-subtle: #1a1a1e;
-  --vc-bg-elevated: #242429;
-  --vc-bg-elevated-hover: #2c2d32;
-  --vc-bg-hover: #29292e;
-  --vc-border-dark: #222225;
-  --vc-border-light: #3a3a40;
+  --vc-bg-base: #2c2d32;
+  --vc-bg-subtle: #323339;
+  --vc-bg-elevated: #393a41;
+  --vc-bg-elevated-hover: #3f4048;
+  --vc-bg-hover: #3e3e45;
+  --vc-border-dark: #393a3f;
+  --vc-border-light: #4e4f56;
 
-  --vc-fg: #efeff1;
-  --vc-fg-muted: #96979e;
-  --vc-placeholder: #6c6f7c;
+  --vc-fg: #f3f3f4;
+  --vc-fg-muted: #abacb2;
+  --vc-placeholder: #6d6f78;
 
-  --vc-popup: #28282d;
-  --vc-spoiler: #666770;
-  --vc-spoiler-hover: #84858d;
+  --vc-popup: #3c3d45;
+  --vc-spoiler: #7d7e87;
+  --vc-spoiler-hover: #9d9ea5;
   --vc-shadow: rgba(0, 0, 0, 0.24);
   --vc-popup-shadow: rgba(0, 0, 0, 0.4);
 
@@ -184,15 +184,15 @@
   --vc-success: #008545;
   --vc-success-hover: #006c37;
   --vc-idle: #f0b232;
-  --vc-warning: #ea9800;
-  --vc-warning-hover: #c98300;
+  --vc-warning: #fcb529;
+  --vc-warning-hover: #e09f1f;
   --vc-on-warning: #000000;
   --vc-danger: #d22d39;
   --vc-danger-hover: #a9232e;
-  --vc-danger-text: #f87e7a;
+  --vc-danger-text: #ffa09b;
 
-  --vc-link: #4d96ee;
-  --vc-unread: #fbfbfb;
+  --vc-link: #76aff6;
+  --vc-unread: #ffffff;
   --vc-mention-badge: #d22d39;
   --vc-on-mention-badge: #ffffff;
 
@@ -628,10 +628,10 @@ pre code {
 }
 
 .theme-preview-familiar {
-  --side: #121214;
-  --chat: #1a1a1e;
-  --line: #3a3a40;
-  --box: #242429;
+  --side: #2c2d32;
+  --chat: #323339;
+  --line: #4e4f56;
+  --box: #393a41;
 }
 
 /* Match system: half of each. */

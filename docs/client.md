@@ -133,8 +133,9 @@
     `--vc-unread` (the rail's marker, unread pills and dots) and `--vc-mention-badge` /
     `--vc-on-mention-badge` (unread mention counts). Dark and Light give them the purple text
     colour and the bird yellow.
-  - **Ol' Familiar** (`data-theme="familiar"`, added 2026-10-02) is Discord's default dark
-    theme: the 2025 refresh's "Dark" (`.theme-darker` in Discord's CSS), its values read from
+  - **Ol' Familiar** (`data-theme="familiar"`, added 2026-10-02) is Discord's Ash theme, its
+    mid-grey dark one and the closest to Discord's classic look (Discord's code maps Ash to
+    `.theme-dark`, Dark to `.theme-darker`, Onyx to `.theme-midnight`); values read from
     discord.com's stylesheets on 2026-10-02 (translucent hovers and borders flattened onto
     their surface). So it breaks Voicaw's colour meanings where Discord does: blurple accent,
     blue links, white unread markers, red mention counts, Discord's yellow for mentions. It's
