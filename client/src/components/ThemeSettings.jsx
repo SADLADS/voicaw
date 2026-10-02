@@ -4,10 +4,11 @@ import { setThemeChoice, useTheme } from '../utils/theme';
 const OPTIONS = [
   { value: 'dark', label: 'Dark' },
   { value: 'light', label: 'Light' },
+  { value: 'familiar', label: 'Ol’ Familiar' },
   { value: 'system', label: 'Match system' },
 ];
 
-// Settings → Appearance: light or dark, on this device only (utils/theme).
+// Settings → Appearance: the theme, on this device only (utils/theme).
 export default function ThemeSettings() {
   const { choice, theme } = useTheme();
 

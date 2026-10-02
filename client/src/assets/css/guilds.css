@@ -328,7 +328,7 @@ img.guild-icon {
   height: 8px;
   margin-top: -4px;
   border-radius: 0 4px 4px 0;
-  background-color: var(--vc-action);
+  background-color: var(--vc-unread);
 }
 
 /* A muted channel (ChannelMuteMenu): dimmed, never bold, a crossed-out bell after the name. */
@@ -2075,7 +2075,8 @@ img.emoji.custom-emoji {
   color: var(--vc-on-accent);
 }
 
-/* Unread mentions of you: a yellow count, on a channel and on its guild's icon in the rail. */
+/* Unread mentions of you: a count (yellow; red in Ol' Familiar), on a channel and on its guild's
+   icon in the rail. */
 .mention-badge {
   flex-shrink: 0;
   min-width: 18px;
@@ -2083,8 +2084,8 @@ img.emoji.custom-emoji {
   margin-left: auto;
   padding: 0 5px;
   border-radius: 9px;
-  background-color: var(--vc-action);
-  color: var(--vc-on-action);
+  background-color: var(--vc-mention-badge);
+  color: var(--vc-on-mention-badge);
   font-size: 11px;
   font-weight: 700;
   line-height: 18px;

@@ -46,6 +46,16 @@ describe('theme', () => {
     expect(localStorage.getItem('theme')).toBeNull();
   });
 
+  it('has Ol’ Familiar: its own colours, dark underneath for Bootstrap', async () => {
+    const { setThemeChoice, resolveTheme } = await loadTheme();
+    setThemeChoice('familiar');
+    expect(resolveTheme()).toBe('familiar');
+    expect(document.documentElement.dataset.theme).toBe('familiar');
+    expect(document.documentElement.dataset.bsTheme).toBe('dark');
+    expect(localStorage.getItem('theme')).toBe('familiar');
+    expect((await loadTheme()).getThemeChoice()).toBe('familiar');
+  });
+
   it('reads the saved choice on start, ignoring anything unknown', async () => {
     localStorage.setItem('theme', 'light');
     expect((await loadTheme()).getThemeChoice()).toBe('light');
