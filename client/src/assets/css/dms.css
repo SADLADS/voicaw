@@ -2096,6 +2096,37 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   color: var(--vc-fg-muted);
 }
 
+/* Pinned and muted conversations (DmMenu): a small pin or crossed-out bell at the row's end;
+   muted ones are dimmed. A long press opens the menu, not the browser's link menu. */
+.dm-user .dm-user-container {
+  flex: 1;
+}
+
+.dm-row-mark {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--vc-fg-muted);
+}
+
+.dm-user-names + .dm-row-mark,
+.dm-group-text + .dm-row-mark {
+  margin-left: auto;
+  padding-left: 6px;
+}
+
+.dm-user.muted:not(.active) .dm-user-names,
+.dm-user.muted:not(.active) .dm-group-text,
+.dm-user.muted:not(.active) .dm-user-avatar-wrap,
+.dm-user.muted:not(.active) .group-avatar {
+  opacity: 0.5;
+}
+
+body.mobile-mode .dm-user-list-container .dm-user {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* A name or avatar in chat opens that person's profile card (ProfilePopover). */
 .dm-message .message-author[role="button"],
 .dm-message .message-avatar[role="button"] {

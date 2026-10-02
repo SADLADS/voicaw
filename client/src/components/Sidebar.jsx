@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useContext, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faComments, faPlus } from '@fortawesome/free-solid-svg-icons';
@@ -6,17 +6,35 @@ import logo from '../assets/images/logo-no-border.svg';
 import GuildIcon from './guild/GuildIcon';
 import '../assets/css/guilds.css';
 import AddGuildDialog from './guild/AddGuildDialog';
+import GuildMenu from './guild/GuildMenu';
+import InviteDialog from './guild/InviteDialog';
+import GuildSettingsDialog from './guild/GuildSettingsDialog';
+import AuditLogDialog from './guild/AuditLogDialog';
+import ConfirmDialog from './guild/ConfirmDialog';
+import { InteractionContext, LayoutContext } from '../contexts';
+import { leaveGuild } from '../services/guildService';
 import { useDragReorder } from '../hooks/useDragReorder';
 
 // The guild rail down the left (like Discord's): home, DMs, then each guild (a pill on the
 // left marks unread messages, a taller one the open guild), then "+" to create or join one.
 // `unreadGuildIds` is a Set of guild ids with unread messages, `guildMentions` ({ guildId:
 // count }) how many of them mention you (a red badge on the icon). Guilds can be dragged into a
-// new order (hold, then drag, on touch screens); `onReorderGuilds(ids)` saves it.
-export default function Sidebar({ hasUnreadDms, guilds = [], unreadGuildIds = new Set(), guildMentions = {}, onReorderGuilds }) {
+// new order (hold, then drag, on touch screens); `onReorderGuilds(ids)` saves it. Right-clicking
+// a guild (touch, hold and lift on a phone) opens its menu (GuildMenu), whose dialogs live here.
+export default function Sidebar({ user, hasUnreadDms, guilds = [], unreadGuildIds = new Set(), guildMentions = {}, onReorderGuilds }) {
   const location = useLocation();
+  const { guildList } = useContext(LayoutContext) ?? {};
+  const { isMobile } = useContext(InteractionContext);
   const [adding, setAdding] = useState(false);
-  const { drag, itemProps } = useDragReorder(guilds.map((g) => g.id), (ids) => onReorderGuilds?.(ids));
+  // { guildId, anchor } while a guild's menu is open; { type, guildId } for one of its dialogs.
+  const [menu, setMenu] = useState(null);
+  const [dialog, setDialog] = useState(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
+  const closeDialog = () => setDialog(null);
+  const { drag, itemProps } = useDragReorder(guilds.map((g) => g.id), (ids) => onReorderGuilds?.(ids), {
+    onMenu: guildList ? (guildId, anchor) => setMenu({ guildId, anchor }) : undefined,
+  });
+  const dialogGuild = dialog ? guildList?.layouts[dialog.guildId] : null;
   // While dragging, the others make room where it will land.
   const dragFrom = drag ? guilds.findIndex((g) => g.id === drag.id) : -1;
 
@@ -83,6 +101,31 @@ export default function Sidebar({ hasUnreadDms, guilds = [], unreadGuildIds = ne
       {/* A calendar is planned; its icon goes here. */}
 
       {adding && <AddGuildDialog onClose={() => setAdding(false)} />}
+      {menu && (
+        <GuildMenu
+          guildId={menu.guildId}
+          user={user}
+          anchor={menu.anchor}
+          sheet={isMobile}
+          onDialog={(type) => setDialog({ type, guildId: menu.guildId })}
+          onClose={closeMenu}
+        />
+      )}
+      {dialogGuild && dialog.type === 'invite' && <InviteDialog guild={dialogGuild} onClose={closeDialog} />}
+      {dialogGuild && dialog.type === 'settings' && <GuildSettingsDialog guild={dialogGuild} user={user} onClose={closeDialog} />}
+      {dialogGuild && dialog.type === 'audit' && <AuditLogDialog guild={dialogGuild} user={user} onClose={closeDialog} />}
+      {dialogGuild && dialog.type === 'leave' && (
+        <ConfirmDialog
+          title={`Leave '${dialogGuild.name}'`}
+          message={`Are you sure you want to leave ${dialogGuild.name}? You won't be able to rejoin unless you are re-invited.`}
+          confirmLabel="Leave Guild"
+          onConfirm={async () => {
+            await leaveGuild(dialogGuild.id);
+            guildList.removeGuild(dialogGuild.id);
+          }}
+          onClose={closeDialog}
+        />
+      )}
     </div>
   );
 }

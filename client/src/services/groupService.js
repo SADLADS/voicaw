@@ -56,6 +56,11 @@ export async function markGroupRead(groupId, messageId) {
   await api.post(`/group-dms/${groupId}/read`, { messageId });
 }
 
+// Marks a group read up to its newest message (Mark As Read in the DM list).
+export async function markGroupReadToLatest(groupId) {
+  await api.post(`/group-dms/${groupId}/read`, { latest: true });
+}
+
 export async function fetchGroupPins(groupId) {
   return (await api.get(`/group-dms/${groupId}/pins`)).data;
 }

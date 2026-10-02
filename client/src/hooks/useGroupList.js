@@ -5,7 +5,8 @@ import { fetchGroups } from '../services/groupService';
 // Your group DMs, for the conversation list (Layout puts this in LayoutContext.groupList):
 // [{ id, name, owner_id, members: [{ id, username }], last_timestamp, unread }], kept current by
 // the websocket. `activeGroupId` is the group on screen (its new messages aren't unread).
-// `onRemoved(groupId)` runs when you leave or are removed.
+// `onRemoved(groupId)` runs when you leave or are removed. `clearUnread(groupId)` after Mark As
+// Read.
 export function useGroupList({ userId, activeGroupId, onRemoved }) {
   const [groups, setGroups] = useState([]);
   const active = useRef(activeGroupId);
@@ -58,5 +59,9 @@ export function useGroupList({ userId, activeGroupId, onRemoved }) {
     if (activeGroupId) setGroups((prev) => prev.map((g) => (g.id === activeGroupId && g.unread ? { ...g, unread: 0 } : g)));
   }, [activeGroupId]);
 
-  return { groups, refresh, upsert };
+  const clearUnread = useCallback((groupId) => {
+    setGroups((prev) => prev.map((g) => (g.id === groupId && g.unread ? { ...g, unread: 0 } : g)));
+  }, []);
+
+  return { groups, refresh, upsert, clearUnread };
 }

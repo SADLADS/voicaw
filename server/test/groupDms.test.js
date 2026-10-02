@@ -1,5 +1,5 @@
 import './helpers/mockS3.js';
-import './helpers/mockWebPush.js';
+import { sentPushes, waitForPushes } from './helpers/mockWebPush.js';
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { randomUUID } from 'crypto';
@@ -279,6 +279,32 @@ describe('group DMs', () => {
     const outsider = await makeUser('out');
     expect((await api.get(outsider, `/group-dms/${groupId}/messages`)).status).toBe(404);
     expect((await api.post(outsider, `/group-dm-messages/${sent.id}/reactions`, { content: signedReaction })).status).toBe(404);
+  });
+
+  it('marks a group read up to its newest message; a muted group pushes nothing to whoever muted it', async () => {
+    const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    await send(ann, groupId, 'one');
+    await send(ann, groupId, 'two');
+    expect((await api.post(bea, `/group-dms/${groupId}/read`, { latest: true })).status).toBe(200);
+    expect((await api.get(bea, '/group-dms')).body.find((g) => g.id === groupId).unread).toBe(0);
+
+    const subscribe = async (user) => {
+      const endpoint = `https://push.test/${user.username}`;
+      await api.post(user, '/save-subscription', { subscription: { endpoint, keys: { p256dh: 'p', auth: 'a' } } });
+      return endpoint;
+    };
+    await subscribe(bea);
+    const calEndpoint = await subscribe(cal);
+    const muted = await api.put(bea, `/conversation-settings/group/${groupId}`, { mute: { duration: null }, pinned: true });
+    expect(muted.body).toMatchObject({ kind: 'group', target: groupId, muted: true });
+    const since = sentPushes.length;
+    await send(ann, groupId, 'three');
+    await waitForPushes(1000, since, 300);
+    expect(sentPushes.slice(since).map((p) => p.endpoint)).toEqual([calEndpoint]);
+    expect((await api.put(ann, `/conversation-settings/group/${groupId}`, { pinned: true })).status).toBe(200);
+    const outsider = await makeUser('out');
+    expect((await api.put(outsider, `/conversation-settings/group/${groupId}`, { pinned: true })).status).toBe(404);
   });
 
   it('refuses unsigned new messages', async () => {

@@ -19,7 +19,8 @@ webhook's edit also carries `embeds`, `attachments`, `flags`),
 `guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
 `guild_order` (your guild rail order, to your other devices), `guild_channel_mute` (you muted or
 unmuted a channel, to your other devices; see Mentions), `guild_channel_notify` (you set a
-channel's notification level, to your other devices), `guild_voice_state` (someone
+channel's notification level, to your other devices), `conversation_settings` (you pinned or
+muted a DM or group, to your other devices; see `docs/client.md`), `guild_voice_state` (someone
 joined, left or (un)muted in a voice channel), `guild_mention` (only to whoever a new message
 mentions, for their red counts), `guild_task_upsert` / `_delete` / `guild_tasks_move` /
 `guild_task_comment_new` / `_edit` / `_delete` (to whoever can see the list channel) and
@@ -77,8 +78,9 @@ one user at a time).
   start via `ensureSubscription()` when permission is granted and the user hasn't turned it off
   (`localStorage.pushDisabled`). Logout calls `disableNotificationsOnThisDevice()` *before* the token
   is cleared, so the server forgets the device.
-- Server: `sendPushToUser()` (drops 404/410 subscriptions). New DMs are pushed unless
-  `isViewingConversation()` says the recipient is looking at that chat (group DMs: chat id
+- Server: `sendPushToUser()` (drops 404/410 subscriptions). New DMs are pushed unless the
+  recipient muted the conversation (`isConversationMuted`) or `isViewingConversation()` says
+  they're looking at that chat (group DMs: chat id
   `group-<id>`; guild channels: `channel-<id>`, and which guild messages push is in Mentions). That uses `presence`
   websocket messages (`{visible, chatId}`) that `ws-client` sends on focus/visibility/chat changes
   and every 15s. The server ignores presence older than 35s.

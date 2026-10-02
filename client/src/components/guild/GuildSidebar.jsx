@@ -27,6 +27,8 @@ import ConfirmDialog from './ConfirmDialog';
 import NotificationDialog from './NotificationDialog';
 import AuditLogDialog from './AuditLogDialog';
 import ChannelMenu from './ChannelMenu';
+import ContextMenu from '../ContextMenu';
+import { useLongPress } from '../../hooks/useLongPress';
 import CategoryMenu from './CategoryMenu';
 import CloneChannelDialog from './CloneChannelDialog';
 import ChannelIcon from './ChannelIcon';
@@ -83,6 +85,12 @@ export default function GuildSidebar({ guild, user }) {
     },
     onMenu: (item, anchor) => setRowMenu({ ...item, anchor }),
   });
+  // Touch and hold on the list's empty space (not a row) opens its menu on a phone.
+  const listPress = useLongPress(() => setRowMenu({ kind: 'list', anchor: { left: 0, right: 0, top: 0, bottom: 0 } }), { enabled: isMobile });
+  const onListTouchStart = (e) => {
+    if (e.target.closest?.('[data-drag-row], .guild-channel, .guild-channel-voice')) return;
+    listPress.onTouchStart?.(e);
+  };
   // The row being dragged follows the pointer.
   const dragged = (kind, id) => (drag?.kind === kind && drag.id === id
     ? { className: ' dragging', style: { transform: `translateY(${drag.dy}px)` } }
@@ -115,6 +123,14 @@ export default function GuildSidebar({ guild, user }) {
   // The row whose menu is open (gone if it was deleted meanwhile).
   const menuChannel = rowMenu?.kind === 'channel' ? guild.channels.find((c) => c.id === rowMenu.id) : null;
   const menuCategory = rowMenu?.kind === 'category' ? guild.categories.find((c) => c.id === rowMenu.id) : null;
+  // The empty space's menu: making channels and categories, inviting.
+  const listMenuItems = [
+    ...(managesChannels ? [
+      { key: 'create-channel', label: 'Create Channel', icon: faPlus, onSelect: () => openDialog({ type: 'channel' }) },
+      { key: 'create-category', label: 'Create Category', icon: faFolderPlus, onSelect: () => openDialog({ type: 'category' }) },
+    ] : []),
+    ...(can(PERMISSIONS.CREATE_INVITE) ? [{ key: 'invite', label: 'Invite People', icon: faUserPlus, onSelect: () => openDialog({ type: 'invite' }) }] : []),
+  ];
   const inVoice = voice.status !== 'idle' && voice.guildId === guild.id ? voice.channelId : null;
   const speaking = new Set(voice.status === 'connected' ? voice.speaking : []);
 
@@ -258,7 +274,20 @@ export default function GuildSidebar({ guild, user }) {
         )}
       </div>
 
-      <nav className={`guild-channel-list${drag ? ' reordering' : ''}`} aria-label="Channels" ref={listRef}>
+      <nav
+        className={`guild-channel-list${drag ? ' reordering' : ''}`}
+        aria-label="Channels"
+        ref={listRef}
+        // Right-click on the empty space (a row's own menu has already handled its clicks).
+        onContextMenu={(e) => {
+          if (e.defaultPrevented || !listMenuItems.length) return;
+          if (e.target.closest('[data-drag-row], .guild-channel, .guild-channel-voice')) return;
+          e.preventDefault();
+          setRowMenu({ kind: 'list', anchor: { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY } });
+        }}
+        {...listPress}
+        onTouchStart={onListTouchStart}
+      >
         {drag?.lineTop != null && <div className="channel-drop-line" style={{ top: drag.lineTop }} aria-hidden="true" />}
         <ul>{uncategorized.map(renderChannel)}</ul>
 
@@ -321,6 +350,16 @@ export default function GuildSidebar({ guild, user }) {
         )}
       </nav>
 
+      {rowMenu?.kind === 'list' && listMenuItems.length > 0 && (
+        <ContextMenu
+          title={guild.name}
+          label={guild.name}
+          items={listMenuItems}
+          anchor={rowMenu.anchor}
+          sheet={isMobile}
+          onClose={closeRowMenu}
+        />
+      )}
       {menuChannel && (
         <ChannelMenu
           guild={guild}

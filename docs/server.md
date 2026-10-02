@@ -22,6 +22,8 @@ unexpected errors. The rest:
 - `guildDocuments.js`: document channels' documents (rows, limits, cleanup; see Document
   channels); `routes/guildDocuments.js` has their routes.
 - `channelMutes.js`: each member's muted channels and own channel notification levels (see Mentions).
+- `conversationSettings.js`: each person's pinned and muted DMs and group DMs (see
+  `docs/client.md`); `routes/conversationSettings.js`.
 - `auditLog.js`: a guild's audit log (`logAudit`, `readAuditLog`; see Guilds); `routes/auditLog.js`.
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).

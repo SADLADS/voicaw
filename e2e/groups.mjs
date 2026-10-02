@@ -25,7 +25,9 @@ async function sendText(page, text) {
 const messageTexts = (page) => page.$$eval('.dm-message-content', (els) => els.map((e) => e.textContent.trim()));
 const openGroup = async (page, name) => {
   await page.goto(`${BASE}/dm`);
-  await page.click(`.dm-group:has-text("${name}")`);
+  // On a phone /dm opens the first chat, which covers the list: follow the row's link.
+  const href = await page.getAttribute(`.dm-group:has-text("${name}")`, 'href');
+  await page.goto(`${BASE}${href}`);
   await page.waitForSelector('#dm-input[contenteditable="true"]', { timeout: 20000 });
 };
 

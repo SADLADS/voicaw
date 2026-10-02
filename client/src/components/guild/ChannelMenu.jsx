@@ -20,7 +20,7 @@ import { MUTE_DURATIONS, NOTIFY_LEVEL_LABELS, mutedUntilText } from '../../utils
 import { useDateFormat } from '../../utils/dateFormat';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import ChannelIcon from './ChannelIcon';
-import ContextMenu from './ContextMenu';
+import ContextMenu from '../ContextMenu';
 
 // A channel's menu in the channel list (right-click, or touch and hold on a phone), like
 // Discord's: Mark As Read, Mute Channel (for how long) or Unmute, its Notification Settings

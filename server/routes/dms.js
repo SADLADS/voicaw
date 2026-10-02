@@ -4,6 +4,7 @@ const { maxPlaintextLength, maxMessageLength } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
 const { buildDmPushPayload, sendPushToUser, getUserImageUrl } = require('../push');
+const { isConversationMuted } = require('../conversationSettings');
 const { setPinned } = require('../pins');
 const { reactionIdsFor, pollReactionsFor } = require('../polls');
 const { removePollRows } = require('../pollTimers');
@@ -144,8 +145,8 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
 
   sendToConversation(message, { type: 'new_dm', message });
 
-  // Don't buzz someone about a conversation they're looking at right now.
-  if (!notes && !isViewingConversation(recipientId, senderId)) {
+  // Don't buzz someone about a conversation they're looking at right now, or have muted.
+  if (!notes && !isViewingConversation(recipientId, senderId) && !(await isConversationMuted(recipientId, 'dm', senderId))) {
     Promise.all([
       getUserImageUrl(senderId),
       db.get('SELECT username FROM users WHERE id = ?', [recipientId]),

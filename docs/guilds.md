@@ -129,7 +129,7 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   `CustomEmojiContext` (`emoji/customEmojiContext.js`: by guild in rail order, and by id).
 - **Channel and category menus** (like Discord's): right-click a channel or category in the
   channel list, or touch and hold on a phone (where there are no cog buttons: the menu is the
-  only way in). `guild/ContextMenu.jsx` draws one: floating with submenus beside it on a
+  only way in). `ContextMenu.jsx` draws every such menu (see `docs/client.md`): floating with submenus beside it on a
   computer (hover, click or arrow keys), a bottom sheet on a phone (a submenu replaces it, with
   Back). `ChannelMenu`: Mark As Read (`POST /channels/:id/read { latest: true }`), Mute Channel
   ▸ / Unmute, Notification Settings ▸ (see Mentions), Copy Link (`channelLink`: this site's
@@ -137,7 +137,14 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   (`CloneChannelDialog`) and Delete; voice channels only the last four. `CategoryMenu`: Mark
   As Read, Collapse/Expand, Edit, Create Channel, Delete. On a phone the long press shares the
   touch with dragging (`usePointerDrag` `onLongPress`): hold and lift opens the menu, hold and
-  move drags (with Manage Channels).
+  move drags (with Manage Channels). The list's **empty space** has its own menu (right-click,
+  or hold on a phone): Create Channel and Create Category (Manage Channels), Invite People.
+- **A guild's menu on the rail** (`guild/GuildMenu.jsx`, right-click its icon or hold it on a
+  phone; hold and move still drags it, `useDragReorder` `onMenu`): Mark As Read (every unread
+  channel), Invite People, Notification Settings ▸ (your level for the guild), Guild Settings,
+  Audit Log, Copy Link (`guildLink`) and Leave Guild, as your permissions allow; the dialogs
+  live in `Sidebar` (the menu closes on a pick). It loads the guild's layout first if it isn't
+  open yet.
 - **Duplicating a channel** (Discord's Clone Channel): `POST /guilds/:id/channels/:c/clone
   { name? }` (Manage Channels) makes a channel just below it with the same type, topic,
   category and overrides, none of its content; copying overrides needs Manage Roles, and every

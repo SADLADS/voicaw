@@ -4,6 +4,7 @@ const { maxPlaintextLength, getMaxEncryptedLength } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
 const { sendPushToUser } = require('../push');
+const { isConversationMuted } = require('../conversationSettings');
 const groups = require('../groupDms');
 const calls = require('../calls');
 const { displayNameOf } = require('../profiles');
@@ -279,7 +280,7 @@ router.post('/group-dms/:groupId/messages', member, async (req, res) => {
   const senderName = await displayNameOf(req.user.id, req.user.username);
   for (const userId of state.members) {
     sendToUserSockets(userId, { type: 'group_dm_message_new', groupId, message: await messageFor(userId, lastID) });
-    if (userId !== req.user.id && !isViewingConversation(userId, `group-${groupId}`)) {
+    if (userId !== req.user.id && !isViewingConversation(userId, `group-${groupId}`) && !(await isConversationMuted(userId, 'group', groupId))) {
       sendPushToUser(userId, {
         type: 'group',
         title,
@@ -380,9 +381,11 @@ router.delete('/group-dm-reactions/:reactionId', authenticateJWT, async (req, re
   res.json({ success: true });
 });
 
-// Read up to `messageId`.
+// Read up to `messageId`, or with `latest: true` up to the newest message (Mark As Read).
 router.post('/group-dms/:groupId/read', member, async (req, res) => {
-  const messageId = Number(req.body?.messageId);
+  const messageId = req.body?.latest === true
+    ? (await db.get('SELECT MAX(id) AS id FROM group_dm_messages WHERE group_id = ?', [req.state.group.id])).id ?? 0
+    : Number(req.body?.messageId);
   if (!Number.isInteger(messageId) || messageId < 0) return res.status(400).json({ error: 'Invalid message' });
   await db.run(
     `INSERT INTO group_dm_reads (user_id, group_id, last_read_id) VALUES (?, ?, ?)

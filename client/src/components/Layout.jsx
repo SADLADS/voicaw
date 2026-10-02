@@ -18,6 +18,7 @@ import { ChannelMentionContext, ConfigContext, InteractionContext, LayoutContext
 import { ensureSubscription, getPushStatus } from '../services/pushService';
 import { useGuildList } from '../hooks/useGuildList';
 import { useGroupList } from '../hooks/useGroupList';
+import { useConversationSettings } from '../hooks/useConversationSettings';
 import { useSwipePanes } from '../hooks/useSwipePanes';
 import { useDesktopApp } from '../hooks/useDesktopApp';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
@@ -73,7 +74,13 @@ export default function Layout({ user, onLogout }) {
     if (removedId === groupId) navigate('/dm', { replace: true });
   }, [groupId, navigate]);
   const groupList = useGroupList({ userId: user?.id, activeGroupId: groupId, onRemoved: onGroupRemoved });
-  const hasUnreadGroups = groupList.groups.some((g) => g.unread > 0 && g.id !== groupId);
+  // Your pins and mutes for DMs and groups. Muted ones don't light the rail or the desktop app.
+  const conversationSettings = useConversationSettings(user?.id);
+  const activeGroups = useMemo(
+    () => groupList.groups.map((g) => (g.unread && conversationSettings.isMuted('group', g.id) ? { ...g, unread: 0 } : g)),
+    [groupList.groups, conversationSettings]
+  );
+  const hasUnreadGroups = activeGroups.some((g) => g.unread > 0 && g.id !== groupId);
   // Muted channels don't count, unless they mention you.
   const unreadGuildIds = useMemo(() => new Set(guildList.activeUnread.map((u) => u.guild_id)), [guildList.activeUnread]);
   // Unread mentions of you, by guild id.
@@ -187,7 +194,11 @@ export default function Layout({ user, onLogout }) {
   }, [user?.id]);
 
   // The desktop app: notifications, the unread badge, mute/deafen shortcuts.
-  useDesktopApp({ navigate, unreadDms, groups: groupList.groups, guildUnread: guildList.activeUnread });
+  const activeUnreadDms = useMemo(
+    () => unreadDms.filter((u) => !conversationSettings.isMuted('dm', u.from_user_id)),
+    [unreadDms, conversationSettings]
+  );
+  useDesktopApp({ navigate, unreadDms: activeUnreadDms, groups: activeGroups, guildUnread: guildList.activeUnread });
 
   // DM calls: ringing, from any page.
   useEffect(() => {
@@ -198,7 +209,7 @@ export default function Layout({ user, onLogout }) {
 
   return (
     <LayoutContext.Provider value={{
-      fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList, groupList,
+      fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList, groupList, conversationSettings,
       settingsNavSlot: settingsColumn ? settingsNavSlot : null,
     }}>
     <CustomEmojiContext.Provider value={customEmoji}>
@@ -219,7 +230,7 @@ export default function Layout({ user, onLogout }) {
           <Sidebar
             user={user}
             onLogout={onLogout}
-            hasUnreadDms={hasUnreadDms || hasUnreadGroups}
+            hasUnreadDms={activeUnreadDms.length > 0 || hasUnreadGroups}
             guilds={guildList.guilds}
             unreadGuildIds={unreadGuildIds}
             guildMentions={guildMentions}

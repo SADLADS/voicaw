@@ -208,8 +208,9 @@ try {
   const c = carol.page;
   await join(c, alphaLink);
   await join(c, betaLink);
-  await c.evaluate(() => document.querySelector('.main-wrapper').scrollTo({ left: 0, behavior: 'instant' }));
-  await c.waitForTimeout(300);
+  // Back to the list pane (the chat covers the rail on a phone).
+  await c.goBack().catch(() => {});
+  await c.waitForTimeout(400);
   console.log('carol rail before:', (await railOrder(c)).join(', '));
   const from = await c.locator(`.rail-guild[href="/guild/${beta}"]`).boundingBox();
   const to = await c.locator(`.rail-guild[href="/guild/${alpha}"]`).boundingBox();

@@ -65,6 +65,25 @@
   adds one (suggestions, Add to dictionary, cut/copy/paste) and sets the checker to the
   system's languages that have a dictionary, else `en-GB` (Electron downloads dictionaries on
   first use; not on macOS, which uses the system's).
+- **Right-click menus** (and touch and hold on a phone) are ours, Discord style:
+  `components/ContextMenu.jsx` draws them (items with icons, hints, ticks and submenus;
+  floating by the pointer with submenus beside it on a computer, hover/click/arrow keys; a
+  bottom sheet on a phone where a submenu replaces it, with Back). Channels, categories, the
+  channel list's empty space and guild icons have one (see `docs/guilds.md`), and so do
+  conversations in the DM list (`DmMenu.jsx`: Mark As Read, Start/Join Call, Pin / Unpin,
+  Mute ▸ / Unmute). **The browser's own menu is off** everywhere else
+  (`utils/nativeContextMenu.js`, from `main.jsx`) except in text boxes (spellcheck, paste), on
+  selected text, and on links and pictures in messages and embeds (copy link, save image).
+- **Pinned and muted conversations** (`server/conversationSettings.js`, table
+  `conversation_settings`; `GET /conversation-settings`, `PUT /conversation-settings/:kind/:target
+  { pinned?, mute?: { duration } | false }`, kind `dm` (the other person's id) or `group`; the
+  `conversation_settings` event to your other devices; `hooks/useConversationSettings.js` in
+  `Layout`, `LayoutContext.conversationSettings`): each person's own, so they follow you
+  between devices. Pinned conversations come first in the DM list, in the order pinned (50 at
+  most), with a pin. A muted one (15 min to 24 h, or until unmuted) doesn't push or play the
+  Message sound (calls still ring), is dimmed with a crossed-out bell and no unread dot, and
+  doesn't light the rail's DMs icon or the desktop app's badge. The server already knows who
+  talks to whom, so this tells it nothing new.
 - Text can't be selected except where it's useful (`voicaw.css`, TEXT SELECTION): inputs and
   editors everywhere, and on desktop the chat's messages, names, times, reply previews and the
   channel topic. So dragging things (channels, guilds) doesn't highlight text. On mobile a long

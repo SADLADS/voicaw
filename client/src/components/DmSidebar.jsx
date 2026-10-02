@@ -1,9 +1,11 @@
-import React, { useContext, useState } from 'react';
+import React, { useCallback, useContext, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faNoteSticky, faUserGroup } from '@fortawesome/free-solid-svg-icons';
+import { faBellSlash, faNoteSticky, faThumbtack, faUserGroup } from '@fortawesome/free-solid-svg-icons';
 import { showContent } from '../utils/mobilePanes';
-import { InteractionContext } from '../contexts';
+import { InteractionContext, LayoutContext } from '../contexts';
+import { useLongPress } from '../hooks/useLongPress';
+import DmMenu from './DmMenu';
 import { usePresence } from '../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../utils/presence';
 import { groupTitle } from '../utils/groupDisplay';
@@ -16,26 +18,67 @@ import Avatar from './Avatar';
 // ([{ from_user_id, count }], from Layout) and each group's `unread` mark conversations with
 // unread messages, except the one being viewed. The header's button makes a new group.
 // Your notes (a DM to yourself) come first under the header, with a line between them and
-// the conversations; they don't scroll with the list.
+// the conversations; they don't scroll with the list. Right-clicking a conversation (touch and
+// hold on a phone) opens its menu (DmMenu: read, call, pin, mute); pinned ones come first, in
+// the order they were pinned, and muted ones are dimmed, with no unread dot.
 export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) {
   useProfiles();
   const { id: activeId, groupId: activeGroupId } = useParams();
   const { isMobile } = useContext(InteractionContext);
+  const { conversationSettings } = useContext(LayoutContext) ?? {};
   const notesActive = useLocation().pathname === '/dm/notes';
   const presenceOf = usePresence();
   const [newGroup, setNewGroup] = useState(false);
+  // { person | group, anchor } while a conversation's menu is open.
+  const [menu, setMenu] = useState(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
   const unreadFrom = new Set(unreadDms.map((u) => String(u.from_user_id)));
+  const settingOf = (kind, target) => conversationSettings?.get(kind, target) ?? { pinned_at: null, muted: false };
 
   // People keep the server's order among themselves (latest DM first); groups go in by their
-  // latest message.
-  const entries = [];
+  // latest message. Pinned ones go first.
+  const all = [];
   const byTime = [...groups].sort((a, b) => b.last_timestamp - a.last_timestamp);
   let g = 0;
   for (const person of users) {
-    while (g < byTime.length && byTime[g].last_timestamp >= (person.last_timestamp ?? 0)) entries.push({ group: byTime[g++] });
-    entries.push({ person });
+    while (g < byTime.length && byTime[g].last_timestamp >= (person.last_timestamp ?? 0)) all.push({ group: byTime[g++] });
+    all.push({ person });
   }
-  while (g < byTime.length) entries.push({ group: byTime[g++] });
+  while (g < byTime.length) all.push({ group: byTime[g++] });
+  for (const entry of all) entry.setting = entry.group ? settingOf('group', entry.group.id) : settingOf('dm', entry.person.id);
+  const entries = [
+    ...all.filter((e) => e.setting.pinned_at != null).sort((a, b) => a.setting.pinned_at - b.setting.pinned_at),
+    ...all.filter((e) => e.setting.pinned_at == null),
+  ];
+
+  // The menu: right-click on a computer, touch and hold on a phone (on whichever row the touch
+  // started on).
+  const pressed = useRef(null);
+  const openMenu = (entry, anchor) => {
+    if (conversationSettings) setMenu({ ...entry, anchor });
+  };
+  const longPress = useLongPress(() => {
+    const el = pressed.current;
+    const entry = entries.find((e) => (e.group ? `g-${e.group.id}` : String(e.person.id)) === el?.dataset.conversation);
+    if (entry) openMenu(entry, el.getBoundingClientRect());
+  }, { enabled: isMobile && Boolean(conversationSettings) });
+  const rowProps = (entry) => ({
+    'data-conversation': entry.group ? `g-${entry.group.id}` : String(entry.person.id),
+    onContextMenu: (e) => {
+      e.preventDefault();
+      if (!isMobile) openMenu(entry, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY });
+    },
+  });
+  const listTouchStart = (e) => {
+    pressed.current = e.target.closest?.('[data-conversation]') ?? null;
+    if (pressed.current) longPress.onTouchStart?.(e);
+  };
+  const marks = (setting) => (
+    <>
+      {setting.muted && <FontAwesomeIcon icon={faBellSlash} className="dm-row-mark" title="Muted" aria-label="Muted" />}
+      {setting.pinned_at != null && <FontAwesomeIcon icon={faThumbtack} className="dm-row-mark" title="Pinned" aria-label="Pinned" />}
+    </>
+  );
 
   const avatar = (id, alt, className = 'dm-user-avatar') => <Avatar userId={id} alt={alt} className={className} />;
 
@@ -54,8 +97,9 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
           <span className="dm-user-name">Notes</span>
         </Link>
       </div>
-      <div className="dm-user-list-container">
-        {entries.map(({ person, group }) => {
+      <div className="dm-user-list-container" {...longPress} onTouchStart={listTouchStart}>
+        {entries.map((entry) => {
+          const { person, group, setting } = entry;
           if (group) {
             const others = group.members.filter((m) => m.id !== user?.id);
             const active = group.id === activeGroupId;
@@ -65,9 +109,10 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
                 to={`/dm/g/${group.id}`}
                 replace={isMobile}
                 onClick={showContent}
-                className={`dm-user dm-group ${active ? 'active' : ''}`}
+                className={`dm-user dm-group ${active ? 'active' : ''}${setting.muted ? ' muted' : ''}`}
+                {...rowProps(entry)}
               >
-                <span className={`userdot${group.unread > 0 && !active ? ' active' : ''}`} />
+                <span className={`userdot${group.unread > 0 && !active && !setting.muted ? ' active' : ''}`} />
                 <div className="dm-user-container">
                   <span className="group-avatar">
                     {others.slice(0, 2).map((m) => <span key={m.id}>{avatar(m.id, '', 'group-avatar-img')}</span>)}
@@ -76,6 +121,7 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
                     <span className="dm-group-name">{groupTitle(group, user)}</span>
                     <span className="dm-group-count">{group.members.length} members</span>
                   </span>
+                  {marks(setting)}
                 </div>
               </Link>
             );
@@ -90,9 +136,10 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
               to={`/dm/${id}`}
               replace={isMobile}
               onClick={showContent}
-              className={`dm-user ${id.toString() === activeId ? 'active' : ''}`}
+              className={`dm-user ${id.toString() === activeId ? 'active' : ''}${setting.muted ? ' muted' : ''}`}
+              {...rowProps(entry)}
             >
-              <span className={`userdot${unreadFrom.has(String(id)) && String(id) !== activeId ? ' active' : ''}`} />
+              <span className={`userdot${unreadFrom.has(String(id)) && String(id) !== activeId && !setting.muted ? ' active' : ''}`} />
 
               <div className="dm-user-container">
                 <span className="dm-user-avatar-wrap status-avatar">
@@ -106,12 +153,24 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
                   <span className="dm-user-name">{name}</span>
                   {profile.custom_status && <span className="dm-user-custom-status">{profile.custom_status}</span>}
                 </span>
+                {marks(setting)}
               </div>
             </Link>
           );
         })}
       </div>
       {newGroup && <NewGroupDialog user={user} users={users} onClose={() => setNewGroup(false)} />}
+      {menu && (
+        <DmMenu
+          person={menu.person}
+          group={menu.group}
+          title={menu.group ? groupTitle(menu.group, user) : nameOf(menu.person)}
+          unread={menu.group ? menu.group.unread > 0 : unreadFrom.has(String(menu.person.id))}
+          anchor={menu.anchor}
+          sheet={isMobile}
+          onClose={closeMenu}
+        />
+      )}
     </div>
   );
 }

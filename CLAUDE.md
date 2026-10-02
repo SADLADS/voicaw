@@ -126,7 +126,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - `docs/uploads.md`: the object store, encrypted attachments, video streaming, spoilers, image
   viewer.
 - `docs/client.md`: client structure (contexts, Layout, settings, dates, themes, sidebar, phone
-  panes, PWA updates), profiles and pictures, sounds, admin settings.
+  panes, PWA updates, right-click menus, pinned and muted conversations), profiles and pictures,
+  sounds, admin settings.
 - `docs/desktop-and-site.md`: the Electron app, voicaw.com.
 
 ## Rules that apply everywhere

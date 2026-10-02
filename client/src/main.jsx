@@ -6,6 +6,7 @@ import { setUpdateAvailable, watchDesktopUpdates, watchForUpdates, watchForStale
 import { desktop } from './utils/desktop';
 import { applySpellcheck } from './utils/spellcheck';
 import { applyTheme } from './utils/theme';
+import { blockNativeContextMenu } from './utils/nativeContextMenu';
 
 
 // Import Bootstrap CSS
@@ -34,6 +35,7 @@ if (desktop) {
 watchForStaleApp();
 applySpellcheck();
 applyTheme();
+blockNativeContextMenu();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <AuthProvider>
