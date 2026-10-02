@@ -46,7 +46,7 @@ export default function UserPanel({ user, onLogout }) {
         <UserMenu user={user} anchor={menuAnchor} trigger={meRef.current} onLogout={onLogout} onClose={() => setMenuAnchor(null)} />
       )}
       {voiceEnabled && <VoiceControls />}
-      <NavLink to="/settings" className="user-panel-button" aria-label="Settings" title="Settings">
+      <NavLink to="/settings" className="user-panel-button user-panel-settings" aria-label="Settings" title="Settings">
         <FontAwesomeIcon icon={faGear} />
       </NavLink>
     </div>

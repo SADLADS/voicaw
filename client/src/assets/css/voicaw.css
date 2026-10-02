@@ -1164,11 +1164,12 @@ body.sidebar-resizing * {
   color: var(--vc-fg);
 }
 
-.user-panel-button:hover svg {
+.user-panel-settings:hover svg {
   transform: rotate(45deg);
 }
 
-.user-panel-button svg {
+/* Only the settings gear spins: turned, an X reads as a + and a phone as a different icon. */
+.user-panel-settings svg {
   transition: transform 0.3s ease;
 }
 

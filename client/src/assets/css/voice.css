@@ -40,11 +40,7 @@ button.user-panel-button {
   background: transparent;
 }
 
-/* Mute/deafen buttons: red when off. They don't spin like the settings gear. */
-.user-panel-button.voice-toggle:hover svg {
-  transform: none;
-}
-
+/* Mute/deafen buttons: red when off. */
 .voice-toggle.off {
   color: var(--vc-danger);
 }
@@ -102,10 +98,6 @@ button.user-panel-button {
 
 .user-panel-button.voice-bar-leave:hover {
   color: var(--vc-danger);
-}
-
-.user-panel-button.voice-bar-leave:hover svg {
-  transform: none;
 }
 
 .voice-bar-message {
