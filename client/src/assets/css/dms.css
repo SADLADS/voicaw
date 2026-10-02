@@ -3258,6 +3258,28 @@ body.mobile-mode .poll-voters-list {
   color: var(--vc-danger);
 }
 
+/* A call in the chat (CallLogNotice): a phone icon and how long it lasted, or red when missed. */
+.call-log {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 4px 1.25rem;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+}
+
+.call-log-icon {
+  flex-shrink: 0;
+  width: 40px;
+  font-size: 16px;
+  color: var(--vc-online);
+}
+
+.call-log.missed .call-log-icon {
+  color: var(--vc-danger);
+}
+
 /* A poll's "poll ended" row (PollEndNotice): an icon, whose poll closed, and its result. */
 .poll-end {
   display: flex;

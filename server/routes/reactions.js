@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { CALL_LOG } = require('../callLog');
 const { getMaxEncryptedLength } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets } = require('../sockets');
@@ -16,7 +17,7 @@ const MAX_REACTIONS_PER_USER_PER_MESSAGE = 20;
 // The DM `messageId` if `userId` is one of its two participants.
 async function getDmForParticipant(messageId, userId) {
   if (!Number.isInteger(messageId)) return null;
-  const row = await db.get('SELECT id, sender_id, recipient_id FROM direct_messages WHERE id = ?', [messageId]);
+  const row = await db.get('SELECT id, sender_id, recipient_id, system FROM direct_messages WHERE id = ?', [messageId]);
   return row && (row.sender_id === userId || row.recipient_id === userId) ? row : null;
 }
 
@@ -36,6 +37,7 @@ router.post('/dm-reactions', authenticateJWT, async (req, res) => {
   }
   const message = await getDmForParticipant(messageId, userId);
   if (!message) return res.status(404).json({ error: 'Message not found' });
+  if (message.system === CALL_LOG) return res.status(403).json({ error: "A call in the chat can't be changed" });
 
   const { count } = await db.get(
     'SELECT COUNT(*) AS count FROM dm_reactions WHERE message_id = ? AND user_id = ?',

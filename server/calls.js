@@ -3,6 +3,7 @@ const { sendToUserSockets } = require('./sockets');
 const { sendPushToUser, getUserImageUrl } = require('./push');
 const voice = require('./voice');
 const { displayNameOf } = require('./profiles');
+const { logCall } = require('./callLog');
 
 // DM and group DM voice calls, through LiveKit (room `call-<id>`), end-to-end encrypted: the
 // caller makes the call's key and sends it encrypted (`key_envelope`, which this server can't
@@ -29,7 +30,8 @@ const ROOM_PREFIX = 'call-';
 
 // id -> { id, groupId (null: a 1:1 call), groupName, callerId, callerName, calleeId,
 //         calleeName, keyEnvelope, keyEpoch, state, createdAt, answeredAt, timer,
-//         ringing: Set, participants: Set (group calls: who's in) }
+//         ringing: Set, participants: Set (group calls: who's in), joined: Set (who has been
+//         in it, for the chat's call row: see callLog.js) }
 const calls = new Map();
 
 const roomName = (callId) => `${ROOM_PREFIX}${callId}`;
@@ -119,6 +121,7 @@ async function endCall(call, reason) {
   calls.delete(call.id);
   clearTimeout(call.timer);
   await tellAll(call, { type: 'call_end', id: call.id, reason });
+  await logCall(call, reason);
   voice.livekit.roomService?.deleteRoom(roomName(call.id))
     .catch((err) => voice.logLiveKitError('closing a call', err));
   // A ringing notification becomes a missed call.
@@ -162,6 +165,7 @@ function newCall(fields) {
     answeredAt: null,
     ringing: new Set(),
     participants: new Set(),
+    joined: new Set(),
     ...fields,
   };
 }
@@ -215,6 +219,7 @@ async function startGroupCall({ id, group, caller, keyEnvelope, keyEpoch, member
     answeredAt: Date.now(),
   });
   call.participants.add(caller.id);
+  call.joined.add(caller.id);
   for (const userId of members) if (userId !== caller.id && !callOf(userId)) call.ringing.add(userId);
   // After a while, nobody's rung any more (the call goes on).
   call.timer = setTimeout(async () => {
@@ -244,8 +249,10 @@ async function acceptCall(call, userId) {
     if (other && other !== call) await endCallOf(userId);
     call.ringing.delete(userId);
     call.participants.add(userId);
+    call.joined.add(userId);
   } else {
     clearTimeout(call.timer);
+    call.joined.add(call.callerId).add(call.calleeId);
     call.ringing.clear();
     call.state = 'active';
     call.answeredAt = Date.now();
@@ -283,6 +290,7 @@ async function handleWebhookEvent(event) {
     const member = await db.get('SELECT 1 FROM group_dm_members WHERE group_id = ? AND user_id = ?', [call.groupId, userId]);
     if (member) {
       call.participants.add(userId);
+      call.joined.add(userId);
       await announce(call);
     } else {
       removeFromRoom(call, userId);

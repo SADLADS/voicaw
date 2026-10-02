@@ -201,5 +201,19 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
   (`group/GroupCallPanel.jsx`; `callClient` keeps `groupCalls`). Being removed from the group
   takes you out of its call (LiveKit too). The call key isn't changed when someone leaves a
   call.
-- **Not done yet:** calls in the chat history (missed/ended entries), video, and the incoming
+- **Calls in the chat history** (`server/callLog.js`, `utils/callLog.js`,
+  `CallLogNotice.jsx`): when a call ends, the server adds a row to its DM or group (in the
+  group's latest epoch) with `system` = 'call', the caller as sender and plaintext content
+  `{ v: 1, outcome, duration, joined }`, sent as the chat's usual new-message event (no push;
+  the ringing notification already became "Missed call"). Not encrypted, like a "poll ended"
+  row: the server knows who called whom, when and for how long anyway. Someone picked up
+  (`ended`): everyone sees "Alice started a call that lasted 12 minutes." (a 1:1 call timed from
+  the answer, a group call from its start). Nobody did (`missed`, or `declined` in a 1:1
+  call): the caller sees "Bob didn't answer." / "Bob declined the call." / in a group "Nobody
+  answered.", everyone else "You missed a call from Alice." (red phone). Missed calls are
+  unread for the people rung; an ended call isn't for those who were in it. Call rows are only
+  ever drawn as notices (the server writes them, so never as someone's message) and can't be
+  edited, deleted, reacted to, pinned or replied to. A call going on when the API restarts gets
+  no row.
+- **Not done yet:** video, and the incoming
   call screen of a native app (a closed PWA only gets the notification).

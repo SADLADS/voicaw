@@ -12,6 +12,7 @@ import MessageEmbeds from './MessageEmbeds';
 import MessageFiles from './MessageFiles';
 import Poll from './Poll';
 import PollEndNotice from './PollEndNotice';
+import CallLogNotice from './CallLogNotice';
 import defaultAvatar from '../assets/images/default.png';
 import { useLongPress } from '../hooks/useLongPress';
 import MessageEditor from '../editor/MessageEditor';
@@ -743,9 +744,11 @@ export default function MessageList({
         {messages.map((msg, i) => (
           <div key={rowKey(msg)} data-key={rowKey(msg)}>
             {startsNewDay(messages[i - 1], msg, { hasMore }) && <DayDivider time={rowTime(msg)} />}
-            {/* A poll's result when it closed; group DMs: membership changes, between the messages. */}
+            {/* A poll's result when it closed, a call; group DMs: membership changes, between the messages. */}
             {msg.system === 'poll_end'
               ? <PollEndNotice msg={msg} onJump={onJumpToMessage} />
+              : msg.system === 'call'
+              ? <CallLogNotice msg={msg} meId={user?.id} />
               : msg.system
               ? <p className="message-system">{msg.text}</p>
               : <MessageRow msg={msg} grouped={continuesGroup(messages[i - 1], msg)} {...rowProps} />}

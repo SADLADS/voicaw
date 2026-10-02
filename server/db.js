@@ -530,7 +530,8 @@ for (const table of ['direct_messages', 'guild_messages', 'group_dm_messages']) 
 // POLLS (pollTimers.js): when each poll closes (its author registers it; in DMs and groups
 // that's all the server knows about a poll), and whether its "poll ended" row has been
 // posted. That row is a message with `system` = 'poll_end', the poll's author as sender, the
-// poll as parent and no content: clients work out the result from the poll itself.
+// poll as parent and no content: clients work out the result from the poll itself. 'call' is
+// a call's row in a DM or group (callLog.js).
 for (const table of ['direct_messages', 'guild_messages', 'group_dm_messages']) {
   addColumn(`ALTER TABLE ${table} ADD COLUMN system TEXT`);
 }

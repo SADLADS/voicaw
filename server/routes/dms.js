@@ -8,6 +8,7 @@ const { isConversationMuted } = require('../conversationSettings');
 const { setPinned } = require('../pins');
 const { reactionIdsFor, pollReactionsFor } = require('../polls');
 const { removePollRows } = require('../pollTimers');
+const { CALL_LOG } = require('../callLog');
 
 // Direct messages. Contents are end-to-end encrypted: the server stores and relays
 // ciphertext only (and checks its length against the encrypted size of the plaintext limit).
@@ -120,7 +121,7 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
   if (replyTo != null) {
     parentMessageId = Number(replyTo);
     const parent = Number.isInteger(parentMessageId) && await db.get(
-      `SELECT id FROM direct_messages dm WHERE id = ? AND ${IN_CONVERSATION}`,
+      `SELECT id FROM direct_messages dm WHERE id = ? AND ${IN_CONVERSATION} AND system IS NOT '${CALL_LOG}'`,
       [parentMessageId, senderId, recipientId, recipientId, senderId]
     );
     if (!parent) return res.status(400).json({ error: 'Invalid reply' });
@@ -180,6 +181,7 @@ router.delete('/messages/:id', authenticateJWT, async (req, res) => {
   const row = await db.get('SELECT * FROM direct_messages WHERE id = ?', [messageId]);
   if (!row) return res.status(404).json({ error: 'Message not found' });
   if (row.sender_id !== req.user.id) return res.status(403).json({ error: 'Not authorized to delete this message' });
+  if (row.system === CALL_LOG) return res.status(403).json({ error: "A call in the chat can't be changed" });
 
   // A poll takes its "poll ended" row with it.
   const removed = await db.transaction(async () => {
@@ -231,12 +233,13 @@ router.get('/dm-pins/:otherUserId', authenticateJWT, async (req, res) => {
 async function pinRoute(req, res, pinned) {
   const messageId = parseInt(req.params.id, 10);
   const row = Number.isInteger(messageId) && await db.get(
-    'SELECT id, sender_id, recipient_id FROM direct_messages WHERE id = ?',
+    'SELECT id, sender_id, recipient_id, system FROM direct_messages WHERE id = ?',
     [messageId]
   );
   if (!row || (row.sender_id !== req.user.id && row.recipient_id !== req.user.id)) {
     return res.status(404).json({ error: 'Message not found' });
   }
+  if (row.system === CALL_LOG) return res.status(403).json({ error: "A call in the chat can't be changed" });
   const result = await setPinned(
     'direct_messages', messageId, req.user.id, pinned,
     '((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))',

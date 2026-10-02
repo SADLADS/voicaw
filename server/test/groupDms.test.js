@@ -386,6 +386,51 @@ describe('group DMs', () => {
       await api.delete(ann, `/dm-calls/${callId}`);
     });
 
+    const callRows = async (user, groupId) =>
+      (await api.get(user, `/group-dms/${groupId}/messages`)).body.filter((m) => m.system === 'call');
+    const unreadIn = async (user, groupId) => (await api.get(user, '/group-dms')).body.find((g) => g.id === groupId).unread;
+
+    it('logs a call nobody joined as missed, unread for the others', async () => {
+      voice.livekit.roomService = fakeRoomService;
+      const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+      const { groupId } = await createGroup(ann, [bea, cal]);
+      const beaEvents = listen(bea);
+      const callId = (await startCall(ann, groupId)).body.call.id;
+      await api.post(cal, `/dm-calls/${callId}/decline`);
+      await api.delete(ann, `/dm-calls/${callId}`);
+
+      const [row] = await callRows(bea, groupId);
+      expect(row).toMatchObject({ sender_id: ann.id, system: 'call', epoch: 1 });
+      expect(JSON.parse(row.content)).toEqual({ v: 1, outcome: 'missed', duration: 0, joined: [ann.id] });
+      expect(beaEvents.find((e) => e.type === 'group_dm_message_new').message.id).toBe(row.id);
+      expect(await unreadIn(bea, groupId)).toBe(1);
+      expect(await unreadIn(ann, groupId)).toBe(0);
+    });
+
+    it('logs a call someone joined with its length, read for those who were in it', async () => {
+      voice.livekit.roomService = fakeRoomService;
+      const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+      const { groupId } = await createGroup(ann, [bea, cal]);
+      const callId = (await startCall(ann, groupId)).body.call.id;
+      await api.post(bea, `/dm-calls/${callId}/accept`);
+      calls.calls.get(callId).createdAt -= 61 * 1000;
+      await api.delete(ann, `/dm-calls/${callId}`);
+      await api.delete(bea, `/dm-calls/${callId}`);
+
+      const [row] = await callRows(cal, groupId);
+      const content = JSON.parse(row.content);
+      expect(content).toMatchObject({ outcome: 'ended', joined: [ann.id, bea.id] });
+      expect(content.duration).toBeGreaterThanOrEqual(61);
+      expect(await unreadIn(bea, groupId)).toBe(0);
+      expect(await unreadIn(cal, groupId)).toBe(1);
+
+      expect((await api.delete(ann, `/group-dm-messages/${row.id}`)).status).toBe(403);
+      expect((await api.put(ann, `/group-dm-messages/${row.id}`, { content: 'v2.x' })).status).toBe(403);
+      expect((await api.put(bea, `/group-dm-messages/${row.id}/pin`)).status).toBe(403);
+      expect((await api.post(bea, `/group-dm-messages/${row.id}/reactions`, { content: 'v2.x' })).status).toBe(403);
+      expect((await api.post(bea, `/group-dms/${groupId}/messages`, { epoch: 1, content: 'v2.reply', replyTo: row.id })).body.error).toBe('Invalid reply');
+    });
+
     it('needs the current epoch', async () => {
       voice.livekit.roomService = fakeRoomService;
       const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
