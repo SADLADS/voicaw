@@ -7,6 +7,7 @@ import SidebarWrapper from './SidebarWrapper';
 import SidebarResizer from './SidebarResizer';
 import UserPanel from './UserPanel';
 import VoiceBar from './voice/VoiceBar';
+import StreamPopout from './voice/StreamPopout';
 import IncomingCall from './call/IncomingCall';
 import { initCalls } from '../voice/callClient';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
@@ -249,6 +250,7 @@ export default function Layout({ user, onLogout }) {
         </SidebarWrapper>
 
         <IncomingCall user={user} />
+        <StreamPopout />
 
         {slidey && <div ref={scrimRef} className="pane-scrim" aria-hidden="true" />}
 

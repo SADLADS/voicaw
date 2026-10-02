@@ -5,7 +5,9 @@ import { faPhoneSlash, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import { ConfigContext, InteractionContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
 import { useVolumeMenu } from '../../hooks/useVolumeMenu';
+import { useStreamWindow } from '../../hooks/useStreamWindow';
 import { joinVoice, leaveVoice, watchStream } from '../../voice/voiceClient';
+import { closeStreamWindow } from '../../voice/streamWindow';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
@@ -19,7 +21,8 @@ import { displayName, useProfiles } from '../../utils/profiles';
 // too), and joining, or mute/deafen/share screen/disconnect once you're in. On mobile this is
 // where you join (tapping the channel only opens it); on desktop clicking the channel already
 // joined. Someone sharing their screen is marked Live; once you're in, Watch Stream shows it
-// big above the tiles (only watched streams are downloaded). Clicking someone else's tile
+// big above the tiles (only watched streams are downloaded), or a note while it's popped out
+// into its own window (StreamPopout). Clicking someone else's tile
 // while you're in sets how loud they are for you.
 export default function VoiceChannelView({ guild, channel, nameColors }) {
   useProfiles();
@@ -33,6 +36,8 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
   const canConnect = has(channel.my_permissions, PERMISSIONS.CONNECT);
   const streams = new Set(here ? voice.streams : []);
   const watched = here && voice.watching != null ? members.find((m) => String(m.user_id) === voice.watching) : null;
+  const poppedOut = useStreamWindow() != null;
+  const watchedOwn = voice.watching === voice.identity;
 
   let footer;
   if (here) {
@@ -58,14 +63,24 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
   }
 
   return (
-    <div className={`voice-view${watched ? ' watching' : ''}`}>
-      {watched && (
+    <div className={`voice-view${watched && !poppedOut ? ' watching' : ''}`}>
+      {watched && !poppedOut && (
         <StreamView
           key={watched.user_id}
           userId={watched.user_id}
           name={displayName(watched.user_id, watched.username)}
-          own={voice.watching === voice.identity}
+          own={watchedOwn}
         />
+      )}
+      {watched && poppedOut && (
+        <div className="stream-popped-note">
+          <span className="voice-live-badge">Live</span>
+          <span className="stream-popped-text">
+            {watchedOwn ? 'Your stream is' : `${displayName(watched.user_id, watched.username)}'s stream is`} in its own window.
+          </span>
+          <button type="button" className="stream-popped-button" onClick={closeStreamWindow}>Bring back</button>
+          <button type="button" className="stream-popped-button" onClick={() => watchStream(null)}>Stop watching</button>
+        </div>
       )}
       {members.length === 0 ? (
         <div className="voice-view-empty">

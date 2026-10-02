@@ -18,6 +18,10 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `voicaw://app`. Only the app's pages get permissions (microphone, not camera; notifications;
   screen capture, only of what was picked).
   `backgroundThrottling` is off so ringing and voice work from the tray.
+  The only other window the page may open is a popped-out screen share (`windowOpen.js`: a
+  blank window named `voicaw-stream`, which the page draws into itself; see Screen sharing in
+  `docs/voice-and-calls.md`): the app's icon, no menu, never navigates, opens nothing, and may
+  only go full screen. It stays open while the main window is in the tray.
 - **Right-click and spellcheck** (`spellcheck.js`): the page draws its own right-click menus and
   checks spelling itself, as in a browser (see Spellcheck and Right-click menus in
   `docs/client.md`), so Electron shows no menu. Its own checker (set to the system's languages

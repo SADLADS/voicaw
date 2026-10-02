@@ -79,10 +79,20 @@ LiveKit carries the audio.
   plays it in a `<video>`). The stream's sound plays like the others' (deafen mutes it). UI: a
   Live badge in the channel list and on tiles, Watch Stream on a live tile once you're in, the
   stream big above the tiles (`voice/StreamView.jsx`: full screen, stop watching; the people
-  become a row), and the share button (`voice/ScreenShareButton.jsx`) in the voice bar and the
+  become a row; pop out, below), and the share button (`voice/ScreenShareButton.jsx`) in the voice bar and the
   channel page. Not offered where the browser has no `getDisplayMedia` (phones, which can
   still watch). The desktop app shows our own picker first (`voice/ScreenPicker.jsx`, see
   Desktop app).
+  **Pop out** (computers, like Discord's): the stream in a window of its own
+  (`voice/streamWindow.js`), to put on another screen, maximise or make full screen. It's a
+  blank window opened from the click (`window.open('', 'voicaw-stream')`; a blocked pop-up
+  says so), with the page's stylesheets copied in (and any added later) and `<html>`'s theme
+  attributes kept in step; `StreamPopout` (drawn from Layout, so it carries on on every page)
+  renders `StreamView` into it with a portal, playing the same LiveKit track (nothing more is
+  downloaded). The channel page shows a note instead (Bring back, Stop watching). Closing the
+  window or Bring back puts the stream back on the page; Stop watching, the stream ending,
+  leaving voice or the page going (reload, logout) closes it. The desktop app allows exactly
+  this window (see Desktop app).
   Bandwidth: the sharer uploads once; LiveKit sends a copy to each viewer.
 - **Microphone chain** (`voice/voiceChain.js`): the browser captures with echo cancellation and
   auto gain (its own noise suppression and `voiceIsolation` only when that's the one chosen:
