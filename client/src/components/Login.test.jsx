@@ -9,6 +9,7 @@ vi.mock('@serenity-kit/opaque', () => ({
     startRegistration: vi.fn(),
     finishRegistration: vi.fn(),
   },
+  ready: Promise.resolve(),
 }));
 
 vi.mock('../utils/api', () => ({
