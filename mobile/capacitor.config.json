@@ -3,7 +3,8 @@
   "appName": "Voicaw",
   "webDir": "../build-android",
   "android": {
-    "path": "android"
+    "path": "android",
+    "appendUserAgent": "VoicawAndroid/0.1.0"
   },
   "server": {
     "androidScheme": "https",

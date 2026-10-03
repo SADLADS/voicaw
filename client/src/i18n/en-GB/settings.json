@@ -236,6 +236,7 @@
       "logOutOthersMessage_other": "All {{count}} other devices will have to log in again. This one stays logged in.",
       "desktopApp": "Voicaw desktop app",
       "desktopAppOn": "Voicaw desktop app on {{system}}",
+      "androidApp": "Voicaw Android app",
       "browserOn": "{{browser}} on {{system}}",
       "unknown": "Unknown device"
     },

@@ -27,6 +27,8 @@ const find = (list, ua) => list.find(([pattern]) => pattern.test(ua))?.[1] ?? nu
 export function describeDevice(userAgent) {
   const ua = userAgent ?? '';
   const system = find(SYSTEMS, ua);
+  // The Android app adds VoicawAndroid/<version> (mobile/capacitor.config.json).
+  if (/VoicawAndroid\//.test(ua)) return { name: t('settings.devices.androidApp'), kind: 'mobile' };
   if (/Electron\//.test(ua)) {
     return { name: system ? t('settings.devices.desktopAppOn', { system }) : t('settings.devices.desktopApp'), kind: 'app' };
   }

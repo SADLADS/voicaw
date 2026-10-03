@@ -99,7 +99,9 @@ native bridge. Check real behaviour on a phone.
   API's `allowedOrigins`), so the code holding the keys is what was installed. No service worker
   (`main.jsx`; no streamed videos either, as in the desktop app). Backups are off
   (`allowBackup`, `data_extraction_rules.xml`): the page's storage holds the encryption keys.
-  Back goes back in the app's history, and from the first page leaves the app running.
+  Back goes back in the app's history, and from the first page leaves the app running. Its
+  user agent ends in `VoicawAndroid/<version>` (`appendUserAgent`, the same as `versionName`;
+  a test checks), so Settings → Devices calls it "Voicaw Android app".
 - **Bridge**: the `Voicaw` plugin (`VoicawPlugin.java` → `client/src/utils/android.js`
   `android`, null elsewhere): `checkNotifications` / `requestNotifications` (Android's
   permission; whether calls may ring full screen, which Android 14 lets people turn off; whether

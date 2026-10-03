@@ -23,6 +23,11 @@ describe('the Android app set-up', () => {
     expect(vite).toContain("'notify.html'");
   });
 
+  it("names itself in its user agent (Settings → Devices), with the app's version", () => {
+    const version = /versionName "([^"]+)"/.exec(read('android/app/build.gradle'))[1];
+    expect(config.android.appendUserAgent).toBe(`VoicawAndroid/${version}`);
+  });
+
   it('keeps the page storage (and its keys) out of Android backups', () => {
     const manifest = read('android/app/src/main/AndroidManifest.xml');
     expect(manifest).toContain('android:allowBackup="false"');

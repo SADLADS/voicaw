@@ -16,6 +16,8 @@ describe('describeDevice', () => {
       'Chrome on Android', 'mobile'],
     ['Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) voicaw/1.0.0 Chrome/138.0.0.0 Electron/37.0.0 Safari/537.36',
       'Voicaw desktop app on Linux', 'app'],
+    ['Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/AP2A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/140.0.0.0 Mobile Safari/537.36 VoicawAndroid/0.1.0',
+      'Voicaw Android app', 'mobile'],
   ])('%s', (ua, name, kind) => {
     expect(describeDevice(ua)).toEqual({ name, kind });
   });
