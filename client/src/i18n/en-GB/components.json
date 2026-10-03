@@ -1,0 +1,32 @@
+{
+  "components": {
+    "failed": "This interaction failed",
+    "notResponding": "The application did not respond",
+    "working": "Working…",
+    "selectPlaceholder": "Make a selection",
+    "selectDone": "Done",
+    "selectCount_one": "{{count}} selected",
+    "selectCount_other": "{{count}} selected",
+    "noChoices": "Nothing to choose from",
+    "usedCommand": "{{name}} used <cmd>/{{command}}</cmd>",
+    "usedApp": "{{name}} used <cmd>{{command}}</cmd>",
+    "thinking": "{{name}} is thinking",
+    "ephemeral": "Only you can see this",
+    "dismiss": "Dismiss message",
+    "linkTitle": "Opens {{url}}",
+    "modal": {
+      "submit": "Submit",
+      "sending": "Sending…",
+      "required": "{{label}} is required",
+      "tooShort_one": "{{label}} needs at least {{count}} character",
+      "tooShort_other": "{{label}} needs at least {{count}} characters",
+      "tooLong_one": "{{label}} can be at most {{count}} character",
+      "tooLong_other": "{{label}} can be at most {{count}} characters",
+      "choose_one": "Choose at least {{count}} for {{label}}",
+      "choose_other": "Choose at least {{count}} for {{label}}",
+      "tooMany_one": "Choose at most {{count}} for {{label}}",
+      "tooMany_other": "Choose at most {{count}} for {{label}}",
+      "from": "From {{name}}"
+    }
+  }
+}

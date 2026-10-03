@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faComments, faCopy, faEdit, faReply, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faCopy, faEdit, faReply, faRobot, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { quickReactions } from '../emoji/quickReactions';
+import { displayName } from '../utils/profiles';
 import { t } from '../i18n';
 
 // Mobile: what a long press on a message opens (in place of the desktop hover menu). A row of
@@ -11,6 +12,7 @@ import { t } from '../i18n';
 // message doesn't allow are left out: nothing but copying for one still sending or failed,
 // and editing only your own (deleting: your own, or `canDelete`, e.g. a guild's owner; pinning:
 // `onTogglePin`, when you may).
+// `apps` (a guild channel's bots' message commands) are listed under Apps; `onRunApp(command)`.
 // `onClose` also runs after any action.
 export default function MessageActionSheet({
   msg,
@@ -26,6 +28,8 @@ export default function MessageActionSheet({
   onCreateThread,
   onCopy,
   onDelete,
+  apps = [],
+  onRunApp,
   onClose,
 }) {
   const index = useEmojiIndex();
@@ -127,6 +131,17 @@ export default function MessageActionSheet({
               <button type="button" className="action-sheet-item" onClick={act(onCopy)}>
                 <FontAwesomeIcon icon={faCopy} /> {t('chat.messageMenu.copyTextSheet')}
               </button>
+            )}
+            {sent && apps.length > 0 && (
+              <div className="action-sheet-apps" role="group" aria-label={t('commands.apps.label')}>
+                <div className="action-sheet-heading">{t('commands.apps.label')}</div>
+                {apps.map((command) => (
+                  <button key={command.id} type="button" className="action-sheet-item" onClick={act(() => onRunApp(command))}>
+                    <FontAwesomeIcon icon={faRobot} /> {command.name}
+                    <span className="action-sheet-hint">{displayName(command.bot?.id, command.bot?.name)}</span>
+                  </button>
+                ))}
+              </div>
             )}
             {sent && canDelete && (
               <button type="button" className="action-sheet-item danger" onClick={() => setConfirmingDelete(true)}>

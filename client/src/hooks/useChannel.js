@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { onGuildEvent, setActiveChat, setSideChat } from '../utils/ws-client';
+import { isEphemeral, onDismissRequest } from '../utils/botComponents';
 import {
   fetchChannelMessages,
   sendChannelMessage,
@@ -111,7 +112,7 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
 
   const loadMoreMessages = async () => {
     if (loadingOlder.current || !hasMore) return;
-    const oldest = messagesRef.current.find((m) => Number.isInteger(m.id));
+    const oldest = messagesRef.current.find((m) => Number.isInteger(m.id) && !isEphemeral(m));
     if (!oldest) return;
 
     loadingOlder.current = true;
@@ -148,6 +149,20 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
     });
     if (message.sender_id !== user.id) markRead(message.id);
   }
+
+  // An ephemeral message goes where its time puts it (it's never in a loaded page).
+  function addEphemeral(message) {
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === message.id)) return prev;
+      const at = prev.findIndex((m) => m.timestamp != null && m.timestamp > message.timestamp);
+      return at === -1 ? [...prev, message] : [...prev.slice(0, at), message, ...prev.slice(at)];
+    });
+  }
+
+  // Dismissing an ephemeral message (its footer, utils/botComponents.js) removes it.
+  useEffect(() => onDismissRequest((messageId) => {
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
+  }), []);
 
   // Same contract as useConversation's sendMessage.
   async function sendMessage({ text, replyTo = null, localAttachments = {}, resolveText }) {
@@ -239,8 +254,21 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
               ...(event.embeds ? { embeds: event.embeds } : {}),
               ...(event.attachments ? { attachments: event.attachments } : {}),
               ...(event.flags !== undefined ? { flags: event.flags } : {}),
+              // A bot's edits (and answers to its buttons) can change its components.
+              ...(event.components ? { components: event.components } : {}),
             }));
           }
+          break;
+        // A bot's ephemeral reply, only to you (server/interactions.js): kept here only, in time
+        // order, until reload or Dismiss.
+        case 'guild_ephemeral_message':
+          if (event.channelId === id && !documentId) addEphemeral(toChatMessage(event.message));
+          break;
+        case 'guild_ephemeral_edit':
+          if (event.channelId === id) updateMessage(event.message.id, () => toChatMessage(event.message));
+          break;
+        case 'guild_ephemeral_delete':
+          if (event.channelId === id) setMessages((prev) => prev.filter((m) => m.id !== event.messageId));
           break;
         case 'guild_message_delete':
           if (event.channelId === id) setMessages((prev) => prev.filter((m) => m.id !== event.messageId));

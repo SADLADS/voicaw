@@ -95,5 +95,14 @@ describe('MessageActionSheet', () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(onDelete).not.toHaveBeenCalled();
   });
-});
 
+  it("lists a guild bot's message commands under Apps", () => {
+    const onRunApp = vi.fn();
+    const apps = [{ id: 3, type: 3, name: 'Quote', bot: { id: 9, name: 'Quote Bot' } }];
+    const { onClose } = renderSheet({ apps, onRunApp });
+    const group = screen.getByRole('group', { name: 'Apps' });
+    tap(within(group).getByRole('button', { name: /Quote/ }));
+    expect(onRunApp).toHaveBeenCalledWith(apps[0]);
+    expect(onClose).toHaveBeenCalled();
+  });
+});

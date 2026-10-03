@@ -9,6 +9,7 @@ import UserPanel from './UserPanel';
 import VoiceBar from './voice/VoiceBar';
 import StreamPopout from './voice/StreamPopout';
 import IncomingCall from './call/IncomingCall';
+import BotModal from './BotModal';
 import { initCalls } from '../voice/callClient';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import api from '../utils/api';
@@ -258,6 +259,8 @@ export default function Layout({ user, onLogout }) {
 
         <IncomingCall user={user} />
         <StreamPopout />
+        {/* A bot's form, when one of its commands or buttons opens one. */}
+        <BotModal />
 
         {slidey && <div ref={scrimRef} className="pane-scrim" aria-hidden="true" />}
 

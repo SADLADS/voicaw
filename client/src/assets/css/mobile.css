@@ -136,3 +136,43 @@
 .mobile-mode .dev-authorize-card {
     padding: 16px;
 }
+
+/* BOT COMMANDS (commands.css): on a phone each option field takes the whole width, and the
+   bot's suggestions get room for a finger. */
+.mobile-mode .command-option {
+  flex-basis: 100%;
+}
+
+.mobile-mode .command-option-input {
+  min-height: 40px;
+  font-size: 16px;
+}
+
+.mobile-mode .command-option-choice {
+  padding: 10px 8px;
+}
+
+/* Bots' components (MessageComponents, bots.css): bigger buttons to tap, and a select's list as a
+   sheet from the bottom of the screen. */
+.mobile-mode .bot-button {
+    min-height: 40px;
+}
+
+.mobile-mode .bot-select {
+    max-width: none;
+}
+
+.mobile-mode .bot-select-menu {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 60%;
+    border-radius: 12px 12px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mobile-mode .bot-select-option {
+    min-height: 44px;
+}

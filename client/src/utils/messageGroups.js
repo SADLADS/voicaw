@@ -9,6 +9,8 @@ const GROUP_WINDOW_S = 7 * 60;
 export function continuesGroup(prev, msg) {
   if (!prev || prev.system || msg.system) return false;
   if (prev.sender_id !== msg.sender_id || msg.parent_message_id) return false;
+  // A bot's answer to a command has its own "… used /command" line above it.
+  if (msg.interaction?.name) return false;
   if (msg.unverified || msg.unsigned || prev.unverified || prev.unsigned) return false;
   // Webhooks (no sender) group only with the same webhook, under the same name and picture.
   if ((prev.webhook_id || msg.webhook_id) && (prev.webhook_id !== msg.webhook_id ||

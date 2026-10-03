@@ -181,6 +181,27 @@ gives, so the server never makes requests to addresses bots choose).
   (2^52, never a guild message's id) and sends `guild_ephemeral_message` / `_edit` / `_delete`
   only to that person's sockets; the app keeps them until reload or Dismiss, as Discord does.
   Lost if the API restarts within those 15 minutes (the bot then gets Unknown Message).
+- **In the app** (`services/interactionService.js` for the calls and the open form):
+  - **"/" picker** (`CommandSuggestions`, `hooks/useChannelCommands.js`): typing "/" at the
+    start of an empty message in a guild channel or thread lists the slash commands.
+    Subcommands are their own entries. The list is cached 30 s per channel and fetched again
+    when it opens.
+  - **Command mode** (`CommandComposer`, `utils/commandOptions.js`,
+    `hooks/useCommandAutocomplete.js`): picking a command swaps the message box for its
+    option fields. Typed fields check their limits; choices are dropdowns; members, roles and
+    channels come from the guild; attachments use a file picker. Autocomplete waits 250 ms
+    after typing. Required fields are checked, and "The application did not respond" keeps
+    what was filled in.
+  - **Apps menus:** message commands in the message menu and the phone action sheet; user
+    commands on the member card.
+  - **Components** (`MessageComponents`, `utils/botComponents.js`): buttons and selects under
+    bot messages, with a spinner while waiting and "This interaction failed" for 5 s after a
+    failure. Selects open as a sheet on phones.
+  - **Interaction notes** (`InteractionNotes`): "<name> used /command" above a command's
+    reply, and "<bot> is thinking…".
+  - **Ephemeral messages:** `useChannel` handles the `guild_ephemeral_*` events. These
+    messages are tinted, have Dismiss, and have no menus or reactions.
+  - **Forms:** `BotModal`, mounted once in Layout.
 - **Checked with real libraries** (2026-10-03): discord.js 14.27 (`commands.set`, ephemeral
   replies, buttons with `update()`, selects, `showModal`, `deferReply` + `editReply`,
   autocomplete, user context menus) and discord.py 2.7.1 (`tree.sync`, a button `View`,

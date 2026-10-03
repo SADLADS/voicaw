@@ -1,9 +1,10 @@
 import React from 'react';
-import { faComments, faCopy, faEdit, faFaceSmile, faReply, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faCopy, faEdit, faFaceSmile, faReply, faRobot, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { quickReactions } from '../emoji/quickReactions';
 import ContextMenu from './ContextMenu';
+import { displayName } from '../utils/profiles';
 import { t } from '../i18n';
 
 const QUICK_REACTION_COUNT = 5; // what fits across the menu
@@ -17,6 +18,7 @@ const QUICK_REACTION_COUNT = 5; // what fits across the menu
 // `canDelete`, pinning when `onTogglePin` is given, reacting when `canReact`.
 // `onDelete(event)` asks first unless Shift is held (ChatPane's requestDelete). `onCopy`
 // returns a promise; its failure shows in the menu. `anchor` is where it was right-clicked.
+// `apps` (a guild channel's bots' message commands) go in an Apps submenu; `onRunApp(command)`.
 export default function MessageMenu({
   msg,
   isOwn,
@@ -32,6 +34,8 @@ export default function MessageMenu({
   onCreateThread,
   onCopy,
   onDelete,
+  apps = [],
+  onRunApp,
   onClose,
 }) {
   const index = useEmojiIndex();
@@ -49,6 +53,14 @@ export default function MessageMenu({
   if (sent && onCreateThread) items.push({ key: 'thread', label: t('chat.messageMenu.createThread'), icon: faComments, onSelect: onCreateThread });
   if (msg.plaintext) {
     items.push({ key: 'copy', label: t('chat.messageMenu.copyText'), icon: faCopy, onSelect: async () => { await onCopy(); return t('common.copied'); } });
+  }
+  if (sent && apps.length > 0) {
+    items.push({
+      key: 'apps',
+      label: t('commands.apps.label'),
+      icon: faRobot,
+      submenu: { title: t('commands.apps.label'), items: apps.map((command) => ({ key: `app-${command.id}`, label: command.name, hint: displayName(command.bot?.id, command.bot?.name), onSelect: () => onRunApp(command) })) },
+    });
   }
   if (sent && canDelete) {
     items.push({ separator: true }, { key: 'delete', label: t('chat.messageMenu.delete'), icon: faTrash, danger: true, onSelect: onDelete });

@@ -17,6 +17,9 @@ import { mentionsToText } from '../utils/mentions';
 import { hideSpoilers } from '../utils/remarkDiscord';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 import { displayName } from '../utils/profiles';
+import { useChannelCommands } from '../hooks/useChannelCommands';
+import { handleInteractionResult, runCommand } from '../services/interactionService';
+import { interactionError } from '../utils/commandOptions';
 import { t } from '../i18n';
 import { flashRow } from '../utils/flashRow';
 import { clearTyping } from '../utils/typing';
@@ -85,6 +88,11 @@ export default function ChatPane({
     ? () => threads.createThread(msg)
     : undefined);
   const { messages } = conversation;
+  // A guild channel or thread (not encrypted, chat id "channel-<id>"): its bots' commands, for
+  // the "/" list (Composer) and the message menus' Apps.
+  const commandChannelId = !encrypted ? Number(/^channel-(\d+)$/.exec(chatId ?? '')?.[1]) || null : null;
+  const { commands, refresh: refreshCommands } = useChannelCommands(commandChannelId, { enabled: commandChannelId != null });
+  const messageApps = commands.filter((c) => c.type === 3);
 
   const inputRef = useRef(null);
   const editRef = useRef(null);
@@ -134,7 +142,20 @@ export default function ChatPane({
     reactions.openPicker(msg, anchor);
   }
 
+  // A message command (Apps) on `msg`; what the bot says comes by socket, a form opens.
+  async function runMessageApp(command, msg) {
+    setComposerError(null);
+    try {
+      handleInteractionResult(await runCommand(commandChannelId, { commandId: command.id, targetId: msg.id }));
+    } catch (err) {
+      setComposerError(interactionError(err));
+    }
+  }
+  // Only messages saved in the channel (not ephemeral, pending or failed ones).
+  const appsFor = (msg) => (commandChannelId != null && Number.isInteger(msg.id) && !msg.ephemeral && msg.id < 2 ** 52 ? messageApps : []);
+
   function openActions(msg) {
+    if (commandChannelId != null) refreshCommands();
     inputRef.current?.blur(); // the keyboard would cover the sheet
     setShowEmojiPickerState(false);
     reactions.closePicker();
@@ -142,6 +163,7 @@ export default function ChatPane({
   }
 
   function openMenu(msg, anchor) {
+    if (commandChannelId != null) refreshCommands();
     reactions.closePicker();
     setMenuFor({ id: msg.id, anchor });
   }
@@ -386,6 +408,7 @@ export default function ChatPane({
         roleInfo={mentionRoles}
         canMentionEveryone={canMentionEveryone}
         channels={channels}
+        commandChannelId={commandChannelId}
       />}
 
       {confirmingDelete && (
@@ -433,6 +456,8 @@ export default function ChatPane({
           onTogglePin={canPin ? () => togglePin(actionsFor) : undefined}
           onCreateThread={threadFrom(actionsFor)}
           onCopy={() => copyMessage(actionsFor)}
+          apps={appsFor(actionsFor)}
+          onRunApp={(command) => runMessageApp(command, actionsFor)}
           onDelete={() => handleDelete(actionsFor)}
           onClose={closeActions}
         />
@@ -453,6 +478,8 @@ export default function ChatPane({
           onTogglePin={canPin ? () => togglePin(menuMsg) : undefined}
           onCreateThread={threadFrom(menuMsg)}
           onCopy={() => copyText(menuMsg)}
+          apps={appsFor(menuMsg)}
+          onRunApp={(command) => runMessageApp(command, menuMsg)}
           onDelete={(event) => requestDelete(menuMsg, event)}
           onClose={closeMenu}
         />

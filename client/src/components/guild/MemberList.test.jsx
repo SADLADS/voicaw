@@ -80,6 +80,17 @@ describe('MemberList', () => {
     expect(within(within(other).getByRole('list', { name: 'Roles to add' })).getAllByRole('button').map((b) => b.textContent)).toEqual(['Regulars']);
   });
 
+  it("offers the channel's bots' user commands as Apps on the card", async () => {
+    const onRunUserApp = vi.fn(async () => {});
+    const apps = [{ id: 11, type: 2, name: 'Wave', bot: { id: 9, name: 'Waver' } }];
+    const guild = { id: 5, name: 'G', owner: 1, roles, my_permissions: 0, my_role_ids: [] };
+    render(<MemoryRouter><MemberList guild={guild} members={members} user={{ id: 2 }} userApps={apps} onRunUserApp={onRunUserApp} /></MemoryRouter>);
+    fireEvent.click(screen.getByText('newbie'));
+    const card = screen.getByRole('dialog', { name: 'newbie' });
+    fireEvent.click(within(within(card).getByRole('group', { name: 'Apps' })).getByRole('button', { name: /Wave/ }));
+    await waitFor(() => expect(onRunUserApp).toHaveBeenCalledWith(apps[0], 4));
+  });
+
   it('shows no management without the permissions', () => {
     renderList(0);
     fireEvent.click(screen.getByText('newbie'));

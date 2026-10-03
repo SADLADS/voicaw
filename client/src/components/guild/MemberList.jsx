@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCrown, faPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faCrown, faPlus, faRobot, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { banMember, kickMember, setMemberRoles, transferGuild } from '../../services/guildService';
 import { PERMISSIONS, colorToHex, has, memberColor, memberRank, memberRoles } from '../../utils/permissions';
 import { errorMessage, groupMembers } from '../../utils/guildDisplay';
@@ -9,7 +9,8 @@ import ConfirmDialog from './ConfirmDialog';
 import StatusIcon from '../StatusIcon';
 import { usePresence } from '../../hooks/usePresence';
 import { formatDate } from '../../utils/dateFormat';
-import { getProfile, nameOf, useProfiles } from '../../utils/profiles';
+import { displayName, getProfile, nameOf, useProfiles } from '../../utils/profiles';
+import { interactionError } from '../../utils/commandOptions';
 import ProfileCard from '../ProfileCard';
 import Avatar from '../Avatar';
 import { t } from '../../i18n';
@@ -17,7 +18,9 @@ import { t } from '../../i18n';
 // The guild's members down the right (like Discord), names in their role colour. Clicking one
 // opens a card: their roles (added and removed there by people who manage roles, for roles
 // below their own), Message, and, as permissions and rank allow, Make owner / Kick / Ban.
-export default function MemberList({ guild, members: memberList, user, onClose }) {
+// `userApps` (the channel's bots' user commands) show as Apps on the card, run with
+// `onRunUserApp(command, userId)`.
+export default function MemberList({ guild, members: memberList, user, onClose, userApps = [], onRunUserApp }) {
   useProfiles();
   const presenceOf = usePresence();
   const members = memberList.map((m) => ({ ...m, ...presenceOf(m) }));
@@ -166,6 +169,29 @@ export default function MemberList({ guild, members: memberList, user, onClose }
             </button>
           )}
         </div>
+        {userApps.length > 0 && onRunUserApp && (
+          <div className="member-card-apps" role="group" aria-label={t('commands.apps.label')}>
+            <div className="member-card-label">{t('commands.apps.label')}</div>
+            {userApps.map((command) => (
+              <button
+                key={command.id}
+                type="button"
+                className="btn btn-outline-secondary btn-sm member-card-app"
+                title={displayName(command.bot?.id, command.bot?.name)}
+                onClick={async () => {
+                  setError(null);
+                  try {
+                    await onRunUserApp(command, member.id);
+                  } catch (err) {
+                    setError(interactionError(err));
+                  }
+                }}
+              >
+                <FontAwesomeIcon icon={faRobot} /> {command.name}
+              </button>
+            ))}
+          </div>
+        )}
         {error && <p className="error-msg" role="alert">{error}</p>}
       </div>
     );

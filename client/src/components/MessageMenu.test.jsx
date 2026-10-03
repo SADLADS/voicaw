@@ -93,4 +93,19 @@ describe('MessageMenu', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('No clipboard');
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it("lists a guild bot's message commands under Apps, and runs the one picked", async () => {
+    const onRunApp = vi.fn();
+    const apps = [{ id: 3, type: 3, name: 'Quote', bot: { id: 9, name: 'Quote Bot' } }];
+    const { onClose } = renderMenu({ apps, onRunApp });
+    fireEvent.click(screen.getByRole('menuitem', { name: /Apps/ }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Quote/ }));
+    expect(onRunApp).toHaveBeenCalledWith(apps[0]);
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it('has no Apps without message commands', () => {
+    renderMenu();
+    expect(screen.queryByRole('menuitem', { name: /Apps/ })).toBeNull();
+  });
 });

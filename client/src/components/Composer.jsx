@@ -5,7 +5,12 @@ import { faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-soli
 import EmojiPicker from './EmojiPicker';
 import EmojiSuggestions from './EmojiSuggestions';
 import MentionSuggestions from './MentionSuggestions';
+import CommandSuggestions from './CommandSuggestions';
+import CommandComposer from './CommandComposer';
+import { useChannelCommands } from '../hooks/useChannelCommands';
+import { commandEntries, searchCommands } from '../utils/commandOptions';
 import AttachmentTray from './AttachmentTray';
+import '../assets/css/commands.css';
 import FileDropOverlay from './FileDropOverlay';
 import PollDialog from './PollDialog';
 import { useEmojiIndex } from '../emoji/emojiContext';
@@ -39,6 +44,8 @@ const EMOJI_SHORTCODE = /(?:^|[\s([{]):([a-z0-9_+-]+):$/i;
 const MENTION_QUERY = /(?:^|[\s([{])@([^\s@<>]{0,32})$/;
 // "#", "#gen": a channel being typed (not "a#b").
 const CHANNEL_QUERY = /(?:^|[\s([{])#([^\s#<>]{0,100})$/;
+// "/", "/we": a bot command being picked (the whole message so far).
+const COMMAND_QUERY = /^\/([^\s/]{0,32})$/;
 
 // The message box under a conversation (MessageEditor: `inputRef` is its handle), writing to
 // `chatName` (a person, or "#channel"; null while the chat can't be sent to yet), with
@@ -48,6 +55,8 @@ const CHANNEL_QUERY = /(?:^|[\s([{])#([^\s#<>]{0,100})$/;
 // `roleInfo` ({ id: { name, color } }) draws role mentions in the box), channel mentions in a
 // guild ("#gen" suggestions from `channels`, [{ id, name, type, private, category }]) and the
 // reply bar. What's typed is kept per conversation while the app is open (draftStore).
+// In a guild channel or thread (`commandChannelId`), "/" at the start lists its bots' commands
+// (CommandSuggestions); picking one turns the box into CommandComposer until it's run or left.
 //
 // `onSend({ text, replyTo, localAttachments, resolveText })` sends (see useConversation's
 // sendMessage); `onSendPoll({ poll, replyTo })` sends a poll made in PollDialog (see ChatPane).
@@ -76,6 +85,7 @@ export default function Composer({
   canMentionEveryone = false,
   channels,
   chatTexts,
+  commandChannelId = null,
 }) {
   // What the box and the file drop overlay say: "Message Alice", or the chat's own wording
   // (`chatTexts`: { label, placeholder, upload }, e.g. a document's replies).
@@ -104,6 +114,9 @@ export default function Composer({
   const addMenuRef = useRef(null);
   // The conversation the box's text is saved for, and whether its draft is being put back.
   const draftChatId = useRef(chatId);
+  // Bot commands (guild channels only), and the one being filled in (command mode).
+  const { commands, refresh: refreshCommands } = useChannelCommands(commandChannelId, { enabled: commandChannelId != null });
+  const [commandEntry, setCommandEntry] = useState(null);
   const restoringDraft = useRef(false);
 
   // Emoji from the picker (Unicode, or `<:name:id>`). On mobile the box isn't focused (that
@@ -163,15 +176,34 @@ export default function Composer({
   const channelSuggestions = channelQuery != null && `#${channelQuery}` !== dismissedQuery
     ? searchChannels(channels, channelQuery)
     : [];
+  const commandQuery = commandChannelId != null && inputValue === beforeCaret ? COMMAND_QUERY.exec(beforeCaret)?.[1] ?? null : null;
+  const commandSuggestions = commandQuery != null && `/${commandQuery}` !== dismissedQuery
+    ? searchCommands(commandEntries(commands), commandQuery, 10)
+    : [];
   // Only one kind can match what's before the cursor.
-  const suggestions = emojiSuggestions.length > 0 ? emojiSuggestions
+  const suggestions = commandSuggestions.length > 0 ? commandSuggestions
+    : emojiSuggestions.length > 0 ? emojiSuggestions
     : mentionSuggestions.length > 0 ? mentionSuggestions : channelSuggestions;
   const activeSuggestion = Math.min(suggestionIndex, Math.max(suggestions.length - 1, 0));
 
   function pickSuggestion(item) {
-    if (emojiSuggestions.length > 0) pickEmoji(item);
+    if (commandSuggestions.length > 0) pickCommand(item);
+    else if (emojiSuggestions.length > 0) pickEmoji(item);
     else if (item.kind === 'channel') pickChannel(item);
     else pickMention(item);
+  }
+
+  // A command picked: the "/…" typed goes, and the box becomes its form.
+  function pickCommand(entry) {
+    inputRef.current?.clear();
+    typingDone(chatId);
+    setSuggestionIndex(0);
+    setCommandEntry(entry);
+  }
+
+  function leaveCommand() {
+    setCommandEntry(null);
+    queueMicrotask(() => inputRef.current?.focus());
   }
 
   function pickChannel(item) {
@@ -250,7 +282,7 @@ export default function Composer({
       }
       if (e.key === 'Escape') {
         e.preventDefault();
-        setDismissedQuery(emojiSuggestions.length > 0 ? emojiQuery
+        setDismissedQuery(commandSuggestions.length > 0 ? `/${commandQuery}` : emojiSuggestions.length > 0 ? emojiQuery
           : mentionSuggestions.length > 0 ? `@${mentionQuery}` : `#${channelQuery}`);
         return;
       }
@@ -339,6 +371,17 @@ export default function Composer({
     }
   }, [chatId, inputRef]);
 
+  // Opening the "/" list asks for the channel's commands again (they may have changed).
+  const commandListOpen = commandQuery != null;
+  useEffect(() => {
+    if (commandListOpen) refreshCommands({ fresh: true });
+  }, [commandListOpen, refreshCommands]);
+
+  // Another conversation: out of command mode.
+  useEffect(() => {
+    setCommandEntry(null);
+  }, [chatId]);
+
   // The + menu closes on a click outside it or Escape.
   useEffect(() => {
     if (!addMenuOpen) return undefined;
@@ -379,7 +422,17 @@ export default function Composer({
           <EmojiPicker onSelect={insertEmoji} onGif={sendGif} onClose={() => setShowEmojiPicker(false)} />
         )}
 
-        {emojiSuggestions.length > 0 && (
+        {commandSuggestions.length > 0 && !commandEntry && (
+          <CommandSuggestions
+            query={commandQuery}
+            entries={commandSuggestions}
+            activeIndex={activeSuggestion}
+            onPick={pickCommand}
+            onHover={setSuggestionIndex}
+          />
+        )}
+
+        {emojiSuggestions.length > 0 && commandSuggestions.length === 0 && (
           <EmojiSuggestions
             query={emojiQuery}
             emojis={emojiSuggestions}
@@ -434,7 +487,20 @@ export default function Composer({
 
         <AttachmentTray drafts={visibleDrafts} onRemove={removeDraft} onToggleSpoiler={attachments.toggleSpoiler} />
 
-        <form id="dm-chat-form" className="d-flex flex-grow-1" onSubmit={handleSubmit}>
+        {commandEntry && (
+          <CommandComposer
+            key={commandEntry.key}
+            entry={commandEntry}
+            channelId={commandChannelId}
+            people={people}
+            roleInfo={roleInfo}
+            channels={channels}
+            onClose={leaveCommand}
+          />
+        )}
+
+        {/* Kept (hidden) in command mode, so what's typed and the editor survive it. */}
+        <form id="dm-chat-form" className={commandEntry ? 'd-none' : 'd-flex flex-grow-1'} hidden={Boolean(commandEntry)} onSubmit={handleSubmit}>
           <div className="attach-wrapper" ref={addMenuRef}>
             <button
               className="attach-button"

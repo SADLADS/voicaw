@@ -11,6 +11,9 @@ import MessageReactions from './MessageReactions';
 import UrlPreviews from './UrlPreviews';
 import MessageEmbeds from './MessageEmbeds';
 import MessageFiles from './MessageFiles';
+import MessageComponents from './MessageComponents';
+import { EphemeralFooter, InteractionHeader, ThinkingLine } from './InteractionNotes';
+import { isEphemeral, isThinking } from '../utils/botComponents';
 import Poll from './Poll';
 import PollEndNotice from './PollEndNotice';
 import CallLogNotice from './CallLogNotice';
@@ -326,11 +329,15 @@ export function MessageRow({
   } : {});
   // A picker or menu is open for this message: it stays highlighted with its menu showing.
   const focused = focusedMsgId === msg.id;
+  // A bot's ephemeral reply (only you see it, until you reload): nothing to do to it but
+  // dismiss it, so no menus, reactions or replies. A deferred reply shows "thinking…".
+  const ephemeral = isEphemeral(msg);
+  const thinking = isThinking(msg);
   // Mobile: touch and hold opens the message's action sheet (there's no hover there).
-  const longPress = useLongPress(() => onOpenActions(msg), { enabled: isMobile && Boolean(onOpenActions) });
+  const longPress = useLongPress(() => onOpenActions(msg), { enabled: isMobile && Boolean(onOpenActions) && !ephemeral });
   // Desktop: right-clicking opens its menu, except on a picture, a link, selected text or a
   // text box (editing it), which have their own (PageMenus).
-  const onContextMenu = !isMobile && onOpenMenu ? (e) => {
+  const onContextMenu = !isMobile && onOpenMenu && !ephemeral ? (e) => {
     if (pageMenuTarget(e.target, document.getSelection()?.toString() ?? '')) return;
     e.preventDefault();
     onOpenMenu(msg, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY });
@@ -352,7 +359,7 @@ export function MessageRow({
 
   // Not before the server has the message (it has no id yet).
   const sent = msg.status !== 'pending' && msg.status !== 'failed';
-  const canReact = Boolean(onToggleReaction) && sent;
+  const canReact = Boolean(onToggleReaction) && sent && !ephemeral;
   const pinned = Boolean(msg.pinned_at);
   // Pinned: a pin by the time (or after the text, without a header).
   const pinMark = pinned ? (
@@ -370,7 +377,7 @@ export function MessageRow({
 
   return (
     <div
-      className={`each-dm-message-wrapper ${msg.sender_id === user.id ? 'sent' : 'received'}${focused ? ' focused' : ''}${mentionsMe ? ' mentioned' : ''}${grouped ? ' grouped' : ''}`}
+      className={`each-dm-message-wrapper ${msg.sender_id === user.id ? 'sent' : 'received'}${focused ? ' focused' : ''}${mentionsMe ? ' mentioned' : ''}${grouped ? ' grouped' : ''}${ephemeral ? ' ephemeral' : ''}`}
       data-msg-id={msg.id}
       onMouseEnter={() => setHoveredMsgId(msg.id)}
       onMouseLeave={() => setHoveredMsgId(null)}
@@ -378,6 +385,7 @@ export function MessageRow({
       onClick={(e) => { if (cannotHover()) flashRow(e.currentTarget, 'tap-highlight'); }}
       {...longPress}
     >
+      <InteractionHeader interaction={msg.interaction} />
       {parent && (
         <div className="reply-snippet">
           <Avatar userId={parent.sender_id} alt={displayName(parent.sender_id, parent.sender_username)} className="reply-avatar" />
@@ -393,7 +401,7 @@ export function MessageRow({
         </div>
       )}
 
-      {(focusedMsgId ?? hoveredMsgId) === msg.id && !isMobile && (
+      {(focusedMsgId ?? hoveredMsgId) === msg.id && !isMobile && !ephemeral && (
         <div className="message-menu">
           {canReact && canAddReactions && (
             <button
@@ -535,6 +543,8 @@ export function MessageRow({
               onVote={canReact && onVote ? (optionIds) => onVote(msg, optionIds) : undefined}
               onEnd={sent && msg.sender_id === user.id && onEndPoll ? () => onEndPoll(msg) : undefined}
             />
+          ) : thinking ? (
+            <ThinkingLine botName={senderName} />
           ) : (
             <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
           )}
@@ -543,6 +553,7 @@ export function MessageRow({
           {grouped && editingMessageId !== msg.id ? pinMark : null}
 
           <EmbedParts {...embedProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
+          <MessageComponents messageId={msg.id} channelId={msg.channel_id} components={msg.components} names={reactionNames} roles={mentionRoles} />
 
           {!poll && <UrlPreviews text={msg.plaintext} encrypted={encrypted} />}
         </div>
@@ -558,10 +569,11 @@ export function MessageRow({
             onAdd={canAddReactions ? (anchor) => onOpenReactionPicker(msg, anchor) : undefined}
           />
         )}
+        {ephemeral && <EphemeralFooter messageId={msg.id} />}
 
       </div>
       {/* Mobile: shows from the right as the message is swiped left (useSwipeToReply). */}
-      {isMobile && sent && (
+      {isMobile && sent && !ephemeral && (
         <span className="swipe-reply-icon" aria-hidden="true">
           <FontAwesomeIcon icon={faReply} />
         </span>
@@ -684,7 +696,7 @@ export default function MessageList({
   // Mobile: swiping a message left replies to it (where there's a message box to reply in).
   const repliable = (key) => {
     const msg = messages.find((each) => rowKey(each) === key);
-    return msg && !msg.system && msg.status !== 'pending' && msg.status !== 'failed' ? msg : null;
+    return msg && !msg.system && !isEphemeral(msg) && msg.status !== 'pending' && msg.status !== 'failed' ? msg : null;
   };
   useSwipeToReply(scrollerRef, {
     enabled: isMobile && canReply,

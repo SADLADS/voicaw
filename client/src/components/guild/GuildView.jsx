@@ -22,6 +22,8 @@ import { addGuildReaction, fetchChannelMembers, fetchMembers, removeGuildReactio
 import { defaultChannel, errorMessage, rememberChannel } from '../../utils/guildDisplay';
 import { PERMISSIONS, colorToHex, has, memberColor } from '../../utils/permissions';
 import { mergeProfiles, nameOf, useProfiles } from '../../utils/profiles';
+import { useChannelCommands } from '../../hooks/useChannelCommands';
+import { handleInteractionResult, runCommand } from '../../services/interactionService';
 import { t } from '../../i18n';
 
 const SHOW_MEMBERS_KEY = 'showMemberList';
@@ -179,6 +181,12 @@ export default function GuildView({ user }) {
       off();
     };
   }, [guildId, viewedChannelId]);
+  // The channel's bots' user commands, for the member card's Apps (text channels only).
+  const { commands: channelCommands } = useChannelCommands(viewedChannelId, { enabled: channel?.type === 'text' });
+  const userApps = useMemo(() => channelCommands.filter((c) => c.type === 2), [channelCommands]);
+  const runUserApp = useCallback(async (command, userId) => {
+    handleInteractionResult(await runCommand(viewedChannelId, { commandId: command.id, targetId: userId }));
+  }, [viewedChannelId]);
   const channelMembers = useMemo(
     () => (viewers ? members.filter((m) => viewers.has(m.id)) : members),
     [members, viewers]
@@ -449,6 +457,8 @@ export default function GuildView({ user }) {
             guild={guild}
             members={channelMembers}
             user={user}
+            userApps={userApps}
+            onRunUserApp={runUserApp}
             onClose={isMobile ? () => setMembersOpenMobile(false) : undefined}
           />
         )}

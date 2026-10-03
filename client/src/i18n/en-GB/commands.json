@@ -1,0 +1,41 @@
+{
+  "commands": {
+    "picker": {
+      "label": "Bot commands",
+      "title": "Commands",
+      "matching": "Commands matching <b>{{query}}</b>"
+    },
+    "mode": {
+      "label": "Use /{{name}}",
+      "leave": "Stop using this command",
+      "run": "Send",
+      "sending": "Sending…",
+      "required": "required",
+      "missing": "Fill in: {{names}}",
+      "choose": "Choose…",
+      "chooseMember": "Choose a member…",
+      "chooseRole": "Choose a role…",
+      "chooseChannel": "Choose a channel…",
+      "chooseMentionable": "Choose a member or role…",
+      "members": "Members",
+      "roles": "Roles",
+      "true": "True",
+      "false": "False",
+      "suggestions": "Suggestions",
+      "loading": "Loading…",
+      "notNumber": "Not a number",
+      "notWhole": "Must be a whole number",
+      "tooSmall": "At least {{min}}",
+      "tooBig": "At most {{max}}",
+      "tooShort": "At least {{min}} characters",
+      "tooLong": "At most {{max}} characters"
+    },
+    "apps": {
+      "label": "Apps"
+    },
+    "errors": {
+      "noResponse": "The application did not respond",
+      "failed": "That didn't work"
+    }
+  }
+}
