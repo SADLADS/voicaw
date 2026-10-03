@@ -308,10 +308,8 @@ describe('the bot API', () => {
     expect(entries.some((e) => e.action === 'member_ban_add' && e.actor_id === bot.id)).toBe(true);
   });
 
-  it("says application commands aren't here yet", async () => {
+  it('describes its application', async () => {
     const { bot } = await setUp();
-    expect((await discord.get(bot, `/applications/${bot.id}/commands`)).body).toEqual([]);
-    expect((await discord.put(bot, `/applications/${bot.id}/commands`, [])).status).toBe(400);
     expect((await discord.get(bot, '/oauth2/applications/@me')).body).toMatchObject({ id: String(bot.id), bot_public: true });
   });
 });

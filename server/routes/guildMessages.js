@@ -32,6 +32,7 @@ const MESSAGE_SELECT = `
     m.id, m.channel_id, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
     m.mention_everyone, m.mention_roles, m.pinned_at, m.pinned_by, m.system, m.document_id,
     m.webhook_id, m.webhook_name, m.webhook_avatar, m.embeds, m.attachments, m.flags, m.edited_at,
+    m.components, m.interaction,
     COALESCE(u.username, m.webhook_name) AS sender_username,
     u.display_name AS sender_display_name,
     u.avatar AS sender_avatar,
@@ -64,6 +65,8 @@ async function withReactions(messages) {
     mention_roles: parseRoleIds(m.mention_roles),
     embeds: parseJsonList(m.embeds),
     attachments: parseJsonList(m.attachments),
+    components: parseJsonList(m.components),
+    interaction: parseJsonObject(m.interaction),
     reactions: byMessage.get(m.id),
     thread: threadsByMessage.get(m.id) ?? null,
     ...pollReactionsFor(m, byMessage),
@@ -80,6 +83,15 @@ function parseJsonList(json) {
 }
 
 const parseRoleIds = parseJsonList;
+
+function parseJsonObject(json) {
+  try {
+    const value = json ? JSON.parse(json) : null;
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
 
 const forbidden = (res) => res.status(403).json({ error: "You don't have permission to do that" });
 
@@ -218,18 +230,20 @@ router.post('/channels/:channelId/messages', authenticateJWT, requireChatChannel
 
 // Saves and announces a message by `senderId` (who has `permissions` in `channel`; checked by
 // the caller, as are the content and the reply) and sends its pushes. A bot's (routes/botApi.js)
-// may have `embeds` and `attachments` (Discord's shapes), `flags`, `allowed` (allowed_mentions,
-// as mentions.js takes it) and `silent` (no pushes). Resolves to the message as the app has it.
+// may have `embeds`, `attachments` and `components` (Discord's shapes), `flags`, `allowed`
+// (allowed_mentions, as mentions.js takes it), `interaction` (the command it answers, see
+// interactions.js) and `silent` (no pushes). Resolves to the message as the app has it.
 async function createMessage({
   channel, permissions, senderId, content, parentMessageId = null, documentId = null,
-  embeds = [], attachments = [], flags = 0, allowed, silent = false,
+  embeds = [], attachments = [], components = [], interaction = null, flags = 0, allowed, silent = false,
 }) {
   const { lastID, mentions, joinedIds } = await db.transaction(async () => {
     const { lastID: id } = await db.run(
-      `INSERT INTO guild_messages (channel_id, sender_id, content, parent_message_id, document_id, embeds, attachments, flags, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%s','now'))`,
+      `INSERT INTO guild_messages (channel_id, sender_id, content, parent_message_id, document_id, embeds, attachments, components, interaction, flags, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s','now'))`,
       [channel.id, senderId, content, parentMessageId, documentId,
-        embeds.length ? JSON.stringify(embeds) : null, attachments.length ? JSON.stringify(attachments) : null, flags]
+        embeds.length ? JSON.stringify(embeds) : null, attachments.length ? JSON.stringify(attachments) : null,
+        components.length ? JSON.stringify(components) : null, interaction ? JSON.stringify(interaction) : null, flags]
     );
     await markRead(senderId, channel.id, id);
     await db.indexGuildMessage(id);

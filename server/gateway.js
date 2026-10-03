@@ -602,6 +602,16 @@ async function resume(ws, d) {
   session.dispatch('RESUMED', {});
 }
 
+// Sends INTERACTION_CREATE (no intent needed) to one session of bot `botId` that has guild
+// `guildId` (its shard), preferring one that's connected. Returns whether any had it.
+function deliverInteraction(botId, guildId, payload) {
+  const candidates = [...sessions.values()].filter((s) => s.bot.id === botId && !s.closed && s.inShard(guildId));
+  const session = candidates.find((s) => s.ws) ?? candidates[0];
+  if (!session) return false;
+  session.dispatch('INTERACTION_CREATE', payload);
+  return true;
+}
+
 // Ends every session of bot `botId` (its token was reset, or it was deleted).
 function closeBotSessions(botId, code, reason) {
   for (const session of [...sessions.values()]) if (session.bot.id === botId) session.end(code, reason);
@@ -614,4 +624,4 @@ function createGatewayServer() {
   return wss;
 }
 
-module.exports = { OP, INTENTS, createGatewayServer, closeBotSessions, sessions };
+module.exports = { OP, INTENTS, createGatewayServer, closeBotSessions, deliverInteraction, sessions };

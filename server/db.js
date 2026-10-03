@@ -886,6 +886,51 @@ CREATE TABLE IF NOT EXISTS bot_applications (
 CREATE INDEX IF NOT EXISTS bot_applications_owner ON bot_applications (owner_id);
 `);
 
+// APPLICATION COMMANDS AND INTERACTIONS (commands.js, interactions.js, docs/bots.md): a bot's
+// slash and context-menu commands, everywhere it is (`guild_id` 0) or in one guild, as
+// Discord's command object (`options` JSON, `default_member_permissions` our bits or NULL).
+// An interaction is someone using one, or a bot's button, select or form: `token_hash` is the
+// SHA-256 of its token (follow-ups for 15 minutes), `response_message_id` the reply it made
+// (null while none, or ephemeral: those live only in memory). A message's `components` are
+// Discord's (JSON); `interaction` (JSON) says which command it answers and who used it.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS bot_commands (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  application_id INTEGER NOT NULL,
+  guild_id INTEGER NOT NULL DEFAULT 0,
+  type INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  options TEXT,
+  localizations TEXT,
+  default_member_permissions INTEGER,
+  nsfw INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE (application_id, guild_id, type, name)
+);
+CREATE INDEX IF NOT EXISTS bot_commands_guild ON bot_commands (guild_id);
+CREATE TABLE IF NOT EXISTS bot_interactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  application_id INTEGER NOT NULL,
+  token_hash TEXT NOT NULL,
+  type INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  guild_id INTEGER NOT NULL,
+  channel_id INTEGER NOT NULL,
+  message_id INTEGER,
+  command_name TEXT,
+  command_type INTEGER,
+  target_id INTEGER,
+  response_type INTEGER,
+  response_message_id INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS bot_interactions_created ON bot_interactions (created_at);
+`);
+addColumn('ALTER TABLE guild_messages ADD COLUMN components TEXT');
+addColumn('ALTER TABLE guild_messages ADD COLUMN interaction TEXT');
+
 // ---- Queries ----
 // get / all / run return promises (callers await them) though the driver is synchronous, and
 // wait while another request's transaction is open (see transaction).

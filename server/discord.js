@@ -381,6 +381,10 @@ async function messageObjects(rows, { botId = null, guildId = null, references =
     ? await db.all(`SELECT ${USER_COLUMNS} FROM users u WHERE u.id IN (${[...userIds].map(() => '?').join(',')})`, [...userIds])
     : [];
   const userById = new Map(users.map((u) => [u.id, u]));
+  const interactionUserIds = [...new Set(rows.map((m) => m.interaction?.user_id).filter(Boolean))];
+  const interactionUsers = new Map((interactionUserIds.length
+    ? await db.all(`SELECT ${USER_COLUMNS} FROM users u WHERE u.id IN (${interactionUserIds.map(() => '?').join(',')})`, interactionUserIds)
+    : []).map((u) => [u.id, u]));
   const members = guildId ? new Map((await guildMembers(guildId, { userIds: [...userIds] })).map((m) => [Number(m.user.id), m])) : new Map();
 
   let parents = new Map();
@@ -409,6 +413,8 @@ async function messageObjects(rows, { botId = null, guildId = null, references =
     if (m.system === 'thread') type = MESSAGE_TYPES.thread;
     else if (m.system === 'poll_end') type = MESSAGE_TYPES.poll_end;
     else if (m.parent_message_id) type = MESSAGE_TYPES.reply;
+    // An answer to a command: Discord's CHAT_INPUT_COMMAND (20) or CONTEXT_MENU_COMMAND (23).
+    else if (m.interaction?.type === 2) type = m.interaction.command_type === 1 ? 20 : 23;
     const member = guildId && !m.webhook_id ? members.get(m.sender_id) : null;
     const thread = m.thread && threads.get(m.thread.id);
     const message = {
@@ -434,10 +440,27 @@ async function messageObjects(rows, { botId = null, guildId = null, references =
       reactions: reactionsObject(m.reactions, botId),
       pinned: m.pinned_at != null,
       ...(m.webhook_id ? { webhook_id: id(m.webhook_id) } : {}),
-      flags: m.flags ?? 0,
-      components: [],
+      flags: (m.flags ?? 0) | (m.ephemeral ? 1 << 6 : 0),
+      components: m.components ?? [],
       sticker_items: [],
     };
+    // An answer to an interaction (interactions.js): who used which command or component.
+    if (m.interaction) {
+      const user = interactionUsers.get(m.interaction.user_id);
+      const by = user ? userObject(user) : { id: id(m.interaction.user_id) };
+      message.interaction_metadata = {
+        id: id(m.interaction.id),
+        type: m.interaction.type,
+        user: by,
+        authorizing_integration_owners: { 0: id(m.interaction.guild_id) },
+        ...(m.interaction.original_response_message_id ? { original_response_message_id: id(m.interaction.original_response_message_id) } : {}),
+        ...(m.interaction.interacted_message_id ? { interacted_message_id: id(m.interaction.interacted_message_id) } : {}),
+        ...(m.interaction.target_id && m.interaction.command_type === 2 ? { target_user: { id: id(m.interaction.target_id) } } : {}),
+        ...(m.interaction.target_id && m.interaction.command_type === 3 ? { target_message_id: id(m.interaction.target_id) } : {}),
+      };
+      if (m.interaction.name) message.interaction = { id: id(m.interaction.id), type: m.interaction.type, name: m.interaction.name, user: by };
+      message.application_id = id(m.sender_id);
+    }
     if (message.reactions.length === 0) delete message.reactions;
     if (m.parent_message_id) {
       message.message_reference = { type: 0, message_id: id(m.parent_message_id), channel_id: id(m.channel_id), ...(guildId ? { guild_id: id(guildId) } : {}), fail_if_not_exists: false };

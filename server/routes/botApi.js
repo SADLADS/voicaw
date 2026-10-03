@@ -16,6 +16,9 @@ const guildActions = require('./guilds');
 const roleActions = require('./guildRoles');
 const threadActions = require('./threads');
 const webhooks = require('./webhooks');
+const botMessages = require('../botMessages');
+const commands = require('../commands');
+const interactions = require('../interactions');
 
 // The bot API: Discord's REST API (https://discord.com/developers/docs/reference), for bots made
 // in the developer portal (bots.js, docs/bots.md), at /api/v10 (and /api/v9), so Discord's
@@ -23,8 +26,9 @@ const webhooks = require('./webhooks');
 // permissions and objects are Discord's shapes (discord.js); errors are Discord's
 // ({ message, code, errors? }). Every action goes through the same functions as the app's own
 // routes, with the bot as the member doing it, so a bot can do exactly what its roles allow.
-// Bots are only in guilds: no DMs (they're end-to-end encrypted). Not here (yet): application
-// commands and interactions, components, voice, webhooks by bot token, nicknames, timeouts,
+// Bots are only in guilds: no DMs (they're end-to-end encrypted). Commands and interactions
+// (buttons, selects, forms) are here too (commands.js, interactions.js). Not here (yet):
+// voice, webhooks by bot token, nicknames, timeouts,
 // stickers, scheduled events, guild creation.
 const router = express.Router();
 const fail = webhooks.fail;
@@ -162,7 +166,7 @@ async function inTextChannel(req, res, next) {
 async function inMessage(req, res, next) {
   const id = D.ourId(req.params.messageId);
   const message = id != null && await db.get(
-    'SELECT id, channel_id, sender_id, content, timestamp, system, webhook_id, webhook_name, embeds, attachments, flags FROM guild_messages WHERE id = ? AND channel_id = ?',
+    'SELECT id, channel_id, sender_id, content, timestamp, system, webhook_id, webhook_name, embeds, attachments, components, flags FROM guild_messages WHERE id = ? AND channel_id = ?',
     [id, req.access.channel.id]
   );
   if (!message) return fail(res, 404, 10008, 'Unknown Message');
@@ -339,14 +343,131 @@ router.get(['/applications/@me', '/oauth2/applications/@me'], auth, route(async 
   res.json(await applicationObject(req.bot.application));
 }));
 
-// Application commands aren't here yet: none are listed, and making them says so.
-router.get(['/applications/:appId/commands', '/applications/:appId/guilds/:guildId/commands'], auth, (req, res) => res.json([]));
-router.get(['/applications/:appId/commands/:commandId', '/applications/:appId/guilds/:guildId/commands/:commandId'], auth, (req, res) => {
-  fail(res, 404, 10063, 'Unknown application command');
-});
-router.all(['/applications/:appId/commands{/*rest}', '/applications/:appId/guilds/:guildId/commands{/*rest}'], auth, (req, res) => {
-  fail(res, 400, 50035, "Application commands aren't available on Voicaw yet");
-});
+// ---- Application commands (commands.js) ----
+
+// The bot's own application, and for guild commands a guild it's in: req.commandGuildId (0 for
+// its commands everywhere).
+async function ownCommands(req, res, next) {
+  if (req.params.appId !== String(req.bot.id)) return fail(res, 403, 50001, 'Missing Access');
+  req.commandGuildId = 0;
+  if (req.params.guildId !== undefined) {
+    const guildId = D.ourId(req.params.guildId);
+    if (guildId == null || !(await getMember(guildId, req.bot.id))) return fail(res, 403, 50001, 'Missing Access');
+    req.commandGuildId = guildId;
+  }
+  next();
+}
+
+const COMMANDS = ['/applications/:appId/commands', '/applications/:appId/guilds/:guildId/commands'];
+const COMMAND = COMMANDS.map((p) => `${p}/:commandId`);
+const commandBucket = limit('commands', 10, 20000);
+
+async function commandOr404(req) {
+  const row = await commands.getCommand(req.bot.id, req.commandGuildId, D.ourId(req.params.commandId) ?? -1);
+  if (!row) throw new ActionError(404, 'Unknown application command', 10063);
+  return row;
+}
+
+router.get(COMMANDS, auth, ownCommands, route(async (req, res) => {
+  res.json((await commands.listCommands(req.bot.id, req.commandGuildId)).map(commands.commandObject));
+}));
+
+// Discord's create: replaces the command with the same type and name if there is one (200), else 201.
+router.post(COMMANDS, auth, commandBucket, ownCommands, route(async (req, res) => {
+  const { row, created } = await commands.saveCommand(req.bot.id, req.commandGuildId, commands.cleanCommand(req.body));
+  res.status(created ? 201 : 200).json(commands.commandObject(row));
+}));
+
+// Bulk overwrite: the commands become exactly these (discord.js's commands.set()).
+router.put(COMMANDS, auth, commandBucket, ownCommands, route(async (req, res) => {
+  const rows = await commands.overwriteCommands(req.bot.id, req.commandGuildId, req.body);
+  res.json(rows.map(commands.commandObject));
+}));
+
+// Per-command permission overrides (a guild's Integrations settings in Discord) aren't in
+// Voicaw: none are listed. (Before /:commandId, which would take "permissions".)
+router.get('/applications/:appId/guilds/:guildId/commands/permissions', auth, ownCommands, (req, res) => res.json([]));
+
+router.get(COMMAND, auth, ownCommands, route(async (req, res) => {
+  res.json(commands.commandObject(await commandOr404(req)));
+}));
+
+router.patch(COMMAND, auth, commandBucket, ownCommands, route(async (req, res) => {
+  const row = await commandOr404(req);
+  const base = commands.commandObject(row);
+  const cleaned = commands.cleanCommand(req.body, { ...base, default_member_permissions: base.default_member_permissions });
+  res.json(commands.commandObject(await commands.updateCommand(row, cleaned)));
+}));
+
+router.delete(COMMAND, auth, commandBucket, ownCommands, route(async (req, res) => {
+  await commands.deleteCommand(await commandOr404(req));
+  res.status(204).end();
+}));
+
+
+// ---- Interactions (interactions.js) ----
+
+// The bot's answer to an interaction, with its token (no bot token, as in Discord), within 3
+// seconds. `?with_response=true` answers with what it made.
+router.post('/interactions/:interactionId/:token/callback', limit('callback', 20, 1000), webhooks.parseBody, route(async (req, res) => {
+  const row = await interactions.findInteraction(req.params.interactionId, req.params.token);
+  if (!row || row.expired) return fail(res, 404, 10062, 'Unknown interaction');
+  const result = await interactions.callback(row, req);
+  if (!['true', '1'].includes(String(req.query.with_response).toLowerCase())) return res.status(204).end();
+  const message = result.message ? await D.messageObjects([result.message], { botId: row.application_id }) : [];
+  res.json({
+    interaction: {
+      id: String(row.id),
+      type: row.type,
+      activity_instance_id: null,
+      response_message_id: result.message ? String(result.message.id) : null,
+      response_message_loading: Boolean(result.message && result.message.flags & (1 << 7)),
+      response_message_ephemeral: Boolean(result.message?.ephemeral),
+    },
+    resource: { type: Number(row.response_type), ...(message[0] ? { message: message[0] } : {}) },
+  });
+}));
+
+// Follow-ups and the reply, on the interaction's webhook (/webhooks/<app id>/<interaction
+// token>), for 15 minutes. Anything else on /webhooks/ is a real webhook (routes/webhooks.js).
+async function byInteractionToken(req, res, next) {
+  if (!String(req.params.token).startsWith(interactions.TOKEN_PREFIX)) return next('route');
+  const row = await interactions.interactionByToken(D.ourId(req.params.appId) ?? -1, req.params.token);
+  if (!row) return fail(res, 404, 10015, 'Unknown Webhook');
+  if (row.expired) return fail(res, 401, 50027, 'Invalid Webhook Token');
+  req.interaction = row;
+  next();
+}
+
+const INTERACTION_HOOK = '/webhooks/:appId/:token';
+
+// A follow-up (needs the interaction answered first). After a "thinking…" reply, the first
+// follow-up becomes that reply, as in Discord.
+router.post(INTERACTION_HOOK, byInteractionToken, limit('followup', 5, 2000), webhooks.parseBody, route(async (req, res) => {
+  const row = req.interaction;
+  if (row.response_type == null) return fail(res, 404, 10015, 'Unknown Webhook');
+  const original = row.response_message_id && await interactions.interactionMessage(row, '@original').catch(() => null);
+  const loading = original && (original.ephemeral ? original.ephemeral.message.flags & (1 << 7) : (await db.get('SELECT flags FROM guild_messages WHERE id = ?', [original.id]))?.flags & (1 << 7));
+  const message = loading
+    ? await interactions.editInteractionMessage(row, '@original', req)
+    : await interactions.postMessage(row, await readBody(() => botMessages.readNewMessage(req, { allowEphemeral: true })), { followup: true });
+  res.json((await D.messageObjects([message], { botId: row.application_id }))[0]);
+}));
+
+router.get(`${INTERACTION_HOOK}/messages/:messageId`, byInteractionToken, route(async (req, res) => {
+  const found = await interactions.interactionMessage(req.interaction, req.params.messageId);
+  res.json(await interactions.messageForBot(req.interaction, found));
+}));
+
+router.patch(`${INTERACTION_HOOK}/messages/:messageId`, byInteractionToken, limit('followup-edit', 5, 2000), webhooks.parseBody, route(async (req, res) => {
+  const message = await interactions.editInteractionMessage(req.interaction, req.params.messageId, req);
+  res.json((await D.messageObjects([message], { botId: req.interaction.application_id }))[0]);
+}));
+
+router.delete(`${INTERACTION_HOOK}/messages/:messageId`, byInteractionToken, route(async (req, res) => {
+  await interactions.deleteInteractionMessage(req.interaction, req.params.messageId);
+  res.status(204).end();
+}));
 
 // ---- Guilds ----
 
@@ -771,34 +892,23 @@ router.get('/channels/:channelId/messages/:messageId', auth, inTextChannel, inMe
   res.json(await loadMessage(req, req.message.id));
 }));
 
-// The checked parts of a message body: content, embeds, files, mentions, flags (webhooks.js
-// checks them the same way as for webhooks). `old` for an edit.
-async function messageBody(req, old = null) {
-  const { body, files } = await webhooks.readBody(req);
-  const content = body.content !== undefined || !old ? webhooks.cleanContent(body.content) : old.content;
-  const allowed = webhooks.cleanAllowedMentions(body.allowed_mentions);
-  let kept = old ? messages.parseJsonList(old.attachments) : [];
-  if (old && body.attachments !== undefined) {
-    const keepIds = new Set((Array.isArray(body.attachments) ? body.attachments : []).map((a) => String(a?.id)));
-    kept = kept.filter((a) => keepIds.has(String(a.id)));
+// A new message or an edit, Discord's body (botMessages.js); an empty one is Discord's 50006.
+async function readBody(fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err.empty) throw new ActionError(400, 'Cannot send an empty message', 50006);
+    throw err;
   }
-  // Check the embeds (with placeholders for the files) before uploading anything.
-  const pending = files.map(({ file }, i) => ({ filename: webhooks.cleanFilename(file.name, i), url: `pending:${i}` }));
-  if (body.embeds !== undefined || !old) webhooks.cleanEmbeds(body.embeds, [...kept, ...pending]);
-  return { body, files, content, allowed, kept, embedsGiven: body.embeds !== undefined };
 }
 
 router.post('/channels/:channelId/messages', auth, limit('message-create', 5, 5000), webhooks.parseBody, inTextChannel, route(async (req, res) => {
   const { channel, permissions } = req.access;
   requirePermission(permissions, PERMISSIONS.SEND_MESSAGES);
-  const { body, files, content, allowed } = await messageBody(req);
-  if (!content && !files.length && !(Array.isArray(body.embeds) && body.embeds.length)) {
-    return fail(res, 400, 50006, 'Cannot send an empty message');
-  }
-
-  // A reply, to a message in this same channel.
+  const { body: raw } = await webhooks.readBody(req);
+  // A reply, to a message in this same channel (checked before any file is uploaded).
   let parentMessageId = null;
-  const reference = body.message_reference;
+  const reference = raw.message_reference;
   if (reference != null && reference.message_id != null) {
     if (reference.type === 1) throw new webhooks.FormError(['message_reference', 'type'], "Forwarding isn't supported on Voicaw.", 'BASE_TYPE_CHOICES');
     const parentId = D.ourId(reference.message_id);
@@ -811,56 +921,24 @@ router.post('/channels/:channelId/messages', auth, limit('message-create', 5, 50
       throw new webhooks.FormError(['message_reference'], 'Unknown message', 'MESSAGE_REFERENCE_UNKNOWN_MESSAGE');
     }
   }
-
-  const attachments = await webhooks.storeFiles(files, body.attachments);
-  const embeds = webhooks.cleanEmbeds(body.embeds, attachments);
-  if (!content && !attachments.length && !embeds.length) return fail(res, 400, 50006, 'Cannot send an empty message');
-  const flags = webhooks.cleanFlags(body.flags);
+  const built = await readBody(() => botMessages.readNewMessage(req));
   const message = await messages.createMessage({
-    channel, permissions, senderId: req.bot.id, content, parentMessageId, embeds, attachments, flags, allowed,
-    silent: Boolean(flags & webhooks.FLAGS.SUPPRESS_NOTIFICATIONS),
+    channel, permissions, senderId: req.bot.id, parentMessageId, ...built,
+    silent: Boolean(built.flags & webhooks.FLAGS.SUPPRESS_NOTIFICATIONS),
   });
   const [object] = await D.messageObjects([message], { botId: req.bot.id });
-  res.json({ ...object, ...(body.nonce != null ? { nonce: body.nonce } : {}) });
+  res.json({ ...object, ...(built.body.nonce != null ? { nonce: built.body.nonce } : {}) });
 }));
 
-// Only the bot's own messages: content, embeds, flags, attachments (those listed are kept, new
-// files added), as for webhooks.
+// Only the bot's own messages: content, embeds, flags, components, attachments (those listed
+// are kept, new files added), as for webhooks.
 router.patch('/channels/:channelId/messages/:messageId', auth, limit('message-edit', 5, 5000), webhooks.parseBody, inTextChannel, inMessage, route(async (req, res) => {
   const old = req.message;
   if (old.sender_id !== req.bot.id || old.webhook_id) return fail(res, 403, 50005, 'Cannot edit a message authored by another user');
   if (old.system) return fail(res, 400, 50021, 'Cannot execute action on a system message');
   const { channel, permissions } = req.access;
-  const { body, files, content, allowed, kept, embedsGiven } = await messageBody(req, old);
-  const added = await webhooks.storeFiles(files, body.attachments);
-  const attachments = [...kept, ...added];
-  const embeds = embedsGiven ? webhooks.cleanEmbeds(body.embeds, attachments) : messages.parseJsonList(old.embeds);
-  const flags = body.flags !== undefined ? webhooks.cleanFlags(body.flags) : old.flags;
-  if (!content && !attachments.length && !embeds.length) return fail(res, 400, 50006, 'Cannot send an empty message');
-  const { saveMentions } = require('../mentions');
-  await db.transaction(async () => {
-    await db.run(
-      "UPDATE guild_messages SET content = ?, embeds = ?, attachments = ?, flags = ?, edited = 1, edited_at = strftime('%s','now') WHERE id = ?",
-      [content, embeds.length ? JSON.stringify(embeds) : null, attachments.length ? JSON.stringify(attachments) : null, flags, old.id]
-    );
-    await saveMentions({ id: old.id, content, sender_id: req.bot.id }, channel, permissions, allowed);
-    await db.indexGuildMessage(old.id);
-  });
-  require('../uploads').releaseUploads();
-  const [row] = await messages.withReactions([await db.get(`${messages.MESSAGE_SELECT} WHERE m.id = ?`, [old.id])]);
-  const { sendToChannel } = require('../guilds');
-  await sendToChannel(channel, {
-    type: 'guild_message_edit',
-    guildId: channel.guild_id,
-    channelId: channel.id,
-    messageId: row.id,
-    content: row.content,
-    embeds: row.embeds,
-    attachments: row.attachments,
-    flags: row.flags,
-    mention_everyone: row.mention_everyone,
-    mention_roles: row.mention_roles,
-  });
+  const edit = await readBody(() => botMessages.readEdit(req, old));
+  const row = await botMessages.saveEdit(old.id, channel, req.bot.id, permissions, edit);
   res.json((await D.messageObjects([row], { botId: req.bot.id }))[0]);
 }));
 

@@ -71,6 +71,7 @@ app.use('/api', require('./routes/avatars'));
 app.use('/api', require('./routes/gifs'));
 app.use('/api', require('./routes/admin'));
 app.use('/api', require('./routes/applications'));
+app.use('/api', require('./routes/interactions'));
 // Bots: Discord's API for bots (docs/bots.md), at Discord's versioned paths, and links to
 // pictures in Discord's CDN's shape.
 const botApi = require('./routes/botApi');
