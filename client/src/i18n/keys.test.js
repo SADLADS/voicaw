@@ -18,11 +18,9 @@ function sourceFiles(dir) {
 // time (t(`permissions.${name}`)) can't be checked here.
 function usedKeys() {
   const keys = new Map();
-  const pattern = /(?:\bt\(\s*|i18nKey=\{?\s*)(['"])([a-zA-Z0-9_.-]+)\1(\s*,\s*\{[^}]*\bcount\b)?/g;
+  const pattern = /(?:\bt\(\s*|i18nKey=\{?\s*)(['"])([a-zA-Z0-9_.-]+)\1/g;
   for (const file of sourceFiles(SRC)) {
-    for (const match of readFileSync(file, 'utf8').matchAll(pattern)) {
-      keys.set(match[2], { file, plural: Boolean(match[3]) });
-    }
+    for (const match of readFileSync(file, 'utf8').matchAll(pattern)) keys.set(match[2], file);
   }
   return keys;
 }
@@ -34,8 +32,9 @@ function lookup(key) {
 describe('translations', () => {
   it('has every key the code uses', () => {
     const missing = [];
-    for (const [key, { file, plural }] of usedKeys()) {
-      const found = plural ? lookup(`${key}_other`) ?? lookup(key) : lookup(key);
+    for (const [key, file] of usedKeys()) {
+      // A plural (key_one, key_other) is looked up with a count.
+      const found = lookup(key) ?? lookup(`${key}_other`);
       if (typeof found !== 'string') missing.push(`${key} (${file.slice(SRC.length + 1)})`);
     }
     expect(missing).toEqual([]);

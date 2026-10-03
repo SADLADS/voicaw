@@ -75,7 +75,16 @@ export default function Composer({
   roleInfo,
   canMentionEveryone = false,
   channels,
+  chatTexts,
 }) {
+  // What the box and the file drop overlay say: "Message Alice", or the chat's own wording
+  // (`chatTexts`: { label, placeholder, upload }, e.g. a document's replies).
+  const name = chatName || t('chat.composer.fallbackName');
+  const texts = chatTexts ?? {
+    label: t('chat.composer.messageLabel', { name }),
+    placeholder: t('chat.composer.messagePlaceholder', { name }),
+    upload: t('media.fileDrop.title', { name }),
+  };
   const emojiIndex = useEmojiIndex();
   useProfiles();
   const mentionNames = Object.fromEntries((people ?? []).map((p) => [p.id, nameOf(p)]));
@@ -364,7 +373,7 @@ export default function Composer({
 
   return (
     <>
-      {draggingFiles && <FileDropOverlay chatName={chatName} />}
+      {draggingFiles && <FileDropOverlay title={texts.upload} />}
       <div className="dm-chat-wrapper">
         {showEmojiPicker && !isMobile && (
           <EmojiPicker onSelect={insertEmoji} onGif={sendGif} onClose={() => setShowEmojiPicker(false)} />
@@ -464,8 +473,8 @@ export default function Composer({
             ref={inputRef}
             id="dm-input"
             className="message-editor-wrapper"
-            ariaLabel={t('chat.composer.messageLabel', { name: chatName || t('chat.composer.fallbackName') })}
-            placeholder={t('chat.composer.messagePlaceholder', { name: chatName || t('chat.composer.fallbackName') })}
+            ariaLabel={texts.label}
+            placeholder={texts.placeholder}
             maxLength={maxPlaintextLength}
             // Mobile: Enter is a new line; the Send button sends.
             submitOnEnter={!isMobile}

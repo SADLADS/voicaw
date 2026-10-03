@@ -65,18 +65,3 @@ function subscribe(listener) {
 export function useTyping(chatId) {
   return useSyncExternalStore(subscribe, () => typingIn(chatId));
 }
-
-// "Alice is typing", "Alice and Bob are typing", "Alice, Bob and Cal are typing", then
-// "Several people are typing" (like Discord), as pieces: plain strings and { name } (drawn bold).
-// `names` are display names.
-export function typingParts(names) {
-  if (names.length === 0) return [];
-  if (names.length > 3) return ['Several people are typing'];
-  const parts = [];
-  names.forEach((name, i) => {
-    if (i > 0) parts.push(i === names.length - 1 ? ' and ' : ', ');
-    parts.push({ name });
-  });
-  parts.push(names.length === 1 ? ' is typing' : ' are typing');
-  return parts;
-}

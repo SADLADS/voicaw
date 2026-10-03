@@ -21,7 +21,11 @@
   - Not translated: names, message content, dates (`utils/dateFormat.js` follows the locale
     already), console messages, stored formats (poll and call-log markup), and errors the
     server sends (`err.response.data.error`, still English: they'd become codes when a second
-    language arrives). Web workers and audio worklets don't import `i18n`.
+    language arrives), and the group log's verification errors ("Entry 3 is out of place":
+    `groupCrypto.js` is shared with the server's tests, which run outside Vite, so it can't
+    import `i18n`; `encryptionService.js`, `contactKeys.js` and `permissions.js` likewise).
+    Web workers and audio worklets don't import `i18n`. The service worker does, through
+    notification previews (polls, mentions, spoilers): about 115 KB of its 157 KB.
   - Checks: ESLint's `i18next/no-literal-string` fails on text written straight into JSX or
     its `title`, `placeholder`, `aria-label`, `alt` and `label` attributes (plain `.js` files
     aren't checked: put their text through `t` by hand). `i18n/keys.test.js` fails when the

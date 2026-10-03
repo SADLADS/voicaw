@@ -256,7 +256,12 @@ function DocumentPage({ guild, channel, user, documentId, editing, setEditing, o
         <ChatPane
           {...chatProps}
           chatId={`document-${document.id}`}
-          chatName={t('documents.page.repliesChatName', { title: document.title })}
+          chatName={document.title}
+          chatTexts={{
+            label: t('documents.page.repliesLabel', { title: document.title }),
+            placeholder: t('documents.page.repliesPlaceholder', { title: document.title }),
+            upload: t('documents.page.repliesUpload', { title: document.title }),
+          }}
           conversation={conversation}
           canPin={false}
           emptyText={t('documents.page.noReplies')}

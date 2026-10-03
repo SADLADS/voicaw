@@ -31,7 +31,8 @@ import { endPollOnServer, registerPollTimer } from '../services/pollService';
 // `conversation` is useConversation's or useChannel's result. `saveReaction` /
 // `deleteReaction` / `reactionsReady` go to useReactions. `chatId` identifies the chat (things
 // reset when it changes), `chatName` is who or what the composer writes to (null while not
-// ready to send). `canModerate` lets you delete other people's messages too; `canSend` and
+// ready to send); `chatTexts` replaces what the composer says about it (see Composer).
+// `canModerate` lets you delete other people's messages too; `canSend` and
 // `canAddReactions` false (a guild channel's permissions) take away the composer (showing
 // `cantSendText`) and reacting. `nameColors` ({ userId: '#rrggbb' }) colours names.
 // `reactionNames` ({ userId: username }) names who reacted and who's mentioned; `people`
@@ -47,6 +48,7 @@ import { endPollOnServer, registerPollTimer } from '../services/pollService';
 export default function ChatPane({
   chatId,
   chatName,
+  chatTexts,
   user,
   conversation,
   reactionsReady,
@@ -366,6 +368,7 @@ export default function ChatPane({
       ) : <Composer
         chatId={chatId}
         chatName={chatName}
+        chatTexts={chatTexts}
         isMobile={isMobile}
         maxPlaintextLength={maxPlaintextLength}
         s3Endpoint={s3Endpoint}
