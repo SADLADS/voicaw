@@ -3,6 +3,8 @@
 // parseSearch turns it into the server's parameters (routes/guildSearch.js), with people and
 // channels as ids; searchSuggestions says what to offer while typing.
 
+import { t } from '../i18n';
+
 export const SEARCH_KEYS = ['from', 'mentions', 'in', 'has'];
 
 export const HAS_VALUES = ['link', 'embed', 'file', 'image', 'video', 'sound', 'poll'];
@@ -39,15 +41,15 @@ export function parseSearch(query, { members = [], channels = [] } = {}) {
     if (key === 'from' || key === 'mentions') {
       const member = findMember(value.replace(/^@/, ''), members);
       if (member) params[key === 'from' ? 'author_id' : 'mentions'].push(member.id);
-      else problems.push(`No member called ${value}`);
+      else problems.push(t('guilds.search.noMember', { name: value }));
     } else if (key === 'in') {
       const channel = channels.find((c) => lower(c.name) === lower(value.replace(/^#/, '')));
       if (channel) params.channel_id.push(channel.id);
-      else problems.push(`No channel called #${value.replace(/^#/, '')}`);
+      else problems.push(t('guilds.search.noChannel', { name: value.replace(/^#/, '') }));
     } else if (HAS_VALUES.includes(lower(value))) {
       params.has.push(lower(value));
     } else {
-      problems.push(`has: can be ${HAS_VALUES.join(', ')}`);
+      problems.push(t('guilds.search.hasValues', { values: HAS_VALUES.join(', ') }));
     }
     return space;
   });

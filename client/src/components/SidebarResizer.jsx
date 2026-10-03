@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { SIDEBAR_WIDTH, clampSidebarWidth } from '../utils/sidebarWidth';
+import { t } from '../i18n';
 
 // The right edge of the column beside the rail (computer only): drag it to make the DM list,
 // channel list and Settings' column wider or narrower, all at once. While dragging, the width
@@ -25,12 +26,12 @@ export default function SidebarResizer({ width, onChange, targetRef }) {
       className="sidebar-resizer"
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize sidebar"
+      aria-label={t('app.sidebar.resize')}
       aria-valuemin={SIDEBAR_WIDTH.min}
       aria-valuemax={SIDEBAR_WIDTH.max}
       aria-valuenow={width}
       tabIndex={0}
-      title="Drag to resize"
+      title={t('app.sidebar.dragToResize')}
       onPointerDown={(e) => {
         if (e.button !== 0) return;
         e.preventDefault();

@@ -1,0 +1,115 @@
+{
+  "documents": {
+    "deletedUser": "Deleted User",
+    "byline": {
+      "edited": "· edited {{date}}",
+      "editedBy": "· edited {{date}} by {{name}}"
+    },
+    "card": {
+      "open": "Open {{title}}",
+      "replies_one": "{{count}} reply",
+      "replies_other": "{{count}} replies"
+    },
+    "feed": {
+      "newDocument": "New document",
+      "empty": "No documents yet.",
+      "emptyCanCreate": "No documents yet. Write the first one with New document.",
+      "noPermission": "You don't have permission to write documents here."
+    },
+    "reactions": {
+      "add": "Add reaction",
+      "react": "React"
+    },
+    "page": {
+      "missing": "This document was deleted, or you can't see it.",
+      "backToAll": "Back to all documents",
+      "allDocuments": "All documents",
+      "replies": "Replies",
+      "repliesChatName": "replies to {{title}}",
+      "noReplies": "No replies yet. Say what you think!",
+      "documentTab": "Document",
+      "repliesTabCount": "Replies ({{number}})",
+      "repliesTabCountMore": "Replies ({{number}}+)",
+      "deleteDocument": "Delete document",
+      "confirmDelete": "Delete \"{{title}}\" and all its replies? This can't be undone."
+    },
+    "cover": {
+      "imageName": "Cover image"
+    },
+    "editor": {
+      "imageName": "image",
+      "startWriting": "Start writing…",
+      "document": "Document",
+      "uploadFailed": "Couldn't upload {{name}}: {{error}}",
+      "coverUploadFailed": "Couldn't upload the cover: {{error}}",
+      "needTitle": "Give the document a title.",
+      "tooLong": "Documents are at most {{max}} characters (this one is {{length}}).",
+      "uploadingImage": "Uploading image…",
+      "saving": "Saving…",
+      "publish": "Publish",
+      "formatting": "Formatting",
+      "textStyle": "Text style",
+      "withShortcut": "{{label}} ({{keys}})",
+      "styles": {
+        "mixed": "Mixed",
+        "paragraph": "Normal text",
+        "heading": "Heading {{level}}",
+        "code": "Code block"
+      },
+      "tools": {
+        "bold": "Bold",
+        "italic": "Italic",
+        "underline": "Underline",
+        "strikethrough": "Strikethrough",
+        "inlineCode": "Inline code",
+        "spoiler": "Spoiler",
+        "link": "Link",
+        "removeLink": "Remove link",
+        "bulletedList": "Bulleted list",
+        "numberedList": "Numbered list",
+        "checklist": "Checklist",
+        "quote": "Quote",
+        "insertImage": "Insert image",
+        "insertTable": "Insert table",
+        "horizontalLine": "Horizontal line",
+        "undo": "Undo",
+        "redo": "Redo"
+      },
+      "table": {
+        "label": "Table",
+        "addRow": "Add row below",
+        "addRowShort": "+ Row",
+        "addColumn": "Add column to the right",
+        "addColumnShort": "+ Column",
+        "deleteRow": "Delete row",
+        "deleteRowShort": "− Row",
+        "deleteColumn": "Delete column",
+        "deleteColumnShort": "− Column",
+        "deleteTable": "Delete table"
+      },
+      "link": {
+        "address": "Link address",
+        "placeholder": "Paste or type a link",
+        "add": "Add link"
+      },
+      "imageFile": "Image file",
+      "coverImageFile": "Cover image file",
+      "conflict": {
+        "message": "Someone else saved this document while you were editing it.",
+        "loadTheirs": "Load their version",
+        "saveMine": "Save mine over it"
+      },
+      "changeCover": "Change cover",
+      "removeCover": "Remove cover",
+      "addCover": "Add a cover image",
+      "title": "Title",
+      "untitled": "Untitled document",
+      "discard": {
+        "title": "Discard changes",
+        "editing": "Stop editing and lose your changes?",
+        "new": "Throw this document away?",
+        "confirm": "Discard"
+      }
+    }
+  }
+}

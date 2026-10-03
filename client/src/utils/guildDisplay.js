@@ -1,4 +1,5 @@
 import { nameOf } from './profiles';
+import { t } from '../i18n';
 
 // "Test Guild" -> "TG", "voicaw" -> "v": what a guild without an icon shows (like Discord).
 export function guildInitials(name) {
@@ -90,7 +91,7 @@ export function parseInviteCode(text) {
 
 // What to tell the user about a failed request: the server's message if it sent one.
 export function errorMessage(err) {
-  return err?.response?.data?.error || err?.message || 'Something went wrong.';
+  return err?.response?.data?.error || err?.message || t('guilds.somethingWentWrong');
 }
 
 // Online members grouped like Discord: under their highest "display separately" (hoisted)
@@ -100,8 +101,8 @@ export function groupMembers(members, roles) {
   const hoisted = (roles ?? []).filter((r) => !r.is_everyone && r.hoist);
   const byName = (a, b) => nameOf(a).localeCompare(nameOf(b), undefined, { sensitivity: 'base' });
   const groups = hoisted.map((role) => ({ key: `role-${role.id}`, title: role.name, members: [] }));
-  const online = { key: 'online', title: 'Online', members: [] };
-  const offline = { key: 'offline', title: 'Offline', members: [] };
+  const online = { key: 'online', title: t('guilds.memberList.online'), members: [] };
+  const offline = { key: 'offline', title: t('guilds.memberList.offline'), members: [] };
   for (const member of members) {
     if ((member.status ?? 'offline') === 'offline') {
       offline.members.push(member);

@@ -6,6 +6,7 @@ import {
 import { storeUserKeys } from './keyStore';
 import { fetchGroups } from './groupService';
 import { leaveEntry } from './groupKeys';
+import { t } from '../i18n';
 
 // Logging in and registering: OPAQUE (the password never leaves the device) plus the
 // encryption keys, which the server keeps only as a backup encrypted with OPAQUE's
@@ -45,7 +46,7 @@ function loadOpaque() {
 
 // Resolves to the user ({ token, id, username }); throws an Error with a message to show.
 export async function logIn(username, password) {
-  if (!username || !password) throw new Error('Username and password are required');
+  if (!username || !password) throw new Error(t('auth.errors.usernameAndPasswordRequired'));
 
   const opaque = await loadOpaque();
   const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
@@ -57,7 +58,7 @@ export async function logIn(username, password) {
     password,
   });
   // Wrong password and unknown username look the same here (on purpose).
-  if (!loginResult) throw new Error('Incorrect username or password');
+  if (!loginResult) throw new Error(t('auth.errors.incorrectLogin'));
   const { finishLoginRequest, sessionKey, exportKey } = loginResult;
 
   const data = await post('/finaliselogin', {
@@ -66,19 +67,19 @@ export async function logIn(username, password) {
     userIdentifier: username,
   });
   const { token, id, keyBackup } = data;
-  if (!token || !keyBackup) throw new Error('Login failed');
+  if (!token || !keyBackup) throw new Error(t('auth.errors.loginFailed'));
 
   // The keys are encrypted with OPAQUE's exportKey, which only this password produces.
   let keys;
   try {
     keys = await unwrapKeyBackup(exportKey, keyBackup);
   } catch {
-    throw new Error("Couldn't unlock your encryption keys.");
+    throw new Error(t('auth.errors.keysLocked'));
   }
   // The server must publish exactly the public keys in our own backup; otherwise other
   // people would be encrypting to keys that aren't ours.
   if (PUBLIC_KEY_FIELDS.some((field) => keys.public[field] !== data[field])) {
-    throw new Error("The server's copy of your public keys doesn't match your account. Not logging in.");
+    throw new Error(t('auth.errors.publicKeysMismatchLogin'));
   }
 
   await storeUserKeys(id, keys);
@@ -87,9 +88,9 @@ export async function logIn(username, password) {
 }
 
 function checkNewPassword(password) {
-  if (!password) throw new Error('Password is required');
+  if (!password) throw new Error(t('auth.errors.passwordRequired'));
   if (password.length < MIN_PASSWORD_LENGTH) {
-    throw new Error(`Use a password of at least ${MIN_PASSWORD_LENGTH} characters.`);
+    throw new Error(t('auth.errors.passwordTooShort', { count: MIN_PASSWORD_LENGTH }));
   }
 }
 
@@ -127,7 +128,7 @@ async function recoveryFields(code, keys) {
 // (user: the logged-in { token, id, username, hasRecoveryCode }, or null if the server
 // registered it without logging in). The code is shown once and never stored.
 export async function register(username, password) {
-  if (!username) throw new Error('Username and password are required');
+  if (!username) throw new Error(t('auth.errors.usernameAndPasswordRequired'));
   checkNewPassword(password);
 
   const { registrationRecord, exportKey } = await registerPassword(username, password);
@@ -154,19 +155,19 @@ export async function register(username, password) {
 // Proves the logged-in user knows `password` (a fresh OPAQUE login) and opens their key
 // backup with it. Resolves to { proof, keys }; `proof` goes along with the change.
 async function unlockWithPassword(username, password) {
-  if (!password) throw new Error('Enter your current password');
+  if (!password) throw new Error(t('auth.errors.currentPasswordRequired'));
   const opaque = await loadOpaque();
   const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
   const started = await post('/initiatelogin', { startLoginRequest, userIdentifier: username });
   const result = opaque.client.finishLogin({ clientLoginState, loginResponse: started.loginResponse, password });
-  if (!result) throw new Error('Your current password is incorrect');
+  if (!result) throw new Error(t('auth.errors.currentPasswordIncorrect'));
 
   const { keyBackup } = await send('get', '/key-backup');
   let keys;
   try {
     keys = await unwrapKeyBackup(result.exportKey, keyBackup);
   } catch {
-    throw new Error("Couldn't unlock your encryption keys.");
+    throw new Error(t('auth.errors.keysLocked'));
   }
   return { proof: { finishLoginRequest: result.finishLoginRequest, clientSessionKey: result.sessionKey }, keys };
 }
@@ -223,8 +224,8 @@ export { generateRecoveryCode };
 // Logged out, password forgotten: sets a new password with the recovery code and logs in.
 // Resolves to the user, like logIn. The recovery code keeps working.
 export async function recoverAccount(username, code, newPassword) {
-  if (!username) throw new Error('Enter your username');
-  if (!normalizeRecoveryCode(code)) throw new Error("That doesn't look like a recovery code. It's 25 letters and numbers.");
+  if (!username) throw new Error(t('auth.errors.usernameRequired'));
+  if (!normalizeRecoveryCode(code)) throw new Error(t('auth.errors.notARecoveryCode'));
   checkNewPassword(newPassword);
 
   const auth = await recoveryAuth(code);
@@ -233,10 +234,10 @@ export async function recoverAccount(username, code, newPassword) {
   try {
     keys = await unwrapRecoveryBackup(code, data.recoveryBackup);
   } catch {
-    throw new Error("Couldn't unlock your encryption keys with that code.");
+    throw new Error(t('auth.errors.keysLockedWithCode'));
   }
   if (PUBLIC_KEY_FIELDS.some((field) => keys.public[field] !== data[field])) {
-    throw new Error("The server's copy of your public keys doesn't match your account.");
+    throw new Error(t('auth.errors.publicKeysMismatch'));
   }
 
   const fields = await newPasswordFields(username, newPassword, keys);

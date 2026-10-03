@@ -6,6 +6,7 @@ import { InteractionContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
 import { attachStream, setStreamError, watchStream } from '../../voice/voiceClient';
 import { closeStreamWindow, openStreamWindow } from '../../voice/streamWindow';
+import { t } from '../../i18n';
 
 // The screen share being watched, big (the voice channel view's stage, or its own window when
 // popped out): the video, whose it is, pop out (or bring back), full screen and stop watching.
@@ -30,30 +31,30 @@ export default function StreamView({ userId, name, own, popout = false }) {
   }
 
   function popOut() {
-    if (!openStreamWindow()) setStreamError('Your browser blocked the window. Allow pop-ups for Voicaw and try again.');
+    if (!openStreamWindow()) setStreamError(t('voice.stream.popupBlocked'));
   }
 
   return (
     <div className={`stream-view${popout ? ' popped-out' : ''}`} ref={stageRef} onDoubleClick={fullScreen}>
       {/* Muted: a screen share's sound plays through voice's own audio (see voiceClient). */}
-      <video ref={videoRef} className="stream-video" autoPlay playsInline muted aria-label={`${name}'s screen`} />
-      {!watchingReady && <p className="stream-loading">Loading stream…</p>}
+      <video ref={videoRef} className="stream-video" autoPlay playsInline muted aria-label={t('voice.stream.screenOf', { name })} />
+      {!watchingReady && <p className="stream-loading">{t('voice.stream.loading')}</p>}
       <div className="stream-bar">
-        <span className="voice-live-badge">Live</span>
-        <span className="stream-name">{own ? 'Your stream' : name}</span>
+        <span className="voice-live-badge">{t('voice.stream.live')}</span>
+        <span className="stream-name">{own ? t('voice.stream.yourStream') : name}</span>
         {popout ? (
-          <button type="button" className="stream-button" aria-label="Bring back" title="Bring back" onClick={closeStreamWindow}>
+          <button type="button" className="stream-button" aria-label={t('voice.stream.bringBack')} title={t('voice.stream.bringBack')} onClick={closeStreamWindow}>
             <FontAwesomeIcon icon={faDownLeftAndUpRightToCenter} fixedWidth />
           </button>
         ) : !isMobile && (
-          <button type="button" className="stream-button" aria-label="Pop out" title="Pop out" onClick={popOut}>
+          <button type="button" className="stream-button" aria-label={t('voice.stream.popOut')} title={t('voice.stream.popOut')} onClick={popOut}>
             <FontAwesomeIcon icon={faUpRightFromSquare} fixedWidth />
           </button>
         )}
-        <button type="button" className="stream-button" aria-label="Full screen" title="Full screen" onClick={fullScreen}>
+        <button type="button" className="stream-button" aria-label={t('voice.stream.fullScreen')} title={t('voice.stream.fullScreen')} onClick={fullScreen}>
           <FontAwesomeIcon icon={faExpand} fixedWidth />
         </button>
-        <button type="button" className="stream-button" aria-label="Stop watching" title="Stop watching" onClick={() => watchStream(null)}>
+        <button type="button" className="stream-button" aria-label={t('voice.stream.stopWatching')} title={t('voice.stream.stopWatching')} onClick={() => watchStream(null)}>
           <FontAwesomeIcon icon={faXmark} fixedWidth />
         </button>
       </div>

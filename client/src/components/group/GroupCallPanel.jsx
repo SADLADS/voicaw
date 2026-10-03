@@ -11,6 +11,7 @@ import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
 import { MicIcon } from '../voice/VoiceIcons';
+import { t } from '../../i18n';
 
 // A group's call, at the top of the group: who's in it, and Join; once you're in, ringed
 // while talking, the mic icon when muted, and the controls; clicking someone sets how loud
@@ -31,38 +32,38 @@ export default function GroupCallPanel({ groupId, names, user }) {
   const isMuted = (id) => (id === user.id ? voice.selfMute || voice.selfDeaf : muted.has(String(id)));
 
   let status;
-  if (!mine) status = `${participants.length} in the call`;
-  else if (!connected) status = voice.status === 'reconnecting' ? 'Reconnecting…' : 'Connecting…';
-  else status = 'In the call';
+  if (!mine) status = t('calls.group.inCallCount', { count: participants.length });
+  else if (!connected) status = voice.status === 'reconnecting' ? t('calls.panel.reconnecting') : t('calls.panel.connecting');
+  else status = t('calls.group.inTheCall');
 
   return (
-    <div className="call-panel group-call-panel" aria-label="Group call">
+    <div className="call-panel group-call-panel" aria-label={t('calls.group.label')}>
       <div className="call-panel-people">
         {participants.map((id) => (
-          <div key={id} className="call-panel-person" title={names.get(id)} {...volumeMenu.triggerProps(id, names.get(id) ?? 'Someone')}>
+          <div key={id} className="call-panel-person" title={names.get(id)} {...volumeMenu.triggerProps(id, names.get(id) ?? t('calls.group.someone'))}>
             <UserAvatar userId={id} className="call-panel-avatar small" speaking={connected && !isMuted(id) && speaking.has(String(id))} />
-            {connected && isMuted(id) && <span className="call-panel-muted" aria-label="Muted"><MicIcon muted /></span>}
-            <span className="call-panel-name">{names.get(id) ?? 'Someone'}</span>
+            {connected && isMuted(id) && <span className="call-panel-muted" aria-label={t('calls.panel.muted')}><MicIcon muted /></span>}
+            <span className="call-panel-name">{names.get(id) ?? t('calls.group.someone')}</span>
           </div>
         ))}
       </div>
       <div className="call-panel-status">
         <span>{status}</span>
-        <span className="call-panel-e2ee" title="Only the group's members can hear this call">
-          <FontAwesomeIcon icon={faLock} /> End-to-end encrypted
+        <span className="call-panel-e2ee" title={t('calls.group.e2eeHint')}>
+          <FontAwesomeIcon icon={faLock} /> {t('calls.panel.e2ee')}
         </span>
       </div>
       {volumeMenu.menu && <UserVolumeMenu {...volumeMenu.menu} sheet={isMobile} onClose={volumeMenu.close} />}
       {mine && mine.state !== 'ringing' ? (
         <div className="voice-view-controls">
           <VoiceControls className="voice-view-button" />
-          <button type="button" className="voice-view-button leave" aria-label="Leave call" title="Leave call" onClick={hangUp}>
+          <button type="button" className="voice-view-button leave" aria-label={t('calls.group.leave')} title={t('calls.group.leave')} onClick={hangUp}>
             <FontAwesomeIcon icon={faPhoneSlash} fixedWidth />
           </button>
         </div>
       ) : !mine && (
         <button type="button" className="voice-view-join" onClick={() => joinGroupCallById(groupId)} disabled={Boolean(call)}>
-          <FontAwesomeIcon icon={faPhone} /> Join call
+          <FontAwesomeIcon icon={faPhone} /> {t('calls.group.join')}
         </button>
       )}
     </div>

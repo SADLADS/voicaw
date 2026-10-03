@@ -7,6 +7,7 @@ import { errorMessage } from '../../utils/guildDisplay';
 import { formatDateTime, useDateFormat } from '../../utils/dateFormat';
 import { displayName, mergeProfiles, useProfiles } from '../../utils/profiles';
 import { AUDIT_FILTERS, CLEAR_CHOICES, describeEntry, entryChanges } from '../../utils/auditLog';
+import { t } from '../../i18n';
 
 // The guild's audit log (View Audit Log; server/auditLog.js): who did what, newest first,
 // filtered by who did it and what kind of thing, a page at a time. Entries about channels you
@@ -62,7 +63,7 @@ export default function AuditLogDialog({ guild, user, onClose }) {
   }, [load]);
 
   const names = {
-    user: (id) => displayName(id, 'Someone'),
+    user: (id) => displayName(id, t('guildAdmin.auditLog.someone')),
     webhook: (id, fallback) => webhooks.get(id) ?? fallback,
   };
 
@@ -76,36 +77,36 @@ export default function AuditLogDialog({ guild, user, onClose }) {
   }
 
   return (
-    <Modal title="Audit Log" onClose={onClose} className="audit-log-dialog">
+    <Modal title={t('guildAdmin.auditLog.title')} onClose={onClose} className="audit-log-dialog">
       <div className="audit-log-filters">
         <label>
-          <span className="vc-label">Who</span>
-          <select className="form-select form-control" value={userId} onChange={(e) => setUserId(e.target.value)} aria-label="Filter by member">
-            <option value="">Everyone</option>
+          <span className="vc-label">{t('guildAdmin.auditLog.who')}</span>
+          <select className="form-select form-control" value={userId} onChange={(e) => setUserId(e.target.value)} aria-label={t('guildAdmin.auditLog.filterByMember')}>
+            <option value="">{t('guildAdmin.auditLog.everyone')}</option>
             {[...members]
               .sort((a, b) => displayName(a.id, a.username).localeCompare(displayName(b.id, b.username)))
               .map((m) => <option key={m.id} value={m.id}>{displayName(m.id, m.username)}</option>)}
           </select>
         </label>
         <label>
-          <span className="vc-label">What</span>
-          <select className="form-select form-control" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter by action">
-            <option value="">All actions</option>
+          <span className="vc-label">{t('guildAdmin.auditLog.what')}</span>
+          <select className="form-select form-control" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label={t('guildAdmin.auditLog.filterByAction')}>
+            <option value="">{t('guildAdmin.auditLog.allActions')}</option>
             {AUDIT_FILTERS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
           </select>
         </label>
       </div>
 
       {error && <p className="error-msg" role="alert">{error}</p>}
-      {entries == null && !error && <p className="vc-hint">Loading…</p>}
-      {entries?.length === 0 && <p className="vc-hint">Nothing here yet.</p>}
+      {entries == null && !error && <p className="vc-hint">{t('common.loading')}</p>}
+      {entries?.length === 0 && <p className="vc-hint">{t('guildAdmin.auditLog.empty')}</p>}
 
       {entries?.length > 0 && (
         <ul className="audit-log-list">
           {entries.map((entry) => {
             const changes = entryChanges(entry);
             if (entry.action === 'message_delete' && entry.details?.sentAt) {
-              changes.push(`Sent ${formatDateTime(entry.details.sentAt * 1000)}`);
+              changes.push(t('guildAdmin.auditLog.sent', { time: formatDateTime(entry.details.sentAt * 1000) }));
             }
             const expanded = open.has(entry.id);
             const Row = changes.length ? 'button' : 'div';
@@ -139,30 +140,28 @@ export default function AuditLogDialog({ guild, user, onClose }) {
 
       {next != null && (
         <button type="button" className="btn btn-outline-secondary btn-sm audit-log-more" disabled={loading} onClick={() => load(next)}>
-          {loading ? 'Loading…' : 'Load more'}
+          {loading ? t('common.loading') : t('guildAdmin.auditLog.loadMore')}
         </button>
       )}
-      <p className="vc-hint audit-log-note">Deleted messages&apos; text isn&apos;t kept.</p>
+      <p className="vc-hint audit-log-note">{t('guildAdmin.auditLog.textNotKept')}</p>
 
       {isOwner && (
         <div className="audit-log-clear">
-          <span className="vc-label">Clear old entries</span>
+          <span className="vc-label">{t('guildAdmin.auditLog.clear.title')}</span>
           <div className="vc-form-row">
-            <select className="form-select form-control" value={clearAge} onChange={(e) => setClearAge(Number(e.target.value))} aria-label="Entries to clear">
+            <select className="form-select form-control" value={clearAge} onChange={(e) => setClearAge(Number(e.target.value))} aria-label={t('guildAdmin.auditLog.clear.which')}>
               {CLEAR_CHOICES.map(([days, label]) => <option key={days} value={days}>{label}</option>)}
             </select>
-            <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => setConfirmClear(true)}>Clear</button>
+            <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => setConfirmClear(true)}>{t('guildAdmin.auditLog.clear.button')}</button>
           </div>
-          <p className="vc-hint">Only you, the owner, can do this. Everyone who can see the log will see that you did.</p>
+          <p className="vc-hint">{t('guildAdmin.auditLog.clear.hint')}</p>
         </div>
       )}
       {confirmClear && (
         <ConfirmDialog
-          title="Clear audit log"
-          message={clearAge
-            ? `Delete every audit log entry ${CLEAR_CHOICES.find(([d]) => d === clearAge)[1].toLowerCase()}? This can't be undone.`
-            : "Delete the whole audit log? This can't be undone."}
-          confirmLabel="Clear"
+          title={t('guildAdmin.auditLog.clear.confirmTitle')}
+          message={CLEAR_CHOICES.find(([d]) => d === clearAge)[2]}
+          confirmLabel={t('guildAdmin.auditLog.clear.button')}
           onConfirm={async () => {
             await clearAuditLog(guild.id, clearAge);
             load();

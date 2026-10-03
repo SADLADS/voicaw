@@ -5,6 +5,7 @@
 // snapshot, a user's own `status` / `last_online` fields (from the API) are used.
 
 import { formatDate } from './dateFormat';
+import { t } from '../i18n';
 
 let haveSnapshot = false;
 const statuses = new Map(); // user id (string) -> status, for everyone not offline
@@ -56,25 +57,30 @@ export function presenceOf(user) {
   return { status, lastOnline: lastOnlineById.get(id) ?? user.last_online ?? null };
 }
 
-const STATUS_LABELS = { online: 'Online', mobile: 'Online on mobile', idle: 'Idle', offline: 'Offline' };
+const STATUS_LABELS = {
+  online: 'app.presence.online',
+  mobile: 'app.presence.mobile',
+  idle: 'app.presence.idle',
+  offline: 'app.presence.offline',
+};
 
 export function statusLabel(status) {
-  return STATUS_LABELS[status] ?? 'Offline';
+  return t(STATUS_LABELS[status] ?? STATUS_LABELS.offline);
 }
 
 // "Last seen 5 minutes ago" (null when never seen since this was recorded).
 export function lastSeenText(lastOnline, now = Date.now()) {
   if (lastOnline == null) return null;
   const seconds = Math.max(0, Math.round(now / 1000 - lastOnline));
-  if (seconds < 60) return 'Last seen just now';
+  if (seconds < 60) return t('app.presence.lastSeenJustNow');
   const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `Last seen ${rtf.format(-minutes, 'minute')}`;
+  if (minutes < 60) return t('app.presence.lastSeen', { when: rtf.format(-minutes, 'minute') });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Last seen ${rtf.format(-hours, 'hour')}`;
+  if (hours < 24) return t('app.presence.lastSeen', { when: rtf.format(-hours, 'hour') });
   const days = Math.floor(hours / 24);
-  if (days < 7) return `Last seen ${rtf.format(-days, 'day')}`;
-  return `Last seen ${formatDate(lastOnline * 1000)}`;
+  if (days < 7) return t('app.presence.lastSeen', { when: rtf.format(-days, 'day') });
+  return t('app.presence.lastSeenOn', { date: formatDate(lastOnline * 1000) });
 }
 
 // Whether this device is a phone or tablet (not the chosen layout: someone on a computer

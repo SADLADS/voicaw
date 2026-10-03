@@ -8,6 +8,8 @@
 //   into one paragraph break): each is an empty `.blank-line` paragraph, a line high (dms.css).
 // Code, inline or in blocks, is left alone.
 
+import { t } from '../i18n';
+
 // micromark constructs (by name) that Discord doesn't have.
 const DISABLED = [
   'codeIndented', 'thematicBreak', 'setextUnderline', 'definition',
@@ -130,5 +132,5 @@ const text = (value) => ({ type: 'text', value });
 
 // For plain-text places (reply previews, notifications): a spoiler's text stays hidden.
 export function hideSpoilers(value) {
-  return value == null ? value : String(value).replace(/\|\|(?!\|)([\s\S]+?)\|\|/g, '[spoiler]');
+  return value == null ? value : String(value).replace(/\|\|(?!\|)([\s\S]+?)\|\|/g, () => t('chat.message.hiddenSpoiler'));
 }

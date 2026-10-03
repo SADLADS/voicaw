@@ -12,6 +12,7 @@ import VoiceControls from '../voice/VoiceControls';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
 import { MicIcon } from '../voice/VoiceIcons';
 import { nameOf } from '../../utils/profiles';
+import { t } from '../../i18n';
 
 function useDuration(since) {
   const [now, setNow] = useState(() => Date.now());
@@ -44,32 +45,32 @@ export default function CallPanel({ user, peer }) {
   const peerMuted = connected && voice.muted.includes(String(peer.id));
   const selfMuted = voice.selfMute || voice.selfDeaf;
   let status;
-  if (call.state === 'ringing') status = call.outgoing ? 'Calling…' : 'Incoming call';
-  else if (call.state === 'connecting' || !connected) status = voice.status === 'reconnecting' ? 'Reconnecting…' : 'Connecting…';
+  if (call.state === 'ringing') status = call.outgoing ? t('calls.panel.calling') : t('calls.panel.incoming');
+  else if (call.state === 'connecting' || !connected) status = voice.status === 'reconnecting' ? t('calls.panel.reconnecting') : t('calls.panel.connecting');
   else status = duration;
 
   return (
-    <div className="call-panel" aria-label={`Call with ${nameOf(peer)}`}>
+    <div className="call-panel" aria-label={t('calls.panel.label', { name: nameOf(peer) })}>
       <div className="call-panel-people">
         {[[user, selfMuted], [peer, peerMuted]].map(([person, muted]) => (
           <div key={person.id} className="call-panel-person" {...volumeMenu.triggerProps(person.id, nameOf(person))}>
             {/* LiveKit's speaker list lags a moment behind a mute. */}
             <UserAvatar userId={person.id} className="call-panel-avatar" speaking={!muted && speaking.has(String(person.id))} />
-            {muted && <span className="call-panel-muted" title="Muted" aria-label="Muted"><MicIcon muted /></span>}
+            {muted && <span className="call-panel-muted" title={t('calls.panel.muted')} aria-label={t('calls.panel.muted')}><MicIcon muted /></span>}
           </div>
         ))}
       </div>
       <div className="call-panel-status">
         <span>{status}</span>
-        <span className="call-panel-e2ee" title="Only the two of you can hear this call">
-          <FontAwesomeIcon icon={faLock} /> End-to-end encrypted
+        <span className="call-panel-e2ee" title={t('calls.panel.e2eeHint')}>
+          <FontAwesomeIcon icon={faLock} /> {t('calls.panel.e2ee')}
         </span>
       </div>
       {volumeMenu.menu && <UserVolumeMenu {...volumeMenu.menu} sheet={isMobile} onClose={volumeMenu.close} />}
       {call.outgoing || call.state !== 'ringing' ? (
         <div className="voice-view-controls">
           <VoiceControls className="voice-view-button" />
-          <button type="button" className="voice-view-button leave" aria-label="Hang up" title="Hang up" onClick={hangUp}>
+          <button type="button" className="voice-view-button leave" aria-label={t('calls.panel.hangUp')} title={t('calls.panel.hangUp')} onClick={hangUp}>
             <FontAwesomeIcon icon={faPhoneSlash} fixedWidth />
           </button>
         </div>

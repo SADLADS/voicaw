@@ -23,19 +23,22 @@ import EditProfile from "./EditProfile";
 import Avatar from "./Avatar";
 import { useAuth } from '../hooks/useAuth';
 import { nameOf, useProfiles } from '../utils/profiles';
+import { Trans } from 'react-i18next';
+import { t } from '../i18n';
 
 const CATEGORIES = [
-  { id: 'account', title: 'My Account' },
-  { id: 'app', title: 'App Settings' },
-  { id: 'admin', title: 'Admin' },
-  { id: 'about', title: 'About' },
+  { id: 'account', titleKey: 'settings.categories.account' },
+  { id: 'app', titleKey: 'settings.categories.app' },
+  { id: 'admin', titleKey: 'settings.categories.admin' },
+  { id: 'about', titleKey: 'settings.categories.about' },
 ];
 
 // Whether a section matches the search: every word in its title, keywords or category.
 function matches(section, query) {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) return true;
-  const category = CATEGORIES.find((c) => c.id === section.category)?.title ?? '';
+  const categoryKey = CATEGORIES.find((c) => c.id === section.category)?.titleKey;
+  const category = categoryKey ? t(categoryKey) : '';
   const haystack = `${section.title} ${section.keywords} ${category}`.toLowerCase();
   return words.every((word) => haystack.includes(word));
 }
@@ -59,109 +62,111 @@ export default function Settings({ onLogout }) {
 
   const sections = [
     {
-      id: 'account-security', category: 'account', title: 'Password & recovery code',
-      keywords: 'change password security recovery code forgot',
+      id: 'account-security', category: 'account', title: t('settings.sections.accountSecurity.title'),
+      keywords: t('settings.sections.accountSecurity.keywords'),
       content: <AccountSecuritySettings />,
     },
     {
-      id: 'devices', category: 'account', title: 'Devices',
-      keywords: 'sessions logins logged in devices log out sign out everywhere other devices phone computer browser security',
+      id: 'devices', category: 'account', title: t('settings.sections.devices.title'),
+      keywords: t('settings.sections.devices.keywords'),
       content: <DeviceSettings />,
     },
     {
-      id: 'log-out', category: 'account', title: 'Log out',
-      keywords: 'sign out logout leave',
+      id: 'log-out', category: 'account', title: t('settings.sections.logOut.title'),
+      keywords: t('settings.sections.logOut.keywords'),
       content: (
         <div className="settings-card">
-          <h5>Log Out</h5>
+          <h5>{t('settings.logOut.title')}</h5>
           <div className="mt-auto mb-4">
-            <button onClick={onLogout} className="btn btn-sm btn-danger" title="Logout">
-              <FontAwesomeIcon icon={faSignOutAlt} />Log out
+            <button onClick={onLogout} className="btn btn-sm btn-danger" title={t('settings.logOut.buttonTitle')}>
+              <FontAwesomeIcon icon={faSignOutAlt} />{t('settings.logOut.button')}
             </button>
           </div>
         </div>
       ),
     },
     {
-      id: 'delete-account', category: 'account', title: 'Delete account',
-      keywords: 'delete remove close account erase leave',
+      id: 'delete-account', category: 'account', title: t('settings.sections.deleteAccount.title'),
+      keywords: t('settings.sections.deleteAccount.keywords'),
       content: <DeleteAccountSettings onDeleted={onLogout} />,
     },
     {
-      id: 'appearance', category: 'app', title: 'Appearance',
-      keywords: 'theme dark mode light mode night colours colors system keyboard',
+      id: 'appearance', category: 'app', title: t('settings.sections.appearance.title'),
+      keywords: t('settings.sections.appearance.keywords'),
       content: <ThemeSettings />,
     },
     {
-      id: 'date-time', category: 'app', title: 'Date & time',
-      keywords: 'locale language date format time format 12-hour 24-hour clock am pm',
+      id: 'date-time', category: 'app', title: t('settings.sections.dateTime.title'),
+      keywords: t('settings.sections.dateTime.keywords'),
       content: <DateTimeSettings />,
     },
     {
-      id: 'spellcheck', category: 'app', title: 'Spellcheck',
-      keywords: 'spelling spell check typos dictionary red underline squiggles language autocorrect words',
+      id: 'spellcheck', category: 'app', title: t('settings.sections.spellcheck.title'),
+      keywords: t('settings.sections.spellcheck.keywords'),
       // Phones check spelling in their own keyboard.
       available: !isMobile,
       content: <SpellcheckSettings />,
     },
     {
-      id: 'privacy', category: 'app', title: 'Privacy', icon: faPuzzlePiece,
-      keywords: 'privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy',
+      id: 'privacy', category: 'app', title: t('settings.sections.privacy.title'), icon: faPuzzlePiece,
+      keywords: t('settings.sections.privacy.keywords'),
       content: <PrivacySettings />,
     },
     {
-      id: 'content', category: 'app', title: 'Content',
-      keywords: 'nsfw blur blurred spoiler spoilers media images pictures videos gifs adult explicit sensitive hide',
+      id: 'content', category: 'app', title: t('settings.sections.content.title'),
+      keywords: t('settings.sections.content.keywords'),
       content: <ContentSettings />,
     },
     {
-      id: 'notifications', category: 'app', title: 'Notifications',
-      keywords: 'push alerts previews',
+      id: 'notifications', category: 'app', title: t('settings.sections.notifications.title'),
+      keywords: t('settings.sections.notifications.keywords'),
       content: <NotificationSettings />,
     },
     {
-      id: 'sounds', category: 'app', title: 'Sounds',
-      keywords: 'sound effects audio volume ding chime ring ringtone message mute unmute deafen join leave disconnect',
+      id: 'sounds', category: 'app', title: t('settings.sections.sounds.title'),
+      keywords: t('settings.sections.sounds.keywords'),
       content: <SoundSettings />,
     },
     {
-      id: 'voice-video', category: 'app', title: 'Voice & video',
-      keywords: 'microphone mic input output speakers headphones headset device audio volume test echo noise suppression gain',
+      id: 'voice-video', category: 'app', title: t('settings.sections.voiceVideo.title'),
+      keywords: t('settings.sections.voiceVideo.keywords'),
       content: <VoiceSettings />,
     },
     {
-      id: 'desktop-app', category: 'app', title: 'Desktop app',
-      keywords: 'tray close minimise minimize start login startup boot keyboard shortcut hotkey keybind mute deafen global',
+      id: 'desktop-app', category: 'app', title: t('settings.sections.desktopApp.title'),
+      keywords: t('settings.sections.desktopApp.keywords'),
       available: isDesktopApp(),
       content: isDesktopApp() ? <DesktopAppSettings /> : null,
     },
     {
-      id: 'app-version', category: 'app', title: 'App version',
-      keywords: 'update build version reload',
+      id: 'app-version', category: 'app', title: t('settings.sections.appVersion.title'),
+      keywords: t('settings.sections.appVersion.keywords'),
       content: <AppUpdateSettings />,
     },
     {
       // Always there (it asks the server whether you're an admin), shown once you are.
-      id: 'admin', category: 'admin', title: 'Admin',
-      keywords: 'global admins klipy gif api key',
+      id: 'admin', category: 'admin', title: t('settings.sections.admin.title'),
+      keywords: t('settings.sections.admin.keywords'),
       available: isAdmin,
       content: <AdminSettings onAvailable={() => setIsAdmin(true)} />,
     },
     {
-      id: 'about', category: 'about', title: 'About',
-      keywords: 'credits attribution licence license twemoji emoji font klipy',
+      id: 'about', category: 'about', title: t('settings.sections.about.title'),
+      keywords: t('settings.sections.about.keywords'),
       content: (
         <div className="settings-card">
-          <h5>About</h5>
+          <h5>{t('settings.about.title')}</h5>
           <p className="settings-attribution">
-            Emoji graphics by <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noreferrer">Twemoji</a>,
-            {' '}© Twitter, Inc and other contributors, licensed under{' '}
-            <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC-BY 4.0</a>.
-            {' '}Emoji font modified from{' '}
-            <a href="https://github.com/mrdrogdrog/twemoji-color-font" target="_blank" rel="noreferrer">twemoji-color-font</a>,
-            licensed under the{' '}
-            <a href="https://openfontlicense.org/open-font-license-official-text/" target="_blank" rel="noreferrer">SIL Open Font License 1.1</a>.
-            {' '}GIFs from <a href="https://klipy.com" target="_blank" rel="noreferrer">KLIPY</a>.
+            <Trans
+              i18nKey="settings.about.attribution"
+              components={{
+                twemoji: <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noreferrer" />,
+                ccby: <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" />,
+                font: <a href="https://github.com/mrdrogdrog/twemoji-color-font" target="_blank" rel="noreferrer" />,
+                ofl: <a href="https://openfontlicense.org/open-font-license-official-text/" target="_blank" rel="noreferrer" />,
+                klipy: <a href="https://klipy.com" target="_blank" rel="noreferrer" />,
+              }}
+            />
           </p>
         </div>
       ),
@@ -182,8 +187,8 @@ export default function Settings({ onLogout }) {
   }, [location.hash]);
 
   const nav = (
-      <nav className="settings-nav" aria-label="Settings sections">
-        <h2 className="settings-header">Settings</h2>
+      <nav className="settings-nav" aria-label={t('settings.nav.label')}>
+        <h2 className="settings-header">{t('common.settings')}</h2>
         {user && (
           <button
             type="button"
@@ -194,7 +199,7 @@ export default function Settings({ onLogout }) {
             <Avatar userId={user.id} className="settings-profile-avatar" />
             <span className="settings-profile-text">
               <span className="settings-profile-name">{nameOf(user)}</span>
-              <span className="settings-profile-action">Edit Profile</span>
+              <span className="settings-profile-action">{t('settings.nav.editProfile')}</span>
             </span>
           </button>
         )}
@@ -202,14 +207,14 @@ export default function Settings({ onLogout }) {
           <FontAwesomeIcon icon={faMagnifyingGlass} className="settings-search-icon" />
           <input
             type="search"
-            placeholder="Search settings"
-            aria-label="Search settings"
+            placeholder={t('settings.nav.search')}
+            aria-label={t('settings.nav.search')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Escape') setQuery(''); }}
           />
           {query && (
-            <button type="button" className="settings-search-clear" aria-label="Clear search" onClick={() => setQuery('')}>
+            <button type="button" className="settings-search-clear" aria-label={t('settings.nav.clearSearch')} onClick={() => setQuery('')}>
               <FontAwesomeIcon icon={faXmark} />
             </button>
           )}
@@ -219,7 +224,7 @@ export default function Settings({ onLogout }) {
           if (!items.length) return null;
           return (
             <div key={category.id} className="settings-nav-group">
-              <div className="settings-nav-category">{category.title}</div>
+              <div className="settings-nav-category">{t(category.titleKey)}</div>
               {items.map((section) => (
                 <button
                   key={section.id}
@@ -234,7 +239,7 @@ export default function Settings({ onLogout }) {
             </div>
           );
         })}
-        {!visible.length && <p className="settings-nav-empty">No settings match “{query}”.</p>}
+        {!visible.length && <p className="settings-nav-empty">{t('settings.nav.noMatch', { query })}</p>}
       </nav>
   );
 
@@ -247,8 +252,8 @@ export default function Settings({ onLogout }) {
         {!onProfilePage && CATEGORIES.map((category) => {
           const inCategory = sections.filter((s) => s.category === category.id);
           return (
-            <section key={category.id} className="settings-category" hidden={!inCategory.some(shown)} aria-label={category.title}>
-              <h3 className="settings-category-title">{category.title}</h3>
+            <section key={category.id} className="settings-category" hidden={!inCategory.some(shown)} aria-label={t(category.titleKey)}>
+              <h3 className="settings-category-title">{t(category.titleKey)}</h3>
               {inCategory.map((section) => (
                 <div key={section.id} id={`settings-${section.id}`} className="settings-section" hidden={!shown(section)}>
                   {section.content}

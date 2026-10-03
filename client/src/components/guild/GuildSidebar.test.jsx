@@ -111,7 +111,7 @@ describe('GuildSidebar', () => {
     expect(trip).toHaveAttribute('href', '/guild/5/10?thread=50');
     expect(trip.closest('li')).toHaveClass('guild-thread', 'active');
     expect(screen.queryByText('Not mine')).toBeNull();
-    const memes = screen.getByRole('link', { name: 'Meme ideas 1 mentions' }).closest('li');
+    const memes = screen.getByRole('link', { name: 'Meme ideas 1 mention' }).closest('li');
     expect(memes).toHaveClass('unread');
     // Right under its channel.
     expect(channelRow('general').nextElementSibling).toBe(trip.closest('li'));
@@ -147,7 +147,7 @@ describe('GuildSidebar', () => {
     const memes = screen.getByRole('link', { name: /^memes/ }).closest('li');
     expect(memes).toHaveClass('muted');
     expect(memes).not.toHaveClass('unread');
-    expect(within(memes).getByLabelText('1 mentions')).toBeInTheDocument();
+    expect(within(memes).getByLabelText('1 mention')).toBeInTheDocument();
     expect(within(memes).getByLabelText('Muted')).toBeInTheDocument();
     expect(channelRow('lounge')).not.toHaveClass('unread');
     // Collapsed, the muted channel with a mention still shows; the one without doesn't.

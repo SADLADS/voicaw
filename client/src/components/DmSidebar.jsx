@@ -13,6 +13,7 @@ import StatusIcon from './StatusIcon';
 import NewGroupDialog from './group/NewGroupDialog';
 import { getProfile, nameOf, useProfiles } from '../utils/profiles';
 import Avatar from './Avatar';
+import { t } from '../i18n';
 
 // The conversation list: people and group DMs, most recent first. `unreadDms`
 // ([{ from_user_id, count }], from Layout) and each group's `unread` mark conversations with
@@ -75,8 +76,8 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
   };
   const marks = (setting) => (
     <>
-      {setting.muted && <FontAwesomeIcon icon={faBellSlash} className="dm-row-mark" title="Muted" aria-label="Muted" />}
-      {setting.pinned_at != null && <FontAwesomeIcon icon={faThumbtack} className="dm-row-mark" title="Pinned" aria-label="Pinned" />}
+      {setting.muted && <FontAwesomeIcon icon={faBellSlash} className="dm-row-mark" title={t('chat.dmList.muted')} aria-label={t('chat.dmList.muted')} />}
+      {setting.pinned_at != null && <FontAwesomeIcon icon={faThumbtack} className="dm-row-mark" title={t('chat.dmList.pinned')} aria-label={t('chat.dmList.pinned')} />}
     </>
   );
 
@@ -85,8 +86,8 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
   return (
     <div id="dm-sidebar">
       <h4 className="direct-messages-header">
-        Direct Messages
-        <button type="button" className="new-group-button" aria-label="New group" title="New group" onClick={() => setNewGroup(true)}>
+        {t('chat.dmList.title')}
+        <button type="button" className="new-group-button" aria-label={t('chat.dmList.newGroup')} title={t('chat.dmList.newGroup')} onClick={() => setNewGroup(true)}>
           <FontAwesomeIcon icon={faUserGroup} />
           <span className="new-group-plus">+</span>
         </button>
@@ -94,7 +95,7 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
       <div className="dm-notes-link-wrap">
         <Link to="/dm/notes" replace={isMobile} onClick={showContent} className={`dm-user dm-notes-link ${notesActive ? 'active' : ''}`}>
           <span className="dm-notes-icon"><FontAwesomeIcon icon={faNoteSticky} /></span>
-          <span className="dm-user-name">Notes</span>
+          <span className="dm-user-name">{t('chat.notes.title')}</span>
         </Link>
       </div>
       <div className="dm-user-list-container" {...longPress} onTouchStart={listTouchStart}>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAttachmentSrc } from '../../hooks/useAttachmentSrc';
 import { galleryItemFromUrl, galleryItemRef } from '../../utils/imageGallery';
+import { t } from '../../i18n';
 
 // A document's cover image as a banner (cropped to its box): on feed cards, over the document
 // and in the editor. Nothing without a cover; a soft placeholder while it decrypts. Its menu
@@ -12,7 +13,7 @@ export default function DocumentCover({ cover, className = '' }) {
     <div className={`document-cover ${className}${src ? '' : ' loading'}`} aria-hidden={!src}>
       {src && !failed && (
         <img
-          ref={galleryItemRef(galleryItemFromUrl(cover, 'Cover image'))}
+          ref={galleryItemRef(galleryItemFromUrl(cover, t('documents.cover.imageName')))}
           data-gallery-item=""
           src={src}
           alt=""

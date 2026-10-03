@@ -5,6 +5,7 @@ import api from '../utils/api';
 import { describeDevice } from '../utils/deviceName';
 import { formatDate, formatDateTime, useDateFormat } from '../utils/dateFormat';
 import ConfirmDialog from './guild/ConfirmDialog';
+import { t } from '../i18n';
 
 const ICONS = { desktop: faLaptop, mobile: faMobileScreenButton, app: faDesktop };
 
@@ -15,9 +16,9 @@ function errorText(err, fallback) {
 function DeviceRow({ session, onLogOut, busy }) {
   const { name, kind } = describeDevice(session.user_agent);
   let seen;
-  if (session.current) seen = 'This device';
-  else if (session.online) seen = 'Online now';
-  else seen = `Last active ${formatDateTime(session.last_used_at * 1000)}`;
+  if (session.current) seen = t('settings.devices.thisDevice');
+  else if (session.online) seen = t('settings.devices.onlineNow');
+  else seen = t('settings.devices.lastActive', { time: formatDateTime(session.last_used_at * 1000) });
   return (
     <li className="device-row" data-current={session.current || undefined}>
       <FontAwesomeIcon icon={ICONS[kind]} className="device-icon" fixedWidth />
@@ -26,12 +27,12 @@ function DeviceRow({ session, onLogOut, busy }) {
         <div className="device-details">
           <span className={session.current || session.online ? 'device-online' : undefined}>{seen}</span>
           {session.ip && <> · {session.ip}</>}
-          {' · '}Logged in {formatDate(session.created_at * 1000)}
+          {' · '}{t('settings.devices.loggedIn', { date: formatDate(session.created_at * 1000) })}
         </div>
       </div>
       {!session.current && (
         <button type="button" className="btn btn-sm btn-secondary" disabled={busy} onClick={() => onLogOut(session)}>
-          Log out
+          {t('settings.devices.logOut')}
         </button>
       )}
     </li>
@@ -52,7 +53,7 @@ export default function DeviceSettings() {
     let cancelled = false;
     api.get('/sessions')
       .then(({ data }) => { if (!cancelled) setSessions(data); })
-      .catch((err) => { if (!cancelled) setError(errorText(err, "Couldn't load your devices")); });
+      .catch((err) => { if (!cancelled) setError(errorText(err, t('settings.devices.couldntLoad'))); });
     return () => { cancelled = true; };
   }, []);
 
@@ -62,7 +63,7 @@ export default function DeviceSettings() {
     try {
       setSessions((await api.delete(`/sessions/${encodeURIComponent(session.id)}`)).data);
     } catch (err) {
-      setError(errorText(err, "Couldn't log that device out"));
+      setError(errorText(err, t('settings.devices.couldntLogOut')));
     } finally {
       setBusy(false);
     }
@@ -72,11 +73,11 @@ export default function DeviceSettings() {
 
   return (
     <div className="settings-card">
-      <h5>Devices</h5>
+      <h5>{t('settings.devices.title')}</h5>
       <p className="admin-setting-help">
-        Where you&apos;re logged in. If you don&apos;t recognise one, log it out and change your password.
+        {t('settings.devices.help')}
       </p>
-      {sessions === null && !error && <p className="admin-setting-help">Loading…</p>}
+      {sessions === null && !error && <p className="admin-setting-help">{t('common.loading')}</p>}
       {sessions && (
         <ul className="device-list">
           {sessions.map((s) => <DeviceRow key={s.id} session={s} onLogOut={logOut} busy={busy} />)}
@@ -84,15 +85,15 @@ export default function DeviceSettings() {
       )}
       {others.length > 0 && (
         <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setConfirmAll(true)}>
-          Log out all other devices
+          {t('settings.devices.logOutOthers')}
         </button>
       )}
       {error && <p className="error-msg" role="alert">{error}</p>}
       {confirmAll && (
         <ConfirmDialog
-          title="Log out all other devices?"
-          message={`${others.length === 1 ? 'The other device' : `All ${others.length} other devices`} will have to log in again. This one stays logged in.`}
-          confirmLabel="Log out"
+          title={t('settings.devices.logOutOthersTitle')}
+          message={t('settings.devices.logOutOthersMessage', { count: others.length })}
+          confirmLabel={t('settings.devices.logOut')}
           focusConfirm
           onConfirm={async () => setSessions((await api.delete('/sessions')).data)}
           onClose={() => setConfirmAll(false)}

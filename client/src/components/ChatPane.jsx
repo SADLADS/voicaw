@@ -17,6 +17,7 @@ import { mentionsToText } from '../utils/mentions';
 import { hideSpoilers } from '../utils/remarkDiscord';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 import { displayName } from '../utils/profiles';
+import { t } from '../i18n';
 import { clearTyping } from '../utils/typing';
 import { endPoll, parsePoll, pollEnded, pollMarkup } from '../utils/pollMarkup';
 import { endPollOnServer, registerPollTimer } from '../services/pollService';
@@ -60,7 +61,7 @@ export default function ChatPane({
   channels,
   canModerate = false,
   canSend = true,
-  cantSendText = "You don't have permission to send messages here.",
+  cantSendText = t('chat.pane.cantSend'),
   canAddReactions = true,
   canPin = true,
   pinsAnchor = null,
@@ -70,7 +71,7 @@ export default function ChatPane({
   nameColors,
   encrypted = true,
   pollKind,
-  emptyText = 'No messages yet. Start the conversation!',
+  emptyText = t('chat.pane.empty'),
 }) {
   const { s3Endpoint, maxPlaintextLength } = useContext(ConfigContext);
   const { isMobile } = useContext(InteractionContext);
@@ -155,7 +156,7 @@ export default function ChatPane({
       await copyText(msg);
     } catch (err) {
       console.error('Copy failed', err);
-      setComposerError("Couldn't copy the message.");
+      setComposerError(t('chat.pane.copyFailed'));
     }
   }
 
@@ -184,7 +185,7 @@ export default function ChatPane({
   function handleEdit(msg) {
     const poll = parsePoll(msg.plaintext);
     if (poll) {
-      if (isClosedPoll(msg)) setComposerError("This poll has closed, so it can't be edited.");
+      if (isClosedPoll(msg)) setComposerError(t('chat.pane.pollClosedEdit'));
       else setEditingPoll({ msg, poll });
       return;
     }
@@ -215,13 +216,13 @@ export default function ChatPane({
   // fails the poll still closes on time, just without the row.
   async function sendPoll({ poll, replyTo }) {
     const text = pollMarkup(poll);
-    if (text.length > maxPlaintextLength) throw new Error('The poll is too long.');
+    if (text.length > maxPlaintextLength) throw new Error(t('chat.pane.pollTooLong'));
     const saved = await conversation.sendMessage({ text, replyTo });
     try {
       await registerPollTimer(pollKind, saved.id, poll.duration);
     } catch (err) {
       console.error('Failed to register the poll', err);
-      setComposerError("The poll was sent, but its result won't be announced when it closes.");
+      setComposerError(t('chat.pane.pollTimerFailed'));
     }
   }
 
@@ -254,7 +255,7 @@ export default function ChatPane({
       await conversation.setPinned(msg, !msg.pinned_at);
     } catch (err) {
       console.error('Failed to pin message', err);
-      setComposerError(err.response?.data?.error || `Couldn't ${msg.pinned_at ? 'unpin' : 'pin'} the message.`);
+      setComposerError(err.response?.data?.error || (msg.pinned_at ? t('chat.pane.unpinFailed') : t('chat.pane.pinFailed')));
     }
   }
 
@@ -277,7 +278,7 @@ export default function ChatPane({
       await current.loadMoreMessages();
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    setComposerError("Couldn't find that message in the chat.");
+    setComposerError(t('chat.pane.jumpFailed'));
   }
 
   useEffect(() => {
@@ -303,7 +304,7 @@ export default function ChatPane({
         {conversation.isLoading ? (
           <p></p>
         ) : conversation.error ? (
-          <p className="error-text">Error: {conversation.error}</p>
+          <p className="error-text">{t('chat.pane.error', { error: conversation.error })}</p>
         ) : messages.length === 0 ? (
           <p className="chat-empty">{emptyText}</p>
         ) : (
@@ -387,9 +388,9 @@ export default function ChatPane({
 
       {confirmingDelete && (
         <ConfirmDialog
-          title="Delete message"
-          message="Are you sure you want to delete this message?"
-          confirmLabel="Delete"
+          title={t('chat.deleteMessage.title')}
+          message={t('chat.deleteMessage.confirm')}
+          confirmLabel={t('common.delete')}
           focusConfirm
           onConfirm={() => conversation.deleteMessage(confirmingDelete.id)}
           onClose={() => setConfirmingDelete(null)}
@@ -400,7 +401,7 @@ export default function ChatPane({
               {mentionsToText(customEmojiToText(hideSpoilers(summarizeAttachments(confirmingDelete.plaintext ?? ''))), reactionNames, mentionRoles, mentionChannels)}
             </span>
           </div>
-          <p className="vc-hint">Tip: hold Shift when you click delete to skip this.</p>
+          <p className="vc-hint">{t('chat.deleteMessage.shiftTip')}</p>
         </ConfirmDialog>
       )}
 
@@ -409,7 +410,7 @@ export default function ChatPane({
           poll={editingPoll.poll}
           onSubmit={async (poll) => {
             const text = pollMarkup(poll);
-            if (text.length > maxPlaintextLength) throw new Error('The poll is too long.');
+            if (text.length > maxPlaintextLength) throw new Error(t('chat.pane.pollTooLong'));
             await conversation.editMessage(editingPoll.msg.id, text);
           }}
           onClose={() => setEditingPoll(null)}

@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 // The watched screen share in a window of its own (Pop out, like Discord's): a blank window
 // opened from this page, with the page's styles and theme copied in, that StreamPopout draws
 // the stream into with a portal (same origin, so the <video> plays the same LiveKit track).
@@ -53,7 +55,7 @@ function setUp(win) {
   // The same window again (one left open by an earlier copy of this page): start afresh.
   doc.head.replaceChildren();
   doc.body.replaceChildren();
-  doc.title = 'Stream – Voicaw';
+  doc.title = t('voice.stream.defaultWindowTitle');
   const charset = doc.createElement('meta');
   charset.setAttribute('charset', 'utf-8');
   doc.head.appendChild(charset);

@@ -15,6 +15,7 @@ import { parseGifUrl } from '../utils/gifMarkup';
 import { usePrivacyPrefs } from '../utils/privacy';
 import { reservedBoxStyle, mediaBoxStyle } from '../utils/mediaBox';
 import { useMediaCover } from '../hooks/useMediaCover';
+import { t } from '../i18n';
 import VideoPlayer from './VideoPlayer';
 import MediaCover from './MediaCover';
 
@@ -32,7 +33,9 @@ function FileBox({ name, size, onDownload, status }) {
       <span className="attachment-file-info">
         <span className="attachment-file-name" title={name}>{name}</span>
         <span className="attachment-file-size">
-          {status === 'loading' ? 'Decrypting…' : status === 'error' ? 'Download failed' : formatBytes(size)}
+          {status === 'loading'
+            ? t('media.attachment.decrypting')
+            : status === 'error' ? t('media.attachment.downloadFailed') : formatBytes(size)}
         </span>
       </span>
       <button
@@ -40,8 +43,8 @@ function FileBox({ name, size, onDownload, status }) {
         className="attachment-file-download"
         onClick={onDownload}
         disabled={status === 'loading'}
-        title={`Download ${name}`}
-        aria-label={`Download ${name}`}
+        title={t('media.attachment.download', { name })}
+        aria-label={t('media.attachment.download', { name })}
       >
         <FontAwesomeIcon icon={faDownload} />
       </button>
@@ -266,7 +269,7 @@ function EncryptedAttachment({ url, meta, name }) {
         {...(!covered ? { ref: galleryItemRef(galleryItem), 'data-gallery-item': '' } : {})}
         className={`attachment-loading attachment-loading-${kind}`}
         style={reservedBoxStyle(meta.width, meta.height)}
-        aria-label={`Loading ${name}`}
+        aria-label={t('media.attachment.loading', { name })}
       />
     );
   }
@@ -305,8 +308,10 @@ function GifView({ src, name, width, height }) {
   return (
     <MediaCover label={cover} name={name}>
       <span className="attachment-gif-hidden" style={style}>
-        <span className="attachment-gif-hidden-label">GIF from KLIPY</span>
-        <button type="button" className="btn btn-secondary" onClick={show} aria-label="Show GIF">Show</button>
+        <span className="attachment-gif-hidden-label">{t('media.attachment.gifFromKlipy')}</span>
+        <button type="button" className="btn btn-secondary" onClick={show} aria-label={t('media.attachment.showGif')}>
+          {t('media.attachment.show')}
+        </button>
       </span>
     </MediaCover>
   );
@@ -330,7 +335,7 @@ function ExternalImage({ src, item, style }) {
 // pending message, an encrypted attachment, or a plain image URL (legacy uploads and
 // external images).
 export default function Attachment({ src, alt, localAttachments }) {
-  const name = alt || 'attachment';
+  const name = alt || t('media.attachment.defaultName');
 
   const placeholderId = placeholderIdFromUrl(src);
   if (placeholderId !== null) {

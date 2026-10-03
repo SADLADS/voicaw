@@ -22,6 +22,7 @@ import { addGuildReaction, fetchChannelMembers, fetchMembers, removeGuildReactio
 import { defaultChannel, errorMessage, rememberChannel } from '../../utils/guildDisplay';
 import { PERMISSIONS, colorToHex, has, memberColor } from '../../utils/permissions';
 import { mergeProfiles, nameOf, useProfiles } from '../../utils/profiles';
+import { t } from '../../i18n';
 
 const SHOW_MEMBERS_KEY = 'showMemberList';
 
@@ -222,7 +223,7 @@ export default function GuildView({ user }) {
   if (loadError) {
     return (
       <div id="guild-main" className="guild-main">
-        <p className="guild-placeholder">{loadError === 'Guild not found' ? "This guild doesn't exist, or you're not in it." : loadError}</p>
+        <p className="guild-placeholder">{loadError === 'Guild not found' ? t('guilds.view.notFound') : loadError}</p>
       </div>
     );
   }
@@ -233,7 +234,7 @@ export default function GuildView({ user }) {
     if (target) return <Navigate to={`/guild/${guild.id}/${target.id}`} replace />;
     return (
       <div id="guild-main" className="guild-main">
-        <p className="guild-placeholder">This guild has no channels yet.</p>
+        <p className="guild-placeholder">{t('guilds.view.noChannels')}</p>
       </div>
     );
   }
@@ -276,7 +277,7 @@ export default function GuildView({ user }) {
     channels: mentionChannels,
     canModerate: has(permissions, PERMISSIONS.MANAGE_MESSAGES),
     canSend: has(permissions, PERMISSIONS.SEND_MESSAGES),
-    cantSendText: `You do not have permission to reply in #${channel.name}.`,
+    cantSendText: t('guilds.view.cantReply', { name: channel.name }),
     canAddReactions: has(permissions, PERMISSIONS.ADD_REACTIONS),
     nameColors,
     onRead: guildList.refreshUnread,
@@ -287,7 +288,7 @@ export default function GuildView({ user }) {
       <header className="channel-header">
         <ChannelIcon channel={channel} className="channel-header-icon" />
         <h4 className="channel-header-name">{channel?.name ?? ''}</h4>
-        {channel?.nsfw && <span className="channel-nsfw-tag" title="Media in this channel is blurred until clicked">NSFW</span>}
+        {channel?.nsfw && <span className="channel-nsfw-tag" title={t('guilds.view.nsfwHint')}>{t('guilds.view.nsfw')}</span>}
         {channel?.topic && (
           <>
             <span className="channel-header-divider" />
@@ -298,10 +299,10 @@ export default function GuildView({ user }) {
           <button
             type="button"
             className={`channel-header-button mute-button${muteAnchor ? ' active' : ''}${muted ? ' muted' : ''}`}
-            aria-label={muted ? 'Unmute channel' : 'Mute channel'}
+            aria-label={muted ? t('guilds.view.unmuteChannel') : t('guilds.view.muteChannel')}
             aria-haspopup="menu"
             aria-expanded={Boolean(muteAnchor)}
-            title={muted ? 'Unmute channel' : 'Mute channel'}
+            title={muted ? t('guilds.view.unmuteChannel') : t('guilds.view.muteChannel')}
             // The menu closes itself on a press outside it; this press is its toggle.
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
@@ -318,9 +319,9 @@ export default function GuildView({ user }) {
           <button
             type="button"
             className={`channel-header-button pins-button${pinsAnchor ? ' active' : ''}`}
-            aria-label="Pinned messages"
+            aria-label={t('guilds.view.pinnedMessages')}
             aria-pressed={Boolean(pinsAnchor)}
-            title="Pinned messages"
+            title={t('guilds.view.pinnedMessages')}
             onClick={togglePins}
           >
             <FontAwesomeIcon icon={faThumbtack} />
@@ -330,9 +331,9 @@ export default function GuildView({ user }) {
           <button
             type="button"
             className={`channel-header-button threads-button${threadsAnchor ? ' active' : ''}`}
-            aria-label="Threads"
+            aria-label={t('guilds.view.threads')}
             aria-pressed={Boolean(threadsAnchor)}
-            title="Threads"
+            title={t('guilds.view.threads')}
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               setThreadsAnchor((open) => (open ? null : rect));
@@ -345,9 +346,9 @@ export default function GuildView({ user }) {
         <button
           type="button"
           className={`channel-header-button${membersVisible ? ' active' : ''}`}
-          aria-label={membersVisible ? 'Hide member list' : 'Show member list'}
+          aria-label={membersVisible ? t('guilds.view.hideMembers') : t('guilds.view.showMembers')}
           aria-pressed={membersVisible}
-          title={membersVisible ? 'Hide member list' : 'Show member list'}
+          title={membersVisible ? t('guilds.view.hideMembers') : t('guilds.view.showMembers')}
           onClick={toggleMembers}
         >
           <FontAwesomeIcon icon={faUsers} />
@@ -370,7 +371,7 @@ export default function GuildView({ user }) {
         <div className="guild-chat" data-current-user-id={user.id}>
           <NsfwChannelContext.Provider value={Boolean(channel?.nsfw)}>
             {!channel ? (
-              <p className="guild-placeholder">Loading…</p>
+              <p className="guild-placeholder">{t('common.loading')}</p>
             ) : channel.type === 'voice' ? (
               <VoiceChannelView guild={guild} channel={channel} nameColors={nameColors} />
             ) : channel.type === 'list' ? (
@@ -413,7 +414,7 @@ export default function GuildView({ user }) {
                 channels={mentionChannels}
                 canModerate={has(permissions, PERMISSIONS.MANAGE_MESSAGES)}
                 canSend={has(permissions, PERMISSIONS.SEND_MESSAGES)}
-                cantSendText={`You do not have permission to send messages in #${channel.name}.`}
+                cantSendText={t('guilds.view.cantSend', { name: channel.name })}
                 canAddReactions={has(permissions, PERMISSIONS.ADD_REACTIONS)}
                 canPin={has(permissions, PERMISSIONS.PIN_MESSAGES)}
                 pinsAnchor={pinsAnchor}
@@ -421,7 +422,7 @@ export default function GuildView({ user }) {
                 jumpTo={jumpTarget?.channelId === channel.id && conversation.loadedChannelId === channelId ? jumpTarget : null}
                 onJumped={clearJump}
                 nameColors={nameColors}
-                emptyText={`Welcome to #${channel.name}! This is the start of the channel.`}
+                emptyText={t('guilds.view.welcome', { name: channel.name })}
               />
             )}
           </NsfwChannelContext.Provider>

@@ -36,6 +36,7 @@ import VoiceChannelMembers from './VoiceChannelMembers';
 import { useVoice } from '../../hooks/useVoice';
 import { joinVoice } from '../../voice/voiceClient';
 import { PERMISSIONS, has } from '../../utils/permissions';
+import { t } from '../../i18n';
 
 const COLLAPSED_KEY = 'collapsedCategories';
 
@@ -125,19 +126,19 @@ export default function GuildSidebar({ guild, user }) {
   const { uncategorized, categories } = groupChannels(guild);
   // The threads you've joined, under their channels (threads you haven't are in the channel's
   // thread list).
-  const joinedThreads = (guild.threads ?? []).filter((t) => t.joined);
-  const threadsOf = (channel) => joinedThreads.filter((t) => t.parent_id === channel.id);
-  const hasUnreadThread = (channel) => threadsOf(channel).some((t) => unreadChannels.has(t.id) || channelMentions.has(t.id));
+  const joinedThreads = (guild.threads ?? []).filter((th) => th.joined);
+  const threadsOf = (channel) => joinedThreads.filter((th) => th.parent_id === channel.id);
+  const hasUnreadThread = (channel) => threadsOf(channel).some((th) => unreadChannels.has(th.id) || channelMentions.has(th.id));
   // The row whose menu is open (gone if it was deleted meanwhile).
   const menuChannel = rowMenu?.kind === 'channel' ? guild.channels.find((c) => c.id === rowMenu.id) : null;
   const menuCategory = rowMenu?.kind === 'category' ? guild.categories.find((c) => c.id === rowMenu.id) : null;
   // The empty space's menu: making channels and categories, inviting.
   const listMenuItems = [
     ...(managesChannels ? [
-      { key: 'create-channel', label: 'Create Channel', icon: faPlus, onSelect: () => openDialog({ type: 'channel' }) },
-      { key: 'create-category', label: 'Create Category', icon: faFolderPlus, onSelect: () => openDialog({ type: 'category' }) },
+      { key: 'create-channel', label: t('guilds.sidebar.createChannel'), icon: faPlus, onSelect: () => openDialog({ type: 'channel' }) },
+      { key: 'create-category', label: t('guilds.sidebar.createCategory'), icon: faFolderPlus, onSelect: () => openDialog({ type: 'category' }) },
     ] : []),
-    ...(can(PERMISSIONS.CREATE_INVITE) ? [{ key: 'invite', label: 'Invite People', icon: faUserPlus, onSelect: () => openDialog({ type: 'invite' }) }] : []),
+    ...(can(PERMISSIONS.CREATE_INVITE) ? [{ key: 'invite', label: t('guilds.sidebar.invitePeople'), icon: faUserPlus, onSelect: () => openDialog({ type: 'invite' }) }] : []),
   ];
   const inVoice = voice.status !== 'idle' && voice.guildId === guild.id ? voice.channelId : null;
   const speaking = new Set(voice.status === 'connected' ? voice.speaking : []);
@@ -190,7 +191,7 @@ export default function GuildSidebar({ guild, user }) {
           <span className="guild-channel-name">{thread.name}</span>
           {mentions > 0 && ' '}
           {mentions > 0 && (
-            <span className="mention-badge" aria-label={`${mentions} mentions`}>{mentions > 99 ? '99+' : mentions}</span>
+            <span className="mention-badge" aria-label={t('guilds.sidebar.mentionCount', { count: mentions })}>{mentions > 99 ? '99+' : mentions}</span>
           )}
         </Link>
       </li>
@@ -224,18 +225,18 @@ export default function GuildSidebar({ guild, user }) {
         >
           <ChannelIcon channel={channel} className="guild-channel-icon" />
           <span className="guild-channel-name">{channel.name}</span>
-          {muted && <FontAwesomeIcon icon={faBellSlash} className="guild-channel-muted" title="Muted" aria-label="Muted" />}
+          {muted && <FontAwesomeIcon icon={faBellSlash} className="guild-channel-muted" title={t('guilds.sidebar.muted')} aria-label={t('guilds.sidebar.muted')} />}
           {mentions > 0 && ' '}
           {mentions > 0 && (
-            <span className="mention-badge" aria-label={`${mentions} mentions`}>{mentions > 99 ? '99+' : mentions}</span>
+            <span className="mention-badge" aria-label={t('guilds.sidebar.mentionCount', { count: mentions })}>{mentions > 99 ? '99+' : mentions}</span>
           )}
         </Link>
         {!isMobile && (managesChannels || (channel.type === 'text' && has(channel.my_permissions, PERMISSIONS.MANAGE_WEBHOOKS))) && (
           <button
             type="button"
             className="guild-sidebar-icon-button"
-            aria-label={`Edit ${channel.name}`}
-            title="Edit channel"
+            aria-label={t('guilds.sidebar.editChannelNamed', { name: channel.name })}
+            title={t('guilds.sidebar.editChannel')}
             onClick={() => openDialog({ type: 'channel', channel })}
           >
             <FontAwesomeIcon icon={faGear} />
@@ -270,37 +271,37 @@ export default function GuildSidebar({ guild, user }) {
           <div className="guild-menu" role="menu">
             {can(PERMISSIONS.CREATE_INVITE) && (
               <button type="button" role="menuitem" className="guild-menu-item accent" onClick={() => openDialog({ type: 'invite' })}>
-                Invite People <FontAwesomeIcon icon={faUserPlus} />
+                {t('guilds.sidebar.invitePeople')} <FontAwesomeIcon icon={faUserPlus} />
               </button>
             )}
             {opensSettings && (
               <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'settings' })}>
-                Guild Settings <FontAwesomeIcon icon={faGear} />
+                {t('guilds.sidebar.guildSettings')} <FontAwesomeIcon icon={faGear} />
               </button>
             )}
             {can(PERMISSIONS.VIEW_AUDIT_LOG) && (
               <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'audit' })}>
-                Audit Log <FontAwesomeIcon icon={faClipboardList} />
+                {t('guilds.sidebar.auditLog')} <FontAwesomeIcon icon={faClipboardList} />
               </button>
             )}
             {managesChannels && (
               <>
                 <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'channel' })}>
-                  Create Channel <FontAwesomeIcon icon={faPlus} />
+                  {t('guilds.sidebar.createChannel')} <FontAwesomeIcon icon={faPlus} />
                 </button>
                 <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'category' })}>
-                  Create Category <FontAwesomeIcon icon={faFolderPlus} />
+                  {t('guilds.sidebar.createCategory')} <FontAwesomeIcon icon={faFolderPlus} />
                 </button>
               </>
             )}
             <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'notifications' })}>
-              Notification Settings <FontAwesomeIcon icon={faBell} />
+              {t('guilds.sidebar.notificationSettings')} <FontAwesomeIcon icon={faBell} />
             </button>
             {!isOwner && (
               <>
                 <div className="guild-menu-separator" />
                 <button type="button" role="menuitem" className="guild-menu-item danger" onClick={() => openDialog({ type: 'leave' })}>
-                  Leave Guild <FontAwesomeIcon icon={faRightFromBracket} />
+                  {t('guilds.sidebar.leaveGuild')} <FontAwesomeIcon icon={faRightFromBracket} />
                 </button>
               </>
             )}
@@ -310,7 +311,7 @@ export default function GuildSidebar({ guild, user }) {
 
       <nav
         className={`guild-channel-list${drag ? ' reordering' : ''}`}
-        aria-label="Channels"
+        aria-label={t('guilds.sidebar.channels')}
         ref={listRef}
         // Right-click on the empty space (a row's own menu has already handled its clicks).
         onContextMenu={(e) => {
@@ -356,8 +357,8 @@ export default function GuildSidebar({ guild, user }) {
                     <button
                       type="button"
                       className="guild-sidebar-icon-button"
-                      aria-label={`Edit category ${category.name}`}
-                      title="Edit category"
+                      aria-label={t('guilds.sidebar.editCategoryNamed', { name: category.name })}
+                      title={t('guilds.sidebar.editCategory')}
                       onClick={() => openDialog({ type: 'category', category })}
                     >
                       <FontAwesomeIcon icon={faGear} />
@@ -365,8 +366,8 @@ export default function GuildSidebar({ guild, user }) {
                     <button
                       type="button"
                       className="guild-sidebar-icon-button"
-                      aria-label={`Create channel in ${category.name}`}
-                      title="Create channel"
+                      aria-label={t('guilds.sidebar.createChannelIn', { name: category.name })}
+                      title={t('guilds.sidebar.createChannelShort')}
                       onClick={() => openDialog({ type: 'channel', categoryId: category.id })}
                     >
                       <FontAwesomeIcon icon={faPlus} />
@@ -380,7 +381,7 @@ export default function GuildSidebar({ guild, user }) {
         })}
 
         {uncategorized.length === 0 && categories.length === 0 && (
-          <p className="guild-sidebar-empty">No channels yet.</p>
+          <p className="guild-sidebar-empty">{t('guilds.sidebar.noChannels')}</p>
         )}
       </nav>
 
@@ -446,9 +447,9 @@ export default function GuildSidebar({ guild, user }) {
       )}
       {dialog?.type === 'deleteChannel' && (
         <ConfirmDialog
-          title={`Delete #${dialog.channel.name}`}
-          message={`Delete #${dialog.channel.name} and all its ${{ list: 'tasks', doc: 'documents' }[dialog.channel.type] ?? 'messages'}? This can't be undone.`}
-          confirmLabel="Delete Channel"
+          title={t('guilds.sidebar.deleteChannel.title', { name: dialog.channel.name })}
+          message={t(`guilds.sidebar.deleteChannel.${{ list: 'messageList', doc: 'messageDoc' }[dialog.channel.type] ?? 'messageText'}`, { name: dialog.channel.name })}
+          confirmLabel={t('guilds.sidebar.deleteChannel.confirm')}
           focusConfirm
           onConfirm={async () => {
             await deleteChannel(guild.id, dialog.channel.id);
@@ -459,9 +460,9 @@ export default function GuildSidebar({ guild, user }) {
       )}
       {dialog?.type === 'deleteCategory' && (
         <ConfirmDialog
-          title={`Delete '${dialog.category.name}'`}
-          message={`Delete the category ${dialog.category.name}? Its channels stay, without a category.`}
-          confirmLabel="Delete Category"
+          title={t('guilds.sidebar.deleteCategory.title', { name: dialog.category.name })}
+          message={t('guilds.sidebar.deleteCategory.message', { name: dialog.category.name })}
+          confirmLabel={t('guilds.sidebar.deleteCategory.confirm')}
           focusConfirm
           onConfirm={() => deleteCategory(guild.id, dialog.category.id)}
           onClose={closeDialog}
@@ -469,9 +470,9 @@ export default function GuildSidebar({ guild, user }) {
       )}
       {dialog?.type === 'leave' && (
         <ConfirmDialog
-          title={`Leave '${guild.name}'`}
-          message={`Are you sure you want to leave ${guild.name}? You won't be able to rejoin unless you are re-invited.`}
-          confirmLabel="Leave Guild"
+          title={t('guilds.sidebar.leave.title', { name: guild.name })}
+          message={t('guilds.sidebar.leave.message', { name: guild.name })}
+          confirmLabel={t('guilds.sidebar.leaveGuild')}
           onConfirm={async () => {
             await leaveGuild(guild.id);
             guildList.removeGuild(guild.id);

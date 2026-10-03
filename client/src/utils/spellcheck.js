@@ -15,10 +15,10 @@ const STORAGE_KEY = 'spellcheck';
 const LANGUAGE_KEY = 'spellcheckLanguage';
 const listeners = new Set();
 
-// Ours (spellcheck/dictionaries.js).
+// Ours (spellcheck/dictionaries.js). labelKey: the name Settings shows (an i18n key).
 export const SPELLCHECK_LANGUAGES = [
-  { code: 'en-GB', label: 'English (UK)' },
-  { code: 'en-US', label: 'English (US)' },
+  { code: 'en-GB', labelKey: 'settings.spellcheck.languages.enGB' },
+  { code: 'en-US', labelKey: 'settings.spellcheck.languages.enUS' },
 ];
 
 function read(key) {

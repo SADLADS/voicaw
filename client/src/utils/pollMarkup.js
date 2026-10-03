@@ -11,6 +11,8 @@
 // Editing a poll gives every option whose text or emoji changed a new id, so the votes it had stop
 // counting (they point at an id that's gone). Voting clears your own such leftovers.
 
+import { t } from '../i18n';
+
 export const POLL_PREFIX = 'poll:v1:';
 export const VOTE_PREFIX = 'poll:';
 export const MAX_POLL_OPTIONS = 10;
@@ -19,13 +21,13 @@ export const MAX_OPTION_LENGTH = 55;
 
 // How long a poll can run (Discord's choices); 24 hours unless picked.
 export const POLL_DURATIONS = [
-  { label: '1 hour', seconds: 3600 },
-  { label: '4 hours', seconds: 4 * 3600 },
-  { label: '8 hours', seconds: 8 * 3600 },
-  { label: '24 hours', seconds: 24 * 3600 },
-  { label: '3 days', seconds: 3 * 86400 },
-  { label: '1 week', seconds: 7 * 86400 },
-  { label: '2 weeks', seconds: 14 * 86400 },
+  { label: t('chat.poll.duration.hours', { count: 1 }), seconds: 3600 },
+  { label: t('chat.poll.duration.hours', { count: 4 }), seconds: 4 * 3600 },
+  { label: t('chat.poll.duration.hours', { count: 8 }), seconds: 8 * 3600 },
+  { label: t('chat.poll.duration.hours', { count: 24 }), seconds: 24 * 3600 },
+  { label: t('chat.poll.duration.days', { count: 3 }), seconds: 3 * 86400 },
+  { label: t('chat.poll.duration.weeks', { count: 1 }), seconds: 7 * 86400 },
+  { label: t('chat.poll.duration.weeks', { count: 2 }), seconds: 14 * 86400 },
 ];
 export const DEFAULT_POLL_DURATION = 24 * 3600;
 const MAX_POLL_DURATION = 14 * 86400;
@@ -106,11 +108,10 @@ export function endPoll(poll, now = Math.floor(Date.now() / 1000)) {
 
 // "3 days left", "5 hours left", "12 minutes left", "less than a minute left".
 export function timeLeft(seconds) {
-  const plural = (n, unit) => `${n} ${unit}${n === 1 ? '' : 's'} left`;
-  if (seconds >= 86400) return plural(Math.floor(seconds / 86400), 'day');
-  if (seconds >= 3600) return plural(Math.floor(seconds / 3600), 'hour');
-  if (seconds >= 60) return plural(Math.floor(seconds / 60), 'minute');
-  return 'less than a minute left';
+  if (seconds >= 86400) return t('chat.poll.timeLeft.days', { count: Math.floor(seconds / 86400) });
+  if (seconds >= 3600) return t('chat.poll.timeLeft.hours', { count: Math.floor(seconds / 3600) });
+  if (seconds >= 60) return t('chat.poll.timeLeft.minutes', { count: Math.floor(seconds / 60) });
+  return t('chat.poll.timeLeft.lessThanMinute');
 }
 
 // Whether an answer of `poll` was changed (text or emoji) in `option` ({ id, text, emoji }).
@@ -138,7 +139,7 @@ export function editedPoll(original, { question, options }) {
 
 // For plain-text places (reply previews, notifications, copying).
 export function pollSummary(poll) {
-  return `📊 Poll: ${poll.question}`;
+  return t('chat.poll.summary', { question: poll.question });
 }
 
 export const voteKey = (optionId) => VOTE_PREFIX + optionId;

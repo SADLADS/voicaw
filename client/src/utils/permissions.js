@@ -42,97 +42,49 @@ export function threadPermissions(channelPermissions) {
   return ((channelPermissions ?? 0) & ~PERMISSIONS.SEND_MESSAGES) | send;
 }
 
-// What the role editor lists, in groups, with Discord's wording.
+// What the role editor lists, in groups. Their names and descriptions (Discord's wording) are
+// translations: guildAdmin.permissionGroups.<key>, guildAdmin.permissions.<PERMISSION>.label
+// and .description.
 export const PERMISSION_GROUPS = [
-  {
-    title: 'General',
-    items: [
-      ['VIEW_CHANNEL', 'View Channels', 'Lets members see channels (private channels aside).'],
-      ['MANAGE_CHANNELS', 'Manage Channels', 'Lets members create, edit and delete channels and categories.'],
-      ['MANAGE_ROLES', 'Manage Roles', 'Lets members create and edit roles below their highest role, give them out, and change channel permissions.'],
-      ['MANAGE_GUILD', 'Manage Guild', "Lets members change the guild's name and icon, and see and revoke all invites."],
-      ['MANAGE_EMOJIS', 'Manage Emoji', "Lets members add, rename and remove the guild's custom emoji."],
-      ['MANAGE_WEBHOOKS', 'Manage Webhooks', 'Lets members create, edit and delete webhooks, which let other apps and services post messages in text channels.'],
-      ['VIEW_AUDIT_LOG', 'View Audit Log', "Lets members see the guild's audit log: who deleted which messages, and who changed the guild's settings, channels, roles, invites, emoji and webhooks, or kicked and banned people."],
-    ],
-  },
-  {
-    title: 'Membership',
-    items: [
-      ['CREATE_INVITE', 'Create Invite', 'Lets members invite people to this guild.'],
-      ['KICK_MEMBERS', 'Kick Members', 'Lets members remove people ranked below them. They can rejoin with an invite.'],
-      ['BAN_MEMBERS', 'Ban Members', 'Lets members remove people ranked below them for good (until unbanned).'],
-    ],
-  },
-  {
-    title: 'Text channels',
-    items: [
-      ['SEND_MESSAGES', 'Send Messages', 'Lets members post in text channels.'],
-      ['ADD_REACTIONS', 'Add Reactions', 'Lets members react to messages.'],
-      ['MANAGE_MESSAGES', 'Manage Messages', "Lets members delete other people's messages."],
-      ['PIN_MESSAGES', 'Pin Messages', 'Lets members pin and unpin messages.'],
-      ['CREATE_THREADS', 'Create Threads', 'Lets members start threads: side conversations from a message, or on their own.'],
-      ['SEND_MESSAGES_IN_THREADS', 'Send Messages in Threads', 'Lets members post in threads. Archiving, renaming and deleting other people\'s threads follows Manage Messages.'],
-      ['MENTION_EVERYONE', 'Mention @everyone, @here and All Roles', 'Lets members notify everyone in a channel (@everyone), everyone online there (@here), and any role, even ones not set to be mentionable.'],
-    ],
-  },
-  {
-    title: 'Voice channels',
-    items: [
-      ['CONNECT', 'Connect', 'Lets members join voice channels and hear others.'],
-      ['SPEAK', 'Speak', 'Lets members talk in voice channels. Without it they can only listen.'],
-      ['STREAM', 'Video', 'Lets members share their screen in voice channels.'],
-    ],
-  },
-  {
-    title: 'List channels',
-    items: [
-      ['EDIT_TASKS', 'Edit Tasks', 'Lets members add, edit, assign, complete, reorder and delete tasks in list channels. Commenting on tasks follows Send Messages.'],
-    ],
-  },
-  {
-    title: 'Document channels',
-    items: [
-      ['CREATE_DOCUMENTS', 'Create Documents', "Lets members write documents in document channels and edit their own. Editing and deleting other people's follows Manage Messages; replying follows Send Messages."],
-    ],
-  },
-  {
-    title: 'Advanced',
-    items: [
-      ['ADMINISTRATOR', 'Administrator', 'Every permission, in every channel, whatever the channel settings. Handle with care.'],
-    ],
-  },
+  { key: 'general', items: ['VIEW_CHANNEL', 'MANAGE_CHANNELS', 'MANAGE_ROLES', 'MANAGE_GUILD', 'MANAGE_EMOJIS', 'MANAGE_WEBHOOKS', 'VIEW_AUDIT_LOG'] },
+  { key: 'membership', items: ['CREATE_INVITE', 'KICK_MEMBERS', 'BAN_MEMBERS'] },
+  { key: 'text', items: ['SEND_MESSAGES', 'ADD_REACTIONS', 'MANAGE_MESSAGES', 'PIN_MESSAGES', 'CREATE_THREADS', 'SEND_MESSAGES_IN_THREADS', 'MENTION_EVERYONE'] },
+  { key: 'voice', items: ['CONNECT', 'SPEAK', 'STREAM'] },
+  { key: 'list', items: ['EDIT_TASKS'] },
+  { key: 'doc', items: ['CREATE_DOCUMENTS'] },
+  { key: 'advanced', items: ['ADMINISTRATOR'] },
 ];
 
-// What a channel override can change (the server refuses anything else), by channel type.
+// What a channel override can change (the server refuses anything else), by channel type:
+// [permission, label key] (guildAdmin.channelPermissions.items.<key>; some read differently here).
 const CHANNEL_PERMISSION_ITEMS = {
   text: [
-    ['VIEW_CHANNEL', 'View Channel'],
-    ['SEND_MESSAGES', 'Send Messages'],
-    ['ADD_REACTIONS', 'Add Reactions'],
-    ['MANAGE_MESSAGES', 'Manage Messages'],
-    ['PIN_MESSAGES', 'Pin Messages'],
-    ['CREATE_THREADS', 'Create Threads'],
-    ['SEND_MESSAGES_IN_THREADS', 'Send Messages in Threads'],
+    ['VIEW_CHANNEL', 'viewChannel'],
+    ['SEND_MESSAGES', 'sendMessages'],
+    ['ADD_REACTIONS', 'addReactions'],
+    ['MANAGE_MESSAGES', 'manageMessages'],
+    ['PIN_MESSAGES', 'pinMessages'],
+    ['CREATE_THREADS', 'createThreads'],
+    ['SEND_MESSAGES_IN_THREADS', 'sendMessagesInThreads'],
   ],
   voice: [
-    ['VIEW_CHANNEL', 'View Channel'],
-    ['CONNECT', 'Connect'],
-    ['SPEAK', 'Speak'],
-    ['STREAM', 'Video'],
+    ['VIEW_CHANNEL', 'viewChannel'],
+    ['CONNECT', 'connect'],
+    ['SPEAK', 'speak'],
+    ['STREAM', 'video'],
   ],
   list: [
-    ['VIEW_CHANNEL', 'View Channel'],
-    ['EDIT_TASKS', 'Edit Tasks'],
-    ['SEND_MESSAGES', 'Comment on Tasks'],
-    ['MANAGE_MESSAGES', 'Manage Comments'],
+    ['VIEW_CHANNEL', 'viewChannel'],
+    ['EDIT_TASKS', 'editTasks'],
+    ['SEND_MESSAGES', 'commentOnTasks'],
+    ['MANAGE_MESSAGES', 'manageComments'],
   ],
   doc: [
-    ['VIEW_CHANNEL', 'View Channel'],
-    ['CREATE_DOCUMENTS', 'Create Documents'],
-    ['SEND_MESSAGES', 'Reply to Documents'],
-    ['ADD_REACTIONS', 'Add Reactions'],
-    ['MANAGE_MESSAGES', 'Manage Documents and Replies'],
+    ['VIEW_CHANNEL', 'viewChannel'],
+    ['CREATE_DOCUMENTS', 'createDocuments'],
+    ['SEND_MESSAGES', 'replyToDocuments'],
+    ['ADD_REACTIONS', 'addReactions'],
+    ['MANAGE_MESSAGES', 'manageDocuments'],
   ],
 };
 

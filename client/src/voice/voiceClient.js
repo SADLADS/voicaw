@@ -10,6 +10,7 @@ import { isMobileDevice } from '../utils/presence';
 import {
   joinRefused, REJOIN_FOR_MS, rejoinDelay, shouldRejoin, STALE_AFTER_HIDDEN_MS, TAKE_OVER_AFTER_MS,
 } from './rejoin';
+import { t } from '../i18n';
 
 // This device's voice connection (one at a time, like Discord): a voice channel or a DM
 // call, the microphone, mute and deafen, and who's talking. The audio goes through a LiveKit
@@ -199,19 +200,19 @@ function errorMessage(err, fallback) {
 }
 
 function micErrorMessage(err) {
-  if (err?.name === 'NotAllowedError') return 'Microphone access is blocked. Allow it in your browser to talk.';
-  if (err?.name === 'NotFoundError') return 'No microphone found.';
-  return 'Could not use the microphone.';
+  if (err?.name === 'NotAllowedError') return t('voice.errors.micBlocked');
+  if (err?.name === 'NotFoundError') return t('voice.errors.noMic');
+  return t('voice.errors.micFailed');
 }
 
 function disconnectMessage(reason) {
   const { DisconnectReason } = livekit;
   switch (reason) {
     case DisconnectReason.CLIENT_INITIATED: return null;
-    case DisconnectReason.DUPLICATE_IDENTITY: return 'You joined this channel from another device.';
-    case DisconnectReason.PARTICIPANT_REMOVED: return 'You were disconnected from voice.';
-    case DisconnectReason.ROOM_DELETED: return 'The voice channel was closed.';
-    default: return 'Lost the connection to voice.';
+    case DisconnectReason.DUPLICATE_IDENTITY: return t('voice.errors.otherDevice');
+    case DisconnectReason.PARTICIPANT_REMOVED: return t('voice.errors.removed');
+    case DisconnectReason.ROOM_DELETED: return t('voice.errors.closed');
+    default: return t('voice.errors.lost');
   }
 }
 
@@ -415,7 +416,7 @@ function publishRights(participant) {
 // LiveKit's end-to-end encryption with `key` (32 bytes): every audio frame is encrypted in a
 // worker before it leaves, so LiveKit only forwards ciphertext.
 async function e2eeOptions(key) {
-  if (!livekit.isE2EESupported()) throw new Error("This browser can't make encrypted calls.");
+  if (!livekit.isE2EESupported()) throw new Error(t('voice.errors.noEncryptedCalls'));
   const keyProvider = new livekit.ExternalE2EEKeyProvider();
   await keyProvider.setKey(key.slice().buffer);
   e2eeWorker = new Worker(new URL('livekit-client/e2ee-worker', import.meta.url), { type: 'module' });
@@ -479,7 +480,7 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
     attempt++;
     await teardown();
     if (rejoining) return { error: err };
-    update({ ...NOT_IN_VOICE, error: errorMessage(err, err?.message?.startsWith('This browser') ? err.message : 'Could not connect to voice.') });
+    update({ ...NOT_IN_VOICE, error: errorMessage(err, err?.message === t('voice.errors.noEncryptedCalls') ? err.message : t('voice.errors.connect')) });
   }
 }
 
@@ -560,7 +561,7 @@ function scheduleRejoin() {
   if (rejoin.timer) clearTimeout(rejoin.timer);
   rejoin.timer = null;
   if (Date.now() - rejoin.since > REJOIN_FOR_MS) {
-    giveUpRejoin('Lost the connection to voice.');
+    giveUpRejoin(t('voice.errors.lost'));
     return;
   }
   if (waitForVisible()) return; // visibilitychange tries again
@@ -581,7 +582,7 @@ async function tryRejoin() {
     return;
   }
   if (result?.error && joinRefused(result.error)) {
-    giveUpRejoin(errorMessage(result.error, 'Lost the connection to voice.'));
+    giveUpRejoin(errorMessage(result.error, t('voice.errors.lost')));
     return;
   }
   update({ ...NOT_IN_VOICE, guildId, channelId, status: 'reconnecting' });
@@ -700,8 +701,8 @@ export async function startScreenShare({ audio = true } = {}) {
 }
 
 function screenErrorMessage(err) {
-  if (err?.name === 'NotSupportedError' || !canShareScreen()) return "This browser can't share the screen.";
-  return 'Could not share your screen.';
+  if (err?.name === 'NotSupportedError' || !canShareScreen()) return t('voice.errors.noScreenShare');
+  return t('voice.errors.screenShareFailed');
 }
 
 export async function stopScreenShare() {

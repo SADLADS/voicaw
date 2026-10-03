@@ -17,6 +17,7 @@ import { channelLink, errorMessage } from '../../utils/guildDisplay';
 import { PERMISSIONS, has, threadPermissions } from '../../utils/permissions';
 import { displayName, useProfiles } from '../../utils/profiles';
 import { formatDateTime, useDateFormat } from '../../utils/dateFormat';
+import { t } from '../../i18n';
 
 // A thread beside its text channel (`parent`), like Discord's: its name, a menu (join or leave,
 // rename and archive for its starter or Manage Messages, delete for Manage Messages, copy
@@ -81,47 +82,47 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
 
   const menuItems = thread ? [
     thread.joined
-      ? { key: 'leave', label: 'Leave Thread', icon: faRightFromBracket, hint: 'It leaves your channel list', onSelect: () => setThreadJoined(thread.id, false) }
-      : { key: 'join', label: 'Join Thread', icon: faUserPlus, hint: 'Keep it in your channel list', onSelect: () => setThreadJoined(thread.id, true) },
-    ...(own || canManage ? [{ key: 'rename', label: 'Rename Thread', icon: faEdit, onSelect: () => setDialog('rename') }] : []),
+      ? { key: 'leave', label: t('guilds.threads.pane.leave'), icon: faRightFromBracket, hint: t('guilds.threads.pane.leaveHint'), onSelect: () => setThreadJoined(thread.id, false) }
+      : { key: 'join', label: t('guilds.threads.pane.joinThread'), icon: faUserPlus, hint: t('guilds.threads.pane.joinHint'), onSelect: () => setThreadJoined(thread.id, true) },
+    ...(own || canManage ? [{ key: 'rename', label: t('guilds.threads.pane.rename'), icon: faEdit, onSelect: () => setDialog('rename') }] : []),
     ...(thread.archived
-      ? (canSend || canManage ? [{ key: 'unarchive', label: 'Unarchive Thread', icon: faBoxOpen, onSelect: () => act(() => updateThread(thread.id, { archived: false })) }] : [])
-      : (own || canManage ? [{ key: 'archive', label: 'Archive Thread', icon: faBoxArchive, onSelect: () => act(() => updateThread(thread.id, { archived: true })) }] : [])),
+      ? (canSend || canManage ? [{ key: 'unarchive', label: t('guilds.threads.pane.unarchive'), icon: faBoxOpen, onSelect: () => act(() => updateThread(thread.id, { archived: false })) }] : [])
+      : (own || canManage ? [{ key: 'archive', label: t('guilds.threads.pane.archive'), icon: faBoxArchive, onSelect: () => act(() => updateThread(thread.id, { archived: true })) }] : [])),
     {
       key: 'copy-link',
-      label: 'Copy Link',
+      label: t('guilds.threads.pane.copyLink'),
       icon: faLink,
       onSelect: async () => {
         await navigator.clipboard.writeText(`${channelLink(guild.id, parent.id)}?thread=${thread.id}`);
-        return 'Link copied';
+        return t('guilds.threads.pane.linkCopied');
       },
     },
-    ...(canManage ? [{ separator: true }, { key: 'delete', label: 'Delete Thread', icon: faTrash, danger: true, onSelect: () => setDialog('delete') }] : []),
+    ...(canManage ? [{ separator: true }, { key: 'delete', label: t('guilds.threads.pane.deleteThread'), icon: faTrash, danger: true, onSelect: () => setDialog('delete') }] : []),
   ] : [];
 
   return (
-    <aside className={`thread-pane${isMobile ? ' mobile' : ''}`} aria-label="Thread">
+    <aside className={`thread-pane${isMobile ? ' mobile' : ''}`} aria-label={t('guilds.threads.pane.label')}>
       <header className="thread-pane-header">
         {isMobile && (
-          <button type="button" className="icon-button" aria-label={`Back to #${parent.name}`} onClick={onClose}>
+          <button type="button" className="icon-button" aria-label={t('guilds.threads.pane.back', { name: parent.name })} onClick={onClose}>
             <FontAwesomeIcon icon={faArrowLeft} />
           </button>
         )}
         <FontAwesomeIcon icon={faComments} className="thread-pane-icon" />
         <div className="thread-pane-title">
           <h5>{thread?.name ?? ''}</h5>
-          <small>#{parent.name}{thread?.archived ? ' · Archived' : ''}</small>
+          <small>{thread?.archived ? t('guilds.threads.pane.channelArchived', { name: parent.name }) : t('guilds.threads.pane.channel', { name: parent.name })}</small>
         </div>
         {thread && !thread.joined && (
           <button type="button" className="btn btn-sm btn-secondary thread-pane-join" onClick={() => act(() => setThreadJoined(thread.id, true))}>
-            Join
+            {t('guilds.threads.pane.join')}
           </button>
         )}
         {thread && (
           <button
             type="button"
             className={`icon-button thread-pane-menu-button${menuAnchor ? ' active' : ''}`}
-            aria-label="Thread options"
+            aria-label={t('guilds.threads.pane.options')}
             aria-haspopup="menu"
             onClick={(e) => setMenuAnchor(e.currentTarget.getBoundingClientRect())}
           >
@@ -129,7 +130,7 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
           </button>
         )}
         {!isMobile && (
-          <button type="button" className="icon-button" aria-label="Close thread" title="Close" onClick={onClose}>
+          <button type="button" className="icon-button" aria-label={t('guilds.threads.pane.close')} title={t('common.close')} onClick={onClose}>
             <FontAwesomeIcon icon={faXmark} />
           </button>
         )}
@@ -156,7 +157,7 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
       )}
       {thread?.archived && (
         <p className="thread-pane-archived" role="status">
-          This thread is archived.{canSend ? ' Sending a message brings it back.' : ''}
+          {canSend ? t('guilds.threads.pane.archivedCanSend') : t('guilds.threads.pane.archived')}
         </p>
       )}
 
@@ -171,9 +172,9 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
               conversation={conversation}
               canModerate={canManage}
               canSend={canSend}
-              cantSendText="You do not have permission to send messages in this thread."
+              cantSendText={t('guilds.threads.pane.cantSend')}
               canPin={has(permissions, PERMISSIONS.PIN_MESSAGES)}
-              emptyText="No messages in this thread yet. Say something!"
+              emptyText={t('guilds.threads.pane.empty')}
             />
           )}
         </ThreadContext.Provider>
@@ -181,7 +182,7 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
 
       {menuAnchor && (
         <ContextMenu
-          label="Thread options"
+          label={t('guilds.threads.pane.options')}
           title={thread?.name}
           sheet={isMobile}
           items={menuItems}
@@ -194,9 +195,9 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
       )}
       {dialog === 'delete' && thread && (
         <ConfirmDialog
-          title="Delete thread"
-          message={`Delete "${thread.name}" and all its messages? This can't be undone.`}
-          confirmLabel="Delete thread"
+          title={t('guilds.threads.pane.deleteTitle')}
+          message={t('guilds.threads.pane.deleteMessage', { name: thread.name })}
+          confirmLabel={t('guilds.threads.pane.deleteTitle')}
           onConfirm={async () => {
             await deleteThread(thread.id);
             onClose();

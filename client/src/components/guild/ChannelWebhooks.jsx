@@ -6,6 +6,7 @@ import { errorMessage } from '../../utils/guildDisplay';
 import { webhookUrl } from '../../utils/webhookUrl';
 import { useDateFormat, formatDate } from '../../utils/dateFormat';
 import defaultAvatar from '../../assets/images/default.png';
+import { t } from '../../i18n';
 
 // The server shrinks the picture (like a profile picture), so the original can be big.
 const MAX_AVATAR_BYTES = 8 * 1024 * 1024;
@@ -62,13 +63,13 @@ function WebhookRow({ hook, open, onToggle, onChanged, onDeleted }) {
 
   async function pick(file) {
     if (!file) return;
-    if (!file.type.startsWith('image/')) return setError('Pick an image.');
-    if (file.size > MAX_AVATAR_BYTES) return setError('Pictures can be up to 8 MB.');
+    if (!file.type.startsWith('image/')) return setError(t('guildAdmin.webhooks.pickImage'));
+    if (file.size > MAX_AVATAR_BYTES) return setError(t('guildAdmin.webhooks.tooBig'));
     setError(null);
     try {
       setAvatar(await pictureData(file));
     } catch {
-      setError("That image couldn't be read.");
+      setError(t('guildAdmin.webhooks.unreadable'));
     }
   }
 
@@ -86,7 +87,7 @@ function WebhookRow({ hook, open, onToggle, onChanged, onDeleted }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      setError("Couldn't copy it. Your browser may not allow it here.");
+      setError(t('guildAdmin.webhooks.copyFailed'));
     }
   }
 
@@ -97,7 +98,9 @@ function WebhookRow({ hook, open, onToggle, onChanged, onDeleted }) {
         <span className="webhook-summary-text">
           <span className="webhook-name">{hook.name}</span>
           <span className="vc-hint">
-            Created {formatDate(hook.created_at * 1000)}{hook.user ? ` by ${hook.user.username}` : ''}
+            {hook.user
+              ? t('guildAdmin.webhooks.createdBy', { date: formatDate(hook.created_at * 1000), name: hook.user.username })
+              : t('guildAdmin.webhooks.created', { date: formatDate(hook.created_at * 1000) })}
           </span>
         </span>
         <FontAwesomeIcon icon={open ? faChevronDown : faChevronRight} className="webhook-chevron" />
@@ -105,25 +108,25 @@ function WebhookRow({ hook, open, onToggle, onChanged, onDeleted }) {
       {open && (
         <div className="webhook-editor">
           <div className="webhook-editor-top">
-            <button type="button" className="webhook-avatar-picker" title="Change picture" onClick={() => fileRef.current?.click()}>
-              <img className="webhook-avatar large" src={picture} alt={`Picture of ${hook.name}`} />
-              <span>Change</span>
+            <button type="button" className="webhook-avatar-picker" title={t('guildAdmin.webhooks.changePicture')} onClick={() => fileRef.current?.click()}>
+              <img className="webhook-avatar large" src={picture} alt={t('guildAdmin.webhooks.pictureOf', { name: hook.name })} />
+              <span>{t('guildAdmin.webhooks.change')}</span>
             </button>
             <input
               ref={fileRef}
               type="file"
               accept="image/*"
               hidden
-              aria-label="Webhook picture"
+              aria-label={t('guildAdmin.webhooks.picture')}
               onChange={(e) => { pick(e.target.files[0]); e.target.value = ''; }}
             />
             <label className="webhook-name-field">
-              <span className="vc-label">Name</span>
+              <span className="vc-label">{t('guildAdmin.webhooks.name')}</span>
               <input
                 className="form-control form-control-sm"
                 value={name}
                 maxLength={NAME_LENGTH}
-                aria-label="Webhook name"
+                aria-label={t('guildAdmin.webhooks.nameLabel')}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && dirty && name.trim()) save(); }}
               />
@@ -131,32 +134,32 @@ function WebhookRow({ hook, open, onToggle, onChanged, onDeleted }) {
           </div>
           {(hook.avatar_url || avatar) && (
             <button type="button" className="btn btn-link btn-sm webhook-remove-avatar" onClick={() => setAvatar(avatar ? undefined : null)}>
-              {avatar ? 'Undo picture change' : 'Remove picture'}
+              {avatar ? t('guildAdmin.webhooks.undoPicture') : t('guildAdmin.webhooks.removePicture')}
             </button>
           )}
           {error && <p className="error-msg" role="alert">{error}</p>}
           <div className="webhook-actions">
             <button type="button" className="btn btn-secondary btn-sm" onClick={copy}>
-              <FontAwesomeIcon icon={faCopy} /> {copied ? 'Copied!' : 'Copy Webhook URL'}
+              <FontAwesomeIcon icon={faCopy} /> {copied ? t('guildAdmin.webhooks.copied') : t('guildAdmin.webhooks.copyUrl')}
             </button>
             {confirmingDelete ? (
               <>
-                <span className="vc-hint">Delete {hook.name}? Anything using its URL stops working.</span>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirmingDelete(false)}>Cancel</button>
+                <span className="vc-hint">{t('guildAdmin.webhooks.confirmDelete', { name: hook.name })}</span>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirmingDelete(false)}>{t('common.cancel')}</button>
                 <button
                   type="button"
                   className="btn btn-danger btn-sm"
                   disabled={busy}
                   onClick={() => run(async () => { await deleteWebhook(hook.id); onDeleted(hook.id); })}
                 >
-                  Delete
+                  {t('common.delete')}
                 </button>
               </>
             ) : (
-              <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => setConfirmingDelete(true)}>Delete Webhook</button>
+              <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => setConfirmingDelete(true)}>{t('guildAdmin.webhooks.delete')}</button>
             )}
             {dirty && !confirmingDelete && (
-              <button type="button" className="btn btn-primary btn-sm vc-button" disabled={busy || !name.trim()} onClick={save}>Save Changes</button>
+              <button type="button" className="btn btn-primary btn-sm vc-button" disabled={busy || !name.trim()} onClick={save}>{t('guildAdmin.webhooks.saveChanges')}</button>
             )}
           </div>
         </div>
@@ -186,7 +189,7 @@ export default function ChannelWebhooks({ channel }) {
     setBusy(true);
     setError(null);
     try {
-      const hook = await createWebhook(channel.id, { name: 'Captain Hook' });
+      const hook = await createWebhook(channel.id, { name: t('guildAdmin.webhooks.defaultName') });
       setHooks((list) => [...(list ?? []), hook]);
       setOpenId(hook.id);
     } catch (err) {
@@ -198,21 +201,17 @@ export default function ChannelWebhooks({ channel }) {
 
   return (
     <div className="channel-webhooks">
-      <p className="vc-hint">
-        Webhooks let other apps and services post messages into #{channel.name}. Each has its own
-        name and picture, and a secret URL: anything that works with Discord webhooks works with it.
-        Anyone with the URL can post here, so keep it private.
-      </p>
+      <p className="vc-hint">{t('guildAdmin.webhooks.intro', { name: channel.name })}</p>
       <div className="vc-form-row">
         <button type="button" className="btn btn-primary btn-sm vc-button" disabled={busy} onClick={create}>
-          <FontAwesomeIcon icon={faPlus} /> New Webhook
+          <FontAwesomeIcon icon={faPlus} /> {t('guildAdmin.webhooks.new')}
         </button>
       </div>
       {error && <p className="error-msg" role="alert">{error}</p>}
-      {hooks == null ? (!error && <p className="vc-hint">Loading…</p>) : hooks.length === 0 ? (
-        <p className="vc-hint">No webhooks yet.</p>
+      {hooks == null ? (!error && <p className="vc-hint">{t('common.loading')}</p>) : hooks.length === 0 ? (
+        <p className="vc-hint">{t('guildAdmin.webhooks.none')}</p>
       ) : (
-        <ul className="webhook-list" aria-label="Webhooks">
+        <ul className="webhook-list" aria-label={t('guildAdmin.channelDialog.tabs.webhooks')}>
           {hooks.map((hook) => (
             <WebhookRow
               key={hook.id}

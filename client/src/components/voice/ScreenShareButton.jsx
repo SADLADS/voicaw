@@ -5,6 +5,7 @@ import { useVoice } from '../../hooks/useVoice';
 import { canShareScreen, startScreenShare, stopScreenShare } from '../../voice/voiceClient';
 import { isDesktopApp } from '../../utils/desktop';
 import ScreenPicker from './ScreenPicker';
+import { t } from '../../i18n';
 
 // Share your screen / stop sharing, while you're in a voice channel with Video. Not on phones
 // (their browsers can't share a screen). A browser asks what to share itself; the desktop app
@@ -14,7 +15,7 @@ export default function ScreenShareButton({ className = 'user-panel-button' }) {
   const [picking, setPicking] = useState(false);
   const available = voice.status === 'connected' && voice.channelId != null && voice.canStream && canShareScreen();
   if (!available && !voice.streaming) return null;
-  const label = voice.streaming ? 'Stop sharing your screen' : 'Share your screen';
+  const label = voice.streaming ? t('voice.screenShare.stop') : t('voice.screenShare.start');
   const onClick = () => {
     if (voice.streaming) stopScreenShare();
     else if (isDesktopApp()) setPicking(true);

@@ -3,6 +3,7 @@ import { ReactionEmoji } from './MessageReactions';
 import PollVoters from './PollVoters';
 import ConfirmDialog from './guild/ConfirmDialog';
 import { myVotes, pollEndsAt, tallyVotes, timeLeft, voteShare } from '../utils/pollMarkup';
+import { t } from '../i18n';
 
 // The current time (unix s), redrawn every minute until `endsAt` and once right at it. A new
 // `endsAt` (the poll was just ended) takes a fresh reading at once, so it shows as closed
@@ -73,9 +74,9 @@ export default function Poll({ poll, reactions, userId, names, sentAt, onVote, o
   const stop = (e) => e.stopPropagation(); // not the message's own click handling
 
   return (
-    <div className="poll" role="group" aria-label={`Poll: ${poll.question}`}>
+    <div className="poll" role="group" aria-label={t('chat.poll.label', { question: poll.question })}>
       <div className="poll-question">{poll.question}</div>
-      <div className="poll-kind">{poll.multi ? 'Select one or more answers' : 'Select one answer'}</div>
+      <div className="poll-kind">{poll.multi ? t('chat.poll.selectMany') : t('chat.poll.selectOne')}</div>
       <div className="poll-options" role={results ? undefined : poll.multi ? 'group' : 'radiogroup'}>
         {poll.options.map((option) => {
           const emoji = option.emoji && <span className="poll-option-emoji"><ReactionEmoji native={option.emoji} /></span>;
@@ -105,36 +106,38 @@ export default function Poll({ poll, reactions, userId, names, sentAt, onVote, o
               key={option.id}
               type="button"
               className={`poll-option result${isMine ? ' mine' : ''}${who.length > 0 && who.length === most ? ' leading' : ''}`}
-              aria-label={`${option.text}: ${who.length} ${who.length === 1 ? 'vote' : 'votes'}${isMine ? ', your vote' : ''}. Show who voted`}
+              aria-label={isMine
+                ? t('chat.poll.optionLabelMine', { answer: option.text, count: who.length })
+                : t('chat.poll.optionLabel', { answer: option.text, count: who.length })}
               onClick={(e) => { stop(e); setVotersFor(option.id); }}
             >
               <span className="poll-bar" style={{ width: `${share}%` }} aria-hidden="true" />
               {emoji}
               <span className="poll-option-text">{option.text}</span>
-              {isMine && <span className="poll-mine-mark" title="Your vote" aria-hidden="true">✓</span>}
-              <span className="poll-count">{who.length} {who.length === 1 ? 'vote' : 'votes'} · {share}%</span>
+              {isMine && <span className="poll-mine-mark" title={t('chat.poll.yourVote')} aria-hidden="true">✓</span>}
+              <span className="poll-count">{t('chat.poll.optionCount', { count: who.length, share })}</span>
             </button>
           );
         })}
       </div>
       <div className="poll-footer">
         <span className="poll-status">
-          {cast} {cast === 1 ? 'vote' : 'votes'}
-          {ended ? <> · <strong className="poll-closed">Poll closed</strong></> : endsAt != null ? ` · ${timeLeft(endsAt - now)}` : null}
+          {t('chat.poll.votes', { count: cast })}
+          {ended ? <> · <strong className="poll-closed">{t('chat.poll.closed')}</strong></> : endsAt != null ? ` · ${timeLeft(endsAt - now)}` : null}
         </span>
         {canVote && (
           <span className="poll-actions">
             {onEnd && (
-              <button type="button" className="poll-link poll-end" onClick={(e) => { stop(e); setConfirmingEnd(true); }}>End poll</button>
+              <button type="button" className="poll-link poll-end" onClick={(e) => { stop(e); setConfirmingEnd(true); }}>{t('chat.poll.end')}</button>
             )}
             {!results && (
-              <button type="button" className="poll-link" onClick={(e) => { stop(e); setShowResults(true); }}>Show results</button>
+              <button type="button" className="poll-link" onClick={(e) => { stop(e); setShowResults(true); }}>{t('chat.poll.showResults')}</button>
             )}
             {results && voted && (
-              <button type="button" className="poll-link" disabled={busy} onClick={(e) => { stop(e); submit([]); }}>Remove vote</button>
+              <button type="button" className="poll-link" disabled={busy} onClick={(e) => { stop(e); submit([]); }}>{t('chat.poll.removeVote')}</button>
             )}
             {results && !voted && (
-              <button type="button" className="poll-link" onClick={(e) => { stop(e); setShowResults(false); }}>Back to vote</button>
+              <button type="button" className="poll-link" onClick={(e) => { stop(e); setShowResults(false); }}>{t('chat.poll.backToVote')}</button>
             )}
           </span>
         )}
@@ -145,16 +148,16 @@ export default function Poll({ poll, reactions, userId, names, sentAt, onVote, o
             disabled={busy || choice.length === 0}
             onClick={(e) => { stop(e); submit(choice); }}
           >
-            Vote
+            {t('chat.poll.vote')}
           </button>
         )}
       </div>
       {confirmingEnd && (
         <span onTouchStart={stop} onContextMenu={stop} onClick={stop}>
           <ConfirmDialog
-            title="End poll"
-            message="End this poll now? Nobody will be able to vote any more, and the results so far are final."
-            confirmLabel="End poll"
+            title={t('chat.poll.end')}
+            message={t('chat.poll.endConfirm')}
+            confirmLabel={t('chat.poll.end')}
             focusConfirm
             onConfirm={onEnd}
             onClose={() => setConfirmingEnd(false)}

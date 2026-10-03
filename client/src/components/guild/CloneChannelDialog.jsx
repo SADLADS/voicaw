@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Modal from './Modal';
 import { cloneChannel } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
+import { t } from '../../i18n';
 
 // Duplicate Channel (from the channel menu, like Discord's Clone Channel): a new channel just
 // below this one with the same type, topic, category and permissions, named as typed (the same
@@ -10,7 +11,7 @@ export default function CloneChannelDialog({ guild, channel, onCreated, onClose 
   const [name, setName] = useState(channel.name);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const kind = { list: 'tasks', doc: 'documents', voice: null }[channel.type] ?? 'messages';
+  const kind = ['list', 'doc', 'voice'].includes(channel.type) ? channel.type : 'text';
 
   async function submit(e) {
     e.preventDefault();
@@ -29,19 +30,19 @@ export default function CloneChannelDialog({ guild, channel, onCreated, onClose 
 
   return (
     <Modal
-      title={`Duplicate #${channel.name}`}
+      title={t('guildAdmin.cloneChannel.title', { name: channel.name })}
       onClose={onClose}
       actions={(
         <>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>{t('common.cancel')}</button>
           <button type="submit" form="clone-channel-form" className="btn btn-primary btn-sm vc-button" disabled={busy || !name.trim()}>
-            Duplicate Channel
+            {t('guildAdmin.cloneChannel.submit')}
           </button>
         </>
       )}
     >
       <form id="clone-channel-form" onSubmit={submit}>
-        <label className="vc-label" htmlFor="clone-channel-name">Channel name</label>
+        <label className="vc-label" htmlFor="clone-channel-name">{t('guildAdmin.channelDialog.name')}</label>
         <input
           id="clone-channel-name"
           className="form-control"
@@ -50,10 +51,7 @@ export default function CloneChannelDialog({ guild, channel, onCreated, onClose 
           autoFocus
           onChange={(e) => setName(e.target.value)}
         />
-        <p className="vc-hint mt-2">
-          A new channel just below this one, with the same {channel.type === 'voice' ? 'settings' : 'topic, settings'} and
-          permissions.{kind && ` Its ${kind} aren't copied.`}
-        </p>
+        <p className="vc-hint mt-2">{t(`guildAdmin.cloneChannel.hint.${kind}`)}</p>
         {error && <p className="error-msg" role="alert">{error}</p>}
       </form>
     </Modal>

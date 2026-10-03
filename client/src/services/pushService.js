@@ -1,6 +1,7 @@
 import api from '../utils/api';
 import { isDesktopApp } from '../utils/desktop';
 import { refreshPresence } from '../utils/ws-client';
+import { t } from '../i18n';
 
 // Web push for this device: permission, the browser's push subscription, and keeping the
 // server's copy of it current. Notifications themselves are shown by service-worker.js.
@@ -63,7 +64,7 @@ function serviceWorkerReady(timeoutMs = 10000) {
   return Promise.race([
     navigator.serviceWorker.ready,
     new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Service worker is not available')), timeoutMs)
+      setTimeout(() => reject(new Error(t('app.push.noServiceWorker'))), timeoutMs)
     ),
   ]);
 }
@@ -71,10 +72,7 @@ function serviceWorkerReady(timeoutMs = 10000) {
 // Chrome-family browsers report their push service refusing or being unreachable as
 // "Registration failed - push service error". That's the browser's setup, not Voicaw: Brave
 // has its push service off by default, and Chromium builds without Google services have none.
-export const PUSH_SERVICE_UNAVAILABLE =
-  "this browser's push service isn't available. In Brave, turn on \"Use Google services for " +
-  'push messaging" (Settings → Privacy and security) and restart Brave. Chromium builds ' +
-  'without Google services can\'t receive web push; Chrome, Edge, Firefox and Safari can.';
+export const PUSH_SERVICE_UNAVAILABLE = t('app.push.serviceUnavailable');
 
 function explainSubscribeError(err) {
   if (/push service (error|not available)/i.test(err?.message || '')) {

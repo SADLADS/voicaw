@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { t } from '../i18n';
 
 const DISMISSED_KEY = 'recoveryPromptDismissed';
 
@@ -17,13 +18,13 @@ export default function RecoveryPrompt({ user }) {
   };
 
   return (
-    <div className="notification-prompt" role="region" aria-label="Recovery code">
-      <span>Set up a recovery code, so you can reset your password if you forget it.</span>
+    <div className="notification-prompt" role="region" aria-label={t('settings.recoveryCode.title')}>
+      <span>{t('settings.recoveryPrompt.text')}</span>
       <span className="notification-prompt-actions">
         <button type="button" className="notification-prompt-enable" onClick={() => navigate('/settings#account-security')}>
-          Set up
+          {t('settings.recoveryPrompt.setUp')}
         </button>
-        <button type="button" className="reply-close" onClick={dismiss} aria-label="Dismiss">
+        <button type="button" className="reply-close" onClick={dismiss} aria-label={t('settings.dismiss')}>
           ×
         </button>
       </span>

@@ -14,6 +14,7 @@ import ConfirmDialog from './guild/ConfirmDialog';
 import { InteractionContext, LayoutContext } from '../contexts';
 import { leaveGuild } from '../services/guildService';
 import { useDragReorder } from '../hooks/useDragReorder';
+import { t } from '../i18n';
 
 // The guild rail down the left (like Discord's): home, DMs, then each guild (a pill on the
 // left marks unread messages, a taller one the open guild), then "+" to create or join one.
@@ -48,21 +49,21 @@ export default function Sidebar({ user, hasUnreadDms, guilds = [], unreadGuildId
     >
       <div className="nav-item">
       <NavLink to="/" className="" style={{ display: 'block' }}>
-      <img src={logo} alt="Voicaw Logo" style={{ width: '50px', height: '50px' }} />
+      <img src={logo} alt={t('app.sidebar.logoAlt')} style={{ width: '50px', height: '50px' }} />
 
       </NavLink>
       </div>
 
       <div className={`nav-item ${isActivePath('/dm') ? 'active' : ''}`}>
       <span className={`dot${hasUnreadDms ? ' visible' : ''}`}></span>
-        <NavLink to="/dm" className="nav-icon" aria-label="Direct Messages" title="Direct Messages">
+        <NavLink to="/dm" className="nav-icon" aria-label={t('app.sidebar.directMessages')} title={t('app.sidebar.directMessages')}>
           <FontAwesomeIcon icon={faComments} />
         </NavLink>
       </div>
 
       {guilds.length > 0 && <div className="rail-separator" />}
 
-      <nav className={`rail-guilds${drag ? ' reordering' : ''}`} aria-label="Guilds">
+      <nav className={`rail-guilds${drag ? ' reordering' : ''}`} aria-label={t('app.sidebar.guilds')}>
         {guilds.map((guild, index) => {
           const dragging = drag?.id === guild.id;
           // Items between where it was and where it's going shift by one slot.
@@ -83,7 +84,7 @@ export default function Sidebar({ user, hasUnreadDms, guilds = [], unreadGuildId
                 <GuildIcon guild={guild} />
               </NavLink>
               {guildMentions[guild.id] > 0 && (
-                <span className="mention-badge rail-mention-badge" aria-label={`${guildMentions[guild.id]} mentions`}>
+                <span className="mention-badge rail-mention-badge" aria-label={t('app.sidebar.mentions', { count: guildMentions[guild.id] })}>
                   {guildMentions[guild.id] > 99 ? '99+' : guildMentions[guild.id]}
                 </span>
               )}
@@ -93,7 +94,7 @@ export default function Sidebar({ user, hasUnreadDms, guilds = [], unreadGuildId
       </nav>
 
       <div className="nav-item">
-        <button type="button" className="nav-icon rail-add" aria-label="Add a guild" title="Add a guild" onClick={() => setAdding(true)}>
+        <button type="button" className="nav-icon rail-add" aria-label={t('app.sidebar.addGuild')} title={t('app.sidebar.addGuild')} onClick={() => setAdding(true)}>
           <FontAwesomeIcon icon={faPlus} />
         </button>
       </div>
@@ -116,9 +117,9 @@ export default function Sidebar({ user, hasUnreadDms, guilds = [], unreadGuildId
       {dialogGuild && dialog.type === 'audit' && <AuditLogDialog guild={dialogGuild} user={user} onClose={closeDialog} />}
       {dialogGuild && dialog.type === 'leave' && (
         <ConfirmDialog
-          title={`Leave '${dialogGuild.name}'`}
-          message={`Are you sure you want to leave ${dialogGuild.name}? You won't be able to rejoin unless you are re-invited.`}
-          confirmLabel="Leave Guild"
+          title={t('app.sidebar.leaveGuild.title', { name: dialogGuild.name })}
+          message={t('app.sidebar.leaveGuild.message', { name: dialogGuild.name })}
+          confirmLabel={t('app.sidebar.leaveGuild.confirm')}
           onConfirm={async () => {
             await leaveGuild(dialogGuild.id);
             guildList.removeGuild(dialogGuild.id);

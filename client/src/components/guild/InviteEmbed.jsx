@@ -6,6 +6,7 @@ import GuildIcon from './GuildIcon';
 import { acceptInvite, fetchInvitePreview, invitePreviewRequested } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
 import { usePrivacyPrefs } from '../../utils/privacy';
+import { t } from '../../i18n';
 
 // The card under a message with an invite link: the guild's picture and name, and Join Guild
 // (or Go to Guild when you're already in it).
@@ -61,31 +62,31 @@ export default function InviteEmbed({ code, autoLoad = true }) {
   let button = null;
   if (!load) {
     icon = <span className="guild-icon guild-initials invite-embed-icon" aria-hidden="true">?</span>;
-    title = 'Guild invite';
-    hint = 'Tap Show to see which guild';
-    button = <button type="button" className="btn btn-secondary" onClick={() => setShown(true)}>Show</button>;
+    title = t('guilds.invite.embed.title');
+    hint = t('guilds.invite.embed.tapShow');
+    button = <button type="button" className="btn btn-secondary" onClick={() => setShown(true)}>{t('guilds.invite.embed.show')}</button>;
   } else if (error) {
     const invalid = error?.response?.status === 404;
     icon = <span className="guild-icon guild-initials invite-embed-icon invite-embed-invalid" aria-hidden="true">✕</span>;
-    title = invalid ? 'Invalid invite' : "Couldn't load invite";
-    hint = invalid ? 'This invite is invalid or has expired' : errorMessage(error);
+    title = invalid ? t('guilds.invite.embed.invalid') : t('guilds.invite.embed.loadFailed');
+    hint = invalid ? t('guilds.invite.embed.invalidHint') : errorMessage(error);
   } else if (!invite) {
     icon = <span className="guild-icon guild-initials invite-embed-icon" aria-hidden="true" />;
-    title = 'Loading invite…';
+    title = t('guilds.invite.loading');
   } else {
     icon = <GuildIcon guild={{ id: invite.guild_id, name: invite.name, icon_version: invite.icon_version }} className="invite-embed-icon" />;
     title = invite.name;
-    hint = joinError ?? `${invite.member_count} ${invite.member_count === 1 ? 'member' : 'members'}`;
+    hint = joinError ?? t('guilds.invite.memberCount', { count: invite.member_count });
     button = isMember ? (
-      <button type="button" className="btn btn-secondary" onClick={() => navigate(`/guild/${invite.guild_id}`)}>Go to Guild</button>
+      <button type="button" className="btn btn-secondary" onClick={() => navigate(`/guild/${invite.guild_id}`)}>{t('guilds.invite.embed.goTo')}</button>
     ) : (
-      <button type="button" className="btn btn-primary invite-embed-join" onClick={join} disabled={joining}>Join Guild</button>
+      <button type="button" className="btn btn-primary invite-embed-join" onClick={join} disabled={joining}>{t('guilds.invite.embed.join')}</button>
     );
   }
 
   return (
     <div className="invite-embed">
-      <div className="invite-embed-label">You’ve been invited to join a guild</div>
+      <div className="invite-embed-label">{t('guilds.invite.embed.label')}</div>
       <div className="invite-embed-body">
         {icon}
         <div className="invite-embed-text">

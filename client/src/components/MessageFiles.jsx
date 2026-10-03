@@ -6,11 +6,12 @@ import MediaCover from './MediaCover';
 import { saveUrlAs } from '../utils/saveFile';
 import { mediaBoxStyle } from '../utils/mediaBox';
 import { useMediaCover } from '../hooks/useMediaCover';
+import { t } from '../i18n';
 
 function fileSize(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  if (bytes < 1024) return t('media.size.bytes', { size: bytes });
+  if (bytes < 1024 * 1024) return t('media.size.kilobytes', { size: (bytes / 1024).toFixed(1) });
+  return t('media.size.megabytes', { size: (bytes / 1024 / 1024).toFixed(1) });
 }
 
 // Files a webhook sent with a message (Discord's `attachments`; plain files in our object store,

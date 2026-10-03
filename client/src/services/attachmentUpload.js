@@ -1,6 +1,7 @@
 import api from '../utils/api';
 import { encryptAttachment, buildAttachmentUrl, isStreamable } from './attachmentCrypto';
 import { encryptChunkedAttachment } from './chunkedAttachment';
+import { t } from '../i18n';
 
 // media.voicaw.com's nginx vhost caps request bodies at 100M (client_max_body_size). Leaves
 // room for the encryption's overhead (a video's is 16 bytes per 256 KiB: 6.4 KB at 100 MB).
@@ -17,9 +18,9 @@ function putWithProgress(url, blob, onProgress) {
     };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error(`Upload failed (${xhr.status})`));
+      else reject(new Error(t('media.upload.failedStatus', { status: xhr.status })));
     };
-    xhr.onerror = () => reject(new Error('Upload failed'));
+    xhr.onerror = () => reject(new Error(t('media.upload.failed')));
     xhr.send(blob);
   });
 }
@@ -29,7 +30,7 @@ async function putEncrypted(blob, onProgress) {
   // Ask for an opaque binary upload so the object's content type doesn't leak what it is.
   // The size is signed into the upload URL; the storage server rejects any other length.
   const { data } = await api.get('/upload_file', { params: { type: blob.type, size: blob.size } });
-  if (!data?.uploadUrl || !data?.fileUrl) throw new Error('Invalid upload URL');
+  if (!data?.uploadUrl || !data?.fileUrl) throw new Error(t('media.upload.invalidUrl'));
   await putWithProgress(data.uploadUrl, blob, onProgress);
   return data.fileUrl;
 }

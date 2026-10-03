@@ -4,6 +4,7 @@ import { faComments, faCopy, faEdit, faReply, faThumbtack, faTrash } from '@fort
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { quickReactions } from '../emoji/quickReactions';
+import { t } from '../i18n';
 
 // Mobile: what a long press on a message opens (in place of the desktop hover menu). A row of
 // quick reactions (plus the full picker), then Reply / Edit / Pin (or Unpin) / Create thread / Copy text / Delete. Actions the
@@ -62,17 +63,17 @@ export default function MessageActionSheet({
       <div
         className="action-sheet"
         role="dialog"
-        aria-label="Message actions"
+        aria-label={t('chat.messageMenu.label')}
         onClick={(e) => e.stopPropagation()}
       >
         {sent && canReact && index && !confirmingDelete && (
-          <div className="action-sheet-reactions" role="group" aria-label="React">
+          <div className="action-sheet-reactions" role="group" aria-label={t('chat.messageMenu.react')}>
             {quickReactions(index).map(({ emoji, skin }) => (
               <button
                 key={emoji.id}
                 type="button"
                 className={`action-sheet-reaction${myReactions.has(skin.native) ? ' mine' : ''}`}
-                aria-label={`React with ${emoji.name}`}
+                aria-label={t('chat.messageMenu.reactWith', { name: emoji.name })}
                 aria-pressed={myReactions.has(skin.native)}
                 onClick={act(() => onReact(skin.native))}
               >
@@ -82,7 +83,7 @@ export default function MessageActionSheet({
             <button
               type="button"
               className="action-sheet-reaction action-sheet-more"
-              aria-label="More reactions"
+              aria-label={t('chat.messageMenu.moreReactions')}
               onClick={() => { onClose(); onMoreReactions(); }}
             >
               +
@@ -92,44 +93,44 @@ export default function MessageActionSheet({
 
         {confirmingDelete ? (
           <div className="action-sheet-confirm">
-            <p>Delete this message? This can't be undone.</p>
+            <p>{t('chat.messageMenu.confirmDelete')}</p>
             <button type="button" className="action-sheet-item danger" onClick={act(onDelete)}>
-              <FontAwesomeIcon icon={faTrash} /> Delete
+              <FontAwesomeIcon icon={faTrash} /> {t('common.delete')}
             </button>
             <button type="button" className="action-sheet-item" onClick={() => setConfirmingDelete(false)}>
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         ) : (
           <div className="action-sheet-items">
             {sent && (
               <button type="button" className="action-sheet-item" onClick={act(onReply)}>
-                <FontAwesomeIcon icon={faReply} /> Reply
+                <FontAwesomeIcon icon={faReply} /> {t('common.reply')}
               </button>
             )}
             {sent && isOwn && onEdit && (
               <button type="button" className="action-sheet-item" onClick={act(onEdit)}>
-                <FontAwesomeIcon icon={faEdit} /> Edit
+                <FontAwesomeIcon icon={faEdit} /> {t('common.edit')}
               </button>
             )}
             {sent && onTogglePin && (
               <button type="button" className="action-sheet-item" onClick={act(onTogglePin)}>
-                <FontAwesomeIcon icon={faThumbtack} /> {msg.pinned_at ? 'Unpin message' : 'Pin message'}
+                <FontAwesomeIcon icon={faThumbtack} /> {msg.pinned_at ? t('chat.messageMenu.unpinSheet') : t('chat.messageMenu.pinSheet')}
               </button>
             )}
             {sent && onCreateThread && (
               <button type="button" className="action-sheet-item" onClick={act(onCreateThread)}>
-                <FontAwesomeIcon icon={faComments} /> Create thread
+                <FontAwesomeIcon icon={faComments} /> {t('chat.messageMenu.createThreadSheet')}
               </button>
             )}
             {msg.plaintext && (
               <button type="button" className="action-sheet-item" onClick={act(onCopy)}>
-                <FontAwesomeIcon icon={faCopy} /> Copy text
+                <FontAwesomeIcon icon={faCopy} /> {t('chat.messageMenu.copyTextSheet')}
               </button>
             )}
             {sent && canDelete && (
               <button type="button" className="action-sheet-item danger" onClick={() => setConfirmingDelete(true)}>
-                <FontAwesomeIcon icon={faTrash} /> Delete
+                <FontAwesomeIcon icon={faTrash} /> {t('common.delete')}
               </button>
             )}
           </div>

@@ -44,8 +44,10 @@ export default defineConfig([
         // a capital.
         words: {
           exclude: [
-            '[0-9!-/:-@[-`{-~]+', '[A-Z_-]+', /^\p{Emoji}+$/u, /^&[a-z]+;$/,
+            '[0-9!-/:-@[-`{-~]+', '[A-Z_-]+', /^[\p{Emoji}️‍]+$/u, /^&[a-z]+;$/,
             '[a-z][a-zA-Z0-9_.:/#-]*',
+            // Symbols outside ASCII used as separators and buttons (·, ×, —, arrows).
+            /^[\s·×•—–…→←↑↓▸▾✓✕]+$/u,
           ],
         },
       }],

@@ -7,6 +7,284 @@
       "changedTitle": "{{name}}'s security key has changed.",
       "changedBody": "This shouldn't normally happen. It can mean someone is trying to intercept your messages, or that the server's data was reset. Check with {{name}} another way (in person or on a call) before continuing.",
       "accept": "Accept the new key"
+    },
+    "pane": {
+      "cantSend": "You don't have permission to send messages here.",
+      "empty": "No messages yet. Start the conversation!",
+      "error": "Error: {{error}}",
+      "copyFailed": "Couldn't copy the message.",
+      "pollClosedEdit": "This poll has closed, so it can't be edited.",
+      "pollTooLong": "The poll is too long.",
+      "pollTimerFailed": "The poll was sent, but its result won't be announced when it closes.",
+      "pinFailed": "Couldn't pin the message.",
+      "unpinFailed": "Couldn't unpin the message.",
+      "jumpFailed": "Couldn't find that message in the chat."
+    },
+    "deleteMessage": {
+      "title": "Delete message",
+      "confirm": "Are you sure you want to delete this message?",
+      "shiftTip": "Tip: hold Shift when you click delete to skip this."
+    },
+    "composer": {
+      "tooLongWithLinks_one": "Message is {{count}} character too long once attachment links are added.",
+      "tooLongWithLinks_other": "Message is {{count}} characters too long once attachment links are added.",
+      "sendFailed": "Message failed to send: {{error}}",
+      "gifFailed": "GIF failed to send: {{error}}",
+      "replyingTo": "Replying to <b>{{name}}</b>",
+      "uploadFile": "Upload a file",
+      "createPoll": "Create poll",
+      "fallbackName": "User",
+      "messageLabel": "Message {{name}}",
+      "messagePlaceholder": "Message {{name}}...",
+      "showKeyboard": "Show keyboard",
+      "emoji": "Emoji",
+      "send": "Send"
+    },
+    "dm": {
+      "loadUsersError": "Error loading users: {{error}}",
+      "noConversations": "No recent conversations found.",
+      "call": "Call {{name}}",
+      "alreadyInCall": "You're already in a call",
+      "startCall": "Start a voice call with {{name}}",
+      "accountDeleted": "This account has been deleted. You can still read your conversation."
+    },
+    "dmMenu": {
+      "markRead": "Mark As Read",
+      "joinCall": "Join Call",
+      "startCall": "Start Call",
+      "pin": "Pin Conversation",
+      "unpin": "Unpin Conversation",
+      "mute": "Mute Conversation",
+      "unmute": "Unmute Conversation"
+    },
+    "dmList": {
+      "title": "Direct Messages",
+      "muted": "Muted",
+      "pinned": "Pinned",
+      "newGroup": "New group"
+    },
+    "notes": {
+      "title": "Notes",
+      "onlyYou": "Only you can read these",
+      "empty": "Nothing here yet. Keep notes, links and files for yourself: they're end-to-end encrypted."
+    },
+    "safetyNumber": {
+      "compare": "Compare safety numbers",
+      "verified": "✓ Verified",
+      "notVerified": "Not verified",
+      "title": "Safety number with {{name}}",
+      "body": "Compare this with {{name}} in person or on a call. If both of you see the same number, your conversation can't be intercepted by the server.",
+      "label": "Safety number",
+      "calculating": "Calculating…",
+      "markVerified": "Mark as verified",
+      "markNotVerified": "Mark as not verified"
+    },
+    "message": {
+      "spoiler": "Spoiler, select to reveal",
+      "pinned": "Pinned",
+      "webhookTitle": "Posted by a webhook",
+      "webhookTag": "APP",
+      "edited": "edited",
+      "editedInline": "(edited)",
+      "unsigned": "not signed",
+      "unsignedTitle": "Sent before group messages were signed: who sent it can't be verified",
+      "unverified": "⚠ unverified sender",
+      "unverifiedTitle": "The signature doesn't match the sender: it may be forged",
+      "editLabel": "Edit message",
+      "editHint": "Escape to <cancel>cancel</cancel> • Enter to <save>save</save>",
+      "hiddenSpoiler": "[spoiler]"
+    },
+    "reactions": {
+      "add": "Add reaction",
+      "you": "You",
+      "someone": "Someone",
+      "chipLabel": "{{emoji}} {{number}}, reacted by {{names}}",
+      "reactedBy": "Reacted by {{names}}",
+      "updateFailed": "Couldn't update the reaction. Try again."
+    },
+    "noKeys": "This device has no encryption keys. Log out and log in again.",
+    "messageMenu": {
+      "label": "Message actions",
+      "react": "React",
+      "reactWith": "React with {{name}}",
+      "moreReactions": "More reactions",
+      "addReaction": "Add Reaction",
+      "edit": "Edit Message",
+      "pin": "Pin Message",
+      "unpin": "Unpin Message",
+      "createThread": "Create Thread",
+      "copyText": "Copy Text",
+      "delete": "Delete Message",
+      "pinSheet": "Pin message",
+      "unpinSheet": "Unpin message",
+      "createThreadSheet": "Create thread",
+      "copyTextSheet": "Copy text",
+      "confirmDelete": "Delete this message? This can't be undone."
+    },
+    "pins": {
+      "title": "Pinned messages",
+      "heading": "Pinned Messages",
+      "loadFailed": "Couldn't load the pinned messages.",
+      "unpinFailed": "Couldn't unpin that message.",
+      "empty": "This chat doesn't have any pinned messages yet.",
+      "emptyCanPin": "Pin one from its menu to keep it here.",
+      "emptyHint": "Pinned messages will show up here.",
+      "jump": "Jump"
+    },
+    "typing": {
+      "one": "<b>{{a}}</b> is typing…",
+      "two": "<b>{{a}}</b> and <b>{{b}}</b> are typing…",
+      "three": "<b>{{a}}</b>, <b>{{b}}</b> and <b>{{c}}</b> are typing…",
+      "several": "Several people are typing…"
+    },
+    "suggestions": {
+      "emojiLabel": "Emoji matching {{query}}",
+      "emojiTitle": "Emoji matching <b>{{query}}</b>",
+      "channels": "Channels",
+      "mentions": "Mentions",
+      "matching": "Matching <b>{{query}}</b>"
+    },
+    "mentions": {
+      "unknownUser": "unknown-user",
+      "deletedRole": "deleted-role",
+      "unknownChannel": "unknown-channel",
+      "everyone": "Notify everyone who can see this channel.",
+      "here": "Notify everyone online who can see this channel."
+    },
+    "emojiPicker": {
+      "label": "Emoji picker",
+      "shrink": "Shrink picker",
+      "expand": "Expand picker",
+      "tabs": "Picker",
+      "emojiTab": "Emoji",
+      "gifsTab": "GIFs",
+      "closeSearch": "Close search",
+      "searchKlipy": "Search KLIPY",
+      "searchPlaceholder": "Find the perfect emoji",
+      "searchGifs": "Search GIFs",
+      "searchEmoji": "Search emoji",
+      "skinTone": "Skin tone",
+      "skinToneNumber": "Skin tone {{number}}",
+      "loading": "Loading emoji…",
+      "categoriesLabel": "Emoji categories",
+      "noMatch": "No emoji match \"{{query}}\"",
+      "from": "from {{guild}}",
+      "pick": "Pick an emoji",
+      "frequent": "Frequently Used",
+      "categories": {
+        "people": "Smileys & People",
+        "nature": "Animals & Nature",
+        "foods": "Food & Drink",
+        "activity": "Activity",
+        "places": "Travel & Places",
+        "objects": "Objects",
+        "symbols": "Symbols",
+        "flags": "Flags"
+      }
+    },
+    "poll": {
+      "label": "Poll: {{question}}",
+      "summary": "📊 Poll: {{question}}",
+      "selectOne": "Select one answer",
+      "selectMany": "Select one or more answers",
+      "optionLabel_one": "{{answer}}: {{count}} vote. Show who voted",
+      "optionLabel_other": "{{answer}}: {{count}} votes. Show who voted",
+      "optionLabelMine_one": "{{answer}}: {{count}} vote, your vote. Show who voted",
+      "optionLabelMine_other": "{{answer}}: {{count}} votes, your vote. Show who voted",
+      "yourVote": "Your vote",
+      "optionCount_one": "{{count}} vote · {{share}}%",
+      "optionCount_other": "{{count}} votes · {{share}}%",
+      "votes_one": "{{count}} vote",
+      "votes_other": "{{count}} votes",
+      "closed": "Poll closed",
+      "end": "End poll",
+      "endConfirm": "End this poll now? Nobody will be able to vote any more, and the results so far are final.",
+      "showResults": "Show results",
+      "removeVote": "Remove vote",
+      "backToVote": "Back to vote",
+      "vote": "Vote",
+      "voteFailed": "Couldn't save your vote. Try again.",
+      "duration": {
+        "hours_one": "{{count}} hour",
+        "hours_other": "{{count}} hours",
+        "days_one": "{{count}} day",
+        "days_other": "{{count}} days",
+        "weeks_one": "{{count}} week",
+        "weeks_other": "{{count}} weeks"
+      },
+      "timeLeft": {
+        "days_one": "{{count}} day left",
+        "days_other": "{{count}} days left",
+        "hours_one": "{{count}} hour left",
+        "hours_other": "{{count}} hours left",
+        "minutes_one": "{{count}} minute left",
+        "minutes_other": "{{count}} minutes left",
+        "lessThanMinute": "less than a minute left"
+      }
+    },
+    "pollDialog": {
+      "createTitle": "Create a poll",
+      "editTitle": "Edit poll",
+      "post": "Post",
+      "saveFailed": "Couldn't save the poll.",
+      "question": "Question",
+      "questionPlaceholder": "What would you like to ask?",
+      "answers": "Answers",
+      "answer": "Answer {{number}}",
+      "answerPlaceholder": "Type your answer",
+      "addEmoji": "Add emoji",
+      "addEmojiTo": "Add an emoji to answer {{number}}",
+      "changeEmoji": "Change emoji",
+      "changeEmojiOf": "Change the emoji of answer {{number}}",
+      "removeEmoji": "Remove emoji",
+      "removeEmojiOf": "Remove the emoji of answer {{number}}",
+      "removeAnswer": "Remove answer",
+      "removeAnswerNumber": "Remove answer {{number}}",
+      "addAnswer": "+ Add another answer",
+      "changedHint": "Changing an answer removes the votes it had.",
+      "duration": "Duration",
+      "noEnd": "No end",
+      "multi": "Allow multiple answers",
+      "multiLocked": "Can't be changed after posting.",
+      "multiHint": "Neither this nor the duration can be changed once the poll is posted."
+    },
+    "pollEnd": {
+      "closed": "<b>{{author}}</b>'s poll <b>{{question}}</b> has closed.",
+      "nobodyVoted": "Nobody voted.",
+      "won_one": "<answer></answer> won with {{share}}% ({{votes}} of {{count}} vote).",
+      "won_other": "<answer></answer> won with {{share}}% ({{votes}} of {{count}} votes).",
+      "draw": "It's a draw between <answers></answers>, {{share}}% each.",
+      "separator": ", ",
+      "lastSeparator": " and ",
+      "view": "View poll"
+    },
+    "pollVoters": {
+      "votedFor": "Voted for {{answer}}",
+      "none": "Nobody has voted for this answer.",
+      "you": "{{name}} (you)"
+    },
+    "callLog": {
+      "ended": "{{caller}} started a call that lasted {{length}}.",
+      "missed": "You missed a call from {{caller}}.",
+      "nobodyAnswered": "Nobody answered.",
+      "declined": "{{callee}} declined the call.",
+      "noAnswer": "{{callee}} didn't answer.",
+      "length": {
+        "seconds": "a few seconds",
+        "minutes_one": "a minute",
+        "minutes_other": "{{count}} minutes",
+        "hours_one": "an hour",
+        "hours_other": "{{count}} hours",
+        "restMinutes_one": "{{count}} minute",
+        "restMinutes_other": "{{count}} minutes",
+        "hoursAndMinutes": "{{hours}} and {{minutes}}"
+      }
+    },
+    "editActions": {
+      "cutFailed": "Couldn't cut here: try the keyboard shortcut",
+      "copyFailed": "Couldn't copy here: try the keyboard shortcut",
+      "pasteUnsupported": "This browser can't paste from a menu: try Ctrl+V",
+      "pasteBlocked": "Your browser didn't allow pasting: try Ctrl+V"
     }
   }
 }

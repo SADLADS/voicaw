@@ -15,6 +15,7 @@ import { acceptChangedKeys } from '../../services/groupKeys';
 import { noteGroupCall, startGroupCall } from '../../voice/callClient';
 import { groupTitle } from '../../utils/groupDisplay';
 import { nameOf, useProfiles } from '../../utils/profiles';
+import { t } from '../../i18n';
 
 const SHOW_MEMBERS_KEY = 'showGroupMembers';
 
@@ -73,13 +74,13 @@ export default function GroupDm({ user }) {
   return (
     <div id="dm-main" className="group-dm" data-current-user-id={user?.id}>
       <h4 className="chat-recipient-header">
-        <span className="group-dm-title">{summary ? groupTitle(summary, user) : 'Group'}</span>
+        <span className="group-dm-title">{summary ? groupTitle(summary, user) : t('groups.dm.group')}</span>
         {voiceEnabled && group && (
           <button
             type="button"
             className="chat-call-button"
-            aria-label="Start a group call"
-            title={call ? "You're already in a call" : 'Start a voice call with the group'}
+            aria-label={t('groups.dm.startCall')}
+            title={call ? t('groups.dm.alreadyInCall') : t('groups.dm.startCallHint')}
             disabled={Boolean(call) || problems.length > 0}
             onClick={() => startGroupCall(groupId)}
           >
@@ -90,9 +91,9 @@ export default function GroupDm({ user }) {
           <button
             type="button"
             className={`chat-call-button pins-button${pinsAnchor ? ' active' : ''}`}
-            aria-label="Pinned messages"
+            aria-label={t('groups.dm.pinnedMessages')}
             aria-pressed={Boolean(pinsAnchor)}
-            title="Pinned messages"
+            title={t('groups.dm.pinnedMessages')}
             onClick={togglePins}
           >
             <FontAwesomeIcon icon={faThumbtack} />
@@ -101,7 +102,7 @@ export default function GroupDm({ user }) {
         <button
           type="button"
           className={`chat-call-button group-members-button${showMembers ? ' active' : ''}`}
-          aria-label={showMembers ? 'Hide members' : 'Show members'}
+          aria-label={showMembers ? t('groups.dm.hideMembers') : t('groups.dm.showMembers')}
           aria-pressed={showMembers}
           onClick={toggleMembers}
         >
@@ -114,9 +115,7 @@ export default function GroupDm({ user }) {
       {problems.length > 0 && (
         <div className="contact-key-warning" role="alert">
           <p>
-            {problems.map((p) => nameOf(p.user)).join(', ')}
-            {problems.length === 1 ? ' has' : ' have'} a different security key than when added to this group.
-            Until that&apos;s sorted out, nothing can be sent here.
+            {t('groups.dm.keyChanged', { count: problems.length, names: problems.map((p) => nameOf(p.user)).join(', ') })}
           </p>
           {changed.length === problems.length ? (
             <button
@@ -130,10 +129,10 @@ export default function GroupDm({ user }) {
                 setAccepting(false);
               }}
             >
-              Accept the new key{changed.length > 1 ? 's' : ''}
+              {t('groups.dm.acceptKeys', { count: changed.length })}
             </button>
           ) : (
-            <p className="vc-hint">They have to be removed and added again.</p>
+            <p className="vc-hint">{t('groups.dm.removeAndAdd')}</p>
           )}
         </div>
       )}
@@ -152,8 +151,8 @@ export default function GroupDm({ user }) {
             reactionNames={reactionNames}
             people={summary?.members}
             canSend={Boolean(group) && problems.length === 0}
-            cantSendText={group ? "Can't send until the security keys are sorted out." : 'Loading…'}
-            emptyText="No messages yet. Say hi to the group!"
+            cantSendText={group ? t('groups.dm.cantSend') : t('common.loading')}
+            emptyText={t('groups.dm.empty')}
             pinsAnchor={pinsAnchor}
             onClosePins={closePins}
           />

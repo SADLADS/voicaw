@@ -1,5 +1,6 @@
 import React from 'react';
 import { imageMenuItems } from '../utils/imageActions';
+import { t } from '../i18n';
 import ContextMenu from './ContextMenu';
 
 // A picture's menu (utils/imageActions.js): Copy Image, Save Image, and Copy / Open Link (or
@@ -9,8 +10,8 @@ import ContextMenu from './ContextMenu';
 export default function ImageMenu({ item, anchor, sheet, overViewer = false, onClose }) {
   return (
     <ContextMenu
-      title={item.name || 'Image'}
-      label={item.name || 'Image'}
+      title={item.name || t('media.image.menuTitle')}
+      label={item.name || t('media.image.menuTitle')}
       items={imageMenuItems(item)}
       anchor={anchor}
       sheet={sheet}

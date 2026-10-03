@@ -5,6 +5,7 @@ import { ConfigContext, LayoutContext } from '../../contexts';
 import { addGuildEmoji, deleteGuildEmoji, fetchGuildEmojis, renameGuildEmoji } from '../../services/guildService';
 import { customEmojiUrl } from '../../emoji/customEmoji';
 import { emojiNameFromFile, errorMessage } from '../../utils/guildDisplay';
+import { t } from '../../i18n';
 
 const MAX_EMOJIS = 200;
 // The server shrinks what's uploaded (to 128×128), so the original can be big.
@@ -32,7 +33,7 @@ function EmojiRow({ guild, emoji, s3Endpoint, onError }) {
         <span aria-hidden="true">:</span>
         <input
           className="form-control form-control-sm"
-          aria-label={`Name of :${emoji.name}:`}
+          aria-label={t('guildAdmin.emoji.nameOf', { name: emoji.name })}
           maxLength={32}
           value={name}
           onChange={(e) => setName(e.target.value.replace(/[^A-Za-z0-9_]/g, '_'))}
@@ -51,8 +52,8 @@ function EmojiRow({ guild, emoji, s3Endpoint, onError }) {
       <button
         type="button"
         className="emoji-settings-delete"
-        aria-label={`Delete :${emoji.name}:`}
-        title="Delete"
+        aria-label={t('guildAdmin.emoji.deleteOne', { name: emoji.name })}
+        title={t('common.delete')}
         onClick={async () => {
           try {
             await deleteGuildEmoji(guild.id, emoji.id);
@@ -87,18 +88,18 @@ export default function EmojiSettings({ guild }) {
     setError(null);
     for (const file of files) {
       if (!TYPES.includes(file.type)) {
-        setError(`${file.name}: emoji must be PNG, GIF, WebP, JPEG or AVIF images.`);
+        setError(t('guildAdmin.emoji.wrongType', { file: file.name }));
         continue;
       }
       if (file.size > MAX_BYTES) {
-        setError(`${file.name} is over 10 MB.`);
+        setError(t('guildAdmin.emoji.tooBig', { file: file.name }));
         continue;
       }
       setUploading((n) => n + 1);
       try {
         await addGuildEmoji(guild.id, emojiNameFromFile(file.name), file);
       } catch (err) {
-        setError(`${file.name}: ${errorMessage(err)}`);
+        setError(t('guildAdmin.emoji.uploadFailed', { file: file.name, error: errorMessage(err) }));
       } finally {
         setUploading((n) => n - 1);
       }
@@ -108,11 +109,7 @@ export default function EmojiSettings({ guild }) {
   const count = emojis?.length ?? 0;
   return (
     <div className="emoji-settings">
-      <p className="vc-hint">
-        Add up to {MAX_EMOJIS} custom emoji anyone in the guild can use. PNG, GIF, WebP, JPEG or AVIF up to
-        10 MB; they're shrunk to 128×128, and animated ones stay animated. Names are letters, numbers and
-        underscores.
-      </p>
+      <p className="vc-hint">{t('guildAdmin.emoji.intro', { max: MAX_EMOJIS })}</p>
       <div className="vc-form-row">
         <button
           type="button"
@@ -120,9 +117,13 @@ export default function EmojiSettings({ guild }) {
           disabled={count >= MAX_EMOJIS}
           onClick={() => fileInput.current?.click()}
         >
-          Upload Emoji
+          {t('guildAdmin.emoji.upload')}
         </button>
-        <span className="vc-hint">{count} / {MAX_EMOJIS}{uploading ? ` · uploading ${uploading}…` : ''}</span>
+        <span className="vc-hint">
+          {uploading
+            ? t('guildAdmin.emoji.countUploading', { used: count, max: MAX_EMOJIS, uploading })
+            : t('guildAdmin.emoji.count', { used: count, max: MAX_EMOJIS })}
+        </span>
       </div>
       <input
         ref={fileInput}
@@ -130,7 +131,7 @@ export default function EmojiSettings({ guild }) {
         accept={TYPES.join(',')}
         multiple
         hidden
-        aria-label="Emoji images"
+        aria-label={t('guildAdmin.emoji.images')}
         onChange={(e) => {
           const files = [...e.target.files];
           e.target.value = '';
@@ -139,10 +140,10 @@ export default function EmojiSettings({ guild }) {
       />
       {error && <p className="error-msg" role="alert">{error}</p>}
 
-      {emojis == null ? <p className="vc-hint">Loading…</p> : emojis.length === 0 ? (
-        <p className="vc-hint">No custom emoji yet.</p>
+      {emojis == null ? <p className="vc-hint">{t('common.loading')}</p> : emojis.length === 0 ? (
+        <p className="vc-hint">{t('guildAdmin.emoji.none')}</p>
       ) : (
-        <ul className="emoji-settings-list" aria-label="Custom emoji">
+        <ul className="emoji-settings-list" aria-label={t('guildAdmin.emoji.list')}>
           {emojis.map((emoji) => (
             <EmojiRow key={emoji.id} guild={guild} emoji={emoji} s3Endpoint={s3Endpoint} onError={setError} />
           ))}

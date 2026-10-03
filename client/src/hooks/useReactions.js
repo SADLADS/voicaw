@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { parsePoll, planVotes, voteKey } from '../utils/pollMarkup';
+import { t } from '../i18n';
 
 // Reacting to messages in a conversation (useConversation) or channel (useChannel): adding and
 // removing your own reactions, and which message the reaction picker is open for.
@@ -49,7 +50,7 @@ export function useReactions({ chatId, user, ready, saveReaction, deleteReaction
       }
     } catch (err) {
       console.error('Failed to update reaction', err);
-      onError(err.response?.data?.error || "Couldn't update the reaction. Try again.");
+      onError(err.response?.data?.error || t('chat.reactions.updateFailed'));
     } finally {
       inFlight.current.delete(key);
     }
@@ -89,7 +90,7 @@ export function useReactions({ chatId, user, ready, saveReaction, deleteReaction
       }
     } catch (err) {
       console.error('Failed to vote', err);
-      onError(err.response?.data?.error || "Couldn't save your vote. Try again.");
+      onError(err.response?.data?.error || t('chat.poll.voteFailed'));
       throw err;
     } finally {
       inFlight.current.delete(key);

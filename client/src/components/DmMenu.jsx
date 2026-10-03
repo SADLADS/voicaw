@@ -10,6 +10,7 @@ import { MUTE_DURATIONS, mutedUntilText } from '../utils/channelMutes';
 import { useDateFormat } from '../utils/dateFormat';
 import { showContent } from '../utils/mobilePanes';
 import ContextMenu from './ContextMenu';
+import { t } from '../i18n';
 
 // A conversation's menu in the DM list (right-click, or touch and hold on a phone): Mark As
 // Read, Start Call (or Join Call, for a group whose call is on), Pin / Unpin (to the top of the
@@ -33,7 +34,7 @@ export default function DmMenu({ person, group, title, unread, anchor, sheet, on
   if (unread) {
     items.push({
       key: 'read',
-      label: 'Mark As Read',
+      label: t('chat.dmMenu.markRead'),
       icon: faCheckDouble,
       onSelect: async () => {
         if (group) {
@@ -49,7 +50,7 @@ export default function DmMenu({ person, group, title, unread, anchor, sheet, on
   if (voiceEnabled && !call && !person?.deleted_at) {
     items.push({
       key: 'call',
-      label: group && groupCall ? 'Join Call' : 'Start Call',
+      label: group && groupCall ? t('chat.dmMenu.joinCall') : t('chat.dmMenu.startCall'),
       icon: faPhone,
       onSelect: () => {
         navigate(group ? `/dm/g/${group.id}` : `/dm/${person.id}`);
@@ -61,18 +62,18 @@ export default function DmMenu({ person, group, title, unread, anchor, sheet, on
   }
   items.push({
     key: 'pin',
-    label: setting.pinned_at != null ? 'Unpin Conversation' : 'Pin Conversation',
+    label: setting.pinned_at != null ? t('chat.dmMenu.unpin') : t('chat.dmMenu.pin'),
     icon: faThumbtack,
     onSelect: change({ pinned: setting.pinned_at == null }),
   });
   items.push(setting.muted
-    ? { key: 'mute', label: 'Unmute Conversation', hint: mutedUntilText(setting.mute_until), icon: faBell, onSelect: change({ mute: false }) }
+    ? { key: 'mute', label: t('chat.dmMenu.unmute'), hint: mutedUntilText(setting.mute_until), icon: faBell, onSelect: change({ mute: false }) }
     : {
       key: 'mute',
-      label: 'Mute Conversation',
+      label: t('chat.dmMenu.mute'),
       icon: faBellSlash,
       submenu: {
-        title: 'Mute Conversation',
+        title: t('chat.dmMenu.mute'),
         items: MUTE_DURATIONS.map(([label, duration]) => ({ key: `mute-${duration}`, label, onSelect: change({ mute: { duration } }) })),
       },
     });

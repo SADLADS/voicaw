@@ -26,6 +26,7 @@ import {
 } from '../services/callService';
 import { getVoiceSnapshot, joinCall, leaveVoice, setVoiceError } from './voiceClient';
 import { startLoop, stopLoop } from '../sounds/sounds';
+import { t } from '../i18n';
 
 // DM and group DM voice calls: ringing, being rung, answering or joining, declining and
 // hanging up (server/calls.js). The audio is voiceClient.js's (joinCall), end-to-end encrypted
@@ -41,9 +42,9 @@ import { startLoop, stopLoop } from '../sounds/sounds';
 // on in your groups (by group id, the server's shape), so a group can show "Join".
 
 const NOTICES = {
-  declined: (name) => `${name} declined the call.`,
-  missed: (name) => `${name} didn't answer.`,
-  busy: (name) => `${name} is in another call.`,
+  declined: (name) => t('calls.notices.declined', { name }),
+  missed: (name) => t('calls.notices.noAnswer', { name }),
+  busy: (name) => t('calls.notices.busy', { name }),
 };
 
 let me = null;
@@ -86,16 +87,16 @@ function clear() {
 async function conversationKey(peer) {
   const check = await checkContactKeys(me.id, peer);
   if (!check.encryptionKey) {
-    throw new Error(`${peer.username}'s security key changed. Open your chat with them to review it.`);
+    throw new Error(t('calls.errors.keyChanged', { name: peer.username }));
   }
   const myKey = await loadEncryptionKey();
-  if (!myKey) throw new Error('Your keys are missing on this device. Log in again.');
+  if (!myKey) throw new Error(t('calls.errors.keysMissing'));
   return deriveConversationKey(myKey, check.encryptionKey);
 }
 
 async function findUser(userId) {
   const user = (await fetchUsersList()).find((u) => u.id === userId);
-  if (!user) throw new Error('Unknown user');
+  if (!user) throw new Error(t('calls.errors.unknownUser'));
   return user;
 }
 
@@ -151,11 +152,11 @@ function handleEvent(event) {
     clear();
     let notice = null;
     if (groupId) {
-      if (!wasIn) notice = `Missed a group call from ${callerName}.`;
+      if (!wasIn) notice = t('calls.notices.missedGroup', { name: callerName });
     } else if (outgoing && NOTICES[event.reason]) {
       notice = NOTICES[event.reason](peerName);
     } else if (!outgoing && !wasIn && (event.reason === 'cancelled' || event.reason === 'missed')) {
-      notice = `Missed call from ${peerName}.`;
+      notice = t('calls.notices.missed', { name: peerName });
     }
     // After leaving (which clears the voice bar's message).
     const left = getVoiceSnapshot().callId === event.id ? leaveVoice() : Promise.resolve();
@@ -207,7 +208,7 @@ export async function startCall(peer) {
     console.warn('Could not start the call', err);
     clear();
     hangUpRequest(id).catch(() => {});
-    setVoiceError(errorText(err, 'Could not start the call.'));
+    setVoiceError(errorText(err, t('calls.errors.start')));
   }
 }
 
@@ -219,14 +220,14 @@ async function joinGroupCall(call) {
   try {
     const group = await openGroup(me, call.group_id);
     const epochKey = group.keys.get(call.key_epoch);
-    if (!epochKey) throw new Error("You joined the group after this call started: you can join the next one.");
+    if (!epochKey) throw new Error(t('calls.errors.joinedAfter'));
     const key = await decryptGroupCallKey(
       call.key_envelope, epochKey, groupCallKeyContext(call.id, call.group_id, call.key_epoch, call.caller_id),
       group.log.identityKeys.get(call.caller_id),
       callKeySignatureContext({ callId: call.id, groupId: call.group_id, epoch: call.key_epoch, callerId: call.caller_id })
     ).catch((err) => {
       console.warn('Group call key', err);
-      throw new Error("This call couldn't be verified as coming from its caller, so it wasn't joined.");
+      throw new Error(t('calls.errors.unverified'));
     });
     const { url, token, call: joined } = await acceptCallRequest(call.id);
     if (snapshot.call?.id !== call.id) return;
@@ -236,7 +237,7 @@ async function joinGroupCall(call) {
     if (snapshot.call?.id !== call.id) return;
     console.warn('Could not join the call', err);
     clear();
-    setVoiceError(errorText(err, 'Could not join the call.'));
+    setVoiceError(errorText(err, t('calls.errors.join')));
   }
 }
 
@@ -279,7 +280,7 @@ export async function startGroupCall(groupId) {
     console.warn('Could not start the call', err);
     clear();
     hangUpRequest(id).catch(() => {});
-    setVoiceError(errorText(err, 'Could not start the call.'));
+    setVoiceError(errorText(err, t('calls.errors.start')));
   }
 }
 
@@ -314,7 +315,7 @@ export async function acceptCall() {
     console.warn('Could not answer the call', err);
     clear();
     declineCallRequest(offer.id).catch(() => hangUpRequest(offer.id).catch(() => {}));
-    setVoiceError(errorText(err, 'Could not answer the call.'));
+    setVoiceError(errorText(err, t('calls.errors.answer')));
   }
 }
 

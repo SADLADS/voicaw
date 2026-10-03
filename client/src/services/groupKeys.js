@@ -18,6 +18,7 @@ import {
 } from './groupCrypto';
 import { createGroupRequest, fetchGroup, patchGroupName, postEpoch, postLogEntry } from './groupService';
 import { recallGroup, rememberGroup, rememberGroupName } from './groupCache';
+import { t } from '../i18n';
 
 // A group DM as this device sees it, with its keys (see groupCrypto.js for the formats):
 // - openGroup fetches it, replays and checks the membership log, checks each person's identity
@@ -78,7 +79,7 @@ export async function openGroup(me, groupId) {
       encryptionKey: user.encryption_key,
       encryptionKeySignature: user.encryption_key_signature,
     });
-    if (!ok) throw new GroupKeyProblem(`Can't use ${user?.username ?? 'someone'}'s key`, [user]);
+    if (!ok) throw new GroupKeyProblem(user?.username ? t('groups.errors.cantUseKey', { name: user.username }) : t('groups.errors.cantUseSomeonesKey'), [user]);
     return user.encryption_key;
   }
 
@@ -131,7 +132,7 @@ async function readName(me, groupId, detail, keys, log) {
 // group whose name isn't encrypted yet. Throws when it can't be read (then no epoch can be made).
 function nameToCarry(group) {
   if (!group.detail.name_version) return null;
-  if (!group.name?.signed) throw new GroupKeyProblem("Can't read this group's name, so its key can't be renewed. Try again later.");
+  if (!group.name?.signed) throw new GroupKeyProblem(t('groups.errors.cantReadName'));
   return { signed: group.name.signed, version: group.detail.name_version };
 }
 
@@ -157,7 +158,7 @@ async function makeEpoch(me, groupId, epoch, logSeq, memberIds, encryptionKeyOf,
 function refuseIfProblems(group) {
   if (group.problems.length) {
     throw new GroupKeyProblem(
-      `Can't send until ${group.problems.map((p) => p.user.username).join(', ')}'s security key is sorted out.`,
+      t('groups.errors.cantSend', { names: group.problems.map((p) => p.user.username).join(', ') }),
       group.problems.map((p) => p.user)
     );
   }
@@ -187,7 +188,7 @@ export async function currentEpoch(me, groupId, opened = null) {
       group = await openGroup(me, groupId);
     }
   }
-  throw new Error('The group keeps changing; try again.');
+  throw new Error(t('groups.errors.keepsChanging'));
 }
 
 async function signedEntry(fields) {
@@ -200,7 +201,7 @@ async function signedEntry(fields) {
 async function trustedUser(me, user) {
   const check = await checkContactKeys(me.id, user);
   if (!check.encryptionKey) {
-    throw new GroupKeyProblem(`${user.username}'s security key changed. Open your chat with them to review it.`, [user]);
+    throw new GroupKeyProblem(t('groups.errors.keyChanged', { name: user.username }), [user]);
   }
   return user;
 }
@@ -270,7 +271,7 @@ export async function changeMembership(me, groupId, type, user = null) {
       if (err.response?.status !== 409) throw err;
     }
   }
-  throw new Error('The group keeps changing; try again.');
+  throw new Error(t('groups.errors.keepsChanging'));
 }
 
 // Renames the group (any member; '' clears the name): the name signed by me, encrypted with
@@ -294,7 +295,7 @@ export async function renameGroup(me, groupId, name, { initial = false, opened =
       group = await openGroup(me, groupId);
     }
   }
-  throw new Error('The group keeps changing; try again.');
+  throw new Error(t('groups.errors.keepsChanging'));
 }
 
 // A group's name for the conversation list, from its summary (GET /group-dms): '' when it has

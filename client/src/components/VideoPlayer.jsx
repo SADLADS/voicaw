@@ -9,6 +9,7 @@ import {
   formatDuration, bufferedSpans, readVideoPrefs, saveVideoPrefs, claimPlayback,
 } from '../utils/videoPlayer';
 import { mediaBoxStyle } from '../utils/mediaBox';
+import { t } from '../i18n';
 import '../assets/css/video.css';
 
 const HIDE_CONTROLS_MS = 2500;
@@ -78,11 +79,11 @@ function SeekBar({ time, duration, spans, onSeek, onDragChange }) {
       className={`video-seek${dragTime !== null ? ' dragging' : ''}`}
       role="slider"
       tabIndex={0}
-      aria-label="Seek"
+      aria-label={t('media.video.seek')}
       aria-valuemin={0}
       aria-valuemax={Math.round(duration || 0)}
       aria-valuenow={Math.round(shown)}
-      aria-valuetext={`${formatDuration(shown)} of ${formatDuration(duration)}`}
+      aria-valuetext={t('media.video.timeOf', { time: formatDuration(shown), duration: formatDuration(duration) })}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
@@ -127,8 +128,10 @@ function DownloadButton({ name, onDownload, className = '' }) {
       type="button"
       className={`video-button video-download ${className}`}
       onClick={download}
-      title={failed ? 'Download failed, try again' : busy ? 'Downloading…' : `Download ${name}`}
-      aria-label={busy ? `Downloading ${name}` : `Download ${name}`}
+      title={failed
+        ? t('media.video.downloadFailedRetry')
+        : busy ? t('media.video.downloadingTitle') : t('media.video.download', { name })}
+      aria-label={busy ? t('media.video.downloading', { name }) : t('media.video.download', { name })}
       aria-busy={busy}
     >
       {busy ? (
@@ -265,10 +268,10 @@ export default function VideoPlayer({
     setError('format');
   };
 
-  const seek = (t) => {
+  const seek = (to) => {
     const el = video();
     if (!el) return;
-    el.currentTime = Math.min(Math.max(0, t), duration || el.duration || 0);
+    el.currentTime = Math.min(Math.max(0, to), duration || el.duration || 0);
     setTime(el.currentTime);
   };
 
@@ -383,7 +386,7 @@ export default function VideoPlayer({
 
       {!started && !loading && !error && (
         <>
-          <button type="button" className="video-big-play" onClick={() => play()} aria-label={`Play ${name}`}>
+          <button type="button" className="video-big-play" onClick={() => play()} aria-label={t('media.video.playName', { name })}>
             <FontAwesomeIcon icon={faPlay} />
           </button>
           <span className="video-badge">
@@ -395,20 +398,22 @@ export default function VideoPlayer({
       )}
 
       {(loading || (waiting && !paused)) && !error && (
-        <span className="video-loading" role="status" aria-label="Loading video">
+        <span className="video-loading" role="status" aria-label={t('media.video.loading')}>
           <span className="video-spinner" />
-          {loading?.progress != null && <span className="video-loading-text">{Math.round(loading.progress * 100)}%</span>}
+          {loading?.progress != null && (
+            <span className="video-loading-text">{t('media.percent', { percent: Math.round(loading.progress * 100) })}</span>
+          )}
         </span>
       )}
 
       {error && (
         <span className="video-error" role="alert">
           <FontAwesomeIcon icon={faTriangleExclamation} className="video-error-icon" />
-          <span>{error === 'load' ? "Couldn't load this video." : "This video can't play in this browser."}</span>
+          <span>{error === 'load' ? t('media.video.loadFailed') : t('media.video.cantPlay')}</span>
           <span className="video-error-actions">
             {error === 'load' && (
               <button type="button" className="video-error-button" onClick={() => play(true)}>
-                <FontAwesomeIcon icon={faRotateRight} /> Retry
+                <FontAwesomeIcon icon={faRotateRight} /> {t('media.video.retry')}
               </button>
             )}
             {onDownload && (
@@ -422,11 +427,23 @@ export default function VideoPlayer({
         <span className="video-controls" onClick={(e) => e.stopPropagation()}>
           <SeekBar time={time} duration={duration} spans={spans} onSeek={seek} onDragChange={setDragging} />
           <span className="video-controls-row">
-            <button type="button" className="video-button" onClick={togglePlay} aria-label={paused ? 'Play' : 'Pause'} title={paused ? 'Play (k)' : 'Pause (k)'}>
+            <button
+              type="button"
+              className="video-button"
+              onClick={togglePlay}
+              aria-label={paused ? t('media.video.play') : t('media.video.pause')}
+              title={paused ? t('media.video.playTitle') : t('media.video.pauseTitle')}
+            >
               <FontAwesomeIcon icon={paused ? faPlay : faPause} />
             </button>
             <span className="video-volume">
-              <button type="button" className="video-button" onClick={toggleMute} aria-label={prefs.muted ? 'Unmute' : 'Mute'} title={prefs.muted ? 'Unmute (m)' : 'Mute (m)'}>
+              <button
+                type="button"
+                className="video-button"
+                onClick={toggleMute}
+                aria-label={prefs.muted ? t('common.unmute') : t('common.mute')}
+                title={prefs.muted ? t('media.video.unmuteTitle') : t('media.video.muteTitle')}
+              >
                 <FontAwesomeIcon icon={volumeIcon} />
               </button>
               <input
@@ -437,7 +454,7 @@ export default function VideoPlayer({
                 step={0.05}
                 value={prefs.muted ? 0 : prefs.volume}
                 onChange={(e) => setVolume(Number(e.target.value))}
-                aria-label="Volume"
+                aria-label={t('media.video.volume')}
                 style={{ '--volume': `${(prefs.muted ? 0 : prefs.volume) * 100}%` }}
               />
             </span>
@@ -446,7 +463,13 @@ export default function VideoPlayer({
             </span>
             <span className="video-controls-spacer" />
             {onDownload && <DownloadButton name={name} onDownload={onDownload} />}
-            <button type="button" className="video-button" onClick={toggleFullscreen} aria-label={fullscreen ? 'Exit full screen' : 'Full screen'} title={fullscreen ? 'Exit full screen (f)' : 'Full screen (f)'}>
+            <button
+              type="button"
+              className="video-button"
+              onClick={toggleFullscreen}
+              aria-label={fullscreen ? t('media.video.exitFullScreen') : t('media.video.fullScreen')}
+              title={fullscreen ? t('media.video.exitFullScreenTitle') : t('media.video.fullScreenTitle')}
+            >
               <FontAwesomeIcon icon={fullscreen ? faCompress : faExpand} />
             </button>
           </span>

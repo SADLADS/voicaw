@@ -4,6 +4,7 @@ import { createThread, updateThread } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
 import { summarizeAttachments } from '../../utils/attachmentMarkup';
 import { customEmojiToText } from '../../emoji/customEmoji';
+import { t } from '../../i18n';
 
 const MAX_NAME = 100;
 // How much of a message a thread's suggested name takes.
@@ -43,13 +44,13 @@ export default function ThreadDialog({ channel, message = null, thread = null, o
 
   return (
     <Modal
-      title={renaming ? 'Rename thread' : 'Create thread'}
+      title={renaming ? t('guilds.threads.rename') : t('guilds.threads.create')}
       onClose={onClose}
       actions={(
         <>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>{t('common.cancel')}</button>
           <button type="submit" form="thread-form" className="btn btn-primary btn-sm vc-button" disabled={busy || !name.trim()}>
-            {renaming ? 'Save' : 'Create thread'}
+            {renaming ? t('common.save') : t('guilds.threads.create')}
           </button>
         </>
       )}
@@ -57,15 +58,17 @@ export default function ThreadDialog({ channel, message = null, thread = null, o
       <form id="thread-form" className="vc-form" onSubmit={save}>
         {!renaming && (
           <p className="vc-hint">
-            {message ? 'A side conversation about this message' : 'A side conversation'} in #{channel.name}. Everyone who can see the channel can see it.
+            {message
+              ? t('guilds.threads.dialogHintMessage', { name: channel.name })
+              : t('guilds.threads.dialogHint', { name: channel.name })}
           </p>
         )}
-        <label htmlFor="thread-name">Thread name</label>
+        <label htmlFor="thread-name">{t('guilds.threads.nameLabel')}</label>
         <input
           id="thread-name"
           className="form-control"
           maxLength={MAX_NAME}
-          placeholder="New thread"
+          placeholder={t('guilds.threads.namePlaceholder')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoFocus

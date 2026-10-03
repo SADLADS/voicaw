@@ -8,54 +8,55 @@
 // every: ms between repeats when it's played as a loop (rings).
 // minGap: ms during which the same sound isn't played again (a burst of messages dings once).
 
+// labelKey / descriptionKey: the text Settings → Sounds shows (i18n keys).
 export const SOUNDS = {
   message: {
-    label: 'Message',
-    description: 'A message you’d be notified about arrives (DMs, group DMs, guild mentions)',
+    labelKey: 'settings.sounds.message.label',
+    descriptionKey: 'settings.sounds.message.description',
     tone: { notes: [[0, 1046.5, 0.12], [0.08, 1568, 0.3]], volume: 0.12 },
     minGap: 1000,
   },
   mute: {
-    label: 'Mute',
+    labelKey: 'settings.sounds.mute.label',
     tone: { notes: [[0, 784, 0.09], [0.07, 523.3, 0.16]], volume: 0.12, wave: 'triangle' },
   },
   unmute: {
-    label: 'Unmute',
+    labelKey: 'settings.sounds.unmute.label',
     tone: { notes: [[0, 523.3, 0.09], [0.07, 784, 0.16]], volume: 0.12, wave: 'triangle' },
   },
   deafen: {
-    label: 'Deafen',
+    labelKey: 'settings.sounds.deafen.label',
     tone: { notes: [[0, 659.3, 0.08], [0.07, 493.9, 0.08], [0.14, 329.6, 0.2]], volume: 0.12, wave: 'triangle' },
   },
   undeafen: {
-    label: 'Undeafen',
+    labelKey: 'settings.sounds.undeafen.label',
     tone: { notes: [[0, 329.6, 0.08], [0.07, 493.9, 0.08], [0.14, 659.3, 0.2]], volume: 0.12, wave: 'triangle' },
   },
   userJoin: {
-    label: 'User join',
-    description: 'You or someone else joins your voice channel or call',
+    labelKey: 'settings.sounds.userJoin.label',
+    descriptionKey: 'settings.sounds.userJoin.description',
     tone: { notes: [[0, 587.3, 0.18], [0.1, 880, 0.35]], volume: 0.14 },
   },
   userLeave: {
-    label: 'User leave',
-    description: 'Someone leaves your voice channel or call',
+    labelKey: 'settings.sounds.userLeave.label',
+    descriptionKey: 'settings.sounds.userLeave.description',
     tone: { notes: [[0, 880, 0.18], [0.1, 587.3, 0.35]], volume: 0.14 },
   },
   disconnect: {
-    label: 'Voice disconnected',
-    description: 'You leave voice, a call ends, or the connection is lost',
+    labelKey: 'settings.sounds.disconnect.label',
+    descriptionKey: 'settings.sounds.disconnect.description',
     tone: { notes: [[0, 659.3, 0.14], [0.1, 440, 0.14], [0.2, 293.7, 0.4]], volume: 0.14 },
   },
   incomingRing: {
-    label: 'Incoming ring',
-    description: 'Someone is calling you',
+    labelKey: 'settings.sounds.incomingRing.label',
+    descriptionKey: 'settings.sounds.incomingRing.description',
     // Two rising notes, twice, every 3 s.
     tone: { notes: [[0, 660, 0.15], [0.18, 880, 0.15], [0.45, 660, 0.15], [0.63, 880, 0.2]], volume: 0.18, shape: 'flat' },
     every: 3000,
   },
   outgoingRing: {
-    label: 'Outgoing ring',
-    description: 'Your call is ringing',
+    labelKey: 'settings.sounds.outgoingRing.label',
+    descriptionKey: 'settings.sounds.outgoingRing.description',
     // A soft 440+480 Hz tone for 1.5 s, every 4 s (the usual ringback).
     tone: { notes: [[0, 440, 1.5], [0, 480, 1.5]], volume: 0.05, shape: 'flat' },
     every: 4000,

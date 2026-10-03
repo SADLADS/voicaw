@@ -22,6 +22,7 @@ import {
   zoomAt,
 } from '../utils/imageZoom';
 import { InteractionContext } from '../contexts';
+import { t } from '../i18n';
 import ImageMenu from './ImageMenu';
 import '../assets/css/imageViewer.css';
 
@@ -271,8 +272,8 @@ const ImageStage = forwardRef(function ImageStage(
         }
       }}
     >
-      {error && <p className="image-viewer-status">Couldn't load this image.</p>}
-      {!src && !error && <p className="image-viewer-status">Decrypting…</p>}
+      {error && <p className="image-viewer-status">{t('media.viewer.loadFailed')}</p>}
+      {!src && !error && <p className="image-viewer-status">{t('media.viewer.decrypting')}</p>}
       {src && (
         <img
           className={`image-viewer-image${animate ? ' animate' : ''}`}
@@ -314,7 +315,7 @@ function Thumbnail({ item, index, current, onSelect }) {
       type="button"
       className={`image-viewer-thumbnail${current ? ' current' : ''}`}
       onClick={() => onSelect(index)}
-      aria-label={`Image ${index + 1}: ${item.name}`}
+      aria-label={t('media.viewer.thumbnail', { number: index + 1, name: item.name })}
       aria-current={current ? 'true' : undefined}
     >
       {src ? <img src={src} alt="" draggable={false} /> : <span className="image-viewer-thumbnail-loading" />}
@@ -394,8 +395,8 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
             type="button"
             className="image-viewer-zoom-button"
             onClick={() => stageRef.current?.zoomBy(1 / ZOOM_STEP)}
-            title="Zoom out (−)"
-            aria-label="Zoom out"
+            title={t('media.viewer.zoomOutTitle')}
+            aria-label={t('media.viewer.zoomOut')}
           >
             <FontAwesomeIcon icon={faMagnifyingGlassMinus} />
           </button>
@@ -403,33 +404,45 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
             type="button"
             className="image-viewer-percent"
             onClick={() => stageRef.current?.reset()}
-            title="Fit to screen (0)"
-            aria-label="Fit to screen"
+            title={t('media.viewer.fitToScreenTitle')}
+            aria-label={t('media.viewer.fitToScreen')}
           >
-            {viewInfo ? `${viewInfo.percent}%` : ''}
+            {viewInfo ? t('media.percent', { percent: viewInfo.percent }) : ''}
           </button>
           <button
             type="button"
             className="image-viewer-zoom-button"
             onClick={() => stageRef.current?.zoomBy(ZOOM_STEP)}
-            title="Zoom in (+)"
-            aria-label="Zoom in"
+            title={t('media.viewer.zoomInTitle')}
+            aria-label={t('media.viewer.zoomIn')}
           >
             <FontAwesomeIcon icon={faMagnifyingGlassPlus} />
           </button>
-          <button type="button" onClick={() => saveUrlAs(src, item.name)} disabled={!src} title="Save" aria-label="Save">
+          <button
+            type="button"
+            onClick={() => saveUrlAs(src, item.name)}
+            disabled={!src}
+            title={t('common.save')}
+            aria-label={t('common.save')}
+          >
             <FontAwesomeIcon icon={faDownload} />
           </button>
           <button
             type="button"
             onClick={() => openInNewTab(src)}
             disabled={!src}
-            title="Open in new tab"
-            aria-label="Open in new tab"
+            title={t('media.viewer.openInNewTab')}
+            aria-label={t('media.viewer.openInNewTab')}
           >
             <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
           </button>
-          <button type="button" ref={closeRef} onClick={onClose} title="Close (Esc)" aria-label="Close">
+          <button
+            type="button"
+            ref={closeRef}
+            onClick={onClose}
+            title={t('media.viewer.closeTitle')}
+            aria-label={t('common.close')}
+          >
             <FontAwesomeIcon icon={faXmark} />
           </button>
         </div>
@@ -452,8 +465,8 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
               className="image-viewer-nav previous"
               onClick={() => go(-1)}
               disabled={!canSwipe.previous}
-              title="Previous image (←)"
-              aria-label="Previous image"
+              title={t('media.viewer.previousTitle')}
+              aria-label={t('media.viewer.previous')}
             >
               <FontAwesomeIcon icon={faChevronLeft} />
             </button>
@@ -462,8 +475,8 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
               className="image-viewer-nav next"
               onClick={() => go(1)}
               disabled={!canSwipe.next}
-              title="Next image (→)"
-              aria-label="Next image"
+              title={t('media.viewer.nextTitle')}
+              aria-label={t('media.viewer.next')}
             >
               <FontAwesomeIcon icon={faChevronRight} />
             </button>
@@ -471,7 +484,7 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
         )}
       </div>
       {multiple && (
-        <div className="image-viewer-thumbnails" role="group" aria-label="Images in this message">
+        <div className="image-viewer-thumbnails" role="group" aria-label={t('media.viewer.thumbnails')}>
           {images.map((image, i) => (
             <Thumbnail key={i} item={image} index={i} current={i === index} onSelect={onIndexChange} />
           ))}

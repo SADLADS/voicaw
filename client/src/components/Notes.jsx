@@ -8,6 +8,7 @@ import { useConversation } from '../hooks/useConversation';
 import { addReaction, removeReaction } from '../services/dmService';
 import { encryptReaction, reactionContext } from '../services/encryptionService';
 import { nameOf, useProfiles } from '../utils/profiles';
+import { t } from '../i18n';
 
 // Your notes (/dm/notes): a DM to yourself, end-to-end encrypted with a key only your own key
 // pair derives (see useConversation's `notes`). Everything a DM has but calls and key checks.
@@ -42,15 +43,15 @@ export default function Notes({ user }) {
     <div id="dm-main" className="notes-main" data-current-user-id={user?.id}>
       <h4 className="chat-recipient-header">
         <FontAwesomeIcon icon={faNoteSticky} className="notes-header-icon" />
-        Notes
-        <span className="chat-recipient-status">Only you can read these</span>
+        {t('chat.notes.title')}
+        <span className="chat-recipient-status">{t('chat.notes.onlyYou')}</span>
         {sharedKey && (
           <button
             type="button"
             className={`chat-call-button pins-button${pinsAnchor ? ' active' : ''}`}
-            aria-label="Pinned messages"
+            aria-label={t('chat.pins.title')}
             aria-pressed={Boolean(pinsAnchor)}
-            title="Pinned messages"
+            title={t('chat.pins.title')}
             onClick={togglePins}
           >
             <FontAwesomeIcon icon={faThumbtack} />
@@ -61,7 +62,7 @@ export default function Notes({ user }) {
         <ChatPane
           pollKind="dm"
           chatId="notes"
-          chatName="Notes"
+          chatName={t('chat.notes.title')}
           user={user}
           conversation={conversation}
           reactionsReady={Boolean(sharedKey)}
@@ -71,7 +72,7 @@ export default function Notes({ user }) {
           people={people}
           pinsAnchor={pinsAnchor}
           onClosePins={closePins}
-          emptyText="Nothing here yet. Keep notes, links and files for yourself: they're end-to-end encrypted."
+          emptyText={t('chat.notes.empty')}
         />
       )}
     </div>

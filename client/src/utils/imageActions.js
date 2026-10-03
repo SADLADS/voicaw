@@ -1,6 +1,7 @@
 import { faArrowUpRightFromSquare, faCopy, faDownload, faLink } from '@fortawesome/free-solid-svg-icons';
 import { loadImageSrc, readyImageSrc } from './imageGallery';
 import { openInNewTab, saveUrlAs } from './saveFile';
+import { t } from '../i18n';
 
 // What can be done with a picture (ImageMenu: right-click it in a message or in the full-screen
 // viewer, or hold it in the viewer on a phone). `item` is a gallery item (utils/imageGallery.js:
@@ -21,7 +22,7 @@ export function imageLink(item) {
 async function pngBlob(src) {
   // Other sites' pictures are fetched like they're shown: without telling them where from.
   const res = await fetch(src, { referrerPolicy: 'no-referrer' });
-  if (!res.ok) throw new Error(`Couldn't load the image (${res.status})`);
+  if (!res.ok) throw new Error(t('media.image.loadFailedStatus', { status: res.status }));
   const blob = await res.blob();
   if (blob.type === 'image/png') return blob;
   const bitmap = await createImageBitmap(blob);
@@ -31,7 +32,7 @@ async function pngBlob(src) {
   canvas.getContext('2d').drawImage(bitmap, 0, 0);
   bitmap.close?.();
   return new Promise((resolve, reject) => {
-    canvas.toBlob((png) => (png ? resolve(png) : reject(new Error("Couldn't copy the image"))), 'image/png');
+    canvas.toBlob((png) => (png ? resolve(png) : reject(new Error(t('media.image.copyFailed')))), 'image/png');
   });
 }
 
@@ -39,7 +40,7 @@ async function pngBlob(src) {
 // within the click (Safari needs that) while the picture is fetched or decrypted.
 export async function copyImage(item) {
   if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
-    throw new Error("This browser can't copy images");
+    throw new Error(t('media.image.browserCantCopy'));
   }
   const png = srcOf(item).then(pngBlob);
   try {
@@ -47,8 +48,8 @@ export async function copyImage(item) {
   } catch (err) {
     // A site that doesn't let other pages read its pictures (no CORS) can't be copied.
     throw new Error(err?.name === 'TypeError' || err?.name === 'NotAllowedError'
-      ? "This image can't be copied: try Save Image"
-      : err?.message || "Couldn't copy the image");
+      ? t('media.image.cantBeCopied')
+      : err?.message || t('media.image.copyFailed'));
   }
 }
 
@@ -58,18 +59,18 @@ export function imageMenuItems(item) {
   const items = [
     {
       key: 'copy-image',
-      label: 'Copy Image',
+      label: t('media.image.copyImage'),
       icon: faCopy,
       onSelect: async () => {
         await copyImage(item);
-        return 'Image copied';
+        return t('media.image.imageCopied');
       },
     },
     {
       key: 'save-image',
-      label: 'Save Image',
+      label: t('media.image.saveImage'),
       icon: faDownload,
-      onSelect: async () => saveUrlAs(await srcOf(item), item.name || 'image'),
+      onSelect: async () => saveUrlAs(await srcOf(item), item.name || t('media.image.defaultFileName')),
     },
   ];
   if (link) {
@@ -77,21 +78,21 @@ export function imageMenuItems(item) {
       { separator: true },
       {
         key: 'copy-link',
-        label: 'Copy Link',
+        label: t('media.image.copyLink'),
         icon: faLink,
         onSelect: async () => {
           await navigator.clipboard.writeText(link);
-          return 'Link copied';
+          return t('media.image.linkCopied');
         },
       },
-      { key: 'open-link', label: 'Open Link', icon: faArrowUpRightFromSquare, onSelect: () => openInNewTab(link) },
+      { key: 'open-link', label: t('media.image.openLink'), icon: faArrowUpRightFromSquare, onSelect: () => openInNewTab(link) },
     );
   } else {
     items.push(
       { separator: true },
       {
         key: 'open-image',
-        label: 'Open Image',
+        label: t('media.image.openImage'),
         icon: faArrowUpRightFromSquare,
         onSelect: async () => openInNewTab(await srcOf(item)),
       },
@@ -116,9 +117,9 @@ export function imageAt(target, galleryItemOf) {
   let name = img.getAttribute('alt') || '';
   if (!name) {
     try {
-      name = decodeURIComponent(new URL(src).pathname.split('/').pop() || 'image');
+      name = decodeURIComponent(new URL(src).pathname.split('/').pop() || t('media.image.defaultFileName'));
     } catch {
-      name = 'image';
+      name = t('media.image.defaultFileName');
     }
   }
   return { src, name };

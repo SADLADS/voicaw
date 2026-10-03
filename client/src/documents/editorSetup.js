@@ -10,6 +10,7 @@ import { gapCursor } from 'prosemirror-gapcursor';
 import { goToNextCell, tableEditing } from 'prosemirror-tables';
 import { schema } from './documentSchema';
 import { parseAttachmentUrl } from '../services/attachmentCrypto';
+import { t } from '../i18n';
 import { getCachedAttachment, loadDecryptedAttachment } from '../services/attachmentCache';
 import { spellcheckPlugin } from '../spellcheck/spellcheckPlugin';
 import { galleryItemFromUrl, galleryItemRef } from '../utils/imageGallery';
@@ -268,7 +269,7 @@ function placeholder(text) {
   });
 }
 
-export function createEditorState(doc, { placeholderText = 'Start writing…', extraPlugins = [] } = {}) {
+export function createEditorState(doc, { placeholderText = t('documents.editor.startWriting'), extraPlugins = [] } = {}) {
   return EditorState.create({
     doc,
     plugins: [
@@ -337,7 +338,7 @@ class ImageView {
     this.dom.draggable = true;
     // Its menu (copy, save...) on right click (PageMenus) or a long press (useImageHold).
     this.dom.dataset.galleryItem = '';
-    galleryItemRef(galleryItemFromUrl(node.attrs.src, node.attrs.alt || 'image'))(this.dom);
+    galleryItemRef(galleryItemFromUrl(node.attrs.src, node.attrs.alt || t('documents.editor.imageName')))(this.dom);
     const meta = parseAttachmentUrl(node.attrs.src);
     if (!meta) {
       this.dom.referrerPolicy = 'no-referrer';

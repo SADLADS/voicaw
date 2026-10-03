@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Modal from './Modal';
 import { errorMessage } from '../../utils/guildDisplay';
+import { t } from '../../i18n';
 
 // "Are you sure?": `onConfirm` (async) runs on the red button; its error is shown here.
 // `children` go under the message; with `focusConfirm` the red button starts focused, so Enter
@@ -27,7 +28,7 @@ export default function ConfirmDialog({ title, message, confirmLabel, onConfirm,
       onClose={onClose}
       actions={(
         <>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>{t('common.cancel')}</button>
           <button type="button" className="btn btn-danger btn-sm" onClick={confirm} disabled={busy} autoFocus={focusConfirm}>
             {confirmLabel}
           </button>

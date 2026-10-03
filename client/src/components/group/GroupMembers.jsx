@@ -14,6 +14,7 @@ import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME } from '../../services/groupCrypto';
 import { nameOf, useProfiles } from '../../utils/profiles';
 import { usePresence } from '../../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../../utils/presence';
+import { t } from '../../i18n';
 
 const errorText = (err) => err.response?.data?.error ?? err.message;
 
@@ -61,11 +62,11 @@ export default function GroupMembers({ group, user, users, onClose }) {
   });
 
   return (
-    <aside className="member-list group-members" aria-label="Members">
+    <aside className="member-list group-members" aria-label={t('common.members')}>
       <div className="group-members-header">
-        <span>Members — {memberIds.length}</span>
+        <span>{t('groups.members.header', { count: memberIds.length })}</span>
         {onClose && (
-          <button type="button" className="guild-sidebar-icon-button" aria-label="Close" onClick={onClose}>
+          <button type="button" className="guild-sidebar-icon-button" aria-label={t('common.close')} onClick={onClose}>
             <FontAwesomeIcon icon={faXmark} />
           </button>
         )}
@@ -79,14 +80,14 @@ export default function GroupMembers({ group, user, users, onClose }) {
                 <UserAvatar userId={id} className="group-member-avatar" />
                 <StatusIcon status={status} title={status === 'offline' ? lastSeenText(lastOnline) ?? statusLabel(status) : undefined} />
               </span>
-              <span className="group-member-name">{names.get(id) ?? 'Someone'}{id === user.id ? ' (you)' : ''}</span>
-              {id === log.ownerId && <FontAwesomeIcon icon={faCrown} className="group-owner-crown" title="Group owner" aria-label="Group owner" />}
+              <span className="group-member-name">{id === user.id ? t('groups.members.you', { name: names.get(id) ?? t('groups.members.someone') }) : (names.get(id) ?? t('groups.members.someone'))}</span>
+              {id === log.ownerId && <FontAwesomeIcon icon={faCrown} className="group-owner-crown" title={t('groups.members.owner')} aria-label={t('groups.members.owner')} />}
               {isOwner && id !== user.id && (
                 <button
                   type="button"
                   className="guild-sidebar-icon-button"
-                  aria-label={`Remove ${names.get(id)}`}
-                  title="Remove from group"
+                  aria-label={t('groups.members.removeName', { name: names.get(id) })}
+                  title={t('groups.members.removeFromGroup')}
                   onClick={() => setDialog({ type: 'remove', id })}
                 >
                   <FontAwesomeIcon icon={faUserMinus} />
@@ -98,75 +99,75 @@ export default function GroupMembers({ group, user, users, onClose }) {
       </ul>
       <div className="group-members-actions">
         <button type="button" className="group-action" onClick={() => setDialog({ type: 'add' })} disabled={room <= 0}>
-          <FontAwesomeIcon icon={faUserPlus} /> Add people
+          <FontAwesomeIcon icon={faUserPlus} /> {t('groups.members.addPeople')}
         </button>
         <button type="button" className="group-action" onClick={() => { setName(group.name?.name ?? ''); setDialog({ type: 'rename' }); }}>
-          <FontAwesomeIcon icon={faPen} /> Rename
+          <FontAwesomeIcon icon={faPen} /> {t('groups.members.rename')}
         </button>
         <button type="button" className="group-action danger" onClick={() => setDialog({ type: 'leave' })}>
-          <FontAwesomeIcon icon={faRightFromBracket} /> Leave group
+          <FontAwesomeIcon icon={faRightFromBracket} /> {t('groups.members.leave')}
         </button>
       </div>
 
       {dialog?.type === 'add' && (
         <Modal
-          title="Add People"
+          title={t('groups.members.addTitle')}
           className="group-dialog"
           onClose={close}
           actions={(
             <>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={close}>Cancel</button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={close}>{t('common.cancel')}</button>
               <button type="button" className="btn btn-primary btn-sm vc-button" onClick={addPeople} disabled={busy || selected.size === 0}>
-                {busy ? 'Adding…' : 'Add'}
+                {busy ? t('groups.members.adding') : t('common.add')}
               </button>
             </>
           )}
         >
-          <p className="vc-hint">They&apos;ll see messages from now on, not what was said before.</p>
+          <p className="vc-hint">{t('groups.members.addHint')}</p>
           <UserPicker users={users.filter((u) => !log.members.has(u.id))} selected={selected} onChange={setSelected} max={room} />
           {error && <p className="error-msg" role="alert">{error}</p>}
         </Modal>
       )}
       {dialog?.type === 'rename' && (
         <Modal
-          title="Rename Group"
+          title={t('groups.members.renameTitle')}
           className="group-dialog"
           onClose={close}
           actions={(
             <>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={close}>Cancel</button>
-              <button type="button" className="btn btn-primary btn-sm vc-button" onClick={() => run(() => renameGroup(user, detail.id, name))} disabled={busy}>Save</button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={close}>{t('common.cancel')}</button>
+              <button type="button" className="btn btn-primary btn-sm vc-button" onClick={() => run(() => renameGroup(user, detail.id, name))} disabled={busy}>{t('common.save')}</button>
             </>
           )}
         >
           <input
             className="form-control"
-            placeholder="Group name (empty: the members' names)"
-            aria-label="Group name"
+            placeholder={t('groups.members.namePlaceholder')}
+            aria-label={t('groups.members.nameLabel')}
             maxLength={MAX_GROUP_NAME}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <p className="vc-hint">Group names are end-to-end encrypted, like messages.</p>
+          <p className="vc-hint">{t('groups.members.nameHint')}</p>
           {error && <p className="error-msg" role="alert">{error}</p>}
         </Modal>
       )}
       {dialog?.type === 'remove' && (
         <ConfirmDialog
-          title={`Remove ${names.get(dialog.id)}`}
-          message={`${names.get(dialog.id)} won't see anything sent in this group from now on.`}
-          confirmLabel="Remove"
+          title={t('groups.members.removeName', { name: names.get(dialog.id) })}
+          message={t('groups.members.removeMessage', { name: names.get(dialog.id) })}
+          confirmLabel={t('common.remove')}
           onConfirm={() => changeMembership(user, detail.id, 'remove', detail.users.find((u) => u.id === dialog.id))}
           onClose={close}
         />
       )}
       {dialog?.type === 'leave' && (
         <ConfirmDialog
-          title="Leave group"
+          title={t('groups.members.leave')}
           message={isOwner
-            ? "You won't see this group any more, and it won't have an owner (nobody can remove people)."
-            : "You won't see this group any more unless someone adds you back."}
-          confirmLabel="Leave Group"
+            ? t('groups.members.leaveOwnerMessage')
+            : t('groups.members.leaveMessage')}
+          confirmLabel={t('groups.members.leaveConfirm')}
           onConfirm={async () => {
             await changeMembership(user, detail.id, 'leave');
             navigate('/dm', { replace: true });

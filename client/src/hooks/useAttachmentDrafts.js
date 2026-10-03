@@ -3,6 +3,7 @@ import { uploadAttachment, MAX_ATTACHMENT_BYTES } from '../services/attachmentUp
 import { buildAttachmentUrl, isStreamable, ENCRYPTION_OVERHEAD_BYTES } from '../services/attachmentCrypto';
 import { formatBytes } from '../utils/formatBytes';
 import { readMediaDimensions } from '../utils/mediaDimensions';
+import { t } from '../i18n';
 
 // Files attached to the message being composed. They stay on the device, referenced from the
 // text as `![name](attachment:ID)` placeholders, until the message is sent (see
@@ -37,7 +38,11 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     const accepted = files.filter((f) => f.size <= MAX_ATTACHMENT_BYTES);
     onError(
       tooBig.length > 0
-        ? `${tooBig.map((f) => f.name).join(', ')} ${tooBig.length === 1 ? 'is' : 'are'} over the ${formatBytes(MAX_ATTACHMENT_BYTES)} limit.`
+        ? t('media.drafts.tooBig', {
+          count: tooBig.length,
+          names: tooBig.map((f) => f.name).join(', '),
+          limit: formatBytes(MAX_ATTACHMENT_BYTES),
+        })
         : null
     );
     if (accepted.length === 0) return;
@@ -45,7 +50,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     const newDrafts = accepted.map((file) => ({
       id: nextDraftId.current++,
       file,
-      name: file.name || 'file',
+      name: file.name || t('media.drafts.defaultName'),
       type: file.type || 'application/octet-stream',
       size: file.size,
       previewUrl: URL.createObjectURL(file),

@@ -16,6 +16,7 @@ import StreamView from '../voice/StreamView';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
 import { HeadphonesIcon, MicIcon } from '../voice/VoiceIcons';
 import { displayName, useProfiles } from '../../utils/profiles';
+import { t } from '../../i18n';
 
 // A voice channel's page: everyone in it as tiles (ringed while they talk, if you're in there
 // too), and joining, or mute/deafen/share screen/disconnect once you're in. On mobile this is
@@ -45,19 +46,19 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
       <div className="voice-view-controls">
         <VoiceControls className="voice-view-button" />
         <ScreenShareButton className="voice-view-button" />
-        <button type="button" className="voice-view-button leave" aria-label="Disconnect" title="Disconnect" onClick={leaveVoice}>
+        <button type="button" className="voice-view-button leave" aria-label={t('guilds.voice.disconnect')} title={t('guilds.voice.disconnect')} onClick={leaveVoice}>
           <FontAwesomeIcon icon={faPhoneSlash} fixedWidth />
         </button>
       </div>
     );
   } else if (!voiceEnabled) {
-    footer = <p className="voice-view-note">Voice isn&apos;t set up yet.</p>;
+    footer = <p className="voice-view-note">{t('guilds.voice.notSetUp')}</p>;
   } else if (!canConnect) {
-    footer = <p className="voice-view-note">You don&apos;t have permission to join this channel.</p>;
+    footer = <p className="voice-view-note">{t('guilds.voice.noPermission')}</p>;
   } else {
     footer = (
       <button type="button" className="voice-view-join" onClick={() => joinVoice(guild.id, channel.id)}>
-        Join Voice
+        {t('guilds.voice.join')}
       </button>
     );
   }
@@ -74,21 +75,21 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
       )}
       {watched && poppedOut && (
         <div className="stream-popped-note">
-          <span className="voice-live-badge">Live</span>
+          <span className="voice-live-badge">{t('guilds.voice.live')}</span>
           <span className="stream-popped-text">
-            {watchedOwn ? 'Your stream is' : `${displayName(watched.user_id, watched.username)}'s stream is`} in its own window.
+            {watchedOwn ? t('guilds.voice.ownStreamPoppedOut') : t('guilds.voice.streamPoppedOut', { name: displayName(watched.user_id, watched.username) })}
           </span>
-          <button type="button" className="stream-popped-button" onClick={closeStreamWindow}>Bring back</button>
-          <button type="button" className="stream-popped-button" onClick={() => watchStream(null)}>Stop watching</button>
+          <button type="button" className="stream-popped-button" onClick={closeStreamWindow}>{t('guilds.voice.bringBack')}</button>
+          <button type="button" className="stream-popped-button" onClick={() => watchStream(null)}>{t('guilds.voice.stopWatching')}</button>
         </div>
       )}
       {members.length === 0 ? (
         <div className="voice-view-empty">
           <FontAwesomeIcon icon={faVolumeHigh} size="2x" />
-          <p>No one&apos;s here yet.</p>
+          <p>{t('guilds.voice.empty')}</p>
         </div>
       ) : (
-        <ul className="voice-view-tiles" aria-label={`In ${channel.name}`}>
+        <ul className="voice-view-tiles" aria-label={t('guilds.voice.inChannel', { name: channel.name })}>
           {members.map((m) => {
             const talking = speaking.has(String(m.user_id));
             const live = m.self_stream || streams.has(String(m.user_id));
@@ -105,9 +106,9 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
                 </span>
                 {(m.self_mute || m.self_deaf || live) && (
                   <span className="voice-tile-icons">
-                    {live && <span className="voice-live-badge">Live</span>}
-                    {(m.self_mute || m.self_deaf) && <span title="Muted" aria-label="Muted"><MicIcon muted /></span>}
-                    {m.self_deaf && <span title="Deafened" aria-label="Deafened"><HeadphonesIcon deafened /></span>}
+                    {live && <span className="voice-live-badge">{t('guilds.voice.live')}</span>}
+                    {(m.self_mute || m.self_deaf) && <span title={t('guilds.voice.muted')} aria-label={t('guilds.voice.muted')}><MicIcon muted /></span>}
+                    {m.self_deaf && <span title={t('guilds.voice.deafened')} aria-label={t('guilds.voice.deafened')}><HeadphonesIcon deafened /></span>}
                   </span>
                 )}
                 {watchable && (
@@ -120,7 +121,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
                     }}
                     onKeyDown={(e) => e.stopPropagation()}
                   >
-                    Watch Stream
+                    {t('guilds.voice.watchStream')}
                   </button>
                 )}
               </li>
@@ -131,7 +132,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
       {volumeMenu.menu && <UserVolumeMenu {...volumeMenu.menu} sheet={isMobile} onClose={volumeMenu.close} />}
       {here && voice.streamError && <p className="voice-view-note voice-view-error" role="alert">{voice.streamError}</p>}
       <div className="voice-view-footer">
-        {voice.status === 'connecting' && voice.channelId === channel.id ? <p className="voice-view-note">Connecting…</p> : footer}
+        {voice.status === 'connecting' && voice.channelId === channel.id ? <p className="voice-view-note">{t('guilds.voice.connecting')}</p> : footer}
       </div>
     </div>
   );

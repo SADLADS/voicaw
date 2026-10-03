@@ -5,6 +5,7 @@ import { LayoutContext } from '../../contexts';
 import GuildIcon from './GuildIcon';
 import { acceptInvite, fetchInvite } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
+import { t } from '../../i18n';
 
 // /invite/:code: who invited you to which guild, and a button to join (or open it, if
 // you're already in).
@@ -45,25 +46,25 @@ export default function InvitePage() {
       <div className="invite-card">
         {error ? (
           <>
-            <h5>Invite invalid</h5>
+            <h5>{t('guilds.invite.page.invalid')}</h5>
             <p className="vc-hint">{error}</p>
-            <button type="button" className="btn btn-secondary" onClick={() => navigate('/dm')}>Back to Voicaw</button>
+            <button type="button" className="btn btn-secondary" onClick={() => navigate('/dm')}>{t('guilds.invite.page.back')}</button>
           </>
         ) : !invite ? (
-          <p className="vc-hint">Loading invite…</p>
+          <p className="vc-hint">{t('guilds.invite.loading')}</p>
         ) : (
           <>
             <GuildIcon guild={{ id: invite.guild_id, name: invite.name, icon_version: invite.icon_version }} className="invite-icon" />
-            <p className="vc-hint">{invite.creator_username} invited you to join</p>
+            <p className="vc-hint">{t('guilds.invite.page.invitedBy', { name: invite.creator_username })}</p>
             <h4>{invite.name}</h4>
-            <p className="vc-hint">{invite.member_count} {invite.member_count === 1 ? 'member' : 'members'}</p>
+            <p className="vc-hint">{t('guilds.invite.memberCount', { count: invite.member_count })}</p>
             {invite.is_member ? (
               <button type="button" className="btn btn-primary vc-button" onClick={() => navigate(`/guild/${invite.guild_id}`)}>
-                Go to guild
+                {t('guilds.invite.page.goTo')}
               </button>
             ) : (
               <button type="button" className="btn btn-primary vc-button" onClick={join} disabled={joining}>
-                Accept invite
+                {t('guilds.invite.page.accept')}
               </button>
             )}
           </>

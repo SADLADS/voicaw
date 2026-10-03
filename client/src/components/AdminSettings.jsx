@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
+import { Trans } from 'react-i18next';
+import { t } from '../i18n';
 
 const SOURCE_LABELS = {
-  admin: 'Set here',
-  env: 'From server/.env',
-  unset: 'Not set',
+  admin: 'settings.admin.source.admin',
+  env: 'settings.admin.source.env',
+  unset: 'settings.admin.source.unset',
 };
 
 function errorText(err, fallback) {
@@ -26,15 +28,15 @@ function SettingRow({ setting, onSaved }) {
       onSaved(data.settings);
       if (setting.secret) setValue('');
     } catch (err) {
-      setError(errorText(err, "Couldn't save"));
+      setError(errorText(err, t('settings.admin.couldntSave')));
     } finally {
       setSaving(false);
     }
   };
 
   const current = setting.secret
-    ? (setting.hint ? `${SOURCE_LABELS[setting.source]}: ${setting.hint}` : SOURCE_LABELS.unset)
-    : SOURCE_LABELS[setting.source];
+    ? (setting.hint ? t('settings.admin.sourceWithHint', { source: t(SOURCE_LABELS[setting.source]), hint: setting.hint }) : t(SOURCE_LABELS.unset))
+    : t(SOURCE_LABELS[setting.source]);
 
   return (
     <form
@@ -47,19 +49,19 @@ function SettingRow({ setting, onSaved }) {
       <label htmlFor={`admin-${setting.key}`}>{setting.label}</label>
       <p className="admin-setting-help">
         {setting.description}
-        {setting.env && <> Without a value here, <code>{setting.env}</code> in server/.env is used.</>}
+        {setting.env && <>{' '}<Trans i18nKey="settings.admin.envFallback" values={{ env: setting.env }} components={{ code: <code /> }} /></>}
       </p>
       <div className="admin-setting-row">
         <input
           id={`admin-${setting.key}`}
           type={setting.secret ? 'password' : 'text'}
           autoComplete="off"
-          placeholder={setting.secret ? (setting.hint ? 'Enter a new value to replace it' : 'Enter a value') : ''}
+          placeholder={setting.secret ? (setting.hint ? t('settings.admin.replaceValue') : t('settings.admin.enterValue')) : ''}
           value={value}
           onChange={(e) => setValue(e.target.value)}
         />
         <button type="submit" className="btn btn-sm uploadbutton" disabled={saving || !value.trim()}>
-          Save
+          {t('common.save')}
         </button>
         {setting.source === 'admin' && (
           <button
@@ -67,9 +69,9 @@ function SettingRow({ setting, onSaved }) {
             className="btn btn-sm btn-secondary"
             disabled={saving}
             onClick={() => save(null)}
-            title={setting.env ? `Go back to ${setting.env} from server/.env` : 'Clear'}
+            title={setting.env ? t('settings.admin.goBackToEnv', { env: setting.env }) : t('settings.admin.clear')}
           >
-            {setting.env ? 'Use .env' : 'Clear'}
+            {setting.env ? t('settings.admin.useEnv') : t('settings.admin.clear')}
           </button>
         )}
       </div>
@@ -91,7 +93,7 @@ function AdminList({ admins, onChange, me }) {
       onChange(data.admins);
       setUsername('');
     } catch (err) {
-      setError(errorText(err, "Couldn't add them"));
+      setError(errorText(err, t('settings.admin.couldntAdd')));
     }
   };
 
@@ -101,21 +103,21 @@ function AdminList({ admins, onChange, me }) {
       const { data } = await api.delete(`/admin/admins/${id}`);
       onChange(data.admins);
     } catch (err) {
-      setError(errorText(err, "Couldn't remove them"));
+      setError(errorText(err, t('settings.admin.couldntRemove')));
     }
   };
 
   return (
     <div className="admin-setting">
-      <label htmlFor="admin-add">Admins</label>
-      <p className="admin-setting-help">Admins can change everything in this section.</p>
+      <label htmlFor="admin-add">{t('settings.admin.admins')}</label>
+      <p className="admin-setting-help">{t('settings.admin.adminsHelp')}</p>
       <ul className="admin-list">
         {admins.map((a) => (
           <li key={a.id}>
             <span>{a.username}</span>
             {a.id !== me && (
               <button type="button" className="btn btn-sm btn-secondary" onClick={() => remove(a.id)}>
-                Remove
+                {t('common.remove')}
               </button>
             )}
           </li>
@@ -126,12 +128,12 @@ function AdminList({ admins, onChange, me }) {
           id="admin-add"
           type="text"
           autoComplete="off"
-          placeholder="Username"
+          placeholder={t('settings.admin.username')}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
         <button type="submit" className="btn btn-sm uploadbutton" disabled={!username.trim()}>
-          Make admin
+          {t('settings.admin.makeAdmin')}
         </button>
       </form>
       {error && <p className="error-msg">{error}</p>}
@@ -164,7 +166,7 @@ export default function AdminSettings({ onAvailable }) {
   if (!data) return null;
   return (
     <div className="settings-card admin-settings">
-      <h5>Admin</h5>
+      <h5>{t('settings.admin.title')}</h5>
       {data.settings.map((setting) => (
         <SettingRow
           key={setting.key}

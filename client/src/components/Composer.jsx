@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
 import EmojiPicker from './EmojiPicker';
@@ -28,6 +29,7 @@ import { gifMarkup } from '../utils/gifMarkup';
 import { displayName, nameOf, useProfiles } from '../utils/profiles';
 import { noteTyping, typingDone } from '../services/typingService';
 import { getDraft, saveDraft } from '../services/draftStore';
+import { t } from '../i18n';
 
 // ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
 const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
@@ -261,7 +263,7 @@ export default function Composer({
       Object.fromEntries(referenced.map((d) => [d.id, attachments.projectedUrl(d)]))
     );
     if (projectedText.length > maxPlaintextLength) {
-      setError(`Message is ${projectedText.length - maxPlaintextLength} characters too long once attachment links are added.`);
+      setError(t('chat.composer.tooLongWithLinks', { count: projectedText.length - maxPlaintextLength }));
       return;
     }
     setError(null);
@@ -289,7 +291,7 @@ export default function Composer({
         } : undefined,
       });
     } catch (err) {
-      setError(`Message failed to send: ${err.message}`);
+      setError(t('chat.composer.sendFailed', { error: err.message }));
     }
   }
 
@@ -302,7 +304,7 @@ export default function Composer({
     try {
       await onSend({ text: gifMarkup(gif), replyTo });
     } catch (err) {
-      setError(`GIF failed to send: ${err.message}`);
+      setError(t('chat.composer.gifFailed', { error: err.message }));
     }
   }
 
@@ -404,7 +406,7 @@ export default function Composer({
         {replyTo && (
           <div className="reply-bar">
             <span>
-              Replying to <strong>{displayName(replyTo.sender_id, replyTo.sender_username)}</strong>
+              <Trans i18nKey="chat.composer.replyingTo" values={{ name: displayName(replyTo.sender_id, replyTo.sender_username) }} components={{ b: <strong /> }} />
             </span>
             <button className="reply-close" onClick={onCancelReply} type="button">
               ×
@@ -428,7 +430,7 @@ export default function Composer({
             <button
               className="attach-button"
               type="button"
-              aria-label="Add"
+              aria-label={t('common.add')}
               aria-haspopup="menu"
               aria-expanded={addMenuOpen}
               onClick={() => setAddMenuOpen(!addMenuOpen)}
@@ -443,7 +445,7 @@ export default function Composer({
                   className="composer-add-item"
                   onClick={() => { setAddMenuOpen(false); attachments.pickFiles(); }}
                 >
-                  <FontAwesomeIcon icon={faUpload} fixedWidth /> Upload a file
+                  <FontAwesomeIcon icon={faUpload} fixedWidth /> {t('chat.composer.uploadFile')}
                 </button>
                 <button
                   type="button"
@@ -452,7 +454,7 @@ export default function Composer({
                   disabled={!chatName}
                   onClick={() => { setAddMenuOpen(false); setCreatingPoll(true); }}
                 >
-                  <FontAwesomeIcon icon={faSquarePollHorizontal} fixedWidth /> Create poll
+                  <FontAwesomeIcon icon={faSquarePollHorizontal} fixedWidth /> {t('chat.composer.createPoll')}
                 </button>
               </div>
             )}
@@ -462,8 +464,8 @@ export default function Composer({
             ref={inputRef}
             id="dm-input"
             className="message-editor-wrapper"
-            ariaLabel={`Message ${chatName || 'User'}`}
-            placeholder={`Message ${chatName || 'User'}...`}
+            ariaLabel={t('chat.composer.messageLabel', { name: chatName || t('chat.composer.fallbackName') })}
+            placeholder={t('chat.composer.messagePlaceholder', { name: chatName || t('chat.composer.fallbackName') })}
             maxLength={maxPlaintextLength}
             // Mobile: Enter is a new line; the Send button sends.
             submitOnEnter={!isMobile}
@@ -484,7 +486,7 @@ export default function Composer({
             <button
               type="button"
               className="emoji-button"
-              aria-label={isMobile && showEmojiPicker ? 'Show keyboard' : 'Emoji'}
+              aria-label={isMobile && showEmojiPicker ? t('chat.composer.showKeyboard') : t('chat.composer.emoji')}
               aria-expanded={showEmojiPicker}
               // Don't let the picker's outside-click handler close it before this toggles.
               onMouseDown={(e) => e.stopPropagation()}
@@ -493,7 +495,7 @@ export default function Composer({
               {isMobile && showEmojiPicker ? '⌨️' : '😎'}
             </button>
             <button className="send-button" type="submit">
-              Send
+              {t('chat.composer.send')}
             </button>
           </div>
         </form>

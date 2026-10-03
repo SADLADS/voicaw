@@ -14,6 +14,7 @@ import { guildLink } from '../../utils/guildDisplay';
 import { NOTIFY_LEVEL_LABELS } from '../../utils/channelMutes';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import ContextMenu from '../ContextMenu';
+import { t } from '../../i18n';
 
 // A guild's menu on the rail (right-click its icon, or touch and hold on a phone): the guild
 // menu's options that aren't about channels: Mark As Read, Invite People, Notification Settings
@@ -42,7 +43,7 @@ export default function GuildMenu({ guildId, user, anchor, sheet, onDialog, onCl
   if (unread.length) {
     items.push({
       key: 'read',
-      label: 'Mark As Read',
+      label: t('guildAdmin.categoryMenu.markAsRead'),
       icon: faCheckDouble,
       onSelect: async () => {
         await Promise.all(unread.map((u) => markChannelReadToLatest(u.channel_id)));
@@ -51,15 +52,15 @@ export default function GuildMenu({ guildId, user, anchor, sheet, onDialog, onCl
     }, { separator: true });
   }
   if (can(PERMISSIONS.CREATE_INVITE)) {
-    items.push({ key: 'invite', label: 'Invite People', icon: faUserPlus, onSelect: () => onDialog('invite') });
+    items.push({ key: 'invite', label: t('guildAdmin.guildMenu.invite'), icon: faUserPlus, onSelect: () => onDialog('invite') });
   }
   items.push({
     key: 'notifications',
-    label: 'Notification Settings',
+    label: t('guildAdmin.guildMenu.notifications'),
     hint: NOTIFY_LEVEL_LABELS[level],
     icon: faBell,
     submenu: {
-      title: 'Notification Settings',
+      title: t('guildAdmin.guildMenu.notifications'),
       items: Object.entries(NOTIFY_LEVEL_LABELS).map(([value, label]) => ({
         key: `level-${value}`,
         label,
@@ -71,21 +72,21 @@ export default function GuildMenu({ guildId, user, anchor, sheet, onDialog, onCl
       })),
     },
   });
-  if (opensSettings) items.push({ key: 'settings', label: 'Guild Settings', icon: faGear, onSelect: () => onDialog('settings') });
-  if (can(PERMISSIONS.VIEW_AUDIT_LOG)) items.push({ key: 'audit', label: 'Audit Log', icon: faClipboardList, onSelect: () => onDialog('audit') });
+  if (opensSettings) items.push({ key: 'settings', label: t('guildAdmin.guildMenu.settings'), icon: faGear, onSelect: () => onDialog('settings') });
+  if (can(PERMISSIONS.VIEW_AUDIT_LOG)) items.push({ key: 'audit', label: t('guildAdmin.auditLog.title'), icon: faClipboardList, onSelect: () => onDialog('audit') });
   items.push({
     key: 'link',
-    label: 'Copy Link',
+    label: t('guildAdmin.guildMenu.copyLink'),
     icon: faLink,
     onSelect: async () => {
       await navigator.clipboard.writeText(guildLink(guildId));
-      return 'Link copied';
+      return t('guildAdmin.guildMenu.linkCopied');
     },
   });
   if (guild.owner !== user?.id) {
     items.push(
       { separator: true },
-      { key: 'leave', label: 'Leave Guild', icon: faRightFromBracket, danger: true, onSelect: () => onDialog('leave') },
+      { key: 'leave', label: t('guildAdmin.guildMenu.leave'), icon: faRightFromBracket, danger: true, onSelect: () => onDialog('leave') },
     );
   }
 

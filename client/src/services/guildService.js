@@ -1,4 +1,5 @@
 import api from '../utils/api';
+import { t } from '../i18n';
 
 // The guild API (server/routes/guilds.js and guildMessages.js). Guilds aren't encrypted:
 // messages and reactions go to the server as plain text.
@@ -31,9 +32,9 @@ export async function transferGuild(guildId, userId) {
 // Uploads `file` as the guild's icon (owner only), then tells the server it's there.
 export async function uploadGuildIcon(guildId, file) {
   const { data } = await api.get('/upload_guild_icon', { params: { guildId, type: file.type, size: file.size } });
-  if (!data?.url) throw new Error('No upload URL');
+  if (!data?.url) throw new Error(t('guildAdmin.upload.noUrl'));
   const res = await fetch(data.url, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
-  if (!res.ok) throw new Error('Upload failed');
+  if (!res.ok) throw new Error(t('guildAdmin.upload.failed'));
   return updateGuild(guildId, { iconUploaded: true });
 }
 
@@ -276,7 +277,7 @@ export async function fetchGuildEmojis(guildId) {
 export async function addGuildEmoji(guildId, name, file) {
   const { data } = await api.post(`/guilds/${guildId}/emojis`, { name, type: file.type, size: file.size });
   const res = await fetch(data.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
-  if (!res.ok) throw new Error('Upload failed');
+  if (!res.ok) throw new Error(t('guildAdmin.upload.failed'));
   return (await api.post(`/guilds/${guildId}/emojis/${data.emoji.id}/ready`)).data;
 }
 

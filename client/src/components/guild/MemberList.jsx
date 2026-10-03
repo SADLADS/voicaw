@@ -12,6 +12,7 @@ import { formatDate } from '../../utils/dateFormat';
 import { getProfile, nameOf, useProfiles } from '../../utils/profiles';
 import ProfileCard from '../ProfileCard';
 import Avatar from '../Avatar';
+import { t } from '../../i18n';
 
 // The guild's members down the right (like Discord), names in their role colour. Clicking one
 // opens a card: their roles (added and removed there by people who manage roles, for roles
@@ -63,11 +64,11 @@ export default function MemberList({ guild, members: memberList, user, onClose }
     return (
       <div className="member-card" ref={cardRef} role="dialog" aria-label={nameOf(member)}>
         <ProfileCard user={member} color={memberColor(guild.roles, member.role_ids) ?? undefined} />
-        <div className="vc-hint">Member since {formatDate(member.joined_at * 1000)}</div>
+        <div className="vc-hint">{t('guilds.memberList.memberSince', { date: formatDate(member.joined_at * 1000) })}</div>
 
         {(roles.length > 0 || editsRoles) && (
           <div className="member-card-roles">
-            <div className="member-card-label">{roles.length ? 'Roles' : 'No roles'}</div>
+            <div className="member-card-label">{roles.length ? t('guilds.memberList.roles') : t('guilds.memberList.noRoles')}</div>
             <ul className="role-chips">
               {roles.map((role) => (
                 <li key={role.id} className="role-chip">
@@ -77,7 +78,7 @@ export default function MemberList({ guild, members: memberList, user, onClose }
                     <button
                       type="button"
                       className="role-chip-remove"
-                      aria-label={`Remove ${role.name}`}
+                      aria-label={t('guilds.memberList.removeRole', { name: role.name })}
                       onClick={() => changeRoles(member, member.role_ids.filter((id) => id !== role.id))}
                     >
                       <FontAwesomeIcon icon={faXmark} />
@@ -87,14 +88,14 @@ export default function MemberList({ guild, members: memberList, user, onClose }
               ))}
               {editsRoles && assignable.length > 0 && (
                 <li>
-                  <button type="button" className="role-chip role-chip-add" aria-label="Add role" onClick={() => setAddingRole((open) => !open)}>
+                  <button type="button" className="role-chip role-chip-add" aria-label={t('guilds.memberList.addRole')} onClick={() => setAddingRole((open) => !open)}>
                     <FontAwesomeIcon icon={faPlus} />
                   </button>
                 </li>
               )}
             </ul>
             {addingRole && (
-              <ul className="role-picker" aria-label="Roles to add">
+              <ul className="role-picker" aria-label={t('guilds.memberList.rolesToAdd')}>
                 {assignable.map((role) => (
                   <li key={role.id}>
                     <button
@@ -117,7 +118,7 @@ export default function MemberList({ guild, members: memberList, user, onClose }
         <div className="member-card-actions">
           {member.id !== user.id && (
             <button type="button" className="btn btn-primary btn-sm vc-button" onClick={() => navigate(`/dm/${member.id}`)}>
-              Message
+              {t('guilds.memberList.message')}
             </button>
           )}
           {isOwnerViewing && member.id !== user.id && (
@@ -125,13 +126,13 @@ export default function MemberList({ guild, members: memberList, user, onClose }
               type="button"
               className="btn btn-outline-secondary btn-sm"
               onClick={() => setConfirm({
-                title: `Transfer ownership to ${nameOf(member)}`,
-                message: `${nameOf(member)} will own ${guild.name} and be able to manage everything, including removing you. This can't be undone by you.`,
-                confirmLabel: 'Transfer ownership',
+                title: t('guilds.memberList.transfer.title', { name: nameOf(member) }),
+                message: t('guilds.memberList.transfer.message', { name: nameOf(member), guild: guild.name }),
+                confirmLabel: t('guilds.memberList.transfer.confirm'),
                 onConfirm: () => transferGuild(guild.id, member.id),
               })}
             >
-              Make owner
+              {t('guilds.memberList.makeOwner')}
             </button>
           )}
           {can(PERMISSIONS.KICK_MEMBERS) && member.id !== user.id && outranks(member) && (
@@ -139,13 +140,13 @@ export default function MemberList({ guild, members: memberList, user, onClose }
               type="button"
               className="btn btn-outline-danger btn-sm"
               onClick={() => setConfirm({
-                title: `Kick ${nameOf(member)}`,
-                message: `${nameOf(member)} will be removed from ${guild.name}. They can rejoin with a new invite.`,
-                confirmLabel: 'Kick',
+                title: t('guilds.memberList.kick.title', { name: nameOf(member) }),
+                message: t('guilds.memberList.kick.message', { name: nameOf(member), guild: guild.name }),
+                confirmLabel: t('guilds.memberList.kick.button'),
                 onConfirm: () => kickMember(guild.id, member.id),
               })}
             >
-              Kick
+              {t('guilds.memberList.kick.button')}
             </button>
           )}
           {can(PERMISSIONS.BAN_MEMBERS) && member.id !== user.id && outranks(member) && (
@@ -153,13 +154,13 @@ export default function MemberList({ guild, members: memberList, user, onClose }
               type="button"
               className="btn btn-danger btn-sm"
               onClick={() => setConfirm({
-                title: `Ban ${nameOf(member)}`,
-                message: `${nameOf(member)} will be removed from ${guild.name} and can't rejoin until unbanned (Guild Settings).`,
-                confirmLabel: 'Ban',
+                title: t('guilds.memberList.ban.title', { name: nameOf(member) }),
+                message: t('guilds.memberList.ban.message', { name: nameOf(member), guild: guild.name }),
+                confirmLabel: t('guilds.memberList.ban.button'),
                 onConfirm: () => banMember(guild.id, member.id),
               })}
             >
-              Ban
+              {t('guilds.memberList.ban.button')}
             </button>
           )}
         </div>
@@ -186,7 +187,7 @@ export default function MemberList({ guild, members: memberList, user, onClose }
             <span className="member-name" style={{ color: color ?? undefined }}>{nameOf(member)}</span>
             {getProfile(member.id)?.custom_status && <span className="member-custom-status">{getProfile(member.id).custom_status}</span>}
           </span>
-          {member.id === guild.owner && <FontAwesomeIcon icon={faCrown} className="member-owner" title="Guild owner" />}
+          {member.id === guild.owner && <FontAwesomeIcon icon={faCrown} className="member-owner" title={t('guilds.memberList.owner')} />}
         </button>
         {isSelected && selected && renderCard(selected)}
       </li>
@@ -194,16 +195,16 @@ export default function MemberList({ guild, members: memberList, user, onClose }
   }
 
   return (
-    <aside className="member-list" aria-label="Members">
+    <aside className="member-list" aria-label={t('common.members')}>
       {onClose && (
         <div className="member-list-top">
-          <span>Members</span>
-          <button type="button" className="vc-dialog-close" aria-label="Close members" onClick={onClose}>×</button>
+          <span>{t('common.members')}</span>
+          <button type="button" className="vc-dialog-close" aria-label={t('guilds.memberList.close')} onClick={onClose}>×</button>
         </div>
       )}
       {groupMembers(members, guild.roles).map((group) => (
         <section key={group.key} aria-label={group.title}>
-          <h6 className="member-group">{group.title} — {group.members.length}</h6>
+          <h6 className="member-group">{t('guilds.memberList.groupHeading', { title: group.title, count: group.members.length })}</h6>
           <ul>{group.members.map(renderMember)}</ul>
         </section>
       ))}

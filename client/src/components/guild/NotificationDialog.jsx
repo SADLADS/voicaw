@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import Modal from './Modal';
 import { setGuildNotifications } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
+import { t } from '../../i18n';
 
 const LEVELS = [
-  ['all', 'All messages', 'A notification for every message in the channels you can see.'],
-  ['mentions', 'Only @mentions', 'When someone mentions you, @everyone or @here, or one of your roles.'],
-  ['none', 'Nothing', 'No notifications from this guild. Mentions still show in red.'],
+  ['all', t('guildAdmin.notifyLevels.all.label'), t('guildAdmin.notifyLevels.all.hint')],
+  ['mentions', t('guildAdmin.notifyLevels.mentions.label'), t('guildAdmin.notifyLevels.mentions.hint')],
+  ['none', t('guildAdmin.notifyLevels.none.label'), t('guildAdmin.notifyLevels.none.hint')],
 ];
 
 // Your notification level for the guild (all messages, only mentions, nothing): which of its
@@ -29,12 +30,12 @@ export default function NotificationDialog({ guild, onClose }) {
 
   return (
     <Modal
-      title="Notification Settings"
+      title={t('guildAdmin.guildMenu.notifications')}
       onClose={onClose}
-      actions={<button type="button" className="btn btn-primary btn-sm vc-button" onClick={onClose}>Done</button>}
+      actions={<button type="button" className="btn btn-primary btn-sm vc-button" onClick={onClose}>{t('common.done')}</button>}
     >
       <fieldset className="notify-levels">
-        <legend className="vc-label">Guild notifications</legend>
+        <legend className="vc-label">{t('guildAdmin.notifications.legend')}</legend>
         {LEVELS.map(([value, label, hint]) => (
           <label key={value} className="role-toggle">
             <input type="radio" name="notify-level" value={value} checked={level === value} onChange={() => pick(value)} />
@@ -45,7 +46,7 @@ export default function NotificationDialog({ guild, onClose }) {
           </label>
         ))}
       </fieldset>
-      <p className="vc-hint">Notifications need to be turned on for this device in Settings.</p>
+      <p className="vc-hint">{t('guildAdmin.notifications.deviceHint')}</p>
       {error && <p className="error-msg" role="alert">{error}</p>}
     </Modal>
   );
