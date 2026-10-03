@@ -9,7 +9,8 @@ const groups = require('../groupDms');
 const router = express.Router();
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-// The encrypted call key ("v1." + base64 of IV, 44 bytes of base64 key, tag).
+// The encrypted call key ("v1." + base64 of IV, 44 bytes of base64 key, tag). A group call's
+// is signed too: "v2." + base64 of IV, signature, 32-byte key, tag (171 characters).
 const MAX_KEY_ENVELOPE = 200;
 
 function requireVoice(req, res, next) {
@@ -51,7 +52,10 @@ router.post('/group-dms/:groupId/call', authenticateJWT, requireVoice, async (re
   if (!state) return res.status(404).json({ error: 'Group not found' });
   const { callId, epoch, keyEnvelope } = req.body ?? {};
   if (typeof callId !== 'string' || !UUID.test(callId)) return res.status(400).json({ error: 'Invalid call id' });
-  if (typeof keyEnvelope !== 'string' || !keyEnvelope.startsWith('v1.') || keyEnvelope.length > MAX_KEY_ENVELOPE) {
+  if (typeof keyEnvelope === 'string' && keyEnvelope.startsWith('v1.')) {
+    return res.status(400).json({ error: 'Please update the app (group calls are signed now)' });
+  }
+  if (typeof keyEnvelope !== 'string' || !keyEnvelope.startsWith('v2.') || keyEnvelope.length > MAX_KEY_ENVELOPE) {
     return res.status(400).json({ error: 'Invalid call key' });
   }
   if (!state.latestEpoch || epoch !== state.latestEpoch.epoch) return res.status(409).json({ error: 'The group changed; try again', code: 'stale_epoch' });

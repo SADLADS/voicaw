@@ -21,6 +21,7 @@ import {
 //   post as someone else. The signature is inside the encryption (only members see it), in a
 //   `v2.` envelope: "v2." + base64(IV || AES-GCM(signature (64 bytes) || content)). Messages
 //   from before signing are `v1.` (plain encryptMessage / encryptReaction) and show as unsigned.
+// - Call keys: the same signed envelope, so a call can only start under its caller's name.
 
 const te = new TextEncoder();
 const ECDH = { name: 'ECDH', namedCurve: 'P-256' };
@@ -35,6 +36,7 @@ const GROUP_REACTION_CONTEXT = 'voicaw/group-reaction/v1';
 const GROUP_CALL_KEY_CONTEXT = 'voicaw/group-call-key/v1';
 const MESSAGE_SIGNATURE_CONTEXT = 'voicaw/group-msg-sig/v1';
 const REACTION_SIGNATURE_CONTEXT = 'voicaw/group-reaction-sig/v1';
+const CALL_KEY_SIGNATURE_CONTEXT = 'voicaw/group-call-key-sig/v1';
 
 export const SIGNED_PREFIX = 'v2.';
 // ECDSA P-256 signatures from WebCrypto are r || s.
@@ -189,7 +191,8 @@ export function groupReactionContext(groupId, messageId, reactorId) {
   return `${GROUP_REACTION_CONTEXT}|${groupId}|${messageId}|${reactorId}`;
 }
 
-// A group call's key travels encrypted with the group's current epoch key.
+// A group call's key travels encrypted with the group's current epoch key (and signed, see
+// encryptGroupCallKey).
 export function groupCallKeyContext(callId, groupId, epoch, callerId) {
   return `${GROUP_CALL_KEY_CONTEXT}|${callId}|${groupId}|${epoch}|${callerId}`;
 }
@@ -215,6 +218,10 @@ export function messageSignatureContext({ groupId, epoch, senderId, replyTo = nu
 
 export function reactionSignatureContext({ groupId, epoch, messageId, reactorId }) {
   return `${REACTION_SIGNATURE_CONTEXT}|${groupId}|${epoch}|${messageId}|${reactorId}`;
+}
+
+export function callKeySignatureContext({ callId, groupId, epoch, callerId }) {
+  return `${CALL_KEY_SIGNATURE_CONTEXT}|${callId}|${groupId}|${epoch}|${callerId}`;
 }
 
 async function seal(bytes, epochKey, aad, signingKey, signatureContext) {
@@ -282,6 +289,24 @@ export async function decryptGroupReaction(envelope, epochKey, aad, identityKey,
     return { emoji, signed: true, verified };
   }
   return { emoji: await decryptReaction(envelope, epochKey, aad), signed: false, verified: false };
+}
+
+// A group call's key (32 bytes), encrypted with the epoch key and signed by the caller, so a
+// member working with the server can't start a call in someone else's name.
+export function encryptGroupCallKey(callKey, epochKey, aad, signingKey, signatureContext) {
+  if (callKey.length !== 32) throw new Error('Invalid call key');
+  return seal(callKey, epochKey, aad, signingKey, signatureContext);
+}
+
+// -> the call key's bytes. Throws unless it's signed by `identityKey` (the caller's, from the
+// group's checked log): unlike old messages, there's no unsigned call key to fall back to.
+export async function decryptGroupCallKey(envelope, epochKey, aad, identityKey, signatureContext) {
+  if (typeof envelope !== 'string' || !envelope.startsWith(SIGNED_PREFIX)) throw new Error('Unsigned call key');
+  if (!identityKey) throw new Error("The caller isn't in the group");
+  const { bytes, verified } = await open(envelope, epochKey, aad, identityKey, signatureContext);
+  if (!verified) throw new Error("The call's key isn't signed by its caller");
+  if (bytes.length !== 32) throw new Error('Invalid call key');
+  return bytes;
 }
 
 // ---------------------------------------------------------------- the group's name

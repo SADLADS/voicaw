@@ -51,8 +51,8 @@ names).
   `v1.` messages from before signing show as "not signed" (a signature can't be told apart
   from one the server removed). The server takes only `v2.` for anything new (an older app gets
   "Please update the app"). A reply's preview isn't checked (the server doesn't send the
-  parent's own signed context; the parent is checked where it's shown). Not signed: the group
-  call key (the caller's name comes from the server). DMs aren't signed on purpose: only the
+  parent's own signed context; the parent is checked where it's shown). Group call keys are
+  signed the same way (since 2026-10-03, see Group calls in `voice-and-calls.md`). DMs aren't signed on purpose: only the
   two people hold the key, so a message can only be from the other one, and unsigned messages
   stay deniable. Pushes are decrypted on the device (see Group names).
 - **API** (`routes/groupDms.js`): `GET/POST /group-dms`, `GET /group-dms/:id` (summary, the

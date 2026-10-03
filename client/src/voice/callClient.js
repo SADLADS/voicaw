@@ -1,7 +1,7 @@
 import { onCallEvent } from '../utils/ws-client';
 import { fetchUsersList } from '../services/dmService';
 import { checkContactKeys } from '../services/contactKeys';
-import { loadEncryptionKey } from '../services/keyStore';
+import { loadEncryptionKey, loadIdentityKey } from '../services/keyStore';
 import {
   callKeyContext,
   decryptCallKey,
@@ -9,7 +9,12 @@ import {
   encryptCallKey,
   generateCallKey,
 } from '../services/encryptionService';
-import { groupCallKeyContext } from '../services/groupCrypto';
+import {
+  callKeySignatureContext,
+  decryptGroupCallKey,
+  encryptGroupCallKey,
+  groupCallKeyContext,
+} from '../services/groupCrypto';
 import { currentEpoch, openGroup } from '../services/groupKeys';
 import {
   acceptCallRequest,
@@ -25,7 +30,8 @@ import { startLoop, stopLoop } from '../sounds/sounds';
 // DM and group DM voice calls: ringing, being rung, answering or joining, declining and
 // hanging up (server/calls.js). The audio is voiceClient.js's (joinCall), end-to-end encrypted
 // with a key made here for each call. The caller encrypts it with the DM conversation key, or
-// for a group with the group's current epoch key (so only its members can open it), and it
+// for a group with the group's current epoch key (so only its members can open it) and signed
+// with the caller's identity key (so nobody can start one in someone else's name), and it
 // travels with the call.
 //
 // Components read it through hooks/useCall.js. `call` is this device's call: null or { id,
@@ -214,7 +220,14 @@ async function joinGroupCall(call) {
     const group = await openGroup(me, call.group_id);
     const epochKey = group.keys.get(call.key_epoch);
     if (!epochKey) throw new Error("You joined the group after this call started: you can join the next one.");
-    const key = await decryptCallKey(call.key_envelope, epochKey, groupCallKeyContext(call.id, call.group_id, call.key_epoch, call.caller_id));
+    const key = await decryptGroupCallKey(
+      call.key_envelope, epochKey, groupCallKeyContext(call.id, call.group_id, call.key_epoch, call.caller_id),
+      group.log.identityKeys.get(call.caller_id),
+      callKeySignatureContext({ callId: call.id, groupId: call.group_id, epoch: call.key_epoch, callerId: call.caller_id })
+    ).catch((err) => {
+      console.warn('Group call key', err);
+      throw new Error("This call couldn't be verified as coming from its caller, so it wasn't joined.");
+    });
     const { url, token, call: joined } = await acceptCallRequest(call.id);
     if (snapshot.call?.id !== call.id) return;
     set(localCall(joined, { outgoing: joined.caller_id === me.id, state: 'active' }));
@@ -241,7 +254,10 @@ export async function startGroupCall(groupId) {
   try {
     const { epoch, key: epochKey } = await currentEpoch(me, groupId);
     const key = generateCallKey();
-    const envelope = await encryptCallKey(key, epochKey, groupCallKeyContext(id, groupId, epoch, me.id));
+    const envelope = await encryptGroupCallKey(
+      key, epochKey, groupCallKeyContext(id, groupId, epoch, me.id), await loadIdentityKey(),
+      callKeySignatureContext({ callId: id, groupId, epoch, callerId: me.id })
+    );
     let started;
     try {
       started = await startGroupCallRequest(groupId, id, epoch, envelope);
