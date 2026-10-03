@@ -26,11 +26,12 @@ import { loadIdentityKey } from '../services/keyStore';
 import { currentEpoch, openGroup, renameGroup } from '../services/groupKeys';
 import { nameOf } from '../utils/profiles';
 import { uploadNamesIn } from '../utils/attachmentMarkup';
+import { t } from '../i18n';
 
 export const GROUP_PAGE_SIZE = 50;
 
-const UNREADABLE = "[This message couldn't be decrypted]";
-const FORGED = "[This message's signature doesn't match its sender, so it isn't shown]";
+const UNREADABLE = t('groups.messages.unreadable');
+const FORGED = t('groups.messages.forged');
 
 // One group DM: its keys and checked membership (groupKeys.openGroup), history (decrypted with
 // each message's epoch key), sending (with the current epoch, making the next one when the
@@ -401,7 +402,28 @@ export function useGroupConversation({ groupId, user, onRead }) {
   const display = useMemo(() => {
     if (!group) return messages;
     const names = new Map(group.detail.users.map((u) => [u.id, nameOf(u)]));
-    const name = (id) => (id === user.id ? 'You' : names.get(id) ?? 'Someone');
+    const isMe = (id) => id === user.id;
+    const name = (id) => names.get(id) ?? t('groups.log.someone');
+    const logText = (r) => {
+      const actor = name(r.actor);
+      const target = name(r.target);
+      if (r.type === 'create') return isMe(r.actor) ? t('groups.log.youCreated') : t('groups.log.created', { actor });
+      if (r.type === 'add') {
+        if (isMe(r.actor)) return t('groups.log.youAdded', { target });
+        return isMe(r.target) ? t('groups.log.addedYou', { actor }) : t('groups.log.added', { actor, target });
+      }
+      if (r.type === 'remove') {
+        if (isMe(r.actor)) return t('groups.log.youRemoved', { target });
+        return isMe(r.target) ? t('groups.log.removedYou', { actor }) : t('groups.log.removed', { actor, target });
+      }
+      return isMe(r.actor) ? t('groups.log.youLeft') : t('groups.log.left', { actor });
+    };
+    const renameText = (m) => {
+      const actor = name(m.sender_id);
+      if (m.renamedTo == null) return isMe(m.sender_id) ? t('groups.log.youRenamedUnchecked') : t('groups.log.renamedUnchecked', { actor });
+      if (m.renamedTo) return isMe(m.sender_id) ? t('groups.log.youRenamed', { name: m.renamedTo }) : t('groups.log.renamed', { actor, name: m.renamedTo });
+      return isMe(m.sender_id) ? t('groups.log.youRemovedName') : t('groups.log.removedName', { actor });
+    };
     const records = group.log.records;
     const firstIn = records.findIndex((r) => (r.type === 'create' ? r.actor : r.target) === user.id && (r.type === 'create' || r.type === 'add'));
     const oldestShown = messages.find((m) => Number.isInteger(m.id))?.timestamp ?? 0;
@@ -411,16 +433,11 @@ export function useGroupConversation({ groupId, user, onRead }) {
         id: `log-${r.seq}`,
         system: true,
         timestamp: r.at,
-        text: r.type === 'create' ? `${name(r.actor)} created the group.`
-          : r.type === 'add' ? `${name(r.actor)} added ${name(r.target) === 'You' ? 'you' : name(r.target)}.`
-            : r.type === 'remove' ? `${name(r.actor)} removed ${name(r.target) === 'You' ? 'you' : name(r.target)}.`
-              : `${name(r.actor)} left the group.`,
+        text: logText(r),
       }));
     const shown = messages.map((m) => (m.system === 'group_name' ? {
       ...m,
-      text: m.renamedTo == null ? `${name(m.sender_id)} renamed the group (the new name couldn't be checked).`
-        : m.renamedTo ? `${name(m.sender_id)} renamed the group to “${m.renamedTo}”.`
-          : `${name(m.sender_id)} removed the group's name.`,
+      text: renameText(m),
     } : m));
     // Merged by time; messages keep their order.
     const out = [];

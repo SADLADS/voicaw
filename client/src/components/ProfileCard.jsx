@@ -4,6 +4,7 @@ import StatusIcon from './StatusIcon';
 import { usePresence } from '../hooks/usePresence';
 import { getProfile, useProfiles } from '../utils/profiles';
 import { lastSeenText, statusLabel } from '../utils/presence';
+import { t } from '../i18n';
 
 // The top of someone's profile: picture (with online status), display name (in `color`, e.g. a
 // guild role's), @username, their status or last seen, custom status and bio. `user` needs
@@ -35,7 +36,7 @@ export default function ProfileCard({ user, color, children, draft, avatarSrc })
       {profile.custom_status && <div className="profile-card-custom-status">{profile.custom_status}</div>}
       {profile.bio && (
         <div className="profile-card-section">
-          <div className="member-card-label">About me</div>
+          <div className="member-card-label">{t('app.profile.aboutMe')}</div>
           <p className="profile-card-bio">{profile.bio}</p>
         </div>
       )}

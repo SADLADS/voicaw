@@ -1,6 +1,7 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFileLines, faHashtag, faListCheck, faLock, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
+import { t } from '../../i18n';
 
 const ICONS = { voice: faVolumeHigh, list: faListCheck, doc: faFileLines };
 
@@ -8,9 +9,9 @@ const ICONS = { voice: faVolumeHigh, list: faListCheck, doc: faFileLines };
 // private one gets a small lock (like Discord).
 export default function ChannelIcon({ channel, className = '' }) {
   return (
-    <span className={`channel-icon ${className}`} title={channel?.private ? 'Private channel' : undefined}>
+    <span className={`channel-icon ${className}`} title={channel?.private ? t('guilds.channelIcon.privateChannel') : undefined}>
       <FontAwesomeIcon icon={ICONS[channel?.type] ?? faHashtag} />
-      {channel?.private && <FontAwesomeIcon icon={faLock} className="channel-icon-lock" aria-label="Private" />}
+      {channel?.private && <FontAwesomeIcon icon={faLock} className="channel-icon-lock" aria-label={t('guilds.channelIcon.private')} />}
     </span>
   );
 }

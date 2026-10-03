@@ -1,6 +1,20 @@
 import React from 'react';
+import { Trans } from 'react-i18next';
 import { displayName, useProfiles } from '../utils/profiles';
-import { typingParts, useTyping } from '../utils/typing';
+import { useTyping } from '../utils/typing';
+import { t } from '../i18n';
+
+const BOLD = { b: <strong /> };
+
+// "Alice is typing…", "Alice and Bob are typing…", "Alice, Bob and Cal are typing…", then
+// "Several people are typing…" (like Discord), names in bold. `names` are display names.
+function TypingText({ names }) {
+  const [a, b, c] = names;
+  if (names.length > 3) return t('chat.typing.several');
+  if (names.length === 3) return <Trans i18nKey="chat.typing.three" values={{ a, b, c }} components={BOLD} />;
+  if (names.length === 2) return <Trans i18nKey="chat.typing.two" values={{ a, b }} components={BOLD} />;
+  return <Trans i18nKey="chat.typing.one" values={{ a }} components={BOLD} />;
+}
 
 // "Alice is typing…" with three bouncing dots, just above the message box. Sits over the bottom
 // of the message list (which leaves room for it), so it appearing doesn't move anything.
@@ -8,15 +22,15 @@ import { typingParts, useTyping } from '../utils/typing';
 export default function TypingIndicator({ chatId, names }) {
   useProfiles();
   const userIds = useTyping(chatId);
-  const parts = typingParts(userIds.map((id) => displayName(id, names?.[id] ?? 'Someone')));
+  const typingNames = userIds.map((id) => displayName(id, names?.[id] ?? t('chat.reactions.someone')));
   return (
     <div className="typing-indicator-slot">
       <div className="typing-indicator" aria-live="polite">
-        {parts.length > 0 && (
+        {typingNames.length > 0 && (
           <>
             <span className="typing-dots" aria-hidden="true"><span /><span /><span /></span>
             <span className="typing-text">
-              {parts.map((part, i) => (typeof part === 'string' ? part : <strong key={i}>{part.name}</strong>))}…
+              <TypingText names={typingNames} />
             </span>
           </>
         )}

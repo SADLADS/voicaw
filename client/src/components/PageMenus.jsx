@@ -12,6 +12,7 @@ import { addWord } from '../spellcheck/personalDictionary';
 import { openInNewTab } from '../utils/saveFile';
 import ContextMenu from './ContextMenu';
 import ImageMenu from './ImageMenu';
+import { t } from '../i18n';
 
 // Our menus in place of the browser's, wherever a right-click has nothing of its own (channels,
 // messages... handle theirs first): a picture (ImageMenu), a text box (spelling corrections,
@@ -35,22 +36,22 @@ function textBoxItems({ target, spelling }) {
     for (const suggestion of spelling.suggestions) {
       items.push({ key: `fix-${suggestion}`, label: suggestion, onSelect: () => replaceClickedWord(target, suggestion) });
     }
-    if (!spelling.suggestions.length) items.push({ key: 'no-suggestions', label: 'No suggestions', disabled: true });
+    if (!spelling.suggestions.length) items.push({ key: 'no-suggestions', label: t('app.pageMenus.noSuggestions'), disabled: true });
     items.push(
-      { key: 'add-word', label: 'Add to Dictionary', icon: faBook, onSelect: () => addWord(target.word.word) },
+      { key: 'add-word', label: t('app.pageMenus.addToDictionary'), icon: faBook, onSelect: () => addWord(target.word.word) },
       { separator: true },
     );
   }
   const { readOnly, hasSelection, secret } = target;
-  if (hasSelection && !readOnly && !secret) items.push({ key: 'cut', label: 'Cut', icon: faScissors, onSelect: () => cutText(target) });
-  if (hasSelection && !secret) items.push({ key: 'copy', label: 'Copy', icon: faCopy, onSelect: () => copyText(target) });
-  if (!readOnly) items.push({ key: 'paste', label: 'Paste', icon: faPaste, onSelect: () => pasteText(target) });
-  items.push({ key: 'select-all', label: 'Select All', onSelect: () => selectAllText(target) });
+  if (hasSelection && !readOnly && !secret) items.push({ key: 'cut', label: t('app.pageMenus.cut'), icon: faScissors, onSelect: () => cutText(target) });
+  if (hasSelection && !secret) items.push({ key: 'copy', label: t('common.copy'), icon: faCopy, onSelect: () => copyText(target) });
+  if (!readOnly) items.push({ key: 'paste', label: t('app.pageMenus.paste'), icon: faPaste, onSelect: () => pasteText(target) });
+  items.push({ key: 'select-all', label: t('app.pageMenus.selectAll'), onSelect: () => selectAllText(target) });
   if (!secret) {
     const enabled = isSpellcheckEnabled();
     items.push(
       { separator: true },
-      { key: 'spellcheck', label: 'Spellcheck', checked: enabled, onSelect: () => setSpellcheckEnabled(!enabled) },
+      { key: 'spellcheck', label: t('app.pageMenus.spellcheck'), checked: enabled, onSelect: () => setSpellcheckEnabled(!enabled) },
     );
   }
   return items;
@@ -58,12 +59,12 @@ function textBoxItems({ target, spelling }) {
 
 function pageItems({ link, selected }) {
   const items = [];
-  if (selected) items.push({ key: 'copy', label: 'Copy', icon: faCopy, onSelect: () => copied(selected, 'Copied') });
+  if (selected) items.push({ key: 'copy', label: t('common.copy'), icon: faCopy, onSelect: () => copied(selected, t('common.copied')) });
   if (link) {
     if (items.length) items.push({ separator: true });
     items.push(
-      { key: 'copy-link', label: 'Copy Link', icon: faLink, onSelect: () => copied(link, 'Link copied') },
-      { key: 'open-link', label: 'Open Link', icon: faArrowUpRightFromSquare, onSelect: () => openInNewTab(link) },
+      { key: 'copy-link', label: t('app.pageMenus.copyLink'), icon: faLink, onSelect: () => copied(link, t('app.pageMenus.linkCopied')) },
+      { key: 'open-link', label: t('app.pageMenus.openLink'), icon: faArrowUpRightFromSquare, onSelect: () => openInNewTab(link) },
     );
   }
   return items;
@@ -106,6 +107,6 @@ export default function PageMenus() {
   if (!menu) return null;
   if (menu.kind === 'image') return <ImageMenu key={menu.anchor.left + menu.anchor.top} item={menu.item} anchor={menu.anchor} onClose={close} />;
   const items = menu.kind === 'text' ? textBoxItems(menu) : pageItems(menu);
-  const label = menu.kind === 'text' ? 'Text' : menu.link ? 'Link' : 'Selection';
+  const label = menu.kind === 'text' ? t('app.pageMenus.text') : menu.link ? t('app.pageMenus.link') : t('app.pageMenus.selection');
   return <ContextMenu key={`${menu.anchor.left},${menu.anchor.top}`} title={label} label={label} items={items} anchor={menu.anchor} onClose={close} />;
 }

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { acceleratorFromEvent, describeAccelerator, desktop } from '../utils/desktop';
+import { t } from '../i18n';
 
 const SHORTCUTS = [
-  { action: 'toggleMute', label: 'Toggle mute' },
-  { action: 'toggleDeafen', label: 'Toggle deafen' },
+  { action: 'toggleMute', labelKey: 'settings.desktopApp.toggleMute', shortcutKey: 'settings.desktopApp.toggleMuteShortcut' },
+  { action: 'toggleDeafen', labelKey: 'settings.desktopApp.toggleDeafen', shortcutKey: 'settings.desktopApp.toggleDeafenShortcut' },
 ];
 
 // Settings → Desktop App (only in the desktop app): closing to the tray, starting at login,
@@ -52,48 +53,48 @@ export default function DesktopAppSettings() {
   if (!settings) return null;
   return (
     <div className="settings-card">
-      <h5>Desktop App</h5>
+      <h5>{t('settings.desktopApp.title')}</h5>
       <label className="settings-toggle">
         <input type="checkbox" checked={settings.closeToTray} onChange={(e) => save({ closeToTray: e.target.checked })} />
-        {' '}Keep running in the tray when the window is closed
+        {' '}{t('settings.desktopApp.closeToTray')}
       </label>
-      <p className="vc-hint">So notifications and calls still reach you. Quit from the tray icon&apos;s menu.</p>
+      <p className="vc-hint">{t('settings.desktopApp.closeToTrayHint')}</p>
       <label className="settings-toggle">
         <input type="checkbox" checked={settings.startAtLogin} onChange={(e) => save({ startAtLogin: e.target.checked })} />
-        {' '}Start Voicaw when you log in to your computer
+        {' '}{t('settings.desktopApp.startAtLogin')}
       </label>
-      <p className="vc-hint">It starts in the tray.</p>
+      <p className="vc-hint">{t('settings.desktopApp.startAtLoginHint')}</p>
 
-      <h6 className="desktop-shortcuts-title">Keyboard shortcuts</h6>
-      <p className="vc-hint">These work even when another app is in front.</p>
+      <h6 className="desktop-shortcuts-title">{t('settings.desktopApp.shortcuts')}</h6>
+      <p className="vc-hint">{t('settings.desktopApp.shortcutsHint')}</p>
       <div className="desktop-shortcuts">
-        {SHORTCUTS.map(({ action, label }) => {
+        {SHORTCUTS.map(({ action, labelKey, shortcutKey }) => {
           const accelerator = settings.shortcuts[action];
           const isRecording = recording === action;
           return (
             <div key={action} className="desktop-shortcut">
-              <span className="desktop-shortcut-label">{label}</span>
+              <span className="desktop-shortcut-label">{t(labelKey)}</span>
               <button
                 type="button"
                 className={`btn btn-sm btn-secondary desktop-shortcut-key${isRecording ? ' recording' : ''}`}
-                aria-label={`${label} shortcut`}
+                aria-label={t(shortcutKey)}
                 onClick={() => setRecording(isRecording ? null : action)}
               >
-                {isRecording ? 'Press a key…' : accelerator ? describeAccelerator(accelerator) : 'Not set'}
+                {isRecording ? t('settings.desktopApp.pressKey') : accelerator ? describeAccelerator(accelerator) : t('settings.desktopApp.notSet')}
               </button>
               {accelerator && !isRecording && (
                 <button type="button" className="link-button" onClick={() => save({ shortcuts: { [action]: null } })}>
-                  Clear
+                  {t('settings.desktopApp.clear')}
                 </button>
               )}
               {failed.includes(action) && (
-                <span className="error-msg desktop-shortcut-error" role="alert">Another app is using this shortcut.</span>
+                <span className="error-msg desktop-shortcut-error" role="alert">{t('settings.desktopApp.shortcutTaken')}</span>
               )}
             </div>
           );
         })}
       </div>
-      {recording && <p className="vc-hint">Hold Ctrl, Alt or Shift and press a key. Esc cancels.</p>}
+      {recording && <p className="vc-hint">{t('settings.desktopApp.recordingHint')}</p>}
     </div>
   );
 }

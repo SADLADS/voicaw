@@ -1,4 +1,5 @@
 import api from '../utils/api';
+import { t } from '../i18n';
 
 // Must match MAX_PROFILE_PIC_BYTES in server/routes/uploads.js.
 export const MAX_PROFILE_PIC_BYTES = 8 * 1024 * 1024;
@@ -9,14 +10,14 @@ export const MAX_PROFILE_PIC_BYTES = 8 * 1024 * 1024;
 // (Profile pictures aren't encrypted.)
 export async function uploadProfilePicture(file) {
   const { data } = await api.post('/profile/avatar', { type: file.type, size: file.size });
-  if (!data?.url) throw new Error('Invalid upload URL');
+  if (!data?.url) throw new Error(t('app.profile.invalidUploadUrl'));
 
   const res = await fetch(data.url, {
     method: 'PUT',
     headers: { 'Content-Type': file.type },
     body: file,
   });
-  if (!res.ok) throw new Error('Upload failed');
+  if (!res.ok) throw new Error(t('app.profile.uploadFailed'));
   return (await api.post(`/profile/avatar/${data.uploadId}/ready`)).data;
 }
 

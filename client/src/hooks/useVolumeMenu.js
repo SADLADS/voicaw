@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useVoice } from './useVoice';
+import { t } from '../i18n';
 
 // Opens the volume popover (voice/UserVolumeMenu.jsx) for someone you can hear: a click (or
 // Enter) on them, or a right click there; `inRoom`: you're connected to the voice channel or
@@ -18,7 +19,7 @@ export function useVolumeMenu(inRoom) {
       role: 'button',
       tabIndex: 0,
       'aria-haspopup': 'dialog',
-      title: `${name}: volume`,
+      title: t('voice.userVolume.dialogLabel', { name }),
       'data-volume-trigger': '',
       onClick: (e) => {
         e.stopPropagation();

@@ -9,6 +9,7 @@ import {
   trendingGifs,
 } from '../services/gifService';
 import { usePrivacyPrefs } from '../utils/privacy';
+import { t } from '../i18n';
 
 const SEARCH_DELAY_MS = 300;
 const COLUMNS = 2;
@@ -67,7 +68,7 @@ function useGifResults(query, enabled) {
       },
       (err) => {
         if (controller.signal.aborted) return;
-        setState((s) => ({ ...s, loading: false, error: err.response?.data?.error || "Couldn't load GIFs" }));
+        setState((s) => ({ ...s, loading: false, error: err.response?.data?.error || t('media.gifs.loadFailed') }));
       }
     );
   }, [query]);
@@ -106,7 +107,7 @@ function GifTile({ gif, favorite, onPick, onToggleFavorite, keepFocus }) {
         className="gif-tile-pick"
         onClick={() => onPick(gif)}
         onMouseDown={noFocusSteal}
-        aria-label={gif.title || 'GIF'}
+        aria-label={gif.title || t('media.gifs.untitled')}
         title={gif.title || undefined}
       >
         <img src={gif.preview} alt="" loading="lazy" referrerPolicy="no-referrer" draggable={false} />
@@ -116,7 +117,7 @@ function GifTile({ gif, favorite, onPick, onToggleFavorite, keepFocus }) {
         className={`gif-tile-favorite${favorite ? ' on' : ''}`}
         onClick={() => onToggleFavorite(gif)}
         onMouseDown={noFocusSteal}
-        aria-label={favorite ? 'Remove from favourites' : 'Add to favourites'}
+        aria-label={favorite ? t('media.gifs.removeFavourite') : t('media.gifs.addFavourite')}
         aria-pressed={favorite}
       >
         <FontAwesomeIcon icon={faStar} />
@@ -159,15 +160,21 @@ function GifResults({ query, onPick, keepFocus }) {
   }, [results, showFavorites]);
 
   let empty = null;
-  if (showFavorites && favorites.length === 0) empty = 'No favourites yet. Tap the star on a GIF to keep it here.';
+  if (showFavorites && favorites.length === 0) empty = t('media.gifs.noFavourites');
   else if (!showFavorites && results.error) empty = results.error;
-  else if (!showFavorites && !results.loading && results.gifs.length === 0) empty = debounced ? `No GIFs match "${debounced}"` : 'No GIFs';
+  else if (!showFavorites && !results.loading && results.gifs.length === 0) {
+    empty = debounced ? t('media.gifs.noMatches', { query: debounced }) : t('media.gifs.none');
+  }
+
+  const favouritesLabel = favorites.length
+    ? t('media.gifs.favouritesNumber', { number: favorites.length })
+    : t('media.gifs.favourites');
 
   return (
     <div className="gif-picker">
       {!debounced && (
-        <div className="gif-picker-views" role="tablist" aria-label="GIFs">
-          {[['trending', 'Trending'], ['favorites', `Favourites${favorites.length ? ` (${favorites.length})` : ''}`]].map(([id, label]) => (
+        <div className="gif-picker-views" role="tablist" aria-label={t('media.gifs.tabs')}>
+          {[['trending', t('media.gifs.trending')], ['favorites', favouritesLabel]].map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -203,8 +210,8 @@ function GifResults({ query, onPick, keepFocus }) {
             ))}
           </div>
         )}
-        {!showFavorites && results.loading && <div className="emoji-picker-empty">Loading GIFs…</div>}
-        <div className="gif-picker-attribution">Powered by KLIPY</div>
+        {!showFavorites && results.loading && <div className="emoji-picker-empty">{t('media.gifs.loading')}</div>}
+        <div className="gif-picker-attribution">{t('media.gifs.attribution')}</div>
       </div>
     </div>
   );
@@ -229,20 +236,17 @@ export default function GifPicker({ query, onPick, keepFocus = false }) {
     <div className="gif-picker">
       <div className="emoji-picker-scroll gif-picker-scroll">
         <div className="gif-picker-warning" role="note">
-          <p>
-            GIF previews load from KLIPY, which sees your IP address and which GIFs you look at.
-            You&apos;ve turned off &ldquo;Show GIFs straight away&rdquo; in Settings → Privacy.
-          </p>
+          <p>{t('media.gifs.privacyWarning')}</p>
           <button
             type="button"
             className="btn btn-secondary"
             onClick={accept}
             onMouseDown={keepFocus ? (e) => e.preventDefault() : undefined}
           >
-            Show GIFs anyway
+            {t('media.gifs.showAnyway')}
           </button>
         </div>
-        <div className="gif-picker-attribution">Powered by KLIPY</div>
+        <div className="gif-picker-attribution">{t('media.gifs.attribution')}</div>
       </div>
     </div>
   );

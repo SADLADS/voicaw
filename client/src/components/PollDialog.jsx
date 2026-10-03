@@ -16,6 +16,7 @@ import {
   optionChanged,
 } from '../utils/pollMarkup';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
+import { t } from '../i18n';
 
 // Making a poll, or editing one (`poll`): a question and 1 to MAX_POLL_OPTIONS answers
 // (empty rows are left out), each with an optional emoji (the smiley button: the emoji
@@ -73,7 +74,7 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
       await onSubmit(next);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error || err.message || "Couldn't save the poll.");
+      setError(err.response?.data?.error || err.message || t('chat.pollDialog.saveFailed'));
       setBusy(false);
     }
   }
@@ -84,32 +85,32 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
 
   return (
     <Modal
-      title={editing ? 'Edit poll' : 'Create a poll'}
+      title={editing ? t('chat.pollDialog.editTitle') : t('chat.pollDialog.createTitle')}
       className="poll-dialog"
       // A click outside while picking an emoji only closes the picker (so does Escape, see Modal).
       onClose={pickingFor ? closePicker : onClose}
       actions={(
         <>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>{t('common.cancel')}</button>
           <button type="submit" form="poll-form" className="btn btn-primary btn-sm vc-button" disabled={busy || !valid}>
-            {editing ? 'Save' : 'Post'}
+            {editing ? t('common.save') : t('chat.pollDialog.post')}
           </button>
         </>
       )}
     >
       <form id="poll-form" className="vc-form" onSubmit={submit}>
-        <label htmlFor="poll-question">Question</label>
+        <label htmlFor="poll-question">{t('chat.pollDialog.question')}</label>
         <input
           id="poll-question"
           className="form-control"
           maxLength={MAX_QUESTION_LENGTH}
-          placeholder="What would you like to ask?"
+          placeholder={t('chat.pollDialog.questionPlaceholder')}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           autoFocus
         />
 
-        <label>Answers</label>
+        <label>{t('chat.pollDialog.answers')}</label>
         {/* Tab goes question → each answer → Add another answer: the emoji and remove buttons
             beside each answer are left out of it (they're for the mouse or a tap). */}
         <div className="poll-dialog-options" ref={listRef}>
@@ -120,8 +121,8 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
                   type="button"
                   className="poll-dialog-emoji-button"
                   tabIndex={-1}
-                  aria-label={o.emoji ? `Change the emoji of answer ${i + 1}` : `Add an emoji to answer ${i + 1}`}
-                  title={o.emoji ? 'Change emoji' : 'Add emoji'}
+                  aria-label={o.emoji ? t('chat.pollDialog.changeEmojiOf', { number: i + 1 }) : t('chat.pollDialog.addEmojiTo', { number: i + 1 })}
+                  title={o.emoji ? t('chat.pollDialog.changeEmoji') : t('chat.pollDialog.addEmoji')}
                   aria-expanded={pickingFor?.key === o.key}
                   // Don't let the open picker's outside-click handler close it before this toggles.
                   onMouseDown={(e) => e.stopPropagation()}
@@ -134,8 +135,8 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
                     type="button"
                     className="poll-dialog-emoji-clear"
                     tabIndex={-1}
-                    aria-label={`Remove the emoji of answer ${i + 1}`}
-                    title="Remove emoji"
+                    aria-label={t('chat.pollDialog.removeEmojiOf', { number: i + 1 })}
+                    title={t('chat.pollDialog.removeEmoji')}
                     onClick={() => setEmoji(o.key, null)}
                   >
                     ×
@@ -144,9 +145,9 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
               </span>
               <input
                 className="form-control"
-                aria-label={`Answer ${i + 1}`}
+                aria-label={t('chat.pollDialog.answer', { number: i + 1 })}
                 maxLength={MAX_OPTION_LENGTH}
-                placeholder="Type your answer"
+                placeholder={t('chat.pollDialog.answerPlaceholder')}
                 value={o.text}
                 onChange={(e) => setText(o.key, e.target.value)}
               />
@@ -154,8 +155,8 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
                 type="button"
                 className="poll-dialog-remove"
                 tabIndex={-1}
-                aria-label={`Remove answer ${i + 1}`}
-                title="Remove answer"
+                aria-label={t('chat.pollDialog.removeAnswerNumber', { number: i + 1 })}
+                title={t('chat.pollDialog.removeAnswer')}
                 disabled={options.length <= 1}
                 onClick={() => remove(o.key)}
               >
@@ -166,12 +167,12 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
         </div>
         {options.length < MAX_POLL_OPTIONS && (
           <button type="button" className="btn btn-secondary btn-sm poll-dialog-add" onClick={addOption}>
-            + Add another answer
+            {t('chat.pollDialog.addAnswer')}
           </button>
         )}
-        {changed && <p className="vc-hint">Changing an answer removes the votes it had.</p>}
+        {changed && <p className="vc-hint">{t('chat.pollDialog.changedHint')}</p>}
 
-        <label htmlFor="poll-duration">Duration</label>
+        <label htmlFor="poll-duration">{t('chat.pollDialog.duration')}</label>
         <select
           id="poll-duration"
           className="form-select form-control"
@@ -180,15 +181,15 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
           onChange={(e) => setDuration(Number(e.target.value))}
         >
           {/* A poll from before durations runs until its author ends it. */}
-          {duration == null && <option value="">No end</option>}
+          {duration == null && <option value="">{t('chat.pollDialog.noEnd')}</option>}
           {POLL_DURATIONS.map((d) => <option key={d.seconds} value={d.seconds}>{d.label}</option>)}
         </select>
 
         <label className="role-toggle">
           <input type="checkbox" checked={multi} disabled={editing} onChange={(e) => setMulti(e.target.checked)} />
           <span>
-            <strong>Allow multiple answers</strong>
-            <span className="vc-hint">{editing ? "Can't be changed after posting." : "Neither this nor the duration can be changed once the poll is posted."}</span>
+            <strong>{t('chat.pollDialog.multi')}</strong>
+            <span className="vc-hint">{editing ? t('chat.pollDialog.multiLocked') : t('chat.pollDialog.multiHint')}</span>
           </span>
         </label>
       </form>

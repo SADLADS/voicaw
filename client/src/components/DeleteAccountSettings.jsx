@@ -4,6 +4,7 @@ import '../assets/css/recovery.css';
 import { useAuth } from '../hooks/useAuth';
 import { LayoutContext } from '../contexts';
 import { deleteAccount } from '../services/authService';
+import { t } from '../i18n';
 
 // Settings: delete your account (server/accounts.js). Guilds you own have to be handed over
 // (Make owner on a member's card) or deleted first; ticking the box deletes them along with
@@ -48,41 +49,40 @@ export default function DeleteAccountSettings({ onDeleted }) {
 
   return (
     <div className="settings-card" id="delete-account">
-      <h5>Delete Account</h5>
+      <h5>{t('settings.deleteAccount.title')}</h5>
       {!asking ? (
         <div className="account-security-form">
           <p className="recovery-hint">
-            Deletes your account for good. Your messages stay, shown as from “Deleted User”.
+            {t('settings.deleteAccount.intro')}
           </p>
-          <button type="button" className="btn btn-sm btn-danger" onClick={() => setAsking(true)}>Delete account</button>
+          <button type="button" className="btn btn-sm btn-danger" onClick={() => setAsking(true)}>{t('settings.deleteAccount.button')}</button>
         </div>
       ) : (
-        <form className="account-security-form delete-account-form" onSubmit={submit} aria-label="Delete account">
-          <p>This can’t be undone. Once your account is deleted:</p>
+        <form className="account-security-form delete-account-form" onSubmit={submit} aria-label={t('settings.deleteAccount.button')}>
+          <p>{t('settings.deleteAccount.warning')}</p>
           <ul className="delete-account-list">
-            <li>You’re logged out everywhere and can’t log in again. Your username becomes free for anyone.</li>
-            <li>Your messages in chats, groups and guilds stay, shown as from “Deleted User”. Your notes are deleted.</li>
-            <li>You leave every guild and group DM. People you talked to can still read your conversations, but not reply.</li>
+            <li>{t('settings.deleteAccount.loggedOut')}</li>
+            <li>{t('settings.deleteAccount.messagesStay')}</li>
+            <li>{t('settings.deleteAccount.leaveEverything')}</li>
           </ul>
           {owned.length > 0 && (
-            <div className="delete-account-guilds" role="group" aria-label="Guilds you own">
+            <div className="delete-account-guilds" role="group" aria-label={t('settings.deleteAccount.guildsYouOwn')}>
               <p>
-                You own {owned.length === 1 ? 'a guild' : `${owned.length} guilds`}. Make someone else the owner
-                (Make owner on their card in the member list), or delete {owned.length === 1 ? 'it' : 'them'}:
+                {t('settings.deleteAccount.ownGuilds', { count: owned.length })}
               </p>
               <ul className="delete-account-list">
                 {owned.map((g) => <li key={g.id}><Link to={`/guild/${g.id}`}>{g.name}</Link></li>)}
               </ul>
               <label className="recovery-confirm">
                 <input type="checkbox" checked={deleteGuilds} onChange={(e) => setDeleteGuilds(e.target.checked)} />
-                {' '}Delete {owned.length === 1 ? 'this guild' : `these ${owned.length} guilds`} and everything in {owned.length === 1 ? 'it' : 'them'} too
+                {' '}{t('settings.deleteAccount.deleteGuilds', { count: owned.length })}
               </label>
             </div>
           )}
           <input
             type="password"
             className="form-control"
-            placeholder="Your password"
+            placeholder={t('settings.yourPassword')}
             autoComplete="current-password"
             required
             autoFocus
@@ -90,10 +90,10 @@ export default function DeleteAccountSettings({ onDeleted }) {
             onChange={(e) => setPassword(e.target.value)}
           />
           <button type="submit" className="btn btn-sm btn-danger" disabled={busy || blocked}>
-            {busy ? 'Deleting…' : 'Delete my account'}
+            {busy ? t('settings.deleteAccount.deleting') : t('settings.deleteAccount.confirm')}
           </button>
           {' '}
-          <button type="button" className="btn btn-sm btn-secondary" onClick={cancel} disabled={busy}>Cancel</button>
+          <button type="button" className="btn btn-sm btn-secondary" onClick={cancel} disabled={busy}>{t('common.cancel')}</button>
           {error && <p className="error-msg" role="alert">{error}</p>}
         </form>
       )}

@@ -1,0 +1,91 @@
+{
+  "groups": {
+    "title": {
+      "justYou": "Just you",
+      "andMore_one": "{{names}} and {{count}} more",
+      "andMore_other": "{{names}} and {{count}} more"
+    },
+    "newGroup": {
+      "title": "New Group",
+      "create": "Create Group",
+      "creating": "Creating…",
+      "hint": "Pick at least two people (up to {{max}}). Messages and calls are end-to-end encrypted.",
+      "namePlaceholder": "Group name (optional)",
+      "nameLabel": "Group name"
+    },
+    "userPicker": {
+      "search": "Search people",
+      "empty": "Nobody found."
+    },
+    "dm": {
+      "group": "Group",
+      "startCall": "Start a group call",
+      "startCallHint": "Start a voice call with the group",
+      "alreadyInCall": "You're already in a call",
+      "pinnedMessages": "Pinned messages",
+      "showMembers": "Show members",
+      "hideMembers": "Hide members",
+      "keyChanged_one": "{{names}} has a different security key than when added to this group. Until that's sorted out, nothing can be sent here.",
+      "keyChanged_other": "{{names}} have a different security key than when added to this group. Until that's sorted out, nothing can be sent here.",
+      "acceptKeys_one": "Accept the new key",
+      "acceptKeys_other": "Accept the new keys",
+      "removeAndAdd": "They have to be removed and added again.",
+      "cantSend": "Can't send until the security keys are sorted out.",
+      "empty": "No messages yet. Say hi to the group!"
+    },
+    "members": {
+      "header_one": "Members — {{count}}",
+      "header_other": "Members — {{count}}",
+      "someone": "Someone",
+      "you": "{{name}} (you)",
+      "owner": "Group owner",
+      "removeName": "Remove {{name}}",
+      "removeFromGroup": "Remove from group",
+      "addPeople": "Add people",
+      "rename": "Rename",
+      "leave": "Leave group",
+      "addTitle": "Add People",
+      "adding": "Adding…",
+      "addHint": "They'll see messages from now on, not what was said before.",
+      "renameTitle": "Rename Group",
+      "namePlaceholder": "Group name (empty: the members' names)",
+      "nameLabel": "Group name",
+      "nameHint": "Group names are end-to-end encrypted, like messages.",
+      "removeMessage": "{{name}} won't see anything sent in this group from now on.",
+      "leaveOwnerMessage": "You won't see this group any more, and it won't have an owner (nobody can remove people).",
+      "leaveMessage": "You won't see this group any more unless someone adds you back.",
+      "leaveConfirm": "Leave Group"
+    },
+    "messages": {
+      "unreadable": "[This message couldn't be decrypted]",
+      "forged": "[This message's signature doesn't match its sender, so it isn't shown]"
+    },
+    "log": {
+      "someone": "Someone",
+      "created": "{{actor}} created the group.",
+      "youCreated": "You created the group.",
+      "added": "{{actor}} added {{target}}.",
+      "addedYou": "{{actor}} added you.",
+      "youAdded": "You added {{target}}.",
+      "removed": "{{actor}} removed {{target}}.",
+      "removedYou": "{{actor}} removed you.",
+      "youRemoved": "You removed {{target}}.",
+      "left": "{{actor}} left the group.",
+      "youLeft": "You left the group.",
+      "renamed": "{{actor}} renamed the group to “{{name}}”.",
+      "youRenamed": "You renamed the group to “{{name}}”.",
+      "renamedUnchecked": "{{actor}} renamed the group (the new name couldn't be checked).",
+      "youRenamedUnchecked": "You renamed the group (the new name couldn't be checked).",
+      "removedName": "{{actor}} removed the group's name.",
+      "youRemovedName": "You removed the group's name."
+    },
+    "errors": {
+      "cantUseKey": "Can't use {{name}}'s key",
+      "cantUseSomeonesKey": "Can't use someone's key",
+      "cantReadName": "Can't read this group's name, so its key can't be renewed. Try again later.",
+      "cantSend": "Can't send until {{names}}'s security key is sorted out.",
+      "keyChanged": "{{name}}'s security key changed. Open your chat with them to review it.",
+      "keepsChanging": "The group keeps changing; try again."
+    }
+  }
+}

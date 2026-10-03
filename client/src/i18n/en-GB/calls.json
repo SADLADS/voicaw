@@ -1,0 +1,50 @@
+{
+  "calls": {
+    "panel": {
+      "label": "Call with {{name}}",
+      "calling": "Calling…",
+      "incoming": "Incoming call",
+      "connecting": "Connecting…",
+      "reconnecting": "Reconnecting…",
+      "muted": "Muted",
+      "e2ee": "End-to-end encrypted",
+      "e2eeHint": "Only the two of you can hear this call",
+      "hangUp": "Hang up"
+    },
+    "incoming": {
+      "label": "Incoming call from {{name}}",
+      "groupCall": "Group call",
+      "startedCall": "{{name}} started a call",
+      "voiceCall": "Incoming voice call",
+      "decline": "Decline",
+      "accept": "Accept"
+    },
+    "group": {
+      "label": "Group call",
+      "someone": "Someone",
+      "inCallCount_one": "{{count}} in the call",
+      "inCallCount_other": "{{count}} in the call",
+      "inTheCall": "In the call",
+      "e2eeHint": "Only the group's members can hear this call",
+      "leave": "Leave call",
+      "join": "Join call"
+    },
+    "notices": {
+      "declined": "{{name}} declined the call.",
+      "noAnswer": "{{name}} didn't answer.",
+      "busy": "{{name}} is in another call.",
+      "missedGroup": "Missed a group call from {{name}}.",
+      "missed": "Missed call from {{name}}."
+    },
+    "errors": {
+      "keyChanged": "{{name}}'s security key changed. Open your chat with them to review it.",
+      "keysMissing": "Your keys are missing on this device. Log in again.",
+      "unknownUser": "Unknown user",
+      "start": "Could not start the call.",
+      "join": "Could not join the call.",
+      "answer": "Could not answer the call.",
+      "joinedAfter": "You joined the group after this call started: you can join the next one.",
+      "unverified": "This call couldn't be verified as coming from its caller, so it wasn't joined."
+    }
+  }
+}

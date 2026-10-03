@@ -23,6 +23,7 @@ import {
 } from '../services/encryptionService';
 import { loadEncryptionKey, loadOwnPublicKeys } from '../services/keyStore';
 import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
+import { t } from '../i18n';
 
 // Older history is fetched in pages this size as you scroll up.
 export const PAGE_SIZE = 50;
@@ -117,7 +118,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
         let key;
         if (notes) {
           const [myKey, own] = await Promise.all([loadEncryptionKey(), loadOwnPublicKeys()]);
-          if (!myKey || !own?.encryptionKey) throw new Error('This device has no encryption keys. Log out and log in again.');
+          if (!myKey || !own?.encryptionKey) throw new Error(t('chat.noKeys'));
           if (cancelled) return;
           setKeyStatus('trusted');
           key = await deriveNotesKey(myKey, own.encryptionKey);
@@ -128,7 +129,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
           if (!check.encryptionKey) return;
 
           const myKey = await loadEncryptionKey();
-          if (!myKey) throw new Error('This device has no encryption keys. Log out and log in again.');
+          if (!myKey) throw new Error(t('chat.noKeys'));
           key = await deriveConversationKey(myKey, check.encryptionKey);
         }
 

@@ -7,6 +7,7 @@ import { usePrivacyPrefs } from '../utils/privacy';
 import { useMediaCover } from '../hooks/useMediaCover';
 import InviteEmbed from './guild/InviteEmbed';
 import MediaCover from './MediaCover';
+import { t } from '../i18n';
 
 const URL_PATTERN = /https?:\/\/[^\s)]+/g;
 
@@ -23,11 +24,11 @@ function YouTubeEmbed({ id, link }) {
   const [played, setPlayed] = useState(() => playedVideos.has(id));
   if (autoLoad || played) {
     return (
-      <MediaCover label={cover} name="YouTube video" placeholder={<div className="youtube-wrapper youtube-placeholder" />}>
+      <MediaCover label={cover} name={t('media.youtube.video')} placeholder={<div className="youtube-wrapper youtube-placeholder" />}>
         <div className="youtube-wrapper">
           <iframe
             src={`https://www.youtube-nocookie.com/embed/${id}${played && !autoLoad ? '?autoplay=1' : ''}`}
-            title="YouTube video"
+            title={t('media.youtube.video')}
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
           ></iframe>
@@ -40,15 +41,15 @@ function YouTubeEmbed({ id, link }) {
     setPlayed(true);
   };
   return (
-    <MediaCover label={cover} name="YouTube video">
+    <MediaCover label={cover} name={t('media.youtube.video')}>
       <div className="youtube-wrapper youtube-placeholder">
-        <button type="button" className="youtube-placeholder-play" onClick={play} aria-label="Play YouTube video">
+        <button type="button" className="youtube-placeholder-play" onClick={play} aria-label={t('media.youtube.play')}>
           <FontAwesomeIcon icon={faPlay} />
         </button>
         <div className="youtube-placeholder-text">
-          <div className="youtube-placeholder-title">YouTube video</div>
+          <div className="youtube-placeholder-title">{t('media.youtube.video')}</div>
           <a href={link} target="_blank" rel="noreferrer noopener">{link}</a>
-          <div className="youtube-placeholder-hint">Playing loads it from YouTube</div>
+          <div className="youtube-placeholder-hint">{t('media.youtube.hint')}</div>
         </div>
       </div>
     </MediaCover>

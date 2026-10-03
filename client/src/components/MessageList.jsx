@@ -1,6 +1,7 @@
 import React, { createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
+import { Trans } from 'react-i18next';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -39,6 +40,7 @@ import ChannelIcon from './guild/ChannelIcon';
 import { showContent } from '../utils/mobilePanes';
 import { parseChannelLink } from '../utils/guildDisplay';
 import { pageMenuTarget } from '../utils/pageMenuTarget';
+import { t } from '../i18n';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
 // is a new component type to React, which remounts (and reloads) every attachment on any
@@ -61,7 +63,7 @@ function Spoiler({ children }) {
       className="spoiler"
       role="button"
       tabIndex={0}
-      aria-label="Spoiler, select to reveal"
+      aria-label={t('chat.message.spoiler')}
       onClick={reveal}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); reveal(e); } }}
     >
@@ -353,7 +355,7 @@ export function MessageRow({
   const pinned = Boolean(msg.pinned_at);
   // Pinned: a pin by the time (or after the text, without a header).
   const pinMark = pinned ? (
-    <FontAwesomeIcon icon={faThumbtack} className="message-pinned" title="Pinned" aria-label="Pinned" />
+    <FontAwesomeIcon icon={faThumbtack} className="message-pinned" title={t('chat.message.pinned')} aria-label={t('chat.message.pinned')} />
   ) : null;
 
   const parent = msg.parent_message_id
@@ -394,27 +396,27 @@ export function MessageRow({
           {canReact && canAddReactions && (
             <button
               className="icon-button"
-              aria-label="Add reaction"
+              aria-label={t('chat.reactions.add')}
               // Keep an open picker's outside-click handler from closing it before this toggles it.
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => onOpenReactionPicker(msg, e.currentTarget)}
             >
-              <FontAwesomeIcon icon={faFaceSmile} title="Add reaction" />
+              <FontAwesomeIcon icon={faFaceSmile} title={t('chat.reactions.add')} />
             </button>
           )}
           {canPin && sent && onTogglePin && (
             <button className={`icon-button pin-button${pinned ? ' active' : ''}`} onClick={() => onTogglePin(msg)}>
-              <FontAwesomeIcon icon={faThumbtack} title={pinned ? 'Unpin' : 'Pin'} />
+              <FontAwesomeIcon icon={faThumbtack} title={pinned ? t('common.unpin') : t('common.pin')} />
             </button>
           )}
           {/* A closed poll can't be edited. */}
           {msg.sender_id === user.id && !(poll && pollEnded(poll, msg.timestamp)) && (
             <button className="icon-button" onClick={() => handleEdit(msg)}>
-              <FontAwesomeIcon icon={faEdit} title="Edit" />
+              <FontAwesomeIcon icon={faEdit} title={t('common.edit')} />
             </button>
           )}
           <button className="icon-button" onClick={() => handleReply(msg)}>
-            <FontAwesomeIcon icon={faReply} title="Reply" />
+            <FontAwesomeIcon icon={faReply} title={t('common.reply')} />
           </button>
           {(msg.sender_id === user.id || canModerate) && (
             <button
@@ -422,7 +424,7 @@ export function MessageRow({
               // Shift+click deletes without asking (ChatPane).
               onClick={(e) => handleDelete(msg, e)}
             >
-              <FontAwesomeIcon icon={faTrash} title="Delete" />
+              <FontAwesomeIcon icon={faTrash} title={t('common.delete')} />
             </button>
           )}
         </div>
@@ -461,19 +463,19 @@ export function MessageRow({
           />
         )}
         <strong className="message-author" style={{ color: webhook ? undefined : nameColors?.[msg.sender_id] }} {...profileProps(msg.sender_id, msg.sender_username)}>{senderName}</strong>{' '}
-        {webhook && <span className="app-tag" title="Posted by a webhook">APP</span>}{webhook && ' '}
+        {webhook && <span className="app-tag" title={t('chat.message.webhookTitle')}>{t('chat.message.webhookTag')}</span>}{webhook && ' '}
 
         <small>
           <span title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>{formatDateTime(msg.timestamp * 1000)}</span>
-          {msg.edited ? <em style={{ marginLeft: '6px' }}>edited</em> : null}
+          {msg.edited ? <em style={{ marginLeft: '6px' }}>{t('chat.message.edited')}</em> : null}
           {pinMark}
           {/* Group DMs: sent before messages were signed (the sender can't be verified), or a
               signature that doesn't match the sender. */}
           {msg.unsigned ? (
-            <em className="message-signature unsigned" title="Sent before group messages were signed: who sent it can't be verified">not signed</em>
+            <em className="message-signature unsigned" title={t('chat.message.unsignedTitle')}>{t('chat.message.unsigned')}</em>
           ) : null}
           {msg.unverified ? (
-            <em className="message-signature unverified" title="The signature doesn't match the sender: it may be forged">⚠ unverified sender</em>
+            <em className="message-signature unverified" title={t('chat.message.unverifiedTitle')}>{t('chat.message.unverified')}</em>
           ) : null}
         </small>
         </>
@@ -490,7 +492,7 @@ export function MessageRow({
                 ref={editRef}
                 id={`edit-input-${msg.id}`}
                 className="inline-edit-editor"
-                ariaLabel="Edit message"
+                ariaLabel={t('chat.message.editLabel')}
                 initialText={editingMessageContent}
                 mentionNames={reactionNames}
                 mentionRoles={mentionRoles}
@@ -510,7 +512,13 @@ export function MessageRow({
 
               <div className="inline-edit-banner">
                 <span>
-                  Escape to <a href="#" onClick={(e) => { e.preventDefault(); setEditingMessageId(null); }}>cancel</a> • Enter to <a href="#" onClick={(e) => { e.preventDefault(); handleSaveEdit(msg.id); }}>save</a>
+                  <Trans
+                    i18nKey="chat.message.editHint"
+                    components={{
+                      cancel: <a href="#" onClick={(e) => { e.preventDefault(); setEditingMessageId(null); }} />,
+                      save: <a href="#" onClick={(e) => { e.preventDefault(); handleSaveEdit(msg.id); }} />,
+                    }}
+                  />
                 </span>
               </div>
             </div>
@@ -528,7 +536,7 @@ export function MessageRow({
             <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
           )}
           {/* Without a header to carry it, "edited" goes after the text. */}
-          {grouped && msg.edited && editingMessageId !== msg.id ? <small className="message-edited">(edited)</small> : null}
+          {grouped && msg.edited && editingMessageId !== msg.id ? <small className="message-edited">{t('chat.message.editedInline')}</small> : null}
           {grouped && editingMessageId !== msg.id ? pinMark : null}
 
           <WebhookParts {...webhookProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />

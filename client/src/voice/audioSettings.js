@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { ALWAYS_OPEN_DB } from './noise/gate';
+import { t } from '../i18n';
 
 // Voice settings on this device (Settings → Voice & video, localStorage `audioSettings`):
 // which microphone and speakers, their volumes, what's done to the microphone (echo
@@ -152,7 +153,9 @@ export async function listAudioDevices() {
       defaults[kind === 'audioinput' ? 'input' : 'output'] = d.label.replace(/^Default\s*-\s*/i, '') || null;
       return false;
     })
-    .map((d, i) => ({ id: d.deviceId, label: d.label || `${kind === 'audioinput' ? 'Microphone' : 'Speakers'} ${i + 1}` }));
+    .map((d, i) => ({ id: d.deviceId, label: d.label || (kind === 'audioinput'
+      ? t('settings.voice.microphoneNumbered', { number: i + 1 })
+      : t('settings.voice.speakersNumbered', { number: i + 1 })) }));
   const inputs = pick('audioinput');
   const outputs = pick('audiooutput');
   const labelled = devices.some((d) => d.kind === 'audioinput' && d.label);

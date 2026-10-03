@@ -5,6 +5,7 @@ import { useStreamWindow } from '../../hooks/useStreamWindow';
 import { closeStreamWindow, setStreamWindowTitle } from '../../voice/streamWindow';
 import { displayName, useProfiles } from '../../utils/profiles';
 import StreamView from './StreamView';
+import { t } from '../../i18n';
 
 // The watched screen share in its own window (voice/streamWindow.js), drawn from Layout so it
 // carries on whichever page you're on. The window goes once there's nothing to watch.
@@ -20,7 +21,7 @@ export default function StreamPopout() {
   }, [container, watching]);
 
   useEffect(() => {
-    if (container && watching != null) setStreamWindowTitle(own ? 'Your stream – Voicaw' : `${name}'s screen – Voicaw`);
+    if (container && watching != null) setStreamWindowTitle(own ? t('voice.stream.ownWindowTitle') : t('voice.stream.windowTitle', { name }));
   }, [container, watching, own, name]);
 
   if (!container || watching == null) return null;

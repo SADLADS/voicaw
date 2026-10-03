@@ -19,6 +19,7 @@ import { encryptReaction, reactionContext } from '../services/encryptionService'
 import { usePresence } from '../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../utils/presence';
 import { isDeleted, nameOf, useProfiles } from '../utils/profiles';
+import { t } from '../i18n';
 
 // The "Verified / Not verified" badge and safety number dialog. Hidden for now: too confusing
 // for most people. The keys are still pinned and a changed key still blocks the chat.
@@ -79,13 +80,13 @@ export default function Dm({ user }) {
     <div id="dm-main" data-current-user-id={user?.id} data-other-user-id={chatUser?.id}>
       {/* Banners go under the header (when there is one), so it lines up with the list's. */}
       {!id && prompts}
-      {errorUsers && <p className="error-text">Error loading users: {errorUsers}</p>}
-      {users.length === 0 && !errorUsers && !id && <p>No recent conversations found.</p>}
+      {errorUsers && <p className="error-text">{t('chat.dm.loadUsersError', { error: errorUsers })}</p>}
+      {users.length === 0 && !errorUsers && !id && <p>{t('chat.dm.noConversations')}</p>}
 
       {id && (
         <>
           <h4 className="chat-recipient-header">
-            {chatName || 'User'}
+            {chatName || t('chat.composer.fallbackName')}
             {presence?.status === 'offline' && (
               <span className="chat-recipient-status">
                 {lastSeenText(presence.lastOnline) ?? statusLabel('offline')}
@@ -95,8 +96,8 @@ export default function Dm({ user }) {
               <button
                 type="button"
                 className="chat-call-button"
-                aria-label={`Call ${chatName}`}
-                title={call ? "You're already in a call" : `Start a voice call with ${chatName}`}
+                aria-label={t('chat.dm.call', { name: chatName })}
+                title={call ? t('chat.dm.alreadyInCall') : t('chat.dm.startCall', { name: chatName })}
                 disabled={Boolean(call)}
                 onClick={() => startCall(chatUser)}
               >
@@ -107,9 +108,9 @@ export default function Dm({ user }) {
               <button
               type="button"
               className={`chat-call-button pins-button${pinsAnchor ? ' active' : ''}`}
-              aria-label="Pinned messages"
+              aria-label={t('chat.pins.title')}
               aria-pressed={Boolean(pinsAnchor)}
-              title="Pinned messages"
+              title={t('chat.pins.title')}
               onClick={togglePins}
             >
               <FontAwesomeIcon icon={faThumbtack} />
@@ -120,9 +121,9 @@ export default function Dm({ user }) {
                 type="button"
                 className={`key-status-badge ${keyStatus}`}
                 onClick={() => setShowSafetyNumber(true)}
-                title="Compare safety numbers"
+                title={t('chat.safetyNumber.compare')}
               >
-                {keyStatus === 'verified' ? '✓ Verified' : 'Not verified'}
+                {keyStatus === 'verified' ? t('chat.safetyNumber.verified') : t('chat.safetyNumber.notVerified')}
               </button>
             )}
           </h4>
@@ -159,7 +160,7 @@ export default function Dm({ user }) {
               pinsAnchor={pinsAnchor}
               onClosePins={closePins}
               canSend={!deleted}
-              cantSendText="This account has been deleted. You can still read your conversation."
+              cantSendText={t('chat.dm.accountDeleted')}
             />
           )}
         </>

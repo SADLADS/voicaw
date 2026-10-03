@@ -1,0 +1,522 @@
+{
+  "guildAdmin": {
+    "addGuild": {
+      "notAnInvite": "That doesn't look like an invite link.",
+      "title": "Add a guild",
+      "createLabel": "Create your own",
+      "namePlaceholder": "Guild name",
+      "joinLabel": "Have an invite?",
+      "invitePlaceholder": "https://app.voicaw.com/invite/hTKzmak or hTKzmak",
+      "join": "Join"
+    },
+    "channelDialog": {
+      "tabs": {
+        "overview": "Overview",
+        "permissions": "Permissions",
+        "webhooks": "Webhooks"
+      },
+      "editTitle": "Edit #{{name}}",
+      "createTitle": "Create channel",
+      "delete": "Delete channel",
+      "confirmDelete": "Delete #{{name}} and all its messages?",
+      "confirmDeleteList": "Delete #{{name}} and all its tasks?",
+      "confirmDeleteDoc": "Delete #{{name}} and all its documents?",
+      "type": {
+        "legend": "Channel type",
+        "text": "Text",
+        "voice": "Voice",
+        "list": "List",
+        "doc": "Documents"
+      },
+      "name": "Channel name",
+      "namePlaceholder": "new-channel",
+      "willBe": "Will be #{{name}}",
+      "topic": "Topic",
+      "topicPlaceholder": "Let everyone know how to use this channel",
+      "category": "Category",
+      "noCategory": "No category",
+      "nsfw": {
+        "label": "NSFW channel",
+        "hint": "Images, videos, GIFs and embeds in it are blurred until clicked, unless someone turns that off in their settings."
+      },
+      "private": {
+        "label": "Private channel",
+        "hint": "Only the roles you pick (and admins) will see it.",
+        "listHint": "Who may edit its tasks is set in its Permissions tab (Edit Tasks).",
+        "docHint": "Who may write documents is set in its Permissions tab (Create Documents).",
+        "whoCanSee": "Who can see it"
+      }
+    },
+    "channelPermissions": {
+      "member": "Member",
+      "privateHint": "Only the roles and members allowed \"View Channel\" below (and admins) will see it.",
+      "targets": "Roles / members",
+      "add": "Add a role or member",
+      "addOption": "+ Add…",
+      "gridLabel": "Permissions for {{name}}",
+      "locked": "This role is as high as yours or higher.",
+      "states": {
+        "deny": {
+          "label": "Deny",
+          "aria": "Deny {{permission}}"
+        },
+        "inherit": {
+          "label": "Inherit",
+          "aria": "Inherit {{permission}}"
+        },
+        "allow": {
+          "label": "Allow",
+          "aria": "Allow {{permission}}"
+        }
+      },
+      "items": {
+        "viewChannel": "View Channel",
+        "sendMessages": "Send Messages",
+        "addReactions": "Add Reactions",
+        "manageMessages": "Manage Messages",
+        "pinMessages": "Pin Messages",
+        "createThreads": "Create Threads",
+        "sendMessagesInThreads": "Send Messages in Threads",
+        "connect": "Connect",
+        "speak": "Speak",
+        "video": "Video",
+        "editTasks": "Edit Tasks",
+        "commentOnTasks": "Comment on Tasks",
+        "manageComments": "Manage Comments",
+        "createDocuments": "Create Documents",
+        "replyToDocuments": "Reply to Documents",
+        "manageDocuments": "Manage Documents and Replies"
+      }
+    },
+    "permissions": {
+      "VIEW_CHANNEL": {
+        "label": "View Channels",
+        "description": "Lets members see channels (private channels aside)."
+      },
+      "MANAGE_CHANNELS": {
+        "label": "Manage Channels",
+        "description": "Lets members create, edit and delete channels and categories."
+      },
+      "MANAGE_ROLES": {
+        "label": "Manage Roles",
+        "description": "Lets members create and edit roles below their highest role, give them out, and change channel permissions."
+      },
+      "MANAGE_GUILD": {
+        "label": "Manage Guild",
+        "description": "Lets members change the guild's name and icon, and see and revoke all invites."
+      },
+      "MANAGE_EMOJIS": {
+        "label": "Manage Emoji",
+        "description": "Lets members add, rename and remove the guild's custom emoji."
+      },
+      "MANAGE_WEBHOOKS": {
+        "label": "Manage Webhooks",
+        "description": "Lets members create, edit and delete webhooks, which let other apps and services post messages in text channels."
+      },
+      "VIEW_AUDIT_LOG": {
+        "label": "View Audit Log",
+        "description": "Lets members see the guild's audit log: who deleted which messages, and who changed the guild's settings, channels, roles, invites, emoji and webhooks, or kicked and banned people."
+      },
+      "CREATE_INVITE": {
+        "label": "Create Invite",
+        "description": "Lets members invite people to this guild."
+      },
+      "KICK_MEMBERS": {
+        "label": "Kick Members",
+        "description": "Lets members remove people ranked below them. They can rejoin with an invite."
+      },
+      "BAN_MEMBERS": {
+        "label": "Ban Members",
+        "description": "Lets members remove people ranked below them for good (until unbanned)."
+      },
+      "SEND_MESSAGES": {
+        "label": "Send Messages",
+        "description": "Lets members post in text channels."
+      },
+      "ADD_REACTIONS": {
+        "label": "Add Reactions",
+        "description": "Lets members react to messages."
+      },
+      "MANAGE_MESSAGES": {
+        "label": "Manage Messages",
+        "description": "Lets members delete other people's messages."
+      },
+      "PIN_MESSAGES": {
+        "label": "Pin Messages",
+        "description": "Lets members pin and unpin messages."
+      },
+      "CREATE_THREADS": {
+        "label": "Create Threads",
+        "description": "Lets members start threads: side conversations from a message, or on their own."
+      },
+      "SEND_MESSAGES_IN_THREADS": {
+        "label": "Send Messages in Threads",
+        "description": "Lets members post in threads. Archiving, renaming and deleting other people's threads follows Manage Messages."
+      },
+      "MENTION_EVERYONE": {
+        "label": "Mention @everyone, @here and All Roles",
+        "description": "Lets members notify everyone in a channel (@everyone), everyone online there (@here), and any role, even ones not set to be mentionable."
+      },
+      "CONNECT": {
+        "label": "Connect",
+        "description": "Lets members join voice channels and hear others."
+      },
+      "SPEAK": {
+        "label": "Speak",
+        "description": "Lets members talk in voice channels. Without it they can only listen."
+      },
+      "STREAM": {
+        "label": "Video",
+        "description": "Lets members share their screen in voice channels."
+      },
+      "EDIT_TASKS": {
+        "label": "Edit Tasks",
+        "description": "Lets members add, edit, assign, complete, reorder and delete tasks in list channels. Commenting on tasks follows Send Messages."
+      },
+      "CREATE_DOCUMENTS": {
+        "label": "Create Documents",
+        "description": "Lets members write documents in document channels and edit their own. Editing and deleting other people's follows Manage Messages; replying follows Send Messages."
+      },
+      "ADMINISTRATOR": {
+        "label": "Administrator",
+        "description": "Every permission, in every channel, whatever the channel settings. Handle with care."
+      }
+    },
+    "permissionGroups": {
+      "general": "General",
+      "membership": "Membership",
+      "text": "Text channels",
+      "voice": "Voice channels",
+      "list": "List channels",
+      "doc": "Document channels",
+      "advanced": "Advanced"
+    },
+    "auditLog": {
+      "title": "Audit Log",
+      "someone": "Someone",
+      "sent": "Sent {{time}}",
+      "who": "Who",
+      "filterByMember": "Filter by member",
+      "everyone": "Everyone",
+      "what": "What",
+      "filterByAction": "Filter by action",
+      "allActions": "All actions",
+      "empty": "Nothing here yet.",
+      "loadMore": "Load more",
+      "textNotKept": "Deleted messages' text isn't kept.",
+      "clear": {
+        "title": "Clear old entries",
+        "which": "Entries to clear",
+        "button": "Clear",
+        "hint": "Only you, the owner, can do this. Everyone who can see the log will see that you did.",
+        "confirmTitle": "Clear audit log",
+        "choices": {
+          "days30": "Older than 30 days",
+          "days90": "Older than 90 days",
+          "year": "Older than a year",
+          "everything": "Everything"
+        },
+        "confirm": {
+          "days30": "Delete every audit log entry older than 30 days? This can't be undone.",
+          "days90": "Delete every audit log entry older than 90 days? This can't be undone.",
+          "year": "Delete every audit log entry older than a year? This can't be undone.",
+          "everything": "Delete the whole audit log? This can't be undone."
+        }
+      },
+      "filters": {
+        "messages": "Messages",
+        "members": "Members",
+        "roles": "Roles",
+        "channels": "Channels",
+        "invites": "Invites",
+        "emoji": "Emoji",
+        "webhooks": "Webhooks",
+        "guild": "Guild settings"
+      },
+      "deletedChannel": "deleted-channel",
+      "aWebhookStart": "A webhook",
+      "aWebhook": "a webhook",
+      "aRole": "a role",
+      "entries": {
+        "messageDeleteOwn": "{{actor}} deleted their own message in {{channel}}",
+        "messageDelete": "{{actor}} deleted a message by {{target}} in {{channel}}",
+        "messagePin": "{{actor}} pinned a message by {{target}} in {{channel}}",
+        "messageUnpin": "{{actor}} unpinned a message by {{target}} in {{channel}}",
+        "documentDeleteOwn": "{{actor}} deleted their own document in {{channel}}",
+        "documentDelete": "{{actor}} deleted a document by {{target}} in {{channel}}",
+        "memberKick": "{{actor}} kicked {{target}}",
+        "memberBan": "{{actor}} banned {{target}}",
+        "memberUnban": "{{actor}} unbanned {{target}}",
+        "memberRoleUpdate": "{{actor}} changed the roles of {{target}}",
+        "ownerTransfer": "{{actor}} made {{target}} the owner",
+        "roleCreate": "{{actor}} created the role {{role}}",
+        "roleUpdate": "{{actor}} changed the role {{role}}",
+        "roleDelete": "{{actor}} deleted the role {{role}}",
+        "channelCreate": {
+          "text": "{{actor}} created the channel {{channel}}",
+          "voice": "{{actor}} created the voice channel {{channel}}",
+          "list": "{{actor}} created the list channel {{channel}}",
+          "doc": "{{actor}} created the document channel {{channel}}"
+        },
+        "channelClone": {
+          "text": "{{actor}} created the channel {{channel}} as a copy of {{source}}",
+          "voice": "{{actor}} created the voice channel {{channel}} as a copy of {{source}}",
+          "list": "{{actor}} created the list channel {{channel}} as a copy of {{source}}",
+          "doc": "{{actor}} created the document channel {{channel}} as a copy of {{source}}"
+        },
+        "channelUpdate": "{{actor}} changed the channel {{channel}}",
+        "channelDelete": {
+          "text": "{{actor}} deleted the channel {{channel}}",
+          "voice": "{{actor}} deleted the voice channel {{channel}}",
+          "list": "{{actor}} deleted the list channel {{channel}}",
+          "doc": "{{actor}} deleted the document channel {{channel}}"
+        },
+        "channelOverrideUpdate": "{{actor}} changed the permissions of {{target}} in {{channel}}",
+        "threadCreate": "{{actor}} started the thread {{thread}} in {{channel}}",
+        "threadUpdate": "{{actor}} changed the thread {{thread}}",
+        "threadDelete": "{{actor}} deleted the thread {{thread}} in {{channel}}",
+        "categoryCreate": "{{actor}} created the category {{category}}",
+        "categoryUpdate": "{{actor}} renamed a category to {{category}}",
+        "categoryDelete": "{{actor}} deleted the category {{category}}",
+        "inviteCreate": "{{actor}} created the invite {{invite}}",
+        "inviteDelete": "{{actor}} revoked the invite {{invite}}",
+        "emojiCreate": "{{actor}} added the emoji {{emoji}}",
+        "emojiUpdate": "{{actor}} renamed the emoji {{emoji}}",
+        "emojiDelete": "{{actor}} deleted the emoji {{emoji}}",
+        "webhookCreate": "{{actor}} created the webhook {{webhook}} in {{channel}}",
+        "webhookUpdate": "{{actor}} changed the webhook {{webhook}}",
+        "webhookDelete": "{{actor}} deleted the webhook {{webhook}}",
+        "guildUpdate": "{{actor}} changed the guild settings",
+        "auditLogClearOlder_one": "{{actor}} cleared entries older than {{age}} ({{count}} entry)",
+        "auditLogClearOlder_other": "{{actor}} cleared entries older than {{age}} ({{count}} entries)",
+        "auditLogClearAll_one": "{{actor}} cleared the whole audit log ({{count}} entry)",
+        "auditLogClearAll_other": "{{actor}} cleared the whole audit log ({{count}} entries)",
+        "unknown": "{{actor}} did something ({{action}})"
+      },
+      "fields": {
+        "name": "Name",
+        "topic": "Topic",
+        "category": "Category",
+        "color": "Colour",
+        "hoist": "Shown separately",
+        "mentionable": "Anyone can mention it",
+        "channel": "Channel",
+        "permissions": "Permissions",
+        "nsfw": "NSFW",
+        "archived": "Archived"
+      },
+      "values": {
+        "none": "none",
+        "yes": "yes",
+        "no": "no"
+      },
+      "overrideStates": {
+        "allow": "allowed",
+        "deny": "denied",
+        "inherit": "not set"
+      },
+      "changes": {
+        "change": "{{field}}: {{before}} → {{after}}",
+        "granted": "Granted: {{list}}",
+        "revoked": "Revoked: {{list}}",
+        "permissions": "Permissions: {{list}}",
+        "rolesAdded": "Added: {{list}}",
+        "rolesRemoved": "Removed: {{list}}",
+        "pictureChanged": "Picture changed",
+        "pictureRemoved": "Picture removed",
+        "iconChanged": "Icon changed",
+        "iconRemoved": "Icon removed",
+        "maxUses_one": "Up to {{count}} use",
+        "maxUses_other": "Up to {{count}} uses",
+        "noUseLimit": "No use limit",
+        "expiresAfter": "Expires after {{age}}",
+        "neverExpires": "Never expires"
+      },
+      "age": {
+        "year": "a year",
+        "days_one": "{{count}} day",
+        "days_other": "{{count}} days",
+        "hours_one": "{{count}} hour",
+        "hours_other": "{{count}} hours",
+        "minutes_one": "{{count}} minute",
+        "minutes_other": "{{count}} minutes"
+      }
+    },
+    "categoryDialog": {
+      "editTitle": "Edit category",
+      "createTitle": "Create category",
+      "delete": "Delete category",
+      "name": "Category name",
+      "namePlaceholder": "New category",
+      "deleteHint": "Deleting a category keeps its channels."
+    },
+    "categoryMenu": {
+      "markAsRead": "Mark As Read",
+      "expand": "Expand Category",
+      "collapse": "Collapse Category",
+      "edit": "Edit Category",
+      "createChannel": "Create Channel",
+      "delete": "Delete Category"
+    },
+    "webhooks": {
+      "pickImage": "Pick an image.",
+      "tooBig": "Pictures can be up to 8 MB.",
+      "unreadable": "That image couldn't be read.",
+      "copyFailed": "Couldn't copy it. Your browser may not allow it here.",
+      "created": "Created {{date}}",
+      "createdBy": "Created {{date}} by {{name}}",
+      "changePicture": "Change picture",
+      "pictureOf": "Picture of {{name}}",
+      "change": "Change",
+      "picture": "Webhook picture",
+      "name": "Name",
+      "nameLabel": "Webhook name",
+      "undoPicture": "Undo picture change",
+      "removePicture": "Remove picture",
+      "copied": "Copied!",
+      "copyUrl": "Copy Webhook URL",
+      "confirmDelete": "Delete {{name}}? Anything using its URL stops working.",
+      "delete": "Delete Webhook",
+      "saveChanges": "Save Changes",
+      "defaultName": "Captain Hook",
+      "intro": "Webhooks let other apps and services post messages into #{{name}}. Each has its own name and picture, and a secret URL: anything that works with Discord webhooks works with it. Anyone with the URL can post here, so keep it private.",
+      "new": "New Webhook",
+      "none": "No webhooks yet."
+    },
+    "cloneChannel": {
+      "title": "Duplicate #{{name}}",
+      "submit": "Duplicate Channel",
+      "hint": {
+        "text": "A new channel just below this one, with the same topic, settings and permissions. Its messages aren't copied.",
+        "list": "A new channel just below this one, with the same topic, settings and permissions. Its tasks aren't copied.",
+        "doc": "A new channel just below this one, with the same topic, settings and permissions. Its documents aren't copied.",
+        "voice": "A new channel just below this one, with the same settings and permissions."
+      }
+    },
+    "emoji": {
+      "nameOf": "Name of :{{name}}:",
+      "deleteOne": "Delete :{{name}}:",
+      "wrongType": "{{file}}: emoji must be PNG, GIF, WebP, JPEG or AVIF images.",
+      "tooBig": "{{file}} is over 10 MB.",
+      "uploadFailed": "{{file}}: {{error}}",
+      "intro": "Add up to {{max}} custom emoji anyone in the guild can use. PNG, GIF, WebP, JPEG or AVIF up to 10 MB; they're shrunk to 128×128, and animated ones stay animated. Names are letters, numbers and underscores.",
+      "upload": "Upload Emoji",
+      "count": "{{used}} / {{max}}",
+      "countUploading": "{{used}} / {{max}} · uploading {{uploading}}…",
+      "images": "Emoji images",
+      "none": "No custom emoji yet.",
+      "list": "Custom emoji"
+    },
+    "guildMenu": {
+      "invite": "Invite People",
+      "notifications": "Notification Settings",
+      "settings": "Guild Settings",
+      "copyLink": "Copy Link",
+      "linkCopied": "Link copied",
+      "leave": "Leave Guild"
+    },
+    "guildSettings": {
+      "title": "Guild settings",
+      "saved": "Saved.",
+      "iconNotImage": "The icon must be an image.",
+      "iconTooBig": "The icon must be under 8 MB.",
+      "iconUpdated": "Icon updated.",
+      "iconRemoved": "Icon removed.",
+      "changeIcon": "Change icon",
+      "removeIcon": "Remove icon",
+      "delete": "Delete guild",
+      "deleteHint": "This deletes every channel and message. It can't be undone. Type the guild's name to confirm.",
+      "deleteConfirmLabel": "Guild name to confirm",
+      "noInvites": "No active invites.",
+      "inviteUsage_one": "by {{name}} · {{count}} use",
+      "inviteUsage_other": "by {{name}} · {{count}} uses",
+      "inviteUsageLimited_one": "by {{name}} · {{uses}}/{{count}} use",
+      "inviteUsageLimited_other": "by {{name}} · {{uses}}/{{count}} uses",
+      "inviteExpires": "expires {{date}}",
+      "revoke": "Revoke",
+      "noBans": "Nobody is banned.",
+      "unban": "Unban",
+      "tabs": {
+        "roles": "Roles",
+        "emoji": "Emoji",
+        "invites": "Invites",
+        "bans": "Bans"
+      },
+      "noPermission": "You don't have permission to change anything here."
+    },
+    "invite": {
+      "never": "Never",
+      "noLimit": "No limit",
+      "uses_one": "{{count}} use",
+      "uses_other": "{{count}} uses",
+      "copyFailed": "Couldn't copy; select the link and copy it yourself.",
+      "expires": "Expires {{date}}",
+      "title": "Invite friends to {{name}}",
+      "linkLabel": "Send a guild invite link to a friend",
+      "expireAfter": "Expire after",
+      "maxUses": "Max number of uses",
+      "generate": "Generate a new link"
+    },
+    "notifyLevels": {
+      "all": {
+        "label": "All messages",
+        "hint": "A notification for every message in the channels you can see."
+      },
+      "mentions": {
+        "label": "Only @mentions",
+        "hint": "When someone mentions you, @everyone or @here, or one of your roles."
+      },
+      "none": {
+        "label": "Nothing",
+        "hint": "No notifications from this guild. Mentions still show in red."
+      }
+    },
+    "notifications": {
+      "legend": "Guild notifications",
+      "deviceHint": "Notifications need to be turned on for this device in Settings."
+    },
+    "roles": {
+      "newRoleName": "new role",
+      "create": "Create Role",
+      "listHint": "Members use the colour of their highest role. Drag to reorder.",
+      "aboveYours": "Above your highest role",
+      "moveUp": "Move {{name}} up",
+      "moveDown": "Move {{name}} down",
+      "editLabel": "Edit {{name}}",
+      "everyoneTitle": "Default permissions (@everyone)",
+      "editTitle": "Edit role — {{name}}",
+      "locked": "This role is as high as your highest role, so you can't change it.",
+      "everyoneHint": "Everyone in the guild has these, whatever other roles they have.",
+      "name": "Role name",
+      "colour": "Role colour",
+      "defaultColour": "Default colour",
+      "customColour": "Custom colour",
+      "hoist": "Display role members separately from online members",
+      "mentionable": "Allow anyone to @mention this role",
+      "mentionableHint": "Members with \"Mention @everyone, @here and All Roles\" can always mention it.",
+      "delete": "Delete role"
+    },
+    "channelMenu": {
+      "unmute": "Unmute Channel",
+      "mute": "Mute Channel",
+      "muteLabel": "Mute #{{name}}",
+      "guildDefault": "Guild default",
+      "useGuildDefault": "Use Guild Default",
+      "edit": "Edit Channel",
+      "delete": "Delete Channel"
+    },
+    "mute": {
+      "forMinutes_one": "For {{count}} minute",
+      "forMinutes_other": "For {{count}} minutes",
+      "forHours_one": "For {{count}} hour",
+      "forHours_other": "For {{count}} hours",
+      "untilTurnedOn": "Until I turn it back on",
+      "untilUnmuted": "Muted until you unmute it",
+      "until": "Muted until {{time}}"
+    },
+    "upload": {
+      "noUrl": "No upload URL",
+      "failed": "Upload failed"
+    }
+  }
+}

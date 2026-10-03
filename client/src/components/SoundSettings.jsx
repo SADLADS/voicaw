@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlay } from '@fortawesome/free-solid-svg-icons';
 import { SOUNDS, SOUND_NAMES } from '../sounds/soundList';
 import { playSound, setSoundEnabled, setSoundVolume, useSoundPrefs } from '../sounds/sounds';
+import { t } from '../i18n';
 
 // Settings → Sounds: the app's sound effects (sounds/), on this device: a volume, and each
 // sound on or off, with a button to hear it.
@@ -10,12 +11,12 @@ export default function SoundSettings() {
   const { volume, off } = useSoundPrefs();
   return (
     <div className="settings-card sound-settings">
-      <h5>Sounds</h5>
+      <h5>{t('settings.sounds.title')}</h5>
       <label className="sound-volume">
-        Volume
+        {t('settings.sounds.volume')}
         <input
           type="range" min="0" max="100" step="1"
-          aria-label="Sound volume"
+          aria-label={t('settings.sounds.volumeLabel')}
           value={Math.round(volume * 100)}
           onChange={(e) => setSoundVolume(Number(e.target.value) / 100)}
           onPointerUp={() => playSound('message', { preview: true })}
@@ -26,6 +27,7 @@ export default function SoundSettings() {
       <ul className="sound-list">
         {SOUND_NAMES.map((name) => {
           const sound = SOUNDS[name];
+          const label = t(sound.labelKey);
           return (
             <li key={name}>
               <label className="settings-toggle">
@@ -35,13 +37,13 @@ export default function SoundSettings() {
                   onChange={(e) => setSoundEnabled(name, e.target.checked)}
                 />
                 <span>
-                  {sound.label}
-                  {sound.description && <span className="vc-hint sound-description">{sound.description}</span>}
+                  {label}
+                  {sound.descriptionKey && <span className="vc-hint sound-description">{t(sound.descriptionKey)}</span>}
                 </span>
               </label>
               <button
                 type="button" className="sound-preview"
-                aria-label={`Play ${sound.label}`} title="Play"
+                aria-label={t('settings.sounds.playSound', { sound: label })} title={t('settings.sounds.play')}
                 onClick={() => playSound(name, { preview: true })}
               >
                 <FontAwesomeIcon icon={faPlay} />
@@ -50,7 +52,7 @@ export default function SoundSettings() {
           );
         })}
       </ul>
-      <p className="vc-hint">Saved on this device.</p>
+      <p className="vc-hint">{t('settings.savedOnDevice')}</p>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { quickReactions } from '../emoji/quickReactions';
 import ContextMenu from './ContextMenu';
+import { t } from '../i18n';
 
 const QUICK_REACTION_COUNT = 5; // what fits across the menu
 
@@ -38,23 +39,23 @@ export default function MessageMenu({
 
   const items = [];
   if (sent && canReact) {
-    items.push({ key: 'react', label: 'Add Reaction', icon: faFaceSmile, onSelect: () => onMoreReactions(anchor) });
+    items.push({ key: 'react', label: t('chat.messageMenu.addReaction'), icon: faFaceSmile, onSelect: () => onMoreReactions(anchor) });
   }
-  if (sent) items.push({ key: 'reply', label: 'Reply', icon: faReply, onSelect: onReply });
-  if (sent && isOwn && onEdit) items.push({ key: 'edit', label: 'Edit Message', icon: faEdit, onSelect: onEdit });
+  if (sent) items.push({ key: 'reply', label: t('common.reply'), icon: faReply, onSelect: onReply });
+  if (sent && isOwn && onEdit) items.push({ key: 'edit', label: t('chat.messageMenu.edit'), icon: faEdit, onSelect: onEdit });
   if (sent && onTogglePin) {
-    items.push({ key: 'pin', label: msg.pinned_at ? 'Unpin Message' : 'Pin Message', icon: faThumbtack, onSelect: onTogglePin });
+    items.push({ key: 'pin', label: msg.pinned_at ? t('chat.messageMenu.unpin') : t('chat.messageMenu.pin'), icon: faThumbtack, onSelect: onTogglePin });
   }
-  if (sent && onCreateThread) items.push({ key: 'thread', label: 'Create Thread', icon: faComments, onSelect: onCreateThread });
+  if (sent && onCreateThread) items.push({ key: 'thread', label: t('chat.messageMenu.createThread'), icon: faComments, onSelect: onCreateThread });
   if (msg.plaintext) {
-    items.push({ key: 'copy', label: 'Copy Text', icon: faCopy, onSelect: async () => { await onCopy(); return 'Copied'; } });
+    items.push({ key: 'copy', label: t('chat.messageMenu.copyText'), icon: faCopy, onSelect: async () => { await onCopy(); return t('common.copied'); } });
   }
   if (sent && canDelete) {
-    items.push({ separator: true }, { key: 'delete', label: 'Delete Message', icon: faTrash, danger: true, onSelect: onDelete });
+    items.push({ separator: true }, { key: 'delete', label: t('chat.messageMenu.delete'), icon: faTrash, danger: true, onSelect: onDelete });
   }
 
   const header = sent && canReact && index ? (
-    <div className="context-menu-reactions" role="group" aria-label="React">
+    <div className="context-menu-reactions" role="group" aria-label={t('chat.messageMenu.react')}>
       {quickReactions(index, QUICK_REACTION_COUNT).map(({ emoji, skin }) => (
         <button
           key={emoji.id}
@@ -62,7 +63,7 @@ export default function MessageMenu({
           role="menuitemcheckbox"
           aria-checked={myReactions.has(skin.native)}
           className={`context-menu-reaction${myReactions.has(skin.native) ? ' mine' : ''}`}
-          aria-label={`React with ${emoji.name}`}
+          aria-label={t('chat.messageMenu.reactWith', { name: emoji.name })}
           title={`:${emoji.id}:`}
           onClick={() => { onReact(skin.native); onClose(); }}
         >
@@ -72,5 +73,5 @@ export default function MessageMenu({
     </div>
   ) : null;
 
-  return <ContextMenu label="Message actions" items={items} header={header} anchor={anchor} onClose={onClose} />;
+  return <ContextMenu label={t('chat.messageMenu.label')} items={items} header={header} anchor={anchor} onClose={onClose} />;
 }

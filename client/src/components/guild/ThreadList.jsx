@@ -7,6 +7,7 @@ import { onGuildEvent } from '../../utils/ws-client';
 import { errorMessage } from '../../utils/guildDisplay';
 import { displayName, useProfiles } from '../../utils/profiles';
 import { formatDateTime, useDateFormat } from '../../utils/dateFormat';
+import { t } from '../../i18n';
 
 const MARGIN = 8;
 
@@ -29,12 +30,12 @@ export default function ThreadList({ channel, anchor, isMobile, canCreate, onOpe
       if (event.type === 'guild_thread_update' && event.thread.parent_id === channel.id) {
         setThreads((list) => {
           if (!list) return list;
-          const old = list.find((t) => t.id === event.thread.id);
-          const rest = list.filter((t) => t.id !== event.thread.id);
+          const old = list.find((th) => th.id === event.thread.id);
+          const rest = list.filter((th) => th.id !== event.thread.id);
           return [{ ...event.thread, joined: old?.joined ?? false }, ...rest];
         });
       } else if (event.type === 'guild_thread_delete' && event.channelId === channel.id) {
-        setThreads((list) => list?.filter((t) => t.id !== event.threadId));
+        setThreads((list) => list?.filter((th) => th.id !== event.threadId));
       }
     });
     return () => {
@@ -65,54 +66,56 @@ export default function ThreadList({ channel, anchor, isMobile, canCreate, onOpe
     top: anchor.bottom + MARGIN,
     right: Math.max(MARGIN, window.innerWidth - anchor.right),
   };
-  const active = threads?.filter((t) => !t.archived) ?? [];
-  const archived = threads?.filter((t) => t.archived) ?? [];
+  const active = threads?.filter((th) => !th.archived) ?? [];
+  const archived = threads?.filter((th) => th.archived) ?? [];
 
   const row = (thread) => (
     <li key={thread.id}>
       <button type="button" className="thread-list-item" onClick={() => onOpen(thread)}>
         <span className="thread-list-name">{thread.name}</span>
         <span className="thread-list-meta">
-          {displayName(thread.owner_id)} · {thread.message_count} {thread.message_count === 1 ? 'message' : 'messages'} ·{' '}
-          {formatDateTime((thread.last_activity ?? thread.created_at) * 1000)}
-          {thread.joined ? ' · Joined' : ''}
+          {t(thread.joined ? 'guilds.threads.list.metaJoined' : 'guilds.threads.list.meta', {
+            name: displayName(thread.owner_id),
+            count: thread.message_count,
+            date: formatDateTime((thread.last_activity ?? thread.created_at) * 1000),
+          })}
         </span>
       </button>
     </li>
   );
 
   return createPortal(
-    <div className={`pins-panel threads-panel${isMobile ? ' mobile' : ''}`} style={style} role="dialog" aria-label="Threads">
+    <div className={`pins-panel threads-panel${isMobile ? ' mobile' : ''}`} style={style} role="dialog" aria-label={t('guilds.threads.list.title')}>
       <div className="pins-panel-header">
         <FontAwesomeIcon icon={faComments} />
-        <h5>Threads</h5>
+        <h5>{t('guilds.threads.list.title')}</h5>
         {canCreate && (
           <button type="button" className="btn btn-primary btn-sm vc-button threads-panel-create" onClick={onCreate}>
-            <FontAwesomeIcon icon={faPlus} /> Create
+            <FontAwesomeIcon icon={faPlus} /> {t('common.create')}
           </button>
         )}
-        <button type="button" className="icon-button pins-panel-close" aria-label="Close" onClick={onClose}>
+        <button type="button" className="icon-button pins-panel-close" aria-label={t('common.close')} onClick={onClose}>
           <FontAwesomeIcon icon={faXmark} />
         </button>
       </div>
       <div className="pins-panel-list">
         {error && <p className="error-text pins-panel-note">{error}</p>}
-        {threads === null && !error && <p className="pins-panel-note">Loading…</p>}
+        {threads === null && !error && <p className="pins-panel-note">{t('common.loading')}</p>}
         {threads?.length === 0 && (
           <div className="pins-panel-empty">
-            <p>#{channel.name} doesn&apos;t have any threads yet.</p>
-            <p className="vc-hint">Start one from a message&apos;s menu{canCreate ? ', or with Create' : ''}.</p>
+            <p>{t('guilds.threads.list.empty', { name: channel.name })}</p>
+            <p className="vc-hint">{canCreate ? t('guilds.threads.list.emptyHintCreate') : t('guilds.threads.list.emptyHint')}</p>
           </div>
         )}
         {active.length > 0 && (
           <>
-            <h6 className="thread-list-heading">Active</h6>
+            <h6 className="thread-list-heading">{t('guilds.threads.list.active')}</h6>
             <ul className="thread-list">{active.map(row)}</ul>
           </>
         )}
         {archived.length > 0 && (
           <>
-            <h6 className="thread-list-heading">Archived</h6>
+            <h6 className="thread-list-heading">{t('guilds.threads.archived')}</h6>
             <ul className="thread-list">{archived.map(row)}</ul>
           </>
         )}

@@ -4,6 +4,7 @@ import { customEmojiUrl, parseCustomEmoji } from '../emoji/customEmoji';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { groupReactions } from '../utils/reactions';
+import { t } from '../i18n';
 
 // A reaction's emoji: Unicode (as Twemoji), or a custom emoji's image (`:name:` if deleted).
 // Poll answers' emoji too.
@@ -34,15 +35,15 @@ export default function MessageReactions({ reactions, userId, names, onToggle, o
     <div className="message-reactions">
       {groups.map(({ emoji, userIds }) => {
         const mine = userIds.includes(userId);
-        const who = userIds.map((id) => (id === userId ? 'You' : names?.[id] ?? 'Someone')).join(', ');
+        const who = userIds.map((id) => (id === userId ? t('chat.reactions.you') : names?.[id] ?? t('chat.reactions.someone'))).join(', ');
         return (
           <button
             key={emoji}
             type="button"
             className={`reaction-chip${mine ? ' mine' : ''}`}
             aria-pressed={mine}
-            aria-label={`${emoji} ${userIds.length}, reacted by ${who}`}
-            title={`Reacted by ${who}`}
+            aria-label={t('chat.reactions.chipLabel', { emoji, number: userIds.length, names: who })}
+            title={t('chat.reactions.reactedBy', { names: who })}
             disabled={!mine && !onAdd}
             onClick={() => onToggle(emoji)}
           >
@@ -54,8 +55,8 @@ export default function MessageReactions({ reactions, userId, names, onToggle, o
       {onAdd && <button
         type="button"
         className="reaction-chip reaction-add"
-        aria-label="Add reaction"
-        title="Add reaction"
+        aria-label={t('chat.reactions.add')}
+        title={t('chat.reactions.add')}
         // Keep the open picker's outside-click handler from closing it before this toggles it.
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => onAdd(e.currentTarget)}

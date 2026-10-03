@@ -5,6 +5,36 @@
 - Component files export only components (Vite hot reload needs that; lint enforces it).
   Contexts live in `contexts.js` (`ConfigContext`, `InteractionContext`, `LayoutContext`) and
   `hooks/useAuth.js`; logic lives in `hooks/` and `services/`.
+- **Translations** (`i18n/`, i18next): every string the app shows comes from `t('area.key')`,
+  so another language can be added later without touching components. British English is
+  the only language so far (decided 2026-10-03; Russian may follow). The text is in
+  `i18n/en-GB/<area>.json`, one file per area of the app (`settings`, `chat`, `guilds`,
+  `guildAdmin`, `voice`...), each holding one top-level key named after the file; `common.json`
+  has the everyday words (Cancel, Save, Close...). Files there are picked up automatically.
+  - `import { t } from '../i18n'` works anywhere (components, hooks, services, memoised
+    parts): the strings are bundled and looked up synchronously. Changing language will
+    reload the app, so there's no `useTranslation` hook to thread through.
+  - One key per whole sentence, with `{{name}}` for what goes in it; never glue translated
+    pieces together (word order differs). Counts use i18next plurals: `foo_one` / `foo_other`
+    and `t('area.foo', { count })` (Russian will add `_few` / `_many`). A sentence with
+    markup in it (bold, a link) uses react-i18next's `<Trans i18nKey components={{ b: <strong /> }}>`.
+  - Not translated: names, message content, dates (`utils/dateFormat.js` follows the locale
+    already), console messages, stored formats (poll and call-log markup), and errors the
+    server sends (`err.response.data.error`, still English: they'd become codes when a second
+    language arrives), and the group log's verification errors ("Entry 3 is out of place":
+    `groupCrypto.js` is shared with the server's tests, which run outside Vite, so it can't
+    import `i18n`; `encryptionService.js`, `contactKeys.js` and `permissions.js` likewise).
+    Web workers and audio worklets don't import `i18n`. The service worker does, through
+    notification previews (polls, mentions, spoilers): about 115 KB of its 157 KB.
+  - Checks: ESLint's `i18next/no-literal-string` fails on text written straight into JSX or
+    its `title`, `placeholder`, `aria-label`, `alt` and `label` attributes (plain `.js` files
+    aren't checked: put their text through `t` by hand). `i18n/keys.test.js` fails when the
+    code uses a key that isn't in the files (keys built at run time, like
+    `` t(`guildAdmin.permissions.${name}.label`) ``, can't be checked there).
+  - Adding a language later: an `i18n/<code>/` folder, a language setting (saved with the
+    account preferences), server errors as codes, push notification text, the desktop app's
+    menus, a test that every English key exists in the new language, and checking the font
+    covers its alphabet.
 - `AuthProvider.jsx` — fetches `/api/profile` on mount to restore the session (id, username, JWT)
   into `useAuth`; the keys come from IndexedDB (`keyStore`). `services/authService.js` does the
   OPAQUE login/register (`Login.jsx` is just the form).

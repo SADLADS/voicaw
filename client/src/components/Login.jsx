@@ -6,6 +6,7 @@ import {
   MIN_PASSWORD_LENGTH, logIn, register, recoverAccount, generateRecoveryCode, saveRecoveryCode,
 } from '../services/authService';
 import RecoveryCodeDisplay from './RecoveryCodeDisplay';
+import { t } from '../i18n';
 
 export default function Login({ onLoginSuccess }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
@@ -68,7 +69,7 @@ export default function Login({ onLoginSuccess }) {
     e.preventDefault();
     setError('');
     if (recoverData.password !== recoverData.confirm) {
-      setError("The new passwords don't match.");
+      setError(t('auth.recover.passwordsDontMatch'));
       return;
     }
     setLoading(true);
@@ -87,7 +88,7 @@ export default function Login({ onLoginSuccess }) {
       enterApp({ ...mode.user, hasRecoveryCode: true });
     } else if (mode.user) onLoginSuccess(mode.user);
     else {
-      alert('Registered! You can now log in.');
+      alert(t('auth.register.registered'));
       switchTo('login');
     }
   }
@@ -96,11 +97,11 @@ export default function Login({ onLoginSuccess }) {
     return (
       <div className="login-page">
         <div className="form-container">
-          <h3 className="login-header text-center mb-3">Save your recovery code</h3>
+          <h3 className="login-header text-center mb-3">{t('auth.recoveryCode.title')}</h3>
           <RecoveryCodeDisplay
             code={mode.recoveryCode}
             username={mode.user?.username ?? registerData.username}
-            intro={mode.password && "Your account doesn't have a recovery code yet, so here's one."}
+            intro={mode.password && t('auth.recoveryCode.introNoCode')}
             onDone={finishRecoveryCode}
             onSkip={mode.password ? () => enterApp(mode.user) : undefined}
           />
@@ -113,10 +114,9 @@ export default function Login({ onLoginSuccess }) {
     return (
       <div className="login-page">
         <div className="form-container">
-          <h3 className="login-header text-center mb-3">Reset your password</h3>
+          <h3 className="login-header text-center mb-3">{t('auth.recover.title')}</h3>
           <p className="register-password-hint">
-            Enter the recovery code you saved when you made your account (or in Settings), and
-            choose a new password. Your messages stay.
+            {t('auth.recover.hint')}
           </p>
 
           {error && <div className="login-error" role="alert">{error}</div>}
@@ -125,7 +125,7 @@ export default function Login({ onLoginSuccess }) {
             <input
               name="username"
               className="form-control mb-2"
-              placeholder="Username"
+              placeholder={t('auth.username')}
               autoComplete="username"
               required
               value={recoverData.username}
@@ -134,7 +134,7 @@ export default function Login({ onLoginSuccess }) {
             <input
               name="recovery-code"
               className="form-control mb-2"
-              placeholder="Recovery code (XXXXX-XXXXX-…)"
+              placeholder={t('auth.recover.codePlaceholder')}
               autoComplete="off"
               autoCapitalize="characters"
               spellCheck={false}
@@ -146,7 +146,7 @@ export default function Login({ onLoginSuccess }) {
               type="password"
               name="new-password"
               className="form-control mb-2"
-              placeholder="New password"
+              placeholder={t('auth.recover.newPasswordPlaceholder')}
               autoComplete="new-password"
               required
               value={recoverData.password}
@@ -156,18 +156,18 @@ export default function Login({ onLoginSuccess }) {
               type="password"
               name="confirm-password"
               className="form-control mb-2"
-              placeholder="New password again"
+              placeholder={t('auth.recover.confirmPlaceholder')}
               autoComplete="new-password"
               required
               value={recoverData.confirm}
               onChange={e => setRecoverData({ ...recoverData, confirm: e.target.value })}
             />
             <button className="btn btn-vc w-100" type="submit" disabled={loading}>
-              {loading ? "Please wait..." : "Reset password and log in"}
+              {loading ? t('auth.pleaseWait') : t('auth.recover.submit')}
             </button>
           </form>
           <button type="button" className="link-button" onClick={() => switchTo('login')}>
-            Back to login
+            {t('auth.recover.backToLogin')}
           </button>
         </div>
       </div>
@@ -177,7 +177,7 @@ export default function Login({ onLoginSuccess }) {
   return (
     <div className="login-page">
       <div className="form-container">
-        <h3 className="login-header text-center mb-3">Voicaw Login</h3>
+        <h3 className="login-header text-center mb-3">{t('auth.login.title')}</h3>
 
         {error && <div className="login-error" role="alert">{error}</div>}
 
@@ -185,7 +185,7 @@ export default function Login({ onLoginSuccess }) {
           <input
             name="username"
             className="form-control mb-2"
-            placeholder="Username"
+            placeholder={t('auth.username')}
             required
             value={loginData.username}
             onChange={e => setLoginData({ ...loginData, username: e.target.value })}
@@ -194,16 +194,16 @@ export default function Login({ onLoginSuccess }) {
             type="password"
             name="password"
             className="form-control mb-2"
-            placeholder="Password"
+            placeholder={t('auth.password')}
             required
             value={loginData.password}
             onChange={e => setLoginData({ ...loginData, password: e.target.value })}
           />
           <button className="btn btn-vc w-100" type="submit" disabled={loading}>
-            {loading ? "Please wait..." : "Login"}
+            {loading ? t('auth.pleaseWait') : t('auth.login.submit')}
           </button>
           <button type="button" className="link-button mt-2" onClick={() => switchTo('recover')}>
-            Forgot password?
+            {t('auth.login.forgotPassword')}
           </button>
         </form>
 
@@ -213,7 +213,7 @@ export default function Login({ onLoginSuccess }) {
           <input
             name="username"
             className="form-control mb-2"
-            placeholder="New Username"
+            placeholder={t('auth.register.usernamePlaceholder')}
             required
             value={registerData.username}
             onChange={e => setRegisterData({ ...registerData, username: e.target.value })}
@@ -222,17 +222,16 @@ export default function Login({ onLoginSuccess }) {
             type="password"
             name="password"
             className="form-control mb-2"
-            placeholder="New Password"
+            placeholder={t('auth.register.passwordPlaceholder')}
             required
             value={registerData.password}
             onChange={e => setRegisterData({ ...registerData, password: e.target.value })}
           />
           <p className="register-password-hint">
-            At least {MIN_PASSWORD_LENGTH} characters. You'll get a recovery code next: keep it safe,
-            it's the only way to reset a forgotten password.
+            {t('auth.register.passwordHint', { count: MIN_PASSWORD_LENGTH })}
           </p>
           <button className="btn btn-secondary w-100" type="submit" disabled={loading}>
-            {loading ? "Please wait..." : "Register"}
+            {loading ? t('auth.pleaseWait') : t('auth.register.submit')}
           </button>
         </form>
       </div>

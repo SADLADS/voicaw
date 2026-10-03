@@ -13,6 +13,7 @@ import { faClock } from '@fortawesome/free-solid-svg-icons';
 import { useVisualViewport } from '../utils/useVisualViewport';
 import { hasVirtualKeyboardApi, setKeyboardOverlaysContent, watchKeyboardRect } from '../utils/virtualKeyboard';
 import { useSheetDrag } from '../hooks/useSheetDrag';
+import { t } from '../i18n';
 
 // `?kbdebug` in the URL shows the keyboard/viewport numbers during mobile emoji search.
 const KEYBOARD_DEBUG = typeof location !== 'undefined' && new URLSearchParams(location.search).has('kbdebug');
@@ -212,7 +213,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
       .map((id) => (id.startsWith('custom:') ? custom.byId.get(id.slice(7)) : index.emojis.get(id)))
       .filter(Boolean);
     return [
-      ...(frequent.length ? [{ id: 'frequent', name: 'Frequently Used', emojis: frequent }] : []),
+      ...(frequent.length ? [{ id: 'frequent', name: t('chat.emojiPicker.frequent'), emojis: frequent }] : []),
       ...custom.guilds.map(({ guild, emojis }) => ({ id: `guild-${guild.id}`, name: guild.name, guild, emojis })),
       ...index.categories,
     ];
@@ -340,7 +341,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
         }
         ref={rootRef}
         role="dialog"
-        aria-label="Emoji picker"
+        aria-label={t('chat.emojiPicker.label')}
       >
         {index && <style>{index.sheetCss}</style>}
         {docked && !searching && (
@@ -348,13 +349,13 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
             type="button"
             className="emoji-picker-handle"
             onClick={() => setExpanded((v) => !v)}
-            aria-label={expanded ? 'Shrink picker' : 'Expand picker'}
+            aria-label={expanded ? t('chat.emojiPicker.shrink') : t('chat.emojiPicker.expand')}
             aria-expanded={expanded}
           />
         )}
         {hasGifs && !(docked && searching) && (
-          <div className="emoji-picker-tabs" role="tablist" aria-label="Picker">
-            {[['emoji', 'Emoji'], ['gifs', 'GIFs']].map(([id, label]) => (
+          <div className="emoji-picker-tabs" role="tablist" aria-label={t('chat.emojiPicker.tabs')}>
+            {[['emoji', t('chat.emojiPicker.emojiTab')], ['gifs', t('chat.emojiPicker.gifsTab')]].map(([id, label]) => (
               <button
                 key={id}
                 type="button"
@@ -370,7 +371,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
         )}
         <div className="emoji-picker-header">
           {docked && searching && (
-            <button type="button" className="emoji-picker-back" onClick={stopSearching} aria-label="Close search">
+            <button type="button" className="emoji-picker-back" onClick={stopSearching} aria-label={t('chat.emojiPicker.closeSearch')}>
               ←
             </button>
           )}
@@ -379,7 +380,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
             className="emoji-picker-search"
             type="search"
             enterKeyHint="search"
-            placeholder={gifTab ? 'Search KLIPY' : 'Find the perfect emoji'}
+            placeholder={gifTab ? t('chat.emojiPicker.searchKlipy') : t('chat.emojiPicker.searchPlaceholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onSearchKeyDown}
@@ -388,7 +389,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
             onPointerDown={docked ? () => setKeyboardOverlaysContent(true) : undefined}
             onFocus={docked ? () => { setKeyboardOverlaysContent(true); setSearching(true); } : undefined}
             onBlur={docked ? keyboardClosed : undefined}
-            aria-label={gifTab ? 'Search GIFs' : 'Search emoji'}
+            aria-label={gifTab ? t('chat.emojiPicker.searchGifs') : t('chat.emojiPicker.searchEmoji')}
           />
           {toneSample && !gifTab && !(docked && searching) && (
             <div className="emoji-picker-tones">
@@ -396,7 +397,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
                 type="button"
                 className="emoji-picker-tone-toggle"
                 onClick={() => setShowTones((v) => !v)}
-                aria-label="Skin tone"
+                aria-label={t('chat.emojiPicker.skinTone')}
                 aria-expanded={showTones}
               >
                 <SheetEmoji unified={skinFor(toneSample, tone).unified} />
@@ -409,7 +410,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
                       type="button"
                       role="menuitemradio"
                       aria-checked={value === tone}
-                      aria-label={`Skin tone ${value}`}
+                      aria-label={t('chat.emojiPicker.skinToneNumber', { number: value })}
                       onClick={() => chooseTone(value)}
                     >
                       <SheetEmoji unified={skin.unified} />
@@ -424,11 +425,11 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
         {gifTab ? (
           <GifPicker query={query} onPick={pickGif} keepFocus={docked && searching} />
         ) : !index ? (
-          <div className="emoji-picker-empty">Loading emoji…</div>
+          <div className="emoji-picker-empty">{t('chat.emojiPicker.loading')}</div>
         ) : (
           <div className="emoji-picker-body">
             {!results && (
-              <nav className="emoji-picker-nav" aria-label="Emoji categories">
+              <nav className="emoji-picker-nav" aria-label={t('chat.emojiPicker.categoriesLabel')}>
                 {sections.map((section) => (
                   <button key={section.id} type="button" onClick={() => jumpTo(section.id)} title={section.name} aria-label={section.name}>
                     {section.guild ? (
@@ -450,7 +451,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
                       {results.map(renderItem)}
                     </div>
                   ) : (
-                    <div className="emoji-picker-empty">No emoji match "{query}"</div>
+                    <div className="emoji-picker-empty">{t('chat.emojiPicker.noMatch', { query })}</div>
                   )
                 ) : (
                   sections.map((section) => (
@@ -485,7 +486,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
               <>
                 <img className="emoji" src={customEmojiUrl(hovered.id, s3Endpoint)} alt="" draggable={false} />
                 <span className="emoji-picker-preview-code">:{hovered.name}:</span>
-                <span className="emoji-picker-preview-from">from {hovered.guild.name}</span>
+                <span className="emoji-picker-preview-from">{t('chat.emojiPicker.from', { guild: hovered.guild.name })}</span>
               </>
             ) : preview ? (
               <>
@@ -493,7 +494,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
                 <span className="emoji-picker-preview-code">:{hovered.id}:</span>
               </>
             ) : (
-              <span className="emoji-picker-preview-name">Pick an emoji</span>
+              <span className="emoji-picker-preview-name">{t('chat.emojiPicker.pick')}</span>
             )}
           </div>
         )}

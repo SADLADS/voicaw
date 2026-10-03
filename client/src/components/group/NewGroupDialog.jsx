@@ -7,6 +7,7 @@ import UserPicker from './UserPicker';
 import { createGroup } from '../../services/groupKeys';
 import { MAX_GROUP_MEMBERS } from '../../services/groupCrypto';
 import { showContent } from '../../utils/mobilePanes';
+import { t } from '../../i18n';
 
 // Pick two or more people (and optionally a name) for a new group DM.
 export default function NewGroupDialog({ user, users, onCreated, onClose }) {
@@ -33,25 +34,25 @@ export default function NewGroupDialog({ user, users, onCreated, onClose }) {
 
   return (
     <Modal
-      title="New Group"
+      title={t('groups.newGroup.title')}
       className="group-dialog"
       onClose={onClose}
       actions={(
         <>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>{t('common.cancel')}</button>
           <button type="button" className="btn btn-primary btn-sm vc-button" onClick={create} disabled={busy || selected.size < 2}>
-            {busy ? 'Creating…' : 'Create Group'}
+            {busy ? t('groups.newGroup.creating') : t('groups.newGroup.create')}
           </button>
         </>
       )}
     >
       <p className="vc-hint">
-        Pick at least two people (up to {MAX_GROUP_MEMBERS - 1}). Messages and calls are end-to-end encrypted.
+        {t('groups.newGroup.hint', { max: MAX_GROUP_MEMBERS - 1 })}
       </p>
       <input
         className="form-control group-name-input"
-        placeholder="Group name (optional)"
-        aria-label="Group name"
+        placeholder={t('groups.newGroup.namePlaceholder')}
+        aria-label={t('groups.newGroup.nameLabel')}
         maxLength={100}
         value={name}
         onChange={(e) => setName(e.target.value)}

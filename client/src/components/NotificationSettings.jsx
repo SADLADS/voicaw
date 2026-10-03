@@ -9,14 +9,15 @@ import {
 } from '../services/pushService';
 import { getSetting, setSetting } from '../services/settingsStore';
 import { isDesktopApp } from '../utils/desktop';
+import { t } from '../i18n';
 
 const STATUS_TEXT = {
-  granted: 'Notifications are on for this device.',
-  off: 'Notifications are off for this device.',
-  'can-enable': 'Notifications are off for this device.',
-  denied: 'Notifications are blocked for Voicaw in this browser\'s settings. Allow them there, then reload.',
-  'needs-install': 'On iPhone and iPad, notifications only work from the Home Screen app: tap Share → "Add to Home Screen", then open Voicaw from your Home Screen.',
-  unsupported: 'This browser doesn\'t support notifications.',
+  granted: 'settings.notifications.status.granted',
+  off: 'settings.notifications.status.off',
+  'can-enable': 'settings.notifications.status.off',
+  denied: 'settings.notifications.status.denied',
+  'needs-install': 'settings.notifications.status.needsInstall',
+  unsupported: 'settings.notifications.status.unsupported',
 };
 
 export default function NotificationSettings() {
@@ -53,7 +54,7 @@ export default function NotificationSettings() {
       await fn();
     } catch (err) {
       console.error(err);
-      setMessage(`Something went wrong: ${err.message}`);
+      setMessage(t('settings.notifications.somethingWentWrong', { error: err.message }));
     } finally {
       setStatus(getPushStatus());
       setBusy(false);
@@ -68,10 +69,9 @@ export default function NotificationSettings() {
   const turnOff = () => run(() => disableNotificationsOnThisDevice({ remember: true }));
   const test = () => run(async () => {
     const { devices, delivered } = await sendTestNotification();
-    const plural = (n) => `${n} device${n === 1 ? '' : 's'}`;
-    if (devices === 0) setMessage('No devices are set up for notifications on this account yet.');
-    else if (delivered === devices) setMessage(`Sent to ${plural(devices)}.`);
-    else setMessage(`Sent to ${delivered} of ${plural(devices)}; the rest couldn't be reached.`);
+    if (devices === 0) setMessage(t('settings.notifications.test.noDevices'));
+    else if (delivered === devices) setMessage(t('settings.notifications.test.sent', { count: devices }));
+    else setMessage(t('settings.notifications.test.partlySent', { delivered, count: devices }));
   });
   const togglePreviews = async (e) => {
     const value = e.target.checked;
@@ -81,32 +81,32 @@ export default function NotificationSettings() {
 
   return (
     <div className="settings-card">
-      <h5>Notifications</h5>
+      <h5>{t('settings.notifications.title')}</h5>
       <p className="notification-settings-status">
         {status === 'granted' && registrationError
-          ? `Notifications are allowed, but this device couldn't be registered: ${registrationError}`
-          : STATUS_TEXT[status]}
-        {status === 'granted' && isDesktopApp() && ' They arrive while the app is running, in the tray too.'}
+          ? t('settings.notifications.registrationFailed', { error: registrationError })
+          : STATUS_TEXT[status] && t(STATUS_TEXT[status])}
+        {status === 'granted' && isDesktopApp() && ` ${t('settings.notifications.desktopNote')}`}
       </p>
 
       <div className="notification-settings-actions">
         {(status === 'can-enable' || status === 'off') && (
           <button type="button" className="uploadbutton btn" onClick={turnOn} disabled={busy}>
-            Turn on
+            {t('settings.notifications.turnOn')}
           </button>
         )}
         {status === 'granted' && registrationError && (
           <button type="button" className="uploadbutton btn" onClick={turnOn} disabled={busy}>
-            Try again
+            {t('settings.notifications.tryAgain')}
           </button>
         )}
         {status === 'granted' && (
           <>
             <button type="button" className="btn btn-sm btn-secondary" onClick={turnOff} disabled={busy}>
-              Turn off
+              {t('settings.notifications.turnOff')}
             </button>
             <button type="button" className="btn btn-sm btn-secondary" onClick={test} disabled={busy}>
-              Send test notification
+              {t('settings.notifications.sendTest')}
             </button>
           </>
         )}
@@ -115,7 +115,7 @@ export default function NotificationSettings() {
       {status === 'granted' && (
         <label className="notification-settings-previews">
           <input type="checkbox" checked={previews} onChange={togglePreviews} />
-          {' '}Show message text in notifications
+          {' '}{t('settings.notifications.previews')}
         </label>
       )}
 

@@ -16,6 +16,7 @@ import {
 import { errorMessage } from '../../utils/guildDisplay';
 import { formatDateTime } from '../../utils/dateFormat';
 import { PERMISSIONS, has } from '../../utils/permissions';
+import { t } from '../../i18n';
 
 const MAX_ICON_BYTES = 8 * 1024 * 1024;
 
@@ -40,36 +41,36 @@ function Overview({ guild, isOwner }) {
 
   function saveName(e) {
     e.preventDefault();
-    if (name.trim() && name.trim() !== guild.name) run(() => updateGuild(guild.id, { name: name.trim() }), 'Saved.');
+    if (name.trim() && name.trim() !== guild.name) run(() => updateGuild(guild.id, { name: name.trim() }), t('guildAdmin.guildSettings.saved'));
   }
 
   function pickIcon(e) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (!file.type.startsWith('image/')) return setError('The icon must be an image.');
-    if (file.size > MAX_ICON_BYTES) return setError('The icon must be under 8 MB.');
-    run(() => uploadGuildIcon(guild.id, file), 'Icon updated.');
+    if (!file.type.startsWith('image/')) return setError(t('guildAdmin.guildSettings.iconNotImage'));
+    if (file.size > MAX_ICON_BYTES) return setError(t('guildAdmin.guildSettings.iconTooBig'));
+    run(() => uploadGuildIcon(guild.id, file), t('guildAdmin.guildSettings.iconUpdated'));
   }
 
   return (
     <>
       <section>
         <div className="guild-settings-overview">
-          <button type="button" className="guild-settings-icon" onClick={() => fileInput.current?.click()} title="Change icon">
+          <button type="button" className="guild-settings-icon" onClick={() => fileInput.current?.click()} title={t('guildAdmin.guildSettings.changeIcon')}>
             <GuildIcon guild={guild} />
-            <span>Change</span>
+            <span>{t('guildAdmin.webhooks.change')}</span>
           </button>
           <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickIcon} />
           <form className="vc-form flex-grow-1" onSubmit={saveName}>
-            <label htmlFor="guild-name">Guild name</label>
+            <label htmlFor="guild-name">{t('guildAdmin.addGuild.namePlaceholder')}</label>
             <div className="vc-form-row">
               <input id="guild-name" className="form-control" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
-              <button type="submit" className="btn btn-primary btn-sm vc-button" disabled={!name.trim() || name.trim() === guild.name}>Save</button>
+              <button type="submit" className="btn btn-primary btn-sm vc-button" disabled={!name.trim() || name.trim() === guild.name}>{t('common.save')}</button>
             </div>
             {guild.icon_version > 0 && (
-              <button type="button" className="btn btn-link btn-sm p-0 align-self-start" onClick={() => run(() => updateGuild(guild.id, { icon: null }), 'Icon removed.')}>
-                Remove icon
+              <button type="button" className="btn btn-link btn-sm p-0 align-self-start" onClick={() => run(() => updateGuild(guild.id, { icon: null }), t('guildAdmin.guildSettings.iconRemoved'))}>
+                {t('guildAdmin.guildSettings.removeIcon')}
               </button>
             )}
           </form>
@@ -80,10 +81,10 @@ function Overview({ guild, isOwner }) {
 
       {isOwner && (
         <section className="guild-settings-danger">
-          <h6>Delete guild</h6>
-          <p className="vc-hint">This deletes every channel and message. It can't be undone. Type the guild's name to confirm.</p>
+          <h6>{t('guildAdmin.guildSettings.delete')}</h6>
+          <p className="vc-hint">{t('guildAdmin.guildSettings.deleteHint')}</p>
           <div className="vc-form-row">
-            <input className="form-control" aria-label="Guild name to confirm" value={deleteText} onChange={(e) => setDeleteText(e.target.value)} />
+            <input className="form-control" aria-label={t('guildAdmin.guildSettings.deleteConfirmLabel')} value={deleteText} onChange={(e) => setDeleteText(e.target.value)} />
             <button
               type="button"
               className="btn btn-danger btn-sm"
@@ -93,7 +94,7 @@ function Overview({ guild, isOwner }) {
                 guildList.removeGuild(guild.id);
               })}
             >
-              Delete guild
+              {t('guildAdmin.guildSettings.delete')}
             </button>
           </div>
         </section>
@@ -111,16 +112,18 @@ function Invites({ guild }) {
   }, [guild.id]);
 
   if (error) return <p className="error-msg" role="alert">{error}</p>;
-  if (invites == null) return <p className="vc-hint">Loading…</p>;
-  if (invites.length === 0) return <p className="vc-hint">No active invites.</p>;
+  if (invites == null) return <p className="vc-hint">{t('common.loading')}</p>;
+  if (invites.length === 0) return <p className="vc-hint">{t('guildAdmin.guildSettings.noInvites')}</p>;
   return (
     <ul className="guild-settings-list">
       {invites.map((invite) => (
         <li key={invite.code}>
           <span className="guild-settings-code">{invite.code}</span>
           <span className="vc-hint">
-            by {invite.creator_username} · {invite.uses}{invite.max_uses ? `/${invite.max_uses}` : ''} {(invite.max_uses || invite.uses) === 1 ? 'use' : 'uses'}
-            {invite.expires_at ? ` · expires ${formatDateTime(invite.expires_at * 1000)}` : ''}
+            {invite.max_uses
+              ? t('guildAdmin.guildSettings.inviteUsageLimited', { name: invite.creator_username, uses: invite.uses, count: invite.max_uses })
+              : t('guildAdmin.guildSettings.inviteUsage', { name: invite.creator_username, count: invite.uses })}
+            {invite.expires_at ? ` · ${t('guildAdmin.guildSettings.inviteExpires', { date: formatDateTime(invite.expires_at * 1000) })}` : ''}
           </span>
           <button
             type="button"
@@ -134,7 +137,7 @@ function Invites({ guild }) {
               }
             }}
           >
-            Revoke
+            {t('guildAdmin.guildSettings.revoke')}
           </button>
         </li>
       ))}
@@ -151,8 +154,8 @@ function Bans({ guild }) {
   }, [guild.id]);
 
   if (error) return <p className="error-msg" role="alert">{error}</p>;
-  if (bans == null) return <p className="vc-hint">Loading…</p>;
-  if (bans.length === 0) return <p className="vc-hint">Nobody is banned.</p>;
+  if (bans == null) return <p className="vc-hint">{t('common.loading')}</p>;
+  if (bans.length === 0) return <p className="vc-hint">{t('guildAdmin.guildSettings.noBans')}</p>;
   return (
     <ul className="guild-settings-list">
       {bans.map((ban) => (
@@ -170,7 +173,7 @@ function Bans({ guild }) {
               }
             }}
           >
-            Unban
+            {t('guildAdmin.guildSettings.unban')}
           </button>
         </li>
       ))}
@@ -183,16 +186,16 @@ function Bans({ guild }) {
 export default function GuildSettingsDialog({ guild, user, onClose }) {
   const can = (bit) => has(guild.my_permissions, bit);
   const tabs = [
-    can(PERMISSIONS.MANAGE_GUILD) && ['overview', 'Overview'],
-    can(PERMISSIONS.MANAGE_ROLES) && ['roles', 'Roles'],
-    can(PERMISSIONS.MANAGE_EMOJIS) && ['emoji', 'Emoji'],
-    can(PERMISSIONS.MANAGE_GUILD) && ['invites', 'Invites'],
-    can(PERMISSIONS.BAN_MEMBERS) && ['bans', 'Bans'],
+    can(PERMISSIONS.MANAGE_GUILD) && ['overview', t('guildAdmin.channelDialog.tabs.overview')],
+    can(PERMISSIONS.MANAGE_ROLES) && ['roles', t('guildAdmin.guildSettings.tabs.roles')],
+    can(PERMISSIONS.MANAGE_EMOJIS) && ['emoji', t('guildAdmin.guildSettings.tabs.emoji')],
+    can(PERMISSIONS.MANAGE_GUILD) && ['invites', t('guildAdmin.guildSettings.tabs.invites')],
+    can(PERMISSIONS.BAN_MEMBERS) && ['bans', t('guildAdmin.guildSettings.tabs.bans')],
   ].filter(Boolean);
   const [tab, setTab] = useState(tabs[0]?.[0]);
 
   return (
-    <Modal title="Guild settings" onClose={onClose} className="guild-settings-dialog">
+    <Modal title={t('guildAdmin.guildSettings.title')} onClose={onClose} className="guild-settings-dialog">
       <div className="settings-tabs" role="tablist">
         {tabs.map(([key, label]) => (
           <button
@@ -213,7 +216,7 @@ export default function GuildSettingsDialog({ guild, user, onClose }) {
         {tab === 'emoji' && <EmojiSettings guild={guild} />}
         {tab === 'invites' && <Invites guild={guild} />}
         {tab === 'bans' && <Bans guild={guild} />}
-        {tabs.length === 0 && <p className="vc-hint">You don't have permission to change anything here.</p>}
+        {tabs.length === 0 && <p className="vc-hint">{t('guildAdmin.guildSettings.noPermission')}</p>}
       </div>
     </Modal>
   );

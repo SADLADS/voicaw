@@ -11,11 +11,12 @@ import { hangUp } from '../../voice/callClient';
 import { useCall } from '../../hooks/useCall';
 import { groupTitle } from '../../utils/groupDisplay';
 import { displayName, useProfiles } from '../../utils/profiles';
+import { t } from '../../i18n';
 
 const STATUS_TEXT = {
-  connecting: 'Connecting…',
-  connected: 'Voice Connected',
-  reconnecting: 'Reconnecting…',
+  connecting: 'voice.bar.connecting',
+  connected: 'voice.bar.connected',
+  reconnecting: 'voice.bar.reconnecting',
 };
 
 // Above the user panel while you're in voice (like Discord): the connection state, which
@@ -34,7 +35,7 @@ export default function VoiceBar({ user }) {
         <div className="voice-bar-row">
           <FontAwesomeIcon icon={faTriangleExclamation} className="voice-bar-warning" />
           <span className="voice-bar-message">{voice.error}</span>
-          <button type="button" className="user-panel-button" aria-label="Dismiss" title="Dismiss" onClick={clearVoiceError}>
+          <button type="button" className="user-panel-button" aria-label={t('voice.bar.dismiss')} title={t('voice.bar.dismiss')} onClick={clearVoiceError}>
             <FontAwesomeIcon icon={faXmark} />
           </button>
         </div>
@@ -47,23 +48,23 @@ export default function VoiceBar({ user }) {
   const channel = guildList.layouts[voice.guildId]?.channels.find((c) => c.id === voice.channelId);
 
   return (
-    <div className="voice-bar" aria-label="Voice connection">
+    <div className="voice-bar" aria-label={t('voice.bar.label')}>
       <div className="voice-bar-row">
         <div className="voice-bar-text">
           <span className={`voice-bar-status ${voice.status}`}>
-            <FontAwesomeIcon icon={faSignal} /> {inCall && voice.status === 'connected' ? 'Call Connected' : STATUS_TEXT[voice.status]}
+            <FontAwesomeIcon icon={faSignal} /> {inCall && voice.status === 'connected' ? t('voice.bar.callConnected') : t(STATUS_TEXT[voice.status])}
           </span>
           {inCall && call?.groupId ? (
             <Link to={`/dm/g/${call.groupId}`} className="voice-bar-channel">
-              {`Call in ${groupTitle(groupList.groups.find((g) => g.id === call.groupId) ?? { name: 'a group' }, user)}`}
+              {t('voice.bar.callInGroup', { name: groupTitle(groupList.groups.find((g) => g.id === call.groupId) ?? { name: t('voice.bar.aGroup') }, user) })}
             </Link>
           ) : inCall ? (
             <Link to={`/dm/${call?.peerId ?? ''}`} className="voice-bar-channel">
-              {call ? `Call with ${displayName(call.peerId, call.peerName)}` : 'Call'}
+              {call ? t('voice.bar.callWith', { name: displayName(call.peerId, call.peerName) }) : t('voice.bar.call')}
             </Link>
           ) : (
             <Link to={`/guild/${voice.guildId}/${voice.channelId}`} className="voice-bar-channel">
-              {channel?.name ?? 'Voice'}{guild ? ` / ${guild.name}` : ''}
+              {guild ? t('voice.bar.channelInGuild', { channel: channel?.name ?? t('voice.bar.voice'), guild: guild.name }) : (channel?.name ?? t('voice.bar.voice'))}
             </Link>
           )}
         </div>
@@ -71,8 +72,8 @@ export default function VoiceBar({ user }) {
         <button
           type="button"
           className="user-panel-button voice-bar-leave"
-          aria-label={inCall ? 'Hang up' : 'Disconnect'}
-          title={inCall ? 'Hang up' : 'Disconnect'}
+          aria-label={inCall ? t('voice.bar.hangUp') : t('voice.bar.disconnect')}
+          title={inCall ? t('voice.bar.hangUp') : t('voice.bar.disconnect')}
           onClick={inCall ? hangUp : leaveVoice}
         >
           <FontAwesomeIcon icon={faPhoneSlash} />
@@ -80,21 +81,21 @@ export default function VoiceBar({ user }) {
       </div>
       {voice.audioBlocked && (
         <button type="button" className="voice-bar-audio" onClick={resumeAudio}>
-          <FontAwesomeIcon icon={faVolumeHigh} /> Click to turn on sound
+          <FontAwesomeIcon icon={faVolumeHigh} /> {t('voice.bar.turnOnSound')}
         </button>
       )}
       {voice.micError && <p className="voice-bar-message voice-bar-mic-error">{voice.micError}</p>}
-      {voice.streaming && <p className="voice-bar-message voice-bar-live">You&apos;re sharing your screen.</p>}
+      {voice.streaming && <p className="voice-bar-message voice-bar-live">{t('voice.bar.sharing')}</p>}
       {voice.streamError && (
         <div className="voice-bar-row">
           <p className="voice-bar-message voice-bar-mic-error">{voice.streamError}</p>
-          <button type="button" className="user-panel-button" aria-label="Dismiss" title="Dismiss" onClick={clearStreamError}>
+          <button type="button" className="user-panel-button" aria-label={t('voice.bar.dismiss')} title={t('voice.bar.dismiss')} onClick={clearStreamError}>
             <FontAwesomeIcon icon={faXmark} />
           </button>
         </div>
       )}
       {!voice.canSpeak && voice.status === 'connected' && (
-        <p className="voice-bar-message">You don&apos;t have permission to speak here.</p>
+        <p className="voice-bar-message">{t('voice.bar.noSpeak')}</p>
       )}
     </div>
   );

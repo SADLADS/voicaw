@@ -24,17 +24,18 @@ import { seedAttachmentCache } from '../../services/attachmentCache';
 import { readMediaDimensions } from '../../utils/mediaDimensions';
 import { createDocument, saveDocument } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
+import { t } from '../../i18n';
 
 const MAX_TITLE = 200;
 const MAX_CONTENT = 100000;
 
 const BLOCK_STYLES = [
-  ['paragraph', 'Normal text'],
-  ['h1', 'Heading 1'],
-  ['h2', 'Heading 2'],
-  ['h3', 'Heading 3'],
-  ['h4', 'Heading 4'],
-  ['code', 'Code block'],
+  ['paragraph', () => t('documents.editor.styles.paragraph')],
+  ['h1', () => t('documents.editor.styles.heading', { level: 1 })],
+  ['h2', () => t('documents.editor.styles.heading', { level: 2 })],
+  ['h3', () => t('documents.editor.styles.heading', { level: 3 })],
+  ['h4', () => t('documents.editor.styles.heading', { level: 4 })],
+  ['code', () => t('documents.editor.styles.code')],
 ];
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -61,7 +62,7 @@ function ToolButton({ icon, label, keys, active = false, disabled = false, onRun
       className={`doc-tool${active ? ' active' : ''}`}
       aria-label={label}
       aria-pressed={active}
-      title={keys ? `${label} (${shortcut(keys)})` : label}
+      title={keys ? t('documents.editor.withShortcut', { label, keys: shortcut(keys) }) : label}
       disabled={disabled}
       // Keep the editor's selection: run without taking focus.
       onMouseDown={(e) => e.preventDefault()}
@@ -109,7 +110,7 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
         const url = await uploadImage(file);
         if (viewRef.current) insertImage(viewRef.current, url, file.name.replace(/\.[^.]+$/, ''));
       } catch (err) {
-        setError(`Couldn't upload ${file.name}: ${errorMessage(err)}`);
+        setError(t('documents.editor.uploadFailed', { name: file.name, error: errorMessage(err) }));
       } finally {
         setUploading((n) => n - 1);
       }
@@ -123,7 +124,7 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
     const view = new EditorView(mountRef.current, {
       state: createEditorState(markdownToDoc(initial.current.content)),
       nodeViews,
-      attributes: { class: 'doc-editor-text document-body', 'aria-label': 'Document' },
+      attributes: { class: 'doc-editor-text document-body', 'aria-label': t('documents.editor.document') },
       dispatchTransaction(tr) {
         view.updateState(view.state.apply(tr));
         setTick((n) => n + 1);
@@ -186,11 +187,11 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
     const cleanTitle = title.replace(/\s+/g, ' ').trim();
     const text = content();
     if (!cleanTitle) {
-      setError('Give the document a title.');
+      setError(t('documents.editor.needTitle'));
       return;
     }
     if (text.length > MAX_CONTENT) {
-      setError(`Documents are at most ${MAX_CONTENT.toLocaleString()} characters (this one is ${text.length.toLocaleString()}).`);
+      setError(t('documents.editor.tooLong', { max: MAX_CONTENT.toLocaleString(), length: text.length.toLocaleString() }));
       return;
     }
     setSaving(true);
@@ -245,7 +246,7 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
     try {
       setCover(await uploadImage(file));
     } catch (err) {
-      setError(`Couldn't upload the cover: ${errorMessage(err)}`);
+      setError(t('documents.editor.coverUploadFailed', { error: errorMessage(err) }));
     } finally {
       setUploading((n) => n - 1);
     }
@@ -267,93 +268,93 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
   return (
     <div className="doc-editor">
       <div className="doc-editor-bar">
-        <button type="button" className="btn btn-secondary btn-sm" onClick={cancel} disabled={saving}>Cancel</button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={cancel} disabled={saving}>{t('common.cancel')}</button>
         <span className="doc-editor-status" role="status">
-          {uploading > 0 ? 'Uploading image…' : saving ? 'Saving…' : ''}
+          {uploading > 0 ? t('documents.editor.uploadingImage') : saving ? t('documents.editor.saving') : ''}
         </span>
         <button type="button" className="btn btn-primary btn-sm vc-button" onClick={() => save()} disabled={saving || uploading > 0}>
-          {document ? 'Save' : 'Publish'}
+          {document ? t('common.save') : t('documents.editor.publish')}
         </button>
       </div>
 
-      <div className="doc-toolbar" role="toolbar" aria-label="Formatting">
+      <div className="doc-toolbar" role="toolbar" aria-label={t('documents.editor.formatting')}>
         <select
           className="doc-style-select form-select form-select-sm"
-          aria-label="Text style"
+          aria-label={t('documents.editor.textStyle')}
           value={style ?? ''}
           onChange={(e) => {
             const choice = e.target.value;
             run(choice === 'paragraph' ? makeParagraph : choice === 'code' ? makeCodeBlock : makeHeading(Number(choice.slice(1))))();
           }}
         >
-          {style == null && <option value="">Mixed</option>}
-          {style && /^h[56]$/.test(style) && <option value={style}>Heading {style.slice(1)}</option>}
-          {BLOCK_STYLES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          {style == null && <option value="">{t('documents.editor.styles.mixed')}</option>}
+          {style && /^h[56]$/.test(style) && <option value={style}>{t('documents.editor.styles.heading', { level: style.slice(1) })}</option>}
+          {BLOCK_STYLES.map(([value, label]) => <option key={value} value={value}>{label()}</option>)}
         </select>
         <span className="doc-tool-group">
-          <ToolButton icon={faBold} label="Bold" keys="Mod+B" active={state && markActive(state, schema.marks.strong)} onRun={run(toggleBold)} />
-          <ToolButton icon={faItalic} label="Italic" keys="Mod+I" active={state && markActive(state, schema.marks.em)} onRun={run(toggleItalic)} />
-          <ToolButton icon={faUnderline} label="Underline" keys="Mod+U" active={state && markActive(state, schema.marks.underline)} onRun={run(toggleUnderline)} />
-          <ToolButton icon={faStrikethrough} label="Strikethrough" keys="Mod+Shift+X" active={state && markActive(state, schema.marks.strike)} onRun={run(toggleStrike)} />
-          <ToolButton icon={faCode} label="Inline code" keys="Mod+E" active={state && markActive(state, schema.marks.code)} onRun={run(toggleCode)} />
-          <ToolButton icon={faEyeSlash} label="Spoiler" active={state && markActive(state, schema.marks.spoiler)} onRun={run(toggleSpoiler)} />
+          <ToolButton icon={faBold} label={t('documents.editor.tools.bold')} keys="Mod+B" active={state && markActive(state, schema.marks.strong)} onRun={run(toggleBold)} />
+          <ToolButton icon={faItalic} label={t('documents.editor.tools.italic')} keys="Mod+I" active={state && markActive(state, schema.marks.em)} onRun={run(toggleItalic)} />
+          <ToolButton icon={faUnderline} label={t('documents.editor.tools.underline')} keys="Mod+U" active={state && markActive(state, schema.marks.underline)} onRun={run(toggleUnderline)} />
+          <ToolButton icon={faStrikethrough} label={t('documents.editor.tools.strikethrough')} keys="Mod+Shift+X" active={state && markActive(state, schema.marks.strike)} onRun={run(toggleStrike)} />
+          <ToolButton icon={faCode} label={t('documents.editor.tools.inlineCode')} keys="Mod+E" active={state && markActive(state, schema.marks.code)} onRun={run(toggleCode)} />
+          <ToolButton icon={faEyeSlash} label={t('documents.editor.tools.spoiler')} active={state && markActive(state, schema.marks.spoiler)} onRun={run(toggleSpoiler)} />
           <ToolButton
             icon={faLink}
-            label={state && linkActive(state) ? 'Remove link' : 'Link'}
+            label={state && linkActive(state) ? t('documents.editor.tools.removeLink') : t('documents.editor.tools.link')}
             active={state && linkActive(state)}
             onRun={() => (state && linkActive(state) ? run(setLink(null))() : setLinkDraft(''))}
           />
         </span>
         <span className="doc-tool-group">
-          <ToolButton icon={faListUl} label="Bulleted list" keys="Mod+Shift+8" active={list === 'bullet'} disabled={!can(bulletList) && list !== 'bullet'} onRun={run(bulletList)} />
-          <ToolButton icon={faListOl} label="Numbered list" keys="Mod+Shift+7" active={list === 'ordered'} disabled={!can(orderedList) && list !== 'ordered'} onRun={run(orderedList)} />
-          <ToolButton icon={faListCheck} label="Checklist" keys="Mod+Shift+9" active={list === 'check'} onRun={run(toggleChecklist)} />
-          <ToolButton icon={faQuoteLeft} label="Quote" active={state && inQuote(state)} onRun={run(toggleQuote)} />
+          <ToolButton icon={faListUl} label={t('documents.editor.tools.bulletedList')} keys="Mod+Shift+8" active={list === 'bullet'} disabled={!can(bulletList) && list !== 'bullet'} onRun={run(bulletList)} />
+          <ToolButton icon={faListOl} label={t('documents.editor.tools.numberedList')} keys="Mod+Shift+7" active={list === 'ordered'} disabled={!can(orderedList) && list !== 'ordered'} onRun={run(orderedList)} />
+          <ToolButton icon={faListCheck} label={t('documents.editor.tools.checklist')} keys="Mod+Shift+9" active={list === 'check'} onRun={run(toggleChecklist)} />
+          <ToolButton icon={faQuoteLeft} label={t('documents.editor.tools.quote')} active={state && inQuote(state)} onRun={run(toggleQuote)} />
         </span>
         <span className="doc-tool-group">
-          <ToolButton icon={faImage} label="Insert image" onRun={() => fileRef.current?.click()} />
-          <ToolButton icon={faTable} label="Insert table" disabled={inTable} onRun={run(insertTable(3, 3))} />
-          <ToolButton icon={faMinus} label="Horizontal line" onRun={run(insertRule)} />
+          <ToolButton icon={faImage} label={t('documents.editor.tools.insertImage')} onRun={() => fileRef.current?.click()} />
+          <ToolButton icon={faTable} label={t('documents.editor.tools.insertTable')} disabled={inTable} onRun={run(insertTable(3, 3))} />
+          <ToolButton icon={faMinus} label={t('documents.editor.tools.horizontalLine')} onRun={run(insertRule)} />
         </span>
         <span className="doc-tool-group">
-          <ToolButton icon={faArrowRotateLeft} label="Undo" keys="Mod+Z" disabled={!can(undo)} onRun={run(undo)} />
-          <ToolButton icon={faArrowRotateRight} label="Redo" keys="Mod+Y" disabled={!can(redo)} onRun={run(redo)} />
+          <ToolButton icon={faArrowRotateLeft} label={t('documents.editor.tools.undo')} keys="Mod+Z" disabled={!can(undo)} onRun={run(undo)} />
+          <ToolButton icon={faArrowRotateRight} label={t('documents.editor.tools.redo')} keys="Mod+Y" disabled={!can(redo)} onRun={run(redo)} />
         </span>
         {inTable && (
-          <span className="doc-tool-group doc-table-tools" aria-label="Table">
-            <ToolButton label="Add row below" onRun={run(addRowAfter)}>+ Row</ToolButton>
-            <ToolButton label="Add column to the right" onRun={run(addColumnAfter)}>+ Column</ToolButton>
-            <ToolButton label="Delete row" disabled={!can(deleteRow)} onRun={run(deleteRow)}>− Row</ToolButton>
-            <ToolButton label="Delete column" disabled={!can(deleteColumn)} onRun={run(deleteColumn)}>− Column</ToolButton>
-            <ToolButton label="Delete table" onRun={run(deleteTable)}>Delete table</ToolButton>
+          <span className="doc-tool-group doc-table-tools" aria-label={t('documents.editor.table.label')}>
+            <ToolButton label={t('documents.editor.table.addRow')} onRun={run(addRowAfter)}>{t('documents.editor.table.addRowShort')}</ToolButton>
+            <ToolButton label={t('documents.editor.table.addColumn')} onRun={run(addColumnAfter)}>{t('documents.editor.table.addColumnShort')}</ToolButton>
+            <ToolButton label={t('documents.editor.table.deleteRow')} disabled={!can(deleteRow)} onRun={run(deleteRow)}>{t('documents.editor.table.deleteRowShort')}</ToolButton>
+            <ToolButton label={t('documents.editor.table.deleteColumn')} disabled={!can(deleteColumn)} onRun={run(deleteColumn)}>{t('documents.editor.table.deleteColumnShort')}</ToolButton>
+            <ToolButton label={t('documents.editor.table.deleteTable')} onRun={run(deleteTable)}>{t('documents.editor.table.deleteTable')}</ToolButton>
           </span>
         )}
         {linkDraft != null && (
           <form className="doc-link-form" onSubmit={applyLink}>
             <input
               className="form-control form-control-sm"
-              aria-label="Link address"
-              placeholder="Paste or type a link"
+              aria-label={t('documents.editor.link.address')}
+              placeholder={t('documents.editor.link.placeholder')}
               value={linkDraft}
               autoFocus
               onChange={(e) => setLinkDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setLinkDraft(null); view?.focus(); } }}
             />
-            <button type="submit" className="btn btn-primary btn-sm vc-button">Add link</button>
+            <button type="submit" className="btn btn-primary btn-sm vc-button">{t('documents.editor.link.add')}</button>
           </form>
         )}
-        <input ref={fileRef} type="file" accept="image/*" multiple hidden aria-label="Image file" onChange={(e) => { addImages(e.target.files); e.target.value = ''; }} />
-        <input ref={coverFileRef} type="file" accept="image/*" hidden aria-label="Cover image file" onChange={(e) => { pickCover(e.target.files?.[0]); e.target.value = ''; }} />
+        <input ref={fileRef} type="file" accept="image/*" multiple hidden aria-label={t('documents.editor.imageFile')} onChange={(e) => { addImages(e.target.files); e.target.value = ''; }} />
+        <input ref={coverFileRef} type="file" accept="image/*" hidden aria-label={t('documents.editor.coverImageFile')} onChange={(e) => { pickCover(e.target.files?.[0]); e.target.value = ''; }} />
       </div>
 
       {conflict && (
         <div className="doc-conflict" role="alert">
           <span>
-            Someone else saved this document while you were editing it.
+            {t('documents.editor.conflict.message')}
           </span>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={loadTheirs}>Load their version</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={loadTheirs}>{t('documents.editor.conflict.loadTheirs')}</button>
           <button type="button" className="btn btn-danger btn-sm" onClick={() => { setBaseVersion(conflict.document.version); save(conflict.document.version); }}>
-            Save mine over it
+            {t('documents.editor.conflict.saveMine')}
           </button>
         </div>
       )}
@@ -365,8 +366,8 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
             <div className="doc-editor-cover">
               <DocumentCover cover={cover} />
               <div className="doc-editor-cover-actions">
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => coverFileRef.current?.click()}>Change cover</button>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCover(null)}>Remove cover</button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => coverFileRef.current?.click()}>{t('documents.editor.changeCover')}</button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCover(null)}>{t('documents.editor.removeCover')}</button>
               </div>
             </div>
           ) : (
@@ -389,13 +390,13 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
                 pickCover(file);
               }}
             >
-              <FontAwesomeIcon icon={faImage} /> Add a cover image
+              <FontAwesomeIcon icon={faImage} /> {t('documents.editor.addCover')}
             </button>
           )}
           <textarea
             className="doc-editor-title"
-            aria-label="Title"
-            placeholder="Untitled document"
+            aria-label={t('documents.editor.title')}
+            placeholder={t('documents.editor.untitled')}
             rows={1}
             maxLength={MAX_TITLE}
             value={title}
@@ -414,9 +415,9 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
 
       {confirmDiscard && (
         <ConfirmDialog
-          title="Discard changes"
-          message={document ? 'Stop editing and lose your changes?' : 'Throw this document away?'}
-          confirmLabel="Discard"
+          title={t('documents.editor.discard.title')}
+          message={document ? t('documents.editor.discard.editing') : t('documents.editor.discard.new')}
+          confirmLabel={t('documents.editor.discard.confirm')}
           focusConfirm
           onConfirm={async () => onCancel()}
           onClose={() => setConfirmDiscard(false)}

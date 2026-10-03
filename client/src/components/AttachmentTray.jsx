@@ -2,6 +2,7 @@ import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faEyeSlash, faFile, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { formatBytes } from '../utils/formatBytes';
+import { t } from '../i18n';
 
 // Thumbnails of the attachments referenced in the message being composed. Images and videos
 // can be marked as spoilers (sent blurred until clicked); the thumbnail is blurred to match.
@@ -23,14 +24,16 @@ export default function AttachmentTray({ drafts, onRemove, onToggleSpoiler }) {
               <span className="attachment-draft-size">{formatBytes(draft.size)}</span>
             </div>
           )}
-          {draft.spoiler && <span className="attachment-draft-spoiler-label">Spoiler</span>}
+          {draft.spoiler && <span className="attachment-draft-spoiler-label">{t('media.tray.spoiler')}</span>}
           {onToggleSpoiler && (draft.type.startsWith('image/') || draft.type.startsWith('video/')) && (
             <button
               type="button"
               className={`attachment-draft-spoiler${draft.spoiler ? ' active' : ''}`}
               onClick={() => onToggleSpoiler(draft.id)}
-              title={draft.spoiler ? 'Remove spoiler' : 'Mark as spoiler'}
-              aria-label={draft.spoiler ? `Remove spoiler from ${draft.name}` : `Mark ${draft.name} as spoiler`}
+              title={draft.spoiler ? t('media.tray.removeSpoiler') : t('media.tray.markSpoiler')}
+              aria-label={draft.spoiler
+                ? t('media.tray.removeSpoilerFrom', { name: draft.name })
+                : t('media.tray.markNameSpoiler', { name: draft.name })}
               aria-pressed={!!draft.spoiler}
             >
               <FontAwesomeIcon icon={draft.spoiler ? faEyeSlash : faEye} />
@@ -40,8 +43,8 @@ export default function AttachmentTray({ drafts, onRemove, onToggleSpoiler }) {
             type="button"
             className="attachment-draft-remove"
             onClick={() => onRemove(draft.id)}
-            title={`Remove ${draft.name}`}
-            aria-label={`Remove ${draft.name}`}
+            title={t('media.tray.remove', { name: draft.name })}
+            aria-label={t('media.tray.remove', { name: draft.name })}
           >
             <FontAwesomeIcon icon={faXmark} />
           </button>

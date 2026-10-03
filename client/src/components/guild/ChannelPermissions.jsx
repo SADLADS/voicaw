@@ -4,6 +4,7 @@ import { faCheck, faSlash, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { fetchChannelOverrides, fetchMembers, setChannelOverride } from '../../services/guildService';
 import { PERMISSIONS, channelPermissionItems, colorToHex, has, memberRank } from '../../utils/permissions';
 import { errorMessage } from '../../utils/guildDisplay';
+import { t } from '../../i18n';
 
 // Editing a channel → Permissions (Manage Roles): "Private channel" (hides it from
 // @everyone), then per-role and per-member overrides, each permission denied (✕), inherited
@@ -46,7 +47,7 @@ export default function ChannelPermissions({ guild, channel, user }) {
     save(type, id, state === 'allow' ? allow | bit : allow & ~bit, state === 'deny' ? deny | bit : deny & ~bit);
   }
 
-  if (!overrides) return error ? <p className="error-msg" role="alert">{error}</p> : <p className="vc-hint">Loading…</p>;
+  if (!overrides) return error ? <p className="error-msg" role="alert">{error}</p> : <p className="vc-hint">{t('common.loading')}</p>;
 
   const everyoneOverride = find('role', everyone.id);
   const isPrivate = has(everyoneOverride.deny, PERMISSIONS.VIEW_CHANNEL);
@@ -61,7 +62,7 @@ export default function ChannelPermissions({ guild, channel, user }) {
       key: `member:${o.target_id}`,
       type: 'member',
       id: o.target_id,
-      name: members.find((m) => m.id === o.target_id)?.username ?? 'Member',
+      name: members.find((m) => m.id === o.target_id)?.username ?? t('guildAdmin.channelPermissions.member'),
       locked: false,
     })),
   ];
@@ -88,14 +89,14 @@ export default function ChannelPermissions({ guild, channel, user }) {
           }}
         />
         <span>
-          <strong>Private channel</strong>
-          <span className="vc-hint">Only the roles and members allowed "View Channel" below (and admins) will see it.</span>
+          <strong>{t('guildAdmin.channelDialog.private.label')}</strong>
+          <span className="vc-hint">{t('guildAdmin.channelPermissions.privateHint')}</span>
         </span>
       </label>
 
       <div className="override-editor">
         <div className="override-targets">
-          <span className="vc-label">Roles / members</span>
+          <span className="vc-label">{t('guildAdmin.channelPermissions.targets')}</span>
           <ul>
             {entries.map((entry) => (
               <li key={entry.key}>
@@ -113,7 +114,7 @@ export default function ChannelPermissions({ guild, channel, user }) {
           {addable.length > 0 && (
             <select
               className="form-select form-control form-control-sm"
-              aria-label="Add a role or member"
+              aria-label={t('guildAdmin.channelPermissions.add')}
               value=""
               onChange={(e) => {
                 const [type, id] = e.target.value.split(':');
@@ -122,15 +123,16 @@ export default function ChannelPermissions({ guild, channel, user }) {
                 setSelected(e.target.value);
               }}
             >
-              <option value="">+ Add…</option>
+              <option value="">{t('guildAdmin.channelPermissions.addOption')}</option>
               {addable.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
             </select>
           )}
         </div>
 
-        <div className="override-grid" aria-label={`Permissions for ${current.name}`}>
-          {current.locked && <p className="vc-hint">This role is as high as yours or higher.</p>}
-          {channelPermissionItems(channel.type).map(([key, label]) => {
+        <div className="override-grid" aria-label={t('guildAdmin.channelPermissions.gridLabel', { name: current.name })}>
+          {current.locked && <p className="vc-hint">{t('guildAdmin.channelPermissions.locked')}</p>}
+          {channelPermissionItems(channel.type).map(([key, labelKey]) => {
+            const label = t(`guildAdmin.channelPermissions.items.${labelKey}`);
             const bit = PERMISSIONS[key];
             const state = has(deny, bit) ? 'deny' : has(allow, bit) ? 'allow' : 'inherit';
             const disabled = current.locked || !has(myChannelPermissions, bit);
@@ -138,14 +140,14 @@ export default function ChannelPermissions({ guild, channel, user }) {
               <div key={key} className="override-row">
                 <span>{label}</span>
                 <div className="override-states" role="radiogroup" aria-label={label}>
-                  {[['deny', faXmark, 'Deny'], ['inherit', faSlash, 'Inherit'], ['allow', faCheck, 'Allow']].map(([value, icon, name]) => (
+                  {[['deny', faXmark], ['inherit', faSlash], ['allow', faCheck]].map(([value, icon]) => (
                     <button
                       key={value}
                       type="button"
                       role="radio"
                       aria-checked={state === value}
-                      aria-label={`${name} ${label}`}
-                      title={name}
+                      aria-label={t(`guildAdmin.channelPermissions.states.${value}.aria`, { permission: label })}
+                      title={t(`guildAdmin.channelPermissions.states.${value}.label`)}
                       className={`override-state ${value}${state === value ? ' selected' : ''}`}
                       disabled={disabled}
                       onClick={() => state !== value && setState(current.type, current.id, bit, value)}

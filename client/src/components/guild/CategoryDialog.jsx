@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Modal from './Modal';
 import { createCategory, deleteCategory, renameCategory } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
+import { t } from '../../i18n';
 
 // Creating a category (no `category`) or renaming / deleting one. Deleting keeps its channels
 // (they move out of it).
@@ -31,34 +32,34 @@ export default function CategoryDialog({ guild, category, onClose }) {
 
   return (
     <Modal
-      title={editing ? 'Edit category' : 'Create category'}
+      title={editing ? t('guildAdmin.categoryDialog.editTitle') : t('guildAdmin.categoryDialog.createTitle')}
       onClose={onClose}
       actions={(
         <>
           {editing && (
             <button type="button" className="btn btn-outline-danger btn-sm me-auto" disabled={busy} onClick={() => run(() => deleteCategory(guild.id, category.id))}>
-              Delete category
+              {t('guildAdmin.categoryDialog.delete')}
             </button>
           )}
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>{t('common.cancel')}</button>
           <button type="submit" form="category-form" className="btn btn-primary btn-sm vc-button" disabled={busy || !name.trim()}>
-            {editing ? 'Save' : 'Create category'}
+            {editing ? t('common.save') : t('guildAdmin.categoryDialog.createTitle')}
           </button>
         </>
       )}
     >
       <form id="category-form" className="vc-form" onSubmit={save}>
-        <label htmlFor="category-name">Category name</label>
+        <label htmlFor="category-name">{t('guildAdmin.categoryDialog.name')}</label>
         <input
           id="category-name"
           className="form-control"
           maxLength={100}
-          placeholder="New category"
+          placeholder={t('guildAdmin.categoryDialog.namePlaceholder')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoFocus
         />
-        {editing && <p className="vc-hint">Deleting a category keeps its channels.</p>}
+        {editing && <p className="vc-hint">{t('guildAdmin.categoryDialog.deleteHint')}</p>}
       </form>
       {error && <p className="error-msg" role="alert">{error}</p>}
     </Modal>

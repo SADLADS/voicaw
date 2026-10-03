@@ -8,6 +8,7 @@ import { version as twemojiVersion } from '@twemoji/svg/package.json';
 import { version as dataVersion } from '@emoji-mart/data/package.json';
 import { sheetCss, sheetKey, sheetPath, spriteMap } from './emojiSheets';
 import { twemojiFile } from './twemojiFile';
+import { t } from '../i18n';
 
 export { twemojiFile };
 
@@ -18,14 +19,14 @@ const SHEET_KEY = sheetKey(twemojiVersion, dataVersion);
 export const emojiSheetUrl = (name) => `${EMOJI_BASE_URL}${sheetPath(SHEET_KEY, name)}`;
 
 const CATEGORY_NAMES = {
-  people: 'Smileys & People',
-  nature: 'Animals & Nature',
-  foods: 'Food & Drink',
-  activity: 'Activity',
-  places: 'Travel & Places',
-  objects: 'Objects',
-  symbols: 'Symbols',
-  flags: 'Flags',
+  people: t('chat.emojiPicker.categories.people'),
+  nature: t('chat.emojiPicker.categories.nature'),
+  foods: t('chat.emojiPicker.categories.foods'),
+  activity: t('chat.emojiPicker.categories.activity'),
+  places: t('chat.emojiPicker.categories.places'),
+  objects: t('chat.emojiPicker.categories.objects'),
+  symbols: t('chat.emojiPicker.categories.symbols'),
+  flags: t('chat.emojiPicker.categories.flags'),
 };
 
 export function emojiImageUrl(unified) {

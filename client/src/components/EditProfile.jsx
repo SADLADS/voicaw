@@ -5,6 +5,7 @@ import Avatar from './Avatar';
 import ProfileCard from './ProfileCard';
 import { MAX_PROFILE_PIC_BYTES, removeProfilePicture, updateProfile, uploadProfilePicture } from '../services/profileService';
 import { PROFILE_LIMITS, getProfile, mergeProfiles, useProfiles } from '../utils/profiles';
+import { t } from '../i18n';
 
 const FIELDS = ['display_name', 'custom_status', 'bio'];
 const fromProfile = (profile) => Object.fromEntries(FIELDS.map((f) => [f, profile?.[f] ?? '']));
@@ -49,11 +50,11 @@ export default function EditProfile() {
     setDone(false);
     if (!f) return;
     if (!f.type.startsWith('image/')) {
-      setError('Only image files are allowed.');
+      setError(t('settings.profile.onlyImages'));
       return;
     }
     if (f.size > MAX_PROFILE_PIC_BYTES) {
-      setError('That image is too large (max 8 MB).');
+      setError(t('settings.profile.tooLarge'));
       return;
     }
     setError(null);
@@ -102,7 +103,7 @@ export default function EditProfile() {
       }
       setDone(true);
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Saving failed');
+      setError(err.response?.data?.error || err.message || t('settings.savingFailed'));
     } finally {
       setBusy(false);
     }
@@ -114,26 +115,26 @@ export default function EditProfile() {
 
   return (
     <div className="edit-profile">
-      <h3 className="settings-category-title">Edit Profile</h3>
+      <h3 className="settings-category-title">{t('settings.nav.editProfile')}</h3>
       <div className="edit-profile-body">
-        <form className="edit-profile-form" onSubmit={save} aria-label="Edit profile">
+        <form className="edit-profile-form" onSubmit={save} aria-label={t('settings.profile.formLabel')}>
           <div className="edit-profile-field">
-            <span className="edit-profile-label">Profile picture</span>
+            <span className="edit-profile-label">{t('settings.profile.picture')}</span>
             <div className="edit-profile-picture">
-              <Avatar userId={user.id} src={pictureSrc} alt="Your profile picture" />
+              <Avatar userId={user.id} src={pictureSrc} alt={t('settings.profile.yourPicture')} />
               <button type="button" className="btn btn-sm btn-secondary" onClick={() => fileInput.current?.click()}>
-                Change picture
+                {t('settings.profile.changePicture')}
               </button>
               {(preview || (getProfile(user.id)?.avatar && !removing)) && (
-                <button type="button" className="btn btn-sm btn-outline-danger" onClick={removePicture}>Remove</button>
+                <button type="button" className="btn btn-sm btn-outline-danger" onClick={removePicture}>{t('common.remove')}</button>
               )}
-              <input ref={fileInput} type="file" accept="image/*" hidden onChange={pick} aria-label="Choose a profile picture" />
+              <input ref={fileInput} type="file" accept="image/*" hidden onChange={pick} aria-label={t('settings.profile.choosePicture')} />
             </div>
-            <span className="vc-hint">PNG, JPEG, GIF or WebP, up to 8 MB; cropped to a square. Everyone can see it.</span>
+            <span className="vc-hint">{t('settings.profile.pictureHint')}</span>
           </div>
 
           <label className="edit-profile-field">
-            <span className="edit-profile-label">Display name <span className="edit-profile-count">{counter('display_name')}</span></span>
+            <span className="edit-profile-label">{t('settings.profile.displayName')} <span className="edit-profile-count">{counter('display_name')}</span></span>
             <input
               className="form-control"
               value={draft.display_name}
@@ -141,44 +142,44 @@ export default function EditProfile() {
               placeholder={user.username}
               onChange={(e) => change('display_name', e.target.value)}
             />
-            <span className="vc-hint">Shown instead of your username ({user.username}). Leave it empty to use your username.</span>
+            <span className="vc-hint">{t('settings.profile.displayNameHint', { username: user.username })}</span>
           </label>
 
           <label className="edit-profile-field">
-            <span className="edit-profile-label">Custom status <span className="edit-profile-count">{counter('custom_status')}</span></span>
+            <span className="edit-profile-label">{t('settings.profile.customStatus')} <span className="edit-profile-count">{counter('custom_status')}</span></span>
             <input
               className="form-control"
               value={draft.custom_status}
               maxLength={PROFILE_LIMITS.custom_status}
-              placeholder="What are you up to?"
+              placeholder={t('settings.profile.customStatusPlaceholder')}
               onChange={(e) => change('custom_status', e.target.value)}
             />
           </label>
 
           <label className="edit-profile-field">
-            <span className="edit-profile-label">About me <span className="edit-profile-count">{counter('bio')}</span></span>
+            <span className="edit-profile-label">{t('settings.profile.aboutMe')} <span className="edit-profile-count">{counter('bio')}</span></span>
             <textarea
               className="form-control"
               rows={4}
               value={draft.bio}
               maxLength={PROFILE_LIMITS.bio}
-              placeholder="A few words about you"
+              placeholder={t('settings.profile.aboutMePlaceholder')}
               onChange={(e) => change('bio', e.target.value)}
             />
           </label>
 
           {error && <p className="error-msg" role="alert">{error}</p>}
-          {done && !dirty && <p className="success-msg" role="status">Profile saved.</p>}
+          {done && !dirty && <p className="success-msg" role="status">{t('settings.profile.saved')}</p>}
           <div className="edit-profile-actions">
             <button type="submit" className="btn btn-sm uploadbutton" disabled={!dirty || busy}>
-              {busy ? 'Saving…' : 'Save changes'}
+              {busy ? t('settings.saving') : t('common.saveChanges')}
             </button>
-            <button type="button" className="btn btn-sm btn-secondary" onClick={reset} disabled={!dirty || busy}>Reset</button>
+            <button type="button" className="btn btn-sm btn-secondary" onClick={reset} disabled={!dirty || busy}>{t('common.reset')}</button>
           </div>
         </form>
 
         <div className="edit-profile-preview">
-          <span className="edit-profile-label">Preview</span>
+          <span className="edit-profile-label">{t('settings.profile.preview')}</span>
           <div className="member-card">
             <ProfileCard
               user={{ id: user.id, username: user.username }}

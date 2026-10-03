@@ -7,6 +7,7 @@ import { muteChannel, unmuteChannel } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
 import { useDateFormat } from '../../utils/dateFormat';
 import { MUTE_DURATIONS, mutedUntilText } from '../../utils/channelMutes';
+import { t } from '../../i18n';
 
 const MARGIN = 8;
 
@@ -56,17 +57,17 @@ export default function ChannelMuteMenu({ channel, anchor, align = 'start', onCl
   }
 
   return createPortal(
-    <div className="guild-menu channel-mute-menu" ref={ref} style={position} role="menu" aria-label={`Mute #${channel.name}`}>
+    <div className="guild-menu channel-mute-menu" ref={ref} style={position} role="menu" aria-label={t('guildAdmin.channelMenu.muteLabel', { name: channel.name })}>
       {mute ? (
         <>
           <button type="button" role="menuitem" className="guild-menu-item" onClick={() => save(() => unmuteChannel(channel.id))}>
-            Unmute Channel <FontAwesomeIcon icon={faBell} />
+            {t('guildAdmin.channelMenu.unmute')} <FontAwesomeIcon icon={faBell} />
           </button>
           <p className="channel-mute-until">{mutedUntilText(mute.until)}</p>
         </>
       ) : (
         <>
-          <p className="channel-mute-title"><FontAwesomeIcon icon={faBellSlash} /> Mute Channel</p>
+          <p className="channel-mute-title"><FontAwesomeIcon icon={faBellSlash} /> {t('guildAdmin.channelMenu.mute')}</p>
           {MUTE_DURATIONS.map(([label, duration]) => (
             <button
               key={label}

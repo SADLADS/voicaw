@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Modal from '../guild/Modal';
 import { desktop } from '../../utils/desktop';
 import { startScreenShare } from '../../voice/voiceClient';
+import { t } from '../../i18n';
 
 const REFRESH_MS = 4000;
 
@@ -29,7 +30,7 @@ export default function ScreenPicker({ onClose }) {
       if (!tabChosen.current && !result.sources.some((s) => s.kind === 'screen')) setTab('window');
     } catch (err) {
       console.warn('Could not list screens', err);
-      setListError('Could not list your screens and windows.');
+      setListError(t('voice.screenPicker.listError'));
     }
   }, []);
 
@@ -46,7 +47,7 @@ export default function ScreenPicker({ onClose }) {
     if (!source) return;
     const ok = await desktop.chooseScreenSource(source.id, audio && canShareSound);
     if (!ok) {
-      setPickError('That one has gone. Pick again.');
+      setPickError(t('voice.screenPicker.gone'));
       setSelected(null);
       load();
       return;
@@ -62,7 +63,7 @@ export default function ScreenPicker({ onClose }) {
 
   return (
     <Modal
-      title="Share your screen"
+      title={t('voice.screenPicker.title')}
       onClose={onClose}
       className="screen-picker"
       actions={(
@@ -71,20 +72,20 @@ export default function ScreenPicker({ onClose }) {
             <label className="screen-picker-sound me-auto">
               <input type="checkbox" checked={audio} onChange={(e) => setAudio(e.target.checked)} />
               <span>
-                Share sound
-                <span className="vc-hint">Your computer&apos;s sound, without Voicaw&apos;s.</span>
+                {t('voice.screenPicker.shareSound')}
+                <span className="vc-hint">{t('voice.screenPicker.shareSoundHint')}</span>
               </span>
             </label>
           )}
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>{t('common.cancel')}</button>
           <button type="button" className="btn btn-primary btn-sm vc-button" disabled={!chosen} onClick={() => goLive()}>
-            Go Live
+            {t('voice.screenPicker.goLive')}
           </button>
         </>
       )}
     >
       <div className="settings-tabs" role="tablist">
-        {[['screen', 'Screens'], ['window', 'Windows']].map(([key, label]) => (
+        {[['screen', t('voice.screenPicker.screens')], ['window', t('voice.screenPicker.windows')]].map(([key, label]) => (
           <button
             key={key}
             type="button"
@@ -99,11 +100,11 @@ export default function ScreenPicker({ onClose }) {
       </div>
       {(pickError || listError) && <p className="error-text">{pickError || listError}</p>}
       {sources === null ? (
-        <p className="vc-hint">Looking for your screens and windows…</p>
+        <p className="vc-hint">{t('voice.screenPicker.looking')}</p>
       ) : shown.length === 0 ? (
-        <p className="vc-hint">{tab === 'screen' ? 'No screens to share.' : 'No windows to share.'}</p>
+        <p className="vc-hint">{tab === 'screen' ? t('voice.screenPicker.noScreens') : t('voice.screenPicker.noWindows')}</p>
       ) : (
-        <ul className="screen-picker-grid" role="listbox" aria-label={tab === 'screen' ? 'Screens' : 'Windows'}>
+        <ul className="screen-picker-grid" role="listbox" aria-label={tab === 'screen' ? t('voice.screenPicker.screens') : t('voice.screenPicker.windows')}>
           {shown.map((source) => (
             <li key={source.id}>
               <button
@@ -131,8 +132,7 @@ export default function ScreenPicker({ onClose }) {
       )}
       {desktop?.platform === 'darwin' && (
         <p className="vc-hint screen-picker-note">
-          Windows missing or blank? Allow Voicaw in System Settings → Privacy &amp; Security →
-          Screen &amp; System Audio Recording, then restart it.
+          {t('voice.screenPicker.macNote')}
         </p>
       )}
     </Modal>

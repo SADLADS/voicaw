@@ -1,0 +1,442 @@
+{
+  "settings": {
+    "pleaseWait": "Please wait…",
+    "yourPassword": "Your password",
+    "savingFailed": "Saving failed",
+    "saving": "Saving…",
+    "savedOnDevice": "Saved on this device.",
+    "dismiss": "Dismiss",
+    "categories": {
+      "account": "My Account",
+      "app": "App Settings",
+      "admin": "Admin",
+      "about": "About"
+    },
+    "sections": {
+      "accountSecurity": {
+        "title": "Password & recovery code",
+        "keywords": "change password security recovery code forgot"
+      },
+      "devices": {
+        "title": "Devices",
+        "keywords": "sessions logins logged in devices log out sign out everywhere other devices phone computer browser security"
+      },
+      "logOut": {
+        "title": "Log out",
+        "keywords": "sign out logout leave"
+      },
+      "deleteAccount": {
+        "title": "Delete account",
+        "keywords": "delete remove close account erase leave"
+      },
+      "appearance": {
+        "title": "Appearance",
+        "keywords": "theme dark mode light mode night colours colors system keyboard"
+      },
+      "dateTime": {
+        "title": "Date & time",
+        "keywords": "locale language date format time format 12-hour 24-hour clock am pm"
+      },
+      "spellcheck": {
+        "title": "Spellcheck",
+        "keywords": "spelling spell check typos dictionary red underline squiggles language autocorrect words"
+      },
+      "privacy": {
+        "title": "Privacy",
+        "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy"
+      },
+      "content": {
+        "title": "Content",
+        "keywords": "nsfw blur blurred spoiler spoilers media images pictures videos gifs adult explicit sensitive hide"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "keywords": "push alerts previews"
+      },
+      "sounds": {
+        "title": "Sounds",
+        "keywords": "sound effects audio volume ding chime ring ringtone message mute unmute deafen join leave disconnect"
+      },
+      "voiceVideo": {
+        "title": "Voice & video",
+        "keywords": "microphone mic input output speakers headphones headset device audio volume test echo noise suppression gain"
+      },
+      "desktopApp": {
+        "title": "Desktop app",
+        "keywords": "tray close minimise minimize start login startup boot keyboard shortcut hotkey keybind mute deafen global"
+      },
+      "appVersion": {
+        "title": "App version",
+        "keywords": "update build version reload"
+      },
+      "admin": {
+        "title": "Admin",
+        "keywords": "global admins klipy gif api key"
+      },
+      "about": {
+        "title": "About",
+        "keywords": "credits attribution licence license twemoji emoji font klipy"
+      }
+    },
+    "nav": {
+      "label": "Settings sections",
+      "editProfile": "Edit Profile",
+      "search": "Search settings",
+      "clearSearch": "Clear search",
+      "noMatch": "No settings match “{{query}}”."
+    },
+    "logOut": {
+      "title": "Log Out",
+      "buttonTitle": "Logout",
+      "button": "Log out"
+    },
+    "about": {
+      "title": "About",
+      "attribution": "Emoji graphics by <twemoji>Twemoji</twemoji>, © Twitter, Inc and other contributors, licensed under <ccby>CC-BY 4.0</ccby>. Emoji font modified from <font>twemoji-color-font</font>, licensed under the <ofl>SIL Open Font License 1.1</ofl>. GIFs from <klipy>KLIPY</klipy>."
+    },
+    "accountSecurity": {
+      "passwordTitle": "Password",
+      "recoveryCodeTitle": "Recovery code",
+      "passwordsDontMatch": "The new passwords don't match.",
+      "changePassword": "Change password",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "newPasswordAgain": "New password again",
+      "passwordHint_one": "At least {{count}} character. Your other devices stay logged in.",
+      "passwordHint_other": "At least {{count}} characters. Your other devices stay logged in.",
+      "passwordChanged": "Password changed.",
+      "hasRecoveryCode": "You have a recovery code. If you've lost it, make a new one: the old one stops working.",
+      "noRecoveryCode": "You don't have a recovery code yet. Without one, a forgotten password means losing your account and messages.",
+      "makeRecoveryCode": "Make a recovery code",
+      "showNewCode": "Show my new code",
+      "newRecoveryCode": "Make a new recovery code",
+      "setUpRecoveryCode": "Set up a recovery code"
+    },
+    "admin": {
+      "title": "Admin",
+      "source": {
+        "admin": "Set here",
+        "env": "From server/.env",
+        "unset": "Not set"
+      },
+      "sourceWithHint": "{{source}}: {{hint}}",
+      "couldntSave": "Couldn't save",
+      "envFallback": "Without a value here, <code>{{env}}</code> in server/.env is used.",
+      "replaceValue": "Enter a new value to replace it",
+      "enterValue": "Enter a value",
+      "goBackToEnv": "Go back to {{env}} from server/.env",
+      "clear": "Clear",
+      "useEnv": "Use .env",
+      "couldntAdd": "Couldn't add them",
+      "couldntRemove": "Couldn't remove them",
+      "admins": "Admins",
+      "adminsHelp": "Admins can change everything in this section.",
+      "username": "Username",
+      "makeAdmin": "Make admin"
+    },
+    "appVersion": {
+      "title": "App Version",
+      "ready": "A new version is ready.",
+      "checking": "Checking…",
+      "current": "You're on the latest version.",
+      "downloading": "Downloading a new version… It will be offered here once it’s ready.",
+      "unsupportedDesktop": "This copy of the app can't update itself. Download the latest version from the website.",
+      "unsupportedWeb": "This app can't update itself here. Reload the page to get the latest version.",
+      "error": "Couldn't check for updates. Are you online?",
+      "desktopVersion": "Desktop app {{version}}",
+      "built": "Built {{time}}",
+      "updating": "Updating…",
+      "updateNow": "Update now",
+      "check": "Check for updates"
+    },
+    "content": {
+      "title": "Content",
+      "blurNsfw": "Blur media in NSFW channels",
+      "blurNsfwHint": "Images, videos, GIFs and embeds in guild channels marked NSFW are blurred until you click them. Turn this off to see them straight away. Anything sent as a spoiler stays blurred either way. Saved to your account, for all your devices."
+    },
+    "dateTime": {
+      "title": "Date & time",
+      "option": "{{name}} ({{example}})",
+      "dateFormat": "Date format",
+      "timeFormat": "Time format",
+      "automatic": "Automatic",
+      "dmy": "Day/month/year",
+      "mdy": "Month/day/year",
+      "ymd": "Year-month-day",
+      "twelveHour": "12-hour",
+      "twentyFourHour": "24-hour",
+      "hint": "Messages will show: {{example}}. Automatic follows your browser's language (British English if it has none). Saved on this device."
+    },
+    "deleteAccount": {
+      "title": "Delete Account",
+      "intro": "Deletes your account for good. Your messages stay, shown as from “Deleted User”.",
+      "button": "Delete account",
+      "warning": "This can’t be undone. Once your account is deleted:",
+      "loggedOut": "You’re logged out everywhere and can’t log in again. Your username becomes free for anyone.",
+      "messagesStay": "Your messages in chats, groups and guilds stay, shown as from “Deleted User”. Your notes are deleted.",
+      "leaveEverything": "You leave every guild and group DM. People you talked to can still read your conversations, but not reply.",
+      "guildsYouOwn": "Guilds you own",
+      "ownGuilds_one": "You own a guild. Make someone else the owner (Make owner on their card in the member list), or delete it:",
+      "ownGuilds_other": "You own {{count}} guilds. Make someone else the owner (Make owner on their card in the member list), or delete them:",
+      "deleteGuilds_one": "Delete this guild and everything in it too",
+      "deleteGuilds_other": "Delete these {{count}} guilds and everything in them too",
+      "deleting": "Deleting…",
+      "confirm": "Delete my account"
+    },
+    "desktopApp": {
+      "title": "Desktop App",
+      "closeToTray": "Keep running in the tray when the window is closed",
+      "closeToTrayHint": "So notifications and calls still reach you. Quit from the tray icon's menu.",
+      "startAtLogin": "Start Voicaw when you log in to your computer",
+      "startAtLoginHint": "It starts in the tray.",
+      "shortcuts": "Keyboard shortcuts",
+      "shortcutsHint": "These work even when another app is in front.",
+      "toggleMute": "Toggle mute",
+      "toggleMuteShortcut": "Toggle mute shortcut",
+      "toggleDeafen": "Toggle deafen",
+      "toggleDeafenShortcut": "Toggle deafen shortcut",
+      "pressKey": "Press a key…",
+      "notSet": "Not set",
+      "clear": "Clear",
+      "shortcutTaken": "Another app is using this shortcut.",
+      "recordingHint": "Hold Ctrl, Alt or Shift and press a key. Esc cancels."
+    },
+    "devices": {
+      "title": "Devices",
+      "help": "Where you're logged in. If you don't recognise one, log it out and change your password.",
+      "thisDevice": "This device",
+      "onlineNow": "Online now",
+      "lastActive": "Last active {{time}}",
+      "loggedIn": "Logged in {{date}}",
+      "logOut": "Log out",
+      "couldntLoad": "Couldn't load your devices",
+      "couldntLogOut": "Couldn't log that device out",
+      "logOutOthers": "Log out all other devices",
+      "logOutOthersTitle": "Log out all other devices?",
+      "logOutOthersMessage_one": "The other device will have to log in again. This one stays logged in.",
+      "logOutOthersMessage_other": "All {{count}} other devices will have to log in again. This one stays logged in.",
+      "desktopApp": "Voicaw desktop app",
+      "desktopAppOn": "Voicaw desktop app on {{system}}",
+      "browserOn": "{{browser}} on {{system}}",
+      "unknown": "Unknown device"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "status": {
+        "granted": "Notifications are on for this device.",
+        "off": "Notifications are off for this device.",
+        "denied": "Notifications are blocked for Voicaw in this browser's settings. Allow them there, then reload.",
+        "needsInstall": "On iPhone and iPad, notifications only work from the Home Screen app: tap Share → \"Add to Home Screen\", then open Voicaw from your Home Screen.",
+        "unsupported": "This browser doesn't support notifications."
+      },
+      "somethingWentWrong": "Something went wrong: {{error}}",
+      "test": {
+        "noDevices": "No devices are set up for notifications on this account yet.",
+        "sent_one": "Sent to {{count}} device.",
+        "sent_other": "Sent to {{count}} devices.",
+        "partlySent_one": "Sent to {{delivered}} of {{count}} device; the rest couldn't be reached.",
+        "partlySent_other": "Sent to {{delivered}} of {{count}} devices; the rest couldn't be reached."
+      },
+      "registrationFailed": "Notifications are allowed, but this device couldn't be registered: {{error}}",
+      "desktopNote": "They arrive while the app is running, in the tray too.",
+      "turnOn": "Turn on",
+      "tryAgain": "Try again",
+      "turnOff": "Turn off",
+      "sendTest": "Send test notification",
+      "previews": "Show message text in notifications"
+    },
+    "notificationPrompt": {
+      "failed": "Couldn't turn on notifications. Try again from Settings.",
+      "needsInstall": "To get notifications on this device, tap Share → \"Add to Home Screen\", then open Voicaw from your Home Screen.",
+      "offer": "Get notified when you receive a message.",
+      "enable": "Enable"
+    },
+    "privacy": {
+      "title": "Privacy",
+      "inviteEmbeds": {
+        "label": "Show guild invites in DMs and group DMs straight away",
+        "hint": "A guild invite link in a message gets a card with the guild's name and picture. To fill it in, the app asks the Voicaw server about the invite, which tells the server which invite was in your end-to-end encrypted message. Turn this off and the card waits until you tap Show. Guild channels aren't encrypted, so their invites always show. Saved on this device."
+      },
+      "typing": {
+        "label": "Let others see when I'm typing",
+        "hint": "While you write a message, the others in the chat see that you're typing. In DMs and group DMs this tells the Voicaw server when you're typing and to whom, though never what. Turn it off and nobody sees you typing; you still see others. Saved on this device."
+      },
+      "youtube": {
+        "label": "Show YouTube videos straight away",
+        "hint": "A YouTube link in a message gets a player. Loading it tells YouTube your IP address and which video you were sent, even if you never play it. Turn this off and the player waits until you tap Play; nothing comes from YouTube before then. Saved on this device."
+      },
+      "gifs": {
+        "label": "Show GIFs straight away",
+        "hint": "GIFs in messages, and the previews in the GIF picker, load from KLIPY, which sees your IP address and which GIFs you see (not the chat or its messages). Turn this off and each GIF waits until you tap Show, and the GIF picker asks before showing previews. Saved on this device."
+      }
+    },
+    "sounds": {
+      "title": "Sounds",
+      "volume": "Volume",
+      "volumeLabel": "Sound volume",
+      "play": "Play",
+      "playSound": "Play {{sound}}",
+      "message": {
+        "label": "Message",
+        "description": "A message you’d be notified about arrives (DMs, group DMs, guild mentions)"
+      },
+      "mute": {
+        "label": "Mute"
+      },
+      "unmute": {
+        "label": "Unmute"
+      },
+      "deafen": {
+        "label": "Deafen"
+      },
+      "undeafen": {
+        "label": "Undeafen"
+      },
+      "userJoin": {
+        "label": "User join",
+        "description": "You or someone else joins your voice channel or call"
+      },
+      "userLeave": {
+        "label": "User leave",
+        "description": "Someone leaves your voice channel or call"
+      },
+      "disconnect": {
+        "label": "Voice disconnected",
+        "description": "You leave voice, a call ends, or the connection is lost"
+      },
+      "incomingRing": {
+        "label": "Incoming ring",
+        "description": "Someone is calling you"
+      },
+      "outgoingRing": {
+        "label": "Outgoing ring",
+        "description": "Your call is ringing"
+      }
+    },
+    "spellcheck": {
+      "title": "Spellcheck",
+      "enabled": "Check spelling as you type",
+      "language": "Language",
+      "automatic": "Automatic",
+      "languages": {
+        "enGB": "English (UK)",
+        "enUS": "English (US)"
+      },
+      "hint": "Misspelled words get a red underline. Right-click one for suggestions or to add it to your dictionary (Shift+right-click for the browser's own menu). Automatic picks from your browser's languages. Saved on this device.",
+      "hintNoLanguage": "Misspelled words get a red underline. Right-click one for suggestions or to add it to your dictionary (Shift+right-click for the browser's own menu). Automatic picks from your browser's languages and found none of these, so your browser's (or the desktop app's) own spellcheck is used. Saved on this device.",
+      "dictionary": "Your dictionary",
+      "removeWord": "Remove {{word}}",
+      "noWords": "No words yet. “Add to Dictionary” on a misspelled word puts it here.",
+      "wordsSynced": "Your words follow your account to your other devices, end-to-end encrypted."
+    },
+    "theme": {
+      "title": "Theme",
+      "dark": "Dark",
+      "light": "Light",
+      "familiar": "Ol’ Familiar",
+      "system": "Match system",
+      "hint": "Saved on this device only.",
+      "hintSystemDark": "Your system is using dark mode now. Saved on this device only.",
+      "hintSystemLight": "Your system is using light mode now. Saved on this device only."
+    },
+    "voice": {
+      "title": "Voice",
+      "echoCancellation": {
+        "label": "Echo cancellation",
+        "hint": "Stops others hearing themselves through your speakers."
+      },
+      "autoGainControl": {
+        "label": "Automatic gain control",
+        "hint": "Evens out your volume when you move closer or further away."
+      },
+      "noise": {
+        "standard": {
+          "label": "Standard",
+          "hint": "Removes background noise like fans, traffic and typing. Light on your device."
+        },
+        "strong": {
+          "label": "Strong",
+          "hint": "Removes more, even while you talk, using more of your computer. A 17 MB download the first time.",
+          "unavailable": "Only on computers, in an up-to-date browser.",
+          "tooSlow": "This computer can't keep up with Strong, so Standard is being used instead."
+        },
+        "browser": {
+          "label": "Your browser's",
+          "hint": "Good for steady noise like fans; lets typing through."
+        },
+        "off": {
+          "label": "Off",
+          "hint": "Your microphone as it is."
+        }
+      },
+      "micBlocked": "Microphone access is blocked. Allow it to test.",
+      "noMic": "No microphone found.",
+      "micFailed": "Could not use the microphone.",
+      "defaultDevice": "Default",
+      "defaultDeviceNamed": "Default ({{name}})",
+      "microphoneNumbered": "Microphone {{number}}",
+      "speakersNumbered": "Speakers {{number}}",
+      "inputDevice": "Input device",
+      "outputDevice": "Output device",
+      "notConnected": "Not connected",
+      "inputVolume": "Input volume",
+      "outputVolume": "Output volume",
+      "namesHidden": "Your browser hides device names until Voicaw may use the microphone.",
+      "allowIt": "Allow it",
+      "micTest": "Mic test",
+      "micTestHint": "Talk and you'll hear yourself back, as others hear you. Headphones help.",
+      "stopTesting": "Stop testing",
+      "letsCheck": "Let's check",
+      "micLevel": "Microphone level",
+      "noiseSuppression": "Noise suppression",
+      "inputSensitivity": "Input sensitivity",
+      "autoSensitivity": {
+        "label": "Automatic",
+        "hint": "Sends your voice only while you talk, so typing and clicks in between aren't heard."
+      },
+      "levelAgainstSensitivity": "Level against input sensitivity",
+      "alwaysSending": "Always sending.",
+      "sendsLouderThan": "Sends sound louder than {{db}} dB.",
+      "useLetsCheck": "Use Let's check to see your level against it.",
+      "voiceProcessing": "Voice processing",
+      "reset": "Reset voice settings"
+    },
+    "profile": {
+      "onlyImages": "Only image files are allowed.",
+      "tooLarge": "That image is too large (max 8 MB).",
+      "formLabel": "Edit profile",
+      "picture": "Profile picture",
+      "yourPicture": "Your profile picture",
+      "changePicture": "Change picture",
+      "choosePicture": "Choose a profile picture",
+      "pictureHint": "PNG, JPEG, GIF or WebP, up to 8 MB; cropped to a square. Everyone can see it.",
+      "displayName": "Display name",
+      "displayNameHint": "Shown instead of your username ({{username}}). Leave it empty to use your username.",
+      "customStatus": "Custom status",
+      "customStatusPlaceholder": "What are you up to?",
+      "aboutMe": "About me",
+      "aboutMePlaceholder": "A few words about you",
+      "saved": "Profile saved.",
+      "preview": "Preview"
+    },
+    "recoveryCode": {
+      "title": "Recovery code",
+      "continue": "Continue",
+      "fileText": "Voicaw recovery code for {{username}}\n\n{{code}}\n\nIf you forget your password, use \"Forgot password?\" on the login page with this code.\nKeep it somewhere safe and private: anyone with it can take over your account.\n",
+      "explanation": "This is your <b>recovery code</b>. If you ever forget your password, it's the only way back into your account and your messages. Nobody else has a copy, not even the server, and it won't be shown again.",
+      "saveAsFile": "Save as file",
+      "keepItSafe": "Save it in a password manager, or write it down and keep it somewhere safe.",
+      "savedIt": "I've saved my recovery code",
+      "skip": "Skip for now"
+    },
+    "recoveryPrompt": {
+      "text": "Set up a recovery code, so you can reset your password if you forget it.",
+      "setUp": "Set up"
+    },
+    "updateBanner": {
+      "title": "Update available",
+      "restarting": "Restarting…",
+      "update": "Update"
+    }
+  }
+}

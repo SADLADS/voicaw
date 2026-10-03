@@ -23,6 +23,7 @@ import { formatDate, formatDateTime, useDateFormat } from '../../utils/dateForma
 import { reactionPickerPosition } from '../../utils/reactionPickerPosition';
 import { getKeyboardHeight } from '../../utils/keyboardHeight';
 import { errorMessage } from '../../utils/guildDisplay';
+import { t } from '../../i18n';
 
 // The editor (ProseMirror, tables, markdown) is only loaded once someone writes.
 const DocumentEditor = lazy(() => import('./DocumentEditor'));
@@ -30,7 +31,7 @@ const DocumentEditor = lazy(() => import('./DocumentEditor'));
 function Byline({ document, nameColors }) {
   useProfiles();
   useDateFormat();
-  const author = displayName(document.created_by, 'Deleted User');
+  const author = displayName(document.created_by, t('documents.deletedUser'));
   const edited = document.updated_at > document.created_at + 60;
   return (
     <span className="document-byline">
@@ -41,8 +42,9 @@ function Byline({ document, nameColors }) {
       <span className="document-date" title={formatDateTime(document.created_at * 1000)}>{formatDate(document.created_at * 1000)}</span>
       {edited && (
         <span className="document-date" title={formatDateTime(document.updated_at * 1000)}>
-          · edited {formatDate(document.updated_at * 1000)}
-          {document.updated_by !== document.created_by && ` by ${displayName(document.updated_by, 'Deleted User')}`}
+          {document.updated_by !== document.created_by
+            ? t('documents.byline.editedBy', { date: formatDate(document.updated_at * 1000), name: displayName(document.updated_by, t('documents.deletedUser')) })
+            : t('documents.byline.edited', { date: formatDate(document.updated_at * 1000) })}
         </span>
       )}
     </span>
@@ -59,7 +61,7 @@ function DocumentCard({ document, user, reactionNames, canReact, isMobile, nameC
     .catch((err) => setReactError(errorMessage(err)));
   return (
     <article className={`document-card${document.cover ? ' has-cover' : ''}`}>
-      <button type="button" className="document-card-open" aria-label={`Open ${document.title}`} onClick={onOpen} />
+      <button type="button" className="document-card-open" aria-label={t('documents.card.open', { title: document.title })} onClick={onOpen} />
       <DocumentCover cover={document.cover} className="document-card-cover" />
       <div className="document-card-body">
         <h3 className="document-card-title">{document.title}</h3>
@@ -78,7 +80,7 @@ function DocumentCard({ document, user, reactionNames, canReact, isMobile, nameC
             />
             {document.reply_count > 0 && (
               <span className="document-card-replies">
-                <FontAwesomeIcon icon={faComment} /> {document.reply_count} {document.reply_count === 1 ? 'reply' : 'replies'}
+                <FontAwesomeIcon icon={faComment} /> {t('documents.card.replies', { count: document.reply_count })}
               </span>
             )}
           </div>
@@ -103,14 +105,14 @@ function DocumentFeed({ channel, feed, user, reactionNames, isMobile, canCreate,
           </div>
           {canCreate && (
             <button type="button" className="btn btn-primary btn-sm vc-button" onClick={onNew}>
-              <FontAwesomeIcon icon={faPlus} /> New document
+              <FontAwesomeIcon icon={faPlus} /> {t('documents.feed.newDocument')}
             </button>
           )}
         </div>
         {error && <p className="error-msg" role="alert">{error}</p>}
         {loaded && !error && documents.length === 0 && (
           <p className="guild-placeholder document-empty">
-            No documents yet.{canCreate ? ' Write the first one with New document.' : ''}
+            {canCreate ? t('documents.feed.emptyCanCreate') : t('documents.feed.empty')}
           </p>
         )}
         <div className="document-cards">
@@ -158,12 +160,12 @@ function DocumentReactions({ document, user, reactionNames, canReact, isMobile, 
         <button
           type="button"
           className="reaction-chip reaction-add document-react"
-          aria-label={compact ? 'Add reaction' : undefined}
-          title={compact ? 'Add reaction' : undefined}
+          aria-label={compact ? t('documents.reactions.add') : undefined}
+          title={compact ? t('documents.reactions.add') : undefined}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => open(e.currentTarget)}
         >
-          <FontAwesomeIcon icon={faFaceSmile} />{!compact && ' React'}
+          <FontAwesomeIcon icon={faFaceSmile} />{!compact && ` ${t('documents.reactions.react')}`}
         </button>
       )}
       {pickerRect && !isMobile && (() => {
@@ -193,8 +195,8 @@ function DocumentPage({ guild, channel, user, documentId, editing, setEditing, o
   if (missing) {
     return (
       <div className="document-missing">
-        <p className="guild-placeholder">This document was deleted, or you can't see it.</p>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onBack}>Back to all documents</button>
+        <p className="guild-placeholder">{t('documents.page.missing')}</p>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onBack}>{t('documents.page.backToAll')}</button>
       </div>
     );
   }
@@ -248,16 +250,21 @@ function DocumentPage({ guild, channel, user, documentId, editing, setEditing, o
   );
 
   const replies = (
-    <section className="document-replies" aria-label="Replies">
-      {!isMobile && <h2 className="document-replies-title">Replies</h2>}
+    <section className="document-replies" aria-label={t('documents.page.replies')}>
+      {!isMobile && <h2 className="document-replies-title">{t('documents.page.replies')}</h2>}
       <div className="document-replies-chat">
         <ChatPane
           {...chatProps}
           chatId={`document-${document.id}`}
-          chatName={`replies to ${document.title}`}
+          chatName={document.title}
+          chatTexts={{
+            label: t('documents.page.repliesLabel', { title: document.title }),
+            placeholder: t('documents.page.repliesPlaceholder', { title: document.title }),
+            upload: t('documents.page.repliesUpload', { title: document.title }),
+          }}
           conversation={conversation}
           canPin={false}
-          emptyText="No replies yet. Say what you think!"
+          emptyText={t('documents.page.noReplies')}
         />
       </div>
     </section>
@@ -266,27 +273,29 @@ function DocumentPage({ guild, channel, user, documentId, editing, setEditing, o
   return (
     <div className="document-page">
       <header className="document-page-header">
-        <button type="button" className="document-back" onClick={onBack} aria-label="All documents" title="All documents">
-          <FontAwesomeIcon icon={faChevronLeft} />{!isMobile && ' All documents'}
+        <button type="button" className="document-back" onClick={onBack} aria-label={t('documents.page.allDocuments')} title={t('documents.page.allDocuments')}>
+          <FontAwesomeIcon icon={faChevronLeft} />{!isMobile && ` ${t('documents.page.allDocuments')}`}
         </button>
         {isMobile && (
           <div className="document-tabs" role="tablist">
             <button type="button" role="tab" aria-selected={tab === 'document'} className={tab === 'document' ? 'active' : ''} onClick={() => setTab('document')}>
-              Document
+              {t('documents.page.documentTab')}
             </button>
             <button type="button" role="tab" aria-selected={tab === 'replies'} className={tab === 'replies' ? 'active' : ''} onClick={() => setTab('replies')}>
-              Replies{conversation.messages.length ? ` (${conversation.messages.filter((m) => !m.system).length}${conversation.hasMore ? '+' : ''})` : ''}
+              {conversation.messages.length
+                ? t(conversation.hasMore ? 'documents.page.repliesTabCountMore' : 'documents.page.repliesTabCount', { number: conversation.messages.filter((m) => !m.system).length })
+                : t('documents.page.replies')}
             </button>
           </div>
         )}
         <span className="document-page-actions">
           {canEdit && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}>
-              <FontAwesomeIcon icon={faPen} />{!isMobile && ' Edit'}
+              <FontAwesomeIcon icon={faPen} />{!isMobile && ` ${t('common.edit')}`}
             </button>
           )}
           {canEdit && (
-            <button type="button" className="btn btn-outline-danger btn-sm" aria-label="Delete document" title="Delete document" onClick={() => setConfirmDelete(true)}>
+            <button type="button" className="btn btn-outline-danger btn-sm" aria-label={t('documents.page.deleteDocument')} title={t('documents.page.deleteDocument')} onClick={() => setConfirmDelete(true)}>
               <FontAwesomeIcon icon={faTrash} />
             </button>
           )}
@@ -298,9 +307,9 @@ function DocumentPage({ guild, channel, user, documentId, editing, setEditing, o
       </div>
       {confirmDelete && (
         <ConfirmDialog
-          title="Delete document"
-          message={`Delete "${document.title}" and all its replies? This can't be undone.`}
-          confirmLabel="Delete"
+          title={t('documents.page.deleteDocument')}
+          message={t('documents.page.confirmDelete', { title: document.title })}
+          confirmLabel={t('common.delete')}
           onConfirm={async () => {
             await deleteDocument(document.id);
             onBack();
@@ -350,7 +359,7 @@ function DocChannelContent({ guild, channel, user, isMobile, nameColors, chatPro
   const feed = useDocumentFeed({ channelId: channel.id, showing: !docParam, onRead: chatProps.onRead });
 
   if (writingNew) {
-    if (!canCreate) return <p className="guild-placeholder">You don't have permission to write documents here.</p>;
+    if (!canCreate) return <p className="guild-placeholder">{t('documents.feed.noPermission')}</p>;
     return (
       <Suspense fallback={<div className="document-page" aria-busy="true" />}>
         <DocumentEditor

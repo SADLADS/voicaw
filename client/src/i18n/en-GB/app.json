@@ -1,0 +1,74 @@
+{
+  "app": {
+    "unreachable": "Can't reach Voicaw. Trying again…",
+    "sidebar": {
+      "logoAlt": "Voicaw Logo",
+      "directMessages": "Direct Messages",
+      "guilds": "Guilds",
+      "mentions_one": "{{count}} mention",
+      "mentions_other": "{{count}} mentions",
+      "addGuild": "Add a guild",
+      "resize": "Resize sidebar",
+      "dragToResize": "Drag to resize",
+      "leaveGuild": {
+        "title": "Leave '{{name}}'",
+        "message": "Are you sure you want to leave {{name}}? You won't be able to rejoin unless you are re-invited.",
+        "confirm": "Leave Guild"
+      }
+    },
+    "userPanel": {
+      "you": "You"
+    },
+    "connection": {
+      "online": "Online",
+      "connecting": "Connecting…",
+      "offline": "Offline"
+    },
+    "userMenu": {
+      "yourAccount": "Your account",
+      "customStatus": "Custom status",
+      "statusPlaceholder": "What's up?",
+      "changeStatus": "Change your custom status",
+      "setStatus": "Set a custom status",
+      "clearStatus": "Clear custom status",
+      "clear": "Clear",
+      "statusSaveFailed": "Could not save your status.",
+      "editProfile": "Edit Profile",
+      "logOut": "Log out"
+    },
+    "pageMenus": {
+      "text": "Text",
+      "link": "Link",
+      "selection": "Selection",
+      "noSuggestions": "No suggestions",
+      "addToDictionary": "Add to Dictionary",
+      "cut": "Cut",
+      "paste": "Paste",
+      "selectAll": "Select All",
+      "spellcheck": "Spellcheck",
+      "copyLink": "Copy Link",
+      "linkCopied": "Link copied",
+      "openLink": "Open Link"
+    },
+    "profile": {
+      "aboutMe": "About me",
+      "profileOf": "Profile of {{name}}",
+      "invalidUploadUrl": "Invalid upload URL",
+      "uploadFailed": "Upload failed"
+    },
+    "presence": {
+      "online": "Online",
+      "mobile": "Online on mobile",
+      "idle": "Idle",
+      "offline": "Offline",
+      "lastSeenJustNow": "Last seen just now",
+      "lastSeen": "Last seen {{when}}",
+      "lastSeenOn": "Last seen {{date}}"
+    },
+    "push": {
+      "serviceUnavailable": "this browser's push service isn't available. In Brave, turn on \"Use Google services for push messaging\" (Settings → Privacy and security) and restart Brave. Chromium builds without Google services can't receive web push; Chrome, Edge, Firefox and Safari can.",
+      "noServiceWorker": "Service worker is not available",
+      "newMessage": "New message"
+    }
+  }
+}

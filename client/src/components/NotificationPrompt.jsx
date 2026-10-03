@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { ConfigContext } from '../contexts';
 import { enableNotifications, getPushStatus } from '../services/pushService';
+import { t } from '../i18n';
 
 const DISMISSED_KEY = 'notificationPromptDismissed';
 
@@ -26,25 +27,25 @@ export default function NotificationPrompt() {
       setError(null);
     } catch (err) {
       console.error('Failed to enable notifications:', err);
-      setError('Couldn\'t turn on notifications. Try again from Settings.');
+      setError(t('settings.notificationPrompt.failed'));
     }
     setStatus(getPushStatus());
   };
 
   return (
-    <div className="notification-prompt" role="region" aria-label="Notifications">
+    <div className="notification-prompt" role="region" aria-label={t('settings.notifications.title')}>
       <span>
         {error || (status === 'needs-install'
-          ? 'To get notifications on this device, tap Share → "Add to Home Screen", then open Voicaw from your Home Screen.'
-          : 'Get notified when you receive a message.')}
+          ? t('settings.notificationPrompt.needsInstall')
+          : t('settings.notificationPrompt.offer'))}
       </span>
       <span className="notification-prompt-actions">
         {status === 'can-enable' && (
           <button type="button" className="notification-prompt-enable" onClick={enable}>
-            Enable
+            {t('settings.notificationPrompt.enable')}
           </button>
         )}
-        <button type="button" className="reply-close" onClick={dismiss} aria-label="Dismiss">
+        <button type="button" className="reply-close" onClick={dismiss} aria-label={t('settings.dismiss')}>
           ×
         </button>
       </span>

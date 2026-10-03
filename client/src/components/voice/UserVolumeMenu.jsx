@@ -4,6 +4,7 @@ import '../../assets/css/guilds.css';
 import '../../assets/css/voice.css';
 import { DEFAULT_USER_VOLUME, MAX_USER_VOLUME, setUserVolume, useUserVolume } from '../../voice/userVolumes';
 import { placeMenu } from '../../utils/menuPlacement';
+import { t } from '../../i18n';
 
 // How loud one person is on this device (Discord's User Volume), 0–200%: a slider floating by
 // `anchor` (a rect) on a computer, a sheet from the bottom on a phone (`sheet`). Changes apply
@@ -52,8 +53,8 @@ export default function UserVolumeMenu({ userId, name, anchor, sheet = false, on
   const body = (
     <>
       <div className="user-volume-head">
-        <label htmlFor={sliderId}>User Volume</label>
-        <span className="user-volume-value">{percent}%</span>
+        <label htmlFor={sliderId}>{t('voice.userVolume.title')}</label>
+        <span className="user-volume-value">{t('voice.userVolume.percent', { percent })}</span>
       </div>
       <input
         ref={sliderRef}
@@ -64,7 +65,7 @@ export default function UserVolumeMenu({ userId, name, anchor, sheet = false, on
         max={MAX_USER_VOLUME * 100}
         step={1}
         value={percent}
-        aria-valuetext={`${percent}%`}
+        aria-valuetext={t('voice.userVolume.percent', { percent })}
         onChange={(e) => setUserVolume(userId, Number(e.target.value) / 100)}
       />
       <button
@@ -73,7 +74,7 @@ export default function UserVolumeMenu({ userId, name, anchor, sheet = false, on
         disabled={volume === DEFAULT_USER_VOLUME}
         onClick={() => setUserVolume(userId, DEFAULT_USER_VOLUME)}
       >
-        Reset to 100%
+        {t('voice.userVolume.reset')}
       </button>
     </>
   );
@@ -84,7 +85,7 @@ export default function UserVolumeMenu({ userId, name, anchor, sheet = false, on
         <div
           className="action-sheet context-sheet user-volume-sheet"
           role="dialog"
-          aria-label={`${name}: volume`}
+          aria-label={t('voice.userVolume.dialogLabel', { name })}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="context-sheet-title"><span>{name}</span></div>
@@ -101,7 +102,7 @@ export default function UserVolumeMenu({ userId, name, anchor, sheet = false, on
       className="guild-menu context-menu user-volume-menu"
       style={position}
       role="dialog"
-      aria-label={`${name}: volume`}
+      aria-label={t('voice.userVolume.dialogLabel', { name })}
       onContextMenu={(e) => e.preventDefault()}
     >
       <div className="user-volume-name">{name}</div>

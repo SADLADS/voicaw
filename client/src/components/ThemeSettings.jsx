@@ -1,11 +1,12 @@
 import React from 'react';
 import { setThemeChoice, useTheme } from '../utils/theme';
+import { t } from '../i18n';
 
 const OPTIONS = [
-  { value: 'dark', label: 'Dark' },
-  { value: 'light', label: 'Light' },
-  { value: 'familiar', label: 'Ol’ Familiar' },
-  { value: 'system', label: 'Match system' },
+  { value: 'dark', labelKey: 'settings.theme.dark' },
+  { value: 'light', labelKey: 'settings.theme.light' },
+  { value: 'familiar', labelKey: 'settings.theme.familiar' },
+  { value: 'system', labelKey: 'settings.theme.system' },
 ];
 
 // Settings → Appearance: the theme, on this device only (utils/theme).
@@ -25,8 +26,8 @@ export default function ThemeSettings() {
 
   return (
     <div className="settings-card">
-      <h5>Theme</h5>
-      <div className="theme-options" role="radiogroup" aria-label="Theme" onKeyDown={onKeyDown}>
+      <h5>{t('settings.theme.title')}</h5>
+      <div className="theme-options" role="radiogroup" aria-label={t('settings.theme.title')} onKeyDown={onKeyDown}>
         {OPTIONS.map((option) => (
           <button
             key={option.value}
@@ -46,13 +47,13 @@ export default function ThemeSettings() {
                 <span className="theme-preview-box" />
               </span>
             </span>
-            {option.label}
+            {t(option.labelKey)}
           </button>
         ))}
       </div>
       <p className="vc-hint">
-        {choice === 'system' && <>Your system is using {theme} mode now. </>}
-        Saved on this device only.
+        {choice !== 'system' && t('settings.theme.hint')}
+        {choice === 'system' && (theme === 'light' ? t('settings.theme.hintSystemLight') : t('settings.theme.hintSystemDark'))}
       </p>
     </div>
   );

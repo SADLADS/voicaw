@@ -13,11 +13,12 @@ import { usePointerDrag } from '../../hooks/usePointerDrag';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import { errorMessage } from '../../utils/guildDisplay';
 import { displayName, useProfiles } from '../../utils/profiles';
+import { t } from '../../i18n';
 import {
   MAX_DEPTH, MAX_TITLE, buildTree, depthOf, dropPlacement, progressOf, visibleRows,
 } from '../../utils/taskTree';
 
-const FILTERS = [['all', 'All'], ['open', 'Open'], ['mine', 'Assigned to me']];
+const FILTERS = [['all', 'guilds.tasks.filter.all'], ['open', 'guilds.tasks.filter.open'], ['mine', 'guilds.tasks.filter.mine']];
 const MAX_AVATARS = 3;
 
 function loadCollapsed(channelId) {
@@ -68,10 +69,10 @@ export default function ListChannelView({ guild, channel, user, people, reaction
     () => visibleRows(tree, { collapsed, filter, userId: user.id }),
     [tree, collapsed, filter, user.id]
   );
-  const doneCount = tasks.filter((t) => t.completed_at).length;
+  const doneCount = tasks.filter((task) => task.completed_at).length;
   // Names from the profile store, else the member list's.
   const usernames = useMemo(() => new Map(people.map((p) => [p.id, p.username])), [people]);
-  const nameFor = useCallback((id) => displayName(id, usernames.get(id) ?? 'Unknown'), [usernames]);
+  const nameFor = useCallback((id) => displayName(id, usernames.get(id) ?? t('guilds.tasks.unknownPerson')), [usernames]);
   const selected = selectedId ? tree.byId.get(selectedId) ?? null : null;
 
   // A linked task that's gone (deleted, or not on this board): close it once loaded.
@@ -201,9 +202,9 @@ export default function ListChannelView({ guild, channel, user, people, reaction
     if (!ids.length) return null;
     const names = ids.map(nameFor).join(', ');
     return (
-      <span className="task-assignees" title={`Assigned to ${names}`} aria-label={`Assigned to ${names}`}>
+      <span className="task-assignees" title={t('guilds.tasks.assignedTo', { names })} aria-label={t('guilds.tasks.assignedTo', { names })}>
         {ids.slice(0, MAX_AVATARS).map((id) => <Avatar key={id} userId={id} className="task-assignee-avatar" />)}
-        {ids.length > MAX_AVATARS && <span className="task-assignee-more">+{ids.length - MAX_AVATARS}</span>}
+        {ids.length > MAX_AVATARS && <span className="task-assignee-more">{t('guilds.tasks.moreAssignees', { count: ids.length - MAX_AVATARS })}</span>}
       </span>
     );
   }
@@ -236,7 +237,7 @@ export default function ListChannelView({ guild, channel, user, people, reaction
             className="task-row-main"
             role="button"
             tabIndex={0}
-            aria-label={`Open task ${node.title}`}
+            aria-label={t('guilds.tasks.openTask', { title: node.title })}
             onClick={() => select(node.id === selectedId ? null : node.id)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -250,7 +251,7 @@ export default function ListChannelView({ guild, channel, user, people, reaction
               <button
                 type="button"
                 className="task-caret"
-                aria-label={expanded ? `Hide subtasks of ${node.title}` : `Show subtasks of ${node.title}`}
+                aria-label={expanded ? t('guilds.tasks.hideSubtasks', { title: node.title }) : t('guilds.tasks.showSubtasks', { title: node.title })}
                 aria-expanded={expanded}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -264,12 +265,12 @@ export default function ListChannelView({ guild, channel, user, people, reaction
             <span className="task-title">{node.title}</span>
             <span className="task-meta">
               {progress.total > 0 && (
-                <span className={`task-progress${progress.done === progress.total ? ' complete' : ''}`} title="Subtasks done">
+                <span className={`task-progress${progress.done === progress.total ? ' complete' : ''}`} title={t('guilds.tasks.subtasksDone')}>
                   <FontAwesomeIcon icon={faListCheck} /> {progress.done}/{progress.total}
                 </span>
               )}
               {node.comment_count > 0 && (
-                <span className="task-comment-count" title={`${node.comment_count} comments`}>
+                <span className="task-comment-count" title={t('guilds.tasks.commentCount', { count: node.comment_count })}>
                   <FontAwesomeIcon icon={faMessage} /> {node.comment_count}
                 </span>
               )}
@@ -280,8 +281,8 @@ export default function ListChannelView({ guild, channel, user, people, reaction
               <button
                 type="button"
                 className="task-add-sub"
-                aria-label={`Add a subtask to ${node.title}`}
-                title="Add subtask"
+                aria-label={t('guilds.tasks.addSubtaskTo', { title: node.title })}
+                title={t('guilds.tasks.addSubtask')}
                 onClick={(e) => {
                   e.stopPropagation();
                   setSubTitle('');
@@ -298,8 +299,8 @@ export default function ListChannelView({ guild, channel, user, people, reaction
             <form onSubmit={addSub} className="task-inline-form">
               <input
                 className="form-control form-control-sm"
-                placeholder="Subtask title"
-                aria-label={`New subtask of ${node.title}`}
+                placeholder={t('guilds.tasks.subtaskTitle')}
+                aria-label={t('guilds.tasks.newSubtaskOf', { title: node.title })}
                 maxLength={MAX_TITLE}
                 value={subTitle}
                 autoFocus
@@ -320,14 +321,14 @@ export default function ListChannelView({ guild, channel, user, people, reaction
   }
 
   const emptyText = !tasks.length
-    ? (canEdit ? 'No tasks yet. Add the first one above.' : 'No tasks yet.')
-    : filter === 'mine' ? 'Nothing open is assigned to you.' : 'Everything here is done.';
+    ? (canEdit ? t('guilds.tasks.empty.canAdd') : t('guilds.tasks.empty.none'))
+    : filter === 'mine' ? t('guilds.tasks.empty.mine') : t('guilds.tasks.empty.allDone');
 
   return (
     <div className={`task-board-page${selected ? ' detail-open' : ''}`}>
-      <div className="task-board" aria-label={`Tasks in ${channel.name}`}>
+      <div className="task-board" aria-label={t('guilds.tasks.boardLabel', { name: channel.name })}>
         <div className="task-toolbar">
-          <div className="task-filters" role="tablist" aria-label="Show">
+          <div className="task-filters" role="tablist" aria-label={t('guilds.tasks.filter.label')}>
             {FILTERS.map(([key, label]) => (
               <button
                 key={key}
@@ -337,19 +338,19 @@ export default function ListChannelView({ guild, channel, user, people, reaction
                 className={`task-filter${filter === key ? ' active' : ''}`}
                 onClick={() => setFilter(key)}
               >
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
-          {tasks.length > 0 && <span className="task-summary">{doneCount} of {tasks.length} done</span>}
+          {tasks.length > 0 && <span className="task-summary">{t('guilds.tasks.summary', { done: doneCount, total: tasks.length })}</span>}
         </div>
         {canEdit && (
           <form className="task-add" onSubmit={addTop}>
             <FontAwesomeIcon icon={faPlus} className="task-add-icon" />
             <input
               className="form-control"
-              placeholder="Add a task"
-              aria-label="New task title"
+              placeholder={t('guilds.tasks.addTask')}
+              aria-label={t('guilds.tasks.newTaskTitle')}
               maxLength={MAX_TITLE}
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -359,7 +360,7 @@ export default function ListChannelView({ guild, channel, user, people, reaction
         {error && <p className="error-msg task-error" role="alert">{error}</p>}
         <div className="task-board-scroll">
           {!loaded ? (
-            board.error ? <p className="guild-placeholder">{errorMessage(board.error)}</p> : <p className="guild-placeholder">Loading…</p>
+            board.error ? <p className="guild-placeholder">{errorMessage(board.error)}</p> : <p className="guild-placeholder">{t('common.loading')}</p>
           ) : rows.length === 0 ? (
             <p className="guild-placeholder task-empty">{emptyText}</p>
           ) : (
@@ -368,7 +369,7 @@ export default function ListChannelView({ guild, channel, user, people, reaction
             </ul>
           )}
           {canEdit && loaded && rows.length > 0 && !isMobile && (
-            <p className="task-hint">Drag tasks to reorder them; drop one onto another to make it a subtask.</p>
+            <p className="task-hint">{t('guilds.tasks.dragHint')}</p>
           )}
         </div>
       </div>

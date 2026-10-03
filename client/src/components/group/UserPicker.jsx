@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import UserAvatar from '../voice/UserAvatar';
 import { isDeleted, nameOf, useProfiles } from '../../utils/profiles';
+import { t } from '../../i18n';
 
 // A searchable list of people to tick (new group, adding members). `users`: rows from the DM
 // list (deleted accounts left out); `selected`: Set of ids; `max`: how many may be ticked.
@@ -20,8 +21,8 @@ export default function UserPicker({ users, selected, onChange, max }) {
       <input
         type="search"
         className="form-control"
-        placeholder="Search people"
-        aria-label="Search people"
+        placeholder={t('groups.userPicker.search')}
+        aria-label={t('groups.userPicker.search')}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
@@ -40,7 +41,7 @@ export default function UserPicker({ users, selected, onChange, max }) {
             </label>
           </li>
         ))}
-        {shown.length === 0 && <li className="user-picker-empty">Nobody found.</li>}
+        {shown.length === 0 && <li className="user-picker-empty">{t('groups.userPicker.empty')}</li>}
       </ul>
     </div>
   );

@@ -5,6 +5,7 @@ import { checkWord, suggestions } from '../spellcheck/checker';
 import { hasWord } from '../spellcheck/personalDictionary';
 import { replaceWord, spellcheckViewOf, wordAtPos } from '../spellcheck/spellcheckPlugin';
 import { wordAt } from '../spellcheck/words';
+import { t } from '../i18n';
 
 // What the text box menu (PageMenus) does: where a right-click in a text box is (`textBoxAt`),
 // and cut, copy, paste, select all and spelling corrections there. The menu takes the focus
@@ -69,18 +70,19 @@ function refocus(target) {
   if (typeof target.box.setSelectionRange === 'function') target.box.setSelectionRange(target.start, target.end);
 }
 
-function run(command) {
-  if (!document.execCommand(command)) throw new Error(`Couldn't ${command} here: try the keyboard shortcut`);
+// `failed`: the message shown when the browser won't do it.
+function run(command, failed) {
+  if (!document.execCommand(command)) throw new Error(failed);
 }
 
 export function cutText(target) {
   refocus(target);
-  run('cut');
+  run('cut', t('chat.editActions.cutFailed'));
 }
 
 export function copyText(target) {
   refocus(target);
-  run('copy');
+  run('copy', t('chat.editActions.copyFailed'));
 }
 
 export function selectAllText(target) {
@@ -115,7 +117,7 @@ export async function pasteText(target) {
     desktop.paste();
     return;
   }
-  if (!navigator.clipboard?.readText) throw new Error("This browser can't paste from a menu: try Ctrl+V");
+  if (!navigator.clipboard?.readText) throw new Error(t('chat.editActions.pasteUnsupported'));
   try {
     if (target.view) {
       const clipboardData = await clipboardTransfer();
@@ -127,7 +129,7 @@ export async function pasteText(target) {
       document.execCommand('insertText', false, text);
     }
   } catch (err) {
-    if (err?.name === 'NotAllowedError') throw new Error("Your browser didn't allow pasting: try Ctrl+V");
+    if (err?.name === 'NotAllowedError') throw new Error(t('chat.editActions.pasteBlocked'));
     throw err;
   }
 }

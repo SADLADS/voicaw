@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheck, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { errorMessage } from '../utils/guildDisplay';
 import { placeMenu as place } from '../utils/menuPlacement';
+import { t } from '../i18n';
 
 const ITEMS = '[role^="menuitem"]:not([disabled])';
 
@@ -225,7 +226,7 @@ function SheetMenu({ title, label, items, onBack, onPick, done, error, onClose, 
       <div className="action-sheet context-sheet" role="menu" aria-label={label} onClick={(e) => e.stopPropagation()}>
         <div className="context-sheet-title">
           {onBack && (
-            <button type="button" className="context-sheet-back" aria-label="Back" onClick={onBack}>
+            <button type="button" className="context-sheet-back" aria-label={t('common.back')} onClick={onBack}>
               <FontAwesomeIcon icon={faChevronLeft} />
             </button>
           )}

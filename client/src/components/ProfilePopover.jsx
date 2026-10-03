@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import ProfileCard from './ProfileCard';
+import { t } from '../i18n';
 
 const MARGIN = 8;
 
@@ -37,7 +38,7 @@ export default function ProfilePopover({ user, anchor, onClose }) {
   }, [onClose]);
 
   return createPortal(
-    <div className="profile-popover" ref={ref} style={position} role="dialog" aria-label={`Profile of ${user.username}`}>
+    <div className="profile-popover" ref={ref} style={position} role="dialog" aria-label={t('app.profile.profileOf', { name: user.username })}>
       <ProfileCard user={user} />
     </div>,
     document.body

@@ -1,0 +1,78 @@
+{
+  "voice": {
+    "screenPicker": {
+      "title": "Share your screen",
+      "listError": "Could not list your screens and windows.",
+      "gone": "That one has gone. Pick again.",
+      "shareSound": "Share sound",
+      "shareSoundHint": "Your computer's sound, without Voicaw's.",
+      "goLive": "Go Live",
+      "screens": "Screens",
+      "windows": "Windows",
+      "looking": "Looking for your screens and windows…",
+      "noScreens": "No screens to share.",
+      "noWindows": "No windows to share.",
+      "macNote": "Windows missing or blank? Allow Voicaw in System Settings → Privacy & Security → Screen & System Audio Recording, then restart it."
+    },
+    "screenShare": {
+      "start": "Share your screen",
+      "stop": "Stop sharing your screen"
+    },
+    "stream": {
+      "windowTitle": "{{name}}'s screen – Voicaw",
+      "ownWindowTitle": "Your stream – Voicaw",
+      "defaultWindowTitle": "Stream – Voicaw",
+      "popupBlocked": "Your browser blocked the window. Allow pop-ups for Voicaw and try again.",
+      "screenOf": "{{name}}'s screen",
+      "loading": "Loading stream…",
+      "live": "Live",
+      "yourStream": "Your stream",
+      "bringBack": "Bring back",
+      "popOut": "Pop out",
+      "fullScreen": "Full screen",
+      "stopWatching": "Stop watching"
+    },
+    "userVolume": {
+      "title": "User Volume",
+      "dialogLabel": "{{name}}: volume",
+      "percent": "{{percent}}%",
+      "reset": "Reset to 100%"
+    },
+    "bar": {
+      "label": "Voice connection",
+      "connecting": "Connecting…",
+      "connected": "Voice Connected",
+      "reconnecting": "Reconnecting…",
+      "callConnected": "Call Connected",
+      "callInGroup": "Call in {{name}}",
+      "aGroup": "a group",
+      "callWith": "Call with {{name}}",
+      "call": "Call",
+      "voice": "Voice",
+      "channelInGuild": "{{channel}} / {{guild}}",
+      "hangUp": "Hang up",
+      "disconnect": "Disconnect",
+      "dismiss": "Dismiss",
+      "turnOnSound": "Click to turn on sound",
+      "sharing": "You're sharing your screen.",
+      "noSpeak": "You don't have permission to speak here."
+    },
+    "controls": {
+      "deafen": "Deafen",
+      "undeafen": "Undeafen"
+    },
+    "errors": {
+      "micBlocked": "Microphone access is blocked. Allow it in your browser to talk.",
+      "noMic": "No microphone found.",
+      "micFailed": "Could not use the microphone.",
+      "otherDevice": "You joined this channel from another device.",
+      "removed": "You were disconnected from voice.",
+      "closed": "The voice channel was closed.",
+      "lost": "Lost the connection to voice.",
+      "noEncryptedCalls": "This browser can't make encrypted calls.",
+      "connect": "Could not connect to voice.",
+      "noScreenShare": "This browser can't share the screen.",
+      "screenShareFailed": "Could not share your screen."
+    }
+  }
+}

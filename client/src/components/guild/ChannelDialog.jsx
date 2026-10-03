@@ -7,6 +7,7 @@ import ChannelWebhooks from './ChannelWebhooks';
 import { createChannel, deleteChannel, updateChannel } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
 import { PERMISSIONS, colorToHex, has, memberRank } from '../../utils/permissions';
+import { t } from '../../i18n';
 
 // Creating a channel (no `channel`; in `categoryId` if given), optionally private to some
 // roles, or editing one: Overview (name, topic, category, NSFW, delete), with Manage Roles
@@ -19,9 +20,9 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
   // With only Manage Webhooks, a channel's settings are just its webhooks.
   const managesChannels = has(guild.my_permissions, PERMISSIONS.MANAGE_CHANNELS);
   const tabs = editing ? [
-    ...(managesChannels ? [['overview', 'Overview']] : []),
-    ...(managesRoles ? [['permissions', 'Permissions']] : []),
-    ...(managesWebhooks ? [['webhooks', 'Webhooks']] : []),
+    ...(managesChannels ? [['overview', t('guildAdmin.channelDialog.tabs.overview')]] : []),
+    ...(managesRoles ? [['permissions', t('guildAdmin.channelDialog.tabs.permissions')]] : []),
+    ...(managesWebhooks ? [['webhooks', t('guildAdmin.channelDialog.tabs.webhooks')]] : []),
   ] : [];
   const [tab, setTab] = useState(tabs[0]?.[0] ?? 'overview');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -72,31 +73,37 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
 
   return (
     <Modal
-      title={editing ? `Edit #${channel.name}` : 'Create channel'}
+      title={editing ? t('guildAdmin.channelDialog.editTitle', { name: channel.name }) : t('guildAdmin.channelDialog.createTitle')}
       onClose={onClose}
       className={tab !== 'overview' ? 'channel-dialog wide' : 'channel-dialog'}
       actions={tab !== 'overview' ? (
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Done</button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>{t('common.done')}</button>
       ) : (
         <>
           {editing && !confirmingDelete && (
             <button type="button" className="btn btn-outline-danger btn-sm me-auto" onClick={() => setConfirmingDelete(true)}>
-              Delete channel
+              {t('guildAdmin.channelDialog.delete')}
             </button>
           )}
           {confirmingDelete ? (
             <>
-              <span className="me-auto vc-hint">Delete #{channel.name} and all its {{ list: 'tasks', doc: 'documents' }[channel.type] ?? 'messages'}?</span>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirmingDelete(false)}>Cancel</button>
+              <span className="me-auto vc-hint">
+                {channel.type === 'list'
+                  ? t('guildAdmin.channelDialog.confirmDeleteList', { name: channel.name })
+                  : channel.type === 'doc'
+                    ? t('guildAdmin.channelDialog.confirmDeleteDoc', { name: channel.name })
+                    : t('guildAdmin.channelDialog.confirmDelete', { name: channel.name })}
+              </span>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirmingDelete(false)}>{t('common.cancel')}</button>
               <button type="button" className="btn btn-danger btn-sm" disabled={busy} onClick={() => run(() => deleteChannel(guild.id, channel.id))}>
-                Delete
+                {t('common.delete')}
               </button>
             </>
           ) : (
             <>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>{t('common.cancel')}</button>
               <button type="submit" form="channel-form" className="btn btn-primary btn-sm vc-button" disabled={busy || !preview}>
-                {editing ? 'Save' : 'Create channel'}
+                {editing ? t('common.save') : t('guildAdmin.channelDialog.createTitle')}
               </button>
             </>
           )}
@@ -125,60 +132,60 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
       <form id="channel-form" className="vc-form" onSubmit={save}>
         {!editing && (
           <fieldset className="channel-type-choice">
-            <legend>Channel type</legend>
+            <legend>{t('guildAdmin.channelDialog.type.legend')}</legend>
             <label className={type === 'text' ? 'selected' : ''}>
               <input type="radio" name="channel-type" value="text" checked={type === 'text'} onChange={() => setType('text')} />
-              <FontAwesomeIcon icon={faHashtag} /> Text
+              <FontAwesomeIcon icon={faHashtag} /> {t('guildAdmin.channelDialog.type.text')}
             </label>
             <label className={type === 'voice' ? 'selected' : ''}>
               <input type="radio" name="channel-type" value="voice" checked={type === 'voice'} onChange={() => setType('voice')} />
-              <FontAwesomeIcon icon={faVolumeHigh} /> Voice
+              <FontAwesomeIcon icon={faVolumeHigh} /> {t('guildAdmin.channelDialog.type.voice')}
             </label>
             <label className={type === 'list' ? 'selected' : ''}>
               <input type="radio" name="channel-type" value="list" checked={type === 'list'} onChange={() => setType('list')} />
-              <FontAwesomeIcon icon={faListCheck} /> List
+              <FontAwesomeIcon icon={faListCheck} /> {t('guildAdmin.channelDialog.type.list')}
             </label>
             <label className={type === 'doc' ? 'selected' : ''}>
               <input type="radio" name="channel-type" value="doc" checked={type === 'doc'} onChange={() => setType('doc')} />
-              <FontAwesomeIcon icon={faFileLines} /> Documents
+              <FontAwesomeIcon icon={faFileLines} /> {t('guildAdmin.channelDialog.type.doc')}
             </label>
           </fieldset>
         )}
 
-        <label htmlFor="channel-name">Channel name</label>
+        <label htmlFor="channel-name">{t('guildAdmin.channelDialog.name')}</label>
         <input
           id="channel-name"
           className="form-control"
           maxLength={100}
-          placeholder="new-channel"
+          placeholder={t('guildAdmin.channelDialog.namePlaceholder')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoFocus
         />
-        {preview && preview !== name && <p className="vc-hint">Will be #{preview}</p>}
+        {preview && preview !== name && <p className="vc-hint">{t('guildAdmin.channelDialog.willBe', { name: preview })}</p>}
 
         {['text', 'list', 'doc'].includes(editing ? channel.type : type) && (
           <>
-            <label htmlFor="channel-topic">Topic</label>
+            <label htmlFor="channel-topic">{t('guildAdmin.channelDialog.topic')}</label>
             <input
               id="channel-topic"
               className="form-control"
               maxLength={1024}
-              placeholder="Let everyone know how to use this channel"
+              placeholder={t('guildAdmin.channelDialog.topicPlaceholder')}
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
             />
           </>
         )}
 
-        <label htmlFor="channel-category">Category</label>
+        <label htmlFor="channel-category">{t('guildAdmin.channelDialog.category')}</label>
         <select
           id="channel-category"
           className="form-select form-control"
           value={category ?? ''}
           onChange={(e) => setCategory(e.target.value === '' ? null : Number(e.target.value))}
         >
-          <option value="">No category</option>
+          <option value="">{t('guildAdmin.channelDialog.noCategory')}</option>
           {guild.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
 
@@ -186,11 +193,8 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
           <label className="role-toggle nsfw-toggle">
             <input type="checkbox" checked={nsfw} onChange={(e) => setNsfw(e.target.checked)} />
             <span>
-              <strong>NSFW channel</strong>
-              <span className="vc-hint">
-                Images, videos, GIFs and embeds in it are blurred until clicked, unless someone turns
-                that off in their settings.
-              </span>
+              <strong>{t('guildAdmin.channelDialog.nsfw.label')}</strong>
+              <span className="vc-hint">{t('guildAdmin.channelDialog.nsfw.hint')}</span>
             </span>
           </label>
         )}
@@ -200,17 +204,17 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
             <label className="role-toggle private-toggle">
               <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} />
               <span>
-                <strong>Private channel</strong>
+                <strong>{t('guildAdmin.channelDialog.private.label')}</strong>
                 <span className="vc-hint">
-                  Only the roles you pick (and admins) will see it.
-                  {type === 'list' && ' Who may edit its tasks is set in its Permissions tab (Edit Tasks).'}
-                  {type === 'doc' && ' Who may write documents is set in its Permissions tab (Create Documents).'}
+                  {t('guildAdmin.channelDialog.private.hint')}
+                  {type === 'list' && ` ${t('guildAdmin.channelDialog.private.listHint')}`}
+                  {type === 'doc' && ` ${t('guildAdmin.channelDialog.private.docHint')}`}
                 </span>
               </span>
             </label>
             {isPrivate && grantableRoles.length > 0 && (
               <fieldset className="private-roles">
-                <legend>Who can see it</legend>
+                <legend>{t('guildAdmin.channelDialog.private.whoCanSee')}</legend>
                 {grantableRoles.map((role) => (
                   <label key={role.id} className="role-toggle">
                     <input

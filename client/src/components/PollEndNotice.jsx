@@ -1,10 +1,12 @@
 import React from 'react';
+import { Trans } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSquarePollHorizontal, faTrophy } from '@fortawesome/free-solid-svg-icons';
 import { ReactionEmoji } from './MessageReactions';
 import { parsePoll, pollEndFits, pollEndsAt, pollResult } from '../utils/pollMarkup';
 import { displayName, useProfiles } from '../utils/profiles';
 import { formatDateTime, useDateFormat } from '../utils/dateFormat';
+import { t } from '../i18n';
 
 function Answer({ option }) {
   return (
@@ -13,6 +15,20 @@ function Answer({ option }) {
       {option.text}
     </strong>
   );
+}
+
+// "<answer> won with 60% (3 of 5 votes).", a plural (chat.pollEnd.won_one / _other). Kept in a
+// constant because i18n/keys.test.js only recognises plurals in t() calls.
+const WON_KEY = 'chat.pollEnd.won';
+
+// The answers that drew: "A, B and C" (the separators are translations too).
+function Answers({ options }) {
+  return options.map((o, i) => (
+    <React.Fragment key={o.id}>
+      {i > 0 && (i === options.length - 1 ? t('chat.pollEnd.lastSeparator') : t('chat.pollEnd.separator'))}
+      <Answer option={o} />
+    </React.Fragment>
+  ));
 }
 
 // A "poll ended" row (server pollTimers.js): whose poll closed, and its result: the winning
@@ -29,17 +45,11 @@ export default function PollEndNotice({ msg, onJump }) {
   const author = displayName(msg.sender_id, msg.sender_username);
 
   let result;
-  if (cast === 0) result = 'Nobody voted.';
+  if (cast === 0) result = t('chat.pollEnd.nobodyVoted');
   else if (winners.length === 1) {
-    result = <><Answer option={winners[0]} /> won with {share}% ({votes} of {cast} {cast === 1 ? 'vote' : 'votes'}).</>;
+    result = <Trans i18nKey={WON_KEY} count={cast} values={{ share, votes, count: cast }} components={{ answer: <Answer option={winners[0]} /> }} />;
   } else {
-    result = (
-      <>
-        It&apos;s a draw between {winners.map((o, i) => (
-          <React.Fragment key={o.id}>{i > 0 && (i === winners.length - 1 ? ' and ' : ', ')}<Answer option={o} /></React.Fragment>
-        ))}, {share}% each.
-      </>
-    );
+    result = <Trans i18nKey="chat.pollEnd.draw" values={{ share }} components={{ answers: <Answers options={winners} /> }} />;
   }
 
   return (
@@ -47,14 +57,14 @@ export default function PollEndNotice({ msg, onJump }) {
       <FontAwesomeIcon icon={faSquarePollHorizontal} className="poll-end-icon" />
       <div className="poll-end-body">
         <div>
-          <strong>{author}</strong>&apos;s poll <strong>{poll.question}</strong> has closed.
+          <Trans i18nKey="chat.pollEnd.closed" values={{ author, question: poll.question }} components={{ b: <strong /> }} />
         </div>
         <div className="poll-end-result">
           {winners.length === 1 && <FontAwesomeIcon icon={faTrophy} className="poll-end-trophy" />}
           <span>{result}</span>
         </div>
         {onJump && (
-          <button type="button" className="poll-link" onClick={() => onJump(msg.parent_message_id)}>View poll</button>
+          <button type="button" className="poll-link" onClick={() => onJump(msg.parent_message_id)}>{t('chat.pollEnd.view')}</button>
         )}
       </div>
     </div>

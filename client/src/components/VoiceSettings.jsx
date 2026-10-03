@@ -7,26 +7,28 @@ import { ALWAYS_OPEN_DB } from '../voice/noise/gate';
 import {
   canSuppressNoise, canSuppressStrongly, isDeepFilterSlow, onDeepFilterSlow,
 } from '../voice/noise/noiseStages';
+import { t } from '../i18n';
 
+// [setting, label key, hint key]
 const PROCESSING = [
-  ['echoCancellation', 'Echo cancellation', 'Stops others hearing themselves through your speakers.'],
-  ['autoGainControl', 'Automatic gain control', 'Evens out your volume when you move closer or further away.'],
+  ['echoCancellation', 'settings.voice.echoCancellation.label', 'settings.voice.echoCancellation.hint'],
+  ['autoGainControl', 'settings.voice.autoGainControl.label', 'settings.voice.autoGainControl.hint'],
 ];
 
 const NOISE_MODES = [
-  ['standard', 'Standard', 'Removes background noise like fans, traffic and typing. Light on your device.'],
-  ['strong', 'Strong', 'Removes more, even while you talk, using more of your computer. A 17 MB download the first time.'],
-  ['browser', "Your browser's", 'Good for steady noise like fans; lets typing through.'],
-  ['off', 'Off', 'Your microphone as it is.'],
+  ['standard', 'settings.voice.noise.standard.label', 'settings.voice.noise.standard.hint'],
+  ['strong', 'settings.voice.noise.strong.label', 'settings.voice.noise.strong.hint'],
+  ['browser', 'settings.voice.noise.browser.label', 'settings.voice.noise.browser.hint'],
+  ['off', 'settings.voice.noise.off.label', 'settings.voice.noise.off.hint'],
 ];
 
 // The sensitivity meter's scale, in dB (the slider's range).
 const meterShare = (db) => Math.min(1, Math.max(0, (db - ALWAYS_OPEN_DB) / -ALWAYS_OPEN_DB));
 
 function micTestError(err) {
-  if (err?.name === 'NotAllowedError') return 'Microphone access is blocked. Allow it to test.';
-  if (err?.name === 'NotFoundError') return 'No microphone found.';
-  return 'Could not use the microphone.';
+  if (err?.name === 'NotAllowedError') return t('settings.voice.micBlocked');
+  if (err?.name === 'NotFoundError') return t('settings.voice.noMic');
+  return t('settings.voice.micFailed');
 }
 
 // Settings → Voice & video: microphone and speakers on this device (voice/audioSettings.js),
@@ -90,49 +92,49 @@ export default function VoiceSettings() {
   }, [testing, inputDeviceId, echoCancellation, noiseSuppression, autoGainControl, refreshDevices]);
 
   const chooseOutput = canChooseOutput();
-  const defaultLabel = (name) => (name ? `Default (${name})` : 'Default');
+  const defaultLabel = (name) => (name ? t('settings.voice.defaultDeviceNamed', { name }) : t('settings.voice.defaultDevice'));
   const missing = (list, id) => id && !list.some((d) => d.id === id);
 
   return (
     <div className="settings-card voice-settings">
-      <h5>Voice</h5>
+      <h5>{t('settings.voice.title')}</h5>
       <div className="voice-settings-grid">
         <label className="voice-settings-field">
-          <span>Input device</span>
+          <span>{t('settings.voice.inputDevice')}</span>
           <select
-            aria-label="Input device"
+            aria-label={t('settings.voice.inputDevice')}
             value={settings.inputDeviceId}
             onChange={(e) => setAudioSettings({ inputDeviceId: e.target.value })}
           >
             <option value="">{defaultLabel(devices.defaults.input)}</option>
             {devices.inputs.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
             {missing(devices.inputs, settings.inputDeviceId) && (
-              <option value={settings.inputDeviceId}>Not connected</option>
+              <option value={settings.inputDeviceId}>{t('settings.voice.notConnected')}</option>
             )}
           </select>
         </label>
         {chooseOutput && (
           <label className="voice-settings-field">
-            <span>Output device</span>
+            <span>{t('settings.voice.outputDevice')}</span>
             <select
-              aria-label="Output device"
+              aria-label={t('settings.voice.outputDevice')}
               value={settings.outputDeviceId}
               onChange={(e) => setAudioSettings({ outputDeviceId: e.target.value })}
             >
               <option value="">{defaultLabel(devices.defaults.output)}</option>
               {devices.outputs.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
               {missing(devices.outputs, settings.outputDeviceId) && (
-                <option value={settings.outputDeviceId}>Not connected</option>
+                <option value={settings.outputDeviceId}>{t('settings.voice.notConnected')}</option>
               )}
             </select>
           </label>
         )}
         <label className="voice-settings-field">
-          <span>Input volume</span>
+          <span>{t('settings.voice.inputVolume')}</span>
           <span className="sound-volume">
             <input
               type="range" min="0" max="200" step="1"
-              aria-label="Input volume"
+              aria-label={t('settings.voice.inputVolume')}
               value={Math.round(settings.inputVolume * 100)}
               onChange={(e) => setAudioSettings({ inputVolume: Number(e.target.value) / 100 })}
             />
@@ -140,11 +142,11 @@ export default function VoiceSettings() {
           </span>
         </label>
         <label className="voice-settings-field">
-          <span>Output volume</span>
+          <span>{t('settings.voice.outputVolume')}</span>
           <span className="sound-volume">
             <input
               type="range" min="0" max="100" step="1"
-              aria-label="Output volume"
+              aria-label={t('settings.voice.outputVolume')}
               value={Math.round(settings.outputVolume * 100)}
               onChange={(e) => setAudioSettings({ outputVolume: Number(e.target.value) / 100 })}
             />
@@ -154,24 +156,24 @@ export default function VoiceSettings() {
       </div>
       {!devices.labelled && (
         <p className="vc-hint">
-          Your browser hides device names until Voicaw may use the microphone.{' '}
-          <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={allowMicrophone}>Allow it</button>
+          {t('settings.voice.namesHidden')}{' '}
+          <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={allowMicrophone}>{t('settings.voice.allowIt')}</button>
         </p>
       )}
 
-      <h6 className="voice-settings-heading">Mic test</h6>
-      <p className="vc-hint">Talk and you&apos;ll hear yourself back, as others hear you. Headphones help.</p>
+      <h6 className="voice-settings-heading">{t('settings.voice.micTest')}</h6>
+      <p className="vc-hint">{t('settings.voice.micTestHint')}</p>
       <div className="mic-test">
         <button
           type="button"
           className={`btn btn-sm ${testing ? 'btn-secondary' : 'btn-primary vc-button'}`}
-          onClick={() => setTesting((t) => !t)}
+          onClick={() => setTesting((on) => !on)}
         >
-          {testing ? 'Stop testing' : "Let's check"}
+          {testing ? t('settings.voice.stopTesting') : t('settings.voice.letsCheck')}
         </button>
         <div
           className="mic-test-meter"
-          role="meter" aria-label="Microphone level" aria-valuemin={0} aria-valuemax={100}
+          role="meter" aria-label={t('settings.voice.micLevel')} aria-valuemin={0} aria-valuemax={100}
           aria-valuenow={Math.round(level * 100)}
         >
           <div className="mic-test-level" style={{ transform: `scaleX(${level})` }} />
@@ -179,8 +181,8 @@ export default function VoiceSettings() {
       </div>
       {testError && <p className="error-text">{testError}</p>}
 
-      <h6 className="voice-settings-heading">Noise suppression</h6>
-      <div role="radiogroup" aria-label="Noise suppression">
+      <h6 className="voice-settings-heading">{t('settings.voice.noiseSuppression')}</h6>
+      <div role="radiogroup" aria-label={t('settings.voice.noiseSuppression')}>
         {NOISE_MODES.map(([mode, label, hint]) => {
           const unavailable = (mode === 'standard' && !suppressionAvailable)
             || (mode === 'strong' && !strongAvailable);
@@ -193,9 +195,9 @@ export default function VoiceSettings() {
                 onChange={() => setAudioSettings({ noiseSuppression: mode })}
               />
               <span>
-                {label}
+                {t(label)}
                 <span className="vc-hint">
-                  {mode === 'strong' && !strongAvailable ? 'Only on computers, in an up-to-date browser.' : hint}
+                  {mode === 'strong' && !strongAvailable ? t('settings.voice.noise.strong.unavailable') : t(hint)}
                 </span>
               </span>
             </label>
@@ -203,19 +205,19 @@ export default function VoiceSettings() {
         })}
       </div>
       {settings.noiseSuppression === 'strong' && strongSlow && (
-        <p className="error-text">This computer can&apos;t keep up with Strong, so Standard is being used instead.</p>
+        <p className="error-text">{t('settings.voice.noise.strong.tooSlow')}</p>
       )}
 
-      <h6 className="voice-settings-heading">Input sensitivity</h6>
+      <h6 className="voice-settings-heading">{t('settings.voice.inputSensitivity')}</h6>
       <label className="settings-toggle voice-settings-toggle">
         <input
           type="checkbox" checked={settings.autoSensitivity}
           onChange={(e) => setAudioSettings({ autoSensitivity: e.target.checked })}
         />
         <span>
-          Automatic
+          {t('settings.voice.autoSensitivity.label')}
           <span className="vc-hint">
-            Sends your voice only while you talk, so typing and clicks in between aren&apos;t heard.
+            {t('settings.voice.autoSensitivity.hint')}
           </span>
         </span>
       </label>
@@ -223,13 +225,13 @@ export default function VoiceSettings() {
         <div className="voice-sensitivity">
           <input
             type="range" min={ALWAYS_OPEN_DB} max="0" step="1"
-            aria-label="Input sensitivity"
+            aria-label={t('settings.voice.inputSensitivity')}
             value={settings.sensitivity}
             onChange={(e) => setAudioSettings({ sensitivity: Number(e.target.value) })}
           />
           <div
             className="voice-sensitivity-meter"
-            role="meter" aria-label="Level against input sensitivity" aria-valuemin={ALWAYS_OPEN_DB} aria-valuemax={0}
+            role="meter" aria-label={t('settings.voice.levelAgainstSensitivity')} aria-valuemin={ALWAYS_OPEN_DB} aria-valuemax={0}
             aria-valuenow={gate ? Math.round(gate.db) : ALWAYS_OPEN_DB}
           >
             <div
@@ -240,26 +242,26 @@ export default function VoiceSettings() {
           </div>
           <p className="vc-hint">
             {settings.sensitivity <= ALWAYS_OPEN_DB
-              ? 'Always sending.'
-              : `Sends sound louder than ${settings.sensitivity} dB.`}
-            {!testing && " Use Let's check to see your level against it."}
+              ? t('settings.voice.alwaysSending')
+              : t('settings.voice.sendsLouderThan', { db: settings.sensitivity })}
+            {!testing && ` ${t('settings.voice.useLetsCheck')}`}
           </p>
         </div>
       )}
 
-      <h6 className="voice-settings-heading">Voice processing</h6>
+      <h6 className="voice-settings-heading">{t('settings.voice.voiceProcessing')}</h6>
       {PROCESSING.map(([key, label, hint]) => (
         <label key={key} className="settings-toggle voice-settings-toggle">
           <input type="checkbox" checked={settings[key]} onChange={(e) => setAudioSettings({ [key]: e.target.checked })} />
           <span>
-            {label}
-            <span className="vc-hint">{hint}</span>
+            {t(label)}
+            <span className="vc-hint">{t(hint)}</span>
           </span>
         </label>
       ))}
       <div className="voice-settings-footer">
-        <span className="vc-hint">Saved on this device.</span>
-        <button type="button" className="btn btn-link btn-sm" onClick={resetAudioSettings}>Reset voice settings</button>
+        <span className="vc-hint">{t('settings.savedOnDevice')}</span>
+        <button type="button" className="btn btn-link btn-sm" onClick={resetAudioSettings}>{t('settings.voice.reset')}</button>
       </div>
     </div>
   );

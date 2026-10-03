@@ -1,6 +1,8 @@
 import React from 'react';
+import { Trans } from 'react-i18next';
 import Avatar from './Avatar';
 import ChannelIcon from './guild/ChannelIcon';
+import { t } from '../i18n';
 
 // The "@name" autocomplete list shown above the composer, like EmojiSuggestions (and styled
 // the same): `items` from searchMentions (utils/mentions): people, roles (in their colour),
@@ -8,9 +10,9 @@ import ChannelIcon from './guild/ChannelIcon';
 export default function MentionSuggestions({ symbol = '@', query, items, activeIndex, onPick, onHover }) {
   const channels = symbol === '#';
   return (
-    <div className="emoji-suggestions mention-suggestions" role="listbox" aria-label={channels ? 'Channels' : 'Mentions'}>
+    <div className="emoji-suggestions mention-suggestions" role="listbox" aria-label={channels ? t('chat.suggestions.channels') : t('chat.suggestions.mentions')}>
       <div className="emoji-suggestions-title">
-        {query ? <>Matching <strong>{symbol}{query}</strong></> : channels ? 'Channels' : 'Members'}
+        {query ? <Trans i18nKey="chat.suggestions.matching" values={{ query: `${symbol}${query}` }} components={{ b: <strong /> }} /> : channels ? t('chat.suggestions.channels') : t('common.members')}
       </div>
       {items.map((item, i) => (
         <div

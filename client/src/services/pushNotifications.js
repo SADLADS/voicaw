@@ -8,6 +8,7 @@ import { customEmojiToText } from '../emoji/customEmoji';
 import { mentionsToText } from '../utils/mentions';
 import { hideSpoilers } from '../utils/remarkDiscord';
 import { getSetting } from './settingsStore';
+import { t } from '../i18n';
 
 // Turns a web push payload (see server/push.js) into the notification the service worker
 // shows.
@@ -48,7 +49,7 @@ function membersTitle(members, myId) {
   const others = members.filter((m) => String(m.id) !== String(myId)).map((m) => m.name);
   if (others.length === 0) return null;
   if (others.length <= 3) return others.join(', ');
-  return `${others.slice(0, 3).join(', ')} and ${others.length - 3} more`;
+  return t('groups.title.andMore', { names: others.slice(0, 3).join(', '), count: others.length - 3 });
 }
 
 // Group pushes (messages and calls) carry the group's encrypted name, and messages the signed,
@@ -98,7 +99,7 @@ async function groupNotification(data) {
 
 export async function notificationFromPush(data) {
   let title = data.title || 'Voicaw';
-  let body = data.type === 'dm' ? (await dmPreview(data)) || 'New message' : data.body || '';
+  let body = data.type === 'dm' ? (await dmPreview(data)) || t('app.push.newMessage') : data.body || '';
   if ((data.type === 'group' || data.type === 'call') && data.groupId) {
     try {
       const group = await groupNotification(data);

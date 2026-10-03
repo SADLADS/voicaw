@@ -1,0 +1,131 @@
+{
+  "media": {
+    "size": {
+      "bytes": "{{size}} B",
+      "kilobytes": "{{size}} KB",
+      "megabytes": "{{size}} MB",
+      "gigabytes": "{{size}} GB"
+    },
+    "percent": "{{percent}}%",
+    "cover": {
+      "spoiler": "Spoiler",
+      "nsfw": "NSFW",
+      "reveal": "{{label}}: {{name}}, select to reveal"
+    },
+    "attachment": {
+      "defaultName": "attachment",
+      "decrypting": "Decrypting…",
+      "downloadFailed": "Download failed",
+      "download": "Download {{name}}",
+      "loading": "Loading {{name}}",
+      "gifFromKlipy": "GIF from KLIPY",
+      "showGif": "Show GIF",
+      "show": "Show"
+    },
+    "tray": {
+      "spoiler": "Spoiler",
+      "removeSpoiler": "Remove spoiler",
+      "markSpoiler": "Mark as spoiler",
+      "removeSpoilerFrom": "Remove spoiler from {{name}}",
+      "markNameSpoiler": "Mark {{name}} as spoiler",
+      "remove": "Remove {{name}}"
+    },
+    "drafts": {
+      "defaultName": "file",
+      "tooBig_one": "{{names}} is over the {{limit}} limit.",
+      "tooBig_other": "{{names}} are over the {{limit}} limit."
+    },
+    "upload": {
+      "failed": "Upload failed",
+      "failedStatus": "Upload failed ({{status}})",
+      "invalidUrl": "Invalid upload URL"
+    },
+    "fileDrop": {
+      "title": "Upload to {{name}}",
+      "hint": "You can add a message before sending."
+    },
+    "gifs": {
+      "loadFailed": "Couldn't load GIFs",
+      "untitled": "GIF",
+      "addFavourite": "Add to favourites",
+      "removeFavourite": "Remove from favourites",
+      "noFavourites": "No favourites yet. Tap the star on a GIF to keep it here.",
+      "noMatches": "No GIFs match \"{{query}}\"",
+      "none": "No GIFs",
+      "tabs": "GIFs",
+      "trending": "Trending",
+      "favourites": "Favourites",
+      "favouritesNumber": "Favourites ({{number}})",
+      "loading": "Loading GIFs…",
+      "attribution": "Powered by KLIPY",
+      "privacyWarning": "GIF previews load from KLIPY, which sees your IP address and which GIFs you look at. You've turned off “Show GIFs straight away” in Settings → Privacy.",
+      "showAnyway": "Show GIFs anyway"
+    },
+    "image": {
+      "defaultFileName": "image",
+      "menuTitle": "Image",
+      "copyImage": "Copy Image",
+      "saveImage": "Save Image",
+      "copyLink": "Copy Link",
+      "openLink": "Open Link",
+      "openImage": "Open Image",
+      "imageCopied": "Image copied",
+      "linkCopied": "Link copied",
+      "loadFailedStatus": "Couldn't load the image ({{status}})",
+      "copyFailed": "Couldn't copy the image",
+      "browserCantCopy": "This browser can't copy images",
+      "cantBeCopied": "This image can't be copied: try Save Image"
+    },
+    "viewer": {
+      "loadFailed": "Couldn't load this image.",
+      "decrypting": "Decrypting…",
+      "zoomOut": "Zoom out",
+      "zoomOutTitle": "Zoom out (−)",
+      "fitToScreen": "Fit to screen",
+      "fitToScreenTitle": "Fit to screen (0)",
+      "zoomIn": "Zoom in",
+      "zoomInTitle": "Zoom in (+)",
+      "openInNewTab": "Open in new tab",
+      "closeTitle": "Close (Esc)",
+      "previous": "Previous image",
+      "previousTitle": "Previous image (←)",
+      "next": "Next image",
+      "nextTitle": "Next image (→)",
+      "thumbnails": "Images in this message",
+      "thumbnail": "Image {{number}}: {{name}}"
+    },
+    "video": {
+      "seek": "Seek",
+      "timeOf": "{{time}} of {{duration}}",
+      "downloadFailedRetry": "Download failed, try again",
+      "downloadingTitle": "Downloading…",
+      "download": "Download {{name}}",
+      "downloading": "Downloading {{name}}",
+      "play": "Play",
+      "playName": "Play {{name}}",
+      "playTitle": "Play (k)",
+      "pause": "Pause",
+      "pauseTitle": "Pause (k)",
+      "loading": "Loading video",
+      "loadFailed": "Couldn't load this video.",
+      "cantPlay": "This video can't play in this browser.",
+      "retry": "Retry",
+      "unmuteTitle": "Unmute (m)",
+      "muteTitle": "Mute (m)",
+      "volume": "Volume",
+      "fullScreen": "Full screen",
+      "fullScreenTitle": "Full screen (f)",
+      "exitFullScreen": "Exit full screen",
+      "exitFullScreenTitle": "Exit full screen (f)"
+    },
+    "embeds": {
+      "image": "embedded image",
+      "footerWithTime": "{{text}} • {{time}}"
+    },
+    "youtube": {
+      "video": "YouTube video",
+      "play": "Play YouTube video",
+      "hint": "Playing loads it from YouTube"
+    }
+  }
+}

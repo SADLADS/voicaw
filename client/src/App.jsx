@@ -29,6 +29,7 @@ import { disableNotificationsOnThisDevice } from './services/pushService';
 import { clearDrafts } from './services/draftStore';
 import { setCustomEmojiBase } from './emoji/customEmoji';
 import { setAvatarBase } from './utils/profiles';
+import { t } from './i18n';
 
 
 
@@ -101,7 +102,7 @@ export default function App() {
 
   // The saved login is kept while the server can't be reached; AuthProvider keeps asking.
   if (loading) {
-    return unreachable ? <div className="auth-unreachable">Can&apos;t reach Voicaw. Trying again…</div> : <div></div>;
+    return unreachable ? <div className="auth-unreachable">{t('app.unreachable')}</div> : <div></div>;
   }
 
   async function handleLogout() {

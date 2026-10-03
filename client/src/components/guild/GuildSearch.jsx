@@ -8,18 +8,20 @@ import { MessageContent } from '../MessageList';
 import { ConfigContext, NsfwChannelContext } from '../../contexts';
 import { searchGuildMessages } from '../../services/guildService';
 import { toChatMessage } from '../../hooks/useChannel';
-import { parseSearch, searchContext, searchSuggestions } from '../../utils/searchQuery';
+import { HAS_VALUES, parseSearch, searchContext, searchSuggestions } from '../../utils/searchQuery';
 import { displayName, nameOf, useProfiles } from '../../utils/profiles';
 import { formatDateTime, useDateFormat } from '../../utils/dateFormat';
+import { t } from '../../i18n';
 
 const MARGIN = 8;
 
-const KEY_HINTS = {
-  from: 'user',
-  mentions: 'user',
-  in: 'channel',
-  has: 'link, embed, file, image, video, sound or poll',
-};
+// What each filter takes (the has: values are what's typed, so they stay as they are).
+const keyHint = (key) => ({
+  from: t('guilds.search.hint.user'),
+  mentions: t('guilds.search.hint.user'),
+  in: t('guilds.search.hint.channel'),
+  has: t('guilds.search.hint.has', { values: HAS_VALUES.slice(0, -1).join(', '), last: HAS_VALUES[HAS_VALUES.length - 1] }),
+})[key];
 
 // Searching the guild (server side, routes/guildSearch.js): words plus from:, mentions:, in:
 // and has: (utils/searchQuery.js), with suggestions for them while typing. On a computer the
@@ -46,7 +48,7 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
   const [anchor, setAnchor] = useState(null);
 
   const channels = useMemo(() => guild.channels.filter((c) => c.type === 'text'), [guild.channels]);
-  const channelName = (id) => guild.channels.find((c) => c.id === id)?.name ?? 'unknown';
+  const channelName = (id) => guild.channels.find((c) => c.id === id)?.name ?? t('guilds.search.unknownChannel');
   // A result from an NSFW channel has its media covered, as in the channel.
   const isNsfw = (id) => Boolean(guild.channels.find((c) => c.id === id)?.nsfw);
 
@@ -71,7 +73,7 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
     setError(null);
     searchGuildMessages(guild.id, { ...search.params, sort_order: search.sort })
       .then((data) => { if (!cancelled) setResults({ total: data.total_results, messages: data.messages.map(toChatMessage) }); })
-      .catch((err) => { if (!cancelled) setError(err.response?.data?.error || "Couldn't search right now."); })
+      .catch((err) => { if (!cancelled) setError(err.response?.data?.error || t('guilds.search.failed')); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [search, guild.id]);
@@ -86,7 +88,7 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
         messages: [...prev.messages, ...data.messages.map(toChatMessage).filter((m) => !prev.messages.some((p) => p.id === m.id))],
       }));
     } catch (err) {
-      setError(err.response?.data?.error || "Couldn't load more results.");
+      setError(err.response?.data?.error || t('guilds.search.loadMoreFailed'));
     } finally {
       setLoading(false);
     }
@@ -189,8 +191,8 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
         ref={inputRef}
         type="search"
         className="guild-search-input"
-        placeholder={`Search ${guild.name}`}
-        aria-label="Search this guild"
+        placeholder={t('guilds.search.placeholder', { name: guild.name })}
+        aria-label={t('guilds.search.label')}
         value={text}
         enterKeyHint="search"
         autoComplete="off"
@@ -201,16 +203,16 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
         onBlur={() => setFocused(false)}
       />
       {text ? (
-        <button type="button" className="guild-search-icon clear" aria-label="Clear search" onMouseDown={(e) => e.preventDefault()} onClick={clear}>
+        <button type="button" className="guild-search-icon clear" aria-label={t('guilds.search.clear')} onMouseDown={(e) => e.preventDefault()} onClick={clear}>
           <FontAwesomeIcon icon={faXmark} />
         </button>
       ) : (
         <span className="guild-search-icon" aria-hidden="true"><FontAwesomeIcon icon={faMagnifyingGlass} /></span>
       )}
       {suggestions.length > 0 && (
-        <div className="emoji-suggestions guild-search-suggestions" role="listbox" aria-label="Search options">
+        <div className="emoji-suggestions guild-search-suggestions" role="listbox" aria-label={t('guilds.search.options')}>
           <div className="emoji-suggestions-title">
-            {context.kind === 'keys' ? 'Search options' : context.kind === 'in' ? 'Channels' : context.kind === 'has' ? 'Message contains' : 'Members'}
+            {context.kind === 'keys' ? t('guilds.search.options') : context.kind === 'in' ? t('guilds.search.channels') : context.kind === 'has' ? t('guilds.search.messageContains') : t('common.members')}
           </div>
           {suggestions.map((item, i) => (
             <div
@@ -221,7 +223,7 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
               onMouseDown={(e) => { e.preventDefault(); pick(item); }}
               onMouseEnter={() => setActiveIndex(i)}
             >
-              {item.kind === 'key' && (<><strong>{item.key}:</strong><span className="mention-suggestion-note">{KEY_HINTS[item.key]}</span></>)}
+              {item.kind === 'key' && (<><strong>{item.key}:</strong><span className="mention-suggestion-note">{keyHint(item.key)}</span></>)}
               {item.kind === 'has' && <span>{item.label}</span>}
               {item.kind === 'channel' && (<><FontAwesomeIcon icon={faHashtag} className="guild-search-hash" /><span>{item.label}</span></>)}
               {item.kind === 'member' && (
@@ -244,19 +246,19 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
   };
 
   const panel = showPanel && createPortal(
-    <div className={`pins-panel search-panel${isMobile ? ' mobile' : ''}`} style={style} role="dialog" aria-label="Search results">
+    <div className={`pins-panel search-panel${isMobile ? ' mobile' : ''}`} style={style} role="dialog" aria-label={t('guilds.search.results')}>
       <div className="pins-panel-header">
         {isMobile ? (
           <>
-            <button type="button" className="icon-button" aria-label="Close search" onClick={closeResults}>
+            <button type="button" className="icon-button" aria-label={t('guilds.search.close')} onClick={closeResults}>
               <FontAwesomeIcon icon={faArrowLeft} />
             </button>
             {input}
           </>
         ) : (
           <>
-            <h5>{results ? `${results.total} ${results.total === 1 ? 'result' : 'results'}` : 'Search'}</h5>
-            <button type="button" className="icon-button" aria-label="Close" onClick={closeResults}>
+            <h5>{results ? t('guilds.search.resultCount', { count: results.total }) : t('common.search')}</h5>
+            <button type="button" className="icon-button" aria-label={t('common.close')} onClick={closeResults}>
               <FontAwesomeIcon icon={faXmark} />
             </button>
           </>
@@ -264,9 +266,9 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
       </div>
       {search && (
         <div className="search-panel-sort">
-          {isMobile && results && <span>{results.total} {results.total === 1 ? 'result' : 'results'}</span>}
-          <span className="search-panel-sort-buttons" role="group" aria-label="Sort">
-            {[['desc', 'Newest'], ['asc', 'Oldest']].map(([sort, label]) => (
+          {isMobile && results && <span>{t('guilds.search.resultCount', { count: results.total })}</span>}
+          <span className="search-panel-sort-buttons" role="group" aria-label={t('guilds.search.sort')}>
+            {[['desc', t('guilds.search.newest')], ['asc', t('guilds.search.oldest')]].map(([sort, label]) => (
               <button
                 key={sort}
                 type="button"
@@ -283,10 +285,10 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
       <div className="pins-panel-list">
         {error && <p className="error-text pins-panel-note">{error}</p>}
         {!search && !error && isMobile && (
-          <p className="pins-panel-note">Search for words, or narrow it down with from:, mentions:, in: and has:.</p>
+          <p className="pins-panel-note">{t('guilds.search.intro')}</p>
         )}
         {results?.messages.length === 0 && (
-          <div className="pins-panel-empty"><p>No results.</p><p className="vc-hint">Try other words or fewer filters.</p></div>
+          <div className="pins-panel-empty"><p>{t('guilds.search.noResults')}</p><p className="vc-hint">{t('guilds.search.noResultsHint')}</p></div>
         )}
         {results?.messages.map((msg) => {
           const name = msg.webhook_id ? msg.webhook_name : displayName(msg.sender_id, msg.sender_username);
@@ -312,7 +314,7 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
                       onJump(msg);
                     }}
                   >
-                    Jump
+                    {t('guilds.search.jump')}
                   </button>
                 </span>
               </div>
@@ -329,9 +331,9 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
             </div>
           );
         })}
-        {loading && <p className="pins-panel-note">Searching…</p>}
+        {loading && <p className="pins-panel-note">{t('guilds.search.searching')}</p>}
         {results && !loading && results.messages.length < results.total && (
-          <button type="button" className="btn btn-sm search-panel-more" onClick={loadMore}>Load more</button>
+          <button type="button" className="btn btn-sm search-panel-more" onClick={loadMore}>{t('guilds.search.loadMore')}</button>
         )}
       </div>
     </div>,
@@ -344,8 +346,8 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
         <button
           type="button"
           className={`channel-header-button search-button${mobileOpen ? ' active' : ''}`}
-          aria-label="Search"
-          title="Search"
+          aria-label={t('common.search')}
+          title={t('common.search')}
           onClick={() => {
             setMobileOpen(true);
             requestAnimationFrame(() => inputRef.current?.focus());

@@ -4,6 +4,7 @@ import { faArrowDown, faArrowUp, faGripVertical, faLock } from '@fortawesome/fre
 import { createRole, deleteRole, reorderRoles, updateRole } from '../../services/guildService';
 import { PERMISSIONS, PERMISSION_GROUPS, colorToHex, has, hexToColor, memberRank } from '../../utils/permissions';
 import { errorMessage } from '../../utils/guildDisplay';
+import { t } from '../../i18n';
 
 // Discord's role colour swatches.
 const SWATCHES = [
@@ -56,7 +57,7 @@ export default function RolesSettings({ guild, user }) {
   }
 
   async function addRole() {
-    const role = await run(() => createRole(guild.id, { name: 'new role' }));
+    const role = await run(() => createRole(guild.id, { name: t('guildAdmin.roles.newRoleName') }));
     if (role) setSelectedId(role.id);
   }
 
@@ -85,10 +86,10 @@ export default function RolesSettings({ guild, user }) {
     <div className="roles-settings">
       <div className="roles-list">
         <button type="button" className="btn btn-primary btn-sm vc-button w-100" onClick={addRole} disabled={saving}>
-          Create Role
+          {t('guildAdmin.roles.create')}
         </button>
-        <p className="vc-hint">Members use the colour of their highest role. Drag to reorder.</p>
-        <ul aria-label="Roles">
+        <p className="vc-hint">{t('guildAdmin.roles.listHint')}</p>
+        <ul aria-label={t('guildAdmin.guildSettings.tabs.roles')}>
           {roles.map((role) => {
             const index = others.findIndex((r) => r.id === role.id);
             const locked = role.position >= myRank;
@@ -116,14 +117,14 @@ export default function RolesSettings({ guild, user }) {
                   {movable ? <FontAwesomeIcon icon={faGripVertical} className="roles-grip" /> : <span className="roles-grip" />}
                   <span className="role-dot" style={{ backgroundColor: role.color != null ? colorToHex(role.color) : undefined }} />
                   <span className="roles-list-name">{role.name}</span>
-                  {locked && !role.is_everyone && <FontAwesomeIcon icon={faLock} className="roles-lock" title="Above your highest role" />}
+                  {locked && !role.is_everyone && <FontAwesomeIcon icon={faLock} className="roles-lock" title={t('guildAdmin.roles.aboveYours')} />}
                 </button>
                 {movable && role.id === selected?.id && (
                   <span className="roles-move">
-                    <button type="button" aria-label={`Move ${role.name} up`} disabled={index === 0 || others[index - 1].position >= myRank} onClick={() => move(role.id, index - 1)}>
+                    <button type="button" aria-label={t('guildAdmin.roles.moveUp', { name: role.name })} disabled={index === 0 || others[index - 1].position >= myRank} onClick={() => move(role.id, index - 1)}>
                       <FontAwesomeIcon icon={faArrowUp} />
                     </button>
-                    <button type="button" aria-label={`Move ${role.name} down`} disabled={index === others.length - 1} onClick={() => move(role.id, index + 1)}>
+                    <button type="button" aria-label={t('guildAdmin.roles.moveDown', { name: role.name })} disabled={index === others.length - 1} onClick={() => move(role.id, index + 1)}>
                       <FontAwesomeIcon icon={faArrowDown} />
                     </button>
                   </span>
@@ -135,14 +136,14 @@ export default function RolesSettings({ guild, user }) {
       </div>
 
       {selected && draft && (
-        <div className="role-editor" aria-label={`Edit ${selected.name}`}>
-          <h6>{selected.is_everyone ? 'Default permissions (@everyone)' : `Edit role — ${selected.name}`}</h6>
-          {!editable && <p className="vc-hint">This role is as high as your highest role, so you can't change it.</p>}
-          {Boolean(selected.is_everyone) && <p className="vc-hint">Everyone in the guild has these, whatever other roles they have.</p>}
+        <div className="role-editor" aria-label={t('guildAdmin.roles.editLabel', { name: selected.name })}>
+          <h6>{selected.is_everyone ? t('guildAdmin.roles.everyoneTitle') : t('guildAdmin.roles.editTitle', { name: selected.name })}</h6>
+          {!editable && <p className="vc-hint">{t('guildAdmin.roles.locked')}</p>}
+          {Boolean(selected.is_everyone) && <p className="vc-hint">{t('guildAdmin.roles.everyoneHint')}</p>}
 
           {!selected.is_everyone && (
             <>
-              <label className="vc-label" htmlFor="role-name">Role name</label>
+              <label className="vc-label" htmlFor="role-name">{t('guildAdmin.roles.name')}</label>
               <input
                 id="role-name"
                 className="form-control"
@@ -152,13 +153,13 @@ export default function RolesSettings({ guild, user }) {
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
               />
 
-              <span className="vc-label">Role colour</span>
-              <div className="role-colors" role="radiogroup" aria-label="Role colour">
+              <span className="vc-label">{t('guildAdmin.roles.colour')}</span>
+              <div className="role-colors" role="radiogroup" aria-label={t('guildAdmin.roles.colour')}>
                 <button
                   type="button"
                   role="radio"
                   aria-checked={draft.color == null}
-                  aria-label="Default colour"
+                  aria-label={t('guildAdmin.roles.defaultColour')}
                   className={`role-color default${draft.color == null ? ' selected' : ''}`}
                   disabled={!editable}
                   onClick={() => setDraft({ ...draft, color: null })}
@@ -176,10 +177,10 @@ export default function RolesSettings({ guild, user }) {
                     onClick={() => setDraft({ ...draft, color })}
                   />
                 ))}
-                <label className="role-color custom" title="Custom colour">
+                <label className="role-color custom" title={t('guildAdmin.roles.customColour')}>
                   <input
                     type="color"
-                    aria-label="Custom colour"
+                    aria-label={t('guildAdmin.roles.customColour')}
                     value={colorToHex(draft.color ?? 0x99aab5)}
                     disabled={!editable}
                     onChange={(e) => setDraft({ ...draft, color: hexToColor(e.target.value) })}
@@ -190,17 +191,15 @@ export default function RolesSettings({ guild, user }) {
               <label className="role-toggle">
                 <input type="checkbox" checked={draft.hoist} disabled={!editable} onChange={(e) => setDraft({ ...draft, hoist: e.target.checked })} />
                 <span>
-                  <strong>Display role members separately from online members</strong>
+                  <strong>{t('guildAdmin.roles.hoist')}</strong>
                 </span>
               </label>
 
               <label className="role-toggle">
                 <input type="checkbox" checked={draft.mentionable} disabled={!editable} onChange={(e) => setDraft({ ...draft, mentionable: e.target.checked })} />
                 <span>
-                  <strong>Allow anyone to @mention this role</strong>
-                  <small className="vc-hint d-block">
-                    Members with "Mention @everyone, @here and All Roles" can always mention it.
-                  </small>
+                  <strong>{t('guildAdmin.roles.mentionable')}</strong>
+                  <small className="vc-hint d-block">{t('guildAdmin.roles.mentionableHint')}</small>
                 </span>
               </label>
             </>
@@ -208,9 +207,9 @@ export default function RolesSettings({ guild, user }) {
 
           <div className="role-permissions">
             {PERMISSION_GROUPS.map((group) => (
-              <section key={group.title}>
-                <h6 className="vc-label">{group.title}</h6>
-                {group.items.map(([key, label, description]) => {
+              <section key={group.key}>
+                <h6 className="vc-label">{t(`guildAdmin.permissionGroups.${group.key}`)}</h6>
+                {group.items.map((key) => {
                   const bit = PERMISSIONS[key];
                   const on = has(draft.permissions, bit);
                   // You can switch off anything on a role below you, but only switch on what you have.
@@ -224,8 +223,8 @@ export default function RolesSettings({ guild, user }) {
                         onChange={(e) => setDraft({ ...draft, permissions: e.target.checked ? draft.permissions | bit : draft.permissions & ~bit })}
                       />
                       <span>
-                        <strong>{label}</strong>
-                        <span className="vc-hint">{description}</span>
+                        <strong>{t(`guildAdmin.permissions.${key}.label`)}</strong>
+                        <span className="vc-hint">{t(`guildAdmin.permissions.${key}.description`)}</span>
                       </span>
                     </label>
                   );
@@ -250,14 +249,14 @@ export default function RolesSettings({ guild, user }) {
                     if (deleted) setSelectedId(roles.at(-1)?.id);
                   }}
                 >
-                  Delete role
+                  {t('guildAdmin.roles.delete')}
                 </button>
               )}
               <button type="button" className="btn btn-secondary btn-sm" disabled={!dirty || saving} onClick={() => setDraft({ name: selected.name, color: selected.color, hoist: Boolean(selected.hoist), permissions: selected.permissions })}>
-                Reset
+                {t('common.reset')}
               </button>
               <button type="button" className="btn btn-primary btn-sm vc-button" disabled={!dirty || saving || !draft.name.trim()} onClick={save}>
-                Save changes
+                {t('common.saveChanges')}
               </button>
             </div>
           )}

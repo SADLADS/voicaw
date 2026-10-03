@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { t } from '../i18n';
 
 // Media behind a cover (hooks/useMediaCover.js): blurred, with `label` ("Spoiler" or "NSFW")
 // over it, until clicked (or Enter); then it stays shown. Without a `label`, just `children`.
@@ -14,7 +15,7 @@ export default function MediaCover({ label, name, placeholder, children }) {
         type="button"
         className="attachment-spoiler-reveal"
         onClick={() => setRevealed(true)}
-        aria-label={`${label}: ${name}, select to reveal`}
+        aria-label={t('media.cover.reveal', { label, name })}
       >
         {label}
       </button>

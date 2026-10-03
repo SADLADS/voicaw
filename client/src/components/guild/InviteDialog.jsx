@@ -3,18 +3,22 @@ import Modal from './Modal';
 import { createInvite } from '../../services/guildService';
 import { errorMessage, inviteLink } from '../../utils/guildDisplay';
 import { formatDateTime } from '../../utils/dateFormat';
+import { t } from '../../i18n';
 
 const EXPIRY_OPTIONS = [
-  [30 * 60, '30 minutes'],
-  [60 * 60, '1 hour'],
-  [6 * 60 * 60, '6 hours'],
-  [12 * 60 * 60, '12 hours'],
-  [24 * 60 * 60, '1 day'],
-  [7 * 24 * 60 * 60, '7 days'],
-  [30 * 24 * 60 * 60, '30 days'],
-  [0, 'Never'],
+  [30 * 60, t('guildAdmin.auditLog.age.minutes', { count: 30 })],
+  [60 * 60, t('guildAdmin.auditLog.age.hours', { count: 1 })],
+  [6 * 60 * 60, t('guildAdmin.auditLog.age.hours', { count: 6 })],
+  [12 * 60 * 60, t('guildAdmin.auditLog.age.hours', { count: 12 })],
+  [24 * 60 * 60, t('guildAdmin.auditLog.age.days', { count: 1 })],
+  [7 * 24 * 60 * 60, t('guildAdmin.auditLog.age.days', { count: 7 })],
+  [30 * 24 * 60 * 60, t('guildAdmin.auditLog.age.days', { count: 30 })],
+  [0, t('guildAdmin.invite.never')],
 ];
-const USE_OPTIONS = [[0, 'No limit'], [1, '1 use'], [5, '5 uses'], [10, '10 uses'], [25, '25 uses'], [50, '50 uses'], [100, '100 uses']];
+const USE_OPTIONS = [
+  [0, t('guildAdmin.invite.noLimit')],
+  ...[1, 5, 10, 25, 50, 100].map((count) => [count, t('guildAdmin.invite.uses', { count })]),
+];
 
 // "Invite people": makes a link straight away (7 days, any number of uses, like Discord), with
 // settings for a different one.
@@ -44,43 +48,43 @@ export default function InviteDialog({ guild, onClose }) {
       await navigator.clipboard.writeText(inviteLink(invite.code));
       setCopied(true);
     } catch {
-      setError("Couldn't copy; select the link and copy it yourself.");
+      setError(t('guildAdmin.invite.copyFailed'));
     }
   }
 
   const link = invite ? inviteLink(invite.code) : '';
   const summary = invite && [
-    invite.expires_at ? `Expires ${formatDateTime(invite.expires_at * 1000)}` : 'Never expires',
-    invite.max_uses ? `${invite.max_uses} use${invite.max_uses === 1 ? '' : 's'}` : null,
+    invite.expires_at ? t('guildAdmin.invite.expires', { date: formatDateTime(invite.expires_at * 1000) }) : t('guildAdmin.auditLog.changes.neverExpires'),
+    invite.max_uses ? t('guildAdmin.invite.uses', { count: invite.max_uses }) : null,
   ].filter(Boolean).join(' · ');
 
   return (
-    <Modal title={`Invite friends to ${guild.name}`} onClose={onClose}>
-      <label htmlFor="invite-link">Send a guild invite link to a friend</label>
+    <Modal title={t('guildAdmin.invite.title', { name: guild.name })} onClose={onClose}>
+      <label htmlFor="invite-link">{t('guildAdmin.invite.linkLabel')}</label>
       <div className="vc-form-row">
         <input id="invite-link" className="form-control" readOnly value={link} onFocus={(e) => e.target.select()} />
         <button type="button" className="btn btn-primary vc-button" onClick={copy} disabled={!invite}>
-          {copied ? 'Copied' : 'Copy'}
+          {copied ? t('common.copied') : t('common.copy')}
         </button>
       </div>
       {summary && <p className="vc-hint">{summary}</p>}
 
       <div className="vc-form-row invite-options">
         <label>
-          Expire after
+          {t('guildAdmin.invite.expireAfter')}
           <select className="form-select form-control" value={maxAge} onChange={(e) => setMaxAge(Number(e.target.value))}>
             {EXPIRY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
         <label>
-          Max number of uses
+          {t('guildAdmin.invite.maxUses')}
           <select className="form-select form-control" value={maxUses} onChange={(e) => setMaxUses(Number(e.target.value))}>
             {USE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
       </div>
       <button type="button" className="btn btn-secondary btn-sm" onClick={() => generate({ maxAge, maxUses })}>
-        Generate a new link
+        {t('guildAdmin.invite.generate')}
       </button>
       {error && <p className="error-msg" role="alert">{error}</p>}
     </Modal>

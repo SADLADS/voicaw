@@ -11,6 +11,7 @@ import { LayoutContext } from '../../contexts';
 import { markChannelReadToLatest } from '../../services/guildService';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import ContextMenu from '../ContextMenu';
+import { t } from '../../i18n';
 
 // A category's menu in the channel list (right-click, or touch and hold on a phone): Mark As
 // Read (every channel in it you can see), Collapse / Expand; with Manage Channels also Edit,
@@ -23,7 +24,7 @@ export default function CategoryMenu({ guild, category, channels, collapsed, anc
   if (unread.length) {
     items.push({
       key: 'read',
-      label: 'Mark As Read',
+      label: t('guildAdmin.categoryMenu.markAsRead'),
       icon: faCheckDouble,
       onSelect: async () => {
         await Promise.all(unread.map((u) => markChannelReadToLatest(u.channel_id)));
@@ -33,16 +34,16 @@ export default function CategoryMenu({ guild, category, channels, collapsed, anc
   }
   items.push({
     key: 'collapse',
-    label: collapsed ? 'Expand Category' : 'Collapse Category',
+    label: collapsed ? t('guildAdmin.categoryMenu.expand') : t('guildAdmin.categoryMenu.collapse'),
     icon: collapsed ? faChevronRight : faChevronDown,
     onSelect: onToggle,
   });
   if (has(guild.my_permissions, PERMISSIONS.MANAGE_CHANNELS)) {
     items.push(
       { separator: true },
-      { key: 'edit', label: 'Edit Category', icon: faGear, onSelect: onEdit },
-      { key: 'create', label: 'Create Channel', icon: faPlus, onSelect: onCreateChannel },
-      { key: 'delete', label: 'Delete Category', icon: faTrash, danger: true, onSelect: onDelete },
+      { key: 'edit', label: t('guildAdmin.categoryMenu.edit'), icon: faGear, onSelect: onEdit },
+      { key: 'create', label: t('guildAdmin.categoryMenu.createChannel'), icon: faPlus, onSelect: onCreateChannel },
+      { key: 'delete', label: t('guildAdmin.categoryMenu.delete'), icon: faTrash, danger: true, onSelect: onDelete },
     );
   }
 

@@ -7,6 +7,7 @@ import defaultAvatar from '../assets/images/default.png';
 import { MessageContent } from './MessageList';
 import { displayName, useProfiles } from '../utils/profiles';
 import { formatDateTime, useDateFormat } from '../utils/dateFormat';
+import { t } from '../i18n';
 
 const MARGIN = 8;
 
@@ -41,7 +42,7 @@ export default function PinnedMessages({
     let cancelled = false;
     loadPins()
       .then((list) => { if (!cancelled) { setPins(list); setError(null); } })
-      .catch((err) => { if (!cancelled) setError(err.response?.data?.error || "Couldn't load the pinned messages."); });
+      .catch((err) => { if (!cancelled) setError(err.response?.data?.error || t('chat.pins.loadFailed')); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pinsVersion]);
@@ -69,7 +70,7 @@ export default function PinnedMessages({
     try {
       await onUnpin(msg);
     } catch (err) {
-      setError(err.response?.data?.error || "Couldn't unpin that message.");
+      setError(err.response?.data?.error || t('chat.pins.unpinFailed'));
     }
   }
 
@@ -79,21 +80,21 @@ export default function PinnedMessages({
   };
 
   return createPortal(
-    <div className={`pins-panel${isMobile ? ' mobile' : ''}`} style={style} role="dialog" aria-label="Pinned messages">
+    <div className={`pins-panel${isMobile ? ' mobile' : ''}`} style={style} role="dialog" aria-label={t('chat.pins.title')}>
       <div className="pins-panel-header">
         <FontAwesomeIcon icon={faThumbtack} />
-        <h5>Pinned Messages</h5>
-        <button type="button" className="icon-button pins-panel-close" aria-label="Close" onClick={onClose}>
+        <h5>{t('chat.pins.heading')}</h5>
+        <button type="button" className="icon-button pins-panel-close" aria-label={t('common.close')} onClick={onClose}>
           <FontAwesomeIcon icon={faXmark} />
         </button>
       </div>
       <div className="pins-panel-list">
         {error && <p className="error-text pins-panel-note">{error}</p>}
-        {pins === null && !error && <p className="pins-panel-note">Loading…</p>}
+        {pins === null && !error && <p className="pins-panel-note">{t('common.loading')}</p>}
         {pins?.length === 0 && (
           <div className="pins-panel-empty">
-            <p>This chat doesn&apos;t have any pinned messages yet.</p>
-            <p className="vc-hint">{canPin ? 'Pin one from its menu to keep it here.' : 'Pinned messages will show up here.'}</p>
+            <p>{t('chat.pins.empty')}</p>
+            <p className="vc-hint">{canPin ? t('chat.pins.emptyCanPin') : t('chat.pins.emptyHint')}</p>
           </div>
         )}
         {pins?.map((msg) => {
@@ -110,9 +111,9 @@ export default function PinnedMessages({
                 <strong style={{ color: nameColors?.[msg.sender_id] }}>{name}</strong>
                 <small title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>{formatDateTime(msg.timestamp * 1000)}</small>
                 <span className="pinned-message-actions">
-                  <button type="button" className="btn btn-sm pinned-message-jump" onClick={() => onJump(msg)}>Jump</button>
+                  <button type="button" className="btn btn-sm pinned-message-jump" onClick={() => onJump(msg)}>{t('chat.pins.jump')}</button>
                   {canPin && (
-                    <button type="button" className="icon-button" aria-label="Unpin" title="Unpin" onClick={() => unpin(msg)}>
+                    <button type="button" className="icon-button" aria-label={t('common.unpin')} title={t('common.unpin')} onClick={() => unpin(msg)}>
                       <FontAwesomeIcon icon={faXmark} />
                     </button>
                   )}

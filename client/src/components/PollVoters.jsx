@@ -3,6 +3,7 @@ import Modal from './guild/Modal';
 import Avatar from './Avatar';
 import { ReactionEmoji } from './MessageReactions';
 import { useProfiles } from '../utils/profiles';
+import { t } from '../i18n';
 
 // Who voted for each answer of a poll: a tab per answer (its emoji, text and count), starting
 // on `initialOption`, and the list of voters for the chosen one. `voters` is tallyVotes'
@@ -16,7 +17,7 @@ export default function PollVoters({ poll, voters, names, userId, initialOption,
   return (
     <Modal title={poll.question} className="poll-voters-dialog" onClose={onClose}>
       <div className="poll-voters">
-        <div className="poll-voters-tabs" role="tablist" aria-label="Answers">
+        <div className="poll-voters-tabs" role="tablist" aria-label={t('chat.pollDialog.answers')}>
           {poll.options.map((o) => (
             <button
               key={o.id}
@@ -32,13 +33,15 @@ export default function PollVoters({ poll, voters, names, userId, initialOption,
             </button>
           ))}
         </div>
-        <div className="poll-voters-list" role="tabpanel" aria-label={`Voted for ${option.text}`}>
+        <div className="poll-voters-list" role="tabpanel" aria-label={t('chat.pollVoters.votedFor', { answer: option.text })}>
           {who.length === 0 ? (
-            <p className="vc-hint">Nobody has voted for this answer.</p>
+            <p className="vc-hint">{t('chat.pollVoters.none')}</p>
           ) : (
             <ul>
               {who.map((id) => {
-                const name = id === userId ? `${names?.[id] ?? 'You'} (you)` : names?.[id] ?? 'Someone';
+                const name = id === userId
+                  ? t('chat.pollVoters.you', { name: names?.[id] ?? t('chat.reactions.you') })
+                  : names?.[id] ?? t('chat.reactions.someone');
                 return (
                   <li key={id}>
                     <Avatar userId={id} alt="" className="poll-voter-avatar" />

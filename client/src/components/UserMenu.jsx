@@ -8,6 +8,7 @@ import StatusIcon from './StatusIcon';
 import { usePresence } from '../hooks/usePresence';
 import { updateProfile } from '../services/profileService';
 import { PROFILE_LIMITS, getProfile, mergeProfiles, nameOf, useProfiles } from '../utils/profiles';
+import { t } from '../i18n';
 
 const MARGIN = 8;
 
@@ -64,7 +65,7 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
       mergeProfiles([await updateProfile({ customStatus: next || null })]);
       setEditing(false);
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Could not save your status.');
+      setError(err.response?.data?.error ?? t('app.userMenu.statusSaveFailed'));
       finished.current = false;
     } finally {
       setSaving(false);
@@ -77,7 +78,7 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
   };
 
   return createPortal(
-    <div className="user-menu" ref={ref} style={position} role="dialog" aria-label="Your account">
+    <div className="user-menu" ref={ref} style={position} role="dialog" aria-label={t('app.userMenu.yourAccount')}>
       <div className="user-menu-top">
         <span className="user-menu-avatar status-avatar">
           <Avatar userId={user.id} />
@@ -89,8 +90,8 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
           {editing ? (
             <input
               className="user-menu-status-input"
-              aria-label="Custom status"
-              placeholder="What's up?"
+              aria-label={t('app.userMenu.customStatus')}
+              placeholder={t('app.userMenu.statusPlaceholder')}
               value={draft}
               maxLength={PROFILE_LIMITS.custom_status}
               disabled={saving}
@@ -115,14 +116,14 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
               <button
                 type="button"
                 className={`user-menu-status${customStatus ? '' : ' empty'}`}
-                title="Change your custom status"
+                title={t('app.userMenu.changeStatus')}
                 onClick={() => { setDraft(customStatus); finished.current = false; setEditing(true); }}
               >
                 {!customStatus && <FontAwesomeIcon icon={faFaceSmile} />}
-                <span>{customStatus || 'Set a custom status'}</span>
+                <span>{customStatus || t('app.userMenu.setStatus')}</span>
               </button>
               {customStatus && (
-                <button type="button" className="user-menu-status-clear" aria-label="Clear custom status" title="Clear" disabled={saving} onClick={() => saveStatus('')}>
+                <button type="button" className="user-menu-status-clear" aria-label={t('app.userMenu.clearStatus')} title={t('app.userMenu.clear')} disabled={saving} onClick={() => saveStatus('')}>
                   <FontAwesomeIcon icon={faXmark} />
                 </button>
               )}
@@ -133,10 +134,10 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
       </div>
       <div className="user-menu-actions">
         <button type="button" className="user-menu-item" onClick={() => go('/settings/profile')}>
-          <FontAwesomeIcon icon={faPen} /> Edit Profile
+          <FontAwesomeIcon icon={faPen} /> {t('app.userMenu.editProfile')}
         </button>
         <button type="button" className="user-menu-item danger" onClick={() => { onClose(); onLogout?.(); }}>
-          <FontAwesomeIcon icon={faRightFromBracket} /> Log out
+          <FontAwesomeIcon icon={faRightFromBracket} /> {t('app.userMenu.logOut')}
         </button>
       </div>
     </div>,

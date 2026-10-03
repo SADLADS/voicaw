@@ -4,6 +4,7 @@ import Modal from './Modal';
 import { LayoutContext } from '../../contexts';
 import { acceptInvite, createGuild } from '../../services/guildService';
 import { errorMessage, parseInviteCode } from '../../utils/guildDisplay';
+import { t } from '../../i18n';
 
 // The rail's "+": create a guild, or join one with an invite link.
 export default function AddGuildDialog({ onClose }) {
@@ -37,41 +38,41 @@ export default function AddGuildDialog({ onClose }) {
     e.preventDefault();
     const code = parseInviteCode(invite);
     if (!code) {
-      setError("That doesn't look like an invite link.");
+      setError(t('guildAdmin.addGuild.notAnInvite'));
       return;
     }
     run(() => acceptInvite(code));
   }
 
   return (
-    <Modal title="Add a guild" onClose={onClose}>
+    <Modal title={t('guildAdmin.addGuild.title')} onClose={onClose}>
       <form onSubmit={create} className="vc-form">
-        <label htmlFor="new-guild-name">Create your own</label>
+        <label htmlFor="new-guild-name">{t('guildAdmin.addGuild.createLabel')}</label>
         <div className="vc-form-row">
           <input
             id="new-guild-name"
             className="form-control"
-            placeholder="Guild name"
+            placeholder={t('guildAdmin.addGuild.namePlaceholder')}
             maxLength={100}
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
           />
-          <button type="submit" className="btn btn-primary vc-button" disabled={busy || !name.trim()}>Create</button>
+          <button type="submit" className="btn btn-primary vc-button" disabled={busy || !name.trim()}>{t('common.create')}</button>
         </div>
       </form>
 
       <form onSubmit={join} className="vc-form">
-        <label htmlFor="join-guild-invite">Have an invite?</label>
+        <label htmlFor="join-guild-invite">{t('guildAdmin.addGuild.joinLabel')}</label>
         <div className="vc-form-row">
           <input
             id="join-guild-invite"
             className="form-control"
-            placeholder="https://app.voicaw.com/invite/hTKzmak or hTKzmak"
+            placeholder={t('guildAdmin.addGuild.invitePlaceholder')}
             value={invite}
             onChange={(e) => setInvite(e.target.value)}
           />
-          <button type="submit" className="btn btn-secondary" disabled={busy || !invite.trim()}>Join</button>
+          <button type="submit" className="btn btn-secondary" disabled={busy || !invite.trim()}>{t('guildAdmin.addGuild.join')}</button>
         </div>
       </form>
 

@@ -21,6 +21,7 @@ import { useDateFormat } from '../../utils/dateFormat';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import ChannelIcon from './ChannelIcon';
 import ContextMenu from '../ContextMenu';
+import { t } from '../../i18n';
 
 // A channel's menu in the channel list (right-click, or touch and hold on a phone), like
 // Discord's: Mark As Read, Mute Channel (for how long) or Unmute, its Notification Settings
@@ -43,7 +44,7 @@ export default function ChannelMenu({ guild, channel, anchor, sheet, onEdit, onC
   if (chat && unread) {
     items.push({
       key: 'read',
-      label: 'Mark As Read',
+      label: t('guildAdmin.categoryMenu.markAsRead'),
       icon: faCheckDouble,
       onSelect: async () => {
         await markChannelReadToLatest(channel.id);
@@ -55,17 +56,17 @@ export default function ChannelMenu({ guild, channel, anchor, sheet, onEdit, onC
     items.push(mute
       ? {
         key: 'mute',
-        label: 'Unmute Channel',
+        label: t('guildAdmin.channelMenu.unmute'),
         hint: mutedUntilText(mute.until),
         icon: faBell,
         onSelect: async () => guildList.applyMute(await unmuteChannel(channel.id)),
       }
       : {
         key: 'mute',
-        label: 'Mute Channel',
+        label: t('guildAdmin.channelMenu.mute'),
         icon: faBellSlash,
         submenu: {
-          title: 'Mute Channel',
+          title: t('guildAdmin.channelMenu.mute'),
           items: MUTE_DURATIONS.map(([label, duration]) => ({
             key: `mute-${duration}`,
             label,
@@ -76,15 +77,15 @@ export default function ChannelMenu({ guild, channel, anchor, sheet, onEdit, onC
     const setLevel = (level) => async () => guildList.applyChannelLevel(await setChannelNotifications(channel.id, level));
     items.push({
       key: 'notifications',
-      label: 'Notification Settings',
-      hint: ownLevel ? NOTIFY_LEVEL_LABELS[ownLevel] : 'Guild default',
+      label: t('guildAdmin.guildMenu.notifications'),
+      hint: ownLevel ? NOTIFY_LEVEL_LABELS[ownLevel] : t('guildAdmin.channelMenu.guildDefault'),
       icon: faBell,
       submenu: {
-        title: 'Notification Settings',
+        title: t('guildAdmin.guildMenu.notifications'),
         items: [
           {
             key: 'level-default',
-            label: 'Use Guild Default',
+            label: t('guildAdmin.channelMenu.useGuildDefault'),
             hint: NOTIFY_LEVEL_LABELS[guildLevel],
             checked: ownLevel === null,
             onSelect: setLevel(null),
@@ -101,20 +102,20 @@ export default function ChannelMenu({ guild, channel, anchor, sheet, onEdit, onC
   }
   items.push({
     key: 'link',
-    label: 'Copy Link',
+    label: t('guildAdmin.guildMenu.copyLink'),
     icon: faLink,
     onSelect: async () => {
       await navigator.clipboard.writeText(channelLink(guild.id, channel.id));
-      return 'Link copied';
+      return t('guildAdmin.guildMenu.linkCopied');
     },
   });
   if (managesChannels || editsWebhooks) {
-    items.push({ separator: true }, { key: 'edit', label: 'Edit Channel', icon: faGear, onSelect: onEdit });
+    items.push({ separator: true }, { key: 'edit', label: t('guildAdmin.channelMenu.edit'), icon: faGear, onSelect: onEdit });
   }
   if (managesChannels) {
     items.push(
-      { key: 'clone', label: 'Duplicate Channel', icon: faClone, onSelect: onClone },
-      { key: 'delete', label: 'Delete Channel', icon: faTrash, danger: true, onSelect: onDelete },
+      { key: 'clone', label: t('guildAdmin.cloneChannel.submit'), icon: faClone, onSelect: onClone },
+      { key: 'delete', label: t('guildAdmin.channelMenu.delete'), icon: faTrash, danger: true, onSelect: onDelete },
     );
   }
 

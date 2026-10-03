@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import '../assets/css/recovery.css';
 import { triggerDownload } from '../utils/saveFile';
+import { Trans } from 'react-i18next';
+import { t } from '../i18n';
 
 // Shows a new recovery code once, with copy / save buttons, and only lets the user go on
 // once they say they've kept it. `onDone` may be async (e.g. storing the code); if it fails,
 // its message is shown, and `onSkip` (if given) offers a way on without the code.
-export default function RecoveryCodeDisplay({ code, username, onDone, onSkip, intro, doneLabel = 'Continue' }) {
+export default function RecoveryCodeDisplay({ code, username, onDone, onSkip, intro, doneLabel = t('settings.recoveryCode.continue') }) {
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -32,9 +34,7 @@ export default function RecoveryCodeDisplay({ code, username, onDone, onSkip, in
   };
 
   const download = () => {
-    const text = `Voicaw recovery code for ${username}\n\n${code}\n\n`
-      + 'If you forget your password, use "Forgot password?" on the login page with this code.\n'
-      + 'Keep it somewhere safe and private: anyone with it can take over your account.\n';
+    const text = t('settings.recoveryCode.fileText', { username, code });
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
     triggerDownload(url, 'voicaw-recovery-code.txt');
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
@@ -44,28 +44,26 @@ export default function RecoveryCodeDisplay({ code, username, onDone, onSkip, in
     <div className="recovery-code-display">
       {intro && <p>{intro}</p>}
       <p>
-        This is your <strong>recovery code</strong>. If you ever forget your password, it's the only
-        way back into your account and your messages. Nobody else has a copy, not even the server,
-        and it won't be shown again.
+        <Trans i18nKey="settings.recoveryCode.explanation" components={{ b: <strong /> }} />
       </p>
-      <div className="recovery-code" aria-label="Recovery code">
+      <div className="recovery-code" aria-label={t('settings.recoveryCode.title')}>
         {code.split('-').map((group, i, groups) => (
           <span key={i}>{group}{i < groups.length - 1 && '-'}</span>
         ))}
       </div>
       <div className="recovery-code-buttons">
-        <button type="button" className="btn btn-sm btn-vc" onClick={copy}>{copied ? 'Copied' : 'Copy'}</button>
-        <button type="button" className="btn btn-sm btn-vc" onClick={download}>Save as file</button>
+        <button type="button" className="btn btn-sm btn-vc" onClick={copy}>{copied ? t('common.copied') : t('common.copy')}</button>
+        <button type="button" className="btn btn-sm btn-vc" onClick={download}>{t('settings.recoveryCode.saveAsFile')}</button>
       </div>
       <p className="recovery-hint">
-        Save it in a password manager, or write it down and keep it somewhere safe.
+        {t('settings.recoveryCode.keepItSafe')}
       </p>
       <label className="recovery-confirm">
         <input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} />
-        {' '}I've saved my recovery code
+        {' '}{t('settings.recoveryCode.savedIt')}
       </label>
       <button type="button" className="btn btn-vc w-100" disabled={!saved || busy} onClick={done}>
-        {busy ? 'Please wait…' : doneLabel}
+        {busy ? t('settings.pleaseWait') : doneLabel}
       </button>
       {error && (
         <p className="recovery-error" role="alert">
@@ -73,7 +71,7 @@ export default function RecoveryCodeDisplay({ code, username, onDone, onSkip, in
           {onSkip && (
             <>
               {' '}
-              <button type="button" className="link-button" onClick={onSkip}>Skip for now</button>
+              <button type="button" className="link-button" onClick={onSkip}>{t('settings.recoveryCode.skip')}</button>
             </>
           )}
         </p>

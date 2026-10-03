@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { nameOf } from './profiles';
 
 // Mentions, written like Discord's in message text: `<@id>` (a person), `<@&id>` (a guild role),
@@ -19,9 +20,9 @@ export const channelMentionText = (id) => `<#${id}>`;
 
 // Someone who isn't in the chat (any more), a role that's gone, a channel you can't see (or
 // that's gone).
-export const UNKNOWN_MENTION = 'unknown-user';
-export const UNKNOWN_ROLE = 'deleted-role';
-export const UNKNOWN_CHANNEL = 'unknown-channel';
+export const UNKNOWN_MENTION = t('chat.mentions.unknownUser');
+export const UNKNOWN_ROLE = t('chat.mentions.deletedRole');
+export const UNKNOWN_CHANNEL = t('chat.mentions.unknownChannel');
 
 export function mentionName(names, id) {
   return names?.[id] ?? UNKNOWN_MENTION;
@@ -84,8 +85,8 @@ export function searchPeople(people, query, limit = 8) {
 }
 
 const EVERYONE_ITEMS = [
-  { kind: 'everyone', name: 'everyone', description: 'Notify everyone who can see this channel.' },
-  { kind: 'everyone', name: 'here', description: 'Notify everyone online who can see this channel.' },
+  { kind: 'everyone', name: 'everyone', description: t('chat.mentions.everyone') },
+  { kind: 'everyone', name: 'here', description: t('chat.mentions.here') },
 ];
 
 // What "@query" could complete to, like Discord's list: people first, then roles

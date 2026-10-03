@@ -127,7 +127,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   message list and history loading.
 - `docs/uploads.md`: the object store, encrypted attachments, video streaming, spoilers, image
   viewer.
-- `docs/client.md`: client structure (contexts, Layout, settings, dates, themes, sidebar, phone
+- `docs/client.md`: client structure (contexts, translations, Layout, settings, dates, themes, sidebar, phone
   panes, PWA updates, spellcheck, right-click menus, pinned and muted conversations, account preferences),
   profiles and pictures, sounds, admin settings.
 - `docs/desktop-and-site.md`: the Electron app, voicaw.com.
@@ -155,7 +155,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   layouts are `desktop.css` / `mobile.css`; new sidebar/header UI uses `--vc-sidebar-width` and
   `--vc-header-height`. react-markdown's `components` must be a stable object, and memoised
   message parts take only stable props. New settings are a section in `Settings.jsx`. The app's
-  text is British English.
+  text is British English, and every string shown goes through `t('area.key')` with its
+  English in `i18n/en-GB/<area>.json` (see Translations in `docs/client.md`; lint fails on
+  text written straight into JSX).
 
 ## Decisions, plans and known issues
 

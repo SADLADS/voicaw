@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { applyTyping, clearTyping, resetTyping, typingIn, typingParts, TYPING_MS } from './typing';
+import { applyTyping, clearTyping, resetTyping, typingIn, TYPING_MS } from './typing';
 
 describe('typing store', () => {
   beforeEach(() => {
@@ -36,15 +36,5 @@ describe('typing store', () => {
     clearTyping('channel-1', 2);
     clearTyping('channel-1', 5);
     expect(typingIn('channel-1')).toEqual([]);
-  });
-});
-
-describe('typingParts', () => {
-  it('names up to three people, then gives up', () => {
-    expect(typingParts([])).toEqual([]);
-    expect(typingParts(['Ann'])).toEqual([{ name: 'Ann' }, ' is typing']);
-    expect(typingParts(['Ann', 'Bea'])).toEqual([{ name: 'Ann' }, ' and ', { name: 'Bea' }, ' are typing']);
-    expect(typingParts(['Ann', 'Bea', 'Cal'])).toEqual([{ name: 'Ann' }, ', ', { name: 'Bea' }, ' and ', { name: 'Cal' }, ' are typing']);
-    expect(typingParts(['Ann', 'Bea', 'Cal', 'Dan'])).toEqual(['Several people are typing']);
   });
 });

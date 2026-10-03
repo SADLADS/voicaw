@@ -2,6 +2,7 @@ import React from 'react';
 import { formatDateTime, useDateFormat } from '../utils/dateFormat';
 import { useMediaCover } from '../hooks/useMediaCover';
 import MediaCover from './MediaCover';
+import { t } from '../i18n';
 
 // Links in embeds open in a new tab, telling the site nothing about where they came from.
 function EmbedLink({ href, className, children }) {
@@ -14,7 +15,7 @@ function EmbedLink({ href, className, children }) {
 function EmbedImage({ image, className }) {
   const cover = useMediaCover();
   return (
-    <MediaCover label={cover} name="embedded image">
+    <MediaCover label={cover} name={t('media.embeds.image')}>
       <img
         className={className}
         src={image.url}
@@ -70,9 +71,7 @@ function Embed({ embed, renderMarkdown }) {
           <div className="embed-footer">
             {footer?.icon_url && <img className="embed-footer-icon" src={footer.icon_url} alt="" referrerPolicy="no-referrer" />}
             <span>
-              {footer?.text}
-              {footer?.text && time ? ' • ' : ''}
-              {time}
+              {footer?.text && time ? t('media.embeds.footerWithTime', { text: footer.text, time }) : footer?.text || time}
             </span>
           </div>
         )}
