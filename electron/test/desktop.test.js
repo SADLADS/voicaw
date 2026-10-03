@@ -11,6 +11,7 @@ const { cleanNotification } = require('../notifications.js');
 const { paintDot, unreadLabel } = require('../tray.js');
 const { linuxAutostartEntry } = require('../autoStart.js');
 const { spellcheckLanguages, syncSpellingWords } = require('../spellcheck.js');
+const { STREAM_WINDOW_NAME, windowOpenAction, streamWindowPermission } = require('../windowOpen.js');
 
 describe('serving the app (protocol.js)', () => {
     let root;
@@ -130,5 +131,36 @@ describe('spellcheck languages (spellcheck.js)', () => {
         expect([...words].sort()).toEqual(['Voicaw', 'kept']);
         await syncSpellingWords(session, 'nonsense');
         expect([...words].sort()).toEqual(['Voicaw', 'kept']);
+    });
+});
+
+describe('windows the page opens (windowOpen.js)', () => {
+    function open(details) {
+        const opened = [];
+        const result = windowOpenAction(details, { icon: '/icon.png', openExternal: (url) => opened.push(url) });
+        return { result, opened };
+    }
+
+    it('lets the popped-out stream open, as a window with the app icon', () => {
+        const { result, opened } = open({ url: 'about:blank', frameName: STREAM_WINDOW_NAME });
+        expect(result.action).toBe('allow');
+        expect(result.overrideBrowserWindowOptions.icon).toBe('/icon.png');
+        expect(opened).toEqual([]);
+    });
+
+    it('sends links to the browser and opens nothing else', () => {
+        expect(open({ url: 'https://example.com/', frameName: '' })).toEqual({ result: { action: 'deny' }, opened: ['https://example.com/'] });
+        expect(open({ url: 'mailto:a@example.com', frameName: '' }).opened).toEqual(['mailto:a@example.com']);
+        // The stream window's name with a page in it, or a blank window by another name.
+        expect(open({ url: 'voicaw://app/', frameName: STREAM_WINDOW_NAME })).toEqual({ result: { action: 'deny' }, opened: [] });
+        expect(open({ url: 'about:blank', frameName: 'other' })).toEqual({ result: { action: 'deny' }, opened: [] });
+        expect(open({ url: 'file:///etc/passwd', frameName: '' }).opened).toEqual([]);
+    });
+
+    it('gives the stream window full screen and nothing else', () => {
+        expect(streamWindowPermission('fullscreen')).toBe(true);
+        for (const permission of ['media', 'notifications', 'display-capture', 'clipboard-sanitized-write']) {
+            expect(streamWindowPermission(permission)).toBe(false);
+        }
     });
 });

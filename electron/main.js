@@ -2,6 +2,7 @@
 // protocol.js), plus what a browser tab can't do: notifications without web push, a tray
 // icon with the unread count, closing to the tray, starting at login, global mute/deafen
 // shortcuts, a screen picker for screen sharing and updating itself. The page reaches these through preload.js.
+// (Its only other window is a popped-out screen share, which the page draws itself; windowOpen.js.)
 const path = require('path');
 const { app, BrowserWindow, Menu, desktopCapturer, globalShortcut, ipcMain, net, protocol, screen, session, shell } = require('electron');
 const { setUpSpellcheck, syncSpellingWords } = require('./spellcheck');
@@ -13,6 +14,7 @@ const { applyShortcuts } = require('./shortcuts');
 const { createUpdater } = require('./updater');
 const { setStartAtLogin, startedHidden } = require('./autoStart');
 const { createScreenShare } = require('./screenShare');
+const { windowOpenAction, streamWindowPermission } = require('./windowOpen');
 
 const APP_ID = 'com.voicaw.app';
 const BUILD_DIR = app.isPackaged ? path.join(process.resourcesPath, 'app') : path.join(__dirname, '../build');
@@ -23,6 +25,8 @@ const ALLOWED_PERMISSIONS = new Set(['media', 'notifications', 'clipboard-saniti
 registerScheme(protocol);
 
 let win = null;
+// The popped-out screen share's window (windowOpen.js), while it's open.
+const streamWindows = new WeakSet();
 let quitting = false;
 let settings;
 let tray;
@@ -101,10 +105,15 @@ function createWindow(hidden) {
 
     win.once('ready-to-show', () => { if (!hidden) win.show(); });
 
-    // Links to other sites open in the browser; the window only ever shows the app.
-    win.webContents.setWindowOpenHandler(({ url }) => {
-        if (/^(https?:|mailto:)/.test(url)) shell.openExternal(url);
-        return { action: 'deny' };
+    // Links to other sites open in the browser; the window only ever shows the app, and the
+    // one window it may open is a popped-out screen share (windowOpen.js).
+    const icon = path.join(__dirname, 'assets', 'icon.png');
+    win.webContents.setWindowOpenHandler((details) => windowOpenAction(details, { icon, openExternal: (url) => shell.openExternal(url) }));
+    win.webContents.on('did-create-window', (child) => {
+        child.removeMenu();
+        streamWindows.add(child.webContents);
+        child.webContents.setWindowOpenHandler(({ url }) => windowOpenAction({ url }, { icon, openExternal: (link) => shell.openExternal(link) }));
+        child.webContents.on('will-navigate', (event) => event.preventDefault());
     });
     win.webContents.on('will-navigate', (event, url) => {
         if (url.startsWith(`${ORIGIN}/`)) return;
@@ -136,6 +145,7 @@ function createWindow(hidden) {
 function setUpPermissions() {
     const ses = session.defaultSession;
     ses.setPermissionRequestHandler((webContents, permission, callback, details) => {
+        if (streamWindows.has(webContents)) return callback(streamWindowPermission(permission));
         const ours = (details.requestingUrl ?? '').startsWith(`${ORIGIN}/`);
         // The microphone, not the camera (screen capture goes through the handler below).
         const audioOnly = permission !== 'media' || !details.mediaTypes?.includes('video');
@@ -143,7 +153,9 @@ function setUpPermissions() {
     });
     ses.setDisplayMediaRequestHandler((request, callback) => screenShare.handleRequest(request, callback));
     ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) =>
-        requestingOrigin === ORIGIN && ALLOWED_PERMISSIONS.has(permission));
+        (webContents && streamWindows.has(webContents)
+            ? streamWindowPermission(permission)
+            : requestingOrigin === ORIGIN && ALLOWED_PERMISSIONS.has(permission)));
 }
 
 // Returns the actions whose key couldn't be registered.

@@ -736,3 +736,7 @@ export function attachStream(identity, element) {
 export function clearStreamError() {
   update({ streamError: null });
 }
+
+export function setStreamError(message) {
+  update({ streamError: message });
+}

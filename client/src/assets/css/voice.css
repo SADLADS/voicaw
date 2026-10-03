@@ -438,6 +438,57 @@ button.user-panel-button {
   border-radius: 0;
 }
 
+/* Popped out (voice/streamWindow.js): the stream is the whole window. */
+body.stream-window {
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #000;
+}
+
+.stream-window-root {
+  display: flex;
+  height: 100%;
+}
+
+.stream-view.popped-out {
+  margin: 0;
+  border-radius: 0;
+}
+
+/* On the channel's page while the stream is in its own window. */
+.stream-popped-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 12px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+}
+
+.stream-popped-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.stream-popped-button {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 4px;
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stream-popped-button:hover {
+  background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
+}
+
 .voice-view.watching .voice-view-tiles {
   flex: 0 0 auto;
   display: flex;
