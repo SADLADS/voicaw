@@ -33,7 +33,7 @@ async function audienceFor(chatId, userId) {
   const numericId = Number(id);
   if (!kind) {
     if (numericId === userId) return null; // notes to yourself
-    const other = await db.get('SELECT id FROM users WHERE id = ? AND deleted_at IS NULL', [numericId]);
+    const other = await db.get('SELECT id FROM users WHERE id = ? AND deleted_at IS NULL AND bot = 0', [numericId]);
     return other ? { userIds: [other.id], chatId: String(userId) } : null;
   }
   let channelId = numericId;

@@ -6,11 +6,14 @@ const { getChannelAccess, sendToChannel, deleteChannelContents, cleanName } = re
 const { logAudit, diff } = require('../auditLog');
 const { releaseUploads } = require('../uploads');
 const threads = require('../threads');
+const { ActionError, withActionErrors } = require('../actionError');
 
 // Threads in guild text channels (threads.js, docs/guilds.md). Seeing a thread follows its
 // channel's View Channel; starting one needs Create Threads there, posting in one Send Messages
 // in Threads (guildMessages.js, through getChannelAccess). Its starter renames and archives it;
-// Manage Messages in the channel renames, archives and deletes anyone's.
+// Manage Messages in the channel renames, archives and deletes anyone's. The actions take
+// `{ channel, permissions, userId }` (the caller's access) so the bot API (routes/botApi.js)
+// shares them; they throw ActionError.
 const router = express.Router();
 
 const nameError = `Thread names are 1–${threads.MAX_THREAD_NAME} characters`;
@@ -38,24 +41,24 @@ async function requireThread(req, res, next) {
   next();
 }
 
-const canManage = (req) => has(req.permissions, PERMISSIONS.MANAGE_MESSAGES);
+const canManage = (permissions) => has(permissions, PERMISSIONS.MANAGE_MESSAGES);
 
-// Starts a thread called `name` from message `messageId` in the channel (one thread per
+// Starts a thread called `name` from message `messageId` in the text channel (one thread per
 // message), or with no `messageId` on its own: then a "started a thread" row (system 'thread')
-// goes in the channel as its starter. The starter joins it.
-router.post('/channels/:channelId/threads', authenticateJWT, requireTextChannel, async (req, res) => {
-  if (!has(req.permissions, PERMISSIONS.CREATE_THREADS)) return res.status(403).json({ error: "You don't have permission to do that" });
-  const name = cleanName(req.body?.name, threads.MAX_THREAD_NAME);
-  if (!name) return res.status(400).json({ error: nameError });
-  const messageId = req.body?.messageId ?? null;
+// goes in the channel as its starter. The starter joins it. Resolves to the thread.
+async function startThread({ channel, permissions, userId }, { name: givenName, messageId = null }) {
+  if (channel.type !== 'text') throw new ActionError(400, 'Not a text channel', 50024);
+  if (!has(permissions, PERMISSIONS.CREATE_THREADS)) throw new ActionError(403, "You don't have permission to do that");
+  const name = cleanName(givenName, threads.MAX_THREAD_NAME);
+  if (!name) throw new ActionError(400, nameError);
   if (messageId != null) {
     const message = Number.isInteger(messageId) && await db.get(
       'SELECT id, system FROM guild_messages WHERE id = ? AND channel_id = ?',
-      [messageId, req.channel.id]
+      [messageId, channel.id]
     );
-    if (!message || message.system) return res.status(400).json({ error: 'Invalid message' });
+    if (!message || message.system) throw new ActionError(400, 'Invalid message', 10008);
     if (await db.get("SELECT id FROM guild_channels WHERE type = 'thread' AND starter_message_id = ?", [messageId])) {
-      return res.status(409).json({ error: 'That message already has a thread' });
+      throw new ActionError(409, 'That message already has a thread', 160004);
     }
   }
 
@@ -64,30 +67,30 @@ router.post('/channels/:channelId/threads', authenticateJWT, requireTextChannel,
     const { lastID: id } = await db.run(
       `INSERT INTO guild_channels (guild_id, category_id, name, type, position, parent_id, owner_id, starter_message_id, created_at, last_activity)
        VALUES (?, NULL, ?, 'thread', 0, ?, ?, ?, ?, ?)`,
-      [req.channel.guild_id, name, req.channel.id, req.user.id, messageId, at, at]
+      [channel.guild_id, name, channel.id, userId, messageId, at, at]
     );
     let row = null;
     if (messageId == null) {
       ({ lastID: row } = await db.run(
         `INSERT INTO guild_messages (channel_id, sender_id, content, system, timestamp) VALUES (?, ?, ?, ?, ?)`,
-        [req.channel.id, req.user.id, name, threads.THREAD_ROW, at]
+        [channel.id, userId, name, threads.THREAD_ROW, at]
       ));
       await db.run('UPDATE guild_channels SET starter_message_id = ? WHERE id = ?', [row, id]);
       await db.run(
         `INSERT INTO guild_channel_reads (user_id, channel_id, last_read_id) VALUES (?, ?, ?)
          ON CONFLICT(user_id, channel_id) DO UPDATE SET last_read_id = MAX(last_read_id, excluded.last_read_id)`,
-        [req.user.id, req.channel.id, row]
+        [userId, channel.id, row]
       );
     }
-    await threads.addMember(id, req.user.id);
+    await threads.addMember(id, userId);
     await logAudit({
-      guildId: req.channel.guild_id,
+      guildId: channel.guild_id,
       action: 'thread_create',
-      actorId: req.user.id,
+      actorId: userId,
       targetType: 'thread',
       targetId: id,
-      channelId: req.channel.id,
-      details: { name, channelName: req.channel.name },
+      channelId: channel.id,
+      details: { name, channelName: channel.name },
     });
     return { threadId: id, rowId: row };
   });
@@ -95,11 +98,19 @@ router.post('/channels/:channelId/threads', authenticateJWT, requireTextChannel,
   if (rowId) {
     const { MESSAGE_SELECT, withReactions } = require('./guildMessages');
     const [message] = await withReactions([await db.get(`${MESSAGE_SELECT} WHERE m.id = ?`, [rowId])]);
-    await sendToChannel(req.channel, { type: 'guild_message_new', guildId: req.channel.guild_id, message });
+    await sendToChannel(channel, { type: 'guild_message_new', guildId: channel.guild_id, message });
   }
-  await threads.announceThread(threadId, { joinedIds: [req.user.id] });
-  res.status(201).json(await threads.getThread(threadId, req.user.id));
-});
+  await threads.announceThread(threadId, { joinedIds: [userId] });
+  return threads.getThread(threadId, userId);
+}
+
+router.post('/channels/:channelId/threads', authenticateJWT, requireTextChannel, withActionErrors(async (req, res) => {
+  const thread = await startThread(
+    { channel: req.channel, permissions: req.permissions, userId: req.user.id },
+    { name: req.body?.name, messageId: req.body?.messageId ?? null }
+  );
+  res.status(201).json(thread);
+}));
 
 // The channel's threads, active and archived, most recently active first.
 router.get('/channels/:channelId/threads', authenticateJWT, requireTextChannel, async (req, res) => {
@@ -120,22 +131,27 @@ router.get('/threads/:threadId', authenticateJWT, requireThread, async (req, res
 
 // Renames (`name`) or archives (`archived`) the thread: its starter or Manage Messages; anyone
 // who may post in it can unarchive it (posting does too).
-router.patch('/threads/:threadId', authenticateJWT, requireThread, async (req, res) => {
-  const { name: givenName, archived } = req.body ?? {};
-  const own = req.thread.owner_id === req.user.id;
+router.patch('/threads/:threadId', authenticateJWT, requireThread, withActionErrors(async (req, res) => {
+  await updateThread({ thread: req.thread, channel: req.channel, permissions: req.permissions, userId: req.user.id }, req.body ?? {});
+  res.json(await threads.getThread(req.thread.id, req.user.id));
+}));
+
+// Renames (`name`) or archives (`archived`) `thread` (as threads.getThread gives it).
+async function updateThread({ thread, channel, permissions, userId }, { name: givenName, archived }) {
+  const own = thread.owner_id === userId;
   const updates = [];
   const params = [];
   if (givenName !== undefined) {
     const name = cleanName(givenName, threads.MAX_THREAD_NAME);
-    if (!name) return res.status(400).json({ error: nameError });
-    if (!own && !canManage(req)) return res.status(403).json({ error: "You don't have permission to do that" });
+    if (!name) throw new ActionError(400, nameError);
+    if (!own && !canManage(permissions)) throw new ActionError(403, "You don't have permission to do that");
     updates.push('name = ?');
     params.push(name);
   }
   if (archived !== undefined) {
-    if (typeof archived !== 'boolean') return res.status(400).json({ error: 'Invalid archived' });
-    const allowed = archived ? own || canManage(req) : has(req.permissions, PERMISSIONS.SEND_MESSAGES) || canManage(req);
-    if (!allowed) return res.status(403).json({ error: "You don't have permission to do that" });
+    if (typeof archived !== 'boolean') throw new ActionError(400, 'Invalid archived');
+    const allowed = archived ? own || canManage(permissions) : has(permissions, PERMISSIONS.SEND_MESSAGES) || canManage(permissions);
+    if (!allowed) throw new ActionError(403, "You don't have permission to do that");
     updates.push('archived = ?');
     params.push(archived ? 1 : 0);
     // Unarchiving starts its week again.
@@ -144,43 +160,46 @@ router.patch('/threads/:threadId', authenticateJWT, requireThread, async (req, r
       params.push(Math.floor(Date.now() / 1000));
     }
   }
-  if (updates.length) {
-    await db.transaction(async () => {
-      await db.run(`UPDATE guild_channels SET ${updates.join(', ')} WHERE id = ?`, [...params, req.thread.id]);
-      const saved = await threads.getThread(req.thread.id);
-      const changes = diff(req.thread, { name: saved.name, archived: saved.archived });
-      if (Object.keys(changes).length) {
-        await logAudit({
-          guildId: req.channel.guild_id,
-          action: 'thread_update',
-          actorId: req.user.id,
-          targetType: 'thread',
-          targetId: req.thread.id,
-          channelId: req.thread.parent_id,
-          details: { name: saved.name, changes },
-        });
-      }
-    });
-    await threads.announceThread(req.thread.id);
-  }
-  res.json(await threads.getThread(req.thread.id, req.user.id));
-});
+  if (!updates.length) return;
+  await db.transaction(async () => {
+    await db.run(`UPDATE guild_channels SET ${updates.join(', ')} WHERE id = ?`, [...params, thread.id]);
+    const saved = await threads.getThread(thread.id);
+    const changes = diff(thread, { name: saved.name, archived: saved.archived });
+    if (Object.keys(changes).length) {
+      await logAudit({
+        guildId: channel.guild_id,
+        action: 'thread_update',
+        actorId: userId,
+        targetType: 'thread',
+        targetId: thread.id,
+        channelId: thread.parent_id,
+        details: { name: saved.name, changes },
+      });
+    }
+  });
+  await threads.announceThread(thread.id);
+}
 
 // Deletes the thread and everything in it (Manage Messages), and its "started a thread" row.
-router.delete('/threads/:threadId', authenticateJWT, requireThread, async (req, res) => {
-  if (!canManage(req)) return res.status(403).json({ error: "You don't have permission to do that" });
-  const { id, guild_id: guildId, parent_id: parentId, starter_message_id: starterId } = req.thread;
+router.delete('/threads/:threadId', authenticateJWT, requireThread, withActionErrors(async (req, res) => {
+  await deleteThread({ thread: req.thread, permissions: req.permissions, userId: req.user.id });
+  res.json({ success: true });
+}));
+
+async function deleteThread({ thread, permissions, userId }) {
+  if (!canManage(permissions)) throw new ActionError(403, "You don't have permission to do that");
+  const { id, guild_id: guildId, parent_id: parentId, starter_message_id: starterId } = thread;
   const row = starterId && await db.get('SELECT id FROM guild_messages WHERE id = ? AND system = ?', [starterId, threads.THREAD_ROW]);
   const parent = await db.get('SELECT name FROM guild_channels WHERE id = ?', [parentId]);
   await db.transaction(async () => {
     await logAudit({
       guildId,
       action: 'thread_delete',
-      actorId: req.user.id,
+      actorId: userId,
       targetType: 'thread',
       targetId: id,
       channelId: parentId,
-      details: { name: req.thread.name, channelName: parent?.name },
+      details: { name: thread.name, channelName: parent?.name },
     });
     await deleteChannelContents('?', [id], { threads: false });
     await db.run('DELETE FROM guild_channels WHERE id = ?', [id]);
@@ -193,13 +212,16 @@ router.delete('/threads/:threadId', authenticateJWT, requireThread, async (req, 
   const channel = { id: parentId, guild_id: guildId };
   if (row) await sendToChannel(channel, { type: 'guild_message_delete', guildId, channelId: parentId, messageId: row.id });
   await sendToChannel(channel, { type: 'guild_thread_delete', guildId, channelId: parentId, threadId: id });
-  res.json({ success: true });
-});
+}
 
-// Joins (PUT) or leaves (DELETE) the thread: members have it in their channel list.
+// `userId` joins or leaves thread `threadId`: members have it in their channel list.
+async function setThreadMembership(threadId, userId, joined) {
+  const changed = joined ? await threads.addMember(threadId, userId) : await threads.removeMember(threadId, userId);
+  if (changed) await threads.announceThread(threadId, joined ? { joinedIds: [userId] } : { leftIds: [userId] });
+}
+
 async function setMembership(req, res, joined) {
-  const changed = joined ? await threads.addMember(req.thread.id, req.user.id) : await threads.removeMember(req.thread.id, req.user.id);
-  if (changed) await threads.announceThread(req.thread.id, joined ? { joinedIds: [req.user.id] } : { leftIds: [req.user.id] });
+  await setThreadMembership(req.thread.id, req.user.id, joined);
   res.json({ threadId: req.thread.id, joined });
 }
 
@@ -207,3 +229,7 @@ router.put('/threads/:threadId/member', authenticateJWT, requireThread, (req, re
 router.delete('/threads/:threadId/member', authenticateJWT, requireThread, (req, res) => setMembership(req, res, false));
 
 module.exports = router;
+module.exports.startThread = startThread;
+module.exports.updateThread = updateThread;
+module.exports.deleteThread = deleteThread;
+module.exports.setThreadMembership = setThreadMembership;

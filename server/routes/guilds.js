@@ -25,6 +25,7 @@ const {
 const { NOTIFY_LEVELS } = require('../mentions');
 const { logAudit, diff } = require('../auditLog');
 const { releaseUploads } = require('../uploads');
+const { ActionError, withActionErrors } = require('../actionError');
 
 // Guilds: creating and managing them, members, bans, invites, categories and
 // channels. Roles and channel overrides are in routes/guildRoles.js, messages in
@@ -186,7 +187,7 @@ router.post('/guilds/:guildId/transfer', owner, async (req, res) => {
 // Everyone in the guild, with their role ids (for colours, grouping and the member card).
 router.get('/guilds/:guildId/members', member, async (req, res) => {
   const members = await db.all(
-    `SELECT u.id, u.username, u.display_name, u.custom_status, u.bio, u.avatar, u.last_online, gm.joined_at
+    `SELECT u.id, u.username, u.display_name, u.custom_status, u.bio, u.avatar, u.last_online, u.bot, gm.joined_at
      FROM guild_members gm JOIN users u ON u.id = gm.user_id
      WHERE gm.guild_id = ? ORDER BY u.username COLLATE NOCASE`,
     [req.guild.id]
@@ -206,16 +207,51 @@ router.delete('/guilds/:guildId/members/me', member, async (req, res) => {
   res.json({ success: true });
 });
 
+// `actor` (a member context) kicks `userId`, who must rank below them. Shared with the bot API
+// (routes/botApi.js). Throws ActionError.
+async function kickMember(actor, userId) {
+  if (!has(actor.permissions, PERMISSIONS.KICK_MEMBERS)) throw new ActionError(403, "You don't have permission to do that");
+  if (userId === actor.userId) throw new ActionError(400, "You can't kick yourself");
+  if (!(await getMember(actor.guild.id, userId))) throw new ActionError(404, 'Not a member', 10007);
+  if (!(await outranks(actor, userId))) throw new ActionError(403, 'Their role is as high as yours or higher');
+  await logAudit({ guildId: actor.guild.id, actorId: actor.userId, action: 'member_kick', targetType: 'user', targetId: userId });
+  await removeMember(actor.guild.id, userId);
+}
+
+// `actor` bans (and removes) `userId`, who must rank below them; they can't rejoin through an
+// invite until unbanned. Throws ActionError.
+async function banMember(actor, userId) {
+  if (!has(actor.permissions, PERMISSIONS.BAN_MEMBERS)) throw new ActionError(403, "You don't have permission to do that");
+  if (userId === actor.userId) throw new ActionError(400, "You can't ban yourself");
+  if (!Number.isInteger(userId) || !(await db.get('SELECT id FROM users WHERE id = ?', [userId]))) {
+    throw new ActionError(404, 'User not found', 10013);
+  }
+  if (!(await outranks(actor, userId))) throw new ActionError(403, 'Their role is as high as yours or higher');
+  await db.transaction(async () => {
+    const { changes } = await db.run(
+      'INSERT OR IGNORE INTO guild_bans (guild_id, user_id, banned_by) VALUES (?, ?, ?)',
+      [actor.guild.id, userId, actor.userId]
+    );
+    if (changes) await logAudit({ guildId: actor.guild.id, actorId: actor.userId, action: 'member_ban_add', targetType: 'user', targetId: userId });
+  });
+  if (await getMember(actor.guild.id, userId)) await removeMember(actor.guild.id, userId);
+}
+
+// `actor` lifts `userId`'s ban; resolves to whether there was one.
+async function unbanMember(actor, userId) {
+  if (!has(actor.permissions, PERMISSIONS.BAN_MEMBERS)) throw new ActionError(403, "You don't have permission to do that");
+  return db.transaction(async () => {
+    const { changes } = await db.run('DELETE FROM guild_bans WHERE guild_id = ? AND user_id = ?', [actor.guild.id, userId]);
+    if (changes) await logAudit({ guildId: actor.guild.id, actorId: actor.userId, action: 'member_ban_remove', targetType: 'user', targetId: userId });
+    return changes > 0;
+  });
+}
+
 // Kick someone ranked below you.
-router.delete('/guilds/:guildId/members/:userId', withPermission(PERMISSIONS.KICK_MEMBERS), async (req, res) => {
-  const userId = Number(req.params.userId);
-  if (userId === req.user.id) return res.status(400).json({ error: "You can't kick yourself" });
-  if (!(await getMember(req.guild.id, userId))) return res.status(404).json({ error: 'Not a member' });
-  if (!(await outranks(req.member, userId))) return res.status(403).json({ error: 'Their role is as high as yours or higher' });
-  await audit(req, { action: 'member_kick', targetType: 'user', targetId: userId });
-  await removeMember(req.guild.id, userId);
+router.delete('/guilds/:guildId/members/:userId', member, withActionErrors(async (req, res) => {
+  await kickMember(req.member, Number(req.params.userId));
   res.json({ success: true });
-});
+}));
 
 router.get('/guilds/:guildId/bans', withPermission(PERMISSIONS.BAN_MEMBERS), async (req, res) => {
   res.json(await db.all(
@@ -225,33 +261,16 @@ router.get('/guilds/:guildId/bans', withPermission(PERMISSIONS.BAN_MEMBERS), asy
   ));
 });
 
-// Bans (and removes) a user ranked below you; they can't rejoin through an invite until unbanned.
-router.put('/guilds/:guildId/bans/:userId', withPermission(PERMISSIONS.BAN_MEMBERS), async (req, res) => {
-  const userId = Number(req.params.userId);
-  if (userId === req.user.id) return res.status(400).json({ error: "You can't ban yourself" });
-  if (!Number.isInteger(userId) || !(await db.get('SELECT id FROM users WHERE id = ?', [userId]))) {
-    return res.status(404).json({ error: 'User not found' });
-  }
-  if (!(await outranks(req.member, userId))) return res.status(403).json({ error: 'Their role is as high as yours or higher' });
-  await db.transaction(async () => {
-    const { changes } = await db.run(
-      'INSERT OR IGNORE INTO guild_bans (guild_id, user_id, banned_by) VALUES (?, ?, ?)',
-      [req.guild.id, userId, req.user.id]
-    );
-    if (changes) await audit(req, { action: 'member_ban_add', targetType: 'user', targetId: userId });
-  });
-  if (await getMember(req.guild.id, userId)) await removeMember(req.guild.id, userId);
+// Bans (and removes) a user ranked below you.
+router.put('/guilds/:guildId/bans/:userId', member, withActionErrors(async (req, res) => {
+  await banMember(req.member, Number(req.params.userId));
   res.json({ success: true });
-});
+}));
 
-router.delete('/guilds/:guildId/bans/:userId', withPermission(PERMISSIONS.BAN_MEMBERS), async (req, res) => {
-  const userId = Number(req.params.userId);
-  await db.transaction(async () => {
-    const { changes } = await db.run('DELETE FROM guild_bans WHERE guild_id = ? AND user_id = ?', [req.guild.id, userId]);
-    if (changes) await audit(req, { action: 'member_ban_remove', targetType: 'user', targetId: userId });
-  });
+router.delete('/guilds/:guildId/bans/:userId', member, withActionErrors(async (req, res) => {
+  await unbanMember(req.member, Number(req.params.userId));
   res.json({ success: true });
-});
+}));
 
 // ---- Invites ----
 
@@ -271,25 +290,27 @@ const INVITE_VALID = `(i.expires_at IS NULL OR i.expires_at > strftime('%s','now
   AND (i.max_uses IS NULL OR i.uses < i.max_uses)`;
 
 // `maxAge` (seconds) and `maxUses`: 0 or missing = no limit.
-router.post('/guilds/:guildId/invites', withPermission(PERMISSIONS.CREATE_INVITE), async (req, res) => {
-  const maxAge = Number(req.body?.maxAge ?? 0);
-  const maxUses = Number(req.body?.maxUses ?? 0);
-  if (!Number.isInteger(maxAge) || maxAge < 0 || maxAge > MAX_INVITE_AGE) {
-    return res.status(400).json({ error: 'Invalid maxAge' });
-  }
-  if (!Number.isInteger(maxUses) || maxUses < 0 || maxUses > MAX_INVITE_USES) {
-    return res.status(400).json({ error: 'Invalid maxUses' });
-  }
+router.post('/guilds/:guildId/invites', member, withActionErrors(async (req, res) => {
+  const invite = await createInvite(req.member, { maxAge: Number(req.body?.maxAge ?? 0), maxUses: Number(req.body?.maxUses ?? 0) });
+  res.status(201).json(invite);
+}));
+
+// `actor` (with Create Invite) makes an invite; resolves to it (INVITE_SELECT). Shared with the
+// bot API. Throws ActionError.
+async function createInvite(actor, { maxAge, maxUses }) {
+  if (!has(actor.permissions, PERMISSIONS.CREATE_INVITE)) throw new ActionError(403, "You don't have permission to do that");
+  if (!Number.isInteger(maxAge) || maxAge < 0 || maxAge > MAX_INVITE_AGE) throw new ActionError(400, 'Invalid maxAge');
+  if (!Number.isInteger(maxUses) || maxUses < 0 || maxUses > MAX_INVITE_USES) throw new ActionError(400, 'Invalid maxUses');
   const code = newInviteCode();
   await db.transaction(async () => {
     await db.run(
       'INSERT INTO guild_invites (code, guild_id, creator_id, expires_at, max_uses) VALUES (?, ?, ?, ?, ?)',
-      [code, req.guild.id, req.user.id, maxAge ? now() + maxAge : null, maxUses || null]
+      [code, actor.guild.id, actor.userId, maxAge ? now() + maxAge : null, maxUses || null]
     );
-    await audit(req, { action: 'invite_create', targetType: 'invite', targetId: code, details: { code, maxAge, maxUses } });
+    await logAudit({ guildId: actor.guild.id, actorId: actor.userId, action: 'invite_create', targetType: 'invite', targetId: code, details: { code, maxAge, maxUses } });
   });
-  res.status(201).json(await db.get(`${INVITE_SELECT} WHERE i.code = ?`, [code]));
-});
+  return db.get(`${INVITE_SELECT} WHERE i.code = ?`, [code]);
+}
 
 // The guild's working invites (to revoke them).
 router.get('/guilds/:guildId/invites', withPermission(PERMISSIONS.MANAGE_GUILD), async (req, res) => {
@@ -447,31 +468,34 @@ async function findChannel(req) {
 // `private: true` (needs Manage Roles too) hides it from @everyone, shows it to `roleIds`, and
 // to its creator unless they'd see it anyway (owner, administrators). `nsfw: true` covers its
 // media until clicked (docs/guilds.md).
-router.post('/guilds/:guildId/channels', manageChannels, async (req, res) => {
+router.post('/guilds/:guildId/channels', manageChannels, withActionErrors(async (req, res) => {
   const { type = 'text', topic, private: isPrivate = false, nsfw = false, roleIds = [] } = req.body ?? {};
-  const categoryId = req.body?.categoryId ?? null;
-  const name = normalizeChannelName(req.body?.name);
-  if (!name) return res.status(400).json({ error: 'Channel names are 1–100 characters' });
-  if (!['text', 'voice', 'list', 'doc'].includes(type)) return res.status(400).json({ error: 'Invalid channel type' });
-  if (topic != null && (typeof topic !== 'string' || topic.length > MAX_TOPIC)) {
-    return res.status(400).json({ error: 'Invalid topic' });
+  const id = await createChannel(req.member, { name: req.body?.name, type, topic, categoryId: req.body?.categoryId ?? null, nsfw, isPrivate, roleIds });
+  res.status(201).json(await channelRow(id));
+}));
+
+// `actor` (a member context with Manage Channels) makes a channel; resolves to its id. Shared
+// with the bot API (routes/botApi.js). Throws ActionError.
+async function createChannel(actor, { name: givenName, type = 'text', topic = null, categoryId = null, nsfw = false, isPrivate = false, roleIds = [] }) {
+  if (!has(actor.permissions, PERMISSIONS.MANAGE_CHANNELS)) throw new ActionError(403, "You don't have permission to do that");
+  const name = normalizeChannelName(givenName);
+  if (!name) throw new ActionError(400, 'Channel names are 1–100 characters');
+  if (!['text', 'voice', 'list', 'doc'].includes(type)) throw new ActionError(400, 'Invalid channel type');
+  if (topic != null && (typeof topic !== 'string' || topic.length > MAX_TOPIC)) throw new ActionError(400, 'Invalid topic');
+  if (typeof nsfw !== 'boolean') throw new ActionError(400, 'Invalid nsfw');
+  if (!(await checkCategory(actor.guild.id, categoryId))) throw new ActionError(400, 'Invalid category');
+  if (isPrivate && !has(actor.permissions, PERMISSIONS.MANAGE_ROLES)) {
+    throw new ActionError(403, 'Making a channel private needs Manage Roles');
   }
-  if (typeof nsfw !== 'boolean') return res.status(400).json({ error: 'Invalid nsfw' });
-  if (!(await checkCategory(req.guild.id, categoryId))) return res.status(400).json({ error: 'Invalid category' });
-  if (isPrivate && !has(req.member.permissions, PERMISSIONS.MANAGE_ROLES)) {
-    return res.status(403).json({ error: 'Making a channel private needs Manage Roles' });
-  }
-  const guildRoleIds = new Set(req.member.allRoles.filter((r) => !r.is_everyone).map((r) => r.id));
-  if (!Array.isArray(roleIds) || roleIds.some((id) => !guildRoleIds.has(id))) {
-    return res.status(400).json({ error: 'Invalid roles' });
-  }
+  const guildRoleIds = new Set(actor.allRoles.filter((r) => !r.is_everyone).map((r) => r.id));
+  if (!Array.isArray(roleIds) || roleIds.some((id) => !guildRoleIds.has(id))) throw new ActionError(400, 'Invalid roles');
 
   // One transaction, so a private channel is never briefly visible to everyone.
   const lastID = await db.transaction(async () => {
-    const position = await nextPosition('guild_channels', 'guild_id = ?', [req.guild.id]);
+    const position = await nextPosition('guild_channels', 'guild_id = ?', [actor.guild.id]);
     const { lastID: id } = await db.run(
       'INSERT INTO guild_channels (guild_id, category_id, name, type, topic, nsfw, position) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [req.guild.id, categoryId, name, type, topic?.trim() || null, nsfw, position]
+      [actor.guild.id, categoryId, name, type, topic?.trim() || null, nsfw, position]
     );
     if (isPrivate) {
       const view = PERMISSIONS.VIEW_CHANNEL;
@@ -479,16 +503,16 @@ router.post('/guilds/:guildId/channels', manageChannels, async (req, res) => {
         'INSERT INTO guild_channel_overrides (channel_id, target_type, target_id, allow, deny) VALUES (?, ?, ?, ?, ?)',
         [id, targetType, targetId, allow, deny]
       );
-      await addOverride('role', req.member.everyone.id, 0, view);
+      await addOverride('role', actor.everyone.id, 0, view);
       for (const roleId of roleIds) await addOverride('role', roleId, view, 0);
-      if (!has(req.member.permissions, PERMISSIONS.ADMINISTRATOR)) await addOverride('member', req.user.id, view, 0);
+      if (!has(actor.permissions, PERMISSIONS.ADMINISTRATOR)) await addOverride('member', actor.userId, view, 0);
     }
-    await audit(req, { action: 'channel_create', targetType: 'channel', targetId: id, channelId: id, details: { name, type, ...(nsfw ? { nsfw } : {}) } });
+    await logAudit({ guildId: actor.guild.id, actorId: actor.userId, action: 'channel_create', targetType: 'channel', targetId: id, channelId: id, details: { name, type, ...(nsfw ? { nsfw } : {}) } });
     return id;
   });
-  await announceGuildUpdate(req.guild.id);
-  res.status(201).json(await channelRow(lastID));
-});
+  await announceGuildUpdate(actor.guild.id);
+  return lastID;
+}
 
 // A copy of a channel you can see (Discord's Clone Channel): same type, topic, NSFW flag,
 // category and permission overrides, just below it, named `name` (default: the same name). Nothing in it
@@ -547,69 +571,77 @@ router.post('/guilds/:guildId/channels/:channelId/clone', manageChannels, async 
 });
 
 // Rename, change the topic or the NSFW flag (`nsfw`), or move to another category.
-router.patch('/guilds/:guildId/channels/:channelId', manageChannels, async (req, res) => {
+router.patch('/guilds/:guildId/channels/:channelId', manageChannels, withActionErrors(async (req, res) => {
   const channel = await findChannel(req);
   if (!channel) return res.status(404).json({ error: 'Channel not found' });
+  await updateChannel(req.member, channel, req.body ?? {});
+  res.json(await channelRow(channel.id));
+}));
 
-  const body = req.body ?? {};
+// `actor` (with Manage Channels) changes `channel` (not a thread): `name`, `topic`, `nsfw`,
+// `categoryId`. Shared with the bot API. Throws ActionError.
+async function updateChannel(actor, channel, body) {
+  if (!has(actor.permissions, PERMISSIONS.MANAGE_CHANNELS)) throw new ActionError(403, "You don't have permission to do that");
   const updates = [];
   const params = [];
   if (body.name !== undefined) {
     const name = normalizeChannelName(body.name);
-    if (!name) return res.status(400).json({ error: 'Channel names are 1–100 characters' });
+    if (!name) throw new ActionError(400, 'Channel names are 1–100 characters');
     updates.push('name = ?');
     params.push(name);
   }
   if (body.topic !== undefined) {
-    if (body.topic !== null && (typeof body.topic !== 'string' || body.topic.length > MAX_TOPIC)) {
-      return res.status(400).json({ error: 'Invalid topic' });
-    }
+    if (body.topic !== null && (typeof body.topic !== 'string' || body.topic.length > MAX_TOPIC)) throw new ActionError(400, 'Invalid topic');
     updates.push('topic = ?');
     params.push(body.topic?.trim() || null);
   }
   if (body.nsfw !== undefined) {
-    if (typeof body.nsfw !== 'boolean') return res.status(400).json({ error: 'Invalid nsfw' });
+    if (typeof body.nsfw !== 'boolean') throw new ActionError(400, 'Invalid nsfw');
     updates.push('nsfw = ?');
     params.push(body.nsfw);
   }
   if (body.categoryId !== undefined) {
-    if (!(await checkCategory(req.guild.id, body.categoryId))) return res.status(400).json({ error: 'Invalid category' });
+    if (!(await checkCategory(actor.guild.id, body.categoryId))) throw new ActionError(400, 'Invalid category');
     updates.push('category_id = ?');
     params.push(body.categoryId);
   }
-  if (updates.length) {
-    await db.transaction(async () => {
-      await db.run(`UPDATE guild_channels SET ${updates.join(', ')} WHERE id = ?`, [...params, channel.id]);
-      const saved = await db.get('SELECT name, topic, nsfw, category_id FROM guild_channels WHERE id = ?', [channel.id]);
-      const changes = diff(channel, saved);
-      if (changes.nsfw) changes.nsfw = changes.nsfw.map(Boolean);
-      if (changes.category_id) {
-        const names = await db.all('SELECT id, name FROM guild_categories WHERE guild_id = ?', [req.guild.id]);
-        changes.category = changes.category_id.map((id) => names.find((c) => c.id === id)?.name ?? null);
-        delete changes.category_id;
-      }
-      if (Object.keys(changes).length) {
-        await audit(req, { action: 'channel_update', targetType: 'channel', targetId: channel.id, channelId: channel.id, details: { name: saved.name, changes } });
-      }
-    });
-    await announceGuildUpdate(req.guild.id);
-  }
-  res.json(await channelRow(channel.id));
-});
+  if (!updates.length) return;
+  await db.transaction(async () => {
+    await db.run(`UPDATE guild_channels SET ${updates.join(', ')} WHERE id = ?`, [...params, channel.id]);
+    const saved = await db.get('SELECT name, topic, nsfw, category_id FROM guild_channels WHERE id = ?', [channel.id]);
+    const changes = diff(channel, saved);
+    if (changes.nsfw) changes.nsfw = changes.nsfw.map(Boolean);
+    if (changes.category_id) {
+      const names = await db.all('SELECT id, name FROM guild_categories WHERE guild_id = ?', [actor.guild.id]);
+      changes.category = changes.category_id.map((id) => names.find((c) => c.id === id)?.name ?? null);
+      delete changes.category_id;
+    }
+    if (Object.keys(changes).length) {
+      await logAudit({ guildId: actor.guild.id, actorId: actor.userId, action: 'channel_update', targetType: 'channel', targetId: channel.id, channelId: channel.id, details: { name: saved.name, changes } });
+    }
+  });
+  await announceGuildUpdate(actor.guild.id);
+}
 
 // Deletes the channel and its messages.
-router.delete('/guilds/:guildId/channels/:channelId', manageChannels, async (req, res) => {
+router.delete('/guilds/:guildId/channels/:channelId', manageChannels, withActionErrors(async (req, res) => {
   const channel = await findChannel(req);
   if (!channel) return res.status(404).json({ error: 'Channel not found' });
+  await deleteChannel(req.member, channel);
+  res.json({ success: true });
+}));
+
+// `actor` (with Manage Channels) deletes `channel` (not a thread). Shared with the bot API.
+async function deleteChannel(actor, channel) {
+  if (!has(actor.permissions, PERMISSIONS.MANAGE_CHANNELS)) throw new ActionError(403, "You don't have permission to do that");
   await db.transaction(async () => {
-    await audit(req, { action: 'channel_delete', targetType: 'channel', targetId: channel.id, channelId: channel.id, details: { name: channel.name, type: channel.type } });
+    await logAudit({ guildId: actor.guild.id, actorId: actor.userId, action: 'channel_delete', targetType: 'channel', targetId: channel.id, channelId: channel.id, details: { name: channel.name, type: channel.type } });
     await deleteChannelContents('?', [channel.id]);
     await db.run('DELETE FROM guild_channels WHERE id = ?', [channel.id]);
   });
   releaseUploads();
-  await announceGuildUpdate(req.guild.id);
-  res.json({ success: true });
-});
+  await announceGuildUpdate(actor.guild.id);
+}
 
 // Moves a channel you can see (a drag in the channel list): into category `categoryId` (null:
 // above the categories), just before channel `beforeId` (which must be in that category), or
@@ -704,3 +736,12 @@ module.exports = router;
 module.exports.requireMember = requireMember;
 module.exports.requirePermission = requirePermission;
 module.exports.outranks = outranks;
+module.exports.kickMember = kickMember;
+module.exports.banMember = banMember;
+module.exports.unbanMember = unbanMember;
+module.exports.createChannel = createChannel;
+module.exports.updateChannel = updateChannel;
+module.exports.deleteChannel = deleteChannel;
+module.exports.createInvite = createInvite;
+module.exports.INVITE_SELECT = INVITE_SELECT;
+module.exports.INVITE_VALID = INVITE_VALID;

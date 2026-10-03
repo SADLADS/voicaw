@@ -57,7 +57,8 @@ function getStatus(userId) {
 }
 
 function statusOf(sockets, now = Date.now()) {
-  const open = sockets.filter((s) => s.readyState === WebSocket.OPEN);
+  // A bot's gateway session set to Invisible (gateway.js) doesn't count.
+  const open = sockets.filter((s) => s.readyState === WebSocket.OPEN && !s.presence?.invisible);
   if (!open.length) return 'offline';
   const active = open.filter((s) => s.presence?.activeUntil > now);
   if (active.some((s) => !s.presence.mobile)) return 'online';
@@ -126,8 +127,14 @@ function isViewingConversation(userId, otherUserId) {
 
 // Runs the websocket server on `server` (the HTTP server). Clients identify with their JWT
 // ({ type: 'identify', token }) and report presence; a heartbeat drops dead connections.
+// Connections to /api/gateway are bots' (gateway.js, Discord's protocol).
 function attachWebSocketServer(server) {
-  const wss = new WebSocket.Server({ server });
+  const wss = new WebSocket.Server({ noServer: true });
+  const gateway = require('./gateway').createGatewayServer();
+  server.on('upgrade', (req, socket, head) => {
+    const target = /^\/api\/gateway\/?(\?|$)/.test(req.url ?? '') ? gateway : wss;
+    target.handleUpgrade(req, socket, head, (ws) => target.emit('connection', ws, req));
+  });
 
   wss.on('connection', (ws) => {
     ws.isAlive = true;

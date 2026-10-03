@@ -19,7 +19,8 @@ const MAX_CATEGORY_NAME = 100;
 const MAX_ROLE_NAME = 100;
 const MAX_TOPIC = 1024;
 
-const ROLE_COLUMNS = 'id, name, color, position, permissions, hoist, mentionable, is_everyone';
+// `bot_id`: the bot whose own role it is (bots.js), else null.
+const ROLE_COLUMNS = 'id, name, color, position, permissions, hoist, mentionable, is_everyone, bot_id';
 
 // Every role of the guild, highest first (@everyone last).
 async function getRoles(guildId) {
@@ -220,7 +221,7 @@ async function announceGuildUpdate(guildId) {
 // A member for the member list: id, name, join time, role ids.
 async function getMemberListEntry(guildId, userId) {
   const row = await db.get(
-    `SELECT u.id, u.username, u.display_name, u.custom_status, u.bio, u.avatar, u.last_online, gm.joined_at FROM guild_members gm JOIN users u ON u.id = gm.user_id
+    `SELECT u.id, u.username, u.display_name, u.custom_status, u.bio, u.avatar, u.last_online, u.bot, gm.joined_at FROM guild_members gm JOIN users u ON u.id = gm.user_id
      WHERE gm.guild_id = ? AND gm.user_id = ?`,
     [guildId, userId]
   );
@@ -287,9 +288,9 @@ async function markGuildRead(guildId, userId) {
   );
 }
 
-// Takes `userId` out of the guild and tells everyone (including them).
+// Takes `userId` out of the guild and tells everyone (including them). A bot's own role goes too.
 async function removeMember(guildId, userId) {
-  await db.transaction(async () => {
+  const botRoleRemoved = await db.transaction(async () => {
     await db.run('DELETE FROM guild_members WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
     await db.run('DELETE FROM guild_member_roles WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
     await db.run(
@@ -308,9 +309,11 @@ async function removeMember(guildId, userId) {
       );
     }
     await require('./guildTasks').unassignFromGuild(guildId, userId);
+    return require('./bots').removeBotRole(guildId, userId);
   });
   sendToUserSockets(userId, { type: 'guild_remove', guildId });
   await sendToGuild(guildId, { type: 'guild_member_remove', guildId, userId });
+  if (botRoleRemoved) await announceGuildUpdate(guildId);
   await require('./voice').enforceGuild(guildId);
 }
 

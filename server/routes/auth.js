@@ -182,6 +182,8 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
   // Capitals typed in the username become the display name ("Alice": username "alice").
   const username = normalizeUsername(userIdentifier);
   const displayName = username === userIdentifier ? null : cleanProfile('display_name', userIdentifier) ?? null;
+  // '#' is kept for bots' names (bots.js: "name#1234"), so nobody can sign up as one.
+  if (username.includes('#')) return res.status(400).json({ error: "Usernames can't contain #" });
   if (await findUserByName(username, 'id')) return res.status(409).json({ error: 'Username already exists' });
   let lastID;
   try {

@@ -62,7 +62,7 @@ describe('roles', () => {
   it('starts every guild with @everyone and the default permissions', async () => {
     const { owner, members, guild } = await setUp(1);
     expect(guild.roles).toEqual([
-      { id: expect.any(Number), name: '@everyone', color: null, position: 0, permissions: DEFAULT_EVERYONE_PERMISSIONS, hoist: 0, mentionable: 0, is_everyone: 1 },
+      { id: expect.any(Number), name: '@everyone', color: null, position: 0, permissions: DEFAULT_EVERYONE_PERMISSIONS, hoist: 0, mentionable: 0, is_everyone: 1, bot_id: null },
     ]);
     expect(guild.my_permissions).toBe(ALL_PERMISSIONS);
     expect((await layout(members[0], guild.id)).my_permissions).toBe(DEFAULT_EVERYONE_PERMISSIONS);

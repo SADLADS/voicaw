@@ -865,6 +865,27 @@ CREATE TABLE IF NOT EXISTS guild_thread_members (
 CREATE INDEX IF NOT EXISTS guild_thread_members_user ON guild_thread_members (user_id);
 `);
 
+// BOTS (bots.js, docs/bots.md): an application made in the developer portal has one bot, a
+// users row with `bot` = 1 (no password or keys: it can't log in or use encrypted chats) whose
+// id is the application's id, as in Discord. Its token is shown once; only its SHA-256 is kept.
+// A bot added to a guild is a member with its own role (`guild_roles.bot_id`), holding the
+// permissions it was added with; that role can't be deleted or given to anyone else.
+addColumn('ALTER TABLE users ADD COLUMN bot INTEGER NOT NULL DEFAULT 0');
+addColumn('ALTER TABLE guild_roles ADD COLUMN bot_id INTEGER');
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS bot_applications (
+  id INTEGER PRIMARY KEY,
+  owner_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  public INTEGER NOT NULL DEFAULT 1,
+  token_hash TEXT,
+  token_reset_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS bot_applications_owner ON bot_applications (owner_id);
+`);
+
 // ---- Queries ----
 // get / all / run return promises (callers await them) though the driver is synchronous, and
 // wait while another request's transaction is open (see transaction).

@@ -327,7 +327,7 @@ async function handleWebhookEvent(event) {
 
 async function userById(id) {
   if (!Number.isInteger(id)) return null;
-  return db.get('SELECT id, username FROM users WHERE id = ? AND deleted_at IS NULL', [id]);
+  return db.get('SELECT id, username FROM users WHERE id = ? AND deleted_at IS NULL AND bot = 0', [id]);
 }
 
 module.exports = {
