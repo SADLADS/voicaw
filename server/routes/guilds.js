@@ -436,10 +436,11 @@ async function channelRow(id) {
   return row && { ...row, nsfw: Boolean(row.nsfw) };
 }
 
-// The channel in the URL, if it's in this guild and the caller can see it.
+// The channel in the URL, if it's in this guild and the caller can see it (not a thread:
+// routes/threads.js has theirs).
 async function findChannel(req) {
   const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
-  if (!access || access.channel.guild_id !== req.guild.id) return null;
+  if (!access || access.channel.guild_id !== req.guild.id || access.channel.type === 'thread') return null;
   return has(access.permissions, PERMISSIONS.VIEW_CHANNEL) ? access.channel : null;
 }
 
@@ -496,7 +497,8 @@ router.post('/guilds/:guildId/channels', manageChannels, async (req, res) => {
 // read-only channel can be copied by someone who can't send there.
 router.post('/guilds/:guildId/channels/:channelId/clone', manageChannels, async (req, res) => {
   const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
-  if (!access || access.channel.guild_id !== req.guild.id || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) {
+  if (!access || access.channel.guild_id !== req.guild.id || access.channel.type === 'thread' ||
+    !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) {
     return res.status(404).json({ error: 'Channel not found' });
   }
   const source = access.channel;
@@ -623,7 +625,10 @@ router.put('/guilds/:guildId/channels/:channelId/move', manageChannels, async (r
     );
     if (!category) return res.status(400).json({ error: 'Invalid category' });
   }
-  const all = await db.all('SELECT id, category_id FROM guild_channels WHERE guild_id = ? ORDER BY position, id', [req.guild.id]);
+  const all = await db.all(
+    "SELECT id, category_id FROM guild_channels WHERE guild_id = ? AND type != 'thread' ORDER BY position, id",
+    [req.guild.id]
+  );
   const rest = all.filter((c) => c.id !== channel.id);
   let at;
   if (beforeId !== null) {
@@ -667,7 +672,7 @@ router.put('/guilds/:guildId/categories/:categoryId/move', manageChannels, async
 router.put('/guilds/:guildId/layout', manageChannels, async (req, res) => {
   const { categories, channels } = req.body ?? {};
   const existingCategories = await db.all('SELECT id FROM guild_categories WHERE guild_id = ?', [req.guild.id]);
-  const existingChannels = await db.all('SELECT id FROM guild_channels WHERE guild_id = ?', [req.guild.id]);
+  const existingChannels = await db.all("SELECT id FROM guild_channels WHERE guild_id = ? AND type != 'thread'", [req.guild.id]);
   const sameIds = (given, existing) =>
     Array.isArray(given) && given.length === existing.length &&
     new Set(given).size === given.length &&

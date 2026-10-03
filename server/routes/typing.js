@@ -10,8 +10,8 @@ const { sendToUserSockets } = require('../sockets');
 // "Someone is typing…" (like Discord's POST /channels/:id/typing). The client posts at most
 // every few seconds while its message box has text; everyone else who can see the chat gets
 // `typing { chatId, userId }`, `chatId` being the chat as *they* name it (client chat ids: the
-// other person's id for a DM, `group-<id>`, `channel-<id>`, `document-<id>` for a document's
-// replies). Nothing is stored; the client forgets it after a few seconds or when that person's
+// other person's id for a DM, `group-<id>`, `channel-<id>` (a thread too), `document-<id>` for a
+// document's replies). Nothing is stored; the client forgets it after a few seconds or when that person's
 // message arrives. In DMs and group DMs this tells the server when someone is typing to whom
 // (it already sees when they send), never what.
 const router = express.Router();
@@ -43,7 +43,8 @@ async function audienceFor(chatId, userId) {
     channelId = document.channel_id;
   }
   const access = await getChannelAccess(channelId, userId);
-  if (!access || access.channel.type !== (kind === 'document' ? 'doc' : 'text')) return null;
+  const types = kind === 'document' ? ['doc'] : ['text', 'thread'];
+  if (!access || !types.includes(access.channel.type)) return null;
   if (!has(access.permissions, PERMISSIONS.VIEW_CHANNEL) || !has(access.permissions, PERMISSIONS.SEND_MESSAGES)) return null;
   return { userIds: await getChannelViewers(access.channel), chatId };
 }

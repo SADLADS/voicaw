@@ -211,9 +211,11 @@ router.put('/guilds/:guildId/members/:userId/roles', manageRoles, async (req, re
 // ---- Channel overrides ----
 
 // Loads req.channel (a channel of this guild the caller can see) and req.channelPermissions.
+// Threads have no overrides of their own (they follow their channel's).
 async function requireChannel(req, res, next) {
   const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
-  if (!access || access.channel.guild_id !== req.guild.id || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) {
+  if (!access || access.channel.guild_id !== req.guild.id || access.channel.type === 'thread' ||
+    !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) {
     return res.status(404).json({ error: 'Channel not found' });
   }
   req.channel = access.channel;

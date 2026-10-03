@@ -22,6 +22,8 @@ const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 //   webhook_create / webhook_delete { name, channelName }, webhook_update { name, changes }
 //   message_delete { messageId, sentAt, channelName, webhookName? } (target: the author)
 //   message_pin / message_unpin { messageId, channelName } (target: the author)
+//   thread_create / thread_delete { name, channelName }, thread_update { name, changes }
+//     (target: the thread; channel: its text channel)
 //   audit_log_clear { olderThanDays (0: everything), deleted }
 // Never a message's content: deleting it should get rid of it.
 //

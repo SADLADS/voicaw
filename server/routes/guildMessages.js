@@ -4,7 +4,8 @@ const { maxPlaintextLength } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has, channelPermissions } = require('../permissions');
 const { getChannelAccess, getMember, getOverrides, sendToChannel, getChannelViewers } = require('../guilds');
-const { saveMentions, notifyNewMessage } = require('../mentions');
+const { saveMentions, notifyNewMessage, parseMentions } = require('../mentions');
+const threads = require('../threads');
 const { setPinned } = require('../pins');
 const { POLL_VOTE, parsePoll, isClosedPoll, pollEditError, reactionIdsFor, pollReactionsFor } = require('../polls');
 const { removePollRows } = require('../pollTimers');
@@ -42,10 +43,12 @@ const MESSAGE_SELECT = `
   LEFT JOIN users pu ON pm.sender_id = pu.id`;
 
 // Adds `reactions` ([{ id, user_id, emoji, timestamp }], oldest first) to each message, and
-// makes `mention_roles` (the roles it pinged), `embeds` and `attachments` arrays.
+// makes `mention_roles` (the roles it pinged), `embeds` and `attachments` arrays. A message a
+// thread started from gets `thread` (threads.js; null otherwise).
 async function withReactions(messages) {
   if (messages.length === 0) return messages;
   const ids = reactionIdsFor(messages);
+  const threadsByMessage = await threads.threadsByStarter(messages.map((m) => m.id));
   const rows = await db.all(
     `SELECT id, message_id, user_id, emoji, timestamp FROM guild_reactions
      WHERE message_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`,
@@ -59,6 +62,7 @@ async function withReactions(messages) {
     embeds: parseJsonList(m.embeds),
     attachments: parseJsonList(m.attachments),
     reactions: byMessage.get(m.id),
+    thread: threadsByMessage.get(m.id) ?? null,
     ...pollReactionsFor(m, byMessage),
   }));
 }
@@ -76,11 +80,15 @@ const parseRoleIds = parseJsonList;
 
 const forbidden = (res) => res.status(403).json({ error: "You don't have permission to do that" });
 
-// Loads req.channel and req.permissions (there) if the caller can see it and it's a text channel.
+// Text channels and threads (threads.js): chats of plain messages.
+const isChat = (channel) => channel.type === 'text' || channel.type === 'thread';
+
+// Loads req.channel and req.permissions (there) if the caller can see it and it's a text
+// channel or a thread.
 async function requireTextChannel(req, res, next) {
   const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
   if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Channel not found' });
-  if (access.channel.type !== 'text') return res.status(400).json({ error: 'Not a text channel' });
+  if (!isChat(access.channel)) return res.status(400).json({ error: 'Not a text channel' });
   req.channel = access.channel;
   req.permissions = access.permissions;
   next();
@@ -93,7 +101,7 @@ async function requireChatChannel(req, res, next) {
   const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
   if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Channel not found' });
   const given = req.query.document ?? req.body?.documentId;
-  if (access.channel.type === 'text') {
+  if (isChat(access.channel)) {
     if (given != null) return res.status(400).json({ error: 'Not a document channel' });
     req.documentId = null;
   } else if (access.channel.type === 'doc') {
@@ -116,7 +124,7 @@ async function requireChatChannel(req, res, next) {
 async function requireReadableChannel(req, res, next) {
   const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
   if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Channel not found' });
-  if (!['text', 'doc'].includes(access.channel.type)) return res.status(400).json({ error: 'Not a text channel' });
+  if (!['text', 'thread', 'doc'].includes(access.channel.type)) return res.status(400).json({ error: 'Not a text channel' });
   req.channel = access.channel;
   req.permissions = access.permissions;
   next();
@@ -173,7 +181,9 @@ router.get('/channels/:channelId/messages', authenticateJWT, requireChatChannel,
   res.json(await withReactions(rows.reverse()));
 });
 
-// In a document channel, `documentId` says which document it replies to.
+// In a document channel, `documentId` says which document it replies to. In a thread (where
+// Send Messages means Send Messages in Threads), posting unarchives it, and the sender and
+// anyone mentioned by name join it.
 router.post('/channels/:channelId/messages', authenticateJWT, requireChatChannel, async (req, res) => {
   if (!has(req.permissions, PERMISSIONS.SEND_MESSAGES)) return forbidden(res);
   const content = cleanContent(req.body?.content);
@@ -192,7 +202,7 @@ router.post('/channels/:channelId/messages', authenticateJWT, requireChatChannel
     if (!parent) return res.status(400).json({ error: 'Invalid reply' });
   }
 
-  const { lastID, mentions } = await db.transaction(async () => {
+  const { lastID, mentions, joinedIds } = await db.transaction(async () => {
     const { lastID: id } = await db.run(
       `INSERT INTO guild_messages (channel_id, sender_id, content, parent_message_id, document_id, timestamp)
        VALUES (?, ?, ?, ?, ?, strftime('%s','now'))`,
@@ -200,11 +210,17 @@ router.post('/channels/:channelId/messages', authenticateJWT, requireChatChannel
     );
     await markRead(req.user.id, req.channel.id, id);
     await db.indexGuildMessage(id);
-    return { lastID: id, mentions: await saveMentions({ id, content, sender_id: req.user.id }, req.channel, req.permissions) };
+    const found = await saveMentions({ id, content, sender_id: req.user.id }, req.channel, req.permissions);
+    const named = req.channel.type === 'thread'
+      ? [...parseMentions(content).userIds].filter((userId) => found.mentioned.has(userId))
+      : [];
+    const joined = req.channel.type === 'thread' ? await threads.noteMessage(req.channel.id, req.user.id, named) : [];
+    return { lastID: id, mentions: found, joinedIds: joined };
   });
   const [message] = await withReactions([await db.get(`${MESSAGE_SELECT} WHERE m.id = ?`, [lastID])]);
 
   await sendToChannel(req.channel, { type: 'guild_message_new', guildId: req.channel.guild_id, message });
+  if (req.channel.type === 'thread') await threads.announceThread(req.channel.id, { joinedIds });
   res.status(201).json(message);
   notifyNewMessage(message, req.channel, mentions).catch((err) => console.error('Guild push failed:', err.message));
 });
@@ -295,9 +311,9 @@ router.get('/channels/:channelId/pins', authenticateJWT, requireTextChannel, asy
   res.json(await withReactions(rows));
 });
 
-// Only in text channels (a document channel's replies have no pinned list).
+// Only in text channels and threads (a document channel's replies have no pinned list).
 async function pinRoute(req, res, pinned) {
-  if (req.channel.type !== 'text') return res.status(400).json({ error: 'Not a text channel' });
+  if (!isChat(req.channel)) return res.status(400).json({ error: 'Not a text channel' });
   if (!has(req.permissions, PERMISSIONS.PIN_MESSAGES)) return forbidden(res);
   const { guild_id: guildId, id: channelId } = req.channel;
   const result = await setPinned('guild_messages', req.message.id, req.user.id, pinned, 'channel_id = ?', [channelId]);
@@ -404,7 +420,7 @@ router.post('/channels/:channelId/read', authenticateJWT, requireReadableChannel
 
 // Unread counts for every channel of the caller's guilds that has any and they can see:
 // messages by other people after the caller's read marker (`count`), and how many of those
-// mention them (`mentions`).
+// mention them (`mentions`). Threads count only for their members.
 router.get('/guild-unread', authenticateJWT, async (req, res) => {
   const me = req.user.id;
   const rows = await db.all(
@@ -415,8 +431,9 @@ router.get('/guild-unread', authenticateJWT, async (req, res) => {
      JOIN guild_members gm ON gm.guild_id = c.guild_id AND gm.user_id = ?
      LEFT JOIN guild_channel_reads r ON r.channel_id = c.id AND r.user_id = ?
      JOIN guild_messages m ON m.channel_id = c.id AND m.id > COALESCE(r.last_read_id, 0) AND m.sender_id != ?
+     WHERE c.type != 'thread' OR EXISTS (SELECT 1 FROM guild_thread_members tm WHERE tm.thread_id = c.id AND tm.user_id = ?)
      GROUP BY c.id`,
-    [me, me, me, me]
+    [me, me, me, me, me]
   );
   const visible = [];
   for (const guildId of new Set(rows.map((r) => r.guild_id))) {

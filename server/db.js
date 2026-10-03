@@ -112,14 +112,16 @@ CREATE TABLE IF NOT EXISTS guild_categories (
 );
 `);
 
-// category_id null = above every category, as in Discord.
+// category_id null = above every category, as in Discord. A thread ('thread') is a channel too,
+// inside a text channel (`parent_id`; see Threads below), never in the channel list itself.
+const CHANNEL_TYPES = "'text', 'voice', 'list', 'doc', 'thread'";
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_channels (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   guild_id INTEGER NOT NULL,
   category_id INTEGER,
   name TEXT NOT NULL,
-  type TEXT CHECK(type IN ('text', 'voice', 'list', 'doc')) NOT NULL DEFAULT 'text',
+  type TEXT CHECK(type IN (${CHANNEL_TYPES})) NOT NULL DEFAULT 'text',
   topic TEXT,
   position INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (guild_id) REFERENCES guilds(id),
@@ -734,27 +736,21 @@ function lowercaseUsernames() {
   }
 }
 
-// Migrations 6 and 8: unless guild_channels' type CHECK already has `type` (SQL-quoted), copies
-// the table into a new one whose CHECK has every type there is now (SQLite can't change a CHECK).
+// Migrations 6, 8 and 10: unless guild_channels' type CHECK already has `type` (SQL-quoted),
+// copies the table into a new one whose CHECK has every type there is now (SQLite can't change a
+// CHECK), with every column it has (those added later, like `nsfw`, included).
 function allowEveryChannelType(type) {
   const { sql } = sqlite.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'guild_channels'").get();
   if (sql.includes(type)) return;
   // Keep the id counter, so deleted channels' ids (the audit log has them) aren't reused.
   const seq = sqlite.prepare("SELECT seq FROM sqlite_sequence WHERE name = 'guild_channels'").get()?.seq ?? 0;
+  const columns = sqlite.prepare('PRAGMA table_info(guild_channels)').all().map((c) => c.name).join(', ');
+  const newSql = sql
+    .replace(/CREATE TABLE (IF NOT EXISTS )?"?guild_channels"?/, 'CREATE TABLE guild_channels_new')
+    .replace(/CHECK\s*\(\s*type IN \([^)]*\)\s*\)/, `CHECK(type IN (${CHANNEL_TYPES}))`);
   sqlite.exec(`
-    CREATE TABLE guild_channels_new (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      guild_id INTEGER NOT NULL,
-      category_id INTEGER,
-      name TEXT NOT NULL,
-      type TEXT CHECK(type IN ('text', 'voice', 'list', 'doc')) NOT NULL DEFAULT 'text',
-      topic TEXT,
-      position INTEGER NOT NULL DEFAULT 0,
-      FOREIGN KEY (guild_id) REFERENCES guilds(id),
-      FOREIGN KEY (category_id) REFERENCES guild_categories(id)
-    );
-    INSERT INTO guild_channels_new (id, guild_id, category_id, name, type, topic, position)
-      SELECT id, guild_id, category_id, name, type, topic, position FROM guild_channels;
+    ${newSql};
+    INSERT INTO guild_channels_new (${columns}) SELECT ${columns} FROM guild_channels;
     DROP TABLE guild_channels;
     ALTER TABLE guild_channels_new RENAME TO guild_channels;
   `);
@@ -820,6 +816,13 @@ const MIGRATIONS = [
   // linked to them, so they go when those do. Encrypted chats' files can't be read here: they
   // stay untracked (never deleted).
   () => linkExistingGuildUploads(),
+  // 10. Threads: the type CHECK gains 'thread' (as in 6), and @everyone gets Create Threads and
+  // Send Messages in Threads, as in new guilds.
+  () => {
+    allowEveryChannelType("'thread'");
+    const bits = PERMISSIONS.CREATE_THREADS | PERMISSIONS.SEND_MESSAGES_IN_THREADS;
+    sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${bits} WHERE is_everyone = 1`);
+  },
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');
@@ -836,6 +839,31 @@ for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; ver
 // NSFW channels (docs/guilds.md): their media is covered until clicked. Added after the
 // migrations, since 6 and 8 copy guild_channels column by column (allowEveryChannelType).
 addColumn('ALTER TABLE guild_channels ADD COLUMN nsfw INTEGER NOT NULL DEFAULT 0');
+
+// THREADS (threads.js, docs/guilds.md): a thread is a guild_channels row of type 'thread' in
+// text channel `parent_id` (category_id stays null), started by `owner_id`, from message
+// `starter_message_id` in that channel (for a thread started on its own, the "started a thread"
+// row posted for it). `last_activity` (unix s) moves on with every message; a thread is archived
+// when `archived` is set or nothing happened for a week. Its members (guild_thread_members) are
+// whoever started it, posted in it, was mentioned in it or joined it: it shows in their channel
+// list and counts as unread for them.
+addColumn('ALTER TABLE guild_channels ADD COLUMN parent_id INTEGER');
+addColumn('ALTER TABLE guild_channels ADD COLUMN owner_id INTEGER');
+addColumn('ALTER TABLE guild_channels ADD COLUMN starter_message_id INTEGER');
+addColumn('ALTER TABLE guild_channels ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
+addColumn('ALTER TABLE guild_channels ADD COLUMN created_at INTEGER');
+addColumn('ALTER TABLE guild_channels ADD COLUMN last_activity INTEGER');
+sqlite.exec(`
+CREATE INDEX IF NOT EXISTS guild_channels_parent ON guild_channels (parent_id) WHERE parent_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS guild_channels_starter ON guild_channels (starter_message_id) WHERE starter_message_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS guild_thread_members (
+  thread_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  joined_at INTEGER NOT NULL,
+  PRIMARY KEY (thread_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS guild_thread_members_user ON guild_thread_members (user_id);
+`);
 
 // ---- Queries ----
 // get / all / run return promises (callers await them) though the driver is synchronous, and
