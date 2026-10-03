@@ -73,7 +73,9 @@ database is Node's built-in `node:sqlite`, so there's no native module to build.
 `server/.env`): `JWT_SECRET`, `OPAQUE_SERVER_SETUP`, `VAPID_EMAIL`, `VAPID_PUBLIC_KEY`,
 `VAPID_PRIVATE_KEY`, `S3_ENDPOINT`, `S3_ROOT_USER`, `S3_ROOT_PASSWORD`. Voice channels also need
 `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (and `LIVEKIT_API_URL` to reach LiveKit
-directly); without them voice is just off. `KLIPY_API_KEY` turns on GIFs (also settable in
+directly); without them voice is just off. `FCM_SERVICE_ACCOUNT` (a Firebase service account's
+JSON key file) lets the Android app be notified while closed (`fcm.js`, see Android app in
+`docs/desktop-and-site.md`). `KLIPY_API_KEY` turns on GIFs (also settable in
 Settings → Admin, see Admin settings). `README.md` "Initial setup" has the whole list. VAPID keys are generated
 via `webpush.generateVAPIDKeys()` (see root `README.md`). `S3_*` vars point at an S3-compatible
 object store (e.g. MinIO) used for uploads and profile pics.

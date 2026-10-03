@@ -130,9 +130,11 @@ const DICTIONARY_ALIASES = {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const isElectron = env.ELECTRON === 'true';
-  // The desktop app talks to the real server: without a .env.electron, it uses the
+  // The Android app (mobile/): the page ships inside the APK, served at https://localhost.
+  const isAndroid = env.ANDROID === 'true';
+  // The apps talk to the real server: without a .env.electron / .env.android, they use the
   // production settings (.env.production).
-  if (isElectron && !env.VITE_API_BASE_URL) {
+  if ((isElectron || isAndroid) && !env.VITE_API_BASE_URL) {
     const production = loadEnv('production', process.cwd(), 'VITE_');
     for (const [key, value] of Object.entries(production)) process.env[key] ??= value;
     env.VITE_API_BASE_URL = production.VITE_API_BASE_URL;
@@ -184,9 +186,14 @@ export default defineConfig(({ mode }) => {
     build: {
       // The web build goes to a staging folder; `npm run build` then copies it to
       // /opt/voicaw-client only if it succeeded (scripts/publish-web.mjs).
-      outDir: path.resolve(__dirname, isElectron ? '../build' : '../build-web'),
+      outDir: path.resolve(__dirname, isElectron ? '../build' : isAndroid ? '../build-android' : '../build-web'),
       emptyOutDir: true,
       rollupOptions: {
+        // notify.html: the Android app's hidden page that words its notifications
+        // (src/android/notifyPage.js).
+        input: isAndroid
+          ? { main: path.resolve(__dirname, 'index.html'), notify: path.resolve(__dirname, 'notify.html') }
+          : undefined,
         output: { manualChunks: vendorChunk },
       },
     },

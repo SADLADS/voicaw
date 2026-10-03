@@ -69,6 +69,10 @@
         "title": "Desktop app",
         "keywords": "tray close minimise minimize start login startup boot keyboard shortcut hotkey keybind mute deafen global"
       },
+      "androidApp": {
+        "title": "Android app",
+        "keywords": "android phone mobile lock screen full screen calls ringing ringtone notification channels sounds"
+      },
       "appVersion": {
         "title": "App version",
         "keywords": "update build version reload"
@@ -204,6 +208,17 @@
       "clear": "Clear",
       "shortcutTaken": "Another app is using this shortcut.",
       "recordingHint": "Hold Ctrl, Alt or Shift and press a key. Esc cancels."
+    },
+    "androidApp": {
+      "title": "Android App",
+      "noPush": "This build of the app can't get notifications or ring for calls while it's closed.",
+      "lockScreenCalls": "Calls on the lock screen",
+      "lockScreenCallsOn": "Incoming calls ring full screen, even when the phone is locked.",
+      "lockScreenCallsOff": "Android only shows incoming calls as a notification. Allow full-screen notifications for Voicaw to have calls ring over the lock screen.",
+      "allowLockScreenCalls": "Allow full-screen calls",
+      "channels": "Notification sounds",
+      "channelsHint": "Messages, mentions, incoming calls, missed calls and the ongoing call are separate in Android's settings, each with its own sound and importance.",
+      "openChannels": "Open Android's notification settings"
     },
     "devices": {
       "title": "Devices",

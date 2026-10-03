@@ -1,0 +1,12 @@
+{
+  "appId": "com.voicaw.app",
+  "appName": "Voicaw",
+  "webDir": "../build-android",
+  "android": {
+    "path": "android"
+  },
+  "server": {
+    "androidScheme": "https",
+    "hostname": "localhost"
+  }
+}

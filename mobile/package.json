@@ -1,0 +1,19 @@
+{
+  "name": "voicaw-mobile",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Voicaw for Android: the web client in a Capacitor WebView, plus native notifications and calls",
+  "scripts": {
+    "sync": "cap sync android",
+    "dist": "npm run build:android --workspace=client && cap sync android && sh dist-android.sh",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "vitest": "^4.1.11"
+  }
+}

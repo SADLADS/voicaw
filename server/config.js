@@ -46,6 +46,21 @@ const livekit = LIVEKIT_URL && LIVEKIT_API_KEY && LIVEKIT_API_SECRET
   }
   : null;
 
+// The Android app's notifications (Firebase Cloud Messaging, see fcm.js). Optional: without it
+// the app shows no notifications while closed. FCM_SERVICE_ACCOUNT is the path to a Firebase
+// service account's JSON key (Project settings → Service accounts → Generate new private key).
+function loadFcmAccount(file) {
+  if (!file) return null;
+  try {
+    const account = JSON.parse(require('fs').readFileSync(file, 'utf8'));
+    if (!account.project_id || !account.client_email || !account.private_key) throw new Error('not a service account key');
+    return { projectId: account.project_id, clientEmail: account.client_email, privateKey: account.private_key };
+  } catch (err) {
+    console.error(`FCM_SERVICE_ACCOUNT can't be used (${err.message}); the Android app gets no notifications.`);
+    return null;
+  }
+}
+
 module.exports = {
   port: process.env.PORT || 3000,
   jwtSecret: process.env.JWT_SECRET,
@@ -56,8 +71,10 @@ module.exports = {
     publicKey: process.env.VAPID_PUBLIC_KEY,
     privateKey: process.env.VAPID_PRIVATE_KEY,
   },
-  // voicaw://app: the desktop app's own pages (electron/protocol.js).
-  allowedOrigins: ['https://app.voicaw.com', 'https://test.voicaw.com', 'https://voicaw.com', 'http://test.voicaw.com', 'http://voicaw.com', 'voicaw://app'],
+  fcm: loadFcmAccount(process.env.FCM_SERVICE_ACCOUNT),
+  // voicaw://app: the desktop app's own pages (electron/protocol.js); https://localhost: the
+  // Android app's (Capacitor serves its bundled page there, mobile/capacitor.config.json).
+  allowedOrigins: ['https://app.voicaw.com', 'https://test.voicaw.com', 'https://voicaw.com', 'http://test.voicaw.com', 'http://voicaw.com', 'voicaw://app', 'https://localhost'],
   maxPlaintextLength,
   livekit,
   // Login/registration attempt limits (see routes/auth.js). Tests turn them off, since they

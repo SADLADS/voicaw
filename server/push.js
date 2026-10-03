@@ -1,6 +1,7 @@
 const webpush = require('web-push');
 const db = require('./db');
 const { vapid } = require('./config');
+const { sendFcm } = require('./fcm');
 
 webpush.setVapidDetails(vapid.email, vapid.publicKey, vapid.privateKey);
 
@@ -87,8 +88,15 @@ async function sendPushToUser(userId, payload, options = {}) {
   }
   const body = JSON.stringify(payload);
   const results = await Promise.all(rows.map(async (row) => {
+    const subscription = JSON.parse(row.subscription);
     try {
-      await webpush.sendNotification(JSON.parse(row.subscription), body, { TTL: 24 * 60 * 60, ...options });
+      if (subscription.fcm) {
+        // The Android app (fcm.js).
+        const sent = await sendFcm(subscription.fcm, payload, options);
+        if (sent === 'gone') db.run('DELETE FROM push_subscriptions WHERE id = ?', [row.id]).catch(() => {});
+        return sent === true;
+      }
+      await webpush.sendNotification(subscription, body, { TTL: 24 * 60 * 60, ...options });
       return true;
     } catch (error) {
       if (error.statusCode === 404 || error.statusCode === 410) {
@@ -102,10 +110,32 @@ async function sendPushToUser(userId, payload, options = {}) {
   return { devices: rows.length + desktop, delivered: results.filter(Boolean).length + desktop };
 }
 
+// Something only the Android app acts on, and shows nothing for (web push must show a
+// notification for every push): `call_stop` stops a call ringing on the phone.
+async function sendToAndroidApps(userId, payload) {
+  let rows;
+  try {
+    rows = await db.all('SELECT id, subscription FROM push_subscriptions WHERE user_id = ?', [userId]);
+  } catch {
+    return;
+  }
+  await Promise.all(rows.map(async (row) => {
+    const { fcm } = JSON.parse(row.subscription);
+    if (!fcm) return;
+    try {
+      if (await sendFcm(fcm, payload, { TTL: 60 }) === 'gone') {
+        db.run('DELETE FROM push_subscriptions WHERE id = ?', [row.id]).catch(() => {});
+      }
+    } catch (error) {
+      console.error('Push notification failed:', error.statusCode || error.message);
+    }
+  }));
+}
+
 // The sender's profile picture for the notification (the default one if they have none).
 async function getUserImageUrl(userId) {
   const user = await db.get('SELECT avatar FROM users WHERE id = ?', [userId]);
   return require('./avatars').avatarUrl(userId, user?.avatar) ?? '/default.png';
 }
 
-module.exports = { buildDmPushPayload, buildGroupPushPayload, groupNameForPush, sendPushToUser, getUserImageUrl };
+module.exports = { buildDmPushPayload, buildGroupPushPayload, groupNameForPush, sendPushToUser, sendToAndroidApps, getUserImageUrl };

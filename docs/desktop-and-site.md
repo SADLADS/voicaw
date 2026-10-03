@@ -1,4 +1,4 @@
-# Desktop app and info site
+# Desktop app, Android app and info site
 
 ## Desktop app (Electron)
 
@@ -81,6 +81,68 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   service worker: they download whole on Play; `protocol.js` could serve them instead), code
   signing (Windows SmartScreen warns about unsigned installers). Notifications while the app
   isn't running aren't wanted (decided 2026-10-01).
+
+## Android app (Capacitor)
+
+`mobile/` wraps the client for Android (Capacitor 8, Java), like the desktop app, adding only
+what a browser can't do: notifications and ringing while the app is closed, call buttons, and
+keeping a call going with the screen off. Android can't run on this server either: the native
+side has JUnit tests (`mobile/android/app/src/test/`, run by the build), `mobile/test/` checks
+the packages agree, and `e2e/android.mjs` checks the page side in Chrome with a stand-in for the
+native bridge. Check real behaviour on a phone.
+- **Build** (`npm run dist:android`, README "Android app"): the client's Android build
+  (`ANDROID=true vite build --mode android` into `build-android/`, with `notify.html` as a second
+  page), `cap sync` copies it into the APK, Gradle runs in Docker (`mobile/dist-android.sh`,
+  image from `mobile/Dockerfile`). A debug APK for now (no release key, no Play Store); min
+  Android 8.0.
+- **The page ships inside the app**: Capacitor serves the build at `https://localhost/` (in the
+  API's `allowedOrigins`), so the code holding the keys is what was installed. No service worker
+  (`main.jsx`; no streamed videos either, as in the desktop app). Backups are off
+  (`allowBackup`, `data_extraction_rules.xml`): the page's storage holds the encryption keys.
+  Back goes back in the app's history, and from the first page leaves the app running.
+- **Bridge**: the `Voicaw` plugin (`VoicawPlugin.java` → `client/src/utils/android.js`
+  `android`, null elsewhere): `checkNotifications` / `requestNotifications` (Android's
+  permission; whether calls may ring full screen, which Android 14 lets people turn off; whether
+  the build has Firebase), `getPushToken`, `setOngoing` / `clearOngoing`, `stopRinging`,
+  `openSettings`; events `navigate` (a tapped notification) and `callAction` (`answer` with a
+  call id, `mute`, `unmute`, `hangUp`), kept until the page listens, so a notification that
+  started the app still counts. `hooks/useAndroidApp.js` (in `Layout`) is the page's side.
+- **Notifications** (`PushService.java`, `Notifications.java`): Firebase Cloud Messaging, the
+  only way to wake a closed Android app. The phone registers its FCM token with a 256-bit key
+  it made (`PushCrypto.deviceKey`) as a push subscription (`{ endpoint: 'fcm:<token>', fcm:
+  { token, key } }`, `/save-subscription`; `pushService.js` asks Android instead of the browser);
+  `sendPushToUser` sends it the same payloads as web push through `server/fcm.js` (HTTP v1 API,
+  service account in `FCM_SERVICE_ACCOUNT`), each sealed with that key (AES-256-GCM over
+  deflated JSON) because FCM, unlike web push, doesn't encrypt to the device. Google sees when a
+  phone gets something and its size, as with Chrome's web push. The words come from the app's
+  hidden page (`NotifyRenderer.java` loads `notify.html` → `src/android/notifyPage.js` in an
+  invisible WebView at the same origin, so the same storage): it runs the service worker's
+  `notificationFromPush`, so DM and group previews are decrypted with the keys the app already
+  keeps, the same previews setting applies, and nothing of the encryption is written twice. The
+  push's own text if the page can't (8 s). Channels (each with its own sound in Android's
+  settings): Messages, Mentions, Incoming calls, Missed calls, Ongoing call. One notification per
+  conversation (its tag); silent while the app is in front (the page plays its sounds). A token
+  Firebase drops is forgotten (`UNREGISTERED`); a new token is registered the next time the app
+  opens.
+- **Calls ringing**: a call's push carries `callId` and `ringing`. The phone rings with a
+  CallStyle notification (Answer / Decline, the ringtone until it stops, 45 s at most) and a
+  full-screen ringing screen over the lock screen (`IncomingCallActivity`: name, picture, two
+  buttons; Answer asks to unlock first, so nothing of the app shows on the lock screen). Answer
+  opens the app, which answers once the call reaches it (`answerWhenRinging`); Decline is sent
+  by the hidden page with the app's login, the app needn't open. The page itself doesn't ring
+  when the phone does (`callClient.js`). Ringing stops on `call_stop` (the server sends it to
+  Android apps only, `sendToAndroidApps`, when the call is answered or declined on another
+  device, or they're out of it), on the "Missed call" push (which replaces it), or when the
+  page sees the call stop ringing.
+- **Ongoing call** (`CallService.java`): while in a call or voice channel, a foreground service
+  (microphone type, with a wake lock) keeps the app and its audio running with the screen off;
+  its notification shows what the voice bar shows (`utils/voiceTitle.js`) with Mute / Unmute and
+  Hang up (Disconnect in a voice channel).
+- **Settings → Android App** (`AndroidAppSettings.jsx`): whether calls ring over the lock screen
+  (a button to Android's setting when not), and Android's notification settings.
+- **Not done yet**: a release key and updates (the APK is installed by hand), Bluetooth headset
+  buttons and phone calls interrupting ours (Android's Telecom API), replying from a
+  notification, the unread count on the icon, push-to-talk, screen sharing, iOS.
 
 ## Info site (voicaw.com)
 

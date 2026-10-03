@@ -1,5 +1,6 @@
 import api from '../utils/api';
 import { isDesktopApp } from '../utils/desktop';
+import { androidNotificationState, androidSubscription, isAndroidApp, requestAndroidNotifications } from '../utils/android';
 import { refreshPresence } from '../utils/ws-client';
 import { t } from '../i18n';
 
@@ -8,6 +9,8 @@ import { t } from '../i18n';
 //
 // The desktop app has no web push: the server sends it the same notifications over the
 // websocket while it runs (utils/desktopNotifications.js), so there it's only on or off.
+// The Android app has no web push either: it registers its Firebase token instead (the same
+// subscription list, endpoint `fcm:<token>`), and asks Android for the permission.
 
 // Set when the user turns notifications off on this device, so opening the app doesn't
 // quietly subscribe again just because the browser permission is still granted.
@@ -35,6 +38,13 @@ function pushSupported() {
 //   'granted'       - allowed
 export function getPushStatus() {
   if (isDesktopApp()) return localStorage.getItem(DISABLED_KEY) === '1' ? 'off' : 'granted';
+  if (isAndroidApp()) {
+    const { permission, push } = androidNotificationState();
+    if (!push) return 'unsupported';
+    if (permission === 'denied') return 'denied';
+    if (localStorage.getItem(DISABLED_KEY) === '1') return 'off';
+    return permission === 'granted' ? 'granted' : 'can-enable';
+  }
   if (!pushSupported()) return isIOS() && !isInstalledApp() ? 'needs-install' : 'unsupported';
   if (Notification.permission === 'denied') return 'denied';
   if (localStorage.getItem(DISABLED_KEY) === '1') return 'off';
@@ -85,6 +95,11 @@ function explainSubscribeError(err) {
 // has it. Safe to call on every app start: subscriptions can change or expire.
 export async function ensureSubscription(vapidPublicKey) {
   if (isDesktopApp()) return null;
+  if (isAndroidApp()) {
+    const subscription = await androidSubscription();
+    await api.post('/save-subscription', { subscription });
+    return subscription;
+  }
   if (!vapidPublicKey) throw new Error('Missing VAPID public key');
   const registration = await serviceWorkerReady();
   const key = urlBase64ToUint8Array(vapidPublicKey);
@@ -117,6 +132,13 @@ export async function enableNotifications(vapidPublicKey) {
     refreshPresence();
     return 'granted';
   }
+  if (isAndroidApp()) {
+    const permission = await requestAndroidNotifications();
+    if (permission !== 'granted') return permission;
+    localStorage.removeItem(DISABLED_KEY);
+    await ensureSubscription();
+    return 'granted';
+  }
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return permission;
   localStorage.removeItem(DISABLED_KEY);
@@ -131,6 +153,11 @@ export async function disableNotificationsOnThisDevice({ remember = false } = {}
   if (remember) localStorage.setItem(DISABLED_KEY, '1');
   if (isDesktopApp()) {
     refreshPresence();
+    return;
+  }
+  if (isAndroidApp()) {
+    const { endpoint } = await androidSubscription();
+    await api.post('/delete-subscription', { endpoint });
     return;
   }
   if (!('serviceWorker' in navigator)) return;

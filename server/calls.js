@@ -1,6 +1,6 @@
 const db = require('./db');
 const { sendToUserSockets } = require('./sockets');
-const { sendPushToUser, getUserImageUrl, groupNameForPush } = require('./push');
+const { sendPushToUser, sendToAndroidApps, getUserImageUrl, groupNameForPush } = require('./push');
 const voice = require('./voice');
 const { displayNameOf } = require('./profiles');
 const { logCall } = require('./callLog');
@@ -103,11 +103,20 @@ async function push(call, userId, body) {
       url: call.groupId ? `/dm/g/${call.groupId}` : `/dm/${call.callerId}`,
       tag: `call-${call.id}`,
       image: await getUserImageUrl(call.callerId),
+      // For the Android app, which rings with Answer and Decline buttons while `ringing`.
+      callId: call.id,
+      ringing: body === 'Incoming voice call',
       timestamp: Math.floor(Date.now() / 1000),
     }, { TTL: Math.ceil(RING_MS / 1000), urgency: 'high' });
   } catch (err) {
     console.error('Call push failed:', err.message);
   }
+}
+
+// The call stopped ringing for `userId` without a "Missed call" (answered, declined, or they
+// left): their Android app stops ringing (web push and the pages learn it otherwise).
+function stopRinging(call, userId) {
+  sendToAndroidApps(userId, { type: 'call_stop', callId: call.id }).catch(() => {});
 }
 
 function removeFromRoom(call, userId) {
@@ -127,12 +136,14 @@ async function endCall(call, reason) {
   // A ringing notification becomes a missed call.
   const missed = call.groupId ? [...call.ringing] : (reason === 'missed' || reason === 'cancelled' ? [call.calleeId] : []);
   for (const userId of missed) await push(call, userId, 'Missed call');
+  for (const userId of call.ringing) if (!missed.includes(userId)) stopRinging(call, userId);
 }
 
 // `userId` leaves a group call (hanging up, or no longer in the group); the last one out ends
 // it.
 async function leaveCall(call, userId) {
   const wasRinging = call.ringing.delete(userId);
+  if (wasRinging) stopRinging(call, userId);
   if (!call.participants.delete(userId) && !wasRinging) return;
   removeFromRoom(call, userId);
   if (call.participants.size === 0) await endCall(call, 'ended');
@@ -245,12 +256,14 @@ async function acceptCall(call, userId) {
     // Out of any other call first.
     const other = callOf(userId);
     if (other && other !== call) await endCallOf(userId);
-    call.ringing.delete(userId);
+    if (call.ringing.delete(userId)) stopRinging(call, userId);
     call.participants.add(userId);
     call.joined.add(userId);
   } else {
     clearTimeout(call.timer);
     call.joined.add(call.callerId).add(call.calleeId);
+    // Answered on one of the callee's devices: the others stop.
+    stopRinging(call, call.calleeId);
     call.ringing.clear();
     call.state = 'active';
     call.answeredAt = Date.now();
@@ -261,7 +274,7 @@ async function acceptCall(call, userId) {
 // Declining: a 1:1 call ends; a group call just stops ringing for them.
 async function declineCall(call, userId) {
   if (call.groupId) {
-    call.ringing.delete(userId);
+    if (call.ringing.delete(userId)) stopRinging(call, userId);
     await announce(call);
   } else {
     await endCall(call, 'declined');

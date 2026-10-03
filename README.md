@@ -69,6 +69,10 @@ LIVEKIT_API_SECRET=...
 # GIFs in the emoji picker (an API key from partner.klipy.com). Optional: without it there's
 # no GIFs tab. A global admin can also set or replace it in Settings → Admin.
 KLIPY_API_KEY=...
+
+# The Android app's notifications (step 10): a Firebase service account's JSON key. Optional:
+# without it the app only notifies while it's open.
+# FCM_SERVICE_ACCOUNT=/path/to/fcm-service-account.json
 ```
 
 The web origins the API accepts are listed in `server/config.js` (`allowedOrigins`). Change
@@ -264,7 +268,44 @@ page are served uncached; installers (their names carry the version) are cached 
 Linux AppImages, `.deb` packages and Windows installers update this way. macOS only updates a
 signed app (an Apple developer account); unsigned, people download new versions by hand.
 
-### 10. voicaw.com and app.voicaw.com
+### 10. Android app (optional)
+
+The Android app (`mobile/`, Capacitor) ships its own copy of the client like the desktop app
+(`https://localhost` is already an allowed origin in `server/config.js`; the object store must
+allow it too, which MinIO does by default). It builds in Docker, so the host needs nothing else:
+
+```bash
+npm run dist:android   # client build for the app (../build-android), cap sync, then
+                       # dist-android/voicaw-debug.apk (mobile/dist-android.sh)
+```
+
+The first run builds the `voicaw-android-build` image (JDK 21 and the Android SDK,
+`mobile/Dockerfile`, a few GB) and Gradle's downloads (kept in `~/.gradle`). The client build uses
+`client/.env.production`, unless there's a `client/.env.android`. The APK is a debug build, signed
+with a debug key made on the first build (in `~/.android`): installable by hand ("install unknown
+apps"), not for Google Play.
+
+Notifications while the app is closed, and calls ringing it, need Firebase Cloud Messaging
+(Google's push service; without it the app only notifies while it's open, Settings → Android App
+says so). Set it up once:
+
+1. In the Firebase console (console.firebase.google.com), create a project (Analytics not
+   needed), then add an Android app with the package name `com.voicaw.app`.
+2. Download its `google-services.json` into `mobile/android/app/` (git-ignored) and rebuild the
+   APK.
+3. Project settings → Service accounts → Generate new private key: save the JSON on the host
+   where only the API's user can read it (e.g. `server/fcm-service-account.json`, `chmod 600`;
+   it's git-ignored) and point the API at it in `server/.env`:
+   ```
+   FCM_SERVICE_ACCOUNT=/home/otto/git/voicaw/server/fcm-service-account.json
+   ```
+   then restart the API. A wrong file is reported at start and leaves the app without
+   notifications.
+
+Every push is encrypted for the phone it goes to (`server/fcm.js`), so Google relays only
+ciphertext and learns when a phone gets something.
+
+### 11. voicaw.com and app.voicaw.com
 
 The web app lives at `app.voicaw.com`; `voicaw.com` is a small info and download site
 (`website/`): what Voicaw is, a button for the newest desktop installer (the visitor's own system

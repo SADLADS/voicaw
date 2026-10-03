@@ -26,6 +26,8 @@ import {
 } from '../services/callService';
 import { getVoiceSnapshot, joinCall, leaveVoice, setVoiceError } from './voiceClient';
 import { startLoop, stopLoop } from '../sounds/sounds';
+import { isAndroidApp } from '../utils/android';
+import { getPushStatus } from '../services/pushService';
 import { t } from '../i18n';
 
 // DM and group DM voice calls: ringing, being rung, answering or joining, declining and
@@ -124,7 +126,8 @@ function handleEvent(event) {
     if (current) return; // busy on this device
     incoming = event.call;
     set(localCall(event.call, { outgoing: false, state: 'ringing' }));
-    startLoop('incomingRing');
+    // The Android app rings itself, from the call's push (one ringtone, also when closed).
+    if (!(isAndroidApp() && getPushStatus() === 'granted')) startLoop('incomingRing');
   } else if (event.type === 'call_update') {
     const call = event.call;
     if (!current || current.id !== call.id) return;

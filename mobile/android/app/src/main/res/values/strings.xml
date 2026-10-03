@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Voicaw</string>
+    <string name="title_activity_main">Voicaw</string>
+    <string name="package_name">com.voicaw.app</string>
+    <string name="custom_url_scheme">com.voicaw.app</string>
+
+    <!-- Notification channels (Android's settings for the app list these). The notifications'
+         own text comes from the page's translations (client/src/i18n); these are only the
+         fallbacks for when it can't be asked. -->
+    <string name="channel_messages">Messages</string>
+    <string name="channel_messages_description">Direct messages and group messages</string>
+    <string name="channel_mentions">Mentions</string>
+    <string name="channel_mentions_description">Mentions and replies in guilds</string>
+    <string name="channel_calls">Incoming calls</string>
+    <string name="channel_calls_description">Rings for calls, with Answer and Decline</string>
+    <string name="channel_missed_calls">Missed calls</string>
+    <string name="channel_ongoing">Ongoing call</string>
+    <string name="channel_ongoing_description">Shown while you\'re in a call or voice channel</string>
+    <string name="answer">Accept</string>
+    <string name="decline">Decline</string>
+    <string name="mute">Mute</string>
+    <string name="unmute">Unmute</string>
+    <string name="hang_up">Hang up</string>
+</resources>

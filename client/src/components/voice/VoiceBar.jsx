@@ -9,8 +9,8 @@ import { clearStreamError, clearVoiceError, leaveVoice, resumeAudio } from '../.
 import ScreenShareButton from './ScreenShareButton';
 import { hangUp } from '../../voice/callClient';
 import { useCall } from '../../hooks/useCall';
-import { groupTitle } from '../../utils/groupDisplay';
-import { displayName, useProfiles } from '../../utils/profiles';
+import { useProfiles } from '../../utils/profiles';
+import { voiceTitle } from '../../utils/voiceTitle';
 import { t } from '../../i18n';
 
 const STATUS_TEXT = {
@@ -44,8 +44,7 @@ export default function VoiceBar({ user }) {
   }
 
   const inCall = voice.callId != null;
-  const guild = guildList.layouts[voice.guildId] ?? guildList.guilds.find((g) => g.id === voice.guildId);
-  const channel = guildList.layouts[voice.guildId]?.channels.find((c) => c.id === voice.channelId);
+  const title = voiceTitle({ voice, call, guildList, groupList, user });
 
   return (
     <div className="voice-bar" aria-label={t('voice.bar.label')}>
@@ -55,17 +54,11 @@ export default function VoiceBar({ user }) {
             <FontAwesomeIcon icon={faSignal} /> {inCall && voice.status === 'connected' ? t('voice.bar.callConnected') : t(STATUS_TEXT[voice.status])}
           </span>
           {inCall && call?.groupId ? (
-            <Link to={`/dm/g/${call.groupId}`} className="voice-bar-channel">
-              {t('voice.bar.callInGroup', { name: groupTitle(groupList.groups.find((g) => g.id === call.groupId) ?? { name: t('voice.bar.aGroup') }, user) })}
-            </Link>
+            <Link to={`/dm/g/${call.groupId}`} className="voice-bar-channel">{title}</Link>
           ) : inCall ? (
-            <Link to={`/dm/${call?.peerId ?? ''}`} className="voice-bar-channel">
-              {call ? t('voice.bar.callWith', { name: displayName(call.peerId, call.peerName) }) : t('voice.bar.call')}
-            </Link>
+            <Link to={`/dm/${call?.peerId ?? ''}`} className="voice-bar-channel">{title}</Link>
           ) : (
-            <Link to={`/guild/${voice.guildId}/${voice.channelId}`} className="voice-bar-channel">
-              {guild ? t('voice.bar.channelInGuild', { channel: channel?.name ?? t('voice.bar.voice'), guild: guild.name }) : (channel?.name ?? t('voice.bar.voice'))}
-            </Link>
+            <Link to={`/guild/${voice.guildId}/${voice.channelId}`} className="voice-bar-channel">{title}</Link>
           )}
         </div>
         {!inCall && <ScreenShareButton />}

@@ -9,9 +9,11 @@
     "build:electron": "cross-env ELECTRON=true vite build --mode electron",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:android": "cross-env ANDROID=true vite build --mode android"
   },
   "dependencies": {
+    "@capacitor/core": "^8.5.2",
     "@emoji-mart/data": "^1.2.1",
     "@fortawesome/fontawesome-svg-core": "^7.0.0",
     "@fortawesome/free-solid-svg-icons": "^7.0.0",

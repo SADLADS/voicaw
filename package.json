@@ -4,7 +4,8 @@
   "workspaces": [
     "client",
     "server",
-    "electron"
+    "electron",
+    "mobile"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=client",
@@ -12,9 +13,10 @@
     "build:site": "node website/build.mjs",
     "start:server": "npm run start --workspace=server",
     "start:electron": "npm run build:electron --workspace=client && electron electron/main.js",
-    "test": "npm run test --workspace=server && npm run test --workspace=client && npm run test --workspace=electron",
+    "test": "npm run test --workspace=server && npm run test --workspace=client && npm run test --workspace=electron && npm run test --workspace=mobile",
     "dist:electron": "npm run dist --workspace=electron",
-    "dist:electron:win": "npm run build:electron --workspace=client && sh electron/dist-win.sh"
+    "dist:electron:win": "npm run build:electron --workspace=client && sh electron/dist-win.sh",
+    "dist:android": "npm run dist --workspace=mobile"
   },
   "devDependencies": {
     "cross-env": "^10.0.0",

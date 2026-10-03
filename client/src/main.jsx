@@ -4,6 +4,7 @@ import { AuthProvider } from './AuthProvider.jsx';
 import { registerSW } from 'virtual:pwa-register';
 import { setUpdateAvailable, watchDesktopUpdates, watchForUpdates, watchForStaleApp } from './utils/appUpdate';
 import { desktop } from './utils/desktop';
+import { isAndroidApp, refreshAndroidNotificationState } from './utils/android';
 import { applySpellcheck } from './utils/spellcheck';
 import { applyTheme } from './utils/theme';
 import { blockNativeContextMenu } from './utils/nativeContextMenu';
@@ -19,10 +20,10 @@ import App from './App.jsx';
 
 // A new version waits until the user chooses to update (UpdateBanner, Settings). The desktop
 // app ships its page inside itself and updates as a whole (electron/updater.js), so it has no
-// service worker.
+// service worker. Neither does the Android app (its page ships in the APK).
 if (desktop) {
   watchDesktopUpdates(desktop);
-} else {
+} else if (!isAndroidApp()) {
   const updateSW = registerSW({
     onNeedRefresh() {
       setUpdateAvailable(() => updateSW(true));
@@ -37,8 +38,13 @@ applySpellcheck();
 applyTheme();
 blockNativeContextMenu();
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <AuthProvider>
-    <App />
-  </AuthProvider>
-);
+// The Android app first asks Android about notifications (one quick call), so the first
+// render already knows (getPushStatus is synchronous: the "turn on notifications" prompt).
+const nativeReady = isAndroidApp() ? refreshAndroidNotificationState() : Promise.resolve();
+nativeReady.then(() => {
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
+});

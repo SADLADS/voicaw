@@ -128,6 +128,10 @@ one user at a time).
 - The desktop app has no web push: `sendPushToUser` also sends the payload to the user's sockets
   whose presence says `desktopNotifications` (the app, notifications on) as `notification
   { payload }`, so the same checks apply (viewing, levels, previews). See Desktop app.
+- The Android app has no web push either: its subscription is a Firebase token (`fcm:<token>`
+  endpoint, with the phone's own key), and `sendPushToUser` sends it the same payload through
+  FCM, encrypted for that phone (`fcm.js`). Calls also get `call_stop` there
+  (`sendToAndroidApps`) to stop the phone ringing. See Android app in `docs/desktop-and-site.md`.
 - Message pushes (`dm`, `group`, `guild`) also send `message_sound` to every socket of the user
   (see Sounds). While a window of the app is focused, the service worker shows those
   notifications `silent` (the page plays the Message sound instead).

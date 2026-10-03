@@ -8,9 +8,11 @@ Voicaw is a Discord-style chat web app: end-to-end encrypted direct messages and
 (with calls), and guilds
 (Discord-style servers, always called guilds in the app: text, voice, list (task board)
 and document channels, threads, roles and private channels; not encrypted, see `docs/guilds.md`). It's an npm workspaces monorepo with
-three packages: `client` (React/Vite SPA, also packaged as an Electron desktop app), `server`
-(Express + ws API), and `electron` (the desktop app: the built client plus notifications, tray,
-shortcuts and updates; see `docs/desktop-and-site.md`).
+four packages: `client` (React/Vite SPA, also packaged as an Electron desktop app and an
+Android app), `server` (Express + ws API), `electron` (the desktop app: the built client plus
+notifications, tray, shortcuts and updates) and `mobile` (the Android app, Capacitor: the built
+client plus notifications and ringing while closed, call buttons, calls with the screen off);
+see `docs/desktop-and-site.md`.
 
 ## Working on Voicaw (read first)
 
@@ -65,6 +67,8 @@ Run from the repo root unless noted.
 - `npm run dist:electron` — the same build, then installers in `dist-desktop/` (electron-builder)
 - `npm run dist:electron:win` — the same build, then the Windows installer in Docker with wine
   (`electron/dist-win.sh`, electron-builder's image; unsigned)
+- `npm run dist:android` — the client's Android build, `cap sync`, then the APK (and the native
+  JUnit tests) in Docker (`mobile/dist-android.sh`) into `dist-android/voicaw-debug.apk`
 
 Client-only (run inside `client/`):
 - `npm run lint` — ESLint over `client/src`
@@ -73,8 +77,9 @@ Client-only (run inside `client/`):
 
 ### Tests (Vitest)
 
-- `npm test` (root) — runs server tests, then client tests, then the desktop app's
-- `npm test` inside `server/`, `client/` or `electron/` — run one package's suite
+- `npm test` (root) — runs server tests, then client tests, then the desktop app's, then the
+  Android app's (`mobile/test/`; its Java tests run with `npm run dist:android`)
+- `npm test` inside `server/`, `client/`, `electron/` or `mobile/` — run one package's suite
 - Single file / single test: `npx vitest run test/dm.test.js` (in `server/`) or
   `npx vitest run src/components/Dm.test.jsx -t "test name"` (in `client/`)
 
@@ -130,7 +135,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - `docs/client.md`: client structure (contexts, translations, Layout, settings, dates, themes, sidebar, phone
   panes, PWA updates, spellcheck, right-click menus, pinned and muted conversations, account preferences),
   profiles and pictures, sounds, admin settings.
-- `docs/desktop-and-site.md`: the Electron app, voicaw.com.
+- `docs/desktop-and-site.md`: the Electron app, the Android app (FCM, ringing, ongoing call),
+  voicaw.com.
 
 ## Rules that apply everywhere
 
@@ -185,6 +191,14 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   suppression → gate → published track). Krisp needs LiveKit Cloud or a licence, so it's out:
   noise suppression is RNNoise by default and DeepFilterNet as Strong (decided 2026-10-01),
   both running on the device.
+- **Android app** (built 2026-10-03, see `docs/desktop-and-site.md`): a Capacitor wrapper of the
+  client, native (Java) only for notifications, ringing and the ongoing call. Closed-app pushes
+  go through Firebase Cloud Messaging (Google; the only reliable way to wake an Android app,
+  chosen over UnifiedPush and a permanent websocket), each encrypted for the phone, since FCM
+  doesn't encrypt to the device. Previews are decrypted by the app's own page code in a hidden
+  WebView (`notify.html`), not a native port of the crypto, so keys never leave the page's
+  storage and there's one implementation. A debug APK for now; distribution (sideloading from
+  updates.voicaw.com, or Play) not decided yet.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

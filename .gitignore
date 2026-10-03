@@ -152,3 +152,7 @@ server/*.db-shm
 /build/
 /build-web/
 /dist-desktop/
+/build-android/
+/dist-android/
+mobile/android/app/google-services.json
+server/fcm-service-account.json

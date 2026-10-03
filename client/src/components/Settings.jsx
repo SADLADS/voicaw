@@ -20,6 +20,8 @@ import SoundSettings from "./SoundSettings";
 import VoiceSettings from "./VoiceSettings";
 import DesktopAppSettings from "./DesktopAppSettings";
 import { isDesktopApp } from '../utils/desktop';
+import AndroidAppSettings from './AndroidAppSettings';
+import { isAndroidApp } from '../utils/android';
 import EditProfile from "./EditProfile";
 import Avatar from "./Avatar";
 import { useAuth } from '../hooks/useAuth';
@@ -143,6 +145,12 @@ export default function Settings({ onLogout }) {
       keywords: t('settings.sections.desktopApp.keywords'),
       available: isDesktopApp(),
       content: isDesktopApp() ? <DesktopAppSettings /> : null,
+    },
+    {
+      id: 'android-app', category: 'app', title: t('settings.sections.androidApp.title'),
+      keywords: t('settings.sections.androidApp.keywords'),
+      available: isAndroidApp(),
+      content: isAndroidApp() ? <AndroidAppSettings /> : null,
     },
     {
       id: 'app-version', category: 'app', title: t('settings.sections.appVersion.title'),

@@ -24,6 +24,7 @@ import { usePreferencesSync } from '../hooks/usePreferencesSync';
 import { useDictionarySync } from '../hooks/useDictionarySync';
 import { useSwipePanes } from '../hooks/useSwipePanes';
 import { useDesktopApp } from '../hooks/useDesktopApp';
+import { useAndroidApp } from '../hooks/useAndroidApp';
 import { useFaviconDot } from '../hooks/useFaviconDot';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { clearProfiles, mergeProfiles } from '../utils/profiles';
@@ -209,6 +210,8 @@ export default function Layout({ user, onLogout }) {
   );
   useDesktopApp({ navigate, unreadDms: activeUnreadDms, groups: activeGroups, guildUnread: guildList.activeUnread });
   useFaviconDot({ unreadDms: activeUnreadDms, groups: activeGroups, guildUnread: guildList.activeUnread });
+  // The Android app: its notifications, call buttons and ongoing-call notification.
+  useAndroidApp({ navigate, user, guildList, groupList });
 
   // DM calls: ringing, from any page.
   useEffect(() => {

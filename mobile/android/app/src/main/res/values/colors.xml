@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app's dark theme colours (the colour tokens in client/src/assets/css/voicaw.css), for
+     what the app draws natively: notifications and the ringing screen. -->
+<resources>
+    <color name="notification">#6A52C9</color>
+    <color name="call_background">#17151D</color>
+    <color name="call_text">#FFFFFF</color>
+    <color name="call_subtext">#B5B0C2</color>
+    <color name="call_answer">#1D7F48</color>
+    <color name="call_decline">#CC3F37</color>
+</resources>

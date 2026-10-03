@@ -19,6 +19,15 @@ router.post('/save-subscription', authenticateJWT, async (req, res) => {
   }
   const { endpoint } = subObj;
   if (!endpoint) return res.status(400).json({ error: 'Subscription endpoint missing' });
+  // The Android app: its Firebase token, and the key every push to it is encrypted with (fcm.js).
+  if (subObj.fcm || endpoint.startsWith('fcm:')) {
+    const { token, key } = subObj.fcm ?? {};
+    if (typeof token !== 'string' || !token || token.length > 4096 || endpoint !== `fcm:${token}` ||
+        typeof key !== 'string' || Buffer.from(key, 'base64').length !== 32) {
+      return res.status(400).json({ error: 'Invalid app subscription' });
+    }
+    subObj = { endpoint, fcm: { token, key } };
+  }
 
   // A device (endpoint) belongs to whoever is logged in on it now; otherwise it would
   // keep receiving a previous account's notifications.
