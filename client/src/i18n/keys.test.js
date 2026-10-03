@@ -1,10 +1,9 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { LANGUAGE, resources, t } from './index.js';
+import { FALLBACK_LANGUAGE as LANGUAGE, LANGUAGES, resources, t } from './index.js';
 
 const SRC = join(import.meta.dirname, '..');
-const LOCALE_DIR = join(import.meta.dirname, LANGUAGE);
 
 function sourceFiles(dir) {
   return readdirSync(dir).flatMap((name) => {
@@ -40,10 +39,13 @@ describe('translations', () => {
     expect(missing).toEqual([]);
   });
 
-  it('keeps each area in its own file', () => {
-    for (const name of readdirSync(LOCALE_DIR)) {
-      const keys = Object.keys(JSON.parse(readFileSync(join(LOCALE_DIR, name), 'utf8')));
-      expect(keys, name).toEqual([basename(name, '.json')]);
+  it('keeps each area in its own file, in every language', () => {
+    for (const { code } of LANGUAGES) {
+      const dir = join(import.meta.dirname, code);
+      for (const name of readdirSync(dir)) {
+        const keys = Object.keys(JSON.parse(readFileSync(join(dir, name), 'utf8')));
+        expect(keys, `${code}/${name}`).toEqual([basename(name, '.json')]);
+      }
     }
   });
 

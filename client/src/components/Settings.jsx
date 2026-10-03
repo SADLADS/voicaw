@@ -15,6 +15,7 @@ import SpellcheckSettings from "./SpellcheckSettings";
 import PrivacySettings from "./PrivacySettings";
 import ContentSettings from "./ContentSettings";
 import ThemeSettings from "./ThemeSettings";
+import LanguageSettings from "./LanguageSettings";
 import SoundSettings from "./SoundSettings";
 import VoiceSettings from "./VoiceSettings";
 import DesktopAppSettings from "./DesktopAppSettings";
@@ -94,6 +95,11 @@ export default function Settings({ onLogout }) {
       id: 'appearance', category: 'app', title: t('settings.sections.appearance.title'),
       keywords: t('settings.sections.appearance.keywords'),
       content: <ThemeSettings />,
+    },
+    {
+      id: 'language', category: 'app', title: t('settings.sections.language.title'),
+      keywords: t('settings.sections.language.keywords'),
+      content: <LanguageSettings />,
     },
     {
       id: 'date-time', category: 'app', title: t('settings.sections.dateTime.title'),
