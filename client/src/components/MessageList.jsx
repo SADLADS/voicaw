@@ -198,11 +198,11 @@ const MessageMarkdown = memo(function MessageMarkdown({ text, localAttachments, 
   );
 });
 
-// A webhook's embeds (unless it asked for Discord's SUPPRESS_EMBEDS) and files; nothing for
-// anyone else's message. Markdown in embeds is drawn like the message's own text. Memoised
-// like MessageMarkdown: an embed can hold a dozen bits of markdown.
-const WebhookParts = memo(function WebhookParts({ webhookId, embeds: sent, attachments, flags, rehypePlugins, mentions }) {
-  if (!webhookId) return null;
+// A webhook's or a bot's embeds (unless it asked for Discord's SUPPRESS_EMBEDS) and files;
+// people's messages have none. Markdown in embeds is drawn like the message's own text.
+// Memoised like MessageMarkdown: an embed can hold a dozen bits of markdown.
+const EmbedParts = memo(function EmbedParts({ embeds: sent, attachments, flags, rehypePlugins, mentions }) {
+  if (!sent?.length && !attachments?.length) return null;
   const renderMarkdown = (text) => (
     <MentionContext.Provider value={mentions}>
       <MarkdownBody text={text} rehypePlugins={rehypePlugins} />
@@ -243,9 +243,9 @@ export const DocumentMarkdown = memo(function DocumentMarkdown({ text, user, s3E
   );
 });
 
-// What MessageMarkdown and WebhookParts take from a message (only what they draw, so memo works).
+// What MessageMarkdown and EmbedParts take from a message (only what they draw, so memo works).
 const markdownProps = (msg) => ({ text: msg.plaintext, localAttachments: msg.localAttachments });
-const webhookProps = (msg) => ({ webhookId: msg.webhook_id, embeds: msg.embeds, attachments: msg.attachments, flags: msg.flags });
+const embedProps = (msg) => ({ embeds: msg.embeds, attachments: msg.attachments, flags: msg.flags });
 
 // A message's content on its own, outside the chat (the pinned messages list): as in the chat,
 // without the menu, editor or reactions.
@@ -265,7 +265,7 @@ export function MessageContent({ msg, user, s3Endpoint, reactionNames, mentionRo
       {poll
         ? <Poll poll={poll} reactions={msg.reactions} userId={user.id} names={reactionNames} sentAt={msg.timestamp} />
         : <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />}
-      <WebhookParts {...webhookProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
+      <EmbedParts {...embedProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
     </div>
   );
 }
@@ -464,6 +464,7 @@ export function MessageRow({
         )}
         <strong className="message-author" style={{ color: webhook ? undefined : nameColors?.[msg.sender_id] }} {...profileProps(msg.sender_id, msg.sender_username)}>{senderName}</strong>{' '}
         {webhook && <span className="app-tag" title={t('chat.message.webhookTitle')}>{t('chat.message.webhookTag')}</span>}{webhook && ' '}
+        {msg.sender_bot ? <><span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span>{' '}</> : null}
 
         <small>
           <span title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>{formatDateTime(msg.timestamp * 1000)}</span>
@@ -539,7 +540,7 @@ export function MessageRow({
           {grouped && msg.edited && editingMessageId !== msg.id ? <small className="message-edited">{t('chat.message.editedInline')}</small> : null}
           {grouped && editingMessageId !== msg.id ? pinMark : null}
 
-          <WebhookParts {...webhookProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
+          <EmbedParts {...embedProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
 
           {!poll && <UrlPreviews text={msg.plaintext} encrypted={encrypted} />}
         </div>

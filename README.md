@@ -173,7 +173,7 @@ One site per name, each with a certificate (`certbot --nginx -d <name>`):
 |---|---|
 | `app.voicaw.com` | the web app: static files, `root /opt/voicaw-client`, `try_files $uri $uri/ /index.html`; `location /api/` → `http://localhost:3002` with `client_max_body_size 26M` (config: `website/nginx/app.voicaw.com`) |
 | `voicaw.com` | the info and download site, `root /opt/voicaw-site`, its `/api/` like the app's, anything else redirected to app.voicaw.com (section 10; config: `website/nginx/voicaw.com`) |
-| `api.voicaw.com` | `http://localhost:3002` (REST and the websocket), `client_max_body_size 26M` |
+| `api.voicaw.com` | `http://localhost:3002` (REST, the app's websocket and the bot gateway at `/api/gateway`: pass `Upgrade`/`Connection` on every path), `client_max_body_size 26M` |
 | `media.voicaw.com` | the object store, `client_max_body_size 100M` |
 | `rtc.voicaw.com` | LiveKit signalling, `http://127.0.0.1:7880` |
 

@@ -93,6 +93,12 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   Permissions tab (`ChannelPermissions`: private toggle, ✕ / / ✓ per role or member). Dialogs use `guild/Modal.jsx`; styles are
   `assets/css/guilds.css`. Attachments in channels still go through the encrypted upload (the
   key is in the plain message, so anyone in the channel can open them); plain uploads can come later.
+- **Bots** (`docs/bots.md`) are members with `bot` set: a BOT tag in the member list and on
+  their messages (which can have embeds and files, drawn like webhooks'), no Message or Make
+  owner on their card, and their own role (`bot_id`), which `RolesSettings` explains and won't
+  delete and the member card won't give or take. The guild actions (send, delete, pin, react,
+  kick, ban, channels, roles, overrides, threads, invites) are functions the bot API shares
+  (they throw `ActionError`), so a bot follows the same permission and rank rules as anyone.
 - **Audit log** (`server/auditLog.js`, `routes/auditLog.js`, `guild_audit_log`), like Discord's:
   who did what, to what, when. Routes call `logAudit` inside their transaction: message deletes
   (anyone's, own included; whose it was, who deleted it, channel, when it was sent, **never its

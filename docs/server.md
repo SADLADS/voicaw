@@ -37,6 +37,10 @@ unexpected errors. The rest:
 - `callLog.js`: a call's row in its chat's history once it ends (see Calls in the chat history, under DM calls).
 - `groupDms.js`: group DMs (membership log checks, epochs, summaries; see Group DMs).
 - `appSettings.js`: app-wide settings a global admin edits (see Admin settings).
+- `bots.js`: bot applications and their bot users, tokens, adding bots to guilds (their own
+  role); `discord.js`: our objects, ids and permissions as Discord's API shows them;
+  `gateway.js`: the bot gateway (Discord's protocol at `/api/gateway`); `actionError.js`: the
+  error the guild actions shared by the app's routes and the bot API throw. See `docs/bots.md`.
 - `pins.js`: pinning and unpinning a message, the same for every kind of chat (see Pinned messages).
 - `polls.js`: reading guild polls, when they close, and what an edit may change (see Polls).
 - `accounts.js`: deleting an account (see Deleting an account).
@@ -52,7 +56,8 @@ unexpected errors. The rest:
   delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `guilds.js` (guilds,
   members, invites, bans, categories, channels), `guildMessages.js` (channel messages, reactions,
   read state), `guildSearch.js` (guild search; see Guild search), `voice.js` (join token, mute/deafen, leave, LiveKit webhook), `calls.js` (DM
-  calls), `groupDms.js` (group DMs), `webhooks.js` (Discord-compatible webhooks), `push.js`
+  calls), `groupDms.js` (group DMs), `webhooks.js` (Discord-compatible webhooks), `applications.js` (the developer portal
+  and adding bots to guilds), `botApi.js` (Discord's REST API for bots, at `/api/v10`), `push.js`
   (subscriptions), `uploads.js`, `gifs.js` (Klipy search proxy, GIF favourites), `admin.js`.
 
 Client tests sit next to their source files (`src/**/*.test.{js,jsx}`). The default environment is

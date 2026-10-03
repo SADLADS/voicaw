@@ -652,6 +652,18 @@ describe('MessageList reactions', () => {
       expect(download).toHaveTextContent('2.0 KB');
     });
 
+    it("draws a bot's embeds and files too, with a BOT tag and its profile card", () => {
+      const botMessage = {
+        id: 8, sender_id: 9, sender_username: 'helperbot#0420', sender_bot: 1, plaintext: 'Forecast', content: 'Forecast',
+        timestamp: 1000, flags: 0, attachments: [], embeds: [{ type: 'rich', title: 'Sunny', description: '21°' }],
+      };
+      const { container } = render(<MessageList {...baseProps({ messages: [botMessage] })} />);
+      const author = screen.getByText('helperbot#0420', { selector: '.message-author' });
+      expect(author.nextElementSibling).toHaveTextContent('BOT');
+      expect(author).toHaveAttribute('role', 'button');
+      expect(container.querySelector('.embed')).toHaveTextContent('Sunny');
+    });
+
     it("doesn't show a file twice when an embed shows it", () => {
       const chart = { id: 'a', filename: 'chart.png', content_type: 'image/png', url: 'https://s3.test/uploads/webhooks/a/chart.png', size: 10 };
       const { container } = render(<MessageList {...baseProps({ messages: [hookMessage({ attachments: [chart], embeds: [{ type: 'rich', title: 'Load', image: { url: chart.url } }] })] })} />);
