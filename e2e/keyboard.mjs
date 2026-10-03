@@ -97,6 +97,21 @@ try {
   l = await layout(page);
   check(l.boxBottom <= viewport.height && l.boxBottom > viewport.height - 120, 'Android: back at the bottom when the keyboard closes');
 
+  // Tapping Send leaves the box focused, so the keyboard stays up for the next message; with
+  // the keyboard down, it doesn't bring it up.
+  await page.locator('#dm-input').tap();
+  await page.keyboard.type('first of two');
+  await page.locator('.send-button').tap();
+  await page.waitForSelector('.each-dm-message-wrapper:has-text("first of two")');
+  check((await layout(page)).focused, 'Send keeps the message box focused (keyboard stays up)');
+  await page.keyboard.type('second of two');
+  await page.locator('.send-button').tap();
+  await page.waitForSelector('.each-dm-message-wrapper:has-text("second of two")');
+  check(await alice.page.locator('text=second of two').waitFor().then(() => true, () => false), 'the next message is typed and sent straight away');
+  await page.evaluate(() => document.activeElement.blur());
+  await page.locator('.send-button').tap();
+  check(!(await layout(page)).focused, "Send with the box unfocused doesn't focus it (keyboard stays down)");
+
   // iOS: the keyboard lies over the page and the page slides up; a stand-in visualViewport.
   await page.addInitScript(() => {
     const state = { height: window.innerHeight, offsetTop: 0 };

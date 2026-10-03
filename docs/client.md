@@ -283,7 +283,9 @@
   from `innerHeight`, which shrinks with it on Android; `utils/keyboardHeight.js` (the docked
   emoji panel) and `useVisualViewport` use the same. Emoji search's
   `navigator.virtualKeyboard.overlaysContent` overrides the meta while it's on.
-  `e2e/keyboard.mjs` checks both with a made-up keyboard (headless Chrome has none).
+  The Send button never takes focus (its `mousedown` is cancelled), so after sending the
+  keyboard stays up for the next message, and a tap on Send with the keyboard down doesn't
+  bring it up. `e2e/keyboard.mjs` checks both with a made-up keyboard (headless Chrome has none).
 - Safe areas (notch, rounded corners, home indicator): the viewport meta has
   `viewport-fit=cover`, without which iOS reports every `env(safe-area-inset-*)` as 0 (yet the
   Home Screen app still draws under the home indicator). `#root` pads by the left and right

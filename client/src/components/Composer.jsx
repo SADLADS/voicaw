@@ -503,7 +503,13 @@ export default function Composer({
             >
               {isMobile && showEmojiPicker ? '⌨️' : '😎'}
             </button>
-            <button className="send-button" type="submit">
+            <button
+              className="send-button"
+              type="submit"
+              // The message box keeps focus, so a phone's keyboard stays up for the next message
+              // (and doesn't come up if it was down).
+              onMouseDown={(e) => e.preventDefault()}
+            >
               {t('chat.composer.send')}
             </button>
           </div>
