@@ -27,6 +27,7 @@ import { customEmojiToText } from '../emoji/customEmoji';
 import { rehypeMentions } from '../utils/rehypeMentions';
 import { rehypeHighlightShared } from '../utils/rehypeHighlightShared';
 import { isPlainText } from '../utils/plainText';
+import { cannotHover, flashRow } from '../utils/flashRow';
 import { hideSpoilers, remarkDiscord, remarkDocument } from '../utils/remarkDiscord';
 import { continuesGroup, rowTime, startsNewDay } from '../utils/messageGroups';
 import { displayName, useProfiles } from '../utils/profiles';
@@ -374,6 +375,7 @@ export function MessageRow({
       onMouseEnter={() => setHoveredMsgId(msg.id)}
       onMouseLeave={() => setHoveredMsgId(null)}
       onContextMenu={onContextMenu}
+      onClick={(e) => { if (cannotHover()) flashRow(e.currentTarget, 'tap-highlight'); }}
       {...longPress}
     >
       {parent && (

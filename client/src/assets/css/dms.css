@@ -396,14 +396,21 @@ small {
 }
 
 
-.each-dm-message-wrapper:hover,
 .each-dm-message-wrapper.focused {
   background-color: var(--vc-bg-hover);
 }
 
-/* While a picker or menu is open for one message (.focused), the others ignore hovering. */
-.message-scroller.has-focused-message .each-dm-message-wrapper:not(.focused):hover {
-  background-color: var(--vc-bg-subtle);
+/* Only with a mouse: a touch screen keeps :hover on the last row tapped, so a tap there
+   flashes the row instead (.tap-highlight). */
+@media (hover: hover) {
+  .each-dm-message-wrapper:hover {
+    background-color: var(--vc-bg-hover);
+  }
+
+  /* While a picker or menu is open for one message (.focused), the others ignore hovering. */
+  .message-scroller.has-focused-message .each-dm-message-wrapper:not(.focused):hover {
+    background-color: var(--vc-bg-subtle);
+  }
 }
 
 .each-dm-message-wrapper.focused .message-menu {
@@ -1994,7 +2001,13 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   box-shadow: inset 2px 0 0 var(--vc-action);
 }
 
-.each-dm-message-wrapper.mentioned:hover,
+@media (hover: hover) {
+  .each-dm-message-wrapper.mentioned:hover {
+    background-color: var(--vc-action-soft);
+    background-image: linear-gradient(var(--vc-action-soft), var(--vc-action-soft));
+  }
+}
+
 .each-dm-message-wrapper.mentioned.focused {
   background-color: var(--vc-action-soft);
   background-image: linear-gradient(var(--vc-action-soft), var(--vc-action-soft));
@@ -2517,6 +2530,16 @@ body.mobile-mode .dm-user-list-container .dm-user {
 
 .each-dm-message-wrapper.jump-highlight {
   animation: jump-highlight 2s ease-out;
+}
+
+/* A message tapped on a touch screen (MessageList, no :hover there): the same fade, in the
+   hover colour. No `to`: it fades into the row's own background (a mention's tint, say). */
+@keyframes tap-highlight {
+  from { background-color: var(--vc-bg-hover); }
+}
+
+.each-dm-message-wrapper.tap-highlight {
+  animation: tap-highlight 2s ease-out;
 }
 
 /* Header buttons side by side (call, pins, members). */

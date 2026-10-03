@@ -77,7 +77,10 @@
   confirms), unless Shift is held while clicking. The sheet ignores the click Chrome fires when
   the holding finger lifts (it lands on the sheet); only clicks from a touch that started on
   it count. Messages aren't text-selectable on mobile, so the long press isn't taken by text
-  selection.
+  selection. Rows highlight on hover only with a mouse (`@media (hover: hover)`): a touch
+  screen keeps `:hover` on the last thing tapped, so there a tap flashes the row instead
+  (`.tap-highlight`, the jump-to-message fade in the hover colour, `utils/flashRow.js`); the
+  row a sheet or picker is open for stays highlighted (`.focused`).
 - Swipe to reply (mobile, `hooks/useSwipeToReply.js`, like Discord): swiping a message to the
   left drags it with the finger and brings in a reply arrow from the right edge; past 64px the
   arrow fills in (a short vibration), the message resists, and letting go there sets the reply

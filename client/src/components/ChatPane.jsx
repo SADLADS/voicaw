@@ -18,6 +18,7 @@ import { hideSpoilers } from '../utils/remarkDiscord';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 import { displayName } from '../utils/profiles';
 import { t } from '../i18n';
+import { flashRow } from '../utils/flashRow';
 import { clearTyping } from '../utils/typing';
 import { endPoll, parsePoll, pollEnded, pollMarkup } from '../utils/pollMarkup';
 import { endPollOnServer, registerPollTimer } from '../services/pollService';
@@ -269,10 +270,7 @@ export default function ChatPane({
       const row = document.querySelector(`.message-scroller [data-msg-id="${id}"]`);
       if (row) {
         row.scrollIntoView({ block: 'center' });
-        row.classList.remove('jump-highlight');
-        void row.offsetWidth; // restarts the animation when jumping to the same one again
-        row.classList.add('jump-highlight');
-        setTimeout(() => row.classList.remove('jump-highlight'), 2000);
+        flashRow(row, 'jump-highlight');
         return;
       }
       const current = latestConversation.current;
