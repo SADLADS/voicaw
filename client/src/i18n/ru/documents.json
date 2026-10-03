@@ -1,0 +1,119 @@
+{
+  "documents": {
+    "deletedUser": "Удалённый пользователь",
+    "byline": {
+      "edited": "· изменено {{date}}",
+      "editedBy": "· изменено {{date}}, автор правки: {{name}}"
+    },
+    "card": {
+      "open": "Открыть {{title}}",
+      "replies_one": "{{count}} ответ",
+      "replies_few": "{{count}} ответа",
+      "replies_many": "{{count}} ответов",
+      "replies_other": "{{count}} ответа"
+    },
+    "feed": {
+      "newDocument": "Новый документ",
+      "empty": "Пока нет документов.",
+      "emptyCanCreate": "Пока нет документов. Напишите первый, нажав «Новый документ».",
+      "noPermission": "У вас нет прав писать документы здесь."
+    },
+    "reactions": {
+      "add": "Добавить реакцию",
+      "react": "Отреагировать"
+    },
+    "page": {
+      "missing": "Этот документ удалён, или вы его не видите.",
+      "backToAll": "Назад ко всем документам",
+      "allDocuments": "Все документы",
+      "replies": "Ответы",
+      "repliesLabel": "Сообщение с ответом на {{title}}",
+      "repliesPlaceholder": "Ответить на {{title}}...",
+      "repliesUpload": "Загрузить в ответы на {{title}}",
+      "noReplies": "Пока нет ответов. Скажите, что думаете!",
+      "documentTab": "Документ",
+      "repliesTabCount": "Ответы ({{number}})",
+      "repliesTabCountMore": "Ответы ({{number}}+)",
+      "deleteDocument": "Удалить документ",
+      "confirmDelete": "Удалить «{{title}}» и все ответы на него? Это действие нельзя отменить."
+    },
+    "cover": {
+      "imageName": "Обложка"
+    },
+    "editor": {
+      "imageName": "изображение",
+      "startWriting": "Начните писать…",
+      "document": "Документ",
+      "uploadFailed": "Не удалось загрузить {{name}}: {{error}}",
+      "coverUploadFailed": "Не удалось загрузить обложку: {{error}}",
+      "needTitle": "Дайте документу название.",
+      "tooLong": "Документ может содержать не более {{max}} символов (в этом — {{length}}).",
+      "uploadingImage": "Загрузка изображения…",
+      "saving": "Сохранение…",
+      "publish": "Опубликовать",
+      "formatting": "Форматирование",
+      "textStyle": "Стиль текста",
+      "withShortcut": "{{label}} ({{keys}})",
+      "styles": {
+        "mixed": "Смешанный",
+        "paragraph": "Обычный текст",
+        "heading": "Заголовок {{level}}",
+        "code": "Блок кода"
+      },
+      "tools": {
+        "bold": "Жирный",
+        "italic": "Курсив",
+        "underline": "Подчёркнутый",
+        "strikethrough": "Зачёркнутый",
+        "inlineCode": "Код в строке",
+        "spoiler": "Спойлер",
+        "link": "Ссылка",
+        "removeLink": "Убрать ссылку",
+        "bulletedList": "Маркированный список",
+        "numberedList": "Нумерованный список",
+        "checklist": "Чек-лист",
+        "quote": "Цитата",
+        "insertImage": "Вставить изображение",
+        "insertTable": "Вставить таблицу",
+        "horizontalLine": "Горизонтальная линия",
+        "undo": "Отменить",
+        "redo": "Повторить"
+      },
+      "table": {
+        "label": "Таблица",
+        "addRow": "Добавить строку ниже",
+        "addRowShort": "+ Строка",
+        "addColumn": "Добавить столбец справа",
+        "addColumnShort": "+ Столбец",
+        "deleteRow": "Удалить строку",
+        "deleteRowShort": "− Строка",
+        "deleteColumn": "Удалить столбец",
+        "deleteColumnShort": "− Столбец",
+        "deleteTable": "Удалить таблицу"
+      },
+      "link": {
+        "address": "Адрес ссылки",
+        "placeholder": "Вставьте или введите ссылку",
+        "add": "Добавить ссылку"
+      },
+      "imageFile": "Файл изображения",
+      "coverImageFile": "Файл обложки",
+      "conflict": {
+        "message": "Кто-то другой сохранил этот документ, пока вы его редактировали.",
+        "loadTheirs": "Загрузить их версию",
+        "saveMine": "Сохранить мою поверх"
+      },
+      "changeCover": "Сменить обложку",
+      "removeCover": "Убрать обложку",
+      "addCover": "Добавить обложку",
+      "title": "Название",
+      "untitled": "Документ без названия",
+      "discard": {
+        "title": "Отменить изменения",
+        "editing": "Прекратить редактирование и потерять изменения?",
+        "new": "Выбросить этот документ?",
+        "confirm": "Отменить"
+      }
+    }
+  }
+}

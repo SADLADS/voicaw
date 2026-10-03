@@ -6,11 +6,19 @@
   Contexts live in `contexts.js` (`ConfigContext`, `InteractionContext`, `LayoutContext`) and
   `hooks/useAuth.js`; logic lives in `hooks/` and `services/`.
 - **Translations** (`i18n/`, i18next): every string the app shows comes from `t('area.key')`,
-  so another language can be added later without touching components. British English is
-  the only language so far (decided 2026-10-03; Russian may follow). The text is in
-  `i18n/en-GB/<area>.json`, one file per area of the app (`settings`, `chat`, `guilds`,
+  so components don't change per language. British English (`en-GB/`) and Russian (`ru/`,
+  a quick machine-made first pass from 2026-10-03, translated in batches from then on: new
+  text is written in English only and shows in English until the next batch). The text is in
+  `i18n/<language>/<area>.json`, one file per area of the app (`settings`, `chat`, `guilds`,
   `guildAdmin`, `voice`...), each holding one top-level key named after the file; `common.json`
-  has the everyday words (Cancel, Save, Close...). Files there are picked up automatically.
+  has the everyday words (Cancel, Save, Close...). Files there are picked up automatically;
+  a new language also goes in `LANGUAGES` (`i18n/index.js`).
+  - **Choosing:** Settings → Language (`LanguageSettings.jsx`), on this device
+    (`localStorage`); Automatic, the default, takes the browser's languages in order and
+    falls back to British English. Changing it reloads the app. Anything missing from a
+    language shows in British English (i18next's fallback, key by key; a plural form missing
+    in Russian falls back to the English plural). The service worker can't read the choice,
+    so notification text follows the browser's language.
   - `import { t } from '../i18n'` works anywhere (components, hooks, services, memoised
     parts): the strings are bundled and looked up synchronously. Changing language will
     reload the app, so there's no `useTranslation` hook to thread through.
@@ -31,10 +39,10 @@
     aren't checked: put their text through `t` by hand). `i18n/keys.test.js` fails when the
     code uses a key that isn't in the files (keys built at run time, like
     `` t(`guildAdmin.permissions.${name}.label`) ``, can't be checked there).
-  - Adding a language later: an `i18n/<code>/` folder, a language setting (saved with the
-    account preferences), server errors as codes, push notification text, the desktop app's
-    menus, a test that every English key exists in the new language, and checking the font
-    covers its alphabet.
+  - Still English in every language: server errors (they'd need to become codes), push
+    notification text written by the server, and the desktop app's menus and tray.
+    Translating a batch: compare a language's files with `en-GB/` for missing keys (nothing
+    checks this automatically, since partial is allowed).
 - `AuthProvider.jsx` — fetches `/api/profile` on mount to restore the session (id, username, JWT)
   into `useAuth`; the keys come from IndexedDB (`keyStore`). `services/authService.js` does the
   OPAQUE login/register (`Login.jsx` is just the form).

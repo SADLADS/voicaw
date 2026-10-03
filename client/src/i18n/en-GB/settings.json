@@ -33,6 +33,10 @@
         "title": "Appearance",
         "keywords": "theme dark mode light mode night colours colors system keyboard"
       },
+      "language": {
+        "title": "Language",
+        "keywords": "language translation english russian русский язык"
+      },
       "dateTime": {
         "title": "Date & time",
         "keywords": "locale language date format time format 12-hour 24-hour clock am pm"
@@ -328,6 +332,12 @@
       "removeWord": "Remove {{word}}",
       "noWords": "No words yet. “Add to Dictionary” on a misspelled word puts it here.",
       "wordsSynced": "Your words follow your account to your other devices, end-to-end encrypted."
+    },
+    "language": {
+      "title": "Language",
+      "label": "Language",
+      "automatic": "Automatic (the browser's)",
+      "hint": "The app reloads in the language you pick. Saved on this device. Messages aren't translated, and a few things (some errors from the server) may still be in English."
     },
     "theme": {
       "title": "Theme",

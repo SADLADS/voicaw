@@ -1,0 +1,133 @@
+{
+  "media": {
+    "size": {
+      "bytes": "{{size}} Б",
+      "kilobytes": "{{size}} КБ",
+      "megabytes": "{{size}} МБ",
+      "gigabytes": "{{size}} ГБ"
+    },
+    "percent": "{{percent}}%",
+    "cover": {
+      "spoiler": "Спойлер",
+      "nsfw": "NSFW",
+      "reveal": "{{label}}: {{name}}, выберите, чтобы показать"
+    },
+    "attachment": {
+      "defaultName": "вложение",
+      "decrypting": "Расшифровка…",
+      "downloadFailed": "Не удалось скачать",
+      "download": "Скачать {{name}}",
+      "loading": "Загрузка {{name}}",
+      "gifFromKlipy": "GIF из KLIPY",
+      "showGif": "Показать GIF",
+      "show": "Показать"
+    },
+    "tray": {
+      "spoiler": "Спойлер",
+      "removeSpoiler": "Убрать спойлер",
+      "markSpoiler": "Отметить как спойлер",
+      "removeSpoilerFrom": "Убрать спойлер с {{name}}",
+      "markNameSpoiler": "Отметить {{name}} как спойлер",
+      "remove": "Удалить {{name}}"
+    },
+    "drafts": {
+      "defaultName": "файл",
+      "tooBig_one": "{{names}} превышает лимит {{limit}}.",
+      "tooBig_few": "{{names}} превышают лимит {{limit}}.",
+      "tooBig_many": "{{names}} превышают лимит {{limit}}.",
+      "tooBig_other": "{{names}} превышают лимит {{limit}}."
+    },
+    "upload": {
+      "failed": "Не удалось загрузить",
+      "failedStatus": "Не удалось загрузить ({{status}})",
+      "invalidUrl": "Недопустимый адрес загрузки"
+    },
+    "fileDrop": {
+      "title": "Загрузить в {{name}}",
+      "hint": "Перед отправкой можно добавить сообщение."
+    },
+    "gifs": {
+      "loadFailed": "Не удалось загрузить GIF",
+      "untitled": "GIF",
+      "addFavourite": "Добавить в избранное",
+      "removeFavourite": "Убрать из избранного",
+      "noFavourites": "Пока нет избранного. Нажмите на звёздочку у GIF, чтобы сохранить его здесь.",
+      "noMatches": "Нет GIF по запросу «{{query}}»",
+      "none": "Нет GIF",
+      "tabs": "GIF",
+      "trending": "В тренде",
+      "favourites": "Избранное",
+      "favouritesNumber": "Избранное ({{number}})",
+      "loading": "Загрузка GIF…",
+      "attribution": "Работает на KLIPY",
+      "privacyWarning": "Превью GIF загружаются с KLIPY, который видит ваш IP-адрес и то, какие GIF вы смотрите. Вы отключили «Показывать GIF сразу» в Настройки → Конфиденциальность.",
+      "showAnyway": "Всё равно показать GIF"
+    },
+    "image": {
+      "defaultFileName": "изображение",
+      "menuTitle": "Изображение",
+      "copyImage": "Копировать изображение",
+      "saveImage": "Сохранить изображение",
+      "copyLink": "Копировать ссылку",
+      "openLink": "Открыть ссылку",
+      "openImage": "Открыть изображение",
+      "imageCopied": "Изображение скопировано",
+      "linkCopied": "Ссылка скопирована",
+      "loadFailedStatus": "Не удалось загрузить изображение ({{status}})",
+      "copyFailed": "Не удалось скопировать изображение",
+      "browserCantCopy": "Этот браузер не умеет копировать изображения",
+      "cantBeCopied": "Это изображение нельзя скопировать: попробуйте «Сохранить изображение»"
+    },
+    "viewer": {
+      "loadFailed": "Не удалось загрузить это изображение.",
+      "decrypting": "Расшифровка…",
+      "zoomOut": "Уменьшить",
+      "zoomOutTitle": "Уменьшить (−)",
+      "fitToScreen": "По размеру экрана",
+      "fitToScreenTitle": "По размеру экрана (0)",
+      "zoomIn": "Увеличить",
+      "zoomInTitle": "Увеличить (+)",
+      "openInNewTab": "Открыть в новой вкладке",
+      "closeTitle": "Закрыть (Esc)",
+      "previous": "Предыдущее изображение",
+      "previousTitle": "Предыдущее изображение (←)",
+      "next": "Следующее изображение",
+      "nextTitle": "Следующее изображение (→)",
+      "thumbnails": "Изображения в этом сообщении",
+      "thumbnail": "Изображение {{number}}: {{name}}"
+    },
+    "video": {
+      "seek": "Перемотка",
+      "timeOf": "{{time}} из {{duration}}",
+      "downloadFailedRetry": "Не удалось скачать, попробуйте ещё раз",
+      "downloadingTitle": "Скачивание…",
+      "download": "Скачать {{name}}",
+      "downloading": "Скачивание {{name}}",
+      "play": "Воспроизвести",
+      "playName": "Воспроизвести {{name}}",
+      "playTitle": "Воспроизвести (k)",
+      "pause": "Пауза",
+      "pauseTitle": "Пауза (k)",
+      "loading": "Загрузка видео",
+      "loadFailed": "Не удалось загрузить это видео.",
+      "cantPlay": "Это видео нельзя воспроизвести в этом браузере.",
+      "retry": "Повторить",
+      "unmuteTitle": "Включить звук (m)",
+      "muteTitle": "Выключить звук (m)",
+      "volume": "Громкость",
+      "fullScreen": "Во весь экран",
+      "fullScreenTitle": "Во весь экран (f)",
+      "exitFullScreen": "Выйти из полноэкранного режима",
+      "exitFullScreenTitle": "Выйти из полноэкранного режима (f)"
+    },
+    "embeds": {
+      "image": "встроенное изображение",
+      "footerWithTime": "{{text}} • {{time}}"
+    },
+    "youtube": {
+      "video": "Видео YouTube",
+      "play": "Воспроизвести видео YouTube",
+      "hint": "При воспроизведении оно загружается с YouTube"
+    }
+  }
+}

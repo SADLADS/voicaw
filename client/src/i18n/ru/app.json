@@ -1,0 +1,76 @@
+{
+  "app": {
+    "unreachable": "Не удаётся подключиться к Voicaw. Пробуем снова…",
+    "sidebar": {
+      "logoAlt": "Логотип Voicaw",
+      "directMessages": "Личные сообщения",
+      "guilds": "Гильдии",
+      "mentions_one": "{{count}} упоминание",
+      "mentions_few": "{{count}} упоминания",
+      "mentions_many": "{{count}} упоминаний",
+      "mentions_other": "{{count}} упоминания",
+      "addGuild": "Добавить гильдию",
+      "resize": "Изменить размер боковой панели",
+      "dragToResize": "Потяните, чтобы изменить размер",
+      "leaveGuild": {
+        "title": "Покинуть «{{name}}»",
+        "message": "Вы уверены, что хотите покинуть {{name}}? Вернуться можно будет только по новому приглашению.",
+        "confirm": "Покинуть гильдию"
+      }
+    },
+    "userPanel": {
+      "you": "Вы"
+    },
+    "connection": {
+      "online": "В сети",
+      "connecting": "Подключение…",
+      "offline": "Не в сети"
+    },
+    "userMenu": {
+      "yourAccount": "Ваш аккаунт",
+      "customStatus": "Свой статус",
+      "statusPlaceholder": "Как дела?",
+      "changeStatus": "Изменить свой статус",
+      "setStatus": "Задать свой статус",
+      "clearStatus": "Убрать свой статус",
+      "clear": "Убрать",
+      "statusSaveFailed": "Не удалось сохранить статус.",
+      "editProfile": "Изменить профиль",
+      "logOut": "Выйти"
+    },
+    "pageMenus": {
+      "text": "Текст",
+      "link": "Ссылка",
+      "selection": "Выделение",
+      "noSuggestions": "Нет вариантов",
+      "addToDictionary": "Добавить в словарь",
+      "cut": "Вырезать",
+      "paste": "Вставить",
+      "selectAll": "Выделить всё",
+      "spellcheck": "Проверка орфографии",
+      "copyLink": "Копировать ссылку",
+      "linkCopied": "Ссылка скопирована",
+      "openLink": "Открыть ссылку"
+    },
+    "profile": {
+      "aboutMe": "Обо мне",
+      "profileOf": "Профиль {{name}}",
+      "invalidUploadUrl": "Недопустимый адрес загрузки",
+      "uploadFailed": "Не удалось загрузить"
+    },
+    "presence": {
+      "online": "В сети",
+      "mobile": "В сети с телефона",
+      "idle": "Неактивен",
+      "offline": "Не в сети",
+      "lastSeenJustNow": "Был(а) в сети только что",
+      "lastSeen": "Был(а) в сети {{when}}",
+      "lastSeenOn": "Был(а) в сети {{date}}"
+    },
+    "push": {
+      "serviceUnavailable": "push-служба этого браузера недоступна. В Brave включите «Использовать сервисы Google для push-сообщений» (Настройки → Конфиденциальность и безопасность) и перезапустите Brave. Сборки Chromium без сервисов Google не могут получать веб-push; Chrome, Edge, Firefox и Safari могут.",
+      "noServiceWorker": "Service worker недоступен",
+      "newMessage": "Новое сообщение"
+    }
+  }
+}
