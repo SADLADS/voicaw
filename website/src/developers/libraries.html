@@ -1,0 +1,102 @@
+      <p>
+        Discord libraries talk to Discord's addresses unless you tell them otherwise. Each one
+        needs Voicaw's REST address, gateway address and (for pictures) CDN address.
+      </p>
+
+      <h2 id="discord-js">discord.js</h2>
+      <p>
+        Checked with discord.js 14.27: logging in, events, member lists, replies with embeds, edits,
+        reactions, pins, file uploads, roles (including moving them), channels and threads.
+        discord.js asks the API where the gateway is, so the <code>rest</code> option is all it needs.
+      </p>
+      <pre><code>import { Client, GatewayIntentBits, EmbedBuilder } from 'discord.js';
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.MessageContent,
+  ],
+  rest: {
+    api: 'https://api.voicaw.com/api',
+    cdn: 'https://api.voicaw.com/api/cdn',
+  },
+});
+
+client.once('ready', () =&gt; console.log(`Logged in as ${client.user.tag}`));
+
+client.on('messageCreate', async (message) =&gt; {
+  if (message.author.bot || message.content !== '!weather') return;
+  await message.reply({
+    embeds: [new EmbedBuilder().setTitle('Today').setDescription('Sunny, 21°').setColor(0xffcc00)],
+  });
+});
+
+client.login(process.env.VOICAW_TOKEN);</code></pre>
+
+      <h2 id="discord-py">discord.py</h2>
+      <div class="callout warning">
+        <strong>Set the gateway address too.</strong> discord.py doesn't ask the API where the
+        gateway is: it connects to Discord's own gateway, <code>wss://gateway.discord.gg</code>.
+        Without the <code>DEFAULT_GATEWAY</code> line below, your bot sends its Voicaw token
+        to Discord.
+      </div>
+      <p>
+        Checked with discord.py 2.7.1 (with its default compressed gateway): logging in, the guild
+        cache, messages, embeds, reactions, edits, history and deleting. Set these before the
+        client starts:
+      </p>
+      <pre><code>import os
+import discord, yarl
+from discord.http import Route
+
+Route.BASE = 'https://api.voicaw.com/api/v10'
+discord.gateway.DiscordWebSocket.DEFAULT_GATEWAY = yarl.URL('wss://api.voicaw.com/api/gateway/')
+discord.asset.Asset.BASE = 'https://api.voicaw.com/api/cdn'
+
+intents = discord.Intents.default()
+intents.message_content = True
+client = discord.Client(intents=intents)
+
+@client.event
+async def on_message(message):
+    if message.author.bot:
+        return
+    if message.content == '!ping':
+        await message.channel.send('pong')
+
+client.run(os.environ['VOICAW_TOKEN'])</code></pre>
+
+      <h2 id="other-libraries">Other libraries</h2>
+      <p>
+        Anything that lets you change Discord's API address, gateway address and CDN address
+        should work. Check which addresses it uses before giving it your token: some libraries
+        connect to <code>gateway.discord.gg</code> without asking <code>GET /gateway/bot</code>,
+        like discord.py does.
+      </p>
+
+      <h2 id="http">Plain HTTP</h2>
+      <p>Every request carries the bot's token:</p>
+      <pre><code>curl https://api.voicaw.com/api/v10/users/@me \
+  -H "Authorization: Bot $VOICAW_TOKEN"
+
+curl https://api.voicaw.com/api/v10/channels/42/messages \
+  -H "Authorization: Bot $VOICAW_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Hello from curl", "embeds": [{"title": "Hi", "color": 5793266}]}'</code></pre>
+      <p>
+        Files go as <code>multipart/form-data</code>, with the message's JSON in
+        <code>payload_json</code> and the files as <code>files[0]</code>, <code>files[1]</code>…,
+        as on Discord.
+      </p>
+
+      <h2 id="pictures">Pictures</h2>
+      <p>
+        Libraries build picture links from Discord's CDN paths. Voicaw answers the ones they use
+        (<code>/avatars/&lt;user&gt;/&lt;hash&gt;.png</code>, <code>/icons/&lt;guild&gt;/&lt;hash&gt;.png</code>,
+        <code>/emojis/&lt;id&gt;.png</code>) at <code>https://api.voicaw.com/api/cdn</code> by
+        redirecting to the picture. Users and guilds also carry the picture's address as
+        <code>avatar_url</code> and <code>icon_url</code>, which aren't Discord's.
+      </p>

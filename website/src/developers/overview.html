@@ -1,0 +1,55 @@
+      <p class="lead-in">
+        Voicaw's bot API is Discord's API, version 10: the same REST endpoints, the same gateway and
+        the same objects. Libraries written for Discord, like <a href="https://discord.js.org">discord.js</a>
+        and <a href="https://discordpy.readthedocs.io">discord.py</a>, work with Voicaw once you
+        point them at Voicaw's addresses. If you've written a Discord bot before, you already know
+        most of this.
+      </p>
+
+      <h2 id="addresses">Addresses</h2>
+      <div class="table"><table>
+        <tr><th>What</th><th>Address</th></tr>
+        <tr><td>REST API</td><td><code>https://api.voicaw.com/api/v10</code></td></tr>
+        <tr><td>Gateway</td><td><code>wss://api.voicaw.com/api/gateway</code> (as <code>GET /gateway/bot</code> says)</td></tr>
+        <tr><td>Pictures (Discord's CDN paths)</td><td><code>https://api.voicaw.com/api/cdn</code></td></tr>
+        <tr><td>Developer Portal</td><td><a href="{{APP_URL}}/developers">app.voicaw.com/developers</a></td></tr>
+        <tr><td>Adding a bot to a guild</td><td><code>{{APP_URL}}/oauth2/authorize?client_id=…&amp;scope=bot&amp;permissions=…</code></td></tr>
+      </table></div>
+      <p><code>/api/v9</code> works too, and is the same as <code>/api/v10</code>.</p>
+
+      <h2 id="guilds-only">Bots live in guilds</h2>
+      <p>
+        On Voicaw, direct messages and group chats are end-to-end encrypted: the server can't read
+        them, so a bot can't either. Bots are only ever in guilds, which aren't encrypted. A bot
+        can't open a DM (<code>POST /users/@me/channels</code> and sending a DM fail with error
+        <code>50007</code>), isn't in anyone's list of people to message, and can't be added to a
+        group chat or called.
+      </p>
+      <p>
+        A bot only sees the people it shares a guild with. Fetching any other user fails with
+        <code>10013 Unknown User</code>.
+      </p>
+
+      <h2 id="intents">No privileged intents</h2>
+      <p>
+        Intents still choose which gateway events your bot gets, but none of them needs approval:
+        Guild Members, Guild Presences and Message Content are there for any bot that asks. A
+        message's content is always included, in the gateway and over REST, whether or not you ask
+        for the Message Content intent.
+      </p>
+
+      <h2 id="permissions">Simpler permissions</h2>
+      <p>
+        There's no OAuth2 login flow: the only scope is <code>bot</code>. Someone with Manage Guild
+        adds your bot from its invite link. The bot then gets a role of its own holding the
+        permissions they ticked, which can only be ones they have themselves. After that, its
+        permissions work as anyone's: its roles, then channel overrides. See
+        <a href="/developers/docs/permissions/">Permissions</a>.
+      </p>
+
+      <h2 id="whats-next">Where next</h2>
+      <ul>
+        <li><a href="/developers/docs/getting-started/">Getting started</a>: make an application and add its bot to a guild.</li>
+        <li><a href="/developers/docs/libraries/">discord.js, discord.py and HTTP</a>: the settings each library needs.</li>
+        <li><a href="/developers/docs/differences/">Differences from Discord</a>: what isn't there yet.</li>
+      </ul>

@@ -1,0 +1,119 @@
+{
+  "developers": {
+    "title": "Developer Portal",
+    "back": "Back to Voicaw",
+    "docs": "Bot API docs",
+    "loadFailed": "Couldn't load this. Try again in a moment.",
+    "copyFailed": "Couldn't copy. Select it and copy it yourself.",
+    "list": {
+      "heading": "Applications",
+      "intro": "An application is a bot: a program that joins guilds and talks in them through Voicaw's bot API, which works like Discord's.",
+      "empty": "You haven't made any applications yet.",
+      "new": "New Application",
+      "open": "Open {{name}}"
+    },
+    "create": {
+      "title": "New application",
+      "nameLabel": "Name",
+      "namePlaceholder": "My Bot",
+      "hint": "Its bot will have this name too. You can change it later.",
+      "submit": "Create"
+    },
+    "tabs": {
+      "label": "Application settings",
+      "general": "General Information",
+      "bot": "Bot",
+      "installation": "Installation"
+    },
+    "general": {
+      "picture": "Picture",
+      "uploadPicture": "Upload picture",
+      "removePicture": "Remove picture",
+      "pictureTooBig": "That picture is too big (8 MB at most).",
+      "nameLabel": "Name",
+      "descriptionLabel": "Description",
+      "descriptionHint": "Shown on the bot's profile and when someone adds it.",
+      "idLabel": "Application ID",
+      "created": "Created {{date}}",
+      "saved": "Saved",
+      "dangerZone": "Delete application",
+      "deleteHint": "Its bot leaves every guild and its token stops working. Its messages stay.",
+      "delete": "Delete Application",
+      "confirmDeleteTitle": "Delete {{name}}?",
+      "confirmDelete": "This can't be undone. Its bot leaves every guild it's in."
+    },
+    "bot": {
+      "usernameLabel": "Username",
+      "tokenHeading": "Token",
+      "tokenHint": "Your bot logs in with its token. Keep it secret: anyone who has it can act as your bot. Voicaw only shows it once.",
+      "tokenNew": "Here's your bot's token. Copy it now: it won't be shown again.",
+      "tokenWarning": "Never share it or put it in code you publish. If it gets out, reset it.",
+      "tokenLastReset": "Last reset {{date}}",
+      "resetToken": "Reset Token",
+      "confirmResetTitle": "Reset the token?",
+      "confirmReset": "The old token stops working at once, and your bot is disconnected until it uses the new one.",
+      "publicLabel": "Public Bot",
+      "publicHint": "Anyone with its invite link can add it to a guild they manage. When off, only you can."
+    },
+    "install": {
+      "intro": "Choose what your bot may do, then share the link. Whoever adds it picks a guild where they have Manage Guild, and can only give it permissions they have themselves.",
+      "linkLabel": "Invite link",
+      "permissionsHeading": "Permissions",
+      "guildsHeading": "Guilds it's in",
+      "noGuilds": "It isn't in any guilds yet.",
+      "remove": "Remove from {{name}}",
+      "confirmRemove": "Take {{bot}} out of {{guild}}?"
+    },
+    "groups": {
+      "general": "General",
+      "membership": "Membership",
+      "text": "Text",
+      "voice": "Voice",
+      "voicaw": "Voicaw only"
+    },
+    "permissions": {
+      "ADMINISTRATOR": "Administrator",
+      "VIEW_CHANNEL": "View Channels",
+      "MANAGE_GUILD": "Manage Guild",
+      "MANAGE_ROLES": "Manage Roles",
+      "MANAGE_CHANNELS": "Manage Channels",
+      "MANAGE_GUILD_EXPRESSIONS": "Manage Emoji",
+      "MANAGE_WEBHOOKS": "Manage Webhooks",
+      "VIEW_AUDIT_LOG": "View Audit Log",
+      "CREATE_INSTANT_INVITE": "Create Invite",
+      "KICK_MEMBERS": "Kick Members",
+      "BAN_MEMBERS": "Ban Members",
+      "SEND_MESSAGES": "Send Messages",
+      "SEND_MESSAGES_IN_THREADS": "Send Messages in Threads",
+      "CREATE_PUBLIC_THREADS": "Create Threads",
+      "ADD_REACTIONS": "Add Reactions",
+      "MANAGE_MESSAGES": "Manage Messages",
+      "PIN_MESSAGES": "Pin Messages",
+      "MENTION_EVERYONE": "Mention @everyone, @here and All Roles",
+      "CONNECT": "Connect",
+      "SPEAK": "Speak",
+      "STREAM": "Video",
+      "VOICAW_EDIT_TASKS": "Edit Tasks",
+      "VOICAW_CREATE_DOCUMENTS": "Create Documents"
+    },
+    "authorize": {
+      "title": "Add a bot",
+      "loading": "Loading…",
+      "unknown": "This bot doesn't exist, or its maker hasn't made it public.",
+      "missingClient": "This link doesn't say which bot to add.",
+      "madeBy": "Made by {{name}}",
+      "bot": "BOT",
+      "guildLabel": "Add to guild",
+      "chooseGuild": "Choose a guild",
+      "noGuilds": "You don't manage any guilds it isn't in already. You need Manage Guild to add a bot.",
+      "permissionsHeading": "It asks to:",
+      "noPermissions": "It doesn't ask for any permissions.",
+      "cantGrant": "You don't have this permission there, so you can't give it.",
+      "notice": "The bot can read and send messages in the channels it can see. Bots can't use direct messages: those are end-to-end encrypted.",
+      "submit": "Authorise",
+      "done": "{{bot}} has been added to {{guild}}.",
+      "openGuild": "Open {{guild}}",
+      "cancel": "Cancel"
+    }
+  }
+}

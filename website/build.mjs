@@ -161,9 +161,15 @@ function compareVersions(a, b) {
   return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
 }
 
+// What every page can use: the addresses, and the stylesheet's version (it changes with the
+// stylesheet, so a cached old one is never used with a new page).
+function pageValues() {
+  const style = fs.readFileSync(path.join(here, 'src/style.css'));
+  return { APP_URL, UPDATES_URL, STYLE_VERSION: crypto.createHash('sha256').update(style).digest('hex').slice(0, 10) };
+}
+
 export function renderPage(releases, android = null) {
   const template = fs.readFileSync(path.join(here, 'src/index.html'), 'utf8');
-  const style = fs.readFileSync(path.join(here, 'src/style.css'));
   const parts = renderParts(releases);
   if (android?.version) {
     parts.VERSION_LINE = [parts.VERSION_LINE, `Android app ${escape(android.version)}`].filter(Boolean).join(' · ');
@@ -171,14 +177,63 @@ export function renderPage(releases, android = null) {
   const values = {
     ...parts,
     ...renderAndroid(android),
-    APP_URL,
-    UPDATES_URL,
-    // Changes with the stylesheet, so a cached old one is never used with a new page.
-    STYLE_VERSION: crypto.createHash('sha256').update(style).digest('hex').slice(0, 10),
+    ...pageValues(),
   };
   return template.replace(/\{\{([A-Z_]+)\}\}/g, (match, key) => {
     if (!(key in values)) throw new Error(`website/src/index.html: unknown placeholder ${match}`);
     return values[key];
+  });
+}
+
+// ---- The bot API docs (voicaw.com/developers/docs/) ----
+// Each page is a fragment in src/developers/ (plain HTML, its sections <h2 id="…">), put in
+// src/developers/template.html with the side menu and the page's contents, and written as
+// developers/docs/<slug>/index.html (nginx serves <path>/index.html; website/nginx/voicaw.com).
+export const DOCS = [
+  { slug: '', file: 'overview.html', title: 'Overview', description: "Voicaw's bot API is Discord's: what works and what's different." },
+  { slug: 'getting-started', file: 'getting-started.html', title: 'Getting started', description: 'Make an application, get its token and add the bot to a guild.' },
+  { slug: 'libraries', file: 'libraries.html', title: 'discord.js, discord.py and HTTP', description: 'Point Discord libraries at Voicaw.' },
+  { slug: 'authentication', file: 'authentication.html', title: 'Tokens, rate limits and errors', description: 'Bot tokens, rate limits and error codes.' },
+  { slug: 'gateway', file: 'gateway.html', title: 'Gateway', description: 'Connecting to the gateway: opcodes, intents, events and close codes.' },
+  { slug: 'rest', file: 'rest.html', title: 'REST reference', description: 'Every endpoint of the bot API.' },
+  { slug: 'objects', file: 'objects.html', title: 'Objects and IDs', description: "How Voicaw's guilds, channels, roles and messages look in the API." },
+  { slug: 'permissions', file: 'permissions.html', title: 'Permissions', description: "Discord's permission bits and what they mean on Voicaw." },
+  { slug: 'differences', file: 'differences.html', title: 'Differences from Discord', description: "What isn't supported (yet), and what works differently." },
+];
+
+const docsPath = (slug) => `/developers/docs/${slug ? `${slug}/` : ''}`;
+
+// The pages, as [{ file: 'developers/docs/<slug>/index.html', html }].
+export function renderDocs(values) {
+  const dir = path.join(here, 'src/developers');
+  const template = fs.readFileSync(path.join(dir, 'template.html'), 'utf8');
+  const fill = (text, extra, where) => text.replace(/\{\{([A-Z_]+)\}\}/g, (match, key) => {
+    const all = { ...values, ...extra };
+    if (!(key in all)) throw new Error(`${where}: unknown placeholder ${match}`);
+    return all[key];
+  });
+  return DOCS.map((page, i) => {
+    const content = fill(fs.readFileSync(path.join(dir, page.file), 'utf8'), {}, `website/src/developers/${page.file}`);
+    const sections = [...content.matchAll(/<h2 id="([^"]+)">(.*?)<\/h2>/g)];
+    const nav = DOCS.map((p) => `<a href="${docsPath(p.slug)}"${p === page ? ' aria-current="page"' : ''}>${escape(p.title)}</a>`).join('\n      ');
+    const toc = sections.length > 1
+      ? `<nav class="docs-toc" aria-label="On this page"><strong>On this page</strong>${sections.map(([, id, title]) => `<a href="#${id}">${title}</a>`).join('')}</nav>`
+      : '';
+    const prev = DOCS[i - 1];
+    const next = DOCS[i + 1];
+    const pager = [
+      prev ? `<a class="prev" href="${docsPath(prev.slug)}"><small>Previous</small>${escape(prev.title)}</a>` : '<span></span>',
+      next ? `<a class="next" href="${docsPath(next.slug)}"><small>Next</small>${escape(next.title)}</a>` : '<span></span>',
+    ].join('');
+    const html = fill(template, {
+      TITLE: escape(page.title),
+      DESCRIPTION: escape(page.description),
+      NAV: nav,
+      TOC: toc,
+      CONTENT: content,
+      PAGER: pager,
+    }, 'website/src/developers/template.html');
+    return { file: path.join('developers/docs', page.slug, 'index.html'), html };
   });
 }
 
@@ -190,12 +245,20 @@ export async function buildSite({ siteDir = process.env.VOICAW_SITE_DIR || '/opt
   releases ??= await loadReleases();
   if (android === undefined) android = await loadAndroidRelease();
   const html = renderPage(releases, android);
-  // Everything but the page first, so the page never names a stylesheet that isn't there.
-  for (const name of fs.readdirSync(path.join(here, 'src'))) {
-    if (name !== 'index.html') writeAtomic(path.join(siteDir, name), fs.readFileSync(path.join(here, 'src', name)));
+  // Everything but the pages first, so a page never names a stylesheet that isn't there.
+  // (Folders, like the docs' sources in src/developers, aren't copied.)
+  for (const entry of fs.readdirSync(path.join(here, 'src'), { withFileTypes: true })) {
+    if (entry.isFile() && entry.name !== 'index.html') {
+      writeAtomic(path.join(siteDir, entry.name), fs.readFileSync(path.join(here, 'src', entry.name)));
+    }
   }
   for (const name of ['logo192.png', 'logo512.png', 'favicon.ico', 'apple-touch-icon.png']) {
     writeAtomic(path.join(siteDir, name), fs.readFileSync(path.join(root, 'client/public', name)));
+  }
+  for (const page of renderDocs(pageValues())) {
+    const to = path.join(siteDir, page.file);
+    fs.mkdirSync(path.dirname(to), { recursive: true });
+    writeAtomic(to, page.html);
   }
   writeAtomic(path.join(siteDir, 'index.html'), html);
   const versions = ORDER.filter((p) => releases[p]?.version).map((p) => `${NAMES[p]} ${releases[p].version}`);

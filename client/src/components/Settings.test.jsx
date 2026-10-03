@@ -48,7 +48,7 @@ describe('Settings layout, search and date formats', () => {
   it('groups sections in categories, and a link jumps to its section', () => {
     renderSettings();
     const nav = screen.getByRole('navigation', { name: 'Settings sections' });
-    expect([...nav.querySelectorAll('.settings-nav-category')].map((e) => e.textContent)).toEqual(['My Account', 'App Settings', 'About']);
+    expect([...nav.querySelectorAll('.settings-nav-category')].map((e) => e.textContent)).toEqual(['My Account', 'App Settings', 'Developers', 'About']);
     const scroll = vi.fn();
     document.getElementById('settings-date-time').scrollIntoView = scroll;
     fireEvent.click(screen.getByRole('button', { name: 'Date & time' }));

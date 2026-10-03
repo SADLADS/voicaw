@@ -1,0 +1,73 @@
+      <p>
+        Objects have Discord's fields, so libraries can read them. A few fields that mean nothing on
+        Voicaw are always the same (no nicknames, no boosts, no stickers…). This page covers where
+        Voicaw differs.
+      </p>
+
+      <h2 id="ids">IDs</h2>
+      <p>
+        IDs are strings of digits, as on Discord, but they're Voicaw's own numbers, not
+        snowflakes. The ids in the app and in the API are the same. Because they aren't snowflakes,
+        a library's "created at" worked out from an id (discord.js <code>createdAt</code>,
+        discord.py <code>created_at</code>) is meaningless: it shows a date in 2015.
+      </p>
+      <p>Two exceptions, which Discord's libraries need:</p>
+      <ul>
+        <li><strong>@everyone</strong>'s role id is the guild's id, as on Discord. Use the guild's id wherever you mean @everyone (overwrites, role ids).</li>
+        <li><strong>Categories</strong> have 2<sup>40</sup> (1099511627776) added to their id, since Voicaw keeps them apart from channels. A channel's <code>parent_id</code> uses the same number.</li>
+      </ul>
+
+      <h2 id="users">Users</h2>
+      <p>
+        A person's <code>username</code> is their Voicaw username, their display name is
+        <code>global_name</code>, and <code>discriminator</code> is <code>"0"</code>. A bot is
+        shown in Discord's older style: <code>username</code> is its application's name and
+        <code>discriminator</code> four digits, so discord.js's <code>tag</code> reads like
+        <code>Weather Bot#0420</code>. <code>avatar</code> is the picture's id, and
+        <code>avatar_url</code> (not Discord's) its address.
+      </p>
+
+      <h2 id="guilds">Guilds</h2>
+      <p>
+        <code>name</code>, <code>icon</code>, <code>owner_id</code>, <code>roles</code> and
+        <code>emojis</code> are Voicaw's. Everything else is Discord's plainest value: no features,
+        no boosts, no system or rules channel, verification level 0, locale <code>en-GB</code>.
+        <code>icon_url</code> (not Discord's) is the icon's address. Guilds aren't end-to-end
+        encrypted: what a bot reads in them, the server can read too.
+      </p>
+
+      <h2 id="channels">Channels</h2>
+      <div class="table"><table>
+        <tr><th>Type</th><th>What</th></tr>
+        <tr><td><code>0</code></td><td>Text channel</td></tr>
+        <tr><td><code>2</code></td><td>Voice channel (bots can see it, not join it)</td></tr>
+        <tr><td><code>4</code></td><td>Category</td></tr>
+        <tr><td><code>11</code></td><td>Thread (all of Voicaw's threads are public)</td></tr>
+      </table></div>
+      <p>
+        Voicaw's list channels (tasks) and document channels aren't in the bot API: bots don't see
+        them. Channel names are lower case without spaces, as on Discord. Categories carry no
+        permission overwrites. Threads follow their channel's permissions: they have no overwrites
+        of their own. Slow mode doesn't exist (<code>rate_limit_per_user</code> is 0).
+      </p>
+
+      <h2 id="members">Members and roles</h2>
+      <p>
+        Members have their <code>roles</code> (without @everyone) and <code>joined_at</code>. There
+        are no nicknames, member avatars, timeouts, or server mute or deafen. Roles have
+        <code>name</code>, <code>color</code>, <code>position</code>, <code>permissions</code>,
+        <code>hoist</code> and <code>mentionable</code>, but no icons. A bot's own role is
+        <code>managed: true</code> with <code>tags.bot_id</code>.
+      </p>
+
+      <h2 id="messages">Messages</h2>
+      <ul>
+        <li><code>type</code>: <code>0</code> (default), <code>19</code> (a reply, with <code>message_reference</code> and <code>referenced_message</code>), <code>18</code> (someone started a thread) or <code>46</code> (a poll ended).</li>
+        <li><code>content</code> is always there: there's no Message Content intent to ask for.</li>
+        <li><code>mentions</code> are the people the text mentions (<code>&lt;@id&gt;</code>), <code>mention_roles</code> the roles it pinged.</li>
+        <li><code>embeds</code> and <code>attachments</code> are Discord's. People's messages sent from the app have none: their files and links are in the text.</li>
+        <li><code>reactions</code> count each emoji, with <code>me</code> for the bot's own. Custom emoji are <code>{ id, name }</code>.</li>
+        <li>Webhook messages have <code>webhook_id</code> and the webhook as a bot author.</li>
+        <li>In gateway events, messages also have <code>guild_id</code> and the author's <code>member</code>.</li>
+        <li>Polls in Voicaw are written in the message text: there's no <code>poll</code> object.</li>
+      </ul>

@@ -376,3 +376,5 @@ Set it up once:
    sudo cp website/nginx/voicaw.com /etc/nginx/sites-available/voicaw.com
    sudo nginx -t && sudo systemctl reload nginx
    ```
+   Copy it again whenever `website/nginx/voicaw.com` changes (the bot API docs at
+   `/developers/docs/` and the bot gateway through `voicaw.com/api/` need its 2026-10-03 version).

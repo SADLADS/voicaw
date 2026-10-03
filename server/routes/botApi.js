@@ -266,7 +266,9 @@ router.get('/users/@me', auth, route(async (req, res) => {
 }));
 
 // `username` (the application's name) and `avatar` (image data, or null).
-router.patch('/users/@me', auth, limit('users-me', 2, 60 * 60 * 1000), webhooks.parseBody, route(async (req, res) => {
+// Name changes are limited to 2 an hour, as in Discord; pictures aren't.
+const usernameLimit = limit('username', 2, 60 * 60 * 1000);
+router.patch('/users/@me', auth, webhooks.parseBody, (req, res, next) => (req.body?.username !== undefined ? usernameLimit(req, res, next) : next()), route(async (req, res) => {
   const body = req.body ?? {};
   if (body.username !== undefined) {
     const error = await bots.updateApplication(req.bot.application, { name: body.username });
@@ -339,6 +341,9 @@ router.get(['/applications/@me', '/oauth2/applications/@me'], auth, route(async 
 
 // Application commands aren't here yet: none are listed, and making them says so.
 router.get(['/applications/:appId/commands', '/applications/:appId/guilds/:guildId/commands'], auth, (req, res) => res.json([]));
+router.get(['/applications/:appId/commands/:commandId', '/applications/:appId/guilds/:guildId/commands/:commandId'], auth, (req, res) => {
+  fail(res, 404, 10063, 'Unknown application command');
+});
 router.all(['/applications/:appId/commands{/*rest}', '/applications/:appId/guilds/:guildId/commands{/*rest}'], auth, (req, res) => {
   fail(res, 400, 50035, "Application commands aren't available on Voicaw yet");
 });

@@ -9,6 +9,7 @@
     "categories": {
       "account": "My Account",
       "app": "App Settings",
+      "developers": "Developers",
       "admin": "Admin",
       "about": "About"
     },
@@ -77,6 +78,10 @@
         "title": "App version",
         "keywords": "update build version reload"
       },
+      "developerPortal": {
+        "title": "Developer Portal",
+        "keywords": "bots bot api applications developers discord token code programming"
+      },
       "admin": {
         "title": "Admin",
         "keywords": "global admins klipy gif api key"
@@ -141,6 +146,12 @@
       "adminsHelp": "Admins can change everything in this section.",
       "username": "Username",
       "makeAdmin": "Make admin"
+    },
+    "developers": {
+      "title": "Developer Portal",
+      "description": "Make bots: programs that join guilds and talk in them through Voicaw's bot API, which works like Discord's, so Discord's libraries can be used.",
+      "open": "Open the Developer Portal",
+      "docs": "Bot API docs"
     },
     "appVersion": {
       "title": "App Version",
