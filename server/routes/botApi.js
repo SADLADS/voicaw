@@ -34,6 +34,20 @@ const fail = webhooks.fail;
 const json = express.json({ limit: '1mb' });
 router.use((req, res, next) => (/^\/webhooks(\/|$)/.test(req.path) ? next() : json(req, res, next)));
 
+// JSON answers say `application/json` and nothing more, as Discord's do: discord.py only reads a
+// body as JSON when the type is exactly that (Express would add "; charset=utf-8"). Webhooks'
+// answers under /api/v<n>/ too.
+router.use((req, res, next) => {
+  res.json = (body) => {
+    const data = Buffer.from(JSON.stringify(body));
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Length', String(data.length));
+    res.end(data);
+    return res;
+  };
+  next();
+});
+
 const now = () => Math.floor(Date.now() / 1000);
 const API_VERSION = 10;
 
@@ -439,6 +453,26 @@ function roleBody(body) {
 router.post('/guilds/:guildId/roles', auth, limit('role-create', 5, 5000), inGuild, route(async (req, res) => {
   const role = await roleActions.createRole(req.member, roleBody(req.body ?? {}));
   res.json(D.roleObject(role, req.member.guild.id));
+}));
+
+// New positions for some roles ([{ id, position }]); the rest keep their order around them.
+// Answers with every role.
+router.patch('/guilds/:guildId/roles', auth, limit('role-order', 5, 5000), inGuild, route(async (req, res) => {
+  const guildId = req.member.guild.id;
+  if (!Array.isArray(req.body)) throw new webhooks.FormError(['_'], 'Must be an array.', 'BASE_TYPE_ARRAY');
+  const roles = req.member.allRoles.filter((r) => !r.is_everyone).map((r) => ({ id: r.id, position: r.position }));
+  for (const { id, position } of req.body) {
+    if (String(id) === String(guildId)) continue; // @everyone stays at the bottom
+    const roleId = await D.roleIdFromDiscord(guildId, id);
+    const role = roles.find((r) => r.id === roleId);
+    if (!role) throw new ActionError(404, 'Unknown Role', 10011);
+    if (!Number.isInteger(position) || position < 1) throw new webhooks.FormError(['position'], 'Invalid position.', 'NUMBER_TYPE_MIN');
+    role.position = position + 0.5; // ahead of a role already at that position (it moved there)
+  }
+  roles.sort((a, b) => b.position - a.position);
+  await roleActions.reorderRoles(req.member, roles.map((r) => r.id));
+  const fresh = await require('../guilds').getRoles(guildId);
+  res.json(fresh.slice().reverse().map((r) => D.roleObject(r, guildId)));
 }));
 
 router.patch('/guilds/:guildId/roles/:roleId', auth, limit('role-update', 5, 5000), inGuild, route(async (req, res) => {

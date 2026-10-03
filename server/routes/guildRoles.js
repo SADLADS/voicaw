@@ -173,19 +173,23 @@ router.delete('/guilds/:guildId/roles/:roleId', manageRoles, withActionErrors(as
 
 // Reorders the roles: `roleIds` is every role but @everyone, top first. Roles at or above your
 // own highest must stay where they are.
-router.put('/guilds/:guildId/roles/order', manageRoles, async (req, res) => {
-  const { roleIds } = req.body ?? {};
-  const current = req.member.allRoles.filter((r) => !r.is_everyone); // top first
+async function reorderRoles(actor, roleIds) {
+  requireManageRoles(actor);
+  const current = actor.allRoles.filter((r) => !r.is_everyone); // top first
   const sameIds = Array.isArray(roleIds) && roleIds.length === current.length &&
     new Set(roleIds).size === roleIds.length && roleIds.every((id) => current.some((r) => r.id === id));
-  if (!sameIds) return res.status(400).json({ error: 'roleIds must list every role once' });
-  const moved = current.some((role, index) => role.position >= req.member.highest && roleIds[index] !== role.id);
-  if (moved) return res.status(403).json({ error: "You can't move roles as high as yours or higher" });
+  if (!sameIds) throw new ActionError(400, 'roleIds must list every role once');
+  const moved = current.some((role, index) => role.position >= actor.highest && roleIds[index] !== role.id);
+  if (moved) throw new ActionError(403, "You can't move roles as high as yours or higher");
 
-  await renumberRoles(req.guild.id, roleIds);
-  await announceGuildUpdate(req.guild.id);
+  await renumberRoles(actor.guild.id, roleIds);
+  await announceGuildUpdate(actor.guild.id);
+}
+
+router.put('/guilds/:guildId/roles/order', manageRoles, withActionErrors(async (req, res) => {
+  await reorderRoles(req.member, req.body?.roleIds);
   res.json({ success: true });
-});
+}));
 
 // Sets member `userId`'s roles (`roleIds`, without @everyone). Only roles below yours can be
 // added or taken away, and only from members below you (or yourself).
@@ -334,3 +338,4 @@ module.exports.updateRole = updateRole;
 module.exports.deleteRole = deleteRole;
 module.exports.setMemberRoles = setMemberRoles;
 module.exports.setOverride = setOverride;
+module.exports.reorderRoles = reorderRoles;
