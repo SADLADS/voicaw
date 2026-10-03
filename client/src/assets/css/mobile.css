@@ -5,7 +5,7 @@
 .mobile-mode .slidey.main-wrapper {
     position: relative;
     overflow: hidden;
-    height: 100svh;
+    height: var(--vc-app-height);
     width: 100%;
 }
 
@@ -14,7 +14,7 @@
     position: absolute;
     inset: 0;
     width: 100%;
-    height: 100svh;
+    height: var(--vc-app-height);
 }
 
 .mobile-mode .slidey .main-content-wrapper {

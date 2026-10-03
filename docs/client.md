@@ -268,6 +268,21 @@
   have a transform while moving (a transform would trap `position: fixed` children).
 - Desktop vs. mobile layouts are two separate CSS files (`assets/css/desktop.css` /
   `mobile.css`) toggled via body classes rather than component-level responsive branches
+- On-screen keyboard (phones, `utils/keyboardViewport.js`, started in `App`): the app always
+  ends where the keyboard starts, so the message box (and anything at the bottom) sits on top
+  of it and can't be scrolled behind it. Android Chrome does it itself: the viewport meta's
+  `interactive-widget=resizes-content` makes it shrink the page for the keyboard (its default
+  lays the keyboard over the page and slides the page up to the focused box, which a box
+  focused from code, like swipe to reply's, sometimes missed, and a drag could slide back).
+  iOS ignores that, so while the keyboard is open `--vc-app-height` is set to the visible
+  height (`visualViewport`) and any slide of the page is scrolled back (only then: no page
+  scrolls the document). Everything screen-high uses `var(--vc-app-height)` (100svh
+  otherwise), never 100vh/svh. The keyboard's height is the visible height's shortfall from
+  the keyboard-free height (the tallest seen at that width, capped at `screen.height`), not
+  from `innerHeight`, which shrinks with it on Android; `utils/keyboardHeight.js` (the docked
+  emoji panel) and `useVisualViewport` use the same. Emoji search's
+  `navigator.virtualKeyboard.overlaysContent` overrides the meta while it's on.
+  `e2e/keyboard.mjs` checks both with a made-up keyboard (headless Chrome has none).
 - Safe areas (notch, rounded corners, home indicator): the viewport meta has
   `viewport-fit=cover`, without which iOS reports every `env(safe-area-inset-*)` as 0 (yet the
   Home Screen app still draws under the home indicator). `#root` pads by the left and right

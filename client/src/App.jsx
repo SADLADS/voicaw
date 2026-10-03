@@ -30,6 +30,7 @@ import { clearDrafts } from './services/draftStore';
 import { setCustomEmojiBase } from './emoji/customEmoji';
 import { setAvatarBase } from './utils/profiles';
 import { t } from './i18n';
+import { watchKeyboardViewport } from './utils/keyboardViewport';
 
 
 
@@ -97,6 +98,9 @@ export default function App() {
     document.body.classList.toggle("mobile-mode", isMobile);
     document.body.classList.toggle("desktop-mode", !isMobile);
   }, []);
+
+  // Phones: the app ends where the on-screen keyboard starts (see utils/keyboardViewport.js).
+  useEffect(() => (isMobile ? watchKeyboardViewport() : undefined), []);
 
 
 

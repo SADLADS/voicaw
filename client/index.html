@@ -28,8 +28,11 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#6a52c9" />
   <!-- viewport-fit=cover: draw edge to edge so env(safe-area-inset-*) reports the notch, rounded
-    corners and home indicator (they read 0 without it); the CSS pads for them. -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    corners and home indicator (they read 0 without it); the CSS pads for them.
+    interactive-widget=resizes-content: Android Chrome shrinks the page for the on-screen
+    keyboard (by default it lays the keyboard over the page and slides it up instead, which
+    can leave the message box behind the keyboard). iOS ignores it: see utils/keyboardViewport.js. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 </head>
 
 <body>
