@@ -202,7 +202,16 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
   the Incoming/Outgoing ring loops (see Sounds). Reloading or leaving the page leaves the call.
 - **Group calls** (from a group DM's header): the call key is encrypted with the group's
   current epoch key (`groupCallKeyContext(callId, groupId, epoch, callerId)`, `key_epoch`), so
-  only members of that epoch can open it; members added during a call join the next one.
+  only members of that epoch can open it; members added during a call join the next one. It's
+  also signed by the caller's identity key, inside the encryption like group messages
+  (`encryptGroupCallKey` / `decryptGroupCallKey` in groupCrypto.js, a `v2.` envelope of 171
+  characters, covering `callKeySignatureContext({ callId, groupId, epoch, callerId })`), so a
+  member working with the server can't start a call in someone else's name: a key that isn't
+  signed by the caller (from the group's checked log) isn't joined ("couldn't be verified"), and
+  the server takes only `v2.` keys for group calls (an older app gets "Please update the app").
+  Not covered: the ringing notice shows the server's caller name before the key is checked, and
+  who's who *inside* a call comes from the server's LiveKit tokens; every member has the call
+  key, so a member working with the server could still join a call under another member's name.
   `POST /group-dms/:id/call { callId, epoch, keyEnvelope }` rings every other member (409 with
   the `call` if the group has one: join that); any member joins any time with
   `/dm-calls/:id/accept` (declining only stops your ringing; after 45 s nobody's rung and they

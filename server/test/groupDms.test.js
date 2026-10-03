@@ -492,7 +492,19 @@ describe('group DMs', () => {
       updateParticipant: async () => {},
     };
     const startCall = (user, groupId, epoch = 1) =>
-      api.post(user, `/group-dms/${groupId}/call`, { callId: randomUUID(), epoch, keyEnvelope: `v1.${'B'.repeat(100)}` });
+      api.post(user, `/group-dms/${groupId}/call`, { callId: randomUUID(), epoch, keyEnvelope: `v2.${'B'.repeat(168)}` });
+
+    it('takes only signed call keys', async () => {
+      voice.livekit.roomService = fakeRoomService;
+      const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+      const { groupId } = await createGroup(ann, [bea, cal]);
+      const post = (keyEnvelope) => api.post(ann, `/group-dms/${groupId}/call`, { callId: randomUUID(), epoch: 1, keyEnvelope });
+      const old = await post(`v1.${'B'.repeat(100)}`);
+      expect(old.status).toBe(400);
+      expect(old.body.error).toMatch(/update the app/);
+      expect((await post('plain key')).status).toBe(400);
+      expect((await post(`v2.${'B'.repeat(300)}`)).status).toBe(400);
+    });
 
     it('rings everyone else, lets them join any time, and ends when the last one leaves', async () => {
       voice.livekit.roomService = fakeRoomService;

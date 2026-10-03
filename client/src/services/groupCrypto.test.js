@@ -20,6 +20,10 @@ import {
   encryptGroupReaction,
   decryptGroupReaction,
   SIGNED_PREFIX,
+  groupCallKeyContext,
+  callKeySignatureContext,
+  encryptGroupCallKey,
+  decryptGroupCallKey,
   cleanGroupName,
   signGroupName,
   sealGroupName,
@@ -166,6 +170,32 @@ describe('signed messages', () => {
     expect(await decryptGroupReaction(thumbs, epochKey, aad, a.keys.public.identityKey, context)).toEqual({ emoji: '👍', signed: true, verified: true });
     const forged = await encryptGroupReaction('👎', epochKey, aad, b.sign, context);
     expect((await decryptGroupReaction(forged, epochKey, aad, a.keys.public.identityKey, context)).verified).toBe(false);
+  });
+});
+
+describe('signed call keys', () => {
+  const CALL = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+  const aad = (callerId) => groupCallKeyContext(CALL, GROUP, 1, callerId);
+  const context = (callerId, callId = CALL) => callKeySignatureContext({ callId, groupId: GROUP, epoch: 1, callerId });
+
+  it("open only with the caller's signature, and only for that call", async () => {
+    const [a, b] = people;
+    const epochKey = await importGroupKey(generateGroupKey());
+    const callKey = crypto.getRandomValues(new Uint8Array(32));
+    const envelope = await encryptGroupCallKey(callKey, epochKey, aad(a.id), a.sign, context(a.id));
+    expect(envelope.startsWith(SIGNED_PREFIX)).toBe(true);
+    // The server checks this size.
+    expect(envelope.length).toBe(171);
+    expect(await decryptGroupCallKey(envelope, epochKey, aad(a.id), a.keys.public.identityKey, context(a.id))).toEqual(callKey);
+    // Bea has the epoch key, so she can encrypt a call key "from Ann", but she can't sign as her.
+    const forged = await encryptGroupCallKey(callKey, epochKey, aad(a.id), b.sign, context(a.id));
+    await expect(decryptGroupCallKey(forged, epochKey, aad(a.id), a.keys.public.identityKey, context(a.id))).rejects.toThrow();
+    // Nor move Ann's key to another call.
+    await expect(decryptGroupCallKey(envelope, epochKey, aad(a.id), a.keys.public.identityKey, context(a.id, 'other'))).rejects.toThrow();
+    // A caller who isn't in the log, and an unsigned key (as before), aren't accepted.
+    await expect(decryptGroupCallKey(envelope, epochKey, aad(a.id), undefined, context(a.id))).rejects.toThrow();
+    const unsigned = await encryptMessage(btoa(String.fromCharCode(...callKey)), epochKey, aad(a.id));
+    await expect(decryptGroupCallKey(unsigned, epochKey, aad(a.id), a.keys.public.identityKey, context(a.id))).rejects.toThrow('Unsigned');
   });
 });
 
