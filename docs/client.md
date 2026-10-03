@@ -39,6 +39,16 @@
   the holding finger lifts (it lands on the sheet); only clicks from a touch that started on
   it count. Messages aren't text-selectable on mobile, so the long press isn't taken by text
   selection.
+- Swipe to reply (mobile, `hooks/useSwipeToReply.js`, like Discord): swiping a message to the
+  left drags it with the finger and brings in a reply arrow from the right edge; past 64px the
+  arrow fills in (a short vibration), the message resists, and letting go there sets the reply
+  (as Reply does: reply bar, message box focused). It springs back either way. One listener
+  on the message list, decided after 8px like the phone panes: only a clearly sideways,
+  leftward swipe counts, so scrolling is untouched and a rightward swipe still goes back to
+  the list. Not on messages still sending or failed, notices, the inline editor, sliders,
+  videos or anything that scrolls sideways itself (code blocks), nor where you can't send
+  (`ChatPane`'s `canSend`). The row's state is a `data-swipe` attribute, not classes (React
+  owns its className). There's no swipe to edit.
 - DM view: `Dm.jsx` puts together `hooks/useConversation.js` (keys, history, paging, send/edit/
   delete, live websocket updates), `hooks/useReactions.js`, `MessageList.jsx` (+ `MessageReactions`,
   `UrlPreviews`) and `Composer.jsx` (message box, emoji, reply bar, attachments via

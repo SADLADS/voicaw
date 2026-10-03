@@ -41,8 +41,8 @@ function clearMark() {
 }
 
 // Can `el` (or anything between it and `stop`) scroll sideways in the direction a finger
-// moving by `dx` would scroll it? Then the swipe is its.
-function scrollsSideways(el, stop, dx) {
+// moving by `dx` would scroll it? Then the swipe is its (here and in useSwipeToReply).
+export function scrollsSideways(el, stop, dx) {
   for (let node = el; node && node !== stop; node = node.parentElement) {
     if (node.scrollWidth <= node.clientWidth + 1) continue;
     const overflow = getComputedStyle(node).overflowX;

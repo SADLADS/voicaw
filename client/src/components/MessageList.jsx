@@ -16,6 +16,7 @@ import CallLogNotice from './CallLogNotice';
 import { ThreadStartNotice, ThreadSummary } from './guild/ThreadSummary';
 import defaultAvatar from '../assets/images/default.png';
 import { useLongPress } from '../hooks/useLongPress';
+import { useSwipeToReply } from '../hooks/useSwipeToReply';
 import MessageEditor from '../editor/MessageEditor';
 import { placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
 import { useEmojiIndex } from '../emoji/emojiContext';
@@ -548,6 +549,12 @@ export function MessageRow({
         )}
 
       </div>
+      {/* Mobile: shows from the right as the message is swiped left (useSwipeToReply). */}
+      {isMobile && sent && (
+        <span className="swipe-reply-icon" aria-hidden="true">
+          <FontAwesomeIcon icon={faReply} />
+        </span>
+      )}
     </div>
   );
 }
@@ -614,6 +621,7 @@ export default function MessageList({
   mentionRoles,
   myRoleIds,
   encrypted = true,
+  canReply = true,
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
@@ -633,6 +641,20 @@ export default function MessageList({
   const [profileFor, setProfileFor] = useState(null);
   const closeProfile = useCallback(() => setProfileFor(null), []);
   const openProfile = useCallback((person, anchor) => setProfileFor({ user: person, anchor }), []);
+
+  // Mobile: swiping a message left replies to it (where there's a message box to reply in).
+  const repliable = (key) => {
+    const msg = messages.find((each) => rowKey(each) === key);
+    return msg && !msg.system && msg.status !== 'pending' && msg.status !== 'failed' ? msg : null;
+  };
+  useSwipeToReply(scrollerRef, {
+    enabled: isMobile && canReply,
+    canReply: (key) => Boolean(repliable(key)),
+    onReply: (key) => {
+      const msg = repliable(key);
+      if (msg) handleReply(msg);
+    },
+  });
 
   const rowProps = {
     onOpenProfile: openProfile,

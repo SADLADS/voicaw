@@ -342,6 +342,7 @@ export default function ChatPane({
             mentionRoles={mentionRoles}
             myRoleIds={myRoleIds}
             encrypted={encrypted}
+            canReply={canSend}
             // While reacting to a message (or its menu is open), it stays highlighted and
             // the others don't react to hovering.
             focusedMsgId={reactingTo?.msgId ?? actionsForId ?? menuMsg?.id}

@@ -54,6 +54,47 @@
     will-change: transform;
 }
 
+/* Swipe to reply (hooks/useSwipeToReply.js): a message swiped left follows the finger with
+   the reply arrow coming in from the right edge (--swipe-progress, 0 to 1), filled in once
+   it's far enough (data-swipe="armed"), and springs back when let go. data-swipe, not classes:
+   React owns the row's className and would drop them when it redraws mid-swipe. */
+.mobile-mode .each-dm-message-wrapper {
+    transition: transform 0.2s ease-out;
+}
+
+.mobile-mode .each-dm-message-wrapper[data-swipe] {
+    transition: none;
+    z-index: 1; /* the arrow is taller than a one-line message: over the next row */
+}
+
+.mobile-mode .swipe-reply-icon {
+    position: absolute;
+    top: 50%;
+    right: -44px;
+    width: 32px;
+    height: 32px;
+    margin-top: -16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    pointer-events: none;
+    color: var(--vc-fg-muted);
+    background-color: var(--vc-bg-elevated);
+    opacity: var(--swipe-progress, 0);
+    transform: scale(calc(0.6 + 0.4 * var(--swipe-progress, 0)));
+    transition: opacity 0.2s ease-out, background-color 0.1s, color 0.1s;
+}
+
+.mobile-mode .each-dm-message-wrapper[data-swipe] .swipe-reply-icon {
+    transition: background-color 0.1s, color 0.1s;
+}
+
+.mobile-mode .each-dm-message-wrapper[data-swipe="armed"] .swipe-reply-icon {
+    color: var(--vc-on-accent);
+    background-color: var(--vc-accent);
+}
+
 /* Mobile has no hover menu: a long press opens MessageActionSheet instead. */
 /* An open thread covers its channel (ThreadPane), with a way back in its header. */
 .mobile-mode .thread-pane {
