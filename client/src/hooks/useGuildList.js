@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onConnectionState, onGuildEvent } from '../utils/ws-client';
+import { threadPermissions } from '../utils/permissions';
 import {
   fetchAllEmojis,
   fetchChannelMutes,
@@ -27,9 +28,11 @@ import {
 //   setting one returned (as the `guild_channel_notify` event other devices get).
 // `clearUnread(channelId)` drops a channel's unread row (after Mark As Read).
 // `reorderGuilds(ids)` saves a new rail order (top first); other devices follow.
-// `activeChannelId` is the channel on screen: new messages there don't count as unread.
+// `activeChannelId` is the channel on screen, `activeThreadId` a thread open beside it: new
+// messages there don't count as unread. A layout's `threads` are the active threads you can see
+// (with `joined`; only joined ones count as unread), kept current by the thread events.
 // `onRemoved(guildId)` runs when you leave, are removed from, or delete a guild.
-export function useGuildList({ userId, activeChannelId, onRemoved }) {
+export function useGuildList({ userId, activeChannelId, activeThreadId = null, onRemoved }) {
   const [guilds, setGuilds] = useState([]);
   const [layouts, setLayouts] = useState({});
   const [unread, setUnread] = useState([]);
@@ -40,6 +43,16 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
 
   const active = useRef(activeChannelId);
   active.current = activeChannelId;
+  const activeThread = useRef(activeThreadId);
+  activeThread.current = activeThreadId;
+  const isOnScreen = (channelId) => [active.current, activeThread.current].some((id) => id != null && String(id) === String(channelId));
+  const layoutsRef = useRef(layouts);
+  layoutsRef.current = layouts;
+  // A thread you can see but haven't joined (its messages aren't unread for you).
+  const isUnjoinedThread = (guildId, channelId) => {
+    const thread = layoutsRef.current[guildId]?.threads?.find((t) => t.id === channelId);
+    return Boolean(thread && !thread.joined);
+  };
   const onRemovedRef = useRef(onRemoved);
   onRemovedRef.current = onRemoved;
 
@@ -228,7 +241,7 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
           break;
         case 'guild_message_new': {
           const { message } = event;
-          if (message.sender_id === userId || String(message.channel_id) === String(active.current)) break;
+          if (message.sender_id === userId || isOnScreen(message.channel_id) || isUnjoinedThread(event.guildId, message.channel_id)) break;
           setUnread((prev) => (prev.some((u) => u.channel_id === message.channel_id)
             ? prev.map((u) => (u.channel_id === message.channel_id ? { ...u, count: u.count + 1 } : u))
             : [...prev, { channel_id: message.channel_id, guild_id: event.guildId, count: 1, mentions: 0 }]));
@@ -236,10 +249,43 @@ export function useGuildList({ userId, activeChannelId, onRemoved }) {
         }
         // Sent to you, right after the message itself, when it mentions you.
         case 'guild_mention':
-          if (String(event.channelId) === String(active.current)) break;
+          if (isOnScreen(event.channelId)) break;
           setUnread((prev) => (prev.some((u) => u.channel_id === event.channelId)
             ? prev.map((u) => (u.channel_id === event.channelId ? { ...u, mentions: (u.mentions ?? 0) + 1 } : u))
             : [...prev, { channel_id: event.channelId, guild_id: event.guildId, count: 1, mentions: 1 }]));
+          break;
+        case 'guild_thread_update':
+          setLayouts((prev) => {
+            const guild = prev[event.guildId];
+            if (!guild) return prev;
+            const { thread } = event;
+            const old = guild.threads?.find((t) => t.id === thread.id);
+            const rest = (guild.threads ?? []).filter((t) => t.id !== thread.id);
+            // Archived threads leave the list (the channel's thread list still has them).
+            if (thread.archived) return { ...prev, [event.guildId]: { ...guild, threads: rest } };
+            const parent = guild.channels.find((c) => c.id === thread.parent_id);
+            if (!parent) return prev;
+            const entry = { ...thread, joined: old?.joined ?? false, my_permissions: threadPermissions(parent.my_permissions) };
+            return { ...prev, [event.guildId]: { ...guild, threads: [entry, ...rest] } };
+          });
+          break;
+        case 'guild_thread_delete':
+          setLayouts((prev) => {
+            const guild = prev[event.guildId];
+            if (!guild) return prev;
+            return { ...prev, [event.guildId]: { ...guild, threads: (guild.threads ?? []).filter((t) => t.id !== event.threadId) } };
+          });
+          setUnread((prev) => prev.filter((u) => u.channel_id !== event.threadId));
+          break;
+        // You joined or left a thread (on any device).
+        case 'guild_thread_member':
+          setLayouts((prev) => {
+            const guild = prev[event.guildId];
+            if (!guild?.threads?.some((t) => t.id === event.threadId)) return prev;
+            const threads = guild.threads.map((t) => (t.id === event.threadId ? { ...t, joined: event.joined } : t));
+            return { ...prev, [event.guildId]: { ...guild, threads } };
+          });
+          if (!event.joined) setUnread((prev) => prev.filter((u) => u.channel_id !== event.threadId));
           break;
         default:
       }

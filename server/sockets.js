@@ -119,7 +119,7 @@ function isViewingConversation(userId, otherUserId) {
   return (clients.get(String(userId)) || []).some((s) =>
     s.readyState === WebSocket.OPEN &&
     s.presence?.visible &&
-    s.presence.chatId === String(otherUserId) &&
+    (s.presence.chatId === String(otherUserId) || s.presence.sideChatId === String(otherUserId)) &&
     now - s.presence.at < PRESENCE_FRESH_MS
   );
 }
@@ -169,6 +169,8 @@ function attachWebSocketServer(server) {
         ws.presence = {
           visible: data.visible === true,
           chatId: data.chatId != null ? String(data.chatId) : null,
+          // A second chat shown beside it (a thread next to its channel).
+          sideChatId: data.sideChatId != null ? String(data.sideChatId) : null,
           mobile: data.mobile === true,
           desktopNotifications: data.desktopNotifications === true,
           activeUntil: now + idleIn,

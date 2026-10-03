@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faBell,
@@ -58,6 +58,9 @@ function loadCollapsed() {
 // Manage Guild, Manage Roles or Ban Members: Guild Settings; View Audit Log: the audit log).
 export default function GuildSidebar({ guild, user }) {
   const { channelId } = useParams();
+  // A thread open beside the channel.
+  const [searchParams] = useSearchParams();
+  const openThreadId = searchParams.get('thread');
   const navigate = useNavigate();
   const { guildList } = useContext(LayoutContext);
   const { isMobile } = useContext(InteractionContext);
@@ -120,6 +123,11 @@ export default function GuildSidebar({ guild, user }) {
   const unreadChannels = new Set(guildUnread.filter((u) => !guildList.isMuted(u.channel_id)).map((u) => u.channel_id));
   const channelMentions = new Map(guildUnread.filter((u) => u.mentions > 0).map((u) => [u.channel_id, u.mentions]));
   const { uncategorized, categories } = groupChannels(guild);
+  // The threads you've joined, under their channels (threads you haven't are in the channel's
+  // thread list).
+  const joinedThreads = (guild.threads ?? []).filter((t) => t.joined);
+  const threadsOf = (channel) => joinedThreads.filter((t) => t.parent_id === channel.id);
+  const hasUnreadThread = (channel) => threadsOf(channel).some((t) => unreadChannels.has(t.id) || channelMentions.has(t.id));
   // The row whose menu is open (gone if it was deleted meanwhile).
   const menuChannel = rowMenu?.kind === 'channel' ? guild.channels.find((c) => c.id === rowMenu.id) : null;
   const menuCategory = rowMenu?.kind === 'category' ? guild.categories.find((c) => c.id === rowMenu.id) : null;
@@ -162,6 +170,31 @@ export default function GuildSidebar({ guild, user }) {
       joinVoice(guild.id, channel.id);
     }
     showContent();
+  }
+
+  // A joined thread, indented under its channel; it opens beside the channel.
+  function renderThread(thread) {
+    const active = String(thread.id) === openThreadId && String(thread.parent_id) === channelId;
+    const unread = unreadChannels.has(thread.id) && !active;
+    const mentions = active ? 0 : channelMentions.get(thread.id) ?? 0;
+    return (
+      <li key={`thread-${thread.id}`} className={`guild-thread${active ? ' active' : ''}${unread ? ' unread' : ''}`}>
+        <Link
+          to={`/guild/${guild.id}/${thread.parent_id}?thread=${thread.id}`}
+          replace={isMobile}
+          onClick={showContent}
+          className="guild-channel-link guild-thread-link"
+          aria-current={active ? 'page' : undefined}
+        >
+          <span className="guild-thread-branch" aria-hidden="true" />
+          <span className="guild-channel-name">{thread.name}</span>
+          {mentions > 0 && ' '}
+          {mentions > 0 && (
+            <span className="mention-badge" aria-label={`${mentions} mentions`}>{mentions > 99 ? '99+' : mentions}</span>
+          )}
+        </Link>
+      </li>
+    );
   }
 
   function renderChannel(channel) {
@@ -214,6 +247,7 @@ export default function GuildSidebar({ guild, user }) {
           <VoiceChannelMembers members={channel.voice} speaking={channel.id === inVoice ? speaking : new Set()} inChannel={channel.id === inVoice} />
         </li>
       )}
+      {threadsOf(channel).map(renderThread)}
       </React.Fragment>
     );
   }
@@ -296,7 +330,7 @@ export default function GuildSidebar({ guild, user }) {
           // Collapsed, a category still shows the open channel, unread ones and your voice
           // channel (like Discord).
           const shown = isCollapsed
-            ? category.channels.filter((c) => String(c.id) === channelId || unreadChannels.has(c.id) || channelMentions.has(c.id) || c.id === inVoice)
+            ? category.channels.filter((c) => String(c.id) === channelId || unreadChannels.has(c.id) || channelMentions.has(c.id) || c.id === inVoice || hasUnreadThread(c))
             : category.channels;
           const moving = dragged('category', category.id);
           return (

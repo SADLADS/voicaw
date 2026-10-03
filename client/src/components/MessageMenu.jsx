@@ -1,5 +1,5 @@
 import React from 'react';
-import { faCopy, faEdit, faFaceSmile, faReply, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faCopy, faEdit, faFaceSmile, faReply, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { quickReactions } from '../emoji/quickReactions';
@@ -9,7 +9,8 @@ const QUICK_REACTION_COUNT = 5; // what fits across the menu
 
 // Desktop: a message's right-click menu, Discord style (the phone's long press opens
 // MessageActionSheet instead). A row of quick reactions, then Add Reaction (the full picker,
-// by the pointer), Reply, Edit, Pin / Unpin, Copy Text and Delete. What the message doesn't
+// by the pointer), Reply, Edit, Pin / Unpin, Create Thread (`onCreateThread`, in a guild text
+// channel), Copy Text and Delete. What the message doesn't
 // allow is left out, as in the sheet: only copying for one still sending or failed, editing
 // only your own (`onEdit`, not given for a closed poll), deleting your own or with
 // `canDelete`, pinning when `onTogglePin` is given, reacting when `canReact`.
@@ -27,6 +28,7 @@ export default function MessageMenu({
   onReply,
   onEdit,
   onTogglePin,
+  onCreateThread,
   onCopy,
   onDelete,
   onClose,
@@ -43,6 +45,7 @@ export default function MessageMenu({
   if (sent && onTogglePin) {
     items.push({ key: 'pin', label: msg.pinned_at ? 'Unpin Message' : 'Pin Message', icon: faThumbtack, onSelect: onTogglePin });
   }
+  if (sent && onCreateThread) items.push({ key: 'thread', label: 'Create Thread', icon: faComments, onSelect: onCreateThread });
   if (msg.plaintext) {
     items.push({ key: 'copy', label: 'Copy Text', icon: faCopy, onSelect: async () => { await onCopy(); return 'Copied'; } });
   }

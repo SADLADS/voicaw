@@ -12,7 +12,10 @@ export const AUDIT_FILTERS = [
   {
     key: 'channels',
     label: 'Channels',
-    actions: ['channel_create', 'channel_update', 'channel_delete', 'channel_override_update', 'category_create', 'category_update', 'category_delete'],
+    actions: [
+      'channel_create', 'channel_update', 'channel_delete', 'channel_override_update', 'category_create', 'category_update', 'category_delete',
+      'thread_create', 'thread_update', 'thread_delete',
+    ],
   },
   { key: 'invites', label: 'Invites', actions: ['invite_create', 'invite_delete'] },
   { key: 'emoji', label: 'Emoji', actions: ['emoji_create', 'emoji_update', 'emoji_delete'] },
@@ -84,6 +87,9 @@ export function describeEntry(entry, names) {
       const who = entry.target_type === 'role' ? { name: d.targetName ?? 'a role' } : target();
       return [actor, ' changed the permissions of ', who, ' in ', channel(d.channelName)];
     }
+    case 'thread_create': return [actor, ' started the thread ', { name: d.name }, ' in ', channel(d.channelName)];
+    case 'thread_update': return [actor, ' changed the thread ', { name: d.name }];
+    case 'thread_delete': return [actor, ' deleted the thread ', { name: d.name }, ' in ', channel(d.channelName)];
     case 'category_create': return [actor, ' created the category ', { name: d.name }];
     case 'category_update': return [actor, ' renamed a category to ', { name: d.name }];
     case 'category_delete': return [actor, ' deleted the category ', { name: d.name }];
@@ -106,13 +112,13 @@ export function describeEntry(entry, names) {
 
 const FIELD_LABELS = {
   name: 'Name', topic: 'Topic', category: 'Category', color: 'Colour', hoist: 'Shown separately',
-  mentionable: 'Anyone can mention it', channel: 'Channel', permissions: 'Permissions', nsfw: 'NSFW',
+  mentionable: 'Anyone can mention it', channel: 'Channel', permissions: 'Permissions', nsfw: 'NSFW', archived: 'Archived',
 };
 
 function showValue(field, value) {
   if (value === null || value === undefined || value === '') return 'none';
   if (field === 'color') return colorToHex(value);
-  if (field === 'hoist' || field === 'mentionable' || field === 'nsfw') return value ? 'yes' : 'no';
+  if (['hoist', 'mentionable', 'nsfw', 'archived'].includes(field)) return value ? 'yes' : 'no';
   if (field === 'channel') return `#${value}`;
   return String(value);
 }

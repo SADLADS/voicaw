@@ -411,3 +411,35 @@ export async function addDocumentReaction(documentId, emoji) {
 export async function removeDocumentReaction(reactionId) {
   await api.delete(`/document-reactions/${reactionId}`);
 }
+
+// ---- Threads (server routes/threads.js) ----
+
+// Starts a thread called `name` in text channel `channelId`, from message `messageId` (or on its
+// own with null). -> the thread.
+export async function createThread(channelId, name, messageId = null) {
+  return (await api.post(`/channels/${channelId}/threads`, { name, ...(messageId != null ? { messageId } : {}) })).data;
+}
+
+// The channel's threads, active and archived, most recently active first.
+export async function fetchChannelThreads(channelId) {
+  return (await api.get(`/channels/${channelId}/threads`)).data;
+}
+
+// -> { thread, starter } (starter: the message it started from, or null).
+export async function fetchThread(threadId) {
+  return (await api.get(`/threads/${threadId}`)).data;
+}
+
+// `changes`: { name?, archived? }. -> the thread.
+export async function updateThread(threadId, changes) {
+  return (await api.patch(`/threads/${threadId}`, changes)).data;
+}
+
+export async function deleteThread(threadId) {
+  await api.delete(`/threads/${threadId}`);
+}
+
+export async function setThreadJoined(threadId, joined) {
+  if (joined) await api.put(`/threads/${threadId}/member`);
+  else await api.delete(`/threads/${threadId}/member`);
+}

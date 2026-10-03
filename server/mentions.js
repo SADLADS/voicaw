@@ -136,7 +136,9 @@ function fallbackPreview(message) {
 // counts) and pushes to every viewer whose notification level wants it ('all': every message;
 // 'mentions': when mentioned; their own level for the channel, if they set one, else the
 // guild's), unless they're looking at the channel or have muted it (then
-// only when mentioned, like Discord; channelMutes.js). `silent` (a webhook's
+// only when mentioned, like Discord; channelMutes.js). In a thread, its channel's level and mute
+// count when the thread has none of its own, and only its members get messages that don't
+// mention them. `silent` (a webhook's
 // "suppress notifications" flag, like Discord's): no pushes, the counts still go up.
 async function notifyNewMessage(message, channel, { mentioned, viewers }, { silent = false } = {}) {
   for (const userId of mentioned) {
@@ -146,12 +148,18 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }, { sile
     'SELECT user_id, notify_level FROM guild_members WHERE guild_id = ?',
     [channel.guild_id]
   )).map((r) => [r.user_id, r.notify_level]));
+  const thread = channel.type === 'thread';
   const muted = await mutedUserIds(channel.id);
   const ownLevels = await channelLevels(channel.id);
+  const parentMuted = thread ? await mutedUserIds(channel.parent_id) : new Set();
+  const parentLevels = thread ? await channelLevels(channel.parent_id) : new Map();
+  const threadMembers = thread ? await require('./threads').memberIds(channel.id) : null;
   const recipients = [...viewers.keys()].filter((userId) => {
     if (userId === message.sender_id) return false;
-    const level = ownLevels.get(userId) ?? levels.get(userId) ?? 'mentions';
-    const wants = mentioned.has(userId) ? level !== 'none' : level === 'all' && !muted.has(userId);
+    const level = ownLevels.get(userId) ?? parentLevels.get(userId) ?? levels.get(userId) ?? 'mentions';
+    const wants = mentioned.has(userId)
+      ? level !== 'none'
+      : level === 'all' && !muted.has(userId) && !parentMuted.has(userId) && (!thread || threadMembers.has(userId));
     if (!wants) return false;
     return !isViewingConversation(userId, `channel-${channel.id}`);
   });
@@ -166,11 +174,14 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }, { sile
     Object.fromEntries(channels.filter((c) => c.viewers.has(userId)).map((c) => [c.id, c.name]))
   )) || fallbackPreview(message);
   const sharedBody = channels.length ? null : await bodyFor(null);
+  const where = thread ? `${channel.name}, #${channel.parent_name}` : `#${channel.name}`;
   const payload = {
     type: 'guild',
-    title: `${message.sender_display_name || message.sender_username} (#${channel.name}, ${guild.name})`,
-    // A reply to a document opens that document.
-    url: `/guild/${channel.guild_id}/${channel.id}${message.document_id ? `?doc=${message.document_id}` : ''}`,
+    title: `${message.sender_display_name || message.sender_username} (${where}, ${guild.name})`,
+    // A reply to a document opens that document, a thread's message the thread beside its channel.
+    url: thread
+      ? `/guild/${channel.guild_id}/${channel.parent_id}?thread=${channel.id}`
+      : `/guild/${channel.guild_id}/${channel.id}${message.document_id ? `?doc=${message.document_id}` : ''}`,
     tag: `channel-${channel.id}`,
     // A webhook's own picture (ours, never another site's), else the sender's.
     image: message.webhook_id

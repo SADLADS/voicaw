@@ -24,13 +24,23 @@ export const PERMISSIONS = {
   EDIT_TASKS: 1 << 18,
   STREAM: 1 << 19,
   CREATE_DOCUMENTS: 1 << 20,
+  CREATE_THREADS: 1 << 21,
+  SEND_MESSAGES_IN_THREADS: 1 << 22,
 };
 
 export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
   PERMISSIONS.ADD_REACTIONS | PERMISSIONS.CREATE_INVITE | PERMISSIONS.CONNECT | PERMISSIONS.SPEAK |
-  PERMISSIONS.EDIT_TASKS | PERMISSIONS.STREAM | PERMISSIONS.CREATE_DOCUMENTS;
+  PERMISSIONS.EDIT_TASKS | PERMISSIONS.STREAM | PERMISSIONS.CREATE_DOCUMENTS |
+  PERMISSIONS.CREATE_THREADS | PERMISSIONS.SEND_MESSAGES_IN_THREADS;
 
 export const has = (permissions, bit) => ((permissions ?? 0) & bit) === bit;
+
+// A thread's permissions from its channel's: posting there follows Send Messages in Threads
+// (server/permissions.js threadPermissions).
+export function threadPermissions(channelPermissions) {
+  const send = has(channelPermissions, PERMISSIONS.SEND_MESSAGES_IN_THREADS) ? PERMISSIONS.SEND_MESSAGES : 0;
+  return ((channelPermissions ?? 0) & ~PERMISSIONS.SEND_MESSAGES) | send;
+}
 
 // What the role editor lists, in groups, with Discord's wording.
 export const PERMISSION_GROUPS = [
@@ -61,6 +71,8 @@ export const PERMISSION_GROUPS = [
       ['ADD_REACTIONS', 'Add Reactions', 'Lets members react to messages.'],
       ['MANAGE_MESSAGES', 'Manage Messages', "Lets members delete other people's messages."],
       ['PIN_MESSAGES', 'Pin Messages', 'Lets members pin and unpin messages.'],
+      ['CREATE_THREADS', 'Create Threads', 'Lets members start threads: side conversations from a message, or on their own.'],
+      ['SEND_MESSAGES_IN_THREADS', 'Send Messages in Threads', 'Lets members post in threads. Archiving, renaming and deleting other people\'s threads follows Manage Messages.'],
       ['MENTION_EVERYONE', 'Mention @everyone, @here and All Roles', 'Lets members notify everyone in a channel (@everyone), everyone online there (@here), and any role, even ones not set to be mentionable.'],
     ],
   },
@@ -100,6 +112,8 @@ const CHANNEL_PERMISSION_ITEMS = {
     ['ADD_REACTIONS', 'Add Reactions'],
     ['MANAGE_MESSAGES', 'Manage Messages'],
     ['PIN_MESSAGES', 'Pin Messages'],
+    ['CREATE_THREADS', 'Create Threads'],
+    ['SEND_MESSAGES_IN_THREADS', 'Send Messages in Threads'],
   ],
   voice: [
     ['VIEW_CHANNEL', 'View Channel'],

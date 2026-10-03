@@ -1,10 +1,10 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBell, faBellSlash, faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faBell, faBellSlash, faComments, faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/dms.css';
 import '../../assets/css/guilds.css';
-import { InteractionContext, LayoutContext, NsfwChannelContext } from '../../contexts';
+import { InteractionContext, LayoutContext, NsfwChannelContext, ThreadContext } from '../../contexts';
 import ChatPane from '../ChatPane';
 import MemberList from './MemberList';
 import ChannelIcon from './ChannelIcon';
@@ -13,6 +13,9 @@ import ListChannelView from './ListChannelView';
 import DocChannelView from '../documents/DocChannelView';
 import GuildSearch from './GuildSearch';
 import ChannelMuteMenu from './ChannelMuteMenu';
+import ThreadPane from './ThreadPane';
+import ThreadList from './ThreadList';
+import ThreadDialog from './ThreadDialog';
 import { useChannel } from '../../hooks/useChannel';
 import { onGuildEvent } from '../../utils/ws-client';
 import { addGuildReaction, fetchChannelMembers, fetchMembers, removeGuildReaction } from '../../services/guildService';
@@ -23,7 +26,9 @@ import { mergeProfiles, nameOf, useProfiles } from '../../utils/profiles';
 const SHOW_MEMBERS_KEY = 'showMemberList';
 
 // A guild page (/guild/:guildId/:channelId): the channel's header (name, topic, members
-// button), its chat (ChatPane over useChannel) and the member list. Without a channel in the
+// button), its chat (ChatPane over useChannel) and the member list. In a text channel,
+// `?thread=<id>` opens that thread beside it (ThreadPane, in the member list's place; on a
+// phone over the chat), and the header's threads button lists the channel's threads. Without a channel in the
 // URL it opens the one last viewed here (or the first). The guild's channel sidebar is in the
 // layout's left column (GuildSidebar).
 export default function GuildView({ user }) {
@@ -55,9 +60,19 @@ export default function GuildView({ user }) {
   const [muteAnchor, setMuteAnchor] = useState(null);
   const closeMute = useCallback(() => setMuteAnchor(null), []);
 
+  // The thread open beside the channel, its list (under its header button) and the dialog
+  // starting one ({ message } or {} for one on its own).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const threadId = searchParams.get('thread');
+  const [threadsAnchor, setThreadsAnchor] = useState(null);
+  const closeThreads = useCallback(() => setThreadsAnchor(null), []);
+  const [startingThread, setStartingThread] = useState(null);
+
   useEffect(() => {
     setPinsAnchor(null);
     setMuteAnchor(null);
+    setThreadsAnchor(null);
+    setStartingThread(null);
   }, [channelId]);
 
   // A search result to scroll to ({ channelId, messageId }), once its channel is loaded.
@@ -71,6 +86,20 @@ export default function GuildView({ user }) {
 
   const channel = guild?.channels.find((c) => String(c.id) === channelId) ?? null;
   const textChannelId = channel?.type === 'text' ? channelId : null;
+  const openThreadId = textChannelId && threadId ? threadId : null;
+
+  const openThread = useCallback((id) => {
+    setThreadsAnchor(null);
+    setSearchParams({ thread: String(id) }, { replace: isMobile ? false : Boolean(threadId) });
+  }, [setSearchParams, isMobile, threadId]);
+  const closeThread = useCallback(() => setSearchParams({}, { replace: true }), [setSearchParams]);
+  const canCreateThreads = has(channel?.my_permissions, PERMISSIONS.CREATE_THREADS);
+  const threadContext = useMemo(() => ({
+    openThread,
+    createThread: canCreateThreads ? (msg) => setStartingThread({ message: msg }) : null,
+    // From a "started a thread" row: the list opens under the header's button.
+    showThreads: () => setThreadsAnchor(document.querySelector('.threads-button')?.getBoundingClientRect() ?? null),
+  }), [openThread, canCreateThreads]);
   const conversation = useChannel({ channelId: textChannelId, user, onRead: guildList.refreshUnread });
 
   // Load the guild's layout if this is the first visit (or it just appeared).
@@ -226,7 +255,8 @@ export default function GuildView({ user }) {
 
   // A list channel uses the space for its tasks' details instead, a document channel for replies.
   const isList = channel?.type === 'list' || channel?.type === 'doc';
-  const membersVisible = !isList && (isMobile ? membersOpenMobile : showMembers);
+  // An open thread takes the member list's place.
+  const membersVisible = !isList && !openThreadId && (isMobile ? membersOpenMobile : showMembers);
   const permissions = channel?.my_permissions ?? 0;
   const muted = Boolean(channel && guildList.isMuted(channel.id));
   // What a channel's chat (ChatPane) takes from the guild, for a document channel's replies.
@@ -296,6 +326,21 @@ export default function GuildView({ user }) {
             <FontAwesomeIcon icon={faThumbtack} />
           </button>
         )}
+        {channel?.type === 'text' && (
+          <button
+            type="button"
+            className={`channel-header-button threads-button${threadsAnchor ? ' active' : ''}`}
+            aria-label="Threads"
+            aria-pressed={Boolean(threadsAnchor)}
+            title="Threads"
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setThreadsAnchor((open) => (open ? null : rect));
+            }}
+          >
+            <FontAwesomeIcon icon={faComments} />
+          </button>
+        )}
         {!isList && (
         <button
           type="button"
@@ -321,6 +366,7 @@ export default function GuildView({ user }) {
       </header>
 
       <div className="guild-body">
+        <ThreadContext.Provider value={channel?.type === 'text' ? threadContext : null}>
         <div className="guild-chat" data-current-user-id={user.id}>
           <NsfwChannelContext.Provider value={Boolean(channel?.nsfw)}>
             {!channel ? (
@@ -380,6 +426,22 @@ export default function GuildView({ user }) {
             )}
           </NsfwChannelContext.Provider>
         </div>
+        </ThreadContext.Provider>
+
+        {openThreadId && (
+          <NsfwChannelContext.Provider value={Boolean(channel.nsfw)}>
+            <ThreadPane
+              key={openThreadId}
+              guild={guild}
+              parent={channel}
+              threadId={openThreadId}
+              user={user}
+              isMobile={isMobile}
+              chatProps={chatProps}
+              onClose={closeThread}
+            />
+          </NsfwChannelContext.Provider>
+        )}
 
         {membersVisible && (
           <MemberList
@@ -390,6 +452,26 @@ export default function GuildView({ user }) {
           />
         )}
       </div>
+
+      {threadsAnchor && channel?.type === 'text' && (
+        <ThreadList
+          channel={channel}
+          anchor={threadsAnchor}
+          isMobile={isMobile}
+          canCreate={canCreateThreads}
+          onOpen={(thread) => openThread(thread.id)}
+          onCreate={() => { setThreadsAnchor(null); setStartingThread({}); }}
+          onClose={closeThreads}
+        />
+      )}
+      {startingThread && channel && (
+        <ThreadDialog
+          channel={channel}
+          message={startingThread.message ?? null}
+          onDone={(thread) => openThread(thread.id)}
+          onClose={() => setStartingThread(null)}
+        />
+      )}
     </div>
   );
 }

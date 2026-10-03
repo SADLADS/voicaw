@@ -28,6 +28,8 @@ const PERMISSIONS = {
   EDIT_TASKS: 1 << 18,
   STREAM: 1 << 19, // "Video": share your screen in voice channels
   CREATE_DOCUMENTS: 1 << 20, // document channels: write new documents (and edit your own)
+  CREATE_THREADS: 1 << 21, // text channels: start threads
+  SEND_MESSAGES_IN_THREADS: 1 << 22, // post in threads (in a thread it stands in for Send Messages)
 };
 
 const ALL_PERMISSIONS = Object.values(PERMISSIONS).reduce((all, bit) => all | bit, 0);
@@ -35,11 +37,13 @@ const ALL_PERMISSIONS = Object.values(PERMISSIONS).reduce((all, bit) => all | bi
 // The ones a channel override can change.
 const CHANNEL_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
   PERMISSIONS.ADD_REACTIONS | PERMISSIONS.MANAGE_MESSAGES | PERMISSIONS.PIN_MESSAGES | PERMISSIONS.CONNECT |
-  PERMISSIONS.SPEAK | PERMISSIONS.EDIT_TASKS | PERMISSIONS.STREAM | PERMISSIONS.CREATE_DOCUMENTS;
+  PERMISSIONS.SPEAK | PERMISSIONS.EDIT_TASKS | PERMISSIONS.STREAM | PERMISSIONS.CREATE_DOCUMENTS |
+  PERMISSIONS.CREATE_THREADS | PERMISSIONS.SEND_MESSAGES_IN_THREADS;
 
 const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
   PERMISSIONS.ADD_REACTIONS | PERMISSIONS.CREATE_INVITE | PERMISSIONS.CONNECT | PERMISSIONS.SPEAK |
-  PERMISSIONS.EDIT_TASKS | PERMISSIONS.STREAM | PERMISSIONS.CREATE_DOCUMENTS;
+  PERMISSIONS.EDIT_TASKS | PERMISSIONS.STREAM | PERMISSIONS.CREATE_DOCUMENTS |
+  PERMISSIONS.CREATE_THREADS | PERMISSIONS.SEND_MESSAGES_IN_THREADS;
 
 const has = (permissions, bit) => (permissions & bit) === bit;
 
@@ -71,6 +75,14 @@ function channelPermissions(member, userId, overrides = []) {
   return permissions;
 }
 
+// A thread has its channel's permissions, except that posting there follows Send Messages in
+// Threads instead of Send Messages (so `permissions` from here on means the same in a thread
+// as anywhere else).
+function threadPermissions(channelPermissions) {
+  const send = has(channelPermissions, PERMISSIONS.SEND_MESSAGES_IN_THREADS) ? PERMISSIONS.SEND_MESSAGES : 0;
+  return (channelPermissions & ~PERMISSIONS.SEND_MESSAGES) | send;
+}
+
 // How high the member ranks: their highest role's position (0 with none), the owner above all.
 function highestPosition(member) {
   if (member.isOwner) return Infinity;
@@ -85,5 +97,6 @@ module.exports = {
   has,
   guildPermissions,
   channelPermissions,
+  threadPermissions,
   highestPosition,
 };

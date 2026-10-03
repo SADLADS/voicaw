@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { onGuildEvent, setActiveChat } from '../utils/ws-client';
+import { onGuildEvent, setActiveChat, setSideChat } from '../utils/ws-client';
 import {
   fetchChannelMessages,
   sendChannelMessage,
@@ -23,7 +23,9 @@ export function toChatMessage(row) {
 // loads and pages its history, sends, edits and deletes, applies live
 // changes from the websocket, and keeps the channel marked read while it's shown (`onRead`
 // runs after, to refresh unread badges). The same shape as useConversation, for ChatPane.
-export function useChannel({ channelId, documentId = null, user, onRead }) {
+// A thread is a channel here too; `side` says it's shown beside the active chat (a thread next
+// to its channel), not instead of it. Messages a thread started from keep their `thread` current.
+export function useChannel({ channelId, documentId = null, side = false, user, onRead }) {
   const [messages, setMessages] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
@@ -208,9 +210,10 @@ export function useChannel({ channelId, documentId = null, user, onRead }) {
   // The server doesn't push messages here while this device is looking at the channel.
   useEffect(() => {
     if (!channelId) return undefined;
-    setActiveChat(`channel-${channelId}`);
-    return () => setActiveChat(null);
-  }, [channelId]);
+    const set = side ? setSideChat : setActiveChat;
+    set(`channel-${channelId}`);
+    return () => set(null);
+  }, [channelId, side]);
 
   // Live changes for this channel.
   useEffect(() => {
@@ -256,6 +259,14 @@ export function useChannel({ channelId, documentId = null, user, onRead }) {
         case 'guild_reaction_remove':
           if (event.channelId === id) {
             setMessageReactions(event.messageId, (list) => list.filter((r) => r.id !== event.reactionId));
+          }
+          break;
+        case 'guild_thread_update':
+          if (event.thread.parent_id === id) updateMessage(event.thread.starter_message_id, () => ({ thread: event.thread }));
+          break;
+        case 'guild_thread_delete':
+          if (event.channelId === id) {
+            setMessages((prev) => prev.map((m) => (m.thread?.id === event.threadId ? { ...m, thread: null } : m)));
           }
           break;
         default:

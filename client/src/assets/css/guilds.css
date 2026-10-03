@@ -2290,3 +2290,277 @@ img.emoji.custom-emoji {
   align-items: center;
   gap: 8px;
 }
+
+/* ---- Threads (ThreadPane, ThreadList, ThreadSummary; docs/guilds.md Threads) ---- */
+
+/* A joined thread, indented under its channel with a curved branch line. */
+.guild-thread {
+  position: relative;
+  display: flex;
+  margin: 1px 0 1px 18px;
+  border-radius: 4px;
+}
+
+.guild-thread-link {
+  padding: 4px 8px 4px 14px;
+  font-size: 14px;
+}
+
+.guild-thread-branch {
+  position: absolute;
+  left: 2px;
+  top: -6px;
+  width: 9px;
+  height: 18px;
+  border-left: 2px solid var(--vc-border-light);
+  border-bottom: 2px solid var(--vc-border-light);
+  border-bottom-left-radius: 6px;
+}
+
+.guild-thread:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.guild-thread:hover .guild-channel-link,
+.guild-thread.active .guild-channel-link,
+.guild-thread.unread .guild-channel-link {
+  color: var(--vc-fg);
+}
+
+.guild-thread.active {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.guild-thread.unread .guild-channel-link {
+  font-weight: 600;
+}
+
+.guild-thread.unread::before {
+  content: '';
+  position: absolute;
+  left: -26px;
+  top: 50%;
+  width: 4px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 0 4px 4px 0;
+  background-color: var(--vc-unread);
+}
+
+/* Under a message a thread started from. */
+.thread-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  margin: 4px 0 2px;
+  padding: 6px 10px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 6px;
+  background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.thread-summary:hover:not(:disabled) {
+  border-color: var(--vc-border-light);
+  background-color: var(--vc-bg-hover);
+}
+
+.thread-summary-icon {
+  color: var(--vc-fg-muted);
+}
+
+.thread-summary-name {
+  overflow: hidden;
+  color: var(--vc-fg);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thread-summary-count {
+  color: var(--vc-link);
+  white-space: nowrap;
+}
+
+.thread-summary-when {
+  white-space: nowrap;
+}
+
+.thread-start-notice p {
+  margin: 0;
+}
+
+.thread-start-notice .thread-summary {
+  margin: 4px auto 0;
+}
+
+.thread-start-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vc-link);
+  font-size: inherit;
+}
+
+.thread-start-link:hover {
+  text-decoration: underline;
+}
+
+/* The channel's thread list (a pins-panel). */
+.threads-panel-create {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.thread-list-heading {
+  margin: 8px 8px 4px;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.thread-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thread-list-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--vc-fg);
+  text-align: left;
+}
+
+.thread-list-item:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.thread-list-name {
+  font-weight: 600;
+}
+
+.thread-list-meta {
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+/* A thread beside its channel, where the member list would be. */
+.thread-pane {
+  flex-shrink: 0;
+  width: min(420px, 45%);
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background-color: var(--vc-bg-subtle);
+  border-left: 1px solid var(--vc-border-dark);
+}
+
+.thread-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--vc-header-height);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.thread-pane-icon {
+  color: var(--vc-fg-muted);
+}
+
+.thread-pane-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.thread-pane-title h5 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thread-pane-title small {
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.thread-pane .icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--vc-fg-muted);
+}
+
+.thread-pane .icon-button:hover,
+.thread-pane .icon-button.active {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.thread-pane-error {
+  margin: 6px 12px;
+}
+
+.thread-starter {
+  max-height: 30%;
+  overflow-y: auto;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.thread-starter-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.thread-starter-header small {
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.thread-starter-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.thread-pane-archived {
+  margin: 0;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--vc-border-dark);
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+}
+
+.thread-pane-chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}

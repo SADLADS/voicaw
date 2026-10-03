@@ -78,7 +78,7 @@ describe('connectWebSocket', () => {
     socket._open();
 
     // Its presence first (no chat open yet, active, not a phone), then identify.
-    expect(JSON.parse(socket.sent[0])).toEqual({ type: 'presence', visible: true, chatId: null, mobile: false, desktopNotifications: false, idleIn: expect.any(Number) });
+    expect(JSON.parse(socket.sent[0])).toEqual({ type: 'presence', visible: true, chatId: null, sideChatId: null, mobile: false, desktopNotifications: false, idleIn: expect.any(Number) });
     expect(JSON.parse(socket.sent[0]).idleIn).toBeGreaterThan(9 * 60 * 1000);
     expect(JSON.parse(socket.sent[1])).toEqual({ type: 'identify', token: 'jwt-abc' });
   });

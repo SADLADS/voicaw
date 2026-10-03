@@ -13,6 +13,7 @@ import MessageFiles from './MessageFiles';
 import Poll from './Poll';
 import PollEndNotice from './PollEndNotice';
 import CallLogNotice from './CallLogNotice';
+import { ThreadStartNotice, ThreadSummary } from './guild/ThreadSummary';
 import defaultAvatar from '../assets/images/default.png';
 import { useLongPress } from '../hooks/useLongPress';
 import MessageEditor from '../editor/MessageEditor';
@@ -534,6 +535,8 @@ export function MessageRow({
           {!poll && <UrlPreviews text={msg.plaintext} encrypted={encrypted} />}
         </div>
 
+        {msg.thread && msg.system == null && <ThreadSummary thread={msg.thread} />}
+
         {canReact && (
           <MessageReactions
             reactions={msg.reactions}
@@ -771,6 +774,8 @@ export default function MessageList({
               ? <PollEndNotice msg={msg} onJump={onJumpToMessage} />
               : msg.system === 'call'
               ? <CallLogNotice msg={msg} meId={user?.id} />
+              : msg.system === 'thread'
+              ? <ThreadStartNotice msg={msg} />
               : msg.system
               ? <p className="message-system">{msg.text}</p>
               : <MessageRow msg={msg} grouped={continuesGroup(messages[i - 1], msg)} {...rowProps} />}

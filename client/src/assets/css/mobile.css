@@ -55,3 +55,12 @@
 }
 
 /* Mobile has no hover menu: a long press opens MessageActionSheet instead. */
+/* An open thread covers its channel (ThreadPane), with a way back in its header. */
+.mobile-mode .thread-pane {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    width: auto;
+    min-width: 0;
+    border-left: 0;
+}
