@@ -74,7 +74,10 @@
   reactions (`emoji/quickReactions.js`) are your most used emoji first, then 👍❤️😂😮😢🙏. Copying
   turns attachments into their names, never their key-carrying links. On desktop, Delete in
   either menu asks too (`ChatPane`: a "Delete message" dialog showing the message; Enter
-  confirms), unless Shift is held while clicking. The sheet ignores the click Chrome fires when
+  confirms), unless Shift is held while clicking. The hover menu follows `mouseenter`/`mouseleave`,
+  which only fire when the mouse moves, so after the rows change or resize `MessageList` works out
+  the hovered row again from where the pointer is (`rehover`): Shift+deleting from the hover menu
+  leaves it on the next message, now under the pointer, ready to delete that one too. The sheet ignores the click Chrome fires when
   the holding finger lifts (it lands on the sheet); only clicks from a touch that started on
   it count. Messages aren't text-selectable on mobile, so the long press isn't taken by text
   selection. Rows highlight on hover only with a mouse (`@media (hover: hover)`): a touch

@@ -644,8 +644,36 @@ export default function MessageList({
   // difference is exactly how far to scroll to keep the row still.
   const anchor = useRef(null);
 
-  const latest = useRef({ hasMore, loadMoreMessages });
-  latest.current = { hasMore, loadMoreMessages };
+  const latest = useRef({ hasMore, loadMoreMessages, messages, setHoveredMsgId, isMobile });
+  latest.current = { hasMore, loadMoreMessages, messages, setHoveredMsgId, isMobile };
+
+  // Where the mouse pointer is (null outside the window), for rehover.
+  const pointer = useRef(null);
+  useEffect(() => {
+    const onMove = (e) => { pointer.current = { x: e.clientX, y: e.clientY }; };
+    const onOut = (e) => { if (!e.relatedTarget) pointer.current = null; };
+    window.addEventListener('mousemove', onMove, { passive: true });
+    document.addEventListener('mouseout', onOut);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseout', onOut);
+    };
+  }, []);
+
+  // The hover menu follows mouseenter/mouseleave, which only fire when the mouse moves: a row
+  // that moves under a still pointer (the next one, after the hovered message is deleted) gets
+  // no mouseenter, and a deleted row never says the mouse left it. So whenever the rows change
+  // or shift, the hovered row is worked out again from where the pointer is.
+  const rehover = useCallback(() => {
+    const at = pointer.current;
+    const { messages: rows, setHoveredMsgId: setHovered, isMobile: phone } = latest.current;
+    if (!at || phone || !setHovered) return;
+    const row = document.elementFromPoint(at.x, at.y)?.closest('[data-msg-id]');
+    const msg = row && scrollerRef.current?.contains(row)
+      ? rows.find((each) => String(each.id) === row.dataset.msgId)
+      : null;
+    setHovered(msg ? msg.id : null);
+  }, []);
 
   // The profile card open from a name or avatar: { user, anchor (rect) }.
   const [profileFor, setProfileFor] = useState(null);
@@ -775,7 +803,8 @@ export default function MessageList({
     rememberAnchor();
     // Keep fetching until the viewport is filled or history runs out.
     maybeLoadOlder();
-  }, [messages, hasMore, user.id, keepAnchorInPlace, rememberAnchor, maybeLoadOlder]);
+    rehover();
+  }, [messages, hasMore, user.id, keepAnchorInPlace, rememberAnchor, maybeLoadOlder, rehover]);
 
   // Rows changing size (images/videos loading, code highlighting, edits), and the list itself
   // changing height (keyboard or mobile emoji panel opening). ResizeObserver callbacks run
@@ -785,11 +814,12 @@ export default function MessageList({
       keepAnchorInPlace();
       rememberAnchor();
       lastListHeight.current = scrollerRef.current?.clientHeight ?? null;
+      rehover();
     });
     observer.observe(contentRef.current);
     observer.observe(scrollerRef.current);
     return () => observer.disconnect();
-  }, [keepAnchorInPlace, rememberAnchor]);
+  }, [keepAnchorInPlace, rememberAnchor, rehover]);
 
   return (
     <div
