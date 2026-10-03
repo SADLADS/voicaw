@@ -24,6 +24,7 @@ import { usePreferencesSync } from '../hooks/usePreferencesSync';
 import { useDictionarySync } from '../hooks/useDictionarySync';
 import { useSwipePanes } from '../hooks/useSwipePanes';
 import { useDesktopApp } from '../hooks/useDesktopApp';
+import { useFaviconDot } from '../hooks/useFaviconDot';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { clearProfiles, mergeProfiles } from '../utils/profiles';
 import { loadSidebarWidth, onSidebarWidthStorage, saveSidebarWidth } from '../utils/sidebarWidth';
@@ -205,6 +206,7 @@ export default function Layout({ user, onLogout }) {
     [unreadDms, conversationSettings]
   );
   useDesktopApp({ navigate, unreadDms: activeUnreadDms, groups: activeGroups, guildUnread: guildList.activeUnread });
+  useFaviconDot({ unreadDms: activeUnreadDms, groups: activeGroups, guildUnread: guildList.activeUnread });
 
   // DM calls: ringing, from any page.
   useEffect(() => {

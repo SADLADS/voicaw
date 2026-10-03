@@ -12,7 +12,8 @@
   file); provides `ConfigContext` (fetched from
   `/api/config`) and `InteractionContext` (`isMobile`: the phone or computer layout, detected
   from the user agent; not a setting, since the wrong one is unusable, removed 2026-10-01)
-- `Layout.jsx` — the logged-in shell: sidebars, users list and unread counts (`LayoutContext`).
+- `Layout.jsx` — the logged-in shell: sidebars, users list and unread counts (`LayoutContext`),
+  and the favicon dot (`useFaviconDot`, see Favicon dot).
   `DmSidebar` draws the unread dots from those counts. `SidebarWrapper` puts the sidebars in a
   row with `UserPanel` across the bottom: your picture, name, this device's connection state
   (`ws-client` `getConnectionState`/`onConnectionState`: online / connecting / offline) and the
@@ -119,8 +120,14 @@
   between devices. Pinned conversations come first in the DM list, in the order pinned (50 at
   most), with a pin. A muted one (15 min to 24 h, or until unmuted) doesn't push or play the
   Message sound (calls still ring), is dimmed with a crossed-out bell and no unread dot, and
-  doesn't light the rail's DMs icon or the desktop app's badge. The server already knows who
-  talks to whom, so this tells it nothing new.
+  doesn't light the rail's DMs icon, the favicon dot or the desktop app's badge. The server
+  already knows who talks to whom, so this tells it nothing new.
+- **Favicon dot** (`hooks/useFaviconDot.js` in `Layout`, `utils/faviconDot.js`): the browser
+  tab's icon gets a red dot while something's unread the way Discord counts it (unread DMs and
+  group messages, guild mentions; `unreadSummary`, the same as the desktop app's tray and
+  taskbar). Guild messages that don't mention you don't count. The dotted icon is drawn once
+  on a canvas from `logo192.png` and swapped in as the `<link rel="icon">`'s href; the original
+  comes back when read or logged out. Not in the desktop app (no tab).
 - **Account preferences** (`server/preferences.js`, JSON in `users.preferences`, only those
   changed from the default; `GET /preferences`, `PUT /preferences { key: value }`; the
   `preferences` event to your other devices; `utils/preferences.js`, kept up to date by

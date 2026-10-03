@@ -56,9 +56,12 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   sound, so viewers don't hear themselves, like Discord.
   macOS needs Screen Recording permission (the picker says where); Wayland goes through the
   system's portal picker.
-- **Tray and badge** (`tray.js`): Open / Quit menu, a red dot on the icon while anything is
-  unread, the count (`unreadSummary`: unread DMs and group messages plus guild mentions) as
-  the macOS dock badge, a Windows taskbar overlay, or the Linux launcher count.
+- **Tray and badge** (`tray.js`): Open / Quit menu, and what's unread the way Discord counts
+  it (`unreadSummary`: unread DMs and group messages plus guild mentions; guild messages that
+  don't mention you don't count): a red dot on the tray icon, the count as the macOS dock
+  badge, a red dot overlay on the Windows taskbar, or on Linux the launcher count (Unity, KDE)
+  and a red dot on the window's own icon (what most taskbars show). The browser tab's
+  favicon gets the same dot (see Favicon dot in `docs/client.md`).
 - **Settings → Desktop App** (`DesktopAppSettings.jsx`, only in the app; stored by
   `desktopSettings.js` as `desktop-settings.json` in the app's data folder): keep running in
   the tray when closed (default on; macOS always), start at login (`autoStart.js`: login items,

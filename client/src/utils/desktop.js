@@ -5,14 +5,15 @@ export const desktop = typeof window !== 'undefined' ? window.voicawDesktop ?? n
 
 export const isDesktopApp = () => desktop !== null;
 
-// What the tray and the taskbar/dock show: `count` is what Discord counts (unread DMs and
-// group messages, and mentions in guilds), `dot` whether anything at all is unread.
+// What the tray, the taskbar/dock and the browser tab show: `count` is what Discord counts
+// (unread DMs and group messages, and mentions in guilds), `dot` whether that's any. As in
+// Discord, guild messages that don't mention you don't count (the guild rail shows those).
 export function unreadSummary({ unreadDms = [], groups = [], guildUnread = [] }) {
   const dmCount = unreadDms.reduce((sum, row) => sum + (Number(row.count) || 0), 0);
   const groupCount = groups.reduce((sum, group) => sum + (Number(group.unread) || 0), 0);
   const mentions = guildUnread.reduce((sum, row) => sum + (Number(row.mentions) || 0), 0);
   const count = dmCount + groupCount + mentions;
-  return { count, dot: count > 0 || guildUnread.length > 0 };
+  return { count, dot: count > 0 };
 }
 
 // An Electron accelerator ("CommandOrControl+Shift+M") for a key press, or null while only

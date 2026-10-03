@@ -1,6 +1,6 @@
 // The tray icon (open, quit; a red dot on it while something's unread) and the unread badge on
 // the taskbar or dock. The page tells us what's unread: `count` (DMs, group messages and
-// mentions, what Discord counts) and `dot` (anything unread at all).
+// mentions, what Discord counts) and `dot` (whether there's any).
 const { Tray, Menu, nativeImage, app } = require('electron');
 const path = require('path');
 
@@ -72,6 +72,8 @@ function createTray({ showWindow, quit }) {
             win?.setOverlayIcon(next.dot ? dotImage() : null, unreadLabel(next));
         } else {
             app.setBadgeCount(next.count); // Unity / KDE launchers
+            // Most Linux taskbars show the window's own icon and no count: the dot goes on it.
+            win?.setIcon(iconImage(64, next.dot));
         }
     }
 

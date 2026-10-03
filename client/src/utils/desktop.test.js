@@ -4,13 +4,13 @@ import { acceleratorFromEvent, describeAccelerator, unreadSummary } from './desk
 const key = (code, key, mods = {}) => ({ code, key, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...mods });
 
 describe('unreadSummary', () => {
-  it('counts DMs, group messages and mentions; a dot for any unread channel', () => {
+  it('counts DMs, group messages and mentions; a dot only for those', () => {
     expect(unreadSummary({
       unreadDms: [{ from_user_id: 2, count: 3 }, { from_user_id: 4, count: 1 }],
       groups: [{ id: 'g', unread: 2 }, { id: 'h', unread: 0 }],
       guildUnread: [{ channel_id: 9, mentions: 1 }, { channel_id: 8, mentions: 0 }],
     })).toEqual({ count: 7, dot: true });
-    expect(unreadSummary({ guildUnread: [{ channel_id: 8, mentions: 0 }] })).toEqual({ count: 0, dot: true });
+    expect(unreadSummary({ guildUnread: [{ channel_id: 8, mentions: 0 }] })).toEqual({ count: 0, dot: false });
     expect(unreadSummary({})).toEqual({ count: 0, dot: false });
   });
 });
