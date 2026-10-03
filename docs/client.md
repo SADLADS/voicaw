@@ -48,7 +48,8 @@
   OPAQUE login/register (`Login.jsx` is just the form).
 - `App.jsx` — top-level routing (`BrowserRouter`; `HashRouter` only for a page opened from a
   file); provides `ConfigContext` (fetched from
-  `/api/config`) and `InteractionContext` (`isMobile`: the phone or computer layout, detected
+  `/api/config`, asked again until it loads, from 2 s doubling to 30 s and on `online`: without
+  its `s3Endpoint` there are no profile pictures, guild icons or custom emoji) and `InteractionContext` (`isMobile`: the phone or computer layout, detected
   from the user agent; not a setting, since the wrong one is unusable, removed 2026-10-01)
 - `Layout.jsx` — the logged-in shell: sidebars, users list and unread counts (`LayoutContext`),
   and the favicon dot (`useFaviconDot`, see Favicon dot).

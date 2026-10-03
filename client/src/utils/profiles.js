@@ -14,9 +14,14 @@ let version = 0;
 const FIELDS = ['username', 'display_name', 'custom_status', 'bio', 'avatar', 'deleted_at'];
 let avatarBase = '';
 
-// Called once the server config (with the object store's address) has loaded.
+// Called once the server config (with the object store's address) has loaded, which may be
+// after pictures were drawn (the config is asked again until it comes, see App): those redraw.
 export function setAvatarBase(s3Endpoint) {
-  avatarBase = s3Endpoint ? `${s3Endpoint}/profile-pics/` : '';
+  const base = s3Endpoint ? `${s3Endpoint}/profile-pics/` : '';
+  if (base === avatarBase) return;
+  avatarBase = base;
+  version += 1;
+  listeners.forEach((listener) => listener());
 }
 
 // User `id`'s profile picture URL (server/avatars.js: a new name for every picture, so it's

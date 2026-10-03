@@ -165,5 +165,53 @@ describe('App config', () => {
 
     await waitFor(() => expect(screen.getByTestId('dm-page')).toHaveAttribute('data-vapid', 'VAPID-KEY'));
   });
+
+  it('asks again until the server answers (pictures need its s3Endpoint), and when back online', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      api.get
+        .mockRejectedValueOnce(new Error('Network Error'))
+        .mockRejectedValueOnce(new Error('Network Error'))
+        .mockResolvedValue({ data: { s3Endpoint: 'https://s3.test', vapidPublicKey: 'VAPID-KEY' } });
+      useAuth.mockReturnValue({ user: { id: 1, username: 'alice' }, setUser: vi.fn(), loading: false });
+      setPath('/dm');
+
+      render(<App />);
+      await vi.waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+      expect(screen.getByTestId('dm-page')).toHaveAttribute('data-vapid', '');
+
+      // Back online: at once, rather than after the wait.
+      window.dispatchEvent(new Event('online'));
+      await vi.waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+      // Then after the (doubling) wait.
+      await vi.advanceTimersByTimeAsync(4000);
+      await vi.waitFor(() => expect(screen.getByTestId('dm-page')).toHaveAttribute('data-vapid', 'VAPID-KEY'));
+      expect(api.get).toHaveBeenCalledTimes(3);
+
+      // Once it has the config, it stops asking.
+      await vi.advanceTimersByTimeAsync(60000);
+      window.dispatchEvent(new Event('online'));
+      expect(api.get).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('profile pictures', () => {
+  it('redraw once the address of the pictures is known', async () => {
+    const { mergeProfiles, setAvatarBase, avatarUrl, useProfiles } = await import('./utils/profiles');
+    const { act } = await import('react');
+    setAvatarBase('');
+    mergeProfiles([{ id: 7, username: 'sam', avatar: 'pic' }]);
+    function Picture() {
+      useProfiles();
+      return <span data-testid="pic">{avatarUrl(7) ?? 'default'}</span>;
+    }
+    render(<Picture />);
+    expect(screen.getByTestId('pic')).toHaveTextContent('default');
+    act(() => setAvatarBase('https://s3.test'));
+    expect(screen.getByTestId('pic')).toHaveTextContent('https://s3.test/profile-pics/7/pic.webp');
+  });
 });
 

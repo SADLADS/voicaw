@@ -65,6 +65,11 @@ const isMobile = typeof navigator !== 'undefined' &&
   (navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
 const interaction = { isMobile };
 
+// How soon the server's config is asked again when it couldn't be loaded, doubling up to the
+// maximum.
+const CONFIG_RETRY_MS = 2000;
+const CONFIG_RETRY_MAX_MS = 30000;
+
 export default function App() {
   const { user, setUser, loading, unreachable } = useAuth();
   const [config, setConfig] = useState({ s3Endpoint: '' });
@@ -74,22 +79,37 @@ export default function App() {
   // this one logs out too.
   useEffect(() => onLoggedOutElsewhere(() => logoutRef.current?.()), []);
 
+  // The server's config, at start. Without it there are no profile pictures, guild icons or
+  // custom emoji (their addresses start with s3Endpoint), so it's asked again until it comes:
+  // a phone often starts offline, or before the server can be reached.
   useEffect(() => {
-    // Fetch server config once at app start
+    let stopped = false;
+    let timer = null;
+    let delay = CONFIG_RETRY_MS;
     async function fetchConfig() {
+      clearTimeout(timer);
       try {
         const res = await api.get('/config');
+        if (stopped) return;
         // Everything the server exposes (s3Endpoint, maxPlaintextLength, vapidPublicKey, ...).
         setConfig(res.data);
         setCustomEmojiBase(res.data.s3Endpoint);
         setAvatarBase(res.data.s3Endpoint);
+        window.removeEventListener('online', fetchConfig);
       } catch (err) {
+        if (stopped) return;
         console.error('Failed to fetch config', err);
+        timer = setTimeout(fetchConfig, delay);
+        delay = Math.min(delay * 2, CONFIG_RETRY_MAX_MS);
       }
     }
-
-    console.log("fetch config")
+    window.addEventListener('online', fetchConfig);
     fetchConfig();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      window.removeEventListener('online', fetchConfig);
+    };
   }, []);
 
   useEffect(() => {
