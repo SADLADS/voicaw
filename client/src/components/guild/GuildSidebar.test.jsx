@@ -69,12 +69,12 @@ function Where() {
   return <div data-testid="where">{useLocation().pathname}</div>;
 }
 
-function renderSidebar({ user = owner, unread = [], mutes = {}, channelLevels = {}, path = '/guild/5/10', permissions, isMobile = false } = {}) {
+function renderSidebar({ user = owner, unread = [], mutes = {}, channelLevels = {}, path = '/guild/5/10', permissions, isMobile = false, threads = [] } = {}) {
   const guildList = {
     unread, mutes, channelLevels, isMuted: (id) => Boolean(mutes[id]), applyMute: vi.fn(), applyChannelLevel: vi.fn(),
     clearUnread: vi.fn(), removeGuild: vi.fn(), upsertGuild: vi.fn(), loadGuild: vi.fn(async () => {}),
   };
-  const guild = { ...baseGuild, my_permissions: permissions ?? (user.id === baseGuild.owner ? ALL : DEFAULT) };
+  const guild = { ...baseGuild, threads, my_permissions: permissions ?? (user.id === baseGuild.owner ? ALL : DEFAULT) };
   render(
     <ConfigContext.Provider value={{ s3Endpoint: '', voiceEnabled: true }}>
     <InteractionContext.Provider value={{ isMobile }}>
@@ -100,6 +100,23 @@ beforeEach(() => {
 });
 
 describe('GuildSidebar', () => {
+  it('lists the threads you joined under their channel, opening beside it', () => {
+    const threads = [
+      { id: 50, parent_id: 10, name: 'Trip planning', joined: true },
+      { id: 51, parent_id: 10, name: 'Not mine', joined: false },
+      { id: 52, parent_id: 11, name: 'Meme ideas', joined: true },
+    ];
+    renderSidebar({ threads, path: '/guild/5/10?thread=50', unread: [{ channel_id: 52, guild_id: 5, count: 1, mentions: 1 }] });
+    const trip = screen.getByRole('link', { name: 'Trip planning' });
+    expect(trip).toHaveAttribute('href', '/guild/5/10?thread=50');
+    expect(trip.closest('li')).toHaveClass('guild-thread', 'active');
+    expect(screen.queryByText('Not mine')).toBeNull();
+    const memes = screen.getByRole('link', { name: 'Meme ideas 1 mentions' }).closest('li');
+    expect(memes).toHaveClass('unread');
+    // Right under its channel.
+    expect(channelRow('general').nextElementSibling).toBe(trip.closest('li'));
+  });
+
   it('lists channels under their categories, marking the open one', () => {
     renderSidebar();
     expect(screen.getByText('Test Guild')).toBeInTheDocument();

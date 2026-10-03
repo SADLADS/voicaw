@@ -35,6 +35,13 @@ export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIO
 
 export const has = (permissions, bit) => ((permissions ?? 0) & bit) === bit;
 
+// A thread's permissions from its channel's: posting there follows Send Messages in Threads
+// (server/permissions.js threadPermissions).
+export function threadPermissions(channelPermissions) {
+  const send = has(channelPermissions, PERMISSIONS.SEND_MESSAGES_IN_THREADS) ? PERMISSIONS.SEND_MESSAGES : 0;
+  return ((channelPermissions ?? 0) & ~PERMISSIONS.SEND_MESSAGES) | send;
+}
+
 // What the role editor lists, in groups, with Discord's wording.
 export const PERMISSION_GROUPS = [
   {

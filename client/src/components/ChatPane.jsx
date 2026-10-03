@@ -8,7 +8,7 @@ import MessageMenu from './MessageMenu';
 import ConfirmDialog from './guild/ConfirmDialog';
 import PinnedMessages from './PinnedMessages';
 import PollDialog from './PollDialog';
-import { ChannelMentionContext, ConfigContext, InteractionContext } from '../contexts';
+import { ChannelMentionContext, ConfigContext, InteractionContext, ThreadContext } from '../contexts';
 import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
 import { useReactions } from '../hooks/useReactions';
 import { summarizeAttachments } from '../utils/attachmentMarkup';
@@ -75,6 +75,11 @@ export default function ChatPane({
   const { s3Endpoint, maxPlaintextLength } = useContext(ConfigContext);
   const { isMobile } = useContext(InteractionContext);
   const mentionChannels = useContext(ChannelMentionContext)?.channels;
+  // In a guild text channel you may start threads in: Create Thread on messages that have none.
+  const threads = useContext(ThreadContext);
+  const threadFrom = (msg) => (threads?.createThread && !msg.thread && !msg.system && Number.isInteger(msg.id)
+    ? () => threads.createThread(msg)
+    : undefined);
   const { messages } = conversation;
 
   const inputRef = useRef(null);
@@ -423,6 +428,7 @@ export default function ChatPane({
           onReply={() => handleReply(actionsFor)}
           onEdit={isClosedPoll(actionsFor) ? undefined : () => handleEdit(actionsFor)}
           onTogglePin={canPin ? () => togglePin(actionsFor) : undefined}
+          onCreateThread={threadFrom(actionsFor)}
           onCopy={() => copyMessage(actionsFor)}
           onDelete={() => handleDelete(actionsFor)}
           onClose={closeActions}
@@ -442,6 +448,7 @@ export default function ChatPane({
           onReply={() => handleReply(menuMsg)}
           onEdit={isClosedPoll(menuMsg) ? undefined : () => handleEdit(menuMsg)}
           onTogglePin={canPin ? () => togglePin(menuMsg) : undefined}
+          onCreateThread={threadFrom(menuMsg)}
           onCopy={() => copyText(menuMsg)}
           onDelete={(event) => requestDelete(menuMsg, event)}
           onClose={closeMenu}

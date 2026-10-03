@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Voicaw is a Discord-style chat web app: end-to-end encrypted direct messages and group DMs
 (with calls), and guilds
 (Discord-style servers, always called guilds in the app: text, voice, list (task board)
-and document channels, roles and private channels; not encrypted, see `docs/guilds.md`). It's an npm workspaces monorepo with
+and document channels, threads, roles and private channels; not encrypted, see `docs/guilds.md`). It's an npm workspaces monorepo with
 three packages: `client` (React/Vite SPA, also packaged as an Electron desktop app), `server`
 (Express + ws API), and `electron` (the desktop app: the built client plus notifications, tray,
 shortcuts and updates; see `docs/desktop-and-site.md`).
@@ -119,7 +119,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   the spellcheck dictionary).
 - `docs/realtime.md`: websocket events, online status, web push.
 - `docs/guilds.md`: guilds (permissions, overrides, audit log, invites, custom emoji, channel
-  menus, NSFW channels), list channels, document channels, guild search, webhooks (Discord's API).
+  menus, NSFW channels), threads, list channels, document channels, guild search, webhooks (Discord's API).
 - `docs/voice-and-calls.md`: voice channels (LiveKit, reconnecting, screen sharing, microphone
   chain, noise suppression, voice settings, playback and per-user volume), DM and group calls.
 - `docs/group-dms.md`: group DMs (membership log, epochs, signing).

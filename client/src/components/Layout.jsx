@@ -42,6 +42,8 @@ export default function Layout({ user, onLogout }) {
   // A guild page: /guild/:guildId[/:channelId].
   const guildMatch = /^\/guild\/(\d+)(?:\/(\d+))?/.exec(location.pathname);
   const guildId = guildMatch?.[1];
+  // A thread open beside the channel (?thread=<id>).
+  const threadId = guildMatch ? new URLSearchParams(location.search).get('thread') : null;
   // Settings on a computer: its column of sections goes beside the rail (Settings puts it into
   // `settingsNavSlot` with a portal), so the user panel sits under it like on other pages. On a
   // phone it stays at the top of the page.
@@ -70,7 +72,7 @@ export default function Layout({ user, onLogout }) {
   const onGuildRemoved = useCallback((removedId) => {
     if (String(removedId) === guildId) navigate('/dm', { replace: true });
   }, [guildId, navigate]);
-  const guildList = useGuildList({ userId: user?.id, activeChannelId: guildMatch?.[2] ?? null, onRemoved: onGuildRemoved });
+  const guildList = useGuildList({ userId: user?.id, activeChannelId: guildMatch?.[2] ?? null, activeThreadId: threadId, onRemoved: onGuildRemoved });
   // Group DMs: /dm/g/:groupId. Leaving (or being removed from) the one on screen goes back.
   const groupId = /^\/dm\/g\/([0-9a-f-]+)/.exec(location.pathname)?.[1] ?? null;
   const onGroupRemoved = useCallback((removedId) => {

@@ -17,7 +17,9 @@ that allow or deny Manage Messages do the same for Pin Messages; 4: index existi
 for search; 5: lower-case usernames, see Auth; 6: `guild_channels`' type CHECK gains `'list'`
 (the table is copied into a new one, keeping its id counter) and @everyone gets Edit Tasks; 7: @everyone gets Video, for
 screen sharing; 8: the type CHECK gains `'doc'` (`allowEveryChannelType`, as 6 did) and @everyone gets
-Create Documents); add the next one at the end.
+Create Documents; 9: existing guild uploads join the upload registry; 10: the type CHECK gains
+`'thread'` (the copy now keeps every column, `nsfw` included) and @everyone gets Create Threads
+and Send Messages in Threads); add the next one at the end.
 - Queries: `db.get` / `db.all` / `db.run` return promises, as with the old driver (rows are plain
   objects; `undefined` binds as NULL, booleans as 1/0). Prepared statements are cached.
 - **Transactions:** anything that writes more than one row (or one row that depends on another)

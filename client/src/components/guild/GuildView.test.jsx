@@ -7,6 +7,7 @@ const guildListeners = vi.hoisted(() => ({ list: [] }));
 
 vi.mock('../../utils/ws-client', () => ({
   setActiveChat: vi.fn(),
+  setSideChat: vi.fn(),
   onGuildEvent: (cb) => {
     guildListeners.list.push(cb);
     return () => { guildListeners.list = guildListeners.list.filter((x) => x !== cb); };
@@ -23,6 +24,10 @@ vi.mock('../../services/guildService', () => ({
   fetchChannelMembers: vi.fn(async () => [1, 2, 4]),
   addGuildReaction: vi.fn(),
   removeGuildReaction: vi.fn(async () => {}),
+  fetchThread: vi.fn(),
+  fetchChannelThreads: vi.fn(async () => []),
+  setThreadJoined: vi.fn(async () => {}),
+  createThread: vi.fn(),
 }));
 
 const idleVoice = vi.hoisted(() => ({ status: 'idle', guildId: null, channelId: null, selfMute: false, selfDeaf: false, speaking: [] }));
@@ -39,6 +44,7 @@ vi.mock('../../services/attachmentUpload', () => ({ uploadAttachment: vi.fn(), M
 
 // MessageList needs a real browser's layout; the tests look at what it's given.
 vi.mock('../MessageList', () => ({
+  MessageContent: ({ msg }) => <div>{msg.plaintext}</div>,
   default: ({ messages, onToggleReaction, canModerate, canAddReactions, nameColors }) => (
     <div data-testid="message-list" data-can-moderate={String(canModerate)} data-can-react={String(canAddReactions)} data-colors={JSON.stringify(nameColors)}>
       {messages.map((m) => (
@@ -66,8 +72,12 @@ import {
   addGuildReaction,
   fetchMembers,
   fetchChannelMembers,
+  fetchThread,
+  fetchChannelThreads,
+  setThreadJoined,
+  createThread,
 } from '../../services/guildService';
-import { setActiveChat } from '../../utils/ws-client';
+import { setActiveChat, setSideChat } from '../../utils/ws-client';
 
 const me = { id: 1, username: 'me' };
 const guild = {
@@ -84,7 +94,8 @@ const guild = {
   ],
   categories: [],
   channels: [
-    { id: 10, name: 'general', type: 'text', topic: 'Say hi', category_id: null, position: 0, my_permissions: 2047, private: false },
+    // Everything up to Administrator, plus Create Threads and Send Messages in Threads.
+    { id: 10, name: 'general', type: 'text', topic: 'Say hi', category_id: null, position: 0, my_permissions: 2047 | (1 << 21) | (1 << 22), private: false },
     {
       id: 11, name: 'lounge', type: 'voice', topic: null, category_id: null, position: 1, my_permissions: 2047 | 4096 | 8192, private: false,
       voice: [{ user_id: 2, username: 'bob', self_mute: true, self_deaf: false }],
@@ -99,7 +110,8 @@ const row = (id, text, senderId = 2) => ({
 const emojiIndex = buildEmojiIndex(emojiData);
 
 function Where() {
-  return <div data-testid="where">{useLocation().pathname}</div>;
+  const location = useLocation();
+  return <div data-testid="where">{location.pathname}{location.search}</div>;
 }
 
 function renderView(path, { layouts = { 5: guild }, user = me, voiceEnabled = true } = {}) {
@@ -267,5 +279,57 @@ describe('GuildView', () => {
     const guildList = renderView('/guild/6/1', { layouts: {} });
     guildList.loadGuild.mockRejectedValue({ response: { data: { error: 'Guild not found' } } });
     await waitFor(() => expect(guildList.loadGuild).toHaveBeenCalledWith('6'));
+  });
+
+  describe('threads', () => {
+    const thread = { id: 50, parent_id: 10, name: 'Trip planning', owner_id: 2, starter_message_id: 1, archived: false, joined: false, message_count: 1, created_at: 1000, last_activity: 1000 };
+
+    it('opens ?thread= beside the channel, in place of the member list', async () => {
+      fetchThread.mockResolvedValue({ thread, starter: row(1, 'shall we plan the trip?') });
+      fetchChannelMessages.mockImplementation(async (channelId) => (channelId === '50' ? [{ ...row(7, 'in the thread'), channel_id: 50 }] : [row(1, 'shall we plan the trip?')]));
+      renderView('/guild/5/10?thread=50');
+      const pane = await screen.findByRole('complementary', { name: 'Thread' });
+      expect(within(pane).getByRole('heading', { name: 'Trip planning' })).toBeInTheDocument();
+      expect(fetchThread).toHaveBeenCalledWith('50');
+      await waitFor(() => expect(fetchChannelMessages).toHaveBeenCalledWith('50', { limit: 50 }));
+      await waitFor(() => expect(within(pane).getAllByTestId('message').map((m) => m.textContent)).toEqual(['bob: in the thread [sent]']));
+      expect(within(pane).getByText('shall we plan the trip?')).toBeInTheDocument();
+      expect(setSideChat).toHaveBeenCalledWith('channel-50');
+      expect(document.querySelector('.member-list')).toBeNull();
+
+      fireEvent.click(within(pane).getByRole('button', { name: 'Join' }));
+      await waitFor(() => expect(setThreadJoined).toHaveBeenCalledWith(50, true));
+      await emit({ type: 'guild_thread_member', guildId: 5, threadId: 50, joined: true });
+      expect(within(pane).queryByRole('button', { name: 'Join' })).toBeNull();
+
+      // Renamed live; closing goes back to the channel alone.
+      await emit({ type: 'guild_thread_update', guildId: 5, thread: { ...thread, name: 'Trip!' } });
+      expect(within(pane).getByRole('heading', { name: 'Trip!' })).toBeInTheDocument();
+      fireEvent.click(within(pane).getByRole('button', { name: 'Close thread' }));
+      await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/guild\/5\/10$/));
+      expect(screen.queryByRole('complementary', { name: 'Thread' })).toBeNull();
+    });
+
+    it("lists the channel's threads from the header, and starts one", async () => {
+      fetchChannelThreads.mockResolvedValue([thread, { ...thread, id: 51, name: 'Old one', archived: true }]);
+      createThread.mockResolvedValue({ ...thread, id: 60, name: 'New idea' });
+      fetchThread.mockResolvedValue({ thread: { ...thread, id: 60, name: 'New idea' }, starter: null });
+      renderView('/guild/5/10');
+      await screen.findByText(/Welcome to #general/);
+      fireEvent.click(screen.getByRole('button', { name: 'Threads' }));
+      const panel = await screen.findByRole('dialog', { name: 'Threads' });
+      await within(panel).findByText('Trip planning');
+      expect(within(panel).getByText('Archived')).toBeInTheDocument();
+      expect(within(panel).getByText('Old one')).toBeInTheDocument();
+      expect(fetchChannelThreads).toHaveBeenCalledWith(10);
+
+      fireEvent.click(within(panel).getByRole('button', { name: /Create/ }));
+      const dialog = await screen.findByRole('dialog', { name: 'Create thread' });
+      fireEvent.change(within(dialog).getByLabelText('Thread name'), { target: { value: 'New idea' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Create thread' }));
+      await waitFor(() => expect(createThread).toHaveBeenCalledWith(10, 'New idea', null));
+      await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/guild/5/10?thread=60'));
+      expect(await screen.findByRole('heading', { name: 'New idea' })).toBeInTheDocument();
+    });
   });
 });

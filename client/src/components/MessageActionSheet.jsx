@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCopy, faEdit, faReply, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faCopy, faEdit, faReply, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { quickReactions } from '../emoji/quickReactions';
 
 // Mobile: what a long press on a message opens (in place of the desktop hover menu). A row of
-// quick reactions (plus the full picker), then Reply / Edit / Pin (or Unpin) / Copy text / Delete. Actions the
+// quick reactions (plus the full picker), then Reply / Edit / Pin (or Unpin) / Create thread / Copy text / Delete. Actions the
 // message doesn't allow are left out: nothing but copying for one still sending or failed,
 // and editing only your own (deleting: your own, or `canDelete`, e.g. a guild's owner; pinning:
 // `onTogglePin`, when you may).
@@ -22,6 +22,7 @@ export default function MessageActionSheet({
   onReply,
   onEdit,
   onTogglePin,
+  onCreateThread,
   onCopy,
   onDelete,
   onClose,
@@ -114,6 +115,11 @@ export default function MessageActionSheet({
             {sent && onTogglePin && (
               <button type="button" className="action-sheet-item" onClick={act(onTogglePin)}>
                 <FontAwesomeIcon icon={faThumbtack} /> {msg.pinned_at ? 'Unpin message' : 'Pin message'}
+              </button>
+            )}
+            {sent && onCreateThread && (
+              <button type="button" className="action-sheet-item" onClick={act(onCreateThread)}>
+                <FontAwesomeIcon icon={faComments} /> Create thread
               </button>
             )}
             {msg.plaintext && (

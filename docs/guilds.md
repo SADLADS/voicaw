@@ -14,15 +14,17 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   @here and any role; not a default, guild-wide only), Pin Messages (not a default; split out of
   Manage Messages like Discord did, migration 3), Manage Webhooks (guild-wide only), View Audit
   Log (not a default, guild-wide only; see Audit log), Edit Tasks (list channels; see List
-  channels), Create Documents (`CREATE_DOCUMENTS`, document channels; see Document channels). Every guild has an `@everyone`
-  role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak, edit tasks, video, create documents) plus orderable roles (`guild_roles`: name, colour
+  channels), Create Documents (`CREATE_DOCUMENTS`, document channels; see Document channels), Create Threads and
+  Send Messages in Threads (`CREATE_THREADS`, `SEND_MESSAGES_IN_THREADS`; see Threads). Every guild has an `@everyone`
+  role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak, edit tasks, video, create documents,
+  create threads, send in threads) plus orderable roles (`guild_roles`: name, colour
   0xRRGGBB or null, `hoist` = shown separately in the member list, `mentionable` = anyone may
   @mention it, position: higher ranks
   higher), given out in `guild_member_roles`. Guild permissions are @everyone's plus the
   member's roles'; the owner and Administrator get everything.
 - **Channel overrides** (`guild_channel_overrides`, per role or member, `allow`/`deny` of the
   channel permissions: View, Send, React, Manage Messages, Pin Messages, Connect, Speak, Video, Edit
-  Tasks, Create Documents; the editor shows a text, voice, list or document channel's) apply in order: @everyone's, the member's roles' (all denies, then
+  Tasks, Create Documents, Create Threads, Send Messages in Threads; the editor shows a text, voice, list or document channel's) apply in order: @everyone's, the member's roles' (all denies, then
   all allows), the member's own. A **private channel** is @everyone denied View Channel. A
   channel you can't view doesn't exist for you: left out of your layout, 404, no events
   (`sendToChannel`), not in unread counts.
@@ -169,6 +171,71 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   rail, search dates (see Guild search), muting a category or a whole guild, a list of your
   recent mentions. Voice: see
   Voice channels.
+
+## Threads
+
+Discord's (public) threads in text channels: a side conversation started from a message, or on
+its own, that opens beside the channel. Not encrypted, like the rest of a guild.
+- **A thread is a channel**: a `guild_channels` row of type `'thread'` (migration 10 added the
+  type) with `parent_id` (its text channel; no category, no position), `owner_id` (who started
+  it), `starter_message_id`, `created_at`, `last_activity` and `archived`. So its messages,
+  replies, reactions, edits, pins, polls, mentions, unread counts, mutes, notification levels,
+  typing and read markers are a channel's, through the same routes (`/channels/<thread
+  id>/messages`...). It never appears in `channels` of a layout, and the channel routes (edit,
+  clone, move, overrides, `/layout`) don't know it (404). Deleting the channel deletes its
+  threads (`deleteChannelContents`).
+- **Permissions:** a thread has no overrides: `getOverrides` gives it its channel's, so whoever
+  sees the channel sees its threads (a private channel's threads are private). Two new
+  permissions, both channel permissions and on for @everyone (migration 10 adds them to old
+  guilds): **Create Threads** (`CREATE_THREADS`) and **Send Messages in Threads**
+  (`SEND_MESSAGES_IN_THREADS`), which in a thread stands for Send Messages (`threadPermissions`,
+  applied by `getChannelAccess` and to a layout thread's `my_permissions`), so a read-only
+  channel can still have open threads. Its starter renames and archives it; Manage Messages in
+  the channel renames, archives and deletes anyone's (and moderates its messages as usual);
+  anyone who may post in it unarchives it.
+- **Starting one** (`server/threads.js`, `routes/threads.js`): `POST /channels/:id/threads
+  { name (1–100 characters, free text), messageId? }`. From a message: one thread per message
+  (409), not from a system row. On its own: a `"thread"` system row goes in the channel as its
+  starter (its content is the name at the time; "X started a thread: name. See all threads").
+  Starting one is in the audit log (`thread_create`; also `thread_update` with what changed,
+  and `thread_delete`), under the channel.
+- **Members** (`guild_thread_members`): whoever started it, posted in it, was mentioned in it by
+  name (`<@id>`, not roles or @everyone), or pressed Join. Members have it under its channel in
+  the channel list and get unread counts for it (`/guild-unread` leaves out threads you're not
+  in); others find it from the message's line or the channel's Threads list. Pushes: a mention
+  always (with the usual levels); other messages only to members, by the thread's own level, else
+  the channel's, else the guild's, and a muted channel mutes its threads. The push opens
+  `/guild/<g>/<channel>?thread=<id>`. `PUT` / `DELETE /threads/:id/member` joins and leaves.
+- **Archiving:** archived by hand (`PATCH /threads/:id { archived }`) or after a week with no
+  messages (worked out when read, `AUTO_ARCHIVE_SECONDS`: no timer); posting brings it back.
+  Archived threads leave the layout and channel list but stay readable, under Archived in the
+  Threads list.
+- **API:** `GET /channels/:id/threads` (all of a channel's, active and archived, most recently
+  active first, at most 200, with `joined`), `GET /threads/:id` (`{ thread, starter }`: the
+  message it started from, null if gone or started on its own), `PATCH` (`name`, `archived`),
+  `DELETE` (Manage Messages; takes its messages and its "started a thread" row). A thread is
+  `{ id, guild_id, parent_id, name, owner_id, starter_message_id, created_at, last_activity,
+  archived, message_count }` (+ `joined`). A message a thread started from has `thread` (that
+  object; null otherwise). Layouts have `threads`: the active ones in channels you can see,
+  with `joined` and `my_permissions`. Events: `guild_thread_update { thread }` (to the
+  channel's viewers, on start, rename, archive and every message, so counts stay live),
+  `guild_thread_delete { channelId, threadId }`, `guild_thread_member { threadId, joined }`
+  (to your own devices).
+- **Client:** `?thread=<id>` on a text channel's URL opens `guild/ThreadPane.jsx` in the member
+  list's place (on a phone it covers the channel, with Back): header (name, #channel, Archived,
+  Join, a menu: Join/Leave, Rename, Archive/Unarchive, Copy Link, Delete), the starter message,
+  and a `ChatPane` over `useChannel({ side: true })` (the "side chat" in presence, `setSideChat`,
+  so a thread on screen isn't pushed either). `ThreadContext` (`contexts.js`, from `GuildView`)
+  gives the channel's messages Create Thread (right-click menu and phone action sheet;
+  `guild/ThreadDialog.jsx` suggests a name from the message), the line under a starter message
+  (`guild/ThreadSummary.jsx`: name, message count, last activity), and the header's threads
+  button (`guild/ThreadList.jsx`: Active and Archived, Create). `useGuildList` keeps layouts'
+  `threads` current and counts only joined threads as unread; `GuildSidebar` lists joined ones
+  under their channel (a collapsed category still shows a channel with an unread thread).
+- **Not done yet:** private threads, forum channels, threads in document channels, webhooks
+  posting into threads, searching thread messages (guild search covers text channels only),
+  `<#thread>` links (they show as #unknown-channel), choosing the auto-archive time, a thread's
+  own notification settings in the UI (the API takes them like a channel's).
 
 ## List channels (tasks)
 

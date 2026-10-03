@@ -37,6 +37,7 @@ node e2e/menus.mjs [dir]  # browser menu off everywhere (Shift keeps it); guild 
 node e2e/channel-mentions.mjs [dir] # # suggestions, #channel links (click opens), private = unknown, edit, DM, pasted channel links (#name if you can see it, else the link), phone
 node e2e/textmenu.mjs [dir] # our spellcheck + text box menu: underlines (browser's off), fixes, Add to Dictionary (encrypted on the server, back after reload), cut/copy/paste/select all, toggle, plain field suggestions, selected text, Shift; document cover/pictures menu; phone hold on the cover, no Spellcheck setting
 node e2e/messagemenu.mjs [dir] # message right-click menu: quick reaction, Add Reaction picker, reply, edit, pin, copy, delete (asks; Shift skips), not on others' for edit/delete, a link gets its own (Copy/Open Link); phone hold = same actions
+node e2e/threads.mjs [dir] # threads: Create Thread from a message (suggested name), panel beside the channel, live "N messages", posting joins + unread in the list, started on its own (row, Threads list), archive, phone (covers the channel, Back, long press)
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
 node e2e/replies.mjs [dir] # reply snippet: click jumps to the message (loads older history), flashes it like search/pins, phone tap
 node e2e/invites.mjs [dir] # invite embeds: channel and DM (load at once), Join Guild, Settings → Privacy off = Show first, phone

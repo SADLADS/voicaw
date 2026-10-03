@@ -52,6 +52,7 @@ const PRESENCE_REFRESH_MS = 15000;
 const IDLE_AFTER_MS = 10 * 60 * 1000;
 const mobileDevice = isMobileDevice();
 let activeChatId = null;
+let sideChatId = null;
 let presenceInterval = null;
 let lastActivity = Date.now();
 
@@ -65,7 +66,7 @@ function sendPresence() {
   const visible = typeof document === 'undefined' ||
     (document.visibilityState === 'visible' && document.hasFocus());
   ws.send(JSON.stringify({
-    type: 'presence', visible, chatId: activeChatId, mobile: mobileDevice, idleIn: idleIn(),
+    type: 'presence', visible, chatId: activeChatId, sideChatId, mobile: mobileDevice, idleIn: idleIn(),
     // The desktop app gets its notifications here instead of by web push (see onNotification).
     desktopNotifications: desktopNotificationsOn(),
   }));
@@ -81,6 +82,13 @@ function noteActivity() {
 
 export function setActiveChat(chatId) {
   activeChatId = chatId != null ? String(chatId) : null;
+  sendPresence();
+}
+
+// A second chat on screen beside the active one (a thread open next to its channel): no pushes
+// for it either.
+export function setSideChat(chatId) {
+  sideChatId = chatId != null ? String(chatId) : null;
   sendPresence();
 }
 
@@ -225,6 +233,7 @@ export function connectWebSocket() {
 export function closeWebSocket() {
   clearInterval(presenceInterval);
   activeChatId = null;
+  sideChatId = null;
   if (reconnectTimeout) {
     clearTimeout(reconnectTimeout);
     reconnectTimeout = null;
@@ -295,7 +304,8 @@ export function onDmPin(callback) {
 // 'guild_remove' | 'guild_member_add' | 'guild_member_remove' | 'guild_message_new' |
 // 'guild_message_edit' | 'guild_message_delete' | 'guild_reaction_add' |
 // 'guild_reaction_remove' | 'guild_message_pin' | 'guild_voice_state' | 'guild_mention' |
-// 'guild_channel_mute' | 'guild_channel_notify', ... }` (see docs/guilds.md).
+// 'guild_channel_mute' | 'guild_channel_notify' | 'guild_thread_update' | 'guild_thread_delete' |
+// 'guild_thread_member', ... }` (see docs/guilds.md).
 export function onGuildEvent(callback) {
   guildListeners.add(callback);
   return () => guildListeners.delete(callback);

@@ -25,7 +25,9 @@ muted a DM or group, to your other devices; see `docs/client.md`), `preferences`
 an account preference, to your other devices; see `docs/client.md`), `dictionary` (your
 encrypted spellcheck dictionary was saved, to your devices; see `docs/auth-and-encryption.md`),
 `guild_voice_state` (someone
-joined, left or (un)muted in a voice channel), `guild_mention` (only to whoever a new message
+joined, left or (un)muted in a voice channel), `guild_thread_update` / `_delete` (to whoever can
+see the thread's channel) and `guild_thread_member` (you joined or left a thread, to your devices;
+see Threads in `docs/guilds.md`), `guild_mention` (only to whoever a new message
 mentions, for their red counts), `guild_task_upsert` / `_delete` / `guild_tasks_move` /
 `guild_task_comment_new` / `_edit` / `_delete` (to whoever can see the list channel) and
 `guild_task_assigned` (only to whoever was just assigned; see List channels),
@@ -110,7 +112,8 @@ one user at a time).
   recipient muted the conversation (`isConversationMuted`) or `isViewingConversation()` says
   they're looking at that chat (group DMs: chat id
   `group-<id>`; guild channels: `channel-<id>`, and which guild messages push is in Mentions). That uses `presence`
-  websocket messages (`{visible, chatId}`) that `ws-client` sends on focus/visibility/chat changes
+  websocket messages (`{visible, chatId, sideChatId}`; `sideChatId` is a thread open beside its
+  channel, `setSideChat`) that `ws-client` sends on focus/visibility/chat changes
   and every 15s. The server ignores presence older than 35s.
 - Previews stay end-to-end encrypted. The DM push carries the ciphertext (never a key) when it fits
   in a push (~4KB), plus `senderId`/`recipientId`. `service-worker.js` → `services/pushNotifications.js`

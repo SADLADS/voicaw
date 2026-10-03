@@ -29,3 +29,8 @@ export const ChannelMentionContext = createContext(null);
 // Whether what's drawn inside is from an NSFW guild channel (GuildView, GuildSearch): its media
 // is covered until clicked, unless Settings turns that off (hooks/useMediaCover.js).
 export const NsfwChannelContext = createContext(false);
+
+// Threads of the guild text channel on screen (GuildView): `openThread(threadId)` shows one
+// beside the channel, `createThread(msg)` asks for a name and starts one from a message (null
+// when you can't start threads there), `showThreads()` opens the channel's thread list.
+export const ThreadContext = createContext(null);
