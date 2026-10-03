@@ -6,7 +6,9 @@ Bots are programs that act in guilds through **Discord's API v10** (REST and the
 Discord's libraries (discord.js, discord.py, ...) work by changing their URLs. People make them in
 the developer portal in the app; public documentation for bot authors is on voicaw.com
 (`website/`, `/developers/docs/`). Decided 2026-10-03: library-compatible, guilds only, no
-privileged intents, anyone can make applications (25 each), slash commands later.
+privileged intents, anyone can make applications (25 each). Commands and components came
+next (see Commands and interactions): buttons, selects and forms, slash and context-menu
+commands, Discord-style ephemeral replies, interactions over the gateway only.
 
 - **Applications and bot users** (`server/bots.js`, table `bot_applications`): an application
   has exactly one bot, a `users` row with `bot` = 1 whose id is the application's id (as in
@@ -57,8 +59,8 @@ Unknown paths get Discord's 404.
   files, `allowed_mentions`, flags) are checked by the webhook code (`routes/webhooks.js`
   exports its helpers), so bots' messages can have embeds and files like webhooks'.
 - **Endpoints**: gateway (`/gateway`, `/gateway/bot`), users (`@me` get/patch, guilds, leave,
-  `/users/:id`), applications (`@me`, `oauth2/applications/@me`; commands: GET is `[]`, writes
-  are refused until application commands exist), guilds (get, channels, create channel, roles
+  `/users/:id`), applications (`@me`, `oauth2/applications/@me`, commands: see Commands and
+  interactions), guilds (get, channels, create channel, roles
   incl. positions, emoji, members list/search/get/patch roles/role add and remove/kick, bans,
   invites, active threads), channels (get, patch, delete, overwrites, invites, typing),
   messages (list with before/after/around, get, send with replies and files, edit own, delete,
@@ -118,10 +120,78 @@ encoding, 4003 not identified, 4004 bad token (also when it's reset), 4005 alrea
   `DiscordWebSocket.DEFAULT_GATEWAY` set: discord.py ignores `GET /gateway` and would otherwise
   send the token to Discord's own gateway (the public docs warn about this).
 
+### Commands and interactions (`server/commands.js`, `server/interactions.js`, `server/components.js`)
+
+Discord's application commands, message components and interactions (decided 2026-10-03:
+buttons, all five selects and forms; slash plus user and message context-menu commands;
+ephemeral replies like Discord's; delivered over the gateway only, never to a URL the bot
+gives, so the server never makes requests to addresses bots choose).
+
+- **Commands** (`bot_commands`; global ones have `guild_id` 0): the bot API's Discord endpoints
+  under `/applications/:appId[/guilds/:guildId]/commands`: list, create (POST with an existing
+  type and name replaces it, as in Discord), get, patch, delete, and bulk overwrite (PUT, what
+  discord.js's `commands.set()` and discord.py's `tree.sync()` use; ids of the same type and
+  name are kept). `cleanCommand` applies Discord's rules: lower-case names for slash commands,
+  descriptions, up to 25 options, subcommands and groups (not mixed with plain options, two
+  levels at most), required options first, choices (25) or autocomplete, min/max, channel
+  types, the attachment type, 8000 characters in all; 100 slash, 5 user and 5 message
+  commands per application and place. `default_member_permissions` is stored as our bits
+  ("0", administrators only, as ADMINISTRATOR); `mayUse` (Send Messages in the channel, those
+  permissions, NSFW commands only in NSFW channels) decides who sees and uses one. A guild
+  command hides a global one with the same type and name. Commands go with the bot: only bots
+  in the guild count (`guildCommands`). Per-command permission overrides aren't in Voicaw.
+- **Using them** (`routes/interactions.js`, logged in): `GET /channels/:id/commands` (the
+  picker's list), `POST /channels/:id/command-interactions` (options in Discord's shape;
+  multipart `files[n]` for attachment options, stored like webhook files), `POST
+  /channels/:id/autocomplete`, `POST /guild-messages/:id/component-interactions` (a button or
+  a select's values, also on ephemeral messages), `POST /modals/:id` (a form's answers),
+  `DELETE /ephemeral-messages/:id` (dismissed). Everything is checked before the bot hears of
+  it: options against the command (types, choices, limits, users/roles/channels the person
+  can see, put in `resolved` as Discord does), selects against their options and min/max,
+  disabled and unknown components refused, forms against the form that was opened (once
+  only). 20 a person per 10 s.
+- **Delivery**: `interactions.run` stores the interaction (`bot_interactions`, token SHA-256
+  only; tokens start with Discord's `aW50ZXJhY3Rpb246`), sends INTERACTION_CREATE to one of the
+  bot's gateway sessions for that guild (`gateway.deliverInteraction`; no intent needed) with
+  Discord's payload (member with permissions, channel, app_permissions, message for
+  components, resolved data), and waits 3 seconds for the callback. No session, or no answer:
+  504 "The application did not respond". The app's call resolves to `{ ok }`, `{ modal }` or
+  `{ choices }`; the bot's messages arrive by socket like any other.
+- **Callback** (`POST /interactions/:id/:token/callback`, no bot token, once, within the 3
+  seconds; `?with_response=true` supported): 4 reply, 5 "thinking…" (a message with flag 128,
+  LOADING, that the first follow-up or an edit of `@original` fills), 6 nothing visible, 7
+  update the component's message, 8 autocomplete choices, 9 open a form (`cleanModal`: up to 5
+  text inputs in action rows, or Label components holding a text input or string select;
+  kept in memory for that person for 15 minutes). Which answers each kind may have follows
+  Discord. Multipart answers (files) work: the message is in payload_json's `data`.
+- **Follow-ups** on the interaction's webhook, `/api/v10/webhooks/:appId/:token` (the bot router
+  takes paths whose token is an interaction token; anything else falls through to real
+  webhooks): post (needs an answer first), get, patch and delete `messages/@original` or a
+  follow-up's id, for 15 minutes.
+- **Messages**: `guild_messages.components` (Discord's action rows, checked by
+  `cleanMessageComponents`: 5 rows, 5 buttons or one select per row, unique custom ids, link
+  buttons with http(s) URLs, no premium buttons, no Components V2) and `interaction` (JSON: the
+  interaction's id, type, user, command name with subcommands, command type, target), shown by
+  the app as "<person> used /<command>" and to bots as `interaction_metadata` and the old
+  `interaction`, with Discord's types 20 / 23 for command replies. Bots send components in any
+  message (bot API create/edit, `botMessages.js`, shared with replies and follow-ups);
+  `guild_message_edit` carries `components`.
+- **Ephemeral messages** ("Only you can see this"): never stored. `interactions.js` keeps them in
+  memory for 15 minutes (edits, their components, follow-ups) with ids from `EPHEMERAL_ID_BASE`
+  (2^52, never a guild message's id) and sends `guild_ephemeral_message` / `_edit` / `_delete`
+  only to that person's sockets; the app keeps them until reload or Dismiss, as Discord does.
+  Lost if the API restarts within those 15 minutes (the bot then gets Unknown Message).
+- **Checked with real libraries** (2026-10-03): discord.js 14.27 (`commands.set`, ephemeral
+  replies, buttons with `update()`, selects, `showModal`, `deferReply` + `editReply`,
+  autocomplete, user context menus) and discord.py 2.7.1 (`tree.sync`, a button `View`,
+  a `Modal`).
+
 ### Not done yet
 
-Application commands and interactions (slash commands, buttons and other components: a later
-phase), voice, webhooks managed with a bot token, nicknames, timeouts and server mute,
+Voice, webhooks managed with a bot token, nicknames, timeouts and server mute,
 stickers, polls through the API, scheduled events, creating guilds, forwarding, creating or
 editing categories, the audit log endpoint. Invites are per guild (a channel's invite only
-echoes the channel back).
+echoes the channel back). For interactions: Discord's HTTP interactions endpoint (outgoing
+requests to bots), Components V2 layouts, premium buttons, entitlements, activities,
+per-command permission overrides, localised names shown to people (accepted and returned, not
+used), and commands in DMs.

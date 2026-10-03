@@ -12,7 +12,7 @@
         <tr><td><span class="method get">GET</span> <code>/channels/{channel}/messages</code></td><td>View Channel</td><td><code>limit</code> 1–100 (50), and <code>before</code>, <code>after</code> or <code>around</code>. Newest first.</td></tr>
         <tr><td><span class="method get">GET</span> <code>/channels/{channel}/messages/{message}</code></td><td>View Channel</td><td></td></tr>
         <tr><td><span class="method post">POST</span> <code>/channels/{channel}/messages</code></td><td>Send Messages (Send Messages in Threads in a thread)</td><td>See <a href="#sending">Sending messages</a>.</td></tr>
-        <tr><td><span class="method patch">PATCH</span> <code>/channels/{channel}/messages/{message}</code></td><td>Its own messages only</td><td><code>content</code>, <code>embeds</code>, <code>flags</code>, <code>allowed_mentions</code>, <code>attachments</code> (those listed are kept) and new files.</td></tr>
+        <tr><td><span class="method patch">PATCH</span> <code>/channels/{channel}/messages/{message}</code></td><td>Its own messages only</td><td><code>content</code>, <code>embeds</code>, <code>components</code>, <code>flags</code>, <code>allowed_mentions</code>, <code>attachments</code> (those listed are kept) and new files.</td></tr>
         <tr><td><span class="method delete">DELETE</span> <code>/channels/{channel}/messages/{message}</code></td><td>Its own, or Manage Messages</td><td>Goes in the guild's audit log.</td></tr>
         <tr><td><span class="method post">POST</span> <code>/channels/{channel}/messages/bulk-delete</code></td><td>Manage Messages</td><td><code>messages</code>: 2–100 ids. No two-week age limit. Ids not in the channel are skipped.</td></tr>
         <tr><td><span class="method post">POST</span> <code>/channels/{channel}/typing</code></td><td>Send Messages</td><td>"… is typing" for a few seconds.</td></tr>
@@ -27,7 +27,8 @@
         <li><code>message_reference</code>: a reply, to a message in the same channel. <code>fail_if_not_exists: false</code> sends it without the reply if that message is gone. Forwarding (<code>type: 1</code>) isn't supported.</li>
         <li><code>allowed_mentions</code>: <code>parse</code>, <code>users</code>, <code>roles</code> as on Discord.</li>
         <li><code>flags</code>: <code>SUPPRESS_EMBEDS</code> (4) and <code>SUPPRESS_NOTIFICATIONS</code> (4096, no notifications).</li>
-        <li><code>nonce</code> is given back. <code>tts</code>, <code>components</code>, <code>sticker_ids</code>, <code>poll</code> and <code>enforce_nonce</code> are ignored.</li>
+        <li><code>components</code>: buttons and selects (see <a href="/developers/docs/interactions/#components">Components</a>). A message can be only components.</li>
+        <li><code>nonce</code> is given back. <code>tts</code>, <code>sticker_ids</code>, <code>poll</code> and <code>enforce_nonce</code> are ignored.</li>
       </ul>
 
       <h2 id="reactions">Reactions</h2>
@@ -137,7 +138,22 @@
         <tr><td><span class="method get">GET</span> <code>/users/{user}</code></td><td></td><td>Only people the bot shares a guild with.</td></tr>
         <tr><td><span class="method post">POST</span> <code>/users/@me/channels</code></td><td></td><td>Always <code>50007</code>: bots can't have DMs.</td></tr>
         <tr><td><span class="method get">GET</span> <code>/applications/@me</code></td><td></td><td>Also at <code>/oauth2/applications/@me</code>.</td></tr>
-        <tr><td><span class="method get">GET</span> <code>/applications/{application}/commands</code></td><td></td><td>Always empty (also the guild commands). Making commands fails with <code>50035</code>: they aren't here yet.</td></tr>
+      </table></div>
+
+      <h2 id="commands">Commands and interactions</h2>
+      <p>See <a href="/developers/docs/interactions/">Commands and components</a> for what each does. <code>{application}</code> must be the bot's own; <code>{guild}</code> a guild it's in (else <code>50001</code>).</p>
+      <div class="table"><table class="endpoints">
+        <tr><th>Endpoint</th><th>Needs</th><th>Notes</th></tr>
+        <tr><td><span class="method get">GET</span> <code>/applications/{application}/commands</code></td><td></td><td>Global commands. All of these also exist under <code>/applications/{application}/guilds/{guild}/commands</code>.</td></tr>
+        <tr><td><span class="method post">POST</span> <code>/applications/{application}/commands</code></td><td></td><td><code>201</code> new, or <code>200</code> replacing the one with the same type and name. <code>30032</code> past the limits (100 slash, 5 user, 5 message).</td></tr>
+        <tr><td><span class="method put">PUT</span> <code>/applications/{application}/commands</code></td><td></td><td>Bulk overwrite; same type and name keep their ids.</td></tr>
+        <tr><td><span class="method get">GET</span> <code>/applications/{application}/commands/{command}</code></td><td></td><td><code>10063</code> if unknown.</td></tr>
+        <tr><td><span class="method patch">PATCH</span> <code>/applications/{application}/commands/{command}</code></td><td></td><td>The type can't change.</td></tr>
+        <tr><td><span class="method delete">DELETE</span> <code>/applications/{application}/commands/{command}</code></td><td></td><td></td></tr>
+        <tr><td><span class="method get">GET</span> <code>/applications/{application}/guilds/{guild}/commands/permissions</code></td><td></td><td>Always empty: no per-command overrides.</td></tr>
+        <tr><td><span class="method post">POST</span> <code>/interactions/{interaction}/{token}/callback</code></td><td>No bot token</td><td>Once, within 3 seconds. <code>?with_response=true</code>. <code>40060</code> twice, <code>10062</code> late or unknown.</td></tr>
+        <tr><td><span class="method post">POST</span> <code>/webhooks/{application}/{token}</code></td><td>No bot token</td><td>A follow-up, for 15 minutes, after the callback. The first one after a deferred reply fills it.</td></tr>
+        <tr><td><span class="method get">GET</span> <span class="method patch">PATCH</span> <span class="method delete">DELETE</span> <code>/webhooks/{application}/{token}/messages/{message}</code></td><td>No bot token</td><td><code>@original</code> or a follow-up's id.</td></tr>
       </table></div>
 
       <h2 id="gateway">Gateway</h2>

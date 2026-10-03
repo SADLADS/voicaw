@@ -195,6 +195,7 @@ export const DOCS = [
   { slug: 'libraries', file: 'libraries.html', title: 'discord.js, discord.py and HTTP', description: 'Point Discord libraries at Voicaw.' },
   { slug: 'authentication', file: 'authentication.html', title: 'Tokens, rate limits and errors', description: 'Bot tokens, rate limits and error codes.' },
   { slug: 'gateway', file: 'gateway.html', title: 'Gateway', description: 'Connecting to the gateway: opcodes, intents, events and close codes.' },
+  { slug: 'interactions', file: 'interactions.html', title: 'Commands and components', description: 'Slash and context-menu commands, buttons, selects, forms and interactions.' },
   { slug: 'rest', file: 'rest.html', title: 'REST reference', description: 'Every endpoint of the bot API.' },
   { slug: 'objects', file: 'objects.html', title: 'Objects and IDs', description: "How Voicaw's guilds, channels, roles and messages look in the API." },
   { slug: 'permissions', file: 'permissions.html', title: 'Permissions', description: "Discord's permission bits and what they mean on Voicaw." },

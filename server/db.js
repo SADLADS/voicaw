@@ -927,6 +927,7 @@ CREATE TABLE IF NOT EXISTS bot_interactions (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS bot_interactions_created ON bot_interactions (created_at);
+CREATE INDEX IF NOT EXISTS bot_interactions_token ON bot_interactions (token_hash);
 `);
 addColumn('ALTER TABLE guild_messages ADD COLUMN components TEXT');
 addColumn('ALTER TABLE guild_messages ADD COLUMN interaction TEXT');

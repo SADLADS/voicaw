@@ -1,0 +1,248 @@
+      <p class="lead-in">
+        Slash commands, right-click commands, buttons, select menus and forms work as on Discord:
+        the same endpoints for registering commands, the same <code>INTERACTION_CREATE</code>
+        event, the same callback types and follow-ups. discord.js and discord.py handle them with
+        their usual APIs.
+      </p>
+
+      <h2 id="commands">Registering commands</h2>
+      <p>
+        A bot has commands everywhere it is (global) and commands for one guild. Both are made
+        with Discord's endpoints, using the bot's token:
+      </p>
+      <div class="table"><table class="endpoints plain">
+        <tr><th>Endpoint</th><th>Notes</th></tr>
+        <tr><td><span class="method get">GET</span> <code>/applications/{application}/commands</code></td><td>The global commands.</td></tr>
+        <tr><td><span class="method post">POST</span> <code>/applications/{application}/commands</code></td><td>Makes one (<code>201</code>), or replaces the one with the same type and name (<code>200</code>, same id).</td></tr>
+        <tr><td><span class="method put">PUT</span> <code>/applications/{application}/commands</code></td><td>Bulk overwrite: the commands become exactly the list given. Commands with the same type and name keep their ids. This is what discord.js's <code>commands.set()</code> and discord.py's <code>tree.sync()</code> use.</td></tr>
+        <tr><td><span class="method get">GET</span> <span class="method patch">PATCH</span> <span class="method delete">DELETE</span> <code>/applications/{application}/commands/{command}</code></td><td>One command.</td></tr>
+        <tr><td><code>/applications/{application}/guilds/{guild}/commands…</code></td><td>The same, for one guild the bot is in.</td></tr>
+      </table></div>
+      <ul>
+        <li>Types: <code>1</code> slash commands, <code>2</code> user commands and <code>3</code> message commands (right-click). Up to 100 slash, 5 user and 5 message commands per application, globally and per guild.</li>
+        <li>Discord's rules for names (lower case for slash commands, up to 32 characters), descriptions (1–100; none for user and message commands) and options: up to 25, required ones first, names unique, 8000 characters in all.</li>
+        <li>Option types 1–11: subcommands and subcommand groups (not mixed with other options), strings, integers, booleans, users, channels, roles, mentionables, numbers and attachments. Choices (up to 25) or <code>autocomplete</code>, <code>min_value</code>/<code>max_value</code>, <code>min_length</code>/<code>max_length</code> and <code>channel_types</code>.</li>
+        <li><code>default_member_permissions</code>: a person needs all those permissions in the channel to see and use the command; <code>"0"</code> means administrators only. <code>nsfw: true</code> commands only show in NSFW channels.</li>
+        <li>Localised names and descriptions are accepted and given back, but people see the plain ones.</li>
+        <li>A guild command hides a global one with the same type and name in that guild. Per-command permission overrides (Discord's Integrations settings) don't exist: <code>GET …/guilds/{guild}/commands/permissions</code> is always empty.</li>
+      </ul>
+      <p>
+        People see commands in guild text channels and threads only. Slash commands come up when
+        they type <code>/</code> in the message box. User and message commands are under
+        <strong>Apps</strong> when they right-click (or long-press) someone or a message. Everyone
+        needs Send Messages in the channel to use any command. A bot's commands go away when it
+        leaves the guild.
+      </p>
+
+      <h2 id="receiving">Receiving interactions</h2>
+      <p>
+        When someone uses a command, clicks a button, picks from a select, types in an
+        autocomplete option or submits a form, the bot gets <code>INTERACTION_CREATE</code> over
+        the gateway. No intent is needed. If the bot has several sessions, one of them gets it.
+        Voicaw has no HTTP interactions endpoint: interactions only come over the gateway, so a
+        bot must be connected to receive them.
+      </p>
+      <div class="table"><table>
+        <tr><th>Type</th><th>What</th><th><code>data</code></th></tr>
+        <tr><td><code>2</code> Application command</td><td>A command was used</td><td><code>id</code>, <code>name</code>, <code>type</code>, <code>options</code> (subcommands nested, as on Discord), <code>target_id</code> for user and message commands, <code>resolved</code> (users, members, roles, channels, messages, attachments named in it)</td></tr>
+        <tr><td><code>3</code> Message component</td><td>A button or select on the bot's message</td><td><code>custom_id</code>, <code>component_type</code>, <code>values</code> and <code>resolved</code> for selects. The interaction's <code>message</code> is the message.</td></tr>
+        <tr><td><code>4</code> Autocomplete</td><td>Someone is typing in an autocomplete option</td><td>As type 2, with the option being typed marked <code>focused</code> (its value is whatever is typed so far)</td></tr>
+        <tr><td><code>5</code> Modal submit</td><td>A form the bot opened was submitted</td><td><code>custom_id</code> and <code>components</code>: the form's structure with each text input's <code>value</code> and each select's <code>values</code></td></tr>
+      </table></div>
+      <p>
+        The interaction also has <code>id</code>, <code>token</code>, <code>application_id</code>,
+        <code>guild_id</code>, <code>guild</code>, <code>channel_id</code>, <code>channel</code>,
+        <code>member</code> (with their <code>permissions</code> in the channel),
+        <code>app_permissions</code> (the bot's), <code>locale</code> (<code>en-GB</code>),
+        <code>context: 0</code> and <code>attachment_size_limit</code>. There's never a
+        <code>user</code> field on its own: interactions always come from a guild.
+      </p>
+      <p>
+        Voicaw checks everything before the bot hears of it: option values against the command
+        (types, choices, limits, and only users, roles and channels the person can see), select
+        values against the select, and forms against the form that was opened. Disabled
+        components can't be used.
+      </p>
+
+      <h2 id="responding">Responding</h2>
+      <p>
+        Answer once, within 3 seconds, at
+        <code>POST /interactions/{interaction.id}/{interaction.token}/callback</code> (no bot token
+        needed). If the bot doesn't answer in time, or isn't connected, the person sees "The
+        application did not respond" and the interaction is gone.
+      </p>
+      <div class="table"><table>
+        <tr><th>Type</th><th>Does</th><th>Allowed for</th></tr>
+        <tr><td><code>4</code> Channel message</td><td>Replies with a message (<code>data</code>: content, embeds, files, components, <code>allowed_mentions</code>, flags)</td><td>Commands, components, form submits</td></tr>
+        <tr><td><code>5</code> Deferred channel message</td><td>Shows "&lt;bot&gt; is thinking…" until you follow up (<code>data.flags: 64</code> for an ephemeral one)</td><td>Commands, components, form submits</td></tr>
+        <tr><td><code>6</code> Deferred update</td><td>Acknowledges without showing anything</td><td>Components, form submits</td></tr>
+        <tr><td><code>7</code> Update message</td><td>Edits the message the component is on</td><td>Components, form submits from a component</td></tr>
+        <tr><td><code>8</code> Autocomplete result</td><td><code>data.choices</code>: up to 25 <code>{ name, value }</code></td><td>Autocomplete</td></tr>
+        <tr><td><code>9</code> Modal</td><td>Opens a form (see <a href="#modals">Forms</a>)</td><td>Commands, components</td></tr>
+      </table></div>
+      <ul>
+        <li>Files go as <code>multipart/form-data</code>, with the callback's JSON (<code>{ type, data }</code>) in <code>payload_json</code>.</li>
+        <li><code>?with_response=true</code> answers with <code>{ interaction, resource }</code>, the message included, instead of <code>204</code>.</li>
+        <li>Answering twice fails with <code>40060</code>; too late, or an unknown interaction, with <code>10062</code>. A type that isn't allowed for that interaction fails with <code>50035</code>.</li>
+        <li>Replies show "&lt;person&gt; used /&lt;command&gt;" above them, and carry <code>interaction_metadata</code> (and the older <code>interaction</code>) in the API. Replies to commands have Discord's message types <code>20</code> (slash) and <code>23</code> (user and message commands).</li>
+      </ul>
+
+      <h3 id="ephemeral">Ephemeral replies</h3>
+      <p>
+        With <code>flags: 64</code>, a reply or follow-up is only for the person who used the
+        interaction: "Only you can see this". As on Discord, it is never stored for the channel. It
+        goes only to that person's open app, which keeps it until they reload or dismiss it. The bot
+        can edit or delete it, and its components work, for 15 minutes. It is also lost if
+        Voicaw's API restarts in that time (the bot then gets <code>10008 Unknown Message</code>).
+      </p>
+
+      <h3 id="followups">Deferring and follow-ups</h3>
+      <p>
+        For 15 minutes after the interaction, its token works as a webhook at
+        <code>/webhooks/{application.id}/{interaction.token}</code> (no bot token needed), once the
+        bot has answered:
+      </p>
+      <div class="table"><table class="endpoints plain">
+        <tr><th>Endpoint</th><th>Notes</th></tr>
+        <tr><td><span class="method post">POST</span> <code>/webhooks/{application}/{token}</code></td><td>A follow-up message (<code>flags: 64</code> for ephemeral). After a deferred reply (type 5), the first follow-up fills the "thinking…" message instead.</td></tr>
+        <tr><td><span class="method get">GET</span> <span class="method patch">PATCH</span> <span class="method delete">DELETE</span> <code>/webhooks/{application}/{token}/messages/@original</code></td><td>The reply. Editing a deferred reply fills it (discord.js's <code>editReply</code>).</td></tr>
+        <tr><td><span class="method get">GET</span> <span class="method patch">PATCH</span> <span class="method delete">DELETE</span> <code>/webhooks/{application}/{token}/messages/{message}</code></td><td>A follow-up.</td></tr>
+      </table></div>
+
+      <h2 id="components">Components</h2>
+      <p>
+        Bots can put components on any message they send or edit (<code>components</code> in the
+        body), on replies and on follow-ups. Webhooks' components are ignored.
+      </p>
+      <ul>
+        <li>Up to 5 action rows (<code>type: 1</code>), each holding up to 5 buttons or one select.</li>
+        <li>Buttons (<code>type: 2</code>): styles 1 primary, 2 secondary, 3 success, 4 danger and 5 link (with a <code>url</code>, http or https, and no <code>custom_id</code>). A label (up to 80 characters), an emoji, or both. <code>disabled</code>. Premium buttons (style 6) aren't supported.</li>
+        <li>Selects: string (<code>3</code>, up to 25 <code>options</code> with label, value, description, emoji and <code>default</code>), user (<code>5</code>), role (<code>6</code>), mentionable (<code>7</code>) and channel (<code>8</code>, with <code>channel_types</code>). <code>placeholder</code>, <code>min_values</code> and <code>max_values</code> (0–25), <code>default_values</code>, <code>disabled</code>.</li>
+        <li><code>custom_id</code>: 1–100 characters, unique in the message.</li>
+        <li>Discord's newer layout components (the <code>IS_COMPONENTS_V2</code> flag: sections, containers, text displays…) aren't supported. Sending them fails with <code>50035</code>.</li>
+      </ul>
+
+      <h2 id="modals">Forms</h2>
+      <p>
+        A form (callback type 9) has a <code>custom_id</code>, a <code>title</code> (up to 45
+        characters) and 1–5 fields:
+      </p>
+      <ul>
+        <li>An action row holding one text input (<code>type: 4</code>): <code>label</code>, <code>style</code> 1 (short) or 2 (paragraph), <code>min_length</code>/<code>max_length</code> (up to 4000), <code>required</code>, <code>value</code> and <code>placeholder</code>.</li>
+        <li>A label component (<code>type: 18</code>, with <code>label</code> and <code>description</code>) holding a text input or a string select.</li>
+      </ul>
+      <p>
+        A form can be submitted once, within 15 minutes, by the person it was opened for. Its
+        answers are checked against it (required fields, lengths, select options) before the bot
+        gets the submit.
+      </p>
+
+      <h2 id="discord-js">discord.js example</h2>
+      <p>Checked with discord.js 14.27, set up as in <a href="/developers/docs/libraries/#discord-js">discord.js, discord.py and HTTP</a>:</p>
+      <pre><code>import {
+  Client, GatewayIntentBits, Events, SlashCommandBuilder, ActionRowBuilder, ButtonBuilder,
+  ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags,
+} from 'discord.js';
+
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds],
+  rest: { api: 'https://api.voicaw.com/api', cdn: 'https://api.voicaw.com/api/cdn' },
+});
+
+client.once(Events.ClientReady, async () =&gt; {
+  await client.application.commands.set([
+    new SlashCommandBuilder().setName('ping').setDescription('Ping'),
+    new SlashCommandBuilder().setName('menu').setDescription('Buttons and a select'),
+    new SlashCommandBuilder().setName('feedback').setDescription('Opens a form'),
+    new SlashCommandBuilder().setName('slow').setDescription('Thinks first'),
+    new SlashCommandBuilder().setName('city').setDescription('Pick a city')
+      .addStringOption((o) =&gt; o.setName('name').setDescription('City').setRequired(true).setAutocomplete(true)),
+  ]);
+});
+
+client.on(Events.InteractionCreate, async (i) =&gt; {
+  if (i.isAutocomplete()) {
+    return i.respond([{ name: 'London', value: 'london' }, { name: 'Lisbon', value: 'lisbon' }]);
+  }
+  if (i.isChatInputCommand()) {
+    if (i.commandName === 'ping') return i.reply({ content: 'Pong!', flags: MessageFlags.Ephemeral });
+    if (i.commandName === 'menu') {
+      return i.reply({
+        content: 'Choose',
+        components: [
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('yes').setLabel('Yes').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setLabel('Docs').setURL('https://voicaw.com').setStyle(ButtonStyle.Link),
+          ),
+          new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder().setCustomId('fruit')
+              .addOptions({ label: 'Apple', value: 'apple' }, { label: 'Pear', value: 'pear' }),
+          ),
+        ],
+      });
+    }
+    if (i.commandName === 'feedback') {
+      return i.showModal(new ModalBuilder().setCustomId('fb').setTitle('Feedback').addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder().setCustomId('text').setLabel('Thoughts').setStyle(TextInputStyle.Paragraph),
+        ),
+      ));
+    }
+    if (i.commandName === 'slow') {
+      await i.deferReply();
+      await i.editReply('Done thinking');
+      return i.followUp({ content: 'Only you see this', flags: MessageFlags.Ephemeral });
+    }
+    if (i.commandName === 'city') return i.reply(`You chose ${i.options.getString('name')}`);
+  }
+  if (i.isButton()) return i.update({ content: 'You said yes', components: [] });
+  if (i.isStringSelectMenu()) return i.reply({ content: `Picked ${i.values.join(', ')}`, flags: MessageFlags.Ephemeral });
+  if (i.isModalSubmit()) return i.reply(`Thanks for "${i.fields.getTextInputValue('text')}"`);
+});
+
+client.login(process.env.VOICAW_TOKEN);</code></pre>
+
+      <h2 id="discord-py">discord.py example</h2>
+      <p>
+        Checked with discord.py 2.7.1. Set the three addresses first, as in
+        <a href="/developers/docs/libraries/#discord-py">discord.js, discord.py and HTTP</a>
+        (the gateway line matters: without it, discord.py sends your token to Discord).
+      </p>
+      <pre><code>import os
+import discord, yarl
+from discord import app_commands
+from discord.http import Route
+
+Route.BASE = 'https://api.voicaw.com/api/v10'
+discord.gateway.DiscordWebSocket.DEFAULT_GATEWAY = yarl.URL('wss://api.voicaw.com/api/gateway/')
+discord.asset.Asset.BASE = 'https://api.voicaw.com/api/cdn'
+
+GUILD = discord.Object(id=int(os.environ['VOICAW_GUILD_ID']))
+
+class Yes(discord.ui.View):
+    @discord.ui.button(label='Yes', style=discord.ButtonStyle.success, custom_id='yes')
+    async def yes(self, interaction, button):
+        await interaction.response.edit_message(content='You said yes', view=None)
+
+class Feedback(discord.ui.Modal, title='Feedback'):
+    thoughts = discord.ui.TextInput(label='Thoughts', custom_id='thoughts')
+
+    async def on_submit(self, interaction):
+        await interaction.response.send_message(f'Thanks for "{self.thoughts.value}"')
+
+client = discord.Client(intents=discord.Intents.default())
+tree = app_commands.CommandTree(client)
+
+@tree.command(name='hello', description='Says hello', guild=GUILD)
+async def hello(interaction, name: str):
+    await interaction.response.send_message(f'Hello {name}', view=Yes())
+
+@tree.command(name='feedback', description='Opens a form', guild=GUILD)
+async def feedback(interaction):
+    await interaction.response.send_modal(Feedback())
+
+@client.event
+async def on_ready():
+    await tree.sync(guild=GUILD)
+
+client.run(os.environ['VOICAW_TOKEN'])</code></pre>

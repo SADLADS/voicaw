@@ -1,9 +1,9 @@
       <h2 id="not-yet">Not there yet</h2>
       <ul>
-        <li><strong>Application commands and interactions</strong> (slash commands, buttons, select menus, modals). <code>GET /applications/{id}/commands</code> answers an empty list; making, editing or deleting commands fails with <code>50035</code>. <code>components</code> on a message you send are ignored. Bots read and answer messages instead, for now.</li>
         <li><strong>Voice</strong>: Voicaw's voice runs on LiveKit, not Discord's voice protocol. Bots can see voice channels and who's in them (Guild Voice States), but can't join. Voice State Update (op 4) is ignored.</li>
         <li><strong>Webhooks with a bot token</strong>: webhooks themselves work as on Discord (with their own URL), but bots can't make or list them through the bot API.</li>
         <li><strong>Categories</strong>: bots can read them, but not make, change or delete them.</li>
+        <li><strong>Interactions</strong>: there's no HTTP interactions endpoint (interactions only come over the gateway), no Components V2 layouts, no premium buttons, entitlements or activities, and no per-command permission overrides. Localised command names and descriptions are accepted but people see the plain ones. See <a href="/developers/docs/interactions/">Commands and components</a>.</li>
         <li>Guild settings (<code>PATCH /guilds/{id}</code>), the audit log endpoint, making guilds, scheduled events, stickers, forum and stage channels, private threads, forwarding messages, and polls through the API (Voicaw's polls are written in the message text).</li>
       </ul>
 
@@ -11,6 +11,7 @@
       <ul>
         <li><strong>DMs and group chats</strong>: they're end-to-end encrypted, so bots can't be in them. Opening a DM fails with <code>50007</code>.</li>
         <li>Nicknames, timeouts, server mute and deafen, and moving people between voice channels: <code>PATCH</code> on a member with <code>nick</code>, <code>communication_disabled_until</code>, <code>mute</code>, <code>deaf</code> or <code>channel_id</code> fails with <code>50035</code>.</li>
+        <li>Commands in DMs or as user-installed apps: commands only exist in guilds.</li>
         <li>OAuth2 logins for people (scopes other than <code>bot</code>), teams, verification and privileged intents.</li>
         <li>Slow mode, boosts, role icons, ban reasons.</li>
       </ul>
@@ -20,6 +21,8 @@
         <li>IDs aren't snowflakes, and categories' ids are offset (see <a href="/developers/docs/objects/#ids">Objects and IDs</a>).</li>
         <li>A message's content is always included, without the Message Content intent.</li>
         <li>A bot only sees people it shares a guild with.</li>
+        <li>Ephemeral replies live only in the person's open app (as on Discord) and in Voicaw's memory for 15 minutes: an API restart loses them.</li>
+        <li>Webhooks' message components are ignored; bots' work.</li>
         <li>Invites are to a guild, not a channel.</li>
         <li>Bulk delete has no two-week limit.</li>
         <li>Channels and guilds a bot can't see answer <code>404</code> (as if they didn't exist), not <code>403 Missing Access</code>.</li>

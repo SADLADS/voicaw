@@ -288,6 +288,29 @@ describe('interactions', () => {
     gw.close();
   });
 
+  it('answers callbacks and follow-ups with rate limits on (no bot token there)', async () => {
+    const config = require('../config.js');
+    const { member, general, bot } = await setUp();
+    const [cmd] = (await discord.put(bot, `/applications/${bot.id}/commands`, [{ name: 'limited', description: 'x' }])).body;
+    let interaction;
+    const gw = await connectBot(bot, async (i) => {
+      interaction = i;
+      const res = await hook.callback(i, { type: 4, data: { content: 'hi' } });
+      i.status = res.status;
+    });
+    config.rateLimitsEnabled = true;
+    try {
+      expect((await api.post(member, `/channels/${general.id}/command-interactions`, { command_id: cmd.id })).body).toEqual({ ok: true });
+      expect(interaction.status).toBe(204);
+      const followup = await hook.post(interaction, { content: 'more' });
+      expect(followup.status).toBe(200);
+      expect(followup.headers['x-ratelimit-limit']).toBeDefined();
+    } finally {
+      config.rateLimitsEnabled = false;
+      gw.close();
+    }
+  });
+
   it("says when the bot isn't connected or doesn't answer in time", async () => {
     const { member, general, bot } = await setUp();
     const [cmd] = (await discord.put(bot, `/applications/${bot.id}/commands`, [{ name: 'slow', description: 'Slow' }])).body;

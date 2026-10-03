@@ -40,7 +40,11 @@ unexpected errors. The rest:
 - `bots.js`: bot applications and their bot users, tokens, adding bots to guilds (their own
   role); `discord.js`: our objects, ids and permissions as Discord's API shows them;
   `gateway.js`: the bot gateway (Discord's protocol at `/api/gateway`); `actionError.js`: the
-  error the guild actions shared by the app's routes and the bot API throw. See `docs/bots.md`.
+  error the guild actions shared by the app's routes and the bot API throw; `commands.js`:
+  bots' application commands (checks, storage, who may use them); `components.js`: buttons,
+  selects and forms (Discord's limits); `interactions.js`: interactions (delivery, the 3 s
+  wait, callbacks, follow-ups, ephemeral messages and open forms in memory); `botMessages.js`:
+  bots' message bodies (shared by the bot API and interaction replies). See `docs/bots.md`.
 - `pins.js`: pinning and unpinning a message, the same for every kind of chat (see Pinned messages).
 - `polls.js`: reading guild polls, when they close, and what an edit may change (see Polls).
 - `accounts.js`: deleting an account (see Deleting an account).
@@ -57,7 +61,8 @@ unexpected errors. The rest:
   members, invites, bans, categories, channels), `guildMessages.js` (channel messages, reactions,
   read state), `guildSearch.js` (guild search; see Guild search), `voice.js` (join token, mute/deafen, leave, LiveKit webhook), `calls.js` (DM
   calls), `groupDms.js` (group DMs), `webhooks.js` (Discord-compatible webhooks), `applications.js` (the developer portal
-  and adding bots to guilds), `botApi.js` (Discord's REST API for bots, at `/api/v10`), `push.js`
+  and adding bots to guilds), `botApi.js` (Discord's REST API for bots, at `/api/v10`),
+  `interactions.js` (people using bots' commands, components and forms), `push.js`
   (subscriptions), `uploads.js`, `gifs.js` (Klipy search proxy, GIF favourites), `admin.js`.
 
 Client tests sit next to their source files (`src/**/*.test.{js,jsx}`). The default environment is

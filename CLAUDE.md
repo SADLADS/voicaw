@@ -144,7 +144,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - `docs/desktop-and-site.md`: the Electron app, the Android app (FCM, ringing, ongoing call),
   voicaw.com.
 - `docs/bots.md`: bots: applications and bot users, the developer portal, adding bots to guilds,
-  Discord's REST API (`/api/v10`) and gateway (`/api/gateway`), ids and permission bits.
+  Discord's REST API (`/api/v10`) and gateway (`/api/gateway`), ids and permission bits,
+  slash and context-menu commands, buttons, selects, forms and ephemeral replies.
 
 ## Rules that apply everywhere
 
@@ -215,7 +216,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   applications. Guild actions are functions shared by the app's routes and the bot API (they
   throw `ActionError`): change a rule there and bots follow it; don't re-implement one in
   `botApi.js`. Ids stay ours (not snowflakes), except @everyone (the guild's id) and categories
-  (offset by 2^40). Application commands, interactions and components are the next phase.
+  (offset by 2^40). Commands and components (same day): buttons, selects and forms, slash and
+  context-menu commands, interactions over the gateway only (no outgoing requests to bots'
+  URLs), ephemeral replies kept only in memory and the person's open app, as Discord does.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

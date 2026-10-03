@@ -86,12 +86,14 @@ async function botAuth(req, res, next) {
   next();
 }
 
-// A route's limit: `max` per `windowMs` per bot and per its channel or guild.
+// A route's limit: `max` per `windowMs` per bot and per its channel or guild. Routes used with an
+// interaction's token instead of the bot's (callbacks, follow-ups) count per application.
 const limit = (name, max = 10, windowMs = 1000) => (req, res, next) => {
   if (!config.rateLimitsEnabled) return next();
   const major = req.params.channelId ?? req.params.guildId ?? '';
+  const who = req.bot?.id ?? req.interaction?.application_id ?? `interaction:${req.params.interactionId ?? req.params.appId}`;
   const bucket = bucketLimiter(name, max, windowMs);
-  const { allowed, retryAfterMs, remaining } = bucket.limiter.hit(`${req.bot.id}:${major}`);
+  const { allowed, retryAfterMs, remaining } = bucket.limiter.hit(`${who}:${major}`);
   res.set({
     'X-RateLimit-Limit': String(bucket.max),
     'X-RateLimit-Remaining': String(remaining),

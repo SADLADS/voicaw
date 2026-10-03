@@ -6,7 +6,8 @@
       <h2 id="discord-js">discord.js</h2>
       <p>
         Checked with discord.js 14.27: logging in, events, member lists, replies with embeds, edits,
-        reactions, pins, file uploads, roles (including moving them), channels and threads.
+        reactions, pins, file uploads, roles (including moving them), channels and threads, and
+        slash commands, buttons, selects and forms (see <a href="/developers/docs/interactions/#discord-js">Commands and components</a>).
         discord.js asks the API where the gateway is, so the <code>rest</code> option is all it needs.
       </p>
       <pre><code>import { Client, GatewayIntentBits, EmbedBuilder } from 'discord.js';
@@ -45,7 +46,8 @@ client.login(process.env.VOICAW_TOKEN);</code></pre>
       </div>
       <p>
         Checked with discord.py 2.7.1 (with its default compressed gateway): logging in, the guild
-        cache, messages, embeds, reactions, edits, history and deleting. Set these before the
+        cache, messages, embeds, reactions, edits, history and deleting, and app commands, views and
+        modals (see <a href="/developers/docs/interactions/#discord-py">Commands and components</a>). Set these before the
         client starts:
       </p>
       <pre><code>import os
