@@ -263,7 +263,10 @@
   code) go under the chat header. Phones: lists stay full width and Settings one screen.
 - Scrollbars are styled once, in `voicaw.css` (SCROLLBARS): every scroll area inherits the pane
   look (like the message list); small boxes and pop-ups are listed there for the thin one. Don't
-  style a new scroll area's scrollbar locally.
+  style a new scroll area's scrollbar locally. All of it is inside `@media (pointer: fine)`:
+  touch screens keep the system's overlay bar, which shows while swiping and can't be tapped or
+  dragged (a styled bar becomes a classic, grabbable one on Android browsers that don't know
+  `scrollbar-color`). Hiding a bar (`scrollbar-width: none`) still applies everywhere.
 - Phone panes (`hooks/useSwipePanes.js`, in `Layout`, DM and guild pages): the list (rail +
   conversations or channels) underneath, the chat on top, Discord style. A sideways swipe
   (decided after 8px, so scrolling never moves them; not in pickers, sheets, member panels or

@@ -67,6 +67,7 @@ node e2e/voicesettings.mjs [dir] # Settings → Voice & video: fake devices list
 node e2e/uservolume.mjs [dir] # per-user volume: channel list / tile / call panel, measured 100/200/0%, deafen, kept after reload, phone sheet
 node e2e/noise.mjs [dir]  # noise suppression + gate: each mode on a made-up recording (fan, clicks, voice) measured, DeepFilterNet speed, sensitivity by hand, Strong in the mic test, phone
 node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
+node e2e/scrollbars.mjs [dir] # scrollbars: styled with a mouse, overlay only (no grabbable bar) on a phone, also in a browser without scrollbar-color
 node e2e/sidebar.mjs [dir] # one sidebar width (DM list, channels, Settings), headers line up, drag/keys/reset, kept; phone untouched
 node e2e/drafts.mjs [dir] # unsent messages: back after another DM, Settings, a guild; no typing event; sent = gone; reload forgets; phone
 node e2e/typing.mjs [dir] # typing indicator: DM (dots, cleared on send, clear of the last message), two typers in a guild channel on a phone, timeout, Privacy off
