@@ -275,6 +275,7 @@ The Android app (`mobile/`, Capacitor) ships its own copy of the client like the
 allow it too, which MinIO does by default). It builds in Docker, so the host needs nothing else:
 
 ```bash
+./build-android.sh     # npm install, then npm run dist:android (warns without google-services.json)
 npm run dist:android   # client build for the app (../build-android), cap sync, then
                        # dist-android/voicaw-debug.apk (mobile/dist-android.sh)
 ```

@@ -68,7 +68,8 @@ Run from the repo root unless noted.
 - `npm run dist:electron:win` — the same build, then the Windows installer in Docker with wine
   (`electron/dist-win.sh`, electron-builder's image; unsigned)
 - `npm run dist:android` — the client's Android build, `cap sync`, then the APK (and the native
-  JUnit tests) in Docker (`mobile/dist-android.sh`) into `dist-android/voicaw-debug.apk`
+  JUnit tests) in Docker (`mobile/dist-android.sh`) into `dist-android/voicaw-debug.apk`;
+  `./build-android.sh` does `npm install` first and warns when `google-services.json` is missing
 
 Client-only (run inside `client/`):
 - `npm run lint` — ESLint over `client/src`
