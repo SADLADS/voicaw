@@ -93,8 +93,19 @@ native bridge. Check real behaviour on a phone.
 - **Build** (`npm run dist:android`, README "Android app"): the client's Android build
   (`ANDROID=true vite build --mode android` into `build-android/`, with `notify.html` as a second
   page), `cap sync` copies it into the APK, Gradle runs in Docker (`mobile/dist-android.sh`,
-  image from `mobile/Dockerfile`). A debug APK for now (no release key, no Play Store); min
-  Android 8.0.
+  image from `mobile/Dockerfile`). Min Android 8.0.
+- **Releases** (`./build-android.sh`, README "Android app"): versions follow the update site
+  (`updates/publish-android.mjs next`: one higher than published), stamped into the build
+  (`VOICAW_VERSION` → Gradle's versionName / versionCode X·10000 + Y·100 + Z, and the user agent
+  in the config `cap sync` generated), never into tracked files. Signed with the release key
+  (`mobile/make-release-key.sh`, `~/.voicaw-android-keys`, mounted read-only into the build;
+  the same key forever, or phones refuse updates). Published as
+  `updates.voicaw.com/android/voicaw-<version>.apk` (cached for good), `releases.json` and
+  `voicaw.apk` (the newest; neither cached), listed on the update site's page and on voicaw.com
+  (`website/build.mjs` `renderAndroid`: the Android card, install steps, and a "Download for
+  Android" button phone visitors get first). Not on Google Play yet, and no self-updating:
+  people download new versions by hand. Play Protect may warn about the app until it's
+  registered to a verified Google developer account.
 - **The page ships inside the app**: Capacitor serves the build at `https://localhost/` (in the
   API's `allowedOrigins`), so the code holding the keys is what was installed. No service worker
   (`main.jsx`; no streamed videos either, as in the desktop app). Backups are off
@@ -146,7 +157,7 @@ native bridge. Check real behaviour on a phone.
   silently, ringing, channel off, couldn't open, the page couldn't word it, an error), only
   times and outcomes, to find where one got stuck without the phone's logs. The test
   notification (Settings → Notifications) always alerts, even with the app open.
-- **Not done yet**: a release key and updates (the APK is installed by hand), Bluetooth headset
+- **Not done yet**: updating itself (new versions are downloaded by hand), Google Play, Bluetooth headset
   buttons and phone calls interrupting ours (Android's Telecom API), replying from a
   notification, the unread count on the icon, push-to-talk, screen sharing, iOS.
 

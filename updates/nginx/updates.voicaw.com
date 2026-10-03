@@ -39,4 +39,19 @@ server {
         add_header Cache-Control "public, max-age=31536000, immutable";
         add_header X-Content-Type-Options nosniff always;
     }
+
+    # The Android app (updates/publish-android.mjs): voicaw-<version>.apk never changes, so it's
+    # cached for good; releases.json and voicaw.apk (always the newest) are asked again each
+    # time. APKs go out as Android packages, so phones offer to install them.
+    location ~ ^/android/(releases\.json|voicaw\.apk)$ {
+        types { application/json json; application/vnd.android.package-archive apk; }
+        add_header Cache-Control "no-cache";
+        add_header X-Content-Type-Options nosniff always;
+    }
+    location /android/ {
+        types { application/vnd.android.package-archive apk; }
+        default_type application/octet-stream;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header X-Content-Type-Options nosniff always;
+    }
 }

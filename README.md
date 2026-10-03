@@ -275,16 +275,39 @@ The Android app (`mobile/`, Capacitor) ships its own copy of the client like the
 allow it too, which MinIO does by default). It builds in Docker, so the host needs nothing else:
 
 ```bash
-./build-android.sh     # npm install, then npm run dist:android (stops without google-services.json)
-npm run dist:android   # client build for the app (../build-android), cap sync, then
-                       # dist-android/voicaw-debug.apk (mobile/dist-android.sh)
+./build-android.sh [patch|minor|major|X.Y.Z] [-y]   # release: next version, signed APK, published
+./build-android.sh --no-publish                     # the same, only built (dist-android/)
+./build-android.sh --debug                          # dist-android/voicaw-debug.apk, never published
 ```
 
 The first run builds the `voicaw-android-build` image (JDK 21 and the Android SDK,
 `mobile/Dockerfile`, a few GB) and Gradle's downloads (kept in `~/.gradle`). The client build uses
-`client/.env.production`, unless there's a `client/.env.android`. The APK is a debug build, signed
-with a debug key made on the first build (in `~/.android`): installable by hand ("install unknown
-apps"), not for Google Play.
+`client/.env.production`, unless there's a `client/.env.android`. Like the desktop release
+scripts, it never changes tracked files: the version (one higher than the one published; the
+first is `mobile/package.json`'s) is stamped into the build, and versionCode is X·10000 + Y·100 +
+Z, so Y and Z stay under 100.
+
+**The release key**, made once (not once per machine):
+
+```bash
+mobile/make-release-key.sh   # ~/.voicaw-android-keys: voicaw-release.jks + its password, chmod 600
+```
+
+Back that folder up somewhere safe and copy it to any other machine that builds releases: every
+APK must be signed with this key, or phones refuse it as an update, and a new key means everyone
+uninstalls and installs again (logging in again). If the app goes on Google Play, choose this key
+as its app signing key, so the website's APK and Play's update each other.
+
+**Publishing** (`updates/publish-android.mjs`, run by `build-android.sh`) puts
+`voicaw-<version>.apk`, `releases.json` and `voicaw.apk` (always the newest, one link to share) in
+`/opt/voicaw-updates/android/`, lists it on updates.voicaw.com's page, and rebuilds voicaw.com
+with an Android download (first for phone visitors) and how to install it. Apply
+`updates/nginx/updates.voicaw.com`'s `/android/` locations to the live nginx once (APKs go out as
+Android packages; `voicaw.apk` and `releases.json` aren't cached). Set `VOICAW_UPDATES_DIR` (and
+`VOICAW_SITE_DIR`) to try it on other folders. Installing from the website, Android asks once to
+allow installs from the browser, and Play Protect may warn about an app it doesn't know ("More
+details" → "Install anyway") until the package is registered to a verified Google developer.
+The installed app doesn't update itself.
 
 Notifications while the app is closed, and calls ringing it, need Firebase Cloud Messaging
 (Google's push service; without it the app only notifies while it's open, Settings → Android App

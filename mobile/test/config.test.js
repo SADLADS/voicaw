@@ -24,8 +24,11 @@ describe('the Android app set-up', () => {
   });
 
   it("names itself in its user agent (Settings → Devices), with the app's version", () => {
-    const version = /versionName "([^"]+)"/.exec(read('android/app/build.gradle'))[1];
+    // A local build's version is the package's; a release's is stamped in by dist-android.sh.
+    const { version } = JSON.parse(read('package.json'));
     expect(config.android.appendUserAgent).toBe(`VoicawAndroid/${version}`);
+    expect(read('android/app/build.gradle')).toContain("parse(file('../../package.json')).version");
+    expect(read('dist-android.sh')).toContain('appendUserAgent: `VoicawAndroid/${process.argv[2]}`');
   });
 
   it('keeps the page storage (and its keys) out of Android backups', () => {

@@ -69,7 +69,11 @@ Run from the repo root unless noted.
   (`electron/dist-win.sh`, electron-builder's image; unsigned)
 - `npm run dist:android` — the client's Android build, `cap sync`, then the APK (and the native
   JUnit tests) in Docker (`mobile/dist-android.sh`) into `dist-android/voicaw-debug.apk`;
-  `./build-android.sh` does `npm install` first and stops when `google-services.json` is missing (`--no-push` builds without)
+  `./build-android.sh [patch|minor|major|X.Y.Z]` releases: next version, APK signed with the
+  release key (`~/.voicaw-android-keys`, `mobile/make-release-key.sh`), published to
+  updates.voicaw.com/android/ and voicaw.com (`updates/publish-android.mjs`); `--no-publish`,
+  `--debug`; stops without `google-services.json` (`--no-push` builds without). Publishing
+  touches the live sites: only when the user asks
 
 Client-only (run inside `client/`):
 - `npm run lint` — ESLint over `client/src`
@@ -198,8 +202,10 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   chosen over UnifiedPush and a permanent websocket), each encrypted for the phone, since FCM
   doesn't encrypt to the device. Previews are decrypted by the app's own page code in a hidden
   WebView (`notify.html`), not a native port of the crypto, so keys never leave the page's
-  storage and there's one implementation. A debug APK for now; distribution (sideloading from
-  updates.voicaw.com, or Play) not decided yet.
+  storage and there's one implementation. Distributed as a signed APK from updates.voicaw.com
+  (2026-10-03); Google Play planned once the user's developer account is verified (needs a
+  12-tester closed test for 14 days, report/block for user content, a privacy policy and a web
+  account-deletion page first).
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

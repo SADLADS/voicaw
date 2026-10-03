@@ -36,6 +36,7 @@
   </p>
   <div class="actions">
     {{PRIMARY_DOWNLOAD}}
+    {{ANDROID_PRIMARY}}
     <a class="button secondary" href="{{APP_URL}}">
       <strong>Open in your browser</strong>
       <span>Nothing to install</span>
@@ -84,21 +85,19 @@
     <p class="note">The desktop app keeps itself up to date.</p>
 
     <h3>Phones and tablets</h3>
-    <!-- When an app is out, make its card a link to the store and drop "soon":
+    <!-- Android's card is a download once an APK is published (website/build.mjs renderAndroid).
+         When an app is in a store, make its card a link there and drop "soon":
          <a class="store" href="https://play.google.com/store/apps/details?id=…"> … </a> -->
     <div class="stores">
-      <div class="store soon">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5v17l9-8.5z"/><path d="M5 3.5l11.5 6.6L14 12.5M5 20.5l11.5-6.6L14 11.5M16.5 10.1l3 1.7a.3.3 0 0 1 0 .4l-3 1.7"/></svg>
-        <span><strong>Android</strong><small>Coming soon</small></span>
-      </div>
+      {{ANDROID_CARD}}
       <div class="store soon">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3.5c0 1.6-1.3 3-2.8 3 0-1.6 1.3-3 2.8-3z"/><path d="M12.5 7.8c-1-.6-2.2-1-3.3-.8C7 7.3 5.5 9.3 5.5 12c0 3.7 2.4 8.5 4.5 8.5 1 0 1.5-.6 2.5-.6s1.5.6 2.5.6c1.3 0 2.8-2 3.6-4.2a3.6 3.6 0 0 1-.4-6.5A4 4 0 0 0 15 7c-1 0-1.8.4-2.5.8z"/></svg>
         <span><strong>iOS</strong><small>Coming whenever someone sends me $99</small></span>
       </div>
     </div>
+    {{ANDROID_NOTE}}
     <p class="note">
-      Until then, open <a href="{{APP_URL}}">app.voicaw.com</a> on your phone and add it to your
-      home screen.
+      On an iPhone, open <a href="{{APP_URL}}">app.voicaw.com</a> and add it to your home screen.
     </p>
   </section>
 
@@ -120,14 +119,18 @@
   if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
     document.getElementById('moved').hidden = false;
   }
-  // Offer the visitor's own system first when there's a build for it.
+  // Offer the visitor's own system first when there's a build for it (Android's even when no
+  // desktop one is out, so there may be no button to replace).
   (function () {
     const p = (navigator.userAgentData?.platform || navigator.platform || navigator.userAgent).toLowerCase();
-    const mine = p.includes('win') ? 'windows' : p.includes('mac') ? 'mac'
-      : p.includes('linux') && !/android/i.test(navigator.userAgent) ? 'linux' : null;
+    const mine = /android/i.test(navigator.userAgent) ? 'android'
+      : p.includes('win') ? 'windows' : p.includes('mac') ? 'mac'
+      : p.includes('linux') ? 'linux' : null;
     const alt = mine && document.querySelector(`template[data-primary="${mine}"]`);
     const current = document.getElementById('primary-download');
-    if (alt && current && current.dataset.platform !== mine) current.replaceWith(alt.content.cloneNode(true));
+    if (!alt || current?.dataset.platform === mine) return;
+    if (current) current.replaceWith(alt.content.cloneNode(true));
+    else document.querySelector('.actions').prepend(alt.content.cloneNode(true));
   })();
 </script>
 </body>

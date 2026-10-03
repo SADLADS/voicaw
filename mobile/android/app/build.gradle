@@ -1,5 +1,14 @@
 apply plugin: 'com.android.application'
 
+// The version: VOICAW_VERSION (X.Y.Z, set by build-android.sh from the update site's latest),
+// else this package's own for a local build. versionCode, which Android compares for updates,
+// is X*10000 + Y*100 + Z, so Y and Z stay under 100.
+def voicawVersion = System.getenv('VOICAW_VERSION') ?: new groovy.json.JsonSlurper().parse(file('../../package.json')).version
+def versionParts = voicawVersion.tokenize('.').collect { it as int }
+if (versionParts.size() != 3 || versionParts[1] > 99 || versionParts[2] > 99) {
+    throw new GradleException("Bad version ${voicawVersion}: X.Y.Z with Y and Z under 100")
+}
+
 android {
     namespace = "com.voicaw.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +16,8 @@ android {
         applicationId "com.voicaw.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "0.1.0"
+        versionCode versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
+        versionName voicawVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +25,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // The release key (mobile/make-release-key.sh), from VOICAW_KEYSTORE and its password in
+    // VOICAW_KEYSTORE_PASSWORD (mobile/dist-android.sh mounts and reads them). Without them a
+    // release build fails rather than ship unsigned.
+    signingConfigs {
+        release {
+            if (System.getenv('VOICAW_KEYSTORE')) {
+                storeFile file(System.getenv('VOICAW_KEYSTORE'))
+                storeType 'pkcs12'
+                storePassword System.getenv('VOICAW_KEYSTORE_PASSWORD')
+                keyAlias 'voicaw'
+                keyPassword System.getenv('VOICAW_KEYSTORE_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
