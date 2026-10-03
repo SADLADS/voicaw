@@ -218,7 +218,11 @@
       "allowLockScreenCalls": "Allow full-screen calls",
       "channels": "Notification sounds",
       "channelsHint": "Messages, mentions, incoming calls, missed calls and the ongoing call are separate in Android's settings, each with its own sound and importance.",
-      "openChannels": "Open Android's notification settings"
+      "openChannels": "Open Android's notification settings",
+      "pushLog": "Recent notifications",
+      "pushLogHint": "What this phone did with the last notifications the server sent it, to help find out why one didn't show.",
+      "pushLogEmpty": "None has arrived yet.",
+      "pushLogRefresh": "Refresh"
     },
     "devices": {
       "title": "Devices",

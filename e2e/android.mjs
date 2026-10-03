@@ -37,6 +37,7 @@ function fakeAndroid() {
     setOngoing: () => undefined,
     clearOngoing: () => undefined,
     stopRinging: () => undefined,
+    getPushLog: () => ({ entries: [{ at: Date.now(), type: 'test', outcome: 'shown' }] }),
     openSettings: () => undefined,
   };
   window.__android = {
@@ -104,6 +105,7 @@ try {
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await page.waitForSelector('text=Incoming calls ring full screen');
   check(true, 'reads the setting again on return');
+  check(await page.isVisible('.android-push-log li:has-text("test: shown")'), 'lists what became of recent notifications');
   if (dir) await page.screenshot({ path: `${dir}/android-settings.png` });
 
   await page.click('text=Notifications');

@@ -122,6 +122,12 @@ public class VoicawPlugin extends Plugin {
         });
     }
 
+    /** The last pushes and what became of them (PushLog), newest first. */
+    @PluginMethod
+    public void getPushLog(PluginCall call) {
+        call.resolve(new JSObject().put("entries", PushLog.entries(getContext())));
+    }
+
     @PluginMethod
     public void setOngoing(PluginCall call) {
         CallService.show(getContext(), call.getData());

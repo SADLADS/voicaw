@@ -141,7 +141,11 @@ native bridge. Check real behaviour on a phone.
   its notification shows what the voice bar shows (`utils/voiceTitle.js`) with Mute / Unmute and
   Hang up (Disconnect in a voice channel).
 - **Settings → Android App** (`AndroidAppSettings.jsx`): whether calls ring over the lock screen
-  (a button to Android's setting when not), and Android's notification settings.
+  (a button to Android's setting when not), Android's notification settings, and Recent
+  notifications: the last 20 pushes and what became of each (`PushLog.java`: shown, shown
+  silently, ringing, channel off, couldn't open, the page couldn't word it, an error), only
+  times and outcomes, to find where one got stuck without the phone's logs. The test
+  notification (Settings → Notifications) always alerts, even with the app open.
 - **Not done yet**: a release key and updates (the APK is installed by hand), Bluetooth headset
   buttons and phone calls interrupting ours (Android's Telecom API), replying from a
   notification, the unread count on the icon, push-to-talk, screen sharing, iOS.

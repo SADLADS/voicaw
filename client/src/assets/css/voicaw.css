@@ -826,6 +826,23 @@ body:not(.mobile-mode) .settings-category-title {
   margin: 0;
 }
 
+/* Settings → Android App: recent notifications */
+.android-push-log {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.android-push-log li {
+  margin-bottom: 0.25rem;
+}
+
+.android-push-log-time {
+  color: var(--vc-fg-muted);
+}
+
 /* Settings → Admin */
 .admin-setting {
   max-width: 560px;

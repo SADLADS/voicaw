@@ -83,20 +83,26 @@ final class Notifications {
         manager.createNotificationChannels(java.util.Arrays.asList(messages, mentions, calls, missed, ongoing));
     }
 
-    /** A push has arrived (on PushService's thread: may block). */
+    /** A push has arrived (on PushService's thread: may block). What became of it goes in PushLog. */
     static void handlePush(Context context, JSONObject payload) {
-        createChannels(context);
         String type = payload.optString("type");
-        String callId = payload.optString("callId", null);
-        if ("call_stop".equals(type)) {
-            if (callId != null) stopRinging(context, callId);
-            return;
+        try {
+            createChannels(context);
+            String callId = payload.optString("callId", null);
+            if ("call_stop".equals(type)) {
+                if (callId != null) stopRinging(context, callId);
+                PushLog.add(context, type, "stopped ringing");
+                return;
+            }
+            boolean ringing = "call".equals(type) && payload.optBoolean("ringing") && callId != null;
+            if ("call".equals(type) && !ringing && callId != null) stopRinging(context, callId);
+            JSONObject rendered = render(context, payload, ringing ? RENDER_CALL_MS : RENDER_MS);
+            String outcome = ringing ? showRinging(context, payload, rendered, callId) : showMessage(context, payload, rendered);
+            PushLog.add(context, ringing ? "call (ringing)" : type, rendered == null ? outcome + "; the page couldn't word it" : outcome);
+        } catch (Exception e) {
+            Log.e(TAG, "Couldn't show a push", e);
+            PushLog.add(context, type, "error: " + e);
         }
-        boolean ringing = "call".equals(type) && payload.optBoolean("ringing") && callId != null;
-        if ("call".equals(type) && !ringing && callId != null) stopRinging(context, callId);
-        JSONObject rendered = render(context, payload, ringing ? RENDER_CALL_MS : RENDER_MS);
-        if (ringing) showRinging(context, payload, rendered, callId);
-        else showMessage(context, payload, rendered);
     }
 
     private static JSONObject render(Context context, JSONObject payload, long timeoutMs) {
@@ -137,7 +143,7 @@ final class Notifications {
         return PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
     }
 
-    private static void showMessage(Context context, JSONObject payload, JSONObject rendered) {
+    private static String showMessage(Context context, JSONObject payload, JSONObject rendered) {
         String type = payload.optString("type");
         String tag = tagOf(payload);
         String title = text(rendered, payload, "title", "Voicaw");
@@ -156,14 +162,17 @@ final class Notifications {
             .setContentIntent(PendingIntent.getActivity(context, tag.hashCode(), openApp(context, url), flags()));
         long timestamp = payload.optLong("timestamp", 0);
         if (timestamp > 0) builder.setWhen(timestamp * 1000).setShowWhen(true);
-        // As on the web: while the app is open, its own sound plays instead.
-        if (MainActivity.isInForeground()) builder.setSilent(true);
+        // As on the web: while the app is open, its own sound plays instead. Not for the test
+        // (Settings → Notifications), which is there to show what a notification looks like.
+        boolean silent = MainActivity.isInForeground() && !"test".equals(type);
+        if (silent) builder.setSilent(true);
         Bitmap picture = loadPicture(context, rendered != null ? rendered.optString("icon", null) : null);
         if (picture != null) builder.setLargeIcon(picture);
-        post(context, tag, builder.build());
+        String posted = post(context, tag, channel, builder.build());
+        return posted == null ? (silent ? "shown silently (the app was open)" : "shown") : posted;
     }
 
-    private static void showRinging(Context context, JSONObject payload, JSONObject rendered, String callId) {
+    private static String showRinging(Context context, JSONObject payload, JSONObject rendered, String callId) {
         String tag = "call-" + callId;
         boolean group = payload.has("groupId");
         String title = text(rendered, payload, "title", label(rendered, group ? "groupCall" : "incomingCall", "Voicaw"));
@@ -208,7 +217,11 @@ final class Notifications {
         Notification notification = builder.build();
         // Rings until answered, declined or stopped, not just once.
         notification.flags |= Notification.FLAG_INSISTENT;
-        post(context, tag, notification);
+        String posted = post(context, tag, CALLS, notification);
+        if (posted != null) return posted;
+        boolean fullScreenAllowed = Build.VERSION.SDK_INT < 34
+            || context.getSystemService(NotificationManager.class).canUseFullScreenIntent();
+        return fullScreenAllowed ? "ringing" : "ringing (as a notification: full screen not allowed)";
     }
 
     /** Opens the app and answers `callId` (useAndroidApp's `callAction`). */
@@ -223,11 +236,20 @@ final class Notifications {
         IncomingCallActivity.finishFor(callId);
     }
 
-    private static void post(Context context, String tag, Notification notification) {
+    /** Shows it; null if it went up, else why it couldn't (for PushLog). */
+    private static String post(Context context, String tag, String channel, Notification notification) {
+        NotificationManagerCompat manager = NotificationManagerCompat.from(context);
+        if (!manager.areNotificationsEnabled()) return "not shown: notifications are off for the app";
+        NotificationChannel settings = context.getSystemService(NotificationManager.class).getNotificationChannel(channel);
+        if (settings != null && settings.getImportance() == NotificationManager.IMPORTANCE_NONE) {
+            return "not shown: \"" + settings.getName() + "\" notifications are off";
+        }
         try {
-            NotificationManagerCompat.from(context).notify(tag, 0, notification);
+            manager.notify(tag, 0, notification);
+            return null;
         } catch (SecurityException e) {
             Log.w(TAG, "Notifications aren't allowed", e);
+            return "not shown: not allowed (" + e.getMessage() + ")";
         }
     }
 

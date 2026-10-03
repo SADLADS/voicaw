@@ -21,13 +21,17 @@ public class PushService extends FirebaseMessagingService {
     @Override
     public void onMessageReceived(@NonNull RemoteMessage message) {
         Map<String, String> data = message.getData();
-        if (!"1".equals(data.get("v")) || data.get("p") == null) return;
+        if (!"1".equals(data.get("v")) || data.get("p") == null) {
+            PushLog.add(this, null, "ignored: not a Voicaw push");
+            return;
+        }
         JSONObject payload;
         try {
             payload = new JSONObject(PushCrypto.open(PushCrypto.deviceKey(this), data.get("p")));
         } catch (Exception e) {
             // Not for this key (e.g. sent before the app was reinstalled).
             Log.w(TAG, "Couldn't open a push", e);
+            PushLog.add(this, null, "couldn't open it (sealed with another key)");
             return;
         }
         Notifications.handlePush(this, payload);

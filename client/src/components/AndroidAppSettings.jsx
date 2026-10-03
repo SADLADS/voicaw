@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { android, androidNotificationState, refreshAndroidNotificationState } from '../utils/android';
+import { formatDateTime } from '../utils/dateFormat';
 import { t } from '../i18n';
 
 // Settings → Android App (only in the Android app): whether calls may ring over the lock
@@ -38,6 +39,40 @@ export default function AndroidAppSettings() {
       <button type="button" className="btn btn-sm btn-secondary" onClick={() => open('notifications')}>
         {t('settings.androidApp.openChannels')}
       </button>
+      <PushLog />
     </div>
+  );
+}
+
+// What became of the last pushes this phone got (mobile/.../PushLog.java), to see where a
+// notification that never showed got stuck: no messages or names, only times and outcomes.
+function PushLog() {
+  const [entries, setEntries] = useState(null);
+  const refresh = () => android.getPushLog()
+    .then(({ entries: list }) => setEntries(list))
+    .catch((err) => console.warn('Could not read the push log', err));
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  return (
+    <>
+      <h6 className="mt-3">{t('settings.androidApp.pushLog')}</h6>
+      <p className="vc-hint">{t('settings.androidApp.pushLogHint')}</p>
+      {entries && entries.length === 0 && <p className="vc-hint">{t('settings.androidApp.pushLogEmpty')}</p>}
+      {entries && entries.length > 0 && (
+        <ul className="android-push-log">
+          {entries.map((entry) => (
+            <li key={`${entry.at}-${entry.type}-${entry.outcome}`}>
+              <span className="android-push-log-time">{formatDateTime(entry.at)}</span>
+              {' '}{entry.type || '?'}: {entry.outcome}
+            </li>
+          ))}
+        </ul>
+      )}
+      <button type="button" className="btn btn-sm btn-secondary" onClick={refresh}>
+        {t('settings.androidApp.pushLogRefresh')}
+      </button>
+    </>
   );
 }
