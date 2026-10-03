@@ -1515,65 +1515,70 @@ body.sidebar-resizing * {
      a thin bar, listed below.
    The message editor keeps its own (.message-editor). Chrome and Firefox use the standard
    properties; the ::-webkit-scrollbar rules are for Safari, which doesn't support them (Chrome
-   ignores those rules wherever scrollbar-color applies). */
-html {
-  scrollbar-color: var(--vc-fg-muted) transparent;
-}
+   ignores those rules wherever scrollbar-color applies).
+   Only with a mouse (pointer: fine): on touch screens the system's own overlay bar shows while
+   swiping and can't be grabbed, but a styled one (::-webkit-scrollbar, in Android's Chrome and
+   WebView) becomes a classic bar that taps and drags. Phones scroll by swiping only. */
+@media (pointer: fine) {
+  html {
+    scrollbar-color: var(--vc-fg-muted) transparent;
+  }
 
-.emoji-picker-scroll,
-.emoji-suggestions,
-.action-sheet,
-.context-menu,
-.pins-panel-list,
-.guild-search-suggestions,
-.task-assignee-picker ul,
-.guild-channel-list,
-.attachment-tray,
-.image-viewer-thumbnails,
-.doc-toolbar,
-.document-body :is(table, .tableWrapper),
-.dm-message-content pre code {
-  scrollbar-width: thin;
-  scrollbar-color: var(--vc-border-light) transparent;
-}
+  .emoji-picker-scroll,
+  .emoji-suggestions,
+  .action-sheet,
+  .context-menu,
+  .pins-panel-list,
+  .guild-search-suggestions,
+  .task-assignee-picker ul,
+  .guild-channel-list,
+  .attachment-tray,
+  .image-viewer-thumbnails,
+  .doc-toolbar,
+  .document-body :is(table, .tableWrapper),
+  .dm-message-content pre code {
+    scrollbar-width: thin;
+    scrollbar-color: var(--vc-border-light) transparent;
+  }
 
-::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
-::-webkit-scrollbar-thumb {
-  background-color: var(--vc-fg-muted);
-  border: 3px solid transparent;
-  border-radius: 6px;
-  background-clip: padding-box;
-}
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--vc-fg-muted);
+    border: 3px solid transparent;
+    border-radius: 6px;
+    background-clip: padding-box;
+  }
 
-.emoji-picker-scroll::-webkit-scrollbar,
-.emoji-suggestions::-webkit-scrollbar,
-.action-sheet::-webkit-scrollbar,
-.guild-channel-list::-webkit-scrollbar,
-.attachment-tray::-webkit-scrollbar,
-.image-viewer-thumbnails::-webkit-scrollbar,
-.dm-message-content pre code::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
+  .emoji-picker-scroll::-webkit-scrollbar,
+  .emoji-suggestions::-webkit-scrollbar,
+  .action-sheet::-webkit-scrollbar,
+  .guild-channel-list::-webkit-scrollbar,
+  .attachment-tray::-webkit-scrollbar,
+  .image-viewer-thumbnails::-webkit-scrollbar,
+  .dm-message-content pre code::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
 
-.emoji-picker-scroll::-webkit-scrollbar-thumb,
-.emoji-suggestions::-webkit-scrollbar-thumb,
-.action-sheet::-webkit-scrollbar-thumb,
-.guild-channel-list::-webkit-scrollbar-thumb,
-.attachment-tray::-webkit-scrollbar-thumb,
-.image-viewer-thumbnails::-webkit-scrollbar-thumb,
-.dm-message-content pre code::-webkit-scrollbar-thumb {
-  background-color: var(--vc-border-light);
-  border: 0;
-  border-radius: 4px;
+  .emoji-picker-scroll::-webkit-scrollbar-thumb,
+  .emoji-suggestions::-webkit-scrollbar-thumb,
+  .action-sheet::-webkit-scrollbar-thumb,
+  .guild-channel-list::-webkit-scrollbar-thumb,
+  .attachment-tray::-webkit-scrollbar-thumb,
+  .image-viewer-thumbnails::-webkit-scrollbar-thumb,
+  .dm-message-content pre code::-webkit-scrollbar-thumb {
+    background-color: var(--vc-border-light);
+    border: 0;
+    border-radius: 4px;
+  }
 }
 
 /* Settings on a computer: its column sits beside the rail (Layout), above the user panel. */
