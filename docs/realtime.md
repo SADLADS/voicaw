@@ -17,7 +17,7 @@ out; see Deleting an account), `session_revoked` (to the sockets of a session lo
 another device: log out; see Login sessions), `message_sound` (play the Message sound; see Sounds), and for guilds (see Guilds) `guild_add`, `guild_update`, `guild_remove`,
 `guild_member_add`, `guild_member_remove`, `guild_message_new` / `_edit` / `_delete` / `_pin` (a
 webhook's edit also carries `embeds`, `attachments`, `flags`),
-`guild_reaction_add` / `_remove`, `guild_member_update` (roles), `guild_emojis_update`,
+`guild_reaction_add` / `_remove` (the removal with who and which emoji, for bots), `guild_member_update` (roles), `guild_emojis_update`,
 `guild_order` (your guild rail order, to your other devices), `guild_channel_mute` (you muted or
 unmuted a channel, to your other devices; see Mentions), `guild_channel_notify` (you set a
 channel's notification level, to your other devices), `conversation_settings` (you pinned or
@@ -43,6 +43,10 @@ and a pub/sub listener API (`onNewDm`, `onDeleteDm`, `onEditDm`, `onReactionAdd`
 `onCallEvent`, `onGroupEvent`), auto-reconnecting
 every 3s on close. All non-realtime DM operations (fetch history, send, mark read) go through the
 plain REST API in `client/src/services/dmService.js` / `client/src/utils/api.js` instead.
+
+Bots connect to `/api/gateway` instead (the same HTTP server; `attachWebSocketServer` sends
+upgrades there to `gateway.js`): Discord's gateway protocol, where each session sits in `clients`
+as one of the bot's sockets and turns these events into Discord's (see `docs/bots.md`).
 
 ## Typing indicator
 

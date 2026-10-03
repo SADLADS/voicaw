@@ -204,3 +204,136 @@ footer a { color: var(--muted); }
   .hero { padding-top: 32px; }
   .actions .button { width: 100%; text-align: center; align-items: center; }
 }
+
+/* ---- The bot API docs (/developers/docs/, website/src/developers) ---- */
+.brand-sub { color: var(--muted); font-weight: 500; }
+.docs-page .top { max-width: 1280px; }
+.docs {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 200px;
+  gap: 40px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 8px 16px 0;
+  align-items: start;
+}
+.docs-nav, .docs-toc { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
+.docs-nav summary { display: none; }
+.docs-nav nav, .docs-toc { display: flex; flex-direction: column; gap: 2px; }
+.docs-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+.docs-nav a:hover { color: var(--text); background: var(--card-hover); }
+.docs-nav a[aria-current="page"] { color: var(--text); background: var(--card); border: 1px solid var(--line); font-weight: 600; }
+.docs-toc strong {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.docs-toc a { color: var(--muted); text-decoration: none; font-size: 0.88rem; padding: 3px 0; }
+.docs-toc a:hover { color: var(--text); }
+
+/* Not the home page's `main` (centred, 1080px): a grid column here. */
+.docs-main { min-width: 0; max-width: none; margin: 0; padding: 0; }
+.docs-content { font-size: 1rem; }
+.docs-content h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); line-height: 1.2; margin: 8px 0 20px; }
+.docs-content h2 { font-size: 1.45rem; margin: 44px 0 12px; padding-top: 4px; scroll-margin-top: 16px; }
+.docs-content h3 { font-size: 1.1rem; margin: 28px 0 8px; scroll-margin-top: 16px; }
+.docs-content .lead-in { font-size: 1.1rem; color: var(--muted); }
+.docs-content li { margin: 4px 0; }
+.docs-content code {
+  font: 0.88em/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 5px;
+  overflow-wrap: anywhere;
+}
+.docs-content pre {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+.docs-content pre code { background: none; border: 0; padding: 0; font-size: 0.86rem; overflow-wrap: normal; white-space: pre; }
+.docs-content .table { overflow-x: auto; margin: 12px 0; border: 1px solid var(--line); border-radius: 10px; }
+.docs-content table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+.docs-content th, .docs-content td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.docs-content tr:last-child td { border-bottom: 0; }
+.docs-content th { background: var(--card); font-weight: 600; }
+.docs-content table.endpoints td:first-child { min-width: 300px; }
+.docs-content table.endpoints td:first-child code { background: none; border: 0; padding: 0; overflow-wrap: anywhere; }
+.method {
+  display: inline-block;
+  min-width: 54px;
+  text-align: center;
+  font: 700 0.72rem/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  border-radius: 5px;
+  padding: 1px 6px;
+  margin-right: 4px;
+  color: #fff;
+}
+.method.get { background: #2f7d4f; }
+.method.post { background: #2f63b5; }
+.method.put { background: #8a5a12; }
+.method.patch { background: #6a52c9; }
+.method.delete { background: #b03a3a; }
+.callout {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  background: var(--card);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 16px 0;
+}
+.callout.warning { border-left-color: #d9822b; }
+.callout strong { display: block; margin-bottom: 2px; }
+.docs-pager { display: flex; justify-content: space-between; gap: 12px; margin: 48px 0 0; }
+.docs-pager a {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  max-width: 48%;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--text);
+  text-decoration: none;
+}
+.docs-pager a:hover { background: var(--card-hover); }
+.docs-pager .next { text-align: right; margin-left: auto; }
+.docs-pager small { color: var(--muted); font-size: 0.8rem; }
+
+@media (max-width: 1100px) {
+  .docs { grid-template-columns: 200px minmax(0, 1fr); }
+  .docs-toc { display: none; }
+}
+@media (max-width: 860px) {
+  .docs { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .docs-nav { position: static; max-height: none; border: 1px solid var(--line); border-radius: 10px; background: var(--card); margin-bottom: 8px; }
+  .docs-nav summary { display: list-item; padding: 10px 14px; cursor: pointer; font-weight: 600; }
+  .docs-nav nav { padding: 0 6px 8px; }
+  .docs-nav a[aria-current="page"] { background: var(--card-hover); border-color: transparent; }
+  .docs-content table.endpoints td:first-child { min-width: 220px; }
+}
+/* On a phone, each endpoint is a card: the path, then what it needs, then the notes. */
+@media (max-width: 600px) {
+  .docs-content table.endpoints, .docs-content table.endpoints tbody,
+  .docs-content table.endpoints tr, .docs-content table.endpoints td { display: block; }
+  .docs-content table.endpoints tr:first-child { display: none; }
+  .docs-content table.endpoints tr { border-bottom: 1px solid var(--line); padding: 8px 0; }
+  .docs-content table.endpoints tr:last-child { border-bottom: 0; }
+  .docs-content table.endpoints td { border-bottom: 0; padding: 2px 12px; }
+  .docs-content table.endpoints td:first-child { min-width: 0; padding-bottom: 4px; }
+  .docs-content table.endpoints td:empty { display: none; }
+  .docs-content table.endpoints:not(.plain) td:nth-child(2)::before { content: "Needs: "; color: var(--muted); }
+}

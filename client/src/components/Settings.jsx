@@ -6,6 +6,7 @@ import { faMagnifyingGlass, faPuzzlePiece, faSignOutAlt, faXmark } from '@fortaw
 import { InteractionContext, LayoutContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
+import DeveloperSettings from './DeveloperSettings';
 import AccountSecuritySettings from "./AccountSecuritySettings";
 import DeleteAccountSettings from "./DeleteAccountSettings";
 import DeviceSettings from "./DeviceSettings";
@@ -32,6 +33,7 @@ import { t } from '../i18n';
 const CATEGORIES = [
   { id: 'account', titleKey: 'settings.categories.account' },
   { id: 'app', titleKey: 'settings.categories.app' },
+  { id: 'developers', titleKey: 'settings.categories.developers' },
   { id: 'admin', titleKey: 'settings.categories.admin' },
   { id: 'about', titleKey: 'settings.categories.about' },
 ];
@@ -156,6 +158,11 @@ export default function Settings({ onLogout }) {
       id: 'app-version', category: 'app', title: t('settings.sections.appVersion.title'),
       keywords: t('settings.sections.appVersion.keywords'),
       content: <AppUpdateSettings />,
+    },
+    {
+      id: 'developer-portal', category: 'developers', title: t('settings.sections.developerPortal.title'),
+      keywords: t('settings.sections.developerPortal.keywords'),
+      content: <DeveloperSettings />,
     },
     {
       // Always there (it asks the server whether you're an admin), shown once you are.

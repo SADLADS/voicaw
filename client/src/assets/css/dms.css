@@ -2734,8 +2734,12 @@ body.mobile-mode .dm-user-list-container .dm-user {
   color: var(--vc-fg-muted);
 }
 
-/* WEBHOOK MESSAGES (guilds): the APP tag after the name, Discord's embeds and sent files
-   (MessageEmbeds, MessageFiles). */
+/* WEBHOOK AND BOT MESSAGES (guilds): the APP (webhook) or BOT tag after the name, Discord's
+   embeds and sent files (MessageEmbeds, MessageFiles). */
+.member-name .app-tag {
+  margin-left: 4px;
+}
+
 .app-tag {
   display: inline-block;
   padding: 0 4px;

@@ -4,6 +4,7 @@ import { faArrowDown, faArrowUp, faGripVertical, faLock } from '@fortawesome/fre
 import { createRole, deleteRole, reorderRoles, updateRole } from '../../services/guildService';
 import { PERMISSIONS, PERMISSION_GROUPS, colorToHex, has, hexToColor, memberRank } from '../../utils/permissions';
 import { errorMessage } from '../../utils/guildDisplay';
+import { displayName } from '../../utils/profiles';
 import { t } from '../../i18n';
 
 // Discord's role colour swatches.
@@ -140,6 +141,8 @@ export default function RolesSettings({ guild, user }) {
           <h6>{selected.is_everyone ? t('guildAdmin.roles.everyoneTitle') : t('guildAdmin.roles.editTitle', { name: selected.name })}</h6>
           {!editable && <p className="vc-hint">{t('guildAdmin.roles.locked')}</p>}
           {Boolean(selected.is_everyone) && <p className="vc-hint">{t('guildAdmin.roles.everyoneHint')}</p>}
+          {/* A bot's own role (server/bots.js): its permissions can change, but it stays with the bot. */}
+          {selected.bot_id != null && <p className="vc-hint">{t('guildAdmin.roles.botRoleHint', { name: displayName(selected.bot_id, selected.name) })}</p>}
 
           {!selected.is_everyone && (
             <>
@@ -236,7 +239,7 @@ export default function RolesSettings({ guild, user }) {
           {error && <p className="error-msg" role="alert">{error}</p>}
           {editable && (
             <div className="role-editor-actions">
-              {!selected.is_everyone && (
+              {!selected.is_everyone && selected.bot_id == null && (
                 <button
                   type="button"
                   className="btn btn-outline-danger btn-sm me-auto"

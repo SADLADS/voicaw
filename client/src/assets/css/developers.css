@@ -1,0 +1,442 @@
+/* The developer portal (/developers) and a bot's authorise page (/oauth2/authorize): pages of
+   their own, outside the app's rail and sidebar. Phone tweaks are in mobile.css. */
+.dev-page {
+  height: var(--vc-app-height);
+  overflow-y: auto;
+  background-color: var(--vc-bg-base);
+  color: var(--vc-fg);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.dev-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: var(--vc-header-height);
+  padding: 0 24px;
+  background-color: var(--vc-bg-subtle);
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.dev-header-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--vc-fg);
+  text-decoration: none;
+}
+
+.dev-header-title:hover {
+  color: var(--vc-fg);
+}
+
+.dev-header-icon {
+  color: var(--vc-accent);
+}
+
+.dev-header-links {
+  display: flex;
+  gap: 16px;
+}
+
+.dev-header-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--vc-fg-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dev-header-link:hover {
+  color: var(--vc-fg);
+}
+
+.dev-main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.dev-section h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.dev-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.dev-empty {
+  margin-top: 24px;
+  color: var(--vc-fg-muted);
+}
+
+.dev-app-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dev-app-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 20px 12px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 10px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+}
+
+.dev-app-tile:hover {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.dev-app-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 20px;
+  object-fit: cover;
+}
+
+.dev-app-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.dev-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: var(--vc-fg-muted);
+  text-decoration: none;
+}
+
+.dev-back:hover {
+  color: var(--vc-fg);
+}
+
+.dev-app-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  min-width: 0;
+}
+
+.dev-app-header h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dev-app-header-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.dev-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--vc-border-dark);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dev-tab {
+  padding: 8px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dev-tab:hover {
+  color: var(--vc-fg);
+}
+
+.dev-tab.active {
+  color: var(--vc-fg);
+  border-bottom-color: var(--vc-accent);
+}
+
+.dev-tab-panel {
+  padding-top: 20px;
+}
+
+.dev-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 640px;
+}
+
+.dev-form label {
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+.dev-form .vc-hint {
+  margin: 0;
+}
+
+.dev-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.dev-subheading {
+  margin: 20px 0 4px;
+}
+
+.dev-copy-field {
+  display: flex;
+  gap: 8px;
+}
+
+.dev-copy-field .form-control {
+  flex: 1;
+  min-width: 0;
+  font-family: monospace;
+}
+
+.dev-picture {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.dev-picture-preview {
+  width: 80px;
+  height: 80px;
+  border-radius: 18px;
+  object-fit: cover;
+}
+
+.dev-picture-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dev-danger {
+  margin-top: 28px;
+  padding: 16px;
+  border: 1px solid var(--vc-danger);
+  border-radius: 8px;
+}
+
+.dev-danger h5 {
+  margin: 0 0 4px;
+}
+
+.dev-danger .btn {
+  margin-top: 10px;
+}
+
+.dev-token-box {
+  padding: 12px 14px;
+  border: 1px solid var(--vc-warning);
+  border-radius: 8px;
+  background-color: var(--vc-bg-subtle);
+}
+
+.dev-token-box p {
+  margin: 0 0 8px;
+}
+
+.dev-token-box .vc-hint {
+  margin: 8px 0 0;
+}
+
+.dev-token-box svg {
+  color: var(--vc-warning);
+}
+
+.dev-form .dev-switch {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 24px;
+  font-weight: normal;
+}
+
+.dev-switch input {
+  margin-top: 4px;
+}
+
+.dev-switch > span {
+  display: flex;
+  flex-direction: column;
+}
+
+.dev-permissions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px 24px;
+}
+
+.dev-permission-group {
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.dev-permission-group legend {
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--vc-fg-muted);
+}
+
+.dev-form .dev-permission,
+.dev-permission {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 3px 0;
+  font-weight: normal;
+}
+
+.dev-permission.disabled {
+  color: var(--vc-fg-muted);
+}
+
+.dev-guild-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dev-guild-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--vc-border-light);
+}
+
+.dev-guild-icon {
+  width: 32px;
+  height: 32px;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.dev-guild-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The authorise page: one card in the middle. */
+.dev-authorize {
+  display: flex;
+  justify-content: center;
+}
+
+.dev-authorize-card {
+  width: 100%;
+  max-width: 480px;
+  padding: 24px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 12px;
+  background-color: var(--vc-bg-elevated);
+}
+
+.dev-authorize-bot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.dev-authorize-bot h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  overflow-wrap: anywhere;
+}
+
+.dev-authorize-bot .vc-hint {
+  margin: 2px 0 0;
+}
+
+.dev-authorize-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.dev-bot-tag {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 3px;
+  background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  vertical-align: middle;
+}
+
+.dev-authorize-description {
+  white-space: pre-line;
+}
+
+.dev-authorize-card form > label {
+  margin-top: 8px;
+  font-weight: 600;
+}
+
+.dev-authorize .dev-permissions {
+  grid-template-columns: 1fr;
+}
+
+.dev-authorize-notice {
+  margin-top: 16px;
+}
+
+.dev-authorize .dev-form-actions {
+  justify-content: flex-end;
+}
+
+.dev-authorize-done p {
+  margin: 12px 0;
+}

@@ -59,7 +59,8 @@ export default function MemberList({ guild, members: memberList, user, onClose }
   function renderCard(member) {
     const roles = memberRoles(guild.roles, member.role_ids);
     const editsRoles = can(PERMISSIONS.MANAGE_ROLES) && (member.id === user.id || outranks(member));
-    const assignable = (guild.roles ?? []).filter((r) => !r.is_everyone && r.position < myRank && !member.role_ids?.includes(r.id));
+    // A bot's own role (server/bots.js) stays with its bot: never given or taken here.
+    const assignable = (guild.roles ?? []).filter((r) => !r.is_everyone && !r.bot_id && r.position < myRank && !member.role_ids?.includes(r.id));
     const isOwnerViewing = guild.owner === user.id;
     return (
       <div className="member-card" ref={cardRef} role="dialog" aria-label={nameOf(member)}>
@@ -74,7 +75,7 @@ export default function MemberList({ guild, members: memberList, user, onClose }
                 <li key={role.id} className="role-chip">
                   <span className="role-dot" style={{ backgroundColor: role.color != null ? colorToHex(role.color) : undefined }} />
                   {role.name}
-                  {editsRoles && role.position < myRank && (
+                  {editsRoles && role.position < myRank && !role.bot_id && (
                     <button
                       type="button"
                       className="role-chip-remove"
@@ -116,12 +117,13 @@ export default function MemberList({ guild, members: memberList, user, onClose }
         )}
 
         <div className="member-card-actions">
-          {member.id !== user.id && (
+          {/* Bots can't be in DMs (they're end-to-end encrypted) or own a guild. */}
+          {member.id !== user.id && !member.bot && (
             <button type="button" className="btn btn-primary btn-sm vc-button" onClick={() => navigate(`/dm/${member.id}`)}>
               {t('guilds.memberList.message')}
             </button>
           )}
-          {isOwnerViewing && member.id !== user.id && (
+          {isOwnerViewing && member.id !== user.id && !member.bot && (
             <button
               type="button"
               className="btn btn-outline-secondary btn-sm"
@@ -184,7 +186,10 @@ export default function MemberList({ guild, members: memberList, user, onClose }
             <StatusIcon status={member.status} />
           </span>
           <span className="member-name-block">
-            <span className="member-name" style={{ color: color ?? undefined }}>{nameOf(member)}</span>
+            <span className="member-name" style={{ color: color ?? undefined }}>
+              {nameOf(member)}
+              {member.bot ? <span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span> : null}
+            </span>
             {getProfile(member.id)?.custom_status && <span className="member-custom-status">{getProfile(member.id).custom_status}</span>}
           </span>
           {member.id === guild.owner && <FontAwesomeIcon icon={faCrown} className="member-owner" title={t('guilds.memberList.owner')} />}

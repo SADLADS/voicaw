@@ -175,3 +175,9 @@ older builds and copied webhook URLs use it) and redirects any other unknown pat
 one on app.voicaw.com; `website/src/service-worker.js` replaces the old app's service worker
 in browsers that installed it there, and removes itself. Keep the page's claims true to what
 the app does (e.g. guilds aren't end-to-end encrypted).
+
+The bot API's documentation (`/developers/docs/`, see `docs/bots.md`) is part of the site:
+`website/src/developers/` holds a shared `template.html` (side menu, "On this page") and one
+fragment per page, listed in `build.mjs` `DOCS` and written as `developers/docs/<slug>/index.html`
+(nginx: `try_files $uri $uri/index.html @app`). Keep it true to `server/routes/botApi.js` and
+`server/gateway.js` when they change.

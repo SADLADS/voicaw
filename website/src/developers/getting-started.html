@@ -1,0 +1,64 @@
+      <h2 id="application">1. Make an application</h2>
+      <p>
+        Open the <a href="{{APP_URL}}/developers">Developer Portal</a> (in the app: Settings →
+        Developer Portal) and choose <em>New Application</em>. Each application has one bot, with
+        the same name and picture. The bot's id is the application's id, as on Discord. You can
+        have up to 25 applications. Names are 2–32 characters, descriptions up to 190 (shown on the
+        bot's profile).
+      </p>
+
+      <h2 id="token">2. Copy the token</h2>
+      <p>
+        Your bot's token is shown once, when the application is made or when you reset it. Voicaw
+        only keeps a hash of it, so copy it somewhere safe straight away. It works like a password:
+        anyone who has it can act as your bot.
+      </p>
+      <p>
+        <em>Reset Token</em> makes a new one. The old one stops working at once, and any gateway
+        connections using it are closed (close code <code>4004</code>).
+      </p>
+
+      <h2 id="invite">3. Add the bot to a guild</h2>
+      <p>
+        The <em>Installation</em> tab builds an invite link from the permissions you tick:
+      </p>
+      <pre><code>{{APP_URL}}/oauth2/authorize?client_id=123&amp;scope=bot&amp;permissions=3072</code></pre>
+      <p>
+        Whoever opens it picks one of their guilds where they have Manage Guild, can untick
+        permissions, and adds the bot. <code>permissions</code> is Discord's bitfield (see
+        <a href="/developers/docs/permissions/">Permissions</a>). The bot gets a role of its own
+        with those permissions, but only the ones the person adding it has. That role can be
+        edited and moved like any other, but not deleted or given to anyone else. It goes when the
+        bot leaves or is kicked.
+      </p>
+      <p>
+        A <strong>public</strong> bot (the default) can be added by anyone with the link. A
+        <strong>private</strong> one only by you. You can take your bot out of a guild from the
+        portal too.
+      </p>
+
+      <h2 id="run">4. Run it</h2>
+      <p>
+        Use any Discord library with Voicaw's addresses (see
+        <a href="/developers/docs/libraries/">discord.js, discord.py and HTTP</a>). Once the bot is
+        connected to the gateway it shows as online, with a <strong>BOT</strong> tag next to its
+        name.
+      </p>
+      <pre><code>import { Client, GatewayIntentBits } from 'discord.js';
+
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  rest: { api: 'https://api.voicaw.com/api', cdn: 'https://api.voicaw.com/api/cdn' },
+});
+
+client.on('messageCreate', (message) =&gt; {
+  if (message.content === '!ping') message.reply('pong');
+});
+
+client.login(process.env.VOICAW_TOKEN);</code></pre>
+
+      <h2 id="delete">Deleting an application</h2>
+      <p>
+        Deleting an application takes its bot out of every guild and ends its token. Messages it
+        sent stay, under its name.
+      </p>

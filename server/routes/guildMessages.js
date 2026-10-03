@@ -13,6 +13,7 @@ const { releaseUploads } = require('../uploads');
 const { logAudit } = require('../auditLog');
 const { parseDuration, listMutes, setMute, CHANNEL_NOTIFY_LEVELS, listChannelLevels, setChannelLevel } = require('../channelMutes');
 const { sendToUserSockets } = require('../sockets');
+const { ActionError, withActionErrors } = require('../actionError');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
 // same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
@@ -33,6 +34,8 @@ const MESSAGE_SELECT = `
     m.webhook_id, m.webhook_name, m.webhook_avatar, m.embeds, m.attachments, m.flags, m.edited_at,
     COALESCE(u.username, m.webhook_name) AS sender_username,
     u.display_name AS sender_display_name,
+    u.avatar AS sender_avatar,
+    u.bot AS sender_bot,
     pm.content AS parent_content,
     pm.timestamp AS parent_timestamp,
     pu.id AS parent_sender_id,
@@ -202,28 +205,48 @@ router.post('/channels/:channelId/messages', authenticateJWT, requireChatChannel
     if (!parent) return res.status(400).json({ error: 'Invalid reply' });
   }
 
+  const message = await createMessage({
+    channel: req.channel,
+    permissions: req.permissions,
+    senderId: req.user.id,
+    content,
+    parentMessageId,
+    documentId: req.documentId,
+  });
+  res.status(201).json(message);
+});
+
+// Saves and announces a message by `senderId` (who has `permissions` in `channel`; checked by
+// the caller, as are the content and the reply) and sends its pushes. A bot's (routes/botApi.js)
+// may have `embeds` and `attachments` (Discord's shapes), `flags`, `allowed` (allowed_mentions,
+// as mentions.js takes it) and `silent` (no pushes). Resolves to the message as the app has it.
+async function createMessage({
+  channel, permissions, senderId, content, parentMessageId = null, documentId = null,
+  embeds = [], attachments = [], flags = 0, allowed, silent = false,
+}) {
   const { lastID, mentions, joinedIds } = await db.transaction(async () => {
     const { lastID: id } = await db.run(
-      `INSERT INTO guild_messages (channel_id, sender_id, content, parent_message_id, document_id, timestamp)
-       VALUES (?, ?, ?, ?, ?, strftime('%s','now'))`,
-      [req.channel.id, req.user.id, content, parentMessageId, req.documentId]
+      `INSERT INTO guild_messages (channel_id, sender_id, content, parent_message_id, document_id, embeds, attachments, flags, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%s','now'))`,
+      [channel.id, senderId, content, parentMessageId, documentId,
+        embeds.length ? JSON.stringify(embeds) : null, attachments.length ? JSON.stringify(attachments) : null, flags]
     );
-    await markRead(req.user.id, req.channel.id, id);
+    await markRead(senderId, channel.id, id);
     await db.indexGuildMessage(id);
-    const found = await saveMentions({ id, content, sender_id: req.user.id }, req.channel, req.permissions);
-    const named = req.channel.type === 'thread'
+    const found = await saveMentions({ id, content, sender_id: senderId }, channel, permissions, allowed);
+    const named = channel.type === 'thread'
       ? [...parseMentions(content).userIds].filter((userId) => found.mentioned.has(userId))
       : [];
-    const joined = req.channel.type === 'thread' ? await threads.noteMessage(req.channel.id, req.user.id, named) : [];
+    const joined = channel.type === 'thread' ? await threads.noteMessage(channel.id, senderId, named) : [];
     return { lastID: id, mentions: found, joinedIds: joined };
   });
   const [message] = await withReactions([await db.get(`${MESSAGE_SELECT} WHERE m.id = ?`, [lastID])]);
 
-  await sendToChannel(req.channel, { type: 'guild_message_new', guildId: req.channel.guild_id, message });
-  if (req.channel.type === 'thread') await threads.announceThread(req.channel.id, { joinedIds });
-  res.status(201).json(message);
-  notifyNewMessage(message, req.channel, mentions).catch((err) => console.error('Guild push failed:', err.message));
-});
+  await sendToChannel(channel, { type: 'guild_message_new', guildId: channel.guild_id, message });
+  if (channel.type === 'thread') await threads.announceThread(channel.id, { joinedIds });
+  notifyNewMessage(message, channel, mentions, { silent }).catch((err) => console.error('Guild push failed:', err.message));
+  return message;
+}
 
 // Only the author can edit. Mentions are worked out again (without pushes, like Discord).
 router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async (req, res) => {
@@ -278,27 +301,33 @@ const messageTarget = (message) => (message.webhook_id
   : { targetType: 'user', targetId: message.sender_id });
 
 // The author, or anyone with Manage Messages there, can delete; its reactions go with it. It
-// goes in the audit log (not "poll ended" rows, which go with their poll).
-router.delete('/guild-messages/:messageId', authenticateJWT, requireMessage, async (req, res) => {
-  const { id, sender_id: senderId } = req.message;
-  if (senderId !== req.user.id && !has(req.permissions, PERMISSIONS.MANAGE_MESSAGES)) {
-    return res.status(403).json({ error: 'Not authorized to delete this message' });
+// goes in the audit log (not "poll ended" rows, which go with their poll). `message` needs id,
+// sender_id, system, timestamp and webhook_id/_name; `permissions` are `actorId`'s in `channel`.
+// Shared with the bot API (routes/botApi.js). Throws ActionError.
+async function deleteMessage(message, channel, actorId, permissions) {
+  const { id, sender_id: senderId } = message;
+  if (senderId !== actorId && !has(permissions, PERMISSIONS.MANAGE_MESSAGES)) {
+    throw new ActionError(403, 'Not authorized to delete this message');
   }
   // A poll takes its "poll ended" row with it.
   const removed = await db.transaction(async () => {
-    if (!req.message.system) await logMessageDelete(req.message, req.channel, { actorId: req.user.id });
+    if (!message.system) await logMessageDelete(message, channel, { actorId });
     await db.run('DELETE FROM guild_reactions WHERE message_id = ?', [id]);
     await db.run('DELETE FROM guild_mentions WHERE message_id = ?', [id]);
     await db.run('DELETE FROM guild_messages WHERE id = ?', [id]);
     return removePollRows('guild', id);
   });
   releaseUploads();
-  const { guild_id: guildId, id: channelId } = req.channel;
+  const { guild_id: guildId, id: channelId } = channel;
   for (const messageId of [id, ...removed]) {
-    await sendToChannel(req.channel, { type: 'guild_message_delete', guildId, channelId, messageId });
+    await sendToChannel(channel, { type: 'guild_message_delete', guildId, channelId, messageId });
   }
-  res.json({ success: true, deletedId: id });
-});
+}
+
+router.delete('/guild-messages/:messageId', authenticateJWT, requireMessage, withActionErrors(async (req, res) => {
+  await deleteMessage(req.message, req.channel, req.user.id, req.permissions);
+  res.json({ success: true, deletedId: req.message.id });
+}));
 
 // ---- Pins (Pin Messages in the channel) ----
 
@@ -311,69 +340,93 @@ router.get('/channels/:channelId/pins', authenticateJWT, requireTextChannel, asy
   res.json(await withReactions(rows));
 });
 
-// Only in text channels and threads (a document channel's replies have no pinned list).
-async function pinRoute(req, res, pinned) {
-  if (!isChat(req.channel)) return res.status(400).json({ error: 'Not a text channel' });
-  if (!has(req.permissions, PERMISSIONS.PIN_MESSAGES)) return forbidden(res);
-  const { guild_id: guildId, id: channelId } = req.channel;
-  const result = await setPinned('guild_messages', req.message.id, req.user.id, pinned, 'channel_id = ?', [channelId]);
-  if (result.error) return res.status(result.status).json({ error: result.error });
+// Pins or unpins `message` for `actorId` (with `permissions` in `channel`). Only in text
+// channels and threads (a document channel's replies have no pinned list). Resolves to the pin
+// ({ messageId, pinned_at, pinned_by }). Shared with the bot API. Throws ActionError.
+async function setMessagePinned(message, channel, actorId, permissions, pinned) {
+  if (!isChat(channel)) throw new ActionError(400, 'Not a text channel', 50024);
+  if (!has(permissions, PERMISSIONS.PIN_MESSAGES)) throw new ActionError(403, "You don't have permission to do that");
+  const { guild_id: guildId, id: channelId } = channel;
+  const result = await setPinned('guild_messages', message.id, actorId, pinned, 'channel_id = ?', [channelId]);
+  if (result.error) throw new ActionError(result.status, result.error, result.status === 400 ? 30003 : null);
   if (result.changed) {
     await logAudit({
       guildId,
       action: pinned ? 'message_pin' : 'message_unpin',
-      actorId: req.user.id,
-      ...messageTarget(req.message),
+      actorId,
+      ...messageTarget(message),
       channelId,
-      details: { messageId: req.message.id, channelName: req.channel.name },
+      details: { messageId: message.id, channelName: channel.name },
     });
   }
-  const pin = { messageId: req.message.id, pinned_at: result.pinned_at, pinned_by: result.pinned_by };
-  if (result.changed) await sendToChannel(req.channel, { type: 'guild_message_pin', guildId, channelId, ...pin });
-  res.json(pin);
+  const pin = { messageId: message.id, pinned_at: result.pinned_at, pinned_by: result.pinned_by };
+  if (result.changed) await sendToChannel(channel, { type: 'guild_message_pin', guildId, channelId, ...pin });
+  return pin;
 }
 
-router.put('/guild-messages/:messageId/pin', authenticateJWT, requireMessage, (req, res) => pinRoute(req, res, true));
-router.delete('/guild-messages/:messageId/pin', authenticateJWT, requireMessage, (req, res) => pinRoute(req, res, false));
+const pinRoute = (pinned) => withActionErrors(async (req, res) => {
+  res.json(await setMessagePinned(req.message, req.channel, req.user.id, req.permissions, pinned));
+});
+
+router.put('/guild-messages/:messageId/pin', authenticateJWT, requireMessage, pinRoute(true));
+router.delete('/guild-messages/:messageId/pin', authenticateJWT, requireMessage, pinRoute(false));
 
 // ---- Reactions (plain emoji) ----
 
-router.post('/guild-messages/:messageId/reactions', authenticateJWT, requireMessage, async (req, res) => {
-  const { emoji } = req.body ?? {};
+// Adds `userId`'s reaction `emoji` to `message` (with id and content) in `channel`, where they
+// have `permissions`. Resolves to the reaction row. Shared with the bot API. Throws ActionError.
+async function addReaction(message, channel, userId, permissions, emoji) {
   if (typeof emoji !== 'string' || !emoji || emoji.length > MAX_EMOJI_LENGTH || /\s/.test(emoji)) {
-    return res.status(400).json({ error: 'Invalid reaction' });
+    throw new ActionError(400, 'Invalid reaction', 10014);
   }
   // A poll's votes (see polls.js) only need to see the channel, not Add Reactions, and stop
   // when it closes.
-  const vote = POLL_VOTE.test(emoji) && Boolean(parsePoll(req.message.content));
-  if (vote && isClosedPoll(req.message)) return res.status(403).json({ error: 'This poll has closed' });
-  if (!vote && !has(req.permissions, PERMISSIONS.ADD_REACTIONS)) return forbidden(res);
-  const messageId = req.message.id;
-  const { guild_id: guildId, id: channelId } = req.channel;
+  const vote = POLL_VOTE.test(emoji) && Boolean(parsePoll(message.content));
+  if (vote && isClosedPoll(message)) throw new ActionError(403, 'This poll has closed');
+  if (!vote && !has(permissions, PERMISSIONS.ADD_REACTIONS)) throw new ActionError(403, "You don't have permission to do that");
+  const { guild_id: guildId, id: channelId } = channel;
 
   const { count } = await db.get(
     'SELECT COUNT(*) AS count FROM guild_reactions WHERE message_id = ? AND user_id = ?',
-    [messageId, req.user.id]
+    [message.id, userId]
   );
-  if (count >= MAX_REACTIONS_PER_USER_PER_MESSAGE) {
-    return res.status(400).json({ error: 'Too many reactions on this message' });
-  }
+  if (count >= MAX_REACTIONS_PER_USER_PER_MESSAGE) throw new ActionError(400, 'Too many reactions on this message', 30010);
   const { changes, lastID } = await db.run(
     'INSERT OR IGNORE INTO guild_reactions (message_id, user_id, emoji) VALUES (?, ?, ?)',
-    [messageId, req.user.id, emoji]
+    [message.id, userId, emoji]
   );
-  if (!changes) return res.status(409).json({ error: 'Already reacted with that' });
+  if (!changes) throw new ActionError(409, 'Already reacted with that');
 
   const reaction = await db.get(
     'SELECT id, message_id, user_id, emoji, timestamp FROM guild_reactions WHERE id = ?',
     [lastID]
   );
-  await sendToChannel(req.channel, { type: 'guild_reaction_add', guildId, channelId, reaction });
-  res.status(201).json(reaction);
-});
+  await sendToChannel(channel, { type: 'guild_reaction_add', guildId, channelId, reaction });
+  return reaction;
+}
+
+router.post('/guild-messages/:messageId/reactions', authenticateJWT, requireMessage, withActionErrors(async (req, res) => {
+  res.status(201).json(await addReaction(req.message, req.channel, req.user.id, req.permissions, req.body?.emoji));
+}));
+
+// Removes reaction `reaction` ({ id, message_id, user_id, emoji, content, timestamp }) from
+// `channel`. A closed poll's votes are final. Whose it is is up to the caller.
+async function removeReaction(reaction, channel) {
+  if (POLL_VOTE.test(reaction.emoji) && isClosedPoll(reaction)) throw new ActionError(403, 'This poll has closed');
+  await db.run('DELETE FROM guild_reactions WHERE id = ?', [reaction.id]);
+  await sendToChannel(channel, {
+    type: 'guild_reaction_remove',
+    guildId: channel.guild_id,
+    channelId: channel.id,
+    messageId: reaction.message_id,
+    reactionId: reaction.id,
+    userId: reaction.user_id,
+    emoji: reaction.emoji,
+  });
+}
 
 // Only your own reactions can be removed.
-router.delete('/guild-reactions/:reactionId', authenticateJWT, async (req, res) => {
+router.delete('/guild-reactions/:reactionId', authenticateJWT, withActionErrors(async (req, res) => {
   const reactionId = Number(req.params.reactionId);
   const reaction = Number.isInteger(reactionId) && await db.get(
     `SELECT r.id, r.message_id, r.user_id, r.emoji, m.channel_id, m.content, m.timestamp FROM guild_reactions r
@@ -383,20 +436,9 @@ router.delete('/guild-reactions/:reactionId', authenticateJWT, async (req, res) 
   const access = reaction && await getChannelAccess(reaction.channel_id, req.user.id);
   if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Reaction not found' });
   if (reaction.user_id !== req.user.id) return res.status(403).json({ error: 'Not your reaction' });
-  // A closed poll's votes are final.
-  if (POLL_VOTE.test(reaction.emoji) && isClosedPoll(reaction)) return res.status(403).json({ error: 'This poll has closed' });
-
-  const { channel } = access;
-  await db.run('DELETE FROM guild_reactions WHERE id = ?', [reactionId]);
-  await sendToChannel(channel, {
-    type: 'guild_reaction_remove',
-    guildId: channel.guild_id,
-    channelId: channel.id,
-    messageId: reaction.message_id,
-    reactionId,
-  });
+  await removeReaction(reaction, access.channel);
   res.json({ success: true });
-});
+}));
 
 // Who can see a channel (text or voice): their user ids. For the member list and "@" suggestions.
 router.get('/channels/:channelId/members', authenticateJWT, async (req, res) => {
@@ -490,3 +532,11 @@ module.exports.MESSAGE_SELECT = MESSAGE_SELECT;
 module.exports.withReactions = withReactions;
 module.exports.parseJsonList = parseJsonList;
 module.exports.logMessageDelete = logMessageDelete;
+module.exports.messageTarget = messageTarget;
+module.exports.markRead = markRead;
+module.exports.createMessage = createMessage;
+module.exports.deleteMessage = deleteMessage;
+module.exports.setMessagePinned = setMessagePinned;
+module.exports.addReaction = addReaction;
+module.exports.removeReaction = removeReaction;
+module.exports.MAX_REACTIONS_PER_USER_PER_MESSAGE = MAX_REACTIONS_PER_USER_PER_MESSAGE;

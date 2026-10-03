@@ -84,6 +84,8 @@
       "pinned": "Pinned",
       "webhookTitle": "Posted by a webhook",
       "webhookTag": "APP",
+      "botTitle": "A bot: an app made in the developer portal",
+      "botTag": "BOT",
       "edited": "edited",
       "editedInline": "(edited)",
       "unsigned": "not signed",

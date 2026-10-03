@@ -1,0 +1,71 @@
+      <p>
+        Permissions are Discord's bitfields, as decimal strings, everywhere: roles, overwrites, the
+        invite link's <code>permissions</code>. Voicaw's permissions are fewer than Discord's, so
+        each of Voicaw's has a Discord bit, and some of Discord's come with another one.
+      </p>
+
+      <h2 id="how">How a bot's permissions work</h2>
+      <p>
+        As anyone's in a guild: @everyone's permissions plus those of the bot's roles (its own role
+        and any it's given). Administrator, or owning the guild, means everything. In a channel,
+        the overwrites apply in Discord's order: @everyone's, then the roles' (denies, then allows),
+        then the member's own. In a thread, Send Messages in Threads stands in for Send Messages.
+      </p>
+      <p>
+        On top of permissions, a bot only reaches below its own highest role: it can't edit, give
+        or delete roles at or above it, or kick, ban or change the roles of members ranked as high,
+        and it can't give out permissions it doesn't have itself. Move its role up in the guild's
+        settings to let it manage more.
+      </p>
+
+      <h2 id="bits">The bits</h2>
+      <div class="table"><table>
+        <tr><th>Bit</th><th>Discord's name</th><th>On Voicaw</th></tr>
+        <tr><td><code>1 &lt;&lt; 0</code></td><td>CREATE_INSTANT_INVITE</td><td>Create Invite</td></tr>
+        <tr><td><code>1 &lt;&lt; 1</code></td><td>KICK_MEMBERS</td><td>Kick Members</td></tr>
+        <tr><td><code>1 &lt;&lt; 2</code></td><td>BAN_MEMBERS</td><td>Ban Members</td></tr>
+        <tr><td><code>1 &lt;&lt; 3</code></td><td>ADMINISTRATOR</td><td>Administrator</td></tr>
+        <tr><td><code>1 &lt;&lt; 4</code></td><td>MANAGE_CHANNELS</td><td>Manage Channels</td></tr>
+        <tr><td><code>1 &lt;&lt; 5</code></td><td>MANAGE_GUILD</td><td>Manage Guild</td></tr>
+        <tr><td><code>1 &lt;&lt; 6</code></td><td>ADD_REACTIONS</td><td>Add Reactions</td></tr>
+        <tr><td><code>1 &lt;&lt; 7</code></td><td>VIEW_AUDIT_LOG</td><td>View Audit Log</td></tr>
+        <tr><td><code>1 &lt;&lt; 9</code></td><td>STREAM</td><td>Video (share your screen in voice channels)</td></tr>
+        <tr><td><code>1 &lt;&lt; 10</code></td><td>VIEW_CHANNEL</td><td>View Channel</td></tr>
+        <tr><td><code>1 &lt;&lt; 11</code></td><td>SEND_MESSAGES</td><td>Send Messages</td></tr>
+        <tr><td><code>1 &lt;&lt; 13</code></td><td>MANAGE_MESSAGES</td><td>Manage Messages</td></tr>
+        <tr><td><code>1 &lt;&lt; 17</code></td><td>MENTION_EVERYONE</td><td>Mention @everyone, @here and all roles</td></tr>
+        <tr><td><code>1 &lt;&lt; 20</code></td><td>CONNECT</td><td>Connect</td></tr>
+        <tr><td><code>1 &lt;&lt; 21</code></td><td>SPEAK</td><td>Speak</td></tr>
+        <tr><td><code>1 &lt;&lt; 28</code></td><td>MANAGE_ROLES</td><td>Manage Roles</td></tr>
+        <tr><td><code>1 &lt;&lt; 29</code></td><td>MANAGE_WEBHOOKS</td><td>Manage Webhooks</td></tr>
+        <tr><td><code>1 &lt;&lt; 30</code></td><td>MANAGE_GUILD_EXPRESSIONS</td><td>Manage Emoji</td></tr>
+        <tr><td><code>1 &lt;&lt; 35</code></td><td>CREATE_PUBLIC_THREADS</td><td>Create Threads</td></tr>
+        <tr><td><code>1 &lt;&lt; 38</code></td><td>SEND_MESSAGES_IN_THREADS</td><td>Send Messages in Threads</td></tr>
+        <tr><td><code>1 &lt;&lt; 51</code></td><td>PIN_MESSAGES</td><td>Pin Messages</td></tr>
+        <tr><td><code>1 &lt;&lt; 56</code></td><td>(Voicaw's own)</td><td>Edit Tasks, in list channels</td></tr>
+        <tr><td><code>1 &lt;&lt; 57</code></td><td>(Voicaw's own)</td><td>Create Documents, in document channels</td></tr>
+      </table></div>
+
+      <h2 id="implied">Bits that come with another</h2>
+      <p>
+        Voicaw has no separate permission for these, so Voicaw sends them set whenever the
+        permission they come with is. Libraries checking for them (discord.js's
+        <code>permissionsIn(channel).has('EmbedLinks')</code>) get the right answer.
+      </p>
+      <div class="table"><table>
+        <tr><th>Bit</th><th>Comes with</th></tr>
+        <tr><td>READ_MESSAGE_HISTORY (<code>1 &lt;&lt; 16</code>)</td><td>View Channel</td></tr>
+        <tr><td>EMBED_LINKS (<code>1 &lt;&lt; 14</code>), ATTACH_FILES (<code>1 &lt;&lt; 15</code>), USE_EXTERNAL_EMOJIS (<code>1 &lt;&lt; 18</code>), USE_APPLICATION_COMMANDS (<code>1 &lt;&lt; 31</code>)</td><td>Send Messages</td></tr>
+        <tr><td>USE_VAD (<code>1 &lt;&lt; 25</code>)</td><td>Speak</td></tr>
+        <tr><td>CREATE_GUILD_EXPRESSIONS (<code>1 &lt;&lt; 43</code>)</td><td>Manage Emoji</td></tr>
+      </table></div>
+      <p>
+        When you send permissions (a role, an overwrite, an invite link), only the bits in the
+        first table count. The ones that come with another, and Discord's bits Voicaw has no
+        meaning for (Priority Speaker, Manage Nicknames, Moderate Members…), are ignored.
+      </p>
+      <p>
+        Some permissions can't be set per channel (overwritten): Kick, Ban, Administrator,
+        Manage Channels, Manage Guild, Manage Roles, Manage Webhooks, View Audit Log, Manage Emoji,
+        Create Invite and Mention Everyone. Those bits are dropped from an overwrite.
+      </p>

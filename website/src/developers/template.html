@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}} · Voicaw bot API</title>
+<meta name="description" content="{{DESCRIPTION}}">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#6a52c9">
+<link rel="icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/style.css?v={{STYLE_VERSION}}">
+</head>
+<body class="docs-page">
+<nav class="top">
+  <a class="brand" href="/"><img src="/logo192.png" alt="" width="32" height="32"> Voicaw <span class="brand-sub">Developers</span></a>
+  <div class="top-links">
+    <a href="{{APP_URL}}/developers">Developer Portal</a>
+    <a class="button small" href="{{APP_URL}}">Open Voicaw</a>
+  </div>
+</nav>
+
+<div class="docs">
+  <details class="docs-nav" open>
+    <summary>Bot API docs</summary>
+    <nav aria-label="Bot API docs">
+      {{NAV}}
+    </nav>
+  </details>
+
+  <main class="docs-main">
+    <article class="docs-content">
+      <h1>{{TITLE}}</h1>
+{{CONTENT}}
+    </article>
+    <div class="docs-pager">{{PAGER}}</div>
+  </main>
+
+  {{TOC}}
+</div>
+
+<footer>
+  <a href="/">voicaw.com</a>
+  <a href="{{APP_URL}}">Open Voicaw</a>
+  <a href="{{APP_URL}}/developers">Developer Portal</a>
+</footer>
+<script>
+  // On a phone the menu starts closed (it's open for computers and without scripts).
+  if (matchMedia('(max-width: 860px)').matches) document.querySelector('.docs-nav').open = false;
+</script>
+</body>
+</html>

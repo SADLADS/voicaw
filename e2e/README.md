@@ -43,6 +43,7 @@ node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild p
 node e2e/replies.mjs [dir] # reply snippet: click jumps to the message (loads older history), flashes it like search/pins, phone tap
 node e2e/invites.mjs [dir] # invite embeds: channel and DM (load at once), Join Guild, Settings → Privacy off = Show first, phone
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
+node e2e/bots.mjs [dir]   # bots: Settings → Developer Portal (own page), new application, token once + reset (old refused), invite link from ticked permissions, authorise into a guild (bot role), phone
 node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, results, Jump into another channel, private channel, phone
 node e2e/days.mjs [dir]   # day dividers between days and above the first message (desktop + phone)
 node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertical scroll), back button, guild

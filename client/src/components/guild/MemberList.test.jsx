@@ -63,6 +63,23 @@ describe('MemberList', () => {
     expect(within(card).queryByRole('button', { name: 'Remove Admins' })).toBeNull();
   });
 
+  it("tags bots, offers no Message for them, and leaves a bot's own role alone", () => {
+    const botRole = { id: 5, name: 'Helper', color: null, position: 1, hoist: 0, permissions: 0, is_everyone: 0, bot_id: 6 };
+    const guild = { id: 5, name: 'G', owner: 1, roles: [...roles.slice(0, 2), botRole, ...roles.slice(2)], my_permissions: 32, my_role_ids: [3] };
+    const bot = { id: 6, username: 'helper#0420', display_name: 'Helper', bot: 1, joined_at: 1, role_ids: [5], status: 'online' };
+    render(<MemoryRouter><MemberList guild={guild} members={[...members, bot]} user={{ id: 2 }} /></MemoryRouter>);
+    expect(screen.getByText('BOT')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Helper', { selector: '.member-name' }));
+    const card = screen.getByRole('dialog', { name: 'Helper' });
+    expect(within(card).queryByRole('button', { name: 'Message' })).toBeNull();
+    expect(within(card).queryByRole('button', { name: 'Remove Helper' })).toBeNull();
+    // Nor offered to anyone else.
+    fireEvent.click(screen.getByText('newbie'));
+    const other = screen.getByRole('dialog', { name: 'newbie' });
+    fireEvent.click(within(other).getByRole('button', { name: 'Add role' }));
+    expect(within(within(other).getByRole('list', { name: 'Roles to add' })).getAllByRole('button').map((b) => b.textContent)).toEqual(['Regulars']);
+  });
+
   it('shows no management without the permissions', () => {
     renderList(0);
     fireEvent.click(screen.getByText('newbie'));

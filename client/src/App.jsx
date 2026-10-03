@@ -12,6 +12,8 @@ import Notes from './components/Notes.jsx';
 import GroupDm from './components/group/GroupDm.jsx';
 import GuildView from './components/guild/GuildView.jsx';
 import InvitePage from './components/guild/InvitePage.jsx';
+import DeveloperPortal from './components/developers/DeveloperPortal.jsx';
+import AuthorizePage from './components/developers/AuthorizePage.jsx';
 import api from './utils/api';
 import './assets/css/mobile.css';
 import './assets/css/desktop.css';
@@ -190,8 +192,16 @@ export default function App() {
               </Route>
             )}
 
-            {/* Logged out, an invite link asks you to log in first, then shows the invite. */}
+            {/* The developer portal and a bot's invite link: pages of their own (docs/bots.md). */}
+            {user && <Route path="/developers" element={<DeveloperPortal />} />}
+            {user && <Route path="/developers/applications/:appId" element={<DeveloperPortal />} />}
+            {user && <Route path="/oauth2/authorize" element={<AuthorizePage />} />}
+
+            {/* Logged out, an invite link asks you to log in first, then shows the invite (the
+                same for the developer portal and bots' invite links). */}
             {!user && <Route path="/invite/:code" element={<Login onLoginSuccess={setUser} />} />}
+            {!user && <Route path="/developers/*" element={<Login onLoginSuccess={setUser} />} />}
+            {!user && <Route path="/oauth2/authorize" element={<Login onLoginSuccess={setUser} />} />}
 
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

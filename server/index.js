@@ -11,14 +11,15 @@ const app = express();
 // nginx (on this machine) proxies every request, so the client's address is the last one it
 // adds to X-Forwarded-For; req.ip then is the visitor, not 127.0.0.1 (rate limits use it).
 app.set('trust proxy', 'loopback');
-// Webhook routes parse their own bodies (bigger JSON for pictures, forms, files); see
-// routes/webhooks.js. Saving a document (routes/guildDocuments.js, up to 100,000 characters)
-// takes more than express's default 100 kB (nginx takes 1 MB).
+// Webhook routes and the bot API (/api/v<n>/) parse their own bodies (bigger JSON for pictures,
+// forms, files; Discord's errors); see routes/webhooks.js and routes/botApi.js. Saving a
+// document (routes/guildDocuments.js, up to 100,000 characters) takes more than express's
+// default 100 kB (nginx takes 1 MB), as does a bot's picture (routes/applications.js).
 const json = express.json();
 const documentJson = express.json({ limit: '1mb' });
-const DOCUMENT_PATH = /^\/api\/(channels\/\d+\/documents|documents\/\d+)$/;
+const DOCUMENT_PATH = /^\/api\/(channels\/\d+\/documents|documents\/\d+|applications\/\d+)$/;
 app.use((req, res, next) => {
-  if (/\/webhooks(\/|$)/.test(req.path)) return next();
+  if (/\/webhooks(\/|$)/.test(req.path) || /^\/api\/v\d+\//.test(req.path)) return next();
   return (DOCUMENT_PATH.test(req.path) ? documentJson : json)(req, res, next);
 });
 
@@ -69,9 +70,16 @@ app.use('/api', require('./routes/uploads'));
 app.use('/api', require('./routes/avatars'));
 app.use('/api', require('./routes/gifs'));
 app.use('/api', require('./routes/admin'));
+app.use('/api', require('./routes/applications'));
+// Bots: Discord's API for bots (docs/bots.md), at Discord's versioned paths, and links to
+// pictures in Discord's CDN's shape.
+const botApi = require('./routes/botApi');
+app.use(['/api/v10', '/api/v9'], botApi);
+app.use('/api/cdn', botApi.cdn);
 // Discord's API also has versioned paths (/api/v10/webhooks/...); webhook clients use them.
 // (Longest first: Express hands a request to the first path that matches.)
 app.use(['/api/v10', '/api/v9', '/api/v8', '/api/v7', '/api/v6', '/api'], require('./routes/webhooks'));
+app.use(['/api/v10', '/api/v9'], botApi.notFound);
 
 // Must be registered after all routes: Express only routes errors to error-handling
 // middleware added later in the stack. (Express 5 also sends rejected async handlers here.)

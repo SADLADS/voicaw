@@ -693,3 +693,8 @@ router.use((err, req, res, next) => {
 
 module.exports = router;
 module.exports.FLAGS = FLAGS;
+// Shared with the bot API (routes/botApi.js), which takes the same message bodies.
+Object.assign(module.exports, {
+  fail, FormError, failForm, parseBody, readBody, cleanContent, cleanEmbeds, cleanAllowedMentions,
+  cleanFilename, cleanFlags, storeFiles, isWebUrl,
+});

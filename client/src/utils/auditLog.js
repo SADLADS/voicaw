@@ -9,7 +9,7 @@ import { t } from '../i18n';
 // The action filter's choices, and the actions each covers.
 export const AUDIT_FILTERS = [
   { key: 'messages', label: t('guildAdmin.auditLog.filters.messages'), actions: ['message_delete', 'message_pin', 'message_unpin', 'document_delete'] },
-  { key: 'members', label: t('guildAdmin.auditLog.filters.members'), actions: ['member_kick', 'member_ban_add', 'member_ban_remove', 'member_role_update', 'guild_owner_transfer'] },
+  { key: 'members', label: t('guildAdmin.auditLog.filters.members'), actions: ['member_kick', 'member_ban_add', 'member_ban_remove', 'member_role_update', 'guild_owner_transfer', 'bot_add'] },
   { key: 'roles', label: t('guildAdmin.auditLog.filters.roles'), actions: ['role_create', 'role_update', 'role_delete'] },
   {
     key: 'channels',
@@ -91,6 +91,7 @@ export function describeEntry(entry, names) {
     case 'member_kick': return sentence('memberKick', { actor, target: target() });
     case 'member_ban_add': return sentence('memberBan', { actor, target: target() });
     case 'member_ban_remove': return sentence('memberUnban', { actor, target: target() });
+    case 'bot_add': return sentence('botAdd', { actor, target: target() });
     case 'member_role_update': return sentence('memberRoleUpdate', { actor, target: target() });
     case 'guild_owner_transfer': return sentence('ownerTransfer', { actor, target: target() });
     case 'role_create': return sentence('roleCreate', { actor, role: named(d.name) });

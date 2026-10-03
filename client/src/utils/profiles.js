@@ -11,7 +11,8 @@ const listeners = new Set();
 let version = 0;
 
 // `deleted_at`: set once the account is deleted (server/accounts.js; shown as "Deleted User").
-const FIELDS = ['username', 'display_name', 'custom_status', 'bio', 'avatar', 'deleted_at'];
+// `bot`: a bot (server/bots.js), only ever met in guilds.
+const FIELDS = ['username', 'display_name', 'custom_status', 'bio', 'avatar', 'deleted_at', 'bot'];
 let avatarBase = '';
 
 // Called once the server config (with the object store's address) has loaded, which may be
@@ -67,6 +68,11 @@ export function displayName(id, fallback = '') {
 export function nameOf(user) {
   if (!user) return '';
   return displayName(user.id, user.display_name || user.username);
+}
+
+// Whether user `id` is a bot (server/bots.js): no DMs or calls with it.
+export function isBot(id) {
+  return Boolean(getProfile(id)?.bot);
 }
 
 // Whether `user`'s account has been deleted (its chats can be read, not answered).

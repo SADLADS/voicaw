@@ -1,0 +1,89 @@
+      <h2 id="tokens">Tokens</h2>
+      <p>Every REST request carries the token in the <code>Authorization</code> header:</p>
+      <pre><code>Authorization: Bot &lt;token&gt;</code></pre>
+      <p>
+        A token looks like Discord's: three parts separated by dots, the first being the bot's id
+        in base64. A missing or wrong token gets <code>401</code> with
+        <code>{ "message": "401: Unauthorized", "code": 0 }</code>. The gateway takes the token
+        in Identify, with or without <code>Bot </code> in front.
+      </p>
+      <p>
+        <code>GET /gateway</code> is the only endpoint that works without a token. There are no
+        user tokens or OAuth2 bearer tokens: the bot API is for bots only.
+      </p>
+
+      <h2 id="rate-limits">Rate limits</h2>
+      <p>Each bot may make <strong>50 requests a second</strong> in all. On top of that, routes have their own limits, counted per bot and per channel or guild:</p>
+      <div class="table"><table>
+        <tr><th>Route</th><th>Limit</th></tr>
+        <tr><td>Send a message</td><td>5 per 5 s, per channel</td></tr>
+        <tr><td>Edit a message</td><td>5 per 5 s, per channel</td></tr>
+        <tr><td>Delete a message</td><td>5 per second, per channel</td></tr>
+        <tr><td>Bulk delete</td><td>1 per second, per channel</td></tr>
+        <tr><td>Get messages</td><td>10 per second, per channel</td></tr>
+        <tr><td>Add or remove reactions</td><td>4 per second, per channel</td></tr>
+        <tr><td>Pin or unpin</td><td>5 per 5 s, per channel</td></tr>
+        <tr><td>Typing</td><td>5 per 5 s, per channel</td></tr>
+        <tr><td>Start a thread</td><td>5 per 5 s, per channel</td></tr>
+        <tr><td>Create an invite</td><td>5 per 5 s, per channel</td></tr>
+        <tr><td>Edit or delete a channel</td><td>5 per 10 s, per channel</td></tr>
+        <tr><td>Set or remove a permission overwrite</td><td>10 per 10 s, per channel</td></tr>
+        <tr><td>Create a channel</td><td>5 per 5 s, per guild</td></tr>
+        <tr><td>Create, edit or move roles</td><td>5 per 5 s, per guild (each)</td></tr>
+        <tr><td>Edit a member, add or remove a member's role</td><td>10 per 10 s, per guild (each)</td></tr>
+        <tr><td>Kick</td><td>5 per 5 s, per guild</td></tr>
+        <tr><td>Ban or unban</td><td>5 per 5 s, per guild</td></tr>
+        <tr><td>Change the bot's name or picture</td><td>2 per hour</td></tr>
+      </table></div>
+      <p>
+        Limited routes answer with Discord's headers, so libraries pace themselves:
+        <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>,
+        <code>X-RateLimit-Reset</code>, <code>X-RateLimit-Reset-After</code> and
+        <code>X-RateLimit-Bucket</code>. Over a limit, you get <code>429</code> with a
+        <code>Retry-After</code> header and:
+      </p>
+      <pre><code>{ "message": "You are being rate limited.", "retry_after": 1.234, "global": false, "code": 0 }</code></pre>
+      <p>
+        <code>X-RateLimit-Scope</code> is <code>user</code> for a route's limit, or
+        <code>global</code> (with <code>X-RateLimit-Global: true</code>) for the 50 a second. The
+        gateway has its own limit: see <a href="/developers/docs/gateway/">Gateway</a>.
+      </p>
+
+      <h2 id="errors">Errors</h2>
+      <p>Errors are Discord's shape (plus <code>error</code>, the same text):</p>
+      <pre><code>{ "message": "Missing Permissions", "code": 50013 }
+
+{
+  "message": "Invalid Form Body",
+  "code": 50035,
+  "errors": { "embeds": { "0": { "title": { "_errors": [{ "code": "BASE_TYPE_MAX_LENGTH", "message": "Must be 256 or fewer in length." }] } } } }
+}</code></pre>
+      <p>The codes you can get:</p>
+      <div class="table"><table>
+        <tr><th>Code</th><th>Meaning</th></tr>
+        <tr><td><code>0</code></td><td>Unauthorized (401), Not Found for an unknown route (404), or rate limited (429)</td></tr>
+        <tr><td><code>10003</code></td><td>Unknown Channel (also a channel the bot can't see)</td></tr>
+        <tr><td><code>10004</code></td><td>Unknown Guild (also a guild the bot isn't in)</td></tr>
+        <tr><td><code>10007</code></td><td>Unknown Member</td></tr>
+        <tr><td><code>10008</code></td><td>Unknown Message</td></tr>
+        <tr><td><code>10011</code></td><td>Unknown Role</td></tr>
+        <tr><td><code>10013</code></td><td>Unknown User (also anyone the bot shares no guild with)</td></tr>
+        <tr><td><code>10014</code></td><td>Unknown Emoji</td></tr>
+        <tr><td><code>10026</code></td><td>Unknown Ban</td></tr>
+        <tr><td><code>30003</code></td><td>Too many pinned messages (250 per channel)</td></tr>
+        <tr><td><code>30010</code></td><td>Too many reactions (20 per bot per message)</td></tr>
+        <tr><td><code>40005</code></td><td>Request too large (files: 10 at most, 25 MB together; JSON: 1 MB)</td></tr>
+        <tr><td><code>50005</code></td><td>Cannot edit a message authored by another user</td></tr>
+        <tr><td><code>50006</code></td><td>Cannot send an empty message</td></tr>
+        <tr><td><code>50007</code></td><td>Cannot send messages to this user (bots can't have DMs)</td></tr>
+        <tr><td><code>50013</code></td><td>Missing Permissions, or ranked too low (roles and members above the bot's highest role)</td></tr>
+        <tr><td><code>50021</code></td><td>Cannot execute action on a system message</td></tr>
+        <tr><td><code>50024</code></td><td>Cannot execute action on this channel type</td></tr>
+        <tr><td><code>50035</code></td><td>Invalid Form Body (with <code>errors</code> saying which field), or a request Voicaw refuses</td></tr>
+        <tr><td><code>50109</code></td><td>The request body isn't valid JSON</td></tr>
+        <tr><td><code>160004</code></td><td>That message already has a thread</td></tr>
+      </table></div>
+      <p>
+        A channel, guild or user the bot isn't allowed to see answers as if it didn't exist (404),
+        not with Missing Access.
+      </p>
