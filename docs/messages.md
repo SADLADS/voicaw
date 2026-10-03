@@ -60,7 +60,7 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   `:shortcode:` turns into the emoji as you type. `remark-emoji` still renders any leftover
   `:shortcode:` text.
 - Mobile: the picker is `docked` in the on-screen keyboard's place, at its height
-  (`utils/keyboardHeight.js` measures it via `visualViewport` and remembers it per device). It and
+  (`utils/keyboardHeight.js` measures it via `visualViewport`, see On-screen keyboard in `docs/client.md`, and remembers it per device). It and
   the keyboard are never open together: opening it blurs the message box, and the button (⌨️ while
   open) or focusing the message box swaps back. Picks don't close it. It's a bottom sheet
   (`hooks/useSheetDrag.js`): swiping it up (anywhere: while docked the grid doesn't scroll, the

@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react';
-
-// Anything shorter than the window by more than this is the on-screen keyboard (smaller
-// differences are browser toolbars).
-const KEYBOARD_MIN_HEIGHT = 120;
+import { keyboardOpen } from './keyboardViewport';
 
 // The part of the screen the user can actually see: shrinks when the on-screen keyboard is
 // open. `offsetTop` is how far the browser scrolled the page to keep a focused input visible
@@ -14,7 +11,7 @@ function read() {
   return {
     height,
     offsetTop: viewport ? viewport.offsetTop : 0,
-    keyboardOpen: window.innerHeight - height > KEYBOARD_MIN_HEIGHT,
+    keyboardOpen: keyboardOpen(),
   };
 }
 

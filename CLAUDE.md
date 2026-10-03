@@ -153,7 +153,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   `utils/dateFormat.js`, never `toLocaleString`. CSS uses the `--vc-*` colour tokens (both
   themes), not literal colours; scrollbars are styled only in `voicaw.css`; desktop and phone
   layouts are `desktop.css` / `mobile.css`; new sidebar/header UI uses `--vc-sidebar-width` and
-  `--vc-header-height`. react-markdown's `components` must be a stable object, and memoised
+  `--vc-header-height`, and anything screen-high `--vc-app-height` (never 100vh/svh: it
+  ends at a phone's keyboard). react-markdown's `components` must be a stable object, and memoised
   message parts take only stable props. New settings are a section in `Settings.jsx`. The app's
   text is British English, and every string shown goes through `t('area.key')` with its
   English in `i18n/en-GB/<area>.json` (see Translations in `docs/client.md`; lint fails on

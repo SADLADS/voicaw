@@ -974,7 +974,7 @@ img.guild-icon {
 .vc-dialog {
   width: 100%;
   max-width: 460px;
-  max-height: calc(100svh - 32px);
+  max-height: calc(var(--vc-app-height) - 32px);
   display: flex;
   flex-direction: column;
   border-radius: 10px;
