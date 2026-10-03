@@ -1,0 +1,28 @@
+{
+  "common": {
+    "add": "Add",
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "copied": "Copied",
+    "copy": "Copy",
+    "create": "Create",
+    "delete": "Delete",
+    "done": "Done",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "members": "Members",
+    "mute": "Mute",
+    "open": "Open",
+    "pin": "Pin",
+    "remove": "Remove",
+    "reply": "Reply",
+    "reset": "Reset",
+    "save": "Save",
+    "saveChanges": "Save changes",
+    "search": "Search",
+    "settings": "Settings",
+    "unmute": "Unmute",
+    "unpin": "Unpin"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "chat": {
+    "contactKey": {
+      "thisPerson": "This person",
+      "invalidTitle": "{{name}}'s encryption keys can't be verified.",
+      "invalidBody": "The server sent keys for {{name}} that aren't properly signed, so they could belong to someone else. Messages can't be sent or read in this conversation until that's fixed.",
+      "changedTitle": "{{name}}'s security key has changed.",
+      "changedBody": "This shouldn't normally happen. It can mean someone is trying to intercept your messages, or that the server's data was reset. Check with {{name}} another way (in person or on a call) before continuing.",
+      "accept": "Accept the new key"
+    }
+  }
+}
