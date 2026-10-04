@@ -176,3 +176,32 @@
 .mobile-mode .bot-select-option {
     min-height: 44px;
 }
+
+/* Watch Together: the player (16:9 and its controls) above the queue. Small in a corner, it
+   sits under the header, clear of the message box. */
+.mobile-mode .watch-party-layout {
+    flex-direction: column;
+}
+
+.mobile-mode .watch-party-slot {
+    flex: none;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    padding-bottom: 44px;
+    box-sizing: content-box;
+}
+
+.mobile-mode .watch-party-empty {
+    flex: none;
+}
+
+.mobile-mode .watch-party-side {
+    flex: 1;
+}
+
+.mobile-mode .watch-party-player.mini {
+    top: calc(var(--vc-header-height) + 8px + env(safe-area-inset-top));
+    right: 8px;
+    bottom: auto;
+    width: 200px;
+}

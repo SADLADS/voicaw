@@ -79,11 +79,13 @@ async function guildVoiceFor(guildId, userId) {
 }
 
 // Tells everyone who can see the channel that `userId` is now in it with `state`, or left (null).
+// A Watch Together party (watchParty.js) ends a while after its channel empties.
 async function announce(guildId, channelId, userId, state) {
   await sendToChannel(
     { id: channelId, guild_id: guildId },
     { type: 'guild_voice_state', guildId, channelId, userId, state: state && publicState(state) }
   );
+  require('./watchParty').voiceChanged(channelId, [...states.values()].some((s) => s.channelId === channelId));
 }
 
 function logLiveKitError(what, err) {
@@ -317,8 +319,10 @@ async function restoreFromLiveKit() {
   }
 }
 
-// Everyone in voice in the guild is disconnected (the guild is being deleted).
+// Everyone in voice in the guild is disconnected (the guild is being deleted), and its Watch
+// Together parties end.
 async function disconnectGuild(guildId) {
+  require('./watchParty').dropGuild(guildId);
   for (const state of [...states.values()]) {
     if (state.guildId !== guildId) continue;
     states.delete(state.userId);

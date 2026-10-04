@@ -12,6 +12,13 @@ vi.mock('../../utils/ws-client', () => ({
     guildListeners.list.push(cb);
     return () => { guildListeners.list = guildListeners.list.filter((x) => x !== cb); };
   },
+  onConnectionState: () => () => {},
+}));
+
+// Watch Together asks the API for each voice channel's party: none here.
+vi.mock('../../voice/watchParty', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useWatchParty: () => null,
 }));
 
 vi.mock('../../services/guildService', () => ({

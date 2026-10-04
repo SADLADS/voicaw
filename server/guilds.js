@@ -130,7 +130,8 @@ function isPrivate(member, overrides) {
 
 // The guild as `member` sees it: its roles (everyone sees every role, as in Discord), their own
 // `my_permissions` and `my_role_ids`, and the categories and channels they can see, in order, each channel with
-// `my_permissions`, `private` and `nsfw` (and a voice channel with `voice`, who's in it), and
+// `my_permissions`, `private` and `nsfw` (and a voice channel with `voice`, who's in it, and
+// `watch_party`, what its Watch Together is playing), and
 // `threads`: the active threads in those channels (threads.js, with `joined` and `my_permissions`). Categories left empty by hidden channels are hidden too,
 // except from people who manage channels. What GET /guilds/:id returns and `guild_update` sends.
 async function layoutFor(member, overridesByChannel) {
@@ -150,8 +151,12 @@ async function layoutFor(member, overridesByChannel) {
     const permissions = channelPermissions(member, member.userId, overrides);
     if (!has(permissions, PERMISSIONS.VIEW_CHANNEL)) continue;
     const entry = { ...channel, nsfw: Boolean(channel.nsfw), my_permissions: permissions, private: isPrivate(member, overrides) };
-    // Who's in it right now (voice.js; required here, since it requires this file).
-    if (channel.type === 'voice') entry.voice = require('./voice').membersOf(channel.id);
+    // Who's in it right now (voice.js; required here, since it requires this file), and what
+    // its Watch Together is playing (watchParty.js; null: nothing).
+    if (channel.type === 'voice') {
+      entry.voice = require('./voice').membersOf(channel.id);
+      entry.watch_party = require('./watchParty').summaryOf(channel.id);
+    }
     channels.push(entry);
   }
   const managesChannels = has(member.permissions, PERMISSIONS.MANAGE_CHANNELS);

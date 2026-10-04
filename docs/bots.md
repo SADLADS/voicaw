@@ -84,8 +84,9 @@ Unknown paths get Discord's 404.
 - **Permissions** are Discord's bits as decimal strings. Each of ours stands for one; Discord's
   that we don't have are implied by the nearest of ours (Read Message History by View Channel;
   Embed Links, Attach Files, Use External Emoji and Use Application Commands by Send Messages;
-  Use Voice Activity by Speak; Create Guild Expressions by Manage Emoji). Edit Tasks and Create
-  Documents are ours only (bits 56 and 57). Coming in, only the bits that stand for ours count.
+  Use Voice Activity by Speak; Create Guild Expressions by Manage Emoji). Edit Tasks, Create
+  Documents, and Watch Together's Queue Videos, Manage Queue and Control Playback are ours only
+  (bits 56 to 60). Coming in, only the bits that stand for ours count.
   The client has a copy of the mapping for the portal's checkboxes (a test checks they match).
 - **Messages**: Discord's message object, with `member` (gateway), `mentions` (users named in
   the text), `referenced_message` for replies, reactions summed per emoji (`me` for the bot),

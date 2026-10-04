@@ -94,7 +94,10 @@
       "SPEAK": "Speak",
       "STREAM": "Video",
       "VOICAW_EDIT_TASKS": "Edit Tasks",
-      "VOICAW_CREATE_DOCUMENTS": "Create Documents"
+      "VOICAW_CREATE_DOCUMENTS": "Create Documents",
+      "VOICAW_QUEUE_VIDEOS": "Queue Videos",
+      "VOICAW_MANAGE_QUEUE": "Manage Queue",
+      "VOICAW_CONTROL_PLAYBACK": "Control Playback"
     },
     "authorize": {
       "title": "Add a bot",

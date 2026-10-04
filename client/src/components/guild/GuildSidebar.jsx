@@ -11,6 +11,7 @@ import {
   faGear,
   faPlus,
   faRightFromBracket,
+  faTv,
   faUserPlus,
   faXmark,
 } from '@fortawesome/free-solid-svg-icons';
@@ -243,6 +244,16 @@ export default function GuildSidebar({ guild, user }) {
           </button>
         )}
       </li>
+      {channel.watch_party && (
+        <li className="guild-channel-watch" title={channel.watch_party.title ?? undefined}>
+          <FontAwesomeIcon icon={faTv} className="guild-channel-watch-icon" aria-hidden="true" />
+          <span className="guild-channel-watch-title">
+            {channel.watch_party.playing
+              ? t('voice.watchParty.sidebarPlaying', { title: channel.watch_party.title ?? t('voice.watchParty.untitled') })
+              : t('voice.watchParty.sidebarPaused', { title: channel.watch_party.title ?? t('voice.watchParty.untitled') })}
+          </span>
+        </li>
+      )}
       {channel.voice?.length > 0 && (
         <li className="guild-channel-voice">
           <VoiceChannelMembers members={channel.voice} speaking={channel.id === inVoice ? speaking : new Set()} inChannel={channel.id === inVoice} />

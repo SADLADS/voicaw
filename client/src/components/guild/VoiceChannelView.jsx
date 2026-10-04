@@ -1,7 +1,7 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import '../../assets/css/voice.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPhoneSlash, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
+import { faPhoneSlash, faTv, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import { ConfigContext, InteractionContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
 import { useVolumeMenu } from '../../hooks/useVolumeMenu';
@@ -14,6 +14,8 @@ import VoiceControls from '../voice/VoiceControls';
 import ScreenShareButton from '../voice/ScreenShareButton';
 import StreamView from '../voice/StreamView';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
+import WatchPartyPanel from '../voice/WatchPartyPanel';
+import { useWatchParty } from '../../voice/watchParty';
 import { HeadphonesIcon, MicIcon } from '../voice/VoiceIcons';
 import { displayName, useProfiles } from '../../utils/profiles';
 import { t } from '../../i18n';
@@ -24,7 +26,9 @@ import { t } from '../../i18n';
 // joined. Someone sharing their screen is marked Live; once you're in, Watch Stream shows it
 // big above the tiles (only watched streams are downloaded), or a note while it's popped out
 // into its own window (StreamPopout). Clicking someone else's tile
-// while you're in sets how loud they are for you.
+// while you're in sets how loud they are for you. Watch Together (WatchPartyPanel) takes the
+// page once you're in and open it, or while a video is playing; the people become a row.
+// Outside, a note says what's playing.
 export default function VoiceChannelView({ guild, channel, nameColors }) {
   useProfiles();
   const { voiceEnabled } = useContext(ConfigContext);
@@ -39,6 +43,11 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
   const watched = here && voice.watching != null ? members.find((m) => String(m.user_id) === voice.watching) : null;
   const poppedOut = useStreamWindow() != null;
   const watchedOwn = voice.watching === voice.identity;
+  const party = useWatchParty(guild.id, channel.id);
+  const [watchOpen, setWatchOpen] = useState(false);
+  const streamShown = Boolean(watched && !poppedOut);
+  // A watched stream takes the page; the video then plays in its corner player.
+  const showWatchParty = here && Boolean(watchOpen || party?.current) && !streamShown;
 
   let footer;
   if (here) {
@@ -46,6 +55,17 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
       <div className="voice-view-controls">
         <VoiceControls className="voice-view-button" />
         <ScreenShareButton className="voice-view-button" />
+        <button
+          type="button"
+          className={`voice-view-button watch-party-toggle${showWatchParty ? ' active' : ''}`}
+          aria-label={t('voice.watchParty.title')}
+          aria-pressed={showWatchParty}
+          title={t('voice.watchParty.title')}
+          disabled={Boolean(party?.current) && !streamShown}
+          onClick={() => (streamShown ? watchStream(null) : setWatchOpen((open) => !open))}
+        >
+          <FontAwesomeIcon icon={faTv} fixedWidth />
+        </button>
         <button type="button" className="voice-view-button leave" aria-label={t('guilds.voice.disconnect')} title={t('guilds.voice.disconnect')} onClick={leaveVoice}>
           <FontAwesomeIcon icon={faPhoneSlash} fixedWidth />
         </button>
@@ -64,7 +84,15 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
   }
 
   return (
-    <div className={`voice-view${watched && !poppedOut ? ' watching' : ''}`}>
+    <div className={`voice-view${streamShown || showWatchParty ? ' watching' : ''}`}>
+      {showWatchParty && (
+        <WatchPartyPanel guild={guild} channel={channel} myId={Number(voice.identity)} onClose={() => setWatchOpen(false)} />
+      )}
+      {!here && party?.current && (
+        <p className="watch-party-banner">
+          <FontAwesomeIcon icon={faTv} /> {t('voice.watchParty.watchingNow', { title: party.current.title ?? t('voice.watchParty.untitled') })}
+        </p>
+      )}
       {watched && !poppedOut && (
         <StreamView
           key={watched.user_id}

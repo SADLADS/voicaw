@@ -278,6 +278,19 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
             return { ...prev, [event.guildId]: { ...guild, channels } };
           });
           break;
+        // Watch Together started, changed or ended (null) in a voice channel: what the channel
+        // list shows under it (voice/watchParty.js keeps the whole party).
+        case 'guild_watch_party':
+          setLayouts((prev) => {
+            const guild = prev[event.guildId];
+            if (!guild) return prev;
+            const summary = event.party?.current
+              ? { video_id: event.party.current.video_id, title: event.party.current.title, playing: event.party.playing }
+              : null;
+            const channels = guild.channels.map((c) => (c.id === event.channelId ? { ...c, watch_party: summary } : c));
+            return { ...prev, [event.guildId]: { ...guild, channels } };
+          });
+          break;
         case 'guild_message_new': {
           const { message } = event;
           if (message.sender_id === userId || isOnScreen(message.channel_id) || isUnjoinedThread(event.guildId, message.channel_id)) break;

@@ -58,6 +58,7 @@ app.use('/api', require('./routes/guildTasks'));
 app.use('/api', require('./routes/guildDocuments'));
 app.use('/api', require('./routes/auditLog'));
 app.use('/api', require('./routes/voice'));
+app.use('/api', require('./routes/watchParty'));
 app.use('/api', require('./routes/calls'));
 app.use('/api', require('./routes/groupDms'));
 app.use('/api', require('./routes/conversationSettings'));

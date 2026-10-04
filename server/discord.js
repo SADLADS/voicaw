@@ -46,6 +46,9 @@ const PERMISSION_BITS = [
   [P.PIN_MESSAGES, [51]],
   [P.EDIT_TASKS, [56]], // ours only
   [P.CREATE_DOCUMENTS, [57]], // ours only
+  [P.QUEUE_VIDEOS, [58]], // ours only
+  [P.MANAGE_QUEUE, [59]], // ours only
+  [P.CONTROL_PLAYBACK, [60]], // ours only
 ];
 const DISCORD_PERMISSIONS = Object.fromEntries([
   ['CREATE_INSTANT_INVITE', 0], ['KICK_MEMBERS', 1], ['BAN_MEMBERS', 2], ['ADMINISTRATOR', 3], ['MANAGE_CHANNELS', 4],
@@ -55,6 +58,7 @@ const DISCORD_PERMISSIONS = Object.fromEntries([
   ['MANAGE_ROLES', 28], ['MANAGE_WEBHOOKS', 29], ['MANAGE_GUILD_EXPRESSIONS', 30], ['USE_APPLICATION_COMMANDS', 31],
   ['CREATE_PUBLIC_THREADS', 35], ['SEND_MESSAGES_IN_THREADS', 38], ['CREATE_GUILD_EXPRESSIONS', 43], ['PIN_MESSAGES', 51],
   ['VOICAW_EDIT_TASKS', 56], ['VOICAW_CREATE_DOCUMENTS', 57],
+  ['VOICAW_QUEUE_VIDEOS', 58], ['VOICAW_MANAGE_QUEUE', 59], ['VOICAW_CONTROL_PLAYBACK', 60],
 ].map(([name, bit]) => [name, 1n << BigInt(bit)]));
 
 function toDiscordPermissions(bits) {

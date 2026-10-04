@@ -835,3 +835,374 @@ body.stream-window {
 [data-volume-trigger] {
   cursor: pointer;
 }
+
+/* ---- Watch Together ---- */
+
+/* The page: the player's place and the queue (side by side on a computer, desktop.css; one
+   under the other on a phone, mobile.css). The people become a row under it (.watching). */
+.watch-party-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  container-type: inline-size;
+}
+
+.watch-party-layout {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+  padding: 12px 12px 0;
+}
+
+/* WatchPartyPlayer (in Layout) draws itself over this. */
+.watch-party-slot {
+  min-width: 0;
+  border-radius: 8px;
+  background-color: var(--vc-bg-subtle);
+}
+
+.watch-party-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg-muted);
+  text-align: center;
+}
+
+.watch-party-empty p {
+  margin: 0;
+  max-width: 320px;
+}
+
+.watch-party-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.watch-party-side-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.watch-party-side-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.watch-party-add {
+  display: flex;
+  gap: 6px;
+}
+
+.watch-party-add input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--vc-border-light);
+  border-radius: 6px;
+  background-color: var(--vc-bg-base);
+  color: var(--vc-fg);
+}
+
+.watch-party-primary {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 6px;
+  background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.watch-party-primary:hover:not(:disabled) {
+  background-color: var(--vc-accent-hover);
+}
+
+.watch-party-primary:disabled {
+  opacity: 0.6;
+}
+
+.watch-party-error {
+  margin: 0;
+  color: var(--vc-danger-text);
+}
+
+.watch-party-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--vc-fg-muted);
+}
+
+.watch-party-note {
+  margin: 0;
+  color: var(--vc-fg-muted);
+}
+
+.watch-party-now {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background-color: var(--vc-accent-soft);
+}
+
+.watch-party-queue {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.watch-party-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background-color: var(--vc-bg-elevated);
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.watch-party-item.dragging {
+  position: relative;
+  z-index: 1;
+  box-shadow: var(--vc-shadow);
+  opacity: 0.9;
+}
+
+.watch-party-item.drop-target {
+  box-shadow: inset 0 2px 0 var(--vc-accent);
+}
+
+.watch-party-grip {
+  color: var(--vc-fg-muted);
+  cursor: grab;
+}
+
+.watch-party-item-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.watch-party-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.watch-party-item-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: var(--vc-fg-muted);
+}
+
+.watch-party-icon-button {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+}
+
+.watch-party-icon-button:hover:not(:disabled) {
+  background-color: var(--vc-bg-hover);
+}
+
+.watch-party-icon-button:disabled {
+  opacity: 0.5;
+}
+
+.voice-view-button.watch-party-toggle.active {
+  color: var(--vc-online);
+}
+
+.watch-party-banner {
+  margin: 12px 12px 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: var(--vc-accent-soft);
+}
+
+/* Under a voice channel in the channel list: what it's watching. */
+.guild-channel-watch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 2px 30px;
+  font-size: 0.8rem;
+  color: var(--vc-fg-muted);
+  list-style: none;
+}
+
+.guild-channel-watch-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The player: fixed, over the slot (docked: placed by WatchPartyPlayer) or small in a corner. */
+.watch-party-player {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #000;
+  color: #fff;
+}
+
+.watch-party-player.mini {
+  right: 16px;
+  bottom: 16px;
+  width: 320px;
+  box-shadow: var(--vc-popup-shadow);
+  background-color: var(--vc-popup);
+  color: var(--vc-fg);
+}
+
+.watch-party-mini-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 10px;
+}
+
+.watch-party-mini-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.watch-party-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background-color: #000;
+}
+
+.watch-party-player.mini .watch-party-stage {
+  flex: none;
+  aspect-ratio: 16 / 9;
+}
+
+.watch-party-stage iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.watch-party-shield {
+  position: absolute;
+  inset: 0;
+}
+
+.watch-party-blocked {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: max-content;
+  height: max-content;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 6px;
+  background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
+  font-weight: 700;
+}
+
+.watch-party-consent {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+  color: #fff;
+}
+
+.watch-party-consent p {
+  margin: 0;
+  max-width: 360px;
+}
+
+.watch-party-controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+  padding: 0 6px;
+}
+
+.watch-party-time {
+  flex-shrink: 0;
+  padding: 0 4px;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.watch-party-seek {
+  flex: 1;
+  min-width: 40px;
+  accent-color: var(--vc-accent);
+}
+
+.watch-party-spacer {
+  flex: 1;
+}
+
+.watch-party-paused {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.watch-party-volume {
+  width: 80px;
+  accent-color: var(--vc-accent);
+}
+
+.watch-party-player.fullscreen {
+  border-radius: 0;
+}

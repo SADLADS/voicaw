@@ -140,12 +140,14 @@ has a star on each for favourites. The last tab is remembered (`localStorage emo
 
 ## YouTube links
 
-A YouTube watch, share or shorts link (`utils/youtube.js`) gets a player under the message
+A YouTube watch, share, shorts, live or embed link (`utils/youtube.js`; music.youtube.com too) gets a player under the message
 (`UrlPreviews.jsx`), from youtube-nocookie.com, which sets no cookies until it's played but
 still tells YouTube the viewer's IP address and the video, in encrypted chats too. With
 Settings → Privacy's "Show YouTube videos straight away" (`youtubeEmbeds`, on by default) off,
 a placeholder with the link and Play stands in (no thumbnail, which would come from YouTube
 too); Play loads the player autoplaying, and it stays loaded until the app reloads.
+Voice channels can watch YouTube videos together (Watch Together, see Voice channels in
+`docs/voice-and-calls.md`).
 The desktop app adds the Referer YouTube requires (`https://app.voicaw.com/`), since its
 `voicaw://` pages send none (`electron/youtube.js`, see `docs/desktop-and-site.md`).
 

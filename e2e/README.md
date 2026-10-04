@@ -19,6 +19,7 @@ node e2e/emojisheets.mjs [dir] # picker sprite sheets: no per-emoji SVGs, time t
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
 node e2e/railvoice.mjs [dir] # guild rail speaker: green on yours, grey on others' (guild not opened, after reload, live), phone, light, above a mention badge, gone on leave
 node e2e/rejoin.mjs [dir] # voice after a lost connection: Reconnecting, rejoins by itself, phone waits until back in view, leave stays left
+node e2e/watchparty.mjs [dir] # Watch Together (real YouTube, needs the internet): in step (measured in YouTube's frames), pause/seek/skip, drag the queue (Manage Queue), remove own only, moves on when a video ends, corner player on another page, channel list line, 16:9 narrow/wide, phone, ends with the last
 node e2e/screenshare.mjs [dir] # screen share: own preview, Live, no download until Watch, phone watches, Video taken away
 node e2e/streampopout.mjs [dir] # stream pop-out: own window (styled, theme follows), plays on other pages, full screen, close/Bring back return it, Stop watching/stream end/leave close it, phone has none
 node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mute, decline, phone

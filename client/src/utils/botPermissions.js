@@ -51,6 +51,9 @@ export const BOT_PERMISSION_GROUPS = [
     permissions: [
       { name: 'VOICAW_EDIT_TASKS', bit: 56, ours: 'EDIT_TASKS' },
       { name: 'VOICAW_CREATE_DOCUMENTS', bit: 57, ours: 'CREATE_DOCUMENTS' },
+      { name: 'VOICAW_QUEUE_VIDEOS', bit: 58, ours: 'QUEUE_VIDEOS' },
+      { name: 'VOICAW_MANAGE_QUEUE', bit: 59, ours: 'MANAGE_QUEUE' },
+      { name: 'VOICAW_CONTROL_PLAYBACK', bit: 60, ours: 'CONTROL_PLAYBACK' },
     ],
   },
 ];

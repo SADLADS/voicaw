@@ -132,7 +132,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - `docs/guilds.md`: guilds (permissions, overrides, audit log, invites, custom emoji, channel
   menus, NSFW channels), threads, list channels, document channels, guild search, webhooks (Discord's API).
 - `docs/voice-and-calls.md`: voice channels (LiveKit, reconnecting, screen sharing, microphone
-  chain, noise suppression, voice settings, playback and per-user volume), DM and group calls.
+  chain, noise suppression, voice settings, playback and per-user volume, Watch Together), DM and
+  group calls.
 - `docs/group-dms.md`: group DMs (membership log, epochs, signing).
 - `docs/messages.md`: emoji, message markdown, GIFs, YouTube links, polls, mentions, pinned messages, drafts, the
   message list and history loading.
@@ -220,6 +221,11 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   (offset by 2^40). Commands and components (same day): buttons, selects and forms, slash and
   context-menu commands, interactions over the gateway only (no outgoing requests to bots'
   URLs), ephemeral replies kept only in memory and the person's open app, as Discord does.
+- **Watch Together** (built 2026-10-04, see `docs/voice-and-calls.md`): YouTube watch parties in
+  guild voice channels, the server keeping the queue and the clock in memory, clients following
+  it. YouTube's iframe API script is deliberately not loaded (it would run YouTube's code next to
+  the keys): `voice/youtubeEmbed.js` speaks the embed's messages itself. Permissions Queue
+  Videos and Control Playback (defaults) and Manage Queue (not).
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

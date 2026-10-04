@@ -823,6 +823,12 @@ const MIGRATIONS = [
     const bits = PERMISSIONS.CREATE_THREADS | PERMISSIONS.SEND_MESSAGES_IN_THREADS;
     sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${bits} WHERE is_everyone = 1`);
   },
+  // 11. Watch Together: @everyone gets Queue Videos and Control Playback, as in new guilds
+  // (Manage Queue isn't a default).
+  () => {
+    const bits = PERMISSIONS.QUEUE_VIDEOS | PERMISSIONS.CONTROL_PLAYBACK;
+    sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${bits} WHERE is_everyone = 1`);
+  },
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');

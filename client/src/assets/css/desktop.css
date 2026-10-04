@@ -8,3 +8,41 @@
 .desktop-mode .guild-channel-list .voice-members {
   padding-left: 30px;
 }
+
+/* Watch Together: the player's place (16:9 and its controls bar) beside the queue, or above
+   it when the page is narrow (the member list open on a small screen). */
+.desktop-mode .watch-party-slot {
+  flex: 1;
+  align-self: flex-start;
+  aspect-ratio: 16 / 9;
+  max-height: calc(100% - 44px);
+  padding-bottom: 44px;
+  box-sizing: content-box;
+}
+
+.desktop-mode .watch-party-empty {
+  flex: 1;
+}
+
+.desktop-mode .watch-party-side {
+  flex: 0 0 300px;
+}
+
+@container (max-width: 720px) {
+  .desktop-mode .watch-party-layout {
+    flex-direction: column;
+  }
+
+  .desktop-mode .watch-party-layout > .watch-party-slot,
+  .desktop-mode .watch-party-layout > .watch-party-empty {
+    flex: none;
+    align-self: center;
+    width: 100%;
+    max-width: calc((var(--vc-app-height) - 420px) * 16 / 9);
+    max-height: none;
+  }
+
+  .desktop-mode .watch-party-layout > .watch-party-side {
+    flex: 1;
+  }
+}

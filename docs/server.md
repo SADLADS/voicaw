@@ -33,6 +33,8 @@ unexpected errors. The rest:
   (see Spellcheck dictionary in `docs/auth-and-encryption.md`); `routes/dictionary.js`.
 - `auditLog.js`: a guild's audit log (`logAudit`, `readAuditLog`; see Guilds); `routes/auditLog.js`.
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
+- `watchParty.js`: Watch Together, each voice channel's YouTube queue and clock (see Voice
+  channels); `routes/watchParty.js` has its routes.
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).
 - `callLog.js`: a call's row in its chat's history once it ends (see Calls in the chat history, under DM calls).
 - `groupDms.js`: group DMs (membership log checks, epochs, summaries; see Group DMs).

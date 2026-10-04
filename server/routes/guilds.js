@@ -644,6 +644,7 @@ async function deleteChannel(actor, channel) {
     await db.run('DELETE FROM guild_channels WHERE id = ?', [channel.id]);
   });
   releaseUploads();
+  require('../watchParty').dropChannel(channel.id);
   await announceGuildUpdate(actor.guild.id);
 }
 

@@ -8,6 +8,7 @@ import SidebarResizer from './SidebarResizer';
 import UserPanel from './UserPanel';
 import VoiceBar from './voice/VoiceBar';
 import StreamPopout from './voice/StreamPopout';
+import WatchPartyPlayer from './voice/WatchPartyPlayer';
 import IncomingCall from './call/IncomingCall';
 import BotModal from './BotModal';
 import { initCalls } from '../voice/callClient';
@@ -260,6 +261,8 @@ export default function Layout({ user, onLogout }) {
 
         <IncomingCall user={user} />
         <StreamPopout />
+        {/* Watch Together's player, on every page while you're in a channel watching. */}
+        <WatchPartyPlayer />
         {/* A bot's form, when one of its commands or buttons opens one. */}
         <BotModal />
 

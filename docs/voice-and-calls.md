@@ -162,6 +162,83 @@ LiveKit carries the audio.
   mute/deafen/share screen/disconnect). `voice/VoiceBar.jsx` sits above the user panel while
   connected (status, channel link, share screen, disconnect, errors); `UserPanel` has mute and deafen
   (`voice/VoiceControls.jsx`). A guild reopens on its last *text* (or list) channel.
+- **Watch Together** (YouTube watch parties, like Discord's activity): everyone in a voice
+  channel plays the same YouTube video at the same point. The server keeps each channel's queue
+  and clock (`server/watchParty.js`, `routes/watchParty.js`, in memory like who's in voice: an
+  API restart ends every party); the clients only follow it.
+  - **State:** a party is `{ current, queue, playing, position, updated_at }`: `position`
+    (seconds) is where `current` was at `updated_at` (server ms), so anyone works out where it is
+    now. Items are `{ id, video_id, title, author, duration, added_by }`. Title and channel come
+    from YouTube's oEmbed when a video is added (the API asks `youtube.com/oembed`, so YouTube
+    sees the server's address and the video, never who asked); oEmbed's 401/403 (embedding
+    turned off, private) and 400/404 refuse it, and YouTube being unreachable adds it untitled.
+    `duration` comes from the first player that knows it (`PUT .../duration`, first answer
+    counts), and lets the server move on by itself 1 s after a video ends (paused, it doesn't);
+    a live stream has none and plays until skipped. A member could report a short duration and
+    so end a video early: people in a channel are trusted that far. 100 videos wait at most.
+    The party ends with its last video, or a minute after its channel empties (`voiceChanged`,
+    from voice.js: a lone watcher whose connection drops comes back to it); deleting the
+    channel or guild drops it.
+  - **API** (`/guilds/:g/channels/:c/watch-party`, each answer `{ party, server_time }`): `GET`
+    needs View Channel; every change needs you in that channel's voice (`voice.states`, any
+    device), then: `POST /queue { videoId }` Queue Videos (nothing playing: it starts);
+    `DELETE /queue/:item` your own with Queue Videos, anyone's with Manage Queue; `PUT
+    /queue/:item/move { beforeId }` (null: the end) Manage Queue; `PUT /playback { playing?,
+    position?, itemId }` Control Playback (`itemId`: the video meant, 409 if another is on now);
+    `POST /skip { itemId }` Control Playback, or whoever added the video playing (a second skip
+    of the same item does nothing). Everyone who can see the channel gets `guild_watch_party {
+    guildId, channelId, party, serverTime }` (party null: ended), and a voice channel in the
+    layout has `watch_party: { video_id, title, playing }` or null, for the channel list ("Watching
+    …" / "Paused: …" under it).
+  - **Permissions** (Discord has none of these; ours only, bits 58-60 for bots): Queue Videos
+    (`QUEUE_VIDEOS`) and Control Playback (`CONTROL_PLAYBACK`) are @everyone defaults (migration
+    11 gave them to existing guilds), Manage Queue (`MANAGE_QUEUE`) isn't; all three are channel
+    overrides of voice channels.
+  - **Client:** `voice/watchParty.js` keeps each channel's party (from GET, the answers to
+    changes, and the events; reloaded after a reconnect) and the server's clock: `serverNow()`
+    is Date.now() plus an offset taken from the quickest GET round trip so far (to within half
+    of it), and moved forward by any event whose `serverTime` says the server is further ahead.
+    `useWatchParty(guildId, channelId)` reads it. **The player** (`voice/WatchPartyPlayer.jsx`)
+    is drawn from Layout while you're in a channel whose party has a video, and is never moved
+    (moving an iframe reloads it): `position: fixed` over the channel page's slot (set by
+    `WatchPartyPanel` with `setPlayerSlot`; its rect followed every frame, since the phone layout
+    slides panes), or, with no slot on screen (another page, or a stream being watched there),
+    small in a corner (bottom right; on a phone top right under the header, clear of the message
+    box) with the title, Go to the voice channel and close (stops it on this device until you
+    open the channel again). Its controls follow your permissions: play/pause, skip, the time,
+    a seek bar, and for you alone volume (`localStorage watchPartyVolume`; deafened: muted) and
+    full screen. A transparent shield covers the frame, so clicks never reach YouTube's own
+    controls (which are hidden: `controls=0`, `disablekb=1`), which would put one person out
+    of step.
+  - **Driving YouTube without its script:** `voice/youtubeEmbed.js` talks to the
+    youtube-nocookie.com embed over the messages its page understands (`listening`, then
+    `infoDelivery` and the events; commands `{ event: 'command', func, args }`), which is all
+    YouTube's iframe API script does. That script isn't loaded: it would run YouTube's code in
+    our page, next to the keys. The frame opens on the first video by its address (`embedUrl`,
+    `enablejsapi=1` and our origin); later ones are loaded through it.
+  - **Keeping in step** (`hooks/useWatchPartySync.js`, twice a second): the item changed → load
+    it at the expected point; should be playing → play (seeking first if more than 0.75 s off),
+    and a playing video more than 2 s off is moved back (at most every 3 s); paused → pause,
+    and seek if more than 0.75 s off (a cued video is cued again at that point, since seeking
+    one starts it). Three play commands ignored in a row means the browser won't autoplay: a
+    "Click to watch" button over the player asks for the click. The first player to know a
+    video's length reports it.
+  - **Page** (`voice/WatchPartyPanel.jsx`, in `VoiceChannelView` once you're in its voice): the
+    TV button among the controls opens it (it stays open while a video plays); a watched
+    stream takes the page instead, and the video goes to its corner. A link box (any YouTube
+    watch, share, shorts, live or embed link, or a bare id; Queue Videos), the player's slot
+    (16:9 and its controls; on a computer the queue sits beside it, or under it when the page
+    is narrower than 720 px, a container query), Now playing, and Up next: dragged into order
+    with Manage Queue (`useDragReorder`; `movedItem` turns the new order into one move), ✕ on
+    your own (or anyone's with Manage Queue). The people become a row, as when watching a
+    stream. Outside voice the page only says what's on.
+  - **Privacy:** the player loads from YouTube (youtube-nocookie.com), which sees each viewer's
+    IP address and the video, as with YouTube links. With Settings → Privacy's "Show YouTube
+    videos straight away" off, the player shows a note and Watch first (per channel, until the
+    app reloads); nothing else (no thumbnails) is fetched from YouTube. The desktop app's
+    Referer fix covers the embed (see Desktop app); its voicaw:// pages can't be given as the
+    `origin`, and Watch Together hasn't been checked there yet.
+  - `e2e/watchparty.mjs` checks it with real videos (needs the internet).
 - **Not done yet:** a per-user local mute and a separate volume for someone's stream sound (Discord
   has both), push-to-talk, output volume above 100%, server mute/move (Mute Members, Move Members), a global
   push-to-talk key in the desktop app (it has global mute/deafen toggles; holding a key needs a
@@ -169,7 +246,8 @@ LiveKit carries the audio.
   app doesn't, like Discord's "suppress others' noise"), screen share in DM/group calls (LiveKit's E2EE
   would cover the video too), webcam video, stream quality settings, and a TURN server for
   networks that block UDP 7882 and
-  TCP 7881. Phones: a PWA's audio stops when it's in the background (iOS also when locked; it
+  TCP 7881; Watch Together: a party surviving an API restart, other sites than YouTube,
+  playlists, start times from links (`t=`). Phones: a PWA's audio stops when it's in the background (iOS also when locked; it
   rejoins when the app is back, see Lost connections). Staying in while locked needs a native
   app: background audio, and voice through LiveKit's native SDK (iOS also pauses microphone
   capture in a Capacitor WebView).

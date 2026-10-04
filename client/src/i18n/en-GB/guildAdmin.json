@@ -80,6 +80,9 @@
         "connect": "Connect",
         "speak": "Speak",
         "video": "Video",
+        "queueVideos": "Queue Videos",
+        "manageQueue": "Manage Queue",
+        "controlPlayback": "Control Playback",
         "editTasks": "Edit Tasks",
         "commentOnTasks": "Comment on Tasks",
         "manageComments": "Manage Comments",
@@ -168,6 +171,18 @@
       "STREAM": {
         "label": "Video",
         "description": "Lets members share their screen in voice channels."
+      },
+      "QUEUE_VIDEOS": {
+        "label": "Queue Videos",
+        "description": "Lets members in a voice channel add YouTube videos to Watch Together's queue, and remove the ones they added."
+      },
+      "MANAGE_QUEUE": {
+        "label": "Manage Queue",
+        "description": "Lets members in a voice channel reorder Watch Together's queue and remove anyone's videos from it."
+      },
+      "CONTROL_PLAYBACK": {
+        "label": "Control Playback",
+        "description": "Lets members in a voice channel play, pause, skip and jump around in the video everyone is watching together."
       },
       "EDIT_TASKS": {
         "label": "Edit Tasks",

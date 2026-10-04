@@ -15,16 +15,19 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   Manage Messages like Discord did, migration 3), Manage Webhooks (guild-wide only), View Audit
   Log (not a default, guild-wide only; see Audit log), Edit Tasks (list channels; see List
   channels), Create Documents (`CREATE_DOCUMENTS`, document channels; see Document channels), Create Threads and
-  Send Messages in Threads (`CREATE_THREADS`, `SEND_MESSAGES_IN_THREADS`; see Threads). Every guild has an `@everyone`
+  Send Messages in Threads (`CREATE_THREADS`, `SEND_MESSAGES_IN_THREADS`; see Threads), and for
+  Watch Together in voice channels Queue Videos, Manage Queue (not a default) and Control
+  Playback (`QUEUE_VIDEOS`, `MANAGE_QUEUE`, `CONTROL_PLAYBACK`; see Voice channels in
+  `docs/voice-and-calls.md`). Every guild has an `@everyone`
   role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak, edit tasks, video, create documents,
-  create threads, send in threads) plus orderable roles (`guild_roles`: name, colour
+  create threads, send in threads, queue videos, control playback) plus orderable roles (`guild_roles`: name, colour
   0xRRGGBB or null, `hoist` = shown separately in the member list, `mentionable` = anyone may
   @mention it, position: higher ranks
   higher), given out in `guild_member_roles`. Guild permissions are @everyone's plus the
   member's roles'; the owner and Administrator get everything.
 - **Channel overrides** (`guild_channel_overrides`, per role or member, `allow`/`deny` of the
-  channel permissions: View, Send, React, Manage Messages, Pin Messages, Connect, Speak, Video, Edit
-  Tasks, Create Documents, Create Threads, Send Messages in Threads; the editor shows a text, voice, list or document channel's) apply in order: @everyone's, the member's roles' (all denies, then
+  channel permissions: View, Send, React, Manage Messages, Pin Messages, Connect, Speak, Video,
+  Queue Videos, Manage Queue, Control Playback, Edit Tasks, Create Documents, Create Threads, Send Messages in Threads; the editor shows a text, voice, list or document channel's) apply in order: @everyone's, the member's roles' (all denies, then
   all allows), the member's own. A **private channel** is @everyone denied View Channel. A
   channel you can't view doesn't exist for you: left out of your layout, 404, no events
   (`sendToChannel`), not in unread counts.
