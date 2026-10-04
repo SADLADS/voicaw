@@ -2,7 +2,8 @@
 // of Capacitor (window.androidBridge, the Voicaw plugin's headers, nativePromise/nativeCallback),
 // as mobile/android/.../VoicawPlugin.java answers them, records what the page asks. Checks:
 // no service worker, Settings → Android App, turning notifications on registers the phone's
-// Firebase token and key, tapping a notification opens its chat, the hidden notification page
+// Firebase token and key, a new version offered and downloaded on Update, tapping a
+// notification opens its chat, the hidden notification page
 // (notify.html) decrypts a real DM preview with the app's own storage, and a call: Answer from
 // the notification answers it, the ongoing-call
 // notification follows it (name, mute), and its Hang up ends the call.
@@ -39,6 +40,12 @@ function fakeAndroid() {
     stopRinging: () => undefined,
     getPushLog: () => ({ entries: [{ at: Date.now(), type: 'test', outcome: 'shown' }] }),
     openSettings: () => undefined,
+    // updates.voicaw.com has a newer version (AppUpdater, the `direct` build).
+    checkForUpdate: () => ({ supported: true, current: '0.1.4', available: true, version: '0.1.5', size: 25 * 1024 * 1024 }),
+    installUpdate: () => {
+      (listeners.updateProgress ?? []).forEach((cb) => cb({ received: 10, total: 40 }));
+      return new Promise(() => {}); // still downloading
+    },
   };
   window.__android = {
     record,
@@ -93,6 +100,19 @@ try {
   check(await page.evaluate(async () => (await navigator.serviceWorker?.getRegistrations())?.length ?? 0) === 0,
     'no service worker in the Android app');
   check((await callsTo(page, 'checkNotifications')).length > 0, "asks the app about notifications at start");
+
+  // A newer version: offered, downloaded only on Update.
+  await page.waitForSelector('.update-banner:has-text("Voicaw 0.1.5 · 25 MB")');
+  check((await callsTo(page, 'installUpdate')).length === 0, 'offers the new version without downloading it');
+  if (dir) await page.screenshot({ path: `${dir}/android-update.png` });
+  await page.click('.update-banner-button');
+  await page.waitForSelector('.update-banner:has-text("Downloading… 25%")');
+  check(await page.isDisabled('.update-banner-button'), 'Update downloads it, showing how far it is');
+  if (dir) await page.screenshot({ path: `${dir}/android-update-downloading.png` });
+  await page.evaluate(() => window.__android.emit('updateResult', { status: 'aborted' }));
+  await page.waitForSelector('.update-banner-button:not([disabled])');
+  check(true, 'cancelled at Android\'s question: offered again');
+  await page.click('.update-banner-close');
 
   // Settings: the Android App section, and notifications turned on.
   await page.goto(`${BASE}/settings`);

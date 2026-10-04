@@ -207,7 +207,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   doesn't encrypt to the device. Previews are decrypted by the app's own page code in a hidden
   WebView (`notify.html`), not a native port of the crypto, so keys never leave the page's
   storage and there's one implementation. Distributed as a signed APK from updates.voicaw.com
-  (2026-10-03); Google Play planned once the user's developer account is verified (needs a
+  (2026-10-03), which updates itself from there, downloading only when asked (2026-10-04; the
+  `play` build flavour never does, as Play requires); Google Play planned once the user's developer account is verified (needs a
   12-tester closed test for 14 days, report/block for user content, a privacy policy and a web
   account-deletion page first).
 - **Bots** (built 2026-10-03, see `docs/bots.md`): Discord's API, library-compatible (discord.js

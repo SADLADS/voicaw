@@ -20,10 +20,15 @@ import com.getcapacitor.annotation.PermissionCallback;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.messaging.FirebaseMessaging;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * The page's bridge to the app (client/src/utils/android.js `android`): notifications and the
  * push registration, the ongoing-call notification, and the events notifications send the page
- * (`navigate` to a chat, `callAction` answer / mute / unmute / hangUp).
+ * (`navigate` to a chat, `callAction` answer / mute / unmute / hangUp), and updating the app
+ * (AppUpdater: `updateProgress` while downloading, `updateResult` if Android didn't install it).
  */
 @CapacitorPlugin(
     name = "Voicaw",
@@ -31,6 +36,8 @@ import com.google.firebase.messaging.FirebaseMessaging;
 )
 public class VoicawPlugin extends Plugin {
     private static VoicawPlugin instance;
+    private static final ExecutorService updates = Executors.newSingleThreadExecutor();
+    private final AtomicBoolean updating = new AtomicBoolean();
 
     @Override
     public void load() {
@@ -66,6 +73,15 @@ public class VoicawPlugin extends Plugin {
         if (callId != null) data.put("callId", callId);
         plugin.notifyListeners("callAction", data, true);
         return true;
+    }
+
+    /** Android's installer didn't install the update: "aborted" (cancelled) or "failed". */
+    static void emitUpdateResult(String status, String message) {
+        VoicawPlugin plugin = instance;
+        if (plugin == null) return;
+        JSObject data = new JSObject().put("status", status);
+        if (message != null) data.put("message", message);
+        plugin.notifyListeners("updateResult", data);
     }
 
     private JSObject notificationState() {
@@ -161,5 +177,47 @@ public class VoicawPlugin extends Plugin {
         }
         getActivity().startActivity(intent);
         call.resolve();
+    }
+
+    /** Whether a newer version is out: { supported (false in Play's build), current, available, version, size }. */
+    @PluginMethod
+    public void checkForUpdate(PluginCall call) {
+        updates.execute(() -> {
+            try {
+                call.resolve(AppUpdater.check(getContext()));
+            } catch (Exception e) {
+                call.reject("Couldn't check for updates", e);
+            }
+        });
+    }
+
+    /**
+     * Downloads the newest version (`updateProgress` { received, total } as it comes) and hands
+     * it to Android's installer; resolves once Android asks the person to confirm.
+     */
+    @PluginMethod
+    public void installUpdate(PluginCall call) {
+        if (!updating.compareAndSet(false, true)) {
+            call.reject("Already updating");
+            return;
+        }
+        updates.execute(() -> {
+            long[] last = { 0, -1 }; // when, percent
+            try {
+                AppUpdater.downloadAndInstall(getContext(), (received, total) -> {
+                    long percent = total > 0 ? received * 100 / total : 0;
+                    long now = System.currentTimeMillis();
+                    if (percent == last[1] || (now - last[0] < 200 && percent < 100)) return;
+                    last[0] = now;
+                    last[1] = percent;
+                    notifyListeners("updateProgress", new JSObject().put("received", received).put("total", total));
+                });
+                call.resolve();
+            } catch (Exception e) {
+                call.reject("Couldn't download the update", e);
+            } finally {
+                updating.set(false);
+            }
+        });
     }
 }

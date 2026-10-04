@@ -2,7 +2,9 @@
 # Builds the Android app (after the client build and `cap sync`; build-android.sh at the root
 # does it all): Gradle in the voicaw-android-build image (mobile/Dockerfile, built here the first
 # time), so the host needs only Docker. Runs as you, so nothing is left owned by root; Gradle's
-# downloads are kept in ~/.gradle.
+# downloads are kept in ~/.gradle. Builds the `direct` flavour (the APK we host, which updates
+# itself); the `play` flavour (for Google Play, without the updater) is only compiled, to keep it
+# building.
 #   mobile/dist-android.sh            debug APK, signed with a debug key made on the first build
 #                                     (in ~/.android): dist-android/voicaw-debug.apk
 #   mobile/dist-android.sh release    release APK, version VOICAW_VERSION, signed with the key from
@@ -13,9 +15,9 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 mode="${1:-debug}"
 keys="${VOICAW_ANDROID_KEYS:-$HOME/.voicaw-android-keys}"
 case "$mode" in
-  debug) task=assembleDebug ;;
+  debug) task=assembleDirectDebug ;;
   release)
-    task=assembleRelease
+    task=assembleDirectRelease
     if [ -z "$VOICAW_VERSION" ]; then echo "VOICAW_VERSION isn't set." >&2; exit 1; fi
     if [ ! -f "$keys/voicaw-release.jks" ] || [ ! -f "$keys/password" ]; then
       echo "No release key in $keys: make it once with mobile/make-release-key.sh (and back it up)." >&2
@@ -57,13 +59,13 @@ docker run --rm "$@" -w /project/mobile/android voicaw-android-build \
     sh -c '
       mkdir -p "$HOME"
       if [ -f /keys/password ]; then export VOICAW_KEYSTORE_PASSWORD="$(cat /keys/password)"; fi
-      ./gradlew --no-daemon testDebugUnitTest '"$task"
+      ./gradlew --no-daemon testDirectDebugUnitTest compilePlayDebugJavaWithJavac '"$task"
 
 if [ "$mode" = release ]; then
   apk="$root/dist-android/voicaw-$version.apk"
-  cp "$root/mobile/android/app/build/outputs/apk/release/app-release.apk" "$apk"
+  cp "$root/mobile/android/app/build/outputs/apk/direct/release/app-direct-release.apk" "$apk"
 else
   apk="$root/dist-android/voicaw-debug.apk"
-  cp "$root/mobile/android/app/build/outputs/apk/debug/app-debug.apk" "$apk"
+  cp "$root/mobile/android/app/build/outputs/apk/direct/debug/app-direct-debug.apk" "$apk"
 fi
 echo "Built $apk"

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <!-- After the app updated itself (UpdateStatusReceiver). -->
+    <string name="channel_updates">App updates</string>
+    <string name="update_installed_title">Voicaw updated</string>
+    <string name="update_installed_text">Version %1$s is installed. Tap to open.</string>
+</resources>

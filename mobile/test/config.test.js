@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 
 // The pieces of the Android app that live in other packages have to agree with
@@ -29,6 +29,19 @@ describe('the Android app set-up', () => {
     expect(config.android.appendUserAgent).toBe(`VoicawAndroid/${version}`);
     expect(read('android/app/build.gradle')).toContain("parse(file('../../package.json')).version");
     expect(read('dist-android.sh')).toContain('appendUserAgent: `VoicawAndroid/${process.argv[2]}`');
+  });
+
+  it("updates itself only in the build from updates.voicaw.com, never Google Play's", () => {
+    // Play forbids apps updating themselves, and restricts the permission to install packages.
+    expect(read('android/app/src/main/AndroidManifest.xml')).not.toContain('REQUEST_INSTALL_PACKAGES');
+    expect(read('android/app/src/direct/AndroidManifest.xml')).toContain('android.permission.REQUEST_INSTALL_PACKAGES');
+    expect(existsSync(path.join(here, '../android/app/src/play/AndroidManifest.xml'))).toBe(false);
+    const play = read('android/app/src/play/java/com/voicaw/app/AppUpdater.java');
+    expect(play).not.toMatch(/PackageInstaller|HttpURLConnection/);
+    // The released APK is the direct build, and its updates come from where it's published.
+    expect(read('dist-android.sh')).toContain('task=assembleDirectRelease');
+    expect(read('android/app/build.gradle')).toContain("'https://updates.voicaw.com/android/'");
+    expect(read('../updates/publish-android.mjs')).toContain("'releases.json'");
   });
 
   it('keeps the page storage (and its keys) out of Android backups', () => {

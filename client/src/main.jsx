@@ -2,9 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { AuthProvider } from './AuthProvider.jsx';
 import { registerSW } from 'virtual:pwa-register';
-import { setUpdateAvailable, watchDesktopUpdates, watchForUpdates, watchForStaleApp } from './utils/appUpdate';
+import { setUpdateAvailable, watchAndroidUpdates, watchDesktopUpdates, watchForUpdates, watchForStaleApp } from './utils/appUpdate';
 import { desktop } from './utils/desktop';
-import { isAndroidApp, refreshAndroidNotificationState } from './utils/android';
+import { android, isAndroidApp, refreshAndroidNotificationState } from './utils/android';
 import { applySpellcheck } from './utils/spellcheck';
 import { applyTheme } from './utils/theme';
 import { blockNativeContextMenu } from './utils/nativeContextMenu';
@@ -20,10 +20,13 @@ import App from './App.jsx';
 
 // A new version waits until the user chooses to update (UpdateBanner, Settings). The desktop
 // app ships its page inside itself and updates as a whole (electron/updater.js), so it has no
-// service worker. Neither does the Android app (its page ships in the APK).
+// service worker. Neither does the Android app (its page ships in the APK, which updates
+// itself unless it came from Google Play).
 if (desktop) {
   watchDesktopUpdates(desktop);
-} else if (!isAndroidApp()) {
+} else if (isAndroidApp()) {
+  watchAndroidUpdates(android);
+} else {
   const updateSW = registerSW({
     onNeedRefresh() {
       setUpdateAvailable(() => updateSW(true));

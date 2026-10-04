@@ -56,7 +56,7 @@ node e2e/devices.mjs [dir] # Settings → Devices: three logins listed, log the 
 node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
 node e2e/favicon.mjs [dir] # favicon dot: DM on, read = off, guild message without a mention = none, mention on (Discord's rule); dir gets the dotted icon
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
-node e2e/android.mjs [dir] # Android app page side (stand-in Capacitor bridge): no service worker, Settings → Android App, push registration, notification tap, notify.html decrypts a real DM, call: Answer from the notification, ongoing-call notification, its Mute and Hang up
+node e2e/android.mjs [dir] # Android app page side (stand-in Capacitor bridge): no service worker, Settings → Android App, a new version offered and downloaded on Update, push registration, notification tap, notify.html decrypts a real DM, call: Answer from the notification, ongoing-call notification, its Mute and Hang up
 node e2e/lists.mjs [dir]  # list channels: add, subtask, drag to nest/reorder, assign, due date, comments, read-only, phone
 node e2e/docs.mjs [dir]   # document channels: write (typed markdown, toolbar, checklist, bullets and numbers shown while editing, table, cover), card live, react (page and card), reply thread, edit live, phone tabs
 node e2e/uploads.mjs      # deleting files: a DM send lists its file, deleting the message (DM, guild) removes it from the store, others kept

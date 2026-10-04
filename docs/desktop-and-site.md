@@ -103,9 +103,28 @@ native bridge. Check real behaviour on a phone.
   `updates.voicaw.com/android/voicaw-<version>.apk` (cached for good), `releases.json` and
   `voicaw.apk` (the newest; neither cached), listed on the update site's page and on voicaw.com
   (`website/build.mjs` `renderAndroid`: the Android card, install steps, and a "Download for
-  Android" button phone visitors get first). Not on Google Play yet, and no self-updating:
-  people download new versions by hand. Play Protect may warn about the app until it's
-  registered to a verified Google developer account.
+  Android" button phone visitors get first). Not on Google Play yet. Play Protect may warn
+  about the app until it's registered to a verified Google developer account.
+- **Two builds** (Gradle flavours): `direct`, the APK above, which updates itself, and `play`,
+  for Google Play, which mustn't (Play's rules: an app from Play updates only through Play, and
+  the permission to install packages is restricted). The updater and that permission live only in
+  `src/direct/`; `src/play/` has an `AppUpdater` that says it's unsupported. `dist-android.sh`
+  builds `direct` and only compiles `play` (making Play's bundle comes with publishing there).
+  Both are signed with the same key, so either can replace the other (README "Android app").
+- **Updating itself** (`direct` only, `AppUpdater.java`, `UpdateStatusReceiver.java`; the page's
+  side is `utils/appUpdate.js` `watchAndroidUpdates`): the app reads `releases.json`
+  (`BuildConfig.UPDATE_URL`, `VOICAW_UPDATE_URL` at build time) when it starts, every 4 hours and
+  on coming back after 30 minutes, and if its versionCode is higher, `UpdateBanner` and Settings →
+  App Version offer it with its size. Nothing is downloaded until the person taps Update (tens
+  of MB, maybe on mobile data). Then the APK goes into the app's cache with its progress shown,
+  and is checked against `releases.json` (size, SHA-256, file name) and the installed app (same
+  package, that version, signed with the same key), then handed to Android's `PackageInstaller`.
+  Android always asks the person to confirm (and the first time, to allow installs from Voicaw).
+  Cancelled or failed, the banner offers it again. Installing closes the app, so the new version
+  posts an "updated, tap to open" notification (`MY_PACKAGE_REPLACED`, only after an update the
+  app started). The hash only catches a broken download, since it comes from the same server as
+  the APK. What stops a swapped APK is Android refusing an update signed with another key; the
+  app checks the signature first only to fail with a clear reason.
 - **The page ships inside the app**: Capacitor serves the build at `https://localhost/` (in the
   API's `allowedOrigins`), so the code holding the keys is what was installed. No service worker
   (`main.jsx`; no streamed videos either, as in the desktop app). Backups are off
@@ -117,8 +136,9 @@ native bridge. Check real behaviour on a phone.
   `android`, null elsewhere): `checkNotifications` / `requestNotifications` (Android's
   permission; whether calls may ring full screen, which Android 14 lets people turn off; whether
   the build has Firebase), `getPushToken`, `setOngoing` / `clearOngoing`, `stopRinging`,
-  `openSettings`; events `navigate` (a tapped notification) and `callAction` (`answer` with a
-  call id, `mute`, `unmute`, `hangUp`), kept until the page listens, so a notification that
+  `openSettings`, `checkForUpdate` / `installUpdate` (Updating itself); events `navigate` (a
+  tapped notification), `callAction` (`answer` with a call id, `mute`, `unmute`, `hangUp`),
+  `updateProgress` and `updateResult`, kept until the page listens, so a notification that
   started the app still counts. `hooks/useAndroidApp.js` (in `Layout`) is the page's side.
 - **Notifications** (`PushService.java`, `Notifications.java`): Firebase Cloud Messaging, the
   only way to wake a closed Android app. The phone registers its FCM token with a 256-bit key
@@ -157,7 +177,7 @@ native bridge. Check real behaviour on a phone.
   silently, ringing, channel off, couldn't open, the page couldn't word it, an error), only
   times and outcomes, to find where one got stuck without the phone's logs. The test
   notification (Settings → Notifications) always alerts, even with the app open.
-- **Not done yet**: updating itself (new versions are downloaded by hand), Google Play, Bluetooth headset
+- **Not done yet**: Google Play (the `play` build exists, unpublished), Bluetooth headset
   buttons and phone calls interrupting ours (Android's Telecom API), replying from a
   notification, the unread count on the icon, push-to-talk, screen sharing, iOS.
 

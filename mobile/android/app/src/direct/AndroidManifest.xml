@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The `direct` build (the APK on updates.voicaw.com) updates itself (AppUpdater): merged
+     into src/main's manifest. Play's build has none of this: Play doesn't allow it. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Android's installer reports here, and the new version hears it was installed. -->
+        <receiver
+            android:name=".UpdateStatusReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+</manifest>

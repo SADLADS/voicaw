@@ -307,7 +307,11 @@ Android packages; `voicaw.apk` and `releases.json` aren't cached). Set `VOICAW_U
 `VOICAW_SITE_DIR`) to try it on other folders. Installing from the website, Android asks once to
 allow installs from the browser, and Play Protect may warn about an app it doesn't know ("More
 details" → "Install anyway") until the package is registered to a verified Google developer.
-The installed app doesn't update itself.
+The installed app looks at `releases.json` for new versions and, when the person taps Update,
+downloads the APK and asks Android to install it (Android asks once to allow installs from
+Voicaw). `VOICAW_UPDATE_URL` at build time points a try-out build at another update folder. The
+build for Google Play (Gradle flavour `play`, not built by these scripts yet) never updates
+itself: Play's rules forbid it.
 
 Notifications while the app is closed, and calls ringing it, need Firebase Cloud Messaging
 (Google's push service; without it the app only notifies while it's open, Settings → Android App

@@ -25,6 +25,25 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    buildFeatures {
+        buildConfig = true
+    }
+    // Two builds of the same app: `direct`, the APK on updates.voicaw.com, which updates itself
+    // from there (src/direct: AppUpdater and the permission to install packages), and `play`,
+    // for Google Play, which may not update itself any other way than through Play (src/play:
+    // an AppUpdater that never does). Both are signed with the same key, so one can replace
+    // the other without losing the app's storage.
+    flavorDimensions = ['store']
+    productFlavors {
+        direct {
+            dimension 'store'
+            // Where releases.json and the APKs are (updates/publish-android.mjs).
+            buildConfigField 'String', 'UPDATE_URL', "\"${System.getenv('VOICAW_UPDATE_URL') ?: 'https://updates.voicaw.com/android/'}\""
+        }
+        play {
+            dimension 'store'
+        }
+    }
     // The release key (mobile/make-release-key.sh), from VOICAW_KEYSTORE and its password in
     // VOICAW_KEYSTORE_PASSWORD (mobile/dist-android.sh mounts and reads them). Without them a
     // release build fails rather than ship unsigned.

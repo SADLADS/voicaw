@@ -156,13 +156,19 @@
     "appVersion": {
       "title": "App Version",
       "ready": "A new version is ready.",
+      "androidReady": "Voicaw {{version}} is out ({{size}}). Updating downloads it, then Android asks you to install it.",
+      "downloadingPercent": "Downloading… {{percent}}%",
+      "installing": "Install it when Android asks. Voicaw closes while it updates.",
+      "downloadFailed": "Couldn't download the update. Try again?",
       "checking": "Checking…",
       "current": "You're on the latest version.",
       "downloading": "Downloading a new version… It will be offered here once it’s ready.",
       "unsupportedDesktop": "This copy of the app can't update itself. Download the latest version from the website.",
       "unsupportedWeb": "This app can't update itself here. Reload the page to get the latest version.",
+      "unsupportedAndroid": "Google Play keeps this app up to date.",
       "error": "Couldn't check for updates. Are you online?",
       "desktopVersion": "Desktop app {{version}}",
+      "androidVersion": "Android app {{version}}",
       "built": "Built {{time}}",
       "updating": "Updating…",
       "updateNow": "Update now",
@@ -477,7 +483,8 @@
     "updateBanner": {
       "title": "Update available",
       "restarting": "Restarting…",
-      "update": "Update"
+      "update": "Update",
+      "androidReady": "Voicaw {{version}} · {{size}}"
     }
   }
 }
