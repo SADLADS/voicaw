@@ -85,13 +85,17 @@ async function addMember(guildId, userId) {
 }
 
 // The caller's guilds, in their guild rail order (PUT /guilds-order).
+// Each with `voice`: who's in the voice channels they can see ({ [channelId]: [userId] }).
 router.get('/guilds', authenticateJWT, async (req, res) => {
-  res.json(await db.all(
+  const guilds = await db.all(
     `SELECT g.id, g.name, g.owner, g.icon_version, g.created_at
      FROM guilds g JOIN guild_members gm ON gm.guild_id = g.id
      WHERE gm.user_id = ? ORDER BY gm.position, gm.joined_at, g.id`,
     [req.user.id]
-  ));
+  );
+  const { guildVoiceFor } = require('../voice');
+  for (const guild of guilds) guild.voice = await guildVoiceFor(guild.id, req.user.id);
+  res.json(guilds);
 });
 
 // A new guild starts with @everyone and a "Text Channels" category holding #general.

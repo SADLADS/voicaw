@@ -248,6 +248,7 @@ export default function Layout({ user, onLogout }) {
             guilds={guildList.guilds}
             unreadGuildIds={unreadGuildIds}
             guildMentions={guildMentions}
+            guildVoice={guildList.guildVoice}
             onReorderGuilds={guildList.reorderGuilds}
           />
 

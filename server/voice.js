@@ -61,6 +61,23 @@ function membersOf(channelId) {
     .map(publicState);
 }
 
+// Who's in the voice channels of `guildId` that `userId` can see, { [channelId]: [userId] } (the
+// speaker on the guild rail, for guilds whose layout the app hasn't loaded).
+async function guildVoiceFor(guildId, userId) {
+  const occupied = new Map();
+  for (const s of states.values()) {
+    if (s.guildId !== guildId) continue;
+    if (!occupied.has(s.channelId)) occupied.set(s.channelId, []);
+    occupied.get(s.channelId).push(s.userId);
+  }
+  const voice = {};
+  for (const [channelId, userIds] of occupied) {
+    const access = await getChannelAccess(channelId, userId);
+    if (access && has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) voice[channelId] = userIds;
+  }
+  return voice;
+}
+
 // Tells everyone who can see the channel that `userId` is now in it with `state`, or left (null).
 async function announce(guildId, channelId, userId, state) {
   await sendToChannel(
@@ -315,6 +332,7 @@ module.exports = {
   states,
   roomName,
   membersOf,
+  guildVoiceFor,
   joinToken,
   roomToken,
   logLiveKitError,

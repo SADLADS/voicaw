@@ -2152,6 +2152,35 @@ img.emoji.custom-emoji {
   pointer-events: none;
 }
 
+/* A speaker on a guild with someone in voice (grey), or you (green); above the mention badge
+   when there is one. */
+.rail-voice-badge {
+  position: absolute;
+  right: 6px;
+  bottom: -3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--vc-bg-base);
+  border-radius: 50%;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+  font-size: 9px;
+  pointer-events: none;
+}
+
+.rail-voice-badge.above {
+  top: -3px;
+  bottom: auto;
+}
+
+.rail-voice-badge.self {
+  background-color: var(--vc-online);
+  color: var(--vc-bg-base);
+}
+
 .notify-levels {
   margin: 0;
   padding: 0;

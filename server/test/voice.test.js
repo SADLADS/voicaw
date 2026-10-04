@@ -194,6 +194,24 @@ describe('voice channels', () => {
     expect((await join(bob, guild, lounge)).status).toBe(404);
   });
 
+  it('lists who is in voice with each guild, only in channels the caller can see', async () => {
+    const { owner, members: [alice, bob], guild, lounge, gaming, everyone } = await setUp(2);
+    const voiceInList = async (user) => (await api.get(user, '/guilds')).body.find((g) => g.id === guild.id).voice;
+    expect(await voiceInList(bob)).toEqual({});
+
+    await join(alice, guild, lounge);
+    await webhook('participant_joined', lounge, alice);
+    await join(owner, guild, gaming);
+    await webhook('participant_joined', gaming, owner);
+    expect(await voiceInList(bob)).toEqual({ [lounge.id]: [alice.id], [gaming.id]: [owner.id] });
+
+    // (Hers first, so she stays in.)
+    await api.put(owner, `/guilds/${guild.id}/channels/${lounge.id}/overrides/member/${alice.id}`, { allow: P.VIEW_CHANNEL | P.CONNECT, deny: 0 });
+    await api.put(owner, `/guilds/${guild.id}/channels/${lounge.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.VIEW_CHANNEL });
+    expect(await voiceInList(bob)).toEqual({ [gaming.id]: [owner.id] });
+    expect(await voiceInList(alice)).toEqual({ [lounge.id]: [alice.id], [gaming.id]: [owner.id] });
+  });
+
   it('updates mute and deafen', async () => {
     const { owner, members: [alice], guild, lounge } = await setUp();
     // Before joining: remembered for when she does.
