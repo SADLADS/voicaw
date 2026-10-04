@@ -14,7 +14,7 @@ export default function ScreenPicker({ onClose }) {
   const [sources, setSources] = useState(null);
   const [canShareSound, setCanShareSound] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [audio, setAudio] = useState(false);
+  const [audio, setAudio] = useState(true);
   const [listError, setListError] = useState(null);
   const [pickError, setPickError] = useState(null);
   const tabChosen = useRef(false);
@@ -71,10 +71,7 @@ export default function ScreenPicker({ onClose }) {
           {canShareSound && (
             <label className="screen-picker-sound me-auto">
               <input type="checkbox" checked={audio} onChange={(e) => setAudio(e.target.checked)} />
-              <span>
-                {t('voice.screenPicker.shareSound')}
-                <span className="vc-hint">{t('voice.screenPicker.shareSoundHint')}</span>
-              </span>
+              <span>{t('voice.screenPicker.shareSound')}</span>
             </label>
           )}
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>{t('common.cancel')}</button>

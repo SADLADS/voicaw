@@ -755,18 +755,9 @@ body.stream-window {
 
 .screen-picker-sound {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-}
-
-.screen-picker-sound input {
-  margin-top: 4px;
-}
-
-.screen-picker-sound .vc-hint {
-  display: block;
-  font-size: 0.8rem;
 }
 
 .screen-picker-note {

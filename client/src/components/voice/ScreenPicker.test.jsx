@@ -36,7 +36,7 @@ describe('ScreenPicker', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Windows' }));
     fireEvent.click(screen.getByRole('option', { name: /Notes/ }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /Share sound/ }));
+    expect(screen.getByRole('checkbox', { name: /Share sound/ }).checked).toBe(true);
     fireEvent.click(goLive);
     await waitFor(() => expect(start).toHaveBeenCalledWith({ audio: true }));
     expect(bridge.chooseScreenSource).toHaveBeenCalledWith('window:12:0', true);

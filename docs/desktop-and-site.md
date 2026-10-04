@@ -54,7 +54,7 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   and calls `getDisplayMedia` as a browser would; the session's display media handler answers
   with that source, once, within a minute, only for a source just listed and only for the
   app's own page; anything else is refused (the page gets an AbortError, shown as nothing).
-  **Sound** ("Share sound", off by default) only on Windows: Electron's only option is the
+  **Sound** ("Share sound", on by default) only on Windows: Electron's only option is the
   whole system's sound (`loopback`); the page asks with `restrictOwnAudio` (see Screen
   sharing in `voice-and-calls.md`) and Electron (44+) then captures it without the app's own
   sound, so viewers don't hear themselves, like Discord.
