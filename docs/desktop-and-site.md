@@ -22,6 +22,10 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   blank window named `voicaw-stream`, which the page draws into itself; see Screen sharing in
   `docs/voice-and-calls.md`): the app's icon, no menu, never navigates, opens nothing, and may
   only go full screen. It stays open while the main window is in the tray.
+- **YouTube players** (`youtube.js`): YouTube refuses to play an embed without a Referer
+  ("Error 153: Video player configuration error"), and Chromium sends none from `voicaw://`
+  pages, so requests for youtube(-nocookie).com `/embed/` pages get `https://app.voicaw.com/`,
+  what the web app sends anyway (see YouTube links in `docs/messages.md`).
 - **Right-click and spellcheck** (`spellcheck.js`): the page draws its own right-click menus and
   checks spelling itself, as in a browser (see Spellcheck and Right-click menus in
   `docs/client.md`), so Electron shows no menu. Its own checker (set to the system's languages

@@ -146,6 +146,8 @@ still tells YouTube the viewer's IP address and the video, in encrypted chats to
 Settings → Privacy's "Show YouTube videos straight away" (`youtubeEmbeds`, on by default) off,
 a placeholder with the link and Play stands in (no thumbnail, which would come from YouTube
 too); Play loads the player autoplaying, and it stays loaded until the app reloads.
+The desktop app adds the Referer YouTube requires (`https://app.voicaw.com/`), since its
+`voicaw://` pages send none (`electron/youtube.js`, see `docs/desktop-and-site.md`).
 
 ## Polls
 

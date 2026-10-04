@@ -11,6 +11,7 @@ const { cleanNotification } = require('../notifications.js');
 const { paintDot, unreadLabel } = require('../tray.js');
 const { linuxAutostartEntry } = require('../autoStart.js');
 const { spellcheckLanguages, syncSpellingWords } = require('../spellcheck.js');
+const { REFERER, withYouTubeReferer } = require('../youtube.js');
 const { STREAM_WINDOW_NAME, windowOpenAction, streamWindowPermission } = require('../windowOpen.js');
 
 describe('serving the app (protocol.js)', () => {
@@ -162,5 +163,15 @@ describe('windows the page opens (windowOpen.js)', () => {
         for (const permission of ['media', 'notifications', 'display-capture', 'clipboard-sanitized-write']) {
             expect(streamWindowPermission(permission)).toBe(false);
         }
+    });
+});
+
+describe('YouTube embeds (youtube.js)', () => {
+    it('adds a Referer, so the player plays (Error 153 without one)', () => {
+        expect(withYouTubeReferer({ Accept: '*/*' })).toEqual({ Accept: '*/*', Referer: REFERER });
+    });
+
+    it('keeps one the request already has', () => {
+        expect(withYouTubeReferer({ Referer: 'https://example.com/' })).toEqual({ Referer: 'https://example.com/' });
     });
 });

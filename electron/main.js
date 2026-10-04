@@ -15,6 +15,7 @@ const { createUpdater } = require('./updater');
 const { setStartAtLogin, startedHidden } = require('./autoStart');
 const { createScreenShare } = require('./screenShare');
 const { windowOpenAction, streamWindowPermission } = require('./windowOpen');
+const { setUpYouTubeReferer } = require('./youtube');
 
 const APP_ID = 'com.voicaw.app';
 const BUILD_DIR = app.isPackaged ? path.join(process.resourcesPath, 'app') : path.join(__dirname, '../build');
@@ -152,6 +153,7 @@ function setUpPermissions() {
         callback(ours && ALLOWED_PERMISSIONS.has(permission) && audioOnly);
     });
     ses.setDisplayMediaRequestHandler((request, callback) => screenShare.handleRequest(request, callback));
+    setUpYouTubeReferer(ses);
     ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) =>
         (webContents && streamWindows.has(webContents)
             ? streamWindowPermission(permission)
