@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGripVertical, faTv, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faClapperboard, faGripVertical, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { useDragReorder } from '../../hooks/useDragReorder';
 import {
   addVideo, formatClock, movedItem, moveVideo, removeVideo, setPlayerSlot, useWatchParty, videoIdFromInput,
@@ -67,7 +67,7 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
           <div className="watch-party-slot" ref={setPlayerSlot} />
         ) : (
           <div className="watch-party-empty">
-            <FontAwesomeIcon icon={faTv} size="2x" />
+            <FontAwesomeIcon icon={faClapperboard} size="2x" />
             <p>{canQueue ? t('voice.watchParty.emptyCanAdd') : t('voice.watchParty.emptyCantAdd')}</p>
           </div>
         )}

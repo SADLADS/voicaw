@@ -6,12 +6,12 @@ import {
   faBellSlash,
   faChevronDown,
   faChevronRight,
+  faClapperboard,
   faClipboardList,
   faFolderPlus,
   faGear,
   faPlus,
   faRightFromBracket,
-  faTv,
   faUserPlus,
   faXmark,
 } from '@fortawesome/free-solid-svg-icons';
@@ -246,7 +246,7 @@ export default function GuildSidebar({ guild, user }) {
       </li>
       {channel.watch_party && (
         <li className="guild-channel-watch" title={channel.watch_party.title ?? undefined}>
-          <FontAwesomeIcon icon={faTv} className="guild-channel-watch-icon" aria-hidden="true" />
+          <FontAwesomeIcon icon={faClapperboard} className="guild-channel-watch-icon" aria-hidden="true" />
           <span className="guild-channel-watch-title">
             {channel.watch_party.playing
               ? t('voice.watchParty.sidebarPlaying', { title: channel.watch_party.title ?? t('voice.watchParty.untitled') })

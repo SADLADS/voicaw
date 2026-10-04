@@ -224,7 +224,7 @@ LiveKit carries the audio.
     "Click to watch" button over the player asks for the click. The first player to know a
     video's length reports it.
   - **Page** (`voice/WatchPartyPanel.jsx`, in `VoiceChannelView` once you're in its voice): the
-    TV button among the controls opens it (it stays open while a video plays); a watched
+    clapperboard button among the controls opens it (it stays open while a video plays); a watched
     stream takes the page instead, and the video goes to its corner. A link box (any YouTube
     watch, share, shorts, live or embed link, or a bare id; Queue Videos), the player's slot
     (16:9 and its controls; on a computer the queue sits beside it, or under it when the page
