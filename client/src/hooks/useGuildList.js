@@ -16,6 +16,9 @@ import {
 // - `layouts`: guilds opened so far, by id, with their `categories` and `channels` (a voice
 //   channel's `voice`: who's in it) (`loadGuild(id)` fetches one; websocket updates keep them
 //   current).
+// - `guildVoice`: { [guildId]: 'self' | 'others' } for guilds with someone in a voice channel you
+//   can see ('self': you're one of them, on any device), for the rail's speaker. Kept for every
+//   guild (the list says who's in, `guild_voice_state` keeps it current), opened or not.
 // - `unread`: [{ channel_id, guild_id, count, mentions }] (`mentions`: how many mention you);
 //   `refreshUnread()` refetches it.
 // - `emojis`: custom emoji by guild id ({ [guildId]: [{ id, guild_id, name, animated }] }).
@@ -32,6 +35,13 @@ import {
 // messages there don't count as unread. A layout's `threads` are the active threads you can see
 // (with `joined`; only joined ones count as unread), kept current by the thread events.
 // `onRemoved(guildId)` runs when you leave, are removed from, or delete a guild.
+const summaryOf = (guild) => ({ id: guild.id, name: guild.name, owner: guild.owner, icon_version: guild.icon_version, created_at: guild.created_at });
+
+// Who's in a layout's voice channels, { [channelId]: [userId] } (the occupied ones).
+const voiceOfLayout = (guild) => Object.fromEntries(
+  guild.channels.filter((c) => c.voice?.length).map((c) => [c.id, c.voice.map((s) => s.user_id)])
+);
+
 export function useGuildList({ userId, activeChannelId, activeThreadId = null, onRemoved }) {
   const [guilds, setGuilds] = useState([]);
   const [layouts, setLayouts] = useState({});
@@ -39,6 +49,8 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
   const [emojis, setEmojis] = useState({});
   const [mutes, setMutes] = useState({});
   const [channelLevels, setChannelLevels] = useState({});
+  // { [guildId]: { [channelId]: [userId] } }: who's in voice, in every guild.
+  const [voice, setVoice] = useState({});
   const [loaded, setLoaded] = useState(false);
 
   const active = useRef(activeChannelId);
@@ -65,11 +77,14 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
   }, []);
 
   const upsertGuild = useCallback((guild) => {
-    const summary = { id: guild.id, name: guild.name, owner: guild.owner, icon_version: guild.icon_version, created_at: guild.created_at };
+    const summary = summaryOf(guild);
     setGuilds((prev) => (prev.some((g) => g.id === guild.id)
       ? prev.map((g) => (g.id === guild.id ? summary : g))
       : [...prev, summary]));
-    if (guild.categories) setLayouts((prev) => ({ ...prev, [guild.id]: guild }));
+    if (guild.categories) {
+      setLayouts((prev) => ({ ...prev, [guild.id]: guild }));
+      setVoice((prev) => ({ ...prev, [guild.id]: voiceOfLayout(guild) }));
+    }
   }, []);
 
   const removeGuild = useCallback((guildId) => {
@@ -79,6 +94,10 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
       return rest;
     });
     setUnread((prev) => prev.filter((u) => u.guild_id !== guildId));
+    setVoice((prev) => {
+      const { [guildId]: _removed, ...rest } = prev;
+      return rest;
+    });
     setEmojis((prev) => {
       const { [guildId]: _removed, ...rest } = prev;
       return rest;
@@ -122,15 +141,26 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
     }
   }, []);
 
-  // Mutes changed on another device while this one was offline are caught up on.
+  // The guild list, and who's in voice in each guild.
+  const loadList = useCallback(async () => {
+    const list = await fetchGuilds();
+    setGuilds(list.map(summaryOf));
+    setVoice(Object.fromEntries(list.map((g) => [g.id, g.voice ?? {}])));
+  }, []);
+
+  // Mutes changed on another device, and voice joins and leaves, while this one was offline are
+  // caught up on.
   useEffect(() => {
     if (!userId) return undefined;
     let wasOnline = true;
     return onConnectionState((state) => {
-      if (state === 'online' && !wasOnline) loadMutes();
+      if (state === 'online' && !wasOnline) {
+        loadMutes();
+        loadList().catch((err) => console.warn('Failed to load guilds', err));
+      }
       wasOnline = state === 'online';
     });
-  }, [userId, loadMutes]);
+  }, [userId, loadMutes, loadList]);
 
   // A mute that runs out is dropped then.
   useEffect(() => {
@@ -158,8 +188,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
     let cancelled = false;
     (async () => {
       try {
-        const list = await fetchGuilds();
-        if (!cancelled) setGuilds(list);
+        if (!cancelled) await loadList();
       } catch (err) {
         console.warn('Failed to load guilds', err);
       } finally {
@@ -179,7 +208,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
     return () => {
       cancelled = true;
     };
-  }, [userId, refreshUnread, loadMutes]);
+  }, [userId, refreshUnread, loadMutes, loadList]);
 
   // Puts the guilds in `guildIds` order (any not listed keep their place at the end).
   const applyOrder = useCallback((guildIds) => {
@@ -195,9 +224,9 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
       await saveGuildOrder(guildIds);
     } catch (err) {
       console.warn('Failed to save the guild order', err);
-      fetchGuilds().then(setGuilds).catch(() => {});
+      loadList().catch(() => {});
     }
-  }, [applyOrder]);
+  }, [applyOrder, loadList]);
 
   useEffect(() => {
     if (!userId) return undefined;
@@ -223,6 +252,16 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
           applyChannelLevel(event);
           break;
         case 'guild_voice_state':
+          // They're taken out of wherever they were in the guild, and put in the channel (joined).
+          setVoice((prev) => {
+            const channels = {};
+            for (const [channelId, userIds] of Object.entries(prev[event.guildId] ?? {})) {
+              const rest = userIds.filter((id) => id !== event.userId);
+              if (rest.length) channels[channelId] = rest;
+            }
+            if (event.state) channels[event.channelId] = [...(channels[event.channelId] ?? []), event.userId];
+            return { ...prev, [event.guildId]: channels };
+          });
           setLayouts((prev) => {
             const guild = prev[event.guildId];
             if (!guild) return prev; // not opened yet: its layout will have it
@@ -292,8 +331,17 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
     });
   }, [userId, upsertGuild, removeGuild, applyOrder, applyMute, applyChannelLevel]);
 
+  const guildVoice = useMemo(() => {
+    const result = {};
+    for (const [guildId, channels] of Object.entries(voice)) {
+      const userIds = Object.values(channels).flat();
+      if (userIds.length) result[guildId] = userIds.includes(userId) ? 'self' : 'others';
+    }
+    return result;
+  }, [voice, userId]);
+
   return {
-    guilds, layouts, unread, activeUnread, emojis, mutes, isMuted, applyMute, channelLevels, applyChannelLevel, loaded,
+    guilds, layouts, guildVoice, unread, activeUnread, emojis, mutes, isMuted, applyMute, channelLevels, applyChannelLevel, loaded,
     loadGuild, upsertGuild, removeGuild, refreshUnread, clearUnread, reorderGuilds,
   };
 }

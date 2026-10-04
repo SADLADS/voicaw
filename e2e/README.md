@@ -17,6 +17,7 @@ node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM)
 node e2e/pickerswipe.mjs [dir] # phone emoji panel: swipe up = full screen (follows finger, chat doesn't jump), grid scrolls, swipe down / handle = back, search from full screen
 node e2e/emojisheets.mjs [dir] # picker sprite sheets: no per-emoji SVGs, time to draw (cold, worker's copy), skin tone sheet, phone
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
+node e2e/railvoice.mjs [dir] # guild rail speaker: green on yours, grey on others' (guild not opened, after reload, live), phone, light, above a mention badge, gone on leave
 node e2e/rejoin.mjs [dir] # voice after a lost connection: Reconnecting, rejoins by itself, phone waits until back in view, leave stays left
 node e2e/screenshare.mjs [dir] # screen share: own preview, Live, no download until Watch, phone watches, Video taken away
 node e2e/streampopout.mjs [dir] # stream pop-out: own window (styled, theme follows), plays on other pages, full screen, close/Bring back return it, Stop watching/stream end/leave close it, phone has none

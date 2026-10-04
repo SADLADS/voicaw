@@ -10,6 +10,10 @@ vi.mock('../services/guildService', () => ({
   createInvite: vi.fn(async () => ({ code: 'abc12345', expires_at: null, max_uses: null })),
 }));
 
+// This device's voice connection.
+let myVoice = { status: 'idle', guildId: null };
+vi.mock('../hooks/useVoice', () => ({ useVoice: () => myVoice }));
+
 import Sidebar from './Sidebar';
 import { ConfigContext, InteractionContext, LayoutContext } from '../contexts';
 import { leaveGuild, markChannelReadToLatest, setGuildNotifications } from '../services/guildService';
@@ -21,7 +25,7 @@ const layout = (id, permissions, extra = {}) => ({
   ...guilds.find((g) => g.id === id), my_permissions: permissions, my_notify_level: 'mentions', roles: [], categories: [], channels: [], ...extra,
 });
 
-function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [] } = {}) {
+function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [], guildVoice, guildMentions } = {}) {
   const guildList = {
     guilds,
     layouts,
@@ -35,7 +39,7 @@ function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, un
       <InteractionContext.Provider value={{ isMobile: false }}>
         <LayoutContext.Provider value={{ guildList }}>
           <MemoryRouter initialEntries={['/dm']}>
-            <Sidebar user={{ id: 1, username: 'owner' }} guilds={guilds} />
+            <Sidebar user={{ id: 1, username: 'owner' }} guilds={guilds} guildVoice={guildVoice} guildMentions={guildMentions} />
           </MemoryRouter>
         </LayoutContext.Provider>
       </InteractionContext.Provider>
@@ -47,7 +51,30 @@ function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, un
 const items = (menu) => [...menu.querySelectorAll('[role^="menuitem"]')].map((b) => b.firstChild.firstChild.textContent);
 const icon = (name) => screen.getByRole('link', { name });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  myVoice = { status: 'idle', guildId: null };
+});
+
+describe('the guild rail voice speaker', () => {
+  const badge = (name) => icon(name).parentElement.querySelector('.rail-voice-badge');
+
+  it('is grey where others are in voice, green where you are, and none elsewhere', () => {
+    renderRail({ guildVoice: { 5: 'others', 6: 'self' } });
+    expect(badge('Alpha')).toHaveAttribute('aria-label', 'Someone is in voice here');
+    expect(badge('Alpha')).not.toHaveClass('self');
+    expect(badge('Beta')).toHaveAttribute('aria-label', "You're in voice here");
+    expect(badge('Beta')).toHaveClass('self');
+  });
+
+  it("is green as soon as this device joins, and moves above a mention badge", () => {
+    myVoice = { status: 'connecting', guildId: 6 };
+    renderRail({ guildVoice: {}, guildMentions: { 6: 2 } });
+    expect(badge('Alpha')).toBeNull();
+    expect(badge('Beta')).toHaveClass('self');
+    expect(badge('Beta')).toHaveClass('above');
+  });
+});
 
 describe('the guild rail menu', () => {
   it("offers the owner's guild options (no Leave), and a member's (no settings)", () => {

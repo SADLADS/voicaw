@@ -21,7 +21,13 @@ LiveKit carries the audio.
   attributes too, so a restart keeps them); `DELETE /voice` leaves. Everyone who can see the
   channel gets `guild_voice_state { guildId, channelId, userId, state }` (`state` null: left),
   and a voice channel in the layout has `voice: [{ user_id, username, self_mute, self_deaf,
-  self_stream }]`.
+  self_stream }]`. `GET /guilds` gives each guild `voice: { [channelId]: [userId] }`, who's in
+  the voice channels you can see (`guildVoiceFor`), for guilds whose layout isn't loaded yet.
+- **Guild rail speaker**: a guild with someone in a voice channel you can see gets a speaker on
+  its rail icon (`Sidebar`), grey, or `--vc-online` green when you're in voice there (on any
+  device, or this one from the moment it starts joining); it sits above a mention badge. The
+  map behind it is `useGuildList`'s `guildVoice`, kept for every guild: seeded from the list,
+  replaced by a layout when one loads, moved by `guild_voice_state`, refetched after a reconnect.
   Without `LIVEKIT_*` settings voice is off: `/api/config` says `voiceEnabled: false`, joins 503.
 - **Client** (`voice/voiceClient.js`, read with `hooks/useVoice.js`): one connection per
   device, a module-level store like `ws-client`. `livekit-client` is loaded on the first join

@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faComments, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faPlus, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import logo from '../assets/images/logo-no-border.svg';
 import GuildIcon from './guild/GuildIcon';
 import '../assets/css/guilds.css';
@@ -14,18 +14,23 @@ import ConfirmDialog from './guild/ConfirmDialog';
 import { InteractionContext, LayoutContext } from '../contexts';
 import { leaveGuild } from '../services/guildService';
 import { useDragReorder } from '../hooks/useDragReorder';
+import { useVoice } from '../hooks/useVoice';
 import { t } from '../i18n';
 
 // The guild rail down the left (like Discord's): home, DMs, then each guild (a pill on the
 // left marks unread messages, a taller one the open guild), then "+" to create or join one.
 // `unreadGuildIds` is a Set of guild ids with unread messages, `guildMentions` ({ guildId:
-// count }) how many of them mention you (a red badge on the icon). Guilds can be dragged into a
+// count }) how many of them mention you (a red badge on the icon). `guildVoice` ({ guildId:
+// 'self' | 'others' }) puts a speaker on guilds with someone in a voice channel you can see:
+// grey, or green when you're in one there (this device counts as soon as it connects). Guilds can be dragged into a
 // new order (hold, then drag, on touch screens); `onReorderGuilds(ids)` saves it. Right-clicking
 // a guild (touch, hold and lift on a phone) opens its menu (GuildMenu), whose dialogs live here.
-export default function Sidebar({ user, hasUnreadDms, guilds = [], unreadGuildIds = new Set(), guildMentions = {}, onReorderGuilds }) {
+export default function Sidebar({ user, hasUnreadDms, guilds = [], unreadGuildIds = new Set(), guildMentions = {}, guildVoice = {}, onReorderGuilds }) {
   const location = useLocation();
   const { guildList } = useContext(LayoutContext) ?? {};
   const { isMobile } = useContext(InteractionContext);
+  const myVoice = useVoice();
+  const myVoiceGuildId = myVoice.status === 'idle' ? null : myVoice.guildId;
   const [adding, setAdding] = useState(false);
   // { guildId, anchor } while a guild's menu is open; { type, guildId } for one of its dialogs.
   const [menu, setMenu] = useState(null);
@@ -72,6 +77,7 @@ export default function Sidebar({ user, hasUnreadDms, guilds = [], unreadGuildId
             if (index > dragFrom && index <= drag.targetIndex) shift = -1;
             else if (index < dragFrom && index >= drag.targetIndex) shift = 1;
           }
+          const inVoice = myVoiceGuildId != null && String(myVoiceGuildId) === String(guild.id) ? 'self' : guildVoice[guild.id];
           return (
             <div
               key={guild.id}
@@ -83,6 +89,14 @@ export default function Sidebar({ user, hasUnreadDms, guilds = [], unreadGuildId
               <NavLink to={`/guild/${guild.id}`} className="nav-icon rail-guild" aria-label={guild.name} title={guild.name} draggable={false}>
                 <GuildIcon guild={guild} />
               </NavLink>
+              {inVoice && (
+                <span
+                  className={`rail-voice-badge${inVoice === 'self' ? ' self' : ''}${guildMentions[guild.id] > 0 ? ' above' : ''}`}
+                  aria-label={t(inVoice === 'self' ? 'app.sidebar.inVoice' : 'app.sidebar.othersInVoice')}
+                >
+                  <FontAwesomeIcon icon={faVolumeHigh} />
+                </span>
+              )}
               {guildMentions[guild.id] > 0 && (
                 <span className="mention-badge rail-mention-badge" aria-label={t('app.sidebar.mentions', { count: guildMentions[guild.id] })}>
                   {guildMentions[guild.id] > 99 ? '99+' : guildMentions[guild.id]}

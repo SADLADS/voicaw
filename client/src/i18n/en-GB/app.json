@@ -8,6 +8,8 @@
       "mentions_one": "{{count}} mention",
       "mentions_other": "{{count}} mentions",
       "addGuild": "Add a guild",
+      "inVoice": "You're in voice here",
+      "othersInVoice": "Someone is in voice here",
       "resize": "Resize sidebar",
       "dragToResize": "Drag to resize",
       "leaveGuild": {
