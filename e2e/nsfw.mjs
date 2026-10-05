@@ -1,4 +1,5 @@
-// NSFW channels: flagged in the channel dialog (tag in the header), their media covered with
+// NSFW channels: flagged in the channel dialog (tag in the header), closed behind the age gate
+// ("I am 18 or over", kept as just that answer; not asked again), their media covered with
 // "NSFW" for everyone (a linked image, a webhook embed's image, a YouTube video, which loads
 // nothing until uncovered), a spoiler in one covered just once ("Spoiler"), tapping uncovers on
 // a phone, and Settings → Content's switch (saved to the account) uncovering all but spoilers.
@@ -60,6 +61,22 @@ try {
   await a.waitForSelector('.channel-nsfw-tag');
   check(true, 'the header has an NSFW tag once flagged');
 
+  // The age gate: an NSFW channel opens only once you've ticked "I am 18 or over".
+  const passGate = async (page, who) => {
+    await page.waitForSelector('.nsfw-gate');
+    check(!(await page.$('#dm-input')) && !(await page.$('.message')), `${who}: behind the gate, no messages and no message box`);
+    check(!(await page.$('.pins-button')) && !(await page.$('.threads-button')), `${who}: no pins or threads to peek at`);
+    const go = page.locator('.nsfw-gate button:has-text("Continue")');
+    check(await go.isDisabled(), `${who}: Continue waits for the tick`);
+    await page.check('.nsfw-gate label:has-text("I am 18 or over") input');
+    await go.click();
+    await page.waitForSelector('#dm-input');
+    const prefs = await api(page, 'GET', '/preferences');
+    check(prefs.adultConfirmed === true && Object.keys(prefs).every((k) => typeof prefs[k] === 'boolean'), `${who}: only the answer is kept (${JSON.stringify(prefs)})`);
+  };
+  await shot(a, '1b-gate');
+  await passGate(a, 'alice');
+
   // A linked image and a YouTube link, a webhook's embed with an image, and a spoiler upload.
   await api(a, 'POST', `/channels/${general.id}/messages`, {
     content: `look ![logo](${BASE}/logo192.png) https://youtu.be/dQw4w9WgXcQ`,
@@ -79,7 +96,11 @@ try {
   await send(a, 'no peeking');
 
   for (const [who, page] of [['alice', a], ['bob', b]]) {
-    if (page === b) await b.goto(`${BASE}/guild/${guild.id}/${general.id}`);
+    if (page === b) {
+      await b.goto(`${BASE}/guild/${guild.id}/${general.id}`);
+      await shot(b, '1c-phone-gate');
+      await passGate(b, 'bob');
+    }
     await page.waitForFunction(() => document.querySelectorAll('.attachment-spoiler').length === 4, null, { timeout: 20000 })
       .catch(async (err) => {
         console.error(`${who} covers:`, await page.$$eval('.attachment-spoiler-reveal', (bs) => bs.map((x) => x.getAttribute('aria-label'))));
@@ -100,7 +121,9 @@ try {
   check(await b.$('img[alt="logo"][data-gallery-item]'), 'bob: the tapped image shows, in the viewer');
   check(!(await b.$('.image-viewer')), 'bob: the tap did not also open the viewer');
   await b.tap('.attachment-spoiler-reveal[aria-label^="NSFW: YouTube"]');
-  check(await b.$('iframe[src*="youtube-nocookie.com/embed/dQw4w9WgXcQ"]'), 'bob: the player loads once uncovered');
+  // On a phone the chat only holds the video's thumbnail (tapping it plays full screen, UrlPreviews).
+  await b.waitForSelector('img[src*="i.ytimg.com/vi/dQw4w9WgXcQ"]', { timeout: 5000 }).catch(() => null);
+  check(await b.$('img[src*="i.ytimg.com/vi/dQw4w9WgXcQ"]'), "bob: the video's thumbnail shows once uncovered");
   check((await covers(b)).length === 2, 'bob: the embed and the spoiler stay covered');
   check((await covers(a)).length === 4, "alice: bob's taps don't uncover hers");
   await shot(b, '4-phone-revealed');
@@ -122,6 +145,7 @@ try {
   await b.reload();
   await b.waitForSelector('.embed-image');
   check(JSON.stringify(await covers(b)) === JSON.stringify(['Spoiler']), 'bob: still so after a reload');
+  check(!(await b.$('.nsfw-gate')), 'bob: not asked his age again after a reload');
   check((await covers(a)).length === 4, "alice: bob's setting is his own");
   await shot(b, '6-phone-blur-off');
   console.log('nsfw: ok');

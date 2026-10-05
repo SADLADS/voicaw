@@ -176,8 +176,16 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   spoiler gets the one "Spoiler" cover (never two), otherwise "NSFW" unless Settings → Content's
   "Blur media in NSFW channels" is off (`blurNsfw`, an account preference: see Account
   preferences in `docs/client.md`). Flagging or unflagging a channel changes its old messages
-  too. There's no age check (Discord asks first): the flag is only about not seeing things by
-  surprise.
+  too.
+- **Age gate** (2026-10-05, for Google Play and the terms' 18+ rule): an NSFW channel, and a
+  thread in one, shows `guild/NsfwAgeGate.jsx` instead ("I am 18 or over", Continue / Go back)
+  until the account's `adultConfirmed` preference is set (Settings → Content can set or clear
+  it). Only that answer is kept, never a date of birth or an age (the user's wish). While gated,
+  nothing of the channel loads (`useChannel` gets no channel id, so nothing is marked read
+  either), its pins and threads buttons are hidden, and guild search leaves out its results with
+  a note saying how many. "Loading…" shows until the preferences have loaded, so someone who
+  ticked never sees the gate flash. It's a client-side check: the API still serves an NSFW
+  channel to any member (bots included), as Discord's does.
 - **Not done yet:** category-level permissions (overrides are per channel), server folders in the
   rail, search dates (see Guild search), muting a category or a whole guild, a list of your
   recent mentions. Voice: see
