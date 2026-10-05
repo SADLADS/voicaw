@@ -67,6 +67,12 @@ async function deleteAccount(userId, plan) {
   await calls.endCallOf(userId);
   await require('./voice').disconnect(userId);
   for (const guild of plan.guilds) await deleteGuild(guild.id);
+  // Their bots go too: out of every guild, their tokens dead (bots.js; the bot users stay as
+  // deleted accounts, so their messages keep an author).
+  const bots = require('./bots');
+  for (const application of await db.all('SELECT * FROM bot_applications WHERE owner_id = ?', [userId])) {
+    await bots.deleteApplication(application);
+  }
 
   const user = await db.get('SELECT username FROM users WHERE id = ?', [userId]);
   await db.transaction(async () => {

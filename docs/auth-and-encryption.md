@@ -132,7 +132,9 @@ Discord's: the person goes, what they wrote stays under "Deleted User".
   (`guilds.js` `deleteGuild`). Group DMs: only you can sign leaving, so the client signs a
   `leave` entry for every group (`groupKeys.js` `leaveEntry`) and sends `groupLeaves: { groupId:
   entry }`; each is checked with `checkEntry` (missing or stale: 409 `groups_changed`, the client
-  signs again). Then: calls and voice ended, the leaves stored (a group left empty is deleted),
+  signs again). Then: calls and voice ended, their bot applications deleted (`bots.js`
+  `deleteApplication`: out of every guild, tokens dead, the bot users kept as deleted
+  accounts), the leaves stored (a group left empty is deleted),
   notes deleted (with their reactions and poll timers), unread counts, push subscriptions, GIF
   favourites and mentions of them deleted, every other guild left (`removeMember`), the picture
   removed, `user_profile` to everyone, `account_deleted` to their sockets, which are closed.

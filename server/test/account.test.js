@@ -207,6 +207,24 @@ describe('deleting your account', () => {
     expect((await api.get(cal, '/dms-list')).body.some((u) => u.id === ann.id)).toBe(false);
   });
 
+  it('deletes their bot applications too, taking the bots out of guilds', async () => {
+    const db = require('../db');
+    const ann = await makeUser();
+    const bob = await makeUser();
+    const app1 = (await api.post(ann, '/applications', { name: 'Ann Bot' })).body;
+    const guild = await createGuild(bob, 'Bob place');
+    await db.run('INSERT INTO guild_members (guild_id, user_id, joined_at) VALUES (?, ?, ?)', [guild.id, app1.id, Math.floor(Date.now() / 1000)]);
+    const bobsBot = (await api.post(bob, '/applications', { name: 'Bob Bot' })).body;
+
+    expect((await api.delete(ann, '/account', await proof(ann))).status).toBe(200);
+
+    expect(await db.get('SELECT 1 FROM bot_applications WHERE id = ?', [app1.id])).toBeUndefined();
+    expect(await db.get('SELECT 1 FROM guild_members WHERE guild_id = ? AND user_id = ?', [guild.id, app1.id])).toBeUndefined();
+    expect((await db.get('SELECT deleted_at FROM users WHERE id = ?', [app1.id])).deleted_at).toBeTruthy();
+    // Someone else's bot is left alone.
+    expect(await db.get('SELECT 1 FROM bot_applications WHERE id = ?', [bobsBot.id])).toBeTruthy();
+  });
+
   it("can't put a deleted account into a group", async () => {
     const ann = await makeUser();
     const bob = await makeUser();
