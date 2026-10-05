@@ -141,7 +141,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   viewer.
 - `docs/client.md`: client structure (contexts, translations, Layout, settings, dates, themes, sidebar, phone
   panes, PWA updates, spellcheck, right-click menus, pinned and muted conversations, account preferences),
-  profiles and pictures, sounds, admin settings.
+  profiles and pictures, sounds, admin settings, blocking, reports and suspensions.
 - `docs/desktop-and-site.md`: the Electron app, the Android app (FCM, ringing, ongoing call),
   voicaw.com.
 - `docs/bots.md`: bots: applications and bot users, the developer portal, adding bots to guilds,
@@ -214,8 +214,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   storage and there's one implementation. Distributed as a signed APK from updates.voicaw.com
   (2026-10-03), which updates itself from there, downloading only when asked (2026-10-04; the
   `play` build flavour never does, as Play requires); Google Play planned once the user's developer account is verified (needs a
-  12-tester closed test for 14 days and report/block for user content first; the privacy
-  policy, terms and account-deletion page are on voicaw.com, 2026-10-05).
+  12-tester closed test for 14 days first; the privacy policy, terms and account-deletion page
+  are on voicaw.com, and blocking, reports and suspensions in the app, 2026-10-05).
 - **Bots** (built 2026-10-03, see `docs/bots.md`): Discord's API, library-compatible (discord.js
   and discord.py work with URL changes), guilds only (never in DMs, group DMs or calls: they're
   end-to-end encrypted, and bots have no keys), no privileged intents, anyone can make

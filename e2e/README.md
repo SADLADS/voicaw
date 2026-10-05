@@ -60,6 +60,7 @@ node e2e/swipereply.mjs [dir] # phone swipe to reply: message follows the finger
 node e2e/devices.mjs [dir] # Settings → Devices: three logins listed, log the phone out (back at login, token dead), all others, phone, logout ends the session
 node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
 node e2e/favicon.mjs [dir] # favicon dot: DM on, read = off, guild message without a mention = none, mention on (Discord's rule); dir gets the dotted icon
+node e2e/moderation.mjs [dir] # block from a profile (collapsed messages, Show, DMs refused both ways, DM closed, Unblock), Report Message (guild; DM sharing its text), admin's Reports, suspend (phone logged out and told why, login refused with the reason), lift
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
 node e2e/android.mjs [dir] # Android app page side (stand-in Capacitor bridge): no service worker, Settings → Android App, a new version offered and downloaded on Update, push registration, notification tap, notify.html decrypts a real DM, call: Answer from the notification, ongoing-call notification, its Mute and Hang up
 node e2e/lists.mjs [dir]  # list channels: add, subtask, drag to nest/reorder, assign, due date, comments, read-only, phone

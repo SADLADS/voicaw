@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faComments, faCopy, faEdit, faReply, faRobot, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faCopy, faEdit, faFlag, faReply, faRobot, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { quickReactions } from '../emoji/quickReactions';
@@ -28,6 +28,7 @@ export default function MessageActionSheet({
   onCreateThread,
   onCopy,
   onDelete,
+  onReport,
   apps = [],
   onRunApp,
   onClose,
@@ -142,6 +143,11 @@ export default function MessageActionSheet({
                   </button>
                 ))}
               </div>
+            )}
+            {sent && !isOwn && onReport && (
+              <button type="button" className="action-sheet-item danger" onClick={act(onReport)}>
+                <FontAwesomeIcon icon={faFlag} /> {t('chat.report.menuMessage')}
+              </button>
             )}
             {sent && canDelete && (
               <button type="button" className="action-sheet-item danger" onClick={() => setConfirmingDelete(true)}>

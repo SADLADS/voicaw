@@ -405,3 +405,35 @@ back. Secrets are write-only: the panel only shows where the value comes from an
 characters. `GET /admin`, `PUT /admin/settings/:key { value | null }`, `POST /admin/admins
 { username }`, `DELETE /admin/admins/:id` (not yourself). Only the Klipy key for now; add new
 app-wide keys to `SETTINGS` and read them with `getSetting` rather than from `config.js`.
+
+## Blocking, reports and suspensions
+
+What Google Play's rules for apps with people's posts ask for (2026-10-05), and how the terms of
+use (voicaw.com/terms/) say rules are enforced.
+- **Blocking** (`server/blocks.js`, `user_blocks`; `GET /blocks`, `PUT` / `DELETE /blocks/:id`, the
+  `blocks` event to your other devices; `utils/blocks.js` kept by `hooks/useBlocksSync.js` in
+  Layout): neither person can DM, call or add the other to a group (403 `code: 'blocked'`, "Your
+  message couldn't be delivered": never says who blocked whom), and the blocker isn't pushed
+  about the other's group messages, guild mentions or group calls (`blockersAmong`). In the app,
+  their messages are collapsed ("Blocked message · Show", `BlockedMessage.jsx` in `MessageList`),
+  they don't show as typing, and a DM with them is closed ("You've blocked …" with Unblock in
+  the header). Block / Unblock and Report are on the profile popover and the guild member card
+  (`UserSafetyActions.jsx`; blocking asks first; bots can only be reported). Settings → Blocked
+  users lists them. Deleting an account deletes its blocks both ways.
+- **Reports** (`server/reports.js`, `routes/reports.js`, `reports` table): Report Message in the
+  message menu and sheet (anyone else's message) and Report on a person (`ReportDialog.jsx`): a
+  category, an optional note, "Also block". A guild message is copied into the report (the server
+  has it anyway). A DM or group message is end-to-end encrypted: the report holds only who, where
+  and when unless the reporter ticks "Let moderators see this message" (off by default), when the
+  text they see goes along (`shared`: it can't be checked against the ciphertext). Webhook
+  messages are reported against the guild's owner. At most 20 reports an hour each; resolved ones
+  are deleted a year on (the hourly sweep in `auth.js`).
+- **Settings → Admin → Reports** (`AdminReports.jsx`, global admins; `GET /admin/reports`): open
+  reports (refreshed by `reports_changed`), Dismiss, Delete message (guild only, as a moderator:
+  the guild's audit log says so), Suspend (with an optional reason); suspended accounts with Lift;
+  recently resolved ones.
+- **Suspension** (`server/suspensions.js`, `users.suspended_at` / `suspended_reason`): sessions and
+  push subscriptions deleted, calls and voice ended, open apps told `account_suspended` (they log
+  out, and the login page says why), every token refused (`verifyToken`), and logging in or
+  recovering refused with 403 `code: 'suspended'` and the reason. Admins and yourself can't be
+  suspended. Messages and memberships stay. Lifting it lets them log in again.

@@ -51,6 +51,8 @@ unexpected errors. The rest:
 - `polls.js`: reading guild polls, when they close, and what an edit may change (see Polls).
 - `accounts.js`: deleting an account (see Deleting an account).
 - `sessions.js`: listing and ending login sessions (see Login sessions and Settings → Devices).
+- `blocks.js`, `reports.js`, `suspensions.js`: blocking, reports and suspending accounts (see Blocking,
+  reports and suspensions in `docs/client.md`).
 - `usernames.js`: usernames ignore capitals (`findUserByName`, `opaque_id`; see Auth).
 - `pollTimers.js`: when every poll closes and its "poll ended" row (see Polls), and dropping
   the timers of polls whose chat was deleted (hourly); `routes/polls.js`.

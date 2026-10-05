@@ -21,13 +21,20 @@ export const MIN_PASSWORD_LENGTH = 10;
 
 const PUBLIC_KEY_FIELDS = ['identityKey', 'encryptionKey', 'encryptionKeySignature'];
 
+// What a suspended account is told (server: 403 `code: 'suspended'`, with the admin's reason).
+export function suspendedText(reason) {
+  return reason ? t('auth.errors.suspendedBecause', { reason }) : t('auth.errors.suspended');
+}
+
 // Sends and resolves to the response body; a refusal throws the server's own message
 // (e.g. "Username already exists", or too many attempts).
 async function send(method, path, body) {
   try {
     return (await api[method](path, body)).data;
   } catch (err) {
-    throw new Error(err.response?.data?.error || err.message);
+    const data = err.response?.data;
+    if (data?.code === 'suspended') throw new Error(suspendedText(data.reason));
+    throw new Error(data?.error || err.message);
   }
 }
 

@@ -3,8 +3,21 @@ import '../assets/css/login.css';
 import '../assets/css/recovery.css';
 import { connectWebSocket } from '../utils/ws-client';
 import {
-  MIN_PASSWORD_LENGTH, logIn, register, recoverAccount, generateRecoveryCode, saveRecoveryCode,
+  MIN_PASSWORD_LENGTH, logIn, register, recoverAccount, generateRecoveryCode, saveRecoveryCode, suspendedText,
 } from '../services/authService';
+import { SUSPENDED_NOTICE } from '../utils/ws-client';
+
+// This account was just suspended while the app was open (ws-client): what to say, once.
+function takeSuspendedNotice() {
+  try {
+    const saved = sessionStorage.getItem(SUSPENDED_NOTICE);
+    if (!saved) return '';
+    sessionStorage.removeItem(SUSPENDED_NOTICE);
+    return suspendedText(JSON.parse(saved).reason);
+  } catch {
+    return '';
+  }
+}
 import RecoveryCodeDisplay from './RecoveryCodeDisplay';
 import { t } from '../i18n';
 
@@ -16,7 +29,7 @@ export default function Login({ onLoginSuccess }) {
   // password? } while a new code is shown: after registering (already stored), or after
   // logging in to an account without one (`password` set: stored once the user continues).
   const [mode, setMode] = useState('login');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(takeSuspendedNotice);
   const [loading, setLoading] = useState(false);
 
   const switchTo = (next) => {

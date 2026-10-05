@@ -13,6 +13,7 @@ import { displayName, getProfile, nameOf, useProfiles } from '../../utils/profil
 import { interactionError } from '../../utils/commandOptions';
 import ProfileCard from '../ProfileCard';
 import Avatar from '../Avatar';
+import UserSafetyActions from '../UserSafetyActions';
 import { t } from '../../i18n';
 
 // The guild's members down the right (like Discord), names in their role colour. Clicking one
@@ -41,7 +42,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
     setError(null);
     if (selectedId == null) return undefined;
     const close = (e) => {
-      if (!cardRef.current?.contains(e.target) && !e.target.closest?.('.member-row')) setSelectedId(null);
+      if (!cardRef.current?.contains(e.target) && !e.target.closest?.('.member-row, .vc-dialog-backdrop')) setSelectedId(null);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -169,6 +170,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
             </button>
           )}
         </div>
+        <UserSafetyActions userId={member.id} name={nameOf(member)} bot={Boolean(member.bot)} />
         {userApps.length > 0 && onRunUserApp && (
           <div className="member-card-apps" role="group" aria-label={t('commands.apps.label')}>
             <div className="member-card-label">{t('commands.apps.label')}</div>

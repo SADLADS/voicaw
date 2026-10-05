@@ -19,6 +19,7 @@ import { encryptReaction, reactionContext } from '../services/encryptionService'
 import { usePresence } from '../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../utils/presence';
 import { isDeleted, nameOf, useProfiles } from '../utils/profiles';
+import { unblockUser, useBlocked } from '../utils/blocks';
 import { t } from '../i18n';
 
 // The "Verified / Not verified" badge and safety number dialog. Hidden for now: too confusing
@@ -51,6 +52,8 @@ export default function Dm({ user }) {
   const profilesVersion = useProfiles();
   const chatName = chatUser ? nameOf(chatUser) : null;
   const deleted = isDeleted(chatUser);
+  // You blocked them (utils/blocks.js): no messages or calls until you unblock.
+  const blockedThem = useBlocked().has(Number(chatUser?.id));
   const reactionNames = useMemo(
     () => ({ [user?.id]: nameOf(user), [chatUser?.id]: nameOf(chatUser) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,7 +95,12 @@ export default function Dm({ user }) {
                 {lastSeenText(presence.lastOnline) ?? statusLabel('offline')}
               </span>
             )}
-            {voiceEnabled && chatUser && sharedKey && !keyBlocked && !deleted && (
+            {blockedThem && (
+              <button type="button" className="btn btn-sm btn-secondary chat-unblock-button" onClick={() => unblockUser(chatUser.id).catch(() => {})}>
+                {t('chat.blocked.unblock')}
+              </button>
+            )}
+            {voiceEnabled && chatUser && sharedKey && !keyBlocked && !deleted && !blockedThem && (
               <button
                 type="button"
                 className="chat-call-button"
@@ -159,8 +167,8 @@ export default function Dm({ user }) {
               people={people}
               pinsAnchor={pinsAnchor}
               onClosePins={closePins}
-              canSend={!deleted}
-              cantSendText={t('chat.dm.accountDeleted')}
+              canSend={!deleted && !blockedThem}
+              cantSendText={deleted ? t('chat.dm.accountDeleted') : t('chat.blocked.youBlocked', { name: chatName })}
             />
           )}
         </>

@@ -14,6 +14,8 @@ import AdminSettings from "./AdminSettings";
 import DateTimeSettings from "./DateTimeSettings";
 import SpellcheckSettings from "./SpellcheckSettings";
 import PrivacySettings from "./PrivacySettings";
+import BlockedUsers from './BlockedUsers';
+import AdminReports from './AdminReports';
 import ContentSettings from "./ContentSettings";
 import ThemeSettings from "./ThemeSettings";
 import LanguageSettings from "./LanguageSettings";
@@ -123,6 +125,11 @@ export default function Settings({ onLogout }) {
       content: <PrivacySettings />,
     },
     {
+      id: 'blocked', category: 'app', title: t('settings.sections.blocked.title'),
+      keywords: t('settings.sections.blocked.keywords'),
+      content: <BlockedUsers />,
+    },
+    {
       id: 'content', category: 'app', title: t('settings.sections.content.title'),
       keywords: t('settings.sections.content.keywords'),
       content: <ContentSettings />,
@@ -170,6 +177,13 @@ export default function Settings({ onLogout }) {
       keywords: t('settings.sections.admin.keywords'),
       available: isAdmin,
       content: <AdminSettings onAvailable={() => setIsAdmin(true)} />,
+    },
+    {
+      // Reports and suspended accounts (AdminReports.jsx), for admins only like the one above.
+      id: 'reports', category: 'admin', title: t('settings.sections.reports.title'),
+      keywords: t('settings.sections.reports.keywords'),
+      available: isAdmin,
+      content: isAdmin ? <AdminReports /> : null,
     },
     {
       id: 'about', category: 'about', title: t('settings.sections.about.title'),
