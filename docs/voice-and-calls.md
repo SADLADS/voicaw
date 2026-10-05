@@ -10,18 +10,21 @@ LiveKit carries the audio.
   `channel-<id>`, each participant's identity their user id. `POST
   /guilds/:g/channels/:c/voice` (View Channel + Connect) returns `{ url, token }`: a 10 minute
   LiveKit token for that room (LiveKit keeps it fresh once connected), publishing only the
-  microphone, and only with Speak. One voice channel per user: getting a token for another
+  microphone, and only with Speak, and hearing the others only with **Listen** (2026-10-05,
+  `canSubscribe`: everyone has it through @everyone unless taken away; bots only when given it,
+  see Voice in `docs/bots.md`; without it the call view says you can't hear the channel). One
+  voice channel per user: getting a token for another
   removes you from the first. Who's actually in comes from LiveKit's **webhooks** (`POST
   /livekit/webhook`, signed with the API key): joined/left/room finished. The state is in memory
   (`states`), rebuilt from LiveKit's room list when the API starts (`restoreFromLiveKit`, only
   when run as the server). A "left" only counts for the session (sid) that's in, since joining
   from a second device replaces the first. After any guild change (`announceGuildUpdate`) and
   when a member is removed, `enforceGuild` disconnects whoever lost View/Connect and gives or
-  takes away Speak live. Self mute/deafen: `PUT /voice/state` (kept in LiveKit participant
+  takes away Speak, Video and Listen live (a change of Listen is announced too). Self mute/deafen: `PUT /voice/state` (kept in LiveKit participant
   attributes too, so a restart keeps them); `DELETE /voice` leaves. Everyone who can see the
   channel gets `guild_voice_state { guildId, channelId, userId, state }` (`state` null: left),
   and a voice channel in the layout has `voice: [{ user_id, username, self_mute, self_deaf,
-  self_stream }]`. `GET /guilds` gives each guild `voice: { [channelId]: [userId] }`, who's in
+  self_stream, listening }]`. `GET /guilds` gives each guild `voice: { [channelId]: [userId] }`, who's in
   the voice channels you can see (`guildVoiceFor`), for guilds whose layout isn't loaded yet.
 - **Guild rail speaker**: a guild with someone in a voice channel you can see gets a speaker on
   its rail icon (`Sidebar`), grey, or `--vc-online` green when you're in voice there (on any

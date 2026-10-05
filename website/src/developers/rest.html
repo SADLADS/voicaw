@@ -156,6 +156,15 @@
         <tr><td><span class="method get">GET</span> <span class="method patch">PATCH</span> <span class="method delete">DELETE</span> <code>/webhooks/{application}/{token}/messages/{message}</code></td><td>No bot token</td><td><code>@original</code> or a follow-up's id.</td></tr>
       </table></div>
 
+      <h2 id="voice">Voice</h2>
+      <div class="table"><table class="endpoints">
+        <tr><th>Endpoint</th><th>Needs</th><th>Notes</th></tr>
+        <tr><td><span class="method post">POST</span> <code>/channels/{channel}/voice</code></td><td>View Channel, Connect</td><td>Voicaw's own: a LiveKit token for the voice channel, <code>{ url, token, room, identity, expires_in, speak, listen }</code>. See <a href="/developers/docs/voice/">Voice</a>.</td></tr>
+        <tr><td><span class="method get">GET</span> <code>/guilds/{guild}/voice-states/{user or @me}</code></td><td>View Channel</td><td>A voice state, plus <code>listening</code>.</td></tr>
+        <tr><td><span class="method patch">PATCH</span> <code>/guilds/{guild}/voice-states/@me</code></td><td>In voice there</td><td><code>self_mute</code>, <code>self_deaf</code>, or <code>channel_id: null</code> to leave.</td></tr>
+        <tr><td><span class="method delete">DELETE</span> <code>/guilds/{guild}/voice-states/@me</code></td><td>—</td><td>Leaves.</td></tr>
+      </table></div>
+
       <h2 id="gateway">Gateway</h2>
       <div class="table"><table class="endpoints">
         <tr><th>Endpoint</th><th>Needs</th><th>Notes</th></tr>

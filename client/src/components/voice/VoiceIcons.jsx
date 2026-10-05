@@ -1,9 +1,14 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHeadphones, faMicrophone, faMicrophoneSlash } from '@fortawesome/free-solid-svg-icons';
+import { faEarListen, faHeadphones, faMicrophone, faMicrophoneSlash } from '@fortawesome/free-solid-svg-icons';
 
 export function MicIcon({ muted }) {
   return <FontAwesomeIcon icon={muted ? faMicrophoneSlash : faMicrophone} fixedWidth />;
+}
+
+// A bot that can hear the channel (Listen; server/permissions.js).
+export function EarIcon() {
+  return <FontAwesomeIcon icon={faEarListen} fixedWidth />;
 }
 
 // Headphones, struck through when deafened (Font Awesome's free set has no such icon).

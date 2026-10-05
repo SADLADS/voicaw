@@ -732,6 +732,79 @@ router.delete('/guilds/:guildId/bans/:userId', auth, limit('ban', 5, 5000), inGu
   res.status(204).end();
 }));
 
+// ---- Voice (voice.js) ----
+
+// Voicaw's own, not Discord's: a voice channel's audio is a LiveKit room, and a bot joins it
+// with LiveKit's SDKs and the token this gives (Discord's voice protocol isn't spoken here).
+// Speak lets it send audio, Listen lets it hear the others; LiveKit enforces both, live.
+// Joining another channel leaves the first. Body: { self_mute, self_deaf } (optional).
+router.post('/channels/:channelId/voice', auth, limit('voice-join', 5, 10000), inChannel, route(async (req, res) => {
+  const config = require('../config');
+  const voice = require('../voice');
+  if (req.category || req.access.channel.type !== 'voice') throw new ActionError(400, 'Cannot execute action on this channel type', 50024);
+  if (!config.livekit) throw new ActionError(503, "Voice isn't available on this server", 0);
+  const access = await voice.voiceAccess(req.access.channel.id, req.bot.id);
+  if (!access) throw missingPermissions();
+  const user = await userRow(req.bot.id);
+  const { url, token } = await voice.joinToken({
+    channel: access.channel,
+    userId: req.bot.id,
+    username: user.display_name || user.username,
+    permissions: access.permissions,
+    selfMute: Boolean(req.body?.self_mute),
+    selfDeaf: Boolean(req.body?.self_deaf),
+    isBot: true,
+  });
+  res.json({
+    url,
+    token,
+    room: voice.roomName(access.channel.id),
+    identity: String(req.bot.id),
+    expires_in: 600,
+    speak: has(access.permissions, PERMISSIONS.SPEAK),
+    listen: has(access.permissions, PERMISSIONS.LISTEN),
+  });
+}));
+
+// The bot's voice state in this guild (or someone else's), as Discord's GET voice-states.
+router.get('/guilds/:guildId/voice-states/:userId', auth, inGuild, route(async (req, res) => {
+  const voice = require('../voice');
+  const userId = req.params.userId === '@me' ? req.bot.id : D.ourId(req.params.userId);
+  const state = voice.states.get(userId);
+  if (!state || state.guildId !== req.member.guild.id) return fail(res, 404, 10065, 'Unknown Voice State');
+  const access = await getChannelAccess(state.channelId, req.bot.id);
+  if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return fail(res, 404, 10065, 'Unknown Voice State');
+  const [member] = await D.guildMembers(state.guildId, { userIds: [userId] });
+  const [publicState] = voice.membersOf(state.channelId).filter((s) => s.user_id === userId);
+  res.json(D.voiceStateObject({ guildId: state.guildId, channelId: state.channelId, userId, state: publicState, member }));
+}));
+
+// The bot's own mute and deafen ({ self_mute, self_deaf }), shown to everyone like a person's.
+// `channel_id: null` leaves its voice channel.
+router.patch('/guilds/:guildId/voice-states/@me', auth, limit('voice-state', 5, 5000), inGuild, route(async (req, res) => {
+  const voice = require('../voice');
+  const state = voice.states.get(req.bot.id);
+  if (!state || state.guildId !== req.member.guild.id) return fail(res, 404, 10065, 'Unknown Voice State');
+  const body = req.body ?? {};
+  if (body.channel_id === null) {
+    await voice.disconnect(req.bot.id);
+    return res.status(204).end();
+  }
+  await voice.setSelfState(req.bot.id, {
+    selfMute: body.self_mute !== undefined ? Boolean(body.self_mute) : state.selfMute,
+    selfDeaf: body.self_deaf !== undefined ? Boolean(body.self_deaf) : state.selfDeaf,
+  });
+  res.status(204).end();
+}));
+
+// Leaves its voice channel in this guild.
+router.delete('/guilds/:guildId/voice-states/@me', auth, inGuild, route(async (req, res) => {
+  const voice = require('../voice');
+  const state = voice.states.get(req.bot.id);
+  if (state && state.guildId === req.member.guild.id) await voice.disconnect(req.bot.id);
+  res.status(204).end();
+}));
+
 // ---- Invites ----
 
 async function inviteObject(invite, channel) {

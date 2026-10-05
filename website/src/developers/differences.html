@@ -1,6 +1,6 @@
       <h2 id="not-yet">Not there yet</h2>
       <ul>
-        <li><strong>Voice</strong>: Voicaw's voice runs on LiveKit, not Discord's voice protocol. Bots can see voice channels and who's in them (Guild Voice States), but can't join. Voice State Update (op 4) is ignored.</li>
+        <li><strong>Discord's voice protocol</strong>: Voicaw's voice runs on LiveKit, so bots join voice channels with LiveKit's SDKs and a token from <code>POST /channels/{channel}/voice</code> (see <a href="/developers/docs/voice/">Voice</a>). <code>@discordjs/voice</code> and discord.py's <code>VoiceClient</code> don't work, and Voice State Update (op 4) is ignored. Bots send audio only (no video).</li>
         <li><strong>Webhooks with a bot token</strong>: webhooks themselves work as on Discord (with their own URL), but bots can't make or list them through the bot API.</li>
         <li><strong>Categories</strong>: bots can read them, but not make, change or delete them.</li>
         <li><strong>Interactions</strong>: there's no HTTP interactions endpoint (interactions only come over the gateway), no Components V2 layouts, no premium buttons, entitlements or activities, and no per-command permission overrides. Localised command names and descriptions are accepted but people see the plain ones. See <a href="/developers/docs/interactions/">Commands and components</a>.</li>

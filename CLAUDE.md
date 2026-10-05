@@ -200,7 +200,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   path is a Web Audio chain (capture with echo cancellation → input volume → noise
   suppression → gate → published track). Krisp needs LiveKit Cloud or a licence, so it's out:
   noise suppression is RNNoise by default and DeepFilterNet as Strong (decided 2026-10-01),
-  both running on the device.
+  both running on the device. Hearing a voice channel needs Listen (2026-10-05; everyone has it
+  by default), enforced by LiveKit like Speak.
 - **Android app** (built 2026-10-03, see `docs/desktop-and-site.md`): a Capacitor wrapper of the
   client, native (Java) only for notifications, ringing and the ongoing call. Closed-app pushes
   go through Firebase Cloud Messaging (Google; the only reliable way to wake an Android app,
@@ -221,6 +222,10 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   (offset by 2^40). Commands and components (same day): buttons, selects and forms, slash and
   context-menu commands, interactions over the gateway only (no outgoing requests to bots'
   URLs), ephemeral replies kept only in memory and the person's open app, as Discord does.
+  Voice (2026-10-05): bots join with LiveKit's SDKs and a token from the bot API, audio only;
+  hearing is its own permission, Listen (people have it through @everyone, which never gives it
+  to a bot; LiveKit enforces it), and listening bots show an ear. A Discord-compatible voice
+  bridge was deferred (big: voice websocket, UDP, re-encoding, maybe Discord's DAVE).
 - **Watch Together** (built 2026-10-04, see `docs/voice-and-calls.md`): YouTube watch parties in
   guild voice channels, the server keeping the queue and the clock in memory, clients following
   it. YouTube's iframe API script is deliberately not loaded (it would run YouTube's code next to

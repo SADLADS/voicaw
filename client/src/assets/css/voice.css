@@ -312,6 +312,11 @@ button.user-panel-button {
 
 /* ---- Screen sharing ---- */
 
+/* The ear on a bot that can hear the channel (Listen). */
+.voice-listening {
+  color: var(--vc-warning);
+}
+
 /* "LIVE", by someone sharing their screen (channel list, tiles, the stream's bar). */
 .voice-live-badge {
   flex-shrink: 0;

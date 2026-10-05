@@ -49,6 +49,7 @@ const PERMISSION_BITS = [
   [P.QUEUE_VIDEOS, [58]], // ours only
   [P.MANAGE_QUEUE, [59]], // ours only
   [P.CONTROL_PLAYBACK, [60]], // ours only
+  [P.LISTEN, [61]], // ours only: hear the others in voice
 ];
 const DISCORD_PERMISSIONS = Object.fromEntries([
   ['CREATE_INSTANT_INVITE', 0], ['KICK_MEMBERS', 1], ['BAN_MEMBERS', 2], ['ADMINISTRATOR', 3], ['MANAGE_CHANNELS', 4],
@@ -59,6 +60,7 @@ const DISCORD_PERMISSIONS = Object.fromEntries([
   ['CREATE_PUBLIC_THREADS', 35], ['SEND_MESSAGES_IN_THREADS', 38], ['CREATE_GUILD_EXPRESSIONS', 43], ['PIN_MESSAGES', 51],
   ['VOICAW_EDIT_TASKS', 56], ['VOICAW_CREATE_DOCUMENTS', 57],
   ['VOICAW_QUEUE_VIDEOS', 58], ['VOICAW_MANAGE_QUEUE', 59], ['VOICAW_CONTROL_PLAYBACK', 60],
+  ['VOICAW_LISTEN', 61],
 ].map(([name, bit]) => [name, 1n << BigInt(bit)]));
 
 function toDiscordPermissions(bits) {
@@ -366,6 +368,27 @@ function reactionsObject(reactions, botId) {
   }));
 }
 
+// A voice state (voice.js's public state, null when they left) as Discord's. `listening` is
+// ours: whether they hear the others (Listen).
+function voiceStateObject({ guildId, channelId, userId, state, member = null }) {
+  return {
+    guild_id: id(guildId),
+    channel_id: state ? id(channelId) : null,
+    user_id: id(userId),
+    ...(member ? { member } : {}),
+    session_id: '',
+    deaf: false,
+    mute: false,
+    self_deaf: Boolean(state?.self_deaf),
+    self_mute: Boolean(state?.self_mute),
+    self_stream: Boolean(state?.self_stream),
+    self_video: false,
+    suppress: false,
+    request_to_speak_timestamp: null,
+    ...(state ? { listening: state.listening !== false } : {}),
+  };
+}
+
 const MESSAGE_TYPES = { default: 0, reply: 19, thread: 18, poll_end: 46 };
 
 // Messages (rows from guildMessages' MESSAGE_SELECT, after withReactions) as Discord's, seen by
@@ -502,4 +525,5 @@ module.exports = {
   reactionEmoji,
   reactionText,
   messageObjects,
+  voiceStateObject,
 };

@@ -31,11 +31,12 @@ async function getRoles(guildId) {
 }
 
 // A member as permissions.js sees them, plus their guild-wide `permissions` and rank.
-function memberContext(guild, userId, roles, roleIds) {
+function memberContext(guild, userId, roles, roleIds, isBot = false) {
   const member = {
     guild,
     userId,
     isOwner: guild.owner === userId,
+    isBot: Boolean(isBot), // a bot (bots.js): see permissions.js about Listen
     everyone: roles.find((r) => r.is_everyone),
     roles: roles.filter((r) => !r.is_everyone && roleIds.has(r.id)),
     allRoles: roles,
@@ -48,16 +49,17 @@ function memberContext(guild, userId, roles, roleIds) {
 // The member (see memberContext) if `userId` is in the guild, else null.
 async function getMember(guildId, userId) {
   if (!Number.isInteger(guildId)) return null;
-  const guild = await db.get(
-    `SELECT g.id, g.name, g.owner, g.icon_version, g.created_at
-     FROM guilds g JOIN guild_members gm ON gm.guild_id = g.id
+  const row = await db.get(
+    `SELECT g.id, g.name, g.owner, g.icon_version, g.created_at, u.bot AS member_bot
+     FROM guilds g JOIN guild_members gm ON gm.guild_id = g.id JOIN users u ON u.id = gm.user_id
      WHERE g.id = ? AND gm.user_id = ?`,
     [guildId, userId]
   );
-  if (!guild) return null;
+  if (!row) return null;
+  const { member_bot: isBot, ...guild } = row;
   const roles = await getRoles(guildId);
   const roleRows = await db.all('SELECT role_id FROM guild_member_roles WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
-  return memberContext(guild, userId, roles, new Set(roleRows.map((r) => r.role_id)));
+  return memberContext(guild, userId, roles, new Set(roleRows.map((r) => r.role_id)), isBot);
 }
 
 // Every member of the guild, by user id (for deciding who sees what).
@@ -65,11 +67,15 @@ async function getAllMembers(guildId) {
   const guild = await db.get('SELECT id, name, owner, icon_version, created_at FROM guilds WHERE id = ?', [guildId]);
   if (!guild) return new Map();
   const roles = await getRoles(guildId);
-  const memberRows = await db.all('SELECT user_id FROM guild_members WHERE guild_id = ?', [guildId]);
+  const memberRows = await db.all(
+    'SELECT gm.user_id, u.bot FROM guild_members gm JOIN users u ON u.id = gm.user_id WHERE gm.guild_id = ?',
+    [guildId]
+  );
   const roleRows = await db.all('SELECT user_id, role_id FROM guild_member_roles WHERE guild_id = ?', [guildId]);
   const roleIdsByUser = new Map(memberRows.map((m) => [m.user_id, new Set()]));
+  const bots = new Set(memberRows.filter((m) => m.bot).map((m) => m.user_id));
   for (const { user_id: userId, role_id: roleId } of roleRows) roleIdsByUser.get(userId)?.add(roleId);
-  return new Map([...roleIdsByUser].map(([userId, roleIds]) => [userId, memberContext(guild, userId, roles, roleIds)]));
+  return new Map([...roleIdsByUser].map(([userId, roleIds]) => [userId, memberContext(guild, userId, roles, roleIds, bots.has(userId))]));
 }
 
 // Overrides of the given channels (or every channel of `guildId`), by channel id. A thread has

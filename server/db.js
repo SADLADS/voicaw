@@ -829,6 +829,9 @@ const MIGRATIONS = [
     const bits = PERMISSIONS.QUEUE_VIDEOS | PERMISSIONS.CONTROL_PLAYBACK;
     sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${bits} WHERE is_everyone = 1`);
   },
+  // 12. Listen is new (hearing others in voice was part of Connect): @everyone gets it, as in
+  // new guilds, so nobody stops hearing. Bots' own roles don't: a bot listens only once allowed.
+  () => sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.LISTEN} WHERE is_everyone = 1`),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');

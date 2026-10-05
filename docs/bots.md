@@ -208,9 +208,40 @@ gives, so the server never makes requests to addresses bots choose).
   autocomplete, user context menus) and discord.py 2.7.1 (`tree.sync`, a button `View`,
   a `Modal`).
 
+### Voice (`routes/botApi.js`, `server/voice.js`)
+
+Decided 2026-10-05: bots join voice channels with **LiveKit's own SDKs** (Node
+`@livekit/rtc-node`, Python `livekit`, Go, Rust...), not Discord's voice protocol: Voicaw's voice
+is a LiveKit room, so a bot gets a token like the app does and no audio passes through the API.
+A Discord-compatible voice bridge (Discord's voice websocket + UDP, re-encoding into LiveKit,
+maybe DAVE) may come later. Audio only: bots never get Video (`voice.canStreamWith`).
+
+- **Projecting and listening are separate**: Speak (send audio, as before) and **Listen**
+  (`PERMISSIONS.LISTEN`, hear the others; Discord bit 61, Voicaw's own). LiveKit enforces both
+  (`canPublishSources` / `canSubscribe` in the token, changed live by `enforceGuild`). Listen is
+  a normal permission for everyone (@everyone has it by default; migration 12 gave it to
+  existing guilds), but **@everyone's Listen never counts for a bot** (`permissions.js`
+  `everyoneBits`, also an @everyone channel override's allow): a bot hears only if Listen comes
+  from its own role, another role, or an override for those or for it. Speak, like Connect,
+  does come from @everyone (as in Discord). Bots that can hear show an ear in the voice list and
+  the call tiles; the invite's checkboxes have "Listen (hear voice channels)".
+- **Endpoints** (Voicaw's, under the bot API): `POST /channels/:id/voice` (View Channel +
+  Connect; body `{ self_mute, self_deaf }`) answers `{ url, token, room, identity, expires_in,
+  speak, listen }`, a 10-minute LiveKit token to connect with (LiveKit keeps a connected one
+  fresh; joining another channel leaves the first); `GET /guilds/:id/voice-states/@me` (or a
+  user id; Discord's shape plus `listening`); `PATCH /guilds/:id/voice-states/@me` (`self_mute`,
+  `self_deaf`, or `channel_id: null` to leave); `DELETE /guilds/:id/voice-states/@me` leaves.
+  The bot is then a voice participant like anyone (LiveKit's webhooks put it in `voice.states`),
+  so VOICE_STATE_UPDATE goes to bots with Guild Voice States, and GUILD_CREATE's
+  `voice_states` lists who's in the voice channels the bot can see. Gateway op 4 (Discord's
+  voice join) is still ignored.
+- **Checked** (2026-10-05, e2e's throwaway API with its own LiveKit): a Node bot
+  (`@livekit/rtc-node`) publishing a tone with Speak; a bot with Listen hears it (Node, and
+  Python `livekit`); a bot without Listen gets no audio at all (LiveKit refuses to subscribe it).
+
 ### Not done yet
 
-Voice, webhooks managed with a bot token, nicknames, timeouts and server mute,
+Discord-compatible voice (see Voice), webhooks managed with a bot token, nicknames, timeouts and server mute,
 stickers, polls through the API, scheduled events, creating guilds, forwarding, creating or
 editing categories, the audit log endpoint. Invites are per guild (a channel's invite only
 echoes the channel back). For interactions: Discord's HTTP interactions endpoint (outgoing

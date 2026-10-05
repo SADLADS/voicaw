@@ -79,6 +79,7 @@
         "sendMessagesInThreads": "Send Messages in Threads",
         "connect": "Connect",
         "speak": "Speak",
+        "listen": "Listen",
         "video": "Video",
         "queueVideos": "Queue Videos",
         "manageQueue": "Manage Queue",
@@ -167,6 +168,10 @@
       "SPEAK": {
         "label": "Speak",
         "description": "Lets members talk in voice channels. Without it they can only listen."
+      },
+      "LISTEN": {
+        "label": "Listen",
+        "description": "Lets members hear the others in voice channels. Everyone has it unless you take it away; a bot only hears voice channels if it's given this."
       },
       "STREAM": {
         "label": "Video",

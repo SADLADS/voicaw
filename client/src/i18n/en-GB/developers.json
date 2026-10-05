@@ -92,6 +92,7 @@
       "MENTION_EVERYONE": "Mention @everyone, @here and All Roles",
       "CONNECT": "Connect",
       "SPEAK": "Speak",
+      "VOICAW_LISTEN": "Listen (hear voice channels)",
       "STREAM": "Video",
       "VOICAW_EDIT_TASKS": "Edit Tasks",
       "VOICAW_CREATE_DOCUMENTS": "Create Documents",

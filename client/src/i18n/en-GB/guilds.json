@@ -263,6 +263,8 @@
       "live": "Live",
       "muted": "Muted",
       "deafened": "Deafened",
+      "botListening": "This bot can hear the channel",
+      "cantHear": "You can't hear this channel: you don't have the Listen permission here.",
       "disconnect": "Disconnect",
       "notSetUp": "Voice isn't set up yet.",
       "noPermission": "You don't have permission to join this channel.",

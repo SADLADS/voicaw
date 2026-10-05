@@ -209,7 +209,10 @@ class Session {
       presences: this.wants(INTENTS.GUILD_PRESENCES)
         ? members.filter((m) => getStatus(m.user.id) !== 'offline').map((m) => presenceObject(m.user.id, guildId))
         : [],
-      voice_states: [],
+      // Who's in the voice channels it can see (voice.js).
+      voice_states: [...snap.channels.values()].filter((c) => c.type === D.CHANNEL_TYPES.voice)
+        .flatMap((c) => require('./voice').membersOf(Number(c.id))
+          .map((state) => D.voiceStateObject({ guildId, channelId: c.id, userId: state.user_id, state }))),
       stage_instances: [],
       guild_scheduled_events: [],
       soundboard_sounds: [],
@@ -402,22 +405,7 @@ class Session {
   async voiceStateEvent(guildId, event) {
     if (!this.wants(INTENTS.GUILD_VOICE_STATES)) return;
     const [member] = await D.guildMembers(guildId, { userIds: [event.userId] });
-    const state = event.state;
-    this.dispatch('VOICE_STATE_UPDATE', {
-      guild_id: String(guildId),
-      channel_id: state ? String(event.channelId) : null,
-      user_id: String(event.userId),
-      ...(member ? { member } : {}),
-      session_id: '',
-      deaf: false,
-      mute: false,
-      self_deaf: Boolean(state?.self_deaf),
-      self_mute: Boolean(state?.self_mute),
-      self_stream: Boolean(state?.self_stream),
-      self_video: false,
-      suppress: false,
-      request_to_speak_timestamp: null,
-    });
+    this.dispatch('VOICE_STATE_UPDATE', D.voiceStateObject({ guildId, channelId: event.channelId, userId: event.userId, state: event.state, member }));
   }
 
   // ---- What the bot asks for ----

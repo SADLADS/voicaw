@@ -33,6 +33,7 @@ const PERMISSIONS = {
   QUEUE_VIDEOS: 1 << 23, // voice channels: add videos to Watch Together (and remove your own)
   MANAGE_QUEUE: 1 << 24, // voice channels: reorder Watch Together's queue, remove anyone's videos
   CONTROL_PLAYBACK: 1 << 25, // voice channels: play, pause, seek and skip in Watch Together
+  LISTEN: 1 << 26, // voice channels: hear the others (LiveKit only sends audio to those with it)
 };
 
 const ALL_PERMISSIONS = Object.values(PERMISSIONS).reduce((all, bit) => all | bit, 0);
@@ -42,20 +43,25 @@ const CHANNEL_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES
   PERMISSIONS.ADD_REACTIONS | PERMISSIONS.MANAGE_MESSAGES | PERMISSIONS.PIN_MESSAGES | PERMISSIONS.CONNECT |
   PERMISSIONS.SPEAK | PERMISSIONS.EDIT_TASKS | PERMISSIONS.STREAM | PERMISSIONS.CREATE_DOCUMENTS |
   PERMISSIONS.CREATE_THREADS | PERMISSIONS.SEND_MESSAGES_IN_THREADS | PERMISSIONS.QUEUE_VIDEOS |
-  PERMISSIONS.MANAGE_QUEUE | PERMISSIONS.CONTROL_PLAYBACK;
+  PERMISSIONS.MANAGE_QUEUE | PERMISSIONS.CONTROL_PLAYBACK | PERMISSIONS.LISTEN;
 
 const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
   PERMISSIONS.ADD_REACTIONS | PERMISSIONS.CREATE_INVITE | PERMISSIONS.CONNECT | PERMISSIONS.SPEAK |
   PERMISSIONS.EDIT_TASKS | PERMISSIONS.STREAM | PERMISSIONS.CREATE_DOCUMENTS |
   PERMISSIONS.CREATE_THREADS | PERMISSIONS.SEND_MESSAGES_IN_THREADS | PERMISSIONS.QUEUE_VIDEOS |
-  PERMISSIONS.CONTROL_PLAYBACK;
+  PERMISSIONS.CONTROL_PLAYBACK | PERMISSIONS.LISTEN;
 
 const has = (permissions, bit) => (permissions & bit) === bit;
 
-// `member` is { isOwner, everyone (role), roles (the member's other roles) }.
+// Bots hear voice channels only when let (Listen from their own or another role, or an
+// override for those or for them): @everyone's Listen, which people have by default, never
+// counts for a bot.
+const everyoneBits = (member, bits) => (member.isBot ? bits & ~PERMISSIONS.LISTEN : bits);
+
+// `member` is { isOwner, isBot, everyone (role), roles (the member's other roles) }.
 function guildPermissions(member) {
   if (member.isOwner) return ALL_PERMISSIONS;
-  const permissions = member.roles.reduce((all, role) => all | role.permissions, member.everyone.permissions);
+  const permissions = member.roles.reduce((all, role) => all | role.permissions, everyoneBits(member, member.everyone.permissions));
   return has(permissions, PERMISSIONS.ADMINISTRATOR) ? ALL_PERMISSIONS : permissions;
 }
 
@@ -67,7 +73,8 @@ function channelPermissions(member, userId, overrides = []) {
   const apply = (override) => {
     if (override) permissions = (permissions & ~override.deny) | override.allow;
   };
-  apply(overrides.find((o) => o.target_type === 'role' && o.target_id === member.everyone.id));
+  const everyoneOverride = overrides.find((o) => o.target_type === 'role' && o.target_id === member.everyone.id);
+  apply(everyoneOverride && { deny: everyoneOverride.deny, allow: everyoneBits(member, everyoneOverride.allow) });
 
   const roleIds = new Set(member.roles.map((r) => r.id));
   const roleOverrides = overrides.filter((o) => o.target_type === 'role' && roleIds.has(o.target_id));

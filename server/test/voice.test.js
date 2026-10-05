@@ -168,7 +168,7 @@ describe('voice channels', () => {
     await join(alice, guild, lounge, { selfMute: true });
     const sid = await webhook('participant_joined', lounge, alice);
 
-    const expected = { user_id: alice.id, username: alice.username, self_mute: true, self_deaf: false, self_stream: false };
+    const expected = { user_id: alice.id, username: alice.username, self_mute: true, self_deaf: false, self_stream: false, listening: true };
     expect(await voiceOf(owner, guild, lounge)).toEqual([expected]);
     expect(voiceEvents(events)).toEqual([
       { type: 'guild_voice_state', guildId: guild.id, channelId: lounge.id, userId: alice.id, state: expected },
@@ -262,6 +262,23 @@ describe('voice channels', () => {
     await api.put(owner, `/guilds/${guild.id}/channels/${lounge.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.CONNECT });
     expect(calls).toContainEqual(['remove', `channel-${lounge.id}`, String(alice.id)]);
     expect(await voiceOf(owner, guild, lounge)).toEqual([]);
+  });
+
+  it('lets people hear only with Listen, in the token and live', async () => {
+    const { owner, members: [alice], guild, lounge, everyone } = await setUp();
+    expect(everyone.permissions & P.LISTEN).toBe(P.LISTEN);
+    await api.put(owner, `/guilds/${guild.id}/channels/${lounge.id}/overrides/member/${alice.id}`, { allow: 0, deny: P.LISTEN });
+    expect(jwt.decode((await join(alice, guild, lounge)).body.token).video.canSubscribe).toBe(false);
+    await webhook('participant_joined', lounge, alice);
+    const events = listen(owner);
+    expect((await voiceOf(owner, guild, lounge))[0].listening).toBe(false);
+
+    calls.length = 0;
+    await api.put(owner, `/guilds/${guild.id}/channels/${lounge.id}/overrides/member/${alice.id}`, { allow: 0, deny: 0 });
+    expect(calls).toContainEqual(['update', `channel-${lounge.id}`, String(alice.id), {
+      permission: expect.objectContaining({ canSubscribe: true }),
+    }]);
+    expect(voiceEvents(events).at(-1).state.listening).toBe(true);
   });
 
   it('disconnects kicked members and everyone in a deleted channel', async () => {

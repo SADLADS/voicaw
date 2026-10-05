@@ -33,7 +33,7 @@ const livekit = {
 const receiver = config.livekit ? new WebhookReceiver(config.livekit.apiKey, config.livekit.apiSecret) : null;
 
 // userId -> { userId, username, guildId, channelId, sid, selfMute, selfDeaf, streaming, canSpeak,
-// canStream, joinedAt }
+// canStream, canListen, joinedAt }
 const states = new Map();
 // userId -> { selfMute, selfDeaf }: what the client last said, applied when it joins.
 const preferences = new Map();
@@ -45,8 +45,10 @@ function rememberLeft(sid) {
   setTimeout(() => leftSids.delete(sid), 10 * 60 * 1000).unref();
 }
 
+// `listening`: whether they may hear the others (Listen); the app marks bots that can.
 const publicState = (s) => ({
   user_id: s.userId, username: s.username, self_mute: s.selfMute, self_deaf: s.selfDeaf, self_stream: s.streaming,
+  listening: s.canListen !== false,
 });
 
 // Is the participant (LiveKit's ParticipantInfo) publishing a screen share?
@@ -105,14 +107,19 @@ async function disconnect(userId) {
   await announce(state.guildId, state.channelId, userId, null);
 }
 
+// Video (Stream) for a member's `access` (voiceAccess): bots send audio only, never video.
+const canStreamWith = (access) => has(access.permissions, PERMISSIONS.STREAM) && !access.member?.isBot;
+
 // The microphone with Speak, a screen share (and its sound) with Video (Stream).
-function publishPermission(canSpeak, canStream = false) {
+// Hearing the others (subscribing to their tracks) with Listen: LiveKit enforces all three, and
+// they change live (enforceGuild).
+function publishPermission(canSpeak, canStream = false, canListen = true) {
   const sources = [
     ...(canSpeak ? [TrackSource.MICROPHONE] : []),
     ...(canStream ? [TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO] : []),
   ];
   return {
-    canSubscribe: true,
+    canSubscribe: canListen,
     canPublish: sources.length > 0,
     canPublishSources: sources,
     canPublishData: false,
@@ -121,8 +128,9 @@ function publishPermission(canSpeak, canStream = false) {
 }
 
 // { url, token } for joining LiveKit room `room` as `userId`: the microphone with `canSpeak`,
-// a screen share with `canStream`. Also used for DM calls (calls.js).
-async function roomToken({ room, userId, username, canSpeak, canStream = false }) {
+// a screen share with `canStream`, hearing the others with `canListen`. Also used for DM calls
+// (calls.js), where everyone hears.
+async function roomToken({ room, userId, username, canSpeak, canStream = false, canListen = true }) {
   const token = new AccessToken(config.livekit.apiKey, config.livekit.apiSecret, {
     identity: String(userId),
     name: username,
@@ -132,14 +140,15 @@ async function roomToken({ room, userId, username, canSpeak, canStream = false }
     roomJoin: true,
     room,
     canUpdateOwnMetadata: false,
-    ...publishPermission(canSpeak, canStream),
+    ...publishPermission(canSpeak, canStream, canListen),
   });
   return { url: config.livekit.url, token: await token.toJwt() };
 }
 
 // A token to join `channel` (a voice channel the caller may connect to). Leaves any other
 // voice channel, and hangs up any call, first. `selfMute`/`selfDeaf` are how the client joins.
-async function joinToken({ channel, userId, username, permissions, selfMute, selfDeaf }) {
+// A bot (`isBot`) sends audio only.
+async function joinToken({ channel, userId, username, permissions, selfMute, selfDeaf, isBot = false }) {
   const current = states.get(userId);
   if (current && current.channelId !== channel.id) await disconnect(userId);
   await require('./calls').endCallOf(userId);
@@ -149,7 +158,8 @@ async function joinToken({ channel, userId, username, permissions, selfMute, sel
     userId,
     username,
     canSpeak: has(permissions, PERMISSIONS.SPEAK),
-    canStream: has(permissions, PERMISSIONS.STREAM),
+    canStream: has(permissions, PERMISSIONS.STREAM) && !isBot,
+    canListen: has(permissions, PERMISSIONS.LISTEN),
   });
 }
 
@@ -206,7 +216,8 @@ async function participantJoined(channelId, participant) {
     ...preference,
     streaming: sharesScreen(participant),
     canSpeak: has(access.permissions, PERMISSIONS.SPEAK),
-    canStream: has(access.permissions, PERMISSIONS.STREAM),
+    canStream: canStreamWith(access),
+    canListen: has(access.permissions, PERMISSIONS.LISTEN),
     joinedAt: previous?.channelId === channelId ? previous.joinedAt : Date.now(),
   };
   states.set(userId, state);
@@ -265,8 +276,8 @@ async function handleWebhookEvent(event) {
 }
 
 // After anything in the guild changed (roles, overrides, channels, members): whoever may no
-// longer be in their voice channel is disconnected, and Speak and Video are given or taken
-// away (LiveKit stops a screen share that's no longer allowed).
+// longer be in their voice channel is disconnected, and Speak, Video and Listen are given or
+// taken away (LiveKit stops a screen share, or what they hear, once no longer allowed).
 async function enforceGuild(guildId) {
   for (const state of [...states.values()]) {
     if (state.guildId !== guildId) continue;
@@ -276,13 +287,18 @@ async function enforceGuild(guildId) {
       continue;
     }
     const canSpeak = has(access.permissions, PERMISSIONS.SPEAK);
-    const canStream = has(access.permissions, PERMISSIONS.STREAM);
-    if (canSpeak !== state.canSpeak || canStream !== state.canStream) {
+    const canStream = canStreamWith(access);
+    const canListen = has(access.permissions, PERMISSIONS.LISTEN);
+    if (canSpeak !== state.canSpeak || canStream !== state.canStream || canListen !== state.canListen) {
+      const listenChanged = canListen !== state.canListen;
       state.canSpeak = canSpeak;
       state.canStream = canStream;
+      state.canListen = canListen;
+      // Whether someone can hear is shown (bots that listen are marked).
+      if (listenChanged) await announce(state.guildId, state.channelId, state.userId, state);
       livekit.roomService?.updateParticipant(roomName(state.channelId), String(state.userId), {
-        permission: publishPermission(canSpeak, canStream),
-      }).catch((err) => logLiveKitError('changing Speak or Video', err));
+        permission: publishPermission(canSpeak, canStream, canListen),
+      }).catch((err) => logLiveKitError('changing Speak, Video or Listen', err));
     }
   }
 }
@@ -309,7 +325,8 @@ async function restoreFromLiveKit() {
           selfDeaf: participant.attributes?.selfDeaf === '1',
           streaming: sharesScreen(participant),
           canSpeak: has(access.permissions, PERMISSIONS.SPEAK),
-          canStream: has(access.permissions, PERMISSIONS.STREAM),
+          canStream: canStreamWith(access),
+          canListen: has(access.permissions, PERMISSIONS.LISTEN),
           joinedAt: Number(participant.joinedAt ?? 0) * 1000 || Date.now(),
         });
       }

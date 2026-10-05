@@ -1,0 +1,108 @@
+      <p class="lead-in">
+        Bots can join voice channels to play audio and, if they're allowed, to hear the channel.
+        Voicaw's voice runs on <a href="https://livekit.io" rel="noopener noreferrer">LiveKit</a>,
+        not Discord's voice protocol, so a bot asks the bot API for a LiveKit token and connects
+        with one of LiveKit's own SDKs. Discord voice libraries (<code>@discordjs/voice</code>,
+        discord.py's <code>VoiceClient</code>) don't work here yet.
+      </p>
+
+      <h2 id="permissions">Speaking and listening</h2>
+      <p>Sending audio and hearing the others are separate permissions, and LiveKit enforces both:</p>
+      <ul>
+        <li><strong>Connect</strong> to join the channel at all.</li>
+        <li><strong>Speak</strong> (Discord's bit 21) to send audio. Bots get it the usual way, @everyone included, as on Discord.</li>
+        <li><strong>Listen</strong> (Voicaw's own bit 61, <code>1 &lt;&lt; 61</code>) to hear the others. People have it through @everyone by default, but <strong>@everyone's Listen never counts for a bot</strong>: a bot hears a channel only when Listen comes from its own role, another role it has, or a channel override for one of those or for the bot itself. Tick "Listen (hear voice channels)" in the invite link builder to ask for it.</li>
+      </ul>
+      <p>
+        Everyone in the channel can see which bots can hear it: they have an ear next to their
+        name. If a bot's permissions change while it's connected, LiveKit applies the change at
+        once (it stops sending it audio when Listen is taken away). Bots send audio only: no
+        video or screen sharing.
+      </p>
+
+      <h2 id="joining">Joining</h2>
+      <div class="table"><table class="endpoints plain">
+        <tr><th>Endpoint</th><th>Notes</th></tr>
+        <tr><td><span class="method post">POST</span> <code>/channels/{channel}/voice</code></td><td>Voicaw's own. Needs View Channel and Connect in that voice channel. Optional body <code>{ "self_mute": false, "self_deaf": false }</code>. Answers <code>{ url, token, room, identity, expires_in, speak, listen }</code>: connect to <code>url</code> with <code>token</code> within <code>expires_in</code> seconds (600; once connected, LiveKit keeps the connection's token fresh). <code>speak</code> and <code>listen</code> say what the bot may do there. Joining another channel leaves the first.</td></tr>
+        <tr><td><span class="method get">GET</span> <code>/guilds/{guild}/voice-states/@me</code></td><td>The bot's voice state (Discord's shape, plus <code>listening</code>). A user id instead of <code>@me</code> gives theirs, in channels the bot can see.</td></tr>
+        <tr><td><span class="method patch">PATCH</span> <code>/guilds/{guild}/voice-states/@me</code></td><td><code>self_mute</code>, <code>self_deaf</code> (shown to everyone, like a person's), or <code>channel_id: null</code> to leave.</td></tr>
+        <tr><td><span class="method delete">DELETE</span> <code>/guilds/{guild}/voice-states/@me</code></td><td>Leaves the guild's voice channel.</td></tr>
+      </table></div>
+      <p>
+        Once connected the bot is in the channel like anyone: bots with the Guild Voice States
+        intent get <code>VOICE_STATE_UPDATE</code>, and <code>GUILD_CREATE</code>'s
+        <code>voice_states</code> lists who's in the voice channels the bot can see. In the
+        LiveKit room, each participant's identity is their Voicaw user id, so a track's
+        participant tells you who is speaking. Gateway opcode 4 (Discord's way to join voice) is
+        ignored.
+      </p>
+
+      <h2 id="node">Node (@livekit/rtc-node)</h2>
+      <p>Playing a tone, and hearing the others (with Listen). Checked with <code>@livekit/rtc-node</code> against Voicaw:</p>
+      <pre><code>import { Room, RoomEvent, AudioSource, AudioFrame, AudioStream, LocalAudioTrack,
+  TrackPublishOptions, TrackSource } from '@livekit/rtc-node';
+
+const API = 'https://api.voicaw.com/api/v10';
+const res = await fetch(`${API}/channels/${CHANNEL_ID}/voice`, {
+  method: 'POST',
+  headers: { Authorization: `Bot ${process.env.TOKEN}` },
+});
+const { url, token, listen } = await res.json();
+
+const room = new Room();
+// Others' audio (only arrives if the bot has Listen).
+room.on(RoomEvent.TrackSubscribed, async (track, publication, participant) =&gt; {
+  for await (const frame of new AudioStream(track, 48000, 1)) {
+    // frame.data: 16-bit samples from participant.identity (a Voicaw user id)
+  }
+});
+await room.connect(url, token, { autoSubscribe: true });
+
+// Sending audio (Speak): 10 ms frames of 48 kHz mono.
+const source = new AudioSource(48000, 1);
+const track = LocalAudioTrack.createAudioTrack('music', source);
+const options = new TrackPublishOptions();
+options.source = TrackSource.SOURCE_MICROPHONE;
+await room.localParticipant.publishTrack(track, options);
+let phase = 0;
+setInterval(() =&gt; {
+  const samples = new Int16Array(480);
+  for (let i = 0; i &lt; 480; i++) samples[i] = Math.sin((phase += 2 * Math.PI * 440 / 48000)) * 12000;
+  source.captureFrame(new AudioFrame(samples, 48000, 1, 480));
+}, 10);</code></pre>
+
+      <h2 id="python">Python (livekit)</h2>
+      <p>Listening, with LiveKit's <code>livekit</code> package. Checked against Voicaw:</p>
+      <pre><code>import asyncio, os, aiohttp
+from livekit import rtc
+
+API = 'https://api.voicaw.com/api/v10'
+
+async def main():
+    async with aiohttp.ClientSession() as http:
+        async with http.post(f'{API}/channels/{CHANNEL_ID}/voice',
+                             headers={'Authorization': f"Bot {os.environ['TOKEN']}"}) as res:
+            info = await res.json()
+
+    room = rtc.Room()
+
+    async def hear(track, participant):
+        async for event in rtc.AudioStream(track):
+            ...  # event.frame.data: 16-bit samples from participant.identity
+
+    @room.on('track_subscribed')
+    def on_track(track, publication, participant):
+        if track.kind == rtc.TrackKind.KIND_AUDIO:
+            asyncio.ensure_future(hear(track, participant))
+
+    await room.connect(info['url'], info['token'])
+    try:
+        await asyncio.sleep(3600)
+    finally:
+        await room.disconnect()  # disconnect before the program ends
+
+asyncio.run(main())</code></pre>
+      <p>
+        LiveKit also has SDKs for Go, Rust and others; any of them can connect with the same
+        <code>url</code> and <code>token</code>.
+      </p>

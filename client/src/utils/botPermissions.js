@@ -43,6 +43,7 @@ export const BOT_PERMISSION_GROUPS = [
     permissions: [
       { name: 'CONNECT', bit: 20, ours: 'CONNECT' },
       { name: 'SPEAK', bit: 21, ours: 'SPEAK' },
+      { name: 'VOICAW_LISTEN', bit: 61, ours: 'LISTEN' },
       { name: 'STREAM', bit: 9, ours: 'STREAM' },
     ],
   },

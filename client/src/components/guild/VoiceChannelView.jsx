@@ -16,8 +16,8 @@ import StreamView from '../voice/StreamView';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
 import WatchPartyPanel from '../voice/WatchPartyPanel';
 import { useWatchParty } from '../../voice/watchParty';
-import { HeadphonesIcon, MicIcon } from '../voice/VoiceIcons';
-import { displayName, useProfiles } from '../../utils/profiles';
+import { EarIcon, HeadphonesIcon, MicIcon } from '../voice/VoiceIcons';
+import { displayName, isBot, useProfiles } from '../../utils/profiles';
 import { t } from '../../i18n';
 
 // A voice channel's page: everyone in it as tiles (ringed while they talk, if you're in there
@@ -39,6 +39,10 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
   const volumeMenu = useVolumeMenu(here);
   const speaking = new Set(here ? voice.speaking : []);
   const canConnect = has(channel.my_permissions, PERMISSIONS.CONNECT);
+  // A bot that can hear the channel gets an ear (Listen; people all have it by default).
+  const listeningBot = (m) => isBot(m.user_id) && m.listening !== false;
+  // Without Listen you're there but hear nobody (LiveKit sends you nothing).
+  const cantHear = here && !has(channel.my_permissions, PERMISSIONS.LISTEN);
   const streams = new Set(here ? voice.streams : []);
   const watched = here && voice.watching != null ? members.find((m) => String(m.user_id) === voice.watching) : null;
   const poppedOut = useStreamWindow() != null;
@@ -132,9 +136,10 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
                 <span className="voice-tile-name" style={nameColors?.[m.user_id] ? { color: nameColors[m.user_id] } : undefined}>
                   {displayName(m.user_id, m.username)}
                 </span>
-                {(m.self_mute || m.self_deaf || live) && (
+                {(m.self_mute || m.self_deaf || live || listeningBot(m)) && (
                   <span className="voice-tile-icons">
                     {live && <span className="voice-live-badge">{t('guilds.voice.live')}</span>}
+                    {listeningBot(m) && <span className="voice-listening" title={t('guilds.voice.botListening')} aria-label={t('guilds.voice.botListening')}><EarIcon /></span>}
                     {(m.self_mute || m.self_deaf) && <span title={t('guilds.voice.muted')} aria-label={t('guilds.voice.muted')}><MicIcon muted /></span>}
                     {m.self_deaf && <span title={t('guilds.voice.deafened')} aria-label={t('guilds.voice.deafened')}><HeadphonesIcon deafened /></span>}
                   </span>
@@ -159,6 +164,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
       )}
       {volumeMenu.menu && <UserVolumeMenu {...volumeMenu.menu} sheet={isMobile} onClose={volumeMenu.close} />}
       {here && voice.streamError && <p className="voice-view-note voice-view-error" role="alert">{voice.streamError}</p>}
+      {cantHear && <p className="voice-view-note">{t('guilds.voice.cantHear')}</p>}
       <div className="voice-view-footer">
         {voice.status === 'connecting' && voice.channelId === channel.id ? <p className="voice-view-note">{t('guilds.voice.connecting')}</p> : footer}
       </div>
