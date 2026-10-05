@@ -58,12 +58,21 @@ body {
   margin-right: 10px;
 }
 
+/* Not the link colour every a:hover gets (voicaw.css). */
+.dm-user:hover {
+  color: var(--vc-fg);
+}
+
 .dm-user.active {
   background-color: var(--vc-bg-elevated);
 }
 
-.dm-user:hover {
-  background-color: var(--vc-bg-subtle);
+/* Only with a mouse: on a touch screen a finger starting to scroll the list would set :hover
+   on the row under it, and it stays. */
+@media (hover: hover) {
+  .dm-user:hover {
+    background-color: var(--vc-bg-subtle);
+  }
 }
 
 .dm-message {

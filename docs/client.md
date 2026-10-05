@@ -277,7 +277,11 @@
   little and dims behind it. The chat showing is its own history entry (`history.state.voicawPane`),
   so back slides to the list; list rows navigate with `replace` on phones, so entries don't pile
   up. Open the chat from elsewhere with `showContent()` (`utils/mobilePanes.js`). The panes only
-  have a transform while moving (a transform would trap `position: fixed` children).
+  have a transform while moving (a transform would trap `position: fixed` children). The lists'
+  rows (channels, threads, categories, DMs, members) colour on hover only with a mouse
+  (`@media (hover: hover)`): a phone's Chrome sets `:hover` on the row a finger rests on before
+  scrolling, and keeps it. Their links also pin their own colour under `:hover`, or the link
+  colour every `a:hover` gets (`voicaw.css`) shows through there (`e2e/touchhover.mjs`).
 - Desktop vs. mobile layouts are two separate CSS files (`assets/css/desktop.css` /
   `mobile.css`) toggled via body classes rather than component-level responsive branches
 - On-screen keyboard (phones, `utils/keyboardViewport.js`, started in `App`): the app always
