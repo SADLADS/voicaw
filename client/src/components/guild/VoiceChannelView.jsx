@@ -12,11 +12,13 @@ import { PERMISSIONS, has } from '../../utils/permissions';
 import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
 import ScreenShareButton from '../voice/ScreenShareButton';
+import CameraButton from '../voice/CameraButton';
+import CameraVideo from '../voice/CameraVideo';
 import StreamView from '../voice/StreamView';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
 import WatchPartyPanel from '../voice/WatchPartyPanel';
 import { useWatchParty } from '../../voice/watchParty';
-import { EarIcon, HeadphonesIcon, MicIcon } from '../voice/VoiceIcons';
+import { CameraIcon, EarIcon, HeadphonesIcon, MicIcon } from '../voice/VoiceIcons';
 import { displayName, isBot, useProfiles } from '../../utils/profiles';
 import { t } from '../../i18n';
 
@@ -28,7 +30,8 @@ import { t } from '../../i18n';
 // into its own window (StreamPopout). Clicking someone else's tile
 // while you're in sets how loud they are for you. Watch Together (WatchPartyPanel) takes the
 // page once you're in and open it, or while a video is playing; the people become a row.
-// Outside, a note says what's playing.
+// Outside, a note says what's playing. Once you're in, someone whose camera is on shows it in
+// their tile (outside, a camera icon says it's on).
 export default function VoiceChannelView({ guild, channel, nameColors }) {
   useProfiles();
   const { voiceEnabled } = useContext(ConfigContext);
@@ -44,6 +47,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
   // Without Listen you're there but hear nobody (LiveKit sends you nothing).
   const cantHear = here && !has(channel.my_permissions, PERMISSIONS.LISTEN);
   const streams = new Set(here ? voice.streams : []);
+  const cameras = new Set(here ? voice.cameras : []);
   const watched = here && voice.watching != null ? members.find((m) => String(m.user_id) === voice.watching) : null;
   const poppedOut = useStreamWindow() != null;
   const watchedOwn = voice.watching === voice.identity;
@@ -58,6 +62,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
     footer = (
       <div className="voice-view-controls">
         <VoiceControls className="voice-view-button" />
+        <CameraButton className="voice-view-button" />
         <ScreenShareButton className="voice-view-button" />
         <button
           type="button"
@@ -121,24 +126,31 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
           <p>{t('guilds.voice.empty')}</p>
         </div>
       ) : (
-        <ul className="voice-view-tiles" aria-label={t('guilds.voice.inChannel', { name: channel.name })}>
+        <ul className={`voice-view-tiles${cameras.size > 0 ? ' with-video' : ''}`} aria-label={t('guilds.voice.inChannel', { name: channel.name })}>
           {members.map((m) => {
             const talking = speaking.has(String(m.user_id));
             const live = m.self_stream || streams.has(String(m.user_id));
             const watchable = streams.has(String(m.user_id)) && voice.watching !== String(m.user_id);
+            const video = cameras.has(String(m.user_id));
+            const cameraOn = !video && m.self_video;
             return (
               <li
                 key={m.user_id}
-                className={`voice-tile${talking ? ' speaking' : ''}${live ? ' live' : ''}`}
+                className={`voice-tile${talking ? ' speaking' : ''}${live ? ' live' : ''}${video ? ' video' : ''}`}
                 {...volumeMenu.triggerProps(m.user_id, displayName(m.user_id, m.username))}
               >
-                <UserAvatar userId={m.user_id} className="voice-tile-avatar" />
+                {video ? (
+                  <CameraVideo userId={m.user_id} name={displayName(m.user_id, m.username)} own={String(m.user_id) === voice.identity} className="voice-tile-video" />
+                ) : (
+                  <UserAvatar userId={m.user_id} className="voice-tile-avatar" />
+                )}
                 <span className="voice-tile-name" style={nameColors?.[m.user_id] ? { color: nameColors[m.user_id] } : undefined}>
                   {displayName(m.user_id, m.username)}
                 </span>
-                {(m.self_mute || m.self_deaf || live || listeningBot(m)) && (
+                {(m.self_mute || m.self_deaf || live || cameraOn || listeningBot(m)) && (
                   <span className="voice-tile-icons">
                     {live && <span className="voice-live-badge">{t('guilds.voice.live')}</span>}
+                    {cameraOn && <span title={t('guilds.voice.cameraOn')} aria-label={t('guilds.voice.cameraOn')}><CameraIcon /></span>}
                     {listeningBot(m) && <span className="voice-listening" title={t('guilds.voice.botListening')} aria-label={t('guilds.voice.botListening')}><EarIcon /></span>}
                     {(m.self_mute || m.self_deaf) && <span title={t('guilds.voice.muted')} aria-label={t('guilds.voice.muted')}><MicIcon muted /></span>}
                     {m.self_deaf && <span title={t('guilds.voice.deafened')} aria-label={t('guilds.voice.deafened')}><HeadphonesIcon deafened /></span>}
@@ -164,6 +176,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
       )}
       {volumeMenu.menu && <UserVolumeMenu {...volumeMenu.menu} sheet={isMobile} onClose={volumeMenu.close} />}
       {here && voice.streamError && <p className="voice-view-note voice-view-error" role="alert">{voice.streamError}</p>}
+      {here && voice.cameraError && <p className="voice-view-note voice-view-error" role="alert">{voice.cameraError}</p>}
       {cantHear && <p className="voice-view-note">{t('guilds.voice.cantHear')}</p>}
       <div className="voice-view-footer">
         {voice.status === 'connecting' && voice.channelId === channel.id ? <p className="voice-view-note">{t('guilds.voice.connecting')}</p> : footer}

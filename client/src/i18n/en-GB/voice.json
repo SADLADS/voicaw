@@ -71,7 +71,10 @@
       "noEncryptedCalls": "This browser can't make encrypted calls.",
       "connect": "Could not connect to voice.",
       "noScreenShare": "This browser can't share the screen.",
-      "screenShareFailed": "Could not share your screen."
+      "screenShareFailed": "Could not share your screen.",
+      "cameraBlocked": "Camera access is blocked. Allow it in your browser to turn your camera on.",
+      "noCamera": "No camera found.",
+      "cameraFailed": "Could not use the camera."
     },
     "watchParty": {
       "title": "Watch Together",
@@ -109,6 +112,12 @@
       "watchingNow": "Watching together: {{title}}. Join to watch.",
       "sidebarPlaying": "Watching {{title}}",
       "sidebarPaused": "Paused: {{title}}"
+    },
+    "camera": {
+      "start": "Turn on camera",
+      "stop": "Turn off camera",
+      "cameraOf": "{{name}}'s camera",
+      "yourCamera": "Your camera"
     }
   }
 }

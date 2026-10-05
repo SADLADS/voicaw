@@ -283,8 +283,9 @@ async function declineCall(call, userId) {
   }
 }
 
+// Everyone in a call may talk and show their camera (no screen sharing in calls yet).
 const tokenFor = (call, userId, username) =>
-  voice.roomToken({ room: roomName(call.id), userId, username, canSpeak: true });
+  voice.roomToken({ room: roomName(call.id), userId, username, canSpeak: true, canCamera: true });
 
 // LiveKit webhooks for call rooms (voice.js passes them on): someone gone for good (not back
 // within REJOIN_GRACE_MS) ends a 1:1 call, or leaves a group call.

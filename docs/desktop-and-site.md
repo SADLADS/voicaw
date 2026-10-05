@@ -15,7 +15,7 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
 - **Window** (`main.js`): one instance (a second start focuses it), size and place remembered,
   no menu (a minimal one on macOS for copy/paste), dev tools only in a development run
   (Ctrl+Shift+I). Links to other sites open in the browser; the window never leaves
-  `voicaw://app`. Only the app's pages get permissions (microphone, not camera; notifications;
+  `voicaw://app`. Only the app's pages get permissions (microphone and camera; notifications;
   screen capture, only of what was picked).
   `backgroundThrottling` is off so ringing and voice work from the tray.
   The only other window the page may open is a popped-out screen share (`windowOpen.js`: a
@@ -175,7 +175,10 @@ native bridge. Check real behaviour on a phone.
   device, or they're out of it), on the "Missed call" push (which replaces it), or when the
   page sees the call stop ringing.
 - **Ongoing call** (`CallService.java`): while in a call or voice channel, a foreground service
-  (microphone type, with a wake lock) keeps the app and its audio running with the screen off;
+  (microphone type, with a wake lock) keeps the app and its audio running with the screen off
+  (not the camera: Android stops a camera in the background, so others see yours freeze until
+  the app is back; the `CAMERA` permission is asked for by the WebView when you first turn
+  yours on, and the camera isn't required to install);
   its notification shows what the voice bar shows (`utils/voiceTitle.js`) with Mute / Unmute and
   Hang up (Disconnect in a voice channel).
 - **Settings → Android App** (`AndroidAppSettings.jsx`): whether calls ring over the lock screen

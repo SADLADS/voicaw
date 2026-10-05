@@ -3,6 +3,7 @@ import {
   canChooseInput, canChooseOutput, listAudioDevices, onDeviceChange, resetAudioSettings, setAudioSettings, useAudioSettings,
 } from '../voice/audioSettings';
 import { startMicTest } from '../voice/micTest';
+import CameraSettings from './CameraSettings';
 import { ALWAYS_OPEN_DB } from '../voice/noise/gate';
 import {
   canSuppressNoise, canSuppressStrongly, isDeepFilterSlow, onDeepFilterSlow,
@@ -33,8 +34,8 @@ function micTestError(err) {
 
 // Settings → Voice & video: microphone (not on phones and tablets) and speakers (where the
 // browser can choose) on this device (voice/audioSettings.js),
-// a microphone test, and the browser's voice processing. Changes apply to a call at once.
-// (Video settings go here too, once there's video.)
+// a microphone test, the browser's voice processing, and the camera (CameraSettings). Changes
+// apply to a call at once.
 export default function VoiceSettings() {
   const settings = useAudioSettings();
   const [devices, setDevices] = useState({ inputs: [], outputs: [], labelled: true, defaults: {} });
@@ -263,6 +264,7 @@ export default function VoiceSettings() {
           </span>
         </label>
       ))}
+      <CameraSettings />
       <div className="voice-settings-footer">
         <span className="vc-hint">{t('settings.savedOnDevice')}</span>
         <button type="button" className="btn btn-link btn-sm" onClick={resetAudioSettings}>{t('settings.voice.reset')}</button>

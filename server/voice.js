@@ -13,7 +13,7 @@ const { getChannelAccess, sendToChannel } = require('./guilds');
 // user is in at most one voice channel at a time (joining another leaves the first).
 // Self mute and deafen are reported by the client and kept here (and in LiveKit's participant
 // attributes, so they survive an API restart). Whether someone is sharing their screen (live)
-// comes from LiveKit's track webhooks, so it's what LiveKit actually carries.
+// or their camera comes from LiveKit's track webhooks, so it's what LiveKit actually carries.
 
 const TOKEN_TTL = '10m'; // only for joining; LiveKit keeps a connected client's token fresh
 const ROOM_PREFIX = 'channel-';
@@ -32,7 +32,7 @@ const livekit = {
 };
 const receiver = config.livekit ? new WebhookReceiver(config.livekit.apiKey, config.livekit.apiSecret) : null;
 
-// userId -> { userId, username, guildId, channelId, sid, selfMute, selfDeaf, streaming, canSpeak,
+// userId -> { userId, username, guildId, channelId, sid, selfMute, selfDeaf, streaming, video, canSpeak,
 // canStream, canListen, joinedAt }
 const states = new Map();
 // userId -> { selfMute, selfDeaf }: what the client last said, applied when it joins.
@@ -48,12 +48,13 @@ function rememberLeft(sid) {
 // `listening`: whether they may hear the others (Listen); the app marks bots that can.
 const publicState = (s) => ({
   user_id: s.userId, username: s.username, self_mute: s.selfMute, self_deaf: s.selfDeaf, self_stream: s.streaming,
-  listening: s.canListen !== false,
+  self_video: Boolean(s.video), listening: s.canListen !== false,
 });
 
-// Is the participant (LiveKit's ParticipantInfo) publishing a screen share?
-const sharesScreen = (participant) =>
-  (participant?.tracks ?? []).some((t) => t.source === TrackSource.SCREEN_SHARE);
+// Is the participant (LiveKit's ParticipantInfo) publishing a track from `source`?
+const publishes = (participant, source) => (participant?.tracks ?? []).some((t) => t.source === source);
+const sharesScreen = (participant) => publishes(participant, TrackSource.SCREEN_SHARE);
+const showsCamera = (participant) => publishes(participant, TrackSource.CAMERA);
 
 // Who's in each of the given voice channels (for the guild layout), in joining order.
 function membersOf(channelId) {
@@ -107,15 +108,18 @@ async function disconnect(userId) {
   await announce(state.guildId, state.channelId, userId, null);
 }
 
-// Video (Stream) for a member's `access` (voiceAccess): bots send audio only, never video.
+// Video (Stream: camera and screen share) for a member's `access` (voiceAccess): bots send
+// audio only, never video.
 const canStreamWith = (access) => has(access.permissions, PERMISSIONS.STREAM) && !access.member?.isBot;
 
-// The microphone with Speak, a screen share (and its sound) with Video (Stream).
-// Hearing the others (subscribing to their tracks) with Listen: LiveKit enforces all three, and
-// they change live (enforceGuild).
-function publishPermission(canSpeak, canStream = false, canListen = true) {
+// The microphone with Speak; the camera, and a screen share (and its sound), with Video
+// (Stream). Hearing the others (subscribing to their tracks) with Listen: LiveKit enforces all
+// three, and they change live (enforceGuild). `canCamera` alone: the camera without screen
+// sharing (DM and group calls).
+function publishPermission(canSpeak, canStream = false, canListen = true, canCamera = canStream) {
   const sources = [
     ...(canSpeak ? [TrackSource.MICROPHONE] : []),
+    ...(canCamera ? [TrackSource.CAMERA] : []),
     ...(canStream ? [TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO] : []),
   ];
   return {
@@ -128,9 +132,9 @@ function publishPermission(canSpeak, canStream = false, canListen = true) {
 }
 
 // { url, token } for joining LiveKit room `room` as `userId`: the microphone with `canSpeak`,
-// a screen share with `canStream`, hearing the others with `canListen`. Also used for DM calls
-// (calls.js), where everyone hears.
-async function roomToken({ room, userId, username, canSpeak, canStream = false, canListen = true }) {
+// the camera and a screen share with `canStream` (only the camera with `canCamera`), hearing
+// the others with `canListen`. Also used for DM calls (calls.js), where everyone hears.
+async function roomToken({ room, userId, username, canSpeak, canStream = false, canListen = true, canCamera = canStream }) {
   const token = new AccessToken(config.livekit.apiKey, config.livekit.apiSecret, {
     identity: String(userId),
     name: username,
@@ -140,7 +144,7 @@ async function roomToken({ room, userId, username, canSpeak, canStream = false, 
     roomJoin: true,
     room,
     canUpdateOwnMetadata: false,
-    ...publishPermission(canSpeak, canStream, canListen),
+    ...publishPermission(canSpeak, canStream, canListen, canCamera),
   });
   return { url: config.livekit.url, token: await token.toJwt() };
 }
@@ -215,6 +219,7 @@ async function participantJoined(channelId, participant) {
     sid: participant.sid,
     ...preference,
     streaming: sharesScreen(participant),
+    video: showsCamera(participant),
     canSpeak: has(access.permissions, PERMISSIONS.SPEAK),
     canStream: canStreamWith(access),
     canListen: has(access.permissions, PERMISSIONS.LISTEN),
@@ -236,13 +241,17 @@ async function participantLeft(channelId, participant) {
   await announce(state.guildId, channelId, userId, null);
 }
 
-// A track was published or unpublished: only screen shares matter (going live or not).
+// A track was published or unpublished: only screen shares (going live or not) and cameras
+// matter.
+const TRACK_STATES = { [TrackSource.SCREEN_SHARE]: 'streaming', [TrackSource.CAMERA]: 'video' };
+
 async function trackChanged(channelId, participant, track, published) {
-  if (track?.source !== TrackSource.SCREEN_SHARE) return;
+  const key = TRACK_STATES[track?.source];
+  if (!key) return;
   const state = states.get(Number(participant?.identity));
   if (!state || state.channelId !== channelId || state.sid !== participant.sid) return;
-  if (state.streaming === published) return;
-  state.streaming = published;
+  if (Boolean(state[key]) === published) return;
+  state[key] = published;
   await announce(state.guildId, channelId, state.userId, state);
 }
 
@@ -277,7 +286,7 @@ async function handleWebhookEvent(event) {
 
 // After anything in the guild changed (roles, overrides, channels, members): whoever may no
 // longer be in their voice channel is disconnected, and Speak, Video and Listen are given or
-// taken away (LiveKit stops a screen share, or what they hear, once no longer allowed).
+// taken away (LiveKit stops a camera or screen share, or what they hear, once no longer allowed).
 async function enforceGuild(guildId) {
   for (const state of [...states.values()]) {
     if (state.guildId !== guildId) continue;
@@ -324,6 +333,7 @@ async function restoreFromLiveKit() {
           selfMute: participant.attributes?.selfMute === '1',
           selfDeaf: participant.attributes?.selfDeaf === '1',
           streaming: sharesScreen(participant),
+          video: showsCamera(participant),
           canSpeak: has(access.permissions, PERMISSIONS.SPEAK),
           canStream: canStreamWith(access),
           canListen: has(access.permissions, PERMISSIONS.LISTEN),

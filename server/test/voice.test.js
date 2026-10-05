@@ -105,7 +105,7 @@ describe('voice channels', () => {
     expect(claims.name).toBe(alice.username);
     expect(claims.video).toMatchObject({
       roomJoin: true, room: `channel-${lounge.id}`, canPublish: true, canSubscribe: true,
-      canPublishData: false, canPublishSources: ['microphone', 'screen_share', 'screen_share_audio'],
+      canPublishData: false, canPublishSources: ['microphone', 'camera', 'screen_share', 'screen_share_audio'],
     });
 
     expect((await join(alice, guild, general)).status).toBe(400);
@@ -121,7 +121,7 @@ describe('voice channels', () => {
     await api.put(owner, `/guilds/${guild.id}/channels/${gaming.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.SPEAK });
     const res = await join(alice, guild, gaming);
     const { video } = jwt.decode(res.body.token);
-    expect(video.canPublishSources).toEqual(['screen_share', 'screen_share_audio']);
+    expect(video.canPublishSources).toEqual(['camera', 'screen_share', 'screen_share_audio']);
 
     await api.put(owner, `/guilds/${guild.id}/channels/${gaming.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.SPEAK | P.STREAM });
     const listener = jwt.decode((await join(alice, guild, gaming)).body.token).video;
@@ -129,7 +129,7 @@ describe('voice channels', () => {
     expect(listener.canPublishSources ?? []).toEqual([]);
   });
 
-  it('shares screens only with Video', async () => {
+  it('shares cameras and screens only with Video', async () => {
     const { owner, members: [alice], guild, lounge, everyone } = await setUp();
     await api.put(owner, `/guilds/${guild.id}/channels/${lounge.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.STREAM });
     const { video } = jwt.decode((await join(alice, guild, lounge)).body.token);
@@ -156,6 +156,21 @@ describe('voice channels', () => {
     expect(voiceEvents(events)).toHaveLength(2);
   });
 
+  it('tells the channel whose camera is on, from the track webhooks', async () => {
+    const { owner, members: [alice], guild, lounge } = await setUp();
+    await join(alice, guild, lounge);
+    const sid = await webhook('participant_joined', lounge, alice);
+    const events = listen(owner);
+
+    await webhook('track_published', lounge, alice, sid, { sid: 'TR_cam', source: 'CAMERA', type: 'VIDEO' });
+    expect(voiceEvents(events).at(-1).state).toMatchObject({ self_video: true, self_stream: false });
+    expect((await voiceOf(owner, guild, lounge))[0].self_video).toBe(true);
+
+    await webhook('track_unpublished', lounge, alice, sid, { sid: 'TR_cam', source: 'CAMERA', type: 'VIDEO' });
+    expect(voiceEvents(events).at(-1).state.self_video).toBe(false);
+    expect(voiceEvents(events)).toHaveLength(2);
+  });
+
   it('rejects webhooks that LiveKit did not sign', async () => {
     const res = await request(app).post('/api/livekit/webhook')
       .set('Authorization', 'nonsense').set('Content-Type', 'application/webhook+json').send('{}');
@@ -168,7 +183,7 @@ describe('voice channels', () => {
     await join(alice, guild, lounge, { selfMute: true });
     const sid = await webhook('participant_joined', lounge, alice);
 
-    const expected = { user_id: alice.id, username: alice.username, self_mute: true, self_deaf: false, self_stream: false, listening: true };
+    const expected = { user_id: alice.id, username: alice.username, self_mute: true, self_deaf: false, self_stream: false, self_video: false, listening: true };
     expect(await voiceOf(owner, guild, lounge)).toEqual([expected]);
     expect(voiceEvents(events)).toEqual([
       { type: 'guild_voice_state', guildId: guild.id, channelId: lounge.id, userId: alice.id, state: expected },
@@ -249,7 +264,7 @@ describe('voice channels', () => {
     await api.put(owner, `/guilds/${guild.id}/channels/${lounge.id}/overrides/member/${bob.id}`, { allow: 0, deny: P.SPEAK });
     expect(calls).toContainEqual(['update', `channel-${lounge.id}`, String(bob.id), {
       permission: {
-        canSubscribe: true, canPublish: true, canPublishSources: [TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO],
+        canSubscribe: true, canPublish: true, canPublishSources: [TrackSource.CAMERA, TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO],
         canPublishData: false, canUpdateMetadata: false,
       },
     }]);

@@ -175,7 +175,7 @@
       },
       "STREAM": {
         "label": "Video",
-        "description": "Lets members share their screen in voice channels."
+        "description": "Lets members turn on their camera and share their screen in voice channels."
       },
       "QUEUE_VIDEOS": {
         "label": "Queue Videos",

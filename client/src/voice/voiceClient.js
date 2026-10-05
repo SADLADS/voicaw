@@ -5,6 +5,7 @@ import {
   canChooseOutput, captureOptions, getAudioSettings, inputGainStage, onAudioSettingsChange, outputSinkId, processingChanged,
 } from './audioSettings';
 import { getUserVolume, onUserVolumesChange, playbackVolume } from './userVolumes';
+import { CAMERA_PUBLISH, cameraOptions, onVideoSettingsChange } from './videoSettings';
 import { playSound } from '../sounds/sounds';
 import { isMobileDevice } from '../utils/presence';
 import {
@@ -37,6 +38,12 @@ import { t } from '../i18n';
 // watch it (subscriptions are ours to decide, not automatic), so a stream nobody watches
 // costs nobody's download.
 //
+// Cameras (voice channels with Video, and every call; end-to-end encrypted in calls like the
+// audio): yours goes out as LiveKit's camera track, in three sizes (simulcast). Someone's
+// camera is only downloaded while a tile on screen shows it (showCamera), at the size of the
+// biggest one (LiveKit's adaptiveStream would do this, but it also pauses every video while
+// the page is hidden, which would freeze a stream watched in its pop-out window).
+//
 // A voice channel connection that's lost (not left, removed or replaced) is joined again
 // (rejoin.js): the voice bar says "Reconnecting…" meanwhile. Phones wait until the app is
 // visible again (iOS stops a page's microphone and connection in the background).
@@ -63,6 +70,8 @@ function loadPrefs() {
 // Screen sharing: `canStream` (Video), `streaming` (yours is live), `streams` (the user ids,
 // strings, sharing in this room, you included), `watching` (whose stream this device shows,
 // or null), `watchingReady` (its video has arrived), `streamError`.
+// Cameras: `canCamera` (Video in a channel; always in a call), `cameraOn` (yours), `cameras`
+// (the user ids, strings, whose camera is on in this room, you included), `cameraError`.
 const NOT_IN_VOICE = {
   status: 'idle',
   guildId: null,
@@ -76,12 +85,16 @@ const NOT_IN_VOICE = {
   watching: null,
   watchingReady: false,
   streamError: null,
+  cameraOn: false,
+  cameras: [],
+  cameraError: null,
 };
 let snapshot = {
   ...NOT_IN_VOICE,
   ...loadPrefs(),
   canSpeak: true,
   canStream: false,
+  canCamera: false,
   error: null,
   micError: null,
   audioBlocked: false,
@@ -155,17 +168,106 @@ let subscriptions = new WeakMap();
 const isScreenSource = (source) =>
   source === livekit.Track.Source.ScreenShare || source === livekit.Track.Source.ScreenShareAudio;
 
-// Microphones always; a screen share and its sound only while we watch that person.
+// Microphones always; a screen share and its sound only while we watch that person; a camera
+// only while it's shown on screen (and the page isn't hidden).
+function wants(participant, publication) {
+  if (isScreenSource(publication.source)) return snapshot.watching === participant.identity;
+  if (publication.source === livekit.Track.Source.Camera) {
+    return cameraViews.has(participant.identity) && !(typeof document !== 'undefined' && document.hidden);
+  }
+  return true;
+}
+
 function syncSubscriptions() {
   if (!room) return;
   for (const participant of room.remoteParticipants.values()) {
     for (const publication of participant.trackPublications.values()) {
-      const wanted = !isScreenSource(publication.source) || snapshot.watching === participant.identity;
+      const wanted = wants(participant, publication);
       if (subscriptions.get(publication) === wanted) continue;
       subscriptions.set(publication, wanted);
       publication.setSubscribed(wanted);
+      if (wanted && publication.source === livekit.Track.Source.Camera) sizeCamera(participant.identity);
     }
   }
+}
+
+// Cameras on screen: identity -> the <video> elements showing it (showCamera).
+const cameraViews = new Map();
+let cameraResizes = null;
+
+const isLocal = (identity) => room != null && identity === room.localParticipant.identity;
+
+function cameraPublication(identity) {
+  if (!room || identity == null) return null;
+  const participant = isLocal(identity) ? room.localParticipant : room.remoteParticipants.get(identity);
+  return participant?.getTrackPublication(livekit.Track.Source.Camera) ?? null;
+}
+
+// Asks LiveKit for the size of the biggest tile showing `identity`'s camera (it picks the
+// simulcast layer from it).
+function sizeCamera(identity) {
+  const elements = cameraViews.get(identity);
+  const publication = cameraPublication(identity);
+  if (!elements || !publication || isLocal(identity) || !publication.setVideoDimensions) return;
+  const density = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
+  let width = 0;
+  let height = 0;
+  for (const element of elements) {
+    width = Math.max(width, Math.round(element.clientWidth * density));
+    height = Math.max(height, Math.round(element.clientHeight * density));
+  }
+  if (width > 0 && height > 0) publication.setVideoDimensions({ width, height });
+}
+
+// Plays the camera's track (when there is one) in every element showing it.
+function attachCamera(identity) {
+  const track = cameraPublication(identity)?.track;
+  if (!track) return;
+  for (const element of cameraViews.get(identity) ?? []) {
+    if (!track.attachedElements.includes(element)) track.attach(element);
+  }
+}
+
+// Shows `identity`'s camera (yours too) in `element`, a <video>: it's downloaded while at least
+// one element shows it. Returns a function that stops showing it there.
+export function showCamera(identity, element) {
+  if (identity == null || !element) return () => {};
+  const key = String(identity);
+  if (!cameraViews.has(key)) cameraViews.set(key, new Set());
+  cameraViews.get(key).add(element);
+  if (typeof ResizeObserver !== 'undefined') {
+    cameraResizes ??= new ResizeObserver(() => {
+      for (const id of cameraViews.keys()) sizeCamera(id);
+    });
+    cameraResizes.observe(element);
+  }
+  if (room) {
+    attachCamera(key);
+    syncSubscriptions();
+    sizeCamera(key);
+  }
+  return () => {
+    cameraResizes?.unobserve(element);
+    if (room) cameraPublication(key)?.track?.detach(element);
+    const elements = cameraViews.get(key);
+    elements?.delete(element);
+    if (elements?.size === 0) cameraViews.delete(key);
+    syncSubscriptions();
+  };
+}
+
+// Whose cameras are on, and every shown camera playing.
+function updateCameras() {
+  if (!room) return;
+  const participants = [room.localParticipant, ...room.remoteParticipants.values()];
+  const cameras = participants
+    .filter((p) => {
+      const publication = p.getTrackPublication(livekit.Track.Source.Camera);
+      return publication && !publication.isMuted;
+    })
+    .map((p) => p.identity);
+  update({ cameras, cameraOn: cameras.includes(room.localParticipant.identity) });
+  for (const identity of cameraViews.keys()) attachCamera(identity);
 }
 
 // The video track of `identity`'s screen share, once there (yours is local).
@@ -192,6 +294,7 @@ function updateStreams() {
     watching,
     watchingReady: Boolean(screenTrack(watching)),
   });
+  updateCameras();
   syncSubscriptions();
 }
 
@@ -345,11 +448,11 @@ function watch(newRoom, current) {
     .on(RoomEvent.LocalTrackPublished, updateTracks)
     // Also when the browser's own "Stop sharing" ended it.
     .on(RoomEvent.LocalTrackUnpublished, updateTracks)
-    .on(RoomEvent.TrackMuted, updateMuted)
-    .on(RoomEvent.TrackUnmuted, updateMuted)
+    .on(RoomEvent.TrackMuted, updateTracks)
+    .on(RoomEvent.TrackUnmuted, updateTracks)
     .on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
       updateTracks();
-      // Video (a screen share) is drawn by whoever shows it (attachStream).
+      // Video (a screen share or a camera) is drawn by whoever shows it (attachStream, showCamera).
       if (track.kind !== Track.Kind.Audio) return;
       const element = track.attach();
       audioElementsByTrack.set(track, element);
@@ -388,6 +491,7 @@ function watch(newRoom, current) {
       applyMicrophone();
       // Video taken away: LiveKit has stopped the stream; let go of the capture too.
       if (!snapshot.canStream && participant.isScreenShareEnabled) stopScreenShare();
+      if (!snapshot.canCamera && snapshot.cameraOn) stopCamera();
     })
     .on(RoomEvent.Disconnected, (reason) => {
       if (stale() || !joinedRooms.has(newRoom)) return;
@@ -406,14 +510,14 @@ function watch(newRoom, current) {
 // What our token lets us publish (LiveKit's participant permissions).
 function publishRights(participant) {
   const permissions = participant.permissions;
-  if (!permissions) return { canSpeak: true, canStream: false };
+  if (!permissions) return { canSpeak: true, canStream: false, canCamera: false };
   const sources = permissions.canPublishSources ?? [];
   const allows = (source) => permissions.canPublish && (sources.length === 0 || sources.includes(source));
-  // TrackSource numbers, as LiveKit's protocol has them: 2 microphone, 3 screen share.
-  return { canSpeak: allows(2), canStream: allows(3) };
+  // TrackSource numbers, as LiveKit's protocol has them: 1 camera, 2 microphone, 3 screen share.
+  return { canSpeak: allows(2), canStream: allows(3), canCamera: allows(1) };
 }
 
-// LiveKit's end-to-end encryption with `key` (32 bytes): every audio frame is encrypted in a
+// LiveKit's end-to-end encryption with `key` (32 bytes): every audio and video frame is encrypted in a
 // worker before it leaves, so LiveKit only forwards ciphertext.
 async function e2eeOptions(key) {
   if (!livekit.isE2EESupported()) throw new Error(t('voice.errors.noEncryptedCalls'));
@@ -427,7 +531,10 @@ async function e2eeOptions(key) {
 // { url, token }, `e2eeKey` (calls) turns on end-to-end encryption. `rejoining`: a rejoin
 // attempt, which reports a failure (`{ error }`) instead of showing it; true once connected.
 async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
-  if (!rejoining) cancelRejoin();
+  if (!rejoining) {
+    cancelRejoin();
+    cameraWanted = false;
+  }
   const current = ++attempt;
   await teardown();
   update({
@@ -443,6 +550,7 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
       webAudioMix: playback ? { audioContext: playback } : false,
       stopMicTrackOnMute: true,
       audioCaptureDefaults: captureOptions(),
+      videoCaptureDefaults: cameraOptions(),
       audioOutput: { deviceId: outputSinkId() || 'default' },
       publishDefaults: { dtx: true, red: true },
       e2ee,
@@ -473,6 +581,8 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
     playSound('userJoin');
     updateStreams();
     await applyMicrophone();
+    // A lost channel connection rejoined: the camera comes back on if it was.
+    if (rejoining && cameraWanted) await startCamera();
     return true;
   } catch (err) {
     if (current !== attempt) return;
@@ -503,6 +613,7 @@ export async function leaveVoice() {
   const inChannel = snapshot.status !== 'idle' && snapshot.channelId != null;
   const wasConnected = snapshot.status === 'connected' || snapshot.status === 'reconnecting';
   cancelRejoin();
+  cameraWanted = false;
   attempt++;
   await teardown();
   if (wasConnected) playSound('disconnect');
@@ -740,4 +851,69 @@ export function clearStreamError() {
 
 export function setStreamError(message) {
   update({ streamError: message });
+}
+
+// Your camera: on while `cameraWanted` (kept through a rejoin of a lost connection, not past
+// leaving). Turned off, its track is unpublished (not just muted), so the camera's light goes
+// off and the channel's "camera on" mark (the server's, from LiveKit's webhooks) goes with it.
+let cameraWanted = false;
+
+export async function startCamera() {
+  const current = room;
+  if (!current || snapshot.status !== 'connected' || !snapshot.canCamera) return;
+  cameraWanted = true;
+  update({ cameraError: null });
+  try {
+    await current.localParticipant.setCameraEnabled(true, cameraOptions(), CAMERA_PUBLISH);
+    if (room !== current) return;
+    updateCameras();
+  } catch (err) {
+    if (room !== current) return;
+    console.warn('Could not turn the camera on', err);
+    cameraWanted = false;
+    await unpublishCamera(current);
+    update({ cameraError: cameraErrorMessage(err) });
+    updateCameras();
+  }
+}
+
+async function unpublishCamera(current) {
+  const track = current.localParticipant.getTrackPublication(livekit.Track.Source.Camera)?.track;
+  if (track) await current.localParticipant.unpublishTrack(track, true).catch(() => {});
+}
+
+export async function stopCamera() {
+  cameraWanted = false;
+  const current = room;
+  if (!current) return;
+  await unpublishCamera(current);
+  if (room === current) updateCameras();
+}
+
+function cameraErrorMessage(err) {
+  if (err?.name === 'NotAllowedError') return t('voice.errors.cameraBlocked');
+  if (err?.name === 'NotFoundError' || err?.name === 'OverconstrainedError') return t('voice.errors.noCamera');
+  return t('voice.errors.cameraFailed');
+}
+
+export function clearCameraError() {
+  update({ cameraError: null });
+}
+
+// A camera chosen in Settings → Voice & video while yours is on: switch to it.
+onVideoSettingsChange(async (next, previous) => {
+  const current = room;
+  if (!current || next.cameraDeviceId === previous.cameraDeviceId) return;
+  current.options.videoCaptureDefaults = { ...current.options.videoCaptureDefaults, ...cameraOptions(next) };
+  const track = current.localParticipant.getTrackPublication(livekit.Track.Source.Camera)?.track;
+  if (!track) return;
+  await track.restartTrack(cameraOptions(next)).catch((err) => {
+    console.warn('Could not switch camera', err);
+    if (room === current) update({ cameraError: cameraErrorMessage(err) });
+  });
+});
+
+// Back from the background: cameras shown on screen are downloaded again (and not while hidden).
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => syncSubscriptions());
 }

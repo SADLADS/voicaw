@@ -148,9 +148,8 @@ function setUpPermissions() {
     ses.setPermissionRequestHandler((webContents, permission, callback, details) => {
         if (streamWindows.has(webContents)) return callback(streamWindowPermission(permission));
         const ours = (details.requestingUrl ?? '').startsWith(`${ORIGIN}/`);
-        // The microphone, not the camera (screen capture goes through the handler below).
-        const audioOnly = permission !== 'media' || !details.mediaTypes?.includes('video');
-        callback(ours && ALLOWED_PERMISSIONS.has(permission) && audioOnly);
+        // 'media': the microphone and the camera (screen capture goes through the handler below).
+        callback(ours && ALLOWED_PERMISSIONS.has(permission));
     });
     ses.setDisplayMediaRequestHandler((request, callback) => screenShare.handleRequest(request, callback));
     setUpYouTubeReferer(ses);

@@ -5,8 +5,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPhoneSlash, faSignal, faTriangleExclamation, faVolumeHigh, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
-import { clearStreamError, clearVoiceError, leaveVoice, resumeAudio } from '../../voice/voiceClient';
+import { clearCameraError, clearStreamError, clearVoiceError, leaveVoice, resumeAudio } from '../../voice/voiceClient';
 import ScreenShareButton from './ScreenShareButton';
+import CameraButton from './CameraButton';
 import { hangUp } from '../../voice/callClient';
 import { useCall } from '../../hooks/useCall';
 import { useProfiles } from '../../utils/profiles';
@@ -20,8 +21,8 @@ const STATUS_TEXT = {
 };
 
 // Above the user panel while you're in voice (like Discord): the connection state, which
-// channel or call (a link to it), share screen and the disconnect button. Also where voice
-// errors show.
+// channel or call (a link to it), camera, share screen and the disconnect button. Also where
+// voice errors show.
 export default function VoiceBar({ user }) {
   useProfiles();
   const voice = useVoice();
@@ -61,6 +62,7 @@ export default function VoiceBar({ user }) {
             <Link to={`/guild/${voice.guildId}/${voice.channelId}`} className="voice-bar-channel">{title}</Link>
           )}
         </div>
+        <CameraButton />
         {!inCall && <ScreenShareButton />}
         <button
           type="button"
@@ -83,6 +85,14 @@ export default function VoiceBar({ user }) {
         <div className="voice-bar-row">
           <p className="voice-bar-message voice-bar-mic-error">{voice.streamError}</p>
           <button type="button" className="user-panel-button" aria-label={t('voice.bar.dismiss')} title={t('voice.bar.dismiss')} onClick={clearStreamError}>
+            <FontAwesomeIcon icon={faXmark} />
+          </button>
+        </div>
+      )}
+      {voice.cameraError && (
+        <div className="voice-bar-row">
+          <p className="voice-bar-message voice-bar-mic-error">{voice.cameraError}</p>
+          <button type="button" className="user-panel-button" aria-label={t('voice.bar.dismiss')} title={t('voice.bar.dismiss')} onClick={clearCameraError}>
             <FontAwesomeIcon icon={faXmark} />
           </button>
         </div>

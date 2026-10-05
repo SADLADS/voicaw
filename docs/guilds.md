@@ -9,7 +9,7 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - **Permissions** (`server/permissions.js`, copied in `client/src/utils/permissions.js`; a
   test checks they match) are Discord's model with a bit field: View Channel, Send Messages,
   Add Reactions, Manage Messages, Manage Channels, Manage Roles, Manage Guild, Create Invite,
-  Kick, Ban, Administrator, Manage Emoji, Connect, Speak, Video (`STREAM`: share your screen;
+  Kick, Ban, Administrator, Manage Emoji, Connect, Speak, Video (`STREAM`: camera and screen sharing;
   voice), Mention Everyone (@everyone,
   @here and any role; not a default, guild-wide only), Pin Messages (not a default; split out of
   Manage Messages like Discord did, migration 3), Manage Webhooks (guild-wide only), View Audit

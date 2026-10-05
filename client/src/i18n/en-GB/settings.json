@@ -490,7 +490,17 @@
       "sendsLouderThan": "Sends sound louder than {{db}} dB.",
       "useLetsCheck": "Use Let's check to see your level against it.",
       "voiceProcessing": "Voice processing",
-      "reset": "Reset voice settings"
+      "reset": "Reset voice settings",
+      "video": "Video",
+      "camera": "Camera",
+      "cameraNumbered": "Camera {{number}}",
+      "cameraPreview": "Camera preview",
+      "testCamera": "Test camera",
+      "stopCameraTest": "Stop testing",
+      "cameraBlocked": "Camera access is blocked. Allow it to test.",
+      "noCamera": "No camera found.",
+      "cameraFailed": "Could not use the camera.",
+      "cameraNamesHidden": "Your browser hides camera names until Voicaw may use the camera. Test camera shows them."
     },
     "profile": {
       "onlyImages": "Only image files are allowed.",

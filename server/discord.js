@@ -382,7 +382,7 @@ function voiceStateObject({ guildId, channelId, userId, state, member = null }) 
     self_deaf: Boolean(state?.self_deaf),
     self_mute: Boolean(state?.self_mute),
     self_stream: Boolean(state?.self_stream),
-    self_video: false,
+    self_video: Boolean(state?.self_video),
     suppress: false,
     request_to_speak_timestamp: null,
     ...(state ? { listening: state.listening !== false } : {}),

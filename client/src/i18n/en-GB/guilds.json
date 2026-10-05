@@ -278,7 +278,8 @@
       "empty": "No one's here yet.",
       "inChannel": "In {{name}}",
       "watchStream": "Watch Stream",
-      "connecting": "Connecting…"
+      "connecting": "Connecting…",
+      "cameraOn": "Camera on"
     },
     "channelIcon": {
       "privateChannel": "Private channel",

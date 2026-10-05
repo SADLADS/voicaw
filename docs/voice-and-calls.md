@@ -70,7 +70,7 @@ LiveKit carries the audio.
   by `connect` (`joinedRooms`). DM and group calls don't rejoin (their token and key come from
   `callClient`).
 - **Screen sharing** (guild voice channels, with Video): the token lets you publish
-  `screen_share` and `screen_share_audio` only with Video (`publishPermission`), and
+  `screen_share` and `screen_share_audio` (and `camera`, see Cameras) only with Video (`publishPermission`), and
   `enforceGuild` changes that live (LiveKit then ends a stream that's no longer allowed; the
   client lets go of the capture). Who's live (`self_stream`) comes from LiveKit's
   `track_published` / `track_unpublished` webhooks (screen share tracks of the session that's
@@ -103,6 +103,34 @@ LiveKit carries the audio.
   leaving voice or the page going (reload, logout) closes it. The desktop app allows exactly
   this window (see Desktop app).
   Bandwidth: the sharer uploads once; LiveKit sends a copy to each viewer.
+- **Cameras** (voice channels with Video, like Discord's one permission for both; DM and
+  group calls always, `calls.js` `tokenFor` `canCamera`; never bots): your camera goes out as
+  LiveKit's `camera` track, captured at 720p 30 fps (`voice/videoSettings.js` `cameraOptions`:
+  the camera chosen in Settings → Voice & video, else the front one) and sent in three sizes
+  (simulcast: 180p, 360p, 720p). `startCamera` / `stopCamera` (`voice/CameraButton.jsx`, in the
+  voice bar, the channel page and the call panels); off means unpublished, not muted, so the
+  camera's light goes off. It's not remembered between joins (off on every join, like
+  Discord), but comes back after a rejoin of a lost channel connection (`cameraWanted`). Taking
+  Video away turns it off (LiveKit unpublishes it; the client lets go). Who has a camera on
+  (`self_video`, also in bots' voice states) comes from the `track_published` /
+  `track_unpublished` webhooks like Live, and shows as a camera icon in the channel list and on
+  tiles seen from outside. **Nobody downloads a camera that isn't on their screen:**
+  `voice/CameraVideo.jsx` registers its `<video>` with `showCamera(id, element)`;
+  `syncSubscriptions` subscribes a camera only while at least one element shows it and the page
+  isn't hidden, and `setVideoDimensions` asks for the size of the biggest one (a ResizeObserver
+  keeps it current), so LiveKit sends the smallest layer that fills it (a 500 px tile gets
+  360p). LiveKit's own `adaptiveStream` does this too, but it pauses every video while the page
+  is hidden or an element isn't in its viewport, which would freeze a stream watched in its
+  pop-out window, so it isn't used. In a voice channel, a camera fills its tile (16:9, name and
+  icons over it; tiles grow while any camera is on); in a call it replaces the person's picture
+  in the panel. Your own is mirrored, as in a mirror (others see it the right way round). In
+  calls the video is end-to-end encrypted with the call's key like the audio (LiveKit's E2EE
+  covers every track; `e2e/camera.mjs` asks LiveKit). Settings → Voice & video: the camera (a
+  list, named once the page may use the camera) and Test camera, a mirrored preview captured
+  only while testing (`CameraSettings.jsx`). The desktop app allows the camera for its own
+  pages; the Android app asks for it when first used, and Android stops it while the app is in
+  the background. Bandwidth: each viewer gets one copy per camera they show, at most 720p
+  (about 1.5 Mbit/s; 360p about 0.5).
 - **Microphone chain** (`voice/voiceChain.js`): the browser captures with echo cancellation and
   auto gain (its own noise suppression and `voiceIsolation` only when that's the one chosen:
   two suppressors in a row sound worse); then our own LiveKit audio processor runs the mic
@@ -142,7 +170,7 @@ LiveKit carries the audio.
   with the wasm32 target and wasm-pack, ~12 min. `e2e/noise.mjs` renders a made-up recording
   (fan, key clicks, voice) through every mode and measures it.
 - **Voice settings** (`voice/audioSettings.js`, Settings → Voice & video, `VoiceSettings.jsx`;
-  per device, `localStorage audioSettings`; video settings go in the same section later):
+  per device, `localStorage audioSettings`; the camera is `videoSettings`, see Cameras):
   input device (not on phones and tablets, `canChooseInput`: they always use the default, the
   system moving it to a headset, and one saved before is ignored there) and output device
   (only where the browser has `setSinkId`). Browsers hide device names until the page may use
@@ -253,7 +281,9 @@ LiveKit carries the audio.
   push-to-talk key in the desktop app (it has global mute/deafen toggles; holding a key needs a
   native keyboard hook), noise suppression and the gate on the other side (for people whose
   app doesn't, like Discord's "suppress others' noise"), screen share in DM/group calls (LiveKit's E2EE
-  would cover the video too), webcam video, stream quality settings, and a TURN server for
+  would cover the video too), switching between a phone's front and back camera in a call,
+  background blur, a camera spotlight (one camera big, like a watched stream), stream quality
+  settings, and a TURN server for
   networks that block UDP 7882 and
   TCP 7881; Watch Together: a party surviving an API restart, other sites than YouTube,
   playlists, start times from links (`t=`). Phones: a PWA's audio stops when it's in the background (iOS also when locked; it
@@ -327,5 +357,6 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
   ever drawn as notices (the server writes them, so never as someone's message) and can't be
   edited, deleted, reacted to, pinned or replied to. A call going on when the API restarts gets
   no row.
-- **Not done yet:** video, and the incoming
+- **Video** in calls: see Cameras under Voice channels (the same code, always allowed in calls).
+- **Not done yet:** screen sharing in calls, and the incoming
   call screen of a native app (a closed PWA only gets the notification).

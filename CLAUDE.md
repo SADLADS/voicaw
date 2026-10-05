@@ -207,7 +207,10 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   path is a Web Audio chain (capture with echo cancellation → input volume → noise
   suppression → gate → published track). Krisp needs LiveKit Cloud or a licence, so it's out:
   noise suppression is RNNoise by default and DeepFilterNet as Strong (decided 2026-10-01),
-  both running on the device. Hearing a voice channel needs Listen (2026-10-05; everyone has it
+  both running on the device. Cameras (2026-10-05): with Video in voice channels (the same
+  permission as screen sharing, as in Discord), always in DM and group calls (encrypted like
+  the audio); a camera is downloaded only while a tile shows it, at that tile's size
+  (simulcast). Hearing a voice channel needs Listen (2026-10-05; everyone has it
   by default), enforced by LiveKit like Speak.
 - **Android app** (built 2026-10-03, see `docs/desktop-and-site.md`): a Capacitor wrapper of the
   client, native (Java) only for notifications, ringing and the ongoing call. Closed-app pushes

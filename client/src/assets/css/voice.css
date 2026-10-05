@@ -1207,3 +1207,107 @@ body.stream-window {
 .watch-party-player.fullscreen {
   border-radius: 0;
 }
+
+/* ---- Cameras ---- */
+
+.camera-toggle.active,
+.voice-view-button.camera-toggle.active {
+  color: var(--vc-online);
+}
+
+.camera-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background-color: #000;
+}
+
+/* Your own camera, as in a mirror (others see it the right way round). */
+.camera-video.mirrored {
+  transform: scaleX(-1);
+}
+
+/* Tiles get bigger while someone's camera is on; a camera fills its tile, the name and icons
+   over it, like the stream bar. */
+.voice-view-tiles.with-video {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.voice-tile.video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  overflow: hidden;
+  background-color: #000;
+}
+
+.voice-tile-video {
+  position: absolute;
+  inset: 0;
+}
+
+.voice-tile.video .voice-tile-name,
+.voice-tile.video .voice-tile-icons {
+  position: absolute;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  --slash-gap: #000;
+}
+
+.voice-tile.video .voice-tile-name {
+  left: 6px;
+  max-width: calc(100% - 12px);
+}
+
+.voice-tile.video .voice-tile-icons {
+  right: 6px;
+}
+
+.voice-tile.video .voice-tile-watch {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Above everything in the tile, so a speaking camera is still outlined. */
+.voice-tile.video.speaking::after,
+.call-panel-video.speaking::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 2px var(--vc-online);
+  pointer-events: none;
+}
+
+.voice-view.watching .voice-tile.video {
+  flex: 0 0 160px;
+  padding: 0;
+}
+
+/* A camera in a DM or group call. */
+.call-panel-video {
+  position: relative;
+  width: min(320px, calc((100vw - 64px) / 2));
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #000;
+}
+
+.call-panel.with-video .call-panel-people {
+  align-items: center;
+}
+
+.group-call-panel.with-video .call-panel-person:has(.call-panel-video) {
+  width: auto;
+}
+
+.group-call-panel .call-panel-video {
+  width: min(220px, calc((100vw - 64px) / 2));
+}
