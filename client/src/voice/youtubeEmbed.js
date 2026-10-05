@@ -1,7 +1,8 @@
 // A YouTube player from youtube-nocookie.com, driven over the messages its embed page
 // understands (what YouTube's iframe API script does, without loading that script: it would
 // run YouTube's code in our page, next to the keys). Used by Watch Together
-// (components/voice/WatchPartyPlayer.jsx).
+// (components/voice/WatchPartyPlayer.jsx) and the touch shield over players in messages
+// (components/UrlPreviews.jsx).
 //
 // We say we're listening once the frame loads (and again until it answers); it then sends
 // `infoDelivery` messages (currentTime, playerState, duration...) and the events we asked
