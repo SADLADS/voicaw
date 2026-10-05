@@ -512,6 +512,9 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions (user_id);
 `);
 addColumn('ALTER TABLE users ADD COLUMN sessions_reset_at INTEGER');
+// The terms of use they accepted (terms.js: its version, and when).
+addColumn('ALTER TABLE users ADD COLUMN terms_version TEXT');
+addColumn('ALTER TABLE users ADD COLUMN terms_accepted_at INTEGER');
 // The login a push subscription was saved under, so logging that out stops its notifications.
 addColumn('ALTER TABLE push_subscriptions ADD COLUMN session_id TEXT');
 sqlite.exec(`

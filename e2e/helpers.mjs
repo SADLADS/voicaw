@@ -25,6 +25,8 @@ export async function signUp(browser, name, contextOptions = { viewport: { width
   await page.goto(`${BASE}/`);
   await page.fill('input[placeholder="New Username"]', username);
   await page.fill('input[placeholder="New Password"]', `correct horse battery ${name}`);
+  // The terms of use tick (Login.jsx): registering needs it.
+  await page.check('label:has-text("I agree to the") input');
   await page.click('button:has-text("Register")');
   // Then the new recovery code is shown (kept as `recoveryCode`) until it's confirmed saved.
   const recoveryCode = (await page.textContent('[aria-label="Recovery code"]', { timeout: 20000 })).trim();

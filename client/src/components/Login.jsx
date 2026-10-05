@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
+import { Trans } from 'react-i18next';
+import { ConfigContext } from '../contexts';
 import '../assets/css/login.css';
 import '../assets/css/recovery.css';
 import { connectWebSocket } from '../utils/ws-client';
@@ -11,6 +13,8 @@ import { t } from '../i18n';
 export default function Login({ onLoginSuccess }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [registerData, setRegisterData] = useState({ username: '', password: '' });
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const { termsVersion } = useContext(ConfigContext);
   const [recoverData, setRecoverData] = useState({ username: '', code: '', password: '', confirm: '' });
   // 'login' (log in or register), 'recover' (forgot password), or { user, recoveryCode,
   // password? } while a new code is shown: after registering (already stored), or after
@@ -56,7 +60,7 @@ export default function Login({ onLoginSuccess }) {
     setError('');
     setLoading(true);
     try {
-      const { user, recoveryCode } = await register(registerData.username, registerData.password);
+      const { user, recoveryCode } = await register(registerData.username, registerData.password, termsVersion);
       setMode({ user, recoveryCode });
     } catch (err) {
       setError(err.message);
@@ -230,6 +234,15 @@ export default function Login({ onLoginSuccess }) {
           <p className="register-password-hint">
             {t('auth.register.passwordHint', { count: MIN_PASSWORD_LENGTH })}
           </p>
+          {/* The terms of use (voicaw.com/terms/): the server refuses a sign-up without them. */}
+          <label className="register-terms">
+            <input type="checkbox" required checked={agreedToTerms} onChange={(e) => setAgreedToTerms(e.target.checked)} />
+            {' '}
+            <Trans
+              i18nKey="auth.register.agree"
+              components={{ terms: <a href="https://voicaw.com/terms/" target="_blank" rel="noreferrer" /> }}
+            />
+          </label>
           <button className="btn btn-secondary w-100" type="submit" disabled={loading}>
             {loading ? t('auth.pleaseWait') : t('auth.register.submit')}
           </button>

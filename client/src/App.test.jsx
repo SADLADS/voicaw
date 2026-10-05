@@ -153,6 +153,22 @@ describe('App routing', () => {
   });
 });
 
+describe('App terms of use', () => {
+  it('shows only the terms to someone who has not accepted them, then the app', async () => {
+    const setUser = vi.fn();
+    useAuth.mockReturnValue({ user: { id: 1, username: 'alice', termsAccepted: false }, setUser, loading: false });
+    setPath('/dm');
+    const { unmount } = render(<App />);
+    expect(screen.getByRole('heading', { name: 'Terms of use' })).toBeInTheDocument();
+    expect(screen.queryByTestId('layout')).not.toBeInTheDocument();
+    unmount();
+
+    useAuth.mockReturnValue({ user: { id: 1, username: 'alice', termsAccepted: true }, setUser, loading: false });
+    render(<App />);
+    expect(await screen.findByTestId('layout')).toBeInTheDocument();
+  });
+});
+
 describe('App config', () => {
   it('passes everything from /api/config (including the VAPID key) to the app', async () => {
     api.get.mockResolvedValue({

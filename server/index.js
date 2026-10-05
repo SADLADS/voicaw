@@ -41,6 +41,8 @@ app.get('/api/config', async (req, res) => {
     voiceEnabled: Boolean(config.livekit),
     // The emoji picker's GIFs tab (a Klipy key, from .env or Settings → Admin).
     gifsEnabled: Boolean(await getSetting('klipyApiKey')),
+    // The terms of use registering accepts (terms.js).
+    termsVersion: require('./terms').TERMS_VERSION,
   });
 });
 

@@ -10,6 +10,7 @@ const { LIMITS: PROFILE_LIMITS, PROFILE_COLUMNS, clean: cleanProfile } = require
 const { sendToAllSockets } = require('../sockets');
 const { normalizeUsername, findUserByName, opaqueIdOf, newOpaqueId } = require('../usernames');
 const accounts = require('../accounts');
+const terms = require('../terms');
 
 // Registration and login use OPAQUE (the password never reaches the server), each in two
 // round trips. Login state between them lives in login_states for 5 minutes.
@@ -144,6 +145,7 @@ router.post('/finaliselogin', async (req, res) => {
     id: user.id,
     username: user.username,
     hasRecoveryCode: Boolean(user.recovery_verifier),
+    termsAccepted: await terms.acceptedTerms(user.id),
     keyBackup: user.key_backup,
     identityKey: user.identity_key,
     encryptionKey: user.encryption_key,
@@ -178,6 +180,10 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
   }
   const recovery = recoveryVerifier || recoveryBackup ? parseRecovery(req.body) : null;
   if (recovery?.error) return res.status(400).json({ error: recovery.error });
+  // The tick: "I agree to the terms of use and I'm 13 or over", for the terms shown (terms.js).
+  if (req.body.acceptedTerms !== terms.TERMS_VERSION) {
+    return res.status(400).json({ error: 'You need to accept the terms of use', code: 'terms' });
+  }
 
   // Capitals typed in the username become the display name ("Alice": username "alice").
   const username = normalizeUsername(userIdentifier);
@@ -189,10 +195,10 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
   try {
     ({ lastID } = await db.run(
       `INSERT INTO users (username, display_name, password, identity_key, encryption_key, encryption_key_signature,
-         key_backup, recovery_verifier, recovery_backup, recovery_created)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         key_backup, recovery_verifier, recovery_backup, recovery_created, terms_version, terms_accepted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [username, displayName, registrationRecord, identityKey, encryptionKey, encryptionKeySignature, keyBackup,
-        recovery?.verifier ?? null, recovery?.backup ?? null, recovery ? now() : null]
+        recovery?.verifier ?? null, recovery?.backup ?? null, recovery ? now() : null, terms.TERMS_VERSION, now()]
     ));
   } catch (err) {
     if (err.message.includes('UNIQUE constraint failed')) {
@@ -203,17 +209,20 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
   const user = { id: lastID, username };
   res.status(201).json({
     token: await startSession(user, req), id: user.id, username, display_name: displayName, hasRecoveryCode: Boolean(recovery),
+    termsAccepted: true,
   });
 });
 
 // Restores a session from its token (the client keeps it in localStorage).
 router.get('/profile', authenticateJWT, async (req, res) => {
-  const user = await db.get(`SELECT id, username, recovery_verifier, ${PROFILE_COLUMNS} FROM users WHERE id = ?`, [req.user.id]);
+  const user = await db.get(`SELECT id, username, recovery_verifier, terms_version, ${PROFILE_COLUMNS} FROM users WHERE id = ?`, [req.user.id]);
   if (!user) return res.status(404).json({ error: 'User not found' });
   const token = req.headers.authorization.split(' ')[1];
   res.json({
     // The username from the database: a token from before usernames were lower-cased has the old one.
     token, id: req.user.id, username: user.username, hasRecoveryCode: Boolean(user.recovery_verifier),
+    // false: the app asks them to accept the current terms before going on (TermsGate).
+    termsAccepted: terms.hasAccepted(user),
     display_name: user.display_name, custom_status: user.custom_status, bio: user.bio, avatar: user.avatar,
   });
 });
@@ -396,7 +405,18 @@ router.post('/recover/finish', recoverLimits, async (req, res) => {
     id: user.id,
     username: user.username,
     hasRecoveryCode: true,
+    termsAccepted: await terms.acceptedTerms(user.id),
   });
+});
+
+// Accepts the terms of use shown (`version`, which must be the current one: if they changed
+// meanwhile, 409 with the current version, and the app shows the new ones).
+router.post('/terms/accept', authenticateJWT, async (req, res) => {
+  if (req.body?.version !== terms.TERMS_VERSION) {
+    return res.status(409).json({ error: 'The terms of use have changed', version: terms.TERMS_VERSION });
+  }
+  await terms.acceptTerms(req.user.id);
+  res.json({ termsAccepted: true });
 });
 
 module.exports = router;

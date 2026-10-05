@@ -1,4 +1,5 @@
 import opaque from '@serenity-kit/opaque';
+import { createRequire } from 'node:module';
 import {
   generateUserKeys, wrapKeyBackup, unwrapKeyBackup, recoveryAuth, recoveryVerifier, wrapRecoveryBackup,
 } from '../../../client/src/services/encryptionService.js';
@@ -6,8 +7,14 @@ import {
 // Mirrors what client/src/services/authService.js does (OPAQUE, then keys wrapped with the
 // OPAQUE exportKey), so integration tests exercise the real client/server protocol.
 
-// With `recoveryCode`, the account is registered with that recovery code.
-export async function registerUser(app, request, username, password, { recoveryCode } = {}) {
+// The terms of use the app's tick accepts (server/terms.js). Loaded when first needed, not on
+// import: that would load the server's config before a test file has set its environment.
+const require = createRequire(import.meta.url);
+const currentTerms = () => require('../../terms.js').TERMS_VERSION;
+
+// With `recoveryCode`, the account is registered with that recovery code. `acceptedTerms`: what
+// the sign-up's terms tick sends (the current terms by default; null for none).
+export async function registerUser(app, request, username, password, { recoveryCode, acceptedTerms = currentTerms() } = {}) {
   await opaque.ready;
 
   const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
@@ -32,7 +39,7 @@ export async function registerUser(app, request, username, password, { recoveryC
 
   const finaliseRes = await request(app)
     .post('/api/finaliseregister')
-    .send({ registrationRecord, userIdentifier: username, ...keys.public, keyBackup, ...recovery });
+    .send({ registrationRecord, userIdentifier: username, ...keys.public, keyBackup, ...recovery, ...(acceptedTerms ? { acceptedTerms } : {}) });
 
   return { response: finaliseRes, keys, exportKey };
 }

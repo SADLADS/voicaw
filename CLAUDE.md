@@ -158,7 +158,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - **Privacy policy** (`website/src/legal/privacy.html`, voicaw.com/privacy/; also the terms and
   `delete-account.html`): every claim matches the code. A change to what's stored, kept for how
   long, encrypted or not, deleted with an account, or seen by a third party updates it in the
-  same branch, with its date in `website/build.mjs` `LEGAL`.
+  same branch, with its date in `website/build.mjs` `LEGAL`. Changing the terms in substance also
+  moves `server/terms.js` `TERMS_VERSION` to that date, so everyone accepts them again.
 - **Database:** anything writing more than one row goes in `db.transaction` (database work only:
   no S3, LiveKit, pushes or socket sends inside). New columns through `addColumn`; one-off data
   changes as the next numbered `MIGRATIONS` entry in `db.js`. Anything writing a guild

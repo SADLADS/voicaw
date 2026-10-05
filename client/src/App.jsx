@@ -33,6 +33,7 @@ import { setCustomEmojiBase } from './emoji/customEmoji';
 import { setAvatarBase } from './utils/profiles';
 import { t } from './i18n';
 import { watchKeyboardViewport } from './utils/keyboardViewport';
+import TermsGate from './components/TermsGate';
 
 
 
@@ -159,6 +160,15 @@ export default function App() {
     setUser(null);
   }
   logoutRef.current = handleLogout;
+
+  // Logged in but the current terms of use not accepted yet: nothing else until they are.
+  if (user && user.termsAccepted === false) {
+    return (
+      <ConfigContext.Provider value={config}>
+        <TermsGate onAccepted={() => setUser({ ...user, termsAccepted: true })} onLogout={handleLogout} />
+      </ConfigContext.Provider>
+    );
+  }
 
   // A page opened from a file (no server to answer every route) needs hash URLs; the desktop
   // app serves real paths (electron/protocol.js).
