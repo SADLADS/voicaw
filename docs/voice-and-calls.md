@@ -38,8 +38,19 @@ LiveKit carries the audio.
   mic is released (`stopMicTrackOnMute`, the browser's recording light goes off); deafened,
   everyone's playback volume is 0 and you're muted too; unmuting undeafens (Discord's rules). Mute
   and deafen are remembered per device (`localStorage voicePrefs`) and work outside a call.
-  `speaking` is LiveKit's active speakers. Being removed, or joining the same channel
-  elsewhere, ends it with a message in the voice bar.
+  Being removed, or joining the same channel elsewhere, ends it with a message in the voice bar.
+- **Who's talking** (`speaking`, the green rings; `voice/speaking.js`): measured on the device,
+  not taken from LiveKit's active speakers (its server sends those every 400 ms or so, smoothed:
+  the ring lit about half a second after someone started and stayed most of a second after they
+  stopped). Each voice gets an AnalyserNode: everyone else's microphone track as received (in
+  `playback`, or an AudioContext of its own where voices play from elements), ours as sent
+  (LiveKit's local track is the processed one, after the gate, so a closed gate is silence).
+  They're read every 50 ms: talking from the moment a voice reaches -50 dB until it's been
+  below that for 250 ms (the pauses between words don't flicker it). With our microphone off we
+  aren't talking at once. Voices that can't be measured (not yet subscribed, or the
+  AudioContext waiting for a click) fall back to LiveKit's list. Deafened, you still see the
+  rings (the meters read the tracks, not the volume). `e2e/speaking.mjs` times it against the
+  audio received: about 30 ms to light, 300 ms to go out (LiveKit's took 500 and 650).
 - **Playback** (`voiceClient`): others' voices play through Web Audio, LiveKit's `webAudioMix`
   in our own AudioContext (`playback`, one per connection, its `setSinkId` the chosen speakers;
   LiveKit's own context would miss the speakers chosen before joining): each remote track gets

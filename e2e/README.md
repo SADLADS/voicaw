@@ -18,6 +18,7 @@ node e2e/joinemoji.mjs [dir] # joining a guild shows its custom emoji at once (p
 node e2e/pickerswipe.mjs [dir] # phone emoji panel: swipe up = full screen (follows finger, chat doesn't jump), grid scrolls, swipe down / handle = back, search from full screen
 node e2e/emojisheets.mjs [dir] # picker sprite sheets: no per-emoji SVGs, time to draw (cold, worker's copy), skin tone sheet, phone
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
+node e2e/speaking.mjs [dir] # speaking ring timed against the received audio (fake mic in phrases): lights within ~30 ms, out ~300 ms after, own ring, mute = out at once, still shown deafened
 node e2e/railvoice.mjs [dir] # guild rail speaker: green on yours, grey on others' (guild not opened, after reload, live), phone, light, above a mention badge, gone on leave
 node e2e/links.mjs [dir] # message links: open in a new tab (target _blank), the app page stays and voice stays connected
 node e2e/rejoin.mjs [dir] # voice after a lost connection: Reconnecting, rejoins by itself, phone waits until back in view, leave stays left
@@ -97,7 +98,8 @@ For voice, `serve.mjs` also runs its own LiveKit (the binary at `LIVEKIT_BIN`, d
 `~/livekit/livekit-server`; skipped with a note if missing) on 127.0.0.1 with fresh keys and its
 webhook pointed at the throwaway API. `fakeMicArgs()` (helpers) gives Chrome a fake microphone
 playing a made-up speech-like sound: Chrome's own fake mic is a steady beep, which the browser's
-noise suppression removes, so it never counts as talking. `serve.mjs` also leaves its LiveKit's
+noise suppression removes, so it never counts as talking; `fakeMicArgs({ phrases: true })` talks
+for 1.5 s then is silent for 1.5 s, over and over. `serve.mjs` also leaves its LiveKit's
 address and keys where `livekitInfoPath()` says (scripts that ask LiveKit itself need
 `E2E_API_PORT` too).
 Scripts need the same `E2E_WEB_PORT` as `serve.mjs` when not using the default.

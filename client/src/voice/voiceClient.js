@@ -6,6 +6,7 @@ import {
 } from './audioSettings';
 import { getUserVolume, onUserVolumesChange, playbackVolume } from './userVolumes';
 import { CAMERA_PUBLISH, cameraOptions, onVideoSettingsChange } from './videoSettings';
+import { createSpeakingMeters, whoIsSpeaking } from './speaking';
 import { playSound } from '../sounds/sounds';
 import { isMobileDevice } from '../utils/presence';
 import {
@@ -32,6 +33,11 @@ import { t } from '../i18n';
 // `playback`), each through its own gain, so one person can be turned up past 100%. Not where
 // the browser can choose the speakers for a media element but not for an AudioContext
 // (Firefox): there they play from the <audio> elements, up to 100%.
+//
+// Who's talking (`speaking`, the green rings) is measured on this device from the voices
+// themselves (speaking.js): ours as sent, everyone else's as received, so the ring keeps up
+// with the voice. LiveKit's active speakers (worked out by its server, most of a second late)
+// only fill in for voices that can't be measured.
 //
 // Screen sharing (voice channels, with Video): your screen (and its sound, where the browser
 // shares it) goes out as LiveKit screen-share tracks. Others only receive a stream while they
@@ -127,6 +133,11 @@ let audioContainer = null;
 let audioElementsByTrack = new Map();
 // The AudioContext others' voices play through (webAudioMix), or null (media elements).
 let playback = null;
+// Who's talking: the meters (speaking.js), the AudioContext they measure in where voices don't
+// play through `playback`, and LiveKit's active speakers (user ids).
+let meters = null;
+let meterContext = null;
+let liveKitSpeakers = [];
 
 const playsThroughWebAudio = () => typeof AudioContext !== 'undefined'
   && ('setSinkId' in AudioContext.prototype || !canChooseOutput());
@@ -331,6 +342,11 @@ async function teardown() {
   }
   e2eeWorker?.terminate();
   e2eeWorker = null;
+  meters?.destroy();
+  meters = null;
+  liveKitSpeakers = [];
+  meterContext?.close().catch(() => {});
+  meterContext = null;
   subscriptions = new WeakMap();
   audioElementsByTrack = new Map();
   if (audioContainer) audioContainer.replaceChildren();
@@ -421,6 +437,26 @@ function applyVolumes() {
 
 onUserVolumesChange(applyVolumes);
 
+function startMeters(current) {
+  if (!playback && typeof AudioContext !== 'undefined') meterContext = new AudioContext({ latencyHint: 'interactive' });
+  meters = createSpeakingMeters({ context: () => playback ?? meterContext, onChange: () => updateSpeaking(current) });
+}
+
+// Our own voice as it's sent (LiveKit's track is the processed one, after the gate); with the
+// microphone off, we aren't talking (without waiting for LiveKit to say so).
+function meterMicrophone(newRoom) {
+  const participant = newRoom.localParticipant;
+  meters?.add('local', participant.identity, () => (participant.isMicrophoneEnabled
+    ? participant.getTrackPublication(livekit.Track.Source.Microphone)?.track?.mediaStreamTrack ?? null
+    : null), { silentWithoutTrack: true });
+}
+
+function updateSpeaking(current) {
+  if (current !== attempt) return;
+  const speaking = whoIsSpeaking(meters, liveKitSpeakers);
+  if (speaking.join() !== snapshot.speaking.join()) update({ speaking });
+}
+
 function watch(newRoom, current) {
   const { RoomEvent, Track } = livekit;
   const stale = () => current !== attempt;
@@ -458,9 +494,11 @@ function watch(newRoom, current) {
       audioElementsByTrack.set(track, element);
       audioElements().appendChild(element);
       applyTrackVolume(track, participant.identity, publication.source);
+      if (publication.source === Track.Source.Microphone) meters?.add(track, participant.identity, () => track.mediaStreamTrack);
     })
     .on(RoomEvent.TrackUnsubscribed, (track) => {
       if (track.kind === Track.Kind.Audio) {
+        meters?.remove(track);
         for (const element of track.detach()) element.remove();
         audioElementsByTrack.get(track)?.remove();
         audioElementsByTrack.delete(track);
@@ -468,7 +506,9 @@ function watch(newRoom, current) {
       updateTracks();
     })
     .on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
-      if (!stale()) update({ speaking: speakers.map((p) => p.identity) });
+      if (stale()) return;
+      liveKitSpeakers = speakers.map((p) => p.identity);
+      updateSpeaking(current);
     })
     // SignalReconnecting: only the signalling connection is being resumed (the audio may
     // still flow), as after a phone's app comes back from the background.
@@ -546,6 +586,7 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
     if (current !== attempt) return;
     const e2ee = e2eeKey ? await e2eeOptions(e2eeKey) : undefined;
     playback = newPlaybackContext();
+    startMeters(current);
     const newRoom = new livekit.Room({
       webAudioMix: playback ? { audioContext: playback } : false,
       stopMicTrackOnMute: true,
@@ -571,6 +612,8 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
     if (current !== attempt) return;
     joinedRooms.add(newRoom);
     await newRoom.startAudio().catch(() => {});
+    meterContext?.resume().catch(() => {});
+    meterMicrophone(newRoom);
     applyVolumes();
     update({
       status: 'connected',
@@ -768,6 +811,7 @@ export function setSelfDeaf(selfDeaf) {
 // After the browser refused to play sound without a click: call from one.
 export function resumeAudio() {
   room?.startAudio().then(() => {
+    meterContext?.resume().catch(() => {});
     applyVolumes();
     update({ audioBlocked: false });
   }).catch(() => {});

@@ -109,7 +109,12 @@ try {
   await b.waitForSelector('.group-call-panel .user-avatar.speaking', { timeout: 15000 });
   console.log('three in the group call');
   const room = (await roomService.listRooms()).find((r) => r.name.startsWith('call-'));
-  const tracks = (await roomService.listParticipants(room.name)).flatMap((p) => p.tracks.map((t) => t.encryption));
+  // (The rings light as soon as a voice is heard, which can be before the last one has published.)
+  let tracks = [];
+  for (let i = 0; i < 50 && tracks.length < 3; i++) {
+    if (i) await d.waitForTimeout(200);
+    tracks = (await roomService.listParticipants(room.name)).flatMap((p) => p.tracks.map((t) => t.encryption));
+  }
   console.log('track encryption in LiveKit:', JSON.stringify(tracks));
   if (tracks.length !== 3 || tracks.some((e) => !e)) throw new Error('group call audio is not end-to-end encrypted');
   await shot(b, '06-bea-group-call');

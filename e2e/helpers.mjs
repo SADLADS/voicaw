@@ -59,21 +59,23 @@ export async function send(page, text) {
 // Chrome flags for a fake microphone and camera that need no permission prompt. The
 // microphone plays a speech-like sound (voiced syllables with pauses, made up here): Chrome's
 // own fake input is a steady beep, which its noise suppression removes, so it never counts as
-// someone talking.
-export function fakeMicArgs() {
+// someone talking. `phrases`: talking for 1.5 s, then silent for 1.5 s (PHRASE_SECONDS), over
+// and over, instead of almost without a break.
+export const PHRASE_SECONDS = 1.5;
+export function fakeMicArgs({ phrases = false } = {}) {
   return [
     '--use-fake-ui-for-media-stream',
     '--use-fake-device-for-media-stream',
-    `--use-file-for-fake-audio-capture=${speechLikeWav()}`,
+    `--use-file-for-fake-audio-capture=${speechLikeWav({ phrases })}`,
     '--autoplay-policy=no-user-gesture-required',
   ];
 }
 
-let speechFile = null;
-function speechLikeWav() {
-  if (speechFile) return speechFile;
+const speechFiles = new Map();
+function speechLikeWav({ phrases }) {
+  if (speechFiles.has(phrases)) return speechFiles.get(phrases);
   const rate = 48000;
-  const seconds = 8;
+  const seconds = phrases ? 4 * PHRASE_SECONDS : 8;
   const samples = new Int16Array(rate * seconds);
   let phase = 0;
   for (let i = 0; i < samples.length; i++) {
@@ -81,7 +83,8 @@ function speechLikeWav() {
     // Syllables of ~0.25 s, a pause every fourth one; the pitch wanders like a voice.
     const syllable = Math.floor(t * 4);
     const within = (t * 4) % 1;
-    const envelope = syllable % 4 === 3 ? 0 : Math.sin(Math.PI * within) ** 2;
+    const silent = syllable % 4 === 3 || (phrases && t % (2 * PHRASE_SECONDS) >= PHRASE_SECONDS);
+    const envelope = silent ? 0 : Math.sin(Math.PI * within) ** 2;
     const pitch = 120 + 40 * Math.sin(2 * Math.PI * 0.7 * t) + 15 * Math.sin(2 * Math.PI * 3.1 * t);
     phase += (2 * Math.PI * pitch) / rate;
     // Harmonics shaped by two "formants" that move between vowels.
@@ -108,9 +111,10 @@ function speechLikeWav() {
   header.writeUInt16LE(16, 34);
   header.write('data', 36);
   header.writeUInt32LE(samples.byteLength, 40);
-  speechFile = join(mkdtempSync(join(tmpdir(), 'voicaw-e2e-mic-')), 'speech.wav');
-  writeFileSync(speechFile, Buffer.concat([header, Buffer.from(samples.buffer)]));
-  return speechFile;
+  const file = join(mkdtempSync(join(tmpdir(), 'voicaw-e2e-mic-')), 'speech.wav');
+  writeFileSync(file, Buffer.concat([header, Buffer.from(samples.buffer)]));
+  speechFiles.set(phrases, file);
+  return file;
 }
 
 // Where serve.mjs leaves its LiveKit's address and keys ({ url, key, secret }).
