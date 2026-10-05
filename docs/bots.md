@@ -55,7 +55,8 @@ Unknown paths get Discord's 404.
   `kickMember`, `banMember`, `unbanMember`, `createChannel`, `updateChannel`, `deleteChannel`,
   `createInvite` (routes/guilds.js), `createRole`, `updateRole`, `deleteRole`, `reorderRoles`,
   `setMemberRoles`, `setOverride` (routes/guildRoles.js), `startThread`, `updateThread`,
-  `deleteThread`, `setThreadMembership` (routes/threads.js). Message bodies (content, embeds,
+  `deleteThread`, `setThreadMembership` (routes/threads.js), `createEvent`, `updateEvent`,
+  `startEvent`, `endEvent`, `cancelEvent`, `setInterest` (guildEvents.js). Message bodies (content, embeds,
   files, `allowed_mentions`, flags) are checked by the webhook code (`routes/webhooks.js`
   exports its helpers), so bots' messages can have embeds and files like webhooks'.
 - **Endpoints**: gateway (`/gateway`, `/gateway/bot`), users (`@me` get/patch, guilds, leave,
@@ -65,10 +66,13 @@ Unknown paths get Discord's 404.
   invites, active threads), channels (get, patch, delete, overwrites, invites, typing),
   messages (list with before/after/around, get, send with replies and files, edit own, delete,
   bulk delete), reactions, pins (old and new paths), threads (from a message or on their own,
-  join/leave, members, archived). Rate limits: 50 requests a second per bot, and per route and
+  join/leave, members, archived), scheduled events (list, get, create, modify incl. `status`
+  2/3/4, delete, interested users; see Events in `docs/guilds.md`; covers sent as image data are
+  stored as a WebP upload, `guildEvents.storeImageData`; stage events refused). Rate limits: 50 requests a second per bot, and per route and
   channel or guild, with Discord's `X-RateLimit-*` headers and 429 bodies (off with
   `DISABLE_RATE_LIMITS`, as in tests).
-- **CDN**: `/api/cdn/avatars/:id/:hash.*`, `/icons/:guildId/:hash.*`, `/emojis/:id.*` redirect to
+- **CDN**: `/api/cdn/avatars/:id/:hash.*`, `/icons/:guildId/:hash.*`, `/emojis/:id.*`,
+  `/guild-events/:id/:hash.*` (a cover a bot can read: not an encrypted one from the app) redirect to
   our pictures, so a library's CDN address can point at `https://api.voicaw.com/api/cdn`.
 
 ### Objects, ids and permissions (`server/discord.js`)
@@ -112,7 +116,8 @@ encoding, 4003 not identified, 4004 bad token (also when it's reset), 4005 alrea
   socket of that user would: everything about its guilds, and only channels it can see. Its
   `send` turns the app's events into Discord's, one at a time in order (`guild_message_*` →
   MESSAGE_*, reactions, pins, members, profiles, statuses → PRESENCE_UPDATE, typing, threads,
-  voice states, emoji). `guild_reaction_remove` carries `userId` and `emoji` for this. Guild
+  voice states, emoji, `guild_event_*` → GUILD_SCHEDULED_EVENT_* with the Guild Scheduled
+  Events intent, which also fills GUILD_CREATE's `guild_scheduled_events`). `guild_reaction_remove` carries `userId` and `emoji` for this. Guild
   changes arrive as a whole new layout (`guild_update`), so the session keeps what it last sent
   of each guild and sends the differences (CHANNEL_CREATE/UPDATE/DELETE, GUILD_ROLE_*,
   GUILD_UPDATE). A session counts as the bot being online (statusOf), unless it set Invisible.
@@ -242,7 +247,7 @@ maybe DAVE) may come later. Audio only: bots never get Video (`voice.canStreamWi
 ### Not done yet
 
 Discord-compatible voice (see Voice), webhooks managed with a bot token, nicknames, timeouts and server mute,
-stickers, polls through the API, scheduled events, creating guilds, forwarding, creating or
+stickers, polls through the API, creating guilds, forwarding, creating or
 editing categories, the audit log endpoint. Invites are per guild (a channel's invite only
 echoes the channel back). For interactions: Discord's HTTP interactions endpoint (outgoing
 requests to bots), Components V2 layouts, premium buttons, entitlements, activities,

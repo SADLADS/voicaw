@@ -130,6 +130,30 @@
         <tr><td><span class="method get">GET</span> <code>/guilds/{guild}/invites</code></td><td>Manage Guild</td><td>Invites that still work.</td></tr>
       </table></div>
 
+      <h2 id="scheduled-events">Scheduled events</h2>
+      <p>
+        As Discord's, with voice channel (<code>entity_type</code> 2) and somewhere-else (3) events;
+        Voicaw has no stage channels (1 is refused). <code>privacy_level</code> is always 2. A
+        voice channel's event needs View Channel there. Covers (<code>image</code>) are image data
+        (a data URI, up to 8 MB). <code>recurrence_rule</code> takes Discord's shapes (daily, with
+        or without <code>by_weekday</code>; weekly or every other week on one day; monthly on the
+        nth weekday; yearly on a date), worked out in UTC for bots; its <code>start</code> is
+        ignored (the event's start is used), and the start must be one of its days. Ended and
+        cancelled events are deleted; a repeating one moves on to its next occurrence. Somewhere-else
+        events start and end on their own at their times; voice channel events are started by hand
+        (status 2), cancelled if nobody starts them within 12 hours, and end once their channel has
+        been empty for 5 minutes.
+      </p>
+      <div class="table"><table class="endpoints">
+        <tr><th>Endpoint</th><th>Needs</th><th>Notes</th></tr>
+        <tr><td><span class="method get">GET</span> <code>/guilds/{guild}/scheduled-events</code></td><td></td><td>Those the bot can see; <code>user_count</code> with <code>with_user_count=true</code>.</td></tr>
+        <tr><td><span class="method post">POST</span> <code>/guilds/{guild}/scheduled-events</code></td><td>Create Events (and Connect in a voice channel)</td><td>The bot is interested in its own events, as a person making one is. At most 100 per guild.</td></tr>
+        <tr><td><span class="method get">GET</span> <code>/guilds/{guild}/scheduled-events/{event}</code></td><td></td><td><code>10070</code> for one that's gone or hidden.</td></tr>
+        <tr><td><span class="method patch">PATCH</span> <code>/guilds/{guild}/scheduled-events/{event}</code></td><td>Manage Events, or its own with Create Events</td><td>Fields (a whole repeating series), and <code>status</code>: 2 starts it, 3 ends it, 4 cancels it before it starts.</td></tr>
+        <tr><td><span class="method delete">DELETE</span> <code>/guilds/{guild}/scheduled-events/{event}</code></td><td>Manage Events, or its own with Create Events</td><td>Every occurrence of a repeating one.</td></tr>
+        <tr><td><span class="method get">GET</span> <code>/guilds/{guild}/scheduled-events/{event}/users</code></td><td></td><td>Who's interested, by user id: <code>limit</code> (up to 100), <code>before</code>, <code>after</code>, <code>with_member</code>.</td></tr>
+      </table></div>
+
       <h2 id="users">Users and the application</h2>
       <div class="table"><table class="endpoints">
         <tr><th>Endpoint</th><th>Needs</th><th>Notes</th></tr>
@@ -179,4 +203,5 @@
         <tr><td><span class="method get">GET</span> <code>/avatars/{user}/{hash}.png</code></td><td>A profile picture (the bot's too).</td></tr>
         <tr><td><span class="method get">GET</span> <code>/icons/{guild}/{hash}.png</code></td><td>A guild's icon.</td></tr>
         <tr><td><span class="method get">GET</span> <code>/emojis/{emoji}.png</code></td><td>A custom emoji.</td></tr>
+        <tr><td><span class="method get">GET</span> <code>/guild-events/{event}/{hash}.png</code></td><td>A scheduled event's cover (those made through the bot API; covers people add in the app are encrypted, and their <code>image</code> is null).</td></tr>
       </table></div>

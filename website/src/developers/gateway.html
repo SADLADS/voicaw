@@ -66,6 +66,7 @@
         <tr><td>Guild Messages</td><td><code>1 &lt;&lt; 9</code></td><td><code>MESSAGE_CREATE</code>, <code>MESSAGE_UPDATE</code>, <code>MESSAGE_DELETE</code></td></tr>
         <tr><td>Guild Message Reactions</td><td><code>1 &lt;&lt; 10</code></td><td><code>MESSAGE_REACTION_ADD</code>, <code>MESSAGE_REACTION_REMOVE</code></td></tr>
         <tr><td>Guild Message Typing</td><td><code>1 &lt;&lt; 11</code></td><td><code>TYPING_START</code></td></tr>
+        <tr><td>Guild Scheduled Events</td><td><code>1 &lt;&lt; 16</code></td><td><code>GUILD_SCHEDULED_EVENT_CREATE</code>, <code>GUILD_SCHEDULED_EVENT_UPDATE</code> (also when one starts, ends with status 3, or moves on to its next occurrence), <code>GUILD_SCHEDULED_EVENT_DELETE</code>, <code>GUILD_SCHEDULED_EVENT_USER_ADD</code>, <code>GUILD_SCHEDULED_EVENT_USER_REMOVE</code>; with Guilds, <code>guild_scheduled_events</code> in <code>GUILD_CREATE</code></td></tr>
       </table></div>
       <p>
         Always, whatever the intents: <code>READY</code>, <code>RESUMED</code>,
@@ -74,7 +75,7 @@
         <code>GUILD_MEMBERS_CHUNK</code>, <code>USER_UPDATE</code> (for the bot itself) and
         <code>GUILD_MEMBER_UPDATE</code> for the bot's own member. Discord's other intents are
         accepted but bring nothing: Moderation, Integrations, Webhooks, Invites, Direct Messages
-        (bots have no DMs), Scheduled Events, Auto Moderation and Polls.
+        (bots have no DMs), Auto Moderation and Polls.
       </p>
       <p>Not sent: bulk deletes come as one <code>MESSAGE_DELETE</code> per message, and removing every reaction as one <code>MESSAGE_REACTION_REMOVE</code> per reaction. Bans have no event of their own (the member's <code>GUILD_MEMBER_REMOVE</code> comes).</p>
       <p>

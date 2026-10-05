@@ -299,9 +299,22 @@ button.event-card-name:hover {
   cursor: pointer;
 }
 
+.vc-form .event-place-option {
+  margin-top: 0;
+  color: var(--vc-fg);
+  font-size: 0.95rem;
+  font-weight: normal;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 .event-place-option > span {
   display: flex;
   flex-direction: column;
+}
+
+.event-place-option .vc-hint {
+  font-weight: normal;
 }
 
 .event-place-option.selected {
@@ -326,6 +339,17 @@ button.event-card-name:hover {
 .event-editor-label {
   display: block;
   margin-top: 8px;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.event-editor-time {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .event-editor-time-inputs {

@@ -18,7 +18,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   Send Messages in Threads (`CREATE_THREADS`, `SEND_MESSAGES_IN_THREADS`; see Threads), and for
   Watch Together in voice channels Queue Videos, Manage Queue (not a default) and Control
   Playback (`QUEUE_VIDEOS`, `MANAGE_QUEUE`, `CONTROL_PLAYBACK`; see Voice channels in
-  `docs/voice-and-calls.md`). Every guild has an `@everyone`
+  `docs/voice-and-calls.md`), and Create Events (a default, migration 13) and Manage Events
+  (`CREATE_EVENTS`, `MANAGE_EVENTS`; see Events). Every guild has an `@everyone`
   role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak, edit tasks, video, create documents,
   create threads, send in threads, queue videos, control playback) plus orderable roles (`guild_roles`: name, colour
   0xRRGGBB or null, `hoist` = shown separately in the member list, `mentionable` = anyone may
@@ -359,6 +360,69 @@ take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
 - **Not done yet:** live co-editing, a document's history (old versions), mentions in a
   document notifying anyone, searching documents (and their replies), pinning or ordering
   documents in the feed, comments on a passage, and templates.
+
+## Events
+
+Discord's scheduled events (Discord has no calendar: its Events are a list; Guilded's calendar
+channels may come later, on the same data). An event is in a voice channel of the guild or
+somewhere else (free text: a place, a link), with a name (100), description (1000, markdown
+like messages), start, end (required somewhere else), optional cover image, and how it repeats.
+Not end-to-end encrypted, like the rest of a guild.
+- **Seeing one**: a voice channel's event follows View Channel there (like the channel: 404, no
+  events, left out of lists), one somewhere else every member.
+- **Permissions**: Create Events makes events (in a voice channel also needs Connect there; both
+  are channel permissions too, in voice channels' overrides, as in Discord) and lets you edit,
+  start, end and cancel your own; Manage Events does it to anyone's (`canManage`). Interested:
+  anyone who can see it. At most 100 events per guild; starts at most five years ahead.
+- **Lifecycle** (`server/guildEvents.js`, sweep every 15 s, `startEventTimers`): scheduled ->
+  active -> completed, or cancelled. One somewhere else starts and ends on its own at its times;
+  a voice channel's is started by hand (Start) and ends by hand (End event) or once its channel
+  has stayed empty 5 minutes (counted in memory: a restart gives it 5 more); one nobody starts is
+  cancelled 12 hours after its time. Only scheduled and active events are kept: one that ends
+  or is cancelled is deleted (people are sent it with status `completed` / `canceled` first), a
+  repeating one moves on to its next occurrence still to come, keeping who's interested.
+- **Repeating** (`server/eventRecurrence.js`, `client/src/utils/eventRecurrence.js`): Discord's
+  recurrence rules and only its shapes: daily (optionally on some weekdays), weekly or every
+  other week on one day, monthly on the nth weekday, yearly on a date. Occurrences fall on the
+  event's time zone's wall clock (`timezone`, the creator's device's; bots' are UTC), so a weekly
+  20:00 stays 20:00 across clock changes (a time skipped by one comes an hour later, a repeated
+  one the first time). The start must be one of its days. `occurrence_start` is when the current
+  occurrence is due by the rule; "Change this event's time" moves only it (`start_time`, before
+  the next one), "Cancel this event" skips to the next. Editing the event edits the series, and a
+  new start or rule re-anchors it. Only the next occurrence can be changed on its own.
+- **Interested**: its creator is, at once. Interested people get a push when it starts (`type:
+  'event'`, the event's name, "Starting now · place (Guild)", url `/guild/<g>/<voice channel>?event=<id>`,
+  tag `event-<id>`), unless their notification level for the guild is 'none', and never the one
+  who started it. Leaving the guild (or deleting your account) drops your interest.
+- **Server** (`guildEvents.js` has the actions, shared with the bot API, throwing `ActionError`;
+  `routes/guildEvents.js`; tables `guild_events`, `guild_event_users`): `GET/POST
+  /guilds/:id/events` (each with `interested`, yours, and `user_count`), `GET/PATCH/DELETE
+  /guild-events/:id` (DELETE cancels every occurrence), `POST /guild-events/:id/start`, `/end`,
+  `/skip`, `PUT /guild-events/:id/occurrence { startTime, endTime? }`, `PUT/DELETE
+  /guild-events/:id/interest`, `GET /guild-events/:id/users` (user ids). Events go to whoever can
+  see the event (`guild_event_create` / `_update` / `_delete`, `guild_event_interest`); moving one
+  to a channel someone can't see is a delete for them. Audit log: `event_create`,
+  `event_update` (changes, the channel by name, cover and repeat notes), `event_delete`.
+  Deleting a voice channel deletes its events (a delete is sent), deleting the guild all of
+  them. Covers are uploads (like a document's: encrypted like a guild attachment, its URL with
+  the key), linked as upload kind `event`, so the file goes with the event.
+- **Client**: `hooks/useGuildEvents.js` (in `GuildSidebar`) keeps the guild's events. The channel
+  list starts with Events ("N Events", Live while one is on), and under a voice channel with an
+  event on, "Live: name"; the guild menu has Create Event (Create Events, or a voice channel
+  you may hold one in). `events/EventsDialog.jsx`: the list (`EventCard`: cover, when and "Starts
+  in 3 hours" / "Happening now", repeat, place, interested count, Interested, Start/End, the
+  menu: edit, change or cancel this occurrence, copy link, cancel) and one event (info and an
+  Interested tab with who). `events/EventEditor.jsx`: Discord's three steps (where: a voice
+  channel you may hold one in, or somewhere else; info: topic, start, end, repeats from
+  `repeatChoices` of the start day, description, cover; review: the card). `?event=<id>` on a
+  guild URL opens it (links, notifications; `eventLink`, kept through the redirect to the last
+  channel); an event link in a guild channel gets a card (`events/EventEmbed.jsx`; not in DMs and
+  group DMs, so an encrypted chat's link is never sent to the server). Styles in
+  `assets/css/events.css`; times through `formatEventTime` (`utils/dateFormat.js`).
+- **Not done yet**: Guilded-style calendar views (month, week) and calendar channels, RSVP
+  beyond Interested (Going / Maybe / Can't, limits), reminders before an event, editing an
+  occurrence other than the next one, per-occurrence interest, event invite links that also
+  invite into the guild, and stage channels.
 
 ## Guild search
 

@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Voicaw is a Discord-style chat web app: end-to-end encrypted direct messages and group DMs
 (with calls), and guilds
 (Discord-style servers, always called guilds in the app: text, voice, list (task board)
-and document channels, threads, roles and private channels; not encrypted, see `docs/guilds.md`),
+and document channels, threads, roles and private channels, scheduled events; not encrypted, see `docs/guilds.md`),
 with bots that use Discord's API (`docs/bots.md`). It's an npm workspaces monorepo with
 four packages: `client` (React/Vite SPA, also packaged as an Electron desktop app and an
 Android app), `server` (Express + ws API), `electron` (the desktop app: the built client plus
@@ -132,7 +132,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   the spellcheck dictionary).
 - `docs/realtime.md`: websocket events, online status, web push.
 - `docs/guilds.md`: guilds (permissions, overrides, audit log, invites, custom emoji, channel
-  menus, NSFW channels), threads, list channels, document channels, guild search, webhooks (Discord's API).
+  menus, NSFW channels), threads, list channels, document channels, events (scheduled, repeating),
+  guild search, webhooks (Discord's API).
 - `docs/voice-and-calls.md`: voice channels (LiveKit, reconnecting, screen sharing, microphone
   chain, noise suppression, voice settings, playback and per-user volume, Watch Together), DM and
   group calls.
@@ -243,6 +244,12 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   chats never send links to the server, so there only links straight to a picture or video show
   it, loaded by the reader. Pictures load from the sites (not proxied); Settings → Privacy can
   hold them back (on by default), Settings → Admin can stop the fetching.
+- **Events** (built 2026-10-05, see Events in `docs/guilds.md`): Discord's scheduled events
+  (Discord has no calendar), in a voice channel or somewhere else, with covers, Interested and
+  Discord's repeat rules laid on the creator's time zone's wall clock. Voice events start by hand
+  (as in Discord); ended and cancelled ones are deleted, repeating ones move on. Bots get
+  Discord's scheduled-event API and gateway events. Guilded's calendar features (month view,
+  calendar channels, RSVPs) are planned next, on the same tables.
 - **Watch Together** (built 2026-10-04, see `docs/voice-and-calls.md`): YouTube watch parties in
   guild voice channels, the server keeping the queue and the clock in memory, clients following
   it. YouTube's iframe API script is deliberately not loaded (it would run YouTube's code next to

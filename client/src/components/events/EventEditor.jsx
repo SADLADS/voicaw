@@ -105,7 +105,7 @@ function OccurrenceEditor({ event, onSaved, onClose }) {
 function TimeInputs({ label, idPrefix, date, time, onDate, onTime, hint = null }) {
   return (
     <div className="event-editor-time">
-      <span className="event-editor-label">{label}</span>
+      <label className="event-editor-label" htmlFor={`${idPrefix}-date`}>{label}</label>
       <div className="event-editor-time-inputs">
         <input id={`${idPrefix}-date`} type="date" className="form-control" aria-label={t('events.editor.dateOf', { what: label })} value={date} onChange={(e) => onDate(e.target.value)} />
         <input id={`${idPrefix}-time`} type="time" className="form-control" aria-label={t('events.editor.timeOf', { what: label })} value={time} onChange={(e) => onTime(e.target.value)} />
