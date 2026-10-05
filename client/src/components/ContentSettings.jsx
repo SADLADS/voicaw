@@ -21,6 +21,13 @@ export default function ContentSettings() {
       <p className="vc-hint">
         {t('settings.content.blurNsfwHint')}
       </p>
+      <label className="settings-toggle">
+        <input type="checkbox" checked={prefs.adultConfirmed} onChange={(e) => change('adultConfirmed', e.target.checked)} />
+        {' '}{t('settings.content.adult')}
+      </label>
+      <p className="vc-hint">
+        {t('settings.content.adultHint')}
+      </p>
       {error && <p className="error-msg" role="alert">{error}</p>}
     </div>
   );

@@ -5,9 +5,11 @@ const db = require('./db');
 // those changed from the default; nobody else sees them.
 // - `blurNsfw`: media in NSFW channels is covered until clicked (on by default). Spoilers are
 //   covered either way.
+// - `adultConfirmed`: they ticked "I am 18 or over" (NSFW channels stay closed until then). Only
+//   that answer is kept: never a date of birth or an age.
 
-const DEFAULTS = { blurNsfw: true };
-const isValid = { blurNsfw: (v) => typeof v === 'boolean' };
+const DEFAULTS = { blurNsfw: true, adultConfirmed: false };
+const isValid = { blurNsfw: (v) => typeof v === 'boolean', adultConfirmed: (v) => typeof v === 'boolean' };
 
 function parse(json) {
   try {

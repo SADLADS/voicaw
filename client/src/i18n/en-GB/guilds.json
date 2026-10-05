@@ -81,7 +81,9 @@
       "noResultsHint": "Try other words or fewer filters.",
       "jump": "Jump",
       "searching": "Searching…",
-      "loadMore": "Load more"
+      "loadMore": "Load more",
+      "nsfwHidden_one": "{{count}} result from an NSFW channel is hidden: open the channel to confirm you're 18 or over.",
+      "nsfwHidden_other": "{{count}} results from NSFW channels are hidden: open the channel to confirm you're 18 or over."
     },
     "somethingWentWrong": "Something went wrong.",
     "memberList": {
@@ -304,6 +306,15 @@
         "goTo": "Go to guild",
         "accept": "Accept invite"
       }
+    },
+    "nsfwGate": {
+      "title": "#{{name}} is an NSFW channel",
+      "text": "It may have content for adults only. NSFW channels are for people aged 18 or over.",
+      "confirm": "I am 18 or over",
+      "kept": "You're asked once: only your answer is kept with your account, never your date of birth. You can change it in Settings → Content.",
+      "back": "Go back",
+      "continue": "Continue",
+      "error": "Couldn't save that. Check your connection and try again."
     }
   }
 }

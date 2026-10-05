@@ -11,6 +11,7 @@ import { toChatMessage } from '../../hooks/useChannel';
 import { HAS_VALUES, parseSearch, searchContext, searchSuggestions } from '../../utils/searchQuery';
 import { displayName, nameOf, useProfiles } from '../../utils/profiles';
 import { formatDateTime, useDateFormat } from '../../utils/dateFormat';
+import { usePreferences } from '../../utils/preferences';
 import { t } from '../../i18n';
 
 const MARGIN = 8;
@@ -49,8 +50,12 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
 
   const channels = useMemo(() => guild.channels.filter((c) => c.type === 'text'), [guild.channels]);
   const channelName = (id) => guild.channels.find((c) => c.id === id)?.name ?? t('guilds.search.unknownChannel');
-  // A result from an NSFW channel has its media covered, as in the channel.
+  // A result from an NSFW channel has its media covered, as in the channel, and isn't shown at
+  // all until you've said you're 18 or over (NsfwAgeGate).
   const isNsfw = (id) => Boolean(guild.channels.find((c) => c.id === id)?.nsfw);
+  const { adultConfirmed } = usePreferences();
+  const shownResults = results?.messages.filter((msg) => adultConfirmed || !isNsfw(msg.channel_id)) ?? [];
+  const hiddenCount = (results?.messages.length ?? 0) - shownResults.length;
 
   const context = focused ? searchContext(text, caret) : null;
   const suggestions = searchSuggestions(context, { members, channels, nameOf });
@@ -290,7 +295,10 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
         {results?.messages.length === 0 && (
           <div className="pins-panel-empty"><p>{t('guilds.search.noResults')}</p><p className="vc-hint">{t('guilds.search.noResultsHint')}</p></div>
         )}
-        {results?.messages.map((msg) => {
+        {hiddenCount > 0 && (
+          <p className="pins-panel-note">{t('guilds.search.nsfwHidden', { count: hiddenCount })}</p>
+        )}
+        {shownResults.map((msg) => {
           const name = msg.webhook_id ? msg.webhook_name : displayName(msg.sender_id, msg.sender_username);
           return (
             <div key={msg.id} className="pinned-message search-result" data-result-id={msg.id}>

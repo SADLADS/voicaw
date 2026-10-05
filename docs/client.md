@@ -187,9 +187,11 @@
   changed from the default; `GET /preferences`, `PUT /preferences { key: value }`; the
   `preferences` event to your other devices; `utils/preferences.js`, kept up to date by
   `hooks/usePreferencesSync.js` in `Layout`): settings that follow your account to every
-  device, unlike the per-device ones in localStorage (Privacy, sounds, theme...). So far just
+  device, unlike the per-device ones in localStorage (Privacy, sounds, theme...). So far
   `blurNsfw` (Settings → Content, "Blur media in NSFW channels", on by default; see NSFW
-  channels in `docs/guilds.md`). A new one is a key in both files' `DEFAULTS` (and the
+  channels in `docs/guilds.md`) and `adultConfirmed` ("I am 18 or over", off by default; the age
+  gate, same place). `usePreferencesLoaded()` says when the account's own have arrived (until
+  then they're the defaults). A new one is a key in both files' `DEFAULTS` (and the
   server's `isValid`).
 - Text can't be selected except where it's useful (`voicaw.css`, TEXT SELECTION): inputs and
   editors everywhere, and on desktop the chat's messages, names, times, reply previews and the

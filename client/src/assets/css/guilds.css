@@ -834,6 +834,50 @@ img.guild-icon {
   color: var(--vc-fg-muted);
 }
 
+/* An NSFW channel before you've said you're 18 or over (NsfwAgeGate.jsx). */
+.nsfw-gate {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+}
+
+.nsfw-gate-card {
+  max-width: 440px;
+  width: 100%;
+  padding: 24px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 12px;
+  background: var(--vc-bg-subtle);
+}
+
+.nsfw-gate-card .channel-nsfw-tag {
+  display: inline-block;
+  margin-left: 0;
+}
+
+.nsfw-gate-card h2 {
+  font-size: 1.25rem;
+  margin: 12px 0 8px;
+  overflow-wrap: anywhere;
+}
+
+.nsfw-gate-confirm {
+  display: block;
+  margin: 16px 0 4px;
+  font-weight: 600;
+}
+
+.nsfw-gate-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
 .chat-empty {
   padding: 1rem 1.25rem;
   color: var(--vc-fg-muted);

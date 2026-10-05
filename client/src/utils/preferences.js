@@ -5,10 +5,14 @@ import api from './api';
 // utils/privacy's per-device ones. Defaults until loaded (hooks/usePreferencesSync.js, at login
 // and after a reconnect); other devices' changes arrive as the `preferences` event.
 // `blurNsfw`: media in NSFW guild channels is covered until clicked (on by default).
+// `adultConfirmed`: they ticked "I am 18 or over", which opens NSFW channels (guild/NsfwAgeGate).
 
-const DEFAULTS = { blurNsfw: true };
+const DEFAULTS = { blurNsfw: true, adultConfirmed: false };
 const listeners = new Set();
 let prefs = DEFAULTS;
+// Whether the account's own have arrived (until then they're the defaults, which would show the
+// age gate for a moment to someone who ticked long ago).
+let loaded = false;
 
 const notify = () => listeners.forEach((listener) => listener());
 
@@ -19,13 +23,17 @@ export function getPreferences() {
 // What the server sent (GET or PUT /preferences, or the `preferences` event).
 export function applyPreferences(saved) {
   prefs = { ...DEFAULTS, ...saved };
+  loaded = true;
   notify();
 }
 
 export function resetPreferences() {
   prefs = DEFAULTS;
+  loaded = false;
   notify();
 }
+
+export const preferencesLoaded = () => loaded;
 
 // Changes one at once here, then saves it; put back if saving fails.
 export async function setPreference(key, value) {
@@ -48,4 +56,8 @@ function subscribe(listener) {
 
 export function usePreferences() {
   return useSyncExternalStore(subscribe, getPreferences);
+}
+
+export function usePreferencesLoaded() {
+  return useSyncExternalStore(subscribe, preferencesLoaded);
 }

@@ -24,6 +24,8 @@ import { PERMISSIONS, colorToHex, has, memberColor } from '../../utils/permissio
 import { mergeProfiles, nameOf, useProfiles } from '../../utils/profiles';
 import { useChannelCommands } from '../../hooks/useChannelCommands';
 import { handleInteractionResult, runCommand } from '../../services/interactionService';
+import { usePreferences, usePreferencesLoaded } from '../../utils/preferences';
+import NsfwAgeGate from './NsfwAgeGate';
 import { t } from '../../i18n';
 
 const SHOW_MEMBERS_KEY = 'showMemberList';
@@ -88,7 +90,12 @@ export default function GuildView({ user }) {
   };
 
   const channel = guild?.channels.find((c) => String(c.id) === channelId) ?? null;
-  const textChannelId = channel?.type === 'text' ? channelId : null;
+  // An NSFW channel stays closed (NsfwAgeGate: nothing loaded, nothing marked read) until you've
+  // said you're 18 or over; until your preferences have loaded, it's only "Loading…".
+  const { adultConfirmed } = usePreferences();
+  const preferencesReady = usePreferencesLoaded();
+  const ageGated = Boolean(channel?.nsfw) && !(preferencesReady && adultConfirmed);
+  const textChannelId = channel?.type === 'text' && !ageGated ? channelId : null;
   const openThreadId = textChannelId && threadId ? threadId : null;
 
   const openThread = useCallback((id) => {
@@ -323,7 +330,7 @@ export default function GuildView({ user }) {
           </button>
         )}
         {muteAnchor && channel && <ChannelMuteMenu channel={channel} anchor={muteAnchor} align="end" onClose={closeMute} />}
-        {channel?.type === 'text' && (
+        {textChannelId && (
           <button
             type="button"
             className={`channel-header-button pins-button${pinsAnchor ? ' active' : ''}`}
@@ -335,7 +342,7 @@ export default function GuildView({ user }) {
             <FontAwesomeIcon icon={faThumbtack} />
           </button>
         )}
-        {channel?.type === 'text' && (
+        {textChannelId && (
           <button
             type="button"
             className={`channel-header-button threads-button${threadsAnchor ? ' active' : ''}`}
@@ -378,8 +385,10 @@ export default function GuildView({ user }) {
         <ThreadContext.Provider value={channel?.type === 'text' ? threadContext : null}>
         <div className="guild-chat" data-current-user-id={user.id}>
           <NsfwChannelContext.Provider value={Boolean(channel?.nsfw)}>
-            {!channel ? (
+            {!channel || (ageGated && !preferencesReady) ? (
               <p className="guild-placeholder">{t('common.loading')}</p>
+            ) : ageGated ? (
+              <NsfwAgeGate channelName={channel.name} onBack={() => navigate(-1)} />
             ) : channel.type === 'voice' ? (
               <VoiceChannelView guild={guild} channel={channel} nameColors={nameColors} />
             ) : channel.type === 'list' ? (
@@ -464,7 +473,7 @@ export default function GuildView({ user }) {
         )}
       </div>
 
-      {threadsAnchor && channel?.type === 'text' && (
+      {threadsAnchor && textChannelId && (
         <ThreadList
           channel={channel}
           anchor={threadsAnchor}
