@@ -149,13 +149,6 @@ still tells YouTube the viewer's IP address and the video, in encrypted chats to
 Settings → Privacy's "Show YouTube videos straight away" (`youtubeEmbeds`, on by default) off,
 a placeholder with the link and Play stands in (no thumbnail, which would come from YouTube
 too); Play loads the player autoplaying, and it stays loaded until the app reloads.
-On touch screens (`pointer: coarse`) a transparent shield (`.youtube-shield`) covers the player
-except its bottom 48px (YouTube's control bar), since touches on YouTube's cross-origin frame
-never reach our page and a swipe starting on the video wouldn't move the panes or reply.
-Tapping it plays or pauses over the embed's messages (`enablejsapi=1`, `voice/youtubeEmbed.js`);
-double-tap to skip and the title link are lost there. If the phone refuses to start a video for
-a message rather than a tap in the frame, the shield steps aside until it plays, so the next tap
-reaches YouTube (`e2e/youtubeswipe.mjs`).
 Voice channels can watch YouTube videos together (Watch Together, see Voice channels in
 `docs/voice-and-calls.md`).
 The desktop app adds the Referer YouTube requires (`https://app.voicaw.com/`), since its
