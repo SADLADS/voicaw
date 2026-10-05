@@ -6,7 +6,7 @@
 const path = require('path');
 const { app, BrowserWindow, Menu, desktopCapturer, globalShortcut, ipcMain, net, protocol, screen, session, shell } = require('electron');
 const { setUpSpellcheck, syncSpellingWords } = require('./spellcheck');
-const { ORIGIN, registerScheme, handleScheme } = require('./protocol');
+const { ORIGIN, isAppOrigin, registerScheme, handleScheme } = require('./protocol');
 const { createSettingsStore } = require('./desktopSettings');
 const { createTray } = require('./tray');
 const { createNotifier } = require('./notifications');
@@ -157,7 +157,7 @@ function setUpPermissions() {
     ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) =>
         (webContents && streamWindows.has(webContents)
             ? streamWindowPermission(permission)
-            : requestingOrigin === ORIGIN && ALLOWED_PERMISSIONS.has(permission)));
+            : isAppOrigin(requestingOrigin) && ALLOWED_PERMISSIONS.has(permission)));
 }
 
 // Returns the actions whose key couldn't be registered.

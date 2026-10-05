@@ -10,6 +10,11 @@ const SCHEME = 'voicaw';
 const HOST = 'app';
 const ORIGIN = `${SCHEME}://${HOST}`;
 
+// Whether a permission check's origin is the app's. Electron gives some checks (the
+// microphone's, which decides whether the page may see device names) as a URL with a
+// trailing slash: voicaw://app/.
+const isAppOrigin = (origin) => (origin ?? '').replace(/\/$/, '') === ORIGIN;
+
 // Registered before the app is ready: a standard, secure scheme (so WebCrypto, workers,
 // fetch, IndexedDB and media all work as on https).
 function registerScheme(protocol) {
@@ -45,4 +50,4 @@ function handleScheme(protocol, net, root) {
     });
 }
 
-module.exports = { SCHEME, ORIGIN, registerScheme, handleScheme, resolveAppFile };
+module.exports = { SCHEME, ORIGIN, isAppOrigin, registerScheme, handleScheme, resolveAppFile };

@@ -140,7 +140,13 @@ LiveKit carries the audio.
   (fan, key clicks, voice) through every mode and measures it.
 - **Voice settings** (`voice/audioSettings.js`, Settings → Voice & video, `VoiceSettings.jsx`;
   per device, `localStorage audioSettings`; video settings go in the same section later):
-  input and output device (output only where the browser has `setSinkId`), input volume
+  input device (not on phones and tablets, `canChooseInput`: they always use the default, the
+  system moving it to a headset, and one saved before is ignored there) and output device
+  (only where the browser has `setSinkId`). Browsers hide device names until the page may use
+  the microphone, listing one placeholder per kind with no id instead: those are left out, so
+  the lists show only Default and "Allow it" (a brief capture) fetches the names. The desktop
+  app allows the microphone, so it has them from the start (its permission check compares the
+  origin without the trailing slash Electron adds to the microphone's, `isAppOrigin`). Input volume
   (0–200%, a gain in the microphone chain, changed live) and output volume (0–100%, a factor
   in every voice's playback volume, see Playback), echo cancellation, noise suppression (Standard, Strong, Your
   browser's, Off; see above), input sensitivity (Automatic, or a dB slider over a meter of the
