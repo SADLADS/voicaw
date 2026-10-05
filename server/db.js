@@ -512,6 +512,9 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions (user_id);
 `);
 addColumn('ALTER TABLE users ADD COLUMN sessions_reset_at INTEGER');
+// The terms of use they accepted (terms.js: its version, and when).
+addColumn('ALTER TABLE users ADD COLUMN terms_version TEXT');
+addColumn('ALTER TABLE users ADD COLUMN terms_accepted_at INTEGER');
 
 // Blocks (blocks.js): `blocker_id` blocked `blocked_id`. Neither can DM, call or add the other
 // to a group; the blocker doesn't see the other's messages (collapsed) or get pushed about them.

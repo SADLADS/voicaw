@@ -42,13 +42,18 @@ import { generateUserKeys, wrapKeyBackup, unwrapKeyBackup, unwrapRecoveryBackup 
 import { connectWebSocket } from '../utils/ws-client';
 import { storeUserKeys } from '../services/keyStore';
 import Login from './Login';
+import { ConfigContext } from '../contexts';
 
 const PUBLIC = { identityKey: 'ID-PUB', encryptionKey: 'ENC-PUB', encryptionKeySignature: 'SIG' };
 const PRIVATE = { identityKey: 'ID-PRIV', encryptionKey: 'ENC-PRIV' };
 const KEYS = { public: PUBLIC, private: PRIVATE };
 
 function renderLogin(onLoginSuccess = vi.fn()) {
-  const utils = render(<Login onLoginSuccess={onLoginSuccess} />);
+  const utils = render(
+    <ConfigContext.Provider value={{ termsVersion: '2026-10-05' }}>
+      <Login onLoginSuccess={onLoginSuccess} />
+    </ConfigContext.Provider>
+  );
   const forms = utils.container.querySelectorAll('form');
   return { ...utils, onLoginSuccess, loginForm: forms[0], registerForm: forms[1] };
 }
@@ -100,7 +105,7 @@ describe('Login - login form', () => {
     expect(storeUserKeys).toHaveBeenCalledWith(5, KEYS);
     expect(localStorage.getItem('token')).toBe('jwt123');
     expect(connectWebSocket).toHaveBeenCalled();
-    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true });
+    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true, termsAccepted: true });
     // The client's OPAQUE login state is its secret: it must never be sent to the server.
     expect(api.post).toHaveBeenCalledWith('/initiatelogin', { startLoginRequest: 'SLR', userIdentifier: 'alice' });
     for (const [, body] of api.post.mock.calls) expect(body).not.toHaveProperty('clientLoginState');
@@ -180,7 +185,7 @@ describe('Login - account without a recovery code', () => {
     api.put.mockResolvedValue({ data: { ok: true } });
     fireEvent.click(screen.getByLabelText("I've saved my recovery code"));
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true }));
+    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true, termsAccepted: true }));
 
     // Stored with a fresh proof of the password, from the keys opened on this device.
     expect(api.put).toHaveBeenCalledWith('/recovery-code', {
@@ -198,7 +203,7 @@ describe('Login - account without a recovery code', () => {
 
     expect(await screen.findByText(/Too many attempts\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
-    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: false });
+    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: false, termsAccepted: true });
   });
 });
 
@@ -216,6 +221,7 @@ describe('Login - register form', () => {
 
     const { registerForm, container, onLoginSuccess } = renderLogin();
     fillRegister(container, 'newuser', 'long enough password');
+    fireEvent.click(screen.getByRole('checkbox', { name: /I agree to the terms of use/ }));
     fireEvent.submit(registerForm);
 
     // The recovery code is shown, and it only goes on once the user says it's saved.
@@ -224,13 +230,13 @@ describe('Login - register form', () => {
     expect(next).toBeDisabled();
     fireEvent.click(screen.getByLabelText("I've saved my recovery code"));
     fireEvent.click(next);
-    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'reg-jwt', id: 9, username: 'newuser', hasRecoveryCode: true });
+    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'reg-jwt', id: 9, username: 'newuser', hasRecoveryCode: true, termsAccepted: true });
 
     expect(wrapKeyBackup).toHaveBeenCalledWith('EXPORT-KEY', KEYS);
     const [, body] = api.post.mock.calls.find(([url]) => url === '/finaliseregister');
     expect(body).toEqual({
       registrationRecord: 'REC', userIdentifier: 'newuser', ...PUBLIC, keyBackup: 'BACKUP',
-      recoveryVerifier: 'REC-VERIFIER', recoveryBackup: 'REC-BACKUP',
+      recoveryVerifier: 'REC-VERIFIER', recoveryBackup: 'REC-BACKUP', acceptedTerms: '2026-10-05',
     });
     expect(JSON.stringify(body)).not.toContain('AAAAA');
     expect(JSON.stringify(body)).not.toContain('PRIV');
@@ -260,6 +266,7 @@ describe('Login - register form', () => {
 
     const { registerForm, container, onLoginSuccess } = renderLogin();
     fillRegister(container, 'newuser', 'long enough password');
+    fireEvent.click(screen.getByRole('checkbox', { name: /I agree to the terms of use/ }));
     fireEvent.submit(registerForm);
 
     fireEvent.click(await screen.findByLabelText("I've saved my recovery code"));
@@ -312,7 +319,7 @@ describe('Login - forgot password', () => {
 
     const { container, onLoginSuccess } = openRecover();
     fillRecover(container);
-    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'rec-jwt', id: 5, username: 'alice', hasRecoveryCode: true }));
+    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'rec-jwt', id: 5, username: 'alice', hasRecoveryCode: true, termsAccepted: true }));
 
     expect(api.post).toHaveBeenCalledWith('/recover/start', { userIdentifier: 'alice', recoveryAuth: 'REC-AUTH' });
     expect(unwrapRecoveryBackup).toHaveBeenCalledWith('AAAAA-BBBBB-CCCCC-DDDDD-EEEEE', 'REC-BACKUP');

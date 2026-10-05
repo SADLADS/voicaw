@@ -38,6 +38,9 @@ export function AuthProvider({ children }) {
             username: res.data.username,
             token: res.data.token,
             hasRecoveryCode: res.data.hasRecoveryCode,
+            // false: the terms of use must be accepted first (TermsGate). An older server
+            // doesn't say, which counts as accepted.
+            termsAccepted: res.data.termsAccepted !== false,
           });
         } else {
           setUser(null);

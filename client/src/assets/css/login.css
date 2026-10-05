@@ -31,6 +31,19 @@ body {
   margin: -0.25rem 0 0.5rem;
 }
 
+/* Agreeing to the terms of use: registering, and TermsGate.jsx. */
+.register-terms {
+  display: block;
+  font-size: 14px;
+  margin: 0 0 0.75rem;
+}
+
+.terms-gate-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
 .login-error {
   color: var(--vc-danger-text);
   margin-bottom: 1rem;

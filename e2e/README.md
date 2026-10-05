@@ -31,6 +31,7 @@ node e2e/groupnames.mjs [dir] # encrypted group names: API never has them, list/
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 node e2e/notes.mjs [dir]  # notes: row under the header, send, pin, reload, not leaked to/from DMs, phone login
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
+node e2e/terms.mjs [dir]  # terms of use: sign-up needs the tick (form and server), someone who hasn't accepted sees only the terms until they agree, not asked again; phone
 node e2e/spoilers.mjs [dir] # spoiler images: mark in tray, blurred for both, tap/click reveals, reply preview
 node e2e/nsfw.mjs [dir]   # NSFW channels: dialog switch, header tag, NSFW covers (image, embed, YouTube unloaded), spoiler = one cover, phone taps, Settings → Content off (account-wide, kept)
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level

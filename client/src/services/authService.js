@@ -91,7 +91,7 @@ export async function logIn(username, password) {
 
   await storeUserKeys(id, keys);
   localStorage.setItem('token', token);
-  return { token, id, username: data.username, hasRecoveryCode: Boolean(data.hasRecoveryCode) };
+  return { token, id, username: data.username, hasRecoveryCode: Boolean(data.hasRecoveryCode), termsAccepted: data.termsAccepted !== false };
 }
 
 function checkNewPassword(password) {
@@ -134,7 +134,8 @@ async function recoveryFields(code, keys) {
 // Creates the account with new keys and a recovery code. Resolves to { user, recoveryCode }
 // (user: the logged-in { token, id, username, hasRecoveryCode }, or null if the server
 // registered it without logging in). The code is shown once and never stored.
-export async function register(username, password) {
+// `acceptedTerms`: the version of the terms of use the person ticked (/api/config termsVersion).
+export async function register(username, password, acceptedTerms) {
   if (!username) throw new Error(t('auth.errors.usernameAndPasswordRequired'));
   checkNewPassword(password);
 
@@ -151,12 +152,13 @@ export async function register(username, password) {
     ...keys.public,
     keyBackup,
     ...(await recoveryFields(recoveryCode, keys)),
+    acceptedTerms,
   });
   if (!data.token) return { user: null, recoveryCode };
 
   await storeUserKeys(data.id, keys);
   localStorage.setItem('token', data.token);
-  return { user: { token: data.token, id: data.id, username: data.username, hasRecoveryCode: true }, recoveryCode };
+  return { user: { token: data.token, id: data.id, username: data.username, hasRecoveryCode: true, termsAccepted: true }, recoveryCode };
 }
 
 // Proves the logged-in user knows `password` (a fresh OPAQUE login) and opens their key
@@ -252,5 +254,5 @@ export async function recoverAccount(username, code, newPassword) {
 
   await storeUserKeys(done.id, keys);
   localStorage.setItem('token', done.token);
-  return { token: done.token, id: done.id, username: done.username, hasRecoveryCode: true };
+  return { token: done.token, id: done.id, username: done.username, hasRecoveryCode: true, termsAccepted: done.termsAccepted !== false };
 }
