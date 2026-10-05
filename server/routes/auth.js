@@ -3,13 +3,14 @@ const express = require('express');
 const opaque = require('@serenity-kit/opaque');
 const db = require('../db');
 const { opaqueServerSetup } = require('../config');
-const { startSession, authenticateJWT } = require('../auth');
+const { startSession, authenticateJWT, authenticatePending } = require('../auth');
 const { rateLimitsEnabled } = require('../config');
 const { createLimiter, tooManyAttempts } = require('../rateLimit');
 const { LIMITS: PROFILE_LIMITS, PROFILE_COLUMNS, clean: cleanProfile } = require('../profiles');
 const { sendToAllSockets } = require('../sockets');
 const { normalizeUsername, findUserByName, opaqueIdOf, newOpaqueId } = require('../usernames');
 const accounts = require('../accounts');
+const signups = require('../signups');
 
 // Registration and login use OPAQUE (the password never reaches the server), each in two
 // round trips. Login state between them lives in login_states for 5 minutes.
@@ -131,7 +132,7 @@ router.post('/finaliselogin', async (req, res) => {
 
   const user = await findUserByName(
     userIdentifier,
-    'id, username, identity_key, encryption_key, encryption_key_signature, key_backup, recovery_verifier'
+    'id, username, identity_key, encryption_key, encryption_key_signature, key_backup, recovery_verifier, pending'
   );
   const failed = await checkLoginProof(user?.username ?? normalizeUsername(userIdentifier), finishLoginRequest, clientSessionKey);
   if (failed) return res.status(failed[0]).json({ error: failed[1] });
@@ -144,6 +145,7 @@ router.post('/finaliselogin', async (req, res) => {
     id: user.id,
     username: user.username,
     hasRecoveryCode: Boolean(user.recovery_verifier),
+    pending: Boolean(user.pending),
     keyBackup: user.key_backup,
     identityKey: user.identity_key,
     encryptionKey: user.encryption_key,
@@ -154,6 +156,17 @@ router.post('/finaliselogin', async (req, res) => {
 router.post('/initiateregister', limit([limits.registerStartPerIp, byIp]), async (req, res) => {
   const { userIdentifier, registrationRequest } = req.body;
   if (!userIdentifier || !registrationRequest || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing username or registrationRequest' });
+  // Sign-ups that need an invite are refused before the client makes its keys (checked again,
+  // and the invite used up, by /finaliseregister). A password change sends no `invite` and
+  // isn't refused (it's this route too).
+  if (req.body.signup === true) {
+    try {
+      await signups.checkSignup(req.body.invite);
+    } catch (err) {
+      if (err instanceof signups.SignupError) return res.status(err.status).json({ error: err.message, code: err.code });
+      throw err;
+    }
+  }
   await opaque.ready;
 
   // Always the lower-case name: new accounts get it as their username, and a password change or
@@ -185,36 +198,52 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
   // '#' is kept for bots' names (bots.js: "name#1234"), so nobody can sign up as one.
   if (username.includes('#')) return res.status(400).json({ error: "Usernames can't contain #" });
   if (await findUserByName(username, 'id')) return res.status(409).json({ error: 'Username already exists' });
+  // Sign-ups (signups.js): refused without an invite when they need one; waiting for an admin
+  // when they need approval.
+  let signup;
+  try {
+    signup = await signups.checkSignup(req.body.invite);
+  } catch (err) {
+    if (err instanceof signups.SignupError) return res.status(err.status).json({ error: err.message, code: err.code });
+    throw err;
+  }
   let lastID;
   try {
-    ({ lastID } = await db.run(
-      `INSERT INTO users (username, display_name, password, identity_key, encryption_key, encryption_key_signature,
-         key_backup, recovery_verifier, recovery_backup, recovery_created)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [username, displayName, registrationRecord, identityKey, encryptionKey, encryptionKeySignature, keyBackup,
-        recovery?.verifier ?? null, recovery?.backup ?? null, recovery ? now() : null]
-    ));
+    await db.transaction(async () => {
+      if (signup.invite) await signups.useInvite(signup.invite);
+      ({ lastID } = await db.run(
+        `INSERT INTO users (username, display_name, password, identity_key, encryption_key, encryption_key_signature,
+           key_backup, recovery_verifier, recovery_backup, recovery_created, pending)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [username, displayName, registrationRecord, identityKey, encryptionKey, encryptionKeySignature, keyBackup,
+          recovery?.verifier ?? null, recovery?.backup ?? null, recovery ? now() : null, signup.pending ? 1 : 0]
+      ));
+    });
   } catch (err) {
+    if (err instanceof signups.SignupError) return res.status(err.status).json({ error: err.message, code: err.code });
     if (err.message.includes('UNIQUE constraint failed')) {
       return res.status(409).json({ error: 'Username already exists' });
     }
     throw err;
   }
   const user = { id: lastID, username };
+  if (signup.pending) await signups.announceRequests();
   res.status(201).json({
     token: await startSession(user, req), id: user.id, username, display_name: displayName, hasRecoveryCode: Boolean(recovery),
+    pending: signup.pending,
   });
 });
 
-// Restores a session from its token (the client keeps it in localStorage).
-router.get('/profile', authenticateJWT, async (req, res) => {
-  const user = await db.get(`SELECT id, username, recovery_verifier, ${PROFILE_COLUMNS} FROM users WHERE id = ?`, [req.user.id]);
+// Restores a session from its token (the client keeps it in localStorage). `pending`: the account
+// waits for an admin's approval (signups.js); the app shows only that.
+router.get('/profile', authenticatePending, async (req, res) => {
+  const user = await db.get(`SELECT id, username, recovery_verifier, pending, ${PROFILE_COLUMNS} FROM users WHERE id = ?`, [req.user.id]);
   if (!user) return res.status(404).json({ error: 'User not found' });
   const token = req.headers.authorization.split(' ')[1];
   res.json({
     // The username from the database: a token from before usernames were lower-cased has the old one.
     token, id: req.user.id, username: user.username, hasRecoveryCode: Boolean(user.recovery_verifier),
-    display_name: user.display_name, custom_status: user.custom_status, bio: user.bio, avatar: user.avatar,
+    pending: Boolean(user.pending), display_name: user.display_name, custom_status: user.custom_status, bio: user.bio, avatar: user.avatar,
   });
 });
 
@@ -281,7 +310,7 @@ function newPassword({ registrationRecord, keyBackup }) {
 }
 
 // The key backup, for re-encrypting it (it's useless without the password).
-router.get('/key-backup', authenticateJWT, async (req, res) => {
+router.get('/key-backup', authenticatePending, async (req, res) => {
   const user = await db.get('SELECT key_backup FROM users WHERE id = ?', [req.user.id]);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json({ keyBackup: user.key_backup });
@@ -290,7 +319,7 @@ router.get('/key-backup', authenticateJWT, async (req, res) => {
 // The logged-in user's username now (their token may be from before it was lower-cased).
 const usernameOf = async (req) => (await db.get('SELECT username FROM users WHERE id = ?', [req.user.id])) ?? { username: '' };
 
-router.post('/change-password', authenticateJWT, async (req, res) => {
+router.post('/change-password', authenticatePending, async (req, res) => {
   const password = newPassword(req.body);
   if (password.error) return res.status(400).json({ error: password.error });
   const { username } = await usernameOf(req);
@@ -305,7 +334,7 @@ router.post('/change-password', authenticateJWT, async (req, res) => {
 });
 
 // Sets up a recovery code, or replaces the old one (which then stops working).
-router.put('/recovery-code', authenticateJWT, async (req, res) => {
+router.put('/recovery-code', authenticatePending, async (req, res) => {
   const recovery = parseRecovery(req.body);
   if (recovery.error) return res.status(400).json({ error: recovery.error });
   const { username } = await usernameOf(req);
@@ -320,14 +349,14 @@ router.put('/recovery-code', authenticateJWT, async (req, res) => {
 });
 
 // Your guilds that would stop the account being deleted (Settings shows them up front).
-router.get('/account/owned-guilds', authenticateJWT, async (req, res) => {
+router.get('/account/owned-guilds', authenticatePending, async (req, res) => {
   res.json(await accounts.ownedGuilds(req.user.id));
 });
 
 // Deletes your account (accounts.js), with a login proof of the password like the routes above:
 // { finishLoginRequest, clientSessionKey, deleteOwnedGuilds?, groupLeaves: { groupId: entry } }.
 // Everything is checked before the proof is used, so a refusal doesn't cost a login.
-router.delete('/account', authenticateJWT, async (req, res) => {
+router.delete('/account', authenticatePending, async (req, res) => {
   let plan;
   try {
     plan = await accounts.checkDeletion(req.user.id, req.body ?? {});
@@ -339,6 +368,8 @@ router.delete('/account', authenticateJWT, async (req, res) => {
   const failed = await checkLoginProof(username, req.body.finishLoginRequest, req.body.clientSessionKey);
   if (failed) return res.status(failed[0]).json({ error: failed[0] === 401 ? 'Password is incorrect' : failed[1] });
 
+  // Still waiting for approval: nothing of it is kept, not even the "Deleted User" row.
+  if (req.user.pending && (await signups.removePending(req.user.id))) return res.json({ ok: true });
   await accounts.deleteAccount(req.user.id, plan);
   res.json({ ok: true });
 });
@@ -352,7 +383,7 @@ async function checkRecoveryAuth(username, recoveryAuth) {
   if (typeof username !== 'string' || typeof recoveryAuth !== 'string' || !BASE64.test(recoveryAuth)) return null;
   const user = await findUserByName(
     username,
-    'id, username, recovery_verifier, recovery_backup, identity_key, encryption_key, encryption_key_signature'
+    'id, username, recovery_verifier, recovery_backup, identity_key, encryption_key, encryption_key_signature, pending'
   );
   const expected = user?.recovery_verifier ? Buffer.from(user.recovery_verifier, 'base64') : DUMMY_VERIFIER;
   const actual = crypto.createHash('sha256').update(Buffer.from(recoveryAuth, 'base64')).digest();
@@ -396,6 +427,7 @@ router.post('/recover/finish', recoverLimits, async (req, res) => {
     id: user.id,
     username: user.username,
     hasRecoveryCode: true,
+    pending: Boolean(user.pending),
   });
 });
 

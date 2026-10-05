@@ -6,6 +6,10 @@ const db = require('./db');
 // keyed by user id as a string. Routes use sendToUserSockets; the socket server itself only
 // exists when index.js runs as the server (not in tests).
 const clients = new Map();
+// Accounts waiting for an admin's approval (signups.js) aren't logged in as far as everyone else
+// is concerned: their sockets wait here, get no presence or broadcasts, and join `clients` once
+// approved.
+const pendingClients = new Map();
 
 // Presence has to be fresh: a phone that locks may not get to report going hidden.
 const PRESENCE_FRESH_MS = 35000;
@@ -50,6 +54,45 @@ function sendToDesktopSockets(userId, payload) {
 // To every logged-in socket (anyone can open a websocket; only identified ones are in `clients`).
 function sendToAllSockets(payload) {
   for (const userId of clients.keys()) sendToUserSockets(userId, payload);
+}
+
+// Makes `ws` one of `userId`'s logged-in sockets (identified, or just approved).
+function addClient(ws, userId) {
+  ws.userId = String(userId);
+  if (!clients.has(ws.userId)) clients.set(ws.userId, []);
+  clients.get(ws.userId).push(ws);
+  refreshStatus(ws.userId);
+  // Everyone not offline, so a client that was disconnected for a while catches up.
+  ws.send(JSON.stringify({ type: 'presence_snapshot', statuses: Object.fromEntries(statuses) }));
+}
+
+function removeFrom(map, key, ws) {
+  const remaining = (map.get(key) ?? []).filter((s) => s !== ws);
+  if (remaining.length) map.set(key, remaining);
+  else map.delete(key);
+}
+
+// A pending account's sockets: approved (they carry on as logged in, after `account_approved`)
+// or declined (`account_deleted`, then closed like a deleted account's).
+function approvePendingSockets(userId) {
+  const sockets = pendingClients.get(String(userId)) ?? [];
+  pendingClients.delete(String(userId));
+  for (const ws of sockets) {
+    if (ws.readyState !== WebSocket.OPEN) continue;
+    delete ws.pendingUserId;
+    ws.send(JSON.stringify({ type: 'account_approved' }));
+    addClient(ws, userId);
+  }
+}
+
+function closePendingSockets(userId) {
+  const sockets = pendingClients.get(String(userId)) ?? [];
+  pendingClients.delete(String(userId));
+  for (const ws of sockets) {
+    if (ws.readyState !== WebSocket.OPEN) continue;
+    ws.send(JSON.stringify({ type: 'account_deleted' }));
+    ws.close(1008, 'Account deleted');
+  }
 }
 
 function getStatus(userId) {
@@ -149,7 +192,7 @@ function attachWebSocketServer(server) {
         return;
       }
       if (data.type === 'identify') {
-        if (ws.userId || ws.identifying) return;
+        if (ws.userId || ws.pendingUserId || ws.identifying) return;
         ws.identifying = true;
         const user = await auth.verifyToken(data.token);
         ws.identifying = false;
@@ -159,13 +202,14 @@ function attachWebSocketServer(server) {
           ws.close(1008, 'Invalid token');
           return;
         }
-        ws.userId = String(user.id);
         ws.sessionId = user.sid;
-        if (!clients.has(ws.userId)) clients.set(ws.userId, []);
-        clients.get(ws.userId).push(ws);
-        refreshStatus(ws.userId);
-        // Everyone not offline, so a client that was disconnected for a while catches up.
-        ws.send(JSON.stringify({ type: 'presence_snapshot', statuses: Object.fromEntries(statuses) }));
+        if (user.pending) {
+          ws.pendingUserId = String(user.id);
+          if (!pendingClients.has(ws.pendingUserId)) pendingClients.set(ws.pendingUserId, []);
+          pendingClients.get(ws.pendingUserId).push(ws);
+          return;
+        }
+        addClient(ws, user.id);
       } else if (data.type === 'presence') {
         // Whether this client is on screen and which conversation it shows (used to skip
         // push notifications for a chat the user is already looking at), whether it's a phone,
@@ -189,10 +233,9 @@ function attachWebSocketServer(server) {
 
     ws.on('close', () => {
       const { userId } = ws;
+      if (ws.pendingUserId) removeFrom(pendingClients, ws.pendingUserId, ws);
       if (!userId || !clients.has(userId)) return;
-      const remaining = clients.get(userId).filter((s) => s !== ws);
-      if (remaining.length) clients.set(userId, remaining);
-      else clients.delete(userId);
+      removeFrom(clients, userId, ws);
       refreshStatus(userId);
     });
 
@@ -218,5 +261,5 @@ function attachWebSocketServer(server) {
 }
 
 module.exports = {
-  clients, sendToUserSockets, sendToAllSockets, sendToDesktopSockets, getStatus, refreshStatus, isViewingConversation, attachWebSocketServer,
+  clients, pendingClients, approvePendingSockets, closePendingSockets, sendToUserSockets, sendToAllSockets, sendToDesktopSockets, getStatus, refreshStatus, isViewingConversation, attachWebSocketServer,
 };

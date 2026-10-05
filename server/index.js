@@ -41,6 +41,8 @@ app.get('/api/config', async (req, res) => {
     voiceEnabled: Boolean(config.livekit),
     // The emoji picker's GIFs tab (a Klipy key, from .env or Settings → Admin).
     gifsEnabled: Boolean(await getSetting('klipyApiKey')),
+    // Who can sign up (signups.js): 'open', 'invite' or 'request'. The sign-up form follows it.
+    signupMode: await getSetting('signupMode'),
   });
 });
 

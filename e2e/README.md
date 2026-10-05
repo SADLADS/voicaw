@@ -59,6 +59,7 @@ node e2e/keyboard.mjs [dir] # phone keyboard (made up): message box above it aft
 node e2e/taphighlight.mjs [dir] # phone tap on a message: brief fade in the hover colour (not a highlight that stays), restarts on a second tap, none on a long press (stays .focused); computer hover unchanged, no flash
 node e2e/swipereply.mjs [dir] # phone swipe to reply: message follows the finger with the arrow (not cut off), far enough = reply (bar, focus, sent reply quotes it), short swipe/scroll = none, right = list, no long press; none on a computer
 node e2e/devices.mjs [dir] # Settings → Devices: three logins listed, log the phone out (back at login, token dead), all others, phone, logout ends the session
+node e2e/signups.mjs [dir] # sign-ups: Settings → Admin → Sign-ups to approval, new account sees only the waiting page, listed live for the admin, approved = app opens by itself, declined (phone) = logged out; invite only: refused without/with a bad code, /join/<code> link fills it in and lets them in, invite used up
 node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
 node e2e/favicon.mjs [dir] # favicon dot: DM on, read = off, guild message without a mention = none, mention on (Discord's rule); dir gets the dotted icon
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings

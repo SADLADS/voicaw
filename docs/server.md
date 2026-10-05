@@ -39,6 +39,8 @@ unexpected errors. The rest:
 - `callLog.js`: a call's row in its chat's history once it ends (see Calls in the chat history, under DM calls).
 - `groupDms.js`: group DMs (membership log checks, epochs, summaries; see Group DMs).
 - `appSettings.js`: app-wide settings a global admin edits (see Admin settings).
+- `signups.js`: who can sign up, app invites, accounts waiting for approval (see Sign-ups in
+  `docs/auth-and-encryption.md`).
 - `bots.js`: bot applications and their bot users, tokens, adding bots to guilds (their own
   role); `discord.js`: our objects, ids and permissions as Discord's API shows them;
   `gateway.js`: the bot gateway (Discord's protocol at `/api/gateway`); `actionError.js`: the
@@ -88,6 +90,7 @@ database is Node's built-in `node:sqlite`, so there's no native module to build.
 directly); without them voice is just off. `FCM_SERVICE_ACCOUNT` (a Firebase service account's
 JSON key file) lets the Android app be notified while closed (`fcm.js`, see Android app in
 `docs/desktop-and-site.md`). `KLIPY_API_KEY` turns on GIFs (also settable in
-Settings → Admin, see Admin settings). `README.md` "Initial setup" has the whole list. VAPID keys are generated
+Settings → Admin, see Admin settings), and `SIGNUP_MODE` who can sign up (`open`, `invite`,
+`request`; also in Settings → Admin, see Sign-ups in `docs/auth-and-encryption.md`). `README.md` "Initial setup" has the whole list. VAPID keys are generated
 via `webpush.generateVAPIDKeys()` (see root `README.md`). `S3_*` vars point at an S3-compatible
 object store (e.g. MinIO) used for uploads and profile pics.

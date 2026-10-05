@@ -22,12 +22,12 @@ export const MIN_PASSWORD_LENGTH = 10;
 const PUBLIC_KEY_FIELDS = ['identityKey', 'encryptionKey', 'encryptionKeySignature'];
 
 // Sends and resolves to the response body; a refusal throws the server's own message
-// (e.g. "Username already exists", or too many attempts).
+// (e.g. "Username already exists", or too many attempts), with its `code` if it has one.
 async function send(method, path, body) {
   try {
     return (await api[method](path, body)).data;
   } catch (err) {
-    throw new Error(err.response?.data?.error || err.message);
+    throw Object.assign(new Error(err.response?.data?.error || err.message), { code: err.response?.data?.code });
   }
 }
 
@@ -84,7 +84,7 @@ export async function logIn(username, password) {
 
   await storeUserKeys(id, keys);
   localStorage.setItem('token', token);
-  return { token, id, username: data.username, hasRecoveryCode: Boolean(data.hasRecoveryCode) };
+  return { token, id, username: data.username, hasRecoveryCode: Boolean(data.hasRecoveryCode), pending: Boolean(data.pending) };
 }
 
 function checkNewPassword(password) {
@@ -94,11 +94,14 @@ function checkNewPassword(password) {
   }
 }
 
-// OPAQUE registration for `password`: { registrationRecord, exportKey }.
-async function registerPassword(username, password) {
+// OPAQUE registration for `password`: { registrationRecord, exportKey }. `signup` (a new
+// account: { invite }) lets the server refuse a sign-up that needs an invite straight away.
+async function registerPassword(username, password, signup = null) {
   const opaque = await loadOpaque();
   const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
-  const started = await post('/initiateregister', { userIdentifier: username, registrationRequest });
+  const started = await post('/initiateregister', {
+    userIdentifier: username, registrationRequest, ...(signup && { signup: true, invite: signup.invite }),
+  });
   if (started.error) throw new Error(started.error);
   return opaque.client.finishRegistration({
     clientRegistrationState,
@@ -124,14 +127,17 @@ async function recoveryFields(code, keys) {
   };
 }
 
-// Creates the account with new keys and a recovery code. Resolves to { user, recoveryCode }
-// (user: the logged-in { token, id, username, hasRecoveryCode }, or null if the server
-// registered it without logging in). The code is shown once and never stored.
-export async function register(username, password) {
+// Creates the account with new keys and a recovery code, with app invite `invite` (optional,
+// see server/signups.js). Resolves to { user, recoveryCode } (user: the logged-in { token, id,
+// username, hasRecoveryCode, pending }, or null if the server registered it without logging in;
+// `pending` while it waits for an admin's approval). The code is shown once and never stored.
+// A refusal for the invite has `code` 'invite_required' or 'invalid_invite'.
+export async function register(username, password, invite = '') {
   if (!username) throw new Error(t('auth.errors.usernameAndPasswordRequired'));
   checkNewPassword(password);
+  invite = inviteCode(invite) || undefined;
 
-  const { registrationRecord, exportKey } = await registerPassword(username, password);
+  const { registrationRecord, exportKey } = await registerPassword(username, password, { invite });
 
   // New keys, backed up on the server encrypted with the OPAQUE exportKey and the code.
   const keys = await generateUserKeys();
@@ -144,12 +150,22 @@ export async function register(username, password) {
     ...keys.public,
     keyBackup,
     ...(await recoveryFields(recoveryCode, keys)),
+    invite,
   });
   if (!data.token) return { user: null, recoveryCode };
 
   await storeUserKeys(data.id, keys);
   localStorage.setItem('token', data.token);
-  return { user: { token: data.token, id: data.id, username: data.username, hasRecoveryCode: true }, recoveryCode };
+  return {
+    user: { token: data.token, id: data.id, username: data.username, hasRecoveryCode: true, pending: Boolean(data.pending) },
+    recoveryCode,
+  };
+}
+
+// The code in what was typed or pasted for an app invite: the code, or a whole /join/ link.
+export function inviteCode(text) {
+  const value = String(text ?? '').trim();
+  return /\/join\/([A-Za-z0-9]{1,32})\/?$/.exec(value)?.[1] ?? value;
 }
 
 // Proves the logged-in user knows `password` (a fresh OPAQUE login) and opens their key
@@ -205,7 +221,8 @@ export async function deleteAccount(user, password, { deleteOwnedGuilds = false 
   for (let attempt = 0; ; attempt++) {
     const { proof } = await unlockWithPassword(user.username, password);
     const groupLeaves = {};
-    for (const group of await fetchGroups()) groupLeaves[group.id] = await leaveEntry(user, group.id);
+    // An account still waiting for approval can't be in any (or ask for them).
+    for (const group of user.pending ? [] : await fetchGroups()) groupLeaves[group.id] = await leaveEntry(user, group.id);
     try {
       return (await api.delete('/account', { data: { ...proof, groupLeaves, deleteOwnedGuilds } })).data;
     } catch (err) {
@@ -245,5 +262,5 @@ export async function recoverAccount(username, code, newPassword) {
 
   await storeUserKeys(done.id, keys);
   localStorage.setItem('token', done.token);
-  return { token: done.token, id: done.id, username: done.username, hasRecoveryCode: true };
+  return { token: done.token, id: done.id, username: done.username, hasRecoveryCode: true, pending: Boolean(done.pending) };
 }

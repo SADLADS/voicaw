@@ -84,7 +84,7 @@
       },
       "admin": {
         "title": "Admin",
-        "keywords": "global admins klipy gif api key"
+        "keywords": "global admins klipy gif api key sign up signup sign-ups register registration invite invites invite only approve approval requests"
       },
       "about": {
         "title": "About",
@@ -133,7 +133,8 @@
       "source": {
         "admin": "Set here",
         "env": "From server/.env",
-        "unset": "Not set"
+        "unset": "Not set",
+        "default": "Default"
       },
       "sourceWithHint": "{{source}}: {{hint}}",
       "couldntSave": "Couldn't save",
@@ -148,7 +149,33 @@
       "admins": "Admins",
       "adminsHelp": "Admins can change everything in this section.",
       "username": "Username",
-      "makeAdmin": "Make admin"
+      "makeAdmin": "Make admin",
+      "useDefault": "Use default",
+      "choices": {
+        "signupMode": {
+          "open": "Open: anyone can sign up",
+          "invite": "Invite only",
+          "request": "Request: admins approve new accounts"
+        }
+      },
+      "requests": {
+        "title": "Sign-up requests",
+        "help": "Accounts waiting for approval. They can log in, but can't see or do anything else until approved. Declining deletes the account.",
+        "none": "Nobody is waiting.",
+        "approve": "Approve",
+        "decline": "Decline",
+        "confirmDecline": "Decline this request? Their account is deleted."
+      },
+      "invites": {
+        "title": "Invites",
+        "help": "Links that let someone sign up when sign-ups are invite only, or skip the wait for approval. New links are copied straight away.",
+        "create": "Create invite",
+        "revoke": "Revoke",
+        "used_one": "Used {{count}} time",
+        "used_other": "Used {{count}} times",
+        "usedOf_one": "Used {{count}} of {{max}}",
+        "usedOf_other": "Used {{count}} of {{max}}"
+      }
     },
     "developers": {
       "title": "Developer Portal",

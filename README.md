@@ -70,6 +70,10 @@ LIVEKIT_API_SECRET=...
 # no GIFs tab. A global admin can also set or replace it in Settings → Admin.
 KLIPY_API_KEY=...
 
+# Who can sign up: open (default), invite (only with an invite an admin made) or request (new
+# accounts wait for an admin's approval). Optional; an admin can change it in Settings → Admin.
+# SIGNUP_MODE=open
+
 # The Android app's notifications (step 10): a Firebase service account's JSON key. Optional:
 # without it the app only notifies while it's open.
 # FCM_SERVICE_ACCOUNT=/path/to/fcm-service-account.json

@@ -82,6 +82,45 @@ the session exists, and only shown to the account itself.
   answer or a server error (no network yet after boot, an API restart) it keeps the token and
   asks again every 3 s, while `App` shows "Can't reach Voicaw. Trying again…".
 
+## Sign-ups (open, invite only, approval)
+
+Who can make an account is the app-wide setting `signupMode` (Settings → Admin; `SIGNUP_MODE`
+in `server/.env` as the fallback, `open` when neither is set), handled by `server/signups.js`:
+- **`open`**: anyone (as before). An invite sent along is ignored.
+- **`invite`**: only with an app invite. `/initiateregister` with `signup: true` (only sign-ups
+  send it: password changes and recovery use the same route) refuses without a working one
+  (403 `code: 'invite_required'` / `'invalid_invite'`) before the client makes any keys;
+  `/finaliseregister` checks again and uses the invite up in the transaction that makes the
+  account.
+- **`request`**: anyone, but the account is made with `users.pending = 1` until an admin approves
+  it. A working invite skips the wait.
+
+App invites (`app_invites`) are made by admins only (Settings → Admin → Invites; `POST
+/admin/invites { maxAge, maxUses }`, `DELETE /admin/invites/:code`), shared as
+`<origin>/join/<code>` (App.jsx's `/join/:code` opens sign-up with the code filled in; the form
+also takes a pasted link, `authService` `inviteCode`). Only the use count is kept, not who used
+an invite.
+
+**Pending accounts** can log in (their keys are made and backed up as for anyone), but
+`authenticateJWT` refuses them everywhere (403 `code: 'pending'`) except the routes that use
+`authenticatePending`: `GET /profile` (with `pending: true`), devices and logout, the key backup,
+password and recovery code changes, and deleting the account. So voice and call tokens, guilds,
+DMs, applications (bots) and uploads are all closed to them without each route checking. They're
+also hidden from everyone else: left out of `/dms-list`, and treated as unknown by `/dm-send`,
+calls, group adds and mention previews; an admin can't make them admin. Their websocket waits in
+`pendingClients` (`sockets.js`): no presence, no broadcasts (which would leak who's here), until
+approved, when `account_approved` is sent and the same socket joins `clients`. The client shows
+only `PendingApproval.jsx` while `user.pending` (whatever the address): it opens the app on
+`account_approved`, or when a check of `/profile` every minute says so.
+
+Admins see the requests in Settings → Admin (`GET /admin` `requests`), and get `signup_requests
+{ count }` on their sockets when one comes or is dealt with (the panel reloads). Approving is
+`POST /admin/requests/:id/approve`; declining (`DELETE /admin/requests/:id`) removes the account
+altogether, not as a "Deleted User" tombstone (it can't have written anything): the row, its
+sessions, push subscriptions and login state; its sockets get `account_deleted` and are closed,
+so the app logs out, and the name is free again. Withdrawing a request (the waiting page, a
+password proof through `DELETE /account`) does the same.
+
 ## Deleting an account
 
 Settings → Delete account (`DeleteAccountSettings.jsx`, `authService` `deleteAccount`), like

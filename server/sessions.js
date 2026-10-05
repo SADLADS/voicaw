@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 const db = require('./db');
-const { clients } = require('./sockets');
+const { clients, pendingClients } = require('./sockets');
 
 // Login sessions (the `sessions` table; tokens carry their id, see auth.js): Settings →
 // Devices lists them and logs them out.
@@ -13,7 +13,7 @@ async function listSessions(userId, currentId) {
      WHERE user_id = ? ORDER BY id = ? DESC, last_used_at DESC, created_at DESC`,
     [userId, currentId]
   );
-  const sockets = clients.get(String(userId)) ?? [];
+  const sockets = clients.get(String(userId)) ?? pendingClients.get(String(userId)) ?? [];
   return rows.map((row) => ({
     ...row,
     current: row.id === currentId,
@@ -41,7 +41,7 @@ async function endSessions(userId, ids, { fromSettings = true } = {}) {
   });
   const ended = new Set(ids);
   const message = JSON.stringify({ type: 'session_revoked' });
-  for (const socket of clients.get(String(userId)) ?? []) {
+  for (const socket of [...(clients.get(String(userId)) ?? []), ...(pendingClients.get(String(userId)) ?? [])]) {
     if (!ended.has(socket.sessionId) || socket.readyState !== WebSocket.OPEN) continue;
     socket.send(message);
     socket.close(1008, 'Logged out');

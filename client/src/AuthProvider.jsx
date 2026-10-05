@@ -38,6 +38,8 @@ export function AuthProvider({ children }) {
             username: res.data.username,
             token: res.data.token,
             hasRecoveryCode: res.data.hasRecoveryCode,
+            // Waiting for an admin's approval: the app shows only that (PendingApproval).
+            pending: Boolean(res.data.pending),
           });
         } else {
           setUser(null);

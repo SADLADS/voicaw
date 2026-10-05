@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import '../assets/css/login.css';
 import '../assets/css/recovery.css';
 import { connectWebSocket } from '../utils/ws-client';
@@ -6,11 +6,22 @@ import {
   MIN_PASSWORD_LENGTH, logIn, register, recoverAccount, generateRecoveryCode, saveRecoveryCode,
 } from '../services/authService';
 import RecoveryCodeDisplay from './RecoveryCodeDisplay';
+import { ConfigContext } from '../contexts';
 import { t } from '../i18n';
 
-export default function Login({ onLoginSuccess }) {
+// The server's refusals of an invite, in the app's language.
+const INVITE_ERRORS = {
+  invite_required: 'auth.errors.inviteRequired',
+  invalid_invite: 'auth.errors.invalidInvite',
+};
+
+// Logging in, signing up and recovering an account. Signing up follows the server's sign-up
+// mode (server/signups.js): an invite field when it needs one (or when one skips the wait for
+// approval). `invite`: the code from an app invite link (/join/<code>), filled in.
+export default function Login({ onLoginSuccess, invite = '' }) {
+  const { signupMode = 'open' } = useContext(ConfigContext) ?? {};
   const [loginData, setLoginData] = useState({ username: '', password: '' });
-  const [registerData, setRegisterData] = useState({ username: '', password: '' });
+  const [registerData, setRegisterData] = useState({ username: '', password: '', invite });
   const [recoverData, setRecoverData] = useState({ username: '', code: '', password: '', confirm: '' });
   // 'login' (log in or register), 'recover' (forgot password), or { user, recoveryCode,
   // password? } while a new code is shown: after registering (already stored), or after
@@ -56,10 +67,12 @@ export default function Login({ onLoginSuccess }) {
     setError('');
     setLoading(true);
     try {
-      const { user, recoveryCode } = await register(registerData.username, registerData.password);
+      const { user, recoveryCode } = await register(
+        registerData.username, registerData.password, signupMode === 'open' ? '' : registerData.invite
+      );
       setMode({ user, recoveryCode });
     } catch (err) {
-      setError(err.message);
+      setError(INVITE_ERRORS[err.code] ? t(INVITE_ERRORS[err.code]) : err.message);
     } finally {
       setLoading(false);
     }
@@ -230,6 +243,24 @@ export default function Login({ onLoginSuccess }) {
           <p className="register-password-hint">
             {t('auth.register.passwordHint', { count: MIN_PASSWORD_LENGTH })}
           </p>
+          {signupMode !== 'open' && (
+            <>
+              <input
+                name="invite"
+                className="form-control mb-2"
+                placeholder={signupMode === 'invite' ? t('auth.register.invitePlaceholder') : t('auth.register.inviteOptionalPlaceholder')}
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                required={signupMode === 'invite'}
+                value={registerData.invite}
+                onChange={e => setRegisterData({ ...registerData, invite: e.target.value })}
+              />
+              <p className="register-password-hint">
+                {signupMode === 'invite' ? t('auth.register.inviteHint') : t('auth.register.requestHint')}
+              </p>
+            </>
+          )}
           <button className="btn btn-secondary w-100" type="submit" disabled={loading}>
             {loading ? t('auth.pleaseWait') : t('auth.register.submit')}
           </button>

@@ -6,17 +6,18 @@ import {
 // Mirrors what client/src/services/authService.js does (OPAQUE, then keys wrapped with the
 // OPAQUE exportKey), so integration tests exercise the real client/server protocol.
 
-// With `recoveryCode`, the account is registered with that recovery code.
-export async function registerUser(app, request, username, password, { recoveryCode } = {}) {
+// With `recoveryCode`, the account is registered with that recovery code; with `invite`, with
+// that app invite (server/signups.js).
+export async function registerUser(app, request, username, password, { recoveryCode, invite } = {}) {
   await opaque.ready;
 
   const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
 
   const initiateRes = await request(app)
     .post('/api/initiateregister')
-    .send({ userIdentifier: username, registrationRequest });
+    .send({ userIdentifier: username, registrationRequest, signup: true, invite });
   if (initiateRes.body.error) {
-    throw new Error(`initiateregister failed: ${initiateRes.body.error}`);
+    return { response: initiateRes, failedAt: 'initiate' };
   }
 
   const { registrationRecord, exportKey } = opaque.client.finishRegistration({
@@ -32,7 +33,7 @@ export async function registerUser(app, request, username, password, { recoveryC
 
   const finaliseRes = await request(app)
     .post('/api/finaliseregister')
-    .send({ registrationRecord, userIdentifier: username, ...keys.public, keyBackup, ...recovery });
+    .send({ registrationRecord, userIdentifier: username, ...keys.public, keyBackup, ...recovery, invite });
 
   return { response: finaliseRes, keys, exportKey };
 }

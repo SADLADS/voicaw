@@ -17,6 +17,8 @@ const callListeners = new Set();
 const groupListeners = new Set();
 const notificationListeners = new Set();
 const loggedOutListeners = new Set();
+const approvedListeners = new Set();
+const signupRequestListeners = new Set();
 const conversationSettingsListeners = new Set();
 const preferencesListeners = new Set();
 const dictionaryListeners = new Set();
@@ -184,6 +186,12 @@ export function connectWebSocket() {
       else if (data.type === 'dictionary') {
         dictionaryListeners.forEach((cb) => cb({ dictionary: data.dictionary, version: data.version }));
       }
+      else if (data.type === 'account_approved') {
+        approvedListeners.forEach((cb) => cb());
+      }
+      else if (data.type === 'signup_requests') {
+        signupRequestListeners.forEach((cb) => cb(data.count));
+      }
       else if (data.type === 'account_deleted' || data.type === 'session_revoked') {
         loggedOutElsewhere(socket);
       }
@@ -342,6 +350,19 @@ export function onDictionary(callback) {
 export function onLoggedOutElsewhere(callback) {
   loggedOutListeners.add(callback);
   return () => loggedOutListeners.delete(callback);
+}
+
+// An admin approved this account, which was waiting (server/signups.js): this socket carries on
+// as a logged-in one.
+export function onAccountApproved(callback) {
+  approvedListeners.add(callback);
+  return () => approvedListeners.delete(callback);
+}
+
+// Admins: someone asked for an account, or a request was dealt with (`count` waiting now).
+export function onSignupRequests(callback) {
+  signupRequestListeners.add(callback);
+  return () => signupRequestListeners.delete(callback);
 }
 
 // Once per socket: the server says so, then closes it.

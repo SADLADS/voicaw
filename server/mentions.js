@@ -95,7 +95,7 @@ async function saveMentions(message, channel, permissions, allowed) {
 async function previewText(content, guildId, channelNames = {}) {
   const userIds = [...String(content).matchAll(/<@(\d+)>/g)].map((m) => Number(m[1]));
   const users = userIds.length
-    ? await db.all(`SELECT id, username, display_name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`, userIds)
+    ? await db.all(`SELECT id, username, display_name FROM users WHERE pending = 0 AND id IN (${userIds.map(() => '?').join(',')})`, userIds)
     : [];
   const roles = await db.all('SELECT id, name FROM guild_roles WHERE guild_id = ?', [guildId]);
   const userName = new Map(users.map((u) => [u.id, u.display_name || u.username]));

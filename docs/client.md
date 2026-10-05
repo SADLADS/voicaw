@@ -409,5 +409,9 @@ server's 403 hides it from everyone else). App-wide settings are declared in
 there (`app_settings` table, cached in memory) overrides the `.env` one, and clearing it goes
 back. Secrets are write-only: the panel only shows where the value comes from and its last 4
 characters. `GET /admin`, `PUT /admin/settings/:key { value | null }`, `POST /admin/admins
-{ username }`, `DELETE /admin/admins/:id` (not yourself). Only the Klipy key for now; add new
-app-wide keys to `SETTINGS` and read them with `getSetting` rather than from `config.js`.
+{ username }`, `DELETE /admin/admins/:id` (not yourself). Settings so far: the Klipy key and
+who can sign up (`signupMode`). A setting with `choices` (and its `fallback`) takes only one of
+them: the panel shows a menu (`ChoiceRow`, labels `settings.admin.choices.<key>.<value>`) and the
+server refuses anything else. Add new app-wide keys to `SETTINGS` and read them with
+`getSetting` rather than from `config.js`. The panel also lists sign-up requests and app invites
+(see Sign-ups in `docs/auth-and-encryption.md`).

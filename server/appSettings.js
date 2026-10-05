@@ -1,7 +1,8 @@
 // App-wide settings that a global admin edits in Settings → Admin (routes/admin.js). Each one
 // can also come from server/.env (`env`); a value saved by an admin wins, and clearing it goes
 // back to the .env value. Secret values never leave the server: the admin panel only learns
-// whether one is set, and its last few characters.
+// whether one is set, and its last few characters. A setting with `choices` only takes one of
+// them (the panel shows a menu), and `fallback` when it has none.
 const db = require('./db');
 
 const SETTINGS = {
@@ -10,6 +11,14 @@ const SETTINGS = {
     secret: true,
     label: 'Klipy API key',
     description: 'GIF search in the emoji picker (partner.klipy.com). Empty: no GIFs tab.',
+  },
+  // signups.js
+  signupMode: {
+    env: 'SIGNUP_MODE',
+    label: 'Sign-ups',
+    description: 'Who can make an account: anyone, only people with an invite, or anyone, but they wait for an admin to approve them (an invite skips the wait).',
+    choices: ['open', 'invite', 'request'],
+    fallback: 'open',
   },
 };
 
@@ -37,8 +46,15 @@ async function getSetting(key) {
   const def = SETTINGS[key];
   if (!def) throw new Error(`Unknown setting ${key}`);
   const values = await load();
-  if (values.has(key)) return values.get(key);
-  return (def.env && process.env[def.env]) || '';
+  const value = values.has(key) ? values.get(key) : (def.env && process.env[def.env]) || '';
+  if (def.choices && !def.choices.includes(value)) return def.fallback;
+  return value;
+}
+
+// Whether `value` (not empty) can be saved for setting `key`.
+function isValidValue(key, value) {
+  const { choices } = SETTINGS[key];
+  return !choices || choices.includes(value);
 }
 
 // `value` null (or '') removes the admin's value, so the .env one applies again.
@@ -63,12 +79,13 @@ async function describeSettings() {
   const out = [];
   for (const [key, def] of Object.entries(SETTINGS)) {
     const value = await getSetting(key);
-    const source = values.has(key) ? 'admin' : value ? 'env' : 'unset';
+    const source = values.has(key) ? 'admin' : (def.env && process.env[def.env]) ? 'env' : 'unset';
     out.push({
       key,
       label: def.label,
       description: def.description,
       secret: Boolean(def.secret),
+      choices: def.choices ?? null,
       env: def.env ?? null,
       source,
       value: def.secret ? null : value,
@@ -78,4 +95,4 @@ async function describeSettings() {
   return out;
 }
 
-module.exports = { SETTINGS, MAX_VALUE_LENGTH, getSetting, setSetting, describeSettings };
+module.exports = { SETTINGS, MAX_VALUE_LENGTH, getSetting, setSetting, isValidValue, describeSettings };

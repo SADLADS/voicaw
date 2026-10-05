@@ -43,15 +43,16 @@ async function startSession(user, req) {
   return generateToken(user, id);
 }
 
-// Resolves to the token's user ({ id, username, iat, sid, renew }), or null if it isn't valid:
-// expired, its session logged out, or the account deleted since. `req` (an HTTP request)
-// updates the session's device. `renew` says the token should be replaced.
+// Resolves to the token's user ({ id, username, iat, sid, renew, pending }), or null if it isn't
+// valid: expired, its session logged out, or the account deleted since. `req` (an HTTP request)
+// updates the session's device. `renew` says the token should be replaced; `pending`, that the
+// account waits for an admin's approval (signups.js).
 async function verifyToken(token, req = null) {
   const payload = await new Promise((resolve) => {
     jwt.verify(token, jwtSecret, (err, decoded) => resolve(err ? null : decoded));
   });
   if (!payload) return null;
-  const row = await db.get('SELECT deleted_at, sessions_reset_at FROM users WHERE id = ?', [payload.id]);
+  const row = await db.get('SELECT deleted_at, sessions_reset_at, pending FROM users WHERE id = ?', [payload.id]);
   if (!row || row.deleted_at) return null;
 
   const t = now();
@@ -84,21 +85,32 @@ async function verifyToken(token, req = null) {
     iat: payload.iat,
     sid,
     renew: !payload.sid || t - payload.iat > RENEW_AFTER_SECONDS,
+    pending: Boolean(row.pending),
   };
 }
 
-// Express middleware for routes that need a logged-in user (`req.user`).
-async function authenticateJWT(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing or invalid Authorization header' });
-  }
-  const user = await verifyToken(authHeader.split(' ')[1], req);
-  if (!user) return res.status(403).json({ error: 'Invalid token' });
-  if (user.renew) res.set(RENEWED_TOKEN_HEADER, generateToken(user, user.sid));
-  req.user = user;
-  next();
+function authenticate(allowPending) {
+  return async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+    }
+    const user = await verifyToken(authHeader.split(' ')[1], req);
+    if (!user) return res.status(403).json({ error: 'Invalid token' });
+    if (user.renew) res.set(RENEWED_TOKEN_HEADER, generateToken(user, user.sid));
+    if (user.pending && !allowPending) {
+      return res.status(403).json({ error: 'Your account is waiting for an admin to approve it', code: 'pending' });
+    }
+    req.user = user;
+    next();
+  };
 }
+
+// Express middleware for routes that need a logged-in user (`req.user`). An account waiting for
+// approval (signups.js) is refused everywhere except the few routes that use
+// authenticatePending: its own login, devices and deleting it.
+const authenticateJWT = authenticate(false);
+const authenticatePending = authenticate(true);
 
 // Sessions unused for a token's life can't be used again (their token has expired): forgotten,
 // with the address and device they last had, every hour for everyone, not only at that
@@ -117,6 +129,6 @@ function startSessionCleanup() {
 }
 
 module.exports = {
-  generateToken, startSession, verifyToken, authenticateJWT, pruneStaleSessions, startSessionCleanup,
+  generateToken, startSession, verifyToken, authenticateJWT, authenticatePending, pruneStaleSessions, startSessionCleanup,
   SESSION_SECONDS, RENEW_AFTER_SECONDS, RENEWED_TOKEN_HEADER, SESSION_TOUCH_SECONDS,
 };

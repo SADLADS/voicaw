@@ -126,7 +126,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 
 - `docs/server.md`: server layout (which module does what), env vars, Node/sqlite on the host.
 - `docs/database.md`: `node:sqlite`, query helpers, transactions, migrations.
-- `docs/auth-and-encryption.md`: OPAQUE login, sessions and Settings → Devices, rate limits, deleting an account,
+- `docs/auth-and-encryption.md`: OPAQUE login, sessions and Settings → Devices, rate limits, sign-ups (open, invite
+  only, admin approval), deleting an account,
   end-to-end encryption (keys, backups, recovery code, contact pinning, DMs, reactions, notes,
   the spellcheck dictionary).
 - `docs/realtime.md`: websocket events, online status, web push.
@@ -239,7 +240,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only
-  logged-out visitors must not learn usernames.
+  logged-out visitors, and accounts still waiting for an admin's approval (sign-ups, 2026-10-05),
+  must not learn usernames. Pending accounts are hidden from everyone else too.
 - **Known issues:**
   - Keycap emoji (1️⃣) and Unicode 15.1+ emoji (🙂‍↔️) show in the system font while typing
     (digits are kept out of the Twemoji font; 15.1 isn't in Twemoji 15).

@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { HashRouter, BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { HashRouter, BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { ConfigContext, InteractionContext } from './contexts';
 import { showContent } from './utils/mobilePanes';
 
 import Login from './components/Login.jsx';
+import PendingApproval from './components/PendingApproval.jsx';
 import Layout from './components/Layout.jsx';
 import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
@@ -59,6 +60,12 @@ function SWMessageHandler() {
   }, [navigate]);
 
   return null;
+}
+
+// An app invite link (/join/<code>, Settings → Admin): signing up with it filled in.
+function JoinPage({ onLoginSuccess }) {
+  const { code } = useParams();
+  return <Login onLoginSuccess={onLoginSuccess} invite={code} />;
 }
 
 // The phone or computer layout, from the device. It can't be chosen: the phone layout on a
@@ -173,6 +180,10 @@ export default function App() {
           <SWMessageHandler />
           <PageMenus />
           <UpdateBanner />
+          {/* Waiting for an admin's approval (server/signups.js): only that, whatever the address. */}
+          {user?.pending ? (
+            <PendingApproval user={user} onApproved={() => setUser({ ...user, pending: false })} onLogout={handleLogout} />
+          ) : (
           <Routes>
             <Route
               path="/"
@@ -202,9 +213,11 @@ export default function App() {
             {!user && <Route path="/invite/:code" element={<Login onLoginSuccess={setUser} />} />}
             {!user && <Route path="/developers/*" element={<Login onLoginSuccess={setUser} />} />}
             {!user && <Route path="/oauth2/authorize" element={<Login onLoginSuccess={setUser} />} />}
+            {!user && <Route path="/join/:code" element={<JoinPage onLoginSuccess={setUser} />} />}
 
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
+          )}
         </Router>
         </ImageViewerProvider>
       </InteractionContext.Provider>

@@ -42,6 +42,7 @@ import { generateUserKeys, wrapKeyBackup, unwrapKeyBackup, unwrapRecoveryBackup 
 import { connectWebSocket } from '../utils/ws-client';
 import { storeUserKeys } from '../services/keyStore';
 import Login from './Login';
+import { ConfigContext } from '../contexts';
 
 const PUBLIC = { identityKey: 'ID-PUB', encryptionKey: 'ENC-PUB', encryptionKeySignature: 'SIG' };
 const PRIVATE = { identityKey: 'ID-PRIV', encryptionKey: 'ENC-PRIV' };
@@ -100,7 +101,7 @@ describe('Login - login form', () => {
     expect(storeUserKeys).toHaveBeenCalledWith(5, KEYS);
     expect(localStorage.getItem('token')).toBe('jwt123');
     expect(connectWebSocket).toHaveBeenCalled();
-    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true });
+    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true, pending: false });
     // The client's OPAQUE login state is its secret: it must never be sent to the server.
     expect(api.post).toHaveBeenCalledWith('/initiatelogin', { startLoginRequest: 'SLR', userIdentifier: 'alice' });
     for (const [, body] of api.post.mock.calls) expect(body).not.toHaveProperty('clientLoginState');
@@ -180,7 +181,7 @@ describe('Login - account without a recovery code', () => {
     api.put.mockResolvedValue({ data: { ok: true } });
     fireEvent.click(screen.getByLabelText("I've saved my recovery code"));
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true }));
+    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true, pending: false }));
 
     // Stored with a fresh proof of the password, from the keys opened on this device.
     expect(api.put).toHaveBeenCalledWith('/recovery-code', {
@@ -198,11 +199,80 @@ describe('Login - account without a recovery code', () => {
 
     expect(await screen.findByText(/Too many attempts\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
-    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: false });
+    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: false, pending: false });
   });
 });
 
 describe('Login - register form', () => {
+  function mockRegistration(finalise = { token: 'reg-jwt', id: 9, username: 'newuser' }) {
+    opaque.client.startRegistration.mockReturnValue({ clientRegistrationState: 'CRS', registrationRequest: 'RR' });
+    opaque.client.finishRegistration.mockReturnValue({ registrationRecord: 'REC', exportKey: 'EXPORT-KEY' });
+    generateUserKeys.mockResolvedValue(KEYS);
+    wrapKeyBackup.mockResolvedValue('BACKUP');
+    api.post.mockImplementation(async (url) => {
+      if (url === '/initiateregister') return { data: { registrationResponse: 'RRESP' } };
+      if (url === '/finaliseregister') return { data: finalise };
+      throw new Error(`unexpected url ${url}`);
+    });
+  }
+
+  function renderWithMode(signupMode, props = {}) {
+    const onLoginSuccess = vi.fn();
+    const utils = render(
+      <ConfigContext.Provider value={{ signupMode }}>
+        <Login onLoginSuccess={onLoginSuccess} {...props} />
+      </ConfigContext.Provider>
+    );
+    return { ...utils, onLoginSuccess, registerForm: utils.container.querySelectorAll('form')[1] };
+  }
+
+  it('has no invite field while sign-ups are open', () => {
+    const { container } = renderWithMode('open');
+    expect(container.querySelector('input[name="invite"]')).toBeNull();
+  });
+
+  it('needs an invite when sign-ups are invite only, and sends the code from a pasted link', async () => {
+    mockRegistration();
+    const { container, registerForm } = renderWithMode('invite');
+    const field = container.querySelector('input[name="invite"]');
+    expect(field).toBeRequired();
+    fillRegister(container, 'newuser', 'long enough password');
+    fireEvent.change(field, { target: { value: ' https://app.voicaw.com/join/Abc123XYZ ' } });
+    fireEvent.submit(registerForm);
+    await screen.findByLabelText('Recovery code');
+    const started = api.post.mock.calls.find(([url]) => url === '/initiateregister')[1];
+    expect(started).toMatchObject({ signup: true, invite: 'Abc123XYZ' });
+    expect(api.post.mock.calls.find(([url]) => url === '/finaliseregister')[1].invite).toBe('Abc123XYZ');
+  });
+
+  it('fills in the code from an invite link, optional when sign-ups need approval', () => {
+    const { container } = renderWithMode('request', { invite: 'FromLink1' });
+    const field = container.querySelector('input[name="invite"]');
+    expect(field).toHaveValue('FromLink1');
+    expect(field).not.toBeRequired();
+    expect(screen.getByText(/wait for an admin to approve/)).toBeInTheDocument();
+  });
+
+  it("says when an invite doesn't work", async () => {
+    opaque.client.startRegistration.mockReturnValue({ clientRegistrationState: 'CRS', registrationRequest: 'RR' });
+    api.post.mockRejectedValue({ response: { status: 403, data: { error: 'nope', code: 'invalid_invite' } } });
+    const { container, registerForm } = renderWithMode('invite');
+    fillRegister(container, 'newuser', 'long enough password');
+    fireEvent.change(container.querySelector('input[name="invite"]'), { target: { value: 'bad' } });
+    fireEvent.submit(registerForm);
+    expect(await screen.findByRole('alert')).toHaveTextContent("That invite doesn't work");
+  });
+
+  it('enters the app as waiting for approval', async () => {
+    mockRegistration({ token: 'reg-jwt', id: 9, username: 'newuser', pending: true });
+    const { container, registerForm, onLoginSuccess } = renderWithMode('request');
+    fillRegister(container, 'newuser', 'long enough password');
+    fireEvent.submit(registerForm);
+    fireEvent.click(await screen.findByLabelText("I've saved my recovery code"));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(onLoginSuccess).toHaveBeenCalledWith(expect.objectContaining({ id: 9, pending: true }));
+  });
+
   it('generates keys, backs them up with the OPAQUE exportKey, and registers', async () => {
     opaque.client.startRegistration.mockReturnValue({ clientRegistrationState: 'CRS', registrationRequest: 'RR' });
     opaque.client.finishRegistration.mockReturnValue({ registrationRecord: 'REC', exportKey: 'EXPORT-KEY' });
@@ -224,7 +294,7 @@ describe('Login - register form', () => {
     expect(next).toBeDisabled();
     fireEvent.click(screen.getByLabelText("I've saved my recovery code"));
     fireEvent.click(next);
-    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'reg-jwt', id: 9, username: 'newuser', hasRecoveryCode: true });
+    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'reg-jwt', id: 9, username: 'newuser', hasRecoveryCode: true, pending: false });
 
     expect(wrapKeyBackup).toHaveBeenCalledWith('EXPORT-KEY', KEYS);
     const [, body] = api.post.mock.calls.find(([url]) => url === '/finaliseregister');
@@ -312,7 +382,7 @@ describe('Login - forgot password', () => {
 
     const { container, onLoginSuccess } = openRecover();
     fillRecover(container);
-    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'rec-jwt', id: 5, username: 'alice', hasRecoveryCode: true }));
+    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'rec-jwt', id: 5, username: 'alice', hasRecoveryCode: true, pending: false }));
 
     expect(api.post).toHaveBeenCalledWith('/recover/start', { userIdentifier: 'alice', recoveryAuth: 'REC-AUTH' });
     expect(unwrapRecoveryBackup).toHaveBeenCalledWith('AAAAA-BBBBB-CCCCC-DDDDD-EEEEE', 'REC-BACKUP');

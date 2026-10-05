@@ -57,7 +57,7 @@ function sendToConversation(message, event) {
 // Everyone else (not your notes, a DM to yourself), most recent conversation first, with their
 // public keys, status and last seen. Deleted accounts only when you had a conversation with
 // them (`deleted_at` set: it can be read, not answered). Never bots (bots.js): they're only in
-// guilds.
+// guilds; never accounts waiting for approval (signups.js).
 router.get('/dms-list', authenticateJWT, async (req, res) => {
   const me = req.user.id;
   const users = await db.all(
@@ -67,7 +67,7 @@ router.get('/dms-list', authenticateJWT, async (req, res) => {
      FROM users u
      LEFT JOIN direct_messages m
        ON ((m.sender_id = ? AND m.recipient_id = u.id) OR (m.recipient_id = ? AND m.sender_id = u.id))
-     WHERE u.id != ? AND u.bot = 0
+     WHERE u.id != ? AND u.bot = 0 AND u.pending = 0
      GROUP BY u.id
      HAVING u.deleted_at IS NULL OR last_timestamp IS NOT NULL
      ORDER BY last_timestamp DESC NULLS LAST`,
@@ -117,7 +117,7 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
   if (!Number.isInteger(recipientId)) {
     return res.status(400).json({ error: 'Invalid recipient' });
   }
-  if (!(await db.get('SELECT id FROM users WHERE id = ? AND deleted_at IS NULL AND bot = 0', [recipientId]))) {
+  if (!(await db.get('SELECT id FROM users WHERE id = ? AND deleted_at IS NULL AND bot = 0 AND pending = 0', [recipientId]))) {
     return res.status(404).json({ error: 'Recipient not found' });
   }
 

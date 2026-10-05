@@ -884,6 +884,48 @@ body:not(.mobile-mode) .settings-category-title {
   padding: 2px 0;
 }
 
+/* Sign-up requests and invites: details muted, buttons at the end of the row. */
+.admin-list-detail {
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+}
+
+.admin-list-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.admin-invite {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-invite code {
+  overflow-wrap: anywhere;
+}
+
+.admin-setting-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-invite-options {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.admin-invite-options label {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  flex: 1;
+  min-width: 140px;
+}
+
 /* Settings → Devices (DeviceSettings) */
 .device-list {
   list-style: none;

@@ -127,9 +127,9 @@ async function checkEntry(state, entry, actorId) {
 
   // Who's named must be who the server knows, with their real identity key.
   const subject = r.type === 'create' ? actorId : r.target;
-  const user = Number.isInteger(subject) && await db.get('SELECT id, identity_key, deleted_at, bot FROM users WHERE id = ?', [subject]);
+  const user = Number.isInteger(subject) && await db.get('SELECT id, identity_key, deleted_at, bot, pending FROM users WHERE id = ?', [subject]);
   // Bots have no keys (bots.js): never in a group.
-  if (!user || user.bot || (user.deleted_at && r.type !== 'leave' && r.type !== 'remove')) throw new GroupError(404, 'User not found');
+  if (!user || user.bot || user.pending || (user.deleted_at && r.type !== 'leave' && r.type !== 'remove')) throw new GroupError(404, 'User not found');
   if ((r.type === 'create' || r.type === 'add') && r.targetIdentityKey !== user.identity_key) {
     throw new GroupError(400, 'Invalid membership change');
   }

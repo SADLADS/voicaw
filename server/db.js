@@ -523,6 +523,23 @@ CREATE TABLE IF NOT EXISTS app_settings (
 );
 `);
 
+// SIGN-UPS (signups.js, Settings → Admin): an account made while sign-ups need an admin's
+// approval is `pending` until one approves it (it can log in, but nothing else); declining
+// removes it. App invites let someone sign up when sign-ups are invite-only (or skip the
+// queue). Who used which invite isn't kept, only how many times it was used.
+addColumn('ALTER TABLE users ADD COLUMN pending INTEGER NOT NULL DEFAULT 0');
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS app_invites (
+  code TEXT PRIMARY KEY,
+  creator_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER,
+  max_uses INTEGER,
+  uses INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (creator_id) REFERENCES users(id)
+);
+`);
+
 // GIF FAVOURITES (the emoji picker's GIFs tab): per user, the GIF as the picker shows it (JSON).
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS gif_favorites (
