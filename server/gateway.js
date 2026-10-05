@@ -214,7 +214,7 @@ class Session {
         .flatMap((c) => require('./voice').membersOf(Number(c.id))
           .map((state) => D.voiceStateObject({ guildId, channelId: c.id, userId: state.user_id, state }))),
       stage_instances: [],
-      guild_scheduled_events: [],
+      guild_scheduled_events: await this.scheduledEvents(guildId),
       soundboard_sounds: [],
     });
   }
@@ -310,6 +310,17 @@ class Session {
         return this.typingEvent(event);
       case 'guild_voice_state':
         return this.voiceStateEvent(guildId, event);
+      case 'guild_event_create':
+      case 'guild_event_update':
+      case 'guild_event_delete':
+        return this.scheduledEventEvent(event);
+      case 'guild_event_interest':
+        if (this.wants(INTENTS.GUILD_SCHEDULED_EVENTS)) {
+          this.dispatch(event.interested ? 'GUILD_SCHEDULED_EVENT_USER_ADD' : 'GUILD_SCHEDULED_EVENT_USER_REMOVE', {
+            guild_scheduled_event_id: String(event.eventId), user_id: String(event.userId), guild_id: g,
+          });
+        }
+        return;
       default:
         // Everything else (DMs never reach a bot; reading state, mutes...) has no Discord event.
     }
@@ -401,6 +412,23 @@ class Session {
       timestamp: Math.floor(Date.now() / 1000),
       ...(member ? { member } : {}),
     });
+  }
+
+  // The guild's scheduled events the bot can see (GUILD_CREATE).
+  async scheduledEvents(guildId) {
+    const member = await require('./guilds').getMember(guildId, this.bot.id);
+    if (!member) return [];
+    const { scheduledEventOf } = require('./routes/botApi');
+    const events = [];
+    for (const event of await require('./guildEvents').listEvents(member)) events.push(await scheduledEventOf(event));
+    return events;
+  }
+
+  async scheduledEventEvent(event) {
+    if (!this.wants(INTENTS.GUILD_SCHEDULED_EVENTS)) return;
+    const { scheduledEventOf } = require('./routes/botApi');
+    const t = { guild_event_create: 'GUILD_SCHEDULED_EVENT_CREATE', guild_event_update: 'GUILD_SCHEDULED_EVENT_UPDATE', guild_event_delete: 'GUILD_SCHEDULED_EVENT_DELETE' }[event.type];
+    this.dispatch(t, await scheduledEventOf(event.event));
   }
 
   async voiceStateEvent(guildId, event) {

@@ -26,6 +26,7 @@ const OWNERS = {
   group: 'group_dm_messages',
   guild: 'guild_messages',
   doc: 'guild_documents',
+  event: 'guild_events',
 };
 
 const now = () => Math.floor(Date.now() / 1000);

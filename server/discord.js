@@ -50,6 +50,8 @@ const PERMISSION_BITS = [
   [P.MANAGE_QUEUE, [59]], // ours only
   [P.CONTROL_PLAYBACK, [60]], // ours only
   [P.LISTEN, [61]], // ours only: hear the others in voice
+  [P.MANAGE_EVENTS, [33]],
+  [P.CREATE_EVENTS, [44]],
 ];
 const DISCORD_PERMISSIONS = Object.fromEntries([
   ['CREATE_INSTANT_INVITE', 0], ['KICK_MEMBERS', 1], ['BAN_MEMBERS', 2], ['ADMINISTRATOR', 3], ['MANAGE_CHANNELS', 4],
@@ -60,7 +62,7 @@ const DISCORD_PERMISSIONS = Object.fromEntries([
   ['CREATE_PUBLIC_THREADS', 35], ['SEND_MESSAGES_IN_THREADS', 38], ['CREATE_GUILD_EXPRESSIONS', 43], ['PIN_MESSAGES', 51],
   ['VOICAW_EDIT_TASKS', 56], ['VOICAW_CREATE_DOCUMENTS', 57],
   ['VOICAW_QUEUE_VIDEOS', 58], ['VOICAW_MANAGE_QUEUE', 59], ['VOICAW_CONTROL_PLAYBACK', 60],
-  ['VOICAW_LISTEN', 61],
+  ['VOICAW_LISTEN', 61], ['MANAGE_EVENTS', 33], ['CREATE_EVENTS', 44],
 ].map(([name, bit]) => [name, 1n << BigInt(bit)]));
 
 function toDiscordPermissions(bits) {
@@ -328,6 +330,52 @@ function guildObject(guild, { roles, emojis }) {
   };
 }
 
+// ---- Scheduled events ----
+
+const EVENT_STATUS = { scheduled: 1, active: 2, completed: 3, canceled: 4 };
+const EVENT_ENTITY_TYPES = { voice: 2, external: 3 }; // no stage channels (1)
+
+// The cover's "hash" for Discord's CDN (/guild-events/<id>/<hash>.png, redirected in
+// routes/botApi.js): only covers bots can read (an encrypted one, uploaded by the app, isn't).
+const eventImageHash = (event) => (event.image && !event.image.includes('#')
+  ? require('crypto').createHash('sha1').update(event.image).digest('hex').slice(0, 32)
+  : null);
+
+// A scheduled event (guildEvents.js publicEvent) as Discord's, with its creator (a users row).
+function scheduledEventObject(event, creator = null) {
+  const rule = event.recurrence;
+  return {
+    id: id(event.id),
+    guild_id: id(event.guild_id),
+    channel_id: id(event.channel_id),
+    creator_id: id(event.creator_id),
+    name: event.name,
+    description: event.description ?? null,
+    scheduled_start_time: iso(event.start_time),
+    scheduled_end_time: iso(event.end_time),
+    privacy_level: 2,
+    status: EVENT_STATUS[event.status] ?? 1,
+    entity_type: EVENT_ENTITY_TYPES[event.entity_type],
+    entity_id: null,
+    entity_metadata: event.entity_type === 'external' ? { location: event.location } : null,
+    ...(creator ? { creator: userObject(creator) } : {}),
+    user_count: event.user_count ?? 0,
+    image: eventImageHash(event),
+    recurrence_rule: rule ? {
+      start: iso(event.occurrence_start),
+      end: null,
+      frequency: rule.frequency,
+      interval: rule.interval,
+      by_weekday: rule.by_weekday,
+      by_n_weekday: rule.by_n_weekday,
+      by_month: rule.by_month,
+      by_month_day: rule.by_month_day,
+      by_year_day: null,
+      count: null,
+    } : null,
+  };
+}
+
 // ---- Messages ----
 
 // A reaction's emoji as Discord's { id, name }: Unicode, or a custom emoji `<:name:id>`.
@@ -502,6 +550,10 @@ async function messageObjects(rows, { botId = null, guildId = null, references =
 }
 
 module.exports = {
+  EVENT_STATUS,
+  EVENT_ENTITY_TYPES,
+  eventImageHash,
+  scheduledEventObject,
   CATEGORY_ID_BASE,
   CHANNEL_TYPES,
   DISCORD_PERMISSIONS,

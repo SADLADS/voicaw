@@ -752,7 +752,7 @@ addColumn('ALTER TABLE guild_messages ADD COLUMN document_id INTEGER');
 sqlite.exec('CREATE INDEX IF NOT EXISTS guild_messages_document ON guild_messages (document_id, id) WHERE document_id IS NOT NULL');
 
 // UPLOADS (uploads.js): every file in the `uploads` bucket since the registry, and what links
-// to it (`kind` 'dm' | 'group' | 'guild' | 'doc' with the owner's id, or 'kept' with 0). A file
+// to it (`kind` 'dm' | 'group' | 'guild' | 'doc' | 'event' with the owner's id, or 'kept' with 0). A file
 // is deleted once it was linked and isn't any more, or was never linked within a day.
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS uploads (
@@ -904,6 +904,9 @@ const MIGRATIONS = [
   // 12. Listen is new (hearing others in voice was part of Connect): @everyone gets it, as in
   // new guilds, so nobody stops hearing. Bots' own roles don't: a bot listens only once allowed.
   () => sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.LISTEN} WHERE is_everyone = 1`),
+  // 13. Scheduled events: @everyone gets Create Events, as in new guilds (Manage Events isn't a
+  // default).
+  () => sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.CREATE_EVENTS} WHERE is_everyone = 1`),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');
@@ -1012,6 +1015,48 @@ CREATE INDEX IF NOT EXISTS bot_interactions_token ON bot_interactions (token_has
 `);
 addColumn('ALTER TABLE guild_messages ADD COLUMN components TEXT');
 addColumn('ALTER TABLE guild_messages ADD COLUMN interaction TEXT');
+
+// SCHEDULED EVENTS (guildEvents.js, routes/guildEvents.js): Discord's guild events. Only
+// scheduled and active ones are kept (an event that ends or is cancelled is deleted, a
+// repeating one moves on to its next occurrence). `entity_type` 'voice' (in voice channel
+// `channel_id`) or 'external' (`location`, free text); times are unix s; `image` an upload's URL
+// (like a document's cover). A repeating event has `recurrence` (Discord's recurrence_rule,
+// JSON, without start/end/count), `timezone` (IANA: the rule's days and times are that zone's
+// wall clock) and `occurrence_start`, when the current occurrence is due by the rule
+// (`start_time` differs when only this occurrence was moved); `duration` (s, or null) is how
+// long each occurrence lasts. Who's interested is guild_event_users.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id INTEGER NOT NULL,
+  channel_id INTEGER,
+  creator_id INTEGER,
+  name TEXT NOT NULL,
+  description TEXT,
+  entity_type TEXT NOT NULL,
+  location TEXT,
+  start_time INTEGER NOT NULL,
+  end_time INTEGER,
+  status TEXT NOT NULL DEFAULT 'scheduled',
+  image TEXT,
+  recurrence TEXT,
+  timezone TEXT,
+  occurrence_start INTEGER,
+  duration INTEGER,
+  started_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS guild_events_guild ON guild_events (guild_id, start_time);
+CREATE INDEX IF NOT EXISTS guild_events_channel ON guild_events (channel_id) WHERE channel_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS guild_event_users (
+  event_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (event_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS guild_event_users_user ON guild_event_users (user_id);
+`);
 
 // ---- Queries ----
 // get / all / run return promises (callers await them) though the driver is synchronous, and

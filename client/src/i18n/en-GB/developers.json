@@ -80,6 +80,8 @@
       "MANAGE_GUILD_EXPRESSIONS": "Manage Emoji",
       "MANAGE_WEBHOOKS": "Manage Webhooks",
       "VIEW_AUDIT_LOG": "View Audit Log",
+      "CREATE_EVENTS": "Create Events",
+      "MANAGE_EVENTS": "Manage Events",
       "CREATE_INSTANT_INVITE": "Create Invite",
       "KICK_MEMBERS": "Kick Members",
       "BAN_MEMBERS": "Ban Members",

@@ -60,6 +60,7 @@ app.use('/api', require('./routes/guildRoles'));
 app.use('/api', require('./routes/guildEmojis'));
 app.use('/api', require('./routes/guildTasks'));
 app.use('/api', require('./routes/guildDocuments'));
+app.use('/api', require('./routes/guildEvents'));
 app.use('/api', require('./routes/auditLog'));
 app.use('/api', require('./routes/voice'));
 app.use('/api', require('./routes/watchParty'));
@@ -119,6 +120,8 @@ if (require.main === module) {
   require('./avatars').migrateLegacyAvatars();
   // Posts "poll ended" rows as polls close.
   require('./pollTimers').startPollTimers();
+  // Starts, ends and cancels scheduled events on time (guildEvents.js).
+  require('./guildEvents').startEventTimers();
   // Deletes files nothing uses any more (uploads.js).
   require('./uploads').startUploadCleanup();
   // Forgets sessions unused for 30 days (auth.js).

@@ -16,6 +16,8 @@ export const BOT_PERMISSION_GROUPS = [
       { name: 'MANAGE_GUILD_EXPRESSIONS', bit: 30, ours: 'MANAGE_EMOJIS' },
       { name: 'MANAGE_WEBHOOKS', bit: 29, ours: 'MANAGE_WEBHOOKS' },
       { name: 'VIEW_AUDIT_LOG', bit: 7, ours: 'VIEW_AUDIT_LOG' },
+      { name: 'CREATE_EVENTS', bit: 44, ours: 'CREATE_EVENTS' },
+      { name: 'MANAGE_EVENTS', bit: 33, ours: 'MANAGE_EVENTS' },
     ],
   },
   {

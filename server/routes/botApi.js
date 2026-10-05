@@ -19,6 +19,7 @@ const webhooks = require('./webhooks');
 const botMessages = require('../botMessages');
 const commands = require('../commands');
 const interactions = require('../interactions');
+const guildEvents = require('../guildEvents');
 
 // The bot API: Discord's REST API (https://discord.com/developers/docs/reference), for bots made
 // in the developer portal (bots.js, docs/bots.md), at /api/v10 (and /api/v9), so Discord's
@@ -28,8 +29,7 @@ const interactions = require('../interactions');
 // routes, with the bot as the member doing it, so a bot can do exactly what its roles allow.
 // Bots are only in guilds: no DMs (they're end-to-end encrypted). Commands and interactions
 // (buttons, selects, forms) are here too (commands.js, interactions.js). Not here (yet):
-// voice, webhooks by bot token, nicknames, timeouts,
-// stickers, scheduled events, guild creation.
+// webhooks by bot token, nicknames, timeouts, stickers, guild creation.
 const router = express.Router();
 const fail = webhooks.fail;
 
@@ -1179,6 +1179,139 @@ router.use((err, req, res, next) => {
   next(err);
 });
 
+// ---- Scheduled events (guildEvents.js) ----
+
+// An event (guildEvents.publicEvent) as Discord's, with its creator.
+async function scheduledEventOf(event) {
+  return D.scheduledEventObject(event, event.creator_id != null ? await userRow(event.creator_id) : null);
+}
+
+// req.event: :eventId, an event of req.member's guild the bot can see.
+async function inEvent(req, res, next) {
+  const eventId = D.ourId(req.params.eventId);
+  const access = eventId != null && await guildEvents.eventAccess(eventId, req.bot.id);
+  if (!access || access.event.guild_id !== req.member.guild.id) return fail(res, 404, 10070, 'Unknown Guild Scheduled Event');
+  req.event = await guildEvents.loadPublic(eventId);
+  next();
+}
+
+// Discord's ISO 8601 timestamp as unix s (undefined if not sent, null if null).
+function eventTime(value, field) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const ms = typeof value === 'string' ? Date.parse(value) : NaN;
+  if (Number.isNaN(ms)) throw new webhooks.FormError([field], 'Could not interpret "' + String(value) + '" as a timestamp.', 'DATE_TIME_INVALID');
+  return Math.floor(ms / 1000);
+}
+
+// A create or modify body as guildEvents' fields. Bots' repeating events are on UTC.
+async function eventFields(req, body, before = null) {
+  const fields = {
+    name: body.name,
+    description: body.description,
+    startTime: eventTime(body.scheduled_start_time, 'scheduled_start_time'),
+    endTime: eventTime(body.scheduled_end_time, 'scheduled_end_time'),
+  };
+  if (body.entity_type !== undefined) {
+    if (Number(body.entity_type) === 1) throw new webhooks.FormError(['entity_type'], "Voicaw has no stage channels: use a voice channel (2) or somewhere else (3).", 'BASE_TYPE_CHOICES');
+    const type = { 2: 'voice', 3: 'external' }[Number(body.entity_type)];
+    if (!type) throw new webhooks.FormError(['entity_type'], 'Value must be one of (1, 2, 3).', 'BASE_TYPE_CHOICES');
+    fields.entityType = type;
+  }
+  if (body.channel_id !== undefined) fields.channelId = body.channel_id == null ? null : D.ourId(body.channel_id);
+  if (body.entity_metadata !== undefined) fields.location = body.entity_metadata?.location ?? null;
+  // Changing to somewhere else clears the channel, as Discord asks bots to send.
+  if (fields.entityType === 'external') fields.channelId = null;
+  if (body.recurrence_rule !== undefined) {
+    fields.recurrence = body.recurrence_rule;
+    fields.timezone = body.recurrence_rule ? (before?.timezone ?? 'UTC') : null;
+  }
+  if (body.image !== undefined) fields.image = body.image ? await guildEvents.storeImageData(body.image, req.bot.id) : null;
+  return fields;
+}
+
+router.get('/guilds/:guildId/scheduled-events', auth, inGuild, route(async (req, res) => {
+  const list = await guildEvents.listEvents(req.member);
+  const withCount = ['true', '1'].includes(String(req.query.with_user_count));
+  res.json(await Promise.all(list.map(async (event) => {
+    const object = await scheduledEventOf(event);
+    if (!withCount) delete object.user_count;
+    return object;
+  })));
+}));
+
+router.post('/guilds/:guildId/scheduled-events', auth, limit('event-create', 5, 5000), inGuild, route(async (req, res) => {
+  const body = req.body ?? {};
+  if (body.entity_type === undefined) throw new webhooks.FormError(['entity_type'], 'This field is required', 'BASE_TYPE_REQUIRED');
+  const event = await guildEvents.createEvent(req.member, await eventFields(req, body));
+  res.json(await scheduledEventOf(event));
+}));
+
+router.get('/guilds/:guildId/scheduled-events/:eventId', auth, inGuild, inEvent, route(async (req, res) => {
+  const object = await scheduledEventOf(req.event);
+  if (!['true', '1'].includes(String(req.query.with_user_count))) delete object.user_count;
+  res.json(object);
+}));
+
+// Fields, and `status`: 2 starts it, 3 ends it, 4 cancels it (only before it starts).
+router.patch('/guilds/:guildId/scheduled-events/:eventId', auth, limit('event-update', 5, 5000), inGuild, inEvent, route(async (req, res) => {
+  const body = req.body ?? {};
+  const { status, ...rest } = body;
+  let event = req.event;
+  const fields = await eventFields(req, rest, event);
+  if (Object.values(fields).some((v) => v !== undefined)) event = await guildEvents.updateEvent(req.member, event.id, fields);
+  if (status !== undefined && Number(status) !== D.EVENT_STATUS[event.status]) {
+    switch (Number(status)) {
+      case D.EVENT_STATUS.active:
+        event = await guildEvents.startEvent(req.member, event.id);
+        break;
+      case D.EVENT_STATUS.completed:
+        event = await guildEvents.endEvent(req.member, event.id);
+        break;
+      case D.EVENT_STATUS.canceled:
+        if (event.status !== 'scheduled') throw new webhooks.FormError(['status'], 'Only a scheduled event can be cancelled.', 'GUILD_SCHEDULED_EVENT_INVALID_STATUS');
+        await guildEvents.cancelEvent(req.member, event.id);
+        event = { ...event, status: 'canceled' };
+        break;
+      default:
+        throw new webhooks.FormError(['status'], 'Invalid status change.', 'GUILD_SCHEDULED_EVENT_INVALID_STATUS');
+    }
+  }
+  res.json(await scheduledEventOf(event));
+}));
+
+router.delete('/guilds/:guildId/scheduled-events/:eventId', auth, limit('event-delete', 5, 5000), inGuild, inEvent, route(async (req, res) => {
+  await guildEvents.cancelEvent(req.member, req.event.id);
+  res.status(204).end();
+}));
+
+// Who's interested: [{ guild_scheduled_event_id, user, member? }], by user id; `limit` (≤ 100),
+// `before` / `after` (user ids), `with_member`.
+router.get('/guilds/:guildId/scheduled-events/:eventId/users', auth, inGuild, inEvent, route(async (req, res) => {
+  const limitTo = Math.min(Math.max(Number(req.query.limit) || 100, 1), 100);
+  const rows = await guildEvents.interestedUsers(req.event.id, {
+    limit: limitTo,
+    after: req.query.after != null ? D.ourId(req.query.after) ?? 0 : null,
+    before: req.query.before != null ? D.ourId(req.query.before) : null,
+  });
+  const userIds = rows.map((r) => r.user_id);
+  const users = new Map((userIds.length ? await db.all(
+    `SELECT ${D.USER_COLUMNS} FROM users u WHERE u.id IN (${userIds.map(() => '?').join(',')})`, userIds
+  ) : []).map((u) => [u.id, u]));
+  const withMember = ['true', '1'].includes(String(req.query.with_member));
+  const members = withMember && userIds.length
+    ? new Map((await D.guildMembers(req.member.guild.id, { userIds })).map((m) => [Number(m.user.id), m]))
+    : new Map();
+  res.json(rows.filter((r) => users.has(r.user_id)).map((r) => {
+    const member = members.get(r.user_id);
+    return {
+      guild_scheduled_event_id: String(req.event.id),
+      user: D.userObject(users.get(r.user_id)),
+      ...(member ? { member: { ...member, user: undefined } } : {}),
+    };
+  }));
+}));
+
 // ---- Discord's CDN ----
 
 // Libraries build picture links from Discord's CDN; pointing their CDN address at
@@ -1193,6 +1326,11 @@ cdn.get('/icons/:guildId/:file', async (req, res) => {
   const guild = await db.get('SELECT id, icon_version FROM guilds WHERE id = ?', [D.ourId(req.params.guildId)]);
   if (!guild?.icon_version) return res.status(404).end();
   res.redirect(302, `${config.s3Endpoint}/guild-icons/${guild.id}?v=${guild.icon_version}`);
+});
+cdn.get('/guild-events/:eventId/:file', async (req, res) => {
+  const event = await guildEvents.getEvent(D.ourId(req.params.eventId));
+  if (!event || !D.eventImageHash(event)) return res.status(404).end();
+  res.redirect(302, event.image);
 });
 cdn.get('/emojis/:file', (req, res) => {
   const id = D.ourId(String(req.params.file).split('.')[0]);
@@ -1210,4 +1348,5 @@ module.exports.API_VERSION = API_VERSION;
 module.exports.guildChannels = guildChannels;
 module.exports.guildObject = guildObject;
 module.exports.channelOf = channelOf;
+module.exports.scheduledEventOf = scheduledEventOf;
 module.exports.now = now;

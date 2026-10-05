@@ -89,7 +89,9 @@
         "manageComments": "Manage Comments",
         "createDocuments": "Create Documents",
         "replyToDocuments": "Reply to Documents",
-        "manageDocuments": "Manage Documents and Replies"
+        "manageDocuments": "Manage Documents and Replies",
+        "createEvents": "Create Events",
+        "manageEvents": "Manage Events"
       }
     },
     "permissions": {
@@ -197,6 +199,14 @@
         "label": "Create Documents",
         "description": "Lets members write documents in document channels and edit their own. Editing and deleting other people's follows Manage Messages; replying follows Send Messages."
       },
+      "CREATE_EVENTS": {
+        "label": "Create Events",
+        "description": "Lets members schedule events (in voice channels they can join, or somewhere else) and edit, start and cancel their own."
+      },
+      "MANAGE_EVENTS": {
+        "label": "Manage Events",
+        "description": "Lets members edit, start, end and cancel anyone's events."
+      },
       "ADMINISTRATOR": {
         "label": "Administrator",
         "description": "Every permission, in every channel, whatever the channel settings. Handle with care."
@@ -209,6 +219,7 @@
       "voice": "Voice channels",
       "list": "List channels",
       "doc": "Document channels",
+      "events": "Events",
       "advanced": "Advanced"
     },
     "auditLog": {

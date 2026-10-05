@@ -26,6 +26,7 @@ const { NOTIFY_LEVELS } = require('../mentions');
 const { logAudit, diff } = require('../auditLog');
 const { releaseUploads } = require('../uploads');
 const { ActionError, withActionErrors } = require('../actionError');
+const { channelEvents, announceDeleted } = require('../guildEvents');
 
 // Guilds: creating and managing them, members, bans, invites, categories and
 // channels. Roles and channel overrides are in routes/guildRoles.js, messages in
@@ -638,6 +639,8 @@ router.delete('/guilds/:guildId/channels/:channelId', manageChannels, withAction
 // `actor` (with Manage Channels) deletes `channel` (not a thread). Shared with the bot API.
 async function deleteChannel(actor, channel) {
   if (!has(actor.permissions, PERMISSIONS.MANAGE_CHANNELS)) throw new ActionError(403, "You don't have permission to do that");
+  // Its events go with it (guildEvents.js).
+  const events = await channelEvents(channel.id);
   await db.transaction(async () => {
     await logAudit({ guildId: actor.guild.id, actorId: actor.userId, action: 'channel_delete', targetType: 'channel', targetId: channel.id, channelId: channel.id, details: { name: channel.name, type: channel.type } });
     await deleteChannelContents('?', [channel.id]);
@@ -646,6 +649,7 @@ async function deleteChannel(actor, channel) {
   releaseUploads();
   require('../watchParty').dropChannel(channel.id);
   await announceGuildUpdate(actor.guild.id);
+  await announceDeleted(actor.guild.id, events);
 }
 
 // Moves a channel you can see (a drag in the channel list): into category `categoryId` (null:

@@ -261,8 +261,8 @@ async function nextPosition(table, where, params) {
   return row.max == null ? 0 : row.max + 1;
 }
 
-// Deletes channels' messages, their reactions, read markers, mutes, notification levels, overrides, tasks and
-// documents (not the channels), their threads (with everything in them) and thread members.
+// Deletes channels' messages, their reactions, read markers, mutes, notification levels, overrides, tasks,
+// documents and events (not the channels), their threads (with everything in them) and thread members.
 // `threads` is false when the channels are threads themselves (they have none).
 async function deleteChannelContents(channelIdsSql, params, { threads = true } = {}) {
   if (threads) {
@@ -273,6 +273,7 @@ async function deleteChannelContents(channelIdsSql, params, { threads = true } =
   await db.run(`DELETE FROM guild_thread_members WHERE thread_id IN (${channelIdsSql})`, params);
   await require('./guildTasks').deleteChannelTasks(channelIdsSql, params);
   await require('./guildDocuments').deleteChannelDocuments(channelIdsSql, params);
+  await require('./guildEvents').deleteChannelEvents(channelIdsSql, params);
   await db.run(
     `DELETE FROM guild_reactions WHERE message_id IN
        (SELECT id FROM guild_messages WHERE channel_id IN (${channelIdsSql}))`,
@@ -301,6 +302,7 @@ async function markGuildRead(guildId, userId) {
 
 // Takes `userId` out of the guild and tells everyone (including them). A bot's own role goes too.
 async function removeMember(guildId, userId) {
+  let events = [];
   const botRoleRemoved = await db.transaction(async () => {
     await db.run('DELETE FROM guild_members WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
     await db.run('DELETE FROM guild_member_roles WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
@@ -320,10 +322,12 @@ async function removeMember(guildId, userId) {
       );
     }
     await require('./guildTasks').unassignFromGuild(guildId, userId);
+    events = await require('./guildEvents').forgetMember(guildId, userId);
     return require('./bots').removeBotRole(guildId, userId);
   });
   sendToUserSockets(userId, { type: 'guild_remove', guildId });
   await sendToGuild(guildId, { type: 'guild_member_remove', guildId, userId });
+  for (const event of events) await require('./guildEvents').broadcastInterest(event, userId, false);
   if (botRoleRemoved) await announceGuildUpdate(guildId);
   await require('./voice').enforceGuild(guildId);
 }
@@ -341,6 +345,7 @@ async function deleteGuild(guildId) {
   if (guild?.icon_version > 0) await deleteObject('guild-icons', String(guildId));
   await db.transaction(async () => {
     await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);
+    await require('./guildEvents').deleteGuildEvents(guildId);
     for (const table of [
       'guild_emojis', 'guild_audit_log',
       'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',
