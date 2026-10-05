@@ -149,6 +149,8 @@ describe('direct messages', () => {
     expect(unread.status).toBe(200);
     const entry = unread.body.find(r => r.from_user_id === alice.id);
     expect(entry.count).toBe(1);
+    // When their newest message came (the rail's DM button shows whoever sent the newest).
+    expect(entry.last_timestamp).toEqual(expect.any(Number));
 
     const markRead = await request(app)
       .post(`/api/dm-mark-read/${alice.id}`)

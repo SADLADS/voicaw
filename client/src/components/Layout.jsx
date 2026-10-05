@@ -29,6 +29,7 @@ import { useSwipePanes } from '../hooks/useSwipePanes';
 import { useDesktopApp } from '../hooks/useDesktopApp';
 import { useAndroidApp } from '../hooks/useAndroidApp';
 import { useFaviconDot } from '../hooks/useFaviconDot';
+import { latestUnreadSender } from '../utils/latestUnread';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { clearProfiles, mergeProfiles } from '../utils/profiles';
 import { loadSidebarWidth, onSidebarWidthStorage, saveSidebarWidth } from '../utils/sidebarWidth';
@@ -212,6 +213,11 @@ export default function Layout({ user, onLogout }) {
     () => unreadDms.filter((u) => !conversationSettings.isMuted('dm', u.from_user_id)),
     [unreadDms, conversationSettings]
   );
+  // The rail's DM button shows whoever sent the newest unread message (not muted, not the open group).
+  const unreadFrom = useMemo(
+    () => latestUnreadSender({ unreadDms: activeUnreadDms, groups: activeGroups.filter((g) => g.id !== groupId) }),
+    [activeUnreadDms, activeGroups, groupId]
+  );
   useDesktopApp({ navigate, unreadDms: activeUnreadDms, groups: activeGroups, guildUnread: guildList.activeUnread });
   useFaviconDot({ unreadDms: activeUnreadDms, groups: activeGroups, guildUnread: guildList.activeUnread });
   // The Android app: its notifications, call buttons and ongoing-call notification.
@@ -248,6 +254,7 @@ export default function Layout({ user, onLogout }) {
             user={user}
             onLogout={onLogout}
             hasUnreadDms={activeUnreadDms.length > 0 || hasUnreadGroups}
+            unreadFrom={unreadFrom}
             guilds={guildList.guilds}
             unreadGuildIds={unreadGuildIds}
             guildMentions={guildMentions}

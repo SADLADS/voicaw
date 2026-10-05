@@ -180,8 +180,15 @@ router.post('/dm-mark-read/:fromUserId', authenticateJWT, async (req, res) => {
   res.json({ success: true });
 });
 
+// Unread conversations: [{ user_id, from_user_id, count, last_timestamp }], `last_timestamp`
+// being their newest message to you (the rail's DM button shows whoever sent the newest).
 router.get('/dm-get-unread', authenticateJWT, async (req, res) => {
-  res.json(await db.all('SELECT * FROM dm_unread WHERE user_id = ?', [req.user.id]));
+  res.json(await db.all(
+    `SELECT u.*, (SELECT MAX(m.timestamp) FROM direct_messages m
+                  WHERE m.sender_id = u.from_user_id AND m.recipient_id = u.user_id) AS last_timestamp
+     FROM dm_unread u WHERE u.user_id = ?`,
+    [req.user.id]
+  ));
 });
 
 // Only the sender can delete a message; its reactions go with it.

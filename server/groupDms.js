@@ -267,7 +267,8 @@ async function storeName(state, userId, { name, epoch, version, initial = false 
 
 // The group for the list: id, its encrypted name (`name_ciphertext`, `name_epoch`,
 // `name_version`; `name` only for a group from before names were encrypted), owner, members
-// (id, username), last message time, unread.
+// (id, username), last message time, unread, and the newest unread message's sender and time
+// (`last_unread_sender_id`, `last_unread_timestamp`; null when none).
 async function groupSummary(groupId, userId) {
   const group = await db.get('SELECT id, name, name_ciphertext, name_epoch, name_version, owner_id, created_at FROM group_dms WHERE id = ?', [groupId]);
   if (!group) return null;
@@ -283,13 +284,20 @@ async function groupSummary(groupId, userId) {
     [userId, groupId]
   );
   const unread = await db.get(
-    `SELECT COUNT(*) AS n FROM group_dm_messages m
+    `SELECT COUNT(*) AS n, MAX(m.id) AS last_id FROM group_dm_messages m
      JOIN group_dm_epoch_keys k ON k.group_id = m.group_id AND k.epoch = m.epoch AND k.user_id = ?
      WHERE m.group_id = ? AND m.sender_id != ?
        AND m.id > COALESCE((SELECT last_read_id FROM group_dm_reads WHERE user_id = ? AND group_id = ?), 0)`,
     [userId, groupId, userId, userId, groupId]
   );
-  return { ...group, members, last_timestamp: last?.t ?? group.created_at, unread: unread.n };
+  // Who sent the newest unread message, and when (the rail's DM button shows them).
+  const lastUnread = unread.last_id
+    ? await db.get('SELECT sender_id, timestamp FROM group_dm_messages WHERE id = ?', [unread.last_id])
+    : null;
+  return {
+    ...group, members, last_timestamp: last?.t ?? group.created_at, unread: unread.n,
+    last_unread_sender_id: lastUnread?.sender_id ?? null, last_unread_timestamp: lastUnread?.timestamp ?? null,
+  };
 }
 
 async function memberIds(groupId) {

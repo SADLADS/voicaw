@@ -17,6 +17,7 @@ vi.mock('../hooks/useVoice', () => ({ useVoice: () => myVoice }));
 import Sidebar from './Sidebar';
 import { ConfigContext, InteractionContext, LayoutContext } from '../contexts';
 import { leaveGuild, markChannelReadToLatest, setGuildNotifications } from '../services/guildService';
+import { mergeProfiles } from '../utils/profiles';
 
 const ALL = 2 ** 31 - 1;
 const DEFAULT = 135; // view, send, react, create invite
@@ -25,7 +26,7 @@ const layout = (id, permissions, extra = {}) => ({
   ...guilds.find((g) => g.id === id), my_permissions: permissions, my_notify_level: 'mentions', roles: [], categories: [], channels: [], ...extra,
 });
 
-function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [], guildVoice, guildMentions } = {}) {
+function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [], guildVoice, guildMentions, unreadFrom } = {}) {
   const guildList = {
     guilds,
     layouts,
@@ -39,7 +40,7 @@ function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, un
       <InteractionContext.Provider value={{ isMobile: false }}>
         <LayoutContext.Provider value={{ guildList }}>
           <MemoryRouter initialEntries={['/dm']}>
-            <Sidebar user={{ id: 1, username: 'owner' }} guilds={guilds} guildVoice={guildVoice} guildMentions={guildMentions} />
+            <Sidebar user={{ id: 1, username: 'owner' }} guilds={guilds} guildVoice={guildVoice} guildMentions={guildMentions} unreadFrom={unreadFrom} />
           </MemoryRouter>
         </LayoutContext.Provider>
       </InteractionContext.Provider>
@@ -54,6 +55,21 @@ const icon = (name) => screen.getByRole('link', { name });
 beforeEach(() => {
   vi.clearAllMocks();
   myVoice = { status: 'idle', guildId: null };
+});
+
+describe('the rail\'s DM button', () => {
+  it('shows its icon while nothing is unread', () => {
+    renderRail();
+    expect(icon('Direct Messages').querySelector('img')).toBeNull();
+  });
+
+  it('shows the picture of whoever sent the newest unread message', () => {
+    mergeProfiles([{ id: 9, username: 'zed', display_name: 'Zed' }]);
+    renderRail({ unreadFrom: 9 });
+    const button = icon('Direct Messages: new message from Zed');
+    expect(button).toHaveAttribute('href', '/dm');
+    expect(button.querySelector('img')).not.toBeNull();
+  });
 });
 
 describe('the guild rail voice speaker', () => {

@@ -53,7 +53,11 @@
   from the user agent; not a setting, since the wrong one is unusable, removed 2026-10-01)
 - `Layout.jsx` — the logged-in shell: sidebars, users list and unread counts (`LayoutContext`),
   and the favicon dot (`useFaviconDot`, see Favicon dot).
-  `DmSidebar` draws the unread dots from those counts. `SidebarWrapper` puts the sidebars in a
+  `DmSidebar` draws the unread dots from those counts. The rail's DM button (`Sidebar`
+  `unreadFrom`) shows the picture of whoever sent the newest unread DM or group message
+  (`utils/latestUnread.js`: `/dm-get-unread`'s `last_timestamp`, a group's
+  `last_unread_sender_id` / `last_unread_timestamp`; muted ones and the open group left out),
+  and its usual icon when nothing's unread. `SidebarWrapper` puts the sidebars in a
   row with `UserPanel` across the bottom: your picture, name, this device's connection state
   (`ws-client` `getConnectionState`/`onConnectionState`: online / connecting / offline) and the
   settings button. Clicking the picture and name opens `UserMenu` above it: your picture, name

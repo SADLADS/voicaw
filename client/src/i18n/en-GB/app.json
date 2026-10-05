@@ -4,6 +4,7 @@
     "sidebar": {
       "logoAlt": "Voicaw Logo",
       "directMessages": "Direct Messages",
+      "unreadFrom": "Direct Messages: new message from {{name}}",
       "guilds": "Guilds",
       "mentions_one": "{{count}} mention",
       "mentions_other": "{{count}} mentions",

@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faComments, faPlus, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import logo from '../assets/images/logo-no-border.svg';
 import GuildIcon from './guild/GuildIcon';
+import Avatar from './Avatar';
 import '../assets/css/guilds.css';
 import AddGuildDialog from './guild/AddGuildDialog';
 import GuildMenu from './guild/GuildMenu';
@@ -16,6 +17,7 @@ import { leaveGuild } from '../services/guildService';
 import { useDragReorder } from '../hooks/useDragReorder';
 import { useVoice } from '../hooks/useVoice';
 import { t } from '../i18n';
+import { displayName } from '../utils/profiles';
 
 // The guild rail down the left (like Discord's): home, DMs, then each guild (a pill on the
 // left marks unread messages, a taller one the open guild), then "+" to create or join one.
@@ -25,7 +27,9 @@ import { t } from '../i18n';
 // grey, or green when you're in one there (this device counts as soon as it connects). Guilds can be dragged into a
 // new order (hold, then drag, on touch screens); `onReorderGuilds(ids)` saves it. Right-clicking
 // a guild (touch, hold and lift on a phone) opens its menu (GuildMenu), whose dialogs live here.
-export default function Sidebar({ user, hasUnreadDms, guilds = [], unreadGuildIds = new Set(), guildMentions = {}, guildVoice = {}, onReorderGuilds }) {
+// `unreadFrom` is whoever sent the newest unread DM or group message: the DM button shows their
+// picture instead of its icon until that's read (as in Discord).
+export default function Sidebar({ user, hasUnreadDms, unreadFrom = null,guilds = [], unreadGuildIds = new Set(), guildMentions = {}, guildVoice = {}, onReorderGuilds }) {
   const location = useLocation();
   const { guildList } = useContext(LayoutContext) ?? {};
   const { isMobile } = useContext(InteractionContext);
@@ -61,9 +65,20 @@ export default function Sidebar({ user, hasUnreadDms, guilds = [], unreadGuildId
 
       <div className={`nav-item ${isActivePath('/dm') ? 'active' : ''}`}>
       <span className={`dot${hasUnreadDms ? ' visible' : ''}`}></span>
-        <NavLink to="/dm" className="nav-icon" aria-label={t('app.sidebar.directMessages')} title={t('app.sidebar.directMessages')}>
-          <FontAwesomeIcon icon={faComments} />
-        </NavLink>
+        {unreadFrom != null ? (
+          <NavLink
+            to="/dm"
+            className="nav-icon rail-dm-unread"
+            aria-label={t('app.sidebar.unreadFrom', { name: displayName(unreadFrom) })}
+            title={t('app.sidebar.unreadFrom', { name: displayName(unreadFrom) })}
+          >
+            <Avatar userId={unreadFrom} />
+          </NavLink>
+        ) : (
+          <NavLink to="/dm" className="nav-icon" aria-label={t('app.sidebar.directMessages')} title={t('app.sidebar.directMessages')}>
+            <FontAwesomeIcon icon={faComments} />
+          </NavLink>
+        )}
       </div>
 
       {guilds.length > 0 && <div className="rail-separator" />}

@@ -26,6 +26,17 @@
   height: 100%;
 }
 
+/* The DM button while something's unread: the newest sender's picture. */
+.nav-icon.rail-dm-unread {
+  overflow: hidden;
+}
+
+.rail-dm-unread img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .nav-icon.rail-add {
   border: 0;
   color: var(--vc-online);

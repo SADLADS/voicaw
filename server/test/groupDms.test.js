@@ -337,6 +337,20 @@ describe('group DMs', () => {
     expect((await api.post(outsider, `/group-dm-messages/${sent.id}/reactions`, { content: signedReaction })).status).toBe(404);
   });
 
+  it('says who sent the newest unread message, and when', async () => {
+    const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    const summary = async (user) => (await api.get(user, '/group-dms')).body.find((g) => g.id === groupId);
+    expect(await summary(bea)).toMatchObject({ last_unread_sender_id: null, last_unread_timestamp: null });
+    await send(ann, groupId, 'one');
+    await send(cal, groupId, 'two');
+    expect(await summary(bea)).toMatchObject({ unread: 2, last_unread_sender_id: cal.id, last_unread_timestamp: expect.any(Number) });
+    // Sending reads the group: nothing before your own message is unread.
+    expect(await summary(cal)).toMatchObject({ unread: 0, last_unread_sender_id: null });
+    await api.post(bea, `/group-dms/${groupId}/read`, { latest: true });
+    expect((await summary(bea)).last_unread_sender_id).toBeNull();
+  });
+
   it('marks a group read up to its newest message; a muted group pushes nothing to whoever muted it', async () => {
     const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
     const { groupId } = await createGroup(ann, [bea, cal]);

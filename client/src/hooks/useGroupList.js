@@ -6,7 +6,8 @@ import { forgetGroup } from '../services/groupCache';
 import { parseCallLog } from '../utils/callLog';
 
 // Your group DMs, for the conversation list (Layout puts this in LayoutContext.groupList):
-// [{ id, name, owner_id, members: [{ id, username }], last_timestamp, unread }], kept current by
+// [{ id, name, owner_id, members: [{ id, username }], last_timestamp, unread, last_unread_sender_id,
+// last_unread_timestamp }] (the last two: the newest unread message's), kept current by
 // the websocket. Names are end-to-end encrypted: each is decrypted here, on the device
 // (groupKeys.groupNameOf), and `name` is that ('' or missing: the members' names are shown).
 // A new epoch (someone added or removed) opens the group, so the keys saved on the device
@@ -93,7 +94,11 @@ export function useGroupList({ userId, activeGroupId, onRemoved }) {
           const wasInCall = call?.outcome === 'ended' && call.joined.includes(userId);
           const unread = message.sender_id !== userId && event.groupId !== active.current && !wasInCall;
           setGroups((prev) => prev.map((g) => (g.id === event.groupId
-            ? { ...g, last_timestamp: message.timestamp, unread: unread ? g.unread + 1 : g.unread }
+            ? {
+              ...g,
+              last_timestamp: message.timestamp,
+              ...(unread ? { unread: g.unread + 1, last_unread_sender_id: message.sender_id, last_unread_timestamp: message.timestamp } : {}),
+            }
             : g)));
           break;
         }
