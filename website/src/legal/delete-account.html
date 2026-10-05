@@ -1,0 +1,45 @@
+<!-- How to delete a Voicaw account (voicaw.com/delete-account/): the web page Google Play asks
+     for, reachable without the app. Keep the lists true to server/accounts.js, and the date in
+     LEGAL (website/build.mjs). -->
+<p>You can delete your Voicaw account yourself, at any time, from the app or from any browser. It
+  happens at once and can't be undone.</p>
+
+<h2 id="how">How</h2>
+<ol>
+  <li>Open Voicaw: the app, or <a href="{{APP_URL}}">app.voicaw.com</a> in a browser, and log in.</li>
+  <li>Go to <strong>Settings → My Account → Delete Account</strong>.</li>
+  <li>If you own guilds, either make someone else their owner first, or tick the box to delete them
+    with your account.</li>
+  <li>Enter your password and choose <strong>Delete my account</strong>.</li>
+</ol>
+<p>Can't log in any more (no password and no recovery code)? Write to {{CONTACT}} with your
+  username. Since nobody can check your password for you, you may be asked for things only the
+  account's owner would know before anything is deleted.</p>
+
+<h2 id="deleted">What's deleted</h2>
+<ul>
+  <li>Your profile: display name, status, bio and picture. Your username is freed for others.</li>
+  <li>Everything needed to log in: password data, the copies of your encryption keys, your
+    recovery code data, and every device you were logged in on (all are logged out).</li>
+  <li>Your notes, settings, spellcheck dictionary, favourite GIFs, muted and pinned
+    conversations, and notification subscriptions.</li>
+  <li>Your place in every guild and group chat; guilds you own, with everything in them, if you
+    chose to delete them.</li>
+</ul>
+
+<h2 id="kept">What stays</h2>
+<p>Messages are part of other people's conversations, so they stay where they are, shown as from
+  "Deleted User":</p>
+<ul>
+  <li>Messages you sent in direct messages, group chats and guilds, with your reactions, and the
+    records of calls you were in. (Those in direct messages and group chats stay end-to-end
+    encrypted: Voicaw can't read them.)</li>
+  <li>Things you made in guilds: tasks, comments, documents, webhooks, and the guild's audit log
+    entries naming you.</li>
+  <li>An empty placeholder for your account (its number, when it was made and last online, and its
+    public keys), so your old messages still show as from one deleted person.</li>
+  <li>Bot applications you made aren't deleted with your account yet: delete them in the
+    Developer Portal (Settings → Developers) first.</li>
+</ul>
+<p>To remove a particular message, delete it in the app before deleting your account. For anything
+  else, write to {{CONTACT}}. See also the <a href="/privacy/">privacy policy</a>.</p>

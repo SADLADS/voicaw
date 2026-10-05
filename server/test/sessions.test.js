@@ -216,3 +216,20 @@ describe('tokens from before login sessions', () => {
     return (await request(app).get('/api/sessions').set(auth(token))).body;
   }
 });
+
+describe('forgetting old sessions', () => {
+  it("drops everyone's sessions unused for 30 days, with their address and device, keeping the rest", async () => {
+    const { pruneStaleSessions } = require('../auth');
+    const { token } = (await registerUser(app, request, 'session-prune', 'pw')).response.body;
+    const { sid, id } = jwt.decode(token);
+    // Another device of theirs, last used 31 days ago, never logged in to again.
+    await db.run(
+      'INSERT INTO sessions (id, user_id, created_at, last_used_at, user_agent, ip) VALUES (?, ?, ?, ?, ?, ?)',
+      ['stale-session', id, now() - 40 * 86400, now() - 31 * 86400, 'Old phone', '192.0.2.7']
+    );
+    expect(await pruneStaleSessions()).toBeGreaterThanOrEqual(1);
+    expect(await db.get('SELECT 1 FROM sessions WHERE id = ?', ['stale-session'])).toBeUndefined();
+    expect(await db.get('SELECT 1 FROM sessions WHERE id = ?', [sid])).toBeTruthy();
+    expect((await request(app).get('/api/profile').set(auth(token))).status).toBe(200);
+  });
+});

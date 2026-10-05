@@ -239,6 +239,63 @@ export function renderDocs(values) {
   });
 }
 
+// ---- Policies (voicaw.com/privacy/, /terms/, /delete-account/) ----
+// What Google Play (and anyone) needs to read: each a fragment in src/legal/ put in
+// src/legal/template.html, written as <slug>/index.html. `updated` is when its wording last
+// changed in substance: change it with the text.
+export const LEGAL = [
+  { slug: 'privacy', file: 'privacy.html', title: 'Privacy policy', updated: '2026-10-05', description: 'What Voicaw stores, what is end-to-end encrypted, and who else sees anything.' },
+  { slug: 'terms', file: 'terms.html', title: 'Terms of use', updated: '2026-10-05', description: "Voicaw's rules: what you may not post or do, and what happens if you do." },
+  { slug: 'delete-account', file: 'delete-account.html', title: 'Deleting your account', updated: '2026-10-05', description: 'How to delete your Voicaw account and what that removes.' },
+];
+
+
+// Who runs Voicaw and how to reach them, as the policies say it. Unset, a page shows
+// "[… not set]" and the build warns, so it can't go out unnoticed without them.
+export const LEGAL_FACTS = {
+  OPERATOR: 'The Voicaw Team',
+  CONTACT_EMAIL: 'voicaw@proton.me',
+  GOVERNING_LAW: 'Jersey',
+  MINIMUM_AGE: '13',
+};
+
+function legalFacts() {
+  const facts = {};
+  for (const [key, value] of Object.entries(LEGAL_FACTS)) {
+    facts[key] = value ? escape(value) : `<mark>[${key.toLowerCase().replace(/_/g, ' ')} not set]</mark>`;
+  }
+  facts.CONTACT = LEGAL_FACTS.CONTACT_EMAIL
+    ? `<a href="mailto:${escape(LEGAL_FACTS.CONTACT_EMAIL)}">${escape(LEGAL_FACTS.CONTACT_EMAIL)}</a>`
+    : facts.CONTACT_EMAIL;
+  return facts;
+}
+
+// The pages, as [{ file: '<slug>/index.html', html }].
+export function renderLegal(values) {
+  const missing = Object.entries(LEGAL_FACTS).filter(([, v]) => !v).map(([k]) => k);
+  if (missing.length) console.warn(`Policies: ${missing.join(', ')} not set (website/build.mjs LEGAL_FACTS).`);
+  values = { ...values, ...legalFacts() };
+  const dir = path.join(here, 'src/legal');
+  const template = fs.readFileSync(path.join(dir, 'template.html'), 'utf8');
+  const fill = (text, extra, where) => text.replace(/\{\{([A-Z_]+)\}\}/g, (match, key) => {
+    const all = { ...values, ...extra };
+    if (!(key in all)) throw new Error(`${where}: unknown placeholder ${match}`);
+    return all[key];
+  });
+  return LEGAL.map((page) => {
+    const nav = LEGAL.map((p) => `<a href="/${p.slug}/"${p === page ? ' aria-current="page"' : ''}>${escape(p.title)}</a>`).join('\n    ');
+    const content = fill(fs.readFileSync(path.join(dir, page.file), 'utf8'), {}, `website/src/legal/${page.file}`);
+    const html = fill(template, {
+      TITLE: escape(page.title),
+      DESCRIPTION: escape(page.description),
+      UPDATED: formatDate(`${page.updated}T00:00:00Z`),
+      NAV: nav,
+      CONTENT: content,
+    }, 'website/src/legal/template.html');
+    return { file: path.join(page.slug, 'index.html'), html };
+  });
+}
+
 export async function buildSite({ siteDir = process.env.VOICAW_SITE_DIR || '/opt/voicaw-site', releases, android } = {}) {
   siteDir = path.resolve(siteDir);
   if (!fs.existsSync(siteDir)) {
@@ -257,7 +314,7 @@ export async function buildSite({ siteDir = process.env.VOICAW_SITE_DIR || '/opt
   for (const name of ['logo192.png', 'logo512.png', 'favicon.ico', 'apple-touch-icon.png']) {
     writeAtomic(path.join(siteDir, name), fs.readFileSync(path.join(root, 'client/public', name)));
   }
-  for (const page of renderDocs(pageValues())) {
+  for (const page of [...renderDocs(pageValues()), ...renderLegal(pageValues())]) {
     const to = path.join(siteDir, page.file);
     fs.mkdirSync(path.dirname(to), { recursive: true });
     writeAtomic(to, page.html);

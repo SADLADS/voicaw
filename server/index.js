@@ -115,4 +115,6 @@ if (require.main === module) {
   require('./pollTimers').startPollTimers();
   // Deletes files nothing uses any more (uploads.js).
   require('./uploads').startUploadCleanup();
+  // Forgets sessions unused for 30 days (auth.js).
+  require('./auth').startSessionCleanup();
 }

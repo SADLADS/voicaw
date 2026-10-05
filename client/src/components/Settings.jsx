@@ -189,6 +189,12 @@ export default function Settings({ onLogout }) {
               }}
             />
           </p>
+          {/* On voicaw.com (website/src/legal); Google Play wants the privacy policy in the app too. */}
+          <p className="settings-policy-links">
+            <a href="https://voicaw.com/privacy/" target="_blank" rel="noreferrer">{t('settings.about.privacy')}</a>
+            <a href="https://voicaw.com/terms/" target="_blank" rel="noreferrer">{t('settings.about.terms')}</a>
+            <a href="https://voicaw.com/delete-account/" target="_blank" rel="noreferrer">{t('settings.about.deleteAccount')}</a>
+          </p>
         </div>
       ),
     },

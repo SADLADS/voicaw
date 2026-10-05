@@ -1,0 +1,117 @@
+<!-- Voicaw's privacy policy (voicaw.com/privacy/). Every sentence must stay true to what the code
+     does: when something here changes in the app, change it here too, and the date in LEGAL
+     (website/build.mjs). -->
+<p>Voicaw is run by {{OPERATOR}}. This page says what Voicaw keeps about you, what it can't see
+  at all, and who else is involved. Questions, or a request about your data: {{CONTACT}}.</p>
+
+<h2 id="short">The short version</h2>
+<ul>
+  <li>Direct messages, group chats, their files and their calls are <strong>end-to-end
+    encrypted</strong>: they're locked on your device, and Voicaw's server can't read them.</li>
+  <li><strong>Guilds aren't</strong>: their messages, files and voice channels are stored and
+    handled as they are, which is what lets them have search, mentions and an audit log.</li>
+  <li>Voicaw asks for no email address or phone number, and never sees your password.</li>
+  <li>There are no ads, no analytics and no tracking, and nothing is sold.</li>
+</ul>
+
+<h2 id="encrypted">What's end-to-end encrypted</h2>
+<p>In direct messages, group chats and your notes: the text of messages, files and pictures, which
+  emoji you react with, polls, a group's name, and calls. Your spellcheck dictionary is
+  encrypted too. Your device locks these with keys only you and the people in the conversation
+  have.</p>
+<p>The server still has to know some things to deliver them: who sent a message to whom, and when,
+  which message it replies to, whether it was edited or pinned, its size, who reacted to which
+  message, who's in a group and when people were added or removed, and when someone is typing. A
+  call's record in the chat (whether it was answered, how long it lasted, who joined) isn't
+  encrypted.</p>
+<p>Your private keys are kept on your devices. So you can log in on a new device, the server also
+  keeps a copy locked with your password (and, if you made one, a copy locked with your recovery
+  code). It can't open either: it never has your password or your recovery code.</p>
+
+<h2 id="not-encrypted">What isn't encrypted</h2>
+<ul>
+  <li><strong>Guilds</strong>: messages, files, reactions, threads, lists, documents, polls,
+    custom emoji, roles, invites and an audit log of who changed what (not message text). Voice
+    channels and screen sharing go through Voicaw's own voice server without end-to-end
+    encryption.</li>
+  <li><strong>Your profile</strong>: username, display name, status, bio and picture, and when you
+    were last online. Everyone logged in to Voicaw can see these.</li>
+  <li><strong>Bots</strong>: people can add bots to guilds. A bot sees what's posted where it has
+    been allowed in, and whoever runs it is responsible for what it does with that. Bots are never
+    in direct messages, group chats or calls.</li>
+</ul>
+
+<h2 id="account">Your account and devices</h2>
+<p>Logging in uses OPAQUE, a way of checking a password without the server ever receiving it.
+  For each device you're logged in on, Voicaw keeps when you logged in, when the device was last
+  used, its internet (IP) address and a description of the browser or app (shown to you in
+  Settings → Devices). A device unused for 30 days is logged out and forgotten. Logging out, or
+  logging a device out from Settings → Devices, forgets it at once.</p>
+<p>Some settings are kept with your account so they follow you: muted and pinned conversations,
+  notification levels, favourite GIFs and whether pictures in NSFW channels are blurred. Most
+  others (theme, language, privacy choices, unsent drafts) stay on the device.</p>
+
+<h2 id="files">Files</h2>
+<p>Files and pictures are kept in Voicaw's file store. Files in direct messages and group chats are
+  encrypted before they leave your device, so the store only has scrambled data. Files in guilds,
+  profile pictures and custom emoji aren't encrypted, and can be opened by anyone who has their
+  (long, unguessable) link. Files no message uses any more (a deleted message's, or one never
+  sent) are deleted, normally within a day.</p>
+
+<h2 id="others">Who else is involved</h2>
+<p>Voicaw's server, file store and voice server are its own. Some things involve other services:</p>
+<ul>
+  <li><strong>Notifications.</strong> In a browser, notifications go through your browser maker's
+    push service (Google, Mozilla, Apple or Microsoft), encrypted so only your browser can read
+    them. On Android they go through Google's Firebase Cloud Messaging, each one encrypted for your
+    phone first, so Google only learns that your phone got something, when, and how big it was.
+    The text you see in a notification is decrypted on your device.</li>
+  <li><strong>GIFs</strong> come from KLIPY. When you search, Voicaw's server asks KLIPY for you,
+    with a code that isn't your account; the GIFs themselves load from KLIPY, which sees your IP
+    address. You can make GIFs wait until you tap them in Settings → Privacy.</li>
+  <li><strong>YouTube.</strong> A YouTube link in a message shows YouTube's player (from
+    youtube-nocookie.com), which loads from YouTube and so tells it your IP address; so does
+    watching together in a voice channel. You can make them wait until you tap Play in Settings →
+    Privacy.</li>
+  <li><strong>Pictures from other websites</strong> in messages, and in bots' and webhooks'
+    messages, load from those websites, which see your IP address (but not which page you're
+    on).</li>
+  <li><strong>Icons.</strong> The app loads its icon font from Cloudflare's cdnjs, which sees your
+    IP address when you open it.</li>
+  <li><strong>Updates.</strong> The desktop app, and the Android app from voicaw.com, check
+    updates.voicaw.com (Voicaw's own) for new versions. The Android app from Google Play is
+    updated by Google Play.</li>
+</ul>
+
+<h2 id="logs">Logs</h2>
+<p>Voicaw's web servers log each request's IP address, address and browser, kept for 14 days. The
+  server's error log, kept until it's cleared, records the address of a request that went wrong
+  (without your IP address). These are only used to keep Voicaw working and safe from abuse.
+  Attempts to log in or register are counted per IP address and username, in memory, for up to an
+  hour, to stop password guessing.</p>
+
+<h2 id="android">On your phone</h2>
+<p>The Android app keeps your login and keys inside the app, never in Android's backups. It asks
+  for the microphone (for calls and voice), notifications, and showing incoming calls over the
+  lock screen. It keeps a list of the last 20 notifications it got and what happened to each
+  (only times and kinds, no text), so you can see in Settings → Android App why one didn't
+  show.</p>
+
+<h2 id="deleting">Deleting your account</h2>
+<p>You can delete your account in Settings → Account (<a href="/delete-account/">how, and exactly
+  what goes</a>). Your profile, password data, key copies, devices, notes, settings and memberships
+  go at once. Messages you sent stay in the conversations and guilds they're in, shown as from
+  "Deleted User", as they are part of other people's chats.</p>
+
+<h2 id="rights">Your rights</h2>
+<p>You can see most of what Voicaw keeps about you in the app itself, change your profile at any
+  time, and delete your account. To ask for a copy of your data, a correction, or anything else
+  about how it's handled, write to {{CONTACT}}. Voicaw can't give anyone your encrypted messages:
+  it can't read them.</p>
+
+<h2 id="children">Children</h2>
+<p>Voicaw isn't for children: you must be at least {{MINIMUM_AGE}} to use it (see the
+  <a href="/terms/">terms of use</a>).</p>
+
+<h2 id="changes">Changes</h2>
+<p>If this policy changes, this page changes with it, with the date at the top.</p>
