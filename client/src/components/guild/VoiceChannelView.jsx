@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import '../../assets/css/voice.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClapperboard, faPhoneSlash, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
@@ -53,6 +53,12 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
   const watchedOwn = voice.watching === voice.identity;
   const party = useWatchParty(guild.id, channel.id);
   const [watchOpen, setWatchOpen] = useState(false);
+  // Once a video has played here, the panel stays open after the party ends (its activity log
+  // shows who skipped the last one) until closed.
+  const playing = Boolean(here && party?.current);
+  useEffect(() => {
+    if (playing) setWatchOpen(true);
+  }, [playing]);
   const streamShown = Boolean(watched && !poppedOut);
   // A watched stream takes the page; the video then plays in its corner player.
   const showWatchParty = here && Boolean(watchOpen || party?.current) && !streamShown;

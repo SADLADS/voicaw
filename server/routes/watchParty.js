@@ -57,7 +57,12 @@ const handled = (handler) => async (req, res) => {
   }
 };
 
-router.get(BASE, authenticateJWT, voiceChannel, (req, res) => reply(res, req.channelId));
+// The party and its activity log ({ party, log, server_time }).
+router.get(BASE, authenticateJWT, voiceChannel, (req, res) => res.json({
+  party: watchParty.publicParty(watchParty.getParty(req.channelId)),
+  log: watchParty.logOf(req.channelId),
+  server_time: Date.now(),
+}));
 
 // Add a video: { videoId } (YouTube's 11-character id).
 router.post(`${BASE}/queue`, authenticateJWT, voiceChannel, inVoice, handled(async (req, res) => {
@@ -76,7 +81,7 @@ router.delete(`${BASE}/queue/:itemId`, authenticateJWT, voiceChannel, inVoice, w
   const item = watchParty.queuedItem(req.party, Number(req.params.itemId));
   const own = item.addedBy === req.user.id && can(req, PERMISSIONS.QUEUE_VIDEOS);
   if (!own && !can(req, PERMISSIONS.MANAGE_QUEUE)) return forbidden(res);
-  await watchParty.removeVideo(req.party, item.id);
+  await watchParty.removeVideo(req.party, item.id, req.user.id);
   reply(res, req.channelId);
 }));
 
@@ -85,7 +90,7 @@ router.put(`${BASE}/queue/:itemId/move`, authenticateJWT, voiceChannel, inVoice,
   if (!can(req, PERMISSIONS.MANAGE_QUEUE)) return forbidden(res);
   const beforeId = req.body?.beforeId ?? null;
   if (beforeId !== null && !Number.isInteger(beforeId)) return res.status(400).json({ error: 'beforeId must be a video in the queue or null' });
-  await watchParty.moveVideo(req.party, Number(req.params.itemId), beforeId);
+  await watchParty.moveVideo(req.party, Number(req.params.itemId), beforeId, req.user.id);
   reply(res, req.channelId);
 }));
 
@@ -98,7 +103,7 @@ router.put(`${BASE}/playback`, authenticateJWT, voiceChannel, inVoice, withParty
   if (position !== undefined && !(Number.isFinite(position) && position >= 0)) return res.status(400).json({ error: 'position must be a number of seconds' });
   if (playing === undefined && position === undefined) return res.status(400).json({ error: 'Nothing to change' });
   if (forItem !== undefined && itemId(forItem) !== req.party.current.id) return res.status(409).json({ error: 'Another video is playing now' });
-  await watchParty.setPlayback(req.party, { playing, position });
+  await watchParty.setPlayback(req.party, { playing, position }, req.user.id);
   reply(res, req.channelId);
 }));
 
@@ -106,7 +111,7 @@ router.put(`${BASE}/playback`, authenticateJWT, voiceChannel, inVoice, withParty
 router.post(`${BASE}/skip`, authenticateJWT, voiceChannel, inVoice, withParty, handled(async (req, res) => {
   const own = req.party.current.addedBy === req.user.id;
   if (!own && !can(req, PERMISSIONS.CONTROL_PLAYBACK)) return forbidden(res);
-  await watchParty.skipVideo(req.party, itemId(req.body?.itemId));
+  await watchParty.skipVideo(req.party, itemId(req.body?.itemId), req.user.id);
   reply(res, req.channelId);
 }));
 

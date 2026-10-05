@@ -10,12 +10,19 @@ import { youtubeVideoId } from '../utils/youtube';
 // every change answers, and from `guild_watch_party` events (everyone who can see the
 // channel). Read with `useWatchParty(channelId)`.
 //
+// Each channel's activity log too (`useWatchPartyLog`): entries { id, at, user_id (null: the
+// server moved on by itself), action, video_id, title, from?, to? }, oldest first, the whole of
+// it from GET and each new one from the events (`entry`). The server keeps the last 100, in
+// memory only.
+//
 // The clock: `serverNow()` is Date.now() moved by the offset to the server's. A GET's answer
 // gives the offset to within half its round trip (the quickest round trip so far is kept);
 // an event's `serverTime` was taken before it travelled, so it only says the offset is at
 // least that (applied if it's more).
 
 const parties = new Map(); // channelId -> party | null (known to have none)
+const logs = new Map(); // channelId -> [entry]
+const MAX_LOG = 100;
 const listeners = new Set();
 const wanted = new Map(); // channelId -> { guildId, users }: reloaded after a reconnect
 let offset = 0;
@@ -53,7 +60,15 @@ export function expectedPosition(party, now = serverNow()) {
 function handleEvent(event) {
   if (event.type !== 'guild_watch_party') return;
   sawServerTime(event.serverTime);
-  setParty(event.channelId, event.party);
+  const channelId = Number(event.channelId);
+  if (event.entry) {
+    const entries = logs.get(channelId) ?? [];
+    if (!entries.some((e) => e.id === event.entry.id)) logs.set(channelId, [...entries, event.entry].slice(-MAX_LOG));
+  } else if (!event.party) {
+    // Ended without an action: the channel emptied, and the server forgot its log.
+    logs.delete(channelId);
+  }
+  setParty(channelId, event.party);
 }
 
 function start() {
@@ -80,10 +95,15 @@ export function subscribeWatchParties(listener) {
 // The channel's party: undefined until known, null when there's none.
 export const getWatchParty = (channelId) => parties.get(Number(channelId));
 
+const NO_ENTRIES = [];
+// The channel's activity log, oldest first.
+export const getWatchPartyLog = (channelId) => logs.get(Number(channelId)) ?? NO_ENTRIES;
+
 const path = (guildId, channelId) => `/guilds/${guildId}/channels/${channelId}/watch-party`;
 
-// What a change (or GET) answered: { party, server_time }.
+// What a change (or GET) answered: { party, server_time }, and from GET the whole `log`.
 function applyAnswer(channelId, data, sentAt) {
+  if (Array.isArray(data?.log)) logs.set(Number(channelId), data.log);
   if (sentAt != null && Number.isFinite(data?.server_time)) {
     const roundTrip = Date.now() - sentAt;
     if (roundTrip <= bestRoundTrip) {
@@ -116,6 +136,11 @@ export function useWatchParty(guildId, channelId) {
     };
   }, [guildId, channelId]);
   return party;
+}
+
+// The channel's activity log (loaded with its party by useWatchParty).
+export function useWatchPartyLog(channelId) {
+  return useSyncExternalStore(subscribeWatchParties, () => getWatchPartyLog(channelId));
 }
 
 async function change(guildId, channelId, request) {
@@ -201,6 +226,7 @@ export function resetWatchParties() {
   unsubscribe?.();
   unsubscribe = null;
   parties.clear();
+  logs.clear();
   wanted.clear();
   reportedDurations.clear();
   offset = 0;

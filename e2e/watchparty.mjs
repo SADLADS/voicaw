@@ -196,6 +196,33 @@ try {
   await a.waitForFunction((t) => document.querySelector('.watch-party-now .watch-party-item-title')?.textContent === t, reordered[1], { timeout: 10000 });
   check(true, 'skip plays the next video');
 
+  // Activity: who did what, newest first (Bob back on the channel page sees the same).
+  const activity = async (page) => {
+    const toggle = page.locator('.watch-party-activity-toggle');
+    if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+    return page.$$eval('.watch-party-activity-text', (els) => els.map((e) => e.textContent));
+  };
+  await b.click('.guild-channel-link:has-text("cinema")');
+  await b.waitForSelector('.watch-party-activity');
+  const folded = await b.textContent('.watch-party-activity-toggle');
+  check(folded.includes(`${alice.name} skipped ${reordered[0]}`), `folded, the latest shows (${folded})`);
+  const lines = await activity(b);
+  console.log('activity:\n  ' + lines.join('\n  '));
+  const expected = [
+    `${alice.name} skipped ${reordered[0]}`,
+    'Me at the zoo finished',
+    `${alice.name} moved ${titles[1]} to number 1 in the queue`,
+    `${alice.name} played Me at the zoo`,
+    `${alice.name} paused Me at the zoo`,
+    `${bob.name} added ${titles[1]}`,
+    `${alice.name} added ${titles[0]}`,
+    `${alice.name} added Me at the zoo`,
+  ];
+  for (const line of expected) check(lines.includes(line), `activity has "${line}"`);
+  check(lines.some((l) => l.startsWith(`${alice.name} jumped from `) && l.endsWith(' to 0:00 in Me at the zoo')), 'activity has the jump back to the start');
+  check(lines.indexOf(expected[0]) < lines.indexOf(expected[1]) && lines.indexOf(expected[6]) < lines.indexOf(expected[7]), 'newest first');
+  await shot(b, '03b-activity');
+
   // Carol on a phone joins from the page and sees it docked.
   await c.goto(cinemaUrl);
   await c.waitForSelector('.watch-party-banner', { timeout: 10000 });
@@ -214,6 +241,11 @@ try {
   await c.waitForSelector('.watch-party-player', { state: 'detached', timeout: 10000 });
   await b.waitForFunction(() => !document.querySelector('.guild-channel-watch'));
   check(true, 'skipping the last video ends it for everyone');
+  // The log outlives the party; Carol, who joined late, has all of it too.
+  await c.waitForFunction((n) => document.querySelector('.watch-party-activity-toggle')?.textContent.includes(`${n} skipped`), alice.name, { timeout: 5000 });
+  const carolLines = await activity(c);
+  check(carolLines[0] === `${alice.name} skipped ${reordered[1]}` && carolLines.length === lines.length + 1, 'after it ends, the log stays (late joiner sees it all)');
+  await shot(c, '06-phone-activity');
   console.log('\nALL PASSED');
 } finally {
   await browser.close();

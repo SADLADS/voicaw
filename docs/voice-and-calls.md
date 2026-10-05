@@ -228,16 +228,32 @@ LiveKit carries the audio.
     from voice.js: a lone watcher whose connection drops comes back to it); deleting the
     channel or guild drops it.
   - **API** (`/guilds/:g/channels/:c/watch-party`, each answer `{ party, server_time }`): `GET`
-    needs View Channel; every change needs you in that channel's voice (`voice.states`, any
+    needs View Channel (and also gives the `log`, below); every change needs you in that channel's voice (`voice.states`, any
     device), then: `POST /queue { videoId }` Queue Videos (nothing playing: it starts);
     `DELETE /queue/:item` your own with Queue Videos, anyone's with Manage Queue; `PUT
     /queue/:item/move { beforeId }` (null: the end) Manage Queue; `PUT /playback { playing?,
     position?, itemId }` Control Playback (`itemId`: the video meant, 409 if another is on now);
     `POST /skip { itemId }` Control Playback, or whoever added the video playing (a second skip
     of the same item does nothing). Everyone who can see the channel gets `guild_watch_party {
-    guildId, channelId, party, serverTime }` (party null: ended), and a voice channel in the
+    guildId, channelId, party, entry, serverTime }` (party null: ended; `entry`: what was just
+    logged, or null), and a voice channel in the
     layout has `watch_party: { video_id, title, playing }` or null, for the channel list ("Watching
     …" / "Paused: …" under it).
+  - **Activity log** (who's been skipping around): each channel keeps its last 100 actions in
+    memory only (`log` in watchParty.js, never in the database): added, removed and moved
+    videos (a move with the place it went to, 1 = next), played, paused, jumped (`from` and
+    `to`, seconds; only a move of a second or more counts, else it's logged as play/pause, and a
+    request changing nothing isn't logged), skipped, and `ended` (the server moving on by
+    itself, no user). Entries are `{ id, at, user_id, action, video_id, title, from?, to? }`.
+    It outlives the party (so who skipped the last video still shows) and is forgotten with
+    the party a minute after the channel empties, when the channel or guild is deleted, or on
+    an API restart. Everyone who can see the channel can read it, like the queue. Client:
+    `useWatchPartyLog(channelId)` (the whole log from GET, each event's `entry` added, the last
+    100), drawn by `voice/WatchPartyActivity.jsx` at the bottom of the panel: folded, "Activity
+    (n)" and the latest as one line; open, every entry newest first as a sentence ("alice
+    jumped from 0:45 to 3:10 in …") with its time (`formatTime`, with seconds). Once a video
+    has played, the panel stays open after the party ends, until closed, so the log stays in
+    view.
   - **Permissions** (Discord has none of these; ours only, bits 58-60 for bots): Queue Videos
     (`QUEUE_VIDEOS`) and Control Playback (`CONTROL_PLAYBACK`) are @everyone defaults (migration
     11 gave them to existing guilds), Manage Queue (`MANAGE_QUEUE`) isn't; all three are channel

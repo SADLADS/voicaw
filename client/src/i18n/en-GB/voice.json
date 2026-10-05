@@ -111,7 +111,19 @@
       "addedBy": "added by {{name}}",
       "watchingNow": "Watching together: {{title}}. Join to watch.",
       "sidebarPlaying": "Watching {{title}}",
-      "sidebarPaused": "Paused: {{title}}"
+      "sidebarPaused": "Paused: {{title}}",
+      "activity": {
+        "title_one": "Activity ({{count}})",
+        "title_other": "Activity ({{count}})",
+        "add": "{{name}} added {{title}}",
+        "remove": "{{name}} removed {{title}} from the queue",
+        "move": "{{name}} moved {{title}} to number {{to}} in the queue",
+        "play": "{{name}} played {{title}}",
+        "pause": "{{name}} paused {{title}}",
+        "seek": "{{name}} jumped from {{from}} to {{to}} in {{title}}",
+        "skip": "{{name}} skipped {{title}}",
+        "ended": "{{title}} finished"
+      }
     },
     "camera": {
       "start": "Turn on camera",

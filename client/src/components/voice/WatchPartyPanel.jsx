@@ -6,6 +6,7 @@ import {
   addVideo, formatClock, movedItem, moveVideo, removeVideo, setPlayerSlot, useWatchParty, videoIdFromInput,
 } from '../../voice/watchParty';
 import { PERMISSIONS, has } from '../../utils/permissions';
+import WatchPartyActivity from './WatchPartyActivity';
 import { displayName, useProfiles } from '../../utils/profiles';
 import { t } from '../../i18n';
 
@@ -14,7 +15,8 @@ const errorOf = (err) => err?.response?.data?.error ?? t('voice.watchParty.faile
 // Watch Together on a voice channel's page, once you're in its voice: paste a YouTube link to
 // add it, the player's place (WatchPartyPlayer draws itself over it), what's playing and the
 // queue (dragged into order with Manage Queue; your own videos, or anyone's with Manage Queue,
-// can be taken out). What you may do follows the channel's permissions; the server decides.
+// can be taken out), and who did what (WatchPartyActivity). What you may do follows the
+// channel's permissions; the server decides.
 export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
   useProfiles();
   const party = useWatchParty(guild.id, channel.id);
@@ -148,6 +150,7 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
               )}
             </>
           )}
+          <WatchPartyActivity channelId={channel.id} />
         </div>
       </div>
     </section>

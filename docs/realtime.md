@@ -26,7 +26,7 @@ an account preference, to your other devices; see `docs/client.md`), `dictionary
 encrypted spellcheck dictionary was saved, to your devices; see `docs/auth-and-encryption.md`),
 `guild_voice_state` (someone
 joined, left or (un)muted in a voice channel), `guild_watch_party` (a voice channel's Watch
-Together changed or ended, to whoever can see it; see Voice channels in `docs/voice-and-calls.md`), `guild_thread_update` / `_delete` (to whoever can
+Together changed or ended, with the activity log's new entry, to whoever can see it; see Voice channels in `docs/voice-and-calls.md`), `guild_thread_update` / `_delete` (to whoever can
 see the thread's channel) and `guild_thread_member` (you joined or left a thread, to your devices;
 see Threads in `docs/guilds.md`), `guild_mention` (only to whoever a new message
 mentions, for their red counts), `guild_task_upsert` / `_delete` / `guild_tasks_move` /

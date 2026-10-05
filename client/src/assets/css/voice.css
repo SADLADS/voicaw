@@ -1053,6 +1053,69 @@ body.stream-window {
   background-color: var(--vc-accent-soft);
 }
 
+/* Who did what (WatchPartyActivity): folded, the latest on one line. */
+.watch-party-activity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 8px;
+}
+
+.watch-party-activity-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--vc-fg-muted);
+  text-align: left;
+}
+
+.watch-party-activity-toggle:hover {
+  color: var(--vc-fg);
+}
+
+.watch-party-activity-latest {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.watch-party-activity-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.watch-party-activity-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+}
+
+.watch-party-activity-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.watch-party-activity-time {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--vc-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Under a voice channel in the channel list: what it's watching. */
 .guild-channel-watch {
   display: flex;

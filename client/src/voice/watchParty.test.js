@@ -15,7 +15,7 @@ vi.mock('../utils/api', () => ({ default: { get: vi.fn(), post: vi.fn(), put: vi
 
 import api from '../utils/api';
 import {
-  expectedPosition, formatClock, getWatchParty, loadWatchParty, movedItem, reportDuration, resetWatchParties,
+  expectedPosition, formatClock, getWatchParty, getWatchPartyLog, loadWatchParty, movedItem, reportDuration, resetWatchParties,
   serverNow, skipVideo, subscribeWatchParties, videoIdFromInput,
 } from './watchParty';
 
@@ -121,5 +121,40 @@ describe('the store', () => {
     reportDuration(1, 2, 10, 0);
     expect(api.put).toHaveBeenCalledTimes(1);
     expect(api.put).toHaveBeenCalledWith('/guilds/1/channels/2/watch-party/duration', { itemId: 9, duration: 212.5 });
+  });
+});
+
+describe('the activity log', () => {
+  const entry = (id, action = 'add') => ({ id, at: 1000 + id, user_id: 7, action, video_id: 'aaaaaaaaaaa', title: 'A' });
+  const emit = (event) => events.guild.forEach((cb) => cb({ type: 'guild_watch_party', guildId: 1, channelId: 2, serverTime: 0, ...event }));
+
+  it('comes whole from GET, then grows with the events (once each)', async () => {
+    api.get.mockResolvedValue({ data: { party: party(), log: [entry(1), entry(2)], server_time: Date.now() } });
+    subscribeWatchParties(() => {});
+    await loadWatchParty(1, 2);
+    expect(getWatchPartyLog(2).map((e) => e.id)).toEqual([1, 2]);
+    emit({ party: party(), entry: entry(3, 'pause') });
+    emit({ party: party(), entry: entry(3, 'pause') });
+    expect(getWatchPartyLog(2).map((e) => e.id)).toEqual([1, 2, 3]);
+    // A change's answer has no log: it stays.
+    api.post.mockResolvedValue({ data: { party: null, server_time: Date.now() } });
+    await skipVideo(1, 2, 1);
+    expect(getWatchPartyLog(2)).toHaveLength(3);
+  });
+
+  it('keeps the log when the last video is skipped, and forgets it when the channel emptied', () => {
+    subscribeWatchParties(() => {});
+    emit({ party: party(), entry: entry(1) });
+    emit({ party: null, entry: entry(2, 'skip') });
+    expect(getWatchPartyLog(2).map((e) => e.action)).toEqual(['add', 'skip']);
+    emit({ party: null, entry: null });
+    expect(getWatchPartyLog(2)).toEqual([]);
+  });
+
+  it('keeps the last 100', () => {
+    subscribeWatchParties(() => {});
+    for (let id = 1; id <= 105; id++) emit({ party: party(), entry: entry(id) });
+    expect(getWatchPartyLog(2)).toHaveLength(100);
+    expect(getWatchPartyLog(2)[0].id).toBe(6);
   });
 });

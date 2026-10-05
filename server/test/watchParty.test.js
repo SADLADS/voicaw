@@ -292,4 +292,73 @@ describe('Watch Together', () => {
     expect((await api.delete(owner, `/guilds/${guild.id}/channels/${lounge.id}`)).status).toBe(200);
     expect(watchParty.getParty(lounge.id)).toBeNull();
   });
+  it('logs who did what, for everyone who can see the channel', async () => {
+    const { owner, members: [alice, bob], base, lounge } = await setUp();
+    const bobEvents = listen(bob);
+    for (const user of [owner, alice]) await enter(user, lounge);
+    const first = (await add(alice, base, VIDEO_A)).body.party.current;
+    await add(alice, base, VIDEO_B);
+    const third = (await add(owner, base, VIDEO_C)).body.party.queue[1];
+    await api.put(owner, `${base}/queue/${third.id}/move`, { beforeId: null });
+    await api.put(owner, `${base}/queue/${third.id}/move`, { beforeId: (await api.get(owner, base)).body.party.queue[0].id });
+    await api.put(alice, `${base}/playback`, { playing: false });
+    await api.put(alice, `${base}/playback`, { playing: false }); // nothing changed: not logged
+    await api.put(owner, `${base}/playback`, { position: 90 });
+    await api.put(owner, `${base}/playback`, { playing: true });
+    await api.delete(owner, `${base}/queue/${third.id}`);
+    await api.post(alice, `${base}/skip`, { itemId: first.id });
+
+    const { log } = (await api.get(bob, base)).body;
+    expect(log.map((e) => [e.action, e.user_id, e.video_id])).toEqual([
+      ['add', alice.id, VIDEO_A],
+      ['add', alice.id, VIDEO_B],
+      ['add', owner.id, VIDEO_C],
+      ['move', owner.id, VIDEO_C],
+      ['move', owner.id, VIDEO_C],
+      ['pause', alice.id, VIDEO_A],
+      ['seek', owner.id, VIDEO_A],
+      ['play', owner.id, VIDEO_A],
+      ['remove', owner.id, VIDEO_C],
+      ['skip', alice.id, VIDEO_A],
+    ]);
+    expect(log[0]).toMatchObject({ title: `Video ${VIDEO_A}` });
+    expect(log[0].at).toBeTypeOf('number');
+    expect(log[4]).toMatchObject({ to: 1 });
+    expect(log[6]).toMatchObject({ from: 0, to: 90 });
+
+    // Each event carries its new entry; Bob (not in voice) got them all.
+    const entries = partyEvents(bobEvents).map((e) => e.entry).filter(Boolean);
+    expect(entries.map((e) => e.id)).toEqual(log.map((e) => e.id));
+
+    const outsider = await makeUser('outsider');
+    expect((await api.get(outsider, base)).status).toBe(404);
+  });
+
+  it('logs the server moving on by itself, and keeps the log after the party ends', async () => {
+    const { members: [alice], base, lounge } = await setUp(1);
+    await enter(alice, lounge);
+    const { party } = (await add(alice, base, VIDEO_A)).body;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    await api.put(alice, `${base}/duration`, { itemId: party.current.id, duration: 5 });
+    await vi.advanceTimersByTimeAsync(7_000);
+    const res = await api.get(alice, base);
+    expect(res.body.party).toBeNull();
+    expect(res.body.log.map((e) => [e.action, e.user_id])).toEqual([['add', alice.id], ['ended', null]]);
+
+    // Forgotten a minute after the channel empties.
+    await leave(alice, lounge);
+    await vi.advanceTimersByTimeAsync(watchParty.EMPTY_GRACE_MS + 1);
+    expect(watchParty.logOf(lounge.id)).toEqual([]);
+  });
+
+  it('keeps the last 100 entries', async () => {
+    const { members: [alice], base, lounge } = await setUp(1);
+    await enter(alice, lounge);
+    await add(alice, base, VIDEO_A);
+    for (let i = 0; i < 105; i++) await watchParty.setPlayback(watchParty.getParty(lounge.id), { playing: i % 2 === 0 }, alice.id);
+    const { log } = (await api.get(alice, base)).body;
+    expect(log).toHaveLength(100);
+    expect(log.at(-1).action).toBe('play'); // the last call (i = 104) plays
+    expect(log[0].action).toBe('pause'); // the add and the oldest went
+  });
 });
