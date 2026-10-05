@@ -51,6 +51,7 @@ import ReportDialog from './ReportDialog';
 // pinned messages list; `onClosePins` closes it. `pollKind` ('dm', 'group' or 'guild') is
 // the chat's kind for the server's poll timers (pollService). `jumpTo` ({ messageId }, a new object each
 // time) scrolls to that message once the chat is loaded, then calls `onJumped`.
+// `focusOnOpen` false keeps the composer from taking the focus when the chat opens.
 export default function ChatPane({
   chatId,
   chatName,
@@ -76,6 +77,7 @@ export default function ChatPane({
   onClosePins,
   jumpTo = null,
   onJumped,
+  focusOnOpen = true,
   nameColors,
   encrypted = true,
   pollKind,
@@ -430,6 +432,7 @@ export default function ChatPane({
         canMentionEveryone={canMentionEveryone}
         channels={channels}
         commandChannelId={commandChannelId}
+        focusOnOpen={focusOnOpen}
       />}
 
       {confirmingDelete && (

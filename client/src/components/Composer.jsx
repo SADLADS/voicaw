@@ -62,7 +62,8 @@ const COMMAND_QUERY = /^\/([^\s/]{0,32})$/;
 // sendMessage); `onSendPoll({ poll, replyTo })` sends a poll made in PollDialog (see ChatPane).
 // `error` is shown above the box (Dm reports its own errors there too). On
 // mobile the emoji panel (`showEmojiPicker`) takes the keyboard's place; `onInputFocus`
-// runs when the keyboard is about to come up.
+// runs when the keyboard is about to come up. Opening a conversation focuses the box on a
+// computer (not on a phone: that would open the keyboard), unless `focusOnOpen` is false.
 export default function Composer({
   chatId,
   chatName,
@@ -86,6 +87,7 @@ export default function Composer({
   channels,
   chatTexts,
   commandChannelId = null,
+  focusOnOpen = true,
 }) {
   // What the box and the file drop overlay say: "Message Alice", or the chat's own wording
   // (`chatTexts`: { label, placeholder, upload }, e.g. a document's replies).
@@ -370,6 +372,17 @@ export default function Composer({
       restoringDraft.current = false;
     }
   }, [chatId, inputRef]);
+
+  // Ready to type in a conversation just opened, unless another text box has the focus (a
+  // search left open after jumping to a result).
+  useEffect(() => {
+    if (isMobile || !focusOnOpen) return;
+    const active = document.activeElement;
+    const editor = inputRef.current?.element;
+    const typing = active && active !== editor && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName));
+    if (!typing) inputRef.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId]);
 
   // Opening the "/" list asks for the channel's commands again (they may have changed).
   const commandListOpen = commandQuery != null;

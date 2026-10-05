@@ -84,6 +84,7 @@ node e2e/noise.mjs [dir]  # noise suppression + gate: each mode on a made-up rec
 node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), phone
 node e2e/scrollbars.mjs [dir] # scrollbars: styled with a mouse, overlay only (no grabbable bar) on a phone, also in a browser without scrollbar-color
 node e2e/sidebar.mjs [dir] # one sidebar width (DM list, channels, Settings), headers line up, drag/keys/reset, kept; phone untouched
+node e2e/focus.mjs [dir] # opening a chat focuses its box on a computer (DM by link and from the list, guild channel, thread beside it), not another text box's focus, not on a phone
 node e2e/drafts.mjs [dir] # unsent messages: back after another DM, Settings, a guild; no typing event; sent = gone; reload forgets; phone
 node e2e/typing.mjs [dir] # typing indicator: DM (dots, cleared on send, clear of the last message), two typers in a guild channel on a phone, timeout, Privacy off
 node e2e/colours.mjs [dir] # screenshots for colour changes: login, DM (mention, link), guild + rail, menu, Settings, list, poll, voice Join / Connecting…, incoming call; every theme (THEMES=…), desktop + phone (fresh serve.mjs per run)

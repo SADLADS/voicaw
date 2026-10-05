@@ -442,6 +442,8 @@ export default function GuildView({ user }) {
                 onJumped={clearJump}
                 nameColors={nameColors}
                 emptyText={t('guilds.view.welcome', { name: channel.name })}
+                // A thread opened beside it takes the focus instead.
+                focusOnOpen={!openThreadId}
               />
             )}
           </NsfwChannelContext.Provider>

@@ -58,6 +58,12 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   new line; on mobile Enter is a new line. The ref handle (`focus`, `blur`, `insertText`,
   `replaceBeforeCaret`, `insertAttachments`, `removeAttachment`, `clear`...) is how `Composer`
   and `Dm` drive it.
+- Opening a conversation (DM, group DM, notes, guild channel, thread) focuses its message box
+  on a computer (web and desktop app), so typing goes straight in; `Composer` does it whenever
+  `chatId` changes. Not on a phone or tablet (it would bring up the keyboard), not while another
+  text box has the focus (a search left open after jumping to a result), not for a document's
+  replies (the document has it) and not for a channel with a thread open beside it (the thread
+  has it): `ChatPane`'s `focusOnOpen`. `e2e/focus.mjs` checks it.
 - Composer (`Composer.jsx`): `EmojiPicker` (search, categories, frequently used and skin tone, both in
   localStorage via `emojiUsage.js`), `:sm` autocomplete (`EmojiSuggestions`), and a completed
   `:shortcode:` turns into the emoji as you type. `remark-emoji` still renders any leftover

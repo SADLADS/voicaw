@@ -265,6 +265,7 @@ function DocumentPage({ guild, channel, user, documentId, editing, setEditing, o
           conversation={conversation}
           canPin={false}
           emptyText={t('documents.page.noReplies')}
+          focusOnOpen={false}
         />
       </div>
     </section>

@@ -320,6 +320,39 @@ describe('Dm', () => {
   });
 });
 
+describe('Dm focus', () => {
+  const emptyChat = () => screen.findByText('No messages yet. Start the conversation!');
+
+  it('focuses the message box when a conversation opens, and when switching to another', async () => {
+    renderDm({ path: '/dm/2', users: [chatUserFull, carol] });
+    await emptyChat();
+    await waitFor(() => expect(box()).toHaveFocus());
+
+    box().blur();
+    act(() => navigateTo('/dm/4'));
+    await waitFor(() => expect(box()).toHaveAttribute('aria-label', 'Message carol'));
+    expect(box()).toHaveFocus();
+  });
+
+  it("doesn't focus it on a phone (that would open the keyboard)", async () => {
+    renderDm({ path: '/dm/2', users: [chatUserFull, carol], isMobile: true });
+    await emptyChat();
+    expect(box()).not.toHaveFocus();
+  });
+
+  it("doesn't take the focus from another text box", async () => {
+    const search = document.createElement('input');
+    document.body.append(search);
+    renderDm({ path: '/dm/2', users: [chatUserFull, carol] });
+    await emptyChat();
+    search.focus();
+    act(() => navigateTo('/dm/4'));
+    await waitFor(() => expect(box()).toHaveAttribute('aria-label', 'Message carol'));
+    expect(search).toHaveFocus();
+    search.remove();
+  });
+});
+
 describe('Dm drafts', () => {
   const emptyChat = () => screen.findByText('No messages yet. Start the conversation!');
 
