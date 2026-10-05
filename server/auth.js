@@ -51,8 +51,9 @@ async function verifyToken(token, req = null) {
     jwt.verify(token, jwtSecret, (err, decoded) => resolve(err ? null : decoded));
   });
   if (!payload) return null;
-  const row = await db.get('SELECT deleted_at, sessions_reset_at FROM users WHERE id = ?', [payload.id]);
-  if (!row || row.deleted_at) return null;
+  const row = await db.get('SELECT deleted_at, suspended_at, sessions_reset_at FROM users WHERE id = ?', [payload.id]);
+  // Deleted or suspended (Settings → Admin): the token no longer works anywhere.
+  if (!row || row.deleted_at || row.suspended_at) return null;
 
   const t = now();
   let sid = payload.sid;
@@ -104,6 +105,7 @@ async function authenticateJWT(req, res, next) {
 // with the address and device they last had, every hour for everyone, not only at that
 // person's next login (the privacy policy, website/src/legal/privacy.html, says so).
 const SESSION_SWEEP_MS = 60 * 60 * 1000;
+// (The same sweep forgets reports resolved over a year ago: reports.js.)
 
 async function pruneStaleSessions(at = now()) {
   const { changes } = await db.run('DELETE FROM sessions WHERE last_used_at < ?', [at - SESSION_SECONDS]);
@@ -111,7 +113,10 @@ async function pruneStaleSessions(at = now()) {
 }
 
 function startSessionCleanup() {
-  const sweep = () => pruneStaleSessions().catch((err) => console.error('Session cleanup failed:', err.message));
+  const sweep = () => {
+    pruneStaleSessions().catch((err) => console.error('Session cleanup failed:', err.message));
+    require('./reports').pruneReports().catch((err) => console.error('Report cleanup failed:', err.message));
+  };
   sweep();
   return setInterval(sweep, SESSION_SWEEP_MS);
 }

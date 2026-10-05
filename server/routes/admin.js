@@ -60,3 +60,6 @@ router.delete('/admin/admins/:id', admin, async (req, res) => {
 });
 
 module.exports = router;
+
+module.exports.admin = admin;
+module.exports.isAdmin = isAdmin;

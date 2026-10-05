@@ -116,6 +116,8 @@ async function checkEntry(state, entry, actorId) {
     if (!state.members.has(actorId)) throw new GroupError(403, 'Not a member');
     if (state.members.has(r.target)) throw new GroupError(400, 'Already a member');
     if (state.members.size >= MAX_MEMBERS) throw new GroupError(400, `Groups have at most ${MAX_MEMBERS} people`);
+    // Neither can add the other once one has blocked the other (blocks.js), without saying who.
+    if (await require('./blocks').blockedBetween(actorId, r.target)) throw new GroupError(403, "This person can't be added");
   } else if (r.type === 'remove') {
     if (state.ownerId !== actorId) throw new GroupError(403, 'Only the group owner can remove people');
     if (!state.members.has(r.target) || r.target === actorId) throw new GroupError(400, 'Not a member');

@@ -512,6 +512,53 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions (user_id);
 `);
 addColumn('ALTER TABLE users ADD COLUMN sessions_reset_at INTEGER');
+
+// Blocks (blocks.js): `blocker_id` blocked `blocked_id`. Neither can DM, call or add the other
+// to a group; the blocker doesn't see the other's messages (collapsed) or get pushed about them.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS user_blocks (
+  blocker_id INTEGER NOT NULL,
+  blocked_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (blocker_id, blocked_id),
+  FOREIGN KEY (blocker_id) REFERENCES users(id),
+  FOREIGN KEY (blocked_id) REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS user_blocks_blocked ON user_blocks (blocked_id);
+`);
+
+// Reports (reports.js), for the global admins (Settings → Admin → Reports). `kind` 'message' or
+// 'user'; `place` 'dm', 'group' or 'guild' with the ids that say where. A guild message is kept
+// as it was (`content`, the server has it anyway); an encrypted one only if the reporter chose to
+// share it (`content`, `shared` = 1: as they say it was, which the server can't check). Resolved
+// ones go a year after (reports.js pruneReports).
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS reports (
+  id INTEGER PRIMARY KEY,
+  reporter_id INTEGER NOT NULL,
+  reported_id INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  category TEXT NOT NULL,
+  note TEXT,
+  place TEXT,
+  guild_id INTEGER,
+  channel_id INTEGER,
+  group_id TEXT,
+  message_id INTEGER,
+  content TEXT,
+  shared INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  resolved_at INTEGER,
+  resolved_by INTEGER,
+  action TEXT,
+  FOREIGN KEY (reporter_id) REFERENCES users(id),
+  FOREIGN KEY (reported_id) REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS reports_open ON reports (resolved_at, created_at);
+`);
+// A suspended account (Settings → Admin): logged out everywhere and can't log in until lifted.
+addColumn('ALTER TABLE users ADD COLUMN suspended_at INTEGER');
+addColumn('ALTER TABLE users ADD COLUMN suspended_reason TEXT');
 // The login a push subscription was saved under, so logging that out stops its notifications.
 addColumn('ALTER TABLE push_subscriptions ADD COLUMN session_id TEXT');
 sqlite.exec(`

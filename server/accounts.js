@@ -95,6 +95,9 @@ async function deleteAccount(userId, plan) {
     ]) {
       await db.run(sql, [userId]);
     }
+    // Their blocks, both ways (reports about or by them stay: they're moderation records, kept
+    // until a year after they're resolved, reports.js).
+    await db.run('DELETE FROM user_blocks WHERE blocker_id = ? OR blocked_id = ?', [userId, userId]);
     await db.run('DELETE FROM login_states WHERE username = ?', [user?.username]);
     // Not a name anyone can sign up with (sign-ups are lower case), and the old one is free again.
     await db.run(

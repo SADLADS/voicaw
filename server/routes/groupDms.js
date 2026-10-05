@@ -287,10 +287,12 @@ router.post('/group-dms/:groupId/messages', member, async (req, res) => {
   });
 
   const senderName = await displayNameOf(req.user.id, req.user.username);
+  // Those who blocked the sender still get the message (collapsed in their app), not a push.
+  const blockers = await require('../blocks').blockersAmong(req.user.id, [...state.members]);
   for (const userId of state.members) {
     const message = await messageFor(userId, lastID);
     sendToUserSockets(userId, { type: 'group_dm_message_new', groupId, message });
-    if (userId !== req.user.id && !isViewingConversation(userId, `group-${groupId}`) && !(await isConversationMuted(userId, 'group', groupId))) {
+    if (userId !== req.user.id && !blockers.has(userId) && !isViewingConversation(userId, `group-${groupId}`) && !(await isConversationMuted(userId, 'group', groupId))) {
       sendPushToUser(userId, await buildGroupPushPayload(groupId, message, userId, senderName), {
         urgency: 'high', topic: `group${groupId.replace(/-/g, '').slice(0, 20)}`,
       }).catch(() => {});

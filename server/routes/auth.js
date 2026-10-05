@@ -14,6 +14,11 @@ const accounts = require('../accounts');
 // Registration and login use OPAQUE (the password never reaches the server), each in two
 // round trips. Login state between them lives in login_states for 5 minutes.
 const router = express.Router();
+
+// What a suspended account is told when logging in (with the admin's reason, if they gave one).
+const suspendedError = (user) => ({
+  error: 'This account has been suspended', code: 'suspended', reason: user.suspended_reason || null,
+});
 const LOGIN_STATE_SECONDS = 300;
 
 const now = () => Math.floor(Date.now() / 1000);
@@ -131,11 +136,13 @@ router.post('/finaliselogin', async (req, res) => {
 
   const user = await findUserByName(
     userIdentifier,
-    'id, username, identity_key, encryption_key, encryption_key_signature, key_backup, recovery_verifier'
+    'id, username, identity_key, encryption_key, encryption_key_signature, key_backup, recovery_verifier, suspended_at, suspended_reason'
   );
   const failed = await checkLoginProof(user?.username ?? normalizeUsername(userIdentifier), finishLoginRequest, clientSessionKey);
   if (failed) return res.status(failed[0]).json({ error: failed[1] });
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+  // Suspended by an admin (reports.js): said only once the password is right.
+  if (user.suspended_at) return res.status(403).json(suspendedError(user));
 
   // The client decrypts the backup with its OPAQUE exportKey and checks the published
   // public keys against the ones inside it.
@@ -380,6 +387,8 @@ router.post('/recover/start', recoverLimits, async (req, res) => {
 router.post('/recover/finish', recoverLimits, async (req, res) => {
   const user = await checkRecoveryAuth(req.body.userIdentifier, req.body.recoveryAuth);
   if (!user) return res.status(401).json({ error: WRONG_RECOVERY });
+  const suspended = await db.get('SELECT suspended_at, suspended_reason FROM users WHERE id = ?', [user.id]);
+  if (suspended?.suspended_at) return res.status(403).json(suspendedError(suspended));
   const password = newPassword(req.body);
   if (password.error) return res.status(400).json({ error: password.error });
 
