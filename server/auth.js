@@ -100,7 +100,23 @@ async function authenticateJWT(req, res, next) {
   next();
 }
 
+// Sessions unused for a token's life can't be used again (their token has expired): forgotten,
+// with the address and device they last had, every hour for everyone, not only at that
+// person's next login (the privacy policy, website/src/legal/privacy.html, says so).
+const SESSION_SWEEP_MS = 60 * 60 * 1000;
+
+async function pruneStaleSessions(at = now()) {
+  const { changes } = await db.run('DELETE FROM sessions WHERE last_used_at < ?', [at - SESSION_SECONDS]);
+  return changes;
+}
+
+function startSessionCleanup() {
+  const sweep = () => pruneStaleSessions().catch((err) => console.error('Session cleanup failed:', err.message));
+  sweep();
+  return setInterval(sweep, SESSION_SWEEP_MS);
+}
+
 module.exports = {
-  generateToken, startSession, verifyToken, authenticateJWT,
+  generateToken, startSession, verifyToken, authenticateJWT, pruneStaleSessions, startSessionCleanup,
   SESSION_SECONDS, RENEW_AFTER_SECONDS, RENEWED_TOKEN_HEADER, SESSION_TOUCH_SECONDS,
 };

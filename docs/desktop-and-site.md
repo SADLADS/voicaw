@@ -205,3 +205,12 @@ The bot API's documentation (`/developers/docs/`, see `docs/bots.md`) is part of
 fragment per page, listed in `build.mjs` `DOCS` and written as `developers/docs/<slug>/index.html`
 (nginx: `try_files $uri $uri/index.html @app`). Keep it true to `server/routes/botApi.js` and
 `server/gateway.js` when they change.
+
+**Policies** (`/privacy/`, `/terms/`, `/delete-account/`; Google Play needs all three, and the
+privacy policy linked inside the app too: Settings → About): fragments in `website/src/legal/`
+in a shared `template.html`, listed in `build.mjs` `LEGAL` with the date each last changed,
+written as `<slug>/index.html` like the docs. Who runs Voicaw, the contact address, the governing
+law and the minimum age are `LEGAL_FACTS` in `build.mjs`; while one is empty its pages show
+"[… not set]" and the build warns. Every claim was checked against the code (2026-10-05): keep
+them true (CLAUDE.md, Privacy policy). Logins forgotten after 30 days unused is
+`auth.js` `startSessionCleanup` (hourly), which the policy relies on.

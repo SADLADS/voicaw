@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import { nextVersion, versionCode, publish, readRelease } from '../../updates/publish-android.mjs';
-import { renderAndroid, renderPage } from '../../website/build.mjs';
+import { LEGAL, renderAndroid, renderLegal, renderPage } from '../../website/build.mjs';
 
 // Releasing the Android app: its version numbers, what lands on the update site, and voicaw.com.
 
@@ -73,5 +73,20 @@ describe('voicaw.com', () => {
     expect(page).toContain('<template data-primary="android">');
     expect(page).toContain('Android app 0.1.1');
     expect(page).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+});
+
+describe('voicaw.com policies', () => {
+  it('builds the privacy policy, terms and account deletion pages, linked from the home page', () => {
+    const pages = renderLegal({ APP_URL: 'https://app.voicaw.com', UPDATES_URL: 'https://updates.voicaw.com', STYLE_VERSION: 'x' });
+    expect(pages.map((p) => p.file)).toEqual(['privacy/index.html', 'terms/index.html', 'delete-account/index.html']);
+    for (const page of pages) {
+      expect(page.html).not.toMatch(/\{\{[A-Z_]+\}\}/);
+      for (const other of LEGAL) expect(page.html).toContain(`href="/${other.slug}/"`);
+    }
+    expect(pages[2].html).toContain('Settings → My Account → Delete Account');
+    const home = renderPage({}, null);
+    expect(home).toContain('href="/privacy/"');
+    expect(home).toContain('href="/terms/"');
   });
 });

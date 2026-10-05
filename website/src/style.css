@@ -337,3 +337,17 @@ footer a { color: var(--muted); }
   .docs-content table.endpoints td:empty { display: none; }
   .docs-content table.endpoints:not(.plain) td:nth-child(2)::before { content: "Needs: "; color: var(--muted); }
 }
+
+/* ---- Policies (/privacy/, /terms/, /delete-account/, website/src/legal) ---- */
+/* One readable column; the docs' text styles (.docs-content). */
+main.legal { max-width: 760px; margin: 0 auto; padding: 8px 16px 64px; }
+.legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  border-top: 1px solid var(--line);
+  margin-top: 48px;
+  padding-top: 16px;
+}
+.legal-links a { color: var(--muted); }
+.legal-links a[aria-current="page"] { color: var(--text); font-weight: 600; }

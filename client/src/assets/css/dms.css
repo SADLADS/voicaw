@@ -1463,6 +1463,15 @@ img.emoji,
   margin: 0;
 }
 
+/* Settings → About: privacy policy, terms, deleting an account (voicaw.com). */
+.settings-policy-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+
 /* Mobile: the picker docks in the keyboard's place (height set inline). */
 .emoji-picker.docked {
   position: static;

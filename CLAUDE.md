@@ -155,6 +155,10 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   is untrusted. Never use a contact's key straight from the server (`contactKeys.js`
   `checkContactKeys`); every format is versioned (`v1.`, `{v:1}`, `voicaw/<purpose>/v1`). Anything
   that lets a third party (Klipy, another site's images...) see something, say so in the docs.
+- **Privacy policy** (`website/src/legal/privacy.html`, voicaw.com/privacy/; also the terms and
+  `delete-account.html`): every claim matches the code. A change to what's stored, kept for how
+  long, encrypted or not, deleted with an account, or seen by a third party updates it in the
+  same branch, with its date in `website/build.mjs` `LEGAL`.
 - **Database:** anything writing more than one row goes in `db.transaction` (database work only:
   no S3, LiveKit, pushes or socket sends inside). New columns through `addColumn`; one-off data
   changes as the next numbered `MIGRATIONS` entry in `db.js`. Anything writing a guild
@@ -210,8 +214,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   storage and there's one implementation. Distributed as a signed APK from updates.voicaw.com
   (2026-10-03), which updates itself from there, downloading only when asked (2026-10-04; the
   `play` build flavour never does, as Play requires); Google Play planned once the user's developer account is verified (needs a
-  12-tester closed test for 14 days, report/block for user content, a privacy policy and a web
-  account-deletion page first).
+  12-tester closed test for 14 days and report/block for user content first; the privacy
+  policy, terms and account-deletion page are on voicaw.com, 2026-10-05).
 - **Bots** (built 2026-10-03, see `docs/bots.md`): Discord's API, library-compatible (discord.js
   and discord.py work with URL changes), guilds only (never in DMs, group DMs or calls: they're
   end-to-end encrypted, and bots have no keys), no privileged intents, anyone can make
