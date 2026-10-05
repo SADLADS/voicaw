@@ -282,6 +282,7 @@ class Session {
       case 'guild_message_new':
         return this.messageEvent('MESSAGE_CREATE', guildId, event.message.id);
       case 'guild_message_edit':
+      case 'guild_message_embeds':
         return this.messageEvent('MESSAGE_UPDATE', guildId, event.messageId);
       case 'guild_message_delete':
         if (this.wants(INTENTS.GUILD_MESSAGES)) {

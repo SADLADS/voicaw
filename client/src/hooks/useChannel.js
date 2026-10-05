@@ -9,6 +9,7 @@ import {
   markChannelRead,
   fetchChannelPins,
   setChannelMessagePinned,
+  setChannelMessageEmbedsSuppressed,
 } from '../services/guildService';
 
 // Older history is fetched in pages this size as you scroll up.
@@ -222,6 +223,12 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
     applyPin(await setChannelMessagePinned(msg.id, pinned));
   }
 
+  // "Remove previews" (the author, or Manage Messages).
+  async function suppressEmbeds(msg) {
+    const { flags } = await setChannelMessageEmbedsSuppressed(msg.id, true);
+    updateMessage(msg.id, () => ({ flags }));
+  }
+
   // The server doesn't push messages here while this device is looking at the channel.
   useEffect(() => {
     if (!channelId) return undefined;
@@ -256,6 +263,16 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
               ...(event.flags !== undefined ? { flags: event.flags } : {}),
               // A bot's edits (and answers to its buttons) can change its components.
               ...(event.components ? { components: event.components } : {}),
+            }));
+          }
+          break;
+        // Link previews the server made after the message was sent or edited (server/linkPreviews.js),
+        // or "Remove previews".
+        case 'guild_message_embeds':
+          if (event.channelId === id) {
+            updateMessage(event.messageId, () => ({
+              ...(event.link_embeds ? { link_embeds: event.link_embeds } : {}),
+              ...(event.flags !== undefined ? { flags: event.flags } : {}),
             }));
           }
           break;
@@ -318,5 +335,6 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
     pinsVersion,
     loadPins,
     setPinned,
+    suppressEmbeds,
   };
 }

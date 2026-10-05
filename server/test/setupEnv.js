@@ -10,6 +10,8 @@ process.env.MAX_MESSAGE_LENGTH = '5000';
 // The suites register and log in many users from one address (test/rateLimit.test.js
 // turns this back on).
 process.env.DISABLE_RATE_LIMITS = '1';
+// No fetching posted links (test/linkPreviews.test.js turns it on, with a fake fetcher).
+process.env.LINK_PREVIEWS = 'off';
 process.env.S3_ENDPOINT = 'http://localhost:0';
 process.env.S3_ROOT_USER = 'test-root-user';
 process.env.S3_ROOT_PASSWORD = 'test-root-password';

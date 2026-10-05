@@ -137,7 +137,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   chain, noise suppression, voice settings, playback and per-user volume, Watch Together), DM and
   group calls.
 - `docs/group-dms.md`: group DMs (membership log, epochs, signing).
-- `docs/messages.md`: emoji, message markdown, GIFs, YouTube links, polls, mentions, pinned messages, drafts, the
+- `docs/messages.md`: emoji, message markdown, GIFs, YouTube links, link previews, polls, mentions, pinned messages, drafts, the
   message list and history loading.
 - `docs/uploads.md`: the object store, encrypted attachments, video streaming, spoilers, image
   viewer.
@@ -233,6 +233,11 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   hearing is its own permission, Listen (people have it through @everyone, which never gives it
   to a bot; LiveKit enforces it), and listening bots show an ear. A Discord-compatible voice
   bridge was deferred (big: voice websocket, UDP, re-encoding, maybe Discord's DAVE).
+- **Link previews** (built 2026-10-05, see Link previews in `docs/messages.md`): guilds only
+  have page previews, fetched by the server (`safeFetch.js`: public addresses only); encrypted
+  chats never send links to the server, so there only links straight to a picture or video show
+  it, loaded by the reader. Pictures load from the sites (not proxied); Settings → Privacy can
+  hold them back (on by default), Settings → Admin can stop the fetching.
 - **Watch Together** (built 2026-10-04, see `docs/voice-and-calls.md`): YouTube watch parties in
   guild voice channels, the server keeping the queue and the clock in memory, clients following
   it. YouTube's iframe API script is deliberately not loaded (it would run YouTube's code next to

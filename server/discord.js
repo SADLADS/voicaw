@@ -463,7 +463,8 @@ async function messageObjects(rows, { botId = null, guildId = null, references =
       mention_roles: (m.mention_roles ?? []).map(String),
       mention_channels: [],
       attachments: m.attachments ?? [],
-      embeds: m.flags & (1 << 2) ? [] : (m.embeds ?? []),
+      // Its own embeds, then the link previews the server made (linkPreviews.js), as Discord.
+      embeds: m.flags & (1 << 2) ? [] : [...(m.embeds ?? []), ...(m.link_embeds ?? [])],
       reactions: reactionsObject(m.reactions, botId),
       pinned: m.pinned_at != null,
       ...(m.webhook_id ? { webhook_id: id(m.webhook_id) } : {}),

@@ -323,7 +323,7 @@ export function onDmPin(callback) {
 
 // Every guild event, as sent by the server: `{ type: 'guild_add' | 'guild_update' |
 // 'guild_remove' | 'guild_member_add' | 'guild_member_remove' | 'guild_message_new' |
-// 'guild_message_edit' | 'guild_message_delete' | 'guild_reaction_add' |
+// 'guild_message_edit' | 'guild_message_embeds' | 'guild_message_delete' | 'guild_reaction_add' |
 // 'guild_reaction_remove' | 'guild_message_pin' | 'guild_voice_state' | 'guild_mention' |
 // 'guild_channel_mute' | 'guild_channel_notify' | 'guild_thread_update' | 'guild_thread_delete' |
 // 'guild_thread_member', ... }` (see docs/guilds.md).

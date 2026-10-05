@@ -1,4 +1,4 @@
-# Messages: emoji, markdown, GIFs, YouTube links, polls, mentions, pins, drafts, the message list
+# Messages: emoji, markdown, GIFs, YouTube links, link previews, polls, mentions, pins, drafts, the message list
 
 ## Emoji (Discord-style, default Unicode set)
 
@@ -163,6 +163,55 @@ Voice channels can watch YouTube videos together (Watch Together, see Voice chan
 `docs/voice-and-calls.md`).
 The desktop app adds the Referer YouTube requires (`https://app.voicaw.com/`), since its
 `voicaw://` pages send none (`electron/youtube.js`, see `docs/desktop-and-site.md`).
+
+## Link previews
+
+Links in messages get previews, Discord style, worked out differently by whether the chat is
+end-to-end encrypted. Which links count is the same on both sides (`server/linkPreviews.js`
+`linksIn`, `client/src/utils/linkPreviews.js`, tested alike): at most 5 per message, not in code,
+spoilers or a markdown image, and not written as `<https://…>` (the way to keep a link plain).
+YouTube links and guild invites keep their own player and card (`UrlPreviews.jsx`).
+
+- **Guilds** (not encrypted, so the server already has the text): after a message is sent or
+  edited (people's, bots' and webhooks'), the server fetches its links (`linkPreviews.js`
+  `refreshLinkPreviews`, not awaited; an edit that keeps the same links fetches nothing) and
+  keeps Discord-shaped embeds in `guild_messages.link_embeds` (and the links they were made for
+  in `link_urls`), then sends `guild_message_embeds` (bots: MESSAGE_UPDATE, where `embeds` is
+  the message's own followed by these, as in Discord). A page gives its OpenGraph / Twitter
+  card (`embedFromHtml`: site name, title, description cut at 350, `theme-color` as the bar,
+  `og:image` large with `summary_large_image` or a video, else a thumbnail, and an `og:video`
+  that is an MP4/WebM/QuickTime/Ogg file); a link to a picture (`image`, size read from its
+  header with sharp) or a video (`video`) is shown as itself. Fetching (`safeFetch.js`): http(s)
+  on ports 80/443 only, every address checked to be public (no loopback, private, link-local,
+  CGNAT, multicast, IPv4-mapped or NAT64 ones), the check done on the address actually
+  connected to and again on each of up to 5 redirects, 5 s in all, at most 1 MB of a page,
+  256 KB of a picture and nothing of a video; `User-Agent: VoicawBot/1.0`. Results are cached
+  per link in memory (an hour; failures 10 minutes), 4 fetches at a time, 100 waiting at most.
+  Settings → Admin's **Link previews** (`appSettings.js` `linkPreviews`, `LINK_PREVIEWS=off`)
+  turns the fetching off for the whole app. Pictures aren't copied: readers load them straight
+  from the site (no referrer), as with webhook embeds. The previews' text isn't in search.
+- **DMs, group DMs and notes** (encrypted): the server never sees the links, so it makes no
+  previews. A link whose address ends in a picture's or a video's file name (`mediaLinkKind`:
+  png, jpg, gif, webp, avif, bmp; mp4, webm, mov, m4v) shows that file, loaded by the reader's
+  browser from the site; other pages stay plain links (a browser can't read other sites'
+  pages, and asking our server would tell it the link).
+- **Drawing:** `MessageEmbeds` with `links` (after the message's own embeds and files): a page's
+  card (its description plain text, not markdown: it's another site's words), a picture
+  (`LinkMedia.jsx` `SiteImage`: opens in the image viewer, draws nothing if it fails to load)
+  or our video player (`SiteVideo`). Covered in an NSFW channel like other media.
+- **Settings → Privacy's "Show pictures and videos from links straight away"** (`linkPreviews`,
+  per device, on by default): off, other sites' pictures (link previews', links to pictures,
+  webhook and bot embeds' unless they're the message's own files; their small author and
+  footer icons are left out) wait behind Show (`SiteMediaGate.jsx`, "Picture from <site>"),
+  and videos are given nothing to load before Play. A guild card's text still shows: it comes
+  from our server, so no other site learns anything.
+- **Remove Previews** (message menu, phone action sheet; the author, or Manage Messages):
+  `PUT /guild-messages/:id/suppress-embeds` (`{ suppress: false }` undoes it) sets Discord's
+  SUPPRESS_EMBEDS flag, which hides the message's embeds, link previews and YouTube/invite
+  cards for everyone (`guild_message_embeds` with `flags`). Guilds only.
+- **Who sees what:** the sites linked in guilds see our server ask for the page (not who
+  posted it); the sites whose pictures or videos are shown see each reader's IP address, in
+  any chat, unless the setting is off. Checked in `e2e/linkpreviews.mjs`.
 
 ## Polls
 

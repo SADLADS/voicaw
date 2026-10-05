@@ -13,6 +13,7 @@ const { processAvatar, AvatarImageError, MAX_AVATAR_UPLOAD_BYTES } = require('..
 const { createLimiter } = require('../rateLimit');
 const { MESSAGE_SELECT, withReactions, logMessageDelete } = require('./guildMessages');
 const { logAudit, diff } = require('../auditLog');
+const { refreshLinkPreviews } = require('../linkPreviews');
 
 // Webhooks, with Discord's API (https://discord.com/developers/docs/resources/webhook), so
 // anything that posts to a Discord webhook URL can post to ours by swapping the start of the
@@ -545,7 +546,7 @@ async function discordMessage(row) {
     channel_id: String(row.channel_id),
     author: { id: String(row.webhook_id), username: row.webhook_name, avatar: null, discriminator: '0000', global_name: null, bot: true },
     attachments: row.attachments,
-    embeds: row.flags & FLAGS.SUPPRESS_EMBEDS ? [] : row.embeds,
+    embeds: row.flags & FLAGS.SUPPRESS_EMBEDS ? [] : [...row.embeds, ...row.link_embeds],
     mentions: mentioned.map((u) => ({ id: String(u.id), username: u.username, global_name: u.display_name ?? null })),
     mention_roles: row.mention_roles.map(String),
     mention_everyone: Boolean(row.mention_everyone),
@@ -607,6 +608,7 @@ router.post('/webhooks/:webhookId/:token', byToken, parseBody, handle(async (req
   await sendToChannel(channel, { type: 'guild_message_new', guildId: channel.guild_id, message });
   notifyNewMessage(message, channel, mentions, { silent: Boolean(flags & FLAGS.SUPPRESS_NOTIFICATIONS) })
     .catch((err) => console.error('Guild push failed:', err.message));
+  refreshLinkPreviews(id);
 
   if (['true', '1'].includes(String(req.query.wait).toLowerCase())) return res.json(await discordMessage(message));
   res.status(204).end();
@@ -667,6 +669,7 @@ router.patch('/webhooks/:webhookId/:token/messages/:messageId', byToken, ownMess
     mention_everyone: message.mention_everyone,
     mention_roles: message.mention_roles,
   });
+  refreshLinkPreviews(message.id);
   res.json(await discordMessage(message));
 }));
 

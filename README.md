@@ -74,6 +74,10 @@ KLIPY_API_KEY=...
 # accounts wait for an admin's approval). Optional; an admin can change it in Settings → Admin.
 # SIGNUP_MODE=open
 
+# Link previews in guilds: the server fetches links posted there (public addresses only).
+# Optional, on by default; off here or in Settings → Admin.
+# LINK_PREVIEWS=off
+
 # The Android app's notifications (step 10): a Firebase service account's JSON key. Optional:
 # without it the app only notifies while it's open.
 # FCM_SERVICE_ACCOUNT=/path/to/fcm-service-account.json
