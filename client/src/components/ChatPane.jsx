@@ -22,6 +22,7 @@ import { handleInteractionResult, runCommand } from '../services/interactionServ
 import { interactionError } from '../utils/commandOptions';
 import { t } from '../i18n';
 import { flashRow } from '../utils/flashRow';
+import { SUPPRESS_EMBEDS } from '../utils/linkPreviews';
 import { clearTyping } from '../utils/typing';
 import { endPoll, parsePoll, pollEnded, pollMarkup } from '../utils/pollMarkup';
 import { endPollOnServer, registerPollTimer } from '../services/pollService';
@@ -284,6 +285,21 @@ export default function ChatPane({
     }
   }
 
+  // "Remove previews" on a guild message (useChannel), for its author or a moderator, while it has some.
+  function removePreviewsFor(msg) {
+    if (!conversation.suppressEmbeds || msg.flags & SUPPRESS_EMBEDS) return undefined;
+    if (msg.sender_id !== user.id && !canModerate) return undefined;
+    if (!msg.link_embeds?.length && !msg.embeds?.length) return undefined;
+    return async () => {
+      try {
+        await conversation.suppressEmbeds(msg);
+      } catch (err) {
+        console.error('Failed to remove previews', err);
+        setComposerError(err.response?.data?.error || t('chat.pane.removePreviewsFailed'));
+      }
+    };
+  }
+
   // Scrolls the chat to message `id` (loading older history until it's there) and flashes it.
   async function jumpToMessage(id) {
     if (isMobile) onClosePins?.();
@@ -456,6 +472,7 @@ export default function ChatPane({
           onTogglePin={canPin ? () => togglePin(actionsFor) : undefined}
           onCreateThread={threadFrom(actionsFor)}
           onCopy={() => copyMessage(actionsFor)}
+          onRemovePreviews={removePreviewsFor(actionsFor)}
           apps={appsFor(actionsFor)}
           onRunApp={(command) => runMessageApp(command, actionsFor)}
           onDelete={() => handleDelete(actionsFor)}
@@ -478,6 +495,7 @@ export default function ChatPane({
           onTogglePin={canPin ? () => togglePin(menuMsg) : undefined}
           onCreateThread={threadFrom(menuMsg)}
           onCopy={() => copyText(menuMsg)}
+          onRemovePreviews={removePreviewsFor(menuMsg)}
           apps={appsFor(menuMsg)}
           onRunApp={(command) => runMessageApp(command, menuMsg)}
           onDelete={(event) => requestDelete(menuMsg, event)}

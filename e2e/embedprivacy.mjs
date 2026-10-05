@@ -77,9 +77,11 @@ try {
   await shot(b, 'placeholders');
   console.log(`private: placeholders only (GIF box ${layout.gif.map(Math.round).join('×')}), nothing asked of YouTube or Klipy`);
 
-  // Play loads the player (autoplaying); Show loads the GIF.
+  // Play loads the player (autoplaying; on a phone, full screen); Show loads the GIF.
   await b.click('button[aria-label="Play YouTube video"]');
-  await b.waitForSelector('.youtube-wrapper iframe[src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1"]');
+  await b.waitForSelector('[role="dialog"] iframe[src^="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1"]');
+  await b.keyboard.press('Escape');
+  await b.waitForSelector('[role="dialog"] iframe', { state: 'detached' });
   await b.click('button[aria-label="Show GIF"]');
   await b.waitForSelector('img.attachment-media[src*="static.klipy.com"]');
   await b.waitForTimeout(500);

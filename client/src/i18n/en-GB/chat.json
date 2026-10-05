@@ -17,6 +17,7 @@
       "pollTooLong": "The poll is too long.",
       "pollTimerFailed": "The poll was sent, but its result won't be announced when it closes.",
       "pinFailed": "Couldn't pin the message.",
+      "removePreviewsFailed": "Couldn't remove the previews.",
       "unpinFailed": "Couldn't unpin the message.",
       "jumpFailed": "Couldn't find that message in the chat."
     },
@@ -116,11 +117,13 @@
       "unpin": "Unpin Message",
       "createThread": "Create Thread",
       "copyText": "Copy Text",
+      "removePreviews": "Remove Previews",
       "delete": "Delete Message",
       "pinSheet": "Pin message",
       "unpinSheet": "Unpin message",
       "createThreadSheet": "Create thread",
       "copyTextSheet": "Copy text",
+      "removePreviewsSheet": "Remove previews",
       "confirmDelete": "Delete this message? This can't be undone."
     },
     "pins": {

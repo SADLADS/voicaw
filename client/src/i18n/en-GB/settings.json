@@ -48,7 +48,7 @@
       },
       "privacy": {
         "title": "Privacy",
-        "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy"
+        "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy link links website websites image images picture pictures"
       },
       "content": {
         "title": "Content",
@@ -337,6 +337,10 @@
       "youtube": {
         "label": "Show YouTube videos straight away",
         "hint": "A YouTube link in a message gets a player. Loading it tells YouTube your IP address and which video you were sent, even if you never play it. Turn this off and the player waits until you tap Play; nothing comes from YouTube before then. Saved on this device."
+      },
+      "linkPreviews": {
+        "label": "Show pictures and videos from links straight away",
+        "hint": "A link in a message can show a preview: in guilds, the Voicaw server fetches the page and shows its title, description and picture; in any chat, a link straight to a picture or a video shows it. Pictures and videos load from the site they're on, which sees your IP address and what you were sent. Turn this off and each waits until you tap Show (or Play); a guild preview's text still shows, since it comes from the Voicaw server. Previews are never made for DMs and group DMs on the server, which never sees their links. Saved on this device."
       },
       "gifs": {
         "label": "Show GIFs straight away",

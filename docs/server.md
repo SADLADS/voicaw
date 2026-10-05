@@ -39,6 +39,9 @@ unexpected errors. The rest:
 - `callLog.js`: a call's row in its chat's history once it ends (see Calls in the chat history, under DM calls).
 - `groupDms.js`: group DMs (membership log checks, epochs, summaries; see Group DMs).
 - `appSettings.js`: app-wide settings a global admin edits (see Admin settings).
+- `linkPreviews.js` and `safeFetch.js`: link previews in guild messages, and fetching links
+  without reaching anything that isn't on the public internet (see Link previews in
+  `docs/messages.md`).
 - `signups.js`: who can sign up, app invites, accounts waiting for approval (see Sign-ups in
   `docs/auth-and-encryption.md`).
 - `bots.js`: bot applications and their bot users, tokens, adding bots to guilds (their own
@@ -91,6 +94,9 @@ directly); without them voice is just off. `FCM_SERVICE_ACCOUNT` (a Firebase ser
 JSON key file) lets the Android app be notified while closed (`fcm.js`, see Android app in
 `docs/desktop-and-site.md`). `KLIPY_API_KEY` turns on GIFs (also settable in
 Settings → Admin, see Admin settings), and `SIGNUP_MODE` who can sign up (`open`, `invite`,
-`request`; also in Settings → Admin, see Sign-ups in `docs/auth-and-encryption.md`). `README.md` "Initial setup" has the whole list. VAPID keys are generated
+`request`; also in Settings → Admin, see Sign-ups in `docs/auth-and-encryption.md`), and
+`LINK_PREVIEWS=off` stops the server fetching links for previews (also in Settings → Admin).
+`LINK_PREVIEWS_ALLOW_PRIVATE=1` lets it fetch private addresses and other ports: tests and the
+e2e harness only, never on a real server. `README.md` "Initial setup" has the whole list. VAPID keys are generated
 via `webpush.generateVAPIDKeys()` (see root `README.md`). `S3_*` vars point at an S3-compatible
 object store (e.g. MinIO) used for uploads and profile pics.

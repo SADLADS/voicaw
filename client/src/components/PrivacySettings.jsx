@@ -47,6 +47,17 @@ export default function PrivacySettings() {
       <label className="settings-toggle">
         <input
           type="checkbox"
+          checked={prefs.linkPreviews}
+          onChange={(e) => setPrivacyPref('linkPreviews', e.target.checked)}
+        />
+        {' '}{t('settings.privacy.linkPreviews.label')}
+      </label>
+      <p className="vc-hint">
+        {t('settings.privacy.linkPreviews.hint')}
+      </p>
+      <label className="settings-toggle">
+        <input
+          type="checkbox"
           checked={prefs.gifs}
           onChange={(e) => setPrivacyPref('gifs', e.target.checked)}
         />

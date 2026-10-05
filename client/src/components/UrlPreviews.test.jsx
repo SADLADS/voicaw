@@ -48,6 +48,48 @@ describe('UrlPreviews', () => {
     expect(container.querySelector('iframe')).toHaveAttribute('src', 'https://www.youtube-nocookie.com/embed/abcdefghijk');
   });
 
+  it('leaves links in code, spoilers and <…> alone', () => {
+    const { container } = render(<UrlPreviews text={'`https://youtu.be/abcdefghijk` <https://youtu.be/abcdefghijk> ||https://youtu.be/abcdefghijk||'} />);
+    expect(container.querySelector('iframe')).toBeNull();
+  });
+
+  describe('links straight to pictures and videos', () => {
+    it('shows them in encrypted chats, from the site, without a referrer', () => {
+      const { container } = render(<UrlPreviews encrypted text="https://example.com/cat.png?x=1 and https://example.com/clip.mp4 and https://example.com/page" />);
+      const img = container.querySelector('img');
+      expect(img).toHaveAttribute('src', 'https://example.com/cat.png?x=1');
+      expect(img).toHaveAttribute('referrerpolicy', 'no-referrer');
+      expect(img).toHaveAttribute('alt', 'cat.png');
+      expect(container.querySelector('video')).toHaveAttribute('src', 'https://example.com/clip.mp4');
+      expect(container.querySelectorAll('img, video')).toHaveLength(2);
+    });
+
+    it("leaves them to the server's link previews in guilds", () => {
+      const { container } = render(<UrlPreviews text="https://example.com/cat.png" />);
+      expect(container.querySelector('img')).toBeNull();
+    });
+
+    it('drops a picture that fails to load', () => {
+      const { container } = render(<UrlPreviews encrypted text="https://example.com/gone.png" />);
+      fireEvent.error(container.querySelector('img'));
+      expect(container.querySelector('img')).toBeNull();
+    });
+
+    it('waits for Show (or Play) when Settings → Privacy says so', () => {
+      setPrivacyPref('linkPreviews', false);
+      try {
+        const { container } = render(<UrlPreviews encrypted text="https://example.com/cat.png https://example.com/clip.mp4" />);
+        expect(container.querySelector('img')).toBeNull();
+        expect(container.querySelector('video')?.getAttribute('src') ?? null).toBeNull();
+        expect(screen.getByText('Picture from example.com')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Show picture from example.com' }));
+        expect(container.querySelector('img')).toHaveAttribute('src', 'https://example.com/cat.png');
+      } finally {
+        setPrivacyPref('linkPreviews', true);
+      }
+    });
+  });
+
   describe('on a phone', () => {
     const onPhone = (ui) => render(<InteractionContext.Provider value={{ isMobile: true }}>{ui}</InteractionContext.Provider>);
     const player = () => document.querySelector('[role="dialog"] iframe');

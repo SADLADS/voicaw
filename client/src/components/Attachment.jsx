@@ -317,16 +317,17 @@ function GifView({ src, name, width, height }) {
   );
 }
 
-// Another site's image (a GIF, a plain link), covered in an NSFW channel.
-function ExternalImage({ src, item, style }) {
+// Another site's image (a GIF, a plain link, a link preview's: LinkMedia), covered in an NSFW
+// channel. `onError`: it didn't load.
+export function ExternalImage({ src, item, style, onError }) {
   const cover = useMediaCover();
   return (
     <MediaCover
       label={cover}
       name={item.name}
-      placeholder={<img className="attachment-media" style={style} src={src} alt="" referrerPolicy="no-referrer" />}
+      placeholder={<img className="attachment-media" style={style} src={src} alt="" referrerPolicy="no-referrer" onError={onError} />}
     >
-      <ViewableImage src={src} item={item} style={style} external />
+      <ViewableImage src={src} item={item} style={style} onError={onError} external />
     </MediaCover>
   );
 }

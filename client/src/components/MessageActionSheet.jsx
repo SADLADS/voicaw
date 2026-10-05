@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faComments, faCopy, faEdit, faReply, faRobot, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faCopy, faEdit, faLinkSlash, faReply, faRobot, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { quickReactions } from '../emoji/quickReactions';
@@ -8,7 +8,8 @@ import { displayName } from '../utils/profiles';
 import { t } from '../i18n';
 
 // Mobile: what a long press on a message opens (in place of the desktop hover menu). A row of
-// quick reactions (plus the full picker), then Reply / Edit / Pin (or Unpin) / Create thread / Copy text / Delete. Actions the
+// quick reactions (plus the full picker), then Reply / Edit / Pin (or Unpin) / Create thread / Copy text /
+// Remove previews (`onRemovePreviews`, when you may) / Delete. Actions the
 // message doesn't allow are left out: nothing but copying for one still sending or failed,
 // and editing only your own (deleting: your own, or `canDelete`, e.g. a guild's owner; pinning:
 // `onTogglePin`, when you may).
@@ -27,6 +28,7 @@ export default function MessageActionSheet({
   onTogglePin,
   onCreateThread,
   onCopy,
+  onRemovePreviews,
   onDelete,
   apps = [],
   onRunApp,
@@ -130,6 +132,11 @@ export default function MessageActionSheet({
             {msg.plaintext && (
               <button type="button" className="action-sheet-item" onClick={act(onCopy)}>
                 <FontAwesomeIcon icon={faCopy} /> {t('chat.messageMenu.copyTextSheet')}
+              </button>
+            )}
+            {sent && onRemovePreviews && (
+              <button type="button" className="action-sheet-item" onClick={act(onRemovePreviews)}>
+                <FontAwesomeIcon icon={faLinkSlash} /> {t('chat.messageMenu.removePreviewsSheet')}
               </button>
             )}
             {sent && apps.length > 0 && (

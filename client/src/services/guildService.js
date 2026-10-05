@@ -160,6 +160,12 @@ export async function setChannelMessagePinned(messageId, pinned) {
   return (await api[pinned ? 'put' : 'delete'](`/guild-messages/${messageId}/pin`)).data;
 }
 
+// Discord's SUPPRESS_EMBEDS: hides (or, with `suppress` false, shows again) a message's
+// previews. Resolves to { messageId, flags }.
+export async function setChannelMessageEmbedsSuppressed(messageId, suppress) {
+  return (await api.put(`/guild-messages/${messageId}/suppress-embeds`, { suppress })).data;
+}
+
 export async function addGuildReaction(messageId, emoji) {
   return (await api.post(`/guild-messages/${messageId}/reactions`, { emoji })).data;
 }

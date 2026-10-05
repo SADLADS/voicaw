@@ -20,6 +20,14 @@ const SETTINGS = {
     choices: ['open', 'invite', 'request'],
     fallback: 'open',
   },
+  // linkPreviews.js
+  linkPreviews: {
+    env: 'LINK_PREVIEWS',
+    label: 'Link previews',
+    description: 'Whether the server fetches links posted in guilds to show a preview of the page, picture or video under the message, as Discord does (the sites see this server asking). Never in DMs or group DMs.',
+    choices: ['on', 'off'],
+    fallback: 'on',
+  },
 };
 
 const MAX_VALUE_LENGTH = 2000;

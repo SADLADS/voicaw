@@ -62,6 +62,8 @@ Object.assign(process.env, {
   PORT: process.env.E2E_API_PORT || '3099',
   DB_PATH: ':memory:',
   DISABLE_RATE_LIMITS: '1',
+  // Link previews may fetch this machine (e2e/linkpreviews.mjs's stand-in website). Never on a real server.
+  LINK_PREVIEWS_ALLOW_PRIVATE: '1',
   JWT_SECRET: 'e2e-only-secret',
   OPAQUE_SERVER_SETUP: opaque.server.createSetup(),
   S3_ENDPOINT: s3Endpoint,

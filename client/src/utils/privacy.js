@@ -14,9 +14,13 @@ import { useSyncExternalStore } from 'react';
 // `gifs`: GIFs in messages and the GIF picker's previews load from Klipy at once (on by
 // default), which tells Klipy your IP address and which GIFs you see; turned off, each GIF in a
 // message waits for a tap on Show, and the picker asks first.
+// `linkPreviews`: pictures and videos from other sites in link previews (and links straight to
+// a picture or a video, in any chat) load at once (on by default), which tells those sites your
+// IP address and what you were sent; turned off, each waits for a tap on Show. A guild preview's
+// text comes from our server, so it shows either way (see docs/messages.md, Link previews).
 
 const STORAGE_KEY = 'privacy';
-const DEFAULTS = { inviteEmbedsInEncrypted: true, sendTyping: true, youtubeEmbeds: true, gifs: true };
+const DEFAULTS = { inviteEmbedsInEncrypted: true, sendTyping: true, youtubeEmbeds: true, gifs: true, linkPreviews: true };
 const listeners = new Set();
 
 function load() {

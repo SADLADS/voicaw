@@ -14,6 +14,7 @@ const { logAudit } = require('../auditLog');
 const { parseDuration, listMutes, setMute, CHANNEL_NOTIFY_LEVELS, listChannelLevels, setChannelLevel } = require('../channelMutes');
 const { sendToUserSockets } = require('../sockets');
 const { ActionError, withActionErrors } = require('../actionError');
+const { refreshLinkPreviews } = require('../linkPreviews');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
 // same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
@@ -32,7 +33,7 @@ const MESSAGE_SELECT = `
     m.id, m.channel_id, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
     m.mention_everyone, m.mention_roles, m.pinned_at, m.pinned_by, m.system, m.document_id,
     m.webhook_id, m.webhook_name, m.webhook_avatar, m.embeds, m.attachments, m.flags, m.edited_at,
-    m.components, m.interaction,
+    m.components, m.interaction, m.link_embeds,
     COALESCE(u.username, m.webhook_name) AS sender_username,
     u.display_name AS sender_display_name,
     u.avatar AS sender_avatar,
@@ -64,6 +65,7 @@ async function withReactions(messages) {
     ...m,
     mention_roles: parseRoleIds(m.mention_roles),
     embeds: parseJsonList(m.embeds),
+    link_embeds: parseJsonList(m.link_embeds),
     attachments: parseJsonList(m.attachments),
     components: parseJsonList(m.components),
     interaction: parseJsonObject(m.interaction),
@@ -259,6 +261,7 @@ async function createMessage({
   await sendToChannel(channel, { type: 'guild_message_new', guildId: channel.guild_id, message });
   if (channel.type === 'thread') await threads.announceThread(channel.id, { joinedIds });
   notifyNewMessage(message, channel, mentions, { silent }).catch((err) => console.error('Guild push failed:', err.message));
+  refreshLinkPreviews(message.id);
   return message;
 }
 
@@ -288,7 +291,29 @@ router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async 
     mention_everyone: saved.mention_everyone,
     mention_roles: parseRoleIds(saved.mention_roles),
   });
+  refreshLinkPreviews(req.message.id);
   res.json({ success: true, messageId: req.message.id, content });
+});
+
+// Discord's SUPPRESS_EMBEDS: "Remove previews" hides a message's embeds and link previews
+// (`suppress: false` shows them again). Its author, or anyone with Manage Messages there.
+const SUPPRESS_EMBEDS = 1 << 2;
+router.put('/guild-messages/:messageId/suppress-embeds', authenticateJWT, requireMessage, async (req, res) => {
+  if (req.message.sender_id !== req.user.id && !has(req.permissions, PERMISSIONS.MANAGE_MESSAGES)) return forbidden(res);
+  const suppress = req.body?.suppress !== false;
+  const { flags: old } = await db.get('SELECT flags FROM guild_messages WHERE id = ?', [req.message.id]);
+  const flags = suppress ? old | SUPPRESS_EMBEDS : old & ~SUPPRESS_EMBEDS;
+  if (flags !== old) {
+    await db.run('UPDATE guild_messages SET flags = ? WHERE id = ?', [flags, req.message.id]);
+    await sendToChannel(req.channel, {
+      type: 'guild_message_embeds',
+      guildId: req.channel.guild_id,
+      channelId: req.channel.id,
+      messageId: req.message.id,
+      flags,
+    });
+  }
+  res.json({ success: true, messageId: req.message.id, flags });
 });
 
 // The audit log entry for a message being deleted (by `actorId`, or its own webhook `webhookId`).

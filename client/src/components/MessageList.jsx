@@ -9,6 +9,7 @@ import { faEdit, faTrash, faReply, faFaceSmile, faThumbtack } from '@fortawesome
 import Attachment from './Attachment';
 import MessageReactions from './MessageReactions';
 import UrlPreviews from './UrlPreviews';
+import { drawnByApp, SUPPRESS_EMBEDS } from '../utils/linkPreviews';
 import MessageEmbeds from './MessageEmbeds';
 import MessageFiles from './MessageFiles';
 import MessageComponents from './MessageComponents';
@@ -205,22 +206,26 @@ const MessageMarkdown = memo(function MessageMarkdown({ text, localAttachments, 
   );
 });
 
-// A webhook's or a bot's embeds (unless it asked for Discord's SUPPRESS_EMBEDS) and files;
-// people's messages have none. Markdown in embeds is drawn like the message's own text.
+// A webhook's or a bot's embeds and files (people's messages have none), then the link
+// previews the server made in a guild (server/linkPreviews.js; not those for links UrlPreviews
+// draws itself), unless Discord's SUPPRESS_EMBEDS is set ("Remove previews", or a webhook or
+// bot asked). Markdown in embeds is drawn like the message's own text.
 // Memoised like MessageMarkdown: an embed can hold a dozen bits of markdown.
-const EmbedParts = memo(function EmbedParts({ embeds: sent, attachments, flags, rehypePlugins, mentions }) {
-  if (!sent?.length && !attachments?.length) return null;
+const EmbedParts = memo(function EmbedParts({ embeds: sent, linkEmbeds, attachments, flags, rehypePlugins, mentions }) {
+  if (!sent?.length && !attachments?.length && !linkEmbeds?.length) return null;
   const renderMarkdown = (text) => (
     <MentionContext.Provider value={mentions}>
       <MarkdownBody text={text} rehypePlugins={rehypePlugins} />
     </MentionContext.Provider>
   );
-  const embeds = flags & 4 ? [] : sent ?? [];
+  const embeds = flags & SUPPRESS_EMBEDS ? [] : sent ?? [];
+  const previews = flags & SUPPRESS_EMBEDS ? [] : (linkEmbeds ?? []).filter((e) => !drawnByApp(e.url));
   return (
     <>
-      <MessageEmbeds embeds={embeds} renderMarkdown={renderMarkdown} />
+      <MessageEmbeds embeds={embeds} renderMarkdown={renderMarkdown} ownUrls={attachments?.map((a) => a.url)} />
       {/* Files an embed shows (attachment://…) aren't shown again, as in Discord. */}
       <MessageFiles attachments={attachments} shownElsewhere={embeds.flatMap((e) => [e.image?.url, e.thumbnail?.url])} />
+      <MessageEmbeds embeds={previews} links />
     </>
   );
 });
@@ -252,7 +257,7 @@ export const DocumentMarkdown = memo(function DocumentMarkdown({ text, user, s3E
 
 // What MessageMarkdown and EmbedParts take from a message (only what they draw, so memo works).
 const markdownProps = (msg) => ({ text: msg.plaintext, localAttachments: msg.localAttachments });
-const embedProps = (msg) => ({ embeds: msg.embeds, attachments: msg.attachments, flags: msg.flags });
+const embedProps = (msg) => ({ embeds: msg.embeds, linkEmbeds: msg.link_embeds, attachments: msg.attachments, flags: msg.flags });
 
 // A message's content on its own, outside the chat (the pinned messages list): as in the chat,
 // without the menu, editor or reactions.
@@ -558,7 +563,7 @@ export function MessageRow({
           <EmbedParts {...embedProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
           <MessageComponents messageId={msg.id} channelId={msg.channel_id} components={msg.components} names={reactionNames} roles={mentionRoles} />
 
-          {!poll && <UrlPreviews text={msg.plaintext} encrypted={encrypted} />}
+          {!poll && !(msg.flags & SUPPRESS_EMBEDS) && <UrlPreviews text={msg.plaintext} encrypted={encrypted} />}
         </div>
 
         {msg.thread && msg.system == null && <ThreadSummary thread={msg.thread} />}

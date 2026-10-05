@@ -84,6 +84,7 @@ async function saveEdit(messageId, channel, senderId, permissions, edit) {
     mention_everyone: row.mention_everyone,
     mention_roles: row.mention_roles,
   });
+  require('./linkPreviews').refreshLinkPreviews(row.id);
   return row;
 }
 

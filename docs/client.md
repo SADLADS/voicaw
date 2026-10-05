@@ -115,7 +115,9 @@
   `inviteEmbedsInEncrypted`, invite cards in DMs and group DMs load without Show (see
   docs/guilds.md, Invite embeds); `sendTyping`; `youtubeEmbeds`, YouTube players load without
   Play (see docs/messages.md, YouTube links); `gifs`, GIFs load without Show and the GIF picker
-  doesn't warn first (see docs/messages.md, GIFs). New privacy trade-offs go here.
+  doesn't warn first (see docs/messages.md, GIFs); `linkPreviews`, other sites' pictures and
+  videos in link previews and embeds load without Show / Play (see docs/messages.md, Link
+  previews). New privacy trade-offs go here.
 - Dates and times all go through `utils/dateFormat.js` (`formatDate`, `formatTime`,
   `formatDateTime`; components call `useDateFormat()` so they redraw): Settings → Date & time
   picks the date format (automatic from the browser, DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD) and

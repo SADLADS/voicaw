@@ -602,6 +602,11 @@ addColumn('ALTER TABLE guild_messages ADD COLUMN embeds TEXT');
 addColumn('ALTER TABLE guild_messages ADD COLUMN attachments TEXT');
 addColumn('ALTER TABLE guild_messages ADD COLUMN flags INTEGER NOT NULL DEFAULT 0');
 addColumn('ALTER TABLE guild_messages ADD COLUMN edited_at INTEGER');
+// Link previews (linkPreviews.js): the embeds the server made for the message's links (JSON,
+// Discord's shapes) and which links they were made for (JSON), so an edit that keeps the links
+// fetches nothing.
+addColumn('ALTER TABLE guild_messages ADD COLUMN link_embeds TEXT');
+addColumn('ALTER TABLE guild_messages ADD COLUMN link_urls TEXT');
 
 // GUILD AUDIT LOG (auditLog.js): who did what in a guild, and when. `actor_id` is the user
 // (null when a webhook acted with its token: `actor_webhook_id`); `target_type`/`target_id`

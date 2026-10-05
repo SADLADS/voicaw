@@ -13,5 +13,6 @@ export function reservedBoxStyle(width, height) {
 // The same for a video, which always needs a box (its player draws over it): 16:9 until
 // its size is known.
 export function mediaBoxStyle(width, height) {
-  return reservedBoxStyle(width, height) ?? reservedBoxStyle(16, 9);
+  // (Full width: reservedBoxStyle never scales up, so 16×9 itself would be a 16 px box.)
+  return reservedBoxStyle(width, height) ?? reservedBoxStyle(MAX_MEDIA_WIDTH, (MAX_MEDIA_WIDTH * 9) / 16);
 }
