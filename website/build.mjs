@@ -252,10 +252,10 @@ export const LEGAL = [
 // Who runs Voicaw and how to reach them, as the policies say it. Unset, a page shows
 // "[… not set]" and the build warns, so it can't go out unnoticed without them.
 export const LEGAL_FACTS = {
-  OPERATOR: '',
-  CONTACT_EMAIL: '',
-  GOVERNING_LAW: '',
-  MINIMUM_AGE: '',
+  OPERATOR: 'The Voicaw Team',
+  CONTACT_EMAIL: 'voicaw@proton.me',
+  GOVERNING_LAW: 'Jersey',
+  MINIMUM_AGE: '13',
 };
 
 function legalFacts() {

@@ -85,6 +85,11 @@ describe('voicaw.com policies', () => {
       for (const other of LEGAL) expect(page.html).toContain(`href="/${other.slug}/"`);
     }
     expect(pages[2].html).toContain('Settings → My Account → Delete Account');
+    // Who runs it and how to reach them are filled in: nothing shows as "not set".
+    for (const page of pages) expect(page.html).not.toContain('not set]');
+    expect(pages[0].html).toContain('<a href="mailto:voicaw@proton.me">voicaw@proton.me</a>');
+    expect(pages[1].html).toContain('the law of Jersey');
+    expect(pages[1].html).toContain('at least 13');
     const home = renderPage({}, null);
     expect(home).toContain('href="/privacy/"');
     expect(home).toContain('href="/terms/"');
