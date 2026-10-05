@@ -137,7 +137,9 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   the original and send `guild_emojis_update`. Not an image: the emoji is dropped (400).
   Unfinished uploads (and their originals) are cleared after an hour. Limits: 200 per guild,
   PNG/GIF/WebP/JPEG/AVIF, names 2–32 of `[A-Za-z0-9_]`, unique per guild. Manage Emoji (`MANAGE_EMOJIS`) adds, renames and deletes; members of a guild can use
-  its emoji anywhere. The client keeps them in `useGuildList` (`emojis`), and `Layout` provides
+  its emoji anywhere. The client keeps them in `useGuildList` (`emojis`: all of them fetched at
+  login, again when a guild new to the list is added, as on joining one, and after the websocket
+  reconnects; `guild_emojis_update` in between), and `Layout` provides
   `CustomEmojiContext` (`emoji/customEmojiContext.js`: by guild in rail order, and by id).
 - **Channel and category menus** (like Discord's): right-click a channel or category in the
   channel list, or touch and hold on a phone (where there are no cog buttons: the menu is the

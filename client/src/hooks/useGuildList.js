@@ -76,8 +76,25 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
     }
   }, []);
 
+  // Every guild's custom emoji.
+  const loadEmojis = useCallback(async () => {
+    try {
+      const list = await fetchAllEmojis();
+      const byGuild = {};
+      for (const emoji of list) (byGuild[emoji.guild_id] ??= []).push(emoji);
+      setEmojis(byGuild);
+    } catch (err) {
+      console.warn('Failed to load custom emoji', err);
+    }
+  }, []);
+
+  const guildsRef = useRef(guilds);
+  guildsRef.current = guilds;
+
   const upsertGuild = useCallback((guild) => {
     const summary = summaryOf(guild);
+    // A guild just joined: its emoji weren't in the list loaded at login.
+    if (!guildsRef.current.some((g) => g.id === guild.id)) loadEmojis();
     setGuilds((prev) => (prev.some((g) => g.id === guild.id)
       ? prev.map((g) => (g.id === guild.id ? summary : g))
       : [...prev, summary]));
@@ -85,7 +102,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
       setLayouts((prev) => ({ ...prev, [guild.id]: guild }));
       setVoice((prev) => ({ ...prev, [guild.id]: voiceOfLayout(guild) }));
     }
-  }, []);
+  }, [loadEmojis]);
 
   const removeGuild = useCallback((guildId) => {
     setGuilds((prev) => prev.filter((g) => g.id !== guildId));
@@ -148,19 +165,20 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
     setVoice(Object.fromEntries(list.map((g) => [g.id, g.voice ?? {}])));
   }, []);
 
-  // Mutes changed on another device, and voice joins and leaves, while this one was offline are
-  // caught up on.
+  // Mutes changed on another device, voice joins and leaves, and emoji added or removed, while
+  // this one was offline are caught up on.
   useEffect(() => {
     if (!userId) return undefined;
     let wasOnline = true;
     return onConnectionState((state) => {
       if (state === 'online' && !wasOnline) {
         loadMutes();
+        loadEmojis();
         loadList().catch((err) => console.warn('Failed to load guilds', err));
       }
       wasOnline = state === 'online';
     });
-  }, [userId, loadMutes, loadList]);
+  }, [userId, loadMutes, loadEmojis, loadList]);
 
   // A mute that runs out is dropped then.
   useEffect(() => {
@@ -197,18 +215,11 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
     })();
     refreshUnread();
     loadMutes();
-    fetchAllEmojis()
-      .then((list) => {
-        if (cancelled) return;
-        const byGuild = {};
-        for (const emoji of list) (byGuild[emoji.guild_id] ??= []).push(emoji);
-        setEmojis(byGuild);
-      })
-      .catch((err) => console.warn('Failed to load custom emoji', err));
+    loadEmojis();
     return () => {
       cancelled = true;
     };
-  }, [userId, refreshUnread, loadMutes, loadList]);
+  }, [userId, refreshUnread, loadMutes, loadEmojis, loadList]);
 
   // Puts the guilds in `guildIds` order (any not listed keep their place at the end).
   const applyOrder = useCallback((guildIds) => {

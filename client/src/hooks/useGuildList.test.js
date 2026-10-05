@@ -24,6 +24,7 @@ vi.mock('../services/guildService', () => ({
 }));
 
 import { useGuildList } from './useGuildList';
+import { fetchAllEmojis } from '../services/guildService';
 
 const voiceState = (guildId, channelId, userId, joined = true) => ({
   type: 'guild_voice_state', guildId, channelId, userId, state: joined ? { user_id: userId } : null,
@@ -52,5 +53,23 @@ describe('useGuildList guildVoice', () => {
       guild: { id: 6, name: 'Beta', owner: 2, icon_version: 0, categories: [], channels: [{ id: 61, type: 'voice', voice: [{ user_id: 3 }] }] },
     }));
     expect(result.current.guildVoice).toEqual({ 6: 'others' });
+  });
+});
+
+describe('useGuildList emojis', () => {
+  it("loads a guild's emoji when you join it", async () => {
+    const { result } = renderHook(() => useGuildList({ userId: 1, activeChannelId: null }));
+    await waitFor(() => expect(result.current.guilds).toHaveLength(2));
+    expect(result.current.emojis).toEqual({});
+
+    const emoji = { id: 70, guild_id: 7, name: 'wave', animated: 0 };
+    fetchAllEmojis.mockResolvedValueOnce([emoji]);
+    act(() => emit({ type: 'guild_add', guild: { id: 7, name: 'Gamma', owner: 3, icon_version: 0 } }));
+    await waitFor(() => expect(result.current.emojis).toEqual({ 7: [emoji] }));
+
+    // A guild already in the list (opening it, guild_update) doesn't fetch them again.
+    const calls = fetchAllEmojis.mock.calls.length;
+    act(() => emit({ type: 'guild_update', guild: { id: 7, name: 'Gamma 2', owner: 3, icon_version: 0 } }));
+    expect(fetchAllEmojis).toHaveBeenCalledTimes(calls);
   });
 });
