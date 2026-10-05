@@ -57,12 +57,29 @@ function useNearbyObserver(rootRef, ready) {
   return observer;
 }
 
+// An emoji <img> that stays invisible until its picture has loaded, and if it fails: browsers
+// draw a broken-image icon and the alt text meanwhile, which flashed across the picker.
+// Transparent rather than hidden, so screen readers still read the alt text.
+function LoadingImage({ src, imgRef, ...props }) {
+  const [loaded, setLoaded] = useState(null);
+  return (
+    <img
+      ref={imgRef}
+      className={src && loaded === src ? 'emoji' : 'emoji emoji-loading'}
+      src={src}
+      onLoad={() => setLoaded(src)}
+      draggable={false}
+      {...props}
+    />
+  );
+}
+
 // A standard emoji: its cell of a sprite sheet (emojiSheets.js), so a whole category shows at
 // once, or its own SVG if it isn't on one. The sheets' CSS is the picker's <style>.
 function SheetEmoji({ unified, alt = '' }) {
   const index = useEmojiIndex();
   const sprite = index?.sprites.get(unified);
-  if (!sprite) return <img className="emoji" src={emojiImageUrl(unified)} alt={alt} draggable={false} />;
+  if (!sprite) return <LoadingImage src={emojiImageUrl(unified)} alt={alt} />;
   return (
     <span
       className={`emoji emoji-sprite emoji-sheet-${sprite.sheet}`}
@@ -82,13 +99,11 @@ function EmojiImage({ src, alt }) {
   // Without IntersectionObserver (old browsers, tests) fall back to the browser's lazy loading.
   const show = near || !CAN_OBSERVE;
   return (
-    <img
-      ref={ref}
-      className="emoji"
+    <LoadingImage
+      imgRef={ref}
       src={show ? src : undefined}
       alt={alt}
       loading={CAN_OBSERVE ? undefined : 'lazy'}
-      draggable={false}
     />
   );
 }
@@ -484,7 +499,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
           <div className="emoji-picker-preview">
             {hovered?.guild ? (
               <>
-                <img className="emoji" src={customEmojiUrl(hovered.id, s3Endpoint)} alt="" draggable={false} />
+                <LoadingImage src={customEmojiUrl(hovered.id, s3Endpoint)} alt="" />
                 <span className="emoji-picker-preview-code">:{hovered.name}:</span>
                 <span className="emoji-picker-preview-from">{t('chat.emojiPicker.from', { guild: hovered.guild.name })}</span>
               </>

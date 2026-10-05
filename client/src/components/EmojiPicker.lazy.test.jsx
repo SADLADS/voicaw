@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
-import { render, screen, within, act } from '@testing-library/react';
+import { render, screen, within, act, fireEvent } from '@testing-library/react';
 import data from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../emoji/emojiIndex';
 import { EmojiContext } from '../emoji/emojiContext';
@@ -54,12 +54,18 @@ describe('EmojiPicker image loading', () => {
     const catImage = within(screen.getByRole('button', { name: ':blobcat:' })).getByRole('img');
     expect(blobImage).not.toHaveAttribute('src');
     expect(catImage).not.toHaveAttribute('src');
+    // Invisible until loaded, so no broken-image icon or alt text shows meanwhile.
+    expect(blobImage).toHaveClass('emoji-loading');
     expect(observer.targets.has(blobImage)).toBe(true);
 
     act(() => observer.reveal(blobImage));
     expect(blobImage).toHaveAttribute('src', 'https://s3.test/emojis/10');
     expect(catImage).not.toHaveAttribute('src');
     expect(observer.targets.has(blobImage)).toBe(false);
+    expect(blobImage).toHaveClass('emoji-loading');
+    fireEvent.load(blobImage);
+    expect(blobImage).not.toHaveClass('emoji-loading');
+    expect(catImage).toHaveClass('emoji-loading');
 
     // Standard emoji come from the sprite sheets, which load with the picker.
     const grinning = within(screen.getByRole('button', { name: 'Grinning Face' })).getByRole('img');

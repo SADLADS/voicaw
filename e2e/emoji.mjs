@@ -149,15 +149,31 @@ try {
   console.log('alice rail after reload:', afterReload.join(', '));
   if (afterReload[0] !== 'Beta Guild') throw new Error('rail order not saved');
 
-  // The picker follows each person's own rail order.
+  // Custom emoji that haven't loaded (here: can't) are blank, not a broken-image icon and
+  // their :name:.
   await a.click(`.rail-guild[href="/guild/${alpha}"]`);
   await a.waitForSelector('#dm-input');
+  const failEmoji = (route) => route.abort();
+  await a.route('**/emojis/**', failEmoji);
+  await a.click('button[aria-label="Emoji"]');
+  await a.waitForSelector('.emoji-picker-item[aria-label=":blob:"] img');
+  await a.waitForTimeout(500);
+  const unloaded = await a.$$eval('.emoji-picker-item img', (imgs) => imgs.map((i) => getComputedStyle(i).opacity));
+  console.log('unloadable custom emoji opacities:', unloaded.join(', '));
+  if (!unloaded.length || unloaded.some((o) => o !== '0')) throw new Error('an unloaded emoji image is visible');
+  await shot(a, 'picker-unloaded');
+  await a.keyboard.press('Escape');
+  await a.waitForSelector('.emoji-picker', { state: 'detached' });
+  await a.unroute('**/emojis/**', failEmoji);
+
+  // The picker follows each person's own rail order.
   await a.click('button[aria-label="Emoji"]');
   await a.waitForSelector('.emoji-picker-section-title');
   const aliceSections = await pickerHeadings(a);
   console.log('alice picker sections:', aliceSections.slice(0, 3).join(', '));
   if (aliceSections[0] !== 'Beta Guild' || aliceSections[1] !== 'Alpha Guild') throw new Error('wrong section order for alice');
   await a.waitForFunction(() => [...document.querySelectorAll('.emoji-picker-item img')].slice(0, 3).every((i) => i.complete && i.naturalWidth > 0));
+  await a.waitForFunction(() => [...document.querySelectorAll('.emoji-picker-item img')].slice(0, 3).every((i) => getComputedStyle(i).opacity === '1'));
   await a.hover('.emoji-picker-item[aria-label=":blob:"]');
   await shot(a, 'picker-custom');
   await a.click('.emoji-picker-item[aria-label=":blob:"]');

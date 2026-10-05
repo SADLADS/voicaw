@@ -26,7 +26,10 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   default quick reactions' SVGs) when it installs, so even the first picker is instant.
   Custom emoji in the picker still load one by one, only once within a screen of the visible
   area (its own `IntersectionObserver`, not `loading="lazy"`, which queued hundreds of
-  offscreen images ahead of the visible ones).
+  offscreen images ahead of the visible ones). The picker's images (custom emoji, the few
+  standard ones not on a sheet, the preview) are `LoadingImage`s: transparent (`emoji-loading`)
+  until they load, and for good if they fail, so a cell is blank rather than a broken-image
+  icon and the emoji's name.
 - Everywhere else (the message box while typing, names, previews, buttons) emoji are Twemoji
   too, via a colour font: `assets/css/twemoji-font.css` is first in the body font stack, limited
   by `unicode-range` to its emoji (not the digits, `#`, `*`, ©, ® it also has). A text box can't

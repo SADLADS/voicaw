@@ -1143,6 +1143,11 @@ img.emoji,
   vertical-align: middle;
 }
 
+/* Not loaded yet (or failed): blank rather than a broken-image icon and alt text. */
+.emoji-picker .emoji-loading {
+  opacity: 0;
+}
+
 /* A cell of a sprite sheet (emoji/emojiSheets.js); position and size come inline. */
 .emoji-picker .emoji-sprite {
   display: inline-block;
