@@ -52,6 +52,7 @@ node e2e/components.mjs [dir] # bots' buttons (every style, link, emoji, disable
 node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, results, Jump into another channel, private channel, phone
 node e2e/days.mjs [dir]   # day dividers between days and above the first message (desktop + phone)
 node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertical scroll), back button, guild
+node e2e/youtubeviewer.mjs [dir] # phone YouTube links (real YouTube, needs the internet): thumbnail only in the chat, swipe on it moves the panes, tap = full-screen player (16:9, playing, sideways), back/X close it on the chat; inline on a computer
 node e2e/keyboard.mjs [dir] # phone keyboard (made up): message box above it after swipe to reply, newest message in view, page can't scroll it away, Send keeps it up (box stays focused); Android (window shrinks) and iOS (stand-in visualViewport, slide undone)
 node e2e/taphighlight.mjs [dir] # phone tap on a message: brief fade in the hover colour (not a highlight that stays), restarts on a second tap, none on a long press (stays .focused); computer hover unchanged, no flash
 node e2e/swipereply.mjs [dir] # phone swipe to reply: message follows the finger with the arrow (not cut off), far enough = reply (bar, focus, sent reply quotes it), short swipe/scroll = none, right = list, no long press; none on a computer

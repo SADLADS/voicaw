@@ -125,7 +125,8 @@
     "youtube": {
       "video": "YouTube video",
       "play": "Play YouTube video",
-      "hint": "Playing loads it from YouTube"
+      "hint": "Playing loads it from YouTube",
+      "openOnYouTube": "Open on YouTube"
     }
   }
 }

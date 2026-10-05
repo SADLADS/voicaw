@@ -230,3 +230,25 @@ body.mobile-mode .image-viewer-nav {
   height: 100%;
   animation: attachment-pulse 1.2s ease-in-out infinite;
 }
+
+/* A phone's YouTube player (YouTubeViewer.jsx): the viewer's toolbar, a solid backdrop (not the
+   see-through one) and the video 16:9, as big as fits. */
+.image-viewer.youtube-viewer {
+  background-color: #000;
+}
+
+.youtube-viewer-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  container-type: size;
+}
+
+.youtube-viewer-frame {
+  width: min(100cqw, 100cqh * 16 / 9);
+  aspect-ratio: 16 / 9;
+  border: none;
+}
