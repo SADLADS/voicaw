@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
-  DEFAULT_AUDIO_SETTINGS, captureOptions, cleanAudioSettings, gateOptions, getAudioSettings, inputGainStage,
-  onAudioSettingsChange, processingChanged, resetAudioSettings, setAudioSettings,
+  DEFAULT_AUDIO_SETTINGS, canChooseInput, captureOptions, cleanAudioSettings, gateOptions, getAudioSettings, inputGainStage,
+  listAudioDevices, onAudioSettingsChange, processingChanged, resetAudioSettings, setAudioSettings,
 } from './audioSettings';
 import { levelOf } from './micTest';
 
@@ -71,6 +71,43 @@ describe('voice settings (audioSettings.js)', () => {
     expect(processingChanged(a, { ...a, autoGainControl: false })).toBe(true);
     expect(processingChanged(a, { ...a, noiseSuppression: 'strong' })).toBe(true);
     expect(processingChanged(a, { ...a, autoSensitivity: false, sensitivity: -20 })).toBe(false);
+  });
+});
+
+describe('devices (audioSettings.js)', () => {
+  const withDevices = (devices, userAgent = 'Mozilla/5.0 (X11; Linux x86_64)') => vi.stubGlobal('navigator', {
+    userAgent, mediaDevices: { enumerateDevices: async () => devices },
+  });
+  const device = (kind, deviceId, label) => ({ kind, deviceId, label });
+  beforeEach(() => resetAudioSettings());
+
+  it('lists the devices, leaving the default entry out but keeping its name', async () => {
+    withDevices([
+      device('audioinput', 'default', 'Default - Headset Mic'), device('audioinput', 'a1', 'Headset Mic'),
+      device('audioinput', 'a2', 'Webcam Mic'), device('audiooutput', 'default', 'Default - Speakers'),
+      device('audiooutput', 'o1', 'Speakers'), device('videoinput', 'v1', 'Webcam'),
+    ]);
+    expect(await listAudioDevices()).toEqual({
+      inputs: [{ id: 'a1', label: 'Headset Mic' }, { id: 'a2', label: 'Webcam Mic' }],
+      outputs: [{ id: 'o1', label: 'Speakers' }],
+      labelled: true,
+      defaults: { input: 'Headset Mic', output: 'Speakers' },
+    });
+  });
+
+  it("leaves out the placeholders browsers list before the microphone is allowed", async () => {
+    withDevices([device('audioinput', '', ''), device('audiooutput', '', ''), device('videoinput', '', '')]);
+    expect(await listAudioDevices()).toEqual({ inputs: [], outputs: [], labelled: false, defaults: {} });
+  });
+
+  it('always uses the default microphone on a phone, even one chosen before', () => {
+    setAudioSettings({ inputDeviceId: 'mic-2' });
+    withDevices([]);
+    expect(canChooseInput()).toBe(true);
+    expect(captureOptions().deviceId).toEqual({ ideal: 'mic-2' });
+    withDevices([], 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Mobile Safari/537.36');
+    expect(canChooseInput()).toBe(false);
+    expect(captureOptions().deviceId).toBeUndefined();
   });
 });
 

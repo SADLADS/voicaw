@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
-  canChooseOutput, listAudioDevices, onDeviceChange, resetAudioSettings, setAudioSettings, useAudioSettings,
+  canChooseInput, canChooseOutput, listAudioDevices, onDeviceChange, resetAudioSettings, setAudioSettings, useAudioSettings,
 } from '../voice/audioSettings';
 import { startMicTest } from '../voice/micTest';
 import { ALWAYS_OPEN_DB } from '../voice/noise/gate';
@@ -31,7 +31,8 @@ function micTestError(err) {
   return t('settings.voice.micFailed');
 }
 
-// Settings → Voice & video: microphone and speakers on this device (voice/audioSettings.js),
+// Settings → Voice & video: microphone (not on phones and tablets) and speakers (where the
+// browser can choose) on this device (voice/audioSettings.js),
 // a microphone test, and the browser's voice processing. Changes apply to a call at once.
 // (Video settings go here too, once there's video.)
 export default function VoiceSettings() {
@@ -91,6 +92,7 @@ export default function VoiceSettings() {
     };
   }, [testing, inputDeviceId, echoCancellation, noiseSuppression, autoGainControl, refreshDevices]);
 
+  const chooseInput = canChooseInput();
   const chooseOutput = canChooseOutput();
   const defaultLabel = (name) => (name ? t('settings.voice.defaultDeviceNamed', { name }) : t('settings.voice.defaultDevice'));
   const missing = (list, id) => id && !list.some((d) => d.id === id);
@@ -99,20 +101,22 @@ export default function VoiceSettings() {
     <div className="settings-card voice-settings">
       <h5>{t('settings.voice.title')}</h5>
       <div className="voice-settings-grid">
-        <label className="voice-settings-field">
-          <span>{t('settings.voice.inputDevice')}</span>
-          <select
-            aria-label={t('settings.voice.inputDevice')}
-            value={settings.inputDeviceId}
-            onChange={(e) => setAudioSettings({ inputDeviceId: e.target.value })}
-          >
-            <option value="">{defaultLabel(devices.defaults.input)}</option>
-            {devices.inputs.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
-            {missing(devices.inputs, settings.inputDeviceId) && (
-              <option value={settings.inputDeviceId}>{t('settings.voice.notConnected')}</option>
-            )}
-          </select>
-        </label>
+        {chooseInput && (
+          <label className="voice-settings-field">
+            <span>{t('settings.voice.inputDevice')}</span>
+            <select
+              aria-label={t('settings.voice.inputDevice')}
+              value={settings.inputDeviceId}
+              onChange={(e) => setAudioSettings({ inputDeviceId: e.target.value })}
+            >
+              <option value="">{defaultLabel(devices.defaults.input)}</option>
+              {devices.inputs.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+              {missing(devices.inputs, settings.inputDeviceId) && (
+                <option value={settings.inputDeviceId}>{t('settings.voice.notConnected')}</option>
+              )}
+            </select>
+          </label>
+        )}
         {chooseOutput && (
           <label className="voice-settings-field">
             <span>{t('settings.voice.outputDevice')}</span>
@@ -154,7 +158,7 @@ export default function VoiceSettings() {
           </span>
         </label>
       </div>
-      {!devices.labelled && (
+      {!devices.labelled && (chooseInput || chooseOutput) && (
         <p className="vc-hint">
           {t('settings.voice.namesHidden')}{' '}
           <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={allowMicrophone}>{t('settings.voice.allowIt')}</button>

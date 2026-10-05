@@ -5,7 +5,7 @@ import path from 'path';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const { resolveAppFile } = require('../protocol.js');
+const { resolveAppFile, isAppOrigin } = require('../protocol.js');
 const { createSettingsStore, cleanChanges } = require('../desktopSettings.js');
 const { cleanNotification } = require('../notifications.js');
 const { paintDot, unreadLabel } = require('../tray.js');
@@ -41,6 +41,14 @@ describe('serving the app (protocol.js)', () => {
         expect(resolveAppFile(root, '/%2e%2e/voicaw-secret.txt')).toBeNull();
         expect(resolveAppFile(root, `/..%2f${name}-x/secret`)).toBeNull();
         expect(resolveAppFile(root, '/%E0%A4%A')).toBeNull(); // bad encoding
+    });
+
+    it("knows the app's origin, with or without the slash Electron adds to some checks", () => {
+        expect(isAppOrigin('voicaw://app')).toBe(true);
+        expect(isAppOrigin('voicaw://app/')).toBe(true);
+        expect(isAppOrigin('voicaw://app.evil')).toBe(false);
+        expect(isAppOrigin('https://app.voicaw.com/')).toBe(false);
+        expect(isAppOrigin(undefined)).toBe(false);
     });
 });
 

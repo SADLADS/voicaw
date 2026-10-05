@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { ALWAYS_OPEN_DB } from './noise/gate';
 import { t } from '../i18n';
+import { isMobileDevice } from '../utils/presence';
 
 // Voice settings on this device (Settings → Voice & video, localStorage `audioSettings`):
 // which microphone and speakers, their volumes, what's done to the microphone (echo
@@ -100,7 +101,7 @@ export function resetAudioSettings() {
 export function captureOptions(s = settings) {
   const browserSuppression = s.noiseSuppression === 'browser';
   return {
-    ...(s.inputDeviceId ? { deviceId: { ideal: s.inputDeviceId } } : {}),
+    ...(s.inputDeviceId && canChooseInput() ? { deviceId: { ideal: s.inputDeviceId } } : {}),
     echoCancellation: s.echoCancellation,
     noiseSuppression: browserSuppression,
     autoGainControl: s.autoGainControl,
@@ -123,6 +124,10 @@ export const gateOptions = (s = settings) => ({
 // The speakers, for setSinkId ('' is the default).
 export const outputSinkId = (s = settings) => s.outputDeviceId || '';
 
+// Phones and tablets always use their default microphone (the system switches it to a
+// headset by itself), so there's nothing to choose, and one chosen before is ignored.
+export const canChooseInput = () => !isMobileDevice();
+
 // Can this browser choose where sound plays? (Not Safari, nor Firefox before 116.)
 export const canChooseOutput = () =>
   typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype;
@@ -138,8 +143,10 @@ export function inputGainStage(context) {
 }
 
 // The microphones and speakers, as { inputs, outputs: [{ id, label }], labelled, defaults }.
-// `labelled` is false until the page may use the microphone (browsers hide names until then).
-// The browser's own "default" entry is left out ('' stands for it); `defaults` has its name.
+// `labelled` is false until the page may use the microphone: browsers hide names until then,
+// listing one placeholder of each kind with no id, which is left out (it isn't a device to
+// choose). The browser's own "default" entry is left out too ('' stands for it); `defaults`
+// has its name.
 export async function listAudioDevices() {
   if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) {
     return { inputs: [], outputs: [], labelled: false, defaults: {} };
@@ -147,7 +154,7 @@ export async function listAudioDevices() {
   const devices = await navigator.mediaDevices.enumerateDevices();
   const defaults = {};
   const pick = (kind) => devices
-    .filter((d) => d.kind === kind)
+    .filter((d) => d.kind === kind && d.deviceId)
     .filter((d) => {
       if (d.deviceId !== 'default') return true;
       defaults[kind === 'audioinput' ? 'input' : 'output'] = d.label.replace(/^Default\s*-\s*/i, '') || null;

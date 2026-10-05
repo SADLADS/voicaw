@@ -2,7 +2,8 @@
 // the e2e LiveKit: the devices are listed, the mic test's meter moves; then in a voice channel,
 // Alice's input volume at 0 silences her for Bob (her "speaking" ring goes out) and back at
 // 100% she's heard again; a new microphone and each noise suppression (Strong, Off, Standard) keep her heard;
-// Bob's output volume and speakers apply to the voices he's playing. Phone layout at the end.
+// Bob's output volume and speakers apply to the voices he's playing. Phone layout (no
+// microphone picker). Then a browser that hasn't allowed the microphone: no placeholders.
 //   node e2e/serve.mjs &   then   node e2e/voicesettings.mjs [screenshot dir]
 import { launchChrome, signUp, devices, fakeMicArgs, BASE } from './helpers.mjs';
 
@@ -187,7 +188,7 @@ try {
   if (again.some((p) => Math.abs(p.volume - 0.4) > 0.01 || (speaker && p.sinkId !== speaker))) throw new Error('new voice missed the settings');
   await shot(b, '03-bob-output-settings');
 
-  // Phone: no sideways scrolling.
+  // Phone: no microphone to choose (always the default), no sideways scrolling.
   const phone = await signUp(browser, 'phone', { ...devices['Pixel 7'] });
   await phone.page.goto(`${BASE}/settings#voice-video`);
   await phone.page.waitForSelector('.voice-settings');
@@ -196,8 +197,34 @@ try {
   if (overflow) throw new Error('Voice settings scroll sideways on a phone');
   await phone.page.$eval('.voice-settings', (el) => el.scrollIntoView());
   await shot(phone.page, '04-phone');
-  console.log('phone: fits');
-  console.log('PASS');
+  if (await phone.page.$('select[aria-label="Input device"]')) throw new Error('phone has a microphone picker');
+  console.log('phone: fits, no microphone picker');
 } finally {
   await browser.close();
+}
+
+// Before the microphone is allowed (no fake prompt here): the browser hides the devices, so
+// only Default and "Allow it", none of its placeholders; allowed, the real names.
+const plain = await launchChrome({ args: ['--use-fake-device-for-media-stream'] });
+try {
+  const carol = await signUp(plain, 'carol');
+  const c = carol.page;
+  await c.goto(`${BASE}/settings#voice-video`);
+  await c.waitForSelector('.voice-settings');
+  await c.waitForSelector('button:has-text("Allow it")');
+  const options = (label) => c.$$eval(`select[aria-label="${label}"] option`, (o) => o.map((x) => x.textContent));
+  const hidden = [await options('Input device'), await options('Output device')];
+  console.log('hidden:', JSON.stringify(hidden));
+  if (hidden.some((list) => list.length !== 1)) throw new Error('placeholders listed before the microphone is allowed');
+  await shot(c, '05-names-hidden');
+  await c.context().grantPermissions(['microphone']);
+  await c.click('button:has-text("Allow it")');
+  await c.waitForFunction(() => document.querySelector('select[aria-label="Input device"]').options.length > 1);
+  const shown = [await options('Input device'), await options('Output device')];
+  console.log('allowed:', JSON.stringify(shown));
+  if (shown.some((list) => list.length < 2) || await c.$('button:has-text("Allow it")')) throw new Error('names still hidden once allowed');
+  await shot(c, '06-names-shown');
+  console.log('PASS');
+} finally {
+  await plain.close();
 }
