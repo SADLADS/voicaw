@@ -1,0 +1,142 @@
+{
+  "events": {
+    "interestedCount_one": "{{count}} interested",
+    "interestedCount_other": "{{count}} interested",
+    "unknownUser": "Someone",
+    "when": {
+      "live": "Happening now",
+      "waiting": "Waiting to start",
+      "inMinutes_one": "Starts in {{count}} minute",
+      "inMinutes_other": "Starts in {{count}} minutes",
+      "inHours_one": "Starts in {{count}} hour",
+      "inHours_other": "Starts in {{count}} hours",
+      "inDays_one": "Starts tomorrow",
+      "inDays_other": "Starts in {{count}} days"
+    },
+    "place": {
+      "unknownChannel": "a voice channel",
+      "inChannel": "In the voice channel {{name}}"
+    },
+    "repeat": {
+      "none": "Does not repeat",
+      "daily": "Every day",
+      "weekdays": "Every weekday (Monday to Friday)",
+      "weekly": "Weekly on {{day}}",
+      "fortnightly": "Every other {{day}}",
+      "monthly": "Monthly on the {{nth}} {{day}}",
+      "yearly": "Yearly on {{date}}",
+      "custom": "Repeats",
+      "nth": {
+        "1": "first",
+        "2": "second",
+        "3": "third",
+        "4": "fourth",
+        "5": "fifth"
+      }
+    },
+    "actions": {
+      "interested": "Interested",
+      "start": "Start",
+      "end": "End event",
+      "more": "More"
+    },
+    "menu": {
+      "edit": "Edit event",
+      "editAll": "Edit all events",
+      "editOccurrence": "Change this event's time",
+      "skipOccurrence": "Cancel this event",
+      "copyLink": "Copy Link",
+      "copied": "Link copied.",
+      "copyFailed": "Couldn't copy the link.",
+      "cancel": "Cancel event"
+    },
+    "confirm": {
+      "cancel": {
+        "title": "Cancel {{name}}?",
+        "message": "The event is cancelled for everyone (every time, if it repeats). This can't be undone.",
+        "confirm": "Cancel event"
+      },
+      "skip": {
+        "title": "Cancel this event?",
+        "message": "Only {{date}} is cancelled; {{name}} carries on after it.",
+        "confirm": "Cancel this event"
+      }
+    },
+    "detail": {
+      "info": "Event info",
+      "interestedTab_one": "{{count}} interested",
+      "interestedTab_other": "{{count}} interested",
+      "createdBy": "Created by {{name}}",
+      "loading": "Loading…",
+      "nobodyInterested": "Nobody is interested yet."
+    },
+    "dialog": {
+      "title_one": "{{count}} Event",
+      "title_other": "{{count}} Events",
+      "allEvents": "All events",
+      "create": "Create Event",
+      "gone": "This event has ended or been cancelled, or you can't see it.",
+      "emptyTitle": "There are no upcoming events.",
+      "emptyHint": "Schedule an event for anything: a game night in a voice channel, or a meet-up somewhere else."
+    },
+    "editor": {
+      "createTitle": "Create Event",
+      "editTitle": "Edit Event",
+      "occurrenceTitle": "Change this event's time",
+      "occurrenceHint": "Only this time moves; the others stay as they are.",
+      "steps": "Steps",
+      "step": {
+        "where": "Location",
+        "info": "Event info",
+        "review": "Review"
+      },
+      "back": "Back",
+      "next": "Next",
+      "create": "Create Event",
+      "untitled": "Untitled event",
+      "whereQuestion": "Where is your event?",
+      "voice": "Voice channel",
+      "voiceHint": "Hang out with voice, video and screen sharing.",
+      "noVoiceChannels": "There's no voice channel you can hold an event in.",
+      "external": "Somewhere else",
+      "externalHint": "A text channel, an outside link, or in person.",
+      "channel": "Channel",
+      "location": "Location",
+      "locationPlaceholder": "Add a location, a link or something else",
+      "name": "Event topic",
+      "namePlaceholder": "What's your event?",
+      "start": "Start",
+      "end": "End",
+      "endOptional": "End (optional)",
+      "dateOf": "{{what}} date",
+      "timeOf": "{{what}} time",
+      "startedHint": "The event has started: its start time can't change.",
+      "repeat": "Repeats",
+      "repeatHint": "On this device's time zone: it stays at this time when the clocks change.",
+      "description": "Description",
+      "descriptionPlaceholder": "Tell people a little more about your event. Markdown, new lines and links work.",
+      "cover": "Cover image",
+      "coverFile": "Cover image file",
+      "addCover": "Add a cover image",
+      "changeCover": "Change",
+      "removeCover": "Remove",
+      "uploading": "Uploading…",
+      "coverFailed": "Couldn't upload the image: {{error}}",
+      "reviewHint": "Here's how your event will look. Everyone who can see it sees it in Events; those interested are notified when it starts.",
+      "errors": {
+        "channel": "Pick a voice channel.",
+        "location": "Say where the event is.",
+        "name": "Give the event a topic.",
+        "start": "Pick a start date and time.",
+        "past": "The start must be in the future.",
+        "endNeeded": "Events somewhere else need an end date and time.",
+        "endBefore": "The end must be after the start.",
+        "repeat": "That doesn't repeat from this date: pick another."
+      }
+    },
+    "embed": {
+      "view": "View",
+      "gone": "This event has ended, been cancelled, or isn't one you can see."
+    }
+  }
+}

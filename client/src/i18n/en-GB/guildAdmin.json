@@ -262,6 +262,7 @@
         "invites": "Invites",
         "emoji": "Emoji",
         "webhooks": "Webhooks",
+        "events": "Events",
         "guild": "Guild settings"
       },
       "deletedChannel": "deleted-channel",
@@ -318,6 +319,9 @@
         "webhookCreate": "{{actor}} created the webhook {{webhook}} in {{channel}}",
         "webhookUpdate": "{{actor}} changed the webhook {{webhook}}",
         "webhookDelete": "{{actor}} deleted the webhook {{webhook}}",
+        "eventCreate": "{{actor}} scheduled the event {{event}}",
+        "eventUpdate": "{{actor}} changed the event {{event}}",
+        "eventDelete": "{{actor}} cancelled the event {{event}}",
         "guildUpdate": "{{actor}} changed the guild settings",
         "auditLogClearOlder_one": "{{actor}} cleared entries older than {{age}} ({{count}} entry)",
         "auditLogClearOlder_other": "{{actor}} cleared entries older than {{age}} ({{count}} entries)",
@@ -335,7 +339,11 @@
         "channel": "Channel",
         "permissions": "Permissions",
         "nsfw": "NSFW",
-        "archived": "Archived"
+        "archived": "Archived",
+        "description": "Description",
+        "location": "Location",
+        "start_time": "Start",
+        "end_time": "End"
       },
       "values": {
         "none": "none",
@@ -362,7 +370,16 @@
         "maxUses_other": "Up to {{count}} uses",
         "noUseLimit": "No use limit",
         "expiresAfter": "Expires after {{age}}",
-        "neverExpires": "Never expires"
+        "neverExpires": "Never expires",
+        "cover": {
+          "added": "Cover image added",
+          "changed": "Cover image changed",
+          "removed": "Cover image removed"
+        },
+        "repeat": {
+          "changed": "How it repeats changed",
+          "removed": "No longer repeats"
+        }
       },
       "age": {
         "year": "a year",

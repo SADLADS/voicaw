@@ -450,3 +450,56 @@ export async function setThreadJoined(threadId, joined) {
   if (joined) await api.put(`/threads/${threadId}/member`);
   else await api.delete(`/threads/${threadId}/member`);
 }
+
+// ---- Scheduled events (server/routes/guildEvents.js) ----
+
+// The guild's events you can see, soonest first, each with `interested` (yours).
+export async function fetchEvents(guildId) {
+  return (await api.get(`/guilds/${guildId}/events`)).data;
+}
+
+export async function fetchEvent(eventId) {
+  return (await api.get(`/guild-events/${eventId}`)).data;
+}
+
+// { name, description, entityType: 'voice' | 'external', channelId | location, startTime,
+// endTime, image, recurrence, timezone } (times in unix seconds).
+export async function createEvent(guildId, fields) {
+  return (await api.post(`/guilds/${guildId}/events`, fields)).data;
+}
+
+export async function updateEvent(eventId, fields) {
+  return (await api.patch(`/guild-events/${eventId}`, fields)).data;
+}
+
+export async function startEvent(eventId) {
+  return (await api.post(`/guild-events/${eventId}/start`)).data;
+}
+
+export async function endEvent(eventId) {
+  return (await api.post(`/guild-events/${eventId}/end`)).data;
+}
+
+// Cancels the event (every occurrence of a repeating one).
+export async function cancelEvent(eventId) {
+  await api.delete(`/guild-events/${eventId}`);
+}
+
+// A repeating event's next occurrence: skipped, or moved to { startTime, endTime }.
+export async function skipOccurrence(eventId) {
+  return (await api.post(`/guild-events/${eventId}/skip`)).data;
+}
+
+export async function moveOccurrence(eventId, times) {
+  return (await api.put(`/guild-events/${eventId}/occurrence`, times)).data;
+}
+
+export async function setEventInterest(eventId, interested) {
+  if (interested) await api.put(`/guild-events/${eventId}/interest`);
+  else await api.delete(`/guild-events/${eventId}/interest`);
+}
+
+// Who's interested: user ids.
+export async function fetchEventUsers(eventId) {
+  return (await api.get(`/guild-events/${eventId}/users`)).data;
+}

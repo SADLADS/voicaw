@@ -1,6 +1,12 @@
 {
   "guilds": {
     "sidebar": {
+      "events": "Events",
+      "eventsCount_one": "{{count}} Event",
+      "eventsCount_other": "{{count}} Events",
+      "eventLive": "Live",
+      "liveEvent": "Live: {{name}}",
+      "createEvent": "Create Event",
       "createChannel": "Create Channel",
       "createCategory": "Create Category",
       "invitePeople": "Invite People",

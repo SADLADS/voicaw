@@ -24,8 +24,9 @@ const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 //   message_pin / message_unpin { messageId, channelName } (target: the author)
 //   thread_create / thread_delete { name, channelName }, thread_update { name, changes }
 //     (target: the thread; channel: its text channel)
-//   event_create / event_delete { name }, event_update { name, changes } (target: the event;
-//     channel: its voice channel, if any)
+//   event_create / event_delete { name }, event_update { name, changes (start_time/end_time
+//     unix s, channel by name), cover?: 'added' | 'changed' | 'removed', repeat?: 'changed' |
+//     'removed' } (target: the event; channel: its voice channel, if any)
 //   audit_log_clear { olderThanDays (0: everything), deleted }
 // Never a message's content: deleting it should get rid of it.
 //

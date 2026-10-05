@@ -104,6 +104,25 @@ export function formatDateTime(value, options = {}) {
   return `${formatDate(value, options)}, ${formatTime(value, options)}`;
 }
 
+// The day of the week: Tuesday (or Tue with `short`).
+export function formatWeekday(value, { short = false } = {}) {
+  return formatter({ weekday: short ? 'short' : 'long' }).format(toDate(value));
+}
+
+// The day and month in words, without the year: 6 October (or October 6).
+export function formatDayMonth(value, { date = settings.date } = {}) {
+  const d = toDate(value);
+  const month = formatter({ month: 'long' }).format(d);
+  if (date === 'dmy') return `${d.getDate()} ${month}`;
+  if (date === 'mdy') return `${month} ${d.getDate()}`;
+  return formatter({ day: 'numeric', month: 'long' }).format(d);
+}
+
+// When something happens, in words: Tuesday 6 October 2026, 20:00 (scheduled events).
+export function formatEventTime(value, options = {}) {
+  return `${formatWeekday(value)} ${formatLongDate(value, options)}, ${formatTime(value, options)}`;
+}
+
 // The current choice ({ date, time }), redrawing the component when it changes.
 export function useDateFormat() {
   return useSyncExternalStore(subscribe, getDateSettings, getDateSettings);

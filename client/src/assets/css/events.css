@@ -1,0 +1,369 @@
+/* SCHEDULED EVENTS (events/EventsDialog.jsx, EventEditor.jsx, EventCard.jsx, EventEmbed.jsx; the
+   channel list's Events row and live events in guild/GuildSidebar.jsx) */
+
+/* The channel list: Events, above the channels. */
+.guild-events-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: calc(100% - 16px);
+  margin: 4px 8px 8px;
+  padding: 6px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--vc-border-dark);
+  border-radius: 4px 4px 0 0;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-size: 15px;
+  text-align: left;
+}
+
+.guild-events-button:hover {
+  background: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.guild-events-live {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--vc-success);
+  color: var(--vc-on-accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Under a voice channel: the event happening in it. */
+.guild-channel-event {
+  list-style: none;
+  padding: 0 8px 2px 26px;
+}
+
+.guild-channel-event-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--vc-online);
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.guild-channel-event-link:hover {
+  background: var(--vc-bg-hover);
+}
+
+.guild-channel-event-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The dialog. */
+.events-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.events-empty {
+  text-align: center;
+  padding: 24px 8px;
+}
+
+.events-back {
+  margin-right: auto;
+}
+
+/* A card. */
+.event-card {
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--vc-bg-subtle);
+}
+
+.event-card.live {
+  border-color: var(--vc-online);
+}
+
+.event-card .event-card-cover {
+  height: 120px;
+}
+
+.event-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 12px;
+  min-width: 0;
+}
+
+.event-card-when {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--vc-fg-muted);
+  font-size: 0.85rem;
+}
+
+.event-card-status {
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--vc-accent-soft);
+  color: var(--vc-accent-text);
+  font-size: 0.75rem;
+}
+
+.event-card-status.live {
+  background: var(--vc-success);
+  color: var(--vc-on-accent);
+}
+
+.event-card-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vc-fg);
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+button.event-card-name:hover {
+  text-decoration: underline;
+}
+
+.event-card-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--vc-fg-muted);
+  font-size: 0.85rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.event-card-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.event-card-count {
+  color: var(--vc-fg-muted);
+  font-size: 0.85rem;
+}
+
+.event-card-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* One event. */
+.event-detail .event-detail-cover {
+  height: 160px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.event-detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.event-detail-name {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.event-detail-line {
+  margin: 0;
+  color: var(--vc-fg-muted);
+  overflow-wrap: anywhere;
+}
+
+.event-detail-creator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.event-detail-description {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+.event-detail-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.event-interested {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.event-interested li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.event-interested-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* The editor. */
+.event-editor {
+  width: min(520px, calc(100vw - 32px));
+}
+
+.event-editor-steps {
+  display: flex;
+  gap: 4px;
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.event-editor-steps li {
+  flex: 1;
+  padding-top: 6px;
+  border-top: 3px solid var(--vc-border-dark);
+  color: var(--vc-fg-muted);
+  font-size: 0.8rem;
+}
+
+.event-editor-steps li.done,
+.event-editor-steps li.current {
+  border-top-color: var(--vc-accent);
+}
+
+.event-editor-steps li.current {
+  color: var(--vc-fg);
+  font-weight: 600;
+}
+
+.event-editor-question {
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.event-place-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+  border: 0;
+  padding: 0;
+}
+
+.event-place-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  background: var(--vc-bg-subtle);
+  cursor: pointer;
+}
+
+.event-place-option > span {
+  display: flex;
+  flex-direction: column;
+}
+
+.event-place-option.selected {
+  border-color: var(--vc-accent);
+  background: var(--vc-accent-soft);
+}
+
+.event-place-option.disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.event-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.event-editor-label {
+  display: block;
+  margin-top: 8px;
+}
+
+.event-editor-time-inputs {
+  display: flex;
+  gap: 8px;
+}
+
+.event-editor-time-inputs input {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-editor-cover .event-card-cover {
+  height: 120px;
+  border-radius: 8px;
+}
+
+.event-editor-cover-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.event-editor-add-cover {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+/* Under a message with an event link. */
+.event-embed {
+  max-width: 432px;
+  margin-top: 6px;
+}
+
+.event-embed-gone {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--vc-bg-subtle);
+  color: var(--vc-fg-muted);
+  font-size: 0.85rem;
+}

@@ -4,6 +4,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faBell,
   faBellSlash,
+  faCalendarDays,
+  faCalendarPlus,
   faChevronDown,
   faChevronRight,
   faClapperboard,
@@ -34,6 +36,11 @@ import CategoryMenu from './CategoryMenu';
 import CloneChannelDialog from './CloneChannelDialog';
 import ChannelIcon from './ChannelIcon';
 import VoiceChannelMembers from './VoiceChannelMembers';
+import '../../assets/css/events.css';
+import EventsDialog from '../events/EventsDialog';
+import EventEditor from '../events/EventEditor';
+import { useGuildEvents } from '../../hooks/useGuildEvents';
+import { canCreateEvents } from '../../utils/eventDisplay';
 import { useVoice } from '../../hooks/useVoice';
 import { joinVoice } from '../../voice/voiceClient';
 import { PERMISSIONS, has } from '../../utils/permissions';
@@ -60,9 +67,10 @@ function loadCollapsed() {
 // Manage Guild, Manage Roles or Ban Members: Guild Settings; View Audit Log: the audit log).
 export default function GuildSidebar({ guild, user }) {
   const { channelId } = useParams();
-  // A thread open beside the channel.
-  const [searchParams] = useSearchParams();
+  // A thread open beside the channel; an event to show (`?event=<id>`: links, notifications).
+  const [searchParams, setSearchParams] = useSearchParams();
   const openThreadId = searchParams.get('thread');
+  const eventParam = searchParams.get('event');
   const navigate = useNavigate();
   const { guildList } = useContext(LayoutContext);
   const { isMobile } = useContext(InteractionContext);
@@ -70,8 +78,10 @@ export default function GuildSidebar({ guild, user }) {
   const voice = useVoice();
   const [menuOpen, setMenuOpen] = useState(false);
   // { type: 'invite' | 'settings' | 'audit' | 'channel' | 'category' | 'clone' | 'deleteChannel' |
-  //   'deleteCategory' | 'leave', ...props }
+  //   'deleteCategory' | 'leave' | 'events' | 'eventEditor', ...props }
   const [dialog, setDialog] = useState(null);
+  // The guild's scheduled events (Events, above the channels).
+  const guildEvents = useGuildEvents(guild?.id ?? null, user.id);
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   // The menu of a right-clicked or long-pressed channel or category ({ kind, id, anchor }).
   const [rowMenu, setRowMenu] = useState(null);
@@ -100,6 +110,18 @@ export default function GuildSidebar({ guild, user }) {
   const dragged = (kind, id) => (drag?.kind === kind && drag.id === id
     ? { className: ' dragging', style: { transform: `translateY(${drag.dy}px)` } }
     : { className: '', style: undefined });
+
+  // An event link opens the event (and the link's ?event= goes, so closing it stays closed).
+  const hasGuild = Boolean(guild);
+  useEffect(() => {
+    if (!hasGuild || !/^\d+$/.test(eventParam ?? '')) return;
+    setDialog({ type: 'events', eventId: Number(eventParam) });
+    setSearchParams((params) => {
+      const next = new URLSearchParams(params);
+      next.delete('event');
+      return next;
+    }, { replace: true });
+  }, [hasGuild, eventParam, setSearchParams]);
 
   // The menu closes on any click outside it.
   useEffect(() => {
@@ -142,6 +164,7 @@ export default function GuildSidebar({ guild, user }) {
     ...(can(PERMISSIONS.CREATE_INVITE) ? [{ key: 'invite', label: t('guilds.sidebar.invitePeople'), icon: faUserPlus, onSelect: () => openDialog({ type: 'invite' }) }] : []),
   ];
   const inVoice = voice.status !== 'idle' && voice.guildId === guild.id ? voice.channelId : null;
+  const liveEvents = guildEvents.events.filter((e) => e.status === 'active');
   const speaking = new Set(voice.status === 'connected' ? voice.speaking : []);
 
   function toggleCategory(id) {
@@ -254,6 +277,14 @@ export default function GuildSidebar({ guild, user }) {
           </span>
         </li>
       )}
+      {liveEvents.filter((e) => e.channel_id === channel.id).map((event) => (
+        <li key={`event-${event.id}`} className="guild-channel-event">
+          <button type="button" className="guild-channel-event-link" onClick={() => openDialog({ type: 'events', eventId: event.id })}>
+            <FontAwesomeIcon icon={faCalendarDays} className="guild-channel-event-icon" aria-hidden="true" />
+            <span className="guild-channel-event-name">{t('guilds.sidebar.liveEvent', { name: event.name })}</span>
+          </button>
+        </li>
+      ))}
       {channel.voice?.length > 0 && (
         <li className="guild-channel-voice">
           <VoiceChannelMembers members={channel.voice} speaking={channel.id === inVoice ? speaking : new Set()} inChannel={channel.id === inVoice} />
@@ -293,6 +324,11 @@ export default function GuildSidebar({ guild, user }) {
             {can(PERMISSIONS.VIEW_AUDIT_LOG) && (
               <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'audit' })}>
                 {t('guilds.sidebar.auditLog')} <FontAwesomeIcon icon={faClipboardList} />
+              </button>
+            )}
+            {canCreateEvents(guild) && (
+              <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'eventEditor' })}>
+                {t('guilds.sidebar.createEvent')} <FontAwesomeIcon icon={faCalendarPlus} />
               </button>
             )}
             {managesChannels && (
@@ -335,6 +371,13 @@ export default function GuildSidebar({ guild, user }) {
         onTouchStart={onListTouchStart}
       >
         {drag?.lineTop != null && <div className="channel-drop-line" style={{ top: drag.lineTop }} aria-hidden="true" />}
+        <button type="button" className={`guild-events-button${liveEvents.length ? ' live' : ''}`} onClick={() => openDialog({ type: 'events' })}>
+          <FontAwesomeIcon icon={faCalendarDays} className="guild-channel-icon" aria-hidden="true" />
+          <span className="guild-channel-name">
+            {guildEvents.events.length ? t('guilds.sidebar.eventsCount', { count: guildEvents.events.length }) : t('guilds.sidebar.events')}
+          </span>
+          {liveEvents.length > 0 && <span className="guild-events-live">{t('guilds.sidebar.eventLive')}</span>}
+        </button>
         <ul>{uncategorized.map(renderChannel)}</ul>
 
         {categories.map((category) => {
@@ -431,6 +474,32 @@ export default function GuildSidebar({ guild, user }) {
           onCreateChannel={() => openDialog({ type: 'channel', categoryId: menuCategory.id })}
           onDelete={() => openDialog({ type: 'deleteCategory', category: menuCategory })}
           onClose={closeRowMenu}
+        />
+      )}
+      {dialog?.type === 'events' && (
+        <EventsDialog
+          guild={guild}
+          user={user}
+          events={guildEvents.events}
+          loaded={guildEvents.loaded}
+          setInterested={guildEvents.setInterested}
+          eventId={dialog.eventId ?? null}
+          onOpenEvent={(id) => setDialog({ type: 'events', eventId: id })}
+          onCreate={() => setDialog({ type: 'eventEditor', back: true })}
+          onEdit={(event, occurrence) => setDialog({ type: 'eventEditor', event, occurrence, back: true })}
+          onClose={closeDialog}
+        />
+      )}
+      {dialog?.type === 'eventEditor' && (
+        <EventEditor
+          guild={guild}
+          event={dialog.event}
+          occurrence={dialog.occurrence}
+          onSaved={(saved) => {
+            guildEvents.upsert(saved);
+            setDialog({ type: 'events', eventId: saved.id });
+          }}
+          onClose={() => (dialog.back ? setDialog({ type: 'events', eventId: dialog.event?.id ?? null }) : closeDialog())}
         />
       )}
       {dialog?.type === 'invite' && <InviteDialog guild={guild} onClose={closeDialog} />}

@@ -1,4 +1,5 @@
 import { PERMISSIONS, PERMISSION_GROUPS, colorToHex } from './permissions';
+import { formatDateTime } from './dateFormat';
 import { t } from '../i18n';
 
 // How the guild audit log (server/auditLog.js) reads: a sentence per entry, and lines for what
@@ -22,6 +23,7 @@ export const AUDIT_FILTERS = [
   { key: 'invites', label: t('guildAdmin.auditLog.filters.invites'), actions: ['invite_create', 'invite_delete'] },
   { key: 'emoji', label: t('guildAdmin.auditLog.filters.emoji'), actions: ['emoji_create', 'emoji_update', 'emoji_delete'] },
   { key: 'webhooks', label: t('guildAdmin.auditLog.filters.webhooks'), actions: ['webhook_create', 'webhook_update', 'webhook_delete'] },
+  { key: 'events', label: t('guildAdmin.auditLog.filters.events'), actions: ['event_create', 'event_update', 'event_delete'] },
   { key: 'guild', label: t('guildAdmin.auditLog.filters.guild'), actions: ['guild_update', 'audit_log_clear'] },
 ];
 
@@ -120,6 +122,9 @@ export function describeEntry(entry, names) {
     case 'webhook_create': return sentence('webhookCreate', { actor, webhook: named(d.name), channel: channel(d.channelName) });
     case 'webhook_update': return sentence('webhookUpdate', { actor, webhook: named(d.name) });
     case 'webhook_delete': return sentence('webhookDelete', { actor, webhook: named(d.name) });
+    case 'event_create': return sentence('eventCreate', { actor, event: named(d.name) });
+    case 'event_update': return sentence('eventUpdate', { actor, event: named(d.name) });
+    case 'event_delete': return sentence('eventDelete', { actor, event: named(d.name) });
     case 'guild_update': return sentence('guildUpdate', { actor });
     case 'audit_log_clear': return d.olderThanDays
       ? sentence('auditLogClearOlder', { actor }, { age: clearAge(d.olderThanDays), count: d.deleted })
@@ -128,7 +133,10 @@ export function describeEntry(entry, names) {
   }
 }
 
-const FIELDS = ['name', 'topic', 'category', 'color', 'hoist', 'mentionable', 'channel', 'permissions', 'nsfw', 'archived'];
+const FIELDS = [
+  'name', 'topic', 'category', 'color', 'hoist', 'mentionable', 'channel', 'permissions', 'nsfw', 'archived',
+  'description', 'location', 'start_time', 'end_time',
+];
 const fieldLabel = (field) => (FIELDS.includes(field) ? t(`guildAdmin.auditLog.fields.${field}`) : field);
 
 function showValue(field, value) {
@@ -136,6 +144,7 @@ function showValue(field, value) {
   if (field === 'color') return colorToHex(value);
   if (['hoist', 'mentionable', 'nsfw', 'archived'].includes(field)) return value ? t('guildAdmin.auditLog.values.yes') : t('guildAdmin.auditLog.values.no');
   if (field === 'channel') return `#${value}`;
+  if (field === 'start_time' || field === 'end_time') return formatDateTime(value * 1000);
   return String(value);
 }
 
@@ -160,6 +169,8 @@ export function entryChanges(entry) {
   const avatar = d.changes?.avatar ?? d.avatar;
   if (avatar) lines.push(avatar === 'removed' ? t('guildAdmin.auditLog.changes.pictureRemoved') : t('guildAdmin.auditLog.changes.pictureChanged'));
   if (d.icon) lines.push(d.icon === 'removed' ? t('guildAdmin.auditLog.changes.iconRemoved') : t('guildAdmin.auditLog.changes.iconChanged'));
+  if (d.cover) lines.push(t(`guildAdmin.auditLog.changes.cover.${d.cover}`));
+  if (d.repeat) lines.push(t(`guildAdmin.auditLog.changes.repeat.${d.repeat}`));
   if (entry.action === 'role_create' && d.permissions) lines.push(t('guildAdmin.auditLog.changes.permissions', { list: permissionNames(d.permissions).join(', ') }));
   if (entry.action === 'member_role_update') {
     if (d.added?.length) lines.push(t('guildAdmin.auditLog.changes.rolesAdded', { list: d.added.map((r) => r.name).join(', ') }));

@@ -397,11 +397,17 @@ async function updateEvent(member, eventId, input) {
   // A new start (or rule) re-anchors the series there.
   const occurrenceStart = !repeating ? null : retimed ? after.start_time : before.occurrence_start;
   const duration = after.end_time != null ? after.end_time - after.start_time : null;
+  // What changed, for the audit log: the channel by name, the cover and the repeating as notes.
   const changes = diff(before, {
-    name: after.name, description: after.description, location: after.location, channel_id: after.channel_id,
-    start_time: after.start_time, end_time: after.end_time, recurrence: after.recurrence,
+    name: after.name, description: after.description, location: after.location, start_time: after.start_time, end_time: after.end_time,
   });
-  if (after.image !== before.image) changes.image = before.image ? (after.image ? 'changed' : 'removed') : 'added';
+  if ((after.channel_id ?? null) !== (before.channel_id ?? null)) {
+    const nameOf = async (id) => (id == null ? null : (await db.get('SELECT name FROM guild_channels WHERE id = ?', [id]))?.name ?? null);
+    changes.channel = [await nameOf(before.channel_id), await nameOf(after.channel_id)];
+  }
+  const notes = {};
+  if (after.image !== before.image) notes.cover = before.image ? (after.image ? 'changed' : 'removed') : 'added';
+  if ((after.recurrence ?? null) !== (before.recurrence ?? null)) notes.repeat = after.recurrence ? 'changed' : 'removed';
   await db.transaction(async () => {
     await db.run(
       `UPDATE guild_events SET name = ?, description = ?, entity_type = ?, channel_id = ?, location = ?, start_time = ?, end_time = ?,
@@ -411,10 +417,10 @@ async function updateEvent(member, eventId, input) {
         duration, now(), before.id]
     );
     await linkImage(before.id, after.image);
-    if (Object.keys(changes).length) {
+    if (Object.keys(changes).length || Object.keys(notes).length) {
       await logAudit({
         guildId: before.guild_id, actorId: member.userId, action: 'event_update', targetType: 'event', targetId: before.id,
-        channelId: after.channel_id ?? null, details: { name: before.name, changes },
+        channelId: after.channel_id ?? null, details: { name: before.name, changes, ...notes },
       });
     }
   });

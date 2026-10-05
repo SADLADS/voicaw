@@ -73,6 +73,11 @@ export function channelLink(guildId, channelId) {
   return `${shareOrigin()}/guild/${guildId}/${channelId}`;
 }
 
+// The link to a scheduled event (Copy Link on it; opens it over its guild).
+export function eventLink(guildId, eventId) {
+  return `${shareOrigin()}/guild/${guildId}?event=${eventId}`;
+}
+
 // The guild and channel in a channel link (channelLink: this site's or app.voicaw.com's), else
 // null.
 export function parseChannelLink(href) {

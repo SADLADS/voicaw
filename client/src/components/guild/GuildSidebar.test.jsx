@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
 vi.mock('../../services/guildService', () => ({
@@ -17,7 +17,15 @@ vi.mock('../../services/guildService', () => ({
   cloneChannel: vi.fn(async (guildId, channelId, name) => ({ id: 99, name, type: 'text', category_id: 2 })),
   moveChannel: vi.fn(async () => {}),
   moveCategory: vi.fn(async () => {}),
+  fetchEvents: vi.fn(async () => events.list),
+  fetchEventUsers: vi.fn(async () => [1]),
+  setEventInterest: vi.fn(async () => {}),
+  startEvent: vi.fn(async () => {}),
+  endEvent: vi.fn(async () => {}),
+  cancelEvent: vi.fn(async () => {}),
+  skipOccurrence: vi.fn(async () => {}),
 }));
+const events = vi.hoisted(() => ({ list: [] }));
 
 const voice = vi.hoisted(() => ({ snapshot: { status: 'idle', guildId: null, channelId: null, speaking: [] } }));
 vi.mock('../../voice/voiceClient', () => ({
@@ -37,6 +45,7 @@ import {
   markChannelReadToLatest,
   muteChannel,
   setChannelNotifications,
+  setEventInterest,
   unmuteChannel,
 } from '../../services/guildService';
 
@@ -95,6 +104,7 @@ const channelRow = (name) => screen.getByRole('link', { name }).closest('li');
 
 beforeEach(() => {
   voice.snapshot = { status: 'idle', guildId: null, channelId: null, speaking: [] };
+  events.list = [];
   vi.clearAllMocks();
   localStorage.clear();
 });
@@ -395,5 +405,59 @@ describe('GuildSidebar', () => {
     renderSidebar({ isMobile: true });
     fireEvent.click(screen.getByRole('link', { name: 'lounge' }));
     expect(joinVoice).not.toHaveBeenCalled();
+  });
+
+  describe('events', () => {
+    const inHours = (h) => Math.floor(Date.now() / 1000) + h * 3600;
+    const picnic = {
+      id: 70, guild_id: 5, channel_id: null, creator_id: 1, name: 'Picnic', description: 'Bring **food**', entity_type: 'external',
+      location: 'The park', start_time: inHours(3), end_time: inHours(5), status: 'scheduled', image: null, recurrence: null,
+      user_count: 1, interested: false,
+    };
+    const gameNight = {
+      ...picnic, id: 71, name: 'Game night', entity_type: 'voice', channel_id: 12, location: null, end_time: null,
+      start_time: inHours(-1), status: 'active', user_count: 2, interested: true,
+    };
+
+    it('shows how many there are and which voice channel has one on, and lists them', async () => {
+      events.list = [picnic, gameNight];
+      renderSidebar({ user: member });
+      const button = await screen.findByRole('button', { name: /2 Events/ });
+      expect(button).toHaveTextContent('Live');
+      expect(screen.getByRole('button', { name: 'Live: Game night' })).toBeInTheDocument();
+      fireEvent.click(button);
+      const dialog = await screen.findByRole('dialog', { name: '2 Events' });
+      expect(within(dialog).getByRole('article', { name: 'Picnic' })).toHaveTextContent('Starts in 3 hours');
+      expect(within(dialog).getByRole('article', { name: 'Game night' })).toHaveTextContent('Happening now');
+      // A member can't start someone else's event, but can say they're interested.
+      expect(within(dialog).queryByRole('button', { name: /Start/ })).not.toBeInTheDocument();
+      const interest = within(within(dialog).getByRole('article', { name: 'Picnic' })).getByRole('button', { name: /Interested/ });
+      fireEvent.click(interest);
+      expect(setEventInterest).toHaveBeenCalledWith(70, true);
+      expect(interest).toHaveAttribute('aria-pressed', 'true');
+      expect(within(dialog).getByRole('article', { name: 'Picnic' })).toHaveTextContent('2 interested');
+    });
+
+    it('opens the event a link names', async () => {
+      events.list = [picnic];
+      renderSidebar({ user: member, path: '/guild/5/10?event=70' });
+      const dialog = await screen.findByRole('dialog', { name: 'Picnic' });
+      expect(dialog).toHaveTextContent('The park');
+      expect(dialog).toHaveTextContent('Bring food');
+      fireEvent.click(within(dialog).getByRole('tab', { name: '1 interested' }));
+      await waitFor(() => expect(dialog.querySelectorAll('.event-interested li')).toHaveLength(1));
+    });
+
+    it('offers Create Event to those with Create Events', async () => {
+      const CREATE_EVENTS = 1 << 27;
+      renderSidebar({ user: member, permissions: DEFAULT | CREATE_EVENTS });
+      fireEvent.click(screen.getByRole('button', { name: /Test Guild/ }));
+      expect(screen.getByRole('menuitem', { name: /Create Event/ })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Test Guild/ }));
+      cleanup();
+      renderSidebar({ user: member });
+      fireEvent.click(screen.getByRole('button', { name: /Test Guild/ }));
+      expect(screen.queryByRole('menuitem', { name: /Create Event/ })).not.toBeInTheDocument();
+    });
   });
 });
