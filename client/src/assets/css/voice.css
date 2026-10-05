@@ -235,10 +235,6 @@ button.user-panel-button {
   height: 72px;
 }
 
-.voice-tile .user-avatar.speaking {
-  box-shadow: 0 0 0 3px var(--vc-online);
-}
-
 .voice-tile-name {
   max-width: 100%;
   overflow: hidden;

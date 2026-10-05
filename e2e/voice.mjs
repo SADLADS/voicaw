@@ -76,6 +76,12 @@ try {
   // Bob hears Alice: her audio plays on his side, and her tone lights her ring.
   await b.waitForSelector(`${tile(alice.name)}.speaking`, { timeout: 15000 });
   console.log('bob sees alice speaking');
+  // Only the tile is outlined, not the picture inside it; the channel list's picture is ringed.
+  await b.waitForSelector(`${sidebarMember(alice.name)} .user-avatar.speaking`, { timeout: 5000 });
+  if (await b.$(`${tile(alice.name)} .user-avatar.speaking`)) throw new Error('tile picture ringed too');
+  const ring = await b.$eval(`${tile(alice.name)} .user-avatar`, (el) => getComputedStyle(el).boxShadow);
+  if (ring !== 'none' && !/rgba\(0, 0, 0, 0\)|transparent/.test(ring)) throw new Error(`tile picture has a ring: ${ring}`);
+  console.log('only the tile and the channel list picture light up');
   await b.waitForFunction(() => [...document.querySelectorAll('[data-voice-audio] audio')].some((el) => !el.paused && el.currentTime > 0.5), null, { timeout: 10000 });
   console.log('bob playing:', JSON.stringify(await playing(b)));
   await shot(b, '02-bob-in-voice-alice-speaking');

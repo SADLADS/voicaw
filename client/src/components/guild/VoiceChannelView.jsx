@@ -128,7 +128,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
                 className={`voice-tile${talking ? ' speaking' : ''}${live ? ' live' : ''}`}
                 {...volumeMenu.triggerProps(m.user_id, displayName(m.user_id, m.username))}
               >
-                <UserAvatar userId={m.user_id} className="voice-tile-avatar" speaking={talking} />
+                <UserAvatar userId={m.user_id} className="voice-tile-avatar" />
                 <span className="voice-tile-name" style={nameColors?.[m.user_id] ? { color: nameColors[m.user_id] } : undefined}>
                   {displayName(m.user_id, m.username)}
                 </span>

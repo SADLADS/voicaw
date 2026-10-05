@@ -158,7 +158,7 @@ LiveKit carries the audio.
   says the track is gone, so `detach()` alone left empty elements behind.
 - **UI:** in the channel list, people in a voice channel are listed under it (ringed while
   talking, when you're in there too). Clicking a voice channel joins it on desktop; on mobile a
-  tap only opens it and you join from its page (`guild/VoiceChannelView.jsx`: tiles, Join Voice,
+  tap only opens it and you join from its page (`guild/VoiceChannelView.jsx`: tiles, outlined while talking, not their pictures; Join Voice,
   mute/deafen/share screen/disconnect). `voice/VoiceBar.jsx` sits above the user panel while
   connected (status, channel link, share screen, disconnect, errors); `UserPanel` has mute and deafen
   (`voice/VoiceControls.jsx`). A guild reopens on its last *text* (or list) channel.
