@@ -199,6 +199,9 @@ describe('MessageList', () => {
     expect(screen.getByText(otherGuild).tagName).toBe('A');
     expect(screen.getByText(unseen)).toHaveAttribute('href', unseen);
     expect(screen.getByText('here')).toHaveAttribute('href', named);
+    // Links open in a new tab: following one in the app's page would leave voice.
+    expect(screen.getByText(unseen)).toHaveAttribute('target', '_blank');
+    expect(screen.getByText(unseen)).toHaveAttribute('rel', 'noopener noreferrer');
     expect(loadAll).toHaveBeenCalled();
     fireEvent.click(screen.getByRole('link', { name: /general/ }));
     expect(screen.getByTestId('where')).toHaveTextContent('/guild/9/5');

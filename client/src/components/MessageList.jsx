@@ -159,8 +159,11 @@ function MarkdownImage({ src, alt, className, title, ...rest }) {
 
 // A link. A bare link to a guild channel (channelLink, as Copy Link gives it) is drawn as that
 // channel's mention for those who can see the channel, and stays a link for everyone else.
+// Links always open in a new tab (the desktop app: the browser): following one in the app's own
+// page would unload it, and LiveKit leaves voice on unload, even when Electron then cancels the
+// navigation.
 function MarkdownLink({ node, href, children, ...rest }) {
-  const link = <a href={href} {...rest}>{children}</a>;
+  const link = <a href={href} {...rest} target="_blank" rel="noopener noreferrer">{children}</a>;
   const target = parseChannelLink(href);
   const text = node?.children?.length === 1 ? node.children[0].value : null;
   if (!target || text !== href) return link;
