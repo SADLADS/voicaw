@@ -97,11 +97,12 @@ function parseJsonObject(json) {
 
 const forbidden = (res) => res.status(403).json({ error: "You don't have permission to do that" });
 
-// Text channels and threads (threads.js): chats of plain messages.
-const isChat = (channel) => channel.type === 'text' || channel.type === 'thread';
+// Text channels, threads (threads.js) and voice channels' chats: chats of plain messages.
+const CHAT_TYPES = ['text', 'thread', 'voice'];
+const isChat = (channel) => CHAT_TYPES.includes(channel.type);
 
 // Loads req.channel and req.permissions (there) if the caller can see it and it's a text
-// channel or a thread.
+// channel, a thread or a voice channel (its chat).
 async function requireTextChannel(req, res, next) {
   const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
   if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Channel not found' });
@@ -141,7 +142,7 @@ async function requireChatChannel(req, res, next) {
 async function requireReadableChannel(req, res, next) {
   const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
   if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Channel not found' });
-  if (!['text', 'thread', 'doc'].includes(access.channel.type)) return res.status(400).json({ error: 'Not a text channel' });
+  if (!isChat(access.channel) && access.channel.type !== 'doc') return res.status(400).json({ error: 'Not a text channel' });
   req.channel = access.channel;
   req.permissions = access.permissions;
   next();
@@ -380,7 +381,7 @@ router.get('/channels/:channelId/pins', authenticateJWT, requireTextChannel, asy
 });
 
 // Pins or unpins `message` for `actorId` (with `permissions` in `channel`). Only in text
-// channels and threads (a document channel's replies have no pinned list). Resolves to the pin
+// channels, threads and voice channels (a document channel's replies have no pinned list). Resolves to the pin
 // ({ messageId, pinned_at, pinned_by }). Shared with the bot API. Throws ActionError.
 async function setMessagePinned(message, channel, actorId, permissions, pinned) {
   if (!isChat(channel)) throw new ActionError(400, 'Not a text channel', 50024);

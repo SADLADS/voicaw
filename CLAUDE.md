@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Voicaw is a Discord-style chat web app: end-to-end encrypted direct messages and group DMs
 (with calls), and guilds
-(Discord-style servers, always called guilds in the app: text, voice, list (task board)
+(Discord-style servers, always called guilds in the app: text, voice (with a text chat), list (task board)
 and document channels, threads, roles and private channels, scheduled events; not encrypted, see `docs/guilds.md`),
 with bots that use Discord's API (`docs/bots.md`). It's an npm workspaces monorepo with
 four packages: `client` (React/Vite SPA, also packaged as an Electron desktop app and an
@@ -239,6 +239,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   hearing is its own permission, Listen (people have it through @everyone, which never gives it
   to a bot; LiveKit enforces it), and listening bots show an ear. A Discord-compatible voice
   bridge was deferred (big: voice websocket, UDP, re-encoding, maybe Discord's DAVE).
+- **Voice channels' chat** (built 2026-10-06, see `docs/guilds.md`): as in Discord, every voice
+  channel is also a permanent chat for anyone who can see it, in the call or not (not only
+  those connected); a side panel toggled from the header (`?chat=1`), no threads.
 - **Link previews** (built 2026-10-05, see Link previews in `docs/messages.md`): guilds only
   have page previews, fetched by the server (`safeFetch.js`: public addresses only); encrypted
   chats never send links to the server, so there only links straight to a picture or video show

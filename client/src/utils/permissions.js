@@ -77,6 +77,10 @@ const CHANNEL_PERMISSION_ITEMS = {
   ],
   voice: [
     ['VIEW_CHANNEL', 'viewChannel'],
+    ['SEND_MESSAGES', 'sendMessages'],
+    ['ADD_REACTIONS', 'addReactions'],
+    ['MANAGE_MESSAGES', 'manageMessages'],
+    ['PIN_MESSAGES', 'pinMessages'],
     ['CONNECT', 'connect'],
     ['SPEAK', 'speak'],
     ['LISTEN', 'listen'],

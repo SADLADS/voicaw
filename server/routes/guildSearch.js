@@ -79,9 +79,9 @@ router.get('/guilds/:guildId/messages/search', authenticateJWT, async (req, res)
     return res.status(400).json({ error: 'Nothing to search for' });
   }
 
-  // The text channels the caller can see (of those asked for).
+  // The text and voice channels (their chats) the caller can see (of those asked for).
   const overrides = await getOverrides({ guildId });
-  const channels = await db.all("SELECT id FROM guild_channels WHERE guild_id = ? AND type = 'text'", [guildId]);
+  const channels = await db.all("SELECT id FROM guild_channels WHERE guild_id = ? AND type IN ('text', 'voice')", [guildId]);
   const visible = channels.map((c) => c.id).filter((id) =>
     (!channelIds.length || channelIds.includes(id)) &&
     has(channelPermissions(member, req.user.id, overrides.get(id) ?? []), PERMISSIONS.VIEW_CHANNEL));

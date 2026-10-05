@@ -26,11 +26,11 @@ function limit(req, res, next) {
   return res.status(429).json({ error: 'Slow down a little' });
 }
 
-// req.access: a text channel or thread the caller can see.
+// req.access: a text channel, thread or voice channel (its chat) the caller can see.
 async function inChannel(req, res, next) {
   const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
   if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return res.status(404).json({ error: 'Channel not found' });
-  if (!['text', 'thread'].includes(access.channel.type)) return res.status(400).json({ error: 'Not a text channel' });
+  if (!['text', 'thread', 'voice'].includes(access.channel.type)) return res.status(400).json({ error: 'Not a text channel' });
   req.access = access;
   next();
 }

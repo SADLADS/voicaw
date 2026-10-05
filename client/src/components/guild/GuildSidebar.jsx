@@ -12,6 +12,7 @@ import {
   faClipboardList,
   faFolderPlus,
   faGear,
+  faMessage,
   faPlus,
   faRightFromBracket,
   faUserPlus,
@@ -70,6 +71,8 @@ export default function GuildSidebar({ guild, user }) {
   // A thread open beside the channel; an event to show (`?event=<id>`: links, notifications).
   const [searchParams, setSearchParams] = useSearchParams();
   const openThreadId = searchParams.get('thread');
+  // A voice channel's chat is open beside it (GuildView).
+  const voiceChatOpen = searchParams.get('chat') === '1';
   const eventParam = searchParams.get('event');
   const navigate = useNavigate();
   const { guildList } = useContext(LayoutContext);
@@ -224,8 +227,10 @@ export default function GuildSidebar({ guild, user }) {
 
   function renderChannel(channel) {
     const active = String(channel.id) === channelId;
-    const unread = unreadChannels.has(channel.id) && !active;
-    const mentions = active ? 0 : channelMentions.get(channel.id) ?? 0;
+    // A voice channel's messages are only seen while its chat is open.
+    const reading = active && (channel.type !== 'voice' || voiceChatOpen);
+    const unread = unreadChannels.has(channel.id) && !reading;
+    const mentions = reading ? 0 : channelMentions.get(channel.id) ?? 0;
     const connected = channel.id === inVoice;
     const muted = guildList.isMuted(channel.id);
     const moving = dragged('channel', channel.id);
@@ -255,7 +260,20 @@ export default function GuildSidebar({ guild, user }) {
             <span className="mention-badge" aria-label={t('guilds.sidebar.mentionCount', { count: mentions })}>{mentions > 99 ? '99+' : mentions}</span>
           )}
         </Link>
-        {!isMobile && (managesChannels || (channel.type === 'text' && has(channel.my_permissions, PERMISSIONS.MANAGE_WEBHOOKS))) && (
+        {!isMobile && channel.type === 'voice' && (
+          // Opens the chat without joining (clicking the channel joins).
+          <Link
+            draggable={false}
+            to={`/guild/${guild.id}/${channel.id}?chat=1`}
+            onClick={showContent}
+            className={`guild-sidebar-icon-button guild-channel-chat-button${unread || mentions > 0 ? ' unread' : ''}`}
+            aria-label={t('guilds.sidebar.openChatNamed', { name: channel.name })}
+            title={t('guilds.sidebar.openChat')}
+          >
+            <FontAwesomeIcon icon={faMessage} />
+          </Link>
+        )}
+        {!isMobile && (managesChannels || (['text', 'voice'].includes(channel.type) && has(channel.my_permissions, PERMISSIONS.MANAGE_WEBHOOKS))) && (
           <button
             type="button"
             className="guild-sidebar-icon-button"

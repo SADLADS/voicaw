@@ -149,7 +149,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   Back). `ChannelMenu`: Mark As Read (`POST /channels/:id/read { latest: true }`), Mute Channel
   ▸ / Unmute, Notification Settings ▸ (see Mentions), Copy Link (`channelLink`: this site's
   address, app.voicaw.com from the desktop app), and with Manage Channels Edit, Duplicate
-  (`CloneChannelDialog`) and Delete; voice channels only the last four. `CategoryMenu`: Mark
+  (`CloneChannelDialog`) and Delete (voice channels too: their chat, see Voice channels' chat).
+  `CategoryMenu`: Mark
   As Read, Collapse/Expand, Edit, Create Channel, Delete. On a phone the long press shares the
   touch with dragging (`usePointerDrag` `onLongPress`): hold and lift opens the menu, hold and
   move drags (with Manage Channels). The list's **empty space** has its own menu (right-click,
@@ -191,6 +192,29 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   rail, search dates (see Guild search), muting a category or a whole guild, a list of your
   recent mentions. Voice: see
   Voice channels.
+
+## Voice channels' chat
+
+Like Discord's: every voice channel is also a chat (built 2026-10-06), its messages kept like a
+text channel's (`guild_messages` with the voice channel's id; unencrypted, like the rest of a
+guild). Anyone who can see the channel reads it, and posts with Send Messages, in the call or
+not; nothing about it depends on who's connected.
+- **Server:** a voice channel is a chat channel wherever messages are checked
+  (`routes/guildMessages.js` `CHAT_TYPES`: history, send, pins, mark read; typing, interactions
+  and slash commands, guild search, webhooks, the gateway's message events). Unread counts,
+  mentions, pushes, mutes and notification levels needed nothing: they never looked at the type,
+  and deleting a channel already deleted its messages. **No threads** from voice channels (as in
+  Discord). Its overrides take the message permissions too (Send Messages, Add Reactions, Manage
+  Messages, Pin Messages: `client/src/utils/permissions.js` `CHANNEL_PERMISSION_ITEMS.voice`).
+- **Client:** `?chat=1` on a voice channel's URL opens `guild/VoiceChatPane.jsx` beside the voice
+  page, in the member list's place (thread-pane's layout; on a phone it covers the voice page,
+  and Back closes it). `GuildView` loads the channel's `useChannel` only while it's open, so
+  only then is it marked read. Opened from the header's chat button (with the bell and pins
+  buttons, which voice channels now have too), or the channel list's chat button on a computer
+  (it opens the chat without joining, unlike clicking the channel; shown on hover, and always
+  while the chat is unread). The channel list shows a voice channel unread unless its chat is
+  open. On a computer the last choice is kept (`localStorage` `voiceChatOpen`): a voice channel
+  then opens with its chat. A search result in one opens its chat.
 
 ## Threads
 
@@ -253,7 +277,7 @@ its own, that opens beside the channel. Not encrypted, like the rest of a guild.
   `threads` current and counts only joined threads as unread; `GuildSidebar` lists joined ones
   under their channel (a collapsed category still shows a channel with an unread thread).
 - **Not done yet:** private threads, forum channels, threads in document channels, webhooks
-  posting into threads, searching thread messages (guild search covers text channels only),
+  posting into threads, searching thread messages (guild search covers text and voice channels only),
   `<#thread>` links (they show as #unknown-channel), choosing the auto-archive time, a thread's
   own notification settings in the UI (the API takes them like a channel's).
 
@@ -443,7 +467,7 @@ can; DMs and group DMs can't be searched this way).
   `author_id` and `channel_id` (any of them; comma separated or repeated), `has` and `mentions`
   (user ids written in the text as `<@id>`; all of them), `sort_order` (desc/asc), `offset`
   (pages of 25, up to 5000). Returns `{ total_results, messages }` (channel message rows).
-  Only text channels the caller can view are searched; non-members get 404.
+  Only text and voice channels the caller can view are searched; non-members get 404.
 - **Client:** `guild/GuildSearch.jsx`, at the end of the channel header (on a phone a button that
   opens it full screen). `utils/searchQuery.js` parses the box (`from:user`, `mentions:user`
   by username or unique display name, `in:channel`, `has:thing`, quoted values with spaces)
@@ -459,7 +483,7 @@ can; DMs and group DMs can't be searched this way).
 
 ## Webhooks (Discord's API)
 
-A webhook posts into one text channel from anywhere, with its own name and picture, like
+A webhook posts into one text or voice channel (its chat) from anywhere, with its own name and picture, like
 Discord's; **the API is Discord's** (`server/routes/webhooks.js`), so anything that posts to a
 Discord webhook URL works with ours by changing the URL's start: `https://voicaw.com/api/webhooks/
 <id>/<token>` (also `/api/v6`–`/api/v10/...`, and `api.voicaw.com`). Not end-to-end encrypted,
@@ -490,8 +514,8 @@ like the rest of a guild.
   `Response.formData()`).
 - **Logged in** (Manage Webhooks and View Channel): `POST/GET /channels/:id/webhooks`, `GET
   /guilds/:id/webhooks`, `GET/PATCH/DELETE /webhooks/:id` (PATCH can move it to another text
-  channel). Channel settings have a **Webhooks** tab (`guild/ChannelWebhooks.jsx`, for text
-  channels; someone with only Manage Webhooks gets just that tab): New Webhook (named "Captain
+  or voice channel). Channel settings have a **Webhooks** tab (`guild/ChannelWebhooks.jsx`, for text
+  and voice channels; someone with only Manage Webhooks gets just that tab): New Webhook (named "Captain
   Hook", like Discord's), each one's picture (shrunk to 512 px in the browser, since nginx
   takes 1 MB by default), name, Copy Webhook URL (built from the app's own API address,
   `utils/webhookUrl.js`), delete.

@@ -15,6 +15,8 @@
       "muted": "Muted",
       "editChannelNamed": "Edit {{name}}",
       "editChannel": "Edit channel",
+      "openChat": "Open chat",
+      "openChatNamed": "Open {{name}}'s chat",
       "guildSettings": "Guild Settings",
       "auditLog": "Audit Log",
       "notificationSettings": "Notification Settings",
@@ -286,6 +288,15 @@
       "watchStream": "Watch Stream",
       "connecting": "Connecting…",
       "cameraOn": "Camera on"
+    },
+    "voiceChat": {
+      "label": "{{name}}'s chat",
+      "subtitle": "Text chat",
+      "show": "Show chat",
+      "hide": "Hide chat",
+      "close": "Close chat",
+      "back": "Back to {{name}}",
+      "empty": "Welcome to {{name}}'s chat! Anyone who can see the channel can talk here, in the call or not."
     },
     "channelIcon": {
       "privateChannel": "Private channel",

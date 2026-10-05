@@ -85,8 +85,8 @@ describe('managing webhooks (logged in)', () => {
     expect(changed.avatar_url).toContain(`/profile-pics/webhooks/${hook.id}/${changed.avatar}.webp`);
     expect(objects.get(`profile-pics/webhooks/${hook.id}/${changed.avatar}.webp`).contentType).toBe('image/webp');
 
-    const voice = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'talk', type: 'voice' })).body;
-    expect((await api.patch(owner, `/webhooks/${hook.id}`, { channel_id: voice.id })).status).toBe(400);
+    const list = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'tasks', type: 'list' })).body;
+    expect((await api.patch(owner, `/webhooks/${hook.id}`, { channel_id: list.id })).status).toBe(400);
     expect((await api.patch(owner, `/webhooks/${hook.id}`, { avatar: 'data:image/png;base64,bm90IGFuIGltYWdl' })).body).toMatchObject({ code: 50035 });
 
     expect((await api.delete(owner, `/webhooks/${hook.id}`)).status).toBe(204);
