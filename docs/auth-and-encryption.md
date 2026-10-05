@@ -121,6 +121,24 @@ sessions, push subscriptions and login state; its sockets get `account_deleted` 
 so the app logs out, and the name is free again. Withdrawing a request (the waiting page, a
 password proof through `DELETE /account`) does the same.
 
+## Terms of use
+
+People accept the terms of use (voicaw.com/terms/) before posting anything, as Google Play's
+user-content rule wants (`server/terms.js`, 2026-10-05):
+- **Registering** needs the tick under the form ("I agree to the terms of use and I'm 13 or
+  over", `Login.jsx`): `/finaliseregister` takes `acceptedTerms`, which must be the current
+  `TERMS_VERSION` (from `/api/config` `termsVersion`), else 400 `code: 'terms'` (an app too old
+  to send it can't register until it updates).
+- **Each account keeps** the version it accepted and when (`users.terms_version`,
+  `terms_accepted_at`). `/profile`, `/finaliselogin` and `/recover/finish` say
+  `termsAccepted`; when it's false (accounts from before the terms, or since they changed) `App`
+  shows `TermsGate.jsx` instead of everything else: the terms and privacy links, the same tick,
+  "Agree and continue" (`POST /terms/accept { version }`, 409 if they changed meanwhile) or Log
+  out. It's the app that stops people, not the API (an old app version doesn't know to ask).
+- **Changing the terms in substance:** change `website/src/legal/terms.html`, its date in
+  `website/build.mjs` `LEGAL`, and `TERMS_VERSION` to the same date (a test checks they match):
+  everyone is asked again. Bots never accept anything: they're their owners'.
+
 ## Deleting an account
 
 Settings → Delete account (`DeleteAccountSettings.jsx`, `authService` `deleteAccount`), like

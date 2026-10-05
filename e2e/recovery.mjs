@@ -56,6 +56,7 @@ try {
   const phone = await freshPage(browser, devices['Pixel 7']);
   await phone.fill('input[placeholder="New Username"]', `phone${String(Date.now()).slice(-5)}`);
   await phone.fill('input[placeholder="New Password"]', 'correct horse battery phone');
+  await phone.check('label:has-text("I agree to the") input');
   await phone.click('button:has-text("Register")');
   await phone.waitForSelector('[aria-label="Recovery code"]');
   await shot(phone, 'code-phone');

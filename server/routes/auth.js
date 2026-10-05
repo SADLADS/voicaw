@@ -11,10 +11,16 @@ const { sendToAllSockets } = require('../sockets');
 const { normalizeUsername, findUserByName, opaqueIdOf, newOpaqueId } = require('../usernames');
 const accounts = require('../accounts');
 const signups = require('../signups');
+const terms = require('../terms');
 
 // Registration and login use OPAQUE (the password never reaches the server), each in two
 // round trips. Login state between them lives in login_states for 5 minutes.
 const router = express.Router();
+
+// What a suspended account is told when logging in (with the admin's reason, if they gave one).
+const suspendedError = (user) => ({
+  error: 'This account has been suspended', code: 'suspended', reason: user.suspended_reason || null,
+});
 const LOGIN_STATE_SECONDS = 300;
 
 const now = () => Math.floor(Date.now() / 1000);
@@ -132,11 +138,13 @@ router.post('/finaliselogin', async (req, res) => {
 
   const user = await findUserByName(
     userIdentifier,
-    'id, username, identity_key, encryption_key, encryption_key_signature, key_backup, recovery_verifier, pending'
+    'id, username, identity_key, encryption_key, encryption_key_signature, key_backup, recovery_verifier, pending, suspended_at, suspended_reason'
   );
   const failed = await checkLoginProof(user?.username ?? normalizeUsername(userIdentifier), finishLoginRequest, clientSessionKey);
   if (failed) return res.status(failed[0]).json({ error: failed[1] });
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+  // Suspended by an admin (reports.js): said only once the password is right.
+  if (user.suspended_at) return res.status(403).json(suspendedError(user));
 
   // The client decrypts the backup with its OPAQUE exportKey and checks the published
   // public keys against the ones inside it.
@@ -146,6 +154,7 @@ router.post('/finaliselogin', async (req, res) => {
     username: user.username,
     hasRecoveryCode: Boolean(user.recovery_verifier),
     pending: Boolean(user.pending),
+    termsAccepted: await terms.acceptedTerms(user.id),
     keyBackup: user.key_backup,
     identityKey: user.identity_key,
     encryptionKey: user.encryption_key,
@@ -191,6 +200,10 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
   }
   const recovery = recoveryVerifier || recoveryBackup ? parseRecovery(req.body) : null;
   if (recovery?.error) return res.status(400).json({ error: recovery.error });
+  // The tick: "I agree to the terms of use and I'm 13 or over", for the terms shown (terms.js).
+  if (req.body.acceptedTerms !== terms.TERMS_VERSION) {
+    return res.status(400).json({ error: 'You need to accept the terms of use', code: 'terms' });
+  }
 
   // Capitals typed in the username become the display name ("Alice": username "alice").
   const username = normalizeUsername(userIdentifier);
@@ -213,10 +226,11 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
       if (signup.invite) await signups.useInvite(signup.invite);
       ({ lastID } = await db.run(
         `INSERT INTO users (username, display_name, password, identity_key, encryption_key, encryption_key_signature,
-           key_backup, recovery_verifier, recovery_backup, recovery_created, pending)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           key_backup, recovery_verifier, recovery_backup, recovery_created, pending, terms_version, terms_accepted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [username, displayName, registrationRecord, identityKey, encryptionKey, encryptionKeySignature, keyBackup,
-          recovery?.verifier ?? null, recovery?.backup ?? null, recovery ? now() : null, signup.pending ? 1 : 0]
+          recovery?.verifier ?? null, recovery?.backup ?? null, recovery ? now() : null, signup.pending ? 1 : 0,
+          terms.TERMS_VERSION, now()]
       ));
     });
   } catch (err) {
@@ -231,19 +245,23 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
   res.status(201).json({
     token: await startSession(user, req), id: user.id, username, display_name: displayName, hasRecoveryCode: Boolean(recovery),
     pending: signup.pending,
+    termsAccepted: true,
   });
 });
 
 // Restores a session from its token (the client keeps it in localStorage). `pending`: the account
 // waits for an admin's approval (signups.js); the app shows only that.
 router.get('/profile', authenticatePending, async (req, res) => {
-  const user = await db.get(`SELECT id, username, recovery_verifier, pending, ${PROFILE_COLUMNS} FROM users WHERE id = ?`, [req.user.id]);
+  const user = await db.get(`SELECT id, username, recovery_verifier, pending, terms_version, ${PROFILE_COLUMNS} FROM users WHERE id = ?`, [req.user.id]);
   if (!user) return res.status(404).json({ error: 'User not found' });
   const token = req.headers.authorization.split(' ')[1];
   res.json({
     // The username from the database: a token from before usernames were lower-cased has the old one.
     token, id: req.user.id, username: user.username, hasRecoveryCode: Boolean(user.recovery_verifier),
-    pending: Boolean(user.pending), display_name: user.display_name, custom_status: user.custom_status, bio: user.bio, avatar: user.avatar,
+    pending: Boolean(user.pending),
+    // false: the app asks them to accept the current terms before going on (TermsGate).
+    termsAccepted: terms.hasAccepted(user),
+    display_name: user.display_name, custom_status: user.custom_status, bio: user.bio, avatar: user.avatar,
   });
 });
 
@@ -411,6 +429,8 @@ router.post('/recover/start', recoverLimits, async (req, res) => {
 router.post('/recover/finish', recoverLimits, async (req, res) => {
   const user = await checkRecoveryAuth(req.body.userIdentifier, req.body.recoveryAuth);
   if (!user) return res.status(401).json({ error: WRONG_RECOVERY });
+  const suspended = await db.get('SELECT suspended_at, suspended_reason FROM users WHERE id = ?', [user.id]);
+  if (suspended?.suspended_at) return res.status(403).json(suspendedError(suspended));
   const password = newPassword(req.body);
   if (password.error) return res.status(400).json({ error: password.error });
 
@@ -428,7 +448,19 @@ router.post('/recover/finish', recoverLimits, async (req, res) => {
     username: user.username,
     hasRecoveryCode: true,
     pending: Boolean(user.pending),
+    termsAccepted: await terms.acceptedTerms(user.id),
   });
+});
+
+// Accepts the terms of use shown (`version`, which must be the current one: if they changed
+// meanwhile, 409 with the current version, and the app shows the new ones).
+// (Open to an account still waiting for approval, like its profile: signups.js.)
+router.post('/terms/accept', authenticatePending, async (req, res) => {
+  if (req.body?.version !== terms.TERMS_VERSION) {
+    return res.status(409).json({ error: 'The terms of use have changed', version: terms.TERMS_VERSION });
+  }
+  await terms.acceptTerms(req.user.id);
+  res.json({ termsAccepted: true });
 });
 
 module.exports = router;

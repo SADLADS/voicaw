@@ -1,5 +1,5 @@
 import React from 'react';
-import { faComments, faCopy, faEdit, faFaceSmile, faReply, faRobot, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faCopy, faEdit, faFaceSmile, faFlag, faReply, faRobot, faThumbtack, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { quickReactions } from '../emoji/quickReactions';
@@ -34,6 +34,7 @@ export default function MessageMenu({
   onCreateThread,
   onCopy,
   onDelete,
+  onReport,
   apps = [],
   onRunApp,
   onClose,
@@ -62,8 +63,11 @@ export default function MessageMenu({
       submenu: { title: t('commands.apps.label'), items: apps.map((command) => ({ key: `app-${command.id}`, label: command.name, hint: displayName(command.bot?.id, command.bot?.name), onSelect: () => onRunApp(command) })) },
     });
   }
+  if (sent && (canDelete || (!isOwn && onReport))) items.push({ separator: true });
+  // Someone else's message, to Voicaw's moderators (ReportDialog).
+  if (sent && !isOwn && onReport) items.push({ key: 'report', label: t('chat.report.menuMessage'), icon: faFlag, danger: true, onSelect: onReport });
   if (sent && canDelete) {
-    items.push({ separator: true }, { key: 'delete', label: t('chat.messageMenu.delete'), icon: faTrash, danger: true, onSelect: onDelete });
+    items.push({ key: 'delete', label: t('chat.messageMenu.delete'), icon: faTrash, danger: true, onSelect: onDelete });
   }
 
   const header = sent && canReact && index ? (

@@ -44,6 +44,8 @@ import ChannelIcon from './guild/ChannelIcon';
 import { showContent } from '../utils/mobilePanes';
 import { parseChannelLink } from '../utils/guildDisplay';
 import { pageMenuTarget } from '../utils/pageMenuTarget';
+import { useBlocked } from '../utils/blocks';
+import BlockedMessage from './BlockedMessage';
 import { t } from '../i18n';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
@@ -651,6 +653,8 @@ export default function MessageList({
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
+  // People you've blocked: their messages are collapsed (BlockedMessage).
+  const blocked = useBlocked();
   // Following the newest message (true until the user scrolls away from the bottom).
   const pinnedToBottom = useRef(true);
   // The list's own height when last seen, to tell the list resizing apart from user scrolling.
@@ -856,6 +860,8 @@ export default function MessageList({
               ? <ThreadStartNotice msg={msg} />
               : msg.system
               ? <p className="message-system">{msg.text}</p>
+              : blocked.has(Number(msg.sender_id)) && !msg.webhook_id
+              ? <BlockedMessage><MessageRow msg={msg} grouped={false} {...rowProps} /></BlockedMessage>
               : <MessageRow msg={msg} grouped={continuesGroup(messages[i - 1], msg)} {...rowProps} />}
           </div>
         ))}

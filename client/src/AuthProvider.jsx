@@ -40,6 +40,9 @@ export function AuthProvider({ children }) {
             hasRecoveryCode: res.data.hasRecoveryCode,
             // Waiting for an admin's approval: the app shows only that (PendingApproval).
             pending: Boolean(res.data.pending),
+            // false: the terms of use must be accepted first (TermsGate). An older server
+            // doesn't say, which counts as accepted.
+            termsAccepted: res.data.termsAccepted !== false,
           });
         } else {
           setUser(null);

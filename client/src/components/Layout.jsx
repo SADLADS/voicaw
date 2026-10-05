@@ -23,6 +23,7 @@ import { useGuildList } from '../hooks/useGuildList';
 import { useGroupList } from '../hooks/useGroupList';
 import { useConversationSettings } from '../hooks/useConversationSettings';
 import { usePreferencesSync } from '../hooks/usePreferencesSync';
+import { useBlocksSync } from '../hooks/useBlocksSync';
 import { useDictionarySync } from '../hooks/useDictionarySync';
 import { useSwipePanes } from '../hooks/useSwipePanes';
 import { useDesktopApp } from '../hooks/useDesktopApp';
@@ -87,6 +88,7 @@ export default function Layout({ user, onLogout }) {
   const conversationSettings = useConversationSettings(user?.id);
   // Your account preferences (utils/preferences), e.g. whether NSFW channels' media is blurred.
   usePreferencesSync(user?.id);
+  useBlocksSync(user?.id);
   useDictionarySync(user?.id);
   const activeGroups = useMemo(
     () => groupList.groups.map((g) => (g.unread && conversationSettings.isMuted('group', g.id) ? { ...g, unread: 0 } : g)),

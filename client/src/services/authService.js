@@ -21,13 +21,20 @@ export const MIN_PASSWORD_LENGTH = 10;
 
 const PUBLIC_KEY_FIELDS = ['identityKey', 'encryptionKey', 'encryptionKeySignature'];
 
+// What a suspended account is told (server: 403 `code: 'suspended'`, with the admin's reason).
+export function suspendedText(reason) {
+  return reason ? t('auth.errors.suspendedBecause', { reason }) : t('auth.errors.suspended');
+}
+
 // Sends and resolves to the response body; a refusal throws the server's own message
 // (e.g. "Username already exists", or too many attempts), with its `code` if it has one.
 async function send(method, path, body) {
   try {
     return (await api[method](path, body)).data;
   } catch (err) {
-    throw Object.assign(new Error(err.response?.data?.error || err.message), { code: err.response?.data?.code });
+    const data = err.response?.data;
+    if (data?.code === 'suspended') throw Object.assign(new Error(suspendedText(data.reason)), { code: data.code });
+    throw Object.assign(new Error(data?.error || err.message), { code: data?.code });
   }
 }
 
@@ -84,7 +91,7 @@ export async function logIn(username, password) {
 
   await storeUserKeys(id, keys);
   localStorage.setItem('token', token);
-  return { token, id, username: data.username, hasRecoveryCode: Boolean(data.hasRecoveryCode), pending: Boolean(data.pending) };
+  return { token, id, username: data.username, hasRecoveryCode: Boolean(data.hasRecoveryCode), pending: Boolean(data.pending), termsAccepted: data.termsAccepted !== false };
 }
 
 function checkNewPassword(password) {
@@ -131,8 +138,9 @@ async function recoveryFields(code, keys) {
 // see server/signups.js). Resolves to { user, recoveryCode } (user: the logged-in { token, id,
 // username, hasRecoveryCode, pending }, or null if the server registered it without logging in;
 // `pending` while it waits for an admin's approval). The code is shown once and never stored.
-// A refusal for the invite has `code` 'invite_required' or 'invalid_invite'.
-export async function register(username, password, invite = '') {
+// A refusal for the invite has `code` 'invite_required' or 'invalid_invite'. `acceptedTerms`:
+// the version of the terms of use the person ticked (/api/config termsVersion).
+export async function register(username, password, invite = '', acceptedTerms = undefined) {
   if (!username) throw new Error(t('auth.errors.usernameAndPasswordRequired'));
   checkNewPassword(password);
   invite = inviteCode(invite) || undefined;
@@ -151,13 +159,14 @@ export async function register(username, password, invite = '') {
     keyBackup,
     ...(await recoveryFields(recoveryCode, keys)),
     invite,
+    acceptedTerms,
   });
   if (!data.token) return { user: null, recoveryCode };
 
   await storeUserKeys(data.id, keys);
   localStorage.setItem('token', data.token);
   return {
-    user: { token: data.token, id: data.id, username: data.username, hasRecoveryCode: true, pending: Boolean(data.pending) },
+    user: { token: data.token, id: data.id, username: data.username, hasRecoveryCode: true, pending: Boolean(data.pending), termsAccepted: true },
     recoveryCode,
   };
 }
@@ -262,5 +271,5 @@ export async function recoverAccount(username, code, newPassword) {
 
   await storeUserKeys(done.id, keys);
   localStorage.setItem('token', done.token);
-  return { token: done.token, id: done.id, username: done.username, hasRecoveryCode: true, pending: Boolean(done.pending) };
+  return { token: done.token, id: done.id, username: done.username, hasRecoveryCode: true, pending: Boolean(done.pending), termsAccepted: done.termsAccepted !== false };
 }

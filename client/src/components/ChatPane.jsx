@@ -25,6 +25,7 @@ import { flashRow } from '../utils/flashRow';
 import { clearTyping } from '../utils/typing';
 import { endPoll, parsePoll, pollEnded, pollMarkup } from '../utils/pollMarkup';
 import { endPollOnServer, registerPollTimer } from '../services/pollService';
+import ReportDialog from './ReportDialog';
 
 // The body of a chat, shared by DMs (Dm) and guild channels (GuildChannel): the messages, the
 // composer, reactions (the floating or docked picker), the desktop right-click menu and the
@@ -113,6 +114,10 @@ export default function ChatPane({
   const closeMenu = useCallback(() => setMenuFor(null), []);
   // The message the "Delete message?" dialog is asking about.
   const [confirmingDelete, setConfirmingDelete] = useState(null);
+  // The message being reported (ReportDialog): anyone else's real message, sent.
+  const [reporting, setReporting] = useState(null);
+  const reportable = (msg) => Boolean(pollKind) && msg.sender_id !== user.id && !msg.system && !msg.ephemeral &&
+    msg.status !== 'pending' && msg.status !== 'failed';
   // A poll being edited: { msg, poll } (polls are edited in PollDialog, not inline).
   const [editingPoll, setEditingPoll] = useState(null);
 
@@ -430,6 +435,19 @@ export default function ChatPane({
         </ConfirmDialog>
       )}
 
+      {reporting && (
+        <ReportDialog
+          target={{
+            kind: 'message',
+            place: pollKind,
+            msg: reporting,
+            ...(pollKind === 'group' ? { groupId: chatId.replace(/^group-/, '') } : {}),
+          }}
+          name={reporting.webhook_id ? reporting.webhook_name : displayName(reporting.sender_id, reporting.sender_username)}
+          onClose={() => setReporting(null)}
+        />
+      )}
+
       {editingPoll && (
         <PollDialog
           poll={editingPoll.poll}
@@ -459,6 +477,7 @@ export default function ChatPane({
           apps={appsFor(actionsFor)}
           onRunApp={(command) => runMessageApp(command, actionsFor)}
           onDelete={() => handleDelete(actionsFor)}
+          onReport={reportable(actionsFor) ? () => setReporting(actionsFor) : undefined}
           onClose={closeActions}
         />
       )}
@@ -481,6 +500,7 @@ export default function ChatPane({
           apps={appsFor(menuMsg)}
           onRunApp={(command) => runMessageApp(command, menuMsg)}
           onDelete={(event) => requestDelete(menuMsg, event)}
+          onReport={reportable(menuMsg) ? () => setReporting(menuMsg) : undefined}
           onClose={closeMenu}
         />
       )}

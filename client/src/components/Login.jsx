@@ -1,10 +1,24 @@
 import React, { useContext, useState } from 'react';
+import { Trans } from 'react-i18next';
 import '../assets/css/login.css';
 import '../assets/css/recovery.css';
 import { connectWebSocket } from '../utils/ws-client';
 import {
-  MIN_PASSWORD_LENGTH, logIn, register, recoverAccount, generateRecoveryCode, saveRecoveryCode,
+  MIN_PASSWORD_LENGTH, logIn, register, recoverAccount, generateRecoveryCode, saveRecoveryCode, suspendedText,
 } from '../services/authService';
+import { SUSPENDED_NOTICE } from '../utils/ws-client';
+
+// This account was just suspended while the app was open (ws-client): what to say, once.
+function takeSuspendedNotice() {
+  try {
+    const saved = sessionStorage.getItem(SUSPENDED_NOTICE);
+    if (!saved) return '';
+    sessionStorage.removeItem(SUSPENDED_NOTICE);
+    return suspendedText(JSON.parse(saved).reason);
+  } catch {
+    return '';
+  }
+}
 import RecoveryCodeDisplay from './RecoveryCodeDisplay';
 import { ConfigContext } from '../contexts';
 import { t } from '../i18n';
@@ -19,15 +33,16 @@ const INVITE_ERRORS = {
 // mode (server/signups.js): an invite field when it needs one (or when one skips the wait for
 // approval). `invite`: the code from an app invite link (/join/<code>), filled in.
 export default function Login({ onLoginSuccess, invite = '' }) {
-  const { signupMode = 'open' } = useContext(ConfigContext) ?? {};
+  const { signupMode = 'open', termsVersion } = useContext(ConfigContext) ?? {};
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [registerData, setRegisterData] = useState({ username: '', password: '', invite });
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [recoverData, setRecoverData] = useState({ username: '', code: '', password: '', confirm: '' });
   // 'login' (log in or register), 'recover' (forgot password), or { user, recoveryCode,
   // password? } while a new code is shown: after registering (already stored), or after
   // logging in to an account without one (`password` set: stored once the user continues).
   const [mode, setMode] = useState('login');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(takeSuspendedNotice);
   const [loading, setLoading] = useState(false);
 
   const switchTo = (next) => {
@@ -68,7 +83,7 @@ export default function Login({ onLoginSuccess, invite = '' }) {
     setLoading(true);
     try {
       const { user, recoveryCode } = await register(
-        registerData.username, registerData.password, signupMode === 'open' ? '' : registerData.invite
+        registerData.username, registerData.password, signupMode === 'open' ? '' : registerData.invite, termsVersion
       );
       setMode({ user, recoveryCode });
     } catch (err) {
@@ -261,6 +276,15 @@ export default function Login({ onLoginSuccess, invite = '' }) {
               </p>
             </>
           )}
+          {/* The terms of use (voicaw.com/terms/): the server refuses a sign-up without them. */}
+          <label className="register-terms">
+            <input type="checkbox" required checked={agreedToTerms} onChange={(e) => setAgreedToTerms(e.target.checked)} />
+            {' '}
+            <Trans
+              i18nKey="auth.register.agree"
+              components={{ terms: <a href="https://voicaw.com/terms/" target="_blank" rel="noreferrer" /> }}
+            />
+          </label>
           <button className="btn btn-secondary w-100" type="submit" disabled={loading}>
             {loading ? t('auth.pleaseWait') : t('auth.register.submit')}
           </button>

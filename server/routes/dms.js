@@ -5,6 +5,7 @@ const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
 const { buildDmPushPayload, sendPushToUser, getUserImageUrl } = require('../push');
 const { isConversationMuted } = require('../conversationSettings');
+const blocks = require('../blocks');
 const { setPinned } = require('../pins');
 const { reactionIdsFor, pollReactionsFor } = require('../polls');
 const { removePollRows } = require('../pollTimers');
@@ -119,6 +120,10 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
   }
   if (!(await db.get('SELECT id FROM users WHERE id = ? AND deleted_at IS NULL AND bot = 0 AND pending = 0', [recipientId]))) {
     return res.status(404).json({ error: 'Recipient not found' });
+  }
+  // Either of them blocked the other (blocks.js): not sent, and not saying who blocked whom.
+  if (await blocks.blockedBetween(senderId, recipientId)) {
+    return res.status(403).json({ error: blocks.NOT_DELIVERED, code: 'blocked' });
   }
 
   // A reply must point at a message in this same conversation.

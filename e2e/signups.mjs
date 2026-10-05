@@ -22,6 +22,8 @@ async function register(browser, name, { contextOptions = { viewport: { width: 1
   await page.fill('input[placeholder="New Username"]', username);
   await page.fill('input[placeholder="New Password"]', `correct horse battery ${name}`);
   if (invite != null) await page.fill('input[name="invite"]', invite);
+  // The terms of use tick (Login.jsx): registering needs it.
+  await page.check('label:has-text("I agree to the") input');
   return { page, username, submit: async () => {
     await page.click('button:has-text("Register")');
     await page.waitForSelector('[aria-label="Recovery code"]', { timeout: 20000 });

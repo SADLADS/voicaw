@@ -31,6 +31,7 @@ node e2e/groupnames.mjs [dir] # encrypted group names: API never has them, list/
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 node e2e/notes.mjs [dir]  # notes: row under the header, send, pin, reload, not leaked to/from DMs, phone login
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
+node e2e/terms.mjs [dir]  # terms of use: sign-up needs the tick (form and server), someone who hasn't accepted sees only the terms until they agree, not asked again; phone
 node e2e/spoilers.mjs [dir] # spoiler images: mark in tray, blurred for both, tap/click reveals, reply preview
 node e2e/nsfw.mjs [dir]   # NSFW channels: dialog switch, header tag, age gate ("I am 18 or over": nothing loads before, kept as just the answer, not asked again), NSFW covers (image, embed, YouTube unloaded), spoiler = one cover, phone taps, Settings → Content off (account-wide, kept)
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
@@ -62,6 +63,7 @@ node e2e/devices.mjs [dir] # Settings → Devices: three logins listed, log the 
 node e2e/signups.mjs [dir] # sign-ups: Settings → Admin → Sign-ups to approval, new account sees only the waiting page, listed live for the admin, approved = app opens by itself, declined (phone) = logged out; invite only: refused without/with a bad code, /join/<code> link fills it in and lets them in, invite used up
 node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
 node e2e/favicon.mjs [dir] # favicon dot: DM on, read = off, guild message without a mention = none, mention on (Discord's rule); dir gets the dotted icon
+node e2e/moderation.mjs [dir] # block from a profile (collapsed messages, Show, DMs refused both ways, DM closed, Unblock), Report Message (guild; DM sharing its text), admin's Reports, suspend (phone logged out and told why, login refused with the reason), lift
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
 node e2e/android.mjs [dir] # Android app page side (stand-in Capacitor bridge): no service worker, Settings → Android App, a new version offered and downloaded on Update, push registration, notification tap, notify.html decrypts a real DM, call: Answer from the notification, ongoing-call notification, its Mute and Hang up
 node e2e/lists.mjs [dir]  # list channels: add, subtask, drag to nest/reorder, assign, due date, comments, read-only, phone

@@ -3,6 +3,7 @@ const config = require('../config');
 const { authenticateJWT } = require('../auth');
 const calls = require('../calls');
 const groups = require('../groupDms');
+const blocks = require('../blocks');
 
 // DM and group DM voice calls (see calls.js): ring someone or a group, answer or join,
 // decline, hang up, and the call you're in or being rung for (for a page that just loaded).
@@ -30,6 +31,9 @@ router.post('/dm-calls', authenticateJWT, requireVoice, async (req, res) => {
   const { calleeId, callId, keyEnvelope } = req.body ?? {};
   const callee = await calls.userById(calleeId);
   if (!callee || callee.id === req.user.id) return res.status(404).json({ error: 'User not found' });
+  if (await blocks.blockedBetween(req.user.id, callee.id)) {
+    return res.status(403).json({ error: "This call couldn't be made", code: 'blocked' });
+  }
   if (typeof callId !== 'string' || !UUID.test(callId)) return res.status(400).json({ error: 'Invalid call id' });
   if (typeof keyEnvelope !== 'string' || !keyEnvelope.startsWith('v1.') || keyEnvelope.length > MAX_KEY_ENVELOPE) {
     return res.status(400).json({ error: 'Invalid call key' });

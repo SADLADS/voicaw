@@ -229,7 +229,9 @@ async function startGroupCall({ id, group, caller, keyEnvelope, keyEpoch, member
   });
   call.participants.add(caller.id);
   call.joined.add(caller.id);
-  for (const userId of members) if (userId !== caller.id && !callOf(userId)) call.ringing.add(userId);
+  // Nobody who blocked the caller is rung (blocks.js); they can still join from the group.
+  const blockers = await require('./blocks').blockersAmong(caller.id, members);
+  for (const userId of members) if (userId !== caller.id && !callOf(userId) && !blockers.has(userId)) call.ringing.add(userId);
   // After a while, nobody's rung any more (the call goes on).
   call.timer = setTimeout(async () => {
     const missed = [...call.ringing];

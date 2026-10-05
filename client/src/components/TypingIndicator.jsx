@@ -2,6 +2,7 @@ import React from 'react';
 import { Trans } from 'react-i18next';
 import { displayName, useProfiles } from '../utils/profiles';
 import { useTyping } from '../utils/typing';
+import { useBlocked } from '../utils/blocks';
 import { t } from '../i18n';
 
 const BOLD = { b: <strong /> };
@@ -18,10 +19,12 @@ function TypingText({ names }) {
 
 // "Alice is typing…" with three bouncing dots, just above the message box. Sits over the bottom
 // of the message list (which leaves room for it), so it appearing doesn't move anything.
-// `names` ({ userId: username }) are fallbacks for people without a loaded profile.
+// `names` ({ userId: username }) are fallbacks for people without a loaded profile. People
+// you've blocked aren't shown typing.
 export default function TypingIndicator({ chatId, names }) {
   useProfiles();
-  const userIds = useTyping(chatId);
+  const blocked = useBlocked();
+  const userIds = useTyping(chatId).filter((id) => !blocked.has(Number(id)));
   const typingNames = userIds.map((id) => displayName(id, names?.[id] ?? t('chat.reactions.someone')));
   return (
     <div className="typing-indicator-slot">

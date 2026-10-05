@@ -287,6 +287,42 @@
       "copyFailed": "Couldn't copy here: try the keyboard shortcut",
       "pasteUnsupported": "This browser can't paste from a menu: try Ctrl+V",
       "pasteBlocked": "Your browser didn't allow pasting: try Ctrl+V"
+    },
+    "blocked": {
+      "message": "Blocked message",
+      "show": "Show",
+      "hide": "Hide",
+      "block": "Block",
+      "unblock": "Unblock",
+      "youBlocked": "You've blocked {{name}}. Unblock them to send messages or call.",
+      "confirmTitle": "Block {{name}}?",
+      "confirm": "They won't be able to message you, call you or add you to a group, and you won't see their messages or get notified about them. They aren't told."
+    },
+    "report": {
+      "messageTitle": "Report message",
+      "userTitle": "Report {{name}}",
+      "menuMessage": "Report Message",
+      "menuUser": "Report",
+      "intro": "Reports go to Voicaw's moderators, who can remove what breaks the terms of use and suspend accounts. The person isn't told who reported them.",
+      "why": "What's wrong?",
+      "categories": {
+        "spam": "Spam or scams",
+        "harassment": "Harassment or bullying",
+        "hate": "Hate",
+        "sexual": "Sexual content where it shouldn't be",
+        "child_safety": "Sexual content involving a child",
+        "violence": "Violence or threats",
+        "self_harm": "Self-harm or suicide",
+        "illegal": "Something illegal",
+        "other": "Something else"
+      },
+      "note": "Anything moderators should know (optional)",
+      "share": "Let moderators see this message",
+      "shareOff": "This chat is end-to-end encrypted, so moderators can't read it. Without this, they only see who sent a message to whom, and when.",
+      "shareOn": "The message's text goes with your report, so the moderators can read it. Nothing else from the chat is shared.",
+      "alsoBlock": "Also block {{name}}",
+      "send": "Send report",
+      "thanks": "Thanks for telling us. The moderators will look at it."
     }
   }
 }

@@ -21,6 +21,8 @@ const approvedListeners = new Set();
 const signupRequestListeners = new Set();
 const conversationSettingsListeners = new Set();
 const preferencesListeners = new Set();
+const blocksListeners = new Set();
+const reportsListeners = new Set();
 const dictionaryListeners = new Set();
 let reconnectTimeout = null;
 
@@ -195,6 +197,17 @@ export function connectWebSocket() {
       else if (data.type === 'account_deleted' || data.type === 'session_revoked') {
         loggedOutElsewhere(socket);
       }
+      else if (data.type === 'account_suspended') {
+        // The login page says why (Login.jsx), once.
+        try { sessionStorage.setItem(SUSPENDED_NOTICE, JSON.stringify({ reason: data.reason ?? null })); } catch { /* storage blocked */ }
+        loggedOutElsewhere(socket);
+      }
+      else if (data.type === 'blocks') {
+        blocksListeners.forEach((cb) => cb(data.blocked));
+      }
+      else if (data.type === 'reports_changed') {
+        reportsListeners.forEach((cb) => cb(data.open));
+      }
       else if (data.type === 'user_profile') {
         mergeProfiles([data.user]);
       }
@@ -338,6 +351,21 @@ export function onPreferences(callback) {
   preferencesListeners.add(callback);
   return () => preferencesListeners.delete(callback);
 }
+
+// Your blocked list changed on another device (utils/blocks.js).
+export function onBlocks(callback) {
+  blocksListeners.add(callback);
+  return () => blocksListeners.delete(callback);
+}
+
+// Admins: how many reports are open changed (Settings → Admin → Reports).
+export function onReportsChanged(callback) {
+  reportsListeners.add(callback);
+  return () => reportsListeners.delete(callback);
+}
+
+// Set (sessionStorage) when this account was just suspended: { reason }, for the login page.
+export const SUSPENDED_NOTICE = 'voicaw-suspended';
 
 // Your spellcheck dictionary was saved on another device (spellcheck/personalDictionary.js).
 export function onDictionary(callback) {

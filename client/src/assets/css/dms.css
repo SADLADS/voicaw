@@ -2413,6 +2413,11 @@ body.mobile-mode .dm-user-list-container .dm-user {
   text-decoration: underline;
 }
 
+/* While a dialog it opened (Block, Report) is up, the card steps aside: it sits above dialogs. */
+.profile-popover:has(~ .vc-dialog-backdrop) {
+  visibility: hidden;
+}
+
 .profile-popover {
   position: fixed;
   z-index: 400;
@@ -3565,4 +3570,136 @@ body.mobile-mode .poll-voters-list {
   padding: 24px 16px;
   text-align: center;
   color: var(--vc-fg-muted);
+}
+
+/* A blocked person's message (BlockedMessage.jsx): one muted line until shown. */
+.blocked-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px 4px 72px;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+}
+
+.blocked-message.shown {
+  display: block;
+  padding: 0;
+}
+
+.blocked-message.shown .blocked-message-toggle {
+  margin-left: 72px;
+  font-size: 13px;
+}
+
+.chat-unblock-button {
+  margin-left: auto;
+}
+
+/* Block / Report on a profile or member card (UserSafetyActions.jsx). */
+.user-safety-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* ReportDialog.jsx */
+.report-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 8px 0 12px;
+}
+
+.report-categories legend {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.report-note {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.report-share,
+.report-block {
+  display: block;
+  font-weight: 600;
+}
+
+/* Settings → Blocked users and → Reports (BlockedUsers.jsx, AdminReports.jsx). */
+.blocked-users,
+.admin-report-list,
+.admin-suspended-list,
+.admin-resolved-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.blocked-users li,
+.admin-suspended-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.blocked-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.blocked-user-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-suspended-list li > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-report {
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  overflow-wrap: anywhere;
+}
+
+.admin-report-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admin-report-content {
+  margin: 8px 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--vc-border-light);
+  white-space: pre-wrap;
+}
+
+.admin-report-note {
+  margin: 6px 0;
+  font-style: italic;
+}
+
+.admin-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.admin-suspend-reason {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
 }

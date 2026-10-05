@@ -89,6 +89,14 @@
       "about": {
         "title": "About",
         "keywords": "credits attribution licence license twemoji emoji font klipy"
+      },
+      "blocked": {
+        "title": "Blocked users",
+        "keywords": "block blocked unblock ignore people users"
+      },
+      "reports": {
+        "title": "Reports",
+        "keywords": "reports moderation moderate suspend suspended ban abuse"
       }
     },
     "nav": {
@@ -517,6 +525,43 @@
       "restarting": "Restarting…",
       "update": "Update",
       "androidReady": "Voicaw {{version}} · {{size}}"
+    },
+    "blocked": {
+      "title": "Blocked Users",
+      "hint": "People you've blocked can't message you, call you or add you to a group, and their messages are hidden for you. They aren't told.",
+      "none": "You haven't blocked anyone.",
+      "someone": "Someone"
+    },
+    "reports": {
+      "title": "Reports",
+      "hint": "What people have reported. Messages in DMs and groups are end-to-end encrypted: you only see one if the reporter chose to share it, and what they shared can't be checked.",
+      "none": "No open reports.",
+      "reported": "Reported:",
+      "alreadySuspended": "suspended",
+      "by": "by {{name}}",
+      "inGuild": "{{guild}} › #{{channel}}",
+      "inDm": "a direct message",
+      "inGroup": "a group chat",
+      "aPerson": "the person",
+      "sharedByReporter": "As shared by the reporter:",
+      "noText": "(no text)",
+      "notShared": "Encrypted, not shared by the reporter.",
+      "dismiss": "Dismiss",
+      "deleteMessage": "Delete message",
+      "suspend": "Suspend",
+      "suspendTitle": "Suspend {{name}}?",
+      "suspendMessage": "They're logged out everywhere and can't log in until the suspension is lifted. Their messages stay.",
+      "reason": "Reason (they see it when they try to log in; optional)",
+      "suspendedTitle": "Suspended accounts",
+      "noneSuspended": "Nobody is suspended.",
+      "lift": "Lift",
+      "resolvedTitle": "Recently resolved",
+      "actions": {
+        "dismissed": "dismissed",
+        "deleted_message": "message deleted",
+        "suspended": "suspended"
+      },
+      "note": "“{{note}}”"
     }
   }
 }

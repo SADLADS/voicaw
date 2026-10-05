@@ -43,6 +43,8 @@ app.get('/api/config', async (req, res) => {
     gifsEnabled: Boolean(await getSetting('klipyApiKey')),
     // Who can sign up (signups.js): 'open', 'invite' or 'request'. The sign-up form follows it.
     signupMode: await getSetting('signupMode'),
+    // The terms of use registering accepts (terms.js).
+    termsVersion: require('./terms').TERMS_VERSION,
   });
 });
 
@@ -73,6 +75,8 @@ app.use('/api', require('./routes/uploads'));
 app.use('/api', require('./routes/avatars'));
 app.use('/api', require('./routes/gifs'));
 app.use('/api', require('./routes/admin'));
+app.use('/api', require('./routes/blocks'));
+app.use('/api', require('./routes/reports'));
 app.use('/api', require('./routes/applications'));
 app.use('/api', require('./routes/interactions'));
 // Bots: Discord's API for bots (docs/bots.md), at Discord's versioned paths, and links to
