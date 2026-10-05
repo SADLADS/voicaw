@@ -2,14 +2,16 @@
 # Builds the Android app (after the client build and `cap sync`; build-android.sh at the root
 # does it all): Gradle in the voicaw-android-build image (mobile/Dockerfile, built here the first
 # time), so the host needs only Docker. Runs as you, so nothing is left owned by root; Gradle's
-# downloads are kept in ~/.gradle. Builds the `direct` flavour (the APK we host, which updates
-# itself); the `play` flavour (for Google Play, without the updater) is only compiled, to keep it
-# building.
+# downloads are kept in ~/.gradle. Two flavours: `direct` (the APK we host, which updates itself)
+# and `play` (for Google Play, without the updater; compiled even in a debug build, to keep it
+# building).
 #   mobile/dist-android.sh            debug APK, signed with a debug key made on the first build
 #                                     (in ~/.android): dist-android/voicaw-debug.apk
-#   mobile/dist-android.sh release    release APK, version VOICAW_VERSION, signed with the key from
+#   mobile/dist-android.sh release    version VOICAW_VERSION, signed with the key from
 #                                     mobile/make-release-key.sh (VOICAW_ANDROID_KEYS, default
-#                                     ~/.voicaw-android-keys): dist-android/voicaw-<version>.apk
+#                                     ~/.voicaw-android-keys): the direct APK,
+#                                     dist-android/voicaw-<version>.apk, and the play App Bundle
+#                                     to upload to the Play Console, dist-android/voicaw-<version>-play.aab
 set -e
 root="$(cd "$(dirname "$0")/.." && pwd)"
 mode="${1:-debug}"
@@ -17,7 +19,7 @@ keys="${VOICAW_ANDROID_KEYS:-$HOME/.voicaw-android-keys}"
 case "$mode" in
   debug) task=assembleDirectDebug ;;
   release)
-    task=assembleDirectRelease
+    task="assembleDirectRelease bundlePlayRelease"
     if [ -z "$VOICAW_VERSION" ]; then echo "VOICAW_VERSION isn't set." >&2; exit 1; fi
     if [ ! -f "$keys/voicaw-release.jks" ] || [ ! -f "$keys/password" ]; then
       echo "No release key in $keys: make it once with mobile/make-release-key.sh (and back it up)." >&2
@@ -64,6 +66,8 @@ docker run --rm "$@" -w /project/mobile/android voicaw-android-build \
 if [ "$mode" = release ]; then
   apk="$root/dist-android/voicaw-$version.apk"
   cp "$root/mobile/android/app/build/outputs/apk/direct/release/app-direct-release.apk" "$apk"
+  cp "$root/mobile/android/app/build/outputs/bundle/playRelease/app-play-release.aab" "$root/dist-android/voicaw-$version-play.aab"
+  echo "Built $root/dist-android/voicaw-$version-play.aab"
 else
   apk="$root/dist-android/voicaw-debug.apk"
   cp "$root/mobile/android/app/build/outputs/apk/direct/debug/app-direct-debug.apk" "$apk"

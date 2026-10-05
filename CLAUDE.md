@@ -73,8 +73,9 @@ Run from the repo root unless noted.
   `./build-android.sh [patch|minor|major|X.Y.Z]` releases: next version, APK signed with the
   release key (`~/.voicaw-android-keys`, `mobile/make-release-key.sh`), published to
   updates.voicaw.com/android/ and voicaw.com (`updates/publish-android.mjs`); `--no-publish`,
-  `--debug`; stops without `google-services.json` (`--no-push` builds without). Publishing
-  touches the live sites: only when the user asks
+  `--debug`; stops without `google-services.json` (`--no-push` builds without). Each release
+  also builds `dist-android/voicaw-<version>-play.aab` for the Play Console (uploaded by hand).
+  Publishing touches the live sites: only when the user asks
 
 Client-only (run inside `client/`):
 - `npm run lint` — ESLint over `client/src`

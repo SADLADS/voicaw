@@ -107,8 +107,11 @@ native bridge. Check real behaviour on a phone.
   `updates.voicaw.com/android/voicaw-<version>.apk` (cached for good), `releases.json` and
   `voicaw.apk` (the newest; neither cached), listed on the update site's page and on voicaw.com
   (`website/build.mjs` `renderAndroid`: the Android card, install steps, and a "Download for
-  Android" button phone visitors get first). Not on Google Play yet. Play Protect may warn
-  about the app until it's registered to a verified Google developer account.
+  Android" button phone visitors get first). Each release also builds the same version as the
+  `play` flavour's App Bundle (`dist-android/voicaw-<version>-play.aab`, `bundlePlayRelease`,
+  same key), uploaded to the Play Console by hand (README "Android app": choose to use our own
+  signing key, so the two builds can replace each other). Play Protect may warn about the
+  website's APK until it's registered to a verified Google developer account.
 - **Two builds** (Gradle flavours): `direct`, the APK above, which updates itself, and `play`,
   for Google Play, which mustn't (Play's rules: an app from Play updates only through Play, and
   the permission to install packages is restricted). The updater and that permission live only in

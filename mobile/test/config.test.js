@@ -39,7 +39,8 @@ describe('the Android app set-up', () => {
     const play = read('android/app/src/play/java/com/voicaw/app/AppUpdater.java');
     expect(play).not.toMatch(/PackageInstaller|HttpURLConnection/);
     // The released APK is the direct build, and its updates come from where it's published.
-    expect(read('dist-android.sh')).toContain('task=assembleDirectRelease');
+    // ...and the bundle for Google Play is the play build, from the same release.
+    expect(read('dist-android.sh')).toContain('task="assembleDirectRelease bundlePlayRelease"');
     expect(read('android/app/build.gradle')).toContain("'https://updates.voicaw.com/android/'");
     expect(read('../updates/publish-android.mjs')).toContain("'releases.json'");
   });

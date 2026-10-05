@@ -309,9 +309,21 @@ allow installs from the browser, and Play Protect may warn about an app it doesn
 details" → "Install anyway") until the package is registered to a verified Google developer.
 The installed app looks at `releases.json` for new versions and, when the person taps Update,
 downloads the APK and asks Android to install it (Android asks once to allow installs from
-Voicaw). `VOICAW_UPDATE_URL` at build time points a try-out build at another update folder. The
-build for Google Play (Gradle flavour `play`, not built by these scripts yet) never updates
-itself: Play's rules forbid it.
+Voicaw). `VOICAW_UPDATE_URL` at build time points a try-out build at another update folder.
+
+**Google Play.** Every release also builds the same version as an App Bundle of the `play` flavour
+(`dist-android/voicaw-<version>-play.aab`, signed with the release key), which never updates
+itself (Play's rules forbid it) and lacks the permission to install packages. Upload it by hand in
+the Play Console (a closed-testing track first: new personal accounts need 12 testers for 14 days
+before production). Play needs each upload's version higher than the last, so upload the bundle
+of each new release, never a rebuild of an old one. The first time, Play asks how the app is
+signed: choose to **use your own key** ("Use a different app signing key" / "Export and upload a
+key from Java keystore"), download the PEPK tool and encryption key it offers, and run the
+command it shows with `--keystore=$HOME/.voicaw-android-keys/voicaw-release.jks --alias=voicaw`
+(the password is in `~/.voicaw-android-keys/password`); then upload the zip it makes. Play then
+signs with the same key as the website's APK, so either can update the other without losing
+the app's storage. Play's own "let Google generate a key" would make the two apps different to
+Android (people would have to uninstall one, and log in again, to switch).
 
 Notifications while the app is closed, and calls ringing it, need Firebase Cloud Messaging
 (Google's push service; without it the app only notifies while it's open, Settings → Android App
