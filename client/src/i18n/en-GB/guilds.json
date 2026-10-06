@@ -296,7 +296,7 @@
       "hide": "Hide chat",
       "close": "Close chat",
       "back": "Back to {{name}}",
-      "empty": "Welcome to {{name}}'s chat! Anyone who can see the channel can talk here, in the call or not."
+      "empty": "Welcome to {{name}}! This is the start of the channel."
     },
     "channelIcon": {
       "privateChannel": "Private channel",
