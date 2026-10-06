@@ -262,6 +262,12 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   it. YouTube's iframe API script is deliberately not loaded (it would run YouTube's code next to
   the keys): `voice/youtubeEmbed.js` speaks the embed's messages itself. Permissions Queue
   Videos and Control Playback (defaults) and Manage Queue (not).
+- **Open polls** (built 2026-10-06, see Polls in `docs/messages.md`): anyone adds answers, each
+  a reaction from whoever added it (not a table: reactions already have the encryption, group
+  signing and delivery, and the server still can't tell which messages are polls), so
+  encrypted reactions are padded to 256 bytes. Its creator, the poll's author or a guild
+  moderator removes one nobody else voted for; a new question drops every vote and added
+  answer. Polls take 20 answers.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

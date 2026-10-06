@@ -62,6 +62,9 @@ describe('DM reactions', () => {
     expect((await react(alice, messageId, REACTION + 'AAAA')).status).toBe(400);
     expect((await react(alice, messageId, 'v2.' + REACTION.slice(3))).status).toBe(400);
     expect((await react(alice, messageId, null)).status).toBe(400);
+    // Today's size: 256 padded bytes (room for an answer added to a poll), 383 chars.
+    expect((await react(alice, messageId, 'v1.' + 'A'.repeat(379) + '=')).status).toBe(201);
+    expect((await react(alice, messageId, 'v1.' + 'A'.repeat(383) + '=')).status).toBe(400);
   });
 
   it('limits reactions per person per message', async () => {
@@ -69,7 +72,7 @@ describe('DM reactions', () => {
     const bob = await makeAuthedUser('react-bob4');
     const messageId = await sendDm(alice, bob);
 
-    for (let i = 0; i < 20; i++) expect((await react(alice, messageId)).status).toBe(201);
+    for (let i = 0; i < 50; i++) expect((await react(alice, messageId)).status).toBe(201);
     expect((await react(alice, messageId)).status).toBe(400);
     expect((await react(bob, messageId)).status).toBe(201);
   });

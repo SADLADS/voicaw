@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { parsePoll, planVotes, voteKey } from '../utils/pollMarkup';
+import {
+  answerKey,
+  answerProblem,
+  cleanAnswer,
+  newOptionId,
+  parsePoll,
+  planVotes,
+  pollWithAnswers,
+  removalKey,
+  voteKey,
+} from '../utils/pollMarkup';
 import { t } from '../i18n';
 
 // Reacting to messages in a conversation (useConversation) or channel (useChannel): adding and
@@ -7,8 +17,12 @@ import { t } from '../i18n';
 // `saveReaction(msg, emoji)` stores one (resolving to its `{ id }`) and `deleteReaction(id)`
 // removes one: that's where a DM encrypts and a guild doesn't. Nothing is sent until `ready`.
 // `onError(message)` reports failures. The picker closes when the chat (`chatId`) changes.
-// Poll votes are reactions too (utils/pollMarkup.js): `vote(msg, optionIds)`.
-export function useReactions({ chatId, user, ready, saveReaction, deleteReaction, messagesRef, setMessageReactions, onError }) {
+// Poll votes are reactions too (utils/pollMarkup.js): `vote(msg, optionIds)`, and so are the
+// answers people add to open polls: `addAnswer` and `removeAnswer`. In a guild,
+// `removePollAnswer(msg, optionId)` has the server remove one (resolving to the ids of the
+// reactions it deleted); elsewhere its creator deletes their reaction and the poll's author
+// adds a removal.
+export function useReactions({ chatId, user, ready, saveReaction, deleteReaction, removePollAnswer, messagesRef, setMessageReactions, onError }) {
   // The message the picker is choosing a reaction for, and (desktop) the rect of the button
   // that opened it, to show it next to.
   const [reactingTo, setReactingTo] = useState(null);
@@ -65,37 +79,88 @@ export function useReactions({ chatId, user, ready, saveReaction, deleteReaction
     if (!alreadyMine) toggleReaction(msg, emoji);
   }
 
-  // Sets your vote in the poll `msg` is to exactly `optionIds` ([]: removes it; see planVotes).
-  // Resolves once saved (rejects if it couldn't be, after reporting it).
-  async function vote(msg, optionIds) {
+  // Saves your reaction `emoji` on `msg` (adding it to the message's list), resolving to it.
+  async function addOwn(msg, emoji) {
+    const saved = await saveReaction(msg, emoji);
+    const reaction = { id: saved.id, user_id: user.id, emoji, timestamp: saved.timestamp };
+    // The websocket may have delivered it already.
+    setMessageReactions(msg.id, (list) => (list.some((r) => r.id === saved.id) ? list : [...list, reaction]));
+    return reaction;
+  }
+
+  // Deletes your reactions `ids` on the message `messageId`.
+  async function deleteOwn(messageId, ids) {
+    if (ids.length === 0) return;
+    await Promise.all(ids.map((id) => deleteReaction(id)));
+    const removed = new Set(ids);
+    setMessageReactions(messageId, (list) => list.filter((r) => !removed.has(r.id)));
+  }
+
+  // Makes your votes in the poll `msg` (whose reactions are `reactions`) exactly `optionIds`.
+  async function setVotes(msg, reactions, optionIds) {
+    const poll = parsePoll(msg.plaintext);
+    if (!poll) return;
+    const { remove, add } = planVotes(pollWithAnswers(poll, reactions, msg.sender_id), reactions, user.id, optionIds);
+    await deleteOwn(msg.id, remove.map((r) => r.id));
+    for (const optionId of add) await addOwn(msg, voteKey(optionId));
+  }
+
+  // Runs `work(the message as it is now)` for the poll `msg`, one at a time per poll. A failure
+  // is reported (the server's error, the thrown one's, or `failedKey`'s) and rejects.
+  async function pollAction(msg, failedKey, work) {
     const key = `${msg.id}|poll`;
     if (!ready || inFlight.current.has(key)) return;
     inFlight.current.add(key);
     try {
-      const current = messagesRef.current.find((m) => m.id === msg.id) ?? msg;
-      const poll = parsePoll(current.plaintext);
-      if (!poll) return;
-      const { remove, add } = planVotes(poll, current.reactions, user.id, optionIds);
-      if (remove.length > 0) {
-        await Promise.all(remove.map((r) => deleteReaction(r.id)));
-        const removed = new Set(remove.map((r) => r.id));
-        setMessageReactions(msg.id, (list) => list.filter((r) => !removed.has(r.id)));
-      }
-      for (const optionId of add) {
-        const emoji = voteKey(optionId);
-        const saved = await saveReaction(current, emoji);
-        setMessageReactions(msg.id, (list) =>
-          list.some((r) => r.id === saved.id) ? list : [...list, { id: saved.id, user_id: user.id, emoji, timestamp: saved.timestamp }]
-        );
-      }
+      await work(messagesRef.current.find((m) => m.id === msg.id) ?? msg);
     } catch (err) {
-      console.error('Failed to vote', err);
-      onError(err.response?.data?.error || t('chat.poll.voteFailed'));
+      console.error('Failed to update the poll', err);
+      onError(err.response?.data?.error || err.message || t(failedKey));
       throw err;
     } finally {
       inFlight.current.delete(key);
     }
   }
 
-  return { reactingTo, openPicker, closePicker, toggleReaction, pickReaction, vote };
+  // Sets your vote in the poll `msg` is to exactly `optionIds` ([]: removes it; see planVotes).
+  // Resolves once saved (rejects if it couldn't be, after reporting it).
+  function vote(msg, optionIds) {
+    return pollAction(msg, 'chat.poll.voteFailed', (current) => setVotes(current, current.reactions ?? [], optionIds));
+  }
+
+  // Adds answer `text` to the open poll `msg` and votes for it: as well as `alsoVoteFor`
+  // (option ids) in a multiple-choice poll, instead of your vote in a single-choice one.
+  function addAnswer(msg, text, alsoVoteFor = []) {
+    return pollAction(msg, 'chat.poll.addAnswerFailed', async (current) => {
+      const poll = parsePoll(current.plaintext);
+      if (!poll?.open) return;
+      const reactions = current.reactions ?? [];
+      const problem = answerProblem(pollWithAnswers(poll, reactions, current.sender_id), text);
+      if (problem) throw new Error(problem);
+      const id = newOptionId();
+      const added = await addOwn(current, answerKey({ id, round: poll.round, text: cleanAnswer(text) }));
+      await setVotes(current, [...reactions, added], poll.multi ? [...alsoVoteFor, id] : [id]);
+    });
+  }
+
+  // Removes the added answer `option` (pollWithAnswers') from the poll `msg`, and your votes
+  // for it.
+  function removeAnswer(msg, option) {
+    return pollAction(msg, 'chat.poll.removeAnswerFailed', async (current) => {
+      if (removePollAnswer) {
+        const removed = new Set(await removePollAnswer(current, option.id));
+        setMessageReactions(current.id, (list) => list.filter((r) => !removed.has(r.id)));
+        return;
+      }
+      const myVotes = (current.reactions ?? []).filter((r) => r.user_id === user.id && r.emoji === voteKey(option.id));
+      if (option.addedBy === user.id) {
+        await deleteOwn(current.id, [...option.reactionIds, ...myVotes.map((r) => r.id)]);
+      } else {
+        await addOwn(current, removalKey(option.id));
+        await deleteOwn(current.id, myVotes.map((r) => r.id));
+      }
+    });
+  }
+
+  return { reactingTo, openPicker, closePicker, toggleReaction, pickReaction, vote, addAnswer, removeAnswer };
 }

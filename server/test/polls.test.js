@@ -62,8 +62,8 @@ describe('guild polls', () => {
     expect(vote.body).toMatchObject({ user_id: bob.id, emoji: 'poll:aaaa1111' });
     expect((await api.post(bob, `/guild-messages/${poll.id}/reactions`, { emoji: '👍' })).status).toBe(403);
     // Only on a poll, and only in a vote's shape.
-    expect((await api.post(bob, `/guild-messages/${plain.id}/reactions`, { emoji: 'poll:aaaa1111' })).status).toBe(403);
-    expect((await api.post(bob, `/guild-messages/${poll.id}/reactions`, { emoji: 'poll:x' })).status).toBe(403);
+    expect((await api.post(bob, `/guild-messages/${plain.id}/reactions`, { emoji: 'poll:aaaa1111' })).status).toBe(400);
+    expect((await api.post(bob, `/guild-messages/${poll.id}/reactions`, { emoji: 'poll:x' })).status).toBe(400);
   });
 
   it('pushes the question, not the JSON', async () => {
@@ -104,6 +104,111 @@ describe('guild polls', () => {
     expect((await edit(pollText({ x: now() }))).status).toBe(200);
     expect((await api.post(bob, `/guild-messages/${poll.id}/reactions`, { emoji: 'poll:aaaa1111' })).status).toBe(403);
     expect((await edit(pollText())).status).toBe(403); // closed for good
+  });
+});
+
+// Open polls: anyone can add answers, each a reaction `poll:+{ i, r, t }` from whoever added it.
+describe('guild open polls', () => {
+  const openPoll = (extra = {}) => pollText({ open: true, r: 'round111', ...extra });
+  const answer = (id, t, r = 'round111') => `poll:+${JSON.stringify({ i: id, r, t })}`;
+
+  async function openSetUp() {
+    const s = await setUp();
+    const poll = (await api.post(s.owner, `/channels/${s.general.id}/messages`, { content: openPoll() })).body;
+    const add = (user, emoji) => api.post(user, `/guild-messages/${poll.id}/reactions`, { emoji });
+    const remove = (user, id) => api.delete(user, `/guild-messages/${poll.id}/poll-answers/${id}`);
+    return { ...s, poll, add, remove };
+  }
+
+  it('takes answers that fit: this round, well formed, no repeats (ignoring case)', async () => {
+    const { owner, bob, general, poll, add } = await openSetUp();
+    expect((await add(bob, answer('cccc3333', 'Later'))).status).toBe(201);
+    expect((await add(owner, answer('dddd4444', 'later'))).status).toBe(400); // a repeat
+    expect((await add(owner, answer('eeee5555', 'NOW'))).status).toBe(400); // the author's answer
+    expect((await add(bob, answer('ffff6666', 'Soon', 'round999'))).status).toBe(400); // another round
+    expect((await add(bob, answer('cccc3333', 'Other'))).status).toBe(400); // an id in use
+    expect((await add(bob, answer('gggg7777', ' Padded '))).status).toBe(400);
+    expect((await add(bob, answer('hhhh8888', 'x'.repeat(56)))).status).toBe(400);
+    expect((await add(bob, `poll:+${JSON.stringify({ i: 'iiii9999', r: 'round111', t: 'Extra', e: '🍕' })}`)).status).toBe(400);
+    expect((await add(bob, 'poll:-cccc3333')).status).toBe(400); // removals are the server's here
+
+    // Not on a poll that isn't open.
+    const closed = (await api.post(owner, `/channels/${general.id}/messages`, { content: pollText() })).body;
+    expect((await api.post(bob, `/guild-messages/${closed.id}/reactions`, { emoji: answer('jjjj0000', 'Later') })).status).toBe(400);
+    // Kept with the poll's reactions.
+    const page = await api.get(owner, `/channels/${general.id}/messages`);
+    expect(page.body.find((m) => m.id === poll.id).reactions.map((r) => r.emoji)).toEqual([answer('cccc3333', 'Later')]);
+  });
+
+  it('needs Send Messages to add one, and stops at 20 answers', async () => {
+    const { owner, bob, guild, general, add } = await openSetUp();
+    await api.put(owner, `/guilds/${guild.id}/channels/${general.id}/overrides/member/${bob.id}`, { deny: P.SEND_MESSAGES });
+    expect((await add(bob, answer('cccc3333', 'Later'))).status).toBe(403);
+    for (let i = 0; i < 19; i++) expect((await add(owner, answer(`aaaa${String(i).padStart(4, '0')}`, `Answer ${i}`))).status).toBe(201);
+    expect((await add(owner, answer('zzzz9999', 'One too many'))).status).toBe(400);
+  });
+
+  it('lets its creator, the author or a moderator remove an answer nobody else voted for', async () => {
+    const { owner, bob, guild, poll, add, remove } = await openSetUp();
+    const carol = await makeUser('poll-carol');
+    const invite = await api.post(owner, `/guilds/${guild.id}/invites`);
+    await api.post(carol, `/invites/${invite.body.code}`);
+
+    expect((await add(bob, answer('cccc3333', 'Later'))).status).toBe(201);
+    expect((await add(bob, 'poll:cccc3333')).status).toBe(201); // its creator's vote doesn't stop it
+    expect((await remove(carol, 'cccc3333')).status).toBe(403); // not theirs
+    const removed = await remove(bob, 'cccc3333');
+    expect(removed.status).toBe(200);
+    expect(removed.body.removed).toHaveLength(2); // the answer and Bob's vote
+    expect((await remove(bob, 'cccc3333')).status).toBe(404);
+
+    // Someone else's vote keeps it, for everyone, through any route.
+    const added = (await add(bob, answer('dddd4444', 'Tomorrow'))).body;
+    expect((await add(carol, 'poll:dddd4444')).status).toBe(201);
+    expect((await remove(owner, 'dddd4444')).status).toBe(403);
+    expect((await api.delete(bob, `/guild-reactions/${added.id}`)).status).toBe(403);
+
+    // The author can remove anyone's.
+    expect((await add(carol, answer('eeee5555', 'Never'))).status).toBe(201);
+    expect((await remove(owner, 'eeee5555')).status).toBe(200);
+
+    // A moderator (Manage Messages) too, but not the author's own.
+    const role = (await api.post(owner, `/guilds/${guild.id}/roles`, { name: 'Mods', permissions: P.MANAGE_MESSAGES })).body;
+    await api.put(owner, `/guilds/${guild.id}/members/${carol.id}/roles`, { roleIds: [role.id] });
+    expect((await add(bob, answer('ffff6666', 'Friday'))).status).toBe(201);
+    expect((await add(owner, answer('gggg7777', 'Saturday'))).status).toBe(201);
+    expect((await remove(carol, 'ffff6666')).status).toBe(200);
+    expect((await remove(carol, 'gggg7777')).status).toBe(403);
+    expect((await remove(carol, 'aaaa1111')).status).toBe(404); // the poll's own answers are edited
+    const reactions = (await api.get(owner, `/channels/${poll.channel_id}/messages`)).body.find((m) => m.id === poll.id).reactions;
+    expect(reactions.map((r) => r.emoji).sort()).toEqual([answer('dddd4444', 'Tomorrow'), answer('gggg7777', 'Saturday'), 'poll:dddd4444'].sort());
+  });
+
+  it('takes no answers, and removes none, once closed; keeps open fixed', async () => {
+    const { owner, bob, poll, add, remove } = await openSetUp();
+    expect((await add(bob, answer('cccc3333', 'Later'))).status).toBe(201);
+    const edit = (content) => api.put(owner, `/guild-messages/${poll.id}`, { content });
+    expect((await edit(pollText())).status).toBe(403); // can't stop being open
+    expect((await edit(openPoll({ x: now() }))).status).toBe(200);
+    expect((await add(bob, answer('dddd4444', 'Tomorrow'))).status).toBe(403);
+    expect((await remove(bob, 'cccc3333')).status).toBe(403);
+  });
+
+  it('drops every vote and added answer when the question changes', async () => {
+    const { owner, bob, general, poll, add } = await openSetUp();
+    const events = listen(owner);
+    expect((await add(bob, answer('cccc3333', 'Later'))).status).toBe(201);
+    expect((await add(bob, 'poll:aaaa1111')).status).toBe(201);
+    expect((await add(owner, '👍')).status).toBe(201);
+    const edit = (content) => api.put(owner, `/guild-messages/${poll.id}`, { content });
+    // Changing only an answer keeps the rest.
+    const withSoon = openPoll().replace(']}', ',{"id":"bbbb2222","t":"Soon"}]}');
+    expect((await edit(withSoon)).status).toBe(200);
+    expect((await api.get(owner, `/channels/${general.id}/messages`)).body.find((m) => m.id === poll.id).reactions).toHaveLength(3);
+    expect((await edit(openPoll({ q: 'When, really?', r: 'round222' }))).status).toBe(200);
+    const reactions = (await api.get(owner, `/channels/${general.id}/messages`)).body.find((m) => m.id === poll.id).reactions;
+    expect(reactions.map((r) => r.emoji)).toEqual(['👍']);
+    expect(events.filter((e) => e.type === 'guild_reaction_remove')).toHaveLength(2);
   });
 });
 

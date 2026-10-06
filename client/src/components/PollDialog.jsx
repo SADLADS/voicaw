@@ -20,17 +20,22 @@ import { t } from '../i18n';
 
 // Making a poll, or editing one (`poll`): a question and 1 to MAX_POLL_OPTIONS answers
 // (empty rows are left out), each with an optional emoji (the smiley button: the emoji
-// picker), how long it runs and whether more than one answer can be picked (neither can be
-// changed afterwards).
-// Editing an answer's text or emoji drops its votes (see editedPoll).
+// picker), how long it runs, whether more than one answer can be picked and whether anyone
+// can add answers (an open poll; none of these three can be changed afterwards).
+// Editing an answer's text or emoji drops its votes, and changing the question drops them all,
+// with the answers people added (see editedPoll). While those stay, `addedAnswers` (how many
+// there are) take places from MAX_POLL_OPTIONS.
 // `onSubmit(poll)` (async) posts or saves it; its error is shown here.
-export default function PollDialog({ poll, onSubmit, onClose }) {
+export default function PollDialog({ poll, addedAnswers = 0, onSubmit, onClose }) {
   const editing = Boolean(poll);
   const nextKey = useRef(0);
   const row = (option) => ({ key: nextKey.current++, id: option?.id ?? null, text: option?.text ?? '', emoji: option?.emoji ?? null });
   const [question, setQuestion] = useState(poll?.question ?? '');
   const [options, setOptions] = useState(() => (poll ? poll.options.map(row) : [row(), row()]));
   const [multi, setMulti] = useState(poll?.multi ?? false);
+  const [open, setOpen] = useState(poll?.open ?? false);
+  const newQuestion = editing && question.trim() !== poll.question;
+  const maxOptions = MAX_POLL_OPTIONS - (newQuestion ? 0 : addedAnswers);
   const [duration, setDuration] = useState(poll ? poll.duration : DEFAULT_POLL_DURATION);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -67,7 +72,14 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
     const answers = filled.map((o) => ({ id: o.id, text: o.text.trim(), emoji: o.emoji }));
     const next = editing
       ? editedPoll(poll, { question: question.trim(), options: answers })
-      : { question: question.trim(), multi, duration, options: answers.map((o) => ({ ...o, id: newOptionId() })) };
+      : {
+          question: question.trim(),
+          multi,
+          open,
+          round: open ? newOptionId() : null,
+          duration,
+          options: answers.map((o) => ({ ...o, id: newOptionId() })),
+        };
     setBusy(true);
     setError(null);
     try {
@@ -165,12 +177,14 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
             </div>
           ))}
         </div>
-        {options.length < MAX_POLL_OPTIONS && (
+        {options.length < maxOptions && (
           <button type="button" className="btn btn-secondary btn-sm poll-dialog-add" onClick={addOption}>
             {t('chat.pollDialog.addAnswer')}
           </button>
         )}
-        {changed && <p className="vc-hint">{t('chat.pollDialog.changedHint')}</p>}
+        {newQuestion
+          ? <p className="vc-hint">{poll.open ? t('chat.pollDialog.questionChangedOpen') : t('chat.pollDialog.questionChanged')}</p>
+          : changed && <p className="vc-hint">{t('chat.pollDialog.changedHint')}</p>}
 
         <label htmlFor="poll-duration">{t('chat.pollDialog.duration')}</label>
         <select
@@ -190,6 +204,14 @@ export default function PollDialog({ poll, onSubmit, onClose }) {
           <span>
             <strong>{t('chat.pollDialog.multi')}</strong>
             <span className="vc-hint">{editing ? t('chat.pollDialog.multiLocked') : t('chat.pollDialog.multiHint')}</span>
+          </span>
+        </label>
+
+        <label className="role-toggle">
+          <input type="checkbox" checked={open} disabled={editing} onChange={(e) => setOpen(e.target.checked)} />
+          <span>
+            <strong>{t('chat.pollDialog.open')}</strong>
+            <span className="vc-hint">{editing ? t('chat.pollDialog.openLocked') : t('chat.pollDialog.openHint')}</span>
           </span>
         </label>
       </form>

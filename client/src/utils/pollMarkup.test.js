@@ -1,11 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { pollResult, pollEndFits, endPoll, pollEnded, pollEndsAt, timeLeft, editedPoll, parsePoll, planVotes, myVotes, pollMarkup, tallyVotes, voteKey } from './pollMarkup';
+import {
+  pollResult, pollEndFits, endPoll, pollEnded, pollEndsAt, timeLeft, editedPoll, parsePoll, planVotes, myVotes, pollMarkup, tallyVotes, voteKey,
+  answerKey, answerProblem, canRemoveAnswer, parseAnswer, pollWithAnswers, removalKey, MAX_POLL_OPTIONS,
+} from './pollMarkup';
 import { summarizeAttachments } from './attachmentMarkup';
 import { groupReactions } from './reactions';
 
 const poll = (multi = false) => ({
   question: 'Lunch?',
   multi,
+  open: false,
+  round: null,
   duration: 3600,
   endedAt: null,
   options: [{ id: 'aaaa1111', text: 'Pizza', emoji: '🍕' }, { id: 'bbbb2222', text: 'Soup', emoji: null }],
@@ -33,10 +38,10 @@ describe('poll markup', () => {
 
   it('gives edited answers new ids (dropping their votes) and keeps the kind', () => {
     const next = editedPoll(poll(true), {
-      question: 'Dinner?',
+      question: 'Lunch?',
       options: [{ id: 'aaaa1111', text: 'Pizza', emoji: '🍕' }, { id: 'bbbb2222', text: 'Stew' }, { id: null, text: 'Curry' }],
     });
-    expect(next.question).toBe('Dinner?');
+    expect(next.question).toBe('Lunch?');
     expect(next.multi).toBe(true);
     expect(next.options[0]).toEqual({ id: 'aaaa1111', text: 'Pizza', emoji: '🍕' });
     expect(next.options[1].id).not.toBe('bbbb2222');
@@ -135,5 +140,107 @@ describe('result', () => {
     expect(pollEndFits(poll(), 1000, 3000)).toBe(false); // still running
     expect(pollEndFits(endPoll(poll(), 2000), 1000, 2001)).toBe(true);
     expect(pollEndFits({ ...poll(), duration: null }, 1000, 1e9)).toBe(false);
+  });
+});
+
+describe('open polls', () => {
+  const open = (multi = false) => ({ ...poll(multi), open: true, round: 'round111' });
+  const added = (id, userId, answerId, text, extra = {}) =>
+    ({ id, user_id: userId, emoji: answerKey({ id: answerId, round: 'round111', text }), timestamp: id, ...extra });
+  const AUTHOR = 9;
+
+  it('round-trips as open, and an edit keeps it so', () => {
+    const text = pollMarkup(open());
+    expect(parsePoll(text)).toMatchObject({ open: true, round: 'round111' });
+    // Open without a round isn't open.
+    expect(parsePoll(text.replace('"r":"round111"', '"r":"BAD"')).open).toBe(false);
+    expect(editedPoll(open(), { question: 'Lunch?', options: open().options })).toMatchObject({ open: true, round: 'round111' });
+  });
+
+  it('only reads answers made exactly as the app makes them', () => {
+    expect(parseAnswer(answerKey({ id: 'cccc3333', round: 'round111', text: 'Curry' }))).toEqual({ id: 'cccc3333', round: 'round111', text: 'Curry' });
+    expect(parseAnswer('poll:+{"i":"cccc3333","r":"round111","t":" Curry"}')).toBeNull();
+    expect(parseAnswer('poll:+{"i":"cccc3333","r":"round111","t":"Cur\\nry"}')).toBeNull();
+    expect(parseAnswer('poll:+{"i":"cccc3333","r":"round111","t":"Curry","e":"🍛"}')).toBeNull();
+    expect(parseAnswer(`poll:+{"i":"cccc3333","r":"round111","t":"${'x'.repeat(56)}"}`)).toBeNull();
+    expect(parseAnswer('poll:+[1,2,3]')).toBeNull();
+    expect(parseAnswer('poll:cccc3333')).toBeNull();
+    // The longest fits an encrypted reaction (256 bytes), whatever the characters.
+    for (const text of ['"'.repeat(55), '\\'.repeat(55), '€'.repeat(55), 'ü'.repeat(55), '😀'.repeat(27)]) {
+      expect(new TextEncoder().encode(answerKey({ id: 'cccc3333', round: 'round111', text })).length).toBeLessThanOrEqual(256);
+    }
+  });
+
+  it('adds answers in the order the server got them, without repeats, other rounds or late ones', () => {
+    const reactions = [
+      added(3, 2, 'dddd4444', 'Stew'),
+      added(1, 1, 'cccc3333', 'Curry'),
+      added(4, 3, 'eeee5555', 'curry'), // a repeat, ignoring case
+      added(5, 3, 'ffff6666', 'pizza'), // the author's answer
+      { ...added(6, 3, 'gggg7777', 'Pasta'), emoji: answerKey({ id: 'gggg7777', round: 'other111', text: 'Pasta' }) },
+      added(7, 3, 'hhhh8888', 'Late', { timestamp: 5000 }),
+    ];
+    const full = pollWithAnswers(open(), reactions, AUTHOR, 4000);
+    expect(full.options.map((o) => [o.text, o.addedBy])).toEqual([['Pizza', null], ['Soup', null], ['Curry', 1], ['Stew', 2]]);
+    // Votes for them count like any other.
+    expect(tallyVotes(full, [vote(10, 4, 'cccc3333')]).voters.cccc3333).toEqual([4]);
+    // A poll that isn't open ignores them.
+    expect(pollWithAnswers(poll(), reactions, AUTHOR).options).toHaveLength(2);
+  });
+
+  it('stops at MAX_POLL_OPTIONS answers', () => {
+    const reactions = Array.from({ length: 25 }, (_, i) => added(i + 1, 1, `cccc${String(i).padStart(4, '0')}`, `Answer ${i}`));
+    const full = pollWithAnswers(open(), reactions, AUTHOR);
+    expect(full.options).toHaveLength(MAX_POLL_OPTIONS);
+    expect(answerProblem(full, 'Another')).toMatch(/already has 20/);
+  });
+
+  it("says why an answer can't be added", () => {
+    const full = pollWithAnswers(open(), [added(1, 1, 'cccc3333', 'Curry')], AUTHOR);
+    expect(answerProblem(full, '   ')).toBeTruthy();
+    expect(answerProblem(full, 'CURRY')).toMatch(/already/);
+    expect(answerProblem(full, ' soup ')).toMatch(/already/);
+    expect(answerProblem(full, 'Noodles')).toBeNull();
+  });
+
+  it("drops answers its author removed, but nobody else's removals", () => {
+    const reactions = [
+      added(1, 1, 'cccc3333', 'Curry'),
+      added(2, 2, 'dddd4444', 'Stew'),
+      { id: 3, user_id: AUTHOR, emoji: removalKey('cccc3333'), timestamp: 3 },
+      { id: 4, user_id: 2, emoji: removalKey('dddd4444'), timestamp: 4 },
+    ];
+    expect(pollWithAnswers(open(), reactions, AUTHOR).options.map((o) => o.text)).toEqual(['Pizza', 'Soup', 'Stew']);
+    expect(groupReactions(reactions)).toEqual([]); // none of them are chips
+  });
+
+  it("lets its creator, the author or a moderator remove one others haven't voted for", () => {
+    const full = pollWithAnswers(open(), [added(1, 1, 'cccc3333', 'Curry'), added(2, AUTHOR, 'dddd4444', 'Stew')], AUTHOR);
+    const [pizza, , curry, stew] = full.options;
+    const can = (option, userId, votes = [], canModerate = false) =>
+      canRemoveAnswer(option, { userId, authorId: AUTHOR, canModerate, voters: tallyVotes(full, votes).voters });
+    expect(can(curry, 1)).toBe(true);
+    expect(can(curry, 1, [vote(5, 1, 'cccc3333')])).toBe(true); // its creator's own vote
+    expect(can(curry, 1, [vote(5, 2, 'cccc3333')])).toBe(false);
+    expect(can(curry, AUTHOR)).toBe(true);
+    expect(can(curry, 2)).toBe(false);
+    expect(can(curry, 2, [], true)).toBe(true);
+    expect(can(stew, 2, [], true)).toBe(false); // the author's
+    expect(can(pizza, AUTHOR)).toBe(false); // the poll's own answers are edited instead
+  });
+
+  it('drops every vote and added answer when the question changes', () => {
+    const next = editedPoll(open(), { question: 'Dinner?', options: open().options });
+    expect(next.round).not.toBe('round111');
+    expect(next.options.map((o) => o.id)).not.toContain('aaaa1111');
+    const reactions = [added(1, 1, 'cccc3333', 'Curry'), vote(2, 2, 'aaaa1111'), vote(3, 2, 'cccc3333')];
+    const full = pollWithAnswers(next, reactions, AUTHOR);
+    expect(full.options).toHaveLength(2);
+    expect(tallyVotes(full, reactions).cast).toBe(0);
+    // Voting again clears your answers from before, as well as stale votes.
+    const { remove } = planVotes(full, reactions, 1, [next.options[0].id]);
+    expect(remove.map((r) => r.id)).toEqual([1]);
+    // A poll that isn't open loses its votes on a new question too.
+    expect(editedPoll(poll(), { question: 'Dinner?', options: poll().options }).options[0].id).not.toBe('aaaa1111');
   });
 });

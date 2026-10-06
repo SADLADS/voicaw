@@ -3153,6 +3153,60 @@ body.mobile-mode .dm-user-list-container .dm-user {
   font-weight: 700;
 }
 
+/* An answer and, for one someone added that can still go, its ✕ beside it. */
+.poll-option-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.poll-option-row .poll-option {
+  flex: 1;
+  min-width: 0;
+}
+
+.poll-option-remove {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.poll-option-remove:hover:not(:disabled) {
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-danger-text);
+}
+
+/* Who added an answer (open polls), under its text. */
+.poll-option-by {
+  display: block;
+  color: var(--vc-fg-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.poll-add-answer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.poll-add-answer .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.poll-add-error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
 .poll-footer {
   display: flex;
   align-items: center;

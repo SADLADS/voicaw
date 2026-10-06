@@ -10,12 +10,24 @@
 //
 // Editing a poll gives every option whose text or emoji changed a new id, so the votes it had stop
 // counting (they point at an id that's gone). Voting clears your own such leftovers.
+//
+// An open poll (`open: true`) also takes answers from anyone: each is a reaction from whoever
+// added it, `poll:+` + JSON { i: id, r: round, t: text } (ANSWER_PREFIX, text only), so who
+// added it is the reaction's owner (signed in groups). `r` is the poll's round: changing the
+// question starts a new one (and gives every answer a new id), so all added answers and votes
+// stop counting. Its creator removes one by deleting their reaction; the poll's author by
+// adding a reaction `poll:-<id>` (REMOVAL_PREFIX, only theirs count), since nobody can delete
+// other people's reactions; in guilds the server removes them (anyone with Manage Messages
+// too). pollWithAnswers is the poll with them: at most MAX_POLL_OPTIONS answers in all, none
+// that repeats another ignoring case, none added after the poll closed.
 
 import { t } from '../i18n';
 
 export const POLL_PREFIX = 'poll:v1:';
 export const VOTE_PREFIX = 'poll:';
-export const MAX_POLL_OPTIONS = 10;
+export const ANSWER_PREFIX = 'poll:+';
+export const REMOVAL_PREFIX = 'poll:-';
+export const MAX_POLL_OPTIONS = 20;
 export const MAX_QUESTION_LENGTH = 300;
 export const MAX_OPTION_LENGTH = 55;
 
@@ -46,11 +58,13 @@ export function newOptionId() {
   return Array.from(bytes, (b) => ID_CHARS[b % ID_CHARS.length]).join('');
 }
 
-// { question, multi, duration, endedAt?, options: [{ id, text, emoji? }] } -> message text.
-export function pollMarkup({ question, multi, duration, endedAt, options }) {
+// { question, multi, open?, round?, duration, endedAt?, options: [{ id, text, emoji? }] } ->
+// message text. An open poll needs its `round` (newOptionId).
+export function pollMarkup({ question, multi, open, round, duration, endedAt, options }) {
   return POLL_PREFIX + JSON.stringify({
     q: question,
     multi: Boolean(multi),
+    ...(open ? { open: true, r: round } : {}),
     ...(duration ? { d: duration } : {}),
     ...(endedAt ? { x: endedAt } : {}),
     o: options.map((o) => (o.emoji ? { id: o.id, t: o.text, e: o.emoji } : { id: o.id, t: o.text })),
@@ -77,9 +91,12 @@ export function parsePoll(text) {
     options.push({ id: o.id, text: o.t.slice(0, MAX_OPTION_LENGTH), emoji: cleanEmoji(o.e) });
   }
   if (options.length === 0) return null;
+  const open = data.open === true && OPTION_ID.test(data.r);
   return {
     question: data.q.slice(0, MAX_QUESTION_LENGTH),
     multi: data.multi === true,
+    open,
+    round: open ? data.r : null,
     duration: positiveInt(data.d, MAX_POLL_DURATION),
     endedAt: positiveInt(data.x),
     options,
@@ -121,16 +138,20 @@ export function optionChanged(poll, option) {
 }
 
 // The poll after an edit: options keep their id only if their text and emoji are unchanged
-// (so votes on an edited option are dropped); new ones get a new id. `multi`, the duration
-// and an early end can't change.
+// (so votes on an edited option are dropped); new ones get a new id. A new question drops
+// every vote: all options get new ids, and an open poll a new round (so the answers people
+// added are gone too). `multi`, `open`, the duration and an early end can't change.
 export function editedPoll(original, { question, options }) {
+  const newQuestion = question !== original.question;
   return {
     question,
     multi: original.multi,
+    open: original.open,
+    round: original.open ? (newQuestion ? newOptionId() : original.round) : null,
     duration: original.duration,
     endedAt: original.endedAt,
     options: options.map((o) => ({
-      id: o.id && !optionChanged(original, o) ? o.id : newOptionId(),
+      id: o.id && !newQuestion && !optionChanged(original, o) ? o.id : newOptionId(),
       text: o.text,
       emoji: o.emoji ?? null,
     })),
@@ -143,8 +164,100 @@ export function pollSummary(poll) {
 }
 
 export const voteKey = (optionId) => VOTE_PREFIX + optionId;
-export const isVote = (emoji) => typeof emoji === 'string' && emoji.startsWith(VOTE_PREFIX);
+const VOTE = /^poll:[a-z0-9]{8}$/;
+export const isVote = (emoji) => typeof emoji === 'string' && VOTE.test(emoji);
 export const voteOption = (emoji) => (isVote(emoji) ? emoji.slice(VOTE_PREFIX.length) : null);
+// Votes, added answers and removals: reactions that aren't shown as chips.
+export const isPollReaction = (emoji) => typeof emoji === 'string' && emoji.startsWith(VOTE_PREFIX);
+
+// An added answer's text as it's stored: one line, no control characters, trimmed.
+export function cleanAnswer(text) {
+  // eslint-disable-next-line no-control-regex
+  return String(text ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// For telling duplicates apart: answers differing only in case are the same.
+const sameAnswer = (text) => cleanAnswer(text).toLowerCase();
+
+// The reaction that adds answer `text` (cleaned) to round `round` as `id`.
+export const answerKey = ({ id, round, text }) => ANSWER_PREFIX + JSON.stringify({ i: id, r: round, t: text });
+export const removalKey = (optionId) => REMOVAL_PREFIX + optionId;
+
+// { id, round, text } of an added answer's reaction, or null if it isn't one, or isn't exactly
+// as the app makes them (anything else is ignored).
+export function parseAnswer(emoji) {
+  if (typeof emoji !== 'string' || !emoji.startsWith(ANSWER_PREFIX)) return null;
+  let data;
+  try {
+    data = JSON.parse(emoji.slice(ANSWER_PREFIX.length));
+  } catch {
+    return null;
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data) || Object.keys(data).length !== 3) return null;
+  const { i: id, r: round, t: text } = data;
+  if (!OPTION_ID.test(id) || !OPTION_ID.test(round) || typeof text !== 'string') return null;
+  if (!text || text.length > MAX_OPTION_LENGTH || cleanAnswer(text) !== text) return null;
+  return { id, round, text };
+}
+
+const byTime = (a, b) => (a.timestamp ?? Infinity) - (b.timestamp ?? Infinity) || (a.id ?? 0) - (b.id ?? 0);
+
+// The poll with the answers people added (an open poll; others as they are). Its options are
+// the author's (`addedBy` null), then the added ones in the order the server got them, each
+// with `addedBy` (who added it) and `reactionIds` (theirs, to delete). Added answers are left
+// out when they're for another round, repeat an earlier answer (ignoring case) or id, were
+// added after the poll closed (`endsAt`, see pollEndsAt), were removed by `authorId` (the poll's
+// author), or come after MAX_POLL_OPTIONS.
+export function pollWithAnswers(poll, reactions, authorId, endsAt = null) {
+  if (!poll.open) return poll;
+  const list = reactions ?? [];
+  const removed = new Set(list
+    .filter((r) => r.user_id === authorId && typeof r.emoji === 'string' && r.emoji.startsWith(REMOVAL_PREFIX))
+    .map((r) => r.emoji.slice(REMOVAL_PREFIX.length)));
+  const options = poll.options.map((o) => ({ ...o, addedBy: null }));
+  const ids = new Set(options.map((o) => o.id));
+  const texts = new Set(options.map((o) => sameAnswer(o.text)));
+  const added = new Map();
+  for (const r of [...list].sort(byTime)) {
+    const answer = parseAnswer(r.emoji);
+    if (!answer || answer.round !== poll.round) continue;
+    if (endsAt != null && r.timestamp != null && r.timestamp > endsAt) continue;
+    const same = added.get(answer.id);
+    // The same answer twice (two devices racing) is one answer.
+    if (same && same.addedBy === r.user_id && same.text === answer.text) {
+      same.reactionIds.push(r.id);
+      continue;
+    }
+    if (ids.has(answer.id) || texts.has(sameAnswer(answer.text))) continue;
+    ids.add(answer.id);
+    texts.add(sameAnswer(answer.text));
+    if (removed.has(answer.id) || options.length >= MAX_POLL_OPTIONS) continue;
+    const option = { id: answer.id, text: answer.text, emoji: null, addedBy: r.user_id, reactionIds: [r.id] };
+    added.set(answer.id, option);
+    options.push(option);
+  }
+  return { ...poll, options };
+}
+
+// Why answer `text` can't be added to `poll` (pollWithAnswers'), or null if it can.
+export function answerProblem(poll, text) {
+  const clean = cleanAnswer(text);
+  if (!clean) return t('chat.poll.answerEmpty');
+  if (clean.length > MAX_OPTION_LENGTH) return t('chat.poll.answerTooLong', { count: MAX_OPTION_LENGTH });
+  if (poll.options.some((o) => sameAnswer(o.text) === sameAnswer(clean))) return t('chat.poll.answerDuplicate');
+  if (poll.options.length >= MAX_POLL_OPTIONS) return t('chat.poll.answersFull', { count: MAX_POLL_OPTIONS });
+  return null;
+}
+
+// Whether `userId` may remove the added answer `option` from `poll` (pollWithAnswers'): its
+// creator, the poll's author (`authorId`) or, in a guild, a moderator (`canModerate`; not an
+// answer the author added), and only while nobody but its creator and them has voted for it
+// (`voters`, tallyVotes').
+export function canRemoveAnswer(option, { userId, authorId, canModerate = false, voters }) {
+  if (!option.addedBy) return false;
+  const allowed = userId === option.addedBy || userId === authorId || (canModerate && option.addedBy !== authorId);
+  return allowed && (voters[option.id] ?? []).every((id) => id === option.addedBy || id === userId);
+}
 
 // Who voted for what: { voters: { optionId: [userId] }, total (people who voted), cast (votes
 // cast: in a multiple-choice poll one person can cast several, so shares are of this) }. Votes for
@@ -174,14 +287,18 @@ export function tallyVotes(poll, reactions, endsAt = null) {
 export const voteShare = (count, cast) => (cast ? Math.round((count / cast) * 100) : 0);
 
 // What voting for exactly `optionIds` (your whole choice; [] takes your vote back) does with
-// `userId`'s votes: { remove: [reaction], add: [optionId] }. Votes for answers that no longer
-// exist are cleared too.
+// `userId`'s votes: { remove: [reaction], add: [optionId] }. `poll` is pollWithAnswers'. Votes
+// for answers that no longer exist are cleared too, and answers you added before the question
+// changed.
 export function planVotes(poll, reactions, userId, optionIds) {
   const live = new Set(poll.options.map((o) => o.id));
   const wanted = new Set(optionIds.filter((id) => live.has(id)).slice(0, poll.multi ? undefined : 1));
   const mine = (reactions ?? []).filter((r) => r.user_id === userId && isVote(r.emoji));
   const kept = new Set();
-  const remove = [];
+  // Answers you added before the question changed are gone for good.
+  const remove = poll.open
+    ? (reactions ?? []).filter((r) => r.user_id === userId && parseAnswer(r.emoji) && parseAnswer(r.emoji).round !== poll.round)
+    : [];
   for (const r of mine) {
     const option = voteOption(r.emoji);
     if (wanted.has(option) && !kept.has(option)) kept.add(option);

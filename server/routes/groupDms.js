@@ -18,15 +18,17 @@ const { listedKeys, linkListed, releaseUploads } = require('../uploads');
 // epochs, and its messages and reactions (all ciphertext). Everything 404s for non-members.
 const router = express.Router();
 
-const MAX_REACTIONS_PER_USER_PER_MESSAGE = 20;
+// Poll votes and added answers count too (see DM reactions).
+const MAX_REACTIONS_PER_USER_PER_MESSAGE = 50;
 // Messages, edits and reactions are signed inside their encryption (client groupCrypto.js):
 // "v2." envelopes, whose plaintext starts with a 64-byte signature. (Older "v1." ones, from
 // before signing, are still served; new ones must be signed.)
 const SIGNED_PREFIX = 'v2.';
 const SIGNATURE_BYTES = 64;
 const MAX_MESSAGE_LENGTH = getMaxEncryptedLength(maxPlaintextLength + SIGNATURE_BYTES);
-// A signed reaction is always this long: signature + 64 padded bytes.
-const REACTION_LENGTH = getMaxEncryptedLength(SIGNATURE_BYTES + 64);
+// A signed reaction is always one of these long: signature + 256 padded bytes (64 from apps
+// from before answers could be added to polls; see DM reactions).
+const REACTION_LENGTHS = [256, 64].map((padded) => getMaxEncryptedLength(SIGNATURE_BYTES + padded));
 const OUTDATED = 'Please update the app (group messages are signed now)';
 
 // A new message or edit's content: signed, and not too long. -> an error message, or null.
@@ -356,7 +358,7 @@ router.delete('/group-dm-messages/:messageId', authenticateJWT, findMessage, not
 router.post('/group-dm-messages/:messageId/reactions', authenticateJWT, findMessage, notCallRow, async (req, res) => {
   const { content } = req.body ?? {};
   if (typeof content === 'string' && content.startsWith('v1.')) return res.status(400).json({ error: OUTDATED });
-  if (typeof content !== 'string' || content.length !== REACTION_LENGTH || !content.startsWith(SIGNED_PREFIX)) {
+  if (typeof content !== 'string' || !REACTION_LENGTHS.includes(content.length) || !content.startsWith(SIGNED_PREFIX)) {
     return res.status(400).json({ error: 'Invalid reaction' });
   }
   const { n } = await db.get('SELECT COUNT(*) AS n FROM group_dm_reactions WHERE message_id = ? AND user_id = ?', [req.message.id, req.user.id]);

@@ -277,7 +277,7 @@ export function MessageContent({ msg, user, s3Endpoint, reactionNames, mentionRo
   return (
     <div className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}`} data-image-gallery="">
       {poll
-        ? <Poll poll={poll} reactions={msg.reactions} userId={user.id} names={reactionNames} sentAt={msg.timestamp} />
+        ? <Poll poll={poll} reactions={msg.reactions} userId={user.id} authorId={msg.sender_id} names={reactionNames} sentAt={msg.timestamp} />
         : <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />}
       <EmbedParts {...embedProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
     </div>
@@ -309,6 +309,8 @@ export function MessageRow({
   onToggleReaction,
   onOpenReactionPicker,
   onVote,
+  onAddPollAnswer,
+  onRemovePollAnswer,
   onEndPoll,
   onJumpToMessage,
   reactionNames,
@@ -323,6 +325,8 @@ export function MessageRow({
   mentionRoles,
   myRoleIds,
   encrypted = true,
+  // Sending messages (a guild channel's Send Messages): also adding answers to open polls.
+  canReply = true,
 }) {
   const emojiIndex = useEmojiIndex();
   useDateFormat(); // redraws the times when Settings → Date & time changes
@@ -548,9 +552,13 @@ export function MessageRow({
               poll={poll}
               reactions={msg.reactions}
               userId={user.id}
+              authorId={msg.sender_id}
               names={reactionNames}
               sentAt={msg.timestamp}
+              canModerate={canModerate}
               onVote={canReact && onVote ? (optionIds) => onVote(msg, optionIds) : undefined}
+              onAddAnswer={canReact && canReply && onAddPollAnswer ? (text, alsoVoteFor) => onAddPollAnswer(msg, text, alsoVoteFor) : undefined}
+              onRemoveAnswer={canReact && onRemovePollAnswer ? (option) => onRemovePollAnswer(msg, option) : undefined}
               onEnd={sent && msg.sender_id === user.id && onEndPoll ? () => onEndPoll(msg) : undefined}
             />
           ) : thinking ? (
@@ -640,6 +648,8 @@ export default function MessageList({
   onToggleReaction,
   onOpenReactionPicker,
   onVote,
+  onAddPollAnswer,
+  onRemovePollAnswer,
   onEndPoll,
   onJumpToMessage,
   reactionNames,
@@ -739,6 +749,8 @@ export default function MessageList({
     onToggleReaction,
     onOpenReactionPicker,
     onVote,
+    onAddPollAnswer,
+    onRemovePollAnswer,
     onEndPoll,
     onJumpToMessage,
     reactionNames,
@@ -753,6 +765,7 @@ export default function MessageList({
     mentionRoles,
     myRoleIds,
     encrypted,
+    canReply,
   };
 
   const rememberAnchor = useCallback(() => {

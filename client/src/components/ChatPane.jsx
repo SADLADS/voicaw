@@ -24,8 +24,8 @@ import { t } from '../i18n';
 import { flashRow } from '../utils/flashRow';
 import { SUPPRESS_EMBEDS } from '../utils/linkPreviews';
 import { clearTyping } from '../utils/typing';
-import { endPoll, parsePoll, pollEnded, pollMarkup } from '../utils/pollMarkup';
-import { endPollOnServer, registerPollTimer } from '../services/pollService';
+import { endPoll, parsePoll, pollEnded, pollMarkup, pollWithAnswers } from '../utils/pollMarkup';
+import { endPollOnServer, registerPollTimer, removeGuildPollAnswer } from '../services/pollService';
 import ReportDialog from './ReportDialog';
 
 // The body of a chat, shared by DMs (Dm) and guild channels (GuildChannel): the messages, the
@@ -134,6 +134,8 @@ export default function ChatPane({
     ready: reactionsReady,
     saveReaction,
     deleteReaction,
+    // In a guild the server removes added poll answers (moderators may too).
+    removePollAnswer: pollKind === 'guild' ? (msg, optionId) => removeGuildPollAnswer(msg.id, optionId) : undefined,
     messagesRef: conversation.messagesRef,
     setMessageReactions: conversation.setMessageReactions,
     onError: setComposerError,
@@ -375,6 +377,8 @@ export default function ChatPane({
             onToggleReaction={reactions.toggleReaction}
             onOpenReactionPicker={openReactionPicker}
             onVote={reactions.vote}
+            onAddPollAnswer={reactions.addAnswer}
+            onRemovePollAnswer={reactions.removeAnswer}
             onEndPoll={endPollNow}
             onJumpToMessage={jumpToMessage}
             reactionNames={reactionNames}
@@ -470,6 +474,8 @@ export default function ChatPane({
       {editingPoll && (
         <PollDialog
           poll={editingPoll.poll}
+          addedAnswers={pollWithAnswers(editingPoll.poll, editingPoll.msg.reactions, editingPoll.msg.sender_id)
+            .options.filter((o) => o.addedBy).length}
           onSubmit={async (poll) => {
             const text = pollMarkup(poll);
             if (text.length > maxPlaintextLength) throw new Error(t('chat.pane.pollTooLong'));

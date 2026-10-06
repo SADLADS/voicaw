@@ -7,7 +7,9 @@ const { getChannelAccess, getMember, getOverrides, sendToChannel, getChannelView
 const { saveMentions, notifyNewMessage, parseMentions } = require('../mentions');
 const threads = require('../threads');
 const { setPinned } = require('../pins');
-const { POLL_VOTE, parsePoll, isClosedPoll, pollEditError, reactionIdsFor, pollReactionsFor } = require('../polls');
+const {
+  POLL_VOTE, parsePoll, isClosedPoll, pollEditError, reactionIdsFor, pollReactionsFor, isPollReaction, parseAnswer, addedAnswers, answerError,
+} = require('../polls');
 const { removePollRows } = require('../pollTimers');
 const { releaseUploads } = require('../uploads');
 const { logAudit } = require('../auditLog');
@@ -25,6 +27,8 @@ const router = express.Router();
 
 const MAX_REACTIONS_PER_USER_PER_MESSAGE = 20;
 const MAX_EMOJI_LENGTH = 64;
+// Poll votes and answers added to open polls (see polls.js), counted apart from emoji.
+const MAX_POLL_REACTIONS_PER_USER = 50;
 
 // A webhook's messages (routes/webhooks.js) have sender_id 0 and no user: their name is
 // `webhook_name` (also as sender_username) and their picture `webhook_avatar` (a URL or null).
@@ -276,11 +280,22 @@ router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async 
   }
   const pollError = pollEditError(req.message, content);
   if (pollError) return res.status(403).json({ error: pollError });
+  // A poll's new question drops every vote and added answer (the client gives every answer a
+  // new id too, so in encrypted chats they stop counting).
+  const pollBefore = parsePoll(req.message.content);
+  const dropped = pollBefore && pollBefore.question !== parsePoll(content)?.question
+    ? await db.all(
+      "SELECT id, message_id, user_id, emoji FROM guild_reactions WHERE message_id = ? AND substr(emoji, 1, 5) = 'poll:'",
+      [req.message.id]
+    )
+    : [];
   await db.transaction(async () => {
     await db.run("UPDATE guild_messages SET content = ?, edited = 1, edited_at = strftime('%s','now') WHERE id = ?", [content, req.message.id]);
     await saveMentions({ id: req.message.id, content, sender_id: req.user.id }, req.channel, req.permissions);
     await db.indexGuildMessage(req.message.id);
+    for (const r of dropped) await db.run('DELETE FROM guild_reactions WHERE id = ?', [r.id]);
   });
+  for (const r of dropped) await announceRemoved(r, req.channel);
   releaseUploads();
   const saved = await db.get('SELECT mention_everyone, mention_roles FROM guild_messages WHERE id = ?', [req.message.id]);
   await sendToChannel(req.channel, {
@@ -416,21 +431,36 @@ router.delete('/guild-messages/:messageId/pin', authenticateJWT, requireMessage,
 // Adds `userId`'s reaction `emoji` to `message` (with id and content) in `channel`, where they
 // have `permissions`. Resolves to the reaction row. Shared with the bot API. Throws ActionError.
 async function addReaction(message, channel, userId, permissions, emoji) {
-  if (typeof emoji !== 'string' || !emoji || emoji.length > MAX_EMOJI_LENGTH || /\s/.test(emoji)) {
-    throw new ActionError(400, 'Invalid reaction', 10014);
+  const forPoll = isPollReaction(emoji);
+  if (forPoll) {
+    // A poll's votes and added answers (see polls.js): only on a poll, until it closes. Votes
+    // only need to see the channel, not Add Reactions; adding an answer is writing in it (Send
+    // Messages), and it must be one that fits.
+    const poll = parsePoll(message.content);
+    if (!poll || !(POLL_VOTE.test(emoji) || parseAnswer(emoji))) throw new ActionError(400, 'Invalid reaction', 10014);
+    if (isClosedPoll(message)) throw new ActionError(403, 'This poll has closed');
+    if (parseAnswer(emoji)) {
+      if (!has(permissions, PERMISSIONS.SEND_MESSAGES)) throw new ActionError(403, "You don't have permission to do that");
+      const error = answerError(poll, await pollAnswerRows(message.id), emoji);
+      if (error) throw new ActionError(400, error);
+    }
+  } else {
+    if (typeof emoji !== 'string' || !emoji || emoji.length > MAX_EMOJI_LENGTH || /\s/.test(emoji)) {
+      throw new ActionError(400, 'Invalid reaction', 10014);
+    }
+    if (!has(permissions, PERMISSIONS.ADD_REACTIONS)) throw new ActionError(403, "You don't have permission to do that");
   }
-  // A poll's votes (see polls.js) only need to see the channel, not Add Reactions, and stop
-  // when it closes.
-  const vote = POLL_VOTE.test(emoji) && Boolean(parsePoll(message.content));
-  if (vote && isClosedPoll(message)) throw new ActionError(403, 'This poll has closed');
-  if (!vote && !has(permissions, PERMISSIONS.ADD_REACTIONS)) throw new ActionError(403, "You don't have permission to do that");
   const { guild_id: guildId, id: channelId } = channel;
 
+  // Poll reactions have their own, larger limit (votes for every answer, and answers added).
   const { count } = await db.get(
-    'SELECT COUNT(*) AS count FROM guild_reactions WHERE message_id = ? AND user_id = ?',
-    [message.id, userId]
+    `SELECT COUNT(*) AS count FROM guild_reactions WHERE message_id = ? AND user_id = ?
+       AND (substr(emoji, 1, 5) = 'poll:') = ?`,
+    [message.id, userId, forPoll ? 1 : 0]
   );
-  if (count >= MAX_REACTIONS_PER_USER_PER_MESSAGE) throw new ActionError(400, 'Too many reactions on this message', 30010);
+  if (count >= (forPoll ? MAX_POLL_REACTIONS_PER_USER : MAX_REACTIONS_PER_USER_PER_MESSAGE)) {
+    throw new ActionError(400, 'Too many reactions on this message', 30010);
+  }
   const { changes, lastID } = await db.run(
     'INSERT OR IGNORE INTO guild_reactions (message_id, user_id, emoji) VALUES (?, ?, ?)',
     [message.id, userId, emoji]
@@ -449,12 +479,17 @@ router.post('/guild-messages/:messageId/reactions', authenticateJWT, requireMess
   res.status(201).json(await addReaction(req.message, req.channel, req.user.id, req.permissions, req.body?.emoji));
 }));
 
-// Removes reaction `reaction` ({ id, message_id, user_id, emoji, content, timestamp }) from
-// `channel`. A closed poll's votes are final. Whose it is is up to the caller.
-async function removeReaction(reaction, channel) {
-  if (POLL_VOTE.test(reaction.emoji) && isClosedPoll(reaction)) throw new ActionError(403, 'This poll has closed');
-  await db.run('DELETE FROM guild_reactions WHERE id = ?', [reaction.id]);
-  await sendToChannel(channel, {
+// The poll `messageId`'s added answers, as reactions ([{ id, user_id, emoji, timestamp }]).
+function pollAnswerRows(messageId) {
+  return db.all(
+    "SELECT id, user_id, emoji, timestamp FROM guild_reactions WHERE message_id = ? AND substr(emoji, 1, 6) = 'poll:+'",
+    [messageId]
+  );
+}
+
+// Tells `channel` the reaction `reaction` ({ id, message_id, user_id, emoji }) is gone.
+function announceRemoved(reaction, channel) {
+  return sendToChannel(channel, {
     type: 'guild_reaction_remove',
     guildId: channel.guild_id,
     channelId: channel.id,
@@ -463,6 +498,23 @@ async function removeReaction(reaction, channel) {
     userId: reaction.user_id,
     emoji: reaction.emoji,
   });
+}
+
+// Removes reaction `reaction` ({ id, message_id, user_id, emoji, content, timestamp }) from
+// `channel`. A closed poll's votes and answers are final, and an added answer goes only while
+// nobody else has voted for it. Whose it is is up to the caller.
+async function removeReaction(reaction, channel) {
+  if (isPollReaction(reaction.emoji) && isClosedPoll(reaction)) throw new ActionError(403, 'This poll has closed');
+  const answer = parseAnswer(reaction.emoji);
+  if (answer) {
+    const others = await db.get(
+      'SELECT 1 FROM guild_reactions WHERE message_id = ? AND emoji = ? AND user_id != ?',
+      [reaction.message_id, `poll:${answer.id}`, reaction.user_id]
+    );
+    if (others) throw new ActionError(403, 'Someone else has voted for this answer');
+  }
+  await db.run('DELETE FROM guild_reactions WHERE id = ?', [reaction.id]);
+  await announceRemoved(reaction, channel);
 }
 
 // Only your own reactions can be removed.
@@ -478,6 +530,36 @@ router.delete('/guild-reactions/:reactionId', authenticateJWT, withActionErrors(
   if (reaction.user_id !== req.user.id) return res.status(403).json({ error: 'Not your reaction' });
   await removeReaction(reaction, access.channel);
   res.json({ success: true });
+}));
+
+// Removes an answer someone added to an open poll, with its votes: its creator, the poll's
+// author, or anyone with Manage Messages (not an answer the author added), while nobody but
+// its creator and whoever removes it has voted for it. -> { removed: [reaction id] }
+router.delete('/guild-messages/:messageId/poll-answers/:answerId', authenticateJWT, requireMessage, withActionErrors(async (req, res) => {
+  const { message } = req;
+  const poll = parsePoll(message.content);
+  if (!poll?.open) return res.status(404).json({ error: 'Answer not found' });
+  if (isClosedPoll(message)) return res.status(403).json({ error: 'This poll has closed' });
+  const reactions = await db.all(
+    "SELECT id, message_id, user_id, emoji, timestamp FROM guild_reactions WHERE message_id = ? AND substr(emoji, 1, 5) = 'poll:'",
+    [message.id]
+  );
+  const answer = addedAnswers(poll, reactions).find((a) => a.id === req.params.answerId);
+  if (!answer) return res.status(404).json({ error: 'Answer not found' });
+  const me = req.user.id;
+  const allowed = me === answer.userId || me === message.sender_id ||
+    (has(req.permissions, PERMISSIONS.MANAGE_MESSAGES) && answer.userId !== message.sender_id);
+  if (!allowed) return res.status(403).json({ error: "You can't remove this answer" });
+  const votes = reactions.filter((r) => r.emoji === `poll:${answer.id}`);
+  if (votes.some((r) => r.user_id !== answer.userId && r.user_id !== me)) {
+    return res.status(403).json({ error: 'Someone else has voted for this answer' });
+  }
+  const removed = [...reactions.filter((r) => answer.reactionIds.includes(r.id)), ...votes];
+  await db.transaction(async () => {
+    for (const r of removed) await db.run('DELETE FROM guild_reactions WHERE id = ?', [r.id]);
+  });
+  for (const r of removed) await announceRemoved(r, req.channel);
+  res.json({ removed: removed.map((r) => r.id) });
 }));
 
 // Who can see a channel (text or voice): their user ids. For the member list and "@" suggestions.
