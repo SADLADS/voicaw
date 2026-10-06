@@ -8,7 +8,8 @@ import GuildIcon from '../guild/GuildIcon';
 import CopyField from './CopyField';
 import PermissionChecklist from './PermissionChecklist';
 import {
-  deleteApplication, fetchApplication, inviteLink, rememberBots, removeFromGuild, resetToken, updateApplication,
+  deleteApplication, fetchApplication, inviteLink, loginLink, rememberBots, removeFromGuild, resetClientSecret, resetToken,
+  updateApplication,
 } from '../../services/developerService';
 import { toBitfield } from '../../utils/botPermissions';
 import { MAX_PICTURE_BYTES, pictureData } from '../../utils/pictureData';
@@ -17,14 +18,15 @@ import { formatDate, formatDateTime, useDateFormat } from '../../utils/dateForma
 import { displayName, useProfiles } from '../../utils/profiles';
 import { t } from '../../i18n';
 
-const TABS = ['general', 'bot', 'installation'];
+const TABS = ['general', 'bot', 'installation', 'oauth2'];
+const MAX_REDIRECTS = 10;
 const NAME_LENGTH = 32;
 const DESCRIPTION_LENGTH = 190;
 // What a new invite link asks for until changed: enough to read and talk.
 const DEFAULT_PERMISSIONS = ['VIEW_CHANNEL', 'SEND_MESSAGES', 'SEND_MESSAGES_IN_THREADS', 'ADD_REACTIONS'];
 
 // One application's settings, in tabs: General Information, Bot (token, public), Installation
-// (permissions, the invite link, its guilds).
+// (permissions, the invite link, its guilds), OAuth2 (Login with Voicaw: client secret, redirects).
 export default function ApplicationPage({ appId }) {
   useProfiles();
   const location = useLocation();
@@ -89,6 +91,7 @@ export default function ApplicationPage({ appId }) {
         {tab === 'general' && <GeneralTab app={app} onChanged={changed} />}
         {tab === 'bot' && <BotTab app={app} token={token} onToken={setToken} onChanged={changed} />}
         {tab === 'installation' && <InstallationTab app={app} onChanged={changed} />}
+        {tab === 'oauth2' && <OAuth2Tab app={app} onChanged={changed} />}
       </div>
     </section>
   );
@@ -337,6 +340,139 @@ function InstallationTab({ app, onChanged }) {
           )}
         >
           <p>{t('developers.install.confirmRemove', { bot: app.name, guild: removing.name })}</p>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// Login with Voicaw (server/oauth.js): the client id, a client secret shown once, and the
+// redirect URIs people may be sent back to.
+function OAuth2Tab({ app, onChanged }) {
+  useDateFormat();
+  const [secret, setSecret] = useState(null); // just made: shown until the page is left
+  const [newUri, setNewUri] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  const [linkUri, setLinkUri] = useState(app.redirect_uris[0] ?? '');
+  const shownLinkUri = app.redirect_uris.includes(linkUri) ? linkUri : app.redirect_uris[0];
+
+  async function run(action) {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const makeSecret = () => run(async () => {
+    const { client_secret: fresh } = await resetClientSecret(app.id);
+    setSecret(fresh);
+    setConfirmingReset(false);
+    onChanged({ ...app, client_secret_reset_at: Math.floor(Date.now() / 1000) });
+  });
+
+  const saveUris = (uris) => run(async () => onChanged(await updateApplication(app.id, { redirect_uris: uris })));
+
+  const add = (e) => {
+    e.preventDefault();
+    const uri = newUri.trim();
+    if (!uri) return;
+    run(async () => {
+      onChanged(await updateApplication(app.id, { redirect_uris: [...app.redirect_uris, uri] }));
+      setNewUri('');
+    });
+  };
+
+  return (
+    <div className="dev-form">
+      <p className="vc-hint">{t('developers.oauth2.intro')}</p>
+      <CopyField id="dev-oauth-client-id" label={t('developers.oauth2.clientIdLabel')} value={String(app.id)} />
+
+      <h5 className="dev-subheading">{t('developers.oauth2.secretHeading')}</h5>
+      {secret ? (
+        <div className="dev-token-box" role="status">
+          <p><FontAwesomeIcon icon={faTriangleExclamation} /> {t('developers.oauth2.secretNew')}</p>
+          <CopyField id="dev-oauth-secret" value={secret} secret />
+        </div>
+      ) : (
+        <p className="vc-hint">{app.client_secret_reset_at ? t('developers.oauth2.secretHint') : t('developers.oauth2.secretNone')}</p>
+      )}
+      {app.client_secret_reset_at && <p className="vc-hint">{t('developers.oauth2.secretLastReset', { date: formatDateTime(app.client_secret_reset_at * 1000) })}</p>}
+      <div>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={busy}
+          onClick={() => (app.client_secret_reset_at ? setConfirmingReset(true) : makeSecret())}
+        >
+          {app.client_secret_reset_at ? t('developers.oauth2.resetSecret') : t('developers.oauth2.makeSecret')}
+        </button>
+      </div>
+
+      <h5 className="dev-subheading">{t('developers.oauth2.redirectsHeading')}</h5>
+      <p className="vc-hint">{t('developers.oauth2.redirectsHint', { count: MAX_REDIRECTS })}</p>
+      {!app.redirect_uris.length && <p className="vc-hint">{t('developers.oauth2.noRedirects')}</p>}
+      <ul className="dev-redirect-list">
+        {app.redirect_uris.map((uri) => (
+          <li key={uri}>
+            <code className="dev-redirect-uri">{uri}</code>
+            <button
+              type="button"
+              className="btn btn-link btn-sm"
+              disabled={busy}
+              aria-label={t('developers.oauth2.removeRedirect', { uri })}
+              onClick={() => saveUris(app.redirect_uris.filter((u) => u !== uri))}
+            >
+              {t('common.remove')}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {app.redirect_uris.length < MAX_REDIRECTS && (
+        <form className="dev-redirect-add" onSubmit={add}>
+          <input
+            type="url"
+            className="form-control"
+            value={newUri}
+            placeholder={t('developers.oauth2.redirectPlaceholder')}
+            aria-label={t('developers.oauth2.redirectsHeading')}
+            onChange={(e) => setNewUri(e.target.value)}
+          />
+          <button type="submit" className="btn btn-secondary" disabled={busy || !newUri.trim()}>{t('developers.oauth2.addRedirect')}</button>
+        </form>
+      )}
+      {error && <p className="error-msg" role="alert">{error}</p>}
+
+      {shownLinkUri && (
+        <>
+          {app.redirect_uris.length > 1 && (
+            <select className="form-select form-control" value={shownLinkUri} aria-label={t('developers.oauth2.redirectsHeading')} onChange={(e) => setLinkUri(e.target.value)}>
+              {app.redirect_uris.map((uri) => <option key={uri} value={uri}>{uri}</option>)}
+            </select>
+          )}
+          <CopyField id="dev-oauth-link" label={t('developers.oauth2.linkLabel')} value={loginLink(app.id, shownLinkUri)} />
+          <p className="vc-hint">{t('developers.oauth2.linkHint')}</p>
+        </>
+      )}
+
+      {confirmingReset && (
+        <Modal
+          title={t('developers.oauth2.confirmResetTitle')}
+          onClose={() => setConfirmingReset(false)}
+          actions={(
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => setConfirmingReset(false)}>{t('common.cancel')}</button>
+              <button type="button" className="btn btn-danger" disabled={busy} onClick={makeSecret}>{t('developers.oauth2.resetSecret')}</button>
+            </>
+          )}
+        >
+          <p>{t('developers.oauth2.confirmReset')}</p>
         </Modal>
       )}
     </div>

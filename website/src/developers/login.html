@@ -1,0 +1,82 @@
+      <p class="lead-in">
+        Your website can let people log in with their Voicaw account. It's Discord's OAuth2
+        authorisation code grant, so a site that logs people in with Discord works with Voicaw by
+        changing three addresses and its client id and secret. The only scope is
+        <code>identify</code>: the person's id, username, display name and picture.
+      </p>
+
+      <h2 id="setting-up">Setting up</h2>
+      <ol>
+        <li>Make an application in the <a href="https://app.voicaw.com/developers">Developer Portal</a> (every application also has a bot; you don't have to use it).</li>
+        <li>Under <strong>OAuth2</strong>, make a <strong>client secret</strong> and copy it: it's shown once. It belongs on your server only, never in a web page or an app.</li>
+        <li>Add your <strong>redirects</strong>: the exact addresses people come back to after logging in. They must be <code>https</code> (or <code>http://localhost</code> / <code>127.0.0.1</code> while testing), without a <code>#fragment</code>. Up to 10.</li>
+      </ol>
+
+      <h2 id="addresses">The addresses</h2>
+      <div class="table"><table>
+        <tr><th>What</th><th>Discord's</th><th>Voicaw's</th></tr>
+        <tr><td>Authorise (people's browser)</td><td><code>https://discord.com/oauth2/authorize</code></td><td><code>https://app.voicaw.com/oauth2/authorize</code></td></tr>
+        <tr><td>Token (your server)</td><td><code>https://discord.com/api/oauth2/token</code></td><td><code>https://api.voicaw.com/api/v10/oauth2/token</code></td></tr>
+        <tr><td>Who logged in</td><td><code>https://discord.com/api/users/@me</code></td><td><code>https://api.voicaw.com/api/v10/users/@me</code></td></tr>
+        <tr><td>Pictures</td><td><code>https://cdn.discordapp.com/avatars/{id}/{avatar}.png</code></td><td><code>https://api.voicaw.com/api/cdn/avatars/{id}/{avatar}.png</code>, or the user's <code>avatar_url</code></td></tr>
+      </table></div>
+      <p>Note the <code>/api/v10</code>: Voicaw's API has no unversioned <code>/api/users/@me</code>.</p>
+
+      <h2 id="flow">The flow</h2>
+      <p>1. Send the person to the authorise page:</p>
+      <pre><code>https://app.voicaw.com/oauth2/authorize?client_id=123&amp;response_type=code&amp;scope=identify
+    &amp;redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&amp;state=RANDOM</code></pre>
+      <p>
+        They log in to Voicaw if they aren't already, see your application, what it will know
+        and where they'll go, and choose <strong>Authorise</strong> or <strong>Cancel</strong>.
+        <code>redirect_uri</code> must be one of your redirects exactly (you may leave it out
+        if you have only one). Make <code>state</code> a random value tied to the person's
+        session and check it when they come back. With <code>prompt=none</code>, someone who has
+        already let your application in goes straight back without being asked again.
+      </p>
+      <p>2. They come back to your redirect with a code, or with <code>error=access_denied</code> if they cancelled:</p>
+      <pre><code>https://example.com/callback?code=CODE&amp;state=RANDOM</code></pre>
+      <p>3. Your server trades the code for a token (a form, or JSON; the client id and secret in the body or as HTTP Basic):</p>
+      <pre><code>POST /api/v10/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id=123&amp;client_secret=SECRET&amp;grant_type=authorization_code&amp;code=CODE
+&amp;redirect_uri=https%3A%2F%2Fexample.com%2Fcallback</code></pre>
+      <pre><code>{ "access_token": "…", "token_type": "Bearer", "expires_in": 604800, "refresh_token": "…", "scope": "identify" }</code></pre>
+      <p>A code works once, within 10 minutes, for the application it was made for and with the same <code>redirect_uri</code>.</p>
+      <p>4. Ask who it is:</p>
+      <pre><code>GET /api/v10/users/@me
+Authorization: Bearer ACCESS_TOKEN</code></pre>
+      <pre><code>{ "id": "42", "username": "alice", "discriminator": "0", "global_name": "Alice", "avatar": "a1b2c3", "bot": false,
+  "avatar_url": "https://…/profile-pics/42/a1b2c3.webp", "mfa_enabled": false, "locale": "en-GB", … }</code></pre>
+      <p>
+        Ids are Voicaw's (decimal strings, not snowflakes). There's no <code>email</code>: Voicaw
+        doesn't have people's email addresses.
+      </p>
+
+      <h2 id="tokens">Tokens</h2>
+      <div class="table"><table class="endpoints plain">
+        <tr><th>Endpoint</th><th>Notes</th></tr>
+        <tr><td><span class="method post">POST</span> <code>/oauth2/token</code></td><td><code>grant_type=authorization_code</code> (<code>code</code>, <code>redirect_uri</code>) or <code>refresh_token</code> (<code>refresh_token</code>). Every answer has a new refresh token; the old pair stops working.</td></tr>
+        <tr><td><span class="method post">POST</span> <code>/oauth2/token/revoke</code></td><td><code>token</code> (access or refresh): it and its pair stop working.</td></tr>
+        <tr><td><span class="method get">GET</span> <code>/users/@me</code></td><td>With <code>Bearer</code>: the person (<code>identify</code>).</td></tr>
+        <tr><td><span class="method get">GET</span> <code>/oauth2/@me</code></td><td>With <code>Bearer</code>: <code>{ application, scopes, expires, user }</code>.</td></tr>
+      </table></div>
+      <p>
+        Access tokens last 7 days. A refresh token works once, until it's revoked, or until 30
+        days after its access token ran out. A login token opens only the two endpoints above:
+        everything else in the bot API wants a bot token. Tokens stop working when the person
+        removes your application under Settings → Authorised apps, when their account is
+        deleted or suspended, and when you delete the application. Resetting the client secret
+        doesn't log anyone out.
+      </p>
+      <p>Errors are OAuth2's, not the bot API's:</p>
+      <pre><code>{ "error": "invalid_grant", "error_description": "Invalid \"code\" in request." }</code></pre>
+      <p>
+        <code>invalid_client</code> (401: wrong id or secret), <code>invalid_grant</code> (a
+        used, expired or someone else's code or refresh token), <code>invalid_request</code>,
+        <code>unsupported_grant_type</code>. The token endpoints take 30 requests a minute from
+        one address. Mistakes in the authorise link go back to your redirect as
+        <code>error=invalid_scope</code> or <code>unsupported_response_type</code>; an unknown
+        client or redirect is shown to the person instead, and they're never sent there.
+      </p>

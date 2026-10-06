@@ -26,6 +26,23 @@ export const deleteApplication = (id) => api.delete(`/applications/${id}`);
 // A new token (the old one stops working): { token }.
 export const resetToken = async (id) => (await api.post(`/applications/${id}/token`)).data;
 export const removeFromGuild = (id, guildId) => api.delete(`/applications/${id}/guilds/${guildId}`);
+// Login with Voicaw: a new client secret (the old one stops working): { client_secret }.
+export const resetClientSecret = async (id) => (await api.post(`/applications/${id}/client-secret`)).data;
+
+// A login link's application and what it asks for (server/oauth.js), from the link's query.
+export const fetchLogin = async (params) => (await api.get('/oauth2/authorize', { params })).data;
+// Agrees to (or with `deny`, refuses) a login link: { location }, where to send the person.
+export const answerLogin = async (params, deny = false) => (await api.post('/oauth2/authorize', { ...params, deny })).data;
+
+// Settings → Authorised apps.
+export const fetchAuthorisedApps = async () => (await api.get('/oauth2/authorised-apps')).data;
+export const removeAuthorisedApp = (id) => api.delete(`/oauth2/authorised-apps/${id}`);
+
+// A login link for application `id` going back to `redirectUri`, as Discord's.
+export function loginLink(id, redirectUri) {
+  const query = new URLSearchParams({ client_id: String(id), response_type: 'code', redirect_uri: redirectUri, scope: 'identify' });
+  return `${shareOrigin()}/oauth2/authorize?${query}`;
+}
 
 // The bot, who made it and the guilds you could add it to.
 export const fetchAuthorization = async (clientId) => (await api.get('/oauth2/authorize', { params: { client_id: clientId } })).data;

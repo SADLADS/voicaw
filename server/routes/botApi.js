@@ -20,6 +20,7 @@ const botMessages = require('../botMessages');
 const commands = require('../commands');
 const interactions = require('../interactions');
 const guildEvents = require('../guildEvents');
+const oauth = require('../oauth');
 const botDms = require('../botDms');
 
 // The bot API: Discord's REST API (https://discord.com/developers/docs/reference), for bots made
@@ -108,6 +109,35 @@ const limit = (name, max = 10, windowMs = 1000) => (req, res, next) => {
 };
 
 const auth = [botAuth];
+
+// Login with Voicaw (oauth.js): req.login, the token `Bearer <token>` names, which must have
+// `identify`. It works only on the routes that take it (users/@me, oauth2/@me).
+async function loginAuth(req, res, next) {
+  const login = await oauth.accessFor(req.get('authorization'));
+  if (!login || !login.scopes.includes('identify')) return fail(res, 401, 0, '401: Unauthorized');
+  req.login = login;
+  next();
+}
+
+// The token routes take forms (RFC 6749; what Discord's examples send) as well as JSON, and are
+// limited per address: they're where a client secret could be guessed.
+const form = express.urlencoded({ extended: false, limit: '16kb' });
+const tokenLimiter = createLimiter({ windowMs: 60 * 1000, max: 30 });
+function tokenRoute(fn) {
+  return [form, async (req, res) => {
+    if (config.rateLimitsEnabled) {
+      const { allowed, retryAfterMs } = tokenLimiter.hit(req.ip);
+      if (!allowed) return rateLimited(res, retryAfterMs, false);
+    }
+    try {
+      await fn(req, res);
+    } catch (err) {
+      if (!(err instanceof oauth.OAuthError)) throw err;
+      if (err.error === 'invalid_client') res.set('WWW-Authenticate', 'Basic realm="Voicaw"');
+      res.status(err.status).json({ error: err.error, error_description: err.message });
+    }
+  }];
+}
 
 // Runs a handler, answering refused actions, bad bodies and big uploads Discord's way.
 const route = (fn) => async (req, res, next) => {
@@ -272,7 +302,9 @@ router.get('/gateway/bot', auth, (req, res) => {
   });
 });
 
-router.get('/users/@me', auth, route(async (req, res) => {
+// The bot, or with `Bearer <token>` from Login with Voicaw (identify) the person who logged in.
+router.get('/users/@me', (req, res, next) => (/^Bearer\s/i.test(req.get('authorization') ?? '') ? loginAuth(req, res, next) : botAuth(req, res, next)), route(async (req, res) => {
+  if (req.login) return res.json({ ...D.userObject(await userRow(req.login.user_id)), mfa_enabled: false, locale: 'en-GB' });
   res.json({ ...D.userObject(await userRow(req.bot.id)), verified: true, mfa_enabled: false, email: null, locale: 'en-GB' });
 }));
 
@@ -432,6 +464,32 @@ router.post('/channels/:channelId/typing', auth, inDm, (req, res) => res.status(
 
 router.get(['/applications/@me', '/oauth2/applications/@me'], auth, route(async (req, res) => {
   res.json(await applicationObject(req.bot.application));
+}));
+
+// ---- Login with Voicaw (oauth.js) ----
+
+// A code (grant_type authorization_code) or refresh token (refresh_token) for an access token,
+// with the application's client_id and client_secret (in the body or HTTP Basic).
+router.post('/oauth2/token', ...tokenRoute(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(await oauth.exchange(req));
+}));
+
+router.post('/oauth2/token/revoke', ...tokenRoute(async (req, res) => {
+  await oauth.revoke(req);
+  res.json({});
+}));
+
+// The token's application, scopes, expiry and person, as Discord's.
+router.get('/oauth2/@me', loginAuth, route(async (req, res) => {
+  const app = await db.get('SELECT * FROM bot_applications WHERE id = ?', [req.login.application_id]);
+  const bot = await userRow(app.id);
+  res.json({
+    application: { id: String(app.id), name: app.name, icon: bot?.avatar ?? null, description: app.description ?? '', bot_public: Boolean(app.public), bot_require_code_grant: false, verify_key: '', flags: 0 },
+    scopes: req.login.scopes,
+    expires: new Date(req.login.expires_at * 1000).toISOString(),
+    user: D.userObject(await userRow(req.login.user_id)),
+  });
 }));
 
 // ---- Application commands (commands.js) ----

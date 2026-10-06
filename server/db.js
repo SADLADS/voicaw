@@ -970,6 +970,37 @@ CREATE TABLE IF NOT EXISTS bot_applications (
 CREATE INDEX IF NOT EXISTS bot_applications_owner ON bot_applications (owner_id);
 `);
 
+// LOGIN WITH VOICAW (oauth.js, docs/bots.md): Discord's OAuth2 for an application's website.
+// `client_secret_hash` is the SHA-256 of its secret (shown once), `redirect_uris` a JSON list
+// of the exact addresses it may send people back to. A code (10 minutes, used once) becomes a
+// token: `access_hash` / `refresh_hash` are SHA-256s, the access token lasting 7 days and the
+// refresh token until used (replaced then), revoked, or 30 days after the access token ran out.
+addColumn('ALTER TABLE bot_applications ADD COLUMN client_secret_hash TEXT');
+addColumn('ALTER TABLE bot_applications ADD COLUMN client_secret_reset_at INTEGER');
+addColumn('ALTER TABLE bot_applications ADD COLUMN redirect_uris TEXT');
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS oauth_codes (
+  code_hash TEXT PRIMARY KEY,
+  application_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  redirect_uri TEXT NOT NULL,
+  scopes TEXT NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS oauth_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  application_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  scopes TEXT NOT NULL,
+  access_hash TEXT NOT NULL UNIQUE,
+  refresh_hash TEXT NOT NULL UNIQUE,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS oauth_tokens_user ON oauth_tokens (user_id, application_id);
+CREATE INDEX IF NOT EXISTS oauth_tokens_application ON oauth_tokens (application_id);
+`);
+
 // BOT DMS (botDms.js, docs/bots.md): a direct conversation between a bot and one person. NOT
 // end-to-end encrypted (bots have no keys): stored as plain text, like a guild's messages, and
 // shown as such. `read_id` is the newest message the person has read. Deleted with the

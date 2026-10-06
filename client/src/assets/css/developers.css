@@ -440,3 +440,58 @@
 .dev-authorize-done p {
   margin: 12px 0;
 }
+
+/* Login with Voicaw's consent card (AuthorizePage's LoginConsent). */
+.dev-login-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background-color: var(--vc-bg-subtle);
+  overflow-wrap: anywhere;
+}
+
+.dev-login-me-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dev-login-scopes {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+/* The OAuth2 tab's redirect URIs. */
+.dev-redirect-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dev-redirect-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--vc-border-light);
+}
+
+.dev-redirect-uri {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dev-redirect-add {
+  display: flex;
+  gap: 8px;
+}
+
+.dev-redirect-add .form-control {
+  flex: 1;
+  min-width: 0;
+}

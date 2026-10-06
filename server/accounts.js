@@ -105,6 +105,8 @@ async function deleteAccount(userId, plan) {
     // until a year after they're resolved, reports.js).
     await db.run('DELETE FROM user_blocks WHERE blocker_id = ? OR blocked_id = ?', [userId, userId]);
     await db.run('DELETE FROM login_states WHERE username = ?', [user?.username]);
+    // Sites they logged in to with Voicaw lose access (oauth.js).
+    await require('./oauth').forgetUser(userId);
     // Their conversations with bots (not encrypted, so not kept for anyone: botDms.js).
     await require('./botDms').forgetUser(userId);
     // Not a name anyone can sign up with (sign-ups are lower case), and the old one is free again.

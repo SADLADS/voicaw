@@ -3731,6 +3731,12 @@ body.mobile-mode .poll-voters-list {
   overflow-wrap: anywhere;
 }
 
+/* Settings → Authorised apps (AuthorisedApps.jsx) uses the list above. */
+.authorised-app-since {
+  display: block;
+  font-size: 0.8rem;
+}
+
 /* A conversation with a bot (BotDm.jsx): its BOT tag, "Not encrypted" in the header, and the
    line above the messages saying who can read them. */
 .bot-dm-title {

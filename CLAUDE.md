@@ -149,7 +149,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   voicaw.com.
 - `docs/bots.md`: bots: applications and bot users, the developer portal, adding bots to guilds,
   Discord's REST API (`/api/v10`) and gateway (`/api/gateway`), ids and permission bits,
-  slash and context-menu commands, buttons, selects, forms and ephemeral replies.
+  slash and context-menu commands, buttons, selects, forms and ephemeral replies, Login with
+  Voicaw (OAuth2 for websites, Settings → Authorised apps).
 
 ## Rules that apply everywhere
 
@@ -240,6 +241,10 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   hearing is its own permission, Listen (people have it through @everyone, which never gives it
   to a bot; LiveKit enforces it), and listening bots show an ear. A Discord-compatible voice
   bridge was deferred (big: voice websocket, UDP, re-encoding, maybe Discord's DAVE).
+- **Login with Voicaw** (built 2026-10-06, see `docs/bots.md`): Discord's OAuth2 code grant for
+  applications' websites (first for slotto, a Discord games site being moved over), so sites
+  only change URLs. Only `identify` (id, username, display name, picture); tokens and secrets
+  stored as hashes; people remove sites in Settings → Authorised apps.
 - **Bot DMs** (built 2026-10-06, see `docs/bots.md`; first for slotto's game reminders, a
   Discord games site being moved over): a bot and one person it shares a guild with, as
   Discord's DM channels, deliberately NOT end-to-end encrypted (bots have no keys) and kept

@@ -57,7 +57,8 @@
 
       <h2 id="permissions">Simpler permissions</h2>
       <p>
-        There's no OAuth2 login flow: the only scope is <code>bot</code>. Someone with Manage Guild
+        Adding a bot has one scope, <code>bot</code> (logging people in to your website is
+        <code>identify</code>, see <a href="/developers/docs/login/">Login with Voicaw</a>). Someone with Manage Guild
         adds your bot from its invite link. The bot then gets a role of its own holding the
         permissions they ticked, which can only be ones they have themselves. After that, its
         permissions work as anyone's: its roles, then channel overrides. See

@@ -139,14 +139,24 @@ async function applicationFor(app) {
     public: Boolean(app.public),
     created_at: app.created_at,
     token_reset_at: app.token_reset_at,
+    // Login with Voicaw (oauth.js): whether it has a client secret yet (never shown again), and
+    // where it may send people back to.
+    client_secret_reset_at: app.client_secret_reset_at ?? null,
+    redirect_uris: require('./oauth').redirectUrisOf(app),
     bot: { id: app.id, ...splitUsername(user.username), avatar: user.avatar },
     guilds,
   };
 }
 
-// Changes name, description and `public`; the bot's profile follows. Returns an error or null.
+// Changes name, description, `public` and `redirect_uris`; the bot's profile follows. Returns
+// an error or null.
 async function updateApplication(app, body) {
   const updates = {};
+  if (body.redirect_uris !== undefined) {
+    const { list, error } = require('./oauth').cleanRedirectUris(body.redirect_uris);
+    if (error) return error;
+    updates.redirect_uris = JSON.stringify(list);
+  }
   if (body.name !== undefined) {
     updates.name = cleanAppName(body.name);
     if (!updates.name) return `Names are 2–${MAX_NAME} characters`;
@@ -187,6 +197,8 @@ async function deleteApplication(app) {
   const dms = await db.all('SELECT id, user_id FROM bot_dms WHERE bot_id = ?', [app.id]);
   await db.transaction(async () => {
     await db.run('DELETE FROM bot_applications WHERE id = ?', [app.id]);
+    // Sites logged in with it lose access (oauth.js).
+    await require('./oauth').forgetApplication(app.id);
     // Its DMs go too (botDms.js).
     await require('./botDms').forgetBot(app.id);
     await db.run(

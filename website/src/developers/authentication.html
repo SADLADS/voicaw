@@ -9,7 +9,9 @@
       </p>
       <p>
         <code>GET /gateway</code> is the only endpoint that works without a token. There are no
-        user tokens or OAuth2 bearer tokens: the bot API is for bots only.
+        user tokens. OAuth2 bearer tokens, from <a href="/developers/docs/login/">Login with
+        Voicaw</a>, only open <code>GET /users/@me</code> and <code>GET /oauth2/@me</code>: the
+        rest of the bot API is for bots only.
       </p>
 
       <h2 id="rate-limits">Rate limits</h2>
