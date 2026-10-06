@@ -1,7 +1,8 @@
 // The desktop app's page side (Electron itself can't run here): a stand-in for its bridge
 // (electron/preload.js) records what the page asks of it. Notifications arrive over the
 // websocket and are decrypted into the preview, the unread badge, clicking a notification,
-// the mute shortcut, Settings → Desktop App, turning notifications off, no service worker.
+// the mute shortcut, Settings → Desktop App, turning notifications off, no service worker,
+// updating (a last look for a newer version, its download's progress, a failed one).
 //   node e2e/serve.mjs &   then   node e2e/desktop.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
 import { launchChrome, signUp, openChat, send, BASE } from './helpers.mjs';
@@ -20,7 +21,12 @@ function fakeBridge() {
   const record = { notifications: [], unread: [], settingsChanges: [] };
   const listeners = {};
   let settings = { closeToTray: true, startAtLogin: false, shortcuts: { toggleMute: null, toggleDeafen: null } };
-  window.__desktop = { record, emit: (name, value) => listeners[name]?.(value) };
+  let finishInstall = () => {};
+  window.__desktop = {
+    record,
+    emit: (name, value) => listeners[name]?.(value),
+    finishInstall: (ok) => finishInstall(ok),
+  };
   const on = (name) => (cb) => { listeners[name] = cb; return () => {}; };
   window.voicawDesktop = {
     platform: 'linux',
@@ -34,10 +40,14 @@ function fakeBridge() {
       return { settings, failedShortcuts: [] };
     },
     checkForUpdates: async () => 'unsupported',
-    installUpdate: () => {},
+    installUpdate: () => {
+      record.installs = (record.installs ?? 0) + 1;
+      return new Promise((resolve) => { finishInstall = resolve; });
+    },
     onNavigate: on('navigate'),
     onShortcut: on('shortcut'),
     onUpdateReady: on('updateReady'),
+    onUpdateProgress: on('updateProgress'),
   };
 }
 
@@ -108,6 +118,25 @@ try {
   await page.evaluate(() => window.__desktop.emit('shortcut', 'toggleMute'));
   await page.waitForSelector('.user-panel button[aria-label="Mute"]');
   check(true, 'and unmutes');
+
+  // Updating: "Update" looks for a newer version first, shows a newer one downloading, and
+  // offers it again if that fails (the app restarts otherwise).
+  await page.evaluate(() => window.__desktop.emit('updateReady', '0.2.0'));
+  await page.waitForSelector('.update-banner:has-text("A new version is ready.")');
+  await page.evaluate(() => window.__desktop.emit('updateProgress', 0.3));
+  check(await page.locator('.update-banner:has-text("Downloading")').count() === 0, 'a background download shows nothing');
+  await page.click('.update-banner-button');
+  await page.waitForSelector('.update-banner:has-text("Looking for a newer version…")');
+  check(await page.isDisabled('.update-banner-button') && (await record()).installs === 1, 'Update looks for a newer version first');
+  await page.evaluate(() => window.__desktop.emit('updateProgress', 0.42));
+  await page.waitForSelector('.update-banner:has-text("Downloading… 42%")');
+  if (dir) await page.screenshot({ path: `${dir}/update-downloading.png` });
+  await page.evaluate(() => window.__desktop.emit('updateReady', '0.2.1'));
+  check(await page.locator('.update-banner:has-text("Downloading… 42%")').count() === 1, 'a newer version downloading shows its progress');
+  await page.evaluate(() => window.__desktop.finishInstall(false));
+  await page.waitForSelector('.update-banner:has-text("Couldn\'t download the update")');
+  check(!(await page.isDisabled('.update-banner-button')), 'a failed download offers Update again');
+  await page.click('.update-banner-close');
 
   // Notifications off: none come.
   await page.goto(`${BASE}/settings`);

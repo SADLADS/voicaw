@@ -20,7 +20,9 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
     updateSettings: (changes) => ipcRenderer.invoke('desktop:update-settings', changes),
     // 'available' | 'downloading' | 'current' | 'unsupported' | 'error'
     checkForUpdates: () => ipcRenderer.invoke('desktop:check-updates'),
-    installUpdate: () => ipcRenderer.send('desktop:install-update'),
+    // Looks once more for a newer version, downloads it if there is one, then restarts onto
+    // it; resolves to false if there was nothing to install.
+    installUpdate: () => ipcRenderer.invoke('desktop:install-update'),
     // Screen sharing: { canShareSound, sources: [{ id, name, kind, thumbnail, icon }] }; then
     // chooseScreenSource(id, audio) before getDisplayMedia (electron/screenShare.js).
     getScreenSources: () => ipcRenderer.invoke('desktop:screen-sources'),
@@ -36,4 +38,5 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
     onNavigate: listen('desktop:navigate'),
     onShortcut: listen('desktop:shortcut'),
     onUpdateReady: listen('desktop:update-ready'),
+    onUpdateProgress: listen('desktop:update-progress'), // 0 to 1, while downloading
 });

@@ -72,7 +72,7 @@ node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, lo
 node e2e/dmrail.mjs [dir] # rail's DM button: icon, newest unread sender's picture (live, after reload), the one before once read, icon when all read, phone
 node e2e/favicon.mjs [dir] # favicon dot: DM on, read = off, guild message without a mention = none, mention on (Discord's rule); dir gets the dotted icon
 node e2e/moderation.mjs [dir] # block from a profile (collapsed messages, Show, DMs refused both ways, DM closed, Unblock), Report Message (guild; DM sharing its text), admin's Reports, suspend (phone logged out and told why, login refused with the reason), lift
-node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings
+node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings, updating (last look, a newer download's progress, failure)
 node e2e/android.mjs [dir] # Android app page side (stand-in Capacitor bridge): no service worker, Settings → Android App, a new version offered and downloaded on Update, push registration, notification tap, notify.html decrypts a real DM, call: Answer from the notification, ongoing-call notification, its Mute and Hang up
 node e2e/lists.mjs [dir]  # list channels: add, subtask, drag to nest/reorder, assign, due date, comments, read-only, phone
 node e2e/events.mjs [dir] # scheduled events: three-step editor (voice, weekly, cover), Events row count, Interested live, who's interested, somewhere else needs an end, Copy Link -> card in #general -> opens it, Start = Live under the channel, End = next week, cancel, phone

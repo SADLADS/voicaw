@@ -329,7 +329,9 @@
   "Update", which sends `SKIP_WAITING` (handled in `service-worker.js`), so the new worker takes
   over, `cleanupOutdatedCaches` drops the old build, and the page reloads. Browsers only look for
   a new worker on navigation, so it also checks every 30 min and when the app comes back into view
-  (at most once a minute). Settings (`AppUpdateSettings`) shows the build time
+  (at most once a minute), and keeps checking once one is waiting, so a newer deploy replaces it.
+  "Update" looks once more first (up to 5 s, "Looking for a newer version…"), so it switches to
+  the latest build, not the first one noticed. Settings (`AppUpdateSettings`) shows the build time
   (`VITE_BUILD_TIME`) and has "Check for updates". Other tabs, and pages whose lazily loaded chunks
   are gone from the server (`vite:preloadError`), are offered a reload. The desktop app has no
   service worker: `watchDesktopUpdates` offers its own updates the same way (see Desktop app).

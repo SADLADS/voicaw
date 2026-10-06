@@ -185,10 +185,10 @@ function setUpIpc() {
         if (fromApp(event)) syncSpellingWords(event.sender.session, words).catch(() => {});
     });
     ipcMain.handle('desktop:check-updates', (event) => (fromApp(event) ? updater.check() : null));
-    ipcMain.on('desktop:install-update', (event) => {
-        if (!fromApp(event) || !updater.isReady()) return;
-        quitting = true;
-        updater.install();
+    // Resolves to false if there was nothing to install; otherwise the app restarts onto it.
+    ipcMain.handle('desktop:install-update', (event) => {
+        if (!fromApp(event)) return false;
+        return updater.install(() => { quitting = true; });
     });
 }
 
@@ -209,7 +209,11 @@ function start() {
         },
     });
     tray = createTray({ showWindow, quit });
-    updater = createUpdater({ app, onReady: (version) => win?.webContents.send('desktop:update-ready', version) });
+    updater = createUpdater({
+        app,
+        onReady: (version) => win?.webContents.send('desktop:update-ready', version),
+        onProgress: (fraction) => win?.webContents.send('desktop:update-progress', fraction),
+    });
     setUpIpc();
     // Keeps the login item current (e.g. after the AppImage moved).
     if (settings.get().startAtLogin) setStartAtLogin(app, true);

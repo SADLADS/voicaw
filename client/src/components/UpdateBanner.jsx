@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowsRotate } from '@fortawesome/free-solid-svg-icons';
-import { androidUpdateText, applyUpdate, useAppUpdate } from '../utils/appUpdate';
+import { applyUpdate, updateProgressText, useAppUpdate } from '../utils/appUpdate';
 import { formatBytes } from '../utils/formatBytes';
 import { t } from '../i18n';
 
-// A small floating notice when a new version of Voicaw is ready. "Update" switches to it
-// (reloading the page, or in the Android app downloading it for Android to install);
+// A small floating notice when a new version of Voicaw is ready. "Update" switches to the
+// latest (reloading the page, restarting the desktop app, or in the Android app downloading
+// it for Android to install);
 // dismissing hides it until the next update. Settings can also check.
 export default function UpdateBanner() {
   const update = useAppUpdate();
@@ -16,10 +17,14 @@ export default function UpdateBanner() {
 
   if (!available || dismissedSeq === seq) return null;
 
-  const updating = reloading || update.progress != null;
-  const text = reloads
-    ? (reloading ? t('settings.updateBanner.restarting') : t('settings.appVersion.ready'))
-    : (androidUpdateText(update) ?? t('settings.updateBanner.androidReady', { version: update.version, size: formatBytes(update.size) }));
+  const updating = reloading || update.lastLook || update.progress != null;
+  let text = updateProgressText(update);
+  if (!text && reloading) text = t('settings.updateBanner.restarting');
+  if (!text) {
+    text = update.size != null
+      ? t('settings.updateBanner.androidReady', { version: update.version, size: formatBytes(update.size) })
+      : t('settings.appVersion.ready');
+  }
 
   const start = () => {
     if (reloads) setReloading(true);

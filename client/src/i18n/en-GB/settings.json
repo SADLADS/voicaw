@@ -198,6 +198,7 @@
     "appVersion": {
       "title": "App Version",
       "ready": "A new version is ready.",
+      "lastLook": "Looking for a newer version…",
       "androidReady": "Voicaw {{version}} is out ({{size}}). Updating downloads it, then Android asks you to install it.",
       "downloadingPercent": "Downloading… {{percent}}%",
       "installing": "Install it when Android asks. Voicaw closes while it updates.",

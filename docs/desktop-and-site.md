@@ -77,7 +77,11 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   start and every 4 hours on the generic feed in `builder.config.js` (`https://updates.voicaw.com/desktop/`: its own static
   site, `/opt/voicaw-updates`, nginx config in `updates/nginx/`, a download page from
   `updates/site/`, filled by `node updates/publish.mjs`; README "Desktop app"), downloads it, and the page offers "Update now" (UpdateBanner,
-  Settings → App version, which also shows the app's version); that restarts onto it. A
+  Settings → App version, which also shows the app's version); that restarts onto it. It keeps
+  looking once one is ready, and "Update now" looks once more first (up to 5 s), so the app
+  restarts onto the latest release, not the first one it noticed; electron-updater keeps only one
+  download, so a newer one replaces the ready one and "Update now" waits for it, showing its
+  progress (`onUpdateProgress`), and offers it again if it fails. A
   development run or an unsigned macOS app can't update itself ('unsupported'). Releases are
   only as trustworthy as that server (no signature of our own on the feed yet).
 - **Not done yet:** push-to-talk (held key), screen share sound on macOS and
@@ -121,8 +125,9 @@ native bridge. Check real behaviour on a phone.
 - **Updating itself** (`direct` only, `AppUpdater.java`, `UpdateStatusReceiver.java`; the page's
   side is `utils/appUpdate.js` `watchAndroidUpdates`): the app reads `releases.json`
   (`BuildConfig.UPDATE_URL`, `VOICAW_UPDATE_URL` at build time) when it starts, every 4 hours and
-  on coming back after 30 minutes, and if its versionCode is higher, `UpdateBanner` and Settings →
-  App Version offer it with its size. Nothing is downloaded until the person taps Update (tens
+  on coming back after 30 minutes (still, once one is offered, so a newer release replaces it),
+  and if its versionCode is higher, `UpdateBanner` and Settings → App Version offer it with its
+  size; "Update" reads `releases.json` again, so it downloads the latest. Nothing is downloaded until the person taps Update (tens
   of MB, maybe on mobile data). Then the APK goes into the app's cache with its progress shown,
   and is checked against `releases.json` (size, SHA-256, file name) and the installed app (same
   package, that version, signed with the same key), then handed to Android's `PackageInstaller`.

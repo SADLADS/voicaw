@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { formatDateTime, useDateFormat } from '../utils/dateFormat';
-import { androidUpdateText, applyUpdate, checkForUpdates, useAppUpdate } from '../utils/appUpdate';
+import { applyUpdate, updateProgressText, checkForUpdates, useAppUpdate } from '../utils/appUpdate';
 import { formatBytes } from '../utils/formatBytes';
 import { desktop } from '../utils/desktop';
 import { t } from '../i18n';
@@ -34,13 +34,11 @@ export default function AppUpdateSettings() {
     if (reloads) setUpdating(true);
     applyUpdate();
   };
-  const busy = updating || update.progress != null;
+  const busy = updating || update.lastLook || update.progress != null;
 
-  let readyText = t('settings.appVersion.ready');
-  if (!reloads) {
-    readyText = androidUpdateText(update)
-      ?? t('settings.appVersion.androidReady', { version: update.version, size: formatBytes(update.size) });
-  }
+  const readyText = updateProgressText(update) ?? (update.size != null
+    ? t('settings.appVersion.androidReady', { version: update.version, size: formatBytes(update.size) })
+    : t('settings.appVersion.ready'));
   const message = available
     ? readyText
     : {
