@@ -1057,6 +1057,12 @@ CREATE TABLE IF NOT EXISTS guild_event_users (
 );
 CREATE INDEX IF NOT EXISTS guild_event_users_user ON guild_event_users (user_id);
 `);
+// The app's own (Discord has none, so bots' events have the defaults): `all_day` events cover
+// whole dates of `timezone` (always set for them), midnight to midnight; `emoji` (a Unicode
+// emoji or a custom one, '<:name:id>') and `color` (0xRRGGBB) mark it on the calendar.
+addColumn('ALTER TABLE guild_events ADD COLUMN all_day INTEGER NOT NULL DEFAULT 0');
+addColumn('ALTER TABLE guild_events ADD COLUMN emoji TEXT');
+addColumn('ALTER TABLE guild_events ADD COLUMN color INTEGER');
 
 // ---- Queries ----
 // get / all / run return promises (callers await them) though the driver is synchronous, and

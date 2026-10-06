@@ -415,6 +415,20 @@ Not end-to-end encrypted, like the rest of a guild.
   occurrence is due by the rule; "Change this event's time" moves only it (`start_time`, before
   the next one), "Cancel this event" skips to the next. Editing the event edits the series, and a
   new start or rule re-anchors it. Only the next occurrence can be changed on its own.
+- **All day, emoji, colour** (the app's own; Discord has none, so bots neither see nor set
+  them, and theirs have the defaults): `all_day` events cover whole dates on their maker's
+  calendar: `start_time` and `end_time` are midnights of `timezone` (always set for them; the
+  editor sends the device's), the end the one after the last day. They may be made on a day
+  that has begun (only the end must be to come); one somewhere else starts itself at midnight
+  without the start push, a voice one nobody starts is cancelled once its days are over (not
+  12 hours in), and a repeating one's next end is whole days on (`addDays`, so a clock change
+  doesn't move midnight). They're shown as dates ("Tuesday 20 October 2026 · All day",
+  `formatEventWhen`), on each of their days of the calendar (`eventsByDay`, before timed ones,
+  as bars), dated as their maker meant wherever they're read (`dateIn`). `emoji` (Unicode or a
+  custom `<:name:id>`, checked like a reaction's) is shown before the name (`EventEmoji`), and
+  `color` (0xRRGGBB, the role swatches or any) tints its chip, dot and day-list entry on the
+  calendar (`--event-color`). The editor has All day under the topic (dates only), and Emoji
+  (the emoji picker) and Colour after the cover; the audit log shows changes to all three.
 - **Interested**: its creator is, at once. Interested people get a push when it starts (`type:
   'event'`, the event's name, "Starting now · place (Guild)", url `/guild/<g>/<voice channel>?event=<id>`,
   tag `event-<id>`), unless their notification level for the guild is 'none', and never the one

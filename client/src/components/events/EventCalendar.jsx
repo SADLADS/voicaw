@@ -1,13 +1,27 @@
 import React, { useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight, faLocationDot, faPlus, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
-import { addMonths, dayKey, eventsByDay, fromKey, isPastDay, monthGrid, monthKey, startOnDay } from '../../utils/eventCalendar';
-import { eventPlace } from '../../utils/eventDisplay';
+import EventEmoji from './EventEmoji';
+import { addMonths, allDayDates, dayKey, eventsByDay, fromKey, isPastDay, monthGrid, monthKey, startOnDay } from '../../utils/eventCalendar';
+import { eventColor, eventPlace, formatEventWhen } from '../../utils/eventDisplay';
 import { formatLongDate, formatMonthYear, formatTime, formatWeekday, useDateFormat } from '../../utils/dateFormat';
 import { t } from '../../i18n';
 
 // How many events a day's square lists before "+N more".
 const MAX_CHIPS = 3;
+
+// The event's colour for its chip, dot and list entry (--event-color; none: the accent).
+const colorStyle = (event) => {
+  const color = eventColor(event);
+  return color ? { '--event-color': color } : undefined;
+};
+
+// When an occurrence is, in the day's list: "20:00 – 22:00", "All day", or an all-day one's dates.
+function dayTime(item) {
+  if (!item.allDay) return `${formatTime(item.start * 1000)}${item.end != null ? ` – ${formatTime(item.end * 1000)}` : ''}`;
+  const { first, last } = allDayDates(item.event, item.start, item.end);
+  return last > first ? formatEventWhen(item.event, { start: item.start, end: item.end }) : t('events.calendar.allDay');
+}
 
 // One occurrence in the chosen day's list: time, name, place.
 function DayEvent({ item, guild, onOpen }) {
@@ -15,12 +29,9 @@ function DayEvent({ item, guild, onOpen }) {
   const live = item.event.status === 'active' && item.start === item.event.start_time;
   return (
     <li>
-      <button type="button" className={`event-calendar-day-event${live ? ' live' : ''}`} onClick={onOpen}>
-        <span className="event-calendar-day-time">
-          {formatTime(item.start * 1000)}
-          {item.end != null && ` – ${formatTime(item.end * 1000)}`}
-        </span>
-        <span className="event-calendar-day-name">{item.event.name}</span>
+      <button type="button" className={`event-calendar-day-event${live ? ' live' : ''}`} style={colorStyle(item.event)} onClick={onOpen}>
+        <span className="event-calendar-day-time">{dayTime(item)}</span>
+        <span className="event-calendar-day-name"><EventEmoji emoji={item.event.emoji} />{item.event.name}</span>
         {place.label && (
           <span className="event-calendar-day-place">
             <FontAwesomeIcon icon={place.voice ? faVolumeHigh : faLocationDot} aria-hidden="true" /> {place.label}
@@ -120,11 +131,19 @@ export default function EventCalendar({ guild, events, month, day, onMonth, onDa
                         <button
                           key={`${item.event.id}-${item.start}`}
                           type="button"
-                          className={`event-calendar-chip${item.event.status === 'active' && item.start === item.event.start_time ? ' live' : ''}`}
-                          title={`${formatTime(item.start * 1000)} ${item.event.name}`}
+                          className={[
+                            'event-calendar-chip',
+                            item.event.status === 'active' && item.start === item.event.start_time && 'live',
+                            item.event.color != null && 'coloured',
+                            item.allDay && 'all-day',
+                          ].filter(Boolean).join(' ')}
+                          style={colorStyle(item.event)}
+                          title={item.allDay ? `${item.event.name} (${t('events.calendar.allDay')})` : `${formatTime(item.start * 1000)} ${item.event.name}`}
                           onClick={(e) => { e.preventDefault(); onDay(key); onOpenEvent(item.event.id); }}
                         >
-                          <span className="event-calendar-chip-time">{formatTime(item.start * 1000)}</span> {item.event.name}
+                          {!item.allDay && <span className="event-calendar-chip-time">{formatTime(item.start * 1000)} </span>}
+                          <EventEmoji emoji={item.event.emoji} />
+                          {item.event.name}
                         </button>
                       ))}
                       {list.length > MAX_CHIPS && (
@@ -133,7 +152,9 @@ export default function EventCalendar({ guild, events, month, day, onMonth, onDa
                     </div>
                     {list.length > 0 && (
                       <span className="event-calendar-dots" aria-hidden="true">
-                        {list.slice(0, 3).map((item) => <span key={`${item.event.id}-${item.start}`} className="event-calendar-dot" />)}
+                        {list.slice(0, 3).map((item) => (
+                          <span key={`${item.event.id}-${item.start}`} className="event-calendar-dot" style={colorStyle(item.event)} />
+                        ))}
                       </span>
                     )}
                   </div>

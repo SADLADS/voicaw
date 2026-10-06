@@ -1,5 +1,6 @@
 import { PERMISSIONS, PERMISSION_GROUPS, colorToHex } from './permissions';
 import { formatDateTime } from './dateFormat';
+import { customEmojiToText } from '../emoji/customEmoji';
 import { t } from '../i18n';
 
 // How the guild audit log (server/auditLog.js) reads: a sentence per entry, and lines for what
@@ -135,14 +136,15 @@ export function describeEntry(entry, names) {
 
 const FIELDS = [
   'name', 'topic', 'category', 'color', 'hoist', 'mentionable', 'channel', 'permissions', 'nsfw', 'archived',
-  'description', 'location', 'start_time', 'end_time',
+  'description', 'location', 'start_time', 'end_time', 'all_day', 'emoji',
 ];
 const fieldLabel = (field) => (FIELDS.includes(field) ? t(`guildAdmin.auditLog.fields.${field}`) : field);
 
 function showValue(field, value) {
   if (value === null || value === undefined || value === '') return t('guildAdmin.auditLog.values.none');
   if (field === 'color') return colorToHex(value);
-  if (['hoist', 'mentionable', 'nsfw', 'archived'].includes(field)) return value ? t('guildAdmin.auditLog.values.yes') : t('guildAdmin.auditLog.values.no');
+  if (field === 'emoji') return customEmojiToText(value);
+  if (['hoist', 'mentionable', 'nsfw', 'archived', 'all_day'].includes(field)) return value ? t('guildAdmin.auditLog.values.yes') : t('guildAdmin.auditLog.values.no');
   if (field === 'channel') return `#${value}`;
   if (field === 'start_time' || field === 'end_time') return formatDateTime(value * 1000);
   return String(value);

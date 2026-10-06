@@ -343,7 +343,9 @@
         "description": "Description",
         "location": "Location",
         "start_time": "Start",
-        "end_time": "End"
+        "end_time": "End",
+        "all_day": "All day",
+        "emoji": "Emoji"
       },
       "values": {
         "none": "none",

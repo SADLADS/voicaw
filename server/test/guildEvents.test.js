@@ -8,7 +8,7 @@ const app = require('../index.js');
 const db = require('../db.js');
 const { PERMISSIONS: P, DEFAULT_EVERYONE_PERMISSIONS } = require('../permissions.js');
 const guildEvents = require('../guildEvents.js');
-const { nextOccurrence, cleanRule, startsOnRule, fromWallClock, wallClock } = require('../eventRecurrence.js');
+const { nextOccurrence, cleanRule, startsOnRule, fromWallClock, wallClock, addDays } = require('../eventRecurrence.js');
 const clients = app.locals.clients;
 
 let userCount = 0;
@@ -391,6 +391,87 @@ describe('scheduled events', () => {
       expect(after.start_time).toBeGreaterThan(monday + guildEvents.UNSTARTED_SECONDS);
       expect(after.start_time - monday).toBeLessThanOrEqual(86400 + HOUR);
     });
+  });
+});
+
+describe('all-day events, emoji and colour', () => {
+  const zone = 'Europe/London';
+  // Midnight in London `days` days from today.
+  const midnight = (days) => {
+    const w = wallClock(Date.now(), zone);
+    return addDays(Math.floor(fromWallClock({ ...w, hour: 0, minute: 0, second: 0 }, zone) / 1000), days, zone);
+  };
+  const allDay = (overrides = {}) => external({ allDay: true, startTime: midnight(0), endTime: midnight(1), timezone: zone, ...overrides });
+
+  it('keeps them, and may start on a day that has begun', async () => {
+    const { owner, guild } = await setUp(0);
+    const res = await create(owner, guild, allDay({ emoji: '🎲', color: 0x3498db }));
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ all_day: true, timezone: zone, emoji: '🎲', color: 0x3498db, start_time: midnight(0) });
+    const custom = await api.patch(owner, `/guild-events/${res.body.id}`, { emoji: '<:dice:12>', color: null });
+    expect(custom.body).toMatchObject({ emoji: '<:dice:12>', color: null });
+    const log = (await api.get(owner, `/guilds/${guild.id}/audit-log?actions=event_update`)).body;
+    expect(log.entries[0].details.changes).toMatchObject({ emoji: ['🎲', '<:dice:12>'], color: [0x3498db, null] });
+    // Others are plain.
+    expect((await create(owner, guild, external())).body).toMatchObject({ all_day: false, emoji: null, color: null });
+  });
+
+  it('checks what is sent', async () => {
+    const { owner, guild } = await setUp(0);
+    const bad = async (body, message) => {
+      const res = await create(owner, guild, body);
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(message);
+    };
+    await bad(allDay({ startTime: midnight(-2), endTime: midnight(-1) }), /future/);
+    await bad(allDay({ endTime: null }), /end/);
+    await bad(allDay({ allDay: 'yes' }), /all-day/);
+    await bad(external({ color: 0x1000000 }), /colour/);
+    await bad(external({ emoji: 'a b' }), /emoji/);
+    await bad(external({ emoji: 'x'.repeat(65) }), /emoji/);
+  });
+
+  it('starts at midnight without a push, and repeats on whole days', async () => {
+    const { owner, members: [alice], guild } = await setUp(1);
+    const start = midnight(2);
+    const w = wallClock(start * 1000, zone);
+    const weekday = (new Date(Date.UTC(w.year, w.month - 1, w.day)).getUTCDay() + 6) % 7; // Discord's: 0 Monday
+    const weekly = { frequency: 2, interval: 1, by_weekday: [weekday] };
+    const event = (await create(owner, guild, allDay({ startTime: start, endTime: addDays(start, 1, zone), recurrence: weekly }))).body;
+    await api.put(alice, `/guild-events/${event.id}/interest`);
+    await subscribe(alice);
+    const before = sentPushes.length;
+    await guildEvents.sweepEvents(start);
+    expect((await guildEvents.getEvent(event.id)).status).toBe('active');
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(sentPushes.slice(before).filter((p) => p.payload.tag === `event-${event.id}`)).toEqual([]);
+    // Its day ends at the next midnight: on to the same day next week, not the one after.
+    const end = addDays(start, 1, zone);
+    const realNow = Date.now;
+    Date.now = () => end * 1000;
+    try {
+      await guildEvents.sweepEvents(end);
+    } finally {
+      Date.now = realNow;
+    }
+    const next = await guildEvents.loadPublic(event.id);
+    expect(next).toMatchObject({ status: 'scheduled', start_time: addDays(start, 7, zone), end_time: addDays(start, 8, zone) });
+  });
+
+  it("cancels a voice one nobody started once its day is over, not 12 hours in", async () => {
+    const { owner, guild, voice } = await setUp(0);
+    const start = midnight(1);
+    const event = (await create(owner, guild, inVoice(voice, { allDay: true, startTime: start, endTime: addDays(start, 1, zone), timezone: zone }))).body;
+    await guildEvents.sweepEvents(start + guildEvents.UNSTARTED_SECONDS);
+    expect((await guildEvents.getEvent(event.id)).status).toBe('scheduled');
+    await guildEvents.sweepEvents(addDays(start, 1, zone));
+    expect(await guildEvents.getEvent(event.id)).toBeFalsy();
+  });
+
+  it('moves midnight with the calendar across a clock change', () => {
+    // Saturday 24 October 2026, 00:00 BST; the clocks go back on the 25th.
+    const saturday = Date.UTC(2026, 9, 23, 23) / 1000;
+    expect(new Date(addDays(saturday, 2, zone) * 1000).toISOString()).toBe('2026-10-26T00:00:00.000Z');
   });
 });
 

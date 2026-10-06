@@ -41,6 +41,9 @@ const fieldsOf = (body = {}) => ({
   image: body.image,
   recurrence: body.recurrence,
   timezone: body.timezone,
+  allDay: body.allDay,
+  emoji: body.emoji,
+  color: body.color,
 });
 
 // The guild's events the caller can see, soonest first (with `interested`: theirs).
@@ -48,8 +51,9 @@ router.get('/guilds/:guildId/events', authenticateJWT, requireMember, async (req
   res.json(await events.listEvents(req.member));
 });
 
-// { name, description?, entityType: 'voice' | 'external', channelId (voice) | location
-// (external), startTime, endTime (required somewhere else), image?, recurrence?, timezone? }
+// { name, description?, entityType: 'voice' | 'external', channelId (voice) | location?
+// (external), startTime, endTime (required somewhere else and all day), image?, recurrence?,
+// timezone?, allDay?, emoji?, color? }
 router.post('/guilds/:guildId/events', authenticateJWT, requireMember, withActionErrors(async (req, res) => {
   const event = await events.createEvent(req.member, fieldsOf(req.body));
   res.status(201).json({ ...event, interested: true });

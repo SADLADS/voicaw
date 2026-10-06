@@ -1,9 +1,12 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faImage, faLocationDot, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
+import { faFaceSmile, faImage, faLocationDot, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/events.css';
 import Modal from '../guild/Modal';
+import EmojiPicker from '../EmojiPicker';
 import EventCard from './EventCard';
+import EventEmoji from './EventEmoji';
 import DocumentCover from '../documents/DocumentCover';
 import { createEvent, moveOccurrence, updateEvent } from '../../services/guildService';
 import { uploadAttachment } from '../../services/attachmentUpload';
@@ -11,9 +14,10 @@ import { seedAttachmentCache } from '../../services/attachmentCache';
 import { readMediaDimensions } from '../../utils/mediaDimensions';
 import { eventVoiceChannels, fromInputs, toInputs } from '../../utils/eventDisplay';
 import { deviceTimeZone, repeatChoices, repeatKey, ruleFor } from '../../utils/eventRecurrence';
-import { defaultStart } from '../../utils/eventCalendar';
+import { allDayInputs, allDayTimes, defaultStart } from '../../utils/eventCalendar';
 import { errorMessage } from '../../utils/guildDisplay';
-import { PERMISSIONS, has } from '../../utils/permissions';
+import { COLOR_SWATCHES, PERMISSIONS, colorToHex, has, hexToColor } from '../../utils/permissions';
+import { reactionPickerPosition } from '../../utils/reactionPickerPosition';
 import { t } from '../../i18n';
 
 const MAX_NAME = 100;
@@ -30,21 +34,24 @@ async function uploadCover(file) {
   return url;
 }
 
-// Moving only the next occurrence of a repeating event: its start and end.
+// Moving only the next occurrence of a repeating event: its start and end (its dates, all day).
 function OccurrenceEditor({ event, onSaved, onClose }) {
+  const allDay = Boolean(event.all_day);
+  const days = allDay ? allDayInputs(event) : null;
   const start = toInputs(event.start_time);
   const end = toInputs(event.end_time);
-  const [startDate, setStartDate] = useState(start.date);
+  const [startDate, setStartDate] = useState(days?.start ?? start.date);
   const [startTime, setStartTime] = useState(start.time);
-  const [endDate, setEndDate] = useState(end.date);
+  const [endDate, setEndDate] = useState(days?.end ?? end.date);
   const [endTime, setEndTime] = useState(end.time);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   async function save(e) {
     e.preventDefault();
-    const startAt = fromInputs(startDate, startTime);
-    const endAt = fromInputs(endDate, endTime);
+    const whole = allDayTimes(startDate, endDate);
+    const startAt = allDay ? whole.startTime : fromInputs(startDate, startTime);
+    const endAt = allDay ? whole.endTime : fromInputs(endDate, endTime);
     if (startAt == null) return setError(t('events.editor.errors.start'));
     setBusy(true);
     setError(null);
@@ -77,6 +84,7 @@ function OccurrenceEditor({ event, onSaved, onClose }) {
           time={startTime}
           onDate={setStartDate}
           onTime={setStartTime}
+          dateOnly={allDay}
         />
         {event.end_time != null && (
           <TimeInputs
@@ -86,6 +94,7 @@ function OccurrenceEditor({ event, onSaved, onClose }) {
             time={endTime}
             onDate={setEndDate}
             onTime={setEndTime}
+            dateOnly={allDay}
           />
         )}
       </form>
@@ -94,14 +103,16 @@ function OccurrenceEditor({ event, onSaved, onClose }) {
   );
 }
 
-// A date and a time, side by side.
-function TimeInputs({ label, idPrefix, date, time, onDate, onTime, hint = null }) {
+// A date and a time, side by side (the date alone with `dateOnly`).
+function TimeInputs({ label, idPrefix, date, time, onDate, onTime, hint = null, dateOnly = false }) {
   return (
     <div className="event-editor-time">
       <label className="event-editor-label" htmlFor={`${idPrefix}-date`}>{label}</label>
       <div className="event-editor-time-inputs">
         <input id={`${idPrefix}-date`} type="date" className="form-control" aria-label={t('events.editor.dateOf', { what: label })} value={date} onChange={(e) => onDate(e.target.value)} />
-        <input id={`${idPrefix}-time`} type="time" className="form-control" aria-label={t('events.editor.timeOf', { what: label })} value={time} onChange={(e) => onTime(e.target.value)} />
+        {!dateOnly && (
+          <input id={`${idPrefix}-time`} type="time" className="form-control" aria-label={t('events.editor.timeOf', { what: label })} value={time} onChange={(e) => onTime(e.target.value)} />
+        )}
       </div>
       {hint && <p className="vc-hint">{hint}</p>}
     </div>
@@ -109,9 +120,10 @@ function TimeInputs({ label, idPrefix, date, time, onDate, onTime, hint = null }
 }
 
 // Making or editing an event, in Discord's three steps: where (a voice channel you may hold
-// one in, or somewhere else, where saying where is optional), what and when (name, start, end,
-// how it repeats, description, cover), then a look at the card before saving. The steps along
-// the top go to that step, as Next does: not past one with something missing. With `occurrence`, only the next occurrence of
+// one in, or somewhere else, where saying where is optional), what and when (name, all day or
+// not, start, end, how it repeats, description, cover, and the emoji and colour it has on the
+// calendar), then a look at the card before saving. The steps along the top go to that step, as
+// Next does: not past one with something missing. With `occurrence`, only the next occurrence of
 // a repeating event moves (OccurrenceEditor). A new event starts at `start` (unix s; a day
 // picked on the calendar) or the next whole hour.
 export default function EventEditor({ guild, event = null, occurrence = false, start = null, onSaved, onClose }) {
@@ -120,6 +132,8 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
   const canExternal = has(guild.my_permissions, PERMISSIONS.CREATE_EVENTS) || (editing && event.entity_type === 'external');
   const initialStart = toInputs(event?.start_time ?? start ?? defaultStart());
   const initialEnd = toInputs(event?.end_time ?? null);
+  // An all-day event's dates are its maker's (allDayInputs), not this device's.
+  const initialDays = event?.all_day ? allDayInputs(event) : null;
 
   const [step, setStep] = useState('where');
   const [entityType, setEntityType] = useState(event?.entity_type ?? (voiceChannels.length ? 'voice' : 'external'));
@@ -127,10 +141,16 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
   const [location, setLocation] = useState(event?.location ?? '');
   const [name, setName] = useState(event?.name ?? '');
   const [description, setDescription] = useState(event?.description ?? '');
-  const [startDate, setStartDate] = useState(initialStart.date);
+  const [allDay, setAllDay] = useState(Boolean(event?.all_day));
+  const [startDate, setStartDate] = useState(initialDays?.start ?? initialStart.date);
   const [startTime, setStartTime] = useState(initialStart.time);
-  const [endDate, setEndDate] = useState(initialEnd.date);
+  const [endDate, setEndDate] = useState(initialDays?.end ?? initialEnd.date);
   const [endTime, setEndTime] = useState(initialEnd.time);
+  const [emoji, setEmoji] = useState(event?.emoji ?? null);
+  const [color, setColor] = useState(event?.color ?? null);
+  // The emoji picker's place (its button's rect), while it's open.
+  const [picking, setPicking] = useState(null);
+  const closePicker = useCallback(() => setPicking(null), []);
   const [repeat, setRepeat] = useState(repeatKey(event?.recurrence));
   const [image, setImage] = useState(event?.image ?? null);
   const [uploading, setUploading] = useState(0);
@@ -138,8 +158,9 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
   const [error, setError] = useState(null);
   const fileRef = useRef(null);
 
-  const startAt = fromInputs(startDate, startTime);
-  const endAt = fromInputs(endDate, endTime);
+  const whole = allDayTimes(startDate, endDate);
+  const startAt = allDay ? whole.startTime : fromInputs(startDate, startTime);
+  const endAt = allDay ? whole.endTime : fromInputs(endDate, endTime);
   const startDay = startAt != null ? new Date(startAt * 1000) : null;
   const choices = startDay ? repeatChoices(startDay) : [];
   // A rule the editor can't make (a bot's) stays as it is unless another is picked.
@@ -156,7 +177,9 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
     if (at === 'info') {
       if (!name.trim()) return t('events.editor.errors.name');
       if (startAt == null) return t('events.editor.errors.start');
-      if (!started && startAt * 1000 <= Date.now()) return t('events.editor.errors.past');
+      // All day, today will do: it only has to have its last day still to come.
+      if (!started && (allDay ? endAt : startAt) * 1000 <= Date.now()) return t(allDay ? 'events.editor.errors.pastDay' : 'events.editor.errors.past');
+      if (allDay && endDate && endDate < startDate) return t('events.editor.errors.endBeforeDay');
       if (entityType === 'external' && endAt == null) return t('events.editor.errors.endNeeded');
       if (endAt != null && endAt <= startAt) return t('events.editor.errors.endBefore');
       if (repeat !== 'none' && !rule) return t('events.editor.errors.repeat');
@@ -180,9 +203,22 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
 
   function changeStartDate(value) {
     setStartDate(value);
+    // All day, the last day follows when it would come before the first.
+    if (allDay && (!endDate || endDate < value)) setEndDate(value);
     // Weekdays only can't start on a weekend: back to not repeating.
     const day = fromInputs(value, startTime);
     if (day != null && repeat !== 'none' && repeat !== 'custom' && !ruleFor(repeat, new Date(day * 1000))) setRepeat('none');
+  }
+
+  function toggleAllDay(on) {
+    setAllDay(on);
+    if (on && (!endDate || endDate < startDate)) setEndDate(startDate);
+  }
+
+  function togglePicker(button) {
+    if (picking) return setPicking(null);
+    const { top, bottom, left, right } = button.getBoundingClientRect();
+    setPicking({ top, bottom, left, right });
   }
 
   async function pickImage(file) {
@@ -208,7 +244,11 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
     endTime: endAt,
     image,
     recurrence: rule ?? null,
-    timezone: rule ? (repeat === 'custom' ? event.timezone : deviceTimeZone()) : null,
+    // Repeats and all-day dates are laid on this device's calendar (a bot's rule keeps its own).
+    timezone: rule || allDay ? (repeat === 'custom' ? event.timezone : deviceTimeZone()) : null,
+    allDay,
+    emoji,
+    color,
   };
   const preview = {
     id: event?.id ?? 0,
@@ -222,6 +262,10 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
     status: event?.status ?? 'scheduled',
     image,
     recurrence: fields.recurrence,
+    timezone: fields.timezone,
+    all_day: allDay,
+    emoji,
+    color,
     user_count: event?.user_count ?? 1,
   };
 
@@ -239,11 +283,13 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
   }
 
   const index = STEPS.indexOf(step);
+  const picker = picking && reactionPickerPosition(picking);
   return (
     <Modal
       title={editing ? t('events.editor.editTitle') : t('events.editor.createTitle')}
       className="event-editor"
-      onClose={onClose}
+      // A click outside while picking an emoji only closes the picker (so does Escape, see Modal).
+      onClose={picking ? closePicker : onClose}
       actions={(
         <>
           {index > 0
@@ -327,6 +373,10 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
             onChange={(e) => setName(e.target.value)}
             autoFocus
           />
+          <label className="event-editor-check">
+            <input type="checkbox" checked={allDay} disabled={started} onChange={(e) => toggleAllDay(e.target.checked)} />
+            {t('events.editor.allDay')}
+          </label>
           <TimeInputs
             label={t('events.editor.start')}
             idPrefix="event-start"
@@ -334,15 +384,17 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
             time={startTime}
             onDate={changeStartDate}
             onTime={setStartTime}
+            dateOnly={allDay}
             hint={started ? t('events.editor.startedHint') : null}
           />
           <TimeInputs
-            label={entityType === 'voice' ? t('events.editor.endOptional') : t('events.editor.end')}
+            label={entityType === 'voice' && !allDay ? t('events.editor.endOptional') : t('events.editor.end')}
             idPrefix="event-end"
             date={endDate}
             time={endTime}
             onDate={setEndDate}
             onTime={setEndTime}
+            dateOnly={allDay}
           />
           <label htmlFor="event-repeat">{t('events.editor.repeat')}</label>
           <select id="event-repeat" className="form-select form-control" value={repeat} onChange={(e) => setRepeat(e.target.value)} disabled={!startDay}>
@@ -375,6 +427,48 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
               <FontAwesomeIcon icon={faImage} /> {uploading ? t('events.editor.uploading') : t('events.editor.addCover')}
             </button>
           )}
+          <span className="event-editor-label">{t('events.editor.emoji')}</span>
+          <div className="event-editor-emoji">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              aria-expanded={Boolean(picking)}
+              // Don't let the open picker's outside-click handler close it before this toggles.
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => togglePicker(e.currentTarget)}
+            >
+              {emoji ? <EventEmoji emoji={emoji} /> : <FontAwesomeIcon icon={faFaceSmile} />}
+              {' '}{emoji ? t('events.editor.changeEmoji') : t('events.editor.addEmoji')}
+            </button>
+            {emoji && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEmoji(null)}>{t('events.editor.removeEmoji')}</button>}
+          </div>
+          <span className="event-editor-label" id="event-colour-label">{t('events.editor.colour')}</span>
+          <div className="role-colors event-editor-colours" role="radiogroup" aria-labelledby="event-colour-label">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={color == null}
+              aria-label={t('events.editor.defaultColour')}
+              title={t('events.editor.defaultColour')}
+              className={`role-color default${color == null ? ' selected' : ''}`}
+              onClick={() => setColor(null)}
+            />
+            {COLOR_SWATCHES.map((swatch) => (
+              <button
+                key={swatch}
+                type="button"
+                role="radio"
+                aria-checked={color === swatch}
+                aria-label={colorToHex(swatch)}
+                className={`role-color${color === swatch ? ' selected' : ''}`}
+                style={{ backgroundColor: colorToHex(swatch) }}
+                onClick={() => setColor(swatch)}
+              />
+            ))}
+            <label className={`role-color custom${color != null && !COLOR_SWATCHES.includes(color) ? ' selected' : ''}`} title={t('events.editor.customColour')}>
+              <input type="color" aria-label={t('events.editor.customColour')} value={colorToHex(color ?? 0x99aab5)} onChange={(e) => setColor(hexToColor(e.target.value))} />
+            </label>
+          </div>
         </div>
       )}
 
@@ -386,6 +480,12 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
       )}
 
       {error && <p className="error-msg" role="alert">{error}</p>}
+      {picker && createPortal(
+        <div className={`reaction-picker-anchor event-emoji-anchor${picker.below ? ' below' : ''}`} style={picker.style}>
+          <EmojiPicker autoFocus={false} onSelect={setEmoji} onClose={closePicker} />
+        </div>,
+        document.body
+      )}
     </Modal>
   );
 }

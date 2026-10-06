@@ -2,9 +2,10 @@ import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCalendarDays, faLocationDot, faRepeat, faUserGroup, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import DocumentCover from '../documents/DocumentCover';
-import { eventPlace, eventStatusText } from '../../utils/eventDisplay';
+import EventEmoji from './EventEmoji';
+import { eventPlace, eventStatusText, formatEventWhen } from '../../utils/eventDisplay';
 import { describeRepeat } from '../../utils/eventRecurrence';
-import { formatEventTime, useDateFormat } from '../../utils/dateFormat';
+import { useDateFormat } from '../../utils/dateFormat';
 import { t } from '../../i18n';
 
 // A scheduled event as a card (the events list, the editor's preview, a link's embed): its
@@ -21,13 +22,13 @@ export default function EventCard({ event, guild, onOpen = null, children = null
       <div className="event-card-body">
         <div className="event-card-when">
           <FontAwesomeIcon icon={faCalendarDays} aria-hidden="true" />
-          <span>{formatEventTime(start)}</span>
+          <span>{formatEventWhen(event)}</span>
           {status && <span className={`event-card-status${event.status === 'active' ? ' live' : ''}`}>{status}</span>}
         </div>
         {onOpen ? (
-          <button type="button" className="event-card-name" onClick={onOpen}>{event.name}</button>
+          <button type="button" className="event-card-name" onClick={onOpen}><EventEmoji emoji={event.emoji} />{event.name}</button>
         ) : (
-          <div className="event-card-name">{event.name}</div>
+          <div className="event-card-name"><EventEmoji emoji={event.emoji} />{event.name}</div>
         )}
         {event.recurrence && (
           <div className="event-card-line">

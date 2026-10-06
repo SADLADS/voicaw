@@ -6,7 +6,7 @@ const { sendToUserSockets } = require('./sockets');
 const { sendPushToUser, getUserImageUrl } = require('./push');
 const { ActionError } = require('./actionError');
 const { logAudit, diff } = require('./auditLog');
-const { cleanRule, cleanTimeZone, startsOnRule, nextOccurrence } = require('./eventRecurrence');
+const { cleanRule, cleanTimeZone, startsOnRule, nextOccurrence, addDays } = require('./eventRecurrence');
 
 // Scheduled events (Discord's guild events; docs/guilds.md, Events): something happening in a
 // voice channel of the guild, or somewhere else, at a time, with who's interested. The actions
@@ -27,6 +27,7 @@ const { cleanRule, cleanTimeZone, startsOnRule, nextOccurrence } = require('./ev
 const MAX_NAME = 100;
 const MAX_DESCRIPTION = 1000;
 const MAX_LOCATION = 100;
+const MAX_EMOJI_LENGTH = 64; // as reactions'
 const MAX_IMAGE = 1000;
 const MAX_EVENTS_PER_GUILD = 100;
 const MAX_AHEAD_SECONDS = 5 * 366 * 86400;
@@ -43,7 +44,7 @@ const forbidden = () => new ActionError(403, "You don't have permission to do th
 const notFound = () => new ActionError(404, 'Event not found', 10070);
 
 const EVENT_COLUMNS = `id, guild_id, channel_id, creator_id, name, description, entity_type, location, start_time,
-  end_time, status, image, recurrence, timezone, occurrence_start, duration, started_at, created_at, updated_at`;
+  end_time, status, image, recurrence, timezone, occurrence_start, duration, started_at, created_at, updated_at, all_day, emoji, color`;
 
 // ---- Reading ----
 
@@ -71,6 +72,9 @@ function publicEvent(row, userCount = 0) {
     timezone: row.timezone,
     occurrence_start: row.occurrence_start,
     duration: row.duration,
+    all_day: Boolean(row.all_day),
+    emoji: row.emoji ?? null,
+    color: row.color ?? null,
     started_at: row.started_at,
     created_at: row.created_at,
     user_count: userCount,
@@ -249,6 +253,13 @@ function cleanText(value, max, field, { required = false } = {}) {
   return trimmed;
 }
 
+// An emoji (Unicode, or a custom one as '<:name:id>'), checked like a reaction's; null for none.
+function cleanEmoji(value) {
+  if (value === null || value === '') return null;
+  if (typeof value !== 'string' || value.length > MAX_EMOJI_LENGTH || /\s/.test(value)) throw badRequest('Invalid emoji');
+  return value;
+}
+
 function cleanTime(value, field) {
   if (value === undefined) return undefined;
   if (value === null) return null;
@@ -267,8 +278,10 @@ function cleanImage(image) {
 }
 
 // The event as it would be after `input` ({ name, description, entityType, channelId, location,
-// startTime, endTime, image, recurrence, timezone }, each optional when `before` is given),
-// checked; throws ActionError. `member` is who's doing it.
+// startTime, endTime, image, recurrence, timezone, allDay, emoji, color }, each optional when
+// `before` is given), checked; throws ActionError. `member` is who's doing it. An all-day event
+// runs from a midnight to a later one in `timezone` (the client works them out) and may start
+// on a day that has begun, as long as it hasn't ended.
 async function checkedFields(member, input, before = null) {
   const fields = {
     name: cleanText(input.name, MAX_NAME, 'name', { required: true }),
@@ -283,6 +296,15 @@ async function checkedFields(member, input, before = null) {
     fields.entity_type = input.entityType;
   }
   if (input.channelId !== undefined) fields.channel_id = input.channelId;
+  if (input.allDay !== undefined) {
+    if (typeof input.allDay !== 'boolean') throw badRequest('Invalid all-day choice');
+    fields.all_day = input.allDay ? 1 : 0;
+  }
+  if (input.color !== undefined) {
+    if (input.color !== null && !(Number.isInteger(input.color) && input.color >= 0 && input.color <= 0xffffff)) throw badRequest('Invalid colour');
+    fields.color = input.color;
+  }
+  if (input.emoji !== undefined) fields.emoji = cleanEmoji(input.emoji);
   if (input.timezone !== undefined) {
     fields.timezone = input.timezone == null ? null : cleanTimeZone(input.timezone);
     if (input.timezone != null && !fields.timezone) throw badRequest('Unknown time zone');
@@ -311,9 +333,13 @@ async function checkedFields(member, input, before = null) {
     if (after.end_time == null) throw badRequest('Events somewhere else need an end time');
   }
   if (!Number.isInteger(after.start_time)) throw badRequest('Invalid start time');
+  if (after.all_day) {
+    if (after.end_time == null) throw badRequest('All-day events need an end date');
+    after.timezone = after.timezone ?? 'UTC';
+  }
   const startChanged = !before || after.start_time !== before.start_time;
   if (startChanged && after.status !== 'active') {
-    if (after.start_time <= now()) throw badRequest('The start time must be in the future');
+    if (after.all_day ? after.end_time <= now() : after.start_time <= now()) throw badRequest('The start time must be in the future');
     if (after.start_time > now() + MAX_AHEAD_SECONDS) throw badRequest('Events can be at most five years ahead');
   }
   if (before?.status === 'active' && startChanged) throw badRequest("A started event's start time can't change");
@@ -359,12 +385,13 @@ async function createEvent(member, input) {
     const repeating = Boolean(fields.recurrence);
     const { lastID } = await db.run(
       `INSERT INTO guild_events (guild_id, channel_id, creator_id, name, description, entity_type, location, start_time, end_time,
-         status, image, recurrence, timezone, occurrence_start, duration, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?)`,
+         status, image, recurrence, timezone, occurrence_start, duration, created_at, updated_at, all_day, emoji, color)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [member.guild.id, fields.channel_id ?? null, member.userId, fields.name, fields.description ?? null, fields.entity_type,
         fields.location ?? null, fields.start_time, fields.end_time ?? null, fields.image ?? null, fields.recurrence ?? null,
-        repeating ? fields.timezone : null, repeating ? fields.start_time : null,
-        fields.end_time != null ? fields.end_time - fields.start_time : null, at, at]
+        repeating || fields.all_day ? fields.timezone : null, repeating ? fields.start_time : null,
+        fields.end_time != null ? fields.end_time - fields.start_time : null, at, at,
+        fields.all_day ? 1 : 0, fields.emoji ?? null, fields.color ?? null]
     );
     await db.run('INSERT INTO guild_event_users (event_id, user_id, created_at) VALUES (?, ?, ?)', [lastID, member.userId, at]);
     await linkImage(lastID, fields.image);
@@ -401,6 +428,7 @@ async function updateEvent(member, eventId, input) {
   // What changed, for the audit log: the channel by name, the cover and the repeating as notes.
   const changes = diff(before, {
     name: after.name, description: after.description, location: after.location, start_time: after.start_time, end_time: after.end_time,
+    all_day: after.all_day, emoji: after.emoji, color: after.color,
   });
   if ((after.channel_id ?? null) !== (before.channel_id ?? null)) {
     const nameOf = async (id) => (id == null ? null : (await db.get('SELECT name FROM guild_channels WHERE id = ?', [id]))?.name ?? null);
@@ -412,10 +440,11 @@ async function updateEvent(member, eventId, input) {
   await db.transaction(async () => {
     await db.run(
       `UPDATE guild_events SET name = ?, description = ?, entity_type = ?, channel_id = ?, location = ?, start_time = ?, end_time = ?,
-         image = ?, recurrence = ?, timezone = ?, occurrence_start = ?, duration = ?, updated_at = ? WHERE id = ?`,
+         image = ?, recurrence = ?, timezone = ?, occurrence_start = ?, duration = ?, all_day = ?, emoji = ?, color = ?, updated_at = ?
+       WHERE id = ?`,
       [after.name, after.description ?? null, after.entity_type, after.channel_id ?? null, after.location ?? null, after.start_time,
-        after.end_time ?? null, after.image ?? null, after.recurrence ?? null, repeating ? after.timezone : null, occurrenceStart,
-        duration, now(), before.id]
+        after.end_time ?? null, after.image ?? null, after.recurrence ?? null, repeating || after.all_day ? after.timezone : null,
+        occurrenceStart, duration, after.all_day ? 1 : 0, after.emoji ?? null, after.color ?? null, now(), before.id]
     );
     await linkImage(before.id, after.image);
     if (Object.keys(changes).length || Object.keys(notes).length) {
@@ -470,8 +499,8 @@ async function moveOccurrence(member, eventId, { startTime, endTime }) {
   if (!event.recurrence) throw badRequest("That event doesn't repeat");
   if (event.status !== 'scheduled') throw badRequest('That event has already started');
   const start = cleanTime(startTime, 'start time');
-  const end = endTime === undefined ? (event.duration != null ? start + event.duration : null) : cleanTime(endTime, 'end time');
-  if (start == null || start <= now()) throw badRequest('The start time must be in the future');
+  const end = endTime === undefined ? (start == null ? null : occurrenceEnd(event, start)) : cleanTime(endTime, 'end time');
+  if (start == null || (event.all_day ? end <= now() : start <= now())) throw badRequest('The start time must be in the future');
   if (end != null && end <= start) throw badRequest('The end time must be after the start time');
   if (event.entity_type === 'external' && end == null) throw badRequest('Events somewhere else need an end time');
   const next = nextOccurrence(JSON.parse(event.recurrence), event.timezone, event.occurrence_start);
@@ -494,12 +523,21 @@ async function setInterest(member, eventId, interested) {
 
 // ---- Moving through the lifecycle ----
 
+// When an occurrence starting at `start` ends: as many whole days on for an all-day event (a
+// clock change doesn't move its midnight), else `duration` later.
+function occurrenceEnd(event, start) {
+  if (event.duration == null) return null;
+  if (!event.all_day) return start + event.duration;
+  return addDays(start, Math.max(1, Math.round(event.duration / 86400)), event.timezone || 'UTC');
+}
+
 async function activate(event, actorId = null) {
   await db.run("UPDATE guild_events SET status = 'active', started_at = ?, updated_at = ? WHERE id = ?", [now(), now(), event.id]);
   emptySince.delete(event.id);
   const updated = await loadPublic(event.id);
   await broadcast('update', updated);
-  notifyStarted(event, actorId).catch((err) => console.error('Event notification failed:', err.message));
+  // An all-day event somewhere else starts by itself at midnight: no push then.
+  if (!(event.all_day && actorId == null)) notifyStarted(event, actorId).catch((err) => console.error('Event notification failed:', err.message));
   return updated;
 }
 
@@ -522,12 +560,14 @@ async function remove(event, status, kind) {
 async function advance(event) {
   const rule = JSON.parse(event.recurrence);
   let next = nextOccurrence(rule, event.timezone, event.occurrence_start);
-  while (next != null && next <= now()) next = nextOccurrence(rule, event.timezone, next);
+  // Past ones are skipped (an all-day one still on today isn't: it has begun but not ended).
+  const over = (at) => (event.all_day ? occurrenceEnd(event, at) ?? at : at) <= now();
+  while (next != null && over(next)) next = nextOccurrence(rule, event.timezone, next);
   if (next == null) return remove(event, 'completed', 'update');
   await db.run(
     `UPDATE guild_events SET status = 'scheduled', started_at = NULL, start_time = ?, end_time = ?, occurrence_start = ?, updated_at = ?
      WHERE id = ?`,
-    [next, event.duration != null ? next + event.duration : null, next, now(), event.id]
+    [next, occurrenceEnd(event, next), next, now(), event.id]
   );
   emptySince.delete(event.id);
   const updated = await loadPublic(event.id);
@@ -619,13 +659,15 @@ async function storeImageData(dataUri, userId) {
 const emptySince = new Map();
 
 // One pass at unix s `at`: starts and ends events somewhere else on time, cancels voice events
-// nobody started, ends voice events whose channel has stayed empty. Exported for tests.
+// nobody started (12 hours after their time; an all-day one once its days are over), ends voice
+// events whose channel has stayed empty. Exported for tests.
 async function sweepEvents(at = now()) {
   const due = await db.all(
     `SELECT ${EVENT_COLUMNS} FROM guild_events
      WHERE (entity_type = 'external' AND ((status = 'scheduled' AND start_time <= ?) OR (status = 'active' AND end_time <= ?)))
-        OR (entity_type = 'voice' AND ((status = 'scheduled' AND start_time <= ?) OR status = 'active'))`,
-    [at, at, at - UNSTARTED_SECONDS]
+        OR (entity_type = 'voice' AND ((status = 'scheduled'
+          AND ((all_day = 0 AND start_time <= ?) OR (all_day = 1 AND end_time <= ?))) OR status = 'active'))`,
+    [at, at, at - UNSTARTED_SECONDS, at]
   );
   const voice = require('./voice');
   for (const event of due) {

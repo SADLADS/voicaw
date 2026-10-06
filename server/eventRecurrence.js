@@ -151,4 +151,12 @@ function nextOccurrence(rule, zone, current, anchor = current) {
   return null;
 }
 
-module.exports = { FREQUENCY, cleanRule, cleanTimeZone, startsOnRule, nextOccurrence, wallClock, fromWallClock };
+// Unix s `seconds` moved `days` calendar days on in `zone`, at the same wall-clock time (an
+// all-day event's end: midnight stays midnight across a clock change).
+function addDays(seconds, days, zone) {
+  const { date, time } = localDate(seconds, zone);
+  const to = new Date(date.getTime() + days * DAY_MS);
+  return Math.floor(fromWallClock({ year: to.getUTCFullYear(), month: to.getUTCMonth() + 1, day: to.getUTCDate(), ...time }, zone) / 1000);
+}
+
+module.exports = { FREQUENCY, cleanRule, cleanTimeZone, startsOnRule, nextOccurrence, addDays, wallClock, fromWallClock };
