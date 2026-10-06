@@ -154,8 +154,11 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }, { sile
   const parentMuted = thread ? await mutedUserIds(channel.parent_id) : new Set();
   const parentLevels = thread ? await channelLevels(channel.parent_id) : new Map();
   const threadMembers = thread ? await require('./threads').memberIds(channel.id) : null;
-  // Nobody who blocked the sender is pushed about it (blocks.js).
-  const blockers = message.sender_id ? await require('./blocks').blockersAmong(message.sender_id, [...viewers.keys()]) : new Set();
+  // Nobody who blocked the sender (or the webhook that sent it) is pushed about it (blocks.js).
+  const blocks = require('./blocks');
+  const blockers = message.sender_id ? await blocks.blockersAmong(message.sender_id, [...viewers.keys()])
+    : message.webhook_id ? await blocks.webhookBlockersAmong(message.webhook_id, [...viewers.keys()])
+      : new Set();
   const recipients = [...viewers.keys()].filter((userId) => {
     if (userId === message.sender_id || blockers.has(userId)) return false;
     const level = ownLevels.get(userId) ?? parentLevels.get(userId) ?? levels.get(userId) ?? 'mentions';

@@ -328,7 +328,10 @@
       "unblock": "Unblock",
       "youBlocked": "You've blocked {{name}}. Unblock them to send messages or call.",
       "confirmTitle": "Block {{name}}?",
-      "confirm": "They won't be able to message you, call you or add you to a group, and you won't see their messages or get notified about them. They aren't told."
+      "confirm": "They won't be able to message you, call you or add you to a group, and you won't see their messages or get notified about them. They aren't told.",
+      "blockWebhook": "Block Webhook",
+      "unblockWebhook": "Unblock Webhook",
+      "confirmWebhook": "You won't see its messages or get notified about them. Nobody is told."
     },
     "report": {
       "messageTitle": "Report message",

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Modal from './guild/Modal';
 import { REPORT_CATEGORIES, sendReport } from '../services/reportService';
-import { blockUser, isBlocked } from '../utils/blocks';
+import { blockUser, blockWebhook, isBlocked, isWebhookBlocked } from '../utils/blocks';
 import { errorMessage } from '../utils/guildDisplay';
 import { t } from '../i18n';
 
@@ -19,7 +19,9 @@ export default function ReportDialog({ target, name, onClose }) {
   const [error, setError] = useState(null);
   const [sent, setSent] = useState(false);
   const encrypted = target.kind === 'message' && target.place !== 'guild';
-  const canBlock = reportedId != null && !isBlocked(reportedId) && !(target.kind === 'message' && target.msg.webhook_id);
+  // A webhook's message: "Also block" blocks the webhook (its reports go to the guild's owner).
+  const webhookId = target.kind === 'message' ? target.msg.webhook_id ?? null : null;
+  const canBlock = webhookId != null ? !isWebhookBlocked(webhookId) : reportedId != null && !isBlocked(reportedId);
 
   async function send(e) {
     e.preventDefault();
@@ -40,7 +42,7 @@ export default function ReportDialog({ target, name, onClose }) {
           }
           : { userId: target.userId }),
       });
-      if (alsoBlock && canBlock) await blockUser(reportedId);
+      if (alsoBlock && canBlock) await (webhookId != null ? blockWebhook(webhookId) : blockUser(reportedId));
       setSent(true);
     } catch (err) {
       setError(errorMessage(err));

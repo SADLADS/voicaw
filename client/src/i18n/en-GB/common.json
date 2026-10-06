@@ -8,6 +8,7 @@
     "copy": "Copy",
     "copyId": {
       "user": "Copy User ID",
+      "webhook": "Copy Webhook ID",
       "channel": "Copy Channel ID",
       "thread": "Copy Thread ID",
       "category": "Copy Category ID",

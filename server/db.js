@@ -530,6 +530,22 @@ CREATE TABLE IF NOT EXISTS user_blocks (
 CREATE INDEX IF NOT EXISTS user_blocks_blocked ON user_blocks (blocked_id);
 `);
 
+// Blocked webhooks (blocks.js): `user_id` has `webhook_id`'s messages collapsed and isn't pushed
+// about them. Kept after the webhook is deleted (its messages stay), with the guild and the name
+// it had for Settings, until unblocked or the account or the guild is deleted.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS webhook_blocks (
+  user_id INTEGER NOT NULL,
+  webhook_id INTEGER NOT NULL,
+  guild_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, webhook_id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS webhook_blocks_webhook ON webhook_blocks (webhook_id);
+`);
+
 // Reports (reports.js), for the global admins (Settings → Admin → Reports). `kind` 'message' or
 // 'user'; `place` 'dm', 'group' or 'guild' with the ids that say where. A guild message is kept
 // as it was (`content`, the server has it anyway); an encrypted one only if the reporter chose to

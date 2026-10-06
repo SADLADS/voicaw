@@ -29,6 +29,7 @@ import EmojiProvider from './emoji/EmojiProvider';
 import UpdateBanner from './components/UpdateBanner';
 import ImageViewerProvider from './components/ImageViewerProvider';
 import PageMenus from './components/PageMenus';
+import SafetyDialogs from './components/SafetyDialogs';
 import { disableNotificationsOnThisDevice } from './services/pushService';
 import { clearDrafts } from './services/draftStore';
 import { setCustomEmojiBase } from './emoji/customEmoji';
@@ -190,6 +191,7 @@ export default function App() {
         <Router>
           <SWMessageHandler />
           <PageMenus />
+          <SafetyDialogs />
           <UpdateBanner />
           {/* Waiting for an admin's approval (server/signups.js): only that, whatever the address. */}
           {user?.pending ? (

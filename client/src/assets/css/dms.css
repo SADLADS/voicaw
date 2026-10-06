@@ -3731,6 +3731,21 @@ body.mobile-mode .poll-voters-list {
   overflow-wrap: anywhere;
 }
 
+/* A blocked webhook: a robot in the picture's place, its guild under the name. */
+.blocked-webhook-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--vc-fg-muted);
+  background: var(--vc-bg-elevated);
+}
+
+.blocked-webhook-place {
+  display: block;
+  font-size: 0.8rem;
+}
+
 /* Settings → Authorised apps (AuthorisedApps.jsx) uses the list above. */
 .authorised-app-since {
   display: block;

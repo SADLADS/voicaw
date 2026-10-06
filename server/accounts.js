@@ -104,6 +104,7 @@ async function deleteAccount(userId, plan) {
     // Their blocks, both ways (reports about or by them stay: they're moderation records, kept
     // until a year after they're resolved, reports.js).
     await db.run('DELETE FROM user_blocks WHERE blocker_id = ? OR blocked_id = ?', [userId, userId]);
+    await db.run('DELETE FROM webhook_blocks WHERE user_id = ?', [userId]);
     await db.run('DELETE FROM login_states WHERE username = ?', [user?.username]);
     // Sites they logged in to with Voicaw lose access (oauth.js).
     await require('./oauth').forgetUser(userId);

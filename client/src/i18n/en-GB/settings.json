@@ -548,9 +548,11 @@
     },
     "blocked": {
       "title": "Blocked Users",
-      "hint": "People you've blocked can't message you, call you or add you to a group, and their messages are hidden for you. They aren't told.",
+      "hint": "People you have blocked can't message you, call you or add you to a group, and their messages are hidden for you. Blocked webhooks only have their messages hidden. Nobody is told.",
       "none": "You haven't blocked anyone.",
-      "someone": "Someone"
+      "someone": "Someone",
+      "webhook": "Webhook",
+      "webhookIn": "Webhook in {{guild}}"
     },
     "authorisedApps": {
       "title": "Authorised Apps",

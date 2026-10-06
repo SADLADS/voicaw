@@ -162,15 +162,16 @@
   bottom sheet on a phone where a submenu replaces it, with Back). Channels, categories, the
   channel list's empty space and guild icons have one (see `docs/guilds.md`), and so do
   conversations in the DM list (`DmMenu.jsx`: Mark As Read, Start/Join Call, Pin / Unpin,
-  Mute ▸ / Unmute, Copy User ID; not for a group). Messages have one too (`MessageMenu.jsx`, see Message actions above).
+  Mute ▸ / Unmute, Block / Report and Copy User ID; not for a group). Messages have one too (`MessageMenu.jsx`, see Message actions above).
   Everywhere else `components/PageMenus.jsx` (mounted in `App`, listening on the page; what a
   right-click is on: `utils/pageMenuTarget.js`) has one: a picture (see Image menu in
   `docs/uploads.md`); a text box (`utils/editActions.js`: spelling fixes for the word clicked,
   Add to Dictionary, Cut / Copy (with a selection, not in passwords), Paste, Select All, and a
   Spellcheck tick); a link to another site (Copy Link, Open Link); selected text (Copy); a
-  person (Copy User ID: anything marked `data-user-id`, which `Avatar` always is, and so are a
-  message's author, user mentions, member list rows, voice channel members and profile
-  cards). A message's own menu gives way to those (right-clicking its author or a mention gets
+  person (Block / Unblock and Report, not on yourself, then Copy User ID: anything marked
+  `data-user-id`, which `Avatar` always is, and so are a message's author, user mentions, member
+  list rows, voice channel members and profile cards); a webhook's name or picture on its
+  message (Block Webhook, Copy Webhook ID). A message's own menu gives way to those (right-clicking its author or a mention gets
   the person's). The menu takes the focus, so each action puts it back
   in the box first. Paste in a browser asks to read the clipboard (the first time, the browser
   asks the person) and hands it to the editor as a paste (pictures attach); the desktop app
@@ -447,8 +448,21 @@ use (voicaw.com/terms/) say rules are enforced.
   their messages are collapsed ("Blocked message · Show", `BlockedMessage.jsx` in `MessageList`),
   they don't show as typing, and a DM with them is closed ("You've blocked …" with Unblock in
   the header). Block / Unblock and Report are on the profile popover and the guild member card
-  (`UserSafetyActions.jsx`; blocking asks first; bots can only be reported). Settings → Blocked
-  users lists them. Deleting an account deletes its blocks both ways.
+  (`UserSafetyActions.jsx`; blocking asks first), and in the right-click menus of a person
+  (anything marked `data-user-id`, PageMenus) and of the DM list (`DmMenu`, people and bots):
+  `utils/safetyDialogs.js` makes the items, and since a menu closes on a pick, the confirmation
+  and the report form are drawn by `SafetyDialogs.jsx` (in `App`). Not on yourself or a deleted
+  account. Settings → Blocked users lists them. Deleting an account deletes its blocks both ways.
+- **Blocking webhooks** (`webhook_blocks`: who, the webhook, its guild and name then; `PUT` /
+  `DELETE /blocks/webhooks/:id`, in the same `GET /blocks` / `blocks` event as `webhooks:
+  [{ id, name, guild_id, guild_name }]`): right-click a webhook's name or picture on its message
+  (`data-webhook-id`): Block Webhook (asks first) / Unblock Webhook, Copy Webhook ID; or "Also
+  block" when reporting one of its messages. Its messages are collapsed like a blocked person's
+  and its mentions aren't pushed (`webhookBlockersAmong` in `mentions.js`); nothing else (it has
+  no DMs or calls). Only a webhook that has posted in a guild you're in (404 otherwise, so ids
+  can't be probed for names). Kept after the webhook is deleted, since its messages stay (the
+  list shows the name it had); deleted with the guild or your account. Settings → Blocked users
+  lists them under the people, with their guild.
 - **Reports** (`server/reports.js`, `routes/reports.js`, `reports` table): Report Message in the
   message menu and sheet (anyone else's message) and Report on a person (`ReportDialog.jsx`): a
   category, an optional note, "Also block". A guild message is copied into the report (the server

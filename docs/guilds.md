@@ -535,7 +535,9 @@ like the rest of a guild.
   LEFT JOINs users and uses `webhook_name` as `sender_username`), `webhook_id`, and the name
   and picture **as sent** (`webhook_name`, `webhook_avatar`: our picture's URL or the post's
   `avatar_url`), plus `embeds` and `attachments` (JSON, Discord's shapes), `flags` and
-  `edited_at`. Old pictures are never deleted, so old messages keep theirs.
+  `edited_at`. Old pictures are never deleted, so old messages keep theirs. Anyone can block a
+  webhook for themselves (its messages collapsed, no pushes; see Blocking webhooks in
+  `docs/client.md`).
 - **With the token** (no login): `POST` executes (JSON, a form, or multipart with
   `payload_json` and `files[n]`; `?wait=true` returns Discord's message object, else 204;
   `thread_id` is refused), `GET/PATCH/DELETE` the webhook (name, avatar as a data URI), and

@@ -3,10 +3,11 @@ import { imageAt } from './imageActions';
 import { galleryItemOf } from './imageGallery';
 
 // What a right-click on `element` gets from PageMenus, given the page's selected text:
-// { kind: 'image', item } | { kind: 'text' } | { kind: 'page', link, selected, userId } | null.
-// `userId` is the person shown there (an element marked `data-user-id`: a message's author, a
-// mention, a member list row...), for Copy User ID. A message's own menu (MessageList) gives way
-// to these.
+// { kind: 'image', item } | { kind: 'text' } | { kind: 'page', link, selected, userId, webhook }
+// | null. `userId` is the person shown there (an element marked `data-user-id`: a message's
+// author, a mention, a member list row...), for Block, Report and Copy User ID; `webhook`
+// ({ id, name }) a webhook's name or picture on its message (`data-webhook-id`), for Block
+// Webhook and Copy Webhook ID. A message's own menu (MessageList) gives way to these.
 
 // A link to another site (or an email address) at `element`, or null.
 export function linkAt(element) {
@@ -31,5 +32,7 @@ export function pageMenuTarget(target, selectedText = '') {
   const selected = selectedText.trim() ? selectedText : '';
   const link = linkAt(element);
   const userId = element.closest('[data-user-id]')?.dataset.userId ?? null;
-  return link || selected || userId ? { kind: 'page', link, selected, userId } : null;
+  const hook = element.closest('[data-webhook-id]');
+  const webhook = hook ? { id: hook.dataset.webhookId, name: hook.dataset.webhookName ?? '' } : null;
+  return link || selected || userId || webhook ? { kind: 'page', link, selected, userId, webhook } : null;
 }
