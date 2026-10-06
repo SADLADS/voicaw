@@ -136,7 +136,7 @@ try {
   await openList(a);
   await a.click('.events-dialog .event-card:has-text("Game night") button:has-text("Start")');
   await b.waitForSelector('.guild-channel-event:has-text("Game night")');
-  check((await b.textContent('.guild-events-button')).includes('Live'), 'Live on the Calendar row');
+  check((await b.textContent('.guild-live-events')).includes('Game night'), 'listed as on now under Calendar');
   await shot(b, 'live');
   const before = await a.textContent('.events-dialog .event-card:has-text("Game night") .event-card-when');
   await a.click('.events-dialog .event-card:has-text("Game night") button:has-text("End event")');

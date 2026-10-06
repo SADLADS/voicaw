@@ -2,7 +2,8 @@
 // both tabs and on an event), makes a weekly event from the + on a day of the calendar (the
 // editor starts on that day at 18:00), comes back to the calendar and finds it on that day
 // and a week later; Bob's calendar gets it live; next month, Today; the Events tab's Create
-// Event still works; an all-day event over three days with an emoji and a colour. Then a phone: dots in the squares, tap a day for its list, Create Event.
+// Event still works; an all-day event over three days with an emoji and a colour; an event starting
+// by itself at its time, then listed under Calendar. Then a phone: dots in the squares, tap a day for its list, Create Event.
 //   node e2e/serve.mjs &   then   node e2e/calendar.mjs [screenshot dir]
 import { launchChrome, signUp, devices, BASE } from './helpers.mjs';
 
@@ -87,6 +88,7 @@ try {
   await a.click('.events-dialog .events-back');
   await a.waitForSelector('.event-calendar-grid');
   check(await a.locator(`[data-day="${key(day)}"] .event-calendar-chip:has-text("Board games")`).count() === 1, 'on the day');
+  check((await a.textContent(`[data-day="${key(day)}"] .event-calendar-chip`)).trim() === 'Board games', 'the name, no time, in the square');
   const weekLater = daysFromNow(11);
   if (await a.locator(`[data-day="${key(weekLater)}"]`).count()) {
     check(await a.locator(`[data-day="${key(weekLater)}"] .event-calendar-chip:has-text("Board games")`).count() === 1, 'and a week later');
@@ -186,6 +188,36 @@ try {
   await shot(a, 'calendar-all-day');
   await a.keyboard.press('Escape');
 
+  // Starts by itself at its time: a minute or two from now, then listed under Calendar for both.
+  const soon = new Date(Date.now() + 65 * 1000);
+  soon.setSeconds(0, 0);
+  soon.setMinutes(soon.getMinutes() + 1);
+  await a.click('.guild-events-button');
+  await a.click('.events-dialog [role="tab"]:has-text("Events")');
+  await a.click('.events-dialog .vc-dialog-actions button:has-text("Create Event")');
+  await a.check('input[name="event-place"][value="external"]');
+  await a.click('.event-editor button:has-text("Next")');
+  await a.fill('#event-name', 'Quick chat');
+  await a.fill('#event-start-date', key(soon));
+  await a.fill('#event-start-time', `${pad(soon.getHours())}:${pad(soon.getMinutes())}`);
+  const over = new Date(soon.getTime() + 3600 * 1000);
+  await a.fill('#event-end-date', key(over));
+  await a.fill('#event-end-time', `${pad(over.getHours())}:${pad(over.getMinutes())}`);
+  await a.click('.event-editor-steps button:has-text("Review")');
+  await a.click('.event-editor button:has-text("Create Event")');
+  await a.waitForSelector('.events-dialog .event-detail:has-text("Quick chat")');
+  await a.keyboard.press('Escape');
+  check(!(await a.locator('.guild-live-event').count()), 'nothing on yet');
+  const wait = soon.getTime() - Date.now() + 30 * 1000; // the server looks every 15 s
+  await a.waitForSelector('.guild-live-event:has-text("Quick chat")', { timeout: wait });
+  await b.waitForSelector('.guild-live-event:has-text("Quick chat")', { timeout: 5000 });
+  console.log(`ok: started by itself ${Math.round((Date.now() - soon.getTime()) / 1000)} s after its time, listed for both`);
+  await shot(a, 'happening-now');
+  await a.click('.guild-live-event:has-text("Quick chat")');
+  await a.waitForSelector('.events-dialog .event-detail:has-text("Happening now")');
+  console.log('ok: a click opens it');
+  await a.keyboard.press('Escape');
+
   // Dark.
   await a.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await a.click('.guild-events-button');
@@ -216,6 +248,10 @@ try {
   if (!(await c.locator(`[data-day="${key(day)}"]`).count())) await c.click('.event-calendar-nav[aria-label="Next month"]');
   check(await c.locator(`[data-day="${key(day)}"] .event-calendar-dot`).count() === 1, 'a dot on the day');
   check(!(await c.locator('.event-calendar-chip').first().isVisible()), 'no names in the squares');
+  const festivalDay = daysFromNow(6);
+  if (await c.locator(`[data-day="${key(festivalDay)}"]`).count()) {
+    check(await c.locator(`[data-day="${key(festivalDay)}"] .event-calendar-dots .event-emoji img`).count() === 1, "an emoji instead of a dot for one that has it");
+  }
   await c.tap(`[data-day="${key(day)}"] .event-calendar-date`);
   await c.waitForSelector('.event-calendar-day:has-text("Board games")');
   await shot(c, 'phone-calendar');

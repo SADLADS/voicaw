@@ -40,8 +40,9 @@ import VoiceChannelMembers from './VoiceChannelMembers';
 import '../../assets/css/events.css';
 import EventsDialog from '../events/EventsDialog';
 import EventEditor from '../events/EventEditor';
+import EventEmoji from '../events/EventEmoji';
 import { useGuildEvents } from '../../hooks/useGuildEvents';
-import { canCreateEvents } from '../../utils/eventDisplay';
+import { canCreateEvents, eventColor } from '../../utils/eventDisplay';
 import { dayKey, monthKey } from '../../utils/eventCalendar';
 import { useVoice } from '../../hooks/useVoice';
 import { joinVoice } from '../../voice/voiceClient';
@@ -177,7 +178,8 @@ export default function GuildSidebar({ guild, user }) {
     ...(can(PERMISSIONS.CREATE_INVITE) ? [{ key: 'invite', label: t('guilds.sidebar.invitePeople'), icon: faUserPlus, onSelect: () => openDialog({ type: 'invite' }) }] : []),
   ];
   const inVoice = voice.status !== 'idle' && voice.guildId === guild.id ? voice.channelId : null;
-  const liveEvents = guildEvents.events.filter((e) => e.status === 'active');
+  // Events on now, soonest started first: listed under Calendar (and a voice one under its channel).
+  const liveEvents = guildEvents.events.filter((e) => e.status === 'active').sort((a, b) => a.start_time - b.start_time || a.id - b.id);
   const speaking = new Set(voice.status === 'connected' ? voice.speaking : []);
 
   function toggleCategory(id) {
@@ -404,13 +406,31 @@ export default function GuildSidebar({ guild, user }) {
         onTouchStart={onListTouchStart}
       >
         {drag?.lineTop != null && <div className="channel-drop-line" style={{ top: drag.lineTop }} aria-hidden="true" />}
-        <button type="button" className={`guild-events-button${liveEvents.length ? ' live' : ''}`} onClick={() => openEvents()}>
+        <button type="button" className="guild-events-button" onClick={() => openEvents()}>
           <FontAwesomeIcon icon={faCalendarDays} className="guild-channel-icon" aria-hidden="true" />
           <span className="guild-channel-name">
             {t('guilds.sidebar.calendar')}
           </span>
-          {liveEvents.length > 0 && <span className="guild-events-live">{t('guilds.sidebar.eventLive')}</span>}
         </button>
+        {liveEvents.length > 0 && (
+          <ul className="guild-live-events" aria-label={t('guilds.sidebar.happeningNow')}>
+            {liveEvents.map((event) => (
+              <li key={event.id}>
+                <button
+                  type="button"
+                  className="guild-live-event"
+                  aria-label={t('guilds.sidebar.happeningNowEvent', { name: event.name })}
+                  title={event.name}
+                  style={eventColor(event) ? { '--event-color': eventColor(event) } : undefined}
+                  onClick={() => openEvents(event.id)}
+                >
+                  <span className="guild-live-event-dot" aria-hidden="true" />
+                  <span className="guild-live-event-name"><EventEmoji emoji={event.emoji} />{event.name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <ul>{uncategorized.map(renderChannel)}</ul>
 
         {categories.map((category) => {

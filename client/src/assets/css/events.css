@@ -23,15 +23,45 @@
   color: var(--vc-fg);
 }
 
-.guild-events-live {
-  margin-left: auto;
-  padding: 0 6px;
-  border-radius: 8px;
-  background: var(--vc-success);
-  color: var(--vc-on-accent);
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
+/* Under it: the events on now (their colour's dot, emoji and name). */
+.guild-live-events {
+  list-style: none;
+  margin: -4px 8px 8px;
+  padding: 0;
+}
+
+.guild-live-event {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--vc-fg);
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.guild-live-event:hover {
+  background: var(--vc-bg-hover);
+}
+
+.guild-live-event-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--event-color, var(--vc-online));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--event-color, var(--vc-online)) 35%, transparent);
+}
+
+.guild-live-event-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Under a voice channel: the event happening in it. */
@@ -265,7 +295,8 @@
 }
 
 .event-calendar-chip {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
   padding: 1px 4px;
   border: 0;
@@ -318,8 +349,21 @@
   vertical-align: -0.2em;
 }
 
-.event-calendar-chip-time {
-  opacity: 0.8;
+/* The emoji always shows: a long name gives way instead. */
+.event-calendar-chip .event-emoji {
+  flex-shrink: 0;
+}
+
+.event-calendar-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-calendar-dots .event-emoji {
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1;
 }
 
 .event-calendar-more {
@@ -331,6 +375,7 @@
 /* A phone's squares are too small for names: dots instead. */
 .event-calendar-dots {
   display: none;
+  align-items: center;
   justify-content: center;
   gap: 3px;
 }

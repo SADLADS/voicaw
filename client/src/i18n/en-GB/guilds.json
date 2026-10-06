@@ -2,7 +2,8 @@
   "guilds": {
     "sidebar": {
       "calendar": "Calendar",
-      "eventLive": "Live",
+      "happeningNow": "Happening now",
+      "happeningNowEvent": "Happening now: {{name}}",
       "liveEvent": "Live: {{name}}",
       "createEvent": "Create Event",
       "createChannel": "Create Channel",

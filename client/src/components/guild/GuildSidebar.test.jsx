@@ -424,9 +424,15 @@ describe('GuildSidebar', () => {
     it('shows how many there are and which voice channel has one on, and lists them', async () => {
       events.list = [picnic, gameNight];
       renderSidebar({ user: member });
-      const button = await screen.findByRole('button', { name: /^Calendar/ });
-      expect(button).toHaveTextContent('Live');
+      const button = await screen.findByRole('button', { name: 'Calendar' });
+      // What's on now, under Calendar (only the live one), and under its voice channel.
+      const live = await screen.findByRole('list', { name: 'Happening now' });
+      expect(within(live).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['Happening now: Game night']);
       expect(screen.getByRole('button', { name: 'Live: Game night' })).toBeInTheDocument();
+      fireEvent.click(within(live).getByRole('button'));
+      expect(await screen.findByRole('dialog', { name: 'Game night' })).toBeInTheDocument();
+      fireEvent.keyDown(window, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
       fireEvent.click(button);
       const dialog = await screen.findByRole('dialog', { name: '2 Events' });
       // It opens on the calendar; the list is the other tab.
