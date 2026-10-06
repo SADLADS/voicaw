@@ -44,9 +44,8 @@ function useNowUntil(endsAt) {
 // `onVote(optionIds)` (async) sets your vote ([]: removes it). Without it (not sent yet, keys
 // not ready, the pinned list) the results are shown and nothing can be changed. `names` maps
 // user id -> name, for who voted.
-// In an open poll anyone can add answers while voting (`onAddAnswer(text)`, async, resolving to
-// its id), which ticks it without voting; each says who added it (not the poll's author,
-// `authorId`). An
+// In an open poll anyone can add answers while voting (`onAddAnswer(text)`, async), neither
+// voted for nor ticked; each says who added it (not the poll's author, `authorId`). An
 // added answer nobody else has voted for has a ✕ (on the vote screen only) for its creator, the
 // author and, in a guild, moderators (`canModerate`, not the author's answers):
 // `onRemoveAnswer(option)`, async, after asking.
@@ -114,11 +113,10 @@ export default function Poll({ poll: message, reactions, userId, authorId, names
     if (problem) return setAnswerError(problem);
     setBusy(true);
     try {
-      const id = await onAddAnswer(newAnswer);
+      // Not ticked (it would look voted for): it's picked like any other answer.
+      await onAddAnswer(newAnswer);
       setNewAnswer('');
       setAnswerError(null);
-      // Ticked, not voted: Vote sends it (alone in a single-choice poll).
-      if (id) setSelected(poll.multi ? [...choice, id] : [id]);
     } catch (err) {
       setAnswerError(err.response?.data?.error || err.message || t('chat.poll.addAnswerFailed'));
     } finally {

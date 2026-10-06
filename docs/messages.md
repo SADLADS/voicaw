@@ -258,8 +258,8 @@ posting. A poll is sent as its own message (replying if a reply is set, like a G
   votes again (`planVotes` clears them); in guilds the server deletes them with the edit.
 - **Open polls** ("Open poll" in the dialog, `open: true` and a round `r` in the JSON): anyone
   can add an answer, from the vote screen only (a box under the answers; not on the results),
-  and adding one ticks it without voting (alongside what you'd ticked, in a multiple-choice poll;
-  instead of it, in a single-choice one): Vote sends it. Each added answer is a reaction from whoever added it,
+  and adding one neither votes for it nor ticks it (that would look like a vote): it's picked
+  and sent with Vote like any other. Each added answer is a reaction from whoever added it,
   `poll:+` + JSON `{ i: id, r: round, t: text }` (text only, at most 55 characters, one line,
   trimmed; `parseAnswer` ignores anything not made exactly so), so who added it is the
   reaction's owner (signed in groups) and, in encrypted chats, the server can't tell it from an

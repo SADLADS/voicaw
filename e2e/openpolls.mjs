@@ -1,5 +1,5 @@
 // Open polls in a real browser: "Open poll" in the dialog (locked when editing); anyone adds an
-// answer from the vote screen (not the results), which ticks it (Vote sends it); repeats refused (ignoring
+// answer from the vote screen (not the results), neither voted for nor ticked; repeats refused (ignoring
 // case); "added by" under other people's answers; the ✕ (asks first) for its creator, the poll's
 // author or a guild moderator (not the author's answers), gone once someone else votes for it;
 // back to the vote screen when that took your only vote; a new question drops every vote and
@@ -91,11 +91,14 @@ try {
   await addAnswer(b, 'Dinner?', ' PIZZA ');
   await pollOf(b, 'Dinner?').locator('.poll-add-error:has-text("That answer is already in the poll.")').waitFor();
   await shot(b, '1-duplicate-phone');
-  // Adding one ticks it, without voting: Vote sends it.
+  // Adding one neither votes for it nor ticks it (that would look like a vote): it's picked and
+  // sent like any other.
   await addAnswer(b, 'Dinner?', 'Curry');
-  await ticked(b, 'Dinner?', 'Curry').waitFor({ timeout: 10000 });
-  await shot(b, '2b-added-ticked-phone');
+  await row(b, 'Dinner?', 'Curry').waitFor({ timeout: 10000 });
+  await shot(b, '2b-added-phone');
+  if (await pollOf(b, 'Dinner?').locator('.poll-option.selected').count()) throw new Error('adding an answer ticked it');
   await pollOf(a, 'Dinner?').locator('.poll-footer:has-text("0 votes")').waitFor();
+  await press(b, row(b, 'Dinner?', 'Curry').locator('.poll-option'));
   await castVote(b, 'Dinner?');
   if (await votesOf(b, 'Dinner?', 'Curry') !== 1) throw new Error('Vote did not send the added answer');
   // No add box on the results.
@@ -107,7 +110,7 @@ try {
   await shot(a, '2-added-by');
   await shot(b, '3-added-phone');
   if (await a.locator('.reaction-chip:not(.reaction-add)').count()) throw new Error('an added answer showed as a reaction');
-  console.log('DM: repeats refused; adding an answer ticks it (Vote sends it); "added by" shown');
+  console.log('DM: repeats refused; an added answer is neither ticked nor voted; "added by" shown');
 
   // The author removes it (asks first): gone for both, and Bob, whose only vote it was, is back
   // on the vote screen.
@@ -125,6 +128,7 @@ try {
   // there's none until he takes his vote back.
   await addAnswer(b, 'Dinner?', 'Tacos');
   await removeX(b, 'Dinner?', 'Tacos').waitFor({ timeout: 10000 });
+  await press(b, row(b, 'Dinner?', 'Tacos').locator('.poll-option'));
   await castVote(b, 'Dinner?');
   await shot(b, '3b-results-no-x-phone');
   if (await pollOf(b, 'Dinner?').locator('.poll-option-remove').count()) throw new Error('a ✕ on the results');
@@ -189,11 +193,13 @@ try {
   }
   await createOpenPoll(a, 'Games?', ['Chess', 'Go'], { multi: true });
   await pollOf(b, 'Games?').waitFor({ timeout: 10000 });
-  // Bob ticks Chess, then adds Shogi: both ticked (multiple choice), and Vote sends both.
+  // Bob ticks Chess, adds Shogi (Chess stays ticked, Shogi isn't), ticks it too and votes for both.
   await press(b, row(b, 'Games?', 'Chess').locator('.poll-option'));
   await addAnswer(b, 'Games?', 'Shogi');
-  await ticked(b, 'Games?', 'Shogi').waitFor({ timeout: 10000 });
+  await row(b, 'Games?', 'Shogi').waitFor({ timeout: 10000 });
+  if (await ticked(b, 'Games?', 'Shogi').count()) throw new Error('adding an answer ticked it');
   if (!(await ticked(b, 'Games?', 'Chess').count())) throw new Error('adding an answer unticked another');
+  await press(b, row(b, 'Games?', 'Shogi').locator('.poll-option'));
   await castVote(b, 'Games?');
   await waitFor('Chess and Shogi have a vote each', async () =>
     (await votesOf(b, 'Games?', 'Chess')) === 1 && (await votesOf(b, 'Games?', 'Shogi')) === 1);
