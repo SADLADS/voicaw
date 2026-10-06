@@ -619,6 +619,25 @@ button.event-card-name:hover {
   font-weight: 600;
 }
 
+.event-editor-step {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.event-editor-steps li:not(.current) .event-editor-step:hover {
+  color: var(--vc-fg);
+  text-decoration: underline;
+}
+
+.event-editor-steps li.current .event-editor-step {
+  cursor: default;
+}
+
 .event-editor-question {
   font-weight: 600;
   margin: 0 0 8px;

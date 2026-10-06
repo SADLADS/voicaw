@@ -119,9 +119,11 @@ function EventDetail({ event, guild, user, buttons }) {
           </div>
           <h4 className="event-detail-name">{event.name}</h4>
           {event.recurrence && <p className="event-detail-line">{describeRepeat(event.recurrence, start)}</p>}
-          <p className="event-detail-line">
-            {place.voice ? t('events.place.inChannel', { name: place.label }) : place.label}
-          </p>
+          {place.label && (
+            <p className="event-detail-line">
+              {place.voice ? t('events.place.inChannel', { name: place.label }) : place.label}
+            </p>
+          )}
           <p className="event-detail-line event-detail-creator">
             <Avatar userId={event.creator_id} className="event-interested-avatar" />
             {t('events.detail.createdBy', { name: displayName(event.creator_id, t('events.unknownUser')) })}

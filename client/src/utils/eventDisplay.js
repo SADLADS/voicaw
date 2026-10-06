@@ -29,13 +29,14 @@ export function canCreateEvents(guild) {
   return has(guild?.my_permissions, PERMISSIONS.CREATE_EVENTS) || eventVoiceChannels(guild).length > 0;
 }
 
-// Where it is: { voice: true, label: channel name } or { voice: false, label: the location }.
+// Where it is: { voice: true, label: channel name } or { voice: false, label: the location, or
+// null when its maker didn't say }.
 export function eventPlace(event, guild) {
   if (event.entity_type === 'voice') {
     const channel = guild?.channels.find((c) => c.id === event.channel_id);
     return { voice: true, label: channel?.name ?? t('events.place.unknownChannel') };
   }
-  return { voice: false, label: event.location };
+  return { voice: false, label: event.location || null };
 }
 
 // A word on when, next to its date: happening now, starting soon, waiting to be started (a

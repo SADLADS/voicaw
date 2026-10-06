@@ -113,13 +113,37 @@ try {
   await a.click('.event-calendar button:has-text("Today")');
   check(await a.locator('.event-calendar-cell.today.selected').count() === 1, 'Today goes back and picks today');
 
-  // The Events tab's Create Event, and back to it.
+  // The Events tab's Create Event: cancel goes back to it.
   await a.click('.events-dialog [role="tab"]:has-text("Events")');
   await a.click('.events-dialog .vc-dialog-actions button:has-text("Create Event")');
   await a.waitForSelector('.event-editor');
   await a.click('.event-editor button:has-text("Cancel")');
   await a.waitForSelector('.events-dialog .event-card:has-text("Board games")');
   check(await a.locator('.events-dialog [role="tab"][aria-selected="true"]:has-text("Events")').count() === 1, 'cancel returns to the Events tab');
+
+  // Again, somewhere else without saying where, moving by the steps at the top.
+  await a.click('.events-dialog .vc-dialog-actions button:has-text("Create Event")');
+  await a.check('input[name="event-place"][value="external"]');
+  await a.click('.event-editor-steps button:has-text("Review")');
+  check(await a.locator('#event-name').isVisible(), 'Review stops at Event info with nothing named');
+  check((await a.textContent('.event-editor [role="alert"]')).includes('topic'), 'and says why');
+  await a.fill('#event-name', 'Mystery meet-up');
+  await a.fill('#event-start-date', key(daysFromNow(5)));
+  await a.fill('#event-start-time', '12:00');
+  await a.fill('#event-end-date', key(daysFromNow(5)));
+  await a.fill('#event-end-time', '13:00');
+  await shot(a, 'editor-steps');
+  await a.click('.event-editor-steps button:has-text("Review")');
+  await a.waitForSelector('.event-editor-review .event-card:has-text("Mystery meet-up")');
+  check(await a.locator('.event-editor-review .fa-location-dot').count() === 0, 'no place line without a location');
+  await a.click('.event-editor-steps button:has-text("Location")');
+  check(await a.inputValue('#event-location') === '', 'Location step, still empty');
+  await a.click('.event-editor-steps button:has-text("Review")');
+  await a.click('.event-editor button:has-text("Create Event")');
+  await a.waitForSelector('.events-dialog .event-detail:has-text("Mystery meet-up")');
+  console.log('ok: made without a location');
+  await a.click('.events-dialog .events-back');
+  await a.waitForSelector('.events-dialog .event-card:has-text("Mystery meet-up")');
   await shot(a, 'list');
   await a.keyboard.press('Escape');
 

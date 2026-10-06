@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 vi.mock('../../services/guildService', () => ({
   createEvent: vi.fn(async (guildId, fields) => ({ id: 80, guild_id: guildId, ...fields, status: 'scheduled', user_count: 1, interested: true })),
@@ -70,16 +70,33 @@ describe('EventEditor', () => {
     expect(new Date(fields.startTime * 1000).getHours()).toBe(20);
   });
 
-  it('needs a location and an end somewhere else', () => {
+  it('needs an end somewhere else, not a location', () => {
     renderEditor();
     fireEvent.click(screen.getByLabelText(/Somewhere else/));
+    expect(screen.getByLabelText('Location (optional)')).toHaveValue('');
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Say where the event is.');
-    fireEvent.change(screen.getByLabelText('Location'), { target: { value: 'The park' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.queryByRole('alert')).toBeNull();
     fireEvent.change(screen.getByLabelText('Event topic'), { target: { value: 'Picnic' } });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByRole('alert')).toHaveTextContent('Events somewhere else need an end date and time.');
+  });
+
+  it('goes to a step clicked at the top, not past one with something missing', () => {
+    renderEditor();
+    const steps = within(screen.getByRole('list', { name: 'Steps' }));
+    // Nothing named yet: Review stops at Event info, and says why.
+    fireEvent.click(steps.getByRole('button', { name: 'Review' }));
+    expect(screen.getByLabelText('Event topic')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Give the event a topic.');
+    fireEvent.change(screen.getByLabelText('Event topic'), { target: { value: 'Game night' } });
+    fireEvent.click(steps.getByRole('button', { name: 'Review' }));
+    expect(screen.getByText('Game night')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    // Back to any earlier step, and forward again with what was filled in.
+    fireEvent.click(steps.getByRole('button', { name: 'Location' }));
+    expect(screen.getByLabelText('Channel')).toBeInTheDocument();
+    fireEvent.click(steps.getByRole('button', { name: 'Event info' }));
+    expect(screen.getByLabelText('Event topic')).toHaveValue('Game night');
   });
 
   it('moves just one occurrence', async () => {
