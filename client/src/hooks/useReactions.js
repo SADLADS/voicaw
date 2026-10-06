@@ -128,8 +128,7 @@ export function useReactions({ chatId, user, ready, saveReaction, deleteReaction
     return pollAction(msg, 'chat.poll.voteFailed', (current) => setVotes(current, current.reactions ?? [], optionIds));
   }
 
-  // Adds answer `text` to the open poll `msg`, resolving to its id. It isn't voted for: Poll.jsx
-  // ticks it, for you to send with Vote.
+  // Adds answer `text` to the open poll `msg`, resolving to its id. It isn't voted for.
   function addAnswer(msg, text) {
     return pollAction(msg, 'chat.poll.addAnswerFailed', async (current) => {
       const poll = parsePoll(current.plaintext);
