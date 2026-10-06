@@ -89,6 +89,16 @@ describe('scheduled events', () => {
     expect(list).toEqual([expect.objectContaining({ id: res.body.id, interested: false, user_count: 1 })]);
   });
 
+  it('leaves the location of an event somewhere else optional', async () => {
+    const { owner, guild } = await setUp(0);
+    const res = await create(owner, guild, external({ location: null }));
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ entity_type: 'external', location: null });
+    const set = await api.patch(owner, `/guild-events/${res.body.id}`, { location: 'The park' });
+    expect(set.body.location).toBe('The park');
+    expect((await api.patch(owner, `/guild-events/${res.body.id}`, { location: '  ' })).body.location).toBeNull();
+  });
+
   it('checks what is sent', async () => {
     const { owner, guild, voice } = await setUp(0);
     const bad = async (body, message) => {
@@ -99,7 +109,6 @@ describe('scheduled events', () => {
     await bad(external({ name: '' }), /name/);
     await bad(external({ name: 'x'.repeat(101) }), /name/);
     await bad(external({ description: 'x'.repeat(1001) }), /description/);
-    await bad(external({ location: null }), /where/);
     await bad(external({ endTime: null }), /end time/);
     await bad(external({ startTime: now() - 10 }), /future/);
     await bad(external({ endTime: now() + 10 }), /after the start/);

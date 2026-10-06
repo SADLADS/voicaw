@@ -21,9 +21,11 @@ function DayEvent({ item, guild, onOpen }) {
           {item.end != null && ` – ${formatTime(item.end * 1000)}`}
         </span>
         <span className="event-calendar-day-name">{item.event.name}</span>
-        <span className="event-calendar-day-place">
-          <FontAwesomeIcon icon={place.voice ? faVolumeHigh : faLocationDot} aria-hidden="true" /> {place.label}
-        </span>
+        {place.label && (
+          <span className="event-calendar-day-place">
+            <FontAwesomeIcon icon={place.voice ? faVolumeHigh : faLocationDot} aria-hidden="true" /> {place.label}
+          </span>
+        )}
       </button>
     </li>
   );

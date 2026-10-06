@@ -35,10 +35,12 @@ export default function EventCard({ event, guild, onOpen = null, children = null
             <span>{describeRepeat(event.recurrence, start)}</span>
           </div>
         )}
-        <div className="event-card-line">
-          <FontAwesomeIcon icon={place.voice ? faVolumeHigh : faLocationDot} aria-hidden="true" />
-          <span>{place.label}</span>
-        </div>
+        {place.label && (
+          <div className="event-card-line">
+            <FontAwesomeIcon icon={place.voice ? faVolumeHigh : faLocationDot} aria-hidden="true" />
+            <span>{place.label}</span>
+          </div>
+        )}
         <div className="event-card-footer">
           <span className="event-card-count">
             <FontAwesomeIcon icon={faUserGroup} aria-hidden="true" /> {t('events.interestedCount', { count: event.user_count })}

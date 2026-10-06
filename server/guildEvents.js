@@ -307,7 +307,7 @@ async function checkedFields(member, input, before = null) {
     if (channel?.type !== 'voice') throw badRequest('Pick a voice channel');
   } else {
     after.channel_id = null;
-    if (!after.location) throw badRequest('Say where the event is');
+    after.location = after.location || null; // optional: "somewhere else" may be left unsaid
     if (after.end_time == null) throw badRequest('Events somewhere else need an end time');
   }
   if (!Number.isInteger(after.start_time)) throw badRequest('Invalid start time');

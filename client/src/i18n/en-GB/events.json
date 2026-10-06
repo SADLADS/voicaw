@@ -118,7 +118,7 @@
       "external": "Somewhere else",
       "externalHint": "A text channel, an outside link, or in person.",
       "channel": "Channel",
-      "location": "Location",
+      "locationOptional": "Location (optional)",
       "locationPlaceholder": "Add a location, a link or something else",
       "name": "Event topic",
       "namePlaceholder": "What's your event?",
@@ -142,7 +142,6 @@
       "reviewHint": "Here's how your event will look. Everyone who can see it sees it in Events; those interested are notified when it starts.",
       "errors": {
         "channel": "Pick a voice channel.",
-        "location": "Say where the event is.",
         "name": "Give the event a topic.",
         "start": "Pick a start date and time.",
         "past": "The start must be in the future.",

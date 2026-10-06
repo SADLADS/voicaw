@@ -389,7 +389,8 @@ take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
 
 Discord's scheduled events (Discord has no calendar: its Events are a list), with a month
 calendar of them beside the list (Guilded's calendar channels may come later, on the same data). An event is in a voice channel of the guild or
-somewhere else (free text: a place, a link), with a name (100), description (1000, markdown
+somewhere else (optional free text: a place, a link; unlike Discord, it may be left out,
+and then no place is shown), with a name (100), description (1000, markdown
 like messages), start, end (required somewhere else), optional cover image, and how it repeats.
 Not end-to-end encrypted, like the rest of a guild.
 - **Seeing one**: a voice channel's event follows View Channel there (like the channel: 404, no
@@ -440,7 +441,9 @@ Not end-to-end encrypted, like the rest of a guild.
   menu: edit, change or cancel this occurrence, copy link, cancel) and one event (info and an
   Interested tab with who). `events/EventEditor.jsx`: Discord's three steps (where: a voice
   channel you may hold one in, or somewhere else; info: topic, start, end, repeats from
-  `repeatChoices` of the start day, description, cover; review: the card). `?event=<id>` on a
+  `repeatChoices` of the start day, description, cover; review: the card); the steps along the
+  top are buttons, going to that step like Next (stopping at an earlier one with something
+  missing). `?event=<id>` on a
   guild URL opens it (links, notifications; `eventLink`, kept through the redirect to the last
   channel); an event link in a guild channel gets a card (`events/EventEmbed.jsx`; not in DMs and
   group DMs, so an encrypted chat's link is never sent to the server).

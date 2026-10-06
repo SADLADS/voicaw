@@ -109,8 +109,9 @@ function TimeInputs({ label, idPrefix, date, time, onDate, onTime, hint = null }
 }
 
 // Making or editing an event, in Discord's three steps: where (a voice channel you may hold
-// one in, or somewhere else), what and when (name, start, end, how it repeats, description,
-// cover), then a look at the card before saving. With `occurrence`, only the next occurrence of
+// one in, or somewhere else, where saying where is optional), what and when (name, start, end,
+// how it repeats, description, cover), then a look at the card before saving. The steps along
+// the top go to that step, as Next does: not past one with something missing. With `occurrence`, only the next occurrence of
 // a repeating event moves (OccurrenceEditor). A new event starts at `start` (unix s; a day
 // picked on the calendar) or the next whole hour.
 export default function EventEditor({ guild, event = null, occurrence = false, start = null, onSaved, onClose }) {
@@ -151,7 +152,6 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
   function problem(at) {
     if (at === 'where') {
       if (entityType === 'voice' && channelId == null) return t('events.editor.errors.channel');
-      if (entityType === 'external' && !location.trim()) return t('events.editor.errors.location');
     }
     if (at === 'info') {
       if (!name.trim()) return t('events.editor.errors.name');
@@ -203,7 +203,7 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
     description: description.trim() ? description : null,
     entityType,
     channelId: entityType === 'voice' ? channelId : null,
-    location: entityType === 'external' ? location.trim() : null,
+    location: entityType === 'external' ? location.trim() || null : null,
     startTime: startAt,
     endTime: endAt,
     image,
@@ -262,7 +262,9 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
       <ol className="event-editor-steps" aria-label={t('events.editor.steps')}>
         {STEPS.map((s, i) => (
           <li key={s} className={`${s === step ? 'current' : ''}${i < index ? ' done' : ''}`} aria-current={s === step ? 'step' : undefined}>
-            {t(`events.editor.step.${s}`)}
+            <button type="button" className="event-editor-step" onClick={() => s !== step && goTo(s)}>
+              {t(`events.editor.step.${s}`)}
+            </button>
           </li>
         ))}
       </ol>
@@ -298,7 +300,7 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
             </>
           ) : (
             <>
-              <label htmlFor="event-location">{t('events.editor.location')}</label>
+              <label htmlFor="event-location">{t('events.editor.locationOptional')}</label>
               <input
                 id="event-location"
                 className="form-control"
