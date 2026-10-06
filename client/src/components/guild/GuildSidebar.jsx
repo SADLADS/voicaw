@@ -57,10 +57,10 @@ function loadCollapsed() {
   }
 }
 
-// The Events dialog's view on opening: `tab`, this month, today.
-function freshEventsView(tab) {
+// The Events dialog's view on opening: the Calendar tab, this month, today.
+function freshEventsView() {
   const now = new Date();
-  return { tab, month: monthKey(now), day: dayKey(now) };
+  return { tab: 'calendar', month: monthKey(now), day: dayKey(now) };
 }
 
 // The guild's column next to the guild rail (like Discord): its name, with a menu (invite,
@@ -88,11 +88,10 @@ export default function GuildSidebar({ guild, user }) {
   // { type: 'invite' | 'settings' | 'audit' | 'channel' | 'category' | 'clone' | 'deleteChannel' |
   //   'deleteCategory' | 'leave' | 'events' | 'eventEditor', ...props }
   const [dialog, setDialog] = useState(null);
-  // The guild's scheduled events (Events, above the channels).
+  // The guild's scheduled events (Calendar, above the channels).
   const guildEvents = useGuildEvents(guild?.id ?? null, user.id);
-  // The Events dialog's { tab, month, day }: back to today each time it opens, in the tab last
-  // used.
-  const [eventsView, setEventsView] = useState(() => freshEventsView('events'));
+  // The Events dialog's { tab, month, day }: back to the calendar on today each time it opens.
+  const [eventsView, setEventsView] = useState(freshEventsView);
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   // The menu of a right-clicked or long-pressed channel or category ({ kind, id, anchor }).
   const [rowMenu, setRowMenu] = useState(null);
@@ -200,7 +199,7 @@ export default function GuildSidebar({ guild, user }) {
   const closeDialog = () => setDialog(null);
 
   function openEvents(eventId = null) {
-    setEventsView((view) => freshEventsView(view.tab));
+    setEventsView(freshEventsView());
     openDialog({ type: 'events', eventId });
   }
 
@@ -390,7 +389,7 @@ export default function GuildSidebar({ guild, user }) {
         <button type="button" className={`guild-events-button${liveEvents.length ? ' live' : ''}`} onClick={() => openEvents()}>
           <FontAwesomeIcon icon={faCalendarDays} className="guild-channel-icon" aria-hidden="true" />
           <span className="guild-channel-name">
-            {guildEvents.events.length ? t('guilds.sidebar.eventsCount', { count: guildEvents.events.length }) : t('guilds.sidebar.events')}
+            {t('guilds.sidebar.calendar')}
           </span>
           {liveEvents.length > 0 && <span className="guild-events-live">{t('guilds.sidebar.eventLive')}</span>}
         </button>

@@ -407,11 +407,11 @@ Not end-to-end encrypted, like the rest of a guild.
   them. Covers are uploads (like a document's: encrypted like a guild attachment, its URL with
   the key), linked as upload kind `event`, so the file goes with the event.
 - **Client**: `hooks/useGuildEvents.js` (in `GuildSidebar`) keeps the guild's events. The channel
-  list starts with Events ("N Events", Live while one is on), and under a voice channel with an
+  list starts with Calendar (Live while an event is on), and under a voice channel with an
   event on, "Live: name"; the guild menu has Create Event (Create Events, or a voice channel
   you may hold one in). `events/EventsDialog.jsx`: one dialog, the same size whatever it shows
-  (900 × 700 at most), with two tabs, Events and Calendar (the tab, month and day are kept in
-  `GuildSidebar` while the editor is open; it opens on today, in the tab last used), and the list (`EventCard`: cover, when and "Starts
+  (900 × 700 at most), with two tabs, Calendar (first) and Events (the tab, month and day are kept in `GuildSidebar`
+  while the editor is open; it always opens on the calendar, on today), and the list (`EventCard`: cover, when and "Starts
   in 3 hours" / "Happening now", repeat, place, interested count, Interested, Start/End, the
   menu: edit, change or cancel this occurrence, copy link, cancel) and one event (info and an
   Interested tab with who). `events/EventEditor.jsx`: Discord's three steps (where: a voice

@@ -1,9 +1,7 @@
 {
   "guilds": {
     "sidebar": {
-      "events": "Events",
-      "eventsCount_one": "{{count}} Event",
-      "eventsCount_other": "{{count}} Events",
+      "calendar": "Calendar",
       "eventLive": "Live",
       "liveEvent": "Live: {{name}}",
       "createEvent": "Create Event",

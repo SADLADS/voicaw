@@ -1,7 +1,7 @@
 /* SCHEDULED EVENTS (events/EventsDialog.jsx, EventEditor.jsx, EventCard.jsx, EventEmbed.jsx; the
-   channel list's Events row and live events in guild/GuildSidebar.jsx) */
+   channel list's Calendar row and live events in guild/GuildSidebar.jsx) */
 
-/* The channel list: Events, above the channels. */
+/* The channel list: Calendar, above the channels. */
 .guild-events-button {
   display: flex;
   align-items: center;
