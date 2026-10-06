@@ -108,6 +108,13 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
     removeVideo(guild.id, channel.id, item.id).catch((err) => setError(errorOf(err)));
   };
 
+  // Pressing a button here leaves the box focused. On a phone, the box losing focus as a finger
+  // lands would bring back what typing hides (mobile.css), moving the button away before the
+  // click, which then never comes.
+  const keepTyping = (e) => {
+    if (e.target.closest('button')) e.preventDefault();
+  };
+
   const addedBy = (item) => t('voice.watchParty.addedBy', { name: displayName(item.added_by) });
 
   return (
@@ -121,7 +128,7 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
             <p>{canQueue ? t('voice.watchParty.emptyCanAdd') : t('voice.watchParty.emptyCantAdd')}</p>
           </div>
         )}
-        <div className="watch-party-side">
+        <div className="watch-party-side" onMouseDown={keepTyping}>
           <div className="watch-party-side-header">
             <h2>{t('voice.watchParty.title')}</h2>
             {!party?.current && onClose && (

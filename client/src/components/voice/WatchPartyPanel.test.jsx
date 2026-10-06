@@ -88,4 +88,11 @@ describe('WatchPartyPanel search', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     expect((await screen.findByRole('alert')).textContent).toBe("YouTube couldn't be searched.");
   });
+
+  it("keeps the box focused when its buttons are pressed (a phone's layout moves otherwise)", () => {
+    render(<WatchPartyPanel guild={guild} channel={channel} myId={7} />);
+    type('cats');
+    expect(fireEvent.mouseDown(screen.getByRole('button', { name: 'Search' }))).toBe(false); // default prevented
+    expect(fireEvent.mouseDown(screen.getByRole('textbox'))).toBe(true);
+  });
 });

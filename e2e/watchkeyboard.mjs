@@ -61,7 +61,10 @@ async function searchOnPhone(page, name, query, { playing }) {
   else check(v['.watch-party-player'], `${name}: the player stays`);
   await shot(page, `${name}-1-typing`);
 
-  await page.keyboard.press('Enter');
+  // A finger on Search, as a phone does it (touch, then the mouse events and the click).
+  await page.tap('.watch-party-add button[type="submit"]');
+  await page.waitForSelector('.watch-party-results', { timeout: 5000 }).catch(() => {});
+  check(Boolean(await page.$('.watch-party-results')), `${name}: tapping Search with the keyboard up searches`);
   check(!(await focused(page)), `${name}: searching puts the keyboard away`);
   await keyboardDown(page);
   await page.waitForSelector('.watch-party-result', { timeout: 20000 });
@@ -76,6 +79,12 @@ async function searchOnPhone(page, name, query, { playing }) {
   v = await seen(page, ['.watch-party-add input', '.watch-party-result']);
   check(v['.watch-party-add input'] && v['.watch-party-result'], `${name}: the box tapped again, the box and a result are in view above the keyboard (${JSON.stringify(v)})`);
   await shot(page, `${name}-3-refine`);
+  // Adding from the results with the keyboard up.
+  const before = await page.$$eval('.watch-party-result button', (bs) => bs.filter((b) => b.textContent.includes('Added')).length);
+  await page.tap('.watch-party-result:nth-child(2) button');
+  await page.waitForSelector('.watch-party-result:nth-child(2) button:has-text("Added")', { timeout: 5000 }).catch(() => {});
+  const after = await page.$$eval('.watch-party-result button', (bs) => bs.filter((b) => b.textContent.includes('Added')).length);
+  check(after === before + 1, `${name}: tapping Add with the keyboard up adds it`);
   await page.evaluate(() => document.activeElement?.blur());
   await keyboardDown(page);
 }

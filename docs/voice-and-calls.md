@@ -274,7 +274,9 @@ LiveKit carries the audio.
     next search. On a phone (`mobile.css`), while the box is focused (keyboard up) the people
     row and call buttons are hidden, and the empty page's picture and words while typing or
     with results open, so the box and results stay in view; sending a search blurs the box so
-    the keyboard goes and the results have the screen.
+    the keyboard goes and the results have the screen. The panel's buttons don't take focus on
+    mousedown (`keepTyping`): a finger landing on Search would otherwise blur the box first,
+    bringing all that back and moving the button before the click, which then never came.
   - **Permissions** (Discord has none of these; ours only, bits 58-60 for bots): Queue Videos
     (`QUEUE_VIDEOS`) and Control Playback (`CONTROL_PLAYBACK`) are @everyone defaults (migration
     11 gave them to existing guilds), Manage Queue (`MANAGE_QUEUE`) isn't; all three are channel
