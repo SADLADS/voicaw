@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { onPaneRequest } from '../utils/mobilePanes';
 import { isTouchDragging } from './usePointerDrag';
@@ -16,6 +16,14 @@ import { isTouchDragging } from './usePointerDrag';
 //
 // The panes only have a transform while moving: at rest the one on screen has none, since a
 // transform would become the containing block of everything `position: fixed` inside it.
+//
+// Smoothness: which pane shows isn't React state but classes on the wrapper (`pane-list` /
+// `pane-content`) set here, once a slide comes to rest: letting go would otherwise re-render
+// the whole Layout just as the slide starts. The pane off screen isn't hidden but covered (the
+// list, under the chat) or moved off (the chat, to the right), so it stays painted and a
+// drag's first frame has nothing new to paint; taps can't reach it there. It's `aria-hidden`
+// for screen readers, not `inert` or `visibility: hidden`, which restyle the whole chat (tens
+// of ms on a phone) each time they change.
 const MARK = 'voicawPane';
 const DECIDE_PX = 8; // movement before a touch is judged sideways or not
 const FLING_PX_PER_MS = 0.35; // a flick at least this fast goes its way, wherever it's let go
@@ -40,6 +48,11 @@ function clearMark() {
   window.history.replaceState(state, '');
 }
 
+function hide(el, hidden) {
+  if (hidden) el?.setAttribute('aria-hidden', 'true');
+  else el?.removeAttribute('aria-hidden');
+}
+
 // Can `el` (or anything between it and `stop`) scroll sideways in the direction a finger
 // moving by `dx` would scroll it? Then the swipe is its (here and in useSwipeToReply).
 export function scrollsSideways(el, stop, dx) {
@@ -54,8 +67,7 @@ export function scrollsSideways(el, stop, dx) {
 
 export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimRef }) {
   // A fresh start opens on the chat (with the list behind it in history, see below).
-  const [pane, setPane] = useState('content');
-  const paneRef = useRef(pane);
+  const paneRef = useRef('content');
   // x: the content's offset in px (0: showing, the width: off to the right); null at rest.
   const motion = useRef({ x: null, v: 0, target: null, raf: 0 });
   const location = useLocation();
@@ -74,6 +86,16 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
     if (scrimRef.current) scrimRef.current.style.opacity = String(progress * SCRIM_OPACITY);
   }, [width, wrapperRef, contentRef, listRef, scrimRef]);
 
+  // Shows the chosen pane at rest (the classes the CSS hides the other one by). `on` false:
+  // the phone layout is off, nothing hidden.
+  const apply = useCallback((on = true) => {
+    const showing = on ? paneRef.current : null;
+    wrapperRef.current?.classList.toggle('pane-content', showing === 'content');
+    wrapperRef.current?.classList.toggle('pane-list', showing === 'list');
+    hide(listRef.current, showing === 'content');
+    hide(contentRef.current, showing === 'list');
+  }, [wrapperRef, listRef, contentRef]);
+
   const rest = useCallback(() => {
     const m = motion.current;
     cancelAnimationFrame(m.raf);
@@ -81,6 +103,7 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
     m.x = null;
     m.v = 0;
     m.target = null;
+    apply();
     wrapperRef.current?.classList.remove('panes-moving');
     for (const ref of [contentRef, listRef, scrimRef]) {
       if (ref.current) {
@@ -88,12 +111,13 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
         ref.current.style.opacity = '';
       }
     }
-  }, [wrapperRef, contentRef, listRef, scrimRef]);
+  }, [apply, wrapperRef, contentRef, listRef, scrimRef]);
 
+  // Picks the pane; it's shown when the panes next come to rest (now, if they aren't moving).
   const choose = useCallback((next) => {
     paneRef.current = next;
-    setPane(next);
-  }, []);
+    if (!motion.current.raf && motion.current.x === null) apply();
+  }, [apply]);
 
   // Slides to `next` from wherever the panes are (mid-drag, mid-slide or at rest), carrying
   // the finger's speed `v` (px/s). `fromHistory`: it's the back/forward button, which already
@@ -158,9 +182,10 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
 
   // Turning on: a fresh start marks its entry as the chat (so back shows the list); coming
   // back from another page (Settings) shows whichever pane that entry had.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!enabled) {
       if (wasEnabled.current) rest();
+      apply(false);
       wasEnabled.current = wasEnabled.current === null ? null : false;
       return;
     }
@@ -173,8 +198,9 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
     } else if (wasEnabled.current === false) {
       choose(markOf() ? 'content' : 'list');
     }
+    apply();
     wasEnabled.current = true;
-  }, [enabled, choose, rest]);
+  }, [enabled, choose, rest, apply]);
 
   // Back and forward: an entry with the mark is the chat, one without is the list.
   useEffect(() => {
@@ -287,6 +313,4 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
       wrapper.removeEventListener('touchcancel', onEnd);
     };
   }, [enabled, wrapperRef, width, paint, slideTo]);
-
-  return pane;
 }

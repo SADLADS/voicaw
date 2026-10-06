@@ -1,7 +1,9 @@
 /* Phone: the list (rail + conversations or channels) underneath, and the content (the chat) on
-   top of it, swiped between (hooks/useSwipePanes.js). At rest the pane off screen is hidden,
-   and the one showing has no transform (it would become the containing block of anything
-   position: fixed inside); while moving, the hook sets the transforms. */
+   top of it, swiped between (hooks/useSwipePanes.js). At rest the pane off screen is covered
+   by the chat or moved off to the right, still painted (so a swipe doesn't have to paint it
+   first; aria-hidden, set by the hook); the one showing has no transform (it would become the
+   containing block of anything position: fixed inside). While moving, the hook sets the
+   transforms. */
 .mobile-mode .slidey.main-wrapper {
     position: relative;
     overflow: hidden;
@@ -34,11 +36,6 @@
 
 .mobile-mode .slidey.pane-list:not(.panes-moving) .main-content-wrapper {
     transform: translate3d(100%, 0, 0);
-    visibility: hidden;
-}
-
-.mobile-mode .slidey.pane-content:not(.panes-moving) .sidebar-wrapper {
-    visibility: hidden;
 }
 
 .mobile-mode .slidey.panes-moving .main-content-wrapper {

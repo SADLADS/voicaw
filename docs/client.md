@@ -303,7 +303,12 @@
   pressing it slides to the list the same way (`showList()`); threads and voice channels' chat
   have their own, back to their channel. Open the chat from elsewhere with `showContent()`
   (`utils/mobilePanes.js`). The panes only
-  have a transform while moving (a transform would trap `position: fixed` children). The lists'
+  have a transform while moving (a transform would trap `position: fixed` children).
+  Kept smooth (`e2e/panesperf.mjs` measures it): which pane shows is classes on the wrapper set
+  by the hook when a slide comes to rest, not React state (letting go used to re-render the
+  whole Layout just as the slide started); the pane off screen stays painted, covered by the
+  chat or moved off to the right, and is `aria-hidden` rather than `visibility: hidden` or
+  `inert`, which restyle the whole chat each time they change. The lists'
   rows (channels, threads, categories, DMs, members) colour on hover only with a mouse
   (`@media (hover: hover)`): a phone's Chrome sets `:hover` on the row a finger rests on before
   scrolling, and keeps it. Their links also pin their own colour under `:hover`, or the link
