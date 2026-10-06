@@ -402,9 +402,16 @@ repeats (a burst of messages dings once).
   not the automatic mute when the microphone fails), `callClient` (the rings). Message: the
   server decides (`sendPushToUser`, so it follows exactly what notifies: not the chat you're
   looking at, guild notification levels, no SUPPRESS_NOTIFICATIONS webhooks) and sends
-  `message_sound`; `playMessageSound` plays it in a browser page only while it's visible and
-  focused (that page's push notification is then silent; otherwise the system notification
-  makes the sound), and always in the desktop app (whose notifications are silent).
+  `message_sound`, whether you're in front or not. `playMessageSound` plays it, as Discord does,
+  when the page is visible and focused, and on a computer also from a background tab or behind
+  another window once the page's audio has started (a click since it loaded; Chrome's own
+  notifications are often silent). Phones and the Android app ding only in front, leaving the
+  rest to the phone's notification. The desktop app always dings, since its notifications are
+  silent. Several tabs in one browser ding once (Web Locks, `voicaw-message-sound`).
+  `handlesMessageSound` answers the service worker, which keeps the push notification silent when
+  a page dings, so it doesn't sound twice. Until a page has had a click (or with no page open),
+  the system notification makes the sound. Turning Message off in Settings → Sounds therefore
+  also quiets message notifications while the app is open on a computer.
 - **Not done yet** (Discord has them; the features don't exist yet): push-to-talk on/off,
   stream started/ended and viewer join/leave, activities, stage, user moved.
 

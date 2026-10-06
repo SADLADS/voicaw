@@ -96,15 +96,29 @@ self.addEventListener('push', (event) => {
     // Every push must show a notification (browsers, Safari especially, revoke push for
     // sites that don't). The server skips pushes for a chat the user is looking at.
     const { title, options } = await notificationFromPush(data);
-    // A page in front plays the app's own Message sound for it (sounds/sounds.js), so the
+    // When one of the app's pages plays its own Message sound for it (sounds/sounds.js), the
     // notification itself stays quiet.
-    if (MESSAGE_PUSHES.has(data.type)) {
-      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      if (windows.some((client) => client.focused)) options.silent = true;
-    }
+    if (MESSAGE_PUSHES.has(data.type) && await aPagePlaysMessageSound()) options.silent = true;
     await self.registration.showNotification(title, options);
   })());
 });
+
+// Asks each open page whether it plays the Message sound (sounds.js handlesMessageSound). A
+// page that doesn't answer in time (frozen, or an older version) counts as no, unless it's
+// focused: a page in front has always played it.
+const SOUND_ANSWER_MS = 500;
+
+async function aPagePlaysMessageSound() {
+  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  if (windows.some((client) => client.focused)) return true;
+  const answers = windows.map((client) => new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = (event) => resolve(event.data === true);
+    setTimeout(() => resolve(false), SOUND_ANSWER_MS);
+    client.postMessage({ action: 'handles-message-sound' }, [channel.port2]);
+  }));
+  return (await Promise.all(answers)).some(Boolean);
+}
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

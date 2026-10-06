@@ -121,8 +121,10 @@ describe('sounds', () => {
     expect(oscillators()).toHaveLength(soundList.SOUNDS.unmute.tone.notes.length);
   });
 
-  it('plays the message sound only when the page is in front (in a browser)', async () => {
+  it('plays the message sound in front, and behind other windows once its audio has started', async () => {
     const focus = vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+    // Nothing has started the audio yet: the system notification makes the sound.
+    expect(sounds.handlesMessageSound()).toBe(false);
     sounds.playMessageSound();
     await flush();
     expect(made).toEqual([]);
@@ -130,5 +132,61 @@ describe('sounds', () => {
     sounds.playMessageSound();
     await flush();
     expect(oscillators().length).toBeGreaterThan(0);
+    // The audio is running now: in the background too.
+    focus.mockReturnValue(false);
+    expect(sounds.handlesMessageSound()).toBe(true);
+  });
+
+  it('leaves the sound to the notification on a phone when not in front', async () => {
+    Object.defineProperty(navigator, 'userAgentData', { value: { mobile: true }, configurable: true });
+    try {
+      const focus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+      sounds.playMessageSound();
+      await flush();
+      expect(oscillators().length).toBeGreaterThan(0);
+      focus.mockReturnValue(false);
+      expect(sounds.handlesMessageSound()).toBe(false);
+    } finally {
+      delete navigator.userAgentData;
+    }
+  });
+
+  it('dings once for several tabs', async () => {
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    const held = new Set();
+    const request = vi.fn(async (name, options, callback) => {
+      if (held.has(name)) return callback(null);
+      held.add(name);
+      return callback({ name });
+    });
+    Object.defineProperty(navigator, 'locks', { value: { request }, configurable: true });
+    try {
+      sounds.playMessageSound();
+      // Another tab (its own module, so its own minGap) while the first holds the lock.
+      vi.resetModules();
+      (await import('./sounds')).playMessageSound();
+      await flush();
+      expect(request).toHaveBeenCalledTimes(2);
+      expect(oscillators()).toHaveLength(soundList.SOUNDS.message.tone.notes.length);
+    } finally {
+      delete navigator.locks;
+    }
+  });
+
+  it('tells the service worker whether it plays the sound', async () => {
+    const target = new EventTarget();
+    Object.defineProperty(navigator, 'serviceWorker', { value: target, configurable: true });
+    try {
+      vi.resetModules();
+      await import('./sounds');
+      vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+      const port = { postMessage: vi.fn() };
+      const event = new MessageEvent('message', { data: { action: 'handles-message-sound' } });
+      Object.defineProperty(event, 'ports', { value: [port] });
+      target.dispatchEvent(event);
+      expect(port.postMessage).toHaveBeenCalledWith(true);
+    } finally {
+      delete navigator.serviceWorker;
+    }
   });
 });
