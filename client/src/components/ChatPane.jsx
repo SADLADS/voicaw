@@ -398,6 +398,8 @@ export default function ChatPane({
             // While reacting to a message (or its menu is open), it stays highlighted and
             // the others don't react to hovering.
             focusedMsgId={reactingTo?.msgId ?? actionsForId ?? menuMsg?.id}
+            // The message being replied to stays highlighted until the reply is sent or cancelled.
+            replyingToId={replyTo?.id}
           />
         )}
       </div>

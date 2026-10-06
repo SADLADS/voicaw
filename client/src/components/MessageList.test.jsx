@@ -62,6 +62,18 @@ describe('MessageList', () => {
     expect(screen.getByText('@unknown-user')).toHaveClass('mention');
   });
 
+  it('highlights the message being replied to until the reply is sent or cancelled', () => {
+    const messages = [
+      { id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'first', timestamp: 1000 },
+      { id: 2, sender_id: 2, sender_username: 'bob', plaintext: 'second', timestamp: 100000 },
+    ];
+    const { rerender } = render(<MessageList {...baseProps({ messages, replyingToId: 2 })} />);
+    expect(screen.getByText('second').closest('.each-dm-message-wrapper')).toHaveClass('replying');
+    expect(screen.getByText('first').closest('.each-dm-message-wrapper')).not.toHaveClass('replying');
+    rerender(<MessageList {...baseProps({ messages })} />);
+    expect(screen.getByText('second').closest('.each-dm-message-wrapper')).not.toHaveClass('replying');
+  });
+
   it('shows calls in the chat as notices, not messages', () => {
     mergeProfiles([{ id: 2, username: 'bob', display_name: 'Bobby' }]);
     const call = (id, sender, data) => ({ id, sender_id: sender, recipient_id: sender === 1 ? 2 : 1, system: 'call', content: JSON.stringify({ v: 1, ...data }), timestamp: 1000 + id });

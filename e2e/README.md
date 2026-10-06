@@ -52,7 +52,7 @@ node e2e/hoverdelete.mjs [dir] # hover menu after Shift+delete: the next message
 node e2e/voicechat.mjs [dir] # voice channels' chat: unread on the channel and its chat button, opened without joining (?chat=1, beside the voice page), live both ways, joined with it open, kept after a reload, phone (header button, covers the page, Back)
 node e2e/threads.mjs [dir] # threads: Create Thread from a message (suggested name), panel beside the channel, live "N messages", posting joins + unread in the list, started on its own (row, Threads list), archive, phone (covers the channel, Back, long press)
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
-node e2e/replies.mjs [dir] # reply snippet: click jumps to the message (loads older history), flashes it like search/pins, phone tap
+node e2e/replies.mjs [dir] # replying highlights the message (cleared on ×, Escape, send); reply snippet: click jumps to the message (loads older history), flashes it like search/pins, phone tap
 node e2e/invites.mjs [dir] # invite embeds: channel and DM (load at once), Join Guild, Settings → Privacy off = Show first, phone
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
 node e2e/commands.mjs [dir] # bot commands: a bot in the script registers them (autocomplete, number, true/false, member, subcommand with choices, message command), "/" lists and filters, fields filled, suggestions, run and the reply, Apps in the message menu, phone

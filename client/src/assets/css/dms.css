@@ -2070,6 +2070,29 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   background-image: linear-gradient(var(--vc-action-soft), var(--vc-action-soft));
 }
 
+/* The message being replied to (the composer's "Replying to"): tinted, with a bar on the left,
+   until the reply is sent or cancelled. In the accent, so it reads apart from (and over) a
+   mention's yellow; hovering it or opening its menu deepens the tint, as with mentions. */
+.each-dm-message-wrapper.replying,
+.message-scroller.has-focused-message .each-dm-message-wrapper.replying:not(.focused):hover {
+  background-color: var(--vc-accent-soft);
+  background-image: none;
+  box-shadow: inset 2px 0 0 var(--vc-accent);
+}
+
+@media (hover: hover) {
+  .each-dm-message-wrapper.replying:hover {
+    background-color: var(--vc-accent-soft);
+    background-image: linear-gradient(var(--vc-accent-soft), var(--vc-accent-soft));
+  }
+}
+
+.each-dm-message-wrapper.replying.focused {
+  background-color: var(--vc-accent-soft);
+  background-image: linear-gradient(var(--vc-accent-soft), var(--vc-accent-soft));
+  box-shadow: inset 2px 0 0 var(--vc-accent);
+}
+
 .mention-suggestion-avatar {
   width: 22px;
   height: 22px;
