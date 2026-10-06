@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { setAndroidSystemBars } from './android';
 
 // The theme, per device (localStorage `theme`: 'light', 'familiar' (Ol' Familiar, Discord's Ash
 // colours), 'system', or nothing for dark, the default). Never sent to the server, so each
@@ -56,6 +57,8 @@ export function applyTheme() {
   const root = document.documentElement;
   root.dataset.theme = theme;
   root.dataset.bsTheme = BASES[theme];
+  // The Android app: its status and navigation bars' background and icons.
+  setAndroidSystemBars(BASES[theme] === 'light');
 }
 
 export function setThemeChoice(value) {

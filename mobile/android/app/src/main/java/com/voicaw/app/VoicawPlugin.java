@@ -3,6 +3,7 @@ package com.voicaw.app;
 import android.Manifest;
 import android.app.NotificationManager;
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
@@ -161,6 +162,23 @@ public class VoicawPlugin extends Plugin {
         String callId = call.getString("callId");
         if (callId != null) Notifications.stopRinging(getContext(), callId);
         call.resolve();
+    }
+
+    /** The page's background behind the status and navigation bars (`color`, #rrggbb), and whether it's `light`. */
+    @PluginMethod
+    public void setSystemBars(PluginCall call) {
+        int color;
+        try {
+            color = Color.parseColor(call.getString("color", ""));
+        } catch (IllegalArgumentException e) {
+            call.reject("Not a colour");
+            return;
+        }
+        boolean light = Boolean.TRUE.equals(call.getBoolean("light", false));
+        getBridge().executeOnMainThread(() -> {
+            if (getActivity() instanceof MainActivity) ((MainActivity) getActivity()).setSystemBars(color, light);
+            call.resolve();
+        });
     }
 
     /** Android's settings for the app: `which` is "notifications" or "fullScreen" (Android 14+). */

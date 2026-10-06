@@ -60,3 +60,13 @@ export function sameOngoing(a, b) {
   if (!a || !b) return a === b;
   return a.title === b.title && a.text === b.text && a.muted === b.muted && a.inCall === b.inCall;
 }
+
+// The colour behind Android's status and navigation bars, and whether their icons go dark (a
+// light theme): the app pads itself clear of the bars (MainActivity), so this is what shows
+// there. The frame's colour (the list pane's), so it reads as part of the app.
+export function setAndroidSystemBars(light) {
+  if (!android || typeof document === 'undefined') return;
+  const color = getComputedStyle(document.documentElement).getPropertyValue('--vc-bg-base').trim();
+  if (!color) return;
+  android.setSystemBars({ color, light }).catch((err) => console.warn('Could not colour the system bars', err));
+}

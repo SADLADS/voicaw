@@ -45,6 +45,15 @@ describe('the Android app set-up', () => {
     expect(read('../updates/publish-android.mjs')).toContain("'releases.json'");
   });
 
+  it('keeps the page clear of the status bar and the keyboard itself, not through Capacitor', () => {
+    // MainActivity pads the app and tells the WebView of no insets; Capacitor's SystemBars
+    // would otherwise lay the page under the status bar (Android 15+, recent WebViews).
+    expect(config.plugins.SystemBars.insetsHandling).toBe('disable');
+    const activity = read('android/app/src/main/java/com/voicaw/app/MainActivity.java');
+    expect(activity).toContain('keepClearOfSystemBars();');
+    expect(activity).toContain('setInsets(bars | WindowInsetsCompat.Type.ime(), Insets.NONE)');
+  });
+
   it('keeps the page storage (and its keys) out of Android backups', () => {
     const manifest = read('android/app/src/main/AndroidManifest.xml');
     expect(manifest).toContain('android:allowBackup="false"');

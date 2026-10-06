@@ -9,5 +9,10 @@
   "server": {
     "androidScheme": "https",
     "hostname": "localhost"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "disable"
+    }
   }
 }

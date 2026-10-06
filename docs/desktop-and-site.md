@@ -147,10 +147,26 @@ native bridge. Check real behaviour on a phone.
   `android`, null elsewhere): `checkNotifications` / `requestNotifications` (Android's
   permission; whether calls may ring full screen, which Android 14 lets people turn off; whether
   the build has Firebase), `getPushToken`, `setOngoing` / `clearOngoing`, `stopRinging`,
-  `openSettings`, `checkForUpdate` / `installUpdate` (Updating itself); events `navigate` (a
+  `openSettings`, `checkForUpdate` / `installUpdate` (Updating itself), `setSystemBars`
+  (System bars); events `navigate` (a
   tapped notification), `callAction` (`answer` with a call id, `mute`, `unmute`, `hangUp`),
   `updateProgress` and `updateResult`, kept until the page listens, so a notification that
   started the app still counts. `hooks/useAndroidApp.js` (in `Layout`) is the page's side.
+- **System bars** (`MainActivity` `keepClearOfSystemBars`): the page never goes under the status
+  bar, the navigation bar, a camera cutout or the keyboard, on any Android version. The window
+  is edge to edge (as Android 15+ makes every app targeting it), the app pads itself by the bars
+  at the top and sides and by the keyboard or the navigation bar (whichever is taller) at the
+  bottom, and the WebView is told of no insets at all, so `env(safe-area-inset-*)` is 0 there and
+  the WebView simply shrinks for the keyboard, as Chrome does with `resizes-content`. Capacitor's
+  own handling is off (`SystemBars.insetsHandling: "disable"`, a test checks): with a WebView
+  140+ it draws the page under the status bar for the page to pad itself (the page doesn't:
+  people's Android 15 phones had the chat header under the clock), and what it tells the page
+  while the keyboard is up depends on the WebView's version (the likely cause of a gap people
+  saw between the message box and the keyboard, 2026-10-06). What
+  shows behind the bars is the theme's `--vc-bg-base`, with dark or light icons to match:
+  `utils/theme.js` `applyTheme` calls `setSystemBars` (`android.js` `setAndroidSystemBars`), and
+  `MainActivity` puts it back after every configuration change (Capacitor's SystemBars resets
+  it to the system theme's, a rotation too).
 - **Notifications** (`PushService.java`, `Notifications.java`): Firebase Cloud Messaging, the
   only way to wake a closed Android app. The phone registers its FCM token with a 256-bit key
   it made (`PushCrypto.deviceKey`) as a push subscription (`{ endpoint: 'fcm:<token>', fcm:
