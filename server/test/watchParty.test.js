@@ -21,6 +21,12 @@ watchParty.youtube.videoInfo = async (videoId) => {
   if (videoId === 'missing0000') throw Object.assign(new Error('Video not found'), { status: 400 });
   return { title: `Video ${videoId}`, author: 'Someone' };
 };
+const searched = [];
+watchParty.youtube.search = async (query) => {
+  searched.push(query);
+  if (query === 'offline') throw Object.assign(new Error("YouTube couldn't be searched. Try again, or paste a link."), { status: 502 });
+  return [{ video_id: 'aaaaaaaaaaa', title: `About ${query}`, author: 'Someone', duration: 61, live: false }];
+};
 const VIDEO_A = 'aaaaaaaaaaa';
 const VIDEO_B = 'bbbbbbbbbbb';
 const VIDEO_C = 'ccccccccccc';
@@ -99,6 +105,7 @@ afterEach(() => {
 
 beforeEach(() => {
   asked.length = 0;
+  searched.length = 0;
 });
 
 describe('Watch Together', () => {
@@ -360,5 +367,24 @@ describe('Watch Together', () => {
     expect(log).toHaveLength(100);
     expect(log.at(-1).action).toBe('play'); // the last call (i = 104) plays
     expect(log[0].action).toBe('pause'); // the add and the oldest went
+  });
+
+  it('searches YouTube for people in the channel with Queue Videos', async () => {
+    const { owner, members: [alice, bob], base, lounge, guild, everyone } = await setUp();
+    const search = (user, q) => api.get(user, `${base}/search?q=${encodeURIComponent(q)}`);
+    expect((await search(alice, 'cats')).status).toBe(403); // not in the channel
+    await enter(alice, lounge);
+    const res = await search(alice, '  cats  ');
+    expect(res.status).toBe(200);
+    expect(res.body.results).toEqual([{ video_id: VIDEO_A, title: 'About cats', author: 'Someone', duration: 61, live: false }]);
+    expect(searched).toEqual(['cats']);
+    expect((await search(alice, '   ')).status).toBe(400);
+    expect((await search(alice, 'x'.repeat(101))).status).toBe(400);
+    expect((await search(alice, 'offline'))).toMatchObject({ status: 502, body: { error: expect.stringMatching(/paste a link/) } });
+
+    await api.put(owner, `/guilds/${guild.id}/channels/${lounge.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.QUEUE_VIDEOS });
+    await enter(bob, lounge);
+    expect((await search(bob, 'dogs')).status).toBe(403);
+    expect(searched).toEqual(['cats', 'offline']);
   });
 });

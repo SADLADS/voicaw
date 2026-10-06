@@ -43,8 +43,11 @@ let nextEntryId = 1;
 
 // Title and channel name from YouTube's oEmbed: null when YouTube couldn't be asked (the
 // video is added without them). Throws { status, message } for a video that doesn't exist or
-// can't be embedded. Replaceable by tests (they have no network).
+// can't be embedded. `search` finds videos (youtubeSearch.js). Replaceable by tests (they have
+// no network).
 const youtube = {
+  search: (query) => require('./youtubeSearch').search(query),
+
   async videoInfo(videoId) {
     const url = `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`;
     let response;

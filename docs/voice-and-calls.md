@@ -254,6 +254,24 @@ LiveKit carries the audio.
     jumped from 0:45 to 3:10 in …") with its time (`formatTime`, with seconds). Once a video
     has played, the panel stays open after the party ends, until closed, so the log stays in
     view.
+  - **Search** (`GET .../search?q=`, `server/youtubeSearch.js`): the panel's box takes a link or
+    words; a link (anything starting `http(s)://` or `www.`, or a youtu.be/youtube.com path:
+    `looksLikeLink`) is added, or refused if it isn't a YouTube video, and words are searched
+    for (a bare video id too: YouTube finds it). Needs you in the channel's voice with Queue
+    Videos, at most 100 characters, 20 searches a minute each (`rateLimit.js`, off in tests).
+    The server asks YouTube, so YouTube sees the server's address and the words, never who
+    searched. There's no API key: it posts to InnerTube (`youtubei/v1/search`, the endpoint
+    youtube.com's own search page uses, with the "videos only" filter), which is undocumented
+    and may change; then searching answers 502 ("paste a link") and links still work. If that
+    happens often, the YouTube Data API (a key in `server/.env`, 100 quota units a search,
+    10,000 a day free) is the fallback to build. Answers `{ results: [{ video_id, title,
+    author, duration, live }] }` (YouTube's first page, up to 20; upcoming premieres left
+    out; a live stream has `duration` null), each query cached for 10 minutes (200 kept).
+    Client: `searchVideos()` and `voice/WatchPartySearchResults.jsx` under the box: thumbnail
+    (`i.ytimg.com`, loaded by the viewer, so only when Settings → Privacy lets YouTube load at
+    once), title, channel · length or Live, and Play (nothing on yet) or Add, which turns into
+    ✓ Added so several can be queued from one search; the results stay until closed or the
+    next search.
   - **Permissions** (Discord has none of these; ours only, bits 58-60 for bots): Queue Videos
     (`QUEUE_VIDEOS`) and Control Playback (`CONTROL_PLAYBACK`) are @everyone defaults (migration
     11 gave them to existing guilds), Manage Queue (`MANAGE_QUEUE`) isn't; all three are channel

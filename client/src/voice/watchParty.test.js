@@ -16,7 +16,7 @@ vi.mock('../utils/api', () => ({ default: { get: vi.fn(), post: vi.fn(), put: vi
 import api from '../utils/api';
 import {
   expectedPosition, formatClock, getWatchParty, getWatchPartyLog, loadWatchParty, movedItem, reportDuration, resetWatchParties,
-  serverNow, skipVideo, subscribeWatchParties, videoIdFromInput,
+  looksLikeLink, serverNow, skipVideo, subscribeWatchParties, videoIdFromInput,
 } from './watchParty';
 
 const party = (changes = {}) => ({
@@ -38,15 +38,28 @@ afterEach(() => {
 });
 
 describe('videoIdFromInput', () => {
-  it('takes links of every kind and bare ids', () => {
+  it('takes links of every kind, and nothing else (that is searched for)', () => {
     expect(videoIdFromInput('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=5')).toBe('dQw4w9WgXcQ');
     expect(videoIdFromInput('  youtu.be/dQw4w9WgXcQ ')).toBe('dQw4w9WgXcQ');
     expect(videoIdFromInput('https://www.youtube.com/live/dQw4w9WgXcQ?si=x')).toBe('dQw4w9WgXcQ');
     expect(videoIdFromInput('https://music.youtube.com/watch?v=dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
     expect(videoIdFromInput('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
-    expect(videoIdFromInput('dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
+    expect(videoIdFromInput('dQw4w9WgXcQ')).toBeNull(); // searched for instead
+    expect(videoIdFromInput('never gonna give you up')).toBeNull();
+    expect(videoIdFromInput('AC/DC')).toBeNull();
     expect(videoIdFromInput('never gonna')).toBeNull();
     expect(videoIdFromInput('https://vimeo.com/123')).toBeNull();
+  });
+});
+
+describe('looksLikeLink', () => {
+  it('tells links from words', () => {
+    expect(looksLikeLink('https://vimeo.com/123')).toBe(true);
+    expect(looksLikeLink('www.youtube.com/@someone')).toBe(true);
+    expect(looksLikeLink(' youtu.be/x ')).toBe(true);
+    expect(looksLikeLink('AC/DC')).toBe(false);
+    expect(looksLikeLink('dr. dre')).toBe(false);
+    expect(looksLikeLink('dQw4w9WgXcQ')).toBe(false);
   });
 });
 

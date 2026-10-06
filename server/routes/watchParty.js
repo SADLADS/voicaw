@@ -4,9 +4,13 @@ const { PERMISSIONS, has } = require('../permissions');
 const { getChannelAccess } = require('../guilds');
 const voice = require('../voice');
 const watchParty = require('../watchParty');
+const { MAX_QUERY } = require('../youtubeSearch');
+const { rateLimitsEnabled } = require('../config');
+const { createLimiter } = require('../rateLimit');
 
 // Watch Together in voice channels (see watchParty.js). Reading needs only View Channel; every
-// change needs you in the channel's voice, and then Queue Videos (add, remove your own), Manage
+// change (and searching YouTube) needs you in the channel's voice, and then Queue Videos (search,
+// add, remove your own), Manage
 // Queue (reorder, remove anyone's) or Control Playback (play, pause, seek, skip; whoever added
 // the video playing may skip it too). Each answer is { party, server_time } (the server's clock,
 // which players follow).
@@ -62,6 +66,24 @@ router.get(BASE, authenticateJWT, voiceChannel, (req, res) => res.json({
   party: watchParty.publicParty(watchParty.getParty(req.channelId)),
   log: watchParty.logOf(req.channelId),
   server_time: Date.now(),
+}));
+
+// Search YouTube: ?q= (youtubeSearch.js) -> { results }. Limited per person, since every new
+// query is a request from the server to YouTube.
+const searches = createLimiter({ windowMs: 60 * 1000, max: 20 });
+router.get(`${BASE}/search`, authenticateJWT, voiceChannel, inVoice, handled(async (req, res) => {
+  if (!can(req, PERMISSIONS.QUEUE_VIDEOS)) return forbidden(res);
+  const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (!query) return res.status(400).json({ error: 'Type something to search for' });
+  if (query.length > MAX_QUERY) return res.status(400).json({ error: `Searches can be at most ${MAX_QUERY} characters` });
+  if (rateLimitsEnabled) {
+    const { allowed, retryAfterMs } = searches.hit(String(req.user.id));
+    if (!allowed) {
+      res.set('Retry-After', String(Math.ceil(retryAfterMs / 1000)));
+      return res.status(429).json({ error: 'Too many searches. Wait a moment and try again.' });
+    }
+  }
+  res.json({ results: await watchParty.youtube.search(query) });
 }));
 
 // Add a video: { videoId } (YouTube's 11-character id).

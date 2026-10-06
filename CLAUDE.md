@@ -261,7 +261,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   guild voice channels, the server keeping the queue and the clock in memory, clients following
   it. YouTube's iframe API script is deliberately not loaded (it would run YouTube's code next to
   the keys): `voice/youtubeEmbed.js` speaks the embed's messages itself. Permissions Queue
-  Videos and Control Playback (defaults) and Manage Queue (not).
+  Videos and Control Playback (defaults) and Manage Queue (not). Search (2026-10-06): the server
+  asks YouTube's own keyless search endpoint (InnerTube; undocumented, may break: then only
+  links work, and the Data API with a key is the fallback), so YouTube never sees who searched.
 - **Open polls** (built 2026-10-06, see Polls in `docs/messages.md`): anyone adds answers, each
   a reaction from whoever added it (not a table: reactions already have the encryption, group
   signing and delivery, and the server still can't tell which messages are polls), so

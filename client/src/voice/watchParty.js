@@ -150,12 +150,22 @@ async function change(guildId, channelId, request) {
   return res.data?.party ?? null;
 }
 
-// A YouTube link (watch, share, shorts, live, embed) or a bare video id, as the video id; null
-// when it's neither.
+// A YouTube link (watch, share, shorts, live, embed), as the video id; null for anything else,
+// which the panel searches YouTube for (a bare video id included: YouTube finds it).
 export function videoIdFromInput(input) {
   const text = (input ?? '').trim();
-  if (/^[\w-]{11}$/.test(text)) return text;
+  if (!text || /\s/.test(text)) return null;
   return youtubeVideoId(/^https?:\/\//i.test(text) ? text : `https://${text}`);
+}
+
+// Whether the box holds a link (of any site) rather than words to search for.
+export const looksLikeLink = (input) => /^(https?:\/\/|www\.)\S+$|^((m|music)\.)?youtu(\.be|be\.com)\/\S*$/i.test((input ?? '').trim());
+
+// Videos on YouTube matching `query` (the server asks YouTube): [{ video_id, title, author,
+// duration, live }].
+export async function searchVideos(guildId, channelId, query) {
+  const res = await api.get(`${path(guildId, channelId)}/search`, { params: { q: query } });
+  return res.data?.results ?? [];
 }
 
 export const addVideo = (guildId, channelId, videoId) =>

@@ -23,6 +23,7 @@ node e2e/railvoice.mjs [dir] # guild rail speaker: green on yours, grey on other
 node e2e/links.mjs [dir] # message links: open in a new tab (target _blank), the app page stays and voice stays connected
 node e2e/rejoin.mjs [dir] # voice after a lost connection: Reconnecting, rejoins by itself, phone waits until back in view, leave stays left
 node e2e/watchparty.mjs [dir] # Watch Together (real YouTube, needs the internet): in step (measured in YouTube's frames), pause/seek/skip, drag the queue (Manage Queue), remove own only, moves on when a video ends, corner player on another page, channel list line, 16:9 narrow/wide, activity log (newest first, kept after the end, late joiner), phone, ends with the last
+node e2e/watchsearch.mjs [dir] # Watch Together search (real YouTube): link or words in one box, other sites' links refused, results with thumbnails/lengths, Play then Add/Added, two queued from one search (Bob sees them), close, phone fits, no thumbnails with Privacy's YouTube off
 node e2e/screenshare.mjs [dir] # screen share: own preview, Live, no download until Watch, phone watches, Video taken away
 node e2e/camera.mjs [dir] # cameras: own (mirrored), tile plays at a small layer, channel list mark, nothing downloaded on another page, phone, Video taken away, off; DM call (encrypted in LiveKit, both decode), group call on a phone
 node e2e/streampopout.mjs [dir] # stream pop-out: own window (styled, theme follows), plays on other pages, full screen, close/Bring back return it, Stop watching/stream end/leave close it, phone has none

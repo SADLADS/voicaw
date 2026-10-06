@@ -1,19 +1,20 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClapperboard, faGripVertical, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { useDragReorder } from '../../hooks/useDragReorder';
 import {
-  addVideo, formatClock, movedItem, moveVideo, removeVideo, setPlayerSlot, useWatchParty, videoIdFromInput,
+  addVideo, formatClock, looksLikeLink, movedItem, moveVideo, removeVideo, searchVideos, setPlayerSlot, useWatchParty, videoIdFromInput,
 } from '../../voice/watchParty';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import WatchPartyActivity from './WatchPartyActivity';
+import WatchPartySearchResults from './WatchPartySearchResults';
 import { displayName, useProfiles } from '../../utils/profiles';
 import { t } from '../../i18n';
 
 const errorOf = (err) => err?.response?.data?.error ?? t('voice.watchParty.failed');
 
 // Watch Together on a voice channel's page, once you're in its voice: paste a YouTube link to
-// add it, the player's place (WatchPartyPlayer draws itself over it), what's playing and the
+// add it, or search YouTube and add from what it finds (WatchPartySearchResults), the player's place (WatchPartyPlayer draws itself over it), what's playing and the
 // queue (dragged into order with Manage Queue; your own videos, or anyone's with Manage Queue,
 // can be taken out), and who did what (WatchPartyActivity). What you may do follows the
 // channel's permissions; the server decides.
@@ -26,6 +27,12 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
   const [link, setLink] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // { query, results } (results null while searching); videos added from it; the one being added.
+  const [search, setSearch] = useState(null);
+  const [added, setAdded] = useState(() => new Set());
+  const [adding, setAdding] = useState(null);
+  const latestSearch = useRef(0);
+  const isLink = !link.trim() || looksLikeLink(link) || videoIdFromInput(link) != null;
   const queue = party?.queue ?? [];
   const ids = queue.map((item) => item.id);
 
@@ -36,15 +43,41 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
     moveVideo(guild.id, channel.id, moved.id, moved.beforeId).catch((err) => setError(errorOf(err)));
   });
 
+  const closeSearch = () => {
+    latestSearch.current += 1;
+    setSearch(null);
+  };
+
+  const runSearch = async (query) => {
+    const ticket = ++latestSearch.current;
+    setSearch({ query, results: null });
+    setAdded(new Set());
+    try {
+      const results = await searchVideos(guild.id, channel.id, query);
+      if (ticket === latestSearch.current) setSearch({ query, results });
+    } catch (err) {
+      if (ticket !== latestSearch.current) return;
+      setSearch(null);
+      setError(errorOf(err));
+    }
+  };
+
+  // A link is added; words are searched for.
   const submit = async (e) => {
     e.preventDefault();
-    const videoId = videoIdFromInput(link);
+    const text = link.trim();
+    if (!text) return;
+    setError(null);
+    if (!isLink) {
+      runSearch(text);
+      return;
+    }
+    const videoId = videoIdFromInput(text);
     if (!videoId) {
       setError(t('voice.watchParty.notAVideo'));
       return;
     }
     setBusy(true);
-    setError(null);
     try {
       await addVideo(guild.id, channel.id, videoId);
       setLink('');
@@ -52,6 +85,19 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
       setError(errorOf(err));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const addFound = async (video) => {
+    setAdding(video.video_id);
+    setError(null);
+    try {
+      await addVideo(guild.id, channel.id, video.video_id);
+      setAdded((previous) => new Set(previous).add(video.video_id));
+    } catch (err) {
+      setError(errorOf(err));
+    } finally {
+      setAdding(null);
     }
   };
 
@@ -93,11 +139,21 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
                 disabled={busy}
               />
               <button type="submit" className="watch-party-primary" disabled={busy || !link.trim()}>
-                {party?.current ? t('voice.watchParty.addToQueue') : t('voice.watchParty.play')}
+                {isLink ? (party?.current ? t('voice.watchParty.addToQueue') : t('voice.watchParty.play')) : t('voice.watchParty.search.submit')}
               </button>
             </form>
           )}
           {error && <p className="watch-party-error" role="alert">{error}</p>}
+          {canQueue && search && (
+            <WatchPartySearchResults
+              search={search}
+              added={added}
+              adding={adding}
+              playsNow={!party?.current}
+              onAdd={addFound}
+              onClose={closeSearch}
+            />
+          )}
           {party?.current && (
             <div className="watch-party-now">
               <span className="watch-party-label">{t('voice.watchParty.nowPlaying')}</span>
