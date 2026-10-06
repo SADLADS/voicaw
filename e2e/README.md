@@ -17,7 +17,7 @@ node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM)
 node e2e/joinemoji.mjs [dir] # joining a guild shows its custom emoji at once (picker, :name:), no reload
 node e2e/pickerswipe.mjs [dir] # phone emoji panel: swipe up = full screen (follows finger, chat doesn't jump), grid scrolls, swipe down / handle = back, search from full screen
 node e2e/emojisheets.mjs [dir] # picker sprite sheets: no per-emoji SVGs, time to draw (cold, worker's copy), skin tone sheet, phone
-node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, phone, leave
+node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, unmute+mute at once with a slow mic (never heard; asks LiveKit), phone, leave
 node e2e/speaking.mjs [dir] # speaking ring timed against the received audio (fake mic in phrases): lights within ~30 ms, out ~300 ms after, own ring, mute = out at once, still shown deafened
 node e2e/railvoice.mjs [dir] # guild rail speaker: green on yours, grey on others' (guild not opened, after reload, live), phone, light, above a mention badge, gone on leave
 node e2e/links.mjs [dir] # message links: open in a new tab (target _blank), the app page stays and voice stays connected

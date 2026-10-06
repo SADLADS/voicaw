@@ -348,29 +348,49 @@ async function teardown() {
   meterContext?.close().catch(() => {});
   meterContext = null;
   subscriptions = new WeakMap();
+  volumeGains = new WeakMap();
   audioElementsByTrack = new Map();
   if (audioContainer) audioContainer.replaceChildren();
   oldPlayback?.close().catch(() => {});
 }
 
+// Everything that changes the microphone runs one at a time, each reading the state when its
+// turn comes. Run side by side, a mute while an unmute was still capturing and publishing the
+// mic found nothing to turn off (LiveKit's isMicrophoneEnabled is false until it's
+// published), and the unmute then went live: muted, and still heard.
+let microphoneQueue = Promise.resolve();
+
+function queueMicrophone(task) {
+  const run = microphoneQueue.then(task, task);
+  microphoneQueue = run.catch(() => {});
+  return run;
+}
+
 // Turns the microphone on or off to match mute, deafen and Speak.
-async function applyMicrophone() {
+function applyMicrophone() {
+  return queueMicrophone(syncMicrophone);
+}
+
+async function syncMicrophone() {
   const current = room;
   if (!current || snapshot.status === 'idle' || snapshot.status === 'connecting') return;
   const wanted = snapshot.canSpeak && !snapshot.selfMute && !snapshot.selfDeaf;
   const participant = current.localParticipant;
   try {
     if (wanted) {
-      const publication = await participant.setMicrophoneEnabled(true, captureOptions());
+      const enabled = await participant.setMicrophoneEnabled(true, captureOptions());
       // Our chain goes on once per track (LiveKit keeps it through mute and mic changes). It
       // can't be passed with the capture options: LiveKit applies those before the track has
       // the AudioContext a processor needs.
-      const track = publication?.audioTrack;
+      const track = enabled?.audioTrack;
       if (track && !track.getProcessor()) {
         await track.setProcessor(createVoiceChain([inputGainStage, voiceProcessingStage], { sampleRate: VOICE_SAMPLE_RATE }));
       }
+      if (track?.mediaStreamTrack && !track.isMuted) track.mediaStreamTrack.enabled = true;
       if (room === current) update({ micError: null });
-    } else if (participant.isMicrophoneEnabled) {
+    } else {
+      // Always asked, even with nothing published: LiveKit waits for a publish (or its
+      // republish after a reconnect) that's under way, then mutes it.
       await participant.setMicrophoneEnabled(false);
     }
   } catch (err) {
@@ -378,6 +398,13 @@ async function applyMicrophone() {
     // No microphone, or not allowed: stay in the channel, muted.
     console.warn('Microphone unavailable', err);
     setPrefs({ selfMute: true }, { micError: micErrorMessage(err) });
+  } finally {
+    // Whatever happened, what's sent matches what's wanted now: LiveKit's mute stops the mic
+    // itself, but what goes out is our chain's output, so that's switched off too (an unmute
+    // builds a new one).
+    const sent = participant.getTrackPublication(livekit.Track.Source.Microphone)?.track?.mediaStreamTrack;
+    const allowed = snapshot.canSpeak && !snapshot.selfMute && !snapshot.selfDeaf;
+    if (sent && !allowed) sent.enabled = false;
   }
 }
 
@@ -393,22 +420,27 @@ onAudioSettingsChange(async (next, previous) => {
   }
   if (next.inputDeviceId === previous.inputDeviceId && !processingChanged(next, previous)) return;
   current.options.audioCaptureDefaults = { ...current.options.audioCaptureDefaults, ...captureOptions(next) };
-  const participant = current.localParticipant;
-  const publication = participant.getTrackPublication(livekit.Track.Source.Microphone);
-  const track = publication?.audioTrack;
-  if (!track) return;
-  try {
-    if (participant.isMicrophoneEnabled) await track.restartTrack(captureOptions(next));
-    else await participant.unpublishTrack(track);
-  } catch (err) {
-    console.warn('Could not switch microphone', err);
-    if (room === current) update({ micError: micErrorMessage(err) });
-  }
+  // In turn with mute and unmute (applyMicrophone), then put right for whatever they are now.
+  await queueMicrophone(async () => {
+    if (room !== current) return;
+    const participant = current.localParticipant;
+    const publication = participant.getTrackPublication(livekit.Track.Source.Microphone);
+    const track = publication?.audioTrack;
+    if (!track) return;
+    try {
+      if (participant.isMicrophoneEnabled) await track.restartTrack(captureOptions(next));
+      else await participant.unpublishTrack(track);
+    } catch (err) {
+      console.warn('Could not switch microphone', err);
+      if (room === current) update({ micError: micErrorMessage(err) });
+    }
+  });
+  applyMicrophone();
 });
 
-// Deafen, the output volume and each person's volume, on every voice we receive. (LiveKit
-// rebuilds a track's gain when the audio is started again, which forgets a volume of 0, so
-// this runs after that too.)
+// Deafen, the output volume and each person's volume, on every voice we receive. (Through
+// media elements LiveKit unmutes them when the audio is started again, so this runs after
+// that too.)
 function volumeOf(identity, source) {
   return playbackVolume({
     selfDeaf: snapshot.selfDeaf,
@@ -418,8 +450,28 @@ function volumeOf(identity, source) {
   });
 }
 
+// Through Web Audio, each voice's volume (deafen's 0 included) is a gain of our own that LiveKit
+// puts in front of its own one (a "plugin"), not LiveKit's: LiveKit only re-applies a volume
+// that isn't 0 when it rebuilds a track's graph, and fades towards it without ever reaching 0,
+// so a deafened listener could hear people again.
+let volumeGains = new WeakMap();
+
+function addVolumeGain(track) {
+  if (!playback) return;
+  const gain = playback.createGain();
+  volumeGains.set(track, gain);
+  track.setWebAudioPlugins([gain]);
+}
+
 function applyTrackVolume(track, identity, source) {
-  track.setVolume(volumeOf(identity, source));
+  const volume = volumeOf(identity, source);
+  const gain = volumeGains.get(track);
+  if (gain) {
+    gain.gain.cancelScheduledValues(0);
+    gain.gain.value = volume;
+    return;
+  }
+  track.setVolume(volume);
   // Media elements only (Web Audio keeps them muted itself).
   if (!playback) {
     for (const element of track.attachedElements) element.muted = snapshot.selfDeaf;
@@ -481,7 +533,11 @@ function watch(newRoom, current) {
     })
     .on(RoomEvent.TrackPublished, updateTracks)
     .on(RoomEvent.TrackUnpublished, updateTracks)
-    .on(RoomEvent.LocalTrackPublished, updateTracks)
+    .on(RoomEvent.LocalTrackPublished, (publication) => {
+      updateTracks();
+      // (Re)published (LiveKit republishes after a reconnect): still as mute and deafen say.
+      if (!stale() && publication.source === Track.Source.Microphone) applyMicrophone();
+    })
     // Also when the browser's own "Stop sharing" ended it.
     .on(RoomEvent.LocalTrackUnpublished, updateTracks)
     .on(RoomEvent.TrackMuted, updateTracks)
@@ -490,6 +546,7 @@ function watch(newRoom, current) {
       updateTracks();
       // Video (a screen share or a camera) is drawn by whoever shows it (attachStream, showCamera).
       if (track.kind !== Track.Kind.Audio) return;
+      addVolumeGain(track);
       const element = track.attach();
       audioElementsByTrack.set(track, element);
       audioElements().appendChild(element);
@@ -519,6 +576,7 @@ function watch(newRoom, current) {
       clearTakeOver();
       update({ status: 'connected' });
       updateTracks();
+      applyMicrophone();
     })
     .on(RoomEvent.AudioPlaybackStatusChanged, () => {
       if (stale()) return;
@@ -589,11 +647,11 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
     startMeters(current);
     const newRoom = new livekit.Room({
       webAudioMix: playback ? { audioContext: playback } : false,
-      stopMicTrackOnMute: true,
       audioCaptureDefaults: captureOptions(),
       videoCaptureDefaults: cameraOptions(),
       audioOutput: { deviceId: outputSinkId() || 'default' },
-      publishDefaults: { dtx: true, red: true },
+      // stopMicTrackOnMute is a publish option (as a Room option LiveKit ignores it).
+      publishDefaults: { dtx: true, red: true, stopMicTrackOnMute: true },
       e2ee,
     });
     room = newRoom;

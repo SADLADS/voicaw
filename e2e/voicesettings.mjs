@@ -32,21 +32,30 @@ async function joinWith(page, link) {
 
 const tile = (name) => `.voice-tile:has-text("${name}")`;
 
-// Others' voices play through Web Audio (a gain per voice, see voiceClient.js): remembers
-// those gains (a MediaStream source into a gain into the speakers) as `window.__voiceGains`.
+// Others' voices play through Web Audio (gains per voice, ours then LiveKit's, see
+// voiceClient.js): remembers the last gain of each (a MediaStream source into gains into the
+// speakers) as `window.__voiceGains`, each knowing the gain before it (`__before`).
 const markVoiceGains = () => {
   window.__voiceGains = [];
   const connect = AudioNode.prototype.connect;
   AudioNode.prototype.connect = function marked(target, ...rest) {
     if (this instanceof MediaStreamAudioSourceNode && target instanceof GainNode) target.__voice = true;
+    if (this.__voice && target instanceof GainNode) {
+      target.__voice = true;
+      target.__before = this;
+    }
     if (this.__voice && target instanceof AudioDestinationNode && !window.__voiceGains.includes(this)) window.__voiceGains.push(this);
     return connect.call(this, target, ...rest);
   };
 };
-// Each voice playing: its gain, and the speakers its AudioContext plays to.
+// Each voice playing: its volume (its gains together), and the speakers its AudioContext plays to.
 const voiceOutputs = (page) => page.evaluate(() => window.__voiceGains
   .filter((g) => g.context.state !== 'closed')
-  .map((g) => ({ volume: Math.round(g.gain.value * 100) / 100, sinkId: g.context.sinkId })));
+  .map((g) => {
+    let volume = 1;
+    for (let node = g; node; node = node.__before) volume *= node.gain.value;
+    return { volume: Math.round(volume * 100) / 100, sinkId: g.context.sinkId };
+  }));
 
 const browser = await launchChrome({ args: fakeMicArgs() });
 try {

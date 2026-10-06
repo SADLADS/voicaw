@@ -4,7 +4,9 @@
 // and deafen show for everyone. Carol, on a phone, opens the channel and joins from its page.
 // Leaving, and closing the tab, take people out.
 //   node e2e/serve.mjs &   then   node e2e/voice.mjs [screenshot dir]
-import { launchChrome, signUp, devices, fakeMicArgs, BASE } from './helpers.mjs';
+import { readFileSync } from 'node:fs';
+import { RoomServiceClient, TrackSource } from 'livekit-server-sdk';
+import { launchChrome, signUp, devices, fakeMicArgs, livekitInfoPath, BASE } from './helpers.mjs';
 
 const shots = process.argv[2];
 const shot = async (page, name) => {
@@ -20,6 +22,20 @@ async function joinWith(page, link) {
 // The <audio> elements playing other people, and whether they're actually playing.
 const playing = (page) => page.$$eval('[data-voice-audio] audio', (els) =>
   els.map((a) => ({ paused: a.paused, muted: a.muted, time: a.currentTime })));
+
+// What LiveKit itself says of `name`'s microphone: 'muted', 'live' or 'none'.
+const livekitInfo = JSON.parse(readFileSync(livekitInfoPath(), 'utf8'));
+const roomService = new RoomServiceClient(livekitInfo.url, livekitInfo.key, livekitInfo.secret);
+async function micInLiveKit(name) {
+  for (const room of await roomService.listRooms()) {
+    for (const p of await roomService.listParticipants(room.name)) {
+      if (p.name !== name) continue;
+      const mic = p.tracks.find((t) => t.source === TrackSource.MICROPHONE);
+      return mic ? (mic.muted ? 'muted' : 'live') : 'none';
+    }
+  }
+  return 'none';
+}
 
 const tile = (name) => `.voice-tile:has-text("${name}")`;
 const sidebarMember = (name) => `.voice-member:has-text("${name}")`;
@@ -102,6 +118,32 @@ try {
   await b.waitForSelector(`${tile(alice.name)}:not(:has([aria-label="Muted"]))`);
   await b.waitForSelector(`${tile(alice.name)}.speaking`, { timeout: 15000 });
   console.log('alice unmuted: speaking again');
+
+  // Unmute then mute again straight away, while the unmute is still capturing the mic (made
+  // slow here, as real ones often are: a Bluetooth headset can take a second): she stays
+  // muted, and Bob hears nothing from her (his ring is measured from what he receives).
+  await a.click('.user-panel button[aria-label="Mute"]');
+  await b.waitForSelector(`${tile(alice.name)}:not(.speaking)`, { timeout: 10000 });
+  await a.evaluate(async () => {
+    const devices = navigator.mediaDevices;
+    window.__getUserMedia = devices.getUserMedia;
+    devices.getUserMedia = async (...args) => {
+      await new Promise((r) => setTimeout(r, 600));
+      return window.__getUserMedia.apply(devices, args);
+    };
+    document.querySelector('.user-panel button[aria-label="Unmute"]').click();
+    while (!document.querySelector('.user-panel button[aria-label="Mute"]')) await new Promise((r) => setTimeout(r, 5));
+    document.querySelector('.user-panel button[aria-label="Mute"]').click();
+  });
+  await a.waitForSelector('.user-panel button[aria-label="Unmute"]');
+  const leaked = await b.waitForSelector(`${tile(alice.name)}.speaking`, { timeout: 5000 }).then(() => true, () => false);
+  await a.evaluate(() => { navigator.mediaDevices.getUserMedia = window.__getUserMedia; });
+  const mic = await micInLiveKit(alice.name);
+  if (leaked || mic === 'live') throw new Error(`alice heard after unmuting and muting at once (ring: ${leaked}, LiveKit: ${mic})`);
+  await b.waitForSelector(`${tile(alice.name)} [aria-label="Muted"]`);
+  console.log('alice unmuted and muted at once: stays muted, not heard');
+  await a.click('.user-panel button[aria-label="Unmute"]');
+  await b.waitForSelector(`${tile(alice.name)}.speaking`, { timeout: 15000 });
 
   // Carol on a phone: opening the channel doesn't join it; she joins from its page.
   await joinWith(c, link);

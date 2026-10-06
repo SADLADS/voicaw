@@ -12,9 +12,9 @@ const shot = async (page, name) => {
   if (shots) await page.screenshot({ path: `${shots}/${name}.png` });
 };
 
-// Taps each voice LiveKit plays (a MediaStream source into a gain into the speakers) with an
-// analyser before and after its gain, so the page can say how loud it plays, and at what
-// volume (output over input: the talking itself comes and goes).
+// Taps each voice LiveKit plays (a MediaStream source into gains, ours then LiveKit's, into
+// the speakers) with an analyser before and after its gains, so the page can say how loud it
+// plays, and at what volume (output over input: the talking itself comes and goes).
 const tapOutput = () => {
   window.__taps = [];
   const connect = AudioNode.prototype.connect;
@@ -25,6 +25,8 @@ const tapOutput = () => {
       input.fftSize = 2048;
       connect.call(this, input);
       target.__input = input;
+    } else if (this.__input && target instanceof GainNode) {
+      target.__input = this.__input;
     }
     if (this.__input && target instanceof AudioDestinationNode && !this.__tapped) {
       this.__tapped = true;

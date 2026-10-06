@@ -35,9 +35,20 @@ LiveKit carries the audio.
 - **Client** (`voice/voiceClient.js`, read with `hooks/useVoice.js`): one connection per
   device, a module-level store like `ws-client`. `livekit-client` is loaded on the first join
   (it's big). Joining must come from a click (browsers play sound only after one). Muted, the
-  mic is released (`stopMicTrackOnMute`, the browser's recording light goes off); deafened,
+  mic is released (`stopMicTrackOnMute`, the browser's recording light goes off; it's a publish
+  option, in `publishDefaults`: as a Room option LiveKit ignored it until 2026-10-06); deafened,
   everyone's playback volume is 0 and you're muted too; unmuting undeafens (Discord's rules). Mute
   and deafen are remembered per device (`localStorage voicePrefs`) and work outside a call.
+  Everything that turns the mic on or off (mute, deafen, Speak, a mic or processing change)
+  runs one at a time (`queueMicrophone`), each reading the state when its turn comes: side by
+  side, a mute during an unmute's capture (a slow mic, the browser's permission prompt) found
+  nothing to turn off (LiveKit's `isMicrophoneEnabled` is false until the track is published)
+  and the unmute then went live: muted, and still heard. Turning it off always asks LiveKit
+  (which waits for a publish, or its republish after a reconnect, under way), and it's
+  checked again after a reconnect and whenever the mic is (re)published. Muted, our chain's
+  output (what's actually sent) is switched off too, not only the mic.
+  `voice/voiceClient.test.js` covers this and deafen below; `e2e/voice.mjs` unmutes and mutes
+  at once with a slow mic and asks LiveKit itself.
   Being removed, or joining the same channel elsewhere, ends it with a message in the voice bar.
 - **Who's talking** (`speaking`, the green rings; `voice/speaking.js`): measured on the device,
   not taken from LiveKit's active speakers (its server sends those every 400 ms or so, smoothed:
@@ -59,8 +70,12 @@ LiveKit carries the audio.
   the browser can pick speakers for elements but not for an AudioContext (Firefox) it plays
   from the elements instead, capped at 100%. `applyVolumes` sets every track to
   `playbackVolume` (`userVolumes.js`: 0 deafened, else output volume × the person's volume
-  (microphones only, not a screen share's sound)) on any change, and again after LiveKit
-  restarts the audio (it rebuilds a gain and forgets a volume of 0).
+  (microphones only, not a screen share's sound)) on any change. Through Web Audio that's a
+  GainNode of ours that LiveKit puts before its own (`setWebAudioPlugins`), not LiveKit's
+  `setVolume`: LiveKit rebuilds a track's graph now and then and only re-applies a volume that
+  isn't 0 (and fades towards 0 without reaching it), so a deafened listener heard people
+  again. Through elements it's `setVolume` and `muted`, again after LiveKit restarts the audio
+  (which unmutes elements).
 - **Per-user volume** (like Discord's User Volume; `voice/userVolumes.js`, per device,
   `localStorage userVolumes`, by user id, 0–200%, the same for channels and calls): click (or
   right-click, Enter) someone else in a voice channel's list in the sidebar, their tile, or the
