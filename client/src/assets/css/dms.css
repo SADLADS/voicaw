@@ -3731,6 +3731,48 @@ body.mobile-mode .poll-voters-list {
   overflow-wrap: anywhere;
 }
 
+/* A conversation with a bot (BotDm.jsx): its BOT tag, "Not encrypted" in the header, and the
+   line above the messages saying who can read them. */
+.bot-dm-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bot-dm-title .app-tag,
+.dm-bot .app-tag {
+  margin-left: 6px;
+}
+
+.bot-dm-plain {
+  margin-left: 10px;
+  margin-right: auto;
+  padding: 1px 8px;
+  border: 1px solid var(--vc-warning);
+  border-radius: 10px;
+  color: var(--vc-warning);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.bot-dm-notice {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--vc-border-light);
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+}
+
+.bot-dm-unblock {
+  display: flex;
+  justify-content: center;
+  padding: 0 0 12px;
+}
+
 .admin-suspended-list li > span {
   flex: 1;
   min-width: 0;

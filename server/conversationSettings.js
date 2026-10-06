@@ -3,10 +3,11 @@ const { parseDuration } = require('./channelMutes');
 
 // Each person's own settings for their DMs and group DMs (the DM list's menu): pinned to the top
 // of the list, and muted (no pushes or Message sound; for a while, or until unmuted), like
-// Discord's. `kind` is 'dm' (target: the other person's id) or 'group' (target: the group's id).
+// Discord's. `kind` is 'dm' (target: the other person's id), 'group' (target: the group's id)
+// or 'bot' (a bot DM, botDms.js; target: the conversation's id).
 // The server already knows who talks to whom, so this tells it nothing new about the chats.
 
-const KINDS = ['dm', 'group'];
+const KINDS = ['dm', 'group', 'bot'];
 const MAX_PINNED = 50;
 
 const now = () => Math.floor(Date.now() / 1000);

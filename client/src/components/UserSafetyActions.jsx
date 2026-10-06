@@ -6,8 +6,8 @@ import { useAuth } from '../hooks/useAuth';
 import { t } from '../i18n';
 
 // Block / Unblock and Report for someone else (a profile card, a guild member card). Blocking
-// asks first; bots can only be reported (they're removed from guilds instead).
-export default function UserSafetyActions({ userId, name, bot = false }) {
+// asks first. A blocked bot can't message you (server/botDms.js); it stays in its guilds.
+export default function UserSafetyActions({ userId, name }) {
   const { user } = useAuth() ?? {};
   const blocked = useBlocked().has(Number(userId));
   const [confirming, setConfirming] = useState(false);
@@ -16,7 +16,7 @@ export default function UserSafetyActions({ userId, name, bot = false }) {
 
   return (
     <div className="user-safety-actions">
-      {!bot && (blocked ? (
+      {blocked ? (
         <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => unblockUser(userId).catch(() => {})}>
           {t('chat.blocked.unblock')}
         </button>
@@ -24,7 +24,7 @@ export default function UserSafetyActions({ userId, name, bot = false }) {
         <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => setConfirming(true)}>
           {t('chat.blocked.block')}
         </button>
-      ))}
+      )}
       <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => setReporting(true)}>
         {t('chat.report.menuUser')}
       </button>

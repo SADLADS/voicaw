@@ -4,6 +4,7 @@ import { faBell, faBellSlash, faCheckDouble, faPhone, faThumbtack } from '@forta
 import { ConfigContext, LayoutContext } from '../contexts';
 import { markMessagesRead, setConversationSetting } from '../services/dmService';
 import { markGroupReadToLatest } from '../services/groupService';
+import { markBotDmRead } from '../services/botDmService';
 import { startCall, startGroupCall } from '../voice/callClient';
 import { useCall, useGroupCall } from '../hooks/useCall';
 import { MUTE_DURATIONS, mutedUntilText } from '../utils/channelMutes';
@@ -17,16 +18,17 @@ import { t } from '../i18n';
 // list) and Mute Conversation (for how long) / Unmute, like Discord's. Pins and mutes are your
 // own, kept by the server so your other devices follow (useConversationSettings). A call opens
 // the chat and rings from there (the click counts as the gesture its sound needs).
-// `person` (a DM list row) or `group` (a group list row), `title` the name shown on a phone.
-export default function DmMenu({ person, group, title, unread, anchor, sheet, onClose }) {
+// `person` (a DM list row), `group` (a group list row) or `botDm` (a conversation with a bot: no
+// calls), `title` the name shown on a phone.
+export default function DmMenu({ person, group, botDm, title, unread, anchor, sheet, onClose }) {
   useDateFormat();
   const navigate = useNavigate();
   const { voiceEnabled } = useContext(ConfigContext);
-  const { conversationSettings, fetchUnreadMessages, groupList } = useContext(LayoutContext);
+  const { conversationSettings, fetchUnreadMessages, groupList, botDmList } = useContext(LayoutContext);
   const call = useCall();
   const groupCall = useGroupCall(group?.id);
-  const kind = group ? 'group' : 'dm';
-  const target = group ? group.id : person.id;
+  const kind = group ? 'group' : botDm ? 'bot' : 'dm';
+  const target = group ? group.id : botDm ? botDm.id : person.id;
   const setting = conversationSettings.get(kind, target);
   const change = (changes) => async () => conversationSettings.apply(await setConversationSetting(kind, target, changes));
 
@@ -40,6 +42,9 @@ export default function DmMenu({ person, group, title, unread, anchor, sheet, on
         if (group) {
           await markGroupReadToLatest(group.id);
           groupList.clearUnread(group.id);
+        } else if (botDm) {
+          await markBotDmRead(botDm.id);
+          botDmList.clearUnread(botDm.id);
         } else {
           await markMessagesRead(person.id);
           await fetchUnreadMessages();
@@ -47,7 +52,7 @@ export default function DmMenu({ person, group, title, unread, anchor, sheet, on
       },
     }, { separator: true });
   }
-  if (voiceEnabled && !call && !person?.deleted_at) {
+  if (voiceEnabled && !call && !botDm && !person?.deleted_at) {
     items.push({
       key: 'call',
       label: group && groupCall ? t('chat.dmMenu.joinCall') : t('chat.dmMenu.startCall'),

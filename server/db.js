@@ -970,6 +970,35 @@ CREATE TABLE IF NOT EXISTS bot_applications (
 CREATE INDEX IF NOT EXISTS bot_applications_owner ON bot_applications (owner_id);
 `);
 
+// BOT DMS (botDms.js, docs/bots.md): a direct conversation between a bot and one person. NOT
+// end-to-end encrypted (bots have no keys): stored as plain text, like a guild's messages, and
+// shown as such. `read_id` is the newest message the person has read. Deleted with the
+// conversation (the person's Delete Conversation), the account or the application.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS bot_dms (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bot_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  last_message_at INTEGER,
+  read_id INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (bot_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS bot_dms_user ON bot_dms (user_id);
+CREATE TABLE IF NOT EXISTS bot_dm_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  dm_id INTEGER NOT NULL,
+  sender_id INTEGER NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  timestamp INTEGER NOT NULL,
+  edited_at INTEGER,
+  embeds TEXT,
+  attachments TEXT,
+  flags INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS bot_dm_messages_dm ON bot_dm_messages (dm_id, id);
+`);
+
 // APPLICATION COMMANDS AND INTERACTIONS (commands.js, interactions.js, docs/bots.md): a bot's
 // slash and context-menu commands, everywhere it is (`guild_id` 0) or in one guild, as
 // Discord's command object (`options` JSON, `default_member_permissions` our bits or NULL).

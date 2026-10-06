@@ -6,8 +6,9 @@ import api from './api';
 // and after a reconnect); other devices' changes arrive as the `preferences` event.
 // `blurNsfw`: media in NSFW guild channels is covered until clicked (on by default).
 // `adultConfirmed`: they ticked "I am 18 or over", which opens NSFW channels (guild/NsfwAgeGate).
+// `botDms`: bots you share a guild with may message you (on by default; BotDm).
 
-const DEFAULTS = { blurNsfw: true, adultConfirmed: false };
+const DEFAULTS = { blurNsfw: true, adultConfirmed: false, botDms: true };
 const listeners = new Set();
 let prefs = DEFAULTS;
 // Whether the account's own have arrived (until then they're the defaults, which would show the

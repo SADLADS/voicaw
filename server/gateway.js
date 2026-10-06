@@ -289,6 +289,16 @@ class Session {
           this.dispatch('MESSAGE_DELETE', { id: String(event.messageId), channel_id: String(event.channelId), guild_id: g });
         }
         return;
+      // DMs with people (botDms.js), with the Direct Messages intent; on shard 0, as Discord's.
+      case 'bot_dm_message_new':
+      case 'bot_dm_message_edit':
+        return this.dmMessageEvent(event.type === 'bot_dm_message_new' ? 'MESSAGE_CREATE' : 'MESSAGE_UPDATE', event.dmId, event.message.id);
+      case 'bot_dm_message_delete':
+        if (this.wantsDms()) {
+          const botDms = require('./botDms');
+          this.dispatch('MESSAGE_DELETE', { id: botDms.apiMessageId(event.messageId), channel_id: botDms.apiChannelId(event.dmId) });
+        }
+        return;
       case 'guild_message_pin':
         if (this.wants(INTENTS.GUILDS)) {
           const last = await db.get('SELECT MAX(pinned_at) AS at FROM guild_messages WHERE channel_id = ?', [event.channelId]);
@@ -364,6 +374,19 @@ class Session {
     );
     if (!row) return;
     const [message] = await D.messageObjects(await withReactions([row]), { botId: this.bot.id, guildId });
+    this.dispatch(t, message);
+  }
+
+  wantsDms() {
+    return this.wants(INTENTS.DIRECT_MESSAGES) && (!this.shard || this.shard[0] === 0);
+  }
+
+  async dmMessageEvent(t, dmId, messageId) {
+    if (!this.wantsDms()) return;
+    const botDms = require('./botDms');
+    const row = await botDms.getMessage(dmId, messageId);
+    if (!row) return;
+    const [message] = await botDms.apiMessages([row], this.bot.id);
     this.dispatch(t, message);
   }
 

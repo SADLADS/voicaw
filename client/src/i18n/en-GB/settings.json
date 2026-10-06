@@ -52,7 +52,7 @@
       },
       "content": {
         "title": "Content",
-        "keywords": "nsfw blur blurred spoiler spoilers media images pictures videos gifs adult explicit sensitive hide age 18 over confirm"
+        "keywords": "nsfw blur blurred spoiler spoilers media images pictures videos gifs adult explicit sensitive hide age 18 over confirm bots bot messages direct dms"
       },
       "notifications": {
         "title": "Notifications",
@@ -217,7 +217,9 @@
       "blurNsfw": "Blur media in NSFW channels",
       "blurNsfwHint": "Images, videos, GIFs and embeds in guild channels marked NSFW are blurred until you click them. Turn this off to see them straight away. Anything sent as a spoiler stays blurred either way. Saved to your account, for all your devices.",
       "adult": "I am 18 or over",
-      "adultHint": "NSFW channels only open once you've ticked this. Only your answer is kept with your account, never your date of birth."
+      "adultHint": "NSFW channels only open once you've ticked this. Only your answer is kept with your account, never your date of birth.",
+      "botDms": "Let bots message me",
+      "botDmsHint": "Bots in your guilds can send you direct messages (reminders, game turns…), and you can message them. These aren't end-to-end encrypted: the bot's maker and Voicaw's server can read them. Turned off, no bot can start or continue a conversation with you."
     },
     "dateTime": {
       "title": "Date & time",

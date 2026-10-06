@@ -25,6 +25,7 @@ const OWNERS = {
   dm: 'direct_messages',
   group: 'group_dm_messages',
   guild: 'guild_messages',
+  bot_dm: 'bot_dm_messages',
   doc: 'guild_documents',
   event: 'guild_events',
 };

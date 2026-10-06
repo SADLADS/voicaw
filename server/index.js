@@ -80,6 +80,7 @@ app.use('/api', require('./routes/blocks'));
 app.use('/api', require('./routes/reports'));
 app.use('/api', require('./routes/applications'));
 app.use('/api', require('./routes/interactions'));
+app.use('/api', require('./routes/botDms'));
 // Bots: Discord's API for bots (docs/bots.md), at Discord's versioned paths, and links to
 // pictures in Discord's CDN's shape.
 const botApi = require('./routes/botApi');

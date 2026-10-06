@@ -49,6 +49,15 @@
       "startCall": "Start a voice call with {{name}}",
       "accountDeleted": "This account has been deleted. You can still read your conversation."
     },
+    "botDm": {
+      "notEncrypted": "Not encrypted",
+      "notEncryptedHint": "Messages with bots aren't end-to-end encrypted.",
+      "notice": "Messages with {{name}} aren't end-to-end encrypted: {{name}}, whoever runs it and Voicaw's server can read them. Don't send anything private here.",
+      "empty": "{{name}} hasn't sent you anything yet.",
+      "delete": "Delete conversation",
+      "deleteTitle": "Delete your conversation with {{name}}?",
+      "deleteConfirm": "Every message goes, for {{name}} too. It can message you again later unless you block it or turn off messages from bots in Settings → Content."
+    },
     "dmMenu": {
       "markRead": "Mark As Read",
       "joinCall": "Join Call",

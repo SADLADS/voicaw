@@ -15,6 +15,7 @@ const dmPinListeners = new Set();
 const guildListeners = new Set();
 const callListeners = new Set();
 const groupListeners = new Set();
+const botDmListeners = new Set();
 const notificationListeners = new Set();
 const loggedOutListeners = new Set();
 const approvedListeners = new Set();
@@ -172,6 +173,9 @@ export function connectWebSocket() {
       }
       else if (data.type?.startsWith('group_dm_')) {
         groupListeners.forEach((cb) => cb(data));
+      }
+      else if (data.type?.startsWith('bot_dm_')) {
+        botDmListeners.forEach((cb) => cb(data));
       }
       else if (data.type === 'notification') {
         notificationListeners.forEach((cb) => cb(data.payload));
@@ -406,4 +410,11 @@ function loggedOutElsewhere(socket) {
 export function onGroupEvent(callback) {
   groupListeners.add(callback);
   return () => groupListeners.delete(callback);
+}
+
+// Bot DM events (server/botDms.js): `bot_dm_message_new` / `_edit` ({ dmId, message }),
+// `_message_delete` ({ dmId, messageId }), `bot_dm_read` and `bot_dm_delete` ({ dmId }).
+export function onBotDmEvent(callback) {
+  botDmListeners.add(callback);
+  return () => botDmListeners.delete(callback);
 }

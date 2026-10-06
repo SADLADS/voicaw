@@ -48,7 +48,7 @@ export default function MessageMenu({
   if (sent && canReact) {
     items.push({ key: 'react', label: t('chat.messageMenu.addReaction'), icon: faFaceSmile, onSelect: () => onMoreReactions(anchor) });
   }
-  if (sent) items.push({ key: 'reply', label: t('common.reply'), icon: faReply, onSelect: onReply });
+  if (sent && onReply) items.push({ key: 'reply', label: t('common.reply'), icon: faReply, onSelect: onReply });
   if (sent && isOwn && onEdit) items.push({ key: 'edit', label: t('chat.messageMenu.edit'), icon: faEdit, onSelect: onEdit });
   if (sent && onTogglePin) {
     items.push({ key: 'pin', label: msg.pinned_at ? t('chat.messageMenu.unpin') : t('chat.messageMenu.pin'), icon: faThumbtack, onSelect: onTogglePin });

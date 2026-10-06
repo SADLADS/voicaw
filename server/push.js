@@ -71,7 +71,7 @@ async function buildGroupPushPayload(groupId, message, recipientId, senderName) 
 
 // Pushes about a new message: each of the user's open pages also gets `message_sound`, and
 // plays the Message sound if it's in front (or is the desktop app; see client sounds/).
-const MESSAGE_PUSHES = new Set(['dm', 'group', 'guild']);
+const MESSAGE_PUSHES = new Set(['dm', 'group', 'guild', 'bot_dm']);
 
 // Sends a web push to every device the user has subscribed (forgetting devices whose
 // subscription is gone), and the same payload to their desktop apps over the websocket.

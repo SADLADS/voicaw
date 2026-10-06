@@ -21,6 +21,7 @@ import { ChannelMentionContext, ConfigContext, InteractionContext, LayoutContext
 import { ensureSubscription, getPushStatus } from '../services/pushService';
 import { useGuildList } from '../hooks/useGuildList';
 import { useGroupList } from '../hooks/useGroupList';
+import { useBotDmList } from '../hooks/useBotDmList';
 import { useConversationSettings } from '../hooks/useConversationSettings';
 import { usePreferencesSync } from '../hooks/usePreferencesSync';
 import { useBlocksSync } from '../hooks/useBlocksSync';
@@ -85,6 +86,12 @@ export default function Layout({ user, onLogout }) {
     if (removedId === groupId) navigate('/dm', { replace: true });
   }, [groupId, navigate]);
   const groupList = useGroupList({ userId: user?.id, activeGroupId: groupId, onRemoved: onGroupRemoved });
+  // Conversations with bots: /dm/b/:dmId (not end-to-end encrypted; BotDm).
+  const botDmId = Number(/^\/dm\/b\/(\d+)/.exec(location.pathname)?.[1]) || null;
+  const onBotDmRemoved = useCallback((removedId) => {
+    if (removedId === botDmId) navigate('/dm', { replace: true });
+  }, [botDmId, navigate]);
+  const botDmList = useBotDmList({ userId: user?.id, activeDmId: botDmId, onRemoved: onBotDmRemoved });
   // Your pins and mutes for DMs and groups. Muted ones don't light the rail or the desktop app.
   const conversationSettings = useConversationSettings(user?.id);
   // Your account preferences (utils/preferences), e.g. whether NSFW channels' media is blurred.
@@ -95,7 +102,14 @@ export default function Layout({ user, onLogout }) {
     () => groupList.groups.map((g) => (g.unread && conversationSettings.isMuted('group', g.id) ? { ...g, unread: 0 } : g)),
     [groupList.groups, conversationSettings]
   );
-  const hasUnreadGroups = activeGroups.some((g) => g.unread > 0 && g.id !== groupId);
+  const activeBotDms = useMemo(
+    () => botDmList.botDms.map((d) => (d.unread && conversationSettings.isMuted('bot', d.id) ? { ...d, unread: 0 } : d)),
+    [botDmList.botDms, conversationSettings]
+  );
+  const hasUnreadGroups = activeGroups.some((g) => g.unread > 0 && g.id !== groupId)
+    || activeBotDms.some((d) => d.unread > 0 && d.id !== botDmId);
+  // Groups and bot DMs count alike for the badges below (each has `unread`).
+  const activeChats = useMemo(() => [...activeGroups, ...activeBotDms], [activeGroups, activeBotDms]);
   // Muted channels don't count, unless they mention you.
   const unreadGuildIds = useMemo(() => new Set(guildList.activeUnread.map((u) => u.guild_id)), [guildList.activeUnread]);
   // Unread mentions of you, by guild id.
@@ -215,11 +229,14 @@ export default function Layout({ user, onLogout }) {
   );
   // The rail's DM button shows whoever sent the newest unread message (not muted, not the open group).
   const unreadFrom = useMemo(
-    () => latestUnreadSender({ unreadDms: activeUnreadDms, groups: activeGroups.filter((g) => g.id !== groupId) }),
-    [activeUnreadDms, activeGroups, groupId]
+    () => latestUnreadSender({
+      unreadDms: activeUnreadDms,
+      groups: [...activeGroups.filter((g) => g.id !== groupId), ...activeBotDms.filter((d) => d.id !== botDmId)],
+    }),
+    [activeUnreadDms, activeGroups, groupId, activeBotDms, botDmId]
   );
-  useDesktopApp({ navigate, unreadDms: activeUnreadDms, groups: activeGroups, guildUnread: guildList.activeUnread });
-  useFaviconDot({ unreadDms: activeUnreadDms, groups: activeGroups, guildUnread: guildList.activeUnread });
+  useDesktopApp({ navigate, unreadDms: activeUnreadDms, groups: activeChats, guildUnread: guildList.activeUnread });
+  useFaviconDot({ unreadDms: activeUnreadDms, groups: activeChats, guildUnread: guildList.activeUnread });
   // The Android app: its notifications, call buttons and ongoing-call notification.
   useAndroidApp({ navigate, user, guildList, groupList });
 
@@ -232,7 +249,7 @@ export default function Layout({ user, onLogout }) {
 
   return (
     <LayoutContext.Provider value={{
-      fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList, groupList, conversationSettings,
+      fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList, groupList, botDmList, conversationSettings,
       settingsNavSlot: settingsColumn ? settingsNavSlot : null,
     }}>
     <CustomEmojiContext.Provider value={customEmoji}>
@@ -263,7 +280,7 @@ export default function Layout({ user, onLogout }) {
           />
 
           {/* DM sidebar only shows on the /dm route */}
-          {isDmPage && <DmSidebar user={user} users={users} groups={groupList.groups} unreadDms={unreadDms} />}
+          {isDmPage && <DmSidebar user={user} users={users} groups={groupList.groups} botDms={botDmList.botDms} unreadDms={unreadDms} />}
           {guildId && <GuildSidebar guild={guildList.layouts[guildId]} user={user} />}
           {settingsColumn && <div className="settings-nav-slot" ref={setSettingsNavSlot} />}
         </SidebarWrapper>

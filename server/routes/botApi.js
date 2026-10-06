@@ -20,6 +20,7 @@ const botMessages = require('../botMessages');
 const commands = require('../commands');
 const interactions = require('../interactions');
 const guildEvents = require('../guildEvents');
+const botDms = require('../botDms');
 
 // The bot API: Discord's REST API (https://discord.com/developers/docs/reference), for bots made
 // in the developer portal (bots.js, docs/bots.md), at /api/v10 (and /api/v9), so Discord's
@@ -27,7 +28,8 @@ const guildEvents = require('../guildEvents');
 // permissions and objects are Discord's shapes (discord.js); errors are Discord's
 // ({ message, code, errors? }). Every action goes through the same functions as the app's own
 // routes, with the bot as the member doing it, so a bot can do exactly what its roles allow.
-// Bots are only in guilds: no DMs (they're end-to-end encrypted). Commands and interactions
+// Bots are in guilds, and in DMs with people (botDms.js: not end-to-end encrypted, unlike
+// people's DMs, which bots never see). Commands and interactions
 // (buttons, selects, forms) are here too (commands.js, interactions.js). Not here (yet):
 // webhooks by bot token, nicknames, timeouts, stickers, guild creation.
 const router = express.Router();
@@ -113,6 +115,7 @@ const route = (fn) => async (req, res, next) => {
     await fn(req, res, next);
   } catch (err) {
     if (err instanceof ActionError) return fail(res, err.status, err.code, err.message);
+    if (err instanceof botDms.BotDmError) return fail(res, err.status, err.code, err.message);
     if (err instanceof webhooks.FormError) return webhooks.failForm(res, err);
     if (err.tooLarge) return fail(res, 413, 40005, 'Request entity too large');
     throw err;
@@ -138,6 +141,8 @@ async function inGuild(req, res, next) {
 // req.access ({ channel, member, permissions }) for :channelId, a text or voice channel or a
 // thread the bot can see; or req.category for a category id.
 async function inChannel(req, res, next) {
+  // A DM channel (botDms.js) only has the routes that take inDm, below.
+  if (botDms.isDmChannelId(req.params.channelId)) return fail(res, 400, 50003, 'Cannot execute action on a DM channel');
   if (D.isCategoryId(req.params.channelId)) {
     const category = await db.get('SELECT * FROM guild_categories WHERE id = ?', [D.ourId(req.params.channelId, 'category')]);
     const member = category && await getMember(category.guild_id, req.bot.id);
@@ -336,10 +341,94 @@ router.get('/users/:userId', auth, route(async (req, res) => {
   res.json(D.userObject(user));
 }));
 
-// DMs are end-to-end encrypted: bots can't have any.
-router.post('/users/@me/channels', auth, (req, res) => {
-  fail(res, 403, 50007, 'Cannot send messages to this user: bots can only be in guilds on Voicaw (direct messages are end-to-end encrypted)');
-});
+// ---- DMs (botDms.js): not end-to-end encrypted, unlike people's ----
+
+// Opens (or finds) the DM with `recipient_id`: someone the bot shares a guild with, who hasn't
+// blocked it or turned bot DMs off (else 50007).
+router.post('/users/@me/channels', auth, limit('dm-create', 5, 5000), route(async (req, res) => {
+  const userId = D.ourId(req.body?.recipient_id);
+  if (userId == null) throw new webhooks.FormError(['recipient_id'], 'Value is not snowflake.', 'NUMBER_TYPE_COERCE');
+  await botDms.checkAllowed(req.bot.id, userId);
+  res.json(await botDms.apiChannel(await botDms.openDm(req.bot.id, userId)));
+}));
+
+// req.dm: the bot's DM channel :channelId. Any other channel goes on to the guild routes.
+async function inDm(req, res, next) {
+  if (!botDms.isDmChannelId(req.params.channelId)) return next('route');
+  const dm = await botDms.getDm(botDms.dmIdFromApi(req.params.channelId));
+  if (!dm || dm.bot_id !== req.bot.id) return fail(res, 404, 10003, 'Unknown Channel');
+  req.dm = dm;
+  next();
+}
+
+// req.dmMessage: :messageId in req.dm.
+async function inDmMessage(req, res, next) {
+  const id = botDms.messageIdFromApi(req.params.messageId);
+  const row = id != null && await botDms.getMessage(req.dm.id, id);
+  if (!row) return fail(res, 404, 10008, 'Unknown Message');
+  req.dmMessage = row;
+  next();
+}
+
+router.get('/channels/:channelId', auth, inDm, route(async (req, res) => {
+  res.json(await botDms.apiChannel(req.dm));
+}));
+
+// before / after / around (the newest page around it) and limit, as Discord's; newest first.
+router.get('/channels/:channelId/messages', auth, inDm, limit('messages-get', 10, 1000), route(async (req, res) => {
+  const max = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
+  const ours = (value) => (value != null ? botDms.messageIdFromApi(value) : null);
+  let rows;
+  if (req.query.after != null) {
+    rows = await botDms.listMessages(req.dm.id, { after: ours(req.query.after) ?? 0, limit: max });
+  } else if (req.query.around != null) {
+    const around = ours(req.query.around) ?? 0;
+    rows = [
+      ...await botDms.listMessages(req.dm.id, { before: around + 1, limit: Math.ceil(max / 2) }),
+      ...await botDms.listMessages(req.dm.id, { after: around, limit: Math.floor(max / 2) }),
+    ];
+  } else {
+    rows = await botDms.listMessages(req.dm.id, { before: ours(req.query.before), limit: max });
+  }
+  res.json((await botDms.apiMessages(rows, req.bot.id)).reverse());
+}));
+
+router.get('/channels/:channelId/messages/:messageId', auth, inDm, inDmMessage, route(async (req, res) => {
+  res.json((await botDms.apiMessages([req.dmMessage], req.bot.id))[0]);
+}));
+
+// Content, embeds and files, as in a guild; no components (nothing in a DM could answer them
+// yet). A reply's message_reference is ignored: DMs have no replies on Voicaw yet.
+router.post('/channels/:channelId/messages', auth, inDm, limit('message-create', 5, 5000), webhooks.parseBody, route(async (req, res) => {
+  const built = await readBody(() => botMessages.readNewMessage(req));
+  if (built.components.length) {
+    throw new webhooks.FormError(['components'], "Components aren't supported in DMs on Voicaw", 'BASE_TYPE_CHOICES');
+  }
+  const row = await botDms.createMessage(req.dm, req.bot.id, built);
+  const [object] = await botDms.apiMessages([row], req.bot.id);
+  res.json({ ...object, ...(built.body.nonce != null ? { nonce: built.body.nonce } : {}) });
+}));
+
+router.patch('/channels/:channelId/messages/:messageId', auth, inDm, limit('message-edit', 5, 5000), webhooks.parseBody, inDmMessage, route(async (req, res) => {
+  const old = req.dmMessage;
+  if (old.sender_id !== req.bot.id) return fail(res, 403, 50005, 'Cannot edit a message authored by another user');
+  const edit = await readBody(() => botMessages.readEdit(req, { ...old, components: [] }));
+  if (edit.components.length) {
+    throw new webhooks.FormError(['components'], "Components aren't supported in DMs on Voicaw", 'BASE_TYPE_CHOICES');
+  }
+  const row = await botDms.editMessage(req.dm, old.id, edit);
+  res.json((await botDms.apiMessages([row], req.bot.id))[0]);
+}));
+
+// Only its own: the person's messages are theirs.
+router.delete('/channels/:channelId/messages/:messageId', auth, inDm, limit('message-delete', 5, 1000), inDmMessage, route(async (req, res) => {
+  if (req.dmMessage.sender_id !== req.bot.id) return fail(res, 403, 50003, 'Cannot execute action on a DM channel');
+  await botDms.deleteMessage(req.dm, req.dmMessage.id);
+  res.status(204).end();
+}));
+
+// Typing shows nothing in a DM yet; accepted so libraries' typing() works.
+router.post('/channels/:channelId/typing', auth, inDm, (req, res) => res.status(204).end());
 
 router.get(['/applications/@me', '/oauth2/applications/@me'], auth, route(async (req, res) => {
   res.json(await applicationObject(req.bot.application));

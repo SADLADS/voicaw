@@ -45,7 +45,7 @@ export default function ProfilePopover({ user, anchor, onClose }) {
   return createPortal(
     <div className="profile-popover" ref={ref} style={position} role="dialog" aria-label={t('app.profile.profileOf', { name: user.username })}>
       <ProfileCard user={user}>
-        <UserSafetyActions userId={user.id} name={nameOf(user)} bot={Boolean(user.bot)} />
+        <UserSafetyActions userId={user.id} name={nameOf(user)} />
       </ProfileCard>
     </div>,
     document.body

@@ -24,6 +24,10 @@ router.put('/conversation-settings/:kind/:target', authenticateJWT, async (req, 
       ? await db.get('SELECT id FROM users WHERE id = ?', [id])
       : null;
     if (!other) return res.status(404).json({ error: 'User not found' });
+  } else if (kind === 'bot') {
+    if (!(await db.get('SELECT 1 FROM bot_dms WHERE id = ? AND user_id = ?', [Number(target), req.user.id]))) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
   } else if (!(await db.get('SELECT 1 FROM group_dm_members WHERE group_id = ? AND user_id = ?', [target, req.user.id]))) {
     return res.status(404).json({ error: 'Group not found' });
   }

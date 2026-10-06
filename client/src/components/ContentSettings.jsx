@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { setPreference, usePreferences } from '../utils/preferences';
 import { t } from '../i18n';
 
-// Settings → Content: what's covered in messages. Saved to your account (utils/preferences), so
-// it's the same on every device.
+// Settings → Content: what's covered in messages, and whether bots may message you. Saved to
+// your account (utils/preferences), so it's the same on every device.
 export default function ContentSettings() {
   const prefs = usePreferences();
   const [error, setError] = useState(null);
@@ -27,6 +27,13 @@ export default function ContentSettings() {
       </label>
       <p className="vc-hint">
         {t('settings.content.adultHint')}
+      </p>
+      <label className="settings-toggle">
+        <input type="checkbox" checked={prefs.botDms} onChange={(e) => change('botDms', e.target.checked)} />
+        {' '}{t('settings.content.botDms')}
+      </label>
+      <p className="vc-hint">
+        {t('settings.content.botDmsHint')}
       </p>
       {error && <p className="error-msg" role="alert">{error}</p>}
     </div>

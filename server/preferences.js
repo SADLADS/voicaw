@@ -8,8 +8,11 @@ const db = require('./db');
 // - `adultConfirmed`: they ticked "I am 18 or over" (NSFW channels stay closed until then). Only
 //   that answer is kept: never a date of birth or an age.
 
-const DEFAULTS = { blurNsfw: true, adultConfirmed: false };
-const isValid = { blurNsfw: (v) => typeof v === 'boolean', adultConfirmed: (v) => typeof v === 'boolean' };
+// - `botDms`: bots you share a guild with may message you (on by default; botDms.js). Off, they
+//   can't start or continue a conversation; it stays readable.
+
+const DEFAULTS = { blurNsfw: true, adultConfirmed: false, botDms: true };
+const isValid = { blurNsfw: (v) => typeof v === 'boolean', adultConfirmed: (v) => typeof v === 'boolean', botDms: (v) => typeof v === 'boolean' };
 
 function parse(json) {
   try {

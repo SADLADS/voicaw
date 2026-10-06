@@ -5,7 +5,8 @@
 Bots are programs that act in guilds through **Discord's API v10** (REST and the gateway), so
 Discord's libraries (discord.js, discord.py, ...) work by changing their URLs. People make them in
 the developer portal in the app; public documentation for bot authors is on voicaw.com
-(`website/`, `/developers/docs/`). Decided 2026-10-03: library-compatible, guilds only, no
+(`website/`, `/developers/docs/`). Decided 2026-10-03: library-compatible, guilds only (plus,
+since 2026-10-06, their own unencrypted DMs with people: see Bot DMs), no
 privileged intents, anyone can make applications (25 each). Commands and components came
 next (see Commands and interactions): buttons, selects and forms, slash and context-menu
 commands, Discord-style ephemeral replies, interactions over the gateway only.
@@ -20,8 +21,8 @@ commands, Discord-style ephemeral replies, interactions over the gateway only.
   Deleting an application takes the bot out of every guild and leaves the user as a deleted
   account (`Deleted-Bot-<id>`), so its messages keep an author.
 - **Encrypted chats are out of reach**: bots aren't in `/dms-list`, and DM send, DM typing,
-  DM calls (`calls.userById`) and group DM membership (`groupDms.checkEntry`) refuse them. The
-  bot API answers DM attempts with Discord's 50007. Bots only ever see people through their
+  DM calls (`calls.userById`) and group DM membership (`groupDms.checkEntry`) refuse them. Bots
+  have their own, unencrypted DMs instead (see Bot DMs). Bots only ever see people through their
   guilds (`GET /users/:id` needs a shared guild), unlike people, who see everyone.
 - **Tokens**: Discord's shape (base64 of the bot's id, base64 of the time, 32 random characters),
   shown once on creation and on Reset Token; only the SHA-256 is stored (`token_hash`). Resetting
@@ -249,6 +250,42 @@ maybe DAVE) may come later. Audio only: bots never get Video (`voice.canStreamWi
 - **Checked** (2026-10-05, e2e's throwaway API with its own LiveKit): a Node bot
   (`@livekit/rtc-node`) publishing a tone with Speak; a bot with Listen hears it (Node, and
   Python `livekit`); a bot without Listen gets no audio at all (LiveKit refuses to subscribe it).
+
+## Bot DMs (`server/botDms.js`)
+
+Built 2026-10-06 (first for slotto's game reminders): a bot and one person can have a direct
+conversation, as Discord's DM channels (type 1). **Not end-to-end encrypted** (bots have no
+keys): tables `bot_dms` / `bot_dm_messages`, plain text like a guild's, entirely separate from
+people's encrypted DMs, which bots still never see. The app says so on every one.
+
+- **Who**: `checkAllowed` on opening and on every message, both ways: a person (not deleted,
+  suspended, pending or a bot), a bot that still exists, a shared guild, no block between them
+  (`blocks.blockedBetween`; bots can now be blocked, `routes/blocks.js`), and the person's
+  `botDms` preference (Settings → Content "Let bots message me", on by default, `preferences.js`).
+  Refusals are Discord's 50007.
+- **Bot API** (routes/botApi.js): `POST /users/@me/channels` (`recipient_id`) opens or finds it.
+  DM channel ids are `CHANNEL_BASE` (2^41) + the row's id and DM message ids `MESSAGE_BASE` (2^42)
+  + theirs, so neither clashes with a guild's; `inChannel` answers a DM id with 50003, and the DM
+  routes (`inDm`, which passes other ids on with `next('route')`) come first: get the channel,
+  list messages (before/after/around), get one, send (botMessages.readNewMessage: content,
+  embeds, files; components refused, message_reference ignored), edit and delete its own,
+  typing (204, shows nothing). Messages are `D.messageObjects` without `guild_id`.
+- **Gateway**: `bot_dm_message_new` / `_edit` / `_delete` (sent to the bot's sockets like the
+  person's) → MESSAGE_CREATE / _UPDATE / _DELETE with the Direct Messages intent, on shard 0.
+- **App** (routes/botDms.js, logged in): list (`/bot-dms`, with each bot's profile and unread),
+  start one from a bot's member card (`POST /bot-dms`, same rules), messages (pages of 50), send
+  plain text (2000 characters, 10 per 10 s), edit and delete your own, read, and delete the whole
+  conversation (gone for the bot too). Pushes are `bot_dm` (plain title and body, like a guild
+  mention's) unless you're looking (`bot-dm-<id>`) or muted it (conversation settings kind
+  `bot`). Files the bot sends are `bot_dm` upload refs (uploads.js).
+- **Client**: `useBotDmList` (LayoutContext.botDmList; counted with groups for the rail, favicon and
+  desktop badge), rows in DmSidebar (BOT tag; DmMenu without calls), `BotDm` at `/dm/b/:dmId`
+  ("Not encrypted" in the header, a notice above the messages, delete in the header) over
+  `useBotDm` and ChatPane with `textOnly` (no files, polls or replies; no reactions or pins).
+- **Goes** with the conversation, the person's account (`accounts.deleteAccount`) or the
+  application (`bots.deleteApplication`, which tells the people).
+- Not yet: reactions, pins, replies, components and commands in DMs, typing shown, and the
+  bot's DM list in READY (`private_channels` stays empty).
 
 ### Not done yet
 

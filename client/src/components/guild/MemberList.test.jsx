@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('../../services/guildService', () => ({
   setMemberRoles: vi.fn(async () => {}),
@@ -9,9 +9,11 @@ vi.mock('../../services/guildService', () => ({
   banMember: vi.fn(async () => {}),
   transferGuild: vi.fn(async () => {}),
 }));
+vi.mock('../../services/botDmService', () => ({ startBotDm: vi.fn() }));
 
 import MemberList from './MemberList';
 import { setMemberRoles } from '../../services/guildService';
+import { startBotDm } from '../../services/botDmService';
 
 const roles = [
   { id: 4, name: 'Admins', color: 0xe67e22, position: 3, hoist: 1, permissions: 0, is_everyone: 0 },
@@ -63,16 +65,27 @@ describe('MemberList', () => {
     expect(within(card).queryByRole('button', { name: 'Remove Admins' })).toBeNull();
   });
 
-  it("tags bots, offers no Message for them, and leaves a bot's own role alone", () => {
+  it("tags bots, offers Message (their own DM), and leaves a bot's own role alone", async () => {
     const botRole = { id: 5, name: 'Helper', color: null, position: 1, hoist: 0, permissions: 0, is_everyone: 0, bot_id: 6 };
     const guild = { id: 5, name: 'G', owner: 1, roles: [...roles.slice(0, 2), botRole, ...roles.slice(2)], my_permissions: 32, my_role_ids: [3] };
     const bot = { id: 6, username: 'helper#0420', display_name: 'Helper', bot: 1, joined_at: 1, role_ids: [5], status: 'online' };
-    render(<MemoryRouter><MemberList guild={guild} members={[...members, bot]} user={{ id: 2 }} /></MemoryRouter>);
+    startBotDm.mockResolvedValue({ id: 31, bot_id: 6, unread: 0 });
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route path="/" element={<MemberList guild={guild} members={[...members, bot]} user={{ id: 2 }} />} />
+          <Route path="/dm/b/:dmId" element={<p>bot dm page</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
     expect(screen.getByText('BOT')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Helper', { selector: '.member-name' }));
     const card = screen.getByRole('dialog', { name: 'Helper' });
-    expect(within(card).queryByRole('button', { name: 'Message' })).toBeNull();
     expect(within(card).queryByRole('button', { name: 'Remove Helper' })).toBeNull();
+    fireEvent.click(within(card).getByRole('button', { name: 'Message' }));
+    expect(await screen.findByText('bot dm page')).toBeInTheDocument();
+    expect(startBotDm).toHaveBeenCalledWith(6);
+    render(<MemoryRouter><MemberList guild={guild} members={[...members, bot]} user={{ id: 2 }} /></MemoryRouter>);
     // Nor offered to anyone else.
     fireEvent.click(screen.getByText('newbie'));
     const other = screen.getByRole('dialog', { name: 'newbie' });

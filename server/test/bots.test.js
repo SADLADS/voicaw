@@ -194,8 +194,9 @@ describe('the bot API', () => {
     expect((await discord.get(bot, `/users/${member.id}`)).body).toMatchObject({ username: member.username, bot: false });
     // Nobody it doesn't share a guild with.
     expect((await discord.get(bot, `/users/${(await makeUser()).id}`)).status).toBe(404);
-    // No DMs.
-    expect((await discord.post(bot, '/users/@me/channels', { recipient_id: String(member.id) })).body).toMatchObject({ code: 50007 });
+    // DMs only with people it shares a guild with (botDms.test.js has the rest).
+    expect((await discord.post(bot, '/users/@me/channels', { recipient_id: String((await makeUser()).id) })).body).toMatchObject({ code: 50007 });
+    expect((await discord.post(bot, '/users/@me/channels', { recipient_id: String(member.id) })).body).toMatchObject({ type: 1 });
   });
 
   it('sends, reads, edits and deletes messages, with embeds, replies and reactions', async () => {

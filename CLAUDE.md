@@ -227,8 +227,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   12-tester closed test for 14 days first; the privacy policy, terms and account-deletion page
   are on voicaw.com, and blocking, reports and suspensions in the app, 2026-10-05).
 - **Bots** (built 2026-10-03, see `docs/bots.md`): Discord's API, library-compatible (discord.js
-  and discord.py work with URL changes), guilds only (never in DMs, group DMs or calls: they're
-  end-to-end encrypted, and bots have no keys), no privileged intents, anyone can make
+  and discord.py work with URL changes), guilds (never in people's DMs, group DMs or calls: they're
+  end-to-end encrypted, and bots have no keys; bot DMs, 2026-10-06, are their own unencrypted
+  kind, see Bot DMs in `docs/bots.md`), no privileged intents, anyone can make
   applications. Guild actions are functions shared by the app's routes and the bot API (they
   throw `ActionError`): change a rule there and bots follow it; don't re-implement one in
   `botApi.js`. Ids stay ours (not snowflakes), except @everyone (the guild's id) and categories
@@ -239,6 +240,12 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   hearing is its own permission, Listen (people have it through @everyone, which never gives it
   to a bot; LiveKit enforces it), and listening bots show an ear. A Discord-compatible voice
   bridge was deferred (big: voice websocket, UDP, re-encoding, maybe Discord's DAVE).
+- **Bot DMs** (built 2026-10-06, see `docs/bots.md`; first for slotto's game reminders, a
+  Discord games site being moved over): a bot and one person it shares a guild with, as
+  Discord's DM channels, deliberately NOT end-to-end encrypted (bots have no keys) and kept
+  apart from people's encrypted DMs; said so on every one and in the privacy policy. People
+  can block bots, turn bot DMs off (Settings → Content, on by default) and delete a
+  conversation for both sides.
 - **Voice channels' chat** (built 2026-10-06, see `docs/guilds.md`): as in Discord, every voice
   channel is also a permanent chat for anyone who can see it, in the call or not (not only
   those connected); a side panel toggled from the header (`?chat=1`), no threads.

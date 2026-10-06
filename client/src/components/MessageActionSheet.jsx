@@ -110,7 +110,7 @@ export default function MessageActionSheet({
           </div>
         ) : (
           <div className="action-sheet-items">
-            {sent && (
+            {sent && onReply && (
               <button type="button" className="action-sheet-item" onClick={act(onReply)}>
                 <FontAwesomeIcon icon={faReply} /> {t('common.reply')}
               </button>

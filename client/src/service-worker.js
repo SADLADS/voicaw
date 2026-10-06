@@ -82,7 +82,7 @@ self.addEventListener('activate', (event) => {
 });
 
 // Pushes about new messages (server/push.js MESSAGE_PUSHES).
-const MESSAGE_PUSHES = new Set(['dm', 'group', 'guild']);
+const MESSAGE_PUSHES = new Set(['dm', 'group', 'guild', 'bot_dm']);
 
 self.addEventListener('push', (event) => {
   event.waitUntil((async () => {

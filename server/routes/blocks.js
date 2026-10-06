@@ -19,8 +19,8 @@ router.get('/blocks', authenticateJWT, async (req, res) => {
 router.put('/blocks/:userId', authenticateJWT, async (req, res) => {
   const id = Number(req.params.userId);
   if (!Number.isInteger(id) || id === req.user.id) return res.status(400).json({ error: 'Invalid user' });
-  // Bots aren't blocked (they're in guilds only: remove them there); deleted accounts needn't be.
-  const user = await db.get('SELECT id FROM users WHERE id = ? AND bot = 0', [id]);
+  // Bots can be blocked too: then they can't DM you (botDms.js). Deleted accounts needn't be.
+  const user = await db.get('SELECT id FROM users WHERE id = ?', [id]);
   if (!user) return res.status(404).json({ error: 'User not found' });
   await blocks.block(req.user.id, id);
   await announce(req.user.id);

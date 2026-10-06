@@ -14,6 +14,7 @@ vi.mock('../utils/ws-client', () => ({
   },
   onGuildEvent: () => () => {},
   onGroupEvent: () => () => {},
+  onBotDmEvent: () => () => {},
   getConnectionState: () => 'online',
   onConnectionState: () => () => {},
   onConversationSettings: () => () => {},
@@ -24,6 +25,8 @@ vi.mock('../utils/ws-client', () => ({
 
 // Group DMs (tested with their hooks and in e2e/groups.mjs): none here.
 vi.mock('../services/groupService', () => ({ fetchGroups: vi.fn(async () => []) }));
+// Bot DMs (BotDm.test.jsx, e2e/botdms.mjs): none here.
+vi.mock('../services/botDmService', () => ({ fetchBotDms: vi.fn(async () => []) }));
 
 // DM calls (tested in voice/callClient.test.js): none here.
 const noCall = vi.hoisted(() => ({ call: null }));

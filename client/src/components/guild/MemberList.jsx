@@ -1,15 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import { LayoutContext } from '../../contexts';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCrown, faPlus, faRobot, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { banMember, kickMember, setMemberRoles, transferGuild } from '../../services/guildService';
+import { startBotDm } from '../../services/botDmService';
 import { PERMISSIONS, colorToHex, has, memberColor, memberRank, memberRoles } from '../../utils/permissions';
 import { errorMessage, groupMembers } from '../../utils/guildDisplay';
 import ConfirmDialog from './ConfirmDialog';
 import StatusIcon from '../StatusIcon';
 import { usePresence } from '../../hooks/usePresence';
 import { formatDate } from '../../utils/dateFormat';
-import { displayName, getProfile, nameOf, useProfiles } from '../../utils/profiles';
+import { displayName, getProfile, mergeProfiles, nameOf, useProfiles } from '../../utils/profiles';
 import { interactionError } from '../../utils/commandOptions';
 import ProfileCard from '../ProfileCard';
 import Avatar from '../Avatar';
@@ -26,6 +28,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
   const presenceOf = usePresence();
   const members = memberList.map((m) => ({ ...m, ...presenceOf(m) }));
   const navigate = useNavigate();
+  const botDmList = useContext(LayoutContext)?.botDmList;
   const [selectedId, setSelectedId] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [addingRole, setAddingRole] = useState(false);
@@ -50,6 +53,19 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
 
   // Whether you outrank `member` (or it's you, for roles).
   const outranks = (member) => member.id !== guild.owner && myRank > memberRank(guild, member.id, member.role_ids);
+
+  // Opens (or starts) your conversation with a bot.
+  async function messageBot(member) {
+    setError(null);
+    try {
+      const dm = await startBotDm(member.id);
+      if (dm.bot) mergeProfiles([dm.bot]);
+      botDmList?.upsert(dm);
+      navigate(`/dm/b/${dm.id}`);
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
 
   async function changeRoles(member, roleIds) {
     setError(null);
@@ -121,9 +137,9 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
         )}
 
         <div className="member-card-actions">
-          {/* Bots can't be in DMs (they're end-to-end encrypted) or own a guild. */}
-          {member.id !== user.id && !member.bot && (
-            <button type="button" className="btn btn-primary btn-sm vc-button" onClick={() => navigate(`/dm/${member.id}`)}>
+          {/* A bot's DM is its own, unencrypted kind (botDmService); bots can't own a guild. */}
+          {member.id !== user.id && (
+            <button type="button" className="btn btn-primary btn-sm vc-button" onClick={() => (member.bot ? messageBot(member) : navigate(`/dm/${member.id}`))}>
               {t('guilds.memberList.message')}
             </button>
           )}
@@ -170,7 +186,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
             </button>
           )}
         </div>
-        <UserSafetyActions userId={member.id} name={nameOf(member)} bot={Boolean(member.bot)} />
+        <UserSafetyActions userId={member.id} name={nameOf(member)} />
         {userApps.length > 0 && onRunUserApp && (
           <div className="member-card-apps" role="group" aria-label={t('commands.apps.label')}>
             <div className="member-card-label">{t('commands.apps.label')}</div>

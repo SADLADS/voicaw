@@ -197,8 +197,9 @@
   `hooks/usePreferencesSync.js` in `Layout`): settings that follow your account to every
   device, unlike the per-device ones in localStorage (Privacy, sounds, theme...). So far
   `blurNsfw` (Settings → Content, "Blur media in NSFW channels", on by default; see NSFW
-  channels in `docs/guilds.md`) and `adultConfirmed` ("I am 18 or over", off by default; the age
-  gate, same place). `usePreferencesLoaded()` says when the account's own have arrived (until
+  channels in `docs/guilds.md`), `adultConfirmed` ("I am 18 or over", off by default; the age
+  gate, same place) and `botDms` ("Let bots message me", on by default; the server enforces it,
+  see Bot DMs in `docs/bots.md`). `usePreferencesLoaded()` says when the account's own have arrived (until
   then they're the defaults). A new one is a key in both files' `DEFAULTS` (and the
   server's `isValid`).
 - Text can't be selected except where it's useful (`voicaw.css`, TEXT SELECTION): inputs and

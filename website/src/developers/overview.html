@@ -19,11 +19,21 @@
 
       <h2 id="guilds-only">Bots live in guilds</h2>
       <p>
-        On Voicaw, direct messages and group chats are end-to-end encrypted: the server can't read
-        them, so a bot can't either. Bots are only ever in guilds, which aren't encrypted. A bot
-        can't open a DM (<code>POST /users/@me/channels</code> and sending a DM fail with error
-        <code>50007</code>), isn't in anyone's list of people to message, and can't be added to a
-        group chat or called.
+        On Voicaw, direct messages and group chats between people are end-to-end encrypted: the
+        server can't read them, so a bot can't either. Bots live in guilds, which aren't
+        encrypted, and can't be added to a group chat or called.
+      </p>
+      <p id="dms">
+        A bot can have its own <strong>DMs</strong> with people, which are <strong>not</strong>
+        end-to-end encrypted (the app says so on the conversation). <code>POST
+        /users/@me/channels</code> with a <code>recipient_id</code> opens one (a type 1 channel)
+        with someone the bot shares a guild with, unless they've blocked it or turned off "Let
+        bots message me"; otherwise it, and every message after, fails with <code>50007</code>.
+        In a DM a bot can send, edit and delete its own messages (content, embeds and files; no
+        components yet), read the history, and hear the person's messages with the Direct
+        Messages intent. People can start one from the bot's profile, and delete the whole
+        conversation (it's gone for the bot too). Reactions, pins, replies, threads and commands
+        don't work in DMs yet.
       </p>
       <p>
         A bot only sees the people it shares a guild with. Fetching any other user fails with

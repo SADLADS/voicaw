@@ -160,7 +160,7 @@
         <tr><td><span class="method get">GET</span> <code>/users/@me</code></td><td></td><td>The bot.</td></tr>
         <tr><td><span class="method patch">PATCH</span> <code>/users/@me</code></td><td></td><td><code>username</code> (renames the application too) and <code>avatar</code> (image data, or null). Twice an hour.</td></tr>
         <tr><td><span class="method get">GET</span> <code>/users/{user}</code></td><td></td><td>Only people the bot shares a guild with.</td></tr>
-        <tr><td><span class="method post">POST</span> <code>/users/@me/channels</code></td><td></td><td>Always <code>50007</code>: bots can't have DMs.</td></tr>
+        <tr><td><span class="method post">POST</span> <code>/users/@me/channels</code></td><td></td><td><code>{ "recipient_id": "…" }</code>: opens (or finds) the DM with someone the bot shares a guild with; <code>50007</code> if it can't (no shared guild, blocked, or they turned bot DMs off). DMs aren't end-to-end encrypted. In a DM channel: <code>GET</code> the channel, <code>GET</code> messages (<code>before</code>, <code>after</code>, <code>around</code>, <code>limit</code>) and one message, <code>POST</code> messages (content, embeds, files; no components), <code>PATCH</code> and <code>DELETE</code> the bot's own, and typing (accepted, shows nothing). Anything else answers <code>50003</code>.</td></tr>
         <tr><td><span class="method get">GET</span> <code>/applications/@me</code></td><td></td><td>Also at <code>/oauth2/applications/@me</code>.</td></tr>
       </table></div>
 

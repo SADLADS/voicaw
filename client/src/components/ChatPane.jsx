@@ -52,6 +52,7 @@ import ReportDialog from './ReportDialog';
 // the chat's kind for the server's poll timers (pollService). `jumpTo` ({ messageId }, a new object each
 // time) scrolls to that message once the chat is loaded, then calls `onJumped`.
 // `focusOnOpen` false keeps the composer from taking the focus when the chat opens.
+// `textOnly` (a bot DM) leaves only text: no files, polls or replies (see Composer).
 export default function ChatPane({
   chatId,
   chatName,
@@ -80,6 +81,7 @@ export default function ChatPane({
   focusOnOpen = true,
   nameColors,
   encrypted = true,
+  textOnly = false,
   pollKind,
   emptyText = t('chat.pane.empty'),
 }) {
@@ -392,7 +394,7 @@ export default function ChatPane({
             mentionRoles={mentionRoles}
             myRoleIds={myRoleIds}
             encrypted={encrypted}
-            canReply={canSend}
+            canReply={canSend && !textOnly}
             // While reacting to a message (or its menu is open), it stays highlighted and
             // the others don't react to hovering.
             focusedMsgId={reactingTo?.msgId ?? actionsForId ?? menuMsg?.id}
@@ -436,6 +438,7 @@ export default function ChatPane({
         canMentionEveryone={canMentionEveryone}
         channels={channels}
         commandChannelId={commandChannelId}
+        textOnly={textOnly}
         focusOnOpen={focusOnOpen}
       />}
 
@@ -494,7 +497,7 @@ export default function ChatPane({
           myReactions={new Set((actionsFor.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
           onReact={(emoji) => reactions.toggleReaction(actionsFor, emoji)}
           onMoreReactions={() => openReactionPicker(actionsFor, null)}
-          onReply={() => handleReply(actionsFor)}
+          onReply={textOnly ? undefined : () => handleReply(actionsFor)}
           onEdit={isClosedPoll(actionsFor) ? undefined : () => handleEdit(actionsFor)}
           onTogglePin={canPin ? () => togglePin(actionsFor) : undefined}
           onCreateThread={threadFrom(actionsFor)}
@@ -518,7 +521,7 @@ export default function ChatPane({
           myReactions={new Set((menuMsg.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
           onReact={(emoji) => reactions.toggleReaction(menuMsg, emoji)}
           onMoreReactions={(rect) => openReactionPicker(menuMsg, { getBoundingClientRect: () => rect })}
-          onReply={() => handleReply(menuMsg)}
+          onReply={textOnly ? undefined : () => handleReply(menuMsg)}
           onEdit={isClosedPoll(menuMsg) ? undefined : () => handleEdit(menuMsg)}
           onTogglePin={canPin ? () => togglePin(menuMsg) : undefined}
           onCreateThread={threadFrom(menuMsg)}

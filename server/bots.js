@@ -8,8 +8,9 @@ const { logAudit } = require('./auditLog');
 // Bots (docs/bots.md): applications made in the developer portal (routes/applications.js),
 // each with one bot user that programs drive through Discord's API (routes/botApi.js, gateway.js).
 // - A bot is a users row with `bot` = 1, no password and no keys: it can't log in, isn't in the
-//   DM list and can't be in DMs, group DMs or calls (all end-to-end encrypted). It's only ever
-//   in guilds. Its username is "<name>#<4 digits>" ('#' can't be signed up with), its display
+//   encrypted DM list and can't be in DMs, group DMs or calls (all end-to-end encrypted). It's in
+//   guilds, and in its own unencrypted DMs with people (botDms.js). Its username is
+//   "<name>#<4 digits>" ('#' can't be signed up with), its display
 //   name the application's name, its bio the description.
 // - Its token is Discord's shape (the user id in base64, a time, a secret), shown once; only
 //   its SHA-256 is stored. Resetting it ends every gateway session using the old one.
@@ -183,13 +184,18 @@ async function deleteApplication(app) {
   require('./gateway').closeBotSessions(app.id, 4004, 'Authentication failed.');
   for (const guildId of await botGuildIds(app.id)) await require('./guilds').removeMember(guildId, app.id);
   await require('./avatars').removeAvatar(app.id);
+  const dms = await db.all('SELECT id, user_id FROM bot_dms WHERE bot_id = ?', [app.id]);
   await db.transaction(async () => {
     await db.run('DELETE FROM bot_applications WHERE id = ?', [app.id]);
+    // Its DMs go too (botDms.js).
+    await require('./botDms').forgetBot(app.id);
     await db.run(
       "UPDATE users SET username = ?, display_name = ?, bio = NULL, deleted_at = ? WHERE id = ?",
       [`Deleted-Bot-${app.id}`, app.name, now(), app.id]
     );
   });
+  for (const dm of dms) sendToUserSockets(dm.user_id, { type: 'bot_dm_delete', dmId: dm.id });
+  require('./uploads').releaseUploads();
   await announceProfile(app.id);
 }
 

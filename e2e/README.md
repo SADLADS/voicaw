@@ -55,6 +55,7 @@ node e2e/invites.mjs [dir] # invite embeds: channel and DM (load at once), Join 
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
 node e2e/commands.mjs [dir] # bot commands: a bot in the script registers them (autocomplete, number, true/false, member, subcommand with choices, message command), "/" lists and filters, fields filled, suggestions, run and the reply, Apps in the message menu, phone
 node e2e/bots.mjs [dir]   # bots: Settings → Developer Portal (own page), new application, token once + reset (old refused), invite link from ticked permissions, authorise into a guild (bot role), phone
+node e2e/botdms.mjs [dir] # bot DMs: a bot (the script, through the bot API) DMs you with an embed, row appears live (BOT tag, unread), opened = Not encrypted + notice, no + menu, reply reaches the bot, row menu mutes (no call), Settings → Content off = bot refused (50007), Delete conversation for both, Message on a bot's member card, phone
 node e2e/components.mjs [dir] # bots' buttons (every style, link, emoji, disabled) and selects (string, user): click updates the message, choice → ephemeral reply + Dismiss, form (checked, sent), deferred "thinking…" filled in, "used /menu" line; light, dark, phone (select as a sheet)
 node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, results, Jump into another channel, private channel, phone
 node e2e/days.mjs [dir]   # day dividers between days and above the first message (desktop + phone)

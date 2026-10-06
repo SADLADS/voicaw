@@ -73,9 +73,10 @@
         <tr><td><code>30003</code></td><td>Too many pinned messages (250 per channel)</td></tr>
         <tr><td><code>30010</code></td><td>Too many reactions (20 per bot per message)</td></tr>
         <tr><td><code>40005</code></td><td>Request too large (files: 10 at most, 25 MB together; JSON: 1 MB)</td></tr>
+        <tr><td><code>50003</code></td><td>Cannot execute action on a DM channel (reactions, pins, threads… in a DM, or deleting the person's message)</td></tr>
         <tr><td><code>50005</code></td><td>Cannot edit a message authored by another user</td></tr>
         <tr><td><code>50006</code></td><td>Cannot send an empty message</td></tr>
-        <tr><td><code>50007</code></td><td>Cannot send messages to this user (bots can't have DMs)</td></tr>
+        <tr><td><code>50007</code></td><td>Cannot send messages to this user (no shared guild, blocked, or they turned bot DMs off)</td></tr>
         <tr><td><code>50013</code></td><td>Missing Permissions, or ranked too low (roles and members above the bot's highest role)</td></tr>
         <tr><td><code>50021</code></td><td>Cannot execute action on a system message</td></tr>
         <tr><td><code>50024</code></td><td>Cannot execute action on this channel type</td></tr>

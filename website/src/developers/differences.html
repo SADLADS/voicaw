@@ -9,7 +9,7 @@
 
       <h2 id="never">Not part of Voicaw</h2>
       <ul>
-        <li><strong>DMs and group chats</strong>: they're end-to-end encrypted, so bots can't be in them. Opening a DM fails with <code>50007</code>.</li>
+        <li><strong>People's DMs and group chats</strong>: they're end-to-end encrypted, so bots can't be in them. A bot's own DMs with people aren't encrypted, and only work with people it shares a guild with (see <a href="/developers/docs/#dms">DMs</a>); reactions, pins, replies, components and commands don't work in them yet.</li>
         <li>Nicknames, timeouts, server mute and deafen, and moving people between voice channels: <code>PATCH</code> on a member with <code>nick</code>, <code>communication_disabled_until</code>, <code>mute</code>, <code>deaf</code> or <code>channel_id</code> fails with <code>50035</code>.</li>
         <li>Commands in DMs or as user-installed apps: commands only exist in guilds.</li>
         <li>OAuth2 logins for people (scopes other than <code>bot</code>), teams, verification and privileged intents.</li>

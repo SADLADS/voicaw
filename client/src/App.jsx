@@ -11,6 +11,7 @@ import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
 import Notes from './components/Notes.jsx';
 import GroupDm from './components/group/GroupDm.jsx';
+import BotDm from './components/BotDm.jsx';
 import GuildView from './components/guild/GuildView.jsx';
 import InvitePage from './components/guild/InvitePage.jsx';
 import DeveloperPortal from './components/developers/DeveloperPortal.jsx';
@@ -208,6 +209,7 @@ export default function App() {
                 <Route path="/dm/:id?" element={<Dm user={user} />} />
                 <Route path="/dm/notes" element={<Notes user={user} />} />
                 <Route path="/dm/g/:groupId" element={<GroupDm user={user} />} />
+                <Route path="/dm/b/:dmId" element={<BotDm user={user} />} />
                 <Route path="/guild/:guildId/:channelId?" element={<GuildView user={user} />} />
                 <Route path="/invite/:code" element={<InvitePage />} />
               </Route>

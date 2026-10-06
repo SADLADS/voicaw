@@ -58,6 +58,7 @@ const COMMAND_QUERY = /^\/([^\s/]{0,32})$/;
 // In a guild channel or thread (`commandChannelId`), "/" at the start lists its bots' commands
 // (CommandSuggestions); picking one turns the box into CommandComposer until it's run or left.
 //
+// `textOnly` (a bot DM) takes away the + menu and files pasted or dropped: text and emoji only.
 // `onSend({ text, replyTo, localAttachments, resolveText })` sends (see useConversation's
 // sendMessage); `onSendPoll({ poll, replyTo })` sends a poll made in PollDialog (see ChatPane).
 // `error` is shown above the box (Dm reports its own errors there too). On
@@ -88,6 +89,7 @@ export default function Composer({
   chatTexts,
   commandChannelId = null,
   focusOnOpen = true,
+  textOnly = false,
 }) {
   // What the box and the file drop overlay say: "Message Alice", or the chat's own wording
   // (`chatTexts`: { label, placeholder, upload }, e.g. a document's replies).
@@ -141,7 +143,7 @@ export default function Composer({
   });
 
   // Files dragged in anywhere on the window are attached (FileDropOverlay while dragging).
-  const draggingFiles = useWindowFileDrop({ enabled: !!chatName, onFiles: attachments.addFiles });
+  const draggingFiles = useWindowFileDrop({ enabled: !!chatName && !textOnly, onFiles: attachments.addFiles });
 
   function removeDraft(id) {
     attachments.removeDraft(id);
@@ -514,7 +516,7 @@ export default function Composer({
 
         {/* Kept (hidden) in command mode, so what's typed and the editor survive it. */}
         <form id="dm-chat-form" className={commandEntry ? 'd-none' : 'd-flex flex-grow-1'} hidden={Boolean(commandEntry)} onSubmit={handleSubmit}>
-          <div className="attach-wrapper" ref={addMenuRef}>
+          {!textOnly && <div className="attach-wrapper" ref={addMenuRef}>
             <button
               className="attach-button"
               type="button"
@@ -546,7 +548,7 @@ export default function Composer({
                 </button>
               </div>
             )}
-          </div>
+          </div>}
 
           <MessageEditor
             ref={inputRef}
@@ -560,7 +562,7 @@ export default function Composer({
             onSubmit={handleSubmit}
             onChange={handleEditorChange}
             onKeyDown={handleInputKeyDown}
-            onPasteFiles={attachments.addFiles}
+            onPasteFiles={textOnly ? undefined : attachments.addFiles}
             mentionNames={mentionNames}
             mentionRoles={roleInfo}
             // Mobile: the keyboard is coming up, so the emoji panel gives way.

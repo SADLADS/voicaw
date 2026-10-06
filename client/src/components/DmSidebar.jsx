@@ -11,20 +11,21 @@ import { lastSeenText, statusLabel } from '../utils/presence';
 import { groupTitle } from '../utils/groupDisplay';
 import StatusIcon from './StatusIcon';
 import NewGroupDialog from './group/NewGroupDialog';
-import { getProfile, nameOf, useProfiles } from '../utils/profiles';
+import { displayName, getProfile, nameOf, useProfiles } from '../utils/profiles';
 import Avatar from './Avatar';
 import { t } from '../i18n';
 
-// The conversation list: people and group DMs, most recent first. `unreadDms`
+// The conversation list: people, group DMs and conversations with bots (`botDms`, tagged BOT;
+// not end-to-end encrypted, see BotDm), most recent first. `unreadDms`
 // ([{ from_user_id, count }], from Layout) and each group's `unread` mark conversations with
 // unread messages, except the one being viewed. The header's button makes a new group.
 // Your notes (a DM to yourself) come first under the header, with a line between them and
 // the conversations; they don't scroll with the list. Right-clicking a conversation (touch and
 // hold on a phone) opens its menu (DmMenu: read, call, pin, mute); pinned ones come first, in
 // the order they were pinned, and muted ones are dimmed, with no unread dot.
-export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) {
+export default function DmSidebar({ user, users, groups = [], botDms = [], unreadDms = [] }) {
   useProfiles();
-  const { id: activeId, groupId: activeGroupId } = useParams();
+  const { id: activeId, groupId: activeGroupId, dmId: activeBotDmId } = useParams();
   const { isMobile } = useContext(InteractionContext);
   const { conversationSettings, groupList } = useContext(LayoutContext) ?? {};
   const notesActive = useLocation().pathname === '/dm/notes';
@@ -36,17 +37,21 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
   const unreadFrom = new Set(unreadDms.map((u) => String(u.from_user_id)));
   const settingOf = (kind, target) => conversationSettings?.get(kind, target) ?? { pinned_at: null, muted: false };
 
-  // People keep the server's order among themselves (latest DM first); groups go in by their
-  // latest message. Pinned ones go first.
+  // People keep the server's order among themselves (latest DM first); groups and conversations
+  // with bots go in by their latest message. Pinned ones go first.
   const all = [];
-  const byTime = [...groups].sort((a, b) => b.last_timestamp - a.last_timestamp);
+  const byTime = [...groups.map((group) => ({ group, at: group.last_timestamp })), ...botDms.map((botDm) => ({ botDm, at: botDm.last_timestamp }))]
+    .sort((a, b) => b.at - a.at);
   let g = 0;
   for (const person of users) {
-    while (g < byTime.length && byTime[g].last_timestamp >= (person.last_timestamp ?? 0)) all.push({ group: byTime[g++] });
+    while (g < byTime.length && byTime[g].at >= (person.last_timestamp ?? 0)) all.push(byTime[g++]);
     all.push({ person });
   }
-  while (g < byTime.length) all.push({ group: byTime[g++] });
-  for (const entry of all) entry.setting = entry.group ? settingOf('group', entry.group.id) : settingOf('dm', entry.person.id);
+  while (g < byTime.length) all.push(byTime[g++]);
+  const keyOf = (entry) => (entry.group ? `g-${entry.group.id}` : entry.botDm ? `b-${entry.botDm.id}` : String(entry.person.id));
+  for (const entry of all) {
+    entry.setting = entry.group ? settingOf('group', entry.group.id) : entry.botDm ? settingOf('bot', entry.botDm.id) : settingOf('dm', entry.person.id);
+  }
   const entries = [
     ...all.filter((e) => e.setting.pinned_at != null).sort((a, b) => a.setting.pinned_at - b.setting.pinned_at),
     ...all.filter((e) => e.setting.pinned_at == null),
@@ -60,11 +65,11 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
   };
   const longPress = useLongPress(() => {
     const el = pressed.current;
-    const entry = entries.find((e) => (e.group ? `g-${e.group.id}` : String(e.person.id)) === el?.dataset.conversation);
+    const entry = entries.find((e) => keyOf(e) === el?.dataset.conversation);
     if (entry) openMenu(entry, el.getBoundingClientRect());
   }, { enabled: isMobile && Boolean(conversationSettings) });
   const rowProps = (entry) => ({
-    'data-conversation': entry.group ? `g-${entry.group.id}` : String(entry.person.id),
+    'data-conversation': keyOf(entry),
     onContextMenu: (e) => {
       e.preventDefault();
       if (!isMobile) openMenu(entry, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY });
@@ -100,7 +105,32 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
       </div>
       <div className="dm-user-list-container" {...longPress} onTouchStart={listTouchStart}>
         {entries.map((entry) => {
-          const { person, group, setting } = entry;
+          const { person, group, botDm, setting } = entry;
+          if (botDm) {
+            const active = String(botDm.id) === activeBotDmId;
+            const name = displayName(botDm.bot_id, botDm.bot?.display_name || botDm.bot?.username);
+            return (
+              <Link
+                key={`b-${botDm.id}`}
+                to={`/dm/b/${botDm.id}`}
+                replace={isMobile}
+                onClick={showContent}
+                className={`dm-user dm-bot ${active ? 'active' : ''}${setting.muted ? ' muted' : ''}`}
+                {...rowProps(entry)}
+              >
+                <span className={`userdot${botDm.unread > 0 && !active && !setting.muted ? ' active' : ''}`} />
+                <div className="dm-user-container">
+                  <span className="dm-user-avatar-wrap">{avatar(botDm.bot_id, name)}</span>
+                  <span className="dm-user-names">
+                    <span className="dm-user-name">
+                      {name} <span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span>
+                    </span>
+                  </span>
+                  {marks(setting)}
+                </div>
+              </Link>
+            );
+          }
           if (group) {
             const others = group.members.filter((m) => m.id !== user?.id);
             const active = group.id === activeGroupId;
@@ -165,8 +195,9 @@ export default function DmSidebar({ user, users, groups = [], unreadDms = [] }) 
         <DmMenu
           person={menu.person}
           group={menu.group}
-          title={menu.group ? groupTitle(menu.group, user) : nameOf(menu.person)}
-          unread={menu.group ? menu.group.unread > 0 : unreadFrom.has(String(menu.person.id))}
+          botDm={menu.botDm}
+          title={menu.group ? groupTitle(menu.group, user) : menu.botDm ? displayName(menu.botDm.bot_id) : nameOf(menu.person)}
+          unread={menu.group ? menu.group.unread > 0 : menu.botDm ? menu.botDm.unread > 0 : unreadFrom.has(String(menu.person.id))}
           anchor={menu.anchor}
           sheet={isMobile}
           onClose={closeMenu}
