@@ -211,6 +211,7 @@
       "voteFailed": "Couldn't save your vote. Try again.",
       "openHint": "Anyone can add answers",
       "addedBy": "added by {{name}}",
+      "addedByYou": "added by you",
       "addAnswer": "Add",
       "addAnswerLabel": "Add an answer",
       "addAnswerPlaceholder": "Add an answer…",

@@ -1,5 +1,5 @@
 // Open polls in a real browser: "Open poll" in the dialog (locked when editing); anyone adds an
-// answer from the vote screen (not the results), which votes for it; repeats refused (ignoring
+// answer from the vote screen (not the results), which ticks it (Vote sends it); repeats refused (ignoring
 // case); "added by" under other people's answers; the ✕ (asks first) for its creator, the poll's
 // author or a guild moderator (not the author's answers), gone once someone else votes for it;
 // back to the vote screen when that took your only vote; a new question drops every vote and
@@ -35,7 +35,14 @@ async function createOpenPoll(page, question, answers, { multi = false } = {}) {
 const pollOf = (page, question) => page.locator(`.poll:has(.poll-question:text-is("${question}"))`);
 const row = (page, question, text) => pollOf(page, question).locator(`.poll-option-row:has(.poll-option-text:text-matches("^${text}"))`);
 const removeX = (page, question, text) => row(page, question, text).locator('.poll-option-remove');
-const resultsShown = (page, question) => pollOf(page, question).locator('.poll-option.result').first().isVisible();
+// An answer ticked on the vote screen.
+const ticked = (page, question, text) => row(page, question, text).locator('.poll-option.selected');
+// Presses Vote, and waits for the results.
+async function castVote(page, question) {
+  await press(page, pollOf(page, question).locator('button:text-is("Vote")'));
+  await pollOf(page, question).locator('button:text-is("Remove vote")').waitFor({ timeout: 10000 });
+}
+const resultsShown =(page, question) => pollOf(page, question).locator('.poll-option.result').first().isVisible();
 
 // Types `text` in the poll's add box and presses Add.
 async function addAnswer(page, question, text) {
@@ -84,10 +91,13 @@ try {
   await addAnswer(b, 'Dinner?', ' PIZZA ');
   await pollOf(b, 'Dinner?').locator('.poll-add-error:has-text("That answer is already in the poll.")').waitFor();
   await shot(b, '1-duplicate-phone');
-  // Adding one votes for it: Bob is on the results now.
+  // Adding one ticks it, without voting: Vote sends it.
   await addAnswer(b, 'Dinner?', 'Curry');
-  await pollOf(b, 'Dinner?').locator('button:text-is("Remove vote")').waitFor({ timeout: 10000 });
-  if (await votesOf(b, 'Dinner?', 'Curry') !== 1) throw new Error('adding an answer did not vote for it');
+  await ticked(b, 'Dinner?', 'Curry').waitFor({ timeout: 10000 });
+  await shot(b, '2b-added-ticked-phone');
+  await pollOf(a, 'Dinner?').locator('.poll-footer:has-text("0 votes")').waitFor();
+  await castVote(b, 'Dinner?');
+  if (await votesOf(b, 'Dinner?', 'Curry') !== 1) throw new Error('Vote did not send the added answer');
   // No add box on the results.
   if (await pollOf(b, 'Dinner?').locator('.poll-add-answer').count()) throw new Error('add box on the results');
   // Alice sees it, with who added it, and (only Bob voted, its creator) a ✕.
@@ -97,7 +107,7 @@ try {
   await shot(a, '2-added-by');
   await shot(b, '3-added-phone');
   if (await a.locator('.reaction-chip:not(.reaction-add)').count()) throw new Error('an added answer showed as a reaction');
-  console.log('DM: repeats refused; adding an answer votes for it; "added by" shown');
+  console.log('DM: repeats refused; adding an answer ticks it (Vote sends it); "added by" shown');
 
   // The author removes it (asks first): gone for both, and Bob, whose only vote it was, is back
   // on the vote screen.
@@ -111,24 +121,29 @@ try {
   await pollOf(b, 'Dinner?').locator('.poll-add-answer').waitFor();
   console.log('DM: the author removes an answer (after asking); its creator is back to voting');
 
-  // Bob removes his own, voted for; he stays on the results while he has another vote.
+  // Bob removes his own. The ✕ is only on the vote screen: on the results (he's voted for it)
+  // there's none until he takes his vote back.
   await addAnswer(b, 'Dinner?', 'Tacos');
-  await pollOf(b, 'Dinner?').locator('button:text-is("Remove vote")').waitFor({ timeout: 10000 });
+  await removeX(b, 'Dinner?', 'Tacos').waitFor({ timeout: 10000 });
+  await castVote(b, 'Dinner?');
+  await shot(b, '3b-results-no-x-phone');
+  if (await pollOf(b, 'Dinner?').locator('.poll-option-remove').count()) throw new Error('a ✕ on the results');
+  await press(b, pollOf(b, 'Dinner?').locator('button:text-is("Remove vote")'));
+  await removeX(b, 'Dinner?', 'Tacos').waitFor({ timeout: 10000 });
   await removeAnswer(b, 'Dinner?', 'Tacos');
   await row(a, 'Dinner?', 'Tacos').waitFor({ state: 'detached', timeout: 10000 });
   await pollOf(b, 'Dinner?').locator('button:text-is("Vote")').waitFor();
-  console.log('DM: its creator removes their own (with their vote)');
+  console.log('DM: its creator removes their own, from the vote screen only');
 
-  // Someone else's vote keeps it: Alice votes for Bob's Ramen, so Bob loses his ✕ (she keeps
-  // hers: only its creator and she voted).
+  // Someone else's vote keeps it: Alice votes for Bob's Ramen, so Bob loses his ✕.
   await addAnswer(b, 'Dinner?', 'Ramen');
   await row(a, 'Dinner?', 'Ramen').waitFor({ timeout: 10000 });
   await waitFor('Bob has a ✕ on his answer', async () => (await removeX(b, 'Dinner?', 'Ramen').count()) === 1);
   await press(a, row(a, 'Dinner?', 'Ramen').locator('.poll-option'));
   await press(a, pollOf(a, 'Dinner?').locator('button:text-is("Vote")'));
-  await waitFor('Ramen has 2 votes', async () => (await votesOf(b, 'Dinner?', 'Ramen')) === 2);
-  if (await removeX(b, 'Dinner?', 'Ramen').count()) throw new Error("Bob can still remove an answer Alice voted for");
-  if (!(await removeX(a, 'Dinner?', 'Ramen').count())) throw new Error('the author lost her ✕ for her own vote');
+  await waitFor('Ramen has a vote', async () => (await votesOf(a, 'Dinner?', 'Ramen')) === 1);
+  await waitFor("Bob's ✕ goes", async () => (await removeX(b, 'Dinner?', 'Ramen').count()) === 0);
+  if (await pollOf(a, 'Dinner?').locator('.poll-option-remove').count()) throw new Error('a ✕ on the results');
   await shot(b, '4-voted-by-others-phone');
   console.log("DM: someone else's vote takes the ✕ away from its creator");
 
@@ -174,10 +189,12 @@ try {
   }
   await createOpenPoll(a, 'Games?', ['Chess', 'Go'], { multi: true });
   await pollOf(b, 'Games?').waitFor({ timeout: 10000 });
-  // Bob ticks Chess, then adds Shogi: both are his votes (multiple choice).
+  // Bob ticks Chess, then adds Shogi: both ticked (multiple choice), and Vote sends both.
   await press(b, row(b, 'Games?', 'Chess').locator('.poll-option'));
   await addAnswer(b, 'Games?', 'Shogi');
-  await pollOf(b, 'Games?').locator('button:text-is("Remove vote")').waitFor({ timeout: 10000 });
+  await ticked(b, 'Games?', 'Shogi').waitFor({ timeout: 10000 });
+  if (!(await ticked(b, 'Games?', 'Chess').count())) throw new Error('adding an answer unticked another');
+  await castVote(b, 'Games?');
   await waitFor('Chess and Shogi have a vote each', async () =>
     (await votesOf(b, 'Games?', 'Chess')) === 1 && (await votesOf(b, 'Games?', 'Shogi')) === 1);
   // Alice adds one too: no "added by" (she's the author), and the moderator can't remove it.

@@ -44,11 +44,12 @@ function useNowUntil(endsAt) {
 // `onVote(optionIds)` (async) sets your vote ([]: removes it). Without it (not sent yet, keys
 // not ready, the pinned list) the results are shown and nothing can be changed. `names` maps
 // user id -> name, for who voted.
-// In an open poll anyone can add answers while voting (`onAddAnswer(text, alsoVoteFor)`, async,
-// which votes for it too); each says who added it (not the poll's author, `authorId`). An
-// added answer nobody else has voted for has a ✕ for its creator, the author and, in a guild,
-// moderators (`canModerate`, not the author's answers): `onRemoveAnswer(option)`, async, after
-// asking.
+// In an open poll anyone can add answers while voting (`onAddAnswer(text)`, async, resolving to
+// its id), which ticks it without voting; each says who added it (not the poll's author,
+// `authorId`). An
+// added answer nobody else has voted for has a ✕ (on the vote screen only) for its creator, the
+// author and, in a guild, moderators (`canModerate`, not the author's answers):
+// `onRemoveAnswer(option)`, async, after asking.
 export default function Poll({ poll: message, reactions, userId, authorId, names, sentAt, onVote, onEnd, onAddAnswer, onRemoveAnswer, canModerate = false }) {
   const endsAt = pollEndsAt(message, sentAt);
   const now = useNowUntil(endsAt);
@@ -73,12 +74,15 @@ export default function Poll({ poll: message, reactions, userId, authorId, names
   const results = voted || showResults || !onVote || ended;
   const canVote = Boolean(onVote) && !ended;
   const canAdd = canVote && !results && poll.open && Boolean(onAddAnswer) && poll.options.length < MAX_POLL_OPTIONS;
-  const removable = (option) => canVote && Boolean(onRemoveAnswer) &&
+  // Only while voting, like adding: not on the results (Remove vote first).
+  const removable = (option) => canVote && !results && Boolean(onRemoveAnswer) &&
     canRemoveAnswer(option, { userId, authorId, canModerate, voters });
   // "added by Sam", for answers added by someone other than the poll's author.
   const addedBy = (option) => option.addedBy && option.addedBy !== authorId && (
     <span className="poll-option-by">
-      {t('chat.poll.addedBy', { name: option.addedBy === userId ? t('chat.reactions.you') : names?.[option.addedBy] ?? t('chat.reactions.someone') })}
+      {option.addedBy === userId
+        ? t('chat.poll.addedByYou')
+        : t('chat.poll.addedBy', { name: names?.[option.addedBy] ?? t('chat.reactions.someone') })}
     </span>
   );
   const most = Math.max(0, ...Object.values(voters).map((v) => v.length));
@@ -110,11 +114,11 @@ export default function Poll({ poll: message, reactions, userId, authorId, names
     if (problem) return setAnswerError(problem);
     setBusy(true);
     try {
-      await onAddAnswer(newAnswer, choice);
+      const id = await onAddAnswer(newAnswer);
       setNewAnswer('');
       setAnswerError(null);
-      setSelected([]);
-      setShowResults(false);
+      // Ticked, not voted: Vote sends it (alone in a single-choice poll).
+      if (id) setSelected(poll.multi ? [...choice, id] : [id]);
     } catch (err) {
       setAnswerError(err.response?.data?.error || err.message || t('chat.poll.addAnswerFailed'));
     } finally {
@@ -187,7 +191,6 @@ export default function Poll({ poll: message, reactions, userId, authorId, names
                 {isMine && <span className="poll-mine-mark" title={t('chat.poll.yourVote')} aria-hidden="true">✓</span>}
                 <span className="poll-count">{t('chat.poll.optionCount', { count: who.length, share })}</span>
               </button>
-              {removeButton(option)}
             </div>
           );
         })}
