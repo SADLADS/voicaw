@@ -1,0 +1,49 @@
+{
+  "calls": {
+    "panel": {
+      "label": "{{name}} さんと通話",
+      "calling": "発信中…",
+      "incoming": "着信",
+      "connecting": "接続中…",
+      "reconnecting": "再接続中…",
+      "muted": "ミュート中",
+      "e2ee": "エンドツーエンド暗号化",
+      "e2eeHint": "この通話を聞けるのはお二人だけです",
+      "hangUp": "通話を終了"
+    },
+    "incoming": {
+      "label": "{{name}} さんからの着信",
+      "groupCall": "グループ通話",
+      "startedCall": "{{name}} さんが通話を開始しました",
+      "voiceCall": "音声通話の着信",
+      "decline": "拒否",
+      "accept": "応答"
+    },
+    "group": {
+      "label": "グループ通話",
+      "someone": "誰か",
+      "inCallCount_other": "{{count}} 人が通話中",
+      "inTheCall": "通話中",
+      "e2eeHint": "この通話を聞けるのはグループのメンバーだけです",
+      "leave": "通話から退出",
+      "join": "通話に参加"
+    },
+    "notices": {
+      "declined": "{{name}} さんが通話を拒否しました。",
+      "noAnswer": "{{name}} さんは応答しませんでした。",
+      "busy": "{{name}} さんは別の通話中です。",
+      "missedGroup": "{{name}} さんからのグループ通話の不在着信。",
+      "missed": "{{name}} さんからの不在着信。"
+    },
+    "errors": {
+      "keyChanged": "{{name}} さんのセキュリティキーが変更されました。チャットを開いて確認してください。",
+      "keysMissing": "この端末に鍵がありません。もう一度ログインしてください。",
+      "unknownUser": "不明なユーザー",
+      "start": "通話を開始できませんでした。",
+      "join": "通話に参加できませんでした。",
+      "answer": "通話に応答できませんでした。",
+      "joinedAfter": "この通話の開始後にグループに参加したため、次の通話から参加できます。",
+      "unverified": "この通話が発信者からのものであることを確認できなかったため、参加しませんでした。"
+    }
+  }
+}

@@ -1,0 +1,561 @@
+{
+  "guildAdmin": {
+    "addGuild": {
+      "notAnInvite": "招待リンクではないようです。",
+      "title": "ギルドを追加",
+      "createLabel": "自分で作成",
+      "namePlaceholder": "ギルド名",
+      "joinLabel": "招待をお持ちですか？",
+      "invitePlaceholder": "https://app.voicaw.com/invite/hTKzmak または hTKzmak",
+      "join": "参加"
+    },
+    "channelDialog": {
+      "tabs": {
+        "overview": "概要",
+        "permissions": "権限",
+        "webhooks": "ウェブフック"
+      },
+      "editTitle": "#{{name}} を編集",
+      "createTitle": "チャンネルを作成",
+      "delete": "チャンネルを削除",
+      "confirmDelete": "#{{name}} とそのすべてのメッセージを削除しますか？",
+      "confirmDeleteList": "#{{name}} とそのすべてのタスクを削除しますか？",
+      "confirmDeleteDoc": "#{{name}} とそのすべてのドキュメントを削除しますか？",
+      "type": {
+        "legend": "チャンネルの種類",
+        "text": "テキスト",
+        "voice": "ボイス",
+        "list": "リスト",
+        "doc": "ドキュメント"
+      },
+      "name": "チャンネル名",
+      "namePlaceholder": "new-channel",
+      "willBe": "#{{name}} になります",
+      "topic": "トピック",
+      "topicPlaceholder": "このチャンネルの使い方をみんなに伝えましょう",
+      "category": "カテゴリー",
+      "noCategory": "カテゴリーなし",
+      "nsfw": {
+        "label": "NSFW チャンネル",
+        "hint": "設定でオフにしていない限り、チャンネル内の画像、動画、GIF、埋め込みはクリックするまでぼかされます。"
+      },
+      "private": {
+        "label": "プライベートチャンネル",
+        "hint": "選んだロール（と管理者）だけが見られます。",
+        "listHint": "タスクを編集できる人は、権限タブ（タスクを編集）で設定します。",
+        "docHint": "ドキュメントを書ける人は、権限タブ（ドキュメントを作成）で設定します。",
+        "whoCanSee": "閲覧できる人"
+      }
+    },
+    "channelPermissions": {
+      "member": "メンバー",
+      "privateHint": "下で「チャンネルを見る」が許可されたロールとメンバー（と管理者）だけが見られます。",
+      "targets": "ロール / メンバー",
+      "add": "ロールまたはメンバーを追加",
+      "addOption": "+ 追加…",
+      "gridLabel": "{{name}} の権限",
+      "locked": "このロールはあなたのロールと同じかそれより上位です。",
+      "states": {
+        "deny": {
+          "label": "拒否",
+          "aria": "{{permission}} を拒否"
+        },
+        "inherit": {
+          "label": "継承",
+          "aria": "{{permission}} を継承"
+        },
+        "allow": {
+          "label": "許可",
+          "aria": "{{permission}} を許可"
+        }
+      },
+      "items": {
+        "viewChannel": "チャンネルを見る",
+        "sendMessages": "メッセージを送信",
+        "addReactions": "リアクションを追加",
+        "manageMessages": "メッセージの管理",
+        "pinMessages": "メッセージをピン留め",
+        "createThreads": "スレッドを作成",
+        "sendMessagesInThreads": "スレッドでメッセージを送信",
+        "connect": "接続",
+        "speak": "発言",
+        "listen": "聴く",
+        "video": "ビデオ",
+        "queueVideos": "動画をキューに追加",
+        "manageQueue": "キューの管理",
+        "controlPlayback": "再生の操作",
+        "editTasks": "タスクを編集",
+        "commentOnTasks": "タスクにコメント",
+        "manageComments": "コメントの管理",
+        "createDocuments": "ドキュメントを作成",
+        "replyToDocuments": "ドキュメントに返信",
+        "manageDocuments": "ドキュメントと返信の管理",
+        "createEvents": "イベントを作成",
+        "manageEvents": "イベントの管理"
+      }
+    },
+    "permissions": {
+      "VIEW_CHANNEL": {
+        "label": "チャンネルを見る",
+        "description": "メンバーがチャンネルを見られるようにします（プライベートチャンネルを除く）。"
+      },
+      "MANAGE_CHANNELS": {
+        "label": "チャンネルの管理",
+        "description": "メンバーがチャンネルとカテゴリーを作成、編集、削除できるようにします。"
+      },
+      "MANAGE_ROLES": {
+        "label": "ロールの管理",
+        "description": "メンバーが自分の最上位ロールより下のロールを作成、編集、付与し、チャンネルの権限を変更できるようにします。"
+      },
+      "MANAGE_GUILD": {
+        "label": "ギルドの管理",
+        "description": "メンバーがギルドの名前とアイコンを変更し、すべての招待を確認、取り消しできるようにします。"
+      },
+      "MANAGE_EMOJIS": {
+        "label": "絵文字の管理",
+        "description": "メンバーがギルドのカスタム絵文字を追加、名前変更、削除できるようにします。"
+      },
+      "MANAGE_WEBHOOKS": {
+        "label": "ウェブフックの管理",
+        "description": "メンバーがウェブフックを作成、編集、削除できるようにします。ウェブフックを使うと、他のアプリやサービスがテキストチャンネルにメッセージを投稿できます。"
+      },
+      "VIEW_AUDIT_LOG": {
+        "label": "監査ログを表示",
+        "description": "メンバーがギルドの監査ログを見られるようにします。誰がどのメッセージを削除したか、誰がギルドの設定、チャンネル、ロール、招待、絵文字、ウェブフックを変更したか、誰がキックや BAN をしたかがわかります。"
+      },
+      "CREATE_INVITE": {
+        "label": "招待を作成",
+        "description": "メンバーがこのギルドに人を招待できるようにします。"
+      },
+      "KICK_MEMBERS": {
+        "label": "メンバーをキック",
+        "description": "メンバーが自分より下位の人を削除できるようにします。削除された人は招待で再参加できます。"
+      },
+      "BAN_MEMBERS": {
+        "label": "メンバーを BAN",
+        "description": "メンバーが自分より下位の人を永久に（BAN が解除されるまで）削除できるようにします。"
+      },
+      "SEND_MESSAGES": {
+        "label": "メッセージを送信",
+        "description": "メンバーがテキストチャンネルに投稿できるようにします。"
+      },
+      "ADD_REACTIONS": {
+        "label": "リアクションを追加",
+        "description": "メンバーがメッセージにリアクションできるようにします。"
+      },
+      "MANAGE_MESSAGES": {
+        "label": "メッセージの管理",
+        "description": "メンバーが他の人のメッセージを削除できるようにします。"
+      },
+      "PIN_MESSAGES": {
+        "label": "メッセージをピン留め",
+        "description": "メンバーがメッセージをピン留め、ピン留め解除できるようにします。"
+      },
+      "CREATE_THREADS": {
+        "label": "スレッドを作成",
+        "description": "メンバーがスレッド（メッセージから、または単独で始めるサイド会話）を開始できるようにします。"
+      },
+      "SEND_MESSAGES_IN_THREADS": {
+        "label": "スレッドでメッセージを送信",
+        "description": "メンバーがスレッドに投稿できるようにします。他の人のスレッドのアーカイブ、名前変更、削除は「メッセージの管理」に従います。"
+      },
+      "MENTION_EVERYONE": {
+        "label": "@everyone、@here、全ロールへのメンション",
+        "description": "メンバーがチャンネルの全員（@everyone）、そこにいるオンラインの全員（@here）、そしてメンション可能に設定されていないロールも含むすべてのロールに通知できるようにします。"
+      },
+      "CONNECT": {
+        "label": "接続",
+        "description": "メンバーがボイスチャンネルに参加し、他の人の声を聞けるようにします。"
+      },
+      "SPEAK": {
+        "label": "発言",
+        "description": "メンバーがボイスチャンネルで話せるようにします。この権限がない場合は聞くことしかできません。"
+      },
+      "LISTEN": {
+        "label": "聴く",
+        "description": "メンバーがボイスチャンネルで他の人の声を聞けるようにします。取り上げない限り全員が持っています。Bot はこの権限を与えられた場合にのみボイスチャンネルを聞くことができます。"
+      },
+      "STREAM": {
+        "label": "ビデオ",
+        "description": "メンバーがボイスチャンネルでカメラをオンにしたり、画面を共有したりできるようにします。"
+      },
+      "QUEUE_VIDEOS": {
+        "label": "動画をキューに追加",
+        "description": "ボイスチャンネルにいるメンバーが Watch Together のキューに YouTube 動画を追加し、自分が追加した動画を削除できるようにします。"
+      },
+      "MANAGE_QUEUE": {
+        "label": "キューの管理",
+        "description": "ボイスチャンネルにいるメンバーが Watch Together のキューを並べ替え、誰の動画でもキューから削除できるようにします。"
+      },
+      "CONTROL_PLAYBACK": {
+        "label": "再生の操作",
+        "description": "ボイスチャンネルにいるメンバーが、みんなで視聴している動画を再生、一時停止、スキップ、シークできるようにします。"
+      },
+      "EDIT_TASKS": {
+        "label": "タスクを編集",
+        "description": "メンバーがリストチャンネルでタスクを追加、編集、割り当て、完了、並べ替え、削除できるようにします。タスクへのコメントは「メッセージを送信」に従います。"
+      },
+      "CREATE_DOCUMENTS": {
+        "label": "ドキュメントを作成",
+        "description": "メンバーがドキュメントチャンネルでドキュメントを書き、自分のドキュメントを編集できるようにします。他の人のドキュメントの編集と削除は「メッセージの管理」、返信は「メッセージを送信」に従います。"
+      },
+      "CREATE_EVENTS": {
+        "label": "イベントを作成",
+        "description": "メンバーがイベント（参加できるボイスチャンネル、または別の場所で）を予定し、自分のイベントを編集、開始、中止できるようにします。"
+      },
+      "MANAGE_EVENTS": {
+        "label": "イベントの管理",
+        "description": "メンバーが誰のイベントでも編集、開始、終了、中止できるようにします。"
+      },
+      "ADMINISTRATOR": {
+        "label": "管理者",
+        "description": "チャンネルの設定に関係なく、すべてのチャンネルですべての権限を持ちます。取り扱いには注意してください。"
+      }
+    },
+    "permissionGroups": {
+      "general": "一般",
+      "membership": "メンバーシップ",
+      "text": "テキストチャンネル",
+      "voice": "ボイスチャンネル",
+      "list": "リストチャンネル",
+      "doc": "ドキュメントチャンネル",
+      "events": "イベント",
+      "advanced": "高度な設定"
+    },
+    "auditLog": {
+      "title": "監査ログ",
+      "someone": "誰か",
+      "sent": "{{time}} に送信",
+      "who": "誰が",
+      "filterByMember": "メンバーで絞り込む",
+      "everyone": "全員",
+      "what": "何を",
+      "filterByAction": "操作で絞り込む",
+      "allActions": "すべての操作",
+      "empty": "まだ何もありません。",
+      "loadMore": "さらに読み込む",
+      "textNotKept": "削除されたメッセージの本文は保存されません。",
+      "clear": {
+        "title": "古い記録を消去",
+        "which": "消去する記録",
+        "button": "消去",
+        "hint": "これができるのはオーナーであるあなただけです。ログを見られる人には、あなたが消去したことがわかります。",
+        "confirmTitle": "監査ログを消去",
+        "choices": {
+          "days30": "30 日より前",
+          "days90": "90 日より前",
+          "year": "1 年より前",
+          "everything": "すべて"
+        },
+        "confirm": {
+          "days30": "30 日より前の監査ログの記録をすべて削除しますか？この操作は取り消せません。",
+          "days90": "90 日より前の監査ログの記録をすべて削除しますか？この操作は取り消せません。",
+          "year": "1 年より前の監査ログの記録をすべて削除しますか？この操作は取り消せません。",
+          "everything": "監査ログ全体を削除しますか？この操作は取り消せません。"
+        }
+      },
+      "filters": {
+        "messages": "メッセージ",
+        "members": "メンバー",
+        "roles": "ロール",
+        "channels": "チャンネル",
+        "invites": "招待",
+        "emoji": "絵文字",
+        "webhooks": "ウェブフック",
+        "events": "イベント",
+        "guild": "ギルド設定"
+      },
+      "deletedChannel": "削除されたチャンネル",
+      "aWebhookStart": "ウェブフック",
+      "aWebhook": "ウェブフック",
+      "aRole": "ロール",
+      "entries": {
+        "messageDeleteOwn": "{{actor}} さんが {{channel}} で自分のメッセージを削除しました",
+        "messageDelete": "{{actor}} さんが {{channel}} で {{target}} さんのメッセージを削除しました",
+        "messagePin": "{{actor}} さんが {{channel}} で {{target}} さんのメッセージをピン留めしました",
+        "messageUnpin": "{{actor}} さんが {{channel}} で {{target}} さんのメッセージのピン留めを外しました",
+        "documentDeleteOwn": "{{actor}} さんが {{channel}} で自分のドキュメントを削除しました",
+        "documentDelete": "{{actor}} さんが {{channel}} で {{target}} さんのドキュメントを削除しました",
+        "memberKick": "{{actor}} さんが {{target}} さんをキックしました",
+        "memberBan": "{{actor}} さんが {{target}} さんを BAN しました",
+        "memberUnban": "{{actor}} さんが {{target}} さんの BAN を解除しました",
+        "botAdd": "{{actor}} さんが Bot {{target}} を追加しました",
+        "memberRoleUpdate": "{{actor}} さんが {{target}} さんのロールを変更しました",
+        "ownerTransfer": "{{actor}} さんが {{target}} さんをオーナーにしました",
+        "roleCreate": "{{actor}} さんがロール {{role}} を作成しました",
+        "roleUpdate": "{{actor}} さんがロール {{role}} を変更しました",
+        "roleDelete": "{{actor}} さんがロール {{role}} を削除しました",
+        "channelCreate": {
+          "text": "{{actor}} さんがチャンネル {{channel}} を作成しました",
+          "voice": "{{actor}} さんがボイスチャンネル {{channel}} を作成しました",
+          "list": "{{actor}} さんがリストチャンネル {{channel}} を作成しました",
+          "doc": "{{actor}} さんがドキュメントチャンネル {{channel}} を作成しました"
+        },
+        "channelClone": {
+          "text": "{{actor}} さんが {{source}} を複製してチャンネル {{channel}} を作成しました",
+          "voice": "{{actor}} さんが {{source}} を複製してボイスチャンネル {{channel}} を作成しました",
+          "list": "{{actor}} さんが {{source}} を複製してリストチャンネル {{channel}} を作成しました",
+          "doc": "{{actor}} さんが {{source}} を複製してドキュメントチャンネル {{channel}} を作成しました"
+        },
+        "channelUpdate": "{{actor}} さんがチャンネル {{channel}} を変更しました",
+        "channelDelete": {
+          "text": "{{actor}} さんがチャンネル {{channel}} を削除しました",
+          "voice": "{{actor}} さんがボイスチャンネル {{channel}} を削除しました",
+          "list": "{{actor}} さんがリストチャンネル {{channel}} を削除しました",
+          "doc": "{{actor}} さんがドキュメントチャンネル {{channel}} を削除しました"
+        },
+        "channelOverrideUpdate": "{{actor}} さんが {{channel}} での {{target}} の権限を変更しました",
+        "threadCreate": "{{actor}} さんが {{channel}} でスレッド {{thread}} を開始しました",
+        "threadUpdate": "{{actor}} さんがスレッド {{thread}} を変更しました",
+        "threadDelete": "{{actor}} さんが {{channel}} でスレッド {{thread}} を削除しました",
+        "categoryCreate": "{{actor}} さんがカテゴリー {{category}} を作成しました",
+        "categoryUpdate": "{{actor}} さんがカテゴリーの名前を {{category}} に変更しました",
+        "categoryDelete": "{{actor}} さんがカテゴリー {{category}} を削除しました",
+        "inviteCreate": "{{actor}} さんが招待 {{invite}} を作成しました",
+        "inviteDelete": "{{actor}} さんが招待 {{invite}} を取り消しました",
+        "emojiCreate": "{{actor}} さんが絵文字 {{emoji}} を追加しました",
+        "emojiUpdate": "{{actor}} さんが絵文字 {{emoji}} の名前を変更しました",
+        "emojiDelete": "{{actor}} さんが絵文字 {{emoji}} を削除しました",
+        "webhookCreate": "{{actor}} さんが {{channel}} にウェブフック {{webhook}} を作成しました",
+        "webhookUpdate": "{{actor}} さんがウェブフック {{webhook}} を変更しました",
+        "webhookDelete": "{{actor}} さんがウェブフック {{webhook}} を削除しました",
+        "eventCreate": "{{actor}} さんがイベント {{event}} を予定しました",
+        "eventUpdate": "{{actor}} さんがイベント {{event}} を変更しました",
+        "eventDelete": "{{actor}} さんがイベント {{event}} を中止しました",
+        "guildUpdate": "{{actor}} さんがギルド設定を変更しました",
+        "auditLogClearOlder_other": "{{actor}} さんが {{age}}より前の記録を消去しました（{{count}} 件）",
+        "auditLogClearAll_other": "{{actor}} さんが監査ログ全体を消去しました（{{count}} 件）",
+        "unknown": "{{actor}} さんが操作を行いました（{{action}}）"
+      },
+      "fields": {
+        "name": "名前",
+        "topic": "トピック",
+        "category": "カテゴリー",
+        "color": "色",
+        "hoist": "別枠で表示",
+        "mentionable": "誰でもメンション可能",
+        "channel": "チャンネル",
+        "permissions": "権限",
+        "nsfw": "NSFW",
+        "archived": "アーカイブ済み",
+        "description": "説明",
+        "location": "場所",
+        "start_time": "開始",
+        "end_time": "終了"
+      },
+      "values": {
+        "none": "なし",
+        "yes": "はい",
+        "no": "いいえ"
+      },
+      "overrideStates": {
+        "allow": "許可",
+        "deny": "拒否",
+        "inherit": "未設定"
+      },
+      "changes": {
+        "change": "{{field}}: {{before}} → {{after}}",
+        "granted": "付与: {{list}}",
+        "revoked": "取り消し: {{list}}",
+        "permissions": "権限: {{list}}",
+        "rolesAdded": "追加: {{list}}",
+        "rolesRemoved": "削除: {{list}}",
+        "pictureChanged": "画像を変更",
+        "pictureRemoved": "画像を削除",
+        "iconChanged": "アイコンを変更",
+        "iconRemoved": "アイコンを削除",
+        "maxUses_other": "最大 {{count}} 回使用可能",
+        "noUseLimit": "使用回数の制限なし",
+        "expiresAfter": "{{age}}後に期限切れ",
+        "neverExpires": "期限なし",
+        "cover": {
+          "added": "カバー画像を追加",
+          "changed": "カバー画像を変更",
+          "removed": "カバー画像を削除"
+        },
+        "repeat": {
+          "changed": "繰り返し方を変更",
+          "removed": "繰り返しを解除"
+        }
+      },
+      "age": {
+        "year": "1 年",
+        "days_other": "{{count}} 日",
+        "hours_other": "{{count}} 時間",
+        "minutes_other": "{{count}} 分"
+      }
+    },
+    "categoryDialog": {
+      "editTitle": "カテゴリーを編集",
+      "createTitle": "カテゴリーを作成",
+      "delete": "カテゴリーを削除",
+      "name": "カテゴリー名",
+      "namePlaceholder": "新しいカテゴリー",
+      "deleteHint": "カテゴリーを削除しても、チャンネルは残ります。"
+    },
+    "categoryMenu": {
+      "markAsRead": "既読にする",
+      "expand": "カテゴリーを展開",
+      "collapse": "カテゴリーを折りたたむ",
+      "edit": "カテゴリーを編集",
+      "createChannel": "チャンネルを作成",
+      "delete": "カテゴリーを削除"
+    },
+    "webhooks": {
+      "pickImage": "画像を選んでください。",
+      "tooBig": "画像は最大 8 MB までです。",
+      "unreadable": "その画像を読み込めませんでした。",
+      "copyFailed": "コピーできませんでした。ブラウザがここでのコピーを許可していない可能性があります。",
+      "created": "作成日: {{date}}",
+      "createdBy": "{{date}} に {{name}} さんが作成",
+      "changePicture": "画像を変更",
+      "pictureOf": "{{name}} の画像",
+      "change": "変更",
+      "picture": "ウェブフックの画像",
+      "name": "名前",
+      "nameLabel": "ウェブフック名",
+      "undoPicture": "画像の変更を元に戻す",
+      "removePicture": "画像を削除",
+      "copied": "コピーしました！",
+      "copyUrl": "ウェブフック URL をコピー",
+      "confirmDelete": "{{name}} を削除しますか？この URL を使っているものはすべて動かなくなります。",
+      "delete": "ウェブフックを削除",
+      "saveChanges": "変更を保存",
+      "defaultName": "Captain Hook",
+      "intro": "ウェブフックを使うと、他のアプリやサービスが #{{name}} にメッセージを投稿できます。それぞれに名前、画像、秘密の URL があり、Discord のウェブフックに対応しているものなら何でも使えます。URL を知っている人は誰でもここに投稿できるので、秘密にしてください。",
+      "new": "新しいウェブフック",
+      "none": "ウェブフックはまだありません。"
+    },
+    "cloneChannel": {
+      "title": "#{{name}} を複製",
+      "submit": "チャンネルを複製",
+      "hint": {
+        "text": "このチャンネルのすぐ下に、同じトピック、設定、権限で新しいチャンネルを作成します。メッセージはコピーされません。",
+        "list": "このチャンネルのすぐ下に、同じトピック、設定、権限で新しいチャンネルを作成します。タスクはコピーされません。",
+        "doc": "このチャンネルのすぐ下に、同じトピック、設定、権限で新しいチャンネルを作成します。ドキュメントはコピーされません。",
+        "voice": "このチャンネルのすぐ下に、同じ設定と権限で新しいチャンネルを作成します。"
+      }
+    },
+    "emoji": {
+      "nameOf": ":{{name}}: の名前",
+      "deleteOne": ":{{name}}: を削除",
+      "wrongType": "{{file}}: 絵文字は PNG、GIF、WebP、JPEG、AVIF 画像にしてください。",
+      "tooBig": "{{file}} は 10 MB を超えています。",
+      "uploadFailed": "{{file}}: {{error}}",
+      "intro": "ギルドの誰もが使えるカスタム絵文字を最大 {{max}} 個まで追加できます。10 MB までの PNG、GIF、WebP、JPEG、AVIF に対応し、128×128 に縮小されます。アニメーション絵文字はアニメーションのまま残ります。名前には英字、数字、アンダースコアが使えます。",
+      "upload": "絵文字をアップロード",
+      "count": "{{used}} / {{max}}",
+      "countUploading": "{{used}} / {{max}} · {{uploading}} 個をアップロード中…",
+      "images": "絵文字画像",
+      "none": "カスタム絵文字はまだありません。",
+      "list": "カスタム絵文字"
+    },
+    "guildMenu": {
+      "invite": "メンバーを招待",
+      "notifications": "通知設定",
+      "settings": "ギルド設定",
+      "copyLink": "リンクをコピー",
+      "linkCopied": "リンクをコピーしました",
+      "leave": "ギルドから退出"
+    },
+    "guildSettings": {
+      "title": "ギルド設定",
+      "saved": "保存しました。",
+      "iconNotImage": "アイコンは画像にしてください。",
+      "iconTooBig": "アイコンは 8 MB 未満にしてください。",
+      "iconUpdated": "アイコンを更新しました。",
+      "iconRemoved": "アイコンを削除しました。",
+      "changeIcon": "アイコンを変更",
+      "removeIcon": "アイコンを削除",
+      "delete": "ギルドを削除",
+      "deleteHint": "すべてのチャンネルとメッセージが削除されます。この操作は取り消せません。確認のためギルド名を入力してください。",
+      "deleteConfirmLabel": "確認用のギルド名",
+      "noInvites": "有効な招待はありません。",
+      "inviteUsage_other": "{{name}} さん · {{count}} 回使用",
+      "inviteUsageLimited_other": "{{name}} さん · {{uses}}/{{count}} 回使用",
+      "inviteExpires": "{{date}} に期限切れ",
+      "revoke": "取り消す",
+      "noBans": "BAN されている人はいません。",
+      "unban": "BAN を解除",
+      "tabs": {
+        "roles": "ロール",
+        "emoji": "絵文字",
+        "invites": "招待",
+        "bans": "BAN"
+      },
+      "noPermission": "ここで何かを変更する権限がありません。"
+    },
+    "invite": {
+      "never": "なし",
+      "noLimit": "無制限",
+      "uses_other": "{{count}} 回",
+      "copyFailed": "コピーできませんでした。リンクを選択して手動でコピーしてください。",
+      "expires": "{{date}} に期限切れ",
+      "title": "{{name}} に友達を招待",
+      "linkLabel": "友達にギルドの招待リンクを送る",
+      "expireAfter": "有効期限",
+      "maxUses": "最大使用回数",
+      "generate": "新しいリンクを生成"
+    },
+    "notifyLevels": {
+      "all": {
+        "label": "すべてのメッセージ",
+        "hint": "見られるチャンネルのすべてのメッセージを通知します。"
+      },
+      "mentions": {
+        "label": "@メンションのみ",
+        "hint": "誰かがあなた、@everyone、@here、またはあなたのロールをメンションしたとき。"
+      },
+      "none": {
+        "label": "なし",
+        "hint": "このギルドからの通知はありません。メンションは引き続き赤で表示されます。"
+      }
+    },
+    "notifications": {
+      "legend": "ギルドの通知",
+      "deviceHint": "この端末の通知を設定でオンにする必要があります。"
+    },
+    "roles": {
+      "newRoleName": "新しいロール",
+      "create": "ロールを作成",
+      "listHint": "メンバーには最上位ロールの色が使われます。ドラッグで並べ替えられます。",
+      "aboveYours": "あなたの最上位ロールより上",
+      "moveUp": "{{name}} を上へ移動",
+      "moveDown": "{{name}} を下へ移動",
+      "editLabel": "{{name}} を編集",
+      "everyoneTitle": "デフォルトの権限（@everyone）",
+      "editTitle": "ロールを編集 — {{name}}",
+      "locked": "このロールはあなたの最上位ロールと同じ高さのため、変更できません。",
+      "everyoneHint": "ギルドの全員が、他にどんなロールを持っていてもこれらの権限を持ちます。",
+      "botRoleHint": "Bot {{name}} の専用ロールで、追加時に付与されました。権限は変更できますが、削除したり他の人に付与したりはできず、Bot が退出すると消えます。",
+      "name": "ロール名",
+      "colour": "ロールの色",
+      "defaultColour": "デフォルトの色",
+      "customColour": "カスタムの色",
+      "hoist": "ロールのメンバーをオンラインメンバーとは別に表示する",
+      "mentionable": "誰でもこのロールを @メンションできるようにする",
+      "mentionableHint": "「@everyone、@here、全ロールへのメンション」権限を持つメンバーはいつでもメンションできます。",
+      "delete": "ロールを削除"
+    },
+    "channelMenu": {
+      "unmute": "チャンネルのミュートを解除",
+      "mute": "チャンネルをミュート",
+      "muteLabel": "#{{name}} をミュート",
+      "guildDefault": "ギルドのデフォルト",
+      "useGuildDefault": "ギルドのデフォルトを使用",
+      "edit": "チャンネルを編集",
+      "delete": "チャンネルを削除"
+    },
+    "mute": {
+      "forMinutes_other": "{{count}} 分間",
+      "forHours_other": "{{count}} 時間",
+      "untilTurnedOn": "再びオンにするまで",
+      "untilUnmuted": "ミュートを解除するまでミュート中",
+      "until": "{{time}} までミュート中"
+    },
+    "upload": {
+      "noUrl": "アップロード URL がありません",
+      "failed": "アップロードに失敗しました"
+    }
+  }
+}

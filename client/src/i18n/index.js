@@ -1,7 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-// The app's text. Each language is a folder (en-GB/, ru/) with one file per area of the app
+// The app's text. Each language is a folder (en-GB/, ru/, ja/) with one file per area of the app
 // ({ "settings": { ... } } in settings.json), and keys start with the area:
 // t('settings.privacy.title'). Strings are looked up synchronously from the bundle, so `t` can
 // be called anywhere (components, hooks, services) as soon as this module is imported. Anything
@@ -14,6 +14,7 @@ export const FALLBACK_LANGUAGE = 'en-GB';
 export const LANGUAGES = [
   { code: 'en-GB', name: 'English (UK)' },
   { code: 'ru', name: 'Русский' },
+  { code: 'ja', name: '日本語' },
 ];
 
 export const resources = {};
