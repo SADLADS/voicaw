@@ -31,6 +31,8 @@ const router = express.Router();
 
 const MAX_NAME_LENGTH = 80;
 const MAX_WEBHOOKS_PER_CHANNEL = 15;
+// Channels with a chat a webhook can post in.
+const WEBHOOK_TYPES = ['text', 'voice'];
 const MAX_URL_LENGTH = 2048;
 const MAX_FILES = 10;
 const MAX_FILES_BYTES = 25 * 1024 * 1024;
@@ -379,12 +381,12 @@ async function byLogin(req, res, next) {
   next();
 }
 
-// A text channel (:channelId) the caller may manage webhooks in: req.access.
+// A text or voice channel (:channelId) the caller may manage webhooks in: req.access.
 async function manageableChannel(req, res, next) {
   const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
   if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return fail(res, 404, 10003, 'Unknown Channel');
   if (!has(access.permissions, PERMISSIONS.MANAGE_WEBHOOKS)) return fail(res, 403, 50013, 'Missing Permissions');
-  if (access.channel.type !== 'text') return fail(res, 400, 50024, 'Cannot execute action on this channel type');
+  if (!WEBHOOK_TYPES.includes(access.channel.type)) return fail(res, 400, 50024, 'Cannot execute action on this channel type');
   req.access = access;
   next();
 }
@@ -491,7 +493,7 @@ async function modifyWebhook(req, res, { canMove }) {
       return fail(res, 404, 10003, 'Unknown Channel');
     }
     if (!has(target.permissions, PERMISSIONS.MANAGE_WEBHOOKS)) return fail(res, 403, 50013, 'Missing Permissions');
-    if (target.channel.type !== 'text') return fail(res, 400, 50024, 'Cannot execute action on this channel type');
+    if (!WEBHOOK_TYPES.includes(target.channel.type)) return fail(res, 400, 50024, 'Cannot execute action on this channel type');
     updates.channel_id = target.channel.id;
   }
   // Old pictures stay: messages sent with them still show them.

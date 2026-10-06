@@ -27,18 +27,17 @@ import { t } from '../../i18n';
 // Discord's: Mark As Read, Mute Channel (for how long) or Unmute, its Notification Settings
 // (your own level for it, or the guild's), Copy Link; with Manage Channels also Edit,
 // Duplicate (a copy with the same permissions: `onClone`) and Delete. Someone with only
-// Manage Webhooks gets Edit (the webhooks tab). Voice channels have no messages, so no read,
-// mute or notification items; list channels no read item.
+// Manage Webhooks gets Edit (the webhooks tab). List channels have no read item.
 export default function ChannelMenu({ guild, channel, anchor, sheet, onEdit, onClone, onDelete, onClose }) {
   useDateFormat();
   const { guildList } = useContext(LayoutContext);
-  const chat = channel.type === 'text' || channel.type === 'doc';
+  const chat = ['text', 'voice', 'doc'].includes(channel.type);
   const mute = guildList.mutes?.[channel.id];
   const ownLevel = guildList.channelLevels?.[channel.id]?.level ?? null;
   const guildLevel = guild.my_notify_level ?? 'mentions';
   const unread = guildList.unread?.find((u) => u.channel_id === channel.id && (u.count > 0 || u.mentions > 0));
   const managesChannels = has(guild.my_permissions, PERMISSIONS.MANAGE_CHANNELS);
-  const editsWebhooks = channel.type === 'text' && has(channel.my_permissions, PERMISSIONS.MANAGE_WEBHOOKS);
+  const editsWebhooks = ['text', 'voice'].includes(channel.type) && has(channel.my_permissions, PERMISSIONS.MANAGE_WEBHOOKS);
 
   const items = [];
   if (chat && unread) {

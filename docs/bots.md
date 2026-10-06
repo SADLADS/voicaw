@@ -213,6 +213,11 @@ gives, so the server never makes requests to addresses bots choose).
   autocomplete, user context menus) and discord.py 2.7.1 (`tree.sync`, a button `View`,
   a `Modal`).
 
+Voice channels' chats (2026-10-06, see Voice channels' chat in `docs/guilds.md`) are Discord's:
+a type 2 channel takes the message, reaction, pin and typing routes and sends MESSAGE_CREATE and
+the rest like a text channel, with its `last_message_id`; threads still need a text channel
+(`50024`).
+
 ### Voice (`routes/botApi.js`, `server/voice.js`)
 
 Decided 2026-10-05: bots join voice channels with **LiveKit's own SDKs** (Node

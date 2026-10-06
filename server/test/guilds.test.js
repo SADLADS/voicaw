@@ -267,7 +267,7 @@ describe('guild channels and categories', () => {
 
     const layout = await api.get(member, `/guilds/${guild.id}`);
     expect(layout.body.channels.map((c) => c.name)).toEqual(['general', 'off-topic-chat', 'lounge']);
-    expect((await api.get(member, `/channels/${voice.body.id}/messages`)).status).toBe(400);
+    expect((await api.get(member, `/channels/${voice.body.id}/messages`)).status).toBe(200);
   });
 
   it('edits and deletes channels and categories', async () => {

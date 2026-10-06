@@ -16,7 +16,7 @@ import { t } from '../../i18n';
 export default function ChannelDialog({ guild, channel, user, categoryId = null, onCreated, onClose }) {
   const editing = Boolean(channel);
   const managesRoles = has(guild.my_permissions, PERMISSIONS.MANAGE_ROLES);
-  const managesWebhooks = editing && channel.type === 'text' && has(channel.my_permissions ?? guild.my_permissions, PERMISSIONS.MANAGE_WEBHOOKS);
+  const managesWebhooks = editing && ['text', 'voice'].includes(channel.type) && has(channel.my_permissions ?? guild.my_permissions, PERMISSIONS.MANAGE_WEBHOOKS);
   // With only Manage Webhooks, a channel's settings are just its webhooks.
   const managesChannels = has(guild.my_permissions, PERMISSIONS.MANAGE_CHANNELS);
   const tabs = editing ? [

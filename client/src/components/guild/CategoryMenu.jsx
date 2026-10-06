@@ -18,7 +18,7 @@ import { t } from '../../i18n';
 // Create Channel (in it) and Delete (its channels stay, uncategorised).
 export default function CategoryMenu({ guild, category, channels, collapsed, anchor, sheet, onToggle, onEdit, onCreateChannel, onDelete, onClose }) {
   const { guildList } = useContext(LayoutContext);
-  const ids = new Set(channels.filter((c) => c.type === 'text' || c.type === 'doc').map((c) => c.id));
+  const ids = new Set(channels.filter((c) => ['text', 'voice', 'doc'].includes(c.type)).map((c) => c.id));
   const unread = (guildList.unread ?? []).filter((u) => ids.has(u.channel_id) && (u.count > 0 || u.mentions > 0));
   const items = [];
   if (unread.length) {

@@ -48,7 +48,7 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
   const boxRef = useRef(null);
   const [anchor, setAnchor] = useState(null);
 
-  const channels = useMemo(() => guild.channels.filter((c) => c.type === 'text'), [guild.channels]);
+  const channels = useMemo(() => guild.channels.filter((c) => c.type === 'text' || c.type === 'voice'), [guild.channels]);
   const channelName = (id) => guild.channels.find((c) => c.id === id)?.name ?? t('guilds.search.unknownChannel');
   // A result from an NSFW channel has its media covered, as in the channel, and isn't shown at
   // all until you've said you're 18 or over (NsfwAgeGate).

@@ -247,6 +247,35 @@ describe('GuildView', () => {
     expect(localStorage.getItem('guildChannel:5')).toBeNull();
   });
 
+  it("opens a voice channel's chat beside it without joining, and remembers it open", async () => {
+    fetchChannelMessages.mockResolvedValue([{ ...row(1, 'anyone around?'), channel_id: 11 }]);
+    renderView('/guild/5/11');
+    await screen.findByText('bob');
+    fireEvent.click(screen.getByRole('button', { name: 'Show chat' }));
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/guild/5/11?chat=1'));
+    const pane = screen.getByRole('complementary', { name: "lounge's chat" });
+    await waitFor(() => expect(messageTexts()).toEqual(['bob: anyone around? [sent]']));
+    expect(fetchChannelMessages).toHaveBeenCalledWith('11', { limit: 50 });
+    await waitFor(() => expect(markChannelRead).toHaveBeenCalledWith('11', 1));
+    expect(within(pane).getByRole('textbox')).toBeInTheDocument();
+    expect(joinVoice).not.toHaveBeenCalled();
+    // It takes the member list's place.
+    expect(screen.getByRole('button', { name: 'Show member list' })).toHaveAttribute('aria-pressed', 'false');
+    expect(localStorage.getItem('voiceChatOpen')).toBe('true');
+
+    fireEvent.click(within(pane).getByRole('button', { name: 'Close chat' }));
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: "lounge's chat" })).toBeNull());
+    expect(screen.getByTestId('where')).toHaveTextContent(/\/guild\/5\/11$/);
+    expect(localStorage.getItem('voiceChatOpen')).toBe('false');
+  });
+
+  it('reopens a voice channel with its chat if it was left open', async () => {
+    localStorage.setItem('voiceChatOpen', 'true');
+    renderView('/guild/5/11');
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/guild/5/11?chat=1'));
+    expect(await screen.findByRole('complementary', { name: "lounge's chat" })).toBeInTheDocument();
+  });
+
   it("says so when voice isn't set up", async () => {
     renderView('/guild/5/11', { voiceEnabled: false });
     expect(await screen.findByText("Voice isn't set up yet.")).toBeInTheDocument();

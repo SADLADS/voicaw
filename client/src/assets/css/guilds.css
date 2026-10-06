@@ -608,6 +608,12 @@ img.guild-icon {
   visibility: hidden;
 }
 
+/* A voice channel's chat button stays in sight while its chat has unread messages. */
+.desktop-mode .guild-channel:not(.active) .guild-sidebar-icon-button.guild-channel-chat-button.unread {
+  visibility: visible;
+  color: var(--vc-fg);
+}
+
 .guild-sidebar-empty {
   padding: 8px;
   color: var(--vc-fg-muted);

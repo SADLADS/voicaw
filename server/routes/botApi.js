@@ -156,10 +156,10 @@ async function inChannel(req, res, next) {
   next();
 }
 
-// As inChannel, but only text channels and threads (messages).
+// As inChannel: text channels, threads and voice channels (their chats) all have messages.
 async function inTextChannel(req, res, next) {
   await inChannel(req, res, () => {
-    if (!req.access || req.access.channel.type === 'voice') return fail(res, 400, 50024, 'Cannot execute action on this channel type');
+    if (!req.access) return fail(res, 400, 50024, 'Cannot execute action on this channel type');
     next();
   });
 }
@@ -198,7 +198,7 @@ async function channelOf(channel) {
   return D.channelObject(row, {
     everyoneRoleId: await everyoneRoleId(row.guild_id),
     overrides,
-    lastMessageId: row.type === 'voice' ? null : await lastMessageId(row.id),
+    lastMessageId: await lastMessageId(row.id),
   });
 }
 
@@ -503,7 +503,7 @@ async function guildChannels(guildId, botId) {
     channels.push(D.channelObject(row, {
       everyoneRoleId: everyone,
       overrides: overrides.get(row.id) ?? [],
-      lastMessageId: row.type === 'voice' ? null : await lastMessageId(row.id),
+      lastMessageId: await lastMessageId(row.id),
     }));
   }
   return [...layout.categories.map((c) => D.categoryObject(c, guildId)), ...channels];

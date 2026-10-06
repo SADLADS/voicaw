@@ -359,7 +359,7 @@ class Session {
     if (!this.wants(INTENTS.GUILD_MESSAGES)) return;
     const { MESSAGE_SELECT, withReactions } = require('./routes/guildMessages');
     const row = await db.get(
-      `${MESSAGE_SELECT} JOIN guild_channels c ON c.id = m.channel_id WHERE m.id = ? AND m.document_id IS NULL AND c.type IN ('text', 'thread')`,
+      `${MESSAGE_SELECT} JOIN guild_channels c ON c.id = m.channel_id WHERE m.id = ? AND m.document_id IS NULL AND c.type IN ('text', 'thread', 'voice')`,
       [messageId]
     );
     if (!row) return;

@@ -131,7 +131,9 @@ describe('GuildSidebar', () => {
     renderSidebar();
     expect(screen.getByText('Test Guild')).toBeInTheDocument();
     const fun = screen.getByRole('button', { name: 'Fun' }).closest('.guild-category');
-    expect(within(fun).getAllByRole('link').map((a) => a.textContent)).toEqual(['memes', 'lounge']);
+    expect([...fun.querySelectorAll('.guild-channel-link')].map((a) => a.textContent)).toEqual(['memes', 'lounge']);
+    // A voice channel's chat opens without joining.
+    expect(within(fun).getByRole('link', { name: "Open lounge's chat" })).toHaveAttribute('href', expect.stringMatching(/\?chat=1$/));
     expect(channelRow('general')).toHaveClass('active');
     expect(screen.getByRole('link', { name: 'general' })).toHaveAttribute('href', '/guild/5/10');
   });
@@ -176,7 +178,7 @@ describe('GuildSidebar', () => {
     ]);
   });
 
-  it("an owner's channel menu also edits, duplicates and deletes; a voice channel's has no mute", () => {
+  it("an owner's channel menu also edits, duplicates and deletes; a voice channel's mutes its chat", () => {
     renderSidebar();
     fireEvent.contextMenu(screen.getByRole('link', { name: 'general' }));
     expect(menuItems(screen.getByRole('menu', { name: '#general' }))).toEqual([
@@ -186,7 +188,7 @@ describe('GuildSidebar', () => {
     expect(screen.queryByRole('menu')).toBeNull();
     fireEvent.contextMenu(screen.getByRole('link', { name: 'lounge' }));
     expect(menuItems(screen.getByRole('menu', { name: '#lounge' }))).toEqual([
-      'Copy Link', 'Edit Channel', 'Duplicate Channel', 'Delete Channel',
+      'Mute Channel', 'Notification Settings', 'Copy Link', 'Edit Channel', 'Duplicate Channel', 'Delete Channel',
     ]);
   });
 

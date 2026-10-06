@@ -43,7 +43,7 @@ async function audienceFor(chatId, userId) {
     channelId = document.channel_id;
   }
   const access = await getChannelAccess(channelId, userId);
-  const types = kind === 'document' ? ['doc'] : ['text', 'thread'];
+  const types = kind === 'document' ? ['doc'] : ['text', 'thread', 'voice'];
   if (!access || !types.includes(access.channel.type)) return null;
   if (!has(access.permissions, PERMISSIONS.VIEW_CHANNEL) || !has(access.permissions, PERMISSIONS.SEND_MESSAGES)) return null;
   return { userIds: await getChannelViewers(access.channel), chatId };

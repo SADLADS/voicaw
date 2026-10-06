@@ -13,8 +13,8 @@ const { parseMentions } = require('./mentions');
 // - Permissions are Discord's bits (decimal strings). Ours each have one; Discord's that we
 //   don't have are implied by the nearest of ours (Read Message History by View Channel, Embed
 //   Links and Attach Files by Send Messages...). Edit Tasks and Create Documents are ours only.
-// - Channels: text (0), voice (2), category (4) and threads (11). List and document channels
-//   aren't in the bot API.
+// - Channels: text (0), voice (2, with its chat's messages, as Discord's), category (4) and
+//   threads (11). List and document channels aren't in the bot API.
 
 const CATEGORY_ID_BASE = 2 ** 40;
 
@@ -264,7 +264,7 @@ function channelObject(channel, { everyoneRoleId, overrides = [], lastMessageId 
     nsfw: Boolean(channel.nsfw),
   };
   if (channel.type === 'voice') {
-    return { ...shared, bitrate: 64000, user_limit: 0, rtc_region: null, video_quality_mode: 1, last_message_id: null, rate_limit_per_user: 0 };
+    return { ...shared, bitrate: 64000, user_limit: 0, rtc_region: null, video_quality_mode: 1, last_message_id: id(lastMessageId), rate_limit_per_user: 0 };
   }
   return { ...shared, topic: channel.topic ?? null, last_message_id: id(lastMessageId), rate_limit_per_user: 0, default_auto_archive_duration: 10080 };
 }

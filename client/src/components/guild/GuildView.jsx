@@ -1,7 +1,7 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBell, faBellSlash, faComments, faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faBell, faBellSlash, faComments, faMessage, faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/dms.css';
 import '../../assets/css/guilds.css';
 import { InteractionContext, LayoutContext, NsfwChannelContext, ThreadContext } from '../../contexts';
@@ -9,6 +9,7 @@ import ChatPane from '../ChatPane';
 import MemberList from './MemberList';
 import ChannelIcon from './ChannelIcon';
 import VoiceChannelView from './VoiceChannelView';
+import VoiceChatPane from './VoiceChatPane';
 import ListChannelView from './ListChannelView';
 import DocChannelView from '../documents/DocChannelView';
 import GuildSearch from './GuildSearch';
@@ -29,12 +30,16 @@ import NsfwAgeGate from './NsfwAgeGate';
 import { t } from '../../i18n';
 
 const SHOW_MEMBERS_KEY = 'showMemberList';
+// Whether a voice channel's chat was last left open (on a computer).
+const VOICE_CHAT_KEY = 'voiceChatOpen';
 
 // A guild page (/guild/:guildId/:channelId): the channel's header (name, topic, members
 // button), its chat (ChatPane over useChannel) and the member list. In a text channel,
 // `?thread=<id>` opens that thread beside it (ThreadPane, in the member list's place; on a
 // phone over the chat), and the header's threads button lists the channel's threads. Without a channel in the
-// URL it opens the one last viewed here (or the first). The guild's channel sidebar is in the
+// URL it opens the one last viewed here (or the first). In a voice channel, `?chat=1` opens its
+// chat beside it (VoiceChatPane, in the member list's place; on a phone over the voice page);
+// on a computer it reopens open if it was left open. The guild's channel sidebar is in the
 // layout's left column (GuildSidebar).
 export default function GuildView({ user }) {
   const { guildId, channelId } = useParams();
@@ -86,7 +91,11 @@ export default function GuildView({ user }) {
   const clearJump = useCallback(() => setJumpTarget(null), []);
   const jumpToResult = (msg) => {
     setJumpTarget({ channelId: msg.channel_id, messageId: msg.id });
-    if (String(msg.channel_id) !== channelId) navigate(`/guild/${guildId}/${msg.channel_id}`);
+    // A voice channel's messages are in its chat.
+    const voiceChannel = guild?.channels.find((c) => c.id === msg.channel_id)?.type === 'voice';
+    if (String(msg.channel_id) !== channelId || (voiceChannel && !voiceChatOpen)) {
+      navigate(`/guild/${guildId}/${msg.channel_id}${voiceChannel ? '?chat=1' : ''}`);
+    }
   };
 
   const channel = guild?.channels.find((c) => String(c.id) === channelId) ?? null;
@@ -97,6 +106,35 @@ export default function GuildView({ user }) {
   const ageGated = Boolean(channel?.nsfw) && !(preferencesReady && adultConfirmed);
   const textChannelId = channel?.type === 'text' && !ageGated ? channelId : null;
   const openThreadId = textChannelId && threadId ? threadId : null;
+  // A voice channel's chat: loaded (and marked read) only while it's open.
+  const isVoice = channel?.type === 'voice';
+  const voiceChatOpen = isVoice && searchParams.get('chat') === '1';
+  const chatChannelId = textChannelId ?? (voiceChatOpen && !ageGated ? channelId : null);
+  // On a phone it's a page of its own: Back closes it.
+  const setVoiceChat = useCallback((open) => {
+    setSearchParams(open ? { chat: '1' } : {}, { replace: !isMobile || !open });
+  }, [isMobile, setSearchParams]);
+  // On a computer, a voice channel opens with its chat if it was left open (however it was
+  // opened or closed: the header, the channel list's button, a search result).
+  const chatParam = searchParams.get('chat');
+  const arrivedAt = useRef(null);
+  useEffect(() => {
+    if (!isVoice || isMobile) {
+      arrivedAt.current = null;
+      return;
+    }
+    const arrived = arrivedAt.current !== channelId;
+    arrivedAt.current = channelId;
+    try {
+      if (arrived && !chatParam) {
+        if (localStorage.getItem(VOICE_CHAT_KEY) === 'true') setSearchParams({ chat: '1' }, { replace: true });
+      } else {
+        localStorage.setItem(VOICE_CHAT_KEY, String(chatParam === '1'));
+      }
+    } catch {
+      // Storage unavailable: not remembered.
+    }
+  }, [channelId, isVoice, isMobile, chatParam, setSearchParams]);
 
   const openThread = useCallback((id) => {
     setThreadsAnchor(null);
@@ -110,7 +148,7 @@ export default function GuildView({ user }) {
     // From a "started a thread" row: the list opens under the header's button.
     showThreads: () => setThreadsAnchor(document.querySelector('.threads-button')?.getBoundingClientRect() ?? null),
   }), [openThread, canCreateThreads]);
-  const conversation = useChannel({ channelId: textChannelId, user, onRead: guildList.refreshUnread });
+  const conversation = useChannel({ channelId: chatChannelId, user, onRead: guildList.refreshUnread });
 
   // Load the guild's layout if this is the first visit (or it just appeared).
   const { loadGuild } = guildList;
@@ -188,8 +226,8 @@ export default function GuildView({ user }) {
       off();
     };
   }, [guildId, viewedChannelId]);
-  // The channel's bots' user commands, for the member card's Apps (text channels only).
-  const { commands: channelCommands } = useChannelCommands(viewedChannelId, { enabled: channel?.type === 'text' });
+  // The channel's bots' user commands, for the member card's Apps (channels with a chat).
+  const { commands: channelCommands } = useChannelCommands(viewedChannelId, { enabled: channel?.type === 'text' || channel?.type === 'voice' });
   const userApps = useMemo(() => channelCommands.filter((c) => c.type === 2), [channelCommands]);
   const runUserApp = useCallback(async (command, userId) => {
     handleInteractionResult(await runCommand(viewedChannelId, { commandId: command.id, targetId: userId }));
@@ -273,8 +311,8 @@ export default function GuildView({ user }) {
 
   // A list channel uses the space for its tasks' details instead, a document channel for replies.
   const isList = channel?.type === 'list' || channel?.type === 'doc';
-  // An open thread takes the member list's place.
-  const membersVisible = !isList && !openThreadId && (isMobile ? membersOpenMobile : showMembers);
+  // An open thread, or a voice channel's chat, takes the member list's place.
+  const membersVisible = !isList && !openThreadId && !voiceChatOpen && (isMobile ? membersOpenMobile : showMembers);
   const permissions = channel?.my_permissions ?? 0;
   const muted = Boolean(channel && guildList.isMuted(channel.id));
   // What a channel's chat (ChatPane) takes from the guild, for a document channel's replies.
@@ -312,7 +350,19 @@ export default function GuildView({ user }) {
             <span className="channel-header-topic" title={channel.topic}>{channel.topic}</span>
           </>
         )}
-        {channel && channel.type !== 'voice' && (
+        {isVoice && (
+          <button
+            type="button"
+            className={`channel-header-button voice-chat-button${voiceChatOpen ? ' active' : ''}`}
+            aria-label={voiceChatOpen ? t('guilds.voiceChat.hide') : t('guilds.voiceChat.show')}
+            aria-pressed={voiceChatOpen}
+            title={voiceChatOpen ? t('guilds.voiceChat.hide') : t('guilds.voiceChat.show')}
+            onClick={() => setVoiceChat(!voiceChatOpen)}
+          >
+            <FontAwesomeIcon icon={faMessage} />
+          </button>
+        )}
+        {channel && (
           <button
             type="button"
             className={`channel-header-button mute-button${muteAnchor ? ' active' : ''}${muted ? ' muted' : ''}`}
@@ -332,7 +382,7 @@ export default function GuildView({ user }) {
           </button>
         )}
         {muteAnchor && channel && <ChannelMuteMenu channel={channel} anchor={muteAnchor} align="end" onClose={closeMute} />}
-        {textChannelId && (
+        {chatChannelId && (
           <button
             type="button"
             className={`channel-header-button pins-button${pinsAnchor ? ' active' : ''}`}
@@ -463,6 +513,21 @@ export default function GuildView({ user }) {
               onClose={closeThread}
             />
           </NsfwChannelContext.Provider>
+        )}
+
+        {voiceChatOpen && !ageGated && (
+          <VoiceChatPane
+            channel={channel}
+            conversation={conversation}
+            isMobile={isMobile}
+            chatProps={chatProps}
+            pins={{ anchor: pinsAnchor, onClose: closePins }}
+            jump={{
+              jumpTo: jumpTarget?.channelId === channel.id && conversation.loadedChannelId === channelId ? jumpTarget : null,
+              onJumped: clearJump,
+            }}
+            onClose={() => setVoiceChat(false)}
+          />
         )}
 
         {membersVisible && (
