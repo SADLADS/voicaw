@@ -109,13 +109,12 @@ native bridge. Check real behaviour on a phone.
   (`mobile/make-release-key.sh`, `~/.voicaw-android-keys`, mounted read-only into the build;
   the same key forever, or phones refuse updates). Published as
   `updates.voicaw.com/android/voicaw-<version>.apk` (cached for good), `releases.json` and
-  `voicaw.apk` (the newest; neither cached), listed on the update site's page and on voicaw.com
-  (`website/build.mjs` `renderAndroid`: the Android card, install steps, and a "Download for
-  Android" button phone visitors get first). Each release also builds the same version as the
+  `voicaw.apk` (the newest; neither cached), but no longer offered anywhere (2026-10-06): only the
+  copies already installed from there use them, to update themselves. New people get the app from
+  Google Play's closed test (see Info site). Each release also builds the same version as the
   `play` flavour's App Bundle (`dist-android/voicaw-<version>-play.aab`, `bundlePlayRelease`,
   same key), uploaded to the Play Console by hand (README "Android app": choose to use our own
-  signing key, so the two builds can replace each other). Play Protect may warn about the
-  website's APK until it's registered to a verified Google developer account.
+  signing key, so the two builds can replace each other).
 - **Two builds** (Gradle flavours): `direct`, the APK above, which updates itself, and `play`,
   for Google Play, which mustn't (Play's rules: an app from Play updates only through Play, and
   the permission to install packages is restricted). The updater and that permission live only in
@@ -192,7 +191,7 @@ native bridge. Check real behaviour on a phone.
   silently, ringing, channel off, couldn't open, the page couldn't word it, an error), only
   times and outcomes, to find where one got stuck without the phone's logs. The test
   notification (Settings → Notifications) always alerts, even with the app open.
-- **Not done yet**: Google Play (the `play` build exists, unpublished), Bluetooth headset
+- **Not done yet**: Google Play for everyone (it's a closed test, 2026-10-06), Bluetooth headset
   buttons and phone calls interrupting ours (Android's Telecom API), replying from a
   notification, the unread count on the icon, push-to-talk, screen sharing, iOS.
 
@@ -202,8 +201,19 @@ The app is at app.voicaw.com; voicaw.com is a static info and download page (`we
 README "voicaw.com and app.voicaw.com"). `website/build.mjs` fills `website/src/index.html`'s
 `{{PLACEHOLDERS}}` with the newest desktop version and installer links (from the update site's
 `desktop/releases.json`, linking to updates.voicaw.com), so the page needs no script for them;
-a small inline one only offers the visitor's own system first and tells a home screen icon from
-before the move that the app has moved. `updates/publish.mjs` rebuilds it after publishing (not
+a small inline one offers the visitor's own system first, tells a home screen icon from
+before the move that the app has moved, and sends the Android test's form.
+
+**Android: Google Play's closed test** (2026-10-06). The Android card, and the button phone
+visitors get first, lead to the page's `#android-test` section: how to join, links to the test's
+opt-in page and the Play listing (`PLAY_TEST_URL`, `PLAY_URL` in `build.mjs`), and a form (Google
+account email, optional name and note, a hidden field that catches bots) posting to
+`/api/tester-requests` through voicaw.com's `/api/` (`server/routes/testerRequests.js`: no
+account, 5 an hour per IP, at most 1000 waiting; the same email again replaces the name and note).
+Admins see the requests in Settings → Admin → Android testers (live, over the websocket),
+copy the waiting emails, add them to the test's tester list in the Play Console by hand, then
+mark them added and delete them when done. Nothing tells the person: Play lets them in once
+they're on the list. When the app is open to everyone, link the card to Play and drop the form. `updates/publish.mjs` rebuilds it after publishing (not
 for a try-out folder, unless `VOICAW_SITE_DIR` is set), so `desktop-release/release.sh` keeps it
 current. nginx (`website/nginx/voicaw.com`) keeps voicaw.com's `/api/` (installed desktop apps,
 older builds and copied webhook URLs use it) and redirects any other unknown path to the same

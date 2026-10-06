@@ -178,6 +178,17 @@
         "decline": "Decline",
         "confirmDecline": "Decline this request? Their account is deleted."
       },
+      "testers": {
+        "title": "Android testers",
+        "help": "People asking on voicaw.com to join the Android app's closed test on Google Play. Add their emails to the test's tester list in the Play Console, then mark them added. Delete a request once you're done with it.",
+        "none": "Nobody has asked.",
+        "copyWaiting": "Copy waiting emails",
+        "added": "Added {{date}}",
+        "markAdded": "Mark added",
+        "markWaiting": "Not added",
+        "delete": "Delete",
+        "confirmDelete": "Delete the request from {{email}}?"
+      },
       "invites": {
         "title": "Invites",
         "help": "Links that let someone sign up when sign-ups are invite only, or skip the wait for approval. New links are copied straight away.",

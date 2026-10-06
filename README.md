@@ -304,18 +304,19 @@ mobile/make-release-key.sh   # ~/.voicaw-android-keys: voicaw-release.jks + its 
 Back that folder up somewhere safe and copy it to any other machine that builds releases: every
 APK must be signed with this key, or phones refuse it as an update, and a new key means everyone
 uninstalls and installs again (logging in again). If the app goes on Google Play, choose this key
-as its app signing key, so the website's APK and Play's update each other.
+as its app signing key, so the website's APK and Play's update each other (it is: closed test,
+2026-10-06).
 
 **Publishing** (`updates/publish-android.mjs`, run by `build-android.sh`) puts
-`voicaw-<version>.apk`, `releases.json` and `voicaw.apk` (always the newest, one link to share) in
-`/opt/voicaw-updates/android/`, lists it on updates.voicaw.com's page, and rebuilds voicaw.com
-with an Android download (first for phone visitors) and how to install it. Apply
+`voicaw-<version>.apk`, `releases.json` and `voicaw.apk` (always the newest) in
+`/opt/voicaw-updates/android/`. Since the app went to Google Play (2026-10-06) nothing offers
+them: they're only for the copies already installed from there, which keep updating themselves.
+voicaw.com sends people to Google Play's closed test instead (its form, docs/desktop-and-site.md
+"Info site"). Apply
 `updates/nginx/updates.voicaw.com`'s `/android/` locations to the live nginx once (APKs go out as
-Android packages; `voicaw.apk` and `releases.json` aren't cached). Set `VOICAW_UPDATES_DIR` (and
-`VOICAW_SITE_DIR`) to try it on other folders. Installing from the website, Android asks once to
-allow installs from the browser, and Play Protect may warn about an app it doesn't know ("More
-details" → "Install anyway") until the package is registered to a verified Google developer.
-The installed app looks at `releases.json` for new versions and, when the person taps Update,
+Android packages; `voicaw.apk` and `releases.json` aren't cached). Set `VOICAW_UPDATES_DIR` to
+try it on another folder. The installed app looks at `releases.json` for new versions and, when
+the person taps Update,
 downloads the APK and asks Android to install it (Android asks once to allow installs from
 Voicaw). `VOICAW_UPDATE_URL` at build time points a try-out build at another update folder.
 

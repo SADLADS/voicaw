@@ -1,8 +1,10 @@
 #!/bin/sh
-# Release the Android app from this checkout: next version, signed APK, published on the update
-# site (updates.voicaw.com/android/) and voicaw.com's Android button, and the same version as an
-# App Bundle for Google Play (dist-android/voicaw-<version>-play.aab, uploaded by hand in the
-# Play Console: Play needs every upload's version to be higher, so it follows these releases).
+# Release the Android app from this checkout: next version, an App Bundle for Google Play
+# (dist-android/voicaw-<version>-play.aab, uploaded by hand in the Play Console: Play needs every
+# upload's version to be higher, so it follows these releases), and the same version as a signed
+# APK published on the update site (updates.voicaw.com/android/). Nobody is offered that APK any
+# more (voicaw.com links to Google Play): it's only for the copies already installed from there,
+# which update themselves from it.
 #   ./build-android.sh [patch|minor|major|X.Y.Z] [-y] [--no-publish] [--no-push]
 #   ./build-android.sh --debug [--no-push]
 # Default: patch (or, before the first release, mobile/package.json's version). Asks before
@@ -71,7 +73,7 @@ VOICAW_VERSION="$VERSION" sh mobile/dist-android.sh release
 apk="$(pwd)/dist-android/voicaw-$VERSION.apk"
 if [ -n "$PUBLISH" ]; then
   node updates/publish-android.mjs publish "$apk" "$VERSION"
-  echo "Download: https://updates.voicaw.com/android/voicaw.apk"
+  echo "Published for the copies installed from the update site."
 else
   echo "APK: $apk"
 fi

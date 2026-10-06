@@ -8,10 +8,15 @@ vi.mock('../utils/api', () => ({
 
 // The websocket's "someone asked for an account": the panel loads again.
 const signupListeners = new Set();
+const testerListeners = new Set();
 vi.mock('../utils/ws-client', () => ({
   onSignupRequests: (cb) => {
     signupListeners.add(cb);
     return () => signupListeners.delete(cb);
+  },
+  onTesterRequests: (cb) => {
+    testerListeners.add(cb);
+    return () => testerListeners.delete(cb);
   },
 }));
 
@@ -133,5 +138,40 @@ describe('AdminSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
     await waitFor(() => expect(screen.queryByText(/Code123/)).not.toBeInTheDocument());
     expect(api.delete).toHaveBeenCalledWith('/admin/invites/Code123');
+  });
+
+  it('lists Android tester requests, waiting first, to mark added, copy or delete', async () => {
+    const testers = [
+      { id: 7, email: 'pal@gmail.com', name: 'Pal', note: 'Pixel 7', created_at: 1_790_000_000, added_at: null },
+      { id: 8, email: 'old@gmail.com', name: null, note: null, created_at: 1_789_000_000, added_at: 1_789_500_000 },
+    ];
+    api.get.mockImplementation(async (url) => (url === '/admin/tester-requests'
+      ? { data: { testers } }
+      : { data: { settings: [], admins: [], requests: [], invites: [] } }));
+    renderAdmin();
+    expect(await screen.findByText('pal@gmail.com')).toBeInTheDocument();
+    expect(screen.getByText('Pixel 7')).toBeInTheDocument();
+
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Copy waiting emails' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('pal@gmail.com'));
+
+    api.put.mockResolvedValue({ data: { testers: [{ ...testers[0], added_at: 1_790_000_100 }, testers[1]] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Mark added' }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/admin/tester-requests/7', { added: true }));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Not added' })).toHaveLength(2));
+    expect(screen.queryByRole('button', { name: 'Copy waiting emails' })).not.toBeInTheDocument();
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    api.delete.mockResolvedValue({ data: { testers: [testers[0]] } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[1]);
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/admin/tester-requests/8'));
+    await waitFor(() => expect(screen.queryByText('old@gmail.com')).not.toBeInTheDocument());
+
+    // Someone else asked: the list loads again.
+    api.get.mockClear();
+    testerListeners.forEach((cb) => cb());
+    expect(api.get).toHaveBeenCalledWith('/admin/tester-requests');
   });
 });

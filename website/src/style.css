@@ -186,6 +186,33 @@ a.store:hover { background: var(--card-hover); }
 .store small { color: var(--muted); }
 .honest p { color: var(--muted); }
 
+.tester { max-width: 640px; margin: 0 auto; scroll-margin-top: 16px; }
+.steps { color: var(--muted); padding-left: 1.4em; }
+.steps li { margin: 4px 0; }
+/* Not the download list's rows (.download li a). */
+.download .steps a { display: inline; padding: 0; background: none; border: 0; border-radius: 0; color: var(--accent-text); }
+.tester-form { display: flex; flex-direction: column; gap: 12px; margin: 20px 0; }
+.tester-form label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.95rem; }
+.tester-form small { color: var(--muted); font-weight: 400; }
+.tester-form input, .tester-form textarea {
+  font: inherit;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  width: 100%;
+}
+.tester-form textarea { resize: vertical; }
+.tester-form input:focus, .tester-form textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.tester-form .trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.tester-send { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.tester-send .button { border: 0; cursor: pointer; font: inherit; font-weight: 600; font-size: 0.95rem; }
+.tester-send .button:disabled { opacity: 0.6; cursor: default; }
+.form-status { margin: 0; color: var(--muted); font-size: 0.93rem; }
+.tester-done { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+
 footer {
   display: flex;
   flex-wrap: wrap;

@@ -1123,6 +1123,19 @@ CREATE INDEX IF NOT EXISTS guild_event_users_user ON guild_event_users (user_id)
 addColumn('ALTER TABLE guild_events ADD COLUMN all_day INTEGER NOT NULL DEFAULT 0');
 addColumn('ALTER TABLE guild_events ADD COLUMN emoji TEXT');
 addColumn('ALTER TABLE guild_events ADD COLUMN color INTEGER');
+// People asking to join the Android app's closed test on Google Play (voicaw.com's form,
+// routes/testerRequests.js): the Google account's email, to add to Play's tester list by hand.
+// Kept until an admin deletes it; `added_at` once an admin has added it to the list.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS tester_requests (
+  id INTEGER PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  name TEXT,
+  note TEXT,
+  created_at INTEGER NOT NULL,
+  added_at INTEGER
+);
+`);
 
 // ---- Queries ----
 // get / all / run return promises (callers await them) though the driver is synchronous, and

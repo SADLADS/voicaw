@@ -907,6 +907,11 @@ body:not(.mobile-mode) .settings-category-title {
   overflow-wrap: anywhere;
 }
 
+.admin-tester-note {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .admin-setting-row select {
   flex: 1;
   min-width: 0;
