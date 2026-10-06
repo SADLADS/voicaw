@@ -1,0 +1,316 @@
+{
+  "chat": {
+    "contactKey": {
+      "thisPerson": "この人",
+      "invalidTitle": "{{name}} さんの暗号鍵を検証できません。",
+      "invalidBody": "サーバーから送られてきた {{name}} さんの鍵は正しく署名されていないため、別人のものである可能性があります。この問題が解決するまで、この会話ではメッセージを送受信できません。",
+      "changedTitle": "{{name}} さんのセキュリティキーが変更されました。",
+      "changedBody": "通常は起こらないことです。誰かがあなたのメッセージを傍受しようとしているか、サーバーのデータがリセットされた可能性があります。続ける前に、別の方法（対面や通話）で {{name}} さんに確認してください。",
+      "accept": "新しい鍵を承認"
+    },
+    "pane": {
+      "cantSend": "ここでメッセージを送信する権限がありません。",
+      "empty": "メッセージはまだありません。会話を始めましょう！",
+      "error": "エラー: {{error}}",
+      "copyFailed": "メッセージをコピーできませんでした。",
+      "pollClosedEdit": "この投票は終了しているため、編集できません。",
+      "pollTooLong": "投票が長すぎます。",
+      "pollTimerFailed": "投票は送信されましたが、終了時に結果は告知されません。",
+      "pinFailed": "メッセージをピン留めできませんでした。",
+      "removePreviewsFailed": "プレビューを削除できませんでした。",
+      "unpinFailed": "メッセージのピン留めを外せませんでした。",
+      "jumpFailed": "チャット内でそのメッセージが見つかりませんでした。"
+    },
+    "deleteMessage": {
+      "title": "メッセージを削除",
+      "confirm": "本当にこのメッセージを削除しますか？",
+      "shiftTip": "ヒント: Shift を押しながら削除をクリックすると、この確認を省略できます。"
+    },
+    "composer": {
+      "tooLongWithLinks_other": "添付ファイルのリンクを加えると、メッセージが {{count}} 文字長すぎます。",
+      "sendFailed": "メッセージを送信できませんでした: {{error}}",
+      "gifFailed": "GIF を送信できませんでした: {{error}}",
+      "replyingTo": "<b>{{name}}</b> さんに返信中",
+      "uploadFile": "ファイルをアップロード",
+      "createPoll": "投票を作成",
+      "fallbackName": "ユーザー",
+      "messageLabel": "{{name}} へメッセージを送信",
+      "messagePlaceholder": "{{name}} へメッセージを送信...",
+      "showKeyboard": "キーボードを表示",
+      "emoji": "絵文字",
+      "send": "送信"
+    },
+    "dm": {
+      "loadUsersError": "ユーザーの読み込みエラー: {{error}}",
+      "noConversations": "最近の会話はありません。",
+      "call": "{{name}} さんに発信",
+      "alreadyInCall": "すでに通話中です",
+      "startCall": "{{name}} さんと音声通話を開始",
+      "accountDeleted": "このアカウントは削除されました。会話は引き続き読むことができます。"
+    },
+    "dmMenu": {
+      "markRead": "既読にする",
+      "joinCall": "通話に参加",
+      "startCall": "通話を開始",
+      "pin": "会話をピン留め",
+      "unpin": "会話のピン留めを外す",
+      "mute": "会話をミュート",
+      "unmute": "会話のミュートを解除"
+    },
+    "dmList": {
+      "title": "ダイレクトメッセージ",
+      "muted": "ミュート中",
+      "pinned": "ピン留め",
+      "newGroup": "新しいグループ"
+    },
+    "notes": {
+      "title": "メモ",
+      "onlyYou": "これを読めるのはあなただけです",
+      "empty": "まだ何もありません。メモ、リンク、ファイルを自分用に保存しましょう。エンドツーエンド暗号化されます。"
+    },
+    "safetyNumber": {
+      "compare": "安全番号を比較",
+      "verified": "✓ 検証済み",
+      "notVerified": "未検証",
+      "title": "{{name}} さんとの安全番号",
+      "body": "対面または通話で {{name}} さんとこの番号を比較してください。お二人に同じ番号が表示されていれば、会話がサーバーに傍受されることはありません。",
+      "label": "安全番号",
+      "calculating": "計算中…",
+      "markVerified": "検証済みにする",
+      "markNotVerified": "未検証にする"
+    },
+    "message": {
+      "spoiler": "ネタバレ、選択すると表示されます",
+      "pinned": "ピン留め",
+      "webhookTitle": "ウェブフックによる投稿",
+      "webhookTag": "APP",
+      "botTitle": "Bot: 開発者ポータルで作られたアプリ",
+      "botTag": "BOT",
+      "edited": "編集済み",
+      "editedInline": "（編集済み）",
+      "unsigned": "署名なし",
+      "unsignedTitle": "グループメッセージに署名が付く前に送信されたため、送信者を検証できません",
+      "unverified": "⚠ 未検証の送信者",
+      "unverifiedTitle": "署名が送信者と一致しません。偽造されている可能性があります",
+      "editLabel": "メッセージを編集",
+      "editHint": "Escape で<cancel>キャンセル</cancel> • Enter で<save>保存</save>",
+      "hiddenSpoiler": "[ネタバレ]"
+    },
+    "reactions": {
+      "add": "リアクションを追加",
+      "you": "あなた",
+      "someone": "誰か",
+      "chipLabel": "{{emoji}} {{number}}、{{names}} がリアクション",
+      "reactedBy": "{{names}} がリアクション",
+      "updateFailed": "リアクションを更新できませんでした。もう一度お試しください。"
+    },
+    "noKeys": "この端末には暗号鍵がありません。ログアウトしてもう一度ログインしてください。",
+    "messageMenu": {
+      "label": "メッセージの操作",
+      "react": "リアクション",
+      "reactWith": "{{name}} でリアクション",
+      "moreReactions": "その他のリアクション",
+      "addReaction": "リアクションを追加",
+      "edit": "メッセージを編集",
+      "pin": "メッセージをピン留め",
+      "unpin": "メッセージのピン留めを外す",
+      "createThread": "スレッドを作成",
+      "copyText": "テキストをコピー",
+      "removePreviews": "プレビューを削除",
+      "delete": "メッセージを削除",
+      "pinSheet": "メッセージをピン留め",
+      "unpinSheet": "メッセージのピン留めを外す",
+      "createThreadSheet": "スレッドを作成",
+      "copyTextSheet": "テキストをコピー",
+      "removePreviewsSheet": "プレビューを削除",
+      "confirmDelete": "このメッセージを削除しますか？この操作は取り消せません。"
+    },
+    "pins": {
+      "title": "ピン留めされたメッセージ",
+      "heading": "ピン留めされたメッセージ",
+      "loadFailed": "ピン留めされたメッセージを読み込めませんでした。",
+      "unpinFailed": "そのメッセージのピン留めを外せませんでした。",
+      "empty": "このチャットにはまだピン留めされたメッセージがありません。",
+      "emptyCanPin": "メッセージのメニューからピン留めすると、ここに保存されます。",
+      "emptyHint": "ピン留めされたメッセージはここに表示されます。",
+      "jump": "移動"
+    },
+    "typing": {
+      "one": "<b>{{a}}</b> さんが入力中…",
+      "two": "<b>{{a}}</b> さんと <b>{{b}}</b> さんが入力中…",
+      "three": "<b>{{a}}</b> さん、<b>{{b}}</b> さん、<b>{{c}}</b> さんが入力中…",
+      "several": "複数の人が入力中…"
+    },
+    "suggestions": {
+      "emojiLabel": "{{query}} に一致する絵文字",
+      "emojiTitle": "<b>{{query}}</b> に一致する絵文字",
+      "channels": "チャンネル",
+      "mentions": "メンション",
+      "matching": "<b>{{query}}</b> に一致"
+    },
+    "mentions": {
+      "unknownUser": "不明なユーザー",
+      "deletedRole": "削除されたロール",
+      "unknownChannel": "不明なチャンネル",
+      "everyone": "このチャンネルを見られる全員に通知します。",
+      "here": "このチャンネルを見られるオンラインの全員に通知します。"
+    },
+    "emojiPicker": {
+      "label": "絵文字ピッカー",
+      "shrink": "ピッカーを縮小",
+      "expand": "ピッカーを拡大",
+      "tabs": "ピッカー",
+      "emojiTab": "絵文字",
+      "gifsTab": "GIF",
+      "closeSearch": "検索を閉じる",
+      "searchKlipy": "KLIPY を検索",
+      "searchPlaceholder": "ぴったりの絵文字を探そう",
+      "searchGifs": "GIF を検索",
+      "searchEmoji": "絵文字を検索",
+      "skinTone": "肌の色",
+      "skinToneNumber": "肌の色 {{number}}",
+      "loading": "絵文字を読み込み中…",
+      "categoriesLabel": "絵文字のカテゴリー",
+      "noMatch": "「{{query}}」に一致する絵文字はありません",
+      "from": "{{guild}} より",
+      "pick": "絵文字を選択",
+      "frequent": "よく使う絵文字",
+      "categories": {
+        "people": "スマイリーと人",
+        "nature": "動物と自然",
+        "foods": "食べ物と飲み物",
+        "activity": "アクティビティ",
+        "places": "旅行と場所",
+        "objects": "物",
+        "symbols": "記号",
+        "flags": "旗"
+      }
+    },
+    "poll": {
+      "label": "投票: {{question}}",
+      "summary": "📊 投票: {{question}}",
+      "selectOne": "回答を 1 つ選択",
+      "selectMany": "回答を 1 つ以上選択",
+      "optionLabel_other": "{{answer}}: {{count}} 票。投票した人を表示",
+      "optionLabelMine_other": "{{answer}}: {{count}} 票、あなたの投票。投票した人を表示",
+      "yourVote": "あなたの投票",
+      "optionCount_other": "{{count}} 票 · {{share}}%",
+      "votes_other": "{{count}} 票",
+      "closed": "投票は終了しました",
+      "end": "投票を終了",
+      "endConfirm": "今すぐこの投票を終了しますか？誰も投票できなくなり、現時点の結果が最終結果になります。",
+      "showResults": "結果を表示",
+      "removeVote": "投票を取り消す",
+      "backToVote": "投票に戻る",
+      "vote": "投票",
+      "voteFailed": "投票を保存できませんでした。もう一度お試しください。",
+      "duration": {
+        "hours_other": "{{count}} 時間",
+        "days_other": "{{count}} 日",
+        "weeks_other": "{{count}} 週間"
+      },
+      "timeLeft": {
+        "days_other": "残り {{count}} 日",
+        "hours_other": "残り {{count}} 時間",
+        "minutes_other": "残り {{count}} 分",
+        "lessThanMinute": "残り 1 分未満"
+      }
+    },
+    "pollDialog": {
+      "createTitle": "投票を作成",
+      "editTitle": "投票を編集",
+      "post": "投稿",
+      "saveFailed": "投票を保存できませんでした。",
+      "question": "質問",
+      "questionPlaceholder": "何を聞きたいですか？",
+      "answers": "回答",
+      "answer": "回答 {{number}}",
+      "answerPlaceholder": "回答を入力",
+      "addEmoji": "絵文字を追加",
+      "addEmojiTo": "回答 {{number}} に絵文字を追加",
+      "changeEmoji": "絵文字を変更",
+      "changeEmojiOf": "回答 {{number}} の絵文字を変更",
+      "removeEmoji": "絵文字を削除",
+      "removeEmojiOf": "回答 {{number}} の絵文字を削除",
+      "removeAnswer": "回答を削除",
+      "removeAnswerNumber": "回答 {{number}} を削除",
+      "addAnswer": "+ 回答を追加",
+      "changedHint": "回答を変更すると、その回答への投票は削除されます。",
+      "duration": "期間",
+      "noEnd": "終了なし",
+      "multi": "複数回答を許可",
+      "multiLocked": "投稿後は変更できません。",
+      "multiHint": "これと期間は、投票を投稿した後は変更できません。"
+    },
+    "pollEnd": {
+      "closed": "<b>{{author}}</b> さんの投票「<b>{{question}}</b>」が終了しました。",
+      "nobodyVoted": "誰も投票しませんでした。",
+      "won_other": "<answer></answer> が {{share}}%（{{count}} 票中 {{votes}} 票）で勝ちました。",
+      "draw": "<answers></answers> がそれぞれ {{share}}% で引き分けです。",
+      "separator": "、",
+      "lastSeparator": "、",
+      "view": "投票を表示"
+    },
+    "pollVoters": {
+      "votedFor": "{{answer}} に投票",
+      "none": "この回答に投票した人はいません。",
+      "you": "{{name}}（あなた）"
+    },
+    "callLog": {
+      "ended": "{{caller}} さんが通話を開始しました（通話時間: {{length}}）。",
+      "missed": "{{caller}} さんからの不在着信があります。",
+      "nobodyAnswered": "誰も応答しませんでした。",
+      "declined": "{{callee}} さんが通話を拒否しました。",
+      "noAnswer": "{{callee}} さんは応答しませんでした。",
+      "length": {
+        "seconds": "数秒",
+        "minutes_other": "{{count}} 分",
+        "hours_other": "{{count}} 時間",
+        "restMinutes_other": "{{count}} 分",
+        "hoursAndMinutes": "{{hours}} {{minutes}}"
+      }
+    },
+    "editActions": {
+      "cutFailed": "ここでは切り取れません。キーボードショートカットをお試しください",
+      "copyFailed": "ここではコピーできません。キーボードショートカットをお試しください",
+      "pasteUnsupported": "このブラウザはメニューから貼り付けできません。Ctrl+V をお試しください",
+      "pasteBlocked": "ブラウザが貼り付けを許可しませんでした。Ctrl+V をお試しください"
+    },
+    "blocked": {
+      "message": "ブロックしたメッセージ",
+      "show": "表示",
+      "hide": "非表示",
+      "block": "ブロック",
+      "unblock": "ブロック解除",
+      "youBlocked": "{{name}} さんをブロックしています。メッセージの送信や通話をするにはブロックを解除してください。",
+      "confirmTitle": "{{name}} さんをブロックしますか？",
+      "confirm": "相手はあなたにメッセージを送ったり、通話したり、グループに追加したりできなくなり、あなたには相手のメッセージや通知が表示されなくなります。相手には通知されません。"
+    },
+    "report": {
+      "messageTitle": "メッセージを報告",
+      "userTitle": "{{name}} さんを報告",
+      "menuMessage": "メッセージを報告",
+      "menuUser": "報告",
+      "intro": "報告は Voicaw のモデレーターに届きます。モデレーターは利用規約に違反するものを削除したり、アカウントを停止したりできます。報告者が誰かは相手に知らされません。",
+      "why": "何が問題ですか？",
+      "categories": {
+        "spam": "スパムや詐欺",
+        "harassment": "嫌がらせやいじめ",
+        "hate": "ヘイト",
+        "sexual": "不適切な場所での性的なコンテンツ",
+        "child_safety": "子どもが関わる性的なコンテンツ",
+        "violence": "暴力や脅迫",
+        "self_harm": "自傷や自殺",
+        "illegal": "違法なもの",
+        "other": "その他"
+      },
+      "note": "モデレーターに伝えたいこと（任意）",
+      "share": "モデレーターにこのメッセージを見せる",
+      "shareOff": "このチャットはエンドツーエンド暗号化されているため、モデレーターは読めません。これをオフにすると、モデレーターにわかるのは誰が誰にいつメッセージを送ったかだけです。",
+      "shareOn": "メッセージの本文が報告と一緒に送られ、モデレーターが読めるようになります。チャットのそれ以外の内容は共有されません。",
+      "alsoBlock": "{{name}} さんもブロックする",
+      "send": "報告を送信",
+      "thanks": "お知らせいただきありがとうございます。モデレーターが確認します。"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "components": {
+    "failed": "このインタラクションに失敗しました",
+    "notResponding": "アプリケーションが応答しませんでした",
+    "working": "処理中…",
+    "selectPlaceholder": "選択してください",
+    "selectDone": "完了",
+    "selectCount_other": "{{count}} 件を選択中",
+    "noChoices": "選択肢がありません",
+    "usedCommand": "{{name}} さんが <cmd>/{{command}}</cmd> を使用しました",
+    "usedApp": "{{name}} さんが <cmd>{{command}}</cmd> を使用しました",
+    "thinking": "{{name}} が考え中",
+    "ephemeral": "これはあなただけに表示されています",
+    "dismiss": "メッセージを閉じる",
+    "linkTitle": "{{url}} を開きます",
+    "modal": {
+      "submit": "送信",
+      "sending": "送信中…",
+      "required": "{{label}} は必須です",
+      "tooShort_other": "{{label}} は {{count}} 文字以上必要です",
+      "tooLong_other": "{{label}} は {{count}} 文字以内にしてください",
+      "choose_other": "{{label}} を {{count}} 個以上選択してください",
+      "tooMany_other": "{{label}} は {{count}} 個まで選択できます",
+      "from": "{{name}} から"
+    }
+  }
+}

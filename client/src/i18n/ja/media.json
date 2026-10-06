@@ -1,0 +1,135 @@
+{
+  "media": {
+    "size": {
+      "bytes": "{{size}} B",
+      "kilobytes": "{{size}} KB",
+      "megabytes": "{{size}} MB",
+      "gigabytes": "{{size}} GB"
+    },
+    "percent": "{{percent}}%",
+    "cover": {
+      "spoiler": "ネタバレ",
+      "nsfw": "NSFW",
+      "reveal": "{{label}}: {{name}}、選択すると表示されます"
+    },
+    "attachment": {
+      "defaultName": "添付ファイル",
+      "decrypting": "復号中…",
+      "downloadFailed": "ダウンロードに失敗しました",
+      "download": "{{name}} をダウンロード",
+      "loading": "{{name}} を読み込み中",
+      "gifFromKlipy": "KLIPY の GIF",
+      "showGif": "GIF を表示",
+      "show": "表示"
+    },
+    "tray": {
+      "spoiler": "ネタバレ",
+      "removeSpoiler": "ネタバレを解除",
+      "markSpoiler": "ネタバレとしてマーク",
+      "removeSpoilerFrom": "{{name}} のネタバレを解除",
+      "markNameSpoiler": "{{name}} をネタバレとしてマーク",
+      "remove": "{{name}} を削除"
+    },
+    "drafts": {
+      "defaultName": "ファイル",
+      "tooBig_other": "{{names}} は上限の {{limit}} を超えています。"
+    },
+    "upload": {
+      "failed": "アップロードに失敗しました",
+      "failedStatus": "アップロードに失敗しました（{{status}}）",
+      "invalidUrl": "アップロード URL が無効です"
+    },
+    "fileDrop": {
+      "title": "{{name}} にアップロード",
+      "hint": "送信前にメッセージを追加できます。"
+    },
+    "gifs": {
+      "loadFailed": "GIF を読み込めませんでした",
+      "untitled": "GIF",
+      "addFavourite": "お気に入りに追加",
+      "removeFavourite": "お気に入りから削除",
+      "noFavourites": "お気に入りはまだありません。GIF の星をタップするとここに保存されます。",
+      "noMatches": "「{{query}}」に一致する GIF はありません",
+      "none": "GIF はありません",
+      "tabs": "GIF",
+      "trending": "トレンド",
+      "favourites": "お気に入り",
+      "favouritesNumber": "お気に入り（{{number}}）",
+      "loading": "GIF を読み込み中…",
+      "attribution": "Powered by KLIPY",
+      "privacyWarning": "GIF のプレビューは KLIPY から読み込まれ、KLIPY にはあなたの IP アドレスと閲覧した GIF が知られます。設定 → プライバシーで「GIF をすぐに表示」をオフにしています。",
+      "showAnyway": "それでも GIF を表示"
+    },
+    "image": {
+      "defaultFileName": "画像",
+      "menuTitle": "画像",
+      "copyImage": "画像をコピー",
+      "saveImage": "画像を保存",
+      "copyLink": "リンクをコピー",
+      "openLink": "リンクを開く",
+      "openImage": "画像を開く",
+      "imageCopied": "画像をコピーしました",
+      "linkCopied": "リンクをコピーしました",
+      "loadFailedStatus": "画像を読み込めませんでした（{{status}}）",
+      "copyFailed": "画像をコピーできませんでした",
+      "browserCantCopy": "このブラウザは画像をコピーできません",
+      "cantBeCopied": "この画像はコピーできません。「画像を保存」をお試しください"
+    },
+    "viewer": {
+      "loadFailed": "この画像を読み込めませんでした。",
+      "decrypting": "復号中…",
+      "zoomOut": "縮小",
+      "zoomOutTitle": "縮小（−）",
+      "fitToScreen": "画面に合わせる",
+      "fitToScreenTitle": "画面に合わせる（0）",
+      "zoomIn": "拡大",
+      "zoomInTitle": "拡大（+）",
+      "openInNewTab": "新しいタブで開く",
+      "closeTitle": "閉じる（Esc）",
+      "previous": "前の画像",
+      "previousTitle": "前の画像（←）",
+      "next": "次の画像",
+      "nextTitle": "次の画像（→）",
+      "thumbnails": "このメッセージの画像",
+      "thumbnail": "画像 {{number}}: {{name}}"
+    },
+    "video": {
+      "seek": "シーク",
+      "timeOf": "{{time}} / {{duration}}",
+      "downloadFailedRetry": "ダウンロードに失敗しました。もう一度お試しください",
+      "downloadingTitle": "ダウンロード中…",
+      "download": "{{name}} をダウンロード",
+      "downloading": "{{name}} をダウンロード中",
+      "play": "再生",
+      "playName": "{{name}} を再生",
+      "playTitle": "再生（k）",
+      "pause": "一時停止",
+      "pauseTitle": "一時停止（k）",
+      "loading": "動画を読み込み中",
+      "loadFailed": "この動画を読み込めませんでした。",
+      "cantPlay": "この動画はこのブラウザでは再生できません。",
+      "retry": "再試行",
+      "unmuteTitle": "ミュート解除（m）",
+      "muteTitle": "ミュート（m）",
+      "volume": "音量",
+      "fullScreen": "全画面表示",
+      "fullScreenTitle": "全画面表示（f）",
+      "exitFullScreen": "全画面表示を終了",
+      "exitFullScreenTitle": "全画面表示を終了（f）"
+    },
+    "embeds": {
+      "image": "埋め込み画像",
+      "footerWithTime": "{{text}} • {{time}}"
+    },
+    "links": {
+      "pictureFrom": "{{site}} の画像",
+      "showPicture": "{{site}} の画像を表示"
+    },
+    "youtube": {
+      "video": "YouTube 動画",
+      "play": "YouTube 動画を再生",
+      "hint": "再生すると YouTube から読み込まれます",
+      "openOnYouTube": "YouTube で開く"
+    }
+  }
+}

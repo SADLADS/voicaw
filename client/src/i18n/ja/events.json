@@ -1,0 +1,136 @@
+{
+  "events": {
+    "interestedCount_other": "{{count}} 人が興味あり",
+    "unknownUser": "誰か",
+    "when": {
+      "live": "開催中",
+      "waiting": "開始待ち",
+      "inMinutes_other": "{{count}} 分後に開始",
+      "inHours_other": "{{count}} 時間後に開始",
+      "inDays_other": "{{count}} 日後に開始"
+    },
+    "place": {
+      "unknownChannel": "ボイスチャンネル",
+      "inChannel": "ボイスチャンネル {{name}} にて"
+    },
+    "repeat": {
+      "none": "繰り返さない",
+      "daily": "毎日",
+      "weekdays": "平日毎日（月曜〜金曜）",
+      "weekly": "毎週{{day}}",
+      "fortnightly": "隔週{{day}}",
+      "monthly": "毎月第{{nth}}{{day}}",
+      "yearly": "毎年{{date}}",
+      "custom": "繰り返し",
+      "nth": {
+        "1": "1",
+        "2": "2",
+        "3": "3",
+        "4": "4",
+        "5": "5"
+      }
+    },
+    "actions": {
+      "interested": "興味あり",
+      "start": "開始",
+      "end": "イベントを終了",
+      "more": "その他"
+    },
+    "menu": {
+      "edit": "イベントを編集",
+      "editAll": "すべてのイベントを編集",
+      "editOccurrence": "このイベントの日時を変更",
+      "skipOccurrence": "このイベントを中止",
+      "copyLink": "リンクをコピー",
+      "copied": "リンクをコピーしました。",
+      "copyFailed": "リンクをコピーできませんでした。",
+      "cancel": "イベントを中止"
+    },
+    "confirm": {
+      "cancel": {
+        "title": "{{name}} を中止しますか？",
+        "message": "イベントは全員に対して中止されます（繰り返しの場合はすべての回が中止されます）。この操作は取り消せません。",
+        "confirm": "イベントを中止"
+      },
+      "skip": {
+        "title": "このイベントを中止しますか？",
+        "message": "中止されるのは {{date}} の回だけで、{{name}} はその後も続きます。",
+        "confirm": "このイベントを中止"
+      }
+    },
+    "detail": {
+      "info": "イベント情報",
+      "interestedTab_other": "{{count}} 人が興味あり",
+      "createdBy": "作成者: {{name}}",
+      "loading": "読み込み中…",
+      "nobodyInterested": "まだ誰も興味ありにしていません。"
+    },
+    "dialog": {
+      "title_other": "{{count}} 件のイベント",
+      "allEvents": "すべてのイベント",
+      "create": "イベントを作成",
+      "gone": "このイベントは終了したか中止されたか、表示する権限がありません。",
+      "emptyTitle": "予定されているイベントはありません。",
+      "emptyHint": "どんなことでもイベントにできます。ボイスチャンネルでのゲームナイトや、どこか別の場所でのオフ会など。"
+    },
+    "editor": {
+      "createTitle": "イベントを作成",
+      "editTitle": "イベントを編集",
+      "occurrenceTitle": "このイベントの日時を変更",
+      "occurrenceHint": "この回だけが移動し、他の回はそのままです。",
+      "steps": "ステップ",
+      "step": {
+        "where": "場所",
+        "info": "イベント情報",
+        "review": "確認"
+      },
+      "back": "戻る",
+      "next": "次へ",
+      "create": "イベントを作成",
+      "untitled": "無題のイベント",
+      "whereQuestion": "イベントはどこで開催しますか？",
+      "voice": "ボイスチャンネル",
+      "voiceHint": "音声、ビデオ、画面共有で集まりましょう。",
+      "noVoiceChannels": "イベントを開催できるボイスチャンネルがありません。",
+      "external": "別の場所",
+      "externalHint": "テキストチャンネル、外部リンク、または対面。",
+      "channel": "チャンネル",
+      "location": "場所",
+      "locationPlaceholder": "場所やリンクなどを追加",
+      "name": "イベントのトピック",
+      "namePlaceholder": "どんなイベントですか？",
+      "start": "開始",
+      "end": "終了",
+      "endOptional": "終了（任意）",
+      "dateOf": "{{what}}日",
+      "timeOf": "{{what}}時刻",
+      "startedHint": "イベントは開始済みのため、開始時刻は変更できません。",
+      "repeat": "繰り返し",
+      "repeatHint": "この端末のタイムゾーンに基づきます。時計が変わってもこの時刻のままです。",
+      "description": "説明",
+      "descriptionPlaceholder": "イベントについてもう少し詳しく教えてください。Markdown、改行、リンクが使えます。",
+      "cover": "カバー画像",
+      "coverFile": "カバー画像ファイル",
+      "addCover": "カバー画像を追加",
+      "changeCover": "変更",
+      "removeCover": "削除",
+      "uploading": "アップロード中…",
+      "coverFailed": "画像をアップロードできませんでした: {{error}}",
+      "reviewHint": "イベントはこのように表示されます。表示できる人は全員「イベント」で見ることができ、興味ありにした人には開始時に通知が届きます。",
+      "errors": {
+        "channel": "ボイスチャンネルを選んでください。",
+        "location": "イベントの場所を入力してください。",
+        "name": "イベントにトピックを付けてください。",
+        "start": "開始日時を選んでください。",
+        "past": "開始は未来の日時にしてください。",
+        "endNeeded": "別の場所で行うイベントには終了日時が必要です。",
+        "endBefore": "終了は開始より後にしてください。",
+        "repeat": "この日付からはその繰り返しになりません。別のものを選んでください。"
+      }
+    },
+    "embed": {
+      "view": "表示",
+      "gone": "このイベントは終了したか中止されたか、表示できないイベントです。"
+    }
+  }
+}

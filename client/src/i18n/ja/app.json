@@ -1,0 +1,76 @@
+{
+  "app": {
+    "unreachable": "Voicaw に接続できません。再試行しています…",
+    "sidebar": {
+      "logoAlt": "Voicaw のロゴ",
+      "directMessages": "ダイレクトメッセージ",
+      "unreadFrom": "ダイレクトメッセージ: {{name}} さんから新しいメッセージ",
+      "guilds": "ギルド",
+      "mentions_other": "{{count}} 件のメンション",
+      "addGuild": "ギルドを追加",
+      "inVoice": "このギルドのボイスに参加中です",
+      "othersInVoice": "誰かがこのギルドのボイスに参加しています",
+      "resize": "サイドバーのサイズを変更",
+      "dragToResize": "ドラッグしてサイズを変更",
+      "leaveGuild": {
+        "title": "「{{name}}」から退出",
+        "message": "本当に {{name}} から退出しますか？再度招待されない限り、再参加できません。",
+        "confirm": "ギルドから退出"
+      }
+    },
+    "userPanel": {
+      "you": "あなた"
+    },
+    "connection": {
+      "online": "オンライン",
+      "connecting": "接続中…",
+      "offline": "オフライン"
+    },
+    "userMenu": {
+      "yourAccount": "あなたのアカウント",
+      "customStatus": "カスタムステータス",
+      "statusPlaceholder": "今なにしてる？",
+      "changeStatus": "カスタムステータスを変更",
+      "setStatus": "カスタムステータスを設定",
+      "clearStatus": "カスタムステータスをクリア",
+      "clear": "クリア",
+      "statusSaveFailed": "ステータスを保存できませんでした。",
+      "editProfile": "プロフィールを編集",
+      "logOut": "ログアウト"
+    },
+    "pageMenus": {
+      "text": "テキスト",
+      "link": "リンク",
+      "selection": "選択範囲",
+      "noSuggestions": "候補はありません",
+      "addToDictionary": "辞書に追加",
+      "cut": "切り取り",
+      "paste": "貼り付け",
+      "selectAll": "すべて選択",
+      "spellcheck": "スペルチェック",
+      "copyLink": "リンクをコピー",
+      "linkCopied": "リンクをコピーしました",
+      "openLink": "リンクを開く"
+    },
+    "profile": {
+      "aboutMe": "自己紹介",
+      "profileOf": "{{name}} さんのプロフィール",
+      "invalidUploadUrl": "アップロード URL が無効です",
+      "uploadFailed": "アップロードに失敗しました"
+    },
+    "presence": {
+      "online": "オンライン",
+      "mobile": "モバイルでオンライン",
+      "idle": "退席中",
+      "offline": "オフライン",
+      "lastSeenJustNow": "たった今までオンライン",
+      "lastSeen": "最終オンライン: {{when}}",
+      "lastSeenOn": "最終オンライン: {{date}}"
+    },
+    "push": {
+      "serviceUnavailable": "このブラウザのプッシュサービスが利用できません。Brave の場合は「プッシュメッセージングに Google サービスを使用する」（設定 → プライバシーとセキュリティ）をオンにして Brave を再起動してください。Google サービスのない Chromium ビルドは Web プッシュを受信できません。Chrome、Edge、Firefox、Safari は受信できます。",
+      "noServiceWorker": "Service Worker が利用できません",
+      "newMessage": "新しいメッセージ"
+    }
+  }
+}

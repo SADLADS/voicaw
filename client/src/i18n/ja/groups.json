@@ -1,0 +1,87 @@
+{
+  "groups": {
+    "title": {
+      "justYou": "あなただけ",
+      "andMore_other": "{{names}} ほか {{count}} 人"
+    },
+    "newGroup": {
+      "title": "新しいグループ",
+      "create": "グループを作成",
+      "creating": "作成中…",
+      "hint": "2 人以上（最大 {{max}} 人）を選んでください。メッセージと通話はエンドツーエンド暗号化されます。",
+      "namePlaceholder": "グループ名（任意）",
+      "nameLabel": "グループ名"
+    },
+    "userPicker": {
+      "search": "ユーザーを検索",
+      "empty": "見つかりませんでした。"
+    },
+    "dm": {
+      "group": "グループ",
+      "startCall": "グループ通話を開始",
+      "startCallHint": "グループで音声通話を開始",
+      "alreadyInCall": "すでに通話中です",
+      "pinnedMessages": "ピン留めされたメッセージ",
+      "showMembers": "メンバーを表示",
+      "hideMembers": "メンバーを非表示",
+      "keyChanged_other": "{{names}} のセキュリティキーが、このグループに追加されたときと異なります。解決するまで、ここでは何も送信できません。",
+      "acceptKeys_other": "新しい鍵を承認",
+      "removeAndAdd": "いったん削除してから追加し直す必要があります。",
+      "cantSend": "セキュリティキーの問題が解決するまで送信できません。",
+      "empty": "メッセージはまだありません。グループに挨拶しましょう！"
+    },
+    "members": {
+      "header_other": "メンバー — {{count}}",
+      "someone": "誰か",
+      "you": "{{name}}（あなた）",
+      "owner": "グループのオーナー",
+      "removeName": "{{name}} を削除",
+      "removeFromGroup": "グループから削除",
+      "addPeople": "メンバーを追加",
+      "rename": "名前を変更",
+      "leave": "グループから退出",
+      "addTitle": "メンバーを追加",
+      "adding": "追加中…",
+      "addHint": "追加されたメンバーはこれ以降のメッセージを見られますが、それ以前の会話は見られません。",
+      "renameTitle": "グループ名を変更",
+      "namePlaceholder": "グループ名（空欄: メンバーの名前）",
+      "nameLabel": "グループ名",
+      "nameHint": "グループ名もメッセージと同様にエンドツーエンド暗号化されます。",
+      "removeMessage": "{{name}} さんは今後このグループに送信されたものを見られなくなります。",
+      "leaveOwnerMessage": "このグループは表示されなくなり、オーナーがいなくなります（誰もメンバーを削除できなくなります）。",
+      "leaveMessage": "誰かが再び追加しない限り、このグループは表示されなくなります。",
+      "leaveConfirm": "グループから退出"
+    },
+    "messages": {
+      "unreadable": "[このメッセージは復号できませんでした]",
+      "forged": "[このメッセージの署名が送信者と一致しないため、表示されません]"
+    },
+    "log": {
+      "someone": "誰か",
+      "created": "{{actor}} さんがグループを作成しました。",
+      "youCreated": "あなたがグループを作成しました。",
+      "added": "{{actor}} さんが {{target}} さんを追加しました。",
+      "addedYou": "{{actor}} さんがあなたを追加しました。",
+      "youAdded": "あなたが {{target}} さんを追加しました。",
+      "removed": "{{actor}} さんが {{target}} さんを削除しました。",
+      "removedYou": "{{actor}} さんがあなたを削除しました。",
+      "youRemoved": "あなたが {{target}} さんを削除しました。",
+      "left": "{{actor}} さんがグループから退出しました。",
+      "youLeft": "あなたがグループから退出しました。",
+      "renamed": "{{actor}} さんがグループ名を「{{name}}」に変更しました。",
+      "youRenamed": "あなたがグループ名を「{{name}}」に変更しました。",
+      "renamedUnchecked": "{{actor}} さんがグループ名を変更しました（新しい名前を検証できませんでした）。",
+      "youRenamedUnchecked": "あなたがグループ名を変更しました（新しい名前を検証できませんでした）。",
+      "removedName": "{{actor}} さんがグループ名を削除しました。",
+      "youRemovedName": "あなたがグループ名を削除しました。"
+    },
+    "errors": {
+      "cantUseKey": "{{name}} さんの鍵を使用できません",
+      "cantUseSomeonesKey": "誰かの鍵を使用できません",
+      "cantReadName": "このグループの名前を読めないため、鍵を更新できません。後でもう一度お試しください。",
+      "cantSend": "{{names}} のセキュリティキーの問題が解決するまで送信できません。",
+      "keyChanged": "{{name}} さんのセキュリティキーが変更されました。チャットを開いて確認してください。",
+      "keepsChanging": "グループが変更され続けています。もう一度お試しください。"
+    }
+  }
+}

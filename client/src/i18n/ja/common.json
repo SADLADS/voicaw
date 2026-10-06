@@ -1,0 +1,28 @@
+{
+  "common": {
+    "add": "追加",
+    "back": "戻る",
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "copied": "コピーしました",
+    "copy": "コピー",
+    "create": "作成",
+    "delete": "削除",
+    "done": "完了",
+    "edit": "編集",
+    "loading": "読み込み中…",
+    "members": "メンバー",
+    "mute": "ミュート",
+    "open": "開く",
+    "pin": "ピン留め",
+    "remove": "削除",
+    "reply": "返信",
+    "reset": "リセット",
+    "save": "保存",
+    "saveChanges": "変更を保存",
+    "search": "検索",
+    "settings": "設定",
+    "unmute": "ミュート解除",
+    "unpin": "ピン留めを外す"
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "documents": {
+    "deletedUser": "削除されたユーザー",
+    "byline": {
+      "edited": "· {{date}} に編集",
+      "editedBy": "· {{date}} に {{name}} さんが編集"
+    },
+    "card": {
+      "open": "{{title}} を開く",
+      "replies_other": "{{count}} 件の返信"
+    },
+    "feed": {
+      "newDocument": "新しいドキュメント",
+      "empty": "ドキュメントはまだありません。",
+      "emptyCanCreate": "ドキュメントはまだありません。「新しいドキュメント」で最初の 1 本を書きましょう。",
+      "noPermission": "ここでドキュメントを書く権限がありません。"
+    },
+    "reactions": {
+      "add": "リアクションを追加",
+      "react": "リアクション"
+    },
+    "page": {
+      "missing": "このドキュメントは削除されたか、表示する権限がありません。",
+      "backToAll": "すべてのドキュメントに戻る",
+      "allDocuments": "すべてのドキュメント",
+      "replies": "返信",
+      "repliesLabel": "{{title}} への返信を送信",
+      "repliesPlaceholder": "{{title}} への返信を送信...",
+      "repliesUpload": "{{title}} への返信にアップロード",
+      "noReplies": "返信はまだありません。感想を書いてみましょう！",
+      "documentTab": "ドキュメント",
+      "repliesTabCount": "返信（{{number}}）",
+      "repliesTabCountMore": "返信（{{number}}+）",
+      "deleteDocument": "ドキュメントを削除",
+      "confirmDelete": "「{{title}}」とそのすべての返信を削除しますか？この操作は取り消せません。"
+    },
+    "cover": {
+      "imageName": "カバー画像"
+    },
+    "editor": {
+      "imageName": "画像",
+      "startWriting": "書き始めましょう…",
+      "document": "ドキュメント",
+      "uploadFailed": "{{name}} をアップロードできませんでした: {{error}}",
+      "coverUploadFailed": "カバーをアップロードできませんでした: {{error}}",
+      "needTitle": "ドキュメントにタイトルを付けてください。",
+      "tooLong": "ドキュメントは最大 {{max}} 文字です（このドキュメントは {{length}} 文字）。",
+      "uploadingImage": "画像をアップロード中…",
+      "saving": "保存中…",
+      "publish": "公開",
+      "formatting": "書式",
+      "textStyle": "テキストスタイル",
+      "withShortcut": "{{label}}（{{keys}}）",
+      "styles": {
+        "mixed": "混在",
+        "paragraph": "標準テキスト",
+        "heading": "見出し {{level}}",
+        "code": "コードブロック"
+      },
+      "tools": {
+        "bold": "太字",
+        "italic": "斜体",
+        "underline": "下線",
+        "strikethrough": "取り消し線",
+        "inlineCode": "インラインコード",
+        "spoiler": "ネタバレ",
+        "link": "リンク",
+        "removeLink": "リンクを削除",
+        "bulletedList": "箇条書き",
+        "numberedList": "番号付きリスト",
+        "checklist": "チェックリスト",
+        "quote": "引用",
+        "insertImage": "画像を挿入",
+        "insertTable": "表を挿入",
+        "horizontalLine": "水平線",
+        "undo": "元に戻す",
+        "redo": "やり直す"
+      },
+      "table": {
+        "label": "表",
+        "addRow": "下に行を追加",
+        "addRowShort": "+ 行",
+        "addColumn": "右に列を追加",
+        "addColumnShort": "+ 列",
+        "deleteRow": "行を削除",
+        "deleteRowShort": "− 行",
+        "deleteColumn": "列を削除",
+        "deleteColumnShort": "− 列",
+        "deleteTable": "表を削除"
+      },
+      "link": {
+        "address": "リンクのアドレス",
+        "placeholder": "リンクを貼り付けるか入力",
+        "add": "リンクを追加"
+      },
+      "imageFile": "画像ファイル",
+      "coverImageFile": "カバー画像ファイル",
+      "conflict": {
+        "message": "あなたが編集している間に、他の人がこのドキュメントを保存しました。",
+        "loadTheirs": "相手のバージョンを読み込む",
+        "saveMine": "自分のバージョンで上書き保存"
+      },
+      "changeCover": "カバーを変更",
+      "removeCover": "カバーを削除",
+      "addCover": "カバー画像を追加",
+      "title": "タイトル",
+      "untitled": "無題のドキュメント",
+      "discard": {
+        "title": "変更を破棄",
+        "editing": "編集をやめて変更を破棄しますか？",
+        "new": "このドキュメントを破棄しますか？",
+        "confirm": "破棄"
+      }
+    }
+  }
+}

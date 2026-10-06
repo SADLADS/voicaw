@@ -1,0 +1,41 @@
+{
+  "commands": {
+    "picker": {
+      "label": "Bot コマンド",
+      "title": "コマンド",
+      "matching": "<b>{{query}}</b> に一致するコマンド"
+    },
+    "mode": {
+      "label": "/{{name}} を使用",
+      "leave": "このコマンドの使用をやめる",
+      "run": "送信",
+      "sending": "送信中…",
+      "required": "必須",
+      "missing": "入力してください: {{names}}",
+      "choose": "選択…",
+      "chooseMember": "メンバーを選択…",
+      "chooseRole": "ロールを選択…",
+      "chooseChannel": "チャンネルを選択…",
+      "chooseMentionable": "メンバーまたはロールを選択…",
+      "members": "メンバー",
+      "roles": "ロール",
+      "true": "True",
+      "false": "False",
+      "suggestions": "候補",
+      "loading": "読み込み中…",
+      "notNumber": "数値ではありません",
+      "notWhole": "整数で入力してください",
+      "tooSmall": "{{min}} 以上",
+      "tooBig": "{{max}} 以下",
+      "tooShort": "{{min}} 文字以上",
+      "tooLong": "{{max}} 文字以下"
+    },
+    "apps": {
+      "label": "アプリ"
+    },
+    "errors": {
+      "noResponse": "アプリケーションが応答しませんでした",
+      "failed": "うまくいきませんでした"
+    }
+  }
+}
