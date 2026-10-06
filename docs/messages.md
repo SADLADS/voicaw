@@ -477,6 +477,12 @@ message the way search, the pinned list and View poll do (`ChatPane`'s `jumpToMe
 down as `onJumpToMessage`): older pages load until it's there, then it's scrolled to the middle
 and flashed (`.jump-highlight`).
 
+While a reply is being written (the composer's "Replying to" bar), the message it answers stays
+highlighted, as in Discord: `ChatPane` passes `replyTo`'s id to `MessageList` as `replyingToId`
+and that row gets `.replying`, tinted in the accent with a bar on the left (purple, so it reads
+apart from a mention's yellow, and wins over it). It goes when the reply is sent or cancelled
+(×, Escape).
+
 Where a new day starts (on the device's calendar), a line with the date in words goes across
 the chat, like Discord's (`startsNewDay` in the same file, `DayDivider` in `MessageList`,
 `formatLongDate`: "11 September 2026" in the Date & time setting's order). The first loaded

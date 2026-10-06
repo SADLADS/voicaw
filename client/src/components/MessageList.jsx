@@ -317,6 +317,7 @@ export function MessageRow({
   onOpenActions,
   onOpenMenu,
   focusedMsgId,
+  replyingToId,
   canModerate = false,
   canAddReactions = true,
   canPin = false,
@@ -346,6 +347,8 @@ export function MessageRow({
   const webhookProps = webhook ? { 'data-webhook-id': msg.webhook_id, 'data-webhook-name': senderName } : {};
   // A picker or menu is open for this message: it stays highlighted with its menu showing.
   const focused = focusedMsgId === msg.id;
+  // The message being replied to (the composer's "Replying to"): marked until it's sent.
+  const replying = replyingToId != null && replyingToId === msg.id;
   // A bot's ephemeral reply (only you see it, until you reload): nothing to do to it but
   // dismiss it, so no menus, reactions or replies. A deferred reply shows "thinking…".
   const ephemeral = isEphemeral(msg);
@@ -394,7 +397,7 @@ export function MessageRow({
 
   return (
     <div
-      className={`each-dm-message-wrapper ${msg.sender_id === user.id ? 'sent' : 'received'}${focused ? ' focused' : ''}${mentionsMe ? ' mentioned' : ''}${grouped ? ' grouped' : ''}${ephemeral ? ' ephemeral' : ''}`}
+      className={`each-dm-message-wrapper ${msg.sender_id === user.id ? 'sent' : 'received'}${focused ? ' focused' : ''}${replying ? ' replying' : ''}${mentionsMe ? ' mentioned' : ''}${grouped ? ' grouped' : ''}${ephemeral ? ' ephemeral' : ''}`}
       data-msg-id={msg.id}
       onMouseEnter={() => setHoveredMsgId(msg.id)}
       onMouseLeave={() => setHoveredMsgId(null)}
@@ -660,6 +663,7 @@ export default function MessageList({
   onOpenActions,
   onOpenMenu,
   focusedMsgId,
+  replyingToId,
   canModerate,
   canAddReactions,
   canPin,
@@ -762,6 +766,7 @@ export default function MessageList({
     onOpenActions,
     onOpenMenu,
     focusedMsgId,
+    replyingToId,
     canModerate,
     canAddReactions,
     canPin,

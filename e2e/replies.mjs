@@ -1,6 +1,7 @@
-// Replies: clicking a reply's snippet jumps to the message it answers like search and pins do
-// (loads older history until it's there, scrolls to it, flashes it), again once loaded, and a
-// tap on a phone.
+// Replies: the message being replied to stays highlighted while the reply is written (gone on
+// cancel and on send); clicking a reply's snippet jumps to the message it answers like search and
+// pins do (loads older history until it's there, scrolls to it, flashes it), again once loaded,
+// and a tap on a phone.
 //   node e2e/serve.mjs &   then   node e2e/replies.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
 import { launchChrome, signUp, openChat, send, devices } from './helpers.mjs';
@@ -33,6 +34,9 @@ const inView = (page, text) => row(page, text).evaluate((el) => {
   return r.top >= s.top && r.bottom <= s.bottom;
 });
 const flashed = (page, text) => row(page, text).evaluate((el) => el.classList.contains('jump-highlight'));
+const replying = (page, text) => row(page, text).evaluate((el) => el.classList.contains('replying'));
+const background = (page, text) => row(page, text).evaluate((el) => getComputedStyle(el).backgroundColor);
+const replyButton = (page, text) => row(page, text).locator('.message-menu button:has(svg[data-icon="reply"])');
 const toBottom = (page) => page.evaluate(() => { const s = document.querySelector('.message-scroller'); s.scrollTop = s.scrollHeight; });
 
 const browser = await launchChrome({ ignoreDefaultArgs: ['--hide-scrollbars'] });
@@ -44,8 +48,33 @@ try {
   const b = bob.page;
   const c = carol.page;
 
-  console.log('computer');
+  console.log('replying highlights the message');
   await openChat(a, bob.id);
+  await send(a, 'lunch?');
+  await send(a, 'or later');
+  await waitText(a, 'or later');
+  await a.mouse.move(0, 0);
+  const plain = await background(a, 'lunch?');
+  await row(a, 'lunch?').hover();
+  await replyButton(a, 'lunch?').click();
+  await a.mouse.move(0, 0);
+  check(await replying(a, 'lunch?') && !(await replying(a, 'or later')), 'Reply marks only that message');
+  check(await background(a, 'lunch?') !== plain, 'and it is tinted while the pointer is elsewhere');
+  await shot(a, '00-replying');
+  await a.locator('.reply-bar .reply-close').click();
+  check(!(await replying(a, 'lunch?')), 'cancelling the reply clears it');
+  await row(a, 'or later').hover();
+  await replyButton(a, 'or later').click();
+  check(await replying(a, 'or later'), 'replying to another message marks that one');
+  await a.keyboard.press('Escape');
+  check(!(await replying(a, 'or later')), 'Escape clears it');
+  await row(a, 'lunch?').hover();
+  await replyButton(a, 'lunch?').click();
+  await send(a, 'yes, lunch');
+  await waitText(a, 'yes, lunch');
+  check(!(await replying(a, 'lunch?')), 'sending the reply clears it');
+
+  console.log('computer');
   await send(a, 'where shall we meet');
   await waitText(a, 'where shall we meet');
   // Enough after it that bob's first page doesn't include it (as in pins.mjs).
