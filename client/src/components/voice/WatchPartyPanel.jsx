@@ -69,6 +69,8 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
     if (!text) return;
     setError(null);
     if (!isLink) {
+      // On a phone the keyboard goes, so the results have the screen.
+      if (document.body.classList.contains('mobile-mode')) e.currentTarget.querySelector('input')?.blur();
       runSearch(text);
       return;
     }

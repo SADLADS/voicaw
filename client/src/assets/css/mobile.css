@@ -199,6 +199,16 @@
     flex: 1;
 }
 
+/* Typing in Watch Together's box (the keyboard is up, half the screen gone): only the player and
+   the panel stay, so the box and what it finds are in view. The empty page's picture and words
+   also go while search results are open. */
+.mobile-mode .watch-party-panel:has(.watch-party-add input:focus) .watch-party-empty,
+.mobile-mode .watch-party-panel:has(.watch-party-results) .watch-party-empty,
+.mobile-mode .voice-view.watching:has(.watch-party-add input:focus) .voice-view-tiles,
+.mobile-mode .voice-view.watching:has(.watch-party-add input:focus) .voice-view-controls {
+    display: none;
+}
+
 .mobile-mode .watch-party-player.mini {
     top: calc(var(--vc-header-height) + 8px + env(safe-area-inset-top));
     right: 8px;

@@ -271,7 +271,10 @@ LiveKit carries the audio.
     (`i.ytimg.com`, loaded by the viewer, so only when Settings → Privacy lets YouTube load at
     once), title, channel · length or Live, and Play (nothing on yet) or Add, which turns into
     ✓ Added so several can be queued from one search; the results stay until closed or the
-    next search.
+    next search. On a phone (`mobile.css`), while the box is focused (keyboard up) the people
+    row and call buttons are hidden, and the empty page's picture and words while typing or
+    with results open, so the box and results stay in view; sending a search blurs the box so
+    the keyboard goes and the results have the screen.
   - **Permissions** (Discord has none of these; ours only, bits 58-60 for bots): Queue Videos
     (`QUEUE_VIDEOS`) and Control Playback (`CONTROL_PLAYBACK`) are @everyone defaults (migration
     11 gave them to existing guilds), Manage Queue (`MANAGE_QUEUE`) isn't; all three are channel
