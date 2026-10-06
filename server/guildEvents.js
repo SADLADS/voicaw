@@ -70,6 +70,7 @@ function publicEvent(row, userCount = 0) {
     recurrence: row.recurrence ? JSON.parse(row.recurrence) : null,
     timezone: row.timezone,
     occurrence_start: row.occurrence_start,
+    duration: row.duration,
     started_at: row.started_at,
     created_at: row.created_at,
     user_count: userCount,

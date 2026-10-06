@@ -41,6 +41,7 @@ import EventsDialog from '../events/EventsDialog';
 import EventEditor from '../events/EventEditor';
 import { useGuildEvents } from '../../hooks/useGuildEvents';
 import { canCreateEvents } from '../../utils/eventDisplay';
+import { dayKey, monthKey } from '../../utils/eventCalendar';
 import { useVoice } from '../../hooks/useVoice';
 import { joinVoice } from '../../voice/voiceClient';
 import { PERMISSIONS, has } from '../../utils/permissions';
@@ -56,6 +57,12 @@ function loadCollapsed() {
   }
 }
 
+// The Events dialog's view on opening: `tab`, this month, today.
+function freshEventsView(tab) {
+  const now = new Date();
+  return { tab, month: monthKey(now), day: dayKey(now) };
+}
+
 // The guild's column next to the guild rail (like Discord): its name, with a menu (invite,
 // settings, audit log, create channel/category, leave), then its channels, grouped in collapsible
 // categories. Unread channels are bold; private ones have a lock; muted ones are dimmed, with a
@@ -65,6 +72,7 @@ function loadCollapsed() {
 // on hover (on a computer; a phone has only the menu), creating, dragging channels and
 // categories into a new order (useChannelDrag: on a phone, hold then move); Create Invite;
 // Manage Guild, Manage Roles or Ban Members: Guild Settings; View Audit Log: the audit log).
+
 export default function GuildSidebar({ guild, user }) {
   const { channelId } = useParams();
   // A thread open beside the channel; an event to show (`?event=<id>`: links, notifications).
@@ -82,6 +90,9 @@ export default function GuildSidebar({ guild, user }) {
   const [dialog, setDialog] = useState(null);
   // The guild's scheduled events (Events, above the channels).
   const guildEvents = useGuildEvents(guild?.id ?? null, user.id);
+  // The Events dialog's { tab, month, day }: back to today each time it opens, in the tab last
+  // used.
+  const [eventsView, setEventsView] = useState(() => freshEventsView('events'));
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   // The menu of a right-clicked or long-pressed channel or category ({ kind, id, anchor }).
   const [rowMenu, setRowMenu] = useState(null);
@@ -188,6 +199,11 @@ export default function GuildSidebar({ guild, user }) {
 
   const closeDialog = () => setDialog(null);
 
+  function openEvents(eventId = null) {
+    setEventsView((view) => freshEventsView(view.tab));
+    openDialog({ type: 'events', eventId });
+  }
+
   // A voice channel joins on click (desktop). On mobile a tap only opens it, and it's joined
   // from there: a stray tap shouldn't put you on a call.
   function openChannel(channel) {
@@ -279,7 +295,7 @@ export default function GuildSidebar({ guild, user }) {
       )}
       {liveEvents.filter((e) => e.channel_id === channel.id).map((event) => (
         <li key={`event-${event.id}`} className="guild-channel-event">
-          <button type="button" className="guild-channel-event-link" onClick={() => openDialog({ type: 'events', eventId: event.id })}>
+          <button type="button" className="guild-channel-event-link" onClick={() => openEvents(event.id)}>
             <FontAwesomeIcon icon={faCalendarDays} className="guild-channel-event-icon" aria-hidden="true" />
             <span className="guild-channel-event-name">{t('guilds.sidebar.liveEvent', { name: event.name })}</span>
           </button>
@@ -371,7 +387,7 @@ export default function GuildSidebar({ guild, user }) {
         onTouchStart={onListTouchStart}
       >
         {drag?.lineTop != null && <div className="channel-drop-line" style={{ top: drag.lineTop }} aria-hidden="true" />}
-        <button type="button" className={`guild-events-button${liveEvents.length ? ' live' : ''}`} onClick={() => openDialog({ type: 'events' })}>
+        <button type="button" className={`guild-events-button${liveEvents.length ? ' live' : ''}`} onClick={() => openEvents()}>
           <FontAwesomeIcon icon={faCalendarDays} className="guild-channel-icon" aria-hidden="true" />
           <span className="guild-channel-name">
             {guildEvents.events.length ? t('guilds.sidebar.eventsCount', { count: guildEvents.events.length }) : t('guilds.sidebar.events')}
@@ -484,8 +500,10 @@ export default function GuildSidebar({ guild, user }) {
           loaded={guildEvents.loaded}
           setInterested={guildEvents.setInterested}
           eventId={dialog.eventId ?? null}
+          view={eventsView}
+          onView={(changes) => setEventsView((view) => ({ ...view, ...changes }))}
           onOpenEvent={(id) => setDialog({ type: 'events', eventId: id })}
-          onCreate={() => setDialog({ type: 'eventEditor', back: true })}
+          onCreate={(start = null) => setDialog({ type: 'eventEditor', start, back: true })}
           onEdit={(event, occurrence) => setDialog({ type: 'eventEditor', event, occurrence, back: true })}
           onClose={closeDialog}
         />
@@ -495,6 +513,7 @@ export default function GuildSidebar({ guild, user }) {
           guild={guild}
           event={dialog.event}
           occurrence={dialog.occurrence}
+          start={dialog.start ?? null}
           onSaved={(saved) => {
             guildEvents.upsert(saved);
             setDialog({ type: 'events', eventId: saved.id });

@@ -11,6 +11,7 @@ import { seedAttachmentCache } from '../../services/attachmentCache';
 import { readMediaDimensions } from '../../utils/mediaDimensions';
 import { eventVoiceChannels, fromInputs, toInputs } from '../../utils/eventDisplay';
 import { deviceTimeZone, repeatChoices, repeatKey, ruleFor } from '../../utils/eventRecurrence';
+import { defaultStart } from '../../utils/eventCalendar';
 import { errorMessage } from '../../utils/guildDisplay';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import { t } from '../../i18n';
@@ -27,14 +28,6 @@ async function uploadCover(file) {
   const url = await uploadAttachment(file, null, dimensions);
   seedAttachmentCache(url, objectUrl);
   return url;
-}
-
-// The next whole hour, an hour from now at the earliest: where a new event starts.
-function defaultStart() {
-  const d = new Date(Date.now() + 3600 * 1000);
-  d.setMinutes(0, 0, 0);
-  if (d.getTime() < Date.now() + 3600 * 1000) d.setHours(d.getHours() + 1);
-  return Math.floor(d.getTime() / 1000);
 }
 
 // Moving only the next occurrence of a repeating event: its start and end.
@@ -118,12 +111,13 @@ function TimeInputs({ label, idPrefix, date, time, onDate, onTime, hint = null }
 // Making or editing an event, in Discord's three steps: where (a voice channel you may hold
 // one in, or somewhere else), what and when (name, start, end, how it repeats, description,
 // cover), then a look at the card before saving. With `occurrence`, only the next occurrence of
-// a repeating event moves (OccurrenceEditor).
-export default function EventEditor({ guild, event = null, occurrence = false, onSaved, onClose }) {
+// a repeating event moves (OccurrenceEditor). A new event starts at `start` (unix s; a day
+// picked on the calendar) or the next whole hour.
+export default function EventEditor({ guild, event = null, occurrence = false, start = null, onSaved, onClose }) {
   const editing = Boolean(event);
   const voiceChannels = useMemo(() => eventVoiceChannels(guild), [guild]);
   const canExternal = has(guild.my_permissions, PERMISSIONS.CREATE_EVENTS) || (editing && event.entity_type === 'external');
-  const initialStart = toInputs(event?.start_time ?? defaultStart());
+  const initialStart = toInputs(event?.start_time ?? start ?? defaultStart());
   const initialEnd = toInputs(event?.end_time ?? null);
 
   const [step, setStep] = useState('where');
