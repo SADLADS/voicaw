@@ -159,8 +159,8 @@ describe('reactions', () => {
 
     const short = await encryptReaction('👍', bobKey, ctx);
     const long = await encryptReaction('👨🏽‍👩🏽‍👧🏽', bobKey, ctx);
-    expect(short).toHaveLength(127);
-    expect(long).toHaveLength(127);
+    expect(short).toHaveLength(383);
+    expect(long).toHaveLength(383);
     expect(await decryptReaction(short, aliceKey, ctx)).toBe('👍');
     expect(await decryptReaction(long, aliceKey, ctx)).toBe('👨🏽‍👩🏽‍👧🏽');
   });
@@ -176,7 +176,7 @@ describe('reactions', () => {
   it('rejects empty or oversized reactions', async () => {
     const { aliceKey } = await conversationKeys();
     await expect(encryptReaction('', aliceKey, 'x')).rejects.toThrow();
-    await expect(encryptReaction('a'.repeat(65), aliceKey, 'x')).rejects.toThrow();
+    await expect(encryptReaction('a'.repeat(257), aliceKey, 'x')).rejects.toThrow();
   });
 
   it('are decrypted with their messages', async () => {

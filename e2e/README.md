@@ -77,6 +77,7 @@ node e2e/docs.mjs [dir]   # document channels: write (typed markdown, toolbar, c
 node e2e/uploads.mjs      # deleting files: a DM send lists its file, deleting the message (DM, guild) removes it from the store, others kept
 node e2e/filedrop.mjs [dir] # files dragged in: "Upload to <chat>" over the window, drop anywhere attaches (DM, guild, document replies), leave/in-page drag/dialog = none, document cover button and body, phone
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
+node e2e/openpolls.mjs [dir] # open polls: add an answer from the vote screen (votes for it), repeats refused, "added by", ✕ (asks; creator, author, guild moderator not on the author's), gone once others vote, new question drops all, closed = no changes (DM phone, guild, group)
 node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>
 node e2e/thumbnails.mjs [dir] # image thumbnails: phone downloads only the copy (upright, no EXIF; transparent stays so), viewer opens the file, Save = the file as sent; animated PNG, GIF, small image left alone (needs ffmpeg)
 node e2e/video.mjs [dir]  # videos: only the poster before Play, streamed in pieces, seek reads nothing before it, download, keys, full screen, spoiler, phone (needs ffmpeg)

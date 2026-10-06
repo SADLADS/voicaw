@@ -3,7 +3,7 @@ import { Trans } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSquarePollHorizontal, faTrophy } from '@fortawesome/free-solid-svg-icons';
 import { ReactionEmoji } from './MessageReactions';
-import { parsePoll, pollEndFits, pollEndsAt, pollResult } from '../utils/pollMarkup';
+import { parsePoll, pollEndFits, pollEndsAt, pollResult, pollWithAnswers } from '../utils/pollMarkup';
 import { displayName, useProfiles } from '../utils/profiles';
 import { formatDateTime, useDateFormat } from '../utils/dateFormat';
 import { t } from '../i18n';
@@ -41,7 +41,10 @@ export default function PollEndNotice({ msg, onJump }) {
   useDateFormat();
   const poll = parsePoll(msg.parent_plaintext);
   if (!poll || !pollEndFits(poll, msg.parent_timestamp, msg.timestamp)) return null;
-  const { cast, winners, votes, share } = pollResult(poll, msg.poll_reactions, pollEndsAt(poll, msg.parent_timestamp));
+  const endsAt = pollEndsAt(poll, msg.parent_timestamp);
+  // The row's sender is the poll's author; added answers can win too.
+  const full = pollWithAnswers(poll, msg.poll_reactions, msg.sender_id, endsAt);
+  const { cast, winners, votes, share } = pollResult(full, msg.poll_reactions, endsAt);
   const author = displayName(msg.sender_id, msg.sender_username);
 
   let result;

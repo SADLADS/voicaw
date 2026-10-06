@@ -222,13 +222,13 @@ YouTube links and guild invites keep their own player and card (`UrlPreviews.jsx
 ## Polls
 
 Any chat (DM, notes, group DM, guild text channel) can have polls: the composer's `+` opens a
-menu (Upload a file / Create poll). `PollDialog.jsx` takes a question (300), 1–10 answers (55
+menu (Upload a file / Create poll). `PollDialog.jsx` takes a question (300), 1–20 answers (55
 each, each with an optional emoji: Unicode or a guild's custom one, from `EmojiPicker` over the
 dialog; Escape there closes only the picker, since `EmojiPicker` marks it handled and `Modal`
 skips handled Escapes; Tab goes question → answers → Add another answer, skipping the emoji
-and remove buttons), a duration (1h, 4h, 8h, 24h (default), 3d, 1w, 2w) and "Allow multiple
-answers"; neither of those two can be changed after posting. A poll is sent as
-its own message (replying if a reply is set, like a GIF).
+and remove buttons), a duration (1h, 4h, 8h, 24h (default), 3d, 1w, 2w), "Allow multiple
+answers" and "Open poll" (see Open polls below); none of those three can be changed after
+posting. A poll is sent as its own message (replying if a reply is set, like a GIF).
 - **Format** (`utils/pollMarkup.js`): the message text is `poll:v1:` + JSON `{ q, multi, d, x?,
   o: [{ id, t, e? }] }` (`e`: the answer's emoji, drawn like a reaction's, `ReactionEmoji`; ids:
   8 random `[a-z0-9]`; `d`: seconds it runs; `x`: unix s its author ended it), so in encrypted
@@ -248,11 +248,44 @@ its own message (replying if a reply is set, like a GIF).
   `tallyVotes` counts only answers that exist, and one vote per person (the latest) in single
   choice. Percentages and "N votes" are of the votes cast (`cast`, `voteShare`), so in a
   multiple-choice poll they still add up to 100%. In guilds a vote only needs View Channel (not Add Reactions): the server accepts
-  `poll:<8 chars>` on a message that starts with `poll:v1:` without it.
+  `poll:<8 chars>` on a poll without it, and refuses any other `poll:` reaction that isn't a vote
+  or an added answer that fits (below), or is on a message that isn't a poll.
 - **Editing** (the author, Edit opens `PollDialog`, not the inline editor): question and
   answers can change; an answer whose text or emoji changed gets a new id (`editedPoll`), so its votes
-  stop counting. Nobody can delete other people's reactions, so those old votes stay stored
-  until their owner votes again.
+  stop counting. A new question drops every vote (all answers get new ids) and, in an open poll,
+  every added answer (a new round); the dialog says so. Nobody can delete other people's
+  reactions, so in encrypted chats those old votes and answers stay stored until their owner
+  votes again (`planVotes` clears them); in guilds the server deletes them with the edit.
+- **Open polls** ("Open poll" in the dialog, `open: true` and a round `r` in the JSON): anyone
+  can add an answer, from the vote screen only (a box under the answers; not on the results),
+  and adding one votes for it (with what you'd ticked, in a multiple-choice poll; instead of
+  your vote in a single-choice one). Each added answer is a reaction from whoever added it,
+  `poll:+` + JSON `{ i: id, r: round, t: text }` (text only, at most 55 characters, one line,
+  trimmed; `parseAnswer` ignores anything not made exactly so), so who added it is the
+  reaction's owner (signed in groups) and, in encrypted chats, the server can't tell it from an
+  emoji (reactions are padded to 256 bytes for it; see Reactions in `auth-and-encryption.md`).
+  `pollWithAnswers` is the poll with them: the author's answers, then added ones in server
+  order, leaving out other rounds, repeats of an earlier answer ignoring case (refused when
+  typed too, `answerProblem`), ones added after the poll closed, and any past 20 answers in all
+  (`MAX_POLL_OPTIONS`, for every poll). Each shows "added by <name>" unless the author added
+  it. **Removing one** (the ✕ beside it, asks first): its creator, the poll's author, or in a
+  guild anyone with Manage Messages (not the author's answers), only while nobody but its
+  creator and the remover has voted for it (`canRemoveAnswer`); its creator's and the remover's
+  votes go with it, so someone whose only vote it was is back on the vote screen. The author's
+  own answers in the poll message are changed by editing. In DMs and groups its creator deletes
+  their reaction and the author adds one `poll:-<id>` (only the poll author's count; signed in
+  groups), since nobody can delete other people's reactions; there, only apps check the rules
+  (the server can't read them), so two people acting at once could remove an answer just as
+  it's voted for. In guilds the server checks it all: answers need Send Messages and must fit
+  (round, shape, no repeat, at most 20), `DELETE /guild-messages/:id/poll-answers/:answerId`
+  removes one with its votes (`{ removed: [reaction ids] }`), the plain reaction delete refuses
+  an answer someone else has voted for, and nothing is added or removed once the poll closes.
+  Poll reactions there have their own limit (50 per person per message, apart from the 20
+  emoji); in DMs and groups the limit is 50 for everything. The "poll ended" row counts added
+  answers too. Bots see added answers as reactions, as they see votes. An app from before
+  open polls shows an open poll as an ordinary one and hides the added answers (they start
+  with `poll:`), but voting there would delete your own added answers (and the author's
+  removals, bringing those answers back).
 - **Closing** (`pollEndsAt`): `d` seconds after the message's timestamp (the server's, so the
   author's clock doesn't matter), or earlier at `x`: the author's End poll (in the footer, asks
   first) is an edit stamping `x` (so the message shows "edited"). The footer says the time left

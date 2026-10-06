@@ -14,3 +14,11 @@ export async function endPollOnServer(kind, messageId) {
   const res = await api.post(`/polls/${kind}/${messageId}/end`);
   return res.data;
 }
+
+// Removes an answer someone added to the open poll `messageId` in a guild channel, with its
+// votes (server guildMessages.js; its creator, the poll's author or a moderator). Resolves to
+// the ids of the reactions it deleted.
+export async function removeGuildPollAnswer(messageId, answerId) {
+  const res = await api.delete(`/guild-messages/${messageId}/poll-answers/${answerId}`);
+  return res.data.removed;
+}

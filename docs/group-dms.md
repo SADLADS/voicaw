@@ -43,7 +43,7 @@ names).
   could post as someone else. The signature is inside the encryption (only members see it; the
   server learns nothing new): a `v2.` envelope, "v2." + base64(IV || AES-GCM(64-byte ECDSA
   signature || content)) (`encryptGroupMessage` / `encryptGroupReaction` in groupCrypto.js;
-  reactions padded to 64 bytes, so every one is the same size). It covers
+  reactions padded to 256 bytes (64 from apps before open polls), so every one is the same size). It covers
   `messageSignatureContext({ groupId, epoch, senderId, replyTo, editOf })` (so a reply can't be
   moved to another parent, nor an edit to another message) or `reactionSignatureContext`.
   `useGroupConversation` checks it against the sender's identity key from the checked log: a

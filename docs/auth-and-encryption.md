@@ -218,14 +218,16 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   data, so the server can't re-attribute or move messages. Replies and edits use the original
   message's sender/recipient.
 - **Reactions** (`dm_reactions`): the emoji is encrypted (`encryptReaction`) with the conversation
-  key, zero-padded to `REACTION_PLAINTEXT_BYTES` (64) so every envelope is 127 chars (the server
-  rejects any other length) and its size doesn't reveal the emoji. `reactionContext(messageId,
+  key, zero-padded to `REACTION_PLAINTEXT_BYTES` (256, room for an answer added to an open
+  poll, see Polls in `messages.md`) so every envelope is 383 chars (the server rejects any other
+  length, except 127: 64 bytes, from apps before open polls) and its size doesn't reveal whether
+  it's an emoji, a vote or an added answer. `reactionContext(messageId,
   reactorId, senderId, recipientId)` is the additional data, so a reaction can't be moved or
   re-attributed. Which message was reacted to, by whom and when is deliberately visible, like reply
   links: hiding it would mean syncing every reaction in a conversation on each device (the server
   couldn't look them up per message). `GET /api/dm-messages` returns each message's `reactions`
-  (`withReactions`); `POST /api/dm-reactions` / `DELETE /api/dm-reactions/:id` (own only, max 20
-  per person per message) push `reaction_add` / `reaction_remove`. Deleting a message deletes its
+  (`withReactions`); `POST /api/dm-reactions` / `DELETE /api/dm-reactions/:id` (own only, max 50
+  per person per message, enough for a poll's votes and added answers) push `reaction_add` / `reaction_remove`. Deleting a message deletes its
   reactions. No push notifications for reactions.
 - **Notes** (`/dm/notes`, `Notes.jsx`): a DM to yourself (`direct_messages` with sender =
   recipient), first under the Direct Messages header in `DmSidebar`, with a line between it and

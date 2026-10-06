@@ -163,30 +163,29 @@ try {
   await b.tap('.vc-dialog-close');
   console.log('who voted: popup with tabs works');
 
-  // Alice edits the poll: renaming "Soup" drops its votes, the question and "Pizza" keep theirs.
+  // Alice edits the poll: renaming "Soup" drops its votes, "Pizza" keeps its (a new question would drop them all).
   const row = a.locator('.each-dm-message-wrapper:has(.poll-question:text-is("Lunch?"))');
   await row.hover();
   await row.locator('button:has(svg[data-icon="pen-to-square"])').click();
   await a.waitForSelector('.vc-dialog:has-text("Edit poll")');
   if (!(await a.isDisabled('.vc-dialog input[type=checkbox]'))) throw new Error('multiple choice can be changed');
-  await a.fill('#poll-question', 'Lunch today?');
   await a.fill('input[aria-label="Answer 2"]', 'Tomato soup');
   await a.waitForSelector('text=Changing an answer removes the votes it had.');
   await shot(a, '4-edit');
   await a.click('.vc-dialog button:has-text("Save")');
-  await b.waitForSelector('.poll-question:text-is("Lunch today?")', { timeout: 10000 });
-  await waitForCount(b, 'Lunch today?', 'Tomato soup', 0);
-  await waitForCount(a, 'Lunch today?', 'Tomato soup', 0);
-  await waitForCount(a, 'Lunch today?', 'Pizza', 2);
+  await b.waitForSelector('.poll-option:has-text("Tomato soup")', { timeout: 10000 });
+  await waitForCount(b, 'Lunch?', 'Tomato soup', 0);
+  await waitForCount(a, 'Lunch?', 'Tomato soup', 0);
+  await waitForCount(a, 'Lunch?', 'Pizza', 2);
   // Bob votes again: his old vote (for the renamed answer) is cleared, not left behind.
   await b.tap('button:text-is("Remove vote")');
-  await castVote(b, 'Lunch today?', ['Tomato soup']);
-  await waitForCount(a, 'Lunch today?', 'Tomato soup', 1);
-  await waitForCount(a, 'Lunch today?', 'Pizza', 1);
+  await castVote(b, 'Lunch?', ['Tomato soup']);
+  await waitForCount(a, 'Lunch?', 'Tomato soup', 1);
+  await waitForCount(a, 'Lunch?', 'Pizza', 1);
   console.log('DM poll: editing an answer drops its votes');
 
   // Changing only an answer's emoji is an edit too; Escape in the picker leaves the dialog open.
-  const edited = a.locator('.each-dm-message-wrapper:has(.poll-question:text-is("Lunch today?"))');
+  const edited = a.locator('.each-dm-message-wrapper:has(.poll-question:text-is("Lunch?"))');
   await edited.hover();
   await edited.locator('button:has(svg[data-icon="pen-to-square"])').click();
   await a.click('button[aria-label="Change the emoji of answer 1"]');
@@ -198,15 +197,15 @@ try {
   await a.waitForSelector('text=Changing an answer removes the votes it had.');
   await a.click('.vc-dialog button:has-text("Save")');
   await b.waitForSelector('.poll-option:has-text("Tomato soup") .poll-option-emoji img.emoji', { timeout: 10000 });
-  await waitForCount(a, 'Lunch today?', 'Tomato soup', 0);
-  await waitForCount(a, 'Lunch today?', 'Pizza', 1);
+  await waitForCount(a, 'Lunch?', 'Tomato soup', 0);
+  await waitForCount(a, 'Lunch?', 'Pizza', 1);
   // Removing Pizza's emoji is also an edit.
   await edited.hover();
   await edited.locator('button:has(svg[data-icon="pen-to-square"])').click();
   await a.click('button[aria-label="Remove the emoji of answer 1"]');
   await a.click('.vc-dialog button:has-text("Save")');
   await b.waitForFunction(() => !document.querySelector('.poll-option-emoji img[alt="🍕"]'), null, { timeout: 10000 });
-  await waitForCount(b, 'Lunch today?', 'Pizza', 0);
+  await waitForCount(b, 'Lunch?', 'Pizza', 0);
   await shot(b, '4b-emoji-phone');
   console.log('DM poll: answer emoji show, and changing one drops its votes');
 
