@@ -15,6 +15,7 @@ import DateTimeSettings from "./DateTimeSettings";
 import SpellcheckSettings from "./SpellcheckSettings";
 import PrivacySettings from "./PrivacySettings";
 import BlockedUsers from './BlockedUsers';
+import AuthorisedApps from './AuthorisedApps';
 import AdminReports from './AdminReports';
 import ContentSettings from "./ContentSettings";
 import ThemeSettings from "./ThemeSettings";
@@ -128,6 +129,11 @@ export default function Settings({ onLogout }) {
       id: 'blocked', category: 'app', title: t('settings.sections.blocked.title'),
       keywords: t('settings.sections.blocked.keywords'),
       content: <BlockedUsers />,
+    },
+    {
+      id: 'authorised-apps', category: 'app', title: t('settings.sections.authorisedApps.title'),
+      keywords: t('settings.sections.authorisedApps.keywords'),
+      content: <AuthorisedApps />,
     },
     {
       id: 'content', category: 'app', title: t('settings.sections.content.title'),

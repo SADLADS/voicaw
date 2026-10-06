@@ -250,6 +250,45 @@ maybe DAVE) may come later. Audio only: bots never get Video (`voice.canStreamWi
   (`@livekit/rtc-node`) publishing a tone with Speak; a bot with Listen hears it (Node, and
   Python `livekit`); a bot without Listen gets no audio at all (LiveKit refuses to subscribe it).
 
+## Login with Voicaw (`server/oauth.js`)
+
+Built 2026-10-06: Discord's OAuth2 **authorisation code grant**, so a website that logs people
+in with Discord works with Voicaw by changing its URLs (and ids, which are ours). Any
+application (the same ones as bots) can use it; public docs at `/developers/docs/login/`.
+
+- **Only `identify`**: the person's id, username, display name and picture (`D.userObject`),
+  nothing else (no email: we have none; no `guilds`). Combined with `bot`, or with no scope, a
+  link is still a bot invite (`isBotInvite` in routes/applications.js and AuthorizePage).
+- **Portal** (ApplicationPage's OAuth2 tab): a client secret (`POST
+  /applications/:id/client-secret`, shown once, SHA-256 in `bot_applications.client_secret_hash`)
+  and up to 10 redirect URIs (`redirect_uris` JSON, through `PATCH /applications/:id`): https,
+  or http to localhost / 127.0.0.1 / [::1], no fragment or user info, matched exactly; a link
+  may leave `redirect_uri` out when there's only one. Plus a copyable authorise link.
+- **Consent** (the app's `/oauth2/authorize?client_id&response_type=code&scope=identify&redirect_uri&state[&prompt=none]`,
+  `LoginConsent` in AuthorizePage): `GET /api/oauth2/authorize` (logged in) checks the link and
+  answers the application, owner, scopes, redirect and `authorized` (already let in, with a token
+  that still works or refreshes); `POST` with the same fields (and `deny`) answers `{ location }`,
+  the redirect with `code` and `state` (or `error=access_denied`), which the page goes to. An
+  unknown client or redirect URI is shown, never redirected to; a bad scope or response type
+  goes back to the site as `error=…` (RFC 6749 4.1.2.1). `prompt=none` skips the question when
+  `authorized`, as Discord's. Pending, suspended and bot accounts can't (authenticateJWT, `usableUser`).
+- **Codes and tokens** (`oauth_codes`, `oauth_tokens`; SHA-256s only): a code lasts 10 minutes and is
+  deleted as it's read (`DELETE … RETURNING`), so a failed exchange uses it up too; it must be
+  the application's and, if the exchange names one, the same `redirect_uri`. Access tokens last
+  7 days (Discord's); a refresh token works once (the pair is replaced), until revoked, or 30
+  days after its access token ran out (rows past that are deleted on the next exchange).
+- **Bot API side** (routes/botApi.js): `POST /api/v10/oauth2/token` (form or JSON; client id and
+  secret in the body or Basic; RFC 6749's `{ error, error_description }`; 30 a minute per
+  address), `POST /oauth2/token/revoke` (RFC 7009: unknown tokens are fine), `GET /users/@me`
+  with `Bearer` (`loginAuth`, needs `identify`), `GET /oauth2/@me`. A login token opens nothing
+  else, and isn't a login to the app's own API.
+- **Settings → Authorised apps** (`AuthorisedApps.jsx`; `GET /api/oauth2/authorised-apps`,
+  `DELETE /api/oauth2/authorised-apps/:appId`): the applications with a live token, removing one
+  deletes its tokens and codes. Deleting the application (`bots.deleteApplication`) or the
+  account (`accounts.deleteAccount`) does too; a suspended account's tokens don't work while it is.
+- **Privacy**: what the site gets and that it's up to its maker is on the consent page and in
+  the privacy policy ("Websites you log in to with Voicaw").
+
 ### Not done yet
 
 Discord-compatible voice (see Voice), webhooks managed with a bot token, nicknames, timeouts and server mute,

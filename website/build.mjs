@@ -196,6 +196,7 @@ export const DOCS = [
   { slug: 'authentication', file: 'authentication.html', title: 'Tokens, rate limits and errors', description: 'Bot tokens, rate limits and error codes.' },
   { slug: 'gateway', file: 'gateway.html', title: 'Gateway', description: 'Connecting to the gateway: opcodes, intents, events and close codes.' },
   { slug: 'voice', file: 'voice.html', title: 'Voice', description: 'Joining voice channels with LiveKit: speaking and listening.' },
+  { slug: 'login', file: 'login.html', title: 'Login with Voicaw', description: 'Let people log in to your website with their Voicaw account (OAuth2).' },
   { slug: 'interactions', file: 'interactions.html', title: 'Commands and components', description: 'Slash and context-menu commands, buttons, selects, forms and interactions.' },
   { slug: 'rest', file: 'rest.html', title: 'REST reference', description: 'Every endpoint of the bot API.' },
   { slug: 'objects', file: 'objects.html', title: 'Objects and IDs', description: "How Voicaw's guilds, channels, roles and messages look in the API." },
@@ -246,7 +247,7 @@ export function renderDocs(values) {
 export const LEGAL = [
   { slug: 'privacy', file: 'privacy.html', title: 'Privacy policy', updated: '2026-10-06', description: 'What Voicaw stores, what is end-to-end encrypted, and who else sees anything.' },
   { slug: 'terms', file: 'terms.html', title: 'Terms of use', updated: '2026-10-05', description: "Voicaw's rules: what you may not post or do, and what happens if you do." },
-  { slug: 'delete-account', file: 'delete-account.html', title: 'Deleting your account', updated: '2026-10-05', description: 'How to delete your Voicaw account and what that removes.' },
+  { slug: 'delete-account', file: 'delete-account.html', title: 'Deleting your account', updated: '2026-10-06', description: 'How to delete your Voicaw account and what that removes.' },
 ];
 
 

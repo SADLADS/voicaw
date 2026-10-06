@@ -94,6 +94,10 @@
         "title": "Blocked users",
         "keywords": "block blocked unblock ignore people users"
       },
+      "authorisedApps": {
+        "title": "Authorised apps",
+        "keywords": "authorised authorized apps websites sites login log in with voicaw oauth access connections"
+      },
       "reports": {
         "title": "Reports",
         "keywords": "reports moderation moderate suspend suspended ban abuse"
@@ -545,6 +549,14 @@
       "hint": "People you've blocked can't message you, call you or add you to a group, and their messages are hidden for you. They aren't told.",
       "none": "You haven't blocked anyone.",
       "someone": "Someone"
+    },
+    "authorisedApps": {
+      "title": "Authorised Apps",
+      "hint": "Websites you've logged in to with Voicaw. Each one can see your username, display name and profile picture until you remove it.",
+      "none": "You haven't logged in to any websites with Voicaw.",
+      "since": "Since {{date}}",
+      "remove": "Remove",
+      "loadFailed": "Couldn't load your authorised apps."
     },
     "reports": {
       "title": "Reports",

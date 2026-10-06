@@ -6,10 +6,12 @@ const { setAvatarFrom, removeAvatar } = require('../avatars');
 const { AvatarImageError, MAX_AVATAR_UPLOAD_BYTES } = require('../avatarImage');
 const { fromDiscordPermissions } = require('../discord');
 const bots = require('../bots');
+const oauth = require('../oauth');
 
-// The developer portal (the app's /developers page) and adding bots to guilds (its
-// /oauth2/authorize page). Logged-in people only; bots themselves use routes/botApi.js. See
-// bots.js and docs/bots.md.
+// The developer portal (the app's /developers page), and its /oauth2/authorize page: adding
+// bots to guilds (scope `bot`) or logging in to an application's website (Login with Voicaw,
+// oauth.js), and Settings → Authorised apps. Logged-in people only; bots themselves use
+// routes/botApi.js, websites the token routes there. See bots.js and docs/bots.md.
 const router = express.Router();
 
 // Loads req.application: one of the caller's applications.
@@ -71,6 +73,11 @@ router.post('/applications/:appId/token', authenticateJWT, ownApplication, async
   res.json({ token: await bots.resetToken(req.application.id) });
 });
 
+// Login with Voicaw: a new client secret (the old one stops working), shown this once.
+router.post('/applications/:appId/client-secret', authenticateJWT, ownApplication, async (req, res) => {
+  res.json({ client_secret: await oauth.resetClientSecret(req.application.id) });
+});
+
 router.delete('/applications/:appId', authenticateJWT, ownApplication, async (req, res) => {
   await bots.deleteApplication(req.application);
   res.json({ success: true });
@@ -98,8 +105,109 @@ async function addableApplication(req, res) {
   return app;
 }
 
-// What the authorise page shows: the bot, who made it, and the guilds the caller can add it to.
+// Whether a /oauth2/authorize link adds a bot (scope `bot`, or none: older invite links) or
+// logs in to a website (any other scope).
+const isBotInvite = (scope) => {
+  const scopes = oauth.parseScopes(scope);
+  return !scopes.length || scopes.includes('bot');
+};
+
+// ---- Login with Voicaw (oauth.js) ----
+
+// The application a login link names, its checked scopes and redirect URI, from `params` (the
+// link's query). Throws OAuthError: an unknown application or redirect URI is never redirected
+// to; a bad response_type or scope is (as RFC 6749 says), so the page can send people back.
+async function loginRequest(params) {
+  const id = Number(params.client_id);
+  const app = Number.isSafeInteger(id) && id > 0 && await db.get('SELECT * FROM bot_applications WHERE id = ?', [id]);
+  if (!app) throw new oauth.OAuthError(404, 'invalid_client', 'Unknown application');
+  const redirectUri = oauth.redirectUriFor(app, params.redirect_uri);
+  return { app, redirectUri };
+}
+
+// Answers an OAuthError from the authorise page: `{ error, error_description }`, plus where to
+// send the person back to when it's the site's to hear about (`redirect`).
+function loginFailed(res, err, redirect = null) {
+  if (!(err instanceof oauth.OAuthError)) throw err;
+  res.status(err.status).json({ error: err.message, oauth_error: err.error, ...(redirect ? { redirect } : {}) });
+}
+
+// What the login page shows: the application, who made it, what it asks for, where you'd go
+// back to, and whether you've let it in before (with prompt=none the page doesn't ask again).
+async function loginInfo(req, res) {
+  let request;
+  try {
+    request = await loginRequest(req.query);
+  } catch (err) {
+    return loginFailed(res, err);
+  }
+  const { app, redirectUri } = request;
+  const back = (error, description) => oauth.withParams(redirectUri, { error, error_description: description, state: req.query.state });
+  if (req.query.response_type !== 'code') {
+    return loginFailed(res, new oauth.OAuthError(400, 'unsupported_response_type', 'Only response_type=code is supported'), back('unsupported_response_type'));
+  }
+  let scopes;
+  try {
+    scopes = oauth.checkScopes(oauth.parseScopes(req.query.scope));
+  } catch (err) {
+    return loginFailed(res, err, back(err.error, err.message));
+  }
+  const user = await db.get('SELECT username, avatar FROM users WHERE id = ?', [app.id]);
+  const owner = await db.get('SELECT id, username, display_name FROM users WHERE id = ?', [app.owner_id]);
+  res.json({
+    login: true,
+    id: app.id,
+    name: app.name,
+    description: app.description,
+    bot: { id: app.id, ...bots.splitUsername(user.username), avatar: user.avatar },
+    owner,
+    created_at: app.created_at,
+    scopes,
+    redirect_uri: redirectUri,
+    authorized: await oauth.hasAuthorised(app.id, req.user.id, scopes),
+  });
+}
+
+// Agrees to (or, with `deny`, refuses) a login link: answers `{ location }`, the site's
+// redirect URI with `code` (or `error=access_denied`) and the link's `state`.
+async function login(req, res) {
+  const body = req.body ?? {};
+  let request;
+  let scopes;
+  try {
+    request = await loginRequest(body);
+    if (body.response_type !== 'code') throw new oauth.OAuthError(400, 'unsupported_response_type', 'Only response_type=code is supported');
+    scopes = oauth.checkScopes(oauth.parseScopes(body.scope));
+  } catch (err) {
+    return loginFailed(res, err);
+  }
+  const { app, redirectUri } = request;
+  if (body.deny) {
+    return res.json({ location: oauth.withParams(redirectUri, { error: 'access_denied', error_description: 'The person declined', state: body.state }) });
+  }
+  const code = await oauth.createCode(app, req.user.id, redirectUri, scopes);
+  res.json({ location: oauth.withParams(redirectUri, { code, state: body.state }) });
+}
+
+// Settings → Authorised apps: the sites you've logged in to with Voicaw.
+router.get('/oauth2/authorised-apps', authenticateJWT, async (req, res) => {
+  res.json(await oauth.authorisedApps(req.user.id));
+});
+
+// Takes an application's access away (its tokens stop working).
+router.delete('/oauth2/authorised-apps/:appId', authenticateJWT, async (req, res) => {
+  const id = Number(req.params.appId);
+  if (!Number.isSafeInteger(id)) return res.status(404).json({ error: 'Unknown application' });
+  await oauth.deauthorise(id, req.user.id);
+  res.json({ success: true });
+});
+
+// ---- The authorise page ----
+
+// What the authorise page shows: the bot, who made it, and the guilds the caller can add it to;
+// or, for a login link, what loginInfo says.
 router.get('/oauth2/authorize', authenticateJWT, async (req, res) => {
+  if (!isBotInvite(req.query.scope)) return loginInfo(req, res);
   const app = await addableApplication(req, res);
   if (!app) return;
   const user = await db.get('SELECT username, avatar FROM users WHERE id = ?', [app.id]);
@@ -118,6 +226,7 @@ router.get('/oauth2/authorize', authenticateJWT, async (req, res) => {
 // Adds the bot to `guild_id`. `permissions` is Discord's bitfield (a decimal string), as in
 // the link; the caller may have unticked some.
 router.post('/oauth2/authorize', authenticateJWT, async (req, res) => {
+  if (!isBotInvite(req.body?.scope)) return login(req, res);
   const app = await addableApplication(req, res);
   if (!app) return;
   const adder = await getMember(Number(req.body?.guild_id), req.user.id);

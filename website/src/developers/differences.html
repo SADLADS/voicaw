@@ -12,7 +12,7 @@
         <li><strong>DMs and group chats</strong>: they're end-to-end encrypted, so bots can't be in them. Opening a DM fails with <code>50007</code>.</li>
         <li>Nicknames, timeouts, server mute and deafen, and moving people between voice channels: <code>PATCH</code> on a member with <code>nick</code>, <code>communication_disabled_until</code>, <code>mute</code>, <code>deaf</code> or <code>channel_id</code> fails with <code>50035</code>.</li>
         <li>Commands in DMs or as user-installed apps: commands only exist in guilds.</li>
-        <li>OAuth2 logins for people (scopes other than <code>bot</code>), teams, verification and privileged intents.</li>
+        <li>OAuth2 scopes other than <code>bot</code> and <code>identify</code> (<a href="/developers/docs/login/">Login with Voicaw</a>), the implicit grant, client credentials, teams, verification and privileged intents.</li>
         <li>Slow mode, boosts, role icons, ban reasons.</li>
       </ul>
 

@@ -3731,6 +3731,12 @@ body.mobile-mode .poll-voters-list {
   overflow-wrap: anywhere;
 }
 
+/* Settings → Authorised apps (AuthorisedApps.jsx) uses the list above. */
+.authorised-app-since {
+  display: block;
+  font-size: 0.8rem;
+}
+
 .admin-suspended-list li > span {
   flex: 1;
   min-width: 0;

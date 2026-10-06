@@ -23,7 +23,30 @@
       "label": "Application settings",
       "general": "General Information",
       "bot": "Bot",
-      "installation": "Installation"
+      "installation": "Installation",
+      "oauth2": "OAuth2"
+    },
+    "oauth2": {
+      "intro": "Let people log in to your website with their Voicaw account (\"Login with Voicaw\"). It works like Discord's OAuth2: send them to the authorise link, then trade the code for a token with your client secret. The only scope is identify: their id, username, display name and picture.",
+      "clientIdLabel": "Client ID",
+      "secretHeading": "Client secret",
+      "secretHint": "Your website's server uses it to trade codes for tokens. Keep it secret, and never put it in a web page or an app. Voicaw only shows it once.",
+      "secretNone": "There's no client secret yet.",
+      "secretNew": "Here's your client secret. Copy it now: it won't be shown again.",
+      "secretLastReset": "Last reset {{date}}",
+      "makeSecret": "Make Secret",
+      "resetSecret": "Reset Secret",
+      "confirmResetTitle": "Reset the client secret?",
+      "confirmReset": "The old secret stops working at once: your website can't log anyone in until it uses the new one. People already logged in stay logged in.",
+      "redirectsHeading": "Redirects",
+      "redirectsHint": "The exact addresses people may be sent back to after logging in (https, or http://localhost for testing). Up to {{count}}.",
+      "redirectPlaceholder": "https://example.com/callback",
+      "addRedirect": "Add Redirect",
+      "removeRedirect": "Remove {{uri}}",
+      "noRedirects": "There are no redirects yet: nobody can log in to your website until you add one.",
+      "linkLabel": "Authorise link",
+      "linkHint": "Add a state parameter of your own, and check it when people come back.",
+      "saved": "Saved"
     },
     "general": {
       "picture": "Picture",
@@ -120,6 +143,22 @@
       "done": "{{bot}} has been added to {{guild}}.",
       "openGuild": "Open {{guild}}",
       "cancel": "Cancel"
+    },
+    "login": {
+      "title": "Log in with Voicaw",
+      "wantsAccess": "{{app}} wants to use your Voicaw account",
+      "loggedInAs": "You're logged in as {{name}}.",
+      "scopesHeading": "This will let it:",
+      "scopes": {
+        "identify": "Know your username, display name and profile picture"
+      },
+      "cannot": "It can't read your messages, see your guilds or act as you.",
+      "redirect": "Once you authorise, you'll go to {{host}}.",
+      "privacy": "What {{app}} does with this is up to its maker, not Voicaw. You can take its access away in Settings → Authorised apps.",
+      "submit": "Authorise",
+      "cancel": "Cancel",
+      "redirecting": "Taking you back to {{host}}…",
+      "badLink": "This login link doesn't work: {{error}}"
     }
   }
 }
