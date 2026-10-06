@@ -278,11 +278,15 @@ describe('scheduled events', () => {
       expect(heard).toContainEqual(expect.objectContaining({ type: 'guild_event_update', event: expect.objectContaining({ id: event.id, status: 'completed' }) }));
     });
 
-    it('starts a voice event only by hand, and ends it by hand', async () => {
+    it('starts a voice event at its time, or earlier by hand, and ends it by hand', async () => {
       const { owner, members: [alice], guild, voice } = await setUp(1);
-      const event = (await create(owner, guild, inVoice(voice))).body;
-      await guildEvents.sweepEvents(event.start_time + 60);
-      expect((await guildEvents.getEvent(event.id)).status).toBe('scheduled');
+      const timed = (await create(owner, guild, inVoice(voice))).body;
+      await guildEvents.sweepEvents(timed.start_time - 1);
+      expect((await guildEvents.getEvent(timed.id)).status).toBe('scheduled');
+      await guildEvents.sweepEvents(timed.start_time);
+      expect((await guildEvents.getEvent(timed.id)).status).toBe('active');
+
+      const event = (await create(owner, guild, inVoice(voice, { startTime: now() + 2 * HOUR }))).body;
       expect((await api.post(alice, `/guild-events/${event.id}/start`)).status).toBe(403);
       expect((await api.post(owner, `/guild-events/${event.id}/end`)).status).toBe(400);
       const res = await api.post(owner, `/guild-events/${event.id}/start`);
@@ -292,22 +296,54 @@ describe('scheduled events', () => {
       expect(await guildEvents.getEvent(event.id)).toBeFalsy();
     });
 
-    it('cancels a voice event nobody started, and ends one whose channel stays empty', async () => {
-      const { owner, guild, voice } = await setUp(0);
-      const unstarted = (await create(owner, guild, inVoice(voice))).body;
-      await guildEvents.sweepEvents(unstarted.start_time + guildEvents.UNSTARTED_SECONDS - 1);
-      expect(await guildEvents.getEvent(unstarted.id)).toBeTruthy();
-      await guildEvents.sweepEvents(unstarted.start_time + guildEvents.UNSTARTED_SECONDS);
-      expect(await guildEvents.getEvent(unstarted.id)).toBeFalsy();
+    it('ends a voice event without an end once its channel stays empty after someone came, or nobody did', async () => {
+      const { owner, guild, voice: channel } = await setUp(0);
+      const voice = require('../voice.js');
+      const realMembers = voice.membersOf;
+      let present = [];
+      voice.membersOf = (id) => (id === channel.id ? present : realMembers(id));
+      try {
+        // Nobody comes: on for UNATTENDED_SECONDS (not ended 5 minutes in, before anyone could).
+        const lonely = (await create(owner, guild, inVoice(channel))).body;
+        await guildEvents.sweepEvents(lonely.start_time);
+        const started = (await guildEvents.getEvent(lonely.id)).started_at;
+        await guildEvents.sweepEvents(started + guildEvents.EMPTY_SECONDS * 2);
+        expect((await guildEvents.getEvent(lonely.id)).status).toBe('active');
+        await guildEvents.sweepEvents(started + guildEvents.UNATTENDED_SECONDS);
+        expect(await guildEvents.getEvent(lonely.id)).toBeFalsy();
 
-      const started = (await create(owner, guild, inVoice(voice))).body;
-      await api.post(owner, `/guild-events/${started.id}/start`);
-      const t = now();
-      await guildEvents.sweepEvents(t);
-      await guildEvents.sweepEvents(t + guildEvents.EMPTY_SECONDS - 1);
-      expect((await guildEvents.getEvent(started.id)).status).toBe('active');
-      await guildEvents.sweepEvents(t + guildEvents.EMPTY_SECONDS);
-      expect(await guildEvents.getEvent(started.id)).toBeFalsy();
+        // Someone comes, then leaves: ends EMPTY_SECONDS later.
+        const party = (await create(owner, guild, inVoice(channel))).body;
+        await api.post(owner, `/guild-events/${party.id}/start`);
+        const t = now();
+        present = [{ userId: owner.id }];
+        await guildEvents.sweepEvents(t);
+        present = [];
+        await guildEvents.sweepEvents(t + 1);
+        await guildEvents.sweepEvents(t + 1 + guildEvents.EMPTY_SECONDS - 1);
+        expect((await guildEvents.getEvent(party.id)).status).toBe('active');
+        await guildEvents.sweepEvents(t + 1 + guildEvents.EMPTY_SECONDS);
+        expect(await guildEvents.getEvent(party.id)).toBeFalsy();
+      } finally {
+        voice.membersOf = realMembers;
+      }
+    });
+
+    it('ends a voice event with an end at its end, empty or not', async () => {
+      const { owner, guild, voice } = await setUp(0);
+      const event = (await create(owner, guild, inVoice(voice, { endTime: now() + 3 * HOUR }))).body;
+      await guildEvents.sweepEvents(event.start_time);
+      await guildEvents.sweepEvents(event.start_time + guildEvents.EMPTY_SECONDS * 3);
+      expect((await guildEvents.getEvent(event.id)).status).toBe('active');
+      await guildEvents.sweepEvents(event.end_time);
+      expect(await guildEvents.getEvent(event.id)).toBeFalsy();
+    });
+
+    it('just ends an occurrence whose end went by before it could start', async () => {
+      const { owner, guild } = await setUp(0);
+      const event = (await create(owner, guild, external())).body;
+      await guildEvents.sweepEvents(event.end_time);
+      expect(await guildEvents.getEvent(event.id)).toBeFalsy();
     });
 
     it("can't move a started event's start time", async () => {
@@ -376,19 +412,22 @@ describe('scheduled events', () => {
       expect((await api.post(owner, `/guild-events/${plain.id}/skip`)).body.error).toMatch(/doesn't repeat/);
     });
 
-    it('a voice series nobody started moves on instead of being cancelled', async () => {
+    it('a voice series nobody came to moves on', async () => {
       const { owner, guild, voice } = await setUp(0);
       const monday = nextMonday();
       const event = (await create(owner, guild, inVoice(voice, { startTime: monday, recurrence: { frequency: 3, interval: 1, by_weekday: null }, timezone: zone }))).body;
+      await guildEvents.sweepEvents(monday);
+      expect((await guildEvents.getEvent(event.id)).status).toBe('active');
       const realNow = Date.now;
-      Date.now = () => (monday + guildEvents.UNSTARTED_SECONDS) * 1000;
+      Date.now = () => (monday + guildEvents.UNATTENDED_SECONDS) * 1000;
       try {
-        await guildEvents.sweepEvents(monday + guildEvents.UNSTARTED_SECONDS);
+        await guildEvents.sweepEvents(monday + guildEvents.UNATTENDED_SECONDS);
       } finally {
         Date.now = realNow;
       }
       const after = await guildEvents.getEvent(event.id);
-      expect(after.start_time).toBeGreaterThan(monday + guildEvents.UNSTARTED_SECONDS);
+      expect(after.status).toBe('scheduled');
+      expect(after.start_time).toBeGreaterThan(monday + guildEvents.UNATTENDED_SECONDS);
       expect(after.start_time - monday).toBeLessThanOrEqual(86400 + HOUR);
     });
   });
@@ -458,12 +497,15 @@ describe('all-day events, emoji and colour', () => {
     expect(next).toMatchObject({ status: 'scheduled', start_time: addDays(start, 7, zone), end_time: addDays(start, 8, zone) });
   });
 
-  it("cancels a voice one nobody started once its day is over, not 12 hours in", async () => {
+  it('a voice one is on from its first midnight until the one after its last day', async () => {
     const { owner, guild, voice } = await setUp(0);
     const start = midnight(1);
     const event = (await create(owner, guild, inVoice(voice, { allDay: true, startTime: start, endTime: addDays(start, 1, zone), timezone: zone }))).body;
-    await guildEvents.sweepEvents(start + guildEvents.UNSTARTED_SECONDS);
+    await guildEvents.sweepEvents(start - 1);
     expect((await guildEvents.getEvent(event.id)).status).toBe('scheduled');
+    await guildEvents.sweepEvents(start);
+    await guildEvents.sweepEvents(start + guildEvents.UNATTENDED_SECONDS);
+    expect((await guildEvents.getEvent(event.id)).status).toBe('active');
     await guildEvents.sweepEvents(addDays(start, 1, zone));
     expect(await guildEvents.getEvent(event.id)).toBeFalsy();
   });

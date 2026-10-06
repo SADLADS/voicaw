@@ -7,7 +7,8 @@ import { eventColor, eventPlace, formatEventWhen } from '../../utils/eventDispla
 import { formatLongDate, formatMonthYear, formatTime, formatWeekday, useDateFormat } from '../../utils/dateFormat';
 import { t } from '../../i18n';
 
-// How many events a day's square lists before "+N more".
+// How many events a day's square lists before "+N more". Each is its emoji and name (the time
+// is in its title and the day's list); on a phone, its emoji or a dot.
 const MAX_CHIPS = 3;
 
 // The event's colour for its chip, dot and list entry (--event-color; none: the accent).
@@ -141,9 +142,8 @@ export default function EventCalendar({ guild, events, month, day, onMonth, onDa
                           title={item.allDay ? `${item.event.name} (${t('events.calendar.allDay')})` : `${formatTime(item.start * 1000)} ${item.event.name}`}
                           onClick={(e) => { e.preventDefault(); onDay(key); onOpenEvent(item.event.id); }}
                         >
-                          {!item.allDay && <span className="event-calendar-chip-time">{formatTime(item.start * 1000)} </span>}
                           <EventEmoji emoji={item.event.emoji} />
-                          {item.event.name}
+                          <span className="event-calendar-chip-name">{item.event.name}</span>
                         </button>
                       ))}
                       {list.length > MAX_CHIPS && (
@@ -153,7 +153,9 @@ export default function EventCalendar({ guild, events, month, day, onMonth, onDa
                     {list.length > 0 && (
                       <span className="event-calendar-dots" aria-hidden="true">
                         {list.slice(0, 3).map((item) => (
-                          <span key={`${item.event.id}-${item.start}`} className="event-calendar-dot" style={colorStyle(item.event)} />
+                          item.event.emoji
+                            ? <EventEmoji key={`${item.event.id}-${item.start}`} emoji={item.event.emoji} />
+                            : <span key={`${item.event.id}-${item.start}`} className="event-calendar-dot" style={colorStyle(item.event)} />
                         ))}
                       </span>
                     )}

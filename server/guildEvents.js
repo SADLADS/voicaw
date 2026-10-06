@@ -18,11 +18,14 @@ const { cleanRule, cleanTimeZone, startsOnRule, nextOccurrence, addDays } = requ
 // - Create Events makes them (a voice channel's also needs Connect there; both are channel
 //   permissions too, as in Discord) and lets their creator edit, start, end and cancel them;
 //   Manage Events does that to anyone's.
-// - Lifecycle: scheduled -> active -> completed, or cancelled. One somewhere else starts and
-//   ends by itself at its times; a voice channel's is started by hand (or is cancelled
-//   UNSTARTED_SECONDS after its time) and ends by hand or once its channel has stayed empty
-//   EMPTY_SECONDS. Ended and cancelled events are deleted; a repeating one moves on to its next
-//   occurrence instead (eventRecurrence.js). Whoever's interested is told when one starts.
+// - Lifecycle: scheduled -> active -> completed, or cancelled. Every event starts by itself at
+//   its time (or earlier by hand: Start; unlike Discord, whose voice events wait for one). One
+//   with an end ends by itself then; a voice one without ends once its channel has stayed empty
+//   EMPTY_SECONDS after someone was in it, or UNATTENDED_SECONDS after it started if nobody
+//   came. All-day ones are on for their whole dates. Any can be ended by hand. Ended and
+//   cancelled events are deleted; a repeating one moves on to its next occurrence instead
+//   (eventRecurrence.js). Whoever's interested is told when one starts (not an all-day one's
+//   midnight).
 
 const MAX_NAME = 100;
 const MAX_DESCRIPTION = 1000;
@@ -31,7 +34,7 @@ const MAX_EMOJI_LENGTH = 64; // as reactions'
 const MAX_IMAGE = 1000;
 const MAX_EVENTS_PER_GUILD = 100;
 const MAX_AHEAD_SECONDS = 5 * 366 * 86400;
-const UNSTARTED_SECONDS = 12 * 3600;
+const UNATTENDED_SECONDS = 12 * 3600;
 const EMPTY_SECONDS = 5 * 60;
 const SWEEP_MS = 15 * 1000;
 const MAX_IMAGE_UPLOAD_BYTES = 8 * 1024 * 1024;
@@ -533,7 +536,7 @@ function occurrenceEnd(event, start) {
 
 async function activate(event, actorId = null) {
   await db.run("UPDATE guild_events SET status = 'active', started_at = ?, updated_at = ? WHERE id = ?", [now(), now(), event.id]);
-  emptySince.delete(event.id);
+  forgetPresence(event.id);
   const updated = await loadPublic(event.id);
   await broadcast('update', updated);
   // An all-day event somewhere else starts by itself at midnight: no push then.
@@ -549,7 +552,7 @@ async function remove(event, status, kind) {
     await db.run('DELETE FROM guild_event_users WHERE event_id = ?', [event.id]);
     await db.run('DELETE FROM guild_events WHERE id = ?', [event.id]);
   });
-  emptySince.delete(event.id);
+  forgetPresence(event.id);
   require('./uploads').releaseUploads();
   await broadcast(kind, last);
   return last;
@@ -569,7 +572,7 @@ async function advance(event) {
      WHERE id = ?`,
     [next, occurrenceEnd(event, next), next, now(), event.id]
   );
-  emptySince.delete(event.id);
+  forgetPresence(event.id);
   const updated = await loadPublic(event.id);
   await broadcast('update', updated);
   return updated;
@@ -654,31 +657,44 @@ async function storeImageData(dataUri, userId) {
 
 // ---- The clock ----
 
-// Active voice events whose channel is empty: event id -> since when (unix s). In memory: after
-// a restart they get a fresh EMPTY_SECONDS.
+// Active voice events without an end: whose channel is empty, event id -> since when (unix s),
+// and which have had someone in their channel since they started. In memory: after a restart
+// an empty one waits for someone again (or UNATTENDED_SECONDS).
 const emptySince = new Map();
+const attended = new Set();
 
-// One pass at unix s `at`: starts and ends events somewhere else on time, cancels voice events
-// nobody started (12 hours after their time; an all-day one once its days are over), ends voice
-// events whose channel has stayed empty. Exported for tests.
+// A new occurrence (or none): who came to the last one no longer counts.
+function forgetPresence(eventId) {
+  emptySince.delete(eventId);
+  attended.delete(eventId);
+}
+
+// One pass at unix s `at`: starts events whose time has come, ends those whose end has, and
+// voice events without an end whose channel has stayed empty (or that nobody came to). An
+// occurrence whose end passed before it could start (the server was down) just ends. Exported
+// for tests.
 async function sweepEvents(at = now()) {
   const due = await db.all(
     `SELECT ${EVENT_COLUMNS} FROM guild_events
-     WHERE (entity_type = 'external' AND ((status = 'scheduled' AND start_time <= ?) OR (status = 'active' AND end_time <= ?)))
-        OR (entity_type = 'voice' AND ((status = 'scheduled'
-          AND ((all_day = 0 AND start_time <= ?) OR (all_day = 1 AND end_time <= ?))) OR status = 'active'))`,
-    [at, at, at - UNSTARTED_SECONDS, at]
+     WHERE (status = 'scheduled' AND start_time <= ?) OR status = 'active'`,
+    [at]
   );
   const voice = require('./voice');
   for (const event of due) {
     try {
-      if (event.entity_type === 'external') {
-        if (event.status === 'active' || event.end_time <= at) await finish(event, 'completed');
+      const ended = event.end_time != null && event.end_time <= at;
+      if (event.status === 'scheduled') {
+        if (ended) await finish(event, 'completed');
         else await activate(event);
-      } else if (event.status === 'scheduled') {
-        await finish(event, 'canceled');
+      } else if (ended) {
+        await finish(event, 'completed');
+      } else if (event.entity_type !== 'voice' || event.end_time != null) {
+        continue; // on until its end
       } else if (voice.membersOf(event.channel_id).length) {
+        attended.add(event.id);
         emptySince.delete(event.id);
+      } else if (!attended.has(event.id)) {
+        if (at - (event.started_at ?? event.start_time) >= UNATTENDED_SECONDS) await finish(event, 'completed');
       } else if (!emptySince.has(event.id)) {
         emptySince.set(event.id, at);
       } else if (at - emptySince.get(event.id) >= EMPTY_SECONDS) {
@@ -701,7 +717,7 @@ module.exports = {
   MAX_DESCRIPTION,
   MAX_LOCATION,
   MAX_EVENTS_PER_GUILD,
-  UNSTARTED_SECONDS,
+  UNATTENDED_SECONDS,
   EMPTY_SECONDS,
   getEvent,
   publicEvent,

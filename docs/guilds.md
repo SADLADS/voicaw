@@ -376,10 +376,14 @@ Not end-to-end encrypted, like the rest of a guild.
   start, end and cancel your own; Manage Events does it to anyone's (`canManage`). Interested:
   anyone who can see it. At most 100 events per guild; starts at most five years ahead.
 - **Lifecycle** (`server/guildEvents.js`, sweep every 15 s, `startEventTimers`): scheduled ->
-  active -> completed, or cancelled. One somewhere else starts and ends on its own at its times;
-  a voice channel's is started by hand (Start) and ends by hand (End event) or once its channel
-  has stayed empty 5 minutes (counted in memory: a restart gives it 5 more); one nobody starts is
-  cancelled 12 hours after its time. Only scheduled and active events are kept: one that ends
+  active -> completed, or cancelled. Every event starts on its own at its time (unlike Discord,
+  whose voice events wait for someone to start them; Start still starts one early), and the
+  start push goes out then. One with an end ends on its own at it; a voice one without ends
+  once its channel has stayed empty 5 minutes after someone was in it, or 12 hours after it
+  started if nobody came (`UNATTENDED_SECONDS`; who came and since when it's empty are kept in
+  memory: after a restart an empty one waits for someone again). End event ends any by hand. An
+  occurrence whose end went by before it could start (the server was down) just ends. Only
+  scheduled and active events are kept: one that ends
   or is cancelled is deleted (people are sent it with status `completed` / `canceled` first), a
   repeating one moves on to its next occurrence still to come, keeping who's interested.
 - **Repeating** (`server/eventRecurrence.js`, `client/src/utils/eventRecurrence.js`): Discord's
@@ -395,9 +399,10 @@ Not end-to-end encrypted, like the rest of a guild.
   them, and theirs have the defaults): `all_day` events cover whole dates on their maker's
   calendar: `start_time` and `end_time` are midnights of `timezone` (always set for them; the
   editor sends the device's), the end the one after the last day. They may be made on a day
-  that has begun (only the end must be to come); one somewhere else starts itself at midnight
-  without the start push, a voice one nobody starts is cancelled once its days are over (not
-  12 hours in), and a repeating one's next end is whole days on (`addDays`, so a clock change
+  that has begun (only the end must be to come). They're on (active) for their whole dates on
+  their maker's calendar, midnight to midnight, in a voice channel or not: there's one clock on
+  the server, so someone a time zone away sees one on during its maker's dates, which is also
+  what its dates say. Their start sends no push (it would be at midnight), and a repeating one's next end is whole days on (`addDays`, so a clock change
   doesn't move midnight). They're shown as dates ("Tuesday 20 October 2026 · All day",
   `formatEventWhen`), on each of their days of the calendar (`eventsByDay`, before timed ones,
   as bars), dated as their maker meant wherever they're read (`dateIn`). `emoji` (Unicode or a
@@ -422,8 +427,9 @@ Not end-to-end encrypted, like the rest of a guild.
   them. Covers are uploads (like a document's: encrypted like a guild attachment, its URL with
   the key), linked as upload kind `event`, so the file goes with the event.
 - **Client**: `hooks/useGuildEvents.js` (in `GuildSidebar`) keeps the guild's events. The channel
-  list starts with Calendar (Live while an event is on), and under a voice channel with an
-  event on, "Live: name"; the guild menu has Create Event (Create Events, or a voice channel
+  list starts with Calendar, and under it the events on now (`.guild-live-events`, "Happening
+  now": their colour's dot, emoji and name; a click opens the event), and under a voice channel
+  with an event on, "Live: name"; the guild menu has Create Event (Create Events, or a voice channel
   you may hold one in). `events/EventsDialog.jsx`: one dialog, the same size whatever it shows
   (900 × 700 at most), with two tabs, Calendar (first) and Events (the tab, month and day are kept in `GuildSidebar`
   while the editor is open; it always opens on the calendar, on today), and the list (`EventCard`: cover, when and "Starts
@@ -442,9 +448,10 @@ Not end-to-end encrypted, like the rest of a guild.
   repeating one: `occurrencesBetween` (`utils/eventRecurrence.js`) is a copy of the server's
   stepping on the event's time zone's wall clock (keep the two alike), the current occurrence
   at its own, perhaps moved, time and the rule's after it, with the series' `duration`. A day
-  shows up to three events (time and name; a click opens the event), then "+N more"; clicking
+  shows up to three events (emoji, always shown, and name; the time is in its title and the
+  day's list; a click opens the event), then "+N more"; clicking
   a day picks it and lists its events beside the month (under it when the dialog is narrower
-  than 620 px, where the squares show dots instead of names: a container query). Making an
+  than 620 px, where the squares show each event's emoji, or a dot, instead of names: a container query). Making an
   event on the calendar: the + on a day under the pointer (or the chosen one), or Create Event
   under the day's list, both only on today and later and for those who may make events; the
   editor starts that day at 18:00 (`startOnDay`; the next whole hour if that's sooner than it
