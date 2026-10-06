@@ -84,6 +84,54 @@ try {
   await bob.page.waitForSelector('text=seen already', { timeout: 10000 });
   await stayed(bob.page, before, 'a DM in the open chat');
 
+  // The same chat open, but another tab in front: dings (as in Discord), from one of Bob's
+  // two Voicaw tabs only, and the pages tell the service worker so (its notification is quiet).
+  const second = await bob.page.context().newPage();
+  await second.goto(`${BASE}/dm/notes`);
+  await second.waitForSelector('#dm-input');
+  await second.mouse.click(5, 5);
+  const other = await bob.page.context().newPage();
+  await other.goto('about:blank');
+  await other.bringToFront();
+  // Headless Chrome tells every page it has focus; stop that, then let the pages report it
+  // (as the blur of a real window switch does).
+  for (const page of [bob.page, second]) {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: false });
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  }
+  await bob.page.waitForTimeout(1500);
+  const away = await bob.page.evaluate(() => [document.visibilityState, document.hasFocus()]);
+  if (away[0] === 'visible' && away[1]) throw new Error('Bob\'s page still counts as in front');
+  before = await made(bob.page);
+  const beforeSecond = await made(second);
+  await send(alice.page, 'while away');
+  await bob.page.waitForFunction(
+    () => [...document.querySelectorAll('.message')].some((m) => m.textContent.includes('while away')),
+    null, { timeout: 10000 },
+  ).catch(() => {});
+  await bob.page.waitForTimeout(2500);
+  const dings = (await made(bob.page)) - before + (await made(second)) - beforeSecond;
+  if (dings !== 2) throw new Error(`expected one ding (2 notes) from Bob's tabs while away, saw ${dings} notes`);
+  const worker = bob.page.context().serviceWorkers()[0];
+  if (worker) {
+    const answers = await worker.evaluate(async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      return Promise.all(windows.map((client) => new Promise((resolve) => {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = (event) => resolve(event.data);
+        setTimeout(() => resolve('no answer'), 1000);
+        client.postMessage({ action: 'handles-message-sound' }, [channel.port2]);
+      })));
+    });
+    if (!answers.includes(true)) throw new Error(`no page plays the sound for the worker: ${answers}`);
+  } else {
+    console.log('sounds: no service worker in this run; its question not checked');
+  }
+  await second.close();
+  await other.close();
+  await bob.page.bringToFront();
+
   // Not once the Message sound is switched off.
   await bob.page.goto(`${BASE}/settings#sounds`);
   await bob.page.waitForSelector('.sound-settings');

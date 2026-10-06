@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import { SOUNDS } from './soundList';
 import { isDesktopApp } from '../utils/desktop';
+import { isAndroidApp } from '../utils/android';
+import { isMobileDevice } from '../utils/presence';
 import { onAudioSettingsChange, outputSinkId } from '../voice/audioSettings';
 
 // The app's sound effects (soundList.js has them all): played with one shared Web Audio
@@ -202,11 +204,45 @@ export function stopLoop() {
   loop = null;
 }
 
-// The server says a message arrived that you'd be notified about (server/push.js). In a
-// browser the page plays the sound only while it's in front (its system notification is then
-// silent, see service-worker.js); otherwise that notification makes the system's sound. The
-// desktop app always plays it: its notifications are silent.
+// The server says a message arrived that you'd be notified about (server/push.js), in front
+// of you or not. As in Discord, a page on a computer dings in a background tab or behind
+// another window too (its system notification is then silent, see service-worker.js; Chrome's
+// are often silent anyway), once its audio has started (a click since it loaded; until then
+// the system notification makes the sound). On a phone, and in the Android app, the page only
+// dings while it's in front: otherwise the phone's notification makes the sound. The desktop
+// app always dings: its notifications are silent.
+export function handlesMessageSound() {
+  if (typeof document === 'undefined') return false;
+  if (isDesktopApp()) return true;
+  if (document.visibilityState === 'visible' && document.hasFocus()) return true;
+  if (isMobileDevice() || isAndroidApp()) return false;
+  return context?.state === 'running';
+}
+
+// Several tabs open in one browser ding once: whichever takes the lock first, held for the
+// sound's minGap so the others find it taken.
+const MESSAGE_SOUND_LOCK = 'voicaw-message-sound';
+
 export function playMessageSound() {
-  const inFront = typeof document !== 'undefined' && document.visibilityState === 'visible' && document.hasFocus();
-  if (isDesktopApp() || inFront) playSound('message');
+  if (!handlesMessageSound()) return;
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+  if (!locks || isDesktopApp()) {
+    playSound('message');
+    return;
+  }
+  locks.request(MESSAGE_SOUND_LOCK, { ifAvailable: true }, async (lock) => {
+    if (!lock) return;
+    playSound('message');
+    await new Promise((resolve) => setTimeout(resolve, SOUNDS.message.minGap ?? 1000));
+  }).catch(() => {});
+}
+
+// Before showing a message notification, the service worker asks the open pages whether one
+// of them plays the sound itself (the notification then stays quiet).
+if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.action === 'handles-message-sound') {
+      event.ports[0]?.postMessage(handlesMessageSound());
+    }
+  });
 }

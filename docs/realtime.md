@@ -141,7 +141,8 @@ one user at a time).
   FCM, encrypted for that phone (`fcm.js`). Calls also get `call_stop` there
   (`sendToAndroidApps`) to stop the phone ringing. See Android app in `docs/desktop-and-site.md`.
 - Message pushes (`dm`, `group`, `guild`) also send `message_sound` to every socket of the user
-  (see Sounds). While a window of the app is focused, the service worker shows those
-  notifications `silent` (the page plays the Message sound instead).
+  (see Sounds). Before showing one, the service worker asks the open pages
+  (`handles-message-sound`, answered within 500 ms) whether one plays the Message sound itself;
+  if so (or a window of the app is focused) the notification is `silent`.
 - The PWA manifest is `public/manifest.json` only (VitePWA `manifest: false`). The dev server also
   serves the real service worker (`devOptions`), so push works under `npm run dev`.
