@@ -20,6 +20,7 @@ const notificationListeners = new Set();
 const loggedOutListeners = new Set();
 const approvedListeners = new Set();
 const signupRequestListeners = new Set();
+const testerRequestListeners = new Set();
 const conversationSettingsListeners = new Set();
 const preferencesListeners = new Set();
 const blocksListeners = new Set();
@@ -197,6 +198,9 @@ export function connectWebSocket() {
       }
       else if (data.type === 'signup_requests') {
         signupRequestListeners.forEach((cb) => cb(data.count));
+      }
+      else if (data.type === 'tester_requests') {
+        testerRequestListeners.forEach((cb) => cb());
       }
       else if (data.type === 'account_deleted' || data.type === 'session_revoked') {
         loggedOutElsewhere(socket);
@@ -395,6 +399,12 @@ export function onAccountApproved(callback) {
 export function onSignupRequests(callback) {
   signupRequestListeners.add(callback);
   return () => signupRequestListeners.delete(callback);
+}
+
+// Admins: someone asked to join the Android app's test, or another admin dealt with a request.
+export function onTesterRequests(callback) {
+  testerRequestListeners.add(callback);
+  return () => testerRequestListeners.delete(callback);
 }
 
 // Once per socket: the server says so, then closes it.

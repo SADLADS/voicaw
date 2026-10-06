@@ -6,19 +6,20 @@
 //       prints the version this release gets: higher than the one published (or, before the
 //       first, mobile/package.json's version), else fails
 //   node updates/publish-android.mjs publish <apk> <version> [siteDir]
-//       copies the APK in as voicaw-<version>.apk, then releases.json (what the pages list),
-//       then voicaw.apk (always the newest, for sharing one link), each written to a hidden
-//       temporary file and renamed so nothing ever names a half-copied file; older APKs stay.
-//       Then the download page, and voicaw.com is rebuilt with the new version.
+//       copies the APK in as voicaw-<version>.apk, then releases.json (what installed apps
+//       check), then voicaw.apk (always the newest), each written to a hidden temporary file
+//       and renamed so nothing ever names a half-copied file; older APKs stay. Then the
+//       download page.
 //
-// siteDir: the folder nginx serves (default /opt/voicaw-updates, or VOICAW_UPDATES_DIR). As
-// with the desktop app's publish.mjs, voicaw.com is left alone when publishing anywhere else (a
-// try-out) unless VOICAW_SITE_DIR says where its website goes.
+// The APKs are no longer offered to anyone (2026-10-06: new people get the app from Google
+// Play's closed test, which voicaw.com links to): they're published only so the copies already
+// installed from here keep updating themselves.
+//
+// siteDir: the folder nginx serves (default /opt/voicaw-updates, or VOICAW_UPDATES_DIR).
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildSite } from '../website/build.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -73,7 +74,7 @@ function writeAtomic(to, text) {
   fs.renameSync(tmp, to);
 }
 
-export async function publish(apk, version, siteDir, { rebuildWebsite = true } = {}) {
+export async function publish(apk, version, siteDir) {
   if (!parse(version)) throw new Error(`Not a version: ${version}`);
   if (!fs.existsSync(apk)) throw new Error(`No APK at ${apk}`);
   const dir = androidDir(siteDir);
@@ -100,16 +101,6 @@ export async function publish(apk, version, siteDir, { rebuildWebsite = true } =
   copyAtomic(path.join(root, 'client/public/logo192.png'), path.join(siteDir, 'logo.png'));
   copyAtomic(path.join(root, 'client/public/favicon.ico'), path.join(siteDir, 'favicon.ico'));
   console.log(`Published ${name} to ${dir}.`);
-
-  // 5. voicaw.com's Android button. The release is out either way; a failure here only means
-  // the page shows the previous one until `npm run build:site`.
-  if (rebuildWebsite) {
-    try {
-      await buildSite({ android: release });
-    } catch (err) {
-      console.warn(`voicaw.com wasn't rebuilt: ${err.message}`);
-    }
-  }
   return release;
 }
 
@@ -123,9 +114,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     } else if (command === 'publish') {
       const [apk, version, dirArg] = args;
       const siteDir = path.resolve(dirArg || process.env.VOICAW_UPDATES_DIR || '/opt/voicaw-updates');
-      const tryOut = (dirArg || process.env.VOICAW_UPDATES_DIR) && !process.env.VOICAW_SITE_DIR;
-      if (tryOut) console.log('Not the real update site: voicaw.com left alone (set VOICAW_SITE_DIR to build one).');
-      await publish(path.resolve(apk), version, siteDir, { rebuildWebsite: !tryOut });
+      await publish(path.resolve(apk), version, siteDir);
     } else {
       throw new Error('usage: publish-android.mjs next <patch|minor|major|X.Y.Z> [siteDir] | publish <apk> <version> [siteDir]');
     }

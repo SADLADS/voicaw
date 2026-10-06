@@ -72,7 +72,8 @@ Run from the repo root unless noted.
   JUnit tests) in Docker (`mobile/dist-android.sh`) into `dist-android/voicaw-debug.apk`;
   `./build-android.sh [patch|minor|major|X.Y.Z]` releases: next version, APK signed with the
   release key (`~/.voicaw-android-keys`, `mobile/make-release-key.sh`), published to
-  updates.voicaw.com/android/ and voicaw.com (`updates/publish-android.mjs`); `--no-publish`,
+  updates.voicaw.com/android/ only for copies already installed from there
+  (`updates/publish-android.mjs`); `--no-publish`,
   `--debug`; stops without `google-services.json` (`--no-push` builds without). Each release
   also builds `dist-android/voicaw-<version>-play.aab` for the Play Console (uploaded by hand).
   Publishing touches the live sites: only when the user asks
@@ -222,11 +223,14 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   chosen over UnifiedPush and a permanent websocket), each encrypted for the phone, since FCM
   doesn't encrypt to the device. Previews are decrypted by the app's own page code in a hidden
   WebView (`notify.html`), not a native port of the crypto, so keys never leave the page's
-  storage and there's one implementation. Distributed as a signed APK from updates.voicaw.com
+  storage and there's one implementation. Since 2026-10-06 distributed through Google Play's
+  closed test (voicaw.com has a form to ask to join, which admins see in Settings → Admin; see
+  Info site in `docs/desktop-and-site.md`). Before that, as a signed APK from updates.voicaw.com
   (2026-10-03), which updates itself from there, downloading only when asked (2026-10-04; the
-  `play` build flavour never does, as Play requires); Google Play planned once the user's developer account is verified (needs a
-  12-tester closed test for 14 days first; the privacy policy, terms and account-deletion page
-  are on voicaw.com, and blocking, reports and suspensions in the app, 2026-10-05).
+  `play` build flavour never does, as Play requires), still published there for those copies.
+  Open to everyone on Play after the closed test (12 testers for 14 days; the privacy policy,
+  terms and account-deletion page are on voicaw.com, and blocking, reports and suspensions in
+  the app, 2026-10-05).
 - **Bots** (built 2026-10-03, see `docs/bots.md`): Discord's API, library-compatible (discord.js
   and discord.py work with URL changes), guilds (never in people's DMs, group DMs or calls: they're
   end-to-end encrypted, and bots have no keys; bot DMs, 2026-10-06, are their own unencrypted

@@ -69,26 +69,23 @@
     <img src="/logo.png" alt="">
     <div>
       <h1>Voicaw downloads</h1>
-      <p>For Windows, macOS and Linux (it keeps itself up to date), and Android.</p>
+      <p>For Windows, macOS and Linux (it keeps itself up to date).</p>
     </div>
   </header>
   <div id="downloads"><p class="note">Loading…</p></div>
-  <p class="note" id="android-note" hidden>
-    Android: for Android 8 or newer. Open the downloaded file to install it. Android asks once to
-    allow installing apps from your browser, and Play Protect may warn that it doesn't know the
-    app: tap <em>More details</em>, then <em>Install anyway</em>. It doesn't update itself yet:
-    get new versions here.
+  <p class="note">
+    Android: Voicaw is on Google Play, as a closed test for now.
+    <a href="https://voicaw.com/#android-test">Ask to join it on voicaw.com</a>.
   </p>
   <p class="note">
     Prefer the browser? Voicaw also works at <a href="https://app.voicaw.com">app.voicaw.com</a>.
   </p>
 </main>
 <script>
-  const NAMES = { android: 'Android', windows: 'Windows', mac: 'macOS', linux: 'Linux' };
+  const NAMES = { windows: 'Windows', mac: 'macOS', linux: 'Linux' };
 
   function guessPlatform() {
     const p = (navigator.userAgentData?.platform || navigator.platform || navigator.userAgent).toLowerCase();
-    if (/android/i.test(navigator.userAgent)) return 'android';
     if (p.includes('win')) return 'windows';
     if (p.includes('mac')) return 'mac';
     if (p.includes('linux') && !/android/i.test(navigator.userAgent)) return 'linux';
@@ -101,7 +98,7 @@
 
   function link(file, className) {
     const a = document.createElement('a');
-    a.href = `/${file.folder || 'desktop'}/${encodeURIComponent(file.name)}`;
+    a.href = `/desktop/${encodeURIComponent(file.name)}`;
     if (className) a.className = className;
     return a;
   }
@@ -110,8 +107,7 @@
     const box = document.getElementById('downloads');
     box.replaceChildren();
     const mine = guessPlatform();
-    const order = ['windows', 'mac', 'linux', 'android'].filter((p) => platforms[p]?.files?.length);
-    document.getElementById('android-note').hidden = !platforms.android;
+    const order = ['windows', 'mac', 'linux'].filter((p) => platforms[p]?.files?.length);
     if (!order.length) {
       box.innerHTML = '<p class="note">No downloads yet. Check back soon.</p>';
       return;
@@ -148,17 +144,9 @@
   }
 
   const load = (url) => fetch(url, { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
-  Promise.all([load('/desktop/releases.json'), load('/android/releases.json')]).then(([desktop, { android }]) => {
-    const platforms = { ...(desktop.platforms || {}) };
-    // The Android app's one APK (updates/publish-android.mjs), as one more system.
-    if (android?.file) {
-      platforms.android = {
-        version: android.version,
-        files: [{ name: android.file.name, label: 'APK (Android 8 or newer)', size: android.file.size, folder: 'android' }],
-      };
-    }
-    show(platforms);
-  });
+  // Android's APKs are still here (/android/, updates/publish-android.mjs) for the copies already
+  // installed, which update from them, but aren't offered: new people get the app from Google Play.
+  load('/desktop/releases.json').then((desktop) => show(desktop.platforms || {}));
 </script>
 </body>
 </html>

@@ -3,9 +3,10 @@ import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import { nextVersion, versionCode, publish, readRelease } from '../../updates/publish-android.mjs';
-import { LEGAL, renderAndroid, renderLegal, renderPage } from '../../website/build.mjs';
+import { LEGAL, PLAY_URL, renderLegal, renderPage } from '../../website/build.mjs';
 
-// Releasing the Android app: its version numbers, what lands on the update site, and voicaw.com.
+// Releasing the Android app: its version numbers, what lands on the update site (for the copies
+// installed from there), and voicaw.com (Google Play's closed test, no APK).
 
 describe('Android release versions', () => {
   it('starts from the package version, then counts up', () => {
@@ -41,8 +42,8 @@ describe('publishing an APK', () => {
       writeFileSync(file, text);
       return file;
     };
-    await publish(apk('first'), '0.1.0', site, { rebuildWebsite: false });
-    const release = await publish(apk('second build'), '0.1.1', site, { rebuildWebsite: false });
+    await publish(apk('first'), '0.1.0', site);
+    const release = await publish(apk('second build'), '0.1.1', site);
 
     expect(release).toMatchObject({ version: '0.1.1', versionCode: 101, file: { name: 'voicaw-0.1.1.apk', size: 12 } });
     expect(release.file.sha256).toMatch(/^[0-9a-f]{64}$/);
@@ -50,28 +51,19 @@ describe('publishing an APK', () => {
     expect(readFileSync(path.join(site, 'android/voicaw.apk'), 'utf8')).toBe('second build');
     expect(readFileSync(path.join(site, 'android/voicaw-0.1.0.apk'), 'utf8')).toBe('first');
     expect(existsSync(path.join(site, 'index.html'))).toBe(true);
-    expect(readFileSync(path.join(site, 'index.html'), 'utf8')).toContain('/android/releases.json');
+    // The download page doesn't offer it: new people get the app from Google Play.
+    expect(readFileSync(path.join(site, 'index.html'), 'utf8')).not.toContain('/android/releases.json');
   });
 });
 
 describe('voicaw.com', () => {
-  const android = { version: '0.1.1', date: '2026-10-03T00:00:00Z', file: { name: 'voicaw-0.1.1.apk', size: 27 * 1024 * 1024 } };
-
-  it('says Android is coming before there is an APK', () => {
-    const page = renderPage({}, null);
-    expect(page).toContain('Coming soon');
-    expect(page).not.toContain('data-primary="android"');
-    expect(page).not.toMatch(/\{\{[A-Z_]+\}\}/);
-  });
-
-  it('offers the APK, with how to install it, once published', () => {
-    const parts = renderAndroid(android);
-    expect(parts.ANDROID_CARD).toContain('href="https://updates.voicaw.com/android/voicaw-0.1.1.apk"');
-    expect(parts.ANDROID_CARD).toContain('Version 0.1.1 · 27 MB');
-    expect(parts.ANDROID_NOTE).toContain('Install anyway');
-    const page = renderPage({}, android);
+  it('sends Android visitors to the Google Play test and its form, never an APK', () => {
+    const page = renderPage({});
     expect(page).toContain('<template data-primary="android">');
-    expect(page).toContain('Android app 0.1.1');
+    expect(page).toContain('href="#android-test"');
+    expect(page).toContain('id="tester-form"');
+    expect(page).toContain(`href="${PLAY_URL}"`);
+    expect(page).not.toMatch(/\.apk|updates\.voicaw\.com\/android/);
     expect(page).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 });
@@ -90,7 +82,7 @@ describe('voicaw.com policies', () => {
     expect(pages[0].html).toContain('<a href="mailto:voicaw@proton.me">voicaw@proton.me</a>');
     expect(pages[1].html).toContain('the law of Jersey');
     expect(pages[1].html).toContain('at least 13');
-    const home = renderPage({}, null);
+    const home = renderPage({});
     expect(home).toContain('href="/privacy/"');
     expect(home).toContain('href="/terms/"');
   });

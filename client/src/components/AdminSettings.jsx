@@ -3,7 +3,7 @@ import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 import { Trans } from 'react-i18next';
 import { t } from '../i18n';
-import { onSignupRequests } from '../utils/ws-client';
+import { onSignupRequests, onTesterRequests } from '../utils/ws-client';
 import { shareOrigin } from '../utils/guildDisplay';
 import { formatDateTime } from '../utils/dateFormat';
 import { displayName } from '../utils/profiles';
@@ -364,6 +364,104 @@ function InviteList({ invites, onChange }) {
   );
 }
 
+// People asking on voicaw.com to join the Android app's closed test on Google Play
+// (server/routes/testerRequests.js): an admin adds the emails to Play's tester list by hand,
+// then marks them added. Waiting ones first.
+function TesterList() {
+  const [requests, setRequests] = useState(null);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    const load = () => api.get('/admin/tester-requests').then(
+      ({ data }) => { if (live) setRequests(data.testers ?? null); },
+      () => {}
+    );
+    load();
+    const off = onTesterRequests(load);
+    return () => {
+      live = false;
+      off();
+    };
+  }, []);
+
+  const act = async (request, change) => {
+    if (change === 'delete' && !window.confirm(t('settings.admin.testers.confirmDelete', { email: request.email }))) return;
+    setError(null);
+    setBusy(request.id);
+    try {
+      const url = `/admin/tester-requests/${request.id}`;
+      const { data } = change === 'delete'
+        ? await api.delete(url)
+        : await api.put(url, { added: change === 'added' });
+      setRequests(data.testers);
+    } catch (err) {
+      setError(errorText(err, t('settings.admin.couldntSave')));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // For pasting into the Play Console's list (it takes them comma-separated).
+  const copyWaiting = async () => {
+    try {
+      await navigator.clipboard.writeText(requests.filter((r) => !r.added_at).map((r) => r.email).join(', '));
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  if (!requests) return null;
+  const waiting = requests.filter((r) => !r.added_at).length;
+  return (
+    <div className="admin-setting">
+      <label>{t('settings.admin.testers.title')}</label>
+      <p className="admin-setting-help">{t('settings.admin.testers.help')}</p>
+      {requests.length === 0 ? (
+        <p className="admin-setting-state">{t('settings.admin.testers.none')}</p>
+      ) : (
+        <ul className="admin-list">
+          {requests.map((r) => (
+            <li key={r.id}>
+              <span className="admin-invite">
+                <code>{r.email}</code>
+                <span className="admin-list-detail">
+                  {[r.name, formatDateTime(r.created_at * 1000),
+                    r.added_at && t('settings.admin.testers.added', { date: formatDateTime(r.added_at * 1000) })]
+                    .filter(Boolean).join(' · ')}
+                </span>
+                {r.note && <span className="admin-list-detail admin-tester-note">{r.note}</span>}
+              </span>
+              <span className="admin-list-actions">
+                <button
+                  type="button"
+                  className={`btn btn-sm ${r.added_at ? 'btn-secondary' : 'uploadbutton'}`}
+                  disabled={busy === r.id}
+                  onClick={() => act(r, r.added_at ? 'waiting' : 'added')}
+                >
+                  {r.added_at ? t('settings.admin.testers.markWaiting') : t('settings.admin.testers.markAdded')}
+                </button>
+                <button type="button" className="btn btn-sm btn-secondary" disabled={busy === r.id} onClick={() => act(r, 'delete')}>
+                  {t('settings.admin.testers.delete')}
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {waiting > 0 && (
+        <button type="button" className="btn btn-sm btn-secondary" onClick={copyWaiting}>
+          {copied ? t('common.copied') : t('settings.admin.testers.copyWaiting')}
+        </button>
+      )}
+      {error && <p className="error-msg">{error}</p>}
+    </div>
+  );
+}
+
 // Settings → Admin: app-wide settings, only shown to global admins (the server says who).
 // Changes apply at once on the server; other people's apps pick them up when they next load.
 // `onAvailable()` runs once it turns out you're an admin (Settings shows the Admin category then).
@@ -407,6 +505,7 @@ export default function AdminSettings({ onAvailable }) {
         );
       })}
       <RequestList requests={data.requests ?? []} onChange={(requests) => setData((d) => ({ ...d, requests }))} />
+      <TesterList />
       <InviteList invites={data.invites ?? []} onChange={(invites) => setData((d) => ({ ...d, invites }))} />
       <AdminList admins={data.admins} me={user?.id} onChange={(admins) => setData((d) => ({ ...d, admins }))} />
     </div>

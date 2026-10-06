@@ -37,7 +37,10 @@
   </p>
   <div class="actions">
     {{PRIMARY_DOWNLOAD}}
-    {{ANDROID_PRIMARY}}
+    <template data-primary="android"><a class="button" id="primary-download" data-platform="android" href="#android-test">
+      <strong>Get Voicaw for Android</strong>
+      <span>Closed test on Google Play</span>
+    </a></template>
     <a class="button secondary" href="{{APP_URL}}">
       <strong>Open in your browser</strong>
       <span>Nothing to install</span>
@@ -86,17 +89,55 @@
     <p class="note">The desktop app keeps itself up to date.</p>
 
     <h3>Phones and tablets</h3>
-    <!-- Android's card is a download once an APK is published (website/build.mjs renderAndroid).
-         When an app is in a store, make its card a link there and drop "soon":
-         <a class="store" href="https://play.google.com/store/apps/details?id=…"> … </a> -->
+    <!-- Android is a closed test on Google Play: its card leads to the form for joining it. Once
+         it's open to everyone, link the card to {{PLAY_URL}} and drop the form. -->
     <div class="stores">
-      {{ANDROID_CARD}}
+      <a class="store" href="#android-test">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5v17l9-8.5z"/><path d="M5 3.5l11.5 6.6L14 12.5M5 20.5l11.5-6.6L14 11.5M16.5 10.1l3 1.7a.3.3 0 0 1 0 .4l-3 1.7"/></svg>
+        <span><strong>Android</strong><small>Google Play · closed test</small></span>
+      </a>
       <div class="store soon">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3.5c0 1.6-1.3 3-2.8 3 0-1.6 1.3-3 2.8-3z"/><path d="M12.5 7.8c-1-.6-2.2-1-3.3-.8C7 7.3 5.5 9.3 5.5 12c0 3.7 2.4 8.5 4.5 8.5 1 0 1.5-.6 2.5-.6s1.5.6 2.5.6c1.3 0 2.8-2 3.6-4.2a3.6 3.6 0 0 1-.4-6.5A4 4 0 0 0 15 7c-1 0-1.8.4-2.5.8z"/></svg>
         <span><strong>iOS</strong><small>Coming whenever someone sends me $99</small></span>
       </div>
     </div>
-    {{ANDROID_NOTE}}
+    <div class="tester" id="android-test">
+      <h3>Join the Android test</h3>
+      <p class="note">
+        The Android app is on Google Play as a closed test for now: Google only lists a new app
+        for everyone after testers have tried it. To be one of them:
+      </p>
+      <ol class="steps">
+        <li>Ask to join here, with the email address of the Google account on your phone (usually
+          a Gmail address).</li>
+        <li>We add you to the test by hand, so give it a day or two. There's no email when it's done.</li>
+        <li>Then, on your phone, <a href="{{PLAY_TEST_URL}}">join the test</a> and
+          <a href="{{PLAY_URL}}">install Voicaw from Google Play</a>. Android 8 or newer.</li>
+      </ol>
+      <form class="tester-form" id="tester-form" novalidate>
+        <label><span>Google account email</span>
+          <input type="email" name="email" required maxlength="254" autocomplete="email" placeholder="you@gmail.com">
+        </label>
+        <label><span>Name <small>(optional)</small></span>
+          <input type="text" name="name" maxlength="100" autocomplete="name">
+        </label>
+        <label><span>Anything we should know? <small>(optional)</small></span>
+          <textarea name="note" maxlength="500" rows="2"></textarea>
+        </label>
+        <!-- Not for people: a bot that fills it in is thanked and ignored. -->
+        <label class="trap" aria-hidden="true">Website
+          <input type="text" name="website" tabindex="-1" autocomplete="off">
+        </label>
+        <div class="tester-send">
+          <button class="button small" type="submit">Ask to join</button>
+          <p class="form-status" id="tester-status" role="status"></p>
+        </div>
+      </form>
+      <p class="note">
+        Only Voicaw's admins see what you send. Adding you gives your email address to Google, as the
+        test's list of testers. See <a href="/privacy/#android-test">the privacy policy</a>.
+      </p>
+    </div>
     <p class="note">
       On an iPhone, open <a href="{{APP_URL}}">app.voicaw.com</a> and add it to your home screen.
     </p>
@@ -135,6 +176,41 @@
     if (!alt || current?.dataset.platform === mine) return;
     if (current) current.replaceWith(alt.content.cloneNode(true));
     else document.querySelector('.actions').prepend(alt.content.cloneNode(true));
+  })();
+  // Asking to join the Android test (server/routes/testerRequests.js, through this site's /api).
+  (function () {
+    const form = document.getElementById('tester-form');
+    const status = document.getElementById('tester-status');
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const email = form.elements.email;
+      if (!email.value.trim() || !email.checkValidity()) {
+        status.textContent = 'Enter the email address of your Google account.';
+        email.focus();
+        return;
+      }
+      const button = form.querySelector('button');
+      button.disabled = true;
+      status.textContent = 'Sending…';
+      try {
+        const res = await fetch('/api/tester-requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.fromEntries(new FormData(form))),
+        });
+        if (res.ok) {
+          const done = document.createElement('p');
+          done.className = 'tester-done';
+          done.textContent = `Thanks! We'll add ${email.value.trim()} to the test. In a day or two, join it from your phone with the link above.`;
+          form.replaceWith(done);
+          return;
+        }
+        status.textContent = (await res.json().catch(() => null))?.error || "Couldn't send that. Try again later.";
+      } catch {
+        status.textContent = "Couldn't send that. Are you online?";
+      }
+      button.disabled = false;
+    });
   })();
 </script>
 </body>

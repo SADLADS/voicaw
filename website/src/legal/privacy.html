@@ -10,7 +10,8 @@
     encrypted</strong>: they're locked on your device, and Voicaw's server can't read them.</li>
   <li><strong>Guilds aren't</strong>: their messages, files and voice channels are stored and
     handled as they are, which is what lets them have search, mentions and an audit log.</li>
-  <li>Voicaw asks for no email address or phone number, and never sees your password.</li>
+  <li>Your account needs no email address or phone number, and Voicaw never sees your password.
+    (Only <a href="#android-test">asking to join the Android test</a> takes an email address.)</li>
   <li>There are no ads, no analytics and no tracking, and nothing is sold.</li>
 </ul>
 
@@ -108,9 +109,12 @@
     apps, which ends its access at once, or until its access runs out (about five weeks unused).</li>
   <li><strong>Icons.</strong> The app loads its icon font from Cloudflare's cdnjs, which sees your
     IP address when you open it.</li>
-  <li><strong>Updates.</strong> The desktop app, and the Android app from voicaw.com, check
-    updates.voicaw.com (Voicaw's own) for new versions. The Android app from Google Play is
-    updated by Google Play.</li>
+  <li><strong>Updates.</strong> The desktop app, and copies of the Android app installed from
+    voicaw.com before it moved to Google Play, check updates.voicaw.com (Voicaw's own) for new
+    versions. The Android app from Google Play is updated by Google Play.</li>
+  <li><strong>Google Play.</strong> The Android app is a closed test on Google Play: if you ask to
+    join it, your email address is given to Google, as the test's list of testers (see
+    <a href="#android-test">below</a>).</li>
 </ul>
 
 <h2 id="safety">Blocking, reports and suspensions</h2>
@@ -132,7 +136,8 @@
   server's error log, kept until it's cleared, records the address of a request that went wrong
   (without your IP address). These are only used to keep Voicaw working and safe from abuse.
   Attempts to log in or register are counted per IP address and username, in memory, for up to an
-  hour, to stop password guessing.</p>
+  hour, to stop password guessing; asking to join the Android test is counted per IP address the
+  same way, to stop spam.</p>
 
 <h2 id="android">On your phone</h2>
 <p>The Android app keeps your login and keys inside the app, never in Android's backups. It asks
@@ -141,6 +146,15 @@
   lock screen. It keeps a list of the last 20 notifications it got and what happened to each
   (only times and kinds, no text), so you can see in Settings → Android App why one didn't
   show.</p>
+
+<h2 id="android-test">Joining the Android test</h2>
+<p>The Android app is a closed test on Google Play for now. Asking to join it on voicaw.com's
+  home page sends Voicaw the email address you give (your Google account's), and, if you add them,
+  a name and a note. No account is needed, and it isn't linked to one. Only Voicaw's admins see
+  it. They add the email address to the test's list of testers in Google's Play Console, which
+  gives it to Google, and Google then lets that Google account install the app. Voicaw keeps the
+  request until an admin deletes it; to have it deleted sooner, or taken off the test's list, ask
+  at {{CONTACT}}. Asking again with the same email address replaces the name and note.</p>
 
 <h2 id="deleting">Deleting your account</h2>
 <p>You can delete your account in Settings → Account (<a href="/delete-account/">how, and exactly

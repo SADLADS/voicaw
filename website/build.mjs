@@ -20,6 +20,10 @@ const root = path.resolve(here, '..');
 
 export const APP_URL = 'https://app.voicaw.com';
 export const UPDATES_URL = 'https://updates.voicaw.com';
+// The Android app: Google Play's closed test (2026-10-06), which people ask to join on the page
+// (its #android-test form, server/routes/testerRequests.js). Play shows it only to testers.
+export const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.voicaw.app';
+export const PLAY_TEST_URL = 'https://play.google.com/apps/testing/com.voicaw.app';
 const NAMES = { windows: 'Windows', mac: 'macOS', linux: 'Linux' };
 // Windows first: it's what most people download (and what a phone visitor sees offered).
 const ORDER = ['windows', 'mac', 'linux'];
@@ -57,61 +61,6 @@ export async function loadReleases(updatesDir = process.env.VOICAW_UPDATES_DIR |
   console.warn('No desktop releases found: the page says downloads are coming.');
   return {};
 }
-
-// The newest Android APK, as updates/publish-android.mjs records it ({ version, date, file:
-// { name, size } }), or null: from the update site's folder when it's on this machine, else
-// fetched.
-export async function loadAndroidRelease(updatesDir = process.env.VOICAW_UPDATES_DIR || '/opt/voicaw-updates') {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(updatesDir, 'android/releases.json'), 'utf8')).android ?? null;
-  } catch {
-    // Not on this machine: ask the live site.
-  }
-  try {
-    const res = await fetch(`${UPDATES_URL}/android/releases.json`, { cache: 'no-store' });
-    if (res.ok) return (await res.json()).android ?? null;
-  } catch {
-    // Offline.
-  }
-  return null;
-}
-
-const androidUrl = (name) => `${UPDATES_URL}/android/${encodeURIComponent(name)}`;
-
-// The Android card under "Phones and tablets" (a download when there's an APK), the steps to
-// install it, and the big button phone visitors get first.
-export function renderAndroid(android) {
-  if (!android?.version || !android.file) {
-    return {
-      ANDROID_CARD: `<div class="store soon">
-        ${ANDROID_ICON}
-        <span><strong>Android</strong><small>Coming soon</small></span>
-      </div>`,
-      ANDROID_NOTE: '',
-      ANDROID_PRIMARY: '',
-    };
-  }
-  const url = androidUrl(android.file.name);
-  const detail = `Version ${escape(android.version)} · ${size(android.file.size)}`;
-  return {
-    ANDROID_CARD: `<a class="store" href="${escape(url)}">
-        ${ANDROID_ICON}
-        <span><strong>Android</strong><small>${detail}</small></span>
-      </a>`,
-    ANDROID_NOTE: `<p class="note">
-      For Android 8 or newer, from this site rather than Google Play (for now). Open the
-      downloaded file to install it. Android asks once to allow installing apps from your browser,
-      and Play Protect may warn that it doesn't know the app: tap <em>More details</em>, then
-      <em>Install anyway</em>. It doesn't update itself yet: get new versions here.
-    </p>`,
-    ANDROID_PRIMARY: `<template data-primary="android"><a class="button" id="primary-download" data-platform="android" href="${escape(url)}">
-      <strong>Download for Android</strong>
-      <span>${detail}</span>
-    </a></template>`,
-  };
-}
-
-const ANDROID_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5v17l9-8.5z"/><path d="M5 3.5l11.5 6.6L14 12.5M5 20.5l11.5-6.6L14 11.5M16.5 10.1l3 1.7a.3.3 0 0 1 0 .4l-3 1.7"/></svg>';
 
 function primaryButton(platform, release, attrs = '') {
   const file = release.files[0];
@@ -165,18 +114,13 @@ function compareVersions(a, b) {
 // stylesheet, so a cached old one is never used with a new page).
 function pageValues() {
   const style = fs.readFileSync(path.join(here, 'src/style.css'));
-  return { APP_URL, UPDATES_URL, STYLE_VERSION: crypto.createHash('sha256').update(style).digest('hex').slice(0, 10) };
+  return { APP_URL, UPDATES_URL, PLAY_URL, PLAY_TEST_URL, STYLE_VERSION: crypto.createHash('sha256').update(style).digest('hex').slice(0, 10) };
 }
 
-export function renderPage(releases, android = null) {
+export function renderPage(releases) {
   const template = fs.readFileSync(path.join(here, 'src/index.html'), 'utf8');
-  const parts = renderParts(releases);
-  if (android?.version) {
-    parts.VERSION_LINE = [parts.VERSION_LINE, `Android app ${escape(android.version)}`].filter(Boolean).join(' · ');
-  }
   const values = {
-    ...parts,
-    ...renderAndroid(android),
+    ...renderParts(releases),
     ...pageValues(),
   };
   return template.replace(/\{\{([A-Z_]+)\}\}/g, (match, key) => {
@@ -297,14 +241,13 @@ export function renderLegal(values) {
   });
 }
 
-export async function buildSite({ siteDir = process.env.VOICAW_SITE_DIR || '/opt/voicaw-site', releases, android } = {}) {
+export async function buildSite({ siteDir = process.env.VOICAW_SITE_DIR || '/opt/voicaw-site', releases } = {}) {
   siteDir = path.resolve(siteDir);
   if (!fs.existsSync(siteDir)) {
     throw new Error(`${siteDir} doesn't exist (README "voicaw.com and app.voicaw.com" sets it up).`);
   }
   releases ??= await loadReleases();
-  if (android === undefined) android = await loadAndroidRelease();
-  const html = renderPage(releases, android);
+  const html = renderPage(releases);
   // Everything but the pages first, so a page never names a stylesheet that isn't there.
   // (Folders, like the docs' sources in src/developers, aren't copied.)
   for (const entry of fs.readdirSync(path.join(here, 'src'), { withFileTypes: true })) {
@@ -322,7 +265,6 @@ export async function buildSite({ siteDir = process.env.VOICAW_SITE_DIR || '/opt
   }
   writeAtomic(path.join(siteDir, 'index.html'), html);
   const versions = ORDER.filter((p) => releases[p]?.version).map((p) => `${NAMES[p]} ${releases[p].version}`);
-  if (android?.version) versions.push(`Android ${android.version}`);
   console.log(`Website built in ${siteDir} (${versions.join(', ') || 'no releases yet'}).`);
 }
 
