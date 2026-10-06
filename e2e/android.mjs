@@ -139,10 +139,27 @@ try {
   check((await callsTo(page, 'requestNotifications')).length === 1, "asks Android's permission");
   check(devicesNow.devices >= 1, `the server has the phone's registration (${devicesNow.devices} device)`);
 
-  // A notification tapped: the app is told where to go.
+  // A notification tapped: the app is told where to go, and shows that chat, not the list.
+  const paneShowing = () => page.evaluate(() => {
+    const wrapper = document.querySelector('.pane-content, .pane-list');
+    return wrapper?.classList.contains('pane-content') ? 'chat' : wrapper ? 'list' : 'none';
+  });
   await page.evaluate((id) => window.__android.emit('navigate', { url: `/dm/${id}` }), bob.id);
   await page.waitForURL(`**/dm/${bob.id}`);
-  check(true, 'tapping a notification opens its chat');
+  await page.waitForTimeout(300);
+  check(await paneShowing() === 'chat', 'tapping a notification over Settings opens its chat');
+  if (dir) await page.screenshot({ path: `${dir}/android-tap-over-settings.png` });
+  if (await page.isVisible('.update-banner-close')) await page.click('.update-banner-close');
+  await page.click('.pane-back-button');
+  await page.waitForTimeout(600);
+  check(await paneShowing() === 'list', 'back from it shows the list');
+  await page.evaluate(() => window.__android.emit('navigate', { url: '/dm/notes' }));
+  await page.waitForURL('**/dm/notes');
+  await page.waitForTimeout(600);
+  check(await paneShowing() === 'chat', 'tapping a notification while the list shows opens its chat');
+  if (dir) await page.screenshot({ path: `${dir}/android-tap-over-list.png` });
+  await page.evaluate((id) => window.__android.emit('navigate', { url: `/dm/${id}` }), bob.id);
+  await page.waitForURL(`**/dm/${bob.id}`);
   await page.reload();
   await page.waitForSelector('#dm-input');
   await page.waitForTimeout(500);

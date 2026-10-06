@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
-import { onPaneRequest } from '../utils/mobilePanes';
+import { onPaneRequest, takePendingContent } from '../utils/mobilePanes';
 import { isTouchDragging } from './usePointerDrag';
 
 // The phone layout's two panes, Discord style: the list (rail + conversations or channels)
@@ -180,8 +180,9 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
     return onPaneRequest((next) => slideTo(next));
   }, [enabled, slideTo]);
 
-  // Turning on: a fresh start marks its entry as the chat (so back shows the list); coming
-  // back from another page (Settings) shows whichever pane that entry had.
+  // Turning on: a fresh start marks its entry as the chat (so back shows the list), and so
+  // does a chat opened from another page (Settings) with showContent(), such as a tapped
+  // notification; coming back from another page shows whichever pane that entry had.
   useLayoutEffect(() => {
     if (!enabled) {
       if (wasEnabled.current) rest();
@@ -189,7 +190,8 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
       wasEnabled.current = wasEnabled.current === null ? null : false;
       return;
     }
-    if (wasEnabled.current === null) {
+    const opened = takePendingContent();
+    if (wasEnabled.current === null || opened) {
       if (!markOf()) {
         setMark('pushed', true);
         lastMark.current = 'pushed';

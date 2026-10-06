@@ -6,6 +6,7 @@ import { getVoiceSnapshot, leaveVoice, setSelfMute } from '../voice/voiceClient'
 import { useVoice } from './useVoice';
 import { useCall } from './useCall';
 import { voiceTitle } from '../utils/voiceTitle';
+import { showContent } from '../utils/mobilePanes';
 import { t } from '../i18n';
 
 // How long an Answer tapped on a notification waits for the call to show up here (the app may
@@ -26,7 +27,10 @@ export function useAndroidApp({ navigate, user, guildList, groupList }) {
       ensureSubscription().catch((err) => console.warn('Could not register for notifications', err));
     });
     const listeners = [
-      android.addListener('navigate', ({ url }) => navigate(url)),
+      android.addListener('navigate', ({ url }) => {
+        navigate(url);
+        showContent(); // the chat, even if the list was showing
+      }),
       android.addListener('callAction', ({ action, callId }) => {
         if (action === 'answer') answerWhenRinging(callId);
         else if (action === 'mute' || action === 'unmute') setSelfMute(action === 'mute');

@@ -302,7 +302,10 @@
   on phones (`PaneBackButton`, like Discord's): it shows the chat can be swiped away, and
   pressing it slides to the list the same way (`showList()`); threads and voice channels' chat
   have their own, back to their channel. Open the chat from elsewhere with `showContent()`
-  (`utils/mobilePanes.js`). The panes only
+  (`utils/mobilePanes.js`), after navigating: a tapped notification does (the web's
+  `SWMessageHandler`, the Android app's `navigate`), or it would open behind the list. Called
+  from a page without the panes (Settings), it's kept for a second and taken when the
+  navigation turns them on. The panes only
   have a transform while moving (a transform would trap `position: fixed` children).
   Kept smooth (`e2e/panesperf.mjs` measures it): which pane shows is classes on the wrapper set
   by the hook when a slide comes to rest, not React state (letting go used to re-render the
