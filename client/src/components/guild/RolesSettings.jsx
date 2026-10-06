@@ -2,16 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowDown, faArrowUp, faGripVertical, faLock } from '@fortawesome/free-solid-svg-icons';
 import { createRole, deleteRole, reorderRoles, updateRole } from '../../services/guildService';
-import { PERMISSIONS, PERMISSION_GROUPS, colorToHex, has, hexToColor, memberRank } from '../../utils/permissions';
+import { COLOR_SWATCHES, PERMISSIONS, PERMISSION_GROUPS, colorToHex, has, hexToColor, memberRank } from '../../utils/permissions';
 import { errorMessage } from '../../utils/guildDisplay';
 import { displayName } from '../../utils/profiles';
 import { t } from '../../i18n';
-
-// Discord's role colour swatches.
-const SWATCHES = [
-  0x1abc9c, 0x2ecc71, 0x3498db, 0x9b59b6, 0xe91e63, 0xf1c40f, 0xe67e22, 0xe74c3c, 0x95a5a6, 0x607d8b,
-  0x11806a, 0x1f8b4c, 0x206694, 0x71368a, 0xad1457, 0xc27c0e, 0xa84300, 0x992d22, 0x979c9f, 0x546e7a,
-];
 
 // Guild Settings → Roles: the roles top to bottom (drag, or the arrows, to reorder; @everyone
 // always last), "Create Role", and an editor for the selected one: name, colour, "display
@@ -167,7 +161,7 @@ export default function RolesSettings({ guild, user }) {
                   disabled={!editable}
                   onClick={() => setDraft({ ...draft, color: null })}
                 />
-                {SWATCHES.map((color) => (
+                {COLOR_SWATCHES.map((color) => (
                   <button
                     key={color}
                     type="button"

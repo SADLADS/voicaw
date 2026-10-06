@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { addMonths, dayKey, defaultStart, eventsByDay, isPastDay, monthGrid, startOnDay } from './eventCalendar';
+import { addMonths, allDayInputs, allDayTimes, dayKey, defaultStart, eventsByDay, fromKey, isPastDay, monthGrid, startOnDay } from './eventCalendar';
 import { occurrencesBetween } from './eventRecurrence';
+import { formatEventWhen } from './eventDisplay';
 
 const at = (iso) => Math.floor(Date.parse(iso) / 1000);
 const weekly = { frequency: 2, interval: 1, by_weekday: [1], by_n_weekday: null, by_month: null, by_month_day: null };
@@ -81,5 +82,48 @@ describe('the calendar', () => {
     expect(startOnDay('2026-10-06', late)).toBe(defaultStart(late));
     expect(isPastDay('2026-10-05', now)).toBe(true);
     expect(isPastDay('2026-10-06', now)).toBe(false);
+  });
+});
+
+describe('all-day events', () => {
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone; // the device's, as the editor sends
+  const at = (key) => Math.floor(fromKey(key).getTime() / 1000);
+  const allDay = (first, last, extra = {}) => {
+    const { startTime, endTime } = allDayTimes(first, last);
+    return { id: 3, name: 'Festival', status: 'scheduled', all_day: true, timezone: zone, start_time: startTime, end_time: endTime, recurrence: null, ...extra };
+  };
+
+  it('runs from the first midnight to the one after the last day', () => {
+    expect(allDayTimes('2026-10-20', '2026-10-22')).toEqual({ startTime: at('2026-10-20'), endTime: at('2026-10-23') });
+    expect(allDayTimes('2026-10-20', '')).toEqual({ startTime: at('2026-10-20'), endTime: at('2026-10-21') });
+    expect(allDayTimes('2026-10-20', '2026-10-19').endTime).toBe(at('2026-10-21')); // a last day before the first is the first
+    expect(allDayInputs(allDay('2026-10-20', '2026-10-22'))).toEqual({ start: '2026-10-20', end: '2026-10-22' });
+  });
+
+  it('shows dates, not times', () => {
+    expect(formatEventWhen(allDay('2026-10-20', '2026-10-20'))).toBe('Tuesday 20 October 2026 · All day');
+    expect(formatEventWhen(allDay('2026-10-20', '2026-10-22'))).toBe('Tuesday 20 October 2026 – Thursday 22 October 2026');
+  });
+
+  it('lies on each of its days, before timed events', () => {
+    const festival = allDay('2026-10-30', '2026-11-02');
+    const timed = { id: 4, name: 'Talk', status: 'scheduled', start_time: at('2026-10-31') + 9 * 3600, end_time: null, recurrence: null };
+    const byDay = eventsByDay([timed, festival], monthGrid('2026-10'));
+    for (const key of ['2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02']) expect(byDay.get(key)?.[0].event.id).toBe(3);
+    expect(byDay.get('2026-11-03')).toBeUndefined();
+    expect(byDay.get('2026-10-31').map((o) => o.event.id)).toEqual([3, 4]);
+    // Started last month, still on at the start of this one.
+    expect(eventsByDay([festival], monthGrid('2026-11')).get('2026-11-02')).toHaveLength(1);
+  });
+
+  it('repeats on whole days across a clock change', () => {
+    const london = 'Europe/London';
+    // Saturday 24 October 2026, all day in London; the clocks go back on the 25th.
+    const start = Date.UTC(2026, 9, 23, 23) / 1000;
+    const weekly = { frequency: 2, interval: 1, by_weekday: [5], by_n_weekday: null, by_month: null, by_month_day: null };
+    const event = { start_time: start, end_time: start + 86400, duration: 86400, all_day: true, timezone: london, recurrence: weekly, occurrence_start: start, status: 'scheduled' };
+    const [, second] = occurrencesBetween(event, start, start + 14 * 86400);
+    expect(new Date(second.start * 1000).toISOString()).toBe('2026-10-31T00:00:00.000Z');
+    expect(new Date(second.end * 1000).toISOString()).toBe('2026-11-01T00:00:00.000Z');
   });
 });

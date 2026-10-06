@@ -11,7 +11,8 @@
       "inHours_one": "Starts in {{count}} hour",
       "inHours_other": "Starts in {{count}} hours",
       "inDays_one": "Starts tomorrow",
-      "inDays_other": "Starts in {{count}} days"
+      "inDays_other": "Starts in {{count}} days",
+      "allDayOn": "{{date}} · All day"
     },
     "place": {
       "unknownChannel": "a voice channel",
@@ -94,7 +95,8 @@
       "more_one": "+{{count}} more",
       "more_other": "+{{count}} more",
       "dayEvents": "The day's events",
-      "nothing": "Nothing on this day."
+      "nothing": "Nothing on this day.",
+      "allDay": "All day"
     },
     "editor": {
       "createTitle": "Create Event",
@@ -137,6 +139,14 @@
       "addCover": "Add a cover image",
       "changeCover": "Change",
       "removeCover": "Remove",
+      "allDay": "All day",
+      "emoji": "Emoji (optional, on the calendar)",
+      "addEmoji": "Add an emoji",
+      "changeEmoji": "Change",
+      "removeEmoji": "Remove",
+      "colour": "Colour on the calendar",
+      "defaultColour": "Default colour",
+      "customColour": "Your own colour",
       "uploading": "Uploading…",
       "coverFailed": "Couldn't upload the image: {{error}}",
       "reviewHint": "Here's how your event will look. Everyone who can see it sees it in Events; those interested are notified when it starts.",
@@ -145,6 +155,8 @@
         "name": "Give the event a topic.",
         "start": "Pick a start date and time.",
         "past": "The start must be in the future.",
+        "pastDay": "Pick a day that hasn't gone by yet.",
+        "endBeforeDay": "The last day can't be before the first.",
         "endNeeded": "Events somewhere else need an end date and time.",
         "endBefore": "The end must be after the start.",
         "repeat": "That doesn't repeat from this date: pick another."

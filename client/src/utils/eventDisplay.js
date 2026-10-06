@@ -1,4 +1,6 @@
-import { PERMISSIONS, has } from './permissions';
+import { PERMISSIONS, colorToHex, has } from './permissions';
+import { allDayDates } from './eventCalendar';
+import { formatEventTime, formatLongDate, formatTime, formatWeekday } from './dateFormat';
 import { t } from '../i18n';
 
 // Scheduled events in the app (server/guildEvents.js has the rules): who may do what, where an
@@ -45,6 +47,7 @@ export function eventStatusText(event, nowSeconds = Math.floor(Date.now() / 1000
   if (event.status === 'active') return t('events.when.live');
   const seconds = event.start_time - nowSeconds;
   if (seconds <= 0) return t('events.when.waiting');
+  if (event.all_day && seconds < 86400) return t('events.when.inDays', { count: 1 });
   if (seconds < 3600) return t('events.when.inMinutes', { count: Math.max(1, Math.round(seconds / 60)) });
   if (seconds < 86400) return t('events.when.inHours', { count: Math.round(seconds / 3600) });
   if (seconds < 7 * 86400) return t('events.when.inDays', { count: Math.round(seconds / 86400) });
@@ -65,3 +68,19 @@ export function fromInputs(date, time) {
   const ms = new Date(`${date}T${time}`).getTime();
   return Number.isNaN(ms) ? null : Math.floor(ms / 1000);
 }
+
+// When an occurrence (`start`, `end`: unix s, the event's own by default) is, in words: "Tuesday
+// 6 October 2026, 20:00" (with `withEnd`, "– 22:00" too), or for an all-day event its dates:
+// "Tuesday 6 October 2026 · All day", "Tuesday 6 October 2026 – Thursday 8 October 2026".
+export function formatEventWhen(event, { start = event.start_time, end = event.end_time, withEnd = false } = {}) {
+  if (event.all_day) {
+    const { first, last } = allDayDates(event, start, end);
+    const day = (d) => `${formatWeekday(d)} ${formatLongDate(d)}`;
+    return last > first ? `${day(first)} – ${day(last)}` : t('events.when.allDayOn', { date: day(first) });
+  }
+  const at = formatEventTime(start * 1000);
+  return withEnd && end != null ? `${at} – ${formatTime(end * 1000)}` : at;
+}
+
+// The event's colour as CSS (#rrggbb), or null for the default.
+export const eventColor = (event) => (event.color != null ? colorToHex(event.color) : null);

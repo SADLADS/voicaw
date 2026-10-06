@@ -81,6 +81,43 @@ describe('EventEditor', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Events somewhere else need an end date and time.');
   });
 
+  it('makes an all-day event today, in a colour', async () => {
+    const onSaved = vi.fn();
+    renderEditor({ onSaved });
+    fireEvent.click(screen.getByLabelText(/Somewhere else/));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByLabelText('Event topic'), { target: { value: 'Open day' } });
+    fireEvent.click(screen.getByLabelText('All day'));
+    expect(screen.queryByLabelText('Start time')).toBeNull();
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: today } });
+    expect(screen.getByLabelText('End date')).toHaveValue(today);
+    fireEvent.click(screen.getByRole('radio', { name: '#3498db' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('article', { name: 'Open day' })).toHaveTextContent('All day');
+    fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    const [, fields] = createEvent.mock.calls[0];
+    const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    expect(fields).toMatchObject({
+      allDay: true, color: 0x3498db, emoji: null, timezone: expect.any(String),
+      startTime: midnight.getTime() / 1000,
+      endTime: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime() / 1000,
+    });
+  });
+
+  it("won't take an all-day event whose last day is before its first", () => {
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByLabelText('Event topic'), { target: { value: 'Trip' } });
+    fireEvent.click(screen.getByLabelText('All day'));
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: tomorrow() } });
+    fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2020-01-01' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('alert')).toHaveTextContent("The last day can't be before the first.");
+  });
+
   it('goes to a step clicked at the top, not past one with something missing', () => {
     renderEditor();
     const steps = within(screen.getByRole('list', { name: 'Steps' }));

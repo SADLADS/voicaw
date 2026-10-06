@@ -2,7 +2,7 @@
 // both tabs and on an event), makes a weekly event from the + on a day of the calendar (the
 // editor starts on that day at 18:00), comes back to the calendar and finds it on that day
 // and a week later; Bob's calendar gets it live; next month, Today; the Events tab's Create
-// Event still works. Then a phone: dots in the squares, tap a day for its list, Create Event.
+// Event still works; an all-day event over three days with an emoji and a colour. Then a phone: dots in the squares, tap a day for its list, Create Event.
 //   node e2e/serve.mjs &   then   node e2e/calendar.mjs [screenshot dir]
 import { launchChrome, signUp, devices, BASE } from './helpers.mjs';
 
@@ -145,6 +145,45 @@ try {
   await a.click('.events-dialog .events-back');
   await a.waitForSelector('.events-dialog .event-card:has-text("Mystery meet-up")');
   await shot(a, 'list');
+  await a.keyboard.press('Escape');
+
+  // All day over three days, with an emoji and a colour, from a day's +.
+  await a.click('.guild-events-button');
+  const first = daysFromNow(6);
+  if (!(await a.locator(`[data-day="${key(first)}"]`).count())) await a.click('.event-calendar-nav[aria-label="Next month"]');
+  await a.locator(`[data-day="${key(first)}"]`).hover();
+  await a.locator(`[data-day="${key(first)}"] .event-calendar-add`).click();
+  await a.check('input[name="event-place"][value="external"]');
+  await a.click('.event-editor button:has-text("Next")');
+  await a.fill('#event-name', 'Festival');
+  await a.check('text=All day');
+  check(!(await a.locator('#event-start-time').count()), 'all day: dates only');
+  check(await a.inputValue('#event-end-date') === key(first), 'last day starts as the first');
+  await a.fill('#event-end-date', key(daysFromNow(8)));
+  await a.click('.event-editor button:has-text("Add an emoji")');
+  await a.fill('.emoji-picker-search', 'tent');
+  await a.click('.emoji-picker-item >> nth=0');
+  await a.waitForSelector('.event-editor-emoji .event-emoji img');
+  await a.click('.event-editor .role-color[aria-label="#e91e63"]');
+  await shot(a, 'editor-all-day');
+  await a.click('.event-editor-steps button:has-text("Review")');
+  check(/–/.test(await a.textContent('.event-editor-review .event-card-when')), 'review shows its dates');
+  await a.click('.event-editor button:has-text("Create Event")');
+  await a.waitForSelector('.events-dialog .event-detail:has-text("Festival")');
+  await a.click('.events-dialog .events-back');
+  await a.waitForSelector('.event-calendar-grid');
+  for (const n of [6, 7, 8]) {
+    const d = daysFromNow(n);
+    if (!(await a.locator(`[data-day="${key(d)}"]`).count())) continue; // the page ends first
+    const chip = a.locator(`[data-day="${key(d)}"] .event-calendar-chip.all-day:has-text("Festival")`);
+    check(await chip.count() === 1, `all day on day ${n}`);
+    check(await chip.locator('.event-emoji img').count() === 1, `with its emoji on day ${n}`);
+    const background = await chip.evaluate((el) => getComputedStyle(el).backgroundColor);
+    check(background !== 'rgba(0, 0, 0, 0)', `in its colour (${background})`);
+  }
+  check(!(await a.locator(`[data-day="${key(daysFromNow(9))}"] .event-calendar-chip:has-text("Festival")`).count()), 'not after its last day');
+  await a.mouse.move(5, 5);
+  await shot(a, 'calendar-all-day');
   await a.keyboard.press('Escape');
 
   // Dark.

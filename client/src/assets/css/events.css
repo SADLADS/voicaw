@@ -288,6 +288,36 @@
   color: var(--vc-on-accent);
 }
 
+/* All day: a solid bar. */
+.event-calendar-chip.all-day {
+  background: var(--vc-accent);
+  color: var(--vc-on-accent);
+}
+
+/* In the event's colour (--event-color, set inline): tinted so the name reads in both themes,
+   with a stripe of the colour itself; all day, more of it. */
+.event-calendar-chip.coloured {
+  background: color-mix(in srgb, var(--event-color) 28%, transparent);
+  box-shadow: inset 3px 0 0 var(--event-color);
+  padding-left: 6px;
+  color: var(--vc-fg);
+}
+
+.event-calendar-chip.coloured.all-day {
+  background: color-mix(in srgb, var(--event-color) 55%, transparent);
+}
+
+/* An event's emoji, before its name (EventEmoji). */
+.event-emoji {
+  margin-right: 4px;
+}
+
+.event-emoji .emoji {
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.2em;
+}
+
 .event-calendar-chip-time {
   opacity: 0.8;
 }
@@ -309,7 +339,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--vc-accent);
+  background: var(--event-color, var(--vc-accent));
 }
 
 /* The chosen day. */
@@ -352,7 +382,7 @@
   width: 100%;
   padding: 6px 8px;
   border: 1px solid var(--vc-border-dark);
-  border-left: 3px solid var(--vc-accent);
+  border-left: 3px solid var(--event-color, var(--vc-accent));
   border-radius: 6px;
   background: var(--vc-bg-subtle);
   color: var(--vc-fg);
@@ -735,6 +765,36 @@ button.event-card-name:hover {
   display: flex;
   gap: 6px;
   margin-top: 6px;
+}
+
+.event-editor-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vc-form .event-editor-check {
+  margin-top: 10px;
+  color: var(--vc-fg);
+  font-size: 0.95rem;
+  font-weight: normal;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.event-editor-emoji {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.event-editor-colours {
+  margin-top: 4px;
+}
+
+/* The emoji picker, over the editor (whose backdrop is z-index 100). */
+.reaction-picker-anchor.event-emoji-anchor {
+  z-index: 110;
 }
 
 .event-editor-add-cover {

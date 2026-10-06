@@ -122,6 +122,12 @@ export function memberRank(guild, userId, roleIds) {
   return memberRoles(guild.roles, roleIds).reduce((max, r) => Math.max(max, r.position), 0);
 }
 
+// Discord's role colour swatches (roles, and events on the calendar).
+export const COLOR_SWATCHES = [
+  0x1abc9c, 0x2ecc71, 0x3498db, 0x9b59b6, 0xe91e63, 0xf1c40f, 0xe67e22, 0xe74c3c, 0x95a5a6, 0x607d8b,
+  0x11806a, 0x1f8b4c, 0x206694, 0x71368a, 0xad1457, 0xc27c0e, 0xa84300, 0x992d22, 0x979c9f, 0x546e7a,
+];
+
 export function colorToHex(color) {
   return `#${color.toString(16).padStart(6, '0')}`;
 }

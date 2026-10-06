@@ -122,6 +122,26 @@ function localDate(seconds, zone) {
   return { date: new Date(Date.UTC(w.year, w.month - 1, w.day)), time: { hour: w.hour, minute: w.minute, second: w.second } };
 }
 
+// Unix s `seconds` moved `days` calendar days on in `zone`, at the same wall-clock time (an
+// all-day event's end; as the server's addDays).
+function addDays(seconds, days, zone) {
+  const { date, time } = localDate(seconds, zone);
+  const to = new Date(date.getTime() + days * DAY_MS);
+  return Math.floor(fromWallClock({ year: to.getUTCFullYear(), month: to.getUTCMonth() + 1, day: to.getUTCDate(), ...time }, zone) / 1000);
+}
+
+// The date unix s `seconds` falls on in `zone`, as a Date at that day's midnight on this device
+// (to show an all-day event's dates as its maker meant them, wherever it's read).
+export function dateIn(seconds, zone) {
+  try {
+    const { date } = localDate(seconds, zone || 'UTC');
+    return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  } catch {
+    const d = new Date(seconds * 1000);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+}
+
 // Whether the date (a UTC midnight) has an occurrence of a series first on `anchor` (also one).
 function matches(rule, date, anchor) {
   const weekday = (date.getUTCDay() + 6) % 7;
@@ -145,7 +165,8 @@ function matches(rule, date, anchor) {
   }
 }
 
-// When `event` happens, for the starts in [from, to) (unix s, at most MAX_DAYS apart):
+// When `event` happens, for the starts in [from, to) (unix s, at most MAX_DAYS apart; callers
+// wanting all-day events that began before `from` ask from earlier):
 // [{ start, end }] (end null without one): the current occurrence at its own, perhaps moved,
 // time, then the rule's later ones.
 export function occurrencesBetween(event, from, to) {
@@ -156,6 +177,8 @@ export function occurrencesBetween(event, from, to) {
   const zone = event.timezone || 'UTC';
   const current = event.occurrence_start ?? event.start_time;
   const duration = event.duration ?? (event.end_time != null ? event.end_time - event.start_time : null);
+  // An all-day one lasts whole days (midnight stays midnight across a clock change).
+  const days = event.all_day && duration != null ? Math.max(1, Math.round(duration / 86400)) : null;
   let anchor;
   let time;
   let first;
@@ -173,7 +196,7 @@ export function occurrencesBetween(event, from, to) {
     const at = { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate(), ...time };
     const start = Math.floor(fromWallClock(at, zone) / 1000);
     if (start <= event.start_time || start < from || start >= to) continue;
-    found.push({ start, end: duration != null ? start + duration : null });
+    found.push({ start, end: days != null ? addDays(start, days, zone) : duration != null ? start + duration : null });
   }
   return found;
 }

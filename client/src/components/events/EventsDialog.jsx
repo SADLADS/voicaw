@@ -10,17 +10,18 @@ import ContextMenu from '../ContextMenu';
 import Avatar from '../Avatar';
 import EventCard from './EventCard';
 import EventCalendar from './EventCalendar';
+import EventEmoji from './EventEmoji';
 import DocumentCover from '../documents/DocumentCover';
 import { MessageContent } from '../MessageList';
 import { ConfigContext, InteractionContext } from '../../contexts';
 import {
   cancelEvent, endEvent, fetchEventUsers, setEventInterest, skipOccurrence, startEvent,
 } from '../../services/guildService';
-import { canCreateEvents, canManageEvent, eventPlace, eventStatusText } from '../../utils/eventDisplay';
+import { canCreateEvents, canManageEvent, eventPlace, eventStatusText, formatEventWhen } from '../../utils/eventDisplay';
 import { describeRepeat } from '../../utils/eventRecurrence';
 import { errorMessage, eventLink } from '../../utils/guildDisplay';
 import { displayName, useProfiles } from '../../utils/profiles';
-import { formatEventTime, formatTime, useDateFormat } from '../../utils/dateFormat';
+import { useDateFormat } from '../../utils/dateFormat';
 import { t } from '../../i18n';
 
 // The event's description drawn like a message (markdown, mentions, emoji).
@@ -111,13 +112,10 @@ function EventDetail({ event, guild, user, buttons }) {
       {tab === 'info' ? (
         <div className="event-detail-info">
           <div className="event-card-when">
-            <span>
-              {formatEventTime(start)}
-              {event.end_time != null && ` – ${formatTime(event.end_time * 1000)}`}
-            </span>
+            <span>{formatEventWhen(event, { withEnd: true })}</span>
             {status && <span className={`event-card-status${event.status === 'active' ? ' live' : ''}`}>{status}</span>}
           </div>
-          <h4 className="event-detail-name">{event.name}</h4>
+          <h4 className="event-detail-name"><EventEmoji emoji={event.emoji} />{event.name}</h4>
           {event.recurrence && <p className="event-detail-line">{describeRepeat(event.recurrence, start)}</p>}
           {place.label && (
             <p className="event-detail-line">
@@ -227,7 +225,7 @@ export default function EventsDialog({
     return (
       <ConfirmDialog
         title={t(`events.confirm.${kind}.title`, { name: event.name })}
-        message={t(`events.confirm.${kind}.message`, { name: event.name, date: formatEventTime(event.start_time * 1000) })}
+        message={t(`events.confirm.${kind}.message`, { name: event.name, date: formatEventWhen(event) })}
         confirmLabel={t(`events.confirm.${kind}.confirm`)}
         onConfirm={async () => {
           if (kind === 'cancel') {

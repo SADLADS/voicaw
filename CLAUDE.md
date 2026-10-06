@@ -250,7 +250,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   (as in Discord); ended and cancelled ones are deleted, repeating ones move on. Bots get
   Discord's scheduled-event API and gateway events. A month calendar (2026-10-06) opens from Calendar in
   the channel list, its first tab (the list is the second), made from the same events (repeats laid out by a client copy of the
-  server's stepping); events can be made on a day of it. Guilded's calendar channels and RSVPs
+  server's stepping); events can be made on a day of it. All-day events, an emoji and a colour (2026-10-06) are the
+  app's own, not in the bot API. Guilded's calendar channels and RSVPs
   are planned next, on the same tables.
 - **Watch Together** (built 2026-10-04, see `docs/voice-and-calls.md`): YouTube watch parties in
   guild voice channels, the server keeping the queue and the clock in memory, clients following
