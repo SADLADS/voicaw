@@ -73,7 +73,7 @@ export default function Layout({ user, onLogout }) {
   const listPaneRef = useRef(null);
   const contentPaneRef = useRef(null);
   const scrimRef = useRef(null);
-  const pane = useSwipePanes({ enabled: slidey, wrapperRef, listRef: listPaneRef, contentRef: contentPaneRef, scrimRef });
+  useSwipePanes({ enabled: slidey, wrapperRef, listRef: listPaneRef, contentRef: contentPaneRef, scrimRef });
 
   // Leaving (or being removed from) the guild on screen goes back to the DMs.
   const onGuildRemoved = useCallback((removedId) => {
@@ -256,7 +256,7 @@ export default function Layout({ user, onLogout }) {
     <ChannelMentionContext.Provider value={channelMentions}>
       <div
         ref={wrapperRef}
-        className={`${slidey ? `slidey pane-${pane}` : ''} main-wrapper d-flex`}
+        className={`${slidey ? 'slidey ' : ''}main-wrapper d-flex`}
         style={isMobile ? undefined : { '--vc-sidebar-width': `${sidebarWidth}px` }}
       >
         {/* The user panel (and the voice bar above it, while in voice) sits under the
