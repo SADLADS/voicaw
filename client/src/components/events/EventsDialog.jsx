@@ -136,8 +136,8 @@ function EventDetail({ event, guild, user, buttons }) {
   );
 }
 
-// The guild's events (Events in the channel list), in two tabs of one dialog that keeps its
-// size: the list, soonest first, and the calendar (EventCalendar); or one event (`eventId`,
+// The guild's events (Calendar in the channel list), in two tabs of one dialog that keeps its
+// size: the calendar (EventCalendar, first, where it opens) and the list, soonest first; or one event (`eventId`,
 // from either, a link or a notification). `view` ({ tab: 'events' | 'calendar', month, day })
 // is kept by the caller, so it's still there after the editor, and changed with `onView`.
 // `onCreate(start?)` opens the editor (start: unix s, from a calendar day). Interested,
@@ -243,7 +243,7 @@ export default function EventsDialog({
   const missing = eventId != null && !open && loaded;
   const title = open ? open.name : t('events.dialog.title', { count: events.length });
   const mayCreate = canCreateEvents(guild);
-  const tabs = ['events', 'calendar'];
+  const tabs = ['calendar', 'events'];
   return (
     <Modal
       title={title}

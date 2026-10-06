@@ -424,11 +424,14 @@ describe('GuildSidebar', () => {
     it('shows how many there are and which voice channel has one on, and lists them', async () => {
       events.list = [picnic, gameNight];
       renderSidebar({ user: member });
-      const button = await screen.findByRole('button', { name: /2 Events/ });
+      const button = await screen.findByRole('button', { name: /^Calendar/ });
       expect(button).toHaveTextContent('Live');
       expect(screen.getByRole('button', { name: 'Live: Game night' })).toBeInTheDocument();
       fireEvent.click(button);
       const dialog = await screen.findByRole('dialog', { name: '2 Events' });
+      // It opens on the calendar; the list is the other tab.
+      expect(within(dialog).getByRole('tab', { name: 'Calendar' })).toHaveAttribute('aria-selected', 'true');
+      fireEvent.click(within(dialog).getByRole('tab', { name: 'Events' }));
       expect(within(dialog).getByRole('article', { name: 'Picnic' })).toHaveTextContent('Starts in 3 hours');
       expect(within(dialog).getByRole('article', { name: 'Game night' })).toHaveTextContent('Happening now');
       // A member can't start someone else's event, but can say they're interested.

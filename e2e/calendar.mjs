@@ -1,4 +1,4 @@
-// The events calendar in a real browser: Alice opens Events (the dialog is the same size on
+// The events calendar in a real browser: Alice opens Calendar (first tab, open; the dialog is the same size on
 // both tabs and on an event), makes a weekly event from the + on a day of the calendar (the
 // editor starts on that day at 18:00), comes back to the calendar and finds it on that day
 // and a week later; Bob's calendar gets it live; next month, Today; the Events tab's Create
@@ -45,14 +45,17 @@ try {
   await b.click('button:has-text("Accept invite")');
   await b.waitForSelector('#dm-input');
 
-  // One size for both tabs.
+  // Calendar in the channel list opens on the calendar, the first tab; one size for both tabs.
+  check(await a.textContent('.guild-events-button') === 'Calendar', 'Calendar in the channel list');
   await a.click('.guild-events-button');
-  await a.waitForSelector('.events-dialog [role="tab"]:has-text("Calendar")');
+  await a.waitForSelector('.event-calendar-grid');
+  check(await a.locator('.events-dialog [role="tab"]').first().textContent() === 'Calendar', 'Calendar is the first tab');
   const listSize = await size(a);
+  await a.click('.events-dialog [role="tab"]:has-text("Events")');
+  await a.waitForSelector('.events-empty');
+  check(await size(a) === listSize, `same size on both tabs (${listSize})`);
   await shot(a, 'list-empty');
   await a.click('.events-dialog [role="tab"]:has-text("Calendar")');
-  await a.waitForSelector('.event-calendar-grid');
-  check(await size(a) === listSize, `same size on both tabs (${listSize})`);
   check(await a.locator('.event-calendar-cell').count() === 42, 'six weeks of days');
   check(await a.locator('.event-calendar-cell.today').count() === 1, 'today marked');
   await shot(a, 'calendar-empty');

@@ -1,11 +1,17 @@
 // Scheduled events in a real browser: Alice makes a guild with a voice channel and schedules a
-// weekly game night there in the three-step editor (with a cover); Bob sees "1 Event", opens
-// it and says he's interested (Alice's count goes up live). Alice makes an event somewhere else,
+// weekly game night there in the three-step editor (with a cover); Bob opens Calendar, then
+// the Events tab, and says he's interested (Alice's count goes up live). Alice makes an event somewhere else,
 // copies its link and posts it: Bob gets a card under the message and opens the event from it.
 // Alice starts the game night: Bob's channel list shows it live under the voice channel; she
 // ends it and it moves on to next week. She cancels the other: gone for Bob. Then a phone.
 //   node e2e/serve.mjs &   then   node e2e/events.mjs [screenshot dir]
 import { launchChrome, signUp, devices, BASE, send } from './helpers.mjs';
+
+// Calendar in the channel list, then the dialog's Events tab (it opens on the calendar).
+async function openList(page) {
+  await page.click('.guild-events-button');
+  await page.click('.events-dialog [role="tab"]:has-text("Events")');
+}
 
 const shots = process.argv[2];
 const shot = async (page, name) => {
@@ -55,7 +61,7 @@ try {
   await a.fill('#channel-name', 'Lounge');
   await a.click('button[type="submit"]:has-text("Create channel")');
   await a.waitForSelector('.guild-channel-link:has-text("lounge")');
-  check(await b.textContent('.guild-events-button') === 'Events', 'Events row with no events yet');
+  check(await b.textContent('.guild-events-button') === 'Calendar', 'Calendar row');
 
   // The editor: where, what and when, review.
   await a.click('.guild-header-button');
@@ -82,13 +88,12 @@ try {
   await shot(a, 'detail');
   await a.keyboard.press('Escape');
 
-  // Bob: 1 Event, Interested.
-  await b.waitForFunction(() => document.querySelector('.guild-events-button')?.textContent.includes('1 Event'));
-  await b.click('.guild-events-button');
+  // Bob: the event, Interested.
+  await openList(b);
   await b.waitForSelector('.events-dialog .event-card');
   await shot(b, 'list');
   await b.click('.events-dialog .event-card .event-interest');
-  await a.click('.guild-events-button');
+  await openList(a);
   await a.waitForFunction(() => document.querySelector('.events-dialog .event-card-count')?.textContent.includes('2 interested'));
   console.log('ok: bob interested, alice sees 2 live');
   await b.click('.events-dialog .event-card-name');
@@ -128,10 +133,10 @@ try {
   await b.keyboard.press('Escape');
 
   // Start, live in the channel list, end: next week.
-  await a.click('.guild-events-button');
+  await openList(a);
   await a.click('.events-dialog .event-card:has-text("Game night") button:has-text("Start")');
   await b.waitForSelector('.guild-channel-event:has-text("Game night")');
-  check((await b.textContent('.guild-events-button')).includes('Live'), 'Live on the Events row');
+  check((await b.textContent('.guild-events-button')).includes('Live'), 'Live on the Calendar row');
   await shot(b, 'live');
   const before = await a.textContent('.events-dialog .event-card:has-text("Game night") .event-card-when');
   await a.click('.events-dialog .event-card:has-text("Game night") button:has-text("End event")');
@@ -146,7 +151,6 @@ try {
   await a.click('.events-dialog .event-card:has-text("Picnic") .event-more');
   await a.click('[role="menuitem"]:has-text("Cancel event"), button:has-text("Cancel event")');
   await a.click('.vc-dialog .btn-danger:has-text("Cancel event")');
-  await b.waitForFunction(() => document.querySelector('.guild-events-button')?.textContent.includes('1 Event'));
   await b.waitForSelector('.event-embed-gone, .event-embed:not(:has(.event-card))', { timeout: 5000 }).catch(() => {});
   console.log('ok: cancelled, gone for bob');
 
@@ -162,7 +166,7 @@ try {
   await c.waitForTimeout(600);
   await shot(c, 'phone-channels');
   await c.waitForSelector('.guild-events-button', { timeout: 5000 });
-  await c.click('.guild-events-button');
+  await openList(c);
   await c.waitForSelector('.events-dialog .event-card');
   const box = await c.locator('.events-dialog').boundingBox();
   const width = c.viewportSize().width;
