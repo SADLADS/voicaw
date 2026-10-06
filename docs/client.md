@@ -100,6 +100,15 @@
   videos or anything that scrolls sideways itself (code blocks), nor where you can't send
   (`ChatPane`'s `canSend`). The row's state is a `data-swipe` attribute, not classes (React
   owns its className). There's no swipe to edit.
+- Editing on a phone (like Discord): Edit in the sheet doesn't open the inline editor (that's
+  a computer's); `ChatPane` hands the message to `Composer` as `editing`, which puts its text in
+  the message box, focused (the keyboard comes up), under an "Editing message" bar in place of
+  the reply bar (starting an edit drops a reply, and Reply drops an edit). Send reads Save and
+  edits it; the + menu, pasted files and "/" commands are off meanwhile. The bar's × (or
+  Escape) stops editing and empties the box; it doesn't take the focus, so the keyboard stays
+  up. Saving empties the box too; saving it emptied is cancelling, as inline. What was typed
+  before the edit isn't kept, and the edited text is never saved as a draft or sent as typing.
+  The message being edited stays highlighted (`.focused`).
 - DM view: `Dm.jsx` puts together `hooks/useConversation.js` (keys, history, paging, send/edit/
   delete, live websocket updates), `hooks/useReactions.js`, `MessageList.jsx` (+ `MessageReactions`,
   `UrlPreviews`) and `Composer.jsx` (message box, emoji, reply bar, attachments via

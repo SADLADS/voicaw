@@ -313,6 +313,49 @@ describe('Dm', () => {
     expect(screen.getByText('dec:ENC2 [sent]')).toBeInTheDocument();
   });
 
+  it('on a phone, edits in the message box and saves with Save', async () => {
+    fetchMessagesForUser.mockResolvedValue([{ id: 11, sender_id: 1, recipient_id: 2, content: 'ENC2', timestamp: 1 }]);
+    renderDm({ path: '/dm/2', users: [chatUserFull], isMobile: true });
+    await screen.findByText('dec:ENC2 [sent]');
+    setBoxText('half typed');
+
+    fireEvent.click(screen.getByTestId('edit-11'));
+    // Not the inline editor: the message box, with the bar above it.
+    expect(screen.getByTestId('editing')).toBeEmptyDOMElement();
+    expect(screen.getByText('Editing message')).toBeInTheDocument();
+    expect(boxText()).toBe('dec:ENC2');
+    expect(box()).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
+
+    setBoxText('fixed');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(editMessage).toHaveBeenCalledWith(11, 'enc(fixed)', []));
+    expect(sendMessageToUser).not.toHaveBeenCalled();
+    expect(await screen.findByText('fixed [sent]')).toBeInTheDocument();
+    expect(screen.queryByText('Editing message')).not.toBeInTheDocument();
+    expect(boxText()).toBe('');
+    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
+  });
+
+  it("on a phone, the editing bar's × stops editing and empties the box, keeping it focused", async () => {
+    fetchMessagesForUser.mockResolvedValue([{ id: 11, sender_id: 1, recipient_id: 2, content: 'ENC2', timestamp: 1 }]);
+    renderDm({ path: '/dm/2', users: [chatUserFull], isMobile: true });
+    await screen.findByText('dec:ENC2 [sent]');
+
+    fireEvent.click(screen.getByTestId('edit-11'));
+    expect(box()).toHaveFocus();
+    const close = screen.getByRole('button', { name: 'Stop editing' });
+    // Pressing it mustn't take the focus (the keyboard would go down).
+    expect(fireEvent.mouseDown(close)).toBe(false);
+    fireEvent.click(close);
+
+    expect(screen.queryByText('Editing message')).not.toBeInTheDocument();
+    expect(boxText()).toBe('');
+    expect(box()).toHaveFocus();
+    expect(editMessage).not.toHaveBeenCalled();
+  });
+
   it('marks messages read for the active conversation', async () => {
     renderDm({ path: '/dm/2', users: [chatUserFull] });
 

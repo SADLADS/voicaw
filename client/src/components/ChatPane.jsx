@@ -218,7 +218,8 @@ export default function ChatPane({
   // Remember the keyboard's height (mobile), so the emoji panel can match it.
   useEffect(() => (isMobile ? watchKeyboardHeight() : undefined), [isMobile]);
 
-  // The inline editor opens focused, with the cursor at the end. A poll opens its dialog.
+  // The inline editor opens focused, with the cursor at the end (on a phone the message box
+  // takes the message instead, see Composer's `editing`). A poll opens its dialog.
   function handleEdit(msg) {
     const poll = parsePoll(msg.plaintext);
     if (poll) {
@@ -226,9 +227,18 @@ export default function ChatPane({
       else setEditingPoll({ msg, poll });
       return;
     }
+    setReplyTo(null);
     setEditingMessageId(msg.id);
     setEditingMessageContent(msg.plaintext);
   }
+
+  // Phone: the message box saving the message it's editing. Throws if it couldn't (Composer
+  // shows it and keeps the text).
+  async function saveEditFromComposer(text) {
+    await conversation.editMessage(editingMessageId, text);
+    setEditingMessageId(null);
+  }
+  const stopEditing = useCallback(() => setEditingMessageId(null), []);
 
   async function handleSaveEdit(messageId) {
     // Emptied (or only whitespace left): the same as cancelling.
@@ -338,6 +348,7 @@ export default function ChatPane({
   }, [jumpTo]);
 
   function handleReply(msg) {
+    if (isMobile) setEditingMessageId(null); // the message box does one or the other
     setReplyTo(msg);
     inputRef.current?.focus();
   }
@@ -346,6 +357,8 @@ export default function ChatPane({
   const actionsFor = actionsForId != null ? messages.find((m) => m.id === actionsForId) : null;
   // Gone if the message was deleted meanwhile.
   const menuMsg = menuFor ? messages.find((m) => m.id === menuFor.id) : null;
+  // Phone: the message the message box is editing (gone if it was deleted meanwhile).
+  const editingMsg = isMobile && editingMessageId != null ? messages.find((m) => m.id === editingMessageId) ?? null : null;
 
   return (
     <>
@@ -368,7 +381,7 @@ export default function ChatPane({
             handleEdit={handleEdit}
             handleDelete={requestDelete}
             handleReply={handleReply}
-            editingMessageId={editingMessageId}
+            editingMessageId={isMobile ? null : editingMessageId}
             editingMessageContent={editingMessageContent}
             setEditingMessageContent={setEditingMessageContent}
             setEditingMessageId={setEditingMessageId}
@@ -397,7 +410,7 @@ export default function ChatPane({
             canReply={canSend && !textOnly}
             // While reacting to a message (or its menu is open), it stays highlighted and
             // the others don't react to hovering.
-            focusedMsgId={reactingTo?.msgId ?? actionsForId ?? menuMsg?.id}
+            focusedMsgId={reactingTo?.msgId ?? actionsForId ?? menuMsg?.id ?? editingMsg?.id}
           />
         )}
       </div>
@@ -425,6 +438,9 @@ export default function ChatPane({
         inputRef={inputRef}
         replyTo={replyTo}
         onCancelReply={cancelReply}
+        editing={editingMsg}
+        onSaveEdit={saveEditFromComposer}
+        onCancelEdit={stopEditing}
         error={composerError}
         setError={setComposerError}
         showEmojiPicker={showEmojiPicker}

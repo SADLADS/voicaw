@@ -65,6 +65,9 @@ const COMMAND_QUERY = /^\/([^\s/]{0,32})$/;
 // mobile the emoji panel (`showEmojiPicker`) takes the keyboard's place; `onInputFocus`
 // runs when the keyboard is about to come up. Opening a conversation focuses the box on a
 // computer (not on a phone: that would open the keyboard), unless `focusOnOpen` is false.
+// Phone: `editing` (a message) puts its text in the box to be changed, under an "Editing
+// message" bar; Send calls `onSaveEdit(text)` (throws if it couldn't), the bar's × calls
+// `onCancelEdit()`. Either way the box is emptied after, the keyboard staying up.
 export default function Composer({
   chatId,
   chatName,
@@ -74,6 +77,9 @@ export default function Composer({
   inputRef,
   replyTo,
   onCancelReply,
+  editing = null,
+  onSaveEdit,
+  onCancelEdit,
   error,
   setError,
   showEmojiPicker,
@@ -122,6 +128,8 @@ export default function Composer({
   const { commands, refresh: refreshCommands } = useChannelCommands(commandChannelId, { enabled: commandChannelId != null });
   const [commandEntry, setCommandEntry] = useState(null);
   const restoringDraft = useRef(false);
+  // The conversation an edit (`editing`) started in, while there is one.
+  const editingIn = useRef(null);
 
   // Emoji from the picker (Unicode, or `<:name:id>`). On mobile the box isn't focused (that
   // would open the keyboard).
@@ -180,7 +188,7 @@ export default function Composer({
   const channelSuggestions = channelQuery != null && `#${channelQuery}` !== dismissedQuery
     ? searchChannels(channels, channelQuery)
     : [];
-  const commandQuery = commandChannelId != null && inputValue === beforeCaret ? COMMAND_QUERY.exec(beforeCaret)?.[1] ?? null : null;
+  const commandQuery = commandChannelId != null && !editing && inputValue === beforeCaret ? COMMAND_QUERY.exec(beforeCaret)?.[1] ?? null : null;
   const commandSuggestions = commandQuery != null && `/${commandQuery}` !== dismissedQuery
     ? searchCommands(commandEntries(commands), commandQuery, 10)
     : [];
@@ -239,6 +247,8 @@ export default function Composer({
     setInputValue(text);
     setBeforeCaret(line);
     if (!docChanged) return;
+    // The message being edited isn't a draft, nor typing.
+    if (editingIn.current != null) return;
     saveDraft(draftChatId.current, text);
     // Putting a draft back isn't typing.
     if (restoringDraft.current) return;
@@ -296,6 +306,10 @@ export default function Composer({
   async function handleSubmit(e) {
     e?.preventDefault();
     const text = (inputRef.current?.getText() ?? '').trim();
+    if (editing) {
+      await saveEdit(text);
+      return;
+    }
     if (!text || !chatName) return;
 
     const referencedIds = findPlaceholderIds(text);
@@ -339,6 +353,40 @@ export default function Composer({
       setError(t('chat.composer.sendFailed', { error: err.message }));
     }
   }
+
+  // Emptied (or only whitespace left): the same as cancelling.
+  async function saveEdit(text) {
+    if (!text) {
+      onCancelEdit();
+      return;
+    }
+    setError(null);
+    try {
+      await onSaveEdit(text);
+    } catch (err) {
+      console.error('Failed to edit message', err);
+      setError(t('chat.composer.editFailed', { error: err.message }));
+    }
+  }
+
+  // Starting an edit puts the message in the box, ready to type (the keyboard comes up);
+  // ending it empties the box, unless the conversation changed meanwhile (its draft is there).
+  const editingId = editing?.id ?? null;
+  useEffect(() => {
+    const editor = inputRef.current;
+    if (!editor) return;
+    if (editingId != null) {
+      editingIn.current = chatId;
+      editor.setText(editing.plaintext ?? '');
+      editor.focus();
+    } else if (editingIn.current != null) {
+      const sameChat = editingIn.current === draftChatId.current;
+      editingIn.current = null;
+      if (sameChat) editor.clear();
+    }
+    // Only when another message starts or stops being edited, not when this one changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingId]);
 
   // A GIF from the picker goes straight out as its own message (like Discord), replying if a
   // reply is set up; whatever is typed in the box stays there.
@@ -418,11 +466,13 @@ export default function Composer({
   useEffect(() => {
     if (creatingPoll) return undefined;
     const onKeyDown = (e) => {
-      if (e.key === 'Escape') onCancelReply();
+      if (e.key !== 'Escape') return;
+      onCancelReply();
+      if (editingId != null) onCancelEdit?.();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onCancelReply, creatingPoll]);
+  }, [onCancelReply, onCancelEdit, editingId, creatingPoll]);
 
   // The tray only shows drafts still referenced from the text; unreferenced ones are kept
   // until send so that undoing a deletion brings them back.
@@ -480,6 +530,22 @@ export default function Composer({
           />
         )}
 
+        {editing && (
+          <div className="reply-bar">
+            <span>{t('chat.composer.editingMessage')}</span>
+            <button
+              className="reply-close"
+              type="button"
+              aria-label={t('chat.composer.stopEditing')}
+              // The message box keeps focus, so the keyboard stays up.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={onCancelEdit}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {replyTo && (
           <div className="reply-bar">
             <span>
@@ -516,7 +582,7 @@ export default function Composer({
 
         {/* Kept (hidden) in command mode, so what's typed and the editor survive it. */}
         <form id="dm-chat-form" className={commandEntry ? 'd-none' : 'd-flex flex-grow-1'} hidden={Boolean(commandEntry)} onSubmit={handleSubmit}>
-          {!textOnly && <div className="attach-wrapper" ref={addMenuRef}>
+          {!textOnly && !editing && <div className="attach-wrapper" ref={addMenuRef}>
             <button
               className="attach-button"
               type="button"
@@ -562,7 +628,7 @@ export default function Composer({
             onSubmit={handleSubmit}
             onChange={handleEditorChange}
             onKeyDown={handleInputKeyDown}
-            onPasteFiles={textOnly ? undefined : attachments.addFiles}
+            onPasteFiles={textOnly || editing ? undefined : attachments.addFiles}
             mentionNames={mentionNames}
             mentionRoles={roleInfo}
             // Mobile: the keyboard is coming up, so the emoji panel gives way.
@@ -591,7 +657,7 @@ export default function Composer({
               // (and doesn't come up if it was down).
               onMouseDown={(e) => e.preventDefault()}
             >
-              {t('chat.composer.send')}
+              {editing ? t('common.save') : t('chat.composer.send')}
             </button>
           </div>
         </form>
