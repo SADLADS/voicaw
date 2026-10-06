@@ -10,14 +10,16 @@ import { useCall, useGroupCall } from '../hooks/useCall';
 import { MUTE_DURATIONS, mutedUntilText } from '../utils/channelMutes';
 import { useDateFormat } from '../utils/dateFormat';
 import { showContent } from '../utils/mobilePanes';
+import { copyIdItem } from '../utils/copyId';
 import ContextMenu from './ContextMenu';
 import { t } from '../i18n';
 
 // A conversation's menu in the DM list (right-click, or touch and hold on a phone): Mark As
 // Read, Start Call (or Join Call, for a group whose call is on), Pin / Unpin (to the top of the
-// list) and Mute Conversation (for how long) / Unmute, like Discord's. Pins and mutes are your
-// own, kept by the server so your other devices follow (useConversationSettings). A call opens
-// the chat and rings from there (the click counts as the gesture its sound needs).
+// list), Mute Conversation (for how long) / Unmute and (not for a group) Copy User ID, like
+// Discord's. Pins and mutes are your own, kept by the server so your other devices follow
+// (useConversationSettings). A call opens the chat and rings from there (the click counts as
+// the gesture its sound needs).
 // `person` (a DM list row), `group` (a group list row) or `botDm` (a conversation with a bot: no
 // calls), `title` the name shown on a phone.
 export default function DmMenu({ person, group, botDm, title, unread, anchor, sheet, onClose }) {
@@ -82,6 +84,7 @@ export default function DmMenu({ person, group, botDm, title, unread, anchor, sh
         items: MUTE_DURATIONS.map(([label, duration]) => ({ key: `mute-${duration}`, label, onSelect: change({ mute: { duration } }) })),
       },
     });
+  if (!group) items.push({ separator: true }, copyIdItem('user', botDm ? botDm.bot_id : person.id));
 
   return <ContextMenu title={title} label={title} items={items} anchor={anchor} sheet={sheet} onClose={onClose} />;
 }

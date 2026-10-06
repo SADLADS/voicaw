@@ -51,7 +51,8 @@
       "spellcheck": "Spellcheck",
       "copyLink": "Copy Link",
       "linkCopied": "Link copied",
-      "openLink": "Open Link"
+      "openLink": "Open Link",
+      "user": "User"
     },
     "profile": {
       "aboutMe": "About me",

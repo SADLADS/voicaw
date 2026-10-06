@@ -4,17 +4,20 @@ import '../../assets/css/guilds.css';
 import '../../assets/css/voice.css';
 import { DEFAULT_USER_VOLUME, MAX_USER_VOLUME, setUserVolume, useUserVolume } from '../../voice/userVolumes';
 import { placeMenu } from '../../utils/menuPlacement';
+import { apiId } from '../../utils/copyId';
 import { t } from '../../i18n';
 
 // How loud one person is on this device (Discord's User Volume), 0–200%: a slider floating by
 // `anchor` (a rect) on a computer, a sheet from the bottom on a phone (`sheet`). Changes apply
-// at once. Escape, or a click outside, closes it.
+// at once. Escape, or a click outside, closes it. Copy User ID beside Reset, as right-clicking
+// someone elsewhere has it.
 export default function UserVolumeMenu({ userId, name, anchor, sheet = false, onClose }) {
   const volume = useUserVolume(userId);
   const percent = Math.round(volume * 100);
   const sliderId = useId();
   const rootRef = useRef(null);
   const sliderRef = useRef(null);
+  const [copied, setCopied] = useState(false);
   const [position, setPosition] = useState({ left: anchor?.left ?? 0, top: anchor?.bottom ?? 0, visibility: 'hidden' });
 
   useLayoutEffect(() => {
@@ -68,14 +71,26 @@ export default function UserVolumeMenu({ userId, name, anchor, sheet = false, on
         aria-valuetext={t('voice.userVolume.percent', { percent })}
         onChange={(e) => setUserVolume(userId, Number(e.target.value) / 100)}
       />
-      <button
-        type="button"
-        className="user-volume-reset"
-        disabled={volume === DEFAULT_USER_VOLUME}
-        onClick={() => setUserVolume(userId, DEFAULT_USER_VOLUME)}
-      >
-        {t('voice.userVolume.reset')}
-      </button>
+      <div className="user-volume-actions">
+        <button
+          type="button"
+          className="user-volume-reset"
+          disabled={volume === DEFAULT_USER_VOLUME}
+          onClick={() => setUserVolume(userId, DEFAULT_USER_VOLUME)}
+        >
+          {t('voice.userVolume.reset')}
+        </button>
+        <button
+          type="button"
+          className="user-volume-reset"
+          onClick={async () => {
+            await navigator.clipboard.writeText(apiId('user', userId));
+            setCopied(true);
+          }}
+        >
+          {copied ? t('common.copyId.copied') : t('common.copyId.user')}
+        </button>
+      </div>
     </>
   );
 

@@ -17,6 +17,7 @@ import { channelLink, errorMessage } from '../../utils/guildDisplay';
 import { PERMISSIONS, has, threadPermissions } from '../../utils/permissions';
 import { displayName, useProfiles } from '../../utils/profiles';
 import { formatDateTime, useDateFormat } from '../../utils/dateFormat';
+import { copyIdItem } from '../../utils/copyId';
 import { t } from '../../i18n';
 
 // A thread beside its text channel (`parent`), like Discord's: its name, a menu (join or leave,
@@ -97,6 +98,7 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
         return t('guilds.threads.pane.linkCopied');
       },
     },
+    copyIdItem('thread', thread.id),
     ...(canManage ? [{ separator: true }, { key: 'delete', label: t('guilds.threads.pane.deleteThread'), icon: faTrash, danger: true, onSelect: () => setDialog('delete') }] : []),
   ] : [];
 

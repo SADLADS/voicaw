@@ -61,7 +61,7 @@ try {
   await row('random').locator('.guild-channel-link').click({ button: 'right' });
   await a.waitForSelector('.context-menu');
   check(JSON.stringify(await items(a, '.context-menu')) === JSON.stringify([
-    'Mark As Read', 'Mute Channel', 'Notification Settings', 'Copy Link', 'Edit Channel', 'Duplicate Channel', 'Delete Channel',
+    'Mark As Read', 'Mute Channel', 'Notification Settings', 'Copy Link', 'Copy Channel ID', 'Edit Channel', 'Duplicate Channel', 'Delete Channel',
   ]), `the owner's channel menu: ${(await items(a, '.context-menu')).join(', ')}`);
   await shot(a, 'desktop-menu');
   await a.click('.context-menu >> text=Mark As Read');
@@ -114,7 +114,7 @@ try {
   await a.click('.vc-dialog button:has-text("Duplicate Channel")');
   await a.waitForFunction(() => document.querySelector('.guild-channel.active .guild-channel-name')?.textContent === 'random-copy');
   const order = await a.$$eval('.guild-channel-name', (els) => els.map((e) => e.textContent));
-  check(JSON.stringify(order) === JSON.stringify(['general', 'random', 'random-copy', 'third']), `the copy is right below it and open (${order.join(', ')})`);
+  check(JSON.stringify(order) === JSON.stringify(['Calendar', 'general', 'random', 'random-copy', 'third']), `the copy is right below it and open (${order.join(', ')})`);
   const copyId = Number(new URL(a.url()).pathname.split('/').pop());
   const overrides = await api(a, 'GET', `/guilds/${guild.id}/channels/${copyId}/overrides`);
   check(overrides.length === 1 && overrides[0].deny === 1 << 1, 'with the same permissions (read-only for @everyone)');
@@ -128,7 +128,7 @@ try {
 
   // A category's menu; a right-click at the window's corner stays on screen.
   await a.click('.guild-category-toggle', { button: 'right' });
-  check(JSON.stringify(await items(a, '.context-menu')) === JSON.stringify(['Collapse Category', 'Edit Category', 'Create Channel', 'Delete Category']), 'the category menu');
+  check(JSON.stringify(await items(a, '.context-menu')) === JSON.stringify(['Collapse Category', 'Copy Category ID', 'Edit Category', 'Create Channel', 'Delete Category']), 'the category menu');
   await a.keyboard.press('Escape');
   // Shrink the window so #third is the last row above the user panel, and right-click its far
   // end: the menu has to go up.
@@ -151,7 +151,7 @@ try {
   await b.goto(`${BASE}/guild/${guild.id}/${general.id}`);
   await b.waitForSelector('#dm-input');
   await b.locator('.guild-channel-link', { hasText: 'general' }).click({ button: 'right' });
-  check(JSON.stringify(await items(b, '.context-menu')) === JSON.stringify(['Mute Channel', 'Notification Settings', 'Copy Link']), "a member's menu has no manager items");
+  check(JSON.stringify(await items(b, '.context-menu')) === JSON.stringify(['Mute Channel', 'Notification Settings', 'Copy Link', 'Copy Channel ID']), "a member's menu has no manager items");
 
   // Phones. Touch and hold through CDP (real touches, like a finger).
   const hold = async (page, locator, { moveBy = 0 } = {}) => {

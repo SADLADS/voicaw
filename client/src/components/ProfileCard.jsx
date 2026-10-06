@@ -19,7 +19,7 @@ export default function ProfileCard({ user, color, children, draft, avatarSrc })
   const name = profile.display_name || profile.username;
 
   return (
-    <div className="profile-card">
+    <div className="profile-card" data-user-id={draft ? undefined : user.id}>
       <div className="profile-card-top">
         <span className="profile-card-avatar status-avatar">
           <Avatar userId={user.id} src={avatarSrc} />

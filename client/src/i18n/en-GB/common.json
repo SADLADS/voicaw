@@ -6,6 +6,14 @@
     "close": "Close",
     "copied": "Copied",
     "copy": "Copy",
+    "copyId": {
+      "user": "Copy User ID",
+      "channel": "Copy Channel ID",
+      "thread": "Copy Thread ID",
+      "category": "Copy Category ID",
+      "guild": "Copy Guild ID",
+      "copied": "ID copied"
+    },
     "create": "Create",
     "delete": "Delete",
     "done": "Done",

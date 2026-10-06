@@ -174,7 +174,7 @@ describe('GuildSidebar', () => {
     renderSidebar({ user: member, unread: [{ channel_id: 11, guild_id: 5, count: 2, mentions: 0 }] });
     fireEvent.contextMenu(screen.getByRole('link', { name: 'memes' }));
     expect(menuItems(screen.getByRole('menu', { name: '#memes' }))).toEqual([
-      'Mark As Read', 'Mute Channel', 'Notification Settings', 'Copy Link',
+      'Mark As Read', 'Mute Channel', 'Notification Settings', 'Copy Link', 'Copy Channel ID',
     ]);
   });
 
@@ -182,13 +182,13 @@ describe('GuildSidebar', () => {
     renderSidebar();
     fireEvent.contextMenu(screen.getByRole('link', { name: 'general' }));
     expect(menuItems(screen.getByRole('menu', { name: '#general' }))).toEqual([
-      'Mute Channel', 'Notification Settings', 'Copy Link', 'Edit Channel', 'Duplicate Channel', 'Delete Channel',
+      'Mute Channel', 'Notification Settings', 'Copy Link', 'Copy Channel ID', 'Edit Channel', 'Duplicate Channel', 'Delete Channel',
     ]);
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
     fireEvent.contextMenu(screen.getByRole('link', { name: 'lounge' }));
     expect(menuItems(screen.getByRole('menu', { name: '#lounge' }))).toEqual([
-      'Mute Channel', 'Notification Settings', 'Copy Link', 'Edit Channel', 'Duplicate Channel', 'Delete Channel',
+      'Mute Channel', 'Notification Settings', 'Copy Link', 'Copy Channel ID', 'Edit Channel', 'Duplicate Channel', 'Delete Channel',
     ]);
   });
 
@@ -238,6 +238,19 @@ describe('GuildSidebar', () => {
     expect(await screen.findByText('Link copied')).toBeInTheDocument();
   });
 
+  it("copies a channel's id, and a category's as bots see it", async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    renderSidebar({ user: member });
+    fireEvent.contextMenu(screen.getByRole('link', { name: 'memes' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy Channel ID' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('11'));
+    expect(await screen.findByText('ID copied')).toBeInTheDocument();
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Fun' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy Category ID' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(String(2 ** 40 + 2)));
+  });
+
   it('duplicates and deletes a channel from its menu', async () => {
     renderSidebar({ path: '/guild/5/11' });
     fireEvent.contextMenu(screen.getByRole('link', { name: 'memes' }));
@@ -259,7 +272,7 @@ describe('GuildSidebar', () => {
     renderSidebar();
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Fun' }));
     expect(menuItems(screen.getByRole('menu', { name: 'Fun' }))).toEqual([
-      'Collapse Category', 'Edit Category', 'Create Channel', 'Delete Category',
+      'Collapse Category', 'Copy Category ID', 'Edit Category', 'Create Channel', 'Delete Category',
     ]);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Collapse Category' }));
     await waitFor(() => expect(screen.queryByRole('link', { name: 'lounge' })).toBeNull());

@@ -10,11 +10,12 @@ import {
 import { LayoutContext } from '../../contexts';
 import { markChannelReadToLatest } from '../../services/guildService';
 import { PERMISSIONS, has } from '../../utils/permissions';
+import { copyIdItem } from '../../utils/copyId';
 import ContextMenu from '../ContextMenu';
 import { t } from '../../i18n';
 
 // A category's menu in the channel list (right-click, or touch and hold on a phone): Mark As
-// Read (every channel in it you can see), Collapse / Expand; with Manage Channels also Edit,
+// Read (every channel in it you can see), Collapse / Expand, Copy Category ID (the bot API's); with Manage Channels also Edit,
 // Create Channel (in it) and Delete (its channels stay, uncategorised).
 export default function CategoryMenu({ guild, category, channels, collapsed, anchor, sheet, onToggle, onEdit, onCreateChannel, onDelete, onClose }) {
   const { guildList } = useContext(LayoutContext);
@@ -37,7 +38,7 @@ export default function CategoryMenu({ guild, category, channels, collapsed, anc
     label: collapsed ? t('guildAdmin.categoryMenu.expand') : t('guildAdmin.categoryMenu.collapse'),
     icon: collapsed ? faChevronRight : faChevronDown,
     onSelect: onToggle,
-  });
+  }, copyIdItem('category', category.id));
   if (has(guild.my_permissions, PERMISSIONS.MANAGE_CHANNELS)) {
     items.push(
       { separator: true },

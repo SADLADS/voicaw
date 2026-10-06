@@ -65,7 +65,7 @@ LiveKit carries the audio.
   `localStorage userVolumes`, by user id, 0–200%, the same for channels and calls): click (or
   right-click, Enter) someone else in a voice channel's list in the sidebar, their tile, or the
   DM/group call panel, once you're in that channel or call (`hooks/useVolumeMenu.js`), for
-  `voice/UserVolumeMenu.jsx`: a slider and Reset, floating on a computer (placed like
+  `voice/UserVolumeMenu.jsx`: a slider, Reset and Copy User ID, floating on a computer (placed like
   `ContextMenu`, `utils/menuPlacement.js`), a sheet on a phone. Applied live.
 - **Lost connections** (voice channels; `voice/rejoin.js`): the bar says "Reconnecting…"
   (LiveKit's `Reconnecting` and `SignalReconnecting`, the latter being a signalling-only resume,

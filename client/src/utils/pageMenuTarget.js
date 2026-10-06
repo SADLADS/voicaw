@@ -3,8 +3,10 @@ import { imageAt } from './imageActions';
 import { galleryItemOf } from './imageGallery';
 
 // What a right-click on `element` gets from PageMenus, given the page's selected text:
-// { kind: 'image', item } | { kind: 'text' } | { kind: 'page', link, selected } | null. A
-// message's own menu (MessageList) gives way to these.
+// { kind: 'image', item } | { kind: 'text' } | { kind: 'page', link, selected, userId } | null.
+// `userId` is the person shown there (an element marked `data-user-id`: a message's author, a
+// mention, a member list row...), for Copy User ID. A message's own menu (MessageList) gives way
+// to these.
 
 // A link to another site (or an email address) at `element`, or null.
 export function linkAt(element) {
@@ -28,5 +30,6 @@ export function pageMenuTarget(target, selectedText = '') {
   if (editableAt(element)) return { kind: 'text' };
   const selected = selectedText.trim() ? selectedText : '';
   const link = linkAt(element);
-  return link || selected ? { kind: 'page', link, selected } : null;
+  const userId = element.closest('[data-user-id]')?.dataset.userId ?? null;
+  return link || selected || userId ? { kind: 'page', link, selected, userId } : null;
 }

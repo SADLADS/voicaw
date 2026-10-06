@@ -88,7 +88,7 @@ describe('the DM list menu', () => {
     const layout = renderList({ unreadDms: [{ from_user_id: 1, count: 2 }] });
     fireEvent.contextMenu(row('alice'));
     const menu = screen.getByRole('menu', { name: 'alice' });
-    expect(items(menu)).toEqual(['Mark As Read', 'Start Call', 'Pin Conversation', 'Mute Conversation']);
+    expect(items(menu)).toEqual(['Mark As Read', 'Start Call', 'Pin Conversation', 'Mute Conversation', 'Copy User ID']);
     fireEvent.click(within(menu).getByRole('menuitem', { name: 'Mark As Read' }));
     await waitFor(() => expect(markMessagesRead).toHaveBeenCalledWith(1));
     await waitFor(() => expect(layout.fetchUnreadMessages).toHaveBeenCalled());
@@ -130,6 +130,6 @@ describe('the DM list menu', () => {
 
     callState.snapshot = { call: { id: 'c1' }, groupCalls: {} };
     fireEvent.contextMenu(row('alice'));
-    expect(items(screen.getByRole('menu', { name: 'alice' }))).toEqual(['Pin Conversation', 'Mute Conversation']);
+    expect(items(screen.getByRole('menu', { name: 'alice' }))).toEqual(['Pin Conversation', 'Mute Conversation', 'Copy User ID']);
   });
 });

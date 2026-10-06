@@ -20,7 +20,7 @@ export default function VoiceChannelMembers({ members, speaking, inChannel = fal
   return (
     <ul className="voice-members" aria-label={t('guilds.voice.inThisChannel')}>
       {members.map((m) => (
-        <li key={m.user_id} className="voice-member" {...volumeMenu.triggerProps(m.user_id, displayName(m.user_id, m.username))}>
+        <li key={m.user_id} className="voice-member" data-user-id={m.user_id} {...volumeMenu.triggerProps(m.user_id, displayName(m.user_id, m.username))}>
           <UserAvatar userId={m.user_id} className="voice-member-avatar" speaking={speaking.has(String(m.user_id))} />
           <span className="voice-member-name">{displayName(m.user_id, m.username)}</span>
           <span className="voice-member-icons">

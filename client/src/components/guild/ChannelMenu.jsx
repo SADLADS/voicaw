@@ -16,6 +16,7 @@ import {
   unmuteChannel,
 } from '../../services/guildService';
 import { channelLink } from '../../utils/guildDisplay';
+import { copyIdItem } from '../../utils/copyId';
 import { MUTE_DURATIONS, NOTIFY_LEVEL_LABELS, mutedUntilText } from '../../utils/channelMutes';
 import { useDateFormat } from '../../utils/dateFormat';
 import { PERMISSIONS, has } from '../../utils/permissions';
@@ -25,7 +26,7 @@ import { t } from '../../i18n';
 
 // A channel's menu in the channel list (right-click, or touch and hold on a phone), like
 // Discord's: Mark As Read, Mute Channel (for how long) or Unmute, its Notification Settings
-// (your own level for it, or the guild's), Copy Link; with Manage Channels also Edit,
+// (your own level for it, or the guild's), Copy Link, Copy Channel ID; with Manage Channels also Edit,
 // Duplicate (a copy with the same permissions: `onClone`) and Delete. Someone with only
 // Manage Webhooks gets Edit (the webhooks tab). List channels have no read item.
 export default function ChannelMenu({ guild, channel, anchor, sheet, onEdit, onClone, onDelete, onClose }) {
@@ -107,7 +108,7 @@ export default function ChannelMenu({ guild, channel, anchor, sheet, onEdit, onC
       await navigator.clipboard.writeText(channelLink(guild.id, channel.id));
       return t('guildAdmin.guildMenu.linkCopied');
     },
-  });
+  }, copyIdItem('channel', channel.id));
   if (managesChannels || editsWebhooks) {
     items.push({ separator: true }, { key: 'edit', label: t('guildAdmin.channelMenu.edit'), icon: faGear, onSelect: onEdit });
   }

@@ -10,14 +10,17 @@ import { pageMenuTarget } from '../utils/pageMenuTarget';
 import { isSpellcheckEnabled, setSpellcheckEnabled } from '../utils/spellcheck';
 import { addWord } from '../spellcheck/personalDictionary';
 import { openInNewTab } from '../utils/saveFile';
+import { copyIdItem } from '../utils/copyId';
 import ContextMenu from './ContextMenu';
 import ImageMenu from './ImageMenu';
+import { displayName } from '../utils/profiles';
 import { t } from '../i18n';
 
 // Our menus in place of the browser's, wherever a right-click has nothing of its own (channels,
 // messages... handle theirs first): a picture (ImageMenu), a text box (spelling corrections,
 // Add to Dictionary, Cut / Copy / Paste / Select All, and Spellcheck on or off), a link to
-// another site (Copy Link, Open Link) and selected text (Copy). Mounted once (App), listening
+// another site (Copy Link, Open Link), selected text (Copy) and a person (Copy User ID: anything
+// marked `data-user-id`). Mounted once (App), listening
 // on the page; Shift+right-click still gets the browser's (utils/nativeContextMenu.js). Not on
 // a phone: holding a message opens its actions, a picture in a document its menu
 // (useImageHold), and text boxes keep the phone's own.
@@ -57,7 +60,7 @@ function textBoxItems({ target, spelling }) {
   return items;
 }
 
-function pageItems({ link, selected }) {
+function pageItems({ link, selected, userId }) {
   const items = [];
   if (selected) items.push({ key: 'copy', label: t('common.copy'), icon: faCopy, onSelect: () => copied(selected, t('common.copied')) });
   if (link) {
@@ -66,6 +69,10 @@ function pageItems({ link, selected }) {
       { key: 'copy-link', label: t('app.pageMenus.copyLink'), icon: faLink, onSelect: () => copied(link, t('app.pageMenus.linkCopied')) },
       { key: 'open-link', label: t('app.pageMenus.openLink'), icon: faArrowUpRightFromSquare, onSelect: () => openInNewTab(link) },
     );
+  }
+  if (userId) {
+    if (items.length) items.push({ separator: true });
+    items.push(copyIdItem('user', userId));
   }
   return items;
 }
@@ -107,6 +114,9 @@ export default function PageMenus() {
   if (!menu) return null;
   if (menu.kind === 'image') return <ImageMenu key={menu.anchor.left + menu.anchor.top} item={menu.item} anchor={menu.anchor} onClose={close} />;
   const items = menu.kind === 'text' ? textBoxItems(menu) : pageItems(menu);
-  const label = menu.kind === 'text' ? t('app.pageMenus.text') : menu.link ? t('app.pageMenus.link') : t('app.pageMenus.selection');
+  const label = menu.kind === 'text' ? t('app.pageMenus.text')
+    : menu.link ? t('app.pageMenus.link')
+      : menu.selected ? t('app.pageMenus.selection')
+        : displayName(menu.userId, t('app.pageMenus.user'));
   return <ContextMenu key={`${menu.anchor.left},${menu.anchor.top}`} title={label} label={label} items={items} anchor={menu.anchor} onClose={close} />;
 }

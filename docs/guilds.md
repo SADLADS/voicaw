@@ -148,17 +148,20 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   computer (hover, click or arrow keys), a bottom sheet on a phone (a submenu replaces it, with
   Back). `ChannelMenu`: Mark As Read (`POST /channels/:id/read { latest: true }`), Mute Channel
   ▸ / Unmute, Notification Settings ▸ (see Mentions), Copy Link (`channelLink`: this site's
-  address, app.voicaw.com from the desktop app), and with Manage Channels Edit, Duplicate
+  address, app.voicaw.com from the desktop app), Copy Channel ID, and with Manage Channels Edit, Duplicate
   (`CloneChannelDialog`) and Delete (voice channels too: their chat, see Voice channels' chat).
   `CategoryMenu`: Mark
-  As Read, Collapse/Expand, Edit, Create Channel, Delete. On a phone the long press shares the
+  As Read, Collapse/Expand, Copy Category ID (the bot API's: offset by 2^40, see Ids in
+  `docs/bots.md`), Edit, Create Channel, Delete. The Copy … ID items (here, on guilds, threads
+  and people: `utils/copyId.js`) copy the ids bots know them by, as Discord's Developer Mode
+  does (always shown here). On a phone the long press shares the
   touch with dragging (`usePointerDrag` `onLongPress`): hold and lift opens the menu, hold and
   move drags (with Manage Channels). The list's **empty space** has its own menu (right-click,
   or hold on a phone): Create Channel and Create Category (Manage Channels), Invite People.
 - **A guild's menu on the rail** (`guild/GuildMenu.jsx`, right-click its icon or hold it on a
   phone; hold and move still drags it, `useDragReorder` `onMenu`): Mark As Read (every unread
   channel), Invite People, Notification Settings ▸ (your level for the guild), Guild Settings,
-  Audit Log, Copy Link (`guildLink`) and Leave Guild, as your permissions allow; the dialogs
+  Audit Log, Copy Link (`guildLink`), Copy Guild ID and Leave Guild, as your permissions allow; the dialogs
   live in `Sidebar` (the menu closes on a pick). It loads the guild's layout first if it isn't
   open yet.
 - **Duplicating a channel** (Discord's Clone Channel): `POST /guilds/:id/channels/:c/clone
@@ -267,7 +270,7 @@ its own, that opens beside the channel. Not encrypted, like the rest of a guild.
   (to your own devices).
 - **Client:** `?thread=<id>` on a text channel's URL opens `guild/ThreadPane.jsx` in the member
   list's place (on a phone it covers the channel, with Back): header (name, #channel, Archived,
-  Join, a menu: Join/Leave, Rename, Archive/Unarchive, Copy Link, Delete), the starter message,
+  Join, a menu: Join/Leave, Rename, Archive/Unarchive, Copy Link, Copy Thread ID, Delete), the starter message,
   and a `ChatPane` over `useChannel({ side: true })` (the "side chat" in presence, `setSideChat`,
   so a thread on screen isn't pushed either). `ThreadContext` (`contexts.js`, from `GuildView`)
   gives the channel's messages Create Thread (right-click menu and phone action sheet;

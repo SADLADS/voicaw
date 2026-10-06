@@ -223,6 +223,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
         <button
           type="button"
           className={`member-row${member.status === 'offline' ? ' offline' : ''}${isSelected ? ' selected' : ''}`}
+          data-user-id={member.id}
           onClick={() => setSelectedId(isSelected ? null : member.id)}
         >
           <span className="member-avatar status-avatar">

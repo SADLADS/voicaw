@@ -99,4 +99,15 @@ describe('our right-click menus', () => {
     expect(fireEvent.contextMenu($$('#phone-box'))).toBe(true);
     expect(screen.queryByRole('menu')).toBeNull();
   });
+
+  it("on a person (a message's author, a mention...): Copy User ID", async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const $ = page('<span data-user-id="42"><b id="name">bob</b></span>');
+    fireEvent.contextMenu($('#name'));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Copy User ID' }));
+    expect(menuItems()).toEqual(['Copy User ID']);
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('42'));
+    expect(await screen.findByText('ID copied')).toBeInTheDocument();
+  });
 });

@@ -126,7 +126,7 @@ function MarkdownSpan({ className, children, ...rest }) {
   if (channelId != null) return <ChannelMention id={channelId} />;
   if (id != null) {
     const me = String(mentions?.meId) === id;
-    return <span className={`mention${me ? ' mention-me' : ''}`}>@{mentionName(mentions?.names, id)}</span>;
+    return <span className={`mention${me ? ' mention-me' : ''}`} data-user-id={id}>@{mentionName(mentions?.names, id)}</span>;
   }
   if (roleId != null) {
     const color = mentions?.roles?.[roleId]?.color;
@@ -336,6 +336,7 @@ export function MessageRow({
   const senderName = webhook ? msg.webhook_name : displayName(msg.sender_id, msg.sender_username);
   // A name or avatar opens that person's profile card.
   const profileProps = (id, username) => (onOpenProfile && !webhook ? {
+    'data-user-id': id,
     role: 'button',
     tabIndex: 0,
     onClick: (e) => { e.stopPropagation(); onOpenProfile({ id, username }, e.currentTarget.getBoundingClientRect()); },

@@ -11,6 +11,7 @@ import {
 import { LayoutContext } from '../../contexts';
 import { markChannelReadToLatest, setGuildNotifications } from '../../services/guildService';
 import { guildLink } from '../../utils/guildDisplay';
+import { copyIdItem } from '../../utils/copyId';
 import { NOTIFY_LEVEL_LABELS } from '../../utils/channelMutes';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import ContextMenu from '../ContextMenu';
@@ -18,7 +19,7 @@ import { t } from '../../i18n';
 
 // A guild's menu on the rail (right-click its icon, or touch and hold on a phone): the guild
 // menu's options that aren't about channels: Mark As Read, Invite People, Notification Settings
-// (your level for the guild), Guild Settings, Audit Log, Copy Link and Leave Guild, each as your
+// (your level for the guild), Guild Settings, Audit Log, Copy Link, Copy Guild ID and Leave Guild, each as your
 // permissions allow. The dialogs are the rail's (`onDialog(type)`: 'invite' | 'settings' |
 // 'audit' | 'leave'), since the menu closes on a pick. Waits for the guild's layout (for your
 // permissions) if it isn't loaded yet.
@@ -82,7 +83,7 @@ export default function GuildMenu({ guildId, user, anchor, sheet, onDialog, onCl
       await navigator.clipboard.writeText(guildLink(guildId));
       return t('guildAdmin.guildMenu.linkCopied');
     },
-  });
+  }, copyIdItem('guild', guildId));
   if (guild.owner !== user?.id) {
     items.push(
       { separator: true },

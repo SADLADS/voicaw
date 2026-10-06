@@ -97,11 +97,11 @@ describe('the guild rail menu', () => {
     renderRail({ unread: [{ guild_id: 5, channel_id: 10, count: 2, mentions: 0 }] });
     fireEvent.contextMenu(icon('Alpha'));
     expect(items(screen.getByRole('menu', { name: 'Alpha' }))).toEqual([
-      'Mark As Read', 'Invite People', 'Notification Settings', 'Guild Settings', 'Audit Log', 'Copy Link',
+      'Mark As Read', 'Invite People', 'Notification Settings', 'Guild Settings', 'Audit Log', 'Copy Link', 'Copy Guild ID',
     ]);
     fireEvent.keyDown(window, { key: 'Escape' });
     fireEvent.contextMenu(icon('Beta'));
-    expect(items(screen.getByRole('menu', { name: 'Beta' }))).toEqual(['Invite People', 'Notification Settings', 'Copy Link', 'Leave Guild']);
+    expect(items(screen.getByRole('menu', { name: 'Beta' }))).toEqual(['Invite People', 'Notification Settings', 'Copy Link', 'Copy Guild ID', 'Leave Guild']);
   });
 
   it('marks a guild read and sets its notification level', async () => {

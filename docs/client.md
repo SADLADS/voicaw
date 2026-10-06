@@ -162,13 +162,16 @@
   bottom sheet on a phone where a submenu replaces it, with Back). Channels, categories, the
   channel list's empty space and guild icons have one (see `docs/guilds.md`), and so do
   conversations in the DM list (`DmMenu.jsx`: Mark As Read, Start/Join Call, Pin / Unpin,
-  Mute ▸ / Unmute). Messages have one too (`MessageMenu.jsx`, see Message actions above).
+  Mute ▸ / Unmute, Copy User ID; not for a group). Messages have one too (`MessageMenu.jsx`, see Message actions above).
   Everywhere else `components/PageMenus.jsx` (mounted in `App`, listening on the page; what a
   right-click is on: `utils/pageMenuTarget.js`) has one: a picture (see Image menu in
   `docs/uploads.md`); a text box (`utils/editActions.js`: spelling fixes for the word clicked,
   Add to Dictionary, Cut / Copy (with a selection, not in passwords), Paste, Select All, and a
-  Spellcheck tick); a link to another site (Copy Link, Open Link); selected text (Copy). A
-  message's own menu gives way to those. The menu takes the focus, so each action puts it back
+  Spellcheck tick); a link to another site (Copy Link, Open Link); selected text (Copy); a
+  person (Copy User ID: anything marked `data-user-id`, which `Avatar` always is, and so are a
+  message's author, user mentions, member list rows, voice channel members and profile
+  cards). A message's own menu gives way to those (right-clicking its author or a mention gets
+  the person's). The menu takes the focus, so each action puts it back
   in the box first. Paste in a browser asks to read the clipboard (the first time, the browser
   asks the person) and hands it to the editor as a paste (pictures attach); the desktop app
   pastes for real (`desktop.paste()`, Electron's own). **The browser's own menu is off**

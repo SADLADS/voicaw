@@ -4,13 +4,15 @@ import { avatarUrl, useProfiles } from '../utils/profiles';
 
 // Someone's profile picture: their current one from the profile store (utils/profiles), or the
 // default one if they have none (or it won't load). `src` overrides it (a preview). Other props
-// (className, alt, onClick...) go on the <img>.
+// (className, alt, onClick...) go on the <img>. It's marked `data-user-id`, so right-clicking it
+// offers Copy User ID (PageMenus).
 export default function Avatar({ userId, src, alt = '', ...props }) {
   useProfiles();
   const url = src ?? avatarUrl(userId);
   const [failed, setFailed] = useState(null);
   return (
     <img
+      data-user-id={userId ?? undefined}
       {...props}
       src={url && failed !== url ? url : defaultpfp}
       alt={alt}

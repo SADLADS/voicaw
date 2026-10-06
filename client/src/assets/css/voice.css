@@ -812,6 +812,12 @@ body.stream-window {
   border: 0;
 }
 
+.user-volume-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .user-volume-reset:disabled {
   color: var(--vc-fg-muted);
   opacity: 0.6;
@@ -823,7 +829,7 @@ body.stream-window {
 
 .user-volume-sheet .user-volume-head,
 .user-volume-sheet .user-volume-slider,
-.user-volume-sheet .user-volume-reset {
+.user-volume-sheet .user-volume-actions {
   margin-left: 8px;
   margin-right: 8px;
 }
