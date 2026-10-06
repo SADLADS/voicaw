@@ -557,7 +557,7 @@ export function MessageRow({
               sentAt={msg.timestamp}
               canModerate={canModerate}
               onVote={canReact && onVote ? (optionIds) => onVote(msg, optionIds) : undefined}
-              onAddAnswer={canReact && canReply && onAddPollAnswer ? (text, alsoVoteFor) => onAddPollAnswer(msg, text, alsoVoteFor) : undefined}
+              onAddAnswer={canReact && canReply && onAddPollAnswer ? (text) => onAddPollAnswer(msg, text) : undefined}
               onRemoveAnswer={canReact && onRemovePollAnswer ? (option) => onRemovePollAnswer(msg, option) : undefined}
               onEnd={sent && msg.sender_id === user.id && onEndPoll ? () => onEndPoll(msg) : undefined}
             />

@@ -258,8 +258,8 @@ posting. A poll is sent as its own message (replying if a reply is set, like a G
   votes again (`planVotes` clears them); in guilds the server deletes them with the edit.
 - **Open polls** ("Open poll" in the dialog, `open: true` and a round `r` in the JSON): anyone
   can add an answer, from the vote screen only (a box under the answers; not on the results),
-  and adding one votes for it (with what you'd ticked, in a multiple-choice poll; instead of
-  your vote in a single-choice one). Each added answer is a reaction from whoever added it,
+  and adding one ticks it without voting (alongside what you'd ticked, in a multiple-choice poll;
+  instead of it, in a single-choice one): Vote sends it. Each added answer is a reaction from whoever added it,
   `poll:+` + JSON `{ i: id, r: round, t: text }` (text only, at most 55 characters, one line,
   trimmed; `parseAnswer` ignores anything not made exactly so), so who added it is the
   reaction's owner (signed in groups) and, in encrypted chats, the server can't tell it from an
@@ -268,7 +268,8 @@ posting. A poll is sent as its own message (replying if a reply is set, like a G
   order, leaving out other rounds, repeats of an earlier answer ignoring case (refused when
   typed too, `answerProblem`), ones added after the poll closed, and any past 20 answers in all
   (`MAX_POLL_OPTIONS`, for every poll). Each shows "added by <name>" unless the author added
-  it. **Removing one** (the ✕ beside it, asks first): its creator, the poll's author, or in a
+  it. **Removing one** (the ✕ beside it, on the vote screen only, so after Remove vote if you
+  voted; asks first): its creator, the poll's author, or in a
   guild anyone with Manage Messages (not the author's answers), only while nobody but its
   creator and the remover has voted for it (`canRemoveAnswer`); its creator's and the remover's
   votes go with it, so someone whose only vote it was is back on the vote screen. The author's

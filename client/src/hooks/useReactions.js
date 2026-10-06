@@ -112,7 +112,7 @@ export function useReactions({ chatId, user, ready, saveReaction, deleteReaction
     if (!ready || inFlight.current.has(key)) return;
     inFlight.current.add(key);
     try {
-      await work(messagesRef.current.find((m) => m.id === msg.id) ?? msg);
+      return await work(messagesRef.current.find((m) => m.id === msg.id) ?? msg);
     } catch (err) {
       console.error('Failed to update the poll', err);
       onError(err.response?.data?.error || err.message || t(failedKey));
@@ -128,18 +128,18 @@ export function useReactions({ chatId, user, ready, saveReaction, deleteReaction
     return pollAction(msg, 'chat.poll.voteFailed', (current) => setVotes(current, current.reactions ?? [], optionIds));
   }
 
-  // Adds answer `text` to the open poll `msg` and votes for it: as well as `alsoVoteFor`
-  // (option ids) in a multiple-choice poll, instead of your vote in a single-choice one.
-  function addAnswer(msg, text, alsoVoteFor = []) {
+  // Adds answer `text` to the open poll `msg`, resolving to its id. It isn't voted for: Poll.jsx
+  // ticks it, for you to send with Vote.
+  function addAnswer(msg, text) {
     return pollAction(msg, 'chat.poll.addAnswerFailed', async (current) => {
       const poll = parsePoll(current.plaintext);
-      if (!poll?.open) return;
+      if (!poll?.open) return null;
       const reactions = current.reactions ?? [];
       const problem = answerProblem(pollWithAnswers(poll, reactions, current.sender_id), text);
       if (problem) throw new Error(problem);
       const id = newOptionId();
-      const added = await addOwn(current, answerKey({ id, round: poll.round, text: cleanAnswer(text) }));
-      await setVotes(current, [...reactions, added], poll.multi ? [...alsoVoteFor, id] : [id]);
+      await addOwn(current, answerKey({ id, round: poll.round, text: cleanAnswer(text) }));
+      return id;
     });
   }
 
