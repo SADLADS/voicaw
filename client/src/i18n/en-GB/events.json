@@ -77,7 +77,24 @@
       "create": "Create Event",
       "gone": "This event has ended or been cancelled, or you can't see it.",
       "emptyTitle": "There are no upcoming events.",
-      "emptyHint": "Schedule an event for anything: a game night in a voice channel, or a meet-up somewhere else."
+      "emptyHint": "Schedule an event for anything: a game night in a voice channel, or a meet-up somewhere else.",
+      "backToCalendar": "Calendar",
+      "tab": {
+        "events": "Events",
+        "calendar": "Calendar"
+      }
+    },
+    "calendar": {
+      "today": "Today",
+      "previous": "Previous month",
+      "next": "Next month",
+      "dayLabel_one": "{{date}}, {{count}} event",
+      "dayLabel_other": "{{date}}, {{count}} events",
+      "createOn": "Create an event on {{date}}",
+      "more_one": "+{{count}} more",
+      "more_other": "+{{count}} more",
+      "dayEvents": "The day's events",
+      "nothing": "Nothing on this day."
     },
     "editor": {
       "createTitle": "Create Event",

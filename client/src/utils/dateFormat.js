@@ -118,6 +118,11 @@ export function formatDayMonth(value, { date = settings.date } = {}) {
   return formatter({ day: 'numeric', month: 'long' }).format(d);
 }
 
+// The month and year in words: October 2026 (the events calendar's heading).
+export function formatMonthYear(value) {
+  return formatter({ month: 'long', year: 'numeric' }).format(toDate(value));
+}
+
 // When something happens, in words: Tuesday 6 October 2026, 20:00 (scheduled events).
 export function formatEventTime(value, options = {}) {
   return `${formatWeekday(value)} ${formatLongDate(value, options)}, ${formatTime(value, options)}`;

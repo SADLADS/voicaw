@@ -387,8 +387,8 @@ take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
 
 ## Events
 
-Discord's scheduled events (Discord has no calendar: its Events are a list; Guilded's calendar
-channels may come later, on the same data). An event is in a voice channel of the guild or
+Discord's scheduled events (Discord has no calendar: its Events are a list), with a month
+calendar of them beside the list (Guilded's calendar channels may come later, on the same data). An event is in a voice channel of the guild or
 somewhere else (free text: a place, a link), with a name (100), description (1000, markdown
 like messages), start, end (required somewhere else), optional cover image, and how it repeats.
 Not end-to-end encrypted, like the rest of a guild.
@@ -433,7 +433,9 @@ Not end-to-end encrypted, like the rest of a guild.
 - **Client**: `hooks/useGuildEvents.js` (in `GuildSidebar`) keeps the guild's events. The channel
   list starts with Events ("N Events", Live while one is on), and under a voice channel with an
   event on, "Live: name"; the guild menu has Create Event (Create Events, or a voice channel
-  you may hold one in). `events/EventsDialog.jsx`: the list (`EventCard`: cover, when and "Starts
+  you may hold one in). `events/EventsDialog.jsx`: one dialog, the same size whatever it shows
+  (900 × 700 at most), with two tabs, Events and Calendar (the tab, month and day are kept in
+  `GuildSidebar` while the editor is open; it opens on today, in the tab last used), and the list (`EventCard`: cover, when and "Starts
   in 3 hours" / "Happening now", repeat, place, interested count, Interested, Start/End, the
   menu: edit, change or cancel this occurrence, copy link, cancel) and one event (info and an
   Interested tab with who). `events/EventEditor.jsx`: Discord's three steps (where: a voice
@@ -441,9 +443,21 @@ Not end-to-end encrypted, like the rest of a guild.
   `repeatChoices` of the start day, description, cover; review: the card). `?event=<id>` on a
   guild URL opens it (links, notifications; `eventLink`, kept through the redirect to the last
   channel); an event link in a guild channel gets a card (`events/EventEmbed.jsx`; not in DMs and
-  group DMs, so an encrypted chat's link is never sent to the server). Styles in
+  group DMs, so an encrypted chat's link is never sent to the server).
+- **Calendar** (`events/EventCalendar.jsx`, `utils/eventCalendar.js`): a month on six weeks from
+  Monday, each event on the day it starts (on this device), with every occurrence of a
+  repeating one: `occurrencesBetween` (`utils/eventRecurrence.js`) is a copy of the server's
+  stepping on the event's time zone's wall clock (keep the two alike), the current occurrence
+  at its own, perhaps moved, time and the rule's after it, with the series' `duration`. A day
+  shows up to three events (time and name; a click opens the event), then "+N more"; clicking
+  a day picks it and lists its events beside the month (under it when the dialog is narrower
+  than 620 px, where the squares show dots instead of names: a container query). Making an
+  event on the calendar: the + on a day under the pointer (or the chosen one), or Create Event
+  under the day's list, both only on today and later and for those who may make events; the
+  editor starts that day at 18:00 (`startOnDay`; the next whole hour if that's sooner than it
+  allows). The Events tab keeps its own Create Event. Styles in
   `assets/css/events.css`; times through `formatEventTime` (`utils/dateFormat.js`).
-- **Not done yet**: Guilded-style calendar views (month, week) and calendar channels, RSVP
+- **Not done yet**: a week view, events spanning days drawn across them, calendar channels, RSVP
   beyond Interested (Going / Maybe / Can't, limits), reminders before an event, editing an
   occurrence other than the next one, per-occurrence interest, event invite links that also
   invite into the guild, and stage channels.

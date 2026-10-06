@@ -78,3 +78,102 @@ export function describeRepeat(rule, date) {
 export function ruleFor(key, date) {
   return repeatChoices(date).find((c) => c.key === key)?.rule ?? null;
 }
+
+// ---- Occurrences, for the calendar ----
+// The server's stepping (server/eventRecurrence.js), on the event's time zone's wall clock, so
+// the calendar puts each occurrence where the server will.
+
+const DAY_MS = 86400000;
+// The longest a calendar asks about at once (a month's six weeks, and a margin).
+const MAX_DAYS = 62;
+
+const zoneFormatters = new Map();
+function zoneFormatter(zone) {
+  if (!zoneFormatters.has(zone)) {
+    zoneFormatters.set(zone, new Intl.DateTimeFormat('en-US', {
+      timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric',
+    }));
+  }
+  return zoneFormatters.get(zone);
+}
+
+function wallClock(ms, zone) {
+  const parts = Object.fromEntries(zoneFormatter(zone).formatToParts(new Date(ms)).map((p) => [p.type, Number(p.value)]));
+  return { year: parts.year, month: parts.month, day: parts.day, hour: parts.hour % 24, minute: parts.minute, second: parts.second };
+}
+
+function offsetAt(ms, zone) {
+  const w = wallClock(ms, zone);
+  return Date.UTC(w.year, w.month - 1, w.day, w.hour, w.minute, w.second) - Math.floor(ms / 1000) * 1000;
+}
+
+// Unix ms when `zone`'s clock shows that time (a skipped time an hour later, a repeated one the first).
+function fromWallClock({ year, month, day, hour, minute, second = 0 }, zone) {
+  const guess = Date.UTC(year, month - 1, day, hour, minute, second);
+  const before = offsetAt(guess - DAY_MS / 2, zone);
+  const after = offsetAt(guess + DAY_MS / 2, zone);
+  const valid = [guess - before, guess - after].filter((ms) => offsetAt(ms, zone) === guess - ms);
+  return valid.length ? Math.min(...valid) : guess - before;
+}
+
+// The calendar date (a UTC midnight) and time of unix s `seconds` in `zone`.
+function localDate(seconds, zone) {
+  const w = wallClock(seconds * 1000, zone);
+  return { date: new Date(Date.UTC(w.year, w.month - 1, w.day)), time: { hour: w.hour, minute: w.minute, second: w.second } };
+}
+
+// Whether the date (a UTC midnight) has an occurrence of a series first on `anchor` (also one).
+function matches(rule, date, anchor) {
+  const weekday = (date.getUTCDay() + 6) % 7;
+  switch (rule.frequency) {
+    case 3:
+      return !rule.by_weekday || rule.by_weekday.includes(weekday);
+    case 2: {
+      if (weekday !== rule.by_weekday?.[0]) return false;
+      const interval = rule.interval || 1;
+      const weeks = Math.round((date - anchor) / (7 * DAY_MS));
+      return ((weeks % interval) + interval) % interval === 0;
+    }
+    case 1: {
+      const [{ n, day } = {}] = rule.by_n_weekday ?? [];
+      return weekday === day && Math.ceil(date.getUTCDate() / 7) === n;
+    }
+    case 0:
+      return date.getUTCMonth() + 1 === rule.by_month?.[0] && date.getUTCDate() === rule.by_month_day?.[0];
+    default:
+      return false;
+  }
+}
+
+// When `event` happens, for the starts in [from, to) (unix s, at most MAX_DAYS apart):
+// [{ start, end }] (end null without one): the current occurrence at its own, perhaps moved,
+// time, then the rule's later ones.
+export function occurrencesBetween(event, from, to) {
+  const found = [];
+  if (event.start_time >= from && event.start_time < to) found.push({ start: event.start_time, end: event.end_time ?? null });
+  const rule = event.recurrence;
+  if (!rule) return found;
+  const zone = event.timezone || 'UTC';
+  const current = event.occurrence_start ?? event.start_time;
+  const duration = event.duration ?? (event.end_time != null ? event.end_time - event.start_time : null);
+  let anchor;
+  let time;
+  let first;
+  let last;
+  try {
+    ({ date: anchor, time } = localDate(current, zone));
+    first = Math.max(anchor.getTime() + DAY_MS, localDate(from, zone).date.getTime() - DAY_MS);
+    last = Math.min(localDate(to, zone).date.getTime() + DAY_MS, first + MAX_DAYS * DAY_MS);
+  } catch {
+    return found; // a time zone this browser doesn't know
+  }
+  for (let ms = first; ms <= last; ms += DAY_MS) {
+    const date = new Date(ms);
+    if (!matches(rule, date, anchor)) continue;
+    const at = { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate(), ...time };
+    const start = Math.floor(fromWallClock(at, zone) / 1000);
+    if (start <= event.start_time || start < from || start >= to) continue;
+    found.push({ start, end: duration != null ? start + duration : null });
+  }
+  return found;
+}

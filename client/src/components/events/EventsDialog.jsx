@@ -9,6 +9,7 @@ import ConfirmDialog from '../guild/ConfirmDialog';
 import ContextMenu from '../ContextMenu';
 import Avatar from '../Avatar';
 import EventCard from './EventCard';
+import EventCalendar from './EventCalendar';
 import DocumentCover from '../documents/DocumentCover';
 import { MessageContent } from '../MessageList';
 import { ConfigContext, InteractionContext } from '../../contexts';
@@ -135,10 +136,16 @@ function EventDetail({ event, guild, user, buttons }) {
   );
 }
 
-// The guild's events (Events in the channel list): the list, soonest first, or one event
-// (`eventId`, from a link or a click). Interested, Start/End and the menu (edit, edit or
-// cancel this occurrence, cancel, copy link) follow your permissions (utils/eventDisplay).
-export default function EventsDialog({ guild, user, events, loaded, setInterested, eventId, onOpenEvent, onCreate, onEdit, onClose }) {
+// The guild's events (Events in the channel list), in two tabs of one dialog that keeps its
+// size: the list, soonest first, and the calendar (EventCalendar); or one event (`eventId`,
+// from either, a link or a notification). `view` ({ tab: 'events' | 'calendar', month, day })
+// is kept by the caller, so it's still there after the editor, and changed with `onView`.
+// `onCreate(start?)` opens the editor (start: unix s, from a calendar day). Interested,
+// Start/End and the menu (edit, edit or cancel this occurrence, cancel, copy link) follow your
+// permissions (utils/eventDisplay).
+export default function EventsDialog({
+  guild, user, events, loaded, setInterested, eventId, view, onView, onOpenEvent, onCreate, onEdit, onClose,
+}) {
   const { isMobile } = useContext(InteractionContext);
   const [menu, setMenu] = useState(null); // { event, anchor }
   const [confirm, setConfirm] = useState(null); // { kind: 'cancel' | 'skip', event }
@@ -235,20 +242,23 @@ export default function EventsDialog({ guild, user, events, loaded, setIntereste
 
   const missing = eventId != null && !open && loaded;
   const title = open ? open.name : t('events.dialog.title', { count: events.length });
+  const mayCreate = canCreateEvents(guild);
+  const tabs = ['events', 'calendar'];
   return (
     <Modal
       title={title}
       className="events-dialog"
       onClose={onClose}
-      actions={(
+      // No bar at all when there's no button (the calendar has its own Create Event).
+      actions={eventId == null && !(view.tab === 'events' && mayCreate) ? null : (
         <>
           {eventId != null && (
             <button type="button" className="btn btn-secondary btn-sm events-back" onClick={() => onOpenEvent(null)}>
-              <FontAwesomeIcon icon={faChevronLeft} /> {t('events.dialog.allEvents')}
+              <FontAwesomeIcon icon={faChevronLeft} /> {view.tab === 'calendar' ? t('events.dialog.backToCalendar') : t('events.dialog.allEvents')}
             </button>
           )}
-          {eventId == null && canCreateEvents(guild) && (
-            <button type="button" className="btn btn-primary btn-sm vc-button" onClick={onCreate}>{t('events.dialog.create')}</button>
+          {eventId == null && view.tab === 'events' && mayCreate && (
+            <button type="button" className="btn btn-primary btn-sm vc-button" onClick={() => onCreate()}>{t('events.dialog.create')}</button>
           )}
         </>
       )}
@@ -256,6 +266,34 @@ export default function EventsDialog({ guild, user, events, loaded, setIntereste
       {open && <EventDetail event={open} guild={guild} user={user} buttons={buttonsFor(open)} />}
       {missing && <p className="vc-hint">{t('events.dialog.gone')}</p>}
       {eventId == null && (
+        <div className="settings-tabs events-tabs" role="tablist">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={view.tab === tab}
+              className={`settings-tab${view.tab === tab ? ' active' : ''}`}
+              onClick={() => onView({ tab })}
+            >
+              {t(`events.dialog.tab.${tab}`)}
+            </button>
+          ))}
+        </div>
+      )}
+      {eventId == null && view.tab === 'calendar' && (
+        <EventCalendar
+          guild={guild}
+          events={events}
+          month={view.month}
+          day={view.day}
+          onMonth={(month) => onView({ month })}
+          onDay={(day) => onView({ day })}
+          onOpenEvent={onOpenEvent}
+          onCreate={mayCreate ? onCreate : null}
+        />
+      )}
+      {eventId == null && view.tab === 'events' && (
         events.length ? (
           <div className="event-list">
             {events.map((event) => (
