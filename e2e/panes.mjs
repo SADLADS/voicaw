@@ -1,5 +1,6 @@
 // Phone panes (hooks/useSwipePanes.js): swipe between the list and the chat, flicks and slow
-// drags, scrolling messages never moves them, back button, guild channels.
+// drags, scrolling messages never moves them, back button, the header's back arrow (DM, notes,
+// guild channel; none on a computer), guild channels.
 //   node e2e/serve.mjs &   then   node e2e/panes.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
 import { launchChrome, signUp, openChat, send, devices } from './helpers.mjs';
@@ -101,10 +102,31 @@ try {
   check(await pane(page) === 'list', 'back from it is the list');
   check(await page.evaluate(() => history.length) <= historyBefore + 1, 'history doesn\'t grow with each open');
 
+  // The header's arrow: at its left, slides to the list like a swipe; none on a computer.
+  await page.click(`#dm-sidebar a[href="/dm/${alice.id}"]`);
+  await settle(page);
+  const arrow = await page.$eval('.chat-recipient-header .pane-back-button', (el) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.x, w: r.width, first: el === el.parentElement.firstElementChild };
+  }).catch(() => null);
+  check(arrow && arrow.first && arrow.x < 16 && arrow.w >= 32, 'a DM\'s header starts with a back arrow');
+  await shot(page, '3b-arrow');
+  const arrowUrl = page.url();
+  await page.click('.chat-recipient-header .pane-back-button');
+  await settle(page);
+  check(await pane(page) === 'list' && page.url() === arrowUrl, 'tapping it slides to the list, same chat');
+  check(await page.evaluate(() => !history.state?.voicawPane), 'and takes the chat\'s history entry away like back');
+  check(!(await alice.page.$('.pane-back-button')), 'no back arrow on a computer');
+
   // Notes and back.
   await page.click('a[href="/dm/notes"]');
   await settle(page);
   check(await pane(page) === 'content' && page.url().endsWith('/dm/notes'), 'notes open as the chat');
+  await page.click('.chat-recipient-header .pane-back-button');
+  await settle(page);
+  check(await pane(page) === 'list', 'notes\' back arrow');
+  await page.click('a[href="/dm/notes"]');
+  await settle(page);
   await drag(page, { x: 40, y: height * 0.5, dx: width * 0.6, steps: 10 });
   await settle(page);
   check(await pane(page) === 'list', 'swipe back from notes');
@@ -131,6 +153,14 @@ try {
   await drag(page, { x: 40, y: height * 0.5, dx: width * 0.6, steps: 10 });
   await settle(page);
   check(await pane(page) === 'list', 'swipe back to the channels');
+  await page.click('.guild-channel-link');
+  await settle(page);
+  const channelArrow = await page.$eval('.channel-header .pane-back-button', (el) => el === el.parentElement.firstElementChild).catch(() => false);
+  check(channelArrow, 'a channel\'s header starts with a back arrow');
+  await shot(page, '6-channel-arrow');
+  await page.click('.channel-header .pane-back-button');
+  await settle(page);
+  check(await pane(page) === 'list', 'and it goes back to the channels');
 
   console.log(failures ? `panes: ${failures} FAILED` : 'panes: ok');
   if (failures) process.exitCode = 1;

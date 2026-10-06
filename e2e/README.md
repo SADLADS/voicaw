@@ -62,7 +62,7 @@ node e2e/login.mjs [dir]  # Login with Voicaw: stand-in website on E2E_SITE_PORT
 node e2e/components.mjs [dir] # bots' buttons (every style, link, emoji, disabled) and selects (string, user): click updates the message, choice → ephemeral reply + Dismiss, form (checked, sent), deferred "thinking…" filled in, "used /menu" line; light, dark, phone (select as a sheet)
 node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, results, Jump into another channel, private channel, phone
 node e2e/days.mjs [dir]   # day dividers between days and above the first message (desktop + phone)
-node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertical scroll), back button, guild
+node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertical scroll), back button, header back arrow (DM, notes, channel; none on a computer), guild
 node e2e/touchhover.mjs [dir] # phone: a finger resting on a channel/DM row then scrolling leaves no hover colour (background or link text), list scrolls; mouse hover unchanged
 node e2e/youtubeviewer.mjs [dir] # phone YouTube links (real YouTube, needs the internet): thumbnail only in the chat, swipe on it moves the panes, tap = full-screen player (16:9, playing, sideways), back/X close it on the chat; inline on a computer
 node e2e/keyboard.mjs [dir] # phone keyboard (made up): message box above it after swipe to reply, newest message in view, page can't scroll it away, Send keeps it up (box stays focused); Android (window shrinks) and iOS (stand-in visualViewport, slide undone)

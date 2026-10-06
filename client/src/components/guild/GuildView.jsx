@@ -8,6 +8,7 @@ import { InteractionContext, LayoutContext, NsfwChannelContext, ThreadContext } 
 import ChatPane from '../ChatPane';
 import MemberList from './MemberList';
 import ChannelIcon from './ChannelIcon';
+import PaneBackButton from '../PaneBackButton';
 import VoiceChannelView from './VoiceChannelView';
 import VoiceChatPane from './VoiceChatPane';
 import ListChannelView from './ListChannelView';
@@ -341,6 +342,7 @@ export default function GuildView({ user }) {
   return (
     <div id="guild-main" className="guild-main">
       <header className="channel-header">
+        <PaneBackButton />
         <ChannelIcon channel={channel} className="channel-header-icon" />
         <h4 className="channel-header-name">{channel?.name ?? ''}</h4>
         {channel?.nsfw && <span className="channel-nsfw-tag" title={t('guilds.view.nsfwHint')}>{t('guilds.view.nsfw')}</span>}

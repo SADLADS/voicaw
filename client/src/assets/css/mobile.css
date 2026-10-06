@@ -106,6 +106,29 @@
     border-left: 0;
 }
 
+/* The arrow at the start of a chat's header (PaneBackButton): back to the list underneath, as
+   a swipe does. It takes the header's left padding, so the title only moves by its width. */
+.mobile-mode .pane-back-button {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin: 0 4px 0 -12px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vc-fg-muted);
+    font-size: 18px;
+}
+
+.mobile-mode .pane-back-button:active {
+    color: var(--vc-fg);
+    background-color: var(--vc-bg-elevated-hover);
+}
+
 /* Developer portal and authorise page (developers.css): tighter, the header links as icons. */
 .mobile-mode .dev-header {
     padding: 0 16px;

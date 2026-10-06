@@ -289,7 +289,11 @@
   finishes or undoes it by position and speed (a critically damped spring); the list moves a
   little and dims behind it. The chat showing is its own history entry (`history.state.voicawPane`),
   so back slides to the list; list rows navigate with `replace` on phones, so entries don't pile
-  up. Open the chat from elsewhere with `showContent()` (`utils/mobilePanes.js`). The panes only
+  up. Every chat's header (DM, group DM, bot DM, notes, guild channel) starts with a back arrow
+  on phones (`PaneBackButton`, like Discord's): it shows the chat can be swiped away, and
+  pressing it slides to the list the same way (`showList()`); threads and voice channels' chat
+  have their own, back to their channel. Open the chat from elsewhere with `showContent()`
+  (`utils/mobilePanes.js`). The panes only
   have a transform while moving (a transform would trap `position: fixed` children). The lists'
   rows (channels, threads, categories, DMs, members) colour on hover only with a mouse
   (`@media (hover: hover)`): a phone's Chrome sets `:hover` on the row a finger rests on before

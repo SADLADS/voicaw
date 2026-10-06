@@ -7,6 +7,7 @@ import '../assets/css/voice.css';
 import NotificationPrompt from './NotificationPrompt';
 import RecoveryPrompt from './RecoveryPrompt';
 import { ConfigContext, LayoutContext } from '../contexts';
+import PaneBackButton from './PaneBackButton';
 import CallPanel from './call/CallPanel';
 import { useCall } from '../hooks/useCall';
 import { startCall } from '../voice/callClient';
@@ -89,6 +90,7 @@ export default function Dm({ user }) {
       {id && (
         <>
           <h4 className="chat-recipient-header">
+            <PaneBackButton />
             {chatName || t('chat.composer.fallbackName')}
             {presence?.status === 'offline' && (
               <span className="chat-recipient-status">

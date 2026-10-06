@@ -6,6 +6,7 @@ import '../../assets/css/dms.css';
 import '../../assets/css/voice.css';
 import '../../assets/css/groups.css';
 import { ConfigContext, InteractionContext, LayoutContext } from '../../contexts';
+import PaneBackButton from '../PaneBackButton';
 import ChatPane from '../ChatPane';
 import GroupMembers from './GroupMembers';
 import GroupCallPanel from './GroupCallPanel';
@@ -74,6 +75,7 @@ export default function GroupDm({ user }) {
   return (
     <div id="dm-main" className="group-dm" data-current-user-id={user?.id}>
       <h4 className="chat-recipient-header">
+        <PaneBackButton />
         <span className="group-dm-title">{summary ? groupTitle(summary, user) : t('groups.dm.group')}</span>
         {voiceEnabled && group && (
           <button

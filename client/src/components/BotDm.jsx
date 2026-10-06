@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLockOpen, faTrash } from '@fortawesome/free-solid-svg-icons';
 import '../assets/css/dms.css';
 import { LayoutContext } from '../contexts';
+import PaneBackButton from './PaneBackButton';
 import ChatPane from './ChatPane';
 import ConfirmDialog from './guild/ConfirmDialog';
 import { useBotDm } from '../hooks/useBotDm';
@@ -38,6 +39,7 @@ export default function BotDm({ user }) {
   return (
     <div id="dm-main" className="bot-dm" data-current-user-id={user?.id}>
       <h4 className="chat-recipient-header">
+        <PaneBackButton />
         <span className="bot-dm-title">
           {name}
           {botId != null && <span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span>}

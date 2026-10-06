@@ -4,6 +4,7 @@ import { faNoteSticky, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import '../assets/css/dms.css';
 import '../assets/css/voice.css';
 import ChatPane from './ChatPane';
+import PaneBackButton from './PaneBackButton';
 import { useConversation } from '../hooks/useConversation';
 import { addReaction, removeReaction } from '../services/dmService';
 import { encryptReaction, reactionContext } from '../services/encryptionService';
@@ -42,6 +43,7 @@ export default function Notes({ user }) {
   return (
     <div id="dm-main" className="notes-main" data-current-user-id={user?.id}>
       <h4 className="chat-recipient-header">
+        <PaneBackButton />
         <FontAwesomeIcon icon={faNoteSticky} className="notes-header-icon" />
         {t('chat.notes.title')}
         <span className="chat-recipient-status">{t('chat.notes.onlyYou')}</span>
