@@ -1,0 +1,41 @@
+{
+  "commands": {
+    "picker": {
+      "label": "Команды ботов",
+      "title": "Команды",
+      "matching": "Команды по запросу <b>{{query}}</b>"
+    },
+    "mode": {
+      "label": "Команда /{{name}}",
+      "leave": "Выйти из этой команды",
+      "run": "Отправить",
+      "sending": "Отправка…",
+      "required": "обязательно",
+      "missing": "Заполните: {{names}}",
+      "choose": "Выберите…",
+      "chooseMember": "Выберите участника…",
+      "chooseRole": "Выберите роль…",
+      "chooseChannel": "Выберите канал…",
+      "chooseMentionable": "Выберите участника или роль…",
+      "members": "Участники",
+      "roles": "Роли",
+      "true": "Да",
+      "false": "Нет",
+      "suggestions": "Варианты",
+      "loading": "Загрузка…",
+      "notNumber": "Это не число",
+      "notWhole": "Нужно целое число",
+      "tooSmall": "Не меньше {{min}}",
+      "tooBig": "Не больше {{max}}",
+      "tooShort": "Не меньше {{min}} символов",
+      "tooLong": "Не больше {{max}} символов"
+    },
+    "apps": {
+      "label": "Приложения"
+    },
+    "errors": {
+      "noResponse": "Приложение не ответило",
+      "failed": "Не получилось"
+    }
+  }
+}

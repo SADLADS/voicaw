@@ -4,12 +4,15 @@
     "sidebar": {
       "logoAlt": "Логотип Voicaw",
       "directMessages": "Личные сообщения",
+      "unreadFrom": "Личные сообщения: новое сообщение от {{name}}",
       "guilds": "Гильдии",
       "mentions_one": "{{count}} упоминание",
       "mentions_few": "{{count}} упоминания",
       "mentions_many": "{{count}} упоминаний",
       "mentions_other": "{{count}} упоминания",
       "addGuild": "Добавить гильдию",
+      "inVoice": "Вы здесь в голосовом канале",
+      "othersInVoice": "Здесь кто-то в голосовом канале",
       "resize": "Изменить размер боковой панели",
       "dragToResize": "Потяните, чтобы изменить размер",
       "leaveGuild": {

@@ -1,0 +1,42 @@
+{
+  "components": {
+    "failed": "Взаимодействие не удалось",
+    "notResponding": "Приложение не ответило",
+    "working": "Выполняется…",
+    "selectPlaceholder": "Сделайте выбор",
+    "selectDone": "Готово",
+    "selectCount_one": "Выбран {{count}}",
+    "selectCount_few": "Выбрано {{count}}",
+    "selectCount_many": "Выбрано {{count}}",
+    "selectCount_other": "Выбрано {{count}}",
+    "noChoices": "Выбирать не из чего",
+    "usedCommand": "{{name}} использовал(а) <cmd>/{{command}}</cmd>",
+    "usedApp": "{{name}} использовал(а) <cmd>{{command}}</cmd>",
+    "thinking": "{{name}} думает",
+    "ephemeral": "Это видите только вы",
+    "dismiss": "Скрыть сообщение",
+    "linkTitle": "Открывает {{url}}",
+    "modal": {
+      "submit": "Отправить",
+      "sending": "Отправка…",
+      "required": "Поле «{{label}}» обязательно",
+      "tooShort_one": "В поле «{{label}}» нужен хотя бы {{count}} символ",
+      "tooShort_few": "В поле «{{label}}» нужно хотя бы {{count}} символа",
+      "tooShort_many": "В поле «{{label}}» нужно хотя бы {{count}} символов",
+      "tooShort_other": "В поле «{{label}}» нужно хотя бы {{count}} символа",
+      "tooLong_one": "В поле «{{label}}» может быть не больше {{count}} символа",
+      "tooLong_few": "В поле «{{label}}» может быть не больше {{count}} символов",
+      "tooLong_many": "В поле «{{label}}» может быть не больше {{count}} символов",
+      "tooLong_other": "В поле «{{label}}» может быть не больше {{count}} символа",
+      "choose_one": "{{label}}: выберите хотя бы {{count}}",
+      "choose_few": "{{label}}: выберите хотя бы {{count}}",
+      "choose_many": "{{label}}: выберите хотя бы {{count}}",
+      "choose_other": "{{label}}: выберите хотя бы {{count}}",
+      "tooMany_one": "{{label}}: выберите не больше {{count}}",
+      "tooMany_few": "{{label}}: выберите не больше {{count}}",
+      "tooMany_many": "{{label}}: выберите не больше {{count}}",
+      "tooMany_other": "{{label}}: выберите не больше {{count}}",
+      "from": "От {{name}}"
+    }
+  }
+}

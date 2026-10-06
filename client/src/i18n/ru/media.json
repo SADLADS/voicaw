@@ -124,10 +124,15 @@
       "image": "встроенное изображение",
       "footerWithTime": "{{text}} • {{time}}"
     },
+    "links": {
+      "pictureFrom": "Картинка с {{site}}",
+      "showPicture": "Показать картинку с {{site}}"
+    },
     "youtube": {
       "video": "Видео YouTube",
       "play": "Воспроизвести видео YouTube",
-      "hint": "При воспроизведении оно загружается с YouTube"
+      "hint": "При воспроизведении оно загружается с YouTube",
+      "openOnYouTube": "Открыть на YouTube"
     }
   }
 }
