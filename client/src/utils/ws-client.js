@@ -211,7 +211,7 @@ export function connectWebSocket() {
         loggedOutElsewhere(socket);
       }
       else if (data.type === 'blocks') {
-        blocksListeners.forEach((cb) => cb(data.blocked));
+        blocksListeners.forEach((cb) => cb(data.blocked, data.webhooks));
       }
       else if (data.type === 'reports_changed') {
         reportsListeners.forEach((cb) => cb(data.open));

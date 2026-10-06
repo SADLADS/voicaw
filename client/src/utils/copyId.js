@@ -1,14 +1,16 @@
 import { faIdCard } from '@fortawesome/free-solid-svg-icons';
 import { t } from '../i18n';
 
-// Copy … ID items for right-click menus (users, channels, threads, categories, guilds), as in
-// Discord, giving the ids bots see in the bot API (see Ids in docs/bots.md): ours as they are,
-// except categories, a table of their own, offset by CATEGORY_ID_BASE (server/discord.js).
+// Copy … ID items for right-click menus (users, webhooks, channels, threads, categories,
+// guilds), as in Discord, giving the ids bots see in the bot API (see Ids in docs/bots.md): ours
+// as they are, except categories, a table of their own, offset by CATEGORY_ID_BASE
+// (server/discord.js).
 
 export const CATEGORY_ID_BASE = 2 ** 40;
 
 const LABELS = {
   user: 'common.copyId.user',
+  webhook: 'common.copyId.webhook',
   channel: 'common.copyId.channel',
   thread: 'common.copyId.thread',
   category: 'common.copyId.category',

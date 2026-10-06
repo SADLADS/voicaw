@@ -1,13 +1,18 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import PageMenus from './PageMenus';
+import SafetyDialogs from './SafetyDialogs';
 import { InteractionContext } from '../contexts';
+import { AuthContext } from '../hooks/useAuth';
+import api from '../utils/api';
+import { applyBlocked } from '../utils/blocks';
 import { addWord } from '../spellcheck/personalDictionary';
 import { isSpellcheckEnabled } from '../utils/spellcheck';
 
+vi.mock('../utils/api', () => ({ default: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() } }));
 vi.mock('../spellcheck/personalDictionary', () => ({
   addWord: vi.fn(),
   hasWord: () => false,
@@ -25,15 +30,21 @@ vi.mock('../utils/spellcheck', async (importOriginal) => ({
 }));
 
 afterEach(() => {
+  applyBlocked([]);
   cleanup();
   document.body.innerHTML = '';
 });
 
-function page(html, { isMobile = false } = {}) {
+// `meId`: logged in as that user (Block and Report need it).
+function page(html, { isMobile = false, meId = null } = {}) {
   const host = document.createElement('div');
   host.innerHTML = html;
   document.body.append(host);
-  render(<InteractionContext.Provider value={{ isMobile }}><PageMenus /></InteractionContext.Provider>);
+  render(
+    <AuthContext.Provider value={{ user: meId == null ? null : { id: meId } }}>
+      <InteractionContext.Provider value={{ isMobile }}><PageMenus /><SafetyDialogs /></InteractionContext.Provider>
+    </AuthContext.Provider>
+  );
   return (selector) => host.querySelector(selector);
 }
 
@@ -109,5 +120,51 @@ describe('our right-click menus', () => {
     expect(menuItems()).toEqual(['Copy User ID']);
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('42'));
     expect(await screen.findByText('ID copied')).toBeInTheDocument();
+  });
+
+  it('on someone else: Block (asking first) and Report, then Copy User ID; none of those on yourself', async () => {
+    api.put.mockResolvedValue({ data: { blocked: [42], webhooks: [] } });
+    const $ = page('<span data-user-id="42"><b id="name">bob</b></span><span data-user-id="1"><b id="me">me</b></span>', { meId: 1 });
+    fireEvent.contextMenu($('#name'));
+    await screen.findByRole('menuitem', { name: 'Block' });
+    expect(menuItems()).toEqual(['Block', 'Report', 'Copy User ID']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Block' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Block User?' });
+    expect(api.put).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Block' }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/blocks/42'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    // Blocked now: Unblock instead, straight away.
+    api.delete.mockResolvedValue({ data: { blocked: [], webhooks: [] } });
+    fireEvent.contextMenu($('#name'));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Unblock' }));
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/blocks/42'));
+
+    fireEvent.contextMenu($('#name'));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Report' }));
+    expect(await screen.findByRole('dialog', { name: 'Report User' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    fireEvent.contextMenu($('#me'));
+    await screen.findByRole('menuitem', { name: 'Copy User ID' });
+    expect(menuItems()).toEqual(['Copy User ID']);
+  });
+
+  it("on a webhook's name: Block Webhook (asking first) and Copy Webhook ID", async () => {
+    api.put.mockResolvedValue({ data: { blocked: [], webhooks: [{ id: 7, name: 'Spam Bot', guild_id: 1, guild_name: 'Place' }] } });
+    const $ = page('<strong id="hook" data-webhook-id="7" data-webhook-name="Spam Bot">Spam Bot</strong>', { meId: 1 });
+    fireEvent.contextMenu($('#hook'));
+    await screen.findByRole('menuitem', { name: 'Block Webhook' });
+    expect(menuItems()).toEqual(['Block Webhook', 'Copy Webhook ID']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Block Webhook' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Block Spam Bot?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Block Webhook' }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/blocks/webhooks/7'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.contextMenu($('#hook'));
+    expect(await screen.findByRole('menuitem', { name: 'Unblock Webhook' })).toBeInTheDocument();
   });
 });

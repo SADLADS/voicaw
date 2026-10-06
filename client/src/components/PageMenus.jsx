@@ -3,6 +3,7 @@ import {
   faArrowUpRightFromSquare, faBook, faCopy, faLink, faPaste, faScissors,
 } from '@fortawesome/free-solid-svg-icons';
 import { InteractionContext } from '../contexts';
+import { useAuth } from '../hooks/useAuth';
 import {
   copyText, cutText, pasteText, replaceClickedWord, selectAllText, spellingOf, textBoxAt,
 } from '../utils/editActions';
@@ -11,6 +12,7 @@ import { isSpellcheckEnabled, setSpellcheckEnabled } from '../utils/spellcheck';
 import { addWord } from '../spellcheck/personalDictionary';
 import { openInNewTab } from '../utils/saveFile';
 import { copyIdItem } from '../utils/copyId';
+import { userSafetyItems, webhookSafetyItems } from '../utils/safetyDialogs';
 import ContextMenu from './ContextMenu';
 import ImageMenu from './ImageMenu';
 import { displayName } from '../utils/profiles';
@@ -19,8 +21,9 @@ import { t } from '../i18n';
 // Our menus in place of the browser's, wherever a right-click has nothing of its own (channels,
 // messages... handle theirs first): a picture (ImageMenu), a text box (spelling corrections,
 // Add to Dictionary, Cut / Copy / Paste / Select All, and Spellcheck on or off), a link to
-// another site (Copy Link, Open Link), selected text (Copy) and a person (Copy User ID: anything
-// marked `data-user-id`). Mounted once (App), listening
+// another site (Copy Link, Open Link), selected text (Copy), a person (anything marked
+// `data-user-id`: Block / Unblock and Report, not on yourself, then Copy User ID) and a webhook on
+// its message (Block / Unblock Webhook, Copy Webhook ID). Mounted once (App), listening
 // on the page; Shift+right-click still gets the browser's (utils/nativeContextMenu.js). Not on
 // a phone: holding a message opens its actions, a picture in a document its menu
 // (useImageHold), and text boxes keep the phone's own.
@@ -60,7 +63,7 @@ function textBoxItems({ target, spelling }) {
   return items;
 }
 
-function pageItems({ link, selected, userId }) {
+function pageItems({ link, selected, userId, webhook }, meId) {
   const items = [];
   if (selected) items.push({ key: 'copy', label: t('common.copy'), icon: faCopy, onSelect: () => copied(selected, t('common.copied')) });
   if (link) {
@@ -72,13 +75,18 @@ function pageItems({ link, selected, userId }) {
   }
   if (userId) {
     if (items.length) items.push({ separator: true });
-    items.push(copyIdItem('user', userId));
+    const safety = userSafetyItems(userId, displayName(userId, t('app.pageMenus.user')), meId);
+    items.push(...safety, ...(safety.length ? [{ separator: true }] : []), copyIdItem('user', userId));
+  } else if (webhook) {
+    if (items.length) items.push({ separator: true });
+    items.push(...webhookSafetyItems(webhook.id, webhook.name), { separator: true }, copyIdItem('webhook', webhook.id));
   }
   return items;
 }
 
 export default function PageMenus() {
   const { isMobile } = useContext(InteractionContext);
+  const meId = useAuth()?.user?.id;
   const [menu, setMenu] = useState(null); // { kind: 'image' | 'text' | 'page', anchor, ... }
   const close = useCallback(() => setMenu(null), []);
 
@@ -113,10 +121,10 @@ export default function PageMenus() {
 
   if (!menu) return null;
   if (menu.kind === 'image') return <ImageMenu key={menu.anchor.left + menu.anchor.top} item={menu.item} anchor={menu.anchor} onClose={close} />;
-  const items = menu.kind === 'text' ? textBoxItems(menu) : pageItems(menu);
+  const items = menu.kind === 'text' ? textBoxItems(menu) : pageItems(menu, meId);
   const label = menu.kind === 'text' ? t('app.pageMenus.text')
     : menu.link ? t('app.pageMenus.link')
       : menu.selected ? t('app.pageMenus.selection')
-        : displayName(menu.userId, t('app.pageMenus.user'));
+        : menu.webhook ? menu.webhook.name : displayName(menu.userId, t('app.pageMenus.user'));
   return <ContextMenu key={`${menu.anchor.left},${menu.anchor.top}`} title={label} label={label} items={items} anchor={menu.anchor} onClose={close} />;
 }

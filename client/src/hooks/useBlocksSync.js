@@ -9,7 +9,7 @@ export function useBlocksSync(userId) {
   useEffect(() => {
     if (!userId) return undefined;
     const load = () => api.get('/blocks').then(
-      (res) => applyBlocked(res.data.blocked),
+      (res) => applyBlocked(res.data.blocked, res.data.webhooks),
       (err) => console.warn('Failed to load blocked users', err)
     );
     load();

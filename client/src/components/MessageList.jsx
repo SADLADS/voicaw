@@ -45,7 +45,7 @@ import ChannelIcon from './guild/ChannelIcon';
 import { showContent } from '../utils/mobilePanes';
 import { parseChannelLink } from '../utils/guildDisplay';
 import { pageMenuTarget } from '../utils/pageMenuTarget';
-import { useBlocked } from '../utils/blocks';
+import { useBlocked, useBlockedWebhookIds } from '../utils/blocks';
 import BlockedMessage from './BlockedMessage';
 import { t } from '../i18n';
 
@@ -342,6 +342,8 @@ export function MessageRow({
     onClick: (e) => { e.stopPropagation(); onOpenProfile({ id, username }, e.currentTarget.getBoundingClientRect()); },
     onKeyDown: (e) => { if (e.key === 'Enter') onOpenProfile({ id, username }, e.currentTarget.getBoundingClientRect()); },
   } : {});
+  // A webhook's name or picture: its right-click menu blocks it (PageMenus).
+  const webhookProps = webhook ? { 'data-webhook-id': msg.webhook_id, 'data-webhook-name': senderName } : {};
   // A picker or menu is open for this message: it stays highlighted with its menu showing.
   const focused = focusedMsgId === msg.id;
   // A bot's ephemeral reply (only you see it, until you reload): nothing to do to it but
@@ -478,6 +480,7 @@ export function MessageRow({
             referrerPolicy="no-referrer"
             draggable={false}
             onError={(e) => { e.currentTarget.src = defaultAvatar; }}
+            {...webhookProps}
           />
         ) : (
           <Avatar
@@ -487,7 +490,7 @@ export function MessageRow({
             {...profileProps(msg.sender_id, msg.sender_username)}
           />
         )}
-        <strong className="message-author" style={{ color: webhook ? undefined : nameColors?.[msg.sender_id] }} {...profileProps(msg.sender_id, msg.sender_username)}>{senderName}</strong>{' '}
+        <strong className="message-author" style={{ color: webhook ? undefined : nameColors?.[msg.sender_id] }} {...profileProps(msg.sender_id, msg.sender_username)} {...webhookProps}>{senderName}</strong>{' '}
         {webhook && <span className="app-tag" title={t('chat.message.webhookTitle')}>{t('chat.message.webhookTag')}</span>}{webhook && ' '}
         {msg.sender_bot ? <><span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span>{' '}</> : null}
 
@@ -669,8 +672,9 @@ export default function MessageList({
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
-  // People you've blocked: their messages are collapsed (BlockedMessage).
+  // People and webhooks you've blocked: their messages are collapsed (BlockedMessage).
   const blocked = useBlocked();
+  const blockedWebhooks = useBlockedWebhookIds();
   // Following the newest message (true until the user scrolls away from the bottom).
   const pinnedToBottom = useRef(true);
   // The list's own height when last seen, to tell the list resizing apart from user scrolling.
@@ -879,7 +883,7 @@ export default function MessageList({
               ? <ThreadStartNotice msg={msg} />
               : msg.system
               ? <p className="message-system">{msg.text}</p>
-              : blocked.has(Number(msg.sender_id)) && !msg.webhook_id
+              : (msg.webhook_id ? blockedWebhooks.has(Number(msg.webhook_id)) : blocked.has(Number(msg.sender_id)))
               ? <BlockedMessage><MessageRow msg={msg} grouped={false} {...rowProps} /></BlockedMessage>
               : <MessageRow msg={msg} grouped={continuesGroup(messages[i - 1], msg)} {...rowProps} />}
           </div>

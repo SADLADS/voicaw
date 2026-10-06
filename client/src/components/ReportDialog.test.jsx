@@ -50,6 +50,17 @@ describe('reporting', () => {
     expect(screen.queryByLabelText('Let moderators see this message')).not.toBeInTheDocument();
   });
 
+  it("a webhook's message: Also block blocks the webhook", async () => {
+    api.put.mockResolvedValue({ data: { blocked: [], webhooks: [{ id: 9, name: 'Spam Bot', guild_id: 1, guild_name: 'Place' }] } });
+    const hookMessage = { id: 8, sender_id: null, webhook_id: 9, webhook_name: 'Spam Bot' };
+    render(<ReportDialog target={{ kind: 'message', place: 'guild', msg: hookMessage }} name="Spam Bot" onClose={() => {}} />);
+    fireEvent.click(screen.getByLabelText('Spam or scams'));
+    fireEvent.click(screen.getByLabelText('Also block Spam Bot'));
+    fireEvent.click(screen.getByRole('button', { name: 'Send report' }));
+    await screen.findByText(/Thanks for telling us/);
+    expect(api.put).toHaveBeenCalledWith('/blocks/webhooks/9');
+  });
+
   it('reports a person', async () => {
     render(<ReportDialog target={{ kind: 'user', userId: 5 }} name="Sam" onClose={() => {}} />);
     expect(screen.getByRole('dialog', { name: 'Report Sam' })).toBeInTheDocument();

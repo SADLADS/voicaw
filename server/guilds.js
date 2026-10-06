@@ -347,7 +347,7 @@ async function deleteGuild(guildId) {
     await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);
     await require('./guildEvents').deleteGuildEvents(guildId);
     for (const table of [
-      'guild_emojis', 'guild_audit_log',
+      'guild_emojis', 'guild_audit_log', 'webhook_blocks',
       'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',
       'guild_member_roles', 'guild_roles', 'guild_members',
     ]) {
