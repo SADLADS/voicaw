@@ -315,8 +315,7 @@
       "turnOn": "オンにする",
       "tryAgain": "再試行",
       "turnOff": "オフにする",
-      "sendTest": "テスト通知を送信",
-      "previews": "通知にメッセージの本文を表示する"
+      "sendTest": "テスト通知を送信"
     },
     "notificationPrompt": {
       "failed": "通知をオンにできませんでした。設定からもう一度お試しください。",

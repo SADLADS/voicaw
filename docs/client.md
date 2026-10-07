@@ -132,7 +132,10 @@
   Play (see docs/messages.md, YouTube links); `gifs`, GIFs load without Show and the GIF picker
   doesn't warn first (see docs/messages.md, GIFs); `linkPreviews`, other sites' pictures and
   videos in link previews and embeds load without Show / Play (see docs/messages.md, Link
-  previews). New privacy trade-offs go here.
+  previews); `showLinkPreviews`, links to other sites get previews at all (same section).
+  "Show message text in notifications" is here too, though it's kept in
+  `services/settingsStore.js` (IndexedDB) for the service worker (see docs/realtime.md, Push
+  notifications). New privacy trade-offs go here.
 - Dates and times all go through `utils/dateFormat.js` (`formatDate`, `formatTime`,
   `formatDateTime`; components call `useDateFormat()` so they redraw): Settings → Date & time
   picks the date format (automatic from the browser, DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD) and

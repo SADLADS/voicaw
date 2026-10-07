@@ -980,11 +980,6 @@ small {
   flex-wrap: wrap;
 }
 
-.notification-settings-previews {
-  display: block;
-  margin-top: 0.75rem;
-}
-
 .notification-settings-message {
   margin-top: 0.5rem;
   margin-bottom: 0;

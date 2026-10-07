@@ -48,7 +48,7 @@
       },
       "privacy": {
         "title": "Privacy",
-        "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy link links website websites image images picture pictures"
+        "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy link links website websites image images picture pictures notification notifications lock screen"
       },
       "content": {
         "title": "Content",
@@ -341,8 +341,7 @@
       "turnOn": "Turn on",
       "tryAgain": "Try again",
       "turnOff": "Turn off",
-      "sendTest": "Send test notification",
-      "previews": "Show message text in notifications"
+      "sendTest": "Send test notification"
     },
     "notificationPrompt": {
       "failed": "Couldn't turn on notifications. Try again from Settings.",
@@ -352,6 +351,10 @@
     },
     "privacy": {
       "title": "Privacy",
+      "notificationPreviews": {
+        "label": "Show message text in notifications",
+        "hint": "Notifications for new messages show what was said. That's handy, but anyone who can see your screen, or your lock screen, can read it too. Turn this off and they only say who it's from (and where). The text of DMs and group DMs is only ever decrypted on this device; the Voicaw server never sees it. Saved on this device."
+      },
       "inviteEmbeds": {
         "label": "Show guild invites in DMs and group DMs straight away",
         "hint": "A guild invite link in a message gets a card with the guild's name and picture. To fill it in, the app asks the Voicaw server about the invite, which tells the server which invite was in your end-to-end encrypted message. Turn this off and the card waits until you tap Show. Guild channels aren't encrypted, so their invites always show. Saved on this device."
@@ -363,6 +366,10 @@
       "youtube": {
         "label": "Show YouTube videos straight away",
         "hint": "A YouTube link in a message gets a player. Loading it tells YouTube your IP address and which video you were sent, even if you never play it. Turn this off and the player waits until you tap Play; nothing comes from YouTube before then. Saved on this device."
+      },
+      "showLinkPreviews": {
+        "label": "Show link previews",
+        "hint": "A link to another site in a message gets a preview underneath: a card with the page's title, description and picture in guilds, a YouTube player, or the picture or video itself when the link goes straight to one. Turn this off and only the link shows, with nothing loaded from that site. Guild invites and events still get their cards, and bots' embeds still show. Saved on this device."
       },
       "linkPreviews": {
         "label": "Show pictures and videos from links straight away",

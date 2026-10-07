@@ -97,9 +97,16 @@ async function groupNotification(data) {
   return { title, body };
 }
 
+// Pushes whose body is a message's text, which Settings → Privacy's "Show message text in
+// notifications" (settingsStore `notificationPreviews`) leaves out. DMs and groups decrypt
+// theirs (above) only when it's on; guild messages and bot DMs arrive readable from the server,
+// so their body is swapped for a generic one here.
+const PLAIN_MESSAGE_PUSHES = new Set(['guild', 'bot_dm']);
+
 export async function notificationFromPush(data) {
   let title = data.title || 'Voicaw';
   let body = data.type === 'dm' ? (await dmPreview(data)) || t('app.push.newMessage') : data.body || '';
+  if (PLAIN_MESSAGE_PUSHES.has(data.type) && !(await getSetting('notificationPreviews'))) body = t('app.push.newMessage');
   if ((data.type === 'group' || data.type === 'call') && data.groupId) {
     try {
       const group = await groupNotification(data);

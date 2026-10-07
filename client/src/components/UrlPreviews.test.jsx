@@ -39,6 +39,16 @@ describe('UrlPreviews', () => {
     }
   });
 
+  it("shows no YouTube player or other site's media when Settings → Privacy turns link previews off", () => {
+    setPrivacyPref('showLinkPreviews', false);
+    try {
+      const { container } = render(<UrlPreviews encrypted text="https://youtu.be/abcdefghijk https://example.com/cat.png https://example.com/clip.mp4" />);
+      expect(container).toBeEmptyDOMElement();
+    } finally {
+      setPrivacyPref('showLinkPreviews', true);
+    }
+  });
+
   it('covers a video in an NSFW channel, loading nothing from YouTube until uncovered', () => {
     const { container } = render(
       <NsfwChannelContext.Provider value><UrlPreviews text="https://youtu.be/abcdefghijk" /></NsfwChannelContext.Provider>

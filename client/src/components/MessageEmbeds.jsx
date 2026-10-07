@@ -108,10 +108,12 @@ function LinkEmbed({ embed }) {
 // A message's embeds. `renderMarkdown(text)` draws markdown as the message's own text is drawn;
 // `ownUrls`: the message's own files (an embed showing one isn't another site's picture).
 // `links`: these are the server's link previews (LinkEmbed), not the sender's own embeds;
-// `onRemove(event)` puts an X beside each (RemovableEmbed).
+// `onRemove(event)` puts an X beside each (RemovableEmbed). Settings → Privacy's "Show link
+// previews" off hides link previews (not the sender's embeds).
 export default function MessageEmbeds({ embeds, renderMarkdown, ownUrls, links = false, onRemove }) {
   useDateFormat();
-  if (!embeds?.length) return null;
+  const sitePreviews = usePrivacyPrefs().showLinkPreviews;
+  if (!embeds?.length || (links && !sitePreviews)) return null;
   const isExternal = (url) => !ownUrls?.includes(url);
   return (
     <div className="message-embeds">

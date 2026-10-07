@@ -7,7 +7,6 @@ import {
   getPushStatus,
   sendTestNotification,
 } from '../services/pushService';
-import { getSetting, setSetting } from '../services/settingsStore';
 import { isDesktopApp } from '../utils/desktop';
 import { t } from '../i18n';
 
@@ -23,16 +22,11 @@ const STATUS_TEXT = {
 export default function NotificationSettings() {
   const { vapidPublicKey } = useContext(ConfigContext);
   const [status, setStatus] = useState(getPushStatus);
-  const [previews, setPreviews] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   // Browser permission alone doesn't mean this device is registered with the server for
   // this account, so when notifications look "on", make sure (and show it if that fails).
   const [registrationError, setRegistrationError] = useState(null);
-
-  useEffect(() => {
-    getSetting('notificationPreviews').then(setPreviews);
-  }, []);
 
   useEffect(() => {
     if (status !== 'granted' || !vapidPublicKey) return;
@@ -73,11 +67,6 @@ export default function NotificationSettings() {
     else if (delivered === devices) setMessage(t('settings.notifications.test.sent', { count: devices }));
     else setMessage(t('settings.notifications.test.partlySent', { delivered, count: devices }));
   });
-  const togglePreviews = async (e) => {
-    const value = e.target.checked;
-    setPreviews(value);
-    await setSetting('notificationPreviews', value);
-  };
 
   return (
     <div className="settings-card">
@@ -111,13 +100,6 @@ export default function NotificationSettings() {
           </>
         )}
       </div>
-
-      {status === 'granted' && (
-        <label className="notification-settings-previews">
-          <input type="checkbox" checked={previews} onChange={togglePreviews} />
-          {' '}{t('settings.notifications.previews')}
-        </label>
-      )}
 
       {message && <p className="notification-settings-message">{message}</p>}
     </div>
