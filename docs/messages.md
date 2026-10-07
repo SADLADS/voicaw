@@ -524,6 +524,22 @@ the chat, like Discord's (`startsNewDay` in the same file, `DayDivider` in `Mess
 row only gets one once there's no older history (`hasMore` false). Client-side only; it's
 drawn inside the row's wrapper, so row keys and scroll anchoring are unchanged.
 
+**The "New" divider** (2026-10-07, Discord's): opening a chat with unread messages draws a red
+line with "New" at its end above the first of them (with the date in the middle, as one line,
+when a new day starts there too), and that message starts a group of its own. Where comes from
+marking the chat read on opening: `POST /dm-mark-read/:id`, `/channels/:id/read`,
+`/group-dms/:id/read` and `/bot-dms/:id/read` answer `first_unread_id`, the oldest message by
+someone else that was unread until then (null if none; read and marked in one transaction, so
+it doesn't depend on the unread lists having loaded, e.g. when the app starts in a chat). DMs
+only kept a count, so `dm_unread` has `first_unread_id`, set when the row is made (messages,
+call logs, poll ends) and kept as it counts up; rows from before it have none (no divider).
+The chat hooks keep the opening read's answer as `firstUnread` ({ id }); `useNewDivider`
+(ChatPane) turns it into `MessageList`'s `newFrom`. It stays where it is while the chat is open
+(live messages you see don't move it), goes when you send a message, and moves to the first
+message from someone else that comes while the window is hidden or in the background (once per
+time away). Not in document channels: their unread count is the whole channel's, not one
+document's. The chat still opens at the newest message, not at the divider.
+
 `hooks/useConversation.js` loads a conversation in exactly one effect (keyed on `id` + the other user's public key,
 ignoring late responses after a chat switch). Older pages (`PAGE_SIZE`, sent as `limit`, server
 clamps 1–100, default 10) are only ever prepended by `loadMoreMessages`, which guards against

@@ -15,6 +15,8 @@ export function useBotDm({ dmId, user, onRead }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [loadedChannelId, setLoadedChannelId] = useState(null);
+  // Where the unread messages started when the conversation opened ({ id }; useConversation's).
+  const [firstUnread, setFirstUnread] = useState(null);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
   const loadingOlder = useRef(false);
@@ -26,10 +28,13 @@ export function useBotDm({ dmId, user, onRead }) {
     setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, ...update(m) } : m)));
   };
 
-  const markRead = async (messageId) => {
+  // `opening`: the read on opening the conversation, which says where its unread messages started.
+  const markRead = async (messageId, { opening = false } = {}) => {
     if (!dmId || !Number.isInteger(messageId)) return;
     try {
-      await markBotDmRead(dmId, messageId);
+      const requestedFor = dmId;
+      const first = await markBotDmRead(dmId, messageId);
+      if (opening && first != null && activeDm.current === requestedFor) setFirstUnread({ id: first });
       onReadRef.current?.();
     } catch (err) {
       console.warn('Failed to mark the conversation as read', err);
@@ -40,6 +45,7 @@ export function useBotDm({ dmId, user, onRead }) {
     activeDm.current = dmId;
     loadingOlder.current = false;
     setMessages([]);
+    setFirstUnread(null);
     setHasMore(true);
     setError(null);
     setLoadedChannelId(null);
@@ -57,7 +63,7 @@ export function useBotDm({ dmId, user, onRead }) {
         setHasMore(page.length >= BOT_DM_PAGE_SIZE);
         setLoadedChannelId(dmId);
         const newest = page[page.length - 1];
-        markRead(newest ? newest.id : 0);
+        markRead(newest ? newest.id : 0, { opening: true });
       } catch (e) {
         if (cancelled) return;
         setError(e.response?.data?.error || e.message);
@@ -169,6 +175,7 @@ export function useBotDm({ dmId, user, onRead }) {
 
   return {
     messages,
+    firstUnread,
     messagesRef,
     hasMore,
     isLoading,

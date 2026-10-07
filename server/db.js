@@ -464,6 +464,9 @@ CREATE TABLE IF NOT EXISTS dm_unread (
   FOREIGN KEY (from_user_id) REFERENCES users(id)
 );
 `);
+// The oldest unread message (where the chat's "New" divider goes): set with the row, kept as
+// it counts up; null for rows from before it.
+addColumn('ALTER TABLE dm_unread ADD COLUMN first_unread_id INTEGER');
 
 // LOGIN STATES
 sqlite.exec(`

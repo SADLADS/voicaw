@@ -23,8 +23,9 @@ export async function sendMessageToUser(recipientId, content, replyTo = null, up
   return res.data;
 }
 
+// Returns the oldest message that was unread until now (null if none: where the "New" divider goes).
 export async function markMessagesRead(userId) {
-  await api.post(`/dm-mark-read/${userId}`);
+  return (await api.post(`/dm-mark-read/${userId}`))?.data?.first_unread_id ?? null;
 }
 
 // Your pins and mutes for DMs and group DMs: [{ kind: 'dm' | 'group', target, pinned_at,

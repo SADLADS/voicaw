@@ -57,6 +57,8 @@ export function useGroupConversation({ groupId, user, onRead }) {
   const [group, setGroup] = useState(null);
   // Bumped whenever a message here is pinned or unpinned (the pins list reloads).
   const [pinsVersion, setPinsVersion] = useState(0);
+  // Where the unread messages started when the group opened ({ id }; useConversation's).
+  const [firstUnread, setFirstUnread] = useState(null);
 
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -188,10 +190,13 @@ export function useGroupConversation({ groupId, user, onRead }) {
     };
   }
 
-  const markRead = async (messageId) => {
+  // `opening`: the read on opening the group, which says where its unread messages started.
+  const markRead = async (messageId, { opening = false } = {}) => {
     if (!Number.isInteger(messageId)) return;
     try {
-      await markGroupRead(groupId, messageId);
+      const requestedFor = groupId;
+      const first = await markGroupRead(groupId, messageId);
+      if (opening && first != null && activeGroupId.current === requestedFor) setFirstUnread({ id: first });
       onReadRef.current?.();
     } catch (err) {
       console.warn('Failed to mark group as read', err);
@@ -208,6 +213,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
     activeGroupId.current = groupId;
     loadingOlder.current = false;
     setMessages([]);
+    setFirstUnread(null);
     setGroup(null);
     setHasMore(true);
     setError(null);
@@ -232,7 +238,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
         if (cancelled) return;
         setMessages(rows);
         setHasMore(page.length >= GROUP_PAGE_SIZE);
-        markRead(rows.at(-1)?.id ?? 0);
+        markRead(rows.at(-1)?.id ?? 0, { opening: true });
       } catch (e) {
         if (cancelled) return;
         console.error('Failed to load group:', e);
@@ -494,6 +500,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
   return {
     messages: display,
     messagesRef,
+    firstUnread,
     hasMore,
     isLoading,
     error,

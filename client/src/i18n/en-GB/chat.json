@@ -21,6 +21,10 @@
       "unpinFailed": "Couldn't unpin the message.",
       "jumpFailed": "Couldn't find that message in the chat."
     },
+    "newDivider": {
+      "pill": "New",
+      "label": "New messages"
+    },
     "deleteMessage": {
       "title": "Delete message",
       "confirm": "Are you sure you want to delete this message?",

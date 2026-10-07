@@ -184,8 +184,9 @@ export async function removeGuildReaction(reactionId) {
   await api.delete(`/guild-reactions/${reactionId}`);
 }
 
+// Returns the oldest message that was unread until now (null if none: where the "New" divider goes).
 export async function markChannelRead(channelId, messageId) {
-  await api.post(`/channels/${channelId}/read`, { messageId });
+  return (await api.post(`/channels/${channelId}/read`, { messageId }))?.data?.first_unread_id ?? null;
 }
 
 // Marks a channel read up to its newest message (Mark As Read).

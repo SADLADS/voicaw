@@ -81,8 +81,10 @@ describe('bot DMs', () => {
     // Stored as plain text: these aren't end-to-end encrypted.
     expect((await db.get('SELECT content FROM bot_dm_messages WHERE dm_id = ?', [dmId])).content).toBe("It's your move in game 12");
 
-    await api.post(member, `/bot-dms/${dmId}/read`, { messageId: messages[0].id });
+    // Reading says what was unread from (where the chat's "New" divider goes).
+    expect((await api.post(member, `/bot-dms/${dmId}/read`, { messageId: messages[0].id })).body.first_unread_id).toBe(messages[0].id);
     expect((await api.get(member, '/bot-dms')).body[0].unread).toBe(0);
+    expect((await api.post(member, `/bot-dms/${dmId}/read`, { messageId: messages[0].id })).body.first_unread_id).toBeNull();
 
     const reply = await api.post(member, `/bot-dms/${dmId}/messages`, { content: 'On it' });
     expect(reply.status).toBe(201);

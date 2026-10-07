@@ -637,6 +637,20 @@ function DayDivider({ time }) {
   );
 }
 
+// Discord's red line above the first unread message, "New" at its end; with the date in the
+// middle when a new day starts there too (one line instead of two).
+function NewDivider({ time }) {
+  useDateFormat();
+  return (
+    <div className="new-divider" role="separator" aria-label={t('chat.newDivider.label')}>
+      <span className="new-divider-line" />
+      {time != null && <span className="new-divider-date">{formatLongDate(time)}</span>}
+      {time != null && <span className="new-divider-line" />}
+      <span className="new-divider-pill" aria-hidden="true">{t('chat.newDivider.pill')}</span>
+    </div>
+  );
+}
+
 // Chrome/Firefox keep the visible content still when things above it change size or are
 // inserted (CSS scroll anchoring). Safari doesn't, so there we do it ourselves.
 const NATIVE_SCROLL_ANCHORING =
@@ -688,6 +702,7 @@ export default function MessageList({
   encrypted = true,
   canReply = true,
   head = null,
+  newFrom = null,
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
@@ -892,6 +907,12 @@ export default function MessageList({
     return () => observer.disconnect();
   }, [keepAnchorInPlace, rememberAnchor, rehover]);
 
+  // The "New" divider goes above the first message from `newFrom` on (useNewDivider).
+  const newIndex = useMemo(
+    () => (newFrom == null ? -1 : messages.findIndex((m) => Number.isInteger(m.id) && m.id >= newFrom)),
+    [messages, newFrom]
+  );
+
   return (
     <div
       className={`message-scroller${focusedMsgId != null ? ' has-focused-message' : ''}`}
@@ -903,7 +924,9 @@ export default function MessageList({
         {head && !hasMore && <div data-key="list-head">{head}</div>}
         {messages.map((msg, i) => (
           <div key={rowKey(msg)} data-key={rowKey(msg)}>
-            {startsNewDay(messages[i - 1], msg, { hasMore }) && <DayDivider time={rowTime(msg)} />}
+            {i === newIndex
+              ? <NewDivider time={startsNewDay(messages[i - 1], msg, { hasMore }) ? rowTime(msg) : null} />
+              : startsNewDay(messages[i - 1], msg, { hasMore }) && <DayDivider time={rowTime(msg)} />}
             {/* A poll's result when it closed, a call; group DMs: membership changes, between the messages. */}
             {msg.system === 'poll_end'
               ? <PollEndNotice msg={msg} onJump={onJumpToMessage} />
@@ -915,7 +938,7 @@ export default function MessageList({
               ? <p className="message-system">{msg.text}</p>
               : (msg.webhook_id ? blockedWebhooks.has(Number(msg.webhook_id)) : blocked.has(Number(msg.sender_id)))
               ? <BlockedMessage><MessageRow msg={msg} grouped={false} {...rowProps} /></BlockedMessage>
-              : <MessageRow msg={msg} grouped={continuesGroup(messages[i - 1], msg)} {...rowProps} />}
+              : <MessageRow msg={msg} grouped={i !== newIndex && continuesGroup(messages[i - 1], msg)} {...rowProps} />}
           </div>
         ))}
       </div>

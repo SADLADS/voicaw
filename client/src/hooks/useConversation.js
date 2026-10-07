@@ -49,7 +49,8 @@ const decryptRows = async (rows, key) => Promise.all((await decryptMessagesBatch
 // `reactions` ([{ id, user_id, emoji }]); `pinned_at` / `pinned_by` when it's pinned
 // (`loadPins`, `setPinned`, `pinsVersion`: bumped on every pin change here). A message being sent has a temporary id and
 // `status: 'pending'` (then 'sent' or 'failed'); `clientKey` keeps its list key stable once
-// the real id arrives.
+// the real id arrives. `firstUnread` ({ id }, or null) is the oldest message that was unread
+// when the chat opened (from marking it read), where the "New" divider goes (useNewDivider).
 //
 // `notes`: your notes, a DM to yourself (`chatUser` is you). Encrypted with a key only your
 // own key pair derives (deriveNotesKey), from this device's copy of your public key; never
@@ -67,6 +68,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   const [keyCheck, setKeyCheck] = useState(0);
   // Bumped whenever a message here is pinned or unpinned (the pins list reloads).
   const [pinsVersion, setPinsVersion] = useState(0);
+  const [firstUnread, setFirstUnread] = useState(null);
 
   // Always the current render's messages, for handlers that run later.
   const messagesRef = useRef(messages);
@@ -88,10 +90,13 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     setPinsVersion((n) => n + 1);
   };
 
-  const markRead = async () => {
+  // `opening`: the read on opening the chat, which says where its unread messages started.
+  const markRead = async ({ opening = false } = {}) => {
     try {
       if (!chatUser || notes) return;
-      await markMessagesRead(chatUser.id);
+      const chatId = id;
+      const first = await markMessagesRead(chatUser.id);
+      if (opening && first != null && activeChatId.current === chatId) setFirstUnread({ id: first });
       onRead?.();
     } catch (err) {
       console.warn('Failed to mark messages as read', err);
@@ -176,7 +181,8 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   };
 
   useEffect(() => {
-    if (chatUser?.id) markRead();
+    setFirstUnread(null);
+    if (chatUser?.id) markRead({ opening: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatUser?.id]);
 
@@ -413,5 +419,6 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     pinsVersion,
     loadPins,
     setPinned,
+    firstUnread,
   };
 }

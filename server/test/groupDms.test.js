@@ -311,10 +311,13 @@ describe('group DMs', () => {
     const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
     const { groupId } = await createGroup(ann, [bea, cal]);
     const sent = (await send(ann, groupId, 'one')).body;
-    await send(ann, groupId, 'two');
+    const second = (await send(ann, groupId, 'two')).body;
     expect((await api.get(bea, '/group-dms')).body.find((g) => g.id === groupId).unread).toBe(2);
-    await api.post(bea, `/group-dms/${groupId}/read`, { messageId: sent.id });
+    // Reading says what was unread from (where the chat's "New" divider goes).
+    expect((await api.post(bea, `/group-dms/${groupId}/read`, { messageId: sent.id })).body.first_unread_id).toBe(sent.id);
     expect((await api.get(bea, '/group-dms')).body.find((g) => g.id === groupId).unread).toBe(1);
+    expect((await api.post(bea, `/group-dms/${groupId}/read`, { latest: true })).body.first_unread_id).toBe(second.id);
+    expect((await api.post(bea, `/group-dms/${groupId}/read`, { latest: true })).body.first_unread_id).toBeNull();
 
     expect((await api.put(bea, `/group-dm-messages/${sent.id}`, { content: 'v2.x' })).status).toBe(403);
     expect((await api.delete(bea, `/group-dm-messages/${sent.id}`)).status).toBe(403);

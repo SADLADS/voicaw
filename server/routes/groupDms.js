@@ -420,17 +420,30 @@ router.delete('/group-dm-reactions/:reactionId', authenticateJWT, async (req, re
 });
 
 // Read up to `messageId`, or with `latest: true` up to the newest message (Mark As Read).
+// `first_unread_id`: the oldest message (that you can read) by someone else that was unread
+// until now (null if none), where the chat's "New" divider goes.
 router.post('/group-dms/:groupId/read', member, async (req, res) => {
   const messageId = req.body?.latest === true
     ? (await db.get('SELECT MAX(id) AS id FROM group_dm_messages WHERE group_id = ?', [req.state.group.id])).id ?? 0
     : Number(req.body?.messageId);
   if (!Number.isInteger(messageId) || messageId < 0) return res.status(400).json({ error: 'Invalid message' });
-  await db.run(
-    `INSERT INTO group_dm_reads (user_id, group_id, last_read_id) VALUES (?, ?, ?)
-     ON CONFLICT(user_id, group_id) DO UPDATE SET last_read_id = MAX(last_read_id, excluded.last_read_id)`,
-    [req.user.id, req.state.group.id, messageId]
-  );
-  res.json({ success: true });
+  const groupId = req.state.group.id;
+  const firstUnreadId = await db.transaction(async () => {
+    const { id } = await db.get(
+      `SELECT MIN(m.id) AS id FROM group_dm_messages m
+       JOIN group_dm_epoch_keys k ON k.group_id = m.group_id AND k.epoch = m.epoch AND k.user_id = ?
+       WHERE m.group_id = ? AND m.sender_id != ?
+         AND m.id > COALESCE((SELECT last_read_id FROM group_dm_reads WHERE user_id = ? AND group_id = ?), 0)`,
+      [req.user.id, groupId, req.user.id, req.user.id, groupId]
+    );
+    await db.run(
+      `INSERT INTO group_dm_reads (user_id, group_id, last_read_id) VALUES (?, ?, ?)
+       ON CONFLICT(user_id, group_id) DO UPDATE SET last_read_id = MAX(last_read_id, excluded.last_read_id)`,
+      [req.user.id, groupId, messageId]
+    );
+    return id ?? null;
+  });
+  res.json({ success: true, first_unread_id: firstUnreadId });
 });
 
 module.exports = router;

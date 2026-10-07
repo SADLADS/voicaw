@@ -261,13 +261,23 @@ async function deleteMessage(dm, id) {
 }
 
 // The person has read `dm` up to message `messageId` (never backwards), or with none (the DM
-// list's Mark As Read) up to its newest.
+// list's Mark As Read) up to its newest. Returns the bot's oldest message that was unread until
+// now (null if none).
 async function markRead(dm, messageId) {
-  const upTo = messageId == null
-    ? (await db.get('SELECT COALESCE(MAX(id), 0) AS id FROM bot_dm_messages WHERE dm_id = ?', [dm.id])).id
-    : Number(messageId) || 0;
-  await db.run('UPDATE bot_dms SET read_id = MAX(read_id, ?) WHERE id = ?', [upTo, dm.id]);
+  const firstUnreadId = await db.transaction(async () => {
+    const upTo = messageId == null
+      ? (await db.get('SELECT COALESCE(MAX(id), 0) AS id FROM bot_dm_messages WHERE dm_id = ?', [dm.id])).id
+      : Number(messageId) || 0;
+    const { id } = await db.get(
+      `SELECT MIN(m.id) AS id FROM bot_dm_messages m JOIN bot_dms d ON d.id = m.dm_id
+       WHERE m.dm_id = ? AND m.id > d.read_id AND m.sender_id != d.user_id`,
+      [dm.id]
+    );
+    await db.run('UPDATE bot_dms SET read_id = MAX(read_id, ?) WHERE id = ?', [upTo, dm.id]);
+    return id ?? null;
+  });
   sendToUserSockets(dm.user_id, { type: 'bot_dm_read', dmId: dm.id });
+  return firstUnreadId;
 }
 
 // Deletes conversations (`where` on bot_dms) and their messages; inside the caller's transaction.

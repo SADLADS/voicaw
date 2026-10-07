@@ -23,6 +23,7 @@ vi.mock('../services/guildService', () => ({
 
 import { useChannel } from './useChannel';
 import { requestDismiss } from '../utils/botComponents';
+import { markChannelRead } from '../services/guildService';
 
 const EPHEMERAL = 2 ** 52 + 1;
 
@@ -33,6 +34,28 @@ async function load() {
 }
 
 beforeEach(() => vi.clearAllMocks());
+
+describe('useChannel', () => {
+  it('keeps where the unread messages started, as reading the channel on opening said', async () => {
+    markChannelRead.mockResolvedValueOnce(2);
+    const { result } = await load();
+    expect(markChannelRead).toHaveBeenCalledWith(5, 2);
+    await waitFor(() => expect(result.current.firstUnread).toEqual({ id: 2 }));
+    // Reading a live message doesn't change it.
+    markChannelRead.mockResolvedValueOnce(3);
+    act(() => emit({ type: 'guild_message_new', guildId: 1, message: { id: 3, channel_id: 5, sender_id: 2, content: 'hi', timestamp: 400 } }));
+    await waitFor(() => expect(markChannelRead).toHaveBeenCalledTimes(2));
+    expect(result.current.firstUnread).toEqual({ id: 2 });
+  });
+
+  it("doesn't for a document's replies (the channel's unread may be under other documents)", async () => {
+    markChannelRead.mockResolvedValueOnce(2);
+    const { result } = renderHook(() => useChannel({ channelId: 5, documentId: 9, user: { id: 1 } }));
+    await waitFor(() => expect(markChannelRead).toHaveBeenCalled());
+    await act(async () => {});
+    expect(result.current.firstUnread).toBeNull();
+  });
+});
 
 describe('useChannel and bots', () => {
   it('puts an ephemeral reply in time order, edits it, and drops it on delete or Dismiss', async () => {

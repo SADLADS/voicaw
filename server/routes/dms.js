@@ -149,9 +149,9 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
     );
     await linkListed('dm', id, uploads, senderId);
     if (!notes) await db.run(
-      `INSERT INTO dm_unread (user_id, from_user_id, count) VALUES (?, ?, 1)
+      `INSERT INTO dm_unread (user_id, from_user_id, count, first_unread_id) VALUES (?, ?, 1, ?)
        ON CONFLICT(user_id, from_user_id) DO UPDATE SET count = count + 1`,
-      [recipientId, senderId]
+      [recipientId, senderId, id]
     );
     return id;
   });
@@ -175,15 +175,21 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
   res.status(201).json(message);
 });
 
+// Marks the conversation read. `first_unread_id`: its oldest message that was unread until
+// now (null if none), where the chat's "New" divider goes.
 router.post('/dm-mark-read/:fromUserId', authenticateJWT, async (req, res) => {
   const fromUserId = parseInt(req.params.fromUserId, 10);
   if (Number.isNaN(fromUserId)) return res.status(400).json({ error: 'Invalid fromUserId' });
-  await db.run('DELETE FROM dm_unread WHERE user_id = ? AND from_user_id = ?', [req.user.id, fromUserId]);
-  res.json({ success: true });
+  const firstUnreadId = await db.transaction(async () => {
+    const row = await db.get('SELECT first_unread_id FROM dm_unread WHERE user_id = ? AND from_user_id = ?', [req.user.id, fromUserId]);
+    await db.run('DELETE FROM dm_unread WHERE user_id = ? AND from_user_id = ?', [req.user.id, fromUserId]);
+    return row?.first_unread_id ?? null;
+  });
+  res.json({ success: true, first_unread_id: firstUnreadId });
 });
 
-// Unread conversations: [{ user_id, from_user_id, count, last_timestamp }], `last_timestamp`
-// being their newest message to you (the rail's DM button shows whoever sent the newest).
+// Unread conversations: [{ user_id, from_user_id, count, first_unread_id, last_timestamp }],
+// `last_timestamp` being their newest message to you (the rail's DM button shows whoever sent the newest).
 router.get('/dm-get-unread', authenticateJWT, async (req, res) => {
   res.json(await db.all(
     `SELECT u.*, (SELECT MAX(m.timestamp) FROM direct_messages m

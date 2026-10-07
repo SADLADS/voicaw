@@ -11,6 +11,7 @@ import PollDialog from './PollDialog';
 import { ChannelMentionContext, ConfigContext, InteractionContext, ThreadContext } from '../contexts';
 import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
 import { useReactions } from '../hooks/useReactions';
+import { useNewDivider } from '../hooks/useNewDivider';
 import { summarizeAttachments } from '../utils/attachmentMarkup';
 import { customEmojiToText } from '../emoji/customEmoji';
 import { mentionsToText } from '../utils/mentions';
@@ -54,7 +55,8 @@ import ReportDialog from './ReportDialog';
 // `focusOnOpen` false keeps the composer from taking the focus when the chat opens.
 // `textOnly` (a bot DM) leaves only text: no files, polls or replies (see Composer).
 // `listHead` is drawn above the first message, scrolling with them (a thread's start); with
-// one, an empty chat shows it instead of `emptyText`.
+// one, an empty chat shows it instead of `emptyText`. `conversation.firstUnread` places the
+// "New" divider (useNewDivider).
 export default function ChatPane({
   chatId,
   chatName,
@@ -97,6 +99,7 @@ export default function ChatPane({
     ? () => threads.createThread(msg)
     : undefined);
   const { messages } = conversation;
+  const newFrom = useNewDivider({ chatId, firstUnread: conversation.firstUnread, isLoading: conversation.isLoading, messages, userId: user?.id });
   // A guild channel or thread (not encrypted, chat id "channel-<id>"): its bots' commands, for
   // the "/" list (Composer) and the message menus' Apps.
   const commandChannelId = !encrypted ? Number(/^channel-(\d+)$/.exec(chatId ?? '')?.[1]) || null : null;
@@ -391,6 +394,7 @@ export default function ChatPane({
             user={user}
             hasMore={conversation.hasMore}
             head={listHead}
+            newFrom={newFrom}
             loadMoreMessages={conversation.loadMoreMessages}
             s3Endpoint={s3Endpoint}
             hoveredMsgId={hoveredMsgId}

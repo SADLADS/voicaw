@@ -88,10 +88,11 @@ router.delete('/bot-dms/:dmId/messages/:messageId', authenticateJWT, ownDm, ownM
   res.json({ success: true });
 });
 
-// Read up to `messageId` (or, without one, up to the newest).
+// Read up to `messageId` (or, without one, up to the newest). `first_unread_id`: the bot's
+// oldest message that was unread until now (null if none), where the chat's "New" divider goes.
 router.post('/bot-dms/:dmId/read', authenticateJWT, ownDm, async (req, res) => {
-  await botDms.markRead(req.dm, req.body?.messageId);
-  res.json({ success: true });
+  const firstUnreadId = await botDms.markRead(req.dm, req.body?.messageId);
+  res.json({ success: true, first_unread_id: firstUnreadId });
 });
 
 // Deletes the whole conversation, for the bot too.

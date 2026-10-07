@@ -183,6 +183,17 @@ async function markRead(userId, channelId, messageId) {
   );
 }
 
+// The oldest message by someone else that's unread for `userId` (null if none).
+async function firstUnread(userId, channelId) {
+  const { id } = await db.get(
+    `SELECT MIN(m.id) AS id FROM guild_messages m
+     WHERE m.channel_id = ? AND m.sender_id != ?
+       AND m.id > COALESCE((SELECT last_read_id FROM guild_channel_reads WHERE user_id = ? AND channel_id = ?), 0)`,
+    [channelId, userId, userId, channelId]
+  );
+  return id ?? null;
+}
+
 // A page of a channel (or of a document's replies, `document`), oldest first: the newest
 // `limit` messages (1–100, default 50), or those before message id `before`.
 router.get('/channels/:channelId/messages', authenticateJWT, requireChatChannel, async (req, res) => {
@@ -578,13 +589,19 @@ router.get('/channels/:channelId/members', authenticateJWT, async (req, res) => 
 
 // Marks the channel read up to `messageId` (never moves backwards), or with `latest: true` up
 // to its newest message (document replies included; the channel list's Mark As Read).
+// `first_unread_id`: the oldest message by someone else that was unread until now (null if
+// none), where the chat's "New" divider goes.
 router.post('/channels/:channelId/read', authenticateJWT, requireReadableChannel, async (req, res) => {
   const messageId = req.body?.latest === true
     ? (await db.get('SELECT MAX(id) AS id FROM guild_messages WHERE channel_id = ?', [req.channel.id])).id ?? 0
     : Number(req.body?.messageId);
   if (!Number.isInteger(messageId) || messageId < 0) return res.status(400).json({ error: 'Invalid messageId' });
-  await markRead(req.user.id, req.channel.id, messageId);
-  res.json({ success: true });
+  const firstUnreadId = await db.transaction(async () => {
+    const first = await firstUnread(req.user.id, req.channel.id);
+    await markRead(req.user.id, req.channel.id, messageId);
+    return first;
+  });
+  res.json({ success: true, first_unread_id: firstUnreadId });
 });
 
 // Unread counts for every channel of the caller's guilds that has any and they can see:

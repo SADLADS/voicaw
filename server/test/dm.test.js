@@ -140,15 +140,16 @@ describe('direct messages', () => {
     const alice = await makeAuthedUser('dm-alice5', 'pw-alice-123');
     const bob = await makeAuthedUser('dm-bob5', 'pw-bob-123');
 
-    await request(app)
+    const first = await request(app)
       .post('/api/dm-send')
       .set(authed(alice.token))
       .send({ recipient_id: bob.id, content: 'hey bob' });
+    await request(app).post('/api/dm-send').set(authed(alice.token)).send({ recipient_id: bob.id, content: 'still there?' });
 
     const unread = await request(app).get('/api/dm-get-unread/').set(authed(bob.token));
     expect(unread.status).toBe(200);
     const entry = unread.body.find(r => r.from_user_id === alice.id);
-    expect(entry.count).toBe(1);
+    expect(entry.count).toBe(2);
     // When their newest message came (the rail's DM button shows whoever sent the newest).
     expect(entry.last_timestamp).toEqual(expect.any(Number));
 
@@ -156,6 +157,9 @@ describe('direct messages', () => {
       .post(`/api/dm-mark-read/${alice.id}`)
       .set(authed(bob.token));
     expect(markRead.status).toBe(200);
+    // What was unread from (where the chat's "New" divider goes); nothing the second time.
+    expect(markRead.body.first_unread_id).toBe(first.body.id);
+    expect((await request(app).post(`/api/dm-mark-read/${alice.id}`).set(authed(bob.token))).body.first_unread_id).toBeNull();
 
     const unreadAfter = await request(app).get('/api/dm-get-unread/').set(authed(bob.token));
     expect(unreadAfter.body.find(r => r.from_user_id === alice.id)).toBeUndefined();

@@ -62,6 +62,41 @@ describe('MessageList', () => {
     expect(screen.getByText('@unknown-user')).toHaveClass('mention');
   });
 
+  it('draws the "New" divider above the first unread message, starting a new group there', () => {
+    const messages = [
+      { id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'read', timestamp: 1000 },
+      { id: 3, sender_id: 2, sender_username: 'bob', plaintext: 'unread', timestamp: 1010 },
+      { id: 4, sender_id: 2, sender_username: 'bob', plaintext: 'also unread', timestamp: 1020 },
+    ];
+    const { container, rerender } = render(<MessageList {...baseProps({ messages, newFrom: 2 })} />);
+    const dividers = container.querySelectorAll('.new-divider');
+    expect(dividers).toHaveLength(1);
+    expect(dividers[0]).toHaveAttribute('aria-label', 'New messages');
+    // Right above "unread", whose row shows its author again although bob sent the one before.
+    const row = screen.getByText('unread').closest('[data-key]');
+    expect(row.querySelector('.new-divider')).toBe(dividers[0]);
+    expect(row.querySelector('.message-author')).toBeTruthy();
+    expect(screen.getByText('also unread').closest('[data-key]').querySelector('.message-author')).toBeNull();
+
+    rerender(<MessageList {...baseProps({ messages })} />);
+    expect(container.querySelector('.new-divider')).toBeNull();
+    // Nothing from there on (deleted meanwhile): no divider.
+    rerender(<MessageList {...baseProps({ messages, newFrom: 9 })} />);
+    expect(container.querySelector('.new-divider')).toBeNull();
+  });
+
+  it('draws one line with the date and "New" where a new day starts at the first unread message', () => {
+    const messages = [
+      { id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'yesterday', timestamp: 1000 },
+      { id: 2, sender_id: 2, sender_username: 'bob', plaintext: 'today', timestamp: 1000 + 2 * 86400 },
+    ];
+    render(<MessageList {...baseProps({ messages, newFrom: 2 })} />);
+    const row = screen.getByText('today').closest('[data-key]');
+    expect(row.querySelector('.day-divider')).toBeNull();
+    expect(row.querySelectorAll('.new-divider')).toHaveLength(1);
+    expect(row.querySelector('.new-divider .new-divider-date')).toBeTruthy();
+  });
+
   it('highlights the message being replied to until the reply is sent or cancelled', () => {
     const messages = [
       { id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'first', timestamp: 1000 },

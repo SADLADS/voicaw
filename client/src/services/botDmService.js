@@ -11,6 +11,8 @@ export const fetchBotDmMessages = async (dmId, params = {}) => (await api.get(`/
 export const sendBotDmMessage = async (dmId, content) => (await api.post(`/bot-dms/${dmId}/messages`, { content })).data;
 export const editBotDmMessage = async (dmId, messageId, content) => (await api.put(`/bot-dms/${dmId}/messages/${messageId}`, { content })).data;
 export const deleteBotDmMessage = (dmId, messageId) => api.delete(`/bot-dms/${dmId}/messages/${messageId}`);
-export const markBotDmRead = (dmId, messageId) => api.post(`/bot-dms/${dmId}/read`, { messageId });
+// Returns the oldest message that was unread until now (null if none: where the "New" divider goes).
+export const markBotDmRead = async (dmId, messageId) =>
+  (await api.post(`/bot-dms/${dmId}/read`, { messageId }))?.data?.first_unread_id ?? null;
 // Deletes the whole conversation, for the bot too.
 export const deleteBotDm = (dmId) => api.delete(`/bot-dms/${dmId}`);

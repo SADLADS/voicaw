@@ -25,9 +25,9 @@ async function insertCallRow(call, outcome, endedAt) {
       [call.callerId, call.calleeId, content, CALL_LOG]
     );
     if (outcome !== 'ended') await db.run(
-      `INSERT INTO dm_unread (user_id, from_user_id, count) VALUES (?, ?, 1)
+      `INSERT INTO dm_unread (user_id, from_user_id, count, first_unread_id) VALUES (?, ?, 1, ?)
        ON CONFLICT(user_id, from_user_id) DO UPDATE SET count = count + 1`,
-      [call.calleeId, call.callerId]
+      [call.calleeId, call.callerId, lastID]
     );
     return lastID;
   }

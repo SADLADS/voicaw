@@ -36,6 +36,9 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
   const [loadedChannelId, setLoadedChannelId] = useState(null);
   // Bumped whenever a message here is pinned or unpinned (the pins list reloads).
   const [pinsVersion, setPinsVersion] = useState(0);
+  // Where the unread messages started when the channel opened ({ id }; useConversation's).
+  // Not for a document's replies: the channel's unread messages may be under other documents.
+  const [firstUnread, setFirstUnread] = useState(null);
 
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -61,10 +64,13 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
     setPinsVersion((n) => n + 1);
   };
 
-  const markRead = async (messageId) => {
+  // `opening`: the read on opening the channel, which says where its unread messages started.
+  const markRead = async (messageId, { opening = false } = {}) => {
     if (!channelId || !Number.isInteger(messageId)) return;
     try {
-      await markChannelRead(channelId, messageId);
+      const requestedFor = chatKey;
+      const first = await markChannelRead(channelId, messageId);
+      if (opening && first != null && documentId == null && activeChannelId.current === requestedFor) setFirstUnread({ id: first });
       onReadRef.current?.();
     } catch (err) {
       console.warn('Failed to mark channel as read', err);
@@ -77,6 +83,7 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
     activeChannelId.current = chatKey;
     loadingOlder.current = false;
     setMessages([]);
+    setFirstUnread(null);
     setHasMore(true);
     setError(null);
     setLoadedChannelId(null);
@@ -96,7 +103,7 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
         setLoadedChannelId(channelId);
         const newest = page[page.length - 1];
         // Marked read even when empty, so the badge goes.
-        markRead(newest ? newest.id : 0);
+        markRead(newest ? newest.id : 0, { opening: true });
       } catch (e) {
         if (cancelled) return;
         console.error('Failed to load channel:', e);
@@ -322,6 +329,7 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
 
   return {
     messages,
+    firstUnread,
     messagesRef,
     hasMore,
     isLoading,

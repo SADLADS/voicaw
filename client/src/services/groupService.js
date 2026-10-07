@@ -59,8 +59,9 @@ export async function removeGroupReaction(reactionId) {
   await api.delete(`/group-dm-reactions/${reactionId}`);
 }
 
+// Returns the oldest message that was unread until now (null if none: where the "New" divider goes).
 export async function markGroupRead(groupId, messageId) {
-  await api.post(`/group-dms/${groupId}/read`, { messageId });
+  return (await api.post(`/group-dms/${groupId}/read`, { messageId }))?.data?.first_unread_id ?? null;
 }
 
 // Marks a group read up to its newest message (Mark As Read in the DM list).

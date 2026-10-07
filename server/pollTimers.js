@@ -109,9 +109,9 @@ async function insertRow(kind, poll) {
     );
     // Unread for the other person, like any message from the poll's author (not in notes).
     if (poll.recipient_id !== poll.sender_id) await db.run(
-      `INSERT INTO dm_unread (user_id, from_user_id, count) VALUES (?, ?, 1)
+      `INSERT INTO dm_unread (user_id, from_user_id, count, first_unread_id) VALUES (?, ?, 1, ?)
        ON CONFLICT(user_id, from_user_id) DO UPDATE SET count = count + 1`,
-      [poll.recipient_id, poll.sender_id]
+      [poll.recipient_id, poll.sender_id, row.lastID]
     );
     return row;
   }
