@@ -17,6 +17,18 @@
       "start": "Share your screen",
       "stop": "Stop sharing your screen"
     },
+    "streamQuality": {
+      "resolution": "Resolution",
+      "frameRate": "Frame rate",
+      "resolutions": {
+        "720": "720p",
+        "1080": "1080p",
+        "source": "Source"
+      },
+      "fps": "{{fps}} fps",
+      "limited": "This server allows streams up to {{resolution}} at {{fps}} fps.",
+      "browserAsks": "Your browser asks what to share next. 15 fps keeps text sharp; 30 and 60 are smoother for games and videos."
+    },
     "stream": {
       "windowTitle": "{{name}}'s screen – Voicaw",
       "ownWindowTitle": "Your stream – Voicaw",

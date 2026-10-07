@@ -112,6 +112,7 @@ try {
     };
   });
   await a.click('.voice-bar button[aria-label="Share your screen"]');
+  await a.click('.go-live-dialog button:has-text("Go Live")'); // the quality dialog first
   await a.waitForSelector('.voice-bar button[aria-label="Stop sharing your screen"]', { timeout: 10000 });
   await videoPlaying(a);
   console.log('alice is sharing and sees her own stream');
@@ -160,6 +161,7 @@ try {
 
   // Bob shares too; then Alice takes Video away from him in this channel: his stream ends.
   await b.click('.voice-bar button[aria-label="Share your screen"]');
+  await b.click('.go-live-dialog button:has-text("Go Live")'); // the quality dialog first
   await a.waitForSelector(live(tile(bob.name)), { timeout: 10000 });
   console.log('bob is sharing too');
   await a.evaluate(async ({ guildId, channelId, bobId }) => {

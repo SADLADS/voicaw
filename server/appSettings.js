@@ -28,6 +28,19 @@ const SETTINGS = {
     choices: ['on', 'off'],
     fallback: 'on',
   },
+  // voice.js joinToken: the most a screen share may send (client/src/voice/streamSettings.js).
+  streamMaxResolution: {
+    label: 'Screen share resolution limit',
+    description: "The highest resolution anyone may share their screen at. Every stream goes through this server's LiveKit to each viewer, so higher means more of the server's bandwidth (1080p at 30 fps is about 4.5 Mbps per viewer). Applies from people's next join.",
+    choices: ['source', '1080', '720'],
+    fallback: 'source',
+  },
+  streamMaxFramerate: {
+    label: 'Screen share frame rate limit',
+    description: 'The highest frame rate anyone may share their screen at. Applies from their next join.',
+    choices: ['60', '30', '15'],
+    fallback: '60',
+  },
 };
 
 const MAX_VALUE_LENGTH = 2000;

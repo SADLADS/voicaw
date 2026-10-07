@@ -9,6 +9,7 @@ import {
   getStreamVolume, getUserVolume, onStreamVolumesChange, onUserVolumesChange, playbackVolume,
 } from './userVolumes';
 import { CAMERA_PUBLISH, cameraOptions, onVideoSettingsChange } from './videoSettings';
+import { getStreamSettings, screenShareOptions } from './streamSettings';
 import { createSpeakingMeters, whoIsSpeaking } from './speaking';
 import { playSound } from '../sounds/sounds';
 import { isMobileDevice } from '../utils/presence';
@@ -84,7 +85,8 @@ function loadPrefs() {
 // `identity`: our own user id (a string) in the room.
 // Screen sharing: `canStream` (Video), `streaming` (yours is live), `streams` (the user ids,
 // strings, sharing in this room, you included), `watching` (whose stream this device shows,
-// or null), `watchingReady` (its video has arrived), `streamError`.
+// or null), `watchingReady` (its video has arrived), `streamError`, `streamLimit` (the
+// server's cap on screen share quality, { resolution, frameRate }; null: none, see streamSettings.js).
 // Cameras: `canCamera` (Video in a channel; always in a call), `cameraOn` (yours), `cameras`
 // (the user ids, strings, whose camera is on in this room, you included), `cameraError`.
 const NOT_IN_VOICE = {
@@ -100,6 +102,7 @@ const NOT_IN_VOICE = {
   watching: null,
   watchingReady: false,
   streamError: null,
+  streamLimit: null,
   cameraOn: false,
   cameras: [],
   cameraError: null,
@@ -653,7 +656,7 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
   });
   try {
     livekit ??= await import('livekit-client');
-    const { url, token, bitrate = DEFAULT_BITRATE } = await getToken();
+    const { url, token, bitrate = DEFAULT_BITRATE, streamLimit = null } = await getToken();
     if (current !== attempt) return;
     const e2ee = e2eeKey ? await e2eeOptions(e2eeKey) : undefined;
     playback = newPlaybackContext();
@@ -688,6 +691,7 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
     applyVolumes();
     update({
       status: 'connected',
+      streamLimit,
       identity: newRoom.localParticipant.identity,
       ...publishRights(newRoom.localParticipant),
       audioBlocked: !newRoom.canPlaybackAudio,
@@ -960,18 +964,20 @@ const SCREEN_AUDIO = { restrictOwnAudio: true };
 // Shares your screen (a voice channel, with Video). Must be called from a click: the browser
 // asks which screen, window or tab, and whether to share its sound (in the desktop app, our
 // picker has asked already: `audio` is its answer). Your own stream is shown at once, like
-// Discord's preview.
+// Discord's preview. At this device's quality (streamSettings.js), within the server's cap.
 export async function startScreenShare({ audio = true } = {}) {
   const current = room;
   if (!current || snapshot.status !== 'connected' || !snapshot.canStream) return;
   update({ streamError: null });
+  const quality = screenShareOptions(getStreamSettings(), snapshot.streamLimit);
   try {
     await current.localParticipant.setScreenShareEnabled(true, {
+      ...quality.capture,
       audio: audio && SCREEN_AUDIO,
       systemAudio: 'include',
       selfBrowserSurface: 'exclude',
       surfaceSwitching: 'include',
-    });
+    }, quality.publish);
     if (room !== current) return;
     update({ watching: current.localParticipant.identity });
     updateStreams();

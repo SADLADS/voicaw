@@ -108,7 +108,7 @@ LiveKit carries the audio.
   client lets go of the capture). Who's live (`self_stream`) comes from LiveKit's
   `track_published` / `track_unpublished` webhooks (screen share tracks of the session that's
   in), so it's what LiveKit really carries. Client: `startScreenShare` (from a click; the
-  browser asks what to share and whether with its sound; LiveKit's default 1080p at 15 fps)
+  browser asks what to share and whether with its sound; at the chosen quality, see Stream quality)
   shows your own stream at once. **A shared screen's sound never carries Voicaw's own** (the
   call's voices, our sounds; like Discord): the sound is asked for with `restrictOwnAudio`
   (Chromium 140+ and the desktop app, Windows and macOS; others ignore it). Chrome does it by
@@ -137,6 +137,29 @@ LiveKit carries the audio.
   leaving voice or the page going (reload, logout) closes it. The desktop app allows exactly
   this window (see Desktop app).
   Bandwidth: the sharer uploads once; LiveKit sends a copy to each viewer.
+- **Stream quality** (like Discord's): the sharer picks a resolution (720p, 1080p, or Source,
+  the screen's own size) and a frame rate (15, 30, 60 fps) before going live: in a browser a
+  small dialog (`voice/GoLiveDialog.jsx`) whose Go Live click then opens the browser's picker,
+  in the desktop app beside its screens (`ScreenPicker`), and as the default in Settings →
+  Voice & video (`StreamQualityPicker`, all three). Remembered per device
+  (`voice/streamSettings.js`, `localStorage streamSettings`); 1080p at 15 fps (what LiveKit sent
+  by default) until changed. `screenShareOptions` turns it into the capture (`getDisplayMedia`
+  width/height `max` keeping the screen's shape, never enlarged; frame rate `max`; passed with
+  `resolution: { width: 0, height: 0 }`, since without a `resolution` LiveKit puts its own
+  1080p30 over ours: that 1080p cap is also why Source was never above 1080p before), a content
+  hint (15 fps `detail`: text stays sharp and the frame rate drops first when the connection
+  is short; 30/60 `motion`: the resolution drops first) and the encoder's `screenShareEncoding`
+  (maxBitrate from a table, 1.5 Mbps for 720p15 to 10 Mbps for Source at 60; maxFramerate).
+  It applies from the next Go Live, not to a running stream. **Simulcast:** LiveKit sends every screen share
+  twice (its default, which we keep): full size and half the width and height at the same frame
+  rate and a quarter of the bitrate (about 25% more upload and encoding for the sharer).
+  LiveKit's server moves a struggling viewer to the small copy on its own; viewers can't pick a
+  copy themselves yet. **Admin limit:** Settings → Admin's Screen share resolution limit and
+  frame rate limit (`appSettings.js` `streamMaxResolution` / `streamMaxFramerate`, no limit by
+  default) come with the join token (`streamLimit`, `voice.js` `joinToken`; so from people's
+  next join); the pickers grey out what's above them and say so, and a choice above goes out
+  at the limit. It's kept by the client: LiveKit can't cap a track's bitrate, so a modified
+  client could send more.
 - **Cameras** (voice channels with Video, like Discord's one permission for both; DM and
   group calls always, `calls.js` `tokenFor` `canCamera`; never bots): your camera goes out as
   LiveKit's `camera` track, captured at 720p 30 fps (`voice/videoSettings.js` `cameraOptions`:
@@ -357,8 +380,8 @@ LiveKit carries the audio.
   native keyboard hook), noise suppression and the gate on the other side (for people whose
   app doesn't, like Discord's "suppress others' noise"), screen share in DM/group calls (LiveKit's E2EE
   would cover the video too), switching between a phone's front and back camera in a call,
-  background blur, a camera spotlight (one camera big, like a watched stream), stream quality
-  settings, and a TURN server for
+  background blur, a camera spotlight (one camera big, like a watched stream), viewers picking
+  a stream's quality (its simulcast copy; see Stream quality), and a TURN server for
   networks that block UDP 7882 and
   TCP 7881; Watch Together: a party surviving an API restart, other sites than YouTube,
   playlists, start times from links (`t=`). Phones: a PWA's audio stops when it's in the background (iOS also when locked; it

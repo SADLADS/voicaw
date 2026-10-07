@@ -92,6 +92,7 @@ try {
   }
   await a.waitForSelector(tile(bob.name));
   await a.click('.voice-bar button[aria-label="Share your screen"]');
+  await a.click('.go-live-dialog button:has-text("Go Live")'); // the quality dialog first
   await a.waitForSelector('.voice-bar button[aria-label="Stop sharing your screen"]', { timeout: 10000 });
   await b.waitForSelector(live(tile(alice.name)), { timeout: 10000 });
   await b.click(`${tile(alice.name)} .voice-tile-watch`);
@@ -186,6 +187,7 @@ try {
 
   // A phone gets no Pop out (a "window" there is just a tab).
   await a.click('.voice-bar button[aria-label="Share your screen"]');
+  await a.click('.go-live-dialog button:has-text("Go Live")'); // the quality dialog first
   await c.goto(`${BASE}/guild/${guildId}/${channelId}`);
   await c.click('.voice-view-join');
   await c.waitForSelector('.voice-view-controls');

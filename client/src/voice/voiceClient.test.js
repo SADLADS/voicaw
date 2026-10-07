@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // LiveKit's: turning it on the first time captures and publishes (which takes a while, here
 // until `capture.resolve()`), and isMicrophoneEnabled is false until that's done.
 const lk = vi.hoisted(() => {
-  const state = { room: null, capture: null, contexts: [] };
+  const state = { room: null, capture: null, contexts: [], permissions: undefined, screenShares: [] };
   const deferred = () => {
     let resolve;
     const promise = new Promise((r) => { resolve = r; });
@@ -47,7 +47,7 @@ const lk = vi.hoisted(() => {
   class LocalParticipant {
     constructor() {
       this.identity = '1';
-      this.permissions = undefined;
+      this.permissions = state.permissions;
       this.mic = null;
       this.pending = null;
       this.isScreenShareEnabled = false;
@@ -74,6 +74,10 @@ const lk = vi.hoisted(() => {
     }
     async unpublishTrack(track) {
       if (track === this.mic) this.mic = null;
+    }
+    async setScreenShareEnabled(enabled, capture, publish) {
+      state.screenShares.push({ enabled, capture, publish });
+      this.isScreenShareEnabled = enabled;
     }
   }
   // LiveKit's remote audio: its volume is a gain it rebuilds now and then (a second element,
@@ -375,5 +379,37 @@ describe('voiceClient channel settings', () => {
     expect(fetchVoiceToken.mock.calls.length).toBe(asked + 1);
     expect(lk.state.room).not.toBe(before);
     expect(voice.getVoiceSnapshot()).toMatchObject({ status: 'connected', channelId: 2 });
+  });
+});
+
+describe('voiceClient screen share quality', () => {
+  beforeEach(async () => {
+    await voice.leaveVoice();
+    lk.state.screenShares = [];
+  });
+
+  it('shares at this device\'s quality, brought down to the server\'s cap', async () => {
+    const { setStreamSettings } = await import('./streamSettings');
+    const { fetchVoiceToken } = await import('../services/voiceService');
+    fetchVoiceToken.mockResolvedValueOnce({ url: 'wss://lk', token: 'token', streamLimit: { resolution: '1080', frameRate: 30 } });
+    lk.state.permissions = { canPublish: true, canPublishSources: [2, 3] };
+    lk.state.capture = lk.deferred();
+    lk.state.capture.resolve();
+    try {
+      await voice.joinVoice(1, 2);
+      await flush();
+      expect(voice.getVoiceSnapshot()).toMatchObject({ canStream: true, streamLimit: { resolution: '1080', frameRate: 30 } });
+      setStreamSettings({ resolution: 'source', frameRate: 60 });
+      await voice.startScreenShare();
+      const [share] = lk.state.screenShares;
+      expect(share.capture).toMatchObject({
+        video: { width: { max: 1920 }, height: { max: 1080 }, frameRate: { ideal: 30, max: 30 } },
+        contentHint: 'motion',
+      });
+      expect(share.publish).toEqual({ screenShareEncoding: { maxBitrate: 4_500_000, maxFramerate: 30 } });
+    } finally {
+      lk.state.permissions = undefined;
+      setStreamSettings({ resolution: '1080', frameRate: 15 });
+    }
   });
 });

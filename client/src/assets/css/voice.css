@@ -814,6 +814,72 @@ body.stream-window {
   font-size: 0.85rem;
 }
 
+/* STREAM QUALITY: resolution and frame rate (the Go Live dialog, the desktop picker, Settings). */
+.vc-dialog.go-live-dialog {
+  max-width: 440px;
+}
+
+.stream-quality {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 12px 0 4px;
+}
+
+.stream-quality > .vc-hint {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.stream-quality-field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.stream-quality-field legend {
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--vc-fg-muted);
+}
+
+.stream-quality-options {
+  display: inline-flex;
+  border: 1px solid var(--vc-border-light);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.stream-quality-option {
+  padding: 5px 12px;
+  border: 0;
+  border-left: 1px solid var(--vc-border-light);
+  background: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  font-size: 0.9rem;
+}
+
+.stream-quality-option:first-child {
+  border-left: 0;
+}
+
+.stream-quality-option:hover:not(:disabled, .selected) {
+  background: var(--vc-bg-elevated-hover);
+}
+
+.stream-quality-option.selected {
+  background: var(--vc-accent);
+  color: var(--vc-on-accent);
+}
+
+.stream-quality-option:disabled {
+  color: var(--vc-placeholder);
+  cursor: not-allowed;
+}
+
 /* USER VOLUME: one person's volume, from clicking them in a voice channel or call. */
 .user-volume-menu {
   width: 260px;

@@ -1,15 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Modal from '../guild/Modal';
 import { desktop } from '../../utils/desktop';
+import { useVoice } from '../../hooks/useVoice';
 import { startScreenShare } from '../../voice/voiceClient';
+import StreamQualityPicker from './StreamQualityPicker';
 import { t } from '../../i18n';
 
 const REFRESH_MS = 4000;
 
 // The desktop app's screen picker (a browser has its own): your screens and windows with
-// live-ish thumbnails, and, where the system can (Windows), whether to share its sound. Go
-// Live tells the app which one (electron/screenShare.js), then starts sharing as usual.
+// live-ish thumbnails, the stream's quality, and, where the system can (Windows), whether to
+// share its sound. Go Live tells the app which one (electron/screenShare.js), then starts sharing as usual.
 export default function ScreenPicker({ onClose }) {
+  const voice = useVoice();
   const [tab, setTab] = useState('screen');
   const [sources, setSources] = useState(null);
   const [canShareSound, setCanShareSound] = useState(false);
@@ -127,6 +130,7 @@ export default function ScreenPicker({ onClose }) {
           ))}
         </ul>
       )}
+      <StreamQualityPicker limit={voice.streamLimit} />
       {desktop?.platform === 'darwin' && (
         <p className="vc-hint screen-picker-note">
           {t('voice.screenPicker.macNote')}

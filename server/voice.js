@@ -185,6 +185,16 @@ const MAX_BITRATE = 384000;
 const DEFAULT_BITRATE = 64000;
 const MAX_USER_LIMIT = 99;
 
+// The most a screen share may send, as the client takes it: { resolution: '720' | '1080' |
+// 'source', frameRate: 15 | 30 | 60 } (Settings → Admin).
+async function streamLimit() {
+  const { getSetting } = require('./appSettings');
+  return {
+    resolution: await getSetting('streamMaxResolution'),
+    frameRate: Number(await getSetting('streamMaxFramerate')),
+  };
+}
+
 // Whether the channel is full for `userId` (its user limit reached by others). Manage Channels
 // joins anyway (as Move Members does in Discord), and so does someone already in it.
 function isFull(channel, userId, permissions) {
@@ -213,8 +223,9 @@ async function joinToken({ channel, userId, username, permissions, selfMute, sel
     canStream: has(permissions, PERMISSIONS.STREAM) && !isBot,
     canListen: has(permissions, PERMISSIONS.LISTEN),
   });
-  // `bitrate`: what the client sends its microphone at.
-  return { ...token, bitrate: channel.bitrate ?? DEFAULT_BITRATE };
+  // `bitrate`: what the client sends its microphone at; `streamLimit`: the most it may share
+  // its screen at (Settings → Admin; kept by the client, not enforced by LiveKit).
+  return { ...token, bitrate: channel.bitrate ?? DEFAULT_BITRATE, streamLimit: await streamLimit() };
 }
 
 function syncAttributes(state) {

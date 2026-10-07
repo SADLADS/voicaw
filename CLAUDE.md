@@ -216,7 +216,10 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   permission as screen sharing, as in Discord), always in DM and group calls (encrypted like
   the audio); a camera is downloaded only while a tile shows it, at that tile's size
   (simulcast). Hearing a voice channel needs Listen (2026-10-05; everyone has it
-  by default), enforced by LiveKit like Speak.
+  by default), enforced by LiveKit like Speak. Stream quality (2026-10-07): the sharer picks
+  resolution and frame rate before going live (Discord's choices, no paid tier); global admins
+  can cap both, kept by the client only (LiveKit can't cap a track's bitrate). Screen shares keep
+  LiveKit's simulcast (a half-size copy); viewers choosing it isn't built yet.
 - **Android app** (built 2026-10-03, see `docs/desktop-and-site.md`): a Capacitor wrapper of the
   client, native (Java) only for notifications, ringing and the ongoing call. Closed-app pushes
   go through Firebase Cloud Messaging (Google; the only reliable way to wake an Android app,

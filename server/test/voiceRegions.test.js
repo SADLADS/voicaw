@@ -142,6 +142,22 @@ describe('voice channel settings', () => {
     ]);
   });
 
+  it('send the admins\' screen share limit with the join token (none by default)', async () => {
+    const { member, guild, lounge } = await setUp();
+    const admin = await makeUser('vr-admin', { admin: true });
+    expect((await join(member, guild, lounge)).body.streamLimit).toEqual({ resolution: 'source', frameRate: 60 });
+    expect((await api.put(member, '/admin/settings/streamMaxResolution', { value: '720' })).status).toBe(403);
+    expect((await api.put(admin, '/admin/settings/streamMaxResolution', { value: '4k' })).status).toBe(400);
+    expect((await api.put(admin, '/admin/settings/streamMaxResolution', { value: '1080' })).status).toBe(200);
+    expect((await api.put(admin, '/admin/settings/streamMaxFramerate', { value: '30' })).status).toBe(200);
+    try {
+      expect((await join(member, guild, lounge)).body.streamLimit).toEqual({ resolution: '1080', frameRate: 30 });
+    } finally {
+      await api.put(admin, '/admin/settings/streamMaxResolution', { value: null });
+      await api.put(admin, '/admin/settings/streamMaxFramerate', { value: null });
+    }
+  });
+
   it('turn people away once the user limit is reached, except those with Manage Channels', async () => {
     const { owner, member, guild, lounge } = await setUp();
     const third = await makeUser('vr-third');

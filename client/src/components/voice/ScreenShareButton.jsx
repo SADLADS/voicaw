@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDisplay } from '@fortawesome/free-solid-svg-icons';
 import { useVoice } from '../../hooks/useVoice';
-import { canShareScreen, startScreenShare, stopScreenShare } from '../../voice/voiceClient';
+import { canShareScreen, stopScreenShare } from '../../voice/voiceClient';
 import { isDesktopApp } from '../../utils/desktop';
 import ScreenPicker from './ScreenPicker';
+import GoLiveDialog from './GoLiveDialog';
 import { t } from '../../i18n';
 
 // Share your screen / stop sharing, while you're in a voice channel with Video. Not on phones
-// (their browsers can't share a screen). A browser asks what to share itself; the desktop app
-// shows our picker first.
+// (their browsers can't share a screen). Both ask for the stream's quality first: in a browser
+// a small dialog (then the browser asks what to share), in the desktop app our picker.
 export default function ScreenShareButton({ className = 'user-panel-button' }) {
   const voice = useVoice();
   const [picking, setPicking] = useState(false);
@@ -18,8 +19,7 @@ export default function ScreenShareButton({ className = 'user-panel-button' }) {
   const label = voice.streaming ? t('voice.screenShare.stop') : t('voice.screenShare.start');
   const onClick = () => {
     if (voice.streaming) stopScreenShare();
-    else if (isDesktopApp()) setPicking(true);
-    else startScreenShare();
+    else setPicking(true);
   };
   return (
     <>
@@ -33,7 +33,9 @@ export default function ScreenShareButton({ className = 'user-panel-button' }) {
       >
         <FontAwesomeIcon icon={faDisplay} fixedWidth />
       </button>
-      {picking && available && <ScreenPicker onClose={() => setPicking(false)} />}
+      {picking && available && (isDesktopApp()
+        ? <ScreenPicker onClose={() => setPicking(false)} />
+        : <GoLiveDialog onClose={() => setPicking(false)} />)}
     </>
   );
 }

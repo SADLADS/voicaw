@@ -11,6 +11,8 @@ const bridge = vi.hoisted(() => ({
 vi.mock('../../utils/desktop', () => ({ desktop: bridge, isDesktopApp: () => true }));
 const start = vi.hoisted(() => vi.fn());
 vi.mock('../../voice/voiceClient', () => ({ startScreenShare: start }));
+const voiceState = vi.hoisted(() => ({ streamLimit: null }));
+vi.mock('../../hooks/useVoice', () => ({ useVoice: () => voiceState }));
 
 import ScreenPicker from './ScreenPicker';
 
@@ -53,5 +55,24 @@ describe('ScreenPicker', () => {
     await screen.findByText('That one has gone. Pick again.');
     expect(start).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('picks the stream\'s quality, greying out what the server doesn\'t allow', async () => {
+    const { getStreamSettings, setStreamSettings } = await import('../../voice/streamSettings');
+    voiceState.streamLimit = { resolution: '1080', frameRate: 30 };
+    try {
+      render(<ScreenPicker onClose={vi.fn()} />);
+      await screen.findByRole('option', { name: /Entire screen/ });
+      expect(screen.getByRole('radio', { name: 'Source' }).disabled).toBe(true);
+      expect(screen.getByRole('radio', { name: '60 fps' }).disabled).toBe(true);
+      expect(screen.getByText('This server allows streams up to 1080p at 30 fps.')).toBeTruthy();
+      fireEvent.click(screen.getByRole('radio', { name: '720p' }));
+      fireEvent.click(screen.getByRole('radio', { name: '30 fps' }));
+      expect(getStreamSettings()).toEqual({ resolution: '720', frameRate: 30 });
+      expect(screen.getByRole('radio', { name: '720p' }).getAttribute('aria-checked')).toBe('true');
+    } finally {
+      voiceState.streamLimit = null;
+      setStreamSettings({ resolution: '1080', frameRate: 15 });
+    }
   });
 });

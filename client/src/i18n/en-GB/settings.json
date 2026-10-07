@@ -164,10 +164,24 @@
       "makeAdmin": "Make admin",
       "useDefault": "Use default",
       "choices": {
+        "linkPreviews": {
+          "on": "On",
+          "off": "Off"
+        },
         "signupMode": {
           "open": "Open: anyone can sign up",
           "invite": "Invite only",
           "request": "Request: admins approve new accounts"
+        },
+        "streamMaxResolution": {
+          "source": "Source (no limit)",
+          "1080": "1080p",
+          "720": "720p"
+        },
+        "streamMaxFramerate": {
+          "60": "60 fps (no limit)",
+          "30": "30 fps",
+          "15": "15 fps"
         }
       },
       "requests": {
@@ -554,7 +568,9 @@
       "cameraBlocked": "Camera access is blocked. Allow it to test.",
       "noCamera": "No camera found.",
       "cameraFailed": "Could not use the camera.",
-      "cameraNamesHidden": "Your browser hides camera names until Voicaw may use the camera. Test camera shows them."
+      "cameraNamesHidden": "Your browser hides camera names until Voicaw may use the camera. Test camera shows them.",
+      "screenShare": "Screen share",
+      "screenShareHint": "How your screen goes out when you share it (you can change it each time you go live). Source is your screen's own size. Higher quality needs a faster upload, and the server sends every viewer the whole stream."
     },
     "profile": {
       "onlyImages": "Only image files are allowed.",

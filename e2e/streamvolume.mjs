@@ -162,6 +162,7 @@ try {
     };
   });
   await a.click('.voice-bar button[aria-label="Share your screen"]');
+  await a.click('.go-live-dialog button:has-text("Go Live")'); // the quality dialog first
   await a.waitForSelector('.voice-bar button[aria-label="Stop sharing your screen"]', { timeout: 10000 });
   await videoPlaying(a);
   check(!(await a.$('.stream-view .stream-volume')), "Alice's own stream has no volume");

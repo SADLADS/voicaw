@@ -3,8 +3,9 @@ import {
   canChooseInput, canChooseOutput, listAudioDevices, onDeviceChange, resetAudioSettings, setAudioSettings, useAudioSettings,
 } from '../voice/audioSettings';
 import { startMicTest } from '../voice/micTest';
-import { setMicTesting } from '../voice/voiceClient';
+import { canShareScreen, setMicTesting } from '../voice/voiceClient';
 import CameraSettings from './CameraSettings';
+import StreamQualityPicker from './voice/StreamQualityPicker';
 import { ALWAYS_OPEN_DB } from '../voice/noise/gate';
 import {
   canSuppressNoise, canSuppressStrongly, isDeepFilterSlow, onDeepFilterSlow,
@@ -274,6 +275,13 @@ export default function VoiceSettings() {
         </label>
       ))}
       <CameraSettings />
+      {canShareScreen() && (
+        <>
+          <h6 className="voice-settings-heading">{t('settings.voice.screenShare')}</h6>
+          <StreamQualityPicker />
+          <p className="vc-hint">{t('settings.voice.screenShareHint')}</p>
+        </>
+      )}
       <div className="voice-settings-footer">
         <span className="vc-hint">{t('settings.savedOnDevice')}</span>
         <button type="button" className="btn btn-link btn-sm" onClick={resetAudioSettings}>{t('settings.voice.reset')}</button>
