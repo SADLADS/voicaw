@@ -150,7 +150,7 @@ function CustomEmojiButton({ emoji, s3Endpoint, onPick, onHover, keepFocus }) {
 // the Unicode emoji, or `<:name:id>` for a custom one; shift+click picks without closing.
 // The custom emoji of each of your guilds come after Frequently Used and before the standard
 // categories, in your guild rail order, with the guild's icon in the category bar.
-// `autoFocus` focuses the search box on open.
+// `autoFocus` focuses the search box on open, and again on switching tab (Emoji / GIFs).
 //
 // With `onGif` (the message box, when the server has GIFs set up) there's a GIFs tab too
 // (GifPicker, from Klipy, sharing the search box): picking one calls `onGif(gif)` and closes.
@@ -270,6 +270,8 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
     setTabState(value);
     setQuery('');
     try { localStorage.setItem(TAB_KEY, value); } catch { /* private mode */ }
+    // Clicking the tab took focus from the search box: give it back, ready to type.
+    if (autoFocus && !docked) searchRef.current?.focus();
   };
 
   const pickGif = (gif) => {

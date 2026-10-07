@@ -70,6 +70,18 @@ describe('GIFs tab', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('focuses the search box on switching tab', () => {
+    renderPicker();
+    const tab = screen.getByRole('tab', { name: 'GIFs' });
+    tab.focus();
+    fireEvent.click(tab);
+    expect(screen.getByRole('searchbox', { name: 'Search GIFs' })).toHaveFocus();
+    const emojiTab = screen.getByRole('tab', { name: 'Emoji' });
+    emojiTab.focus();
+    fireEvent.click(emojiTab);
+    expect(screen.getByRole('searchbox', { name: 'Search emoji' })).toHaveFocus();
+  });
+
   it('searches with the shared search box', async () => {
     renderPicker();
     fireEvent.click(screen.getByRole('tab', { name: 'GIFs' }));

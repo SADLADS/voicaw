@@ -65,7 +65,8 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   replies (the document has it) and not for a channel with a thread open beside it (the thread
   has it): `ChatPane`'s `focusOnOpen`. `e2e/focus.mjs` checks it.
 - Composer (`Composer.jsx`): `EmojiPicker` (search, categories, frequently used and skin tone, both in
-  localStorage via `emojiUsage.js`), `:sm` autocomplete (`EmojiSuggestions`), and a completed
+  localStorage via `emojiUsage.js`; on a computer its search box is focused on opening and on
+  switching between the Emoji and GIFs tabs), `:sm` autocomplete (`EmojiSuggestions`), and a completed
   `:shortcode:` turns into the emoji as you type. `remark-emoji` still renders any leftover
   `:shortcode:` text.
 - Mobile: the picker is `docked` in the on-screen keyboard's place, at its height
