@@ -18,6 +18,7 @@ const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 //   member_role_update { added: [{ id, name }], removed } (target: the member)
 //   member_kick, member_ban_add, member_ban_remove (target: the user)
 //   invite_create { code, maxAge, maxUses }, invite_delete { code }
+//   vanity_update { before, after } (the vanity invite's code; null: none)
 //   emoji_create / emoji_delete { name }, emoji_update { changes }
 //   webhook_create / webhook_delete { name, channelName }, webhook_update { name, changes }
 //   message_delete { messageId, sentAt, channelName, webhookName? } (target: the author)

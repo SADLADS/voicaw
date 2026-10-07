@@ -245,6 +245,62 @@ describe('guild members, invites and bans', () => {
   });
 });
 
+describe('vanity invites', () => {
+  it('lets only the owner set one, which never runs out and counts its uses', async () => {
+    const { owner, member, guild } = await guildWithMember();
+    expect((await api.get(member, `/guilds/${guild.id}/vanity-url`)).body).toEqual({ code: null, uses: 0 });
+    expect((await api.put(member, `/guilds/${guild.id}/vanity-url`, { code: 'mine' })).status).toBe(403);
+
+    const set = await api.put(owner, `/guilds/${guild.id}/vanity-url`, { code: ' Cool-Guild ' });
+    expect(set.status).toBe(200);
+    expect(set.body).toEqual({ code: 'cool-guild', uses: 0 });
+
+    // Any case, any number of people; banned people still can't.
+    const outsider = await makeUser();
+    const preview = await api.get(outsider, '/invites/COOL-guild');
+    expect(preview.status).toBe(200);
+    expect(preview.body).toMatchObject({ code: 'cool-guild', guild_id: guild.id, creator_username: null, member_count: 2, is_member: false });
+    for (let i = 0; i < 3; i++) expect((await api.post(await makeUser(), '/invites/cool-guild')).status).toBe(201);
+    expect((await api.post(member, '/invites/cool-guild')).status).toBe(200);
+    expect((await api.get(member, `/guilds/${guild.id}/vanity-url`)).body).toEqual({ code: 'cool-guild', uses: 3 });
+    expect((await api.put(owner, `/guilds/${guild.id}/bans/${outsider.id}`)).status).toBe(200);
+    expect((await api.post(outsider, '/invites/cool-guild')).status).toBe(403);
+
+    // It isn't an ordinary invite: not listed, not revocable that way.
+    expect((await api.get(owner, `/guilds/${guild.id}/invites`)).body.map((i) => i.code)).not.toContain('cool-guild');
+    expect((await api.delete(owner, '/invites/cool-guild')).status).toBe(404);
+
+    // Removing it frees the code for another guild.
+    expect((await api.put(owner, `/guilds/${guild.id}/vanity-url`, { code: null })).body).toEqual({ code: null, uses: 0 });
+    expect((await api.get(outsider, '/invites/cool-guild')).status).toBe(404);
+    const otherOwner = await makeUser();
+    const other = await createGuild(otherOwner, 'Other');
+    expect((await api.put(otherOwner, `/guilds/${other.id}/vanity-url`, { code: 'cool-guild' })).status).toBe(200);
+
+    const log = await api.get(owner, `/guilds/${guild.id}/audit-log`);
+    expect(log.body.entries.filter((e) => e.action === 'vanity_update').map((e) => e.details)).toEqual([
+      { before: 'cool-guild', after: null },
+      { before: null, after: 'cool-guild' },
+    ]);
+  });
+
+  it('refuses bad and taken codes', async () => {
+    const owner = await makeUser();
+    const guild = await createGuild(owner);
+    for (const code of ['ab', '-abc', 'abc-', 'has space', 'a'.repeat(33), 'émoji', 42]) {
+      expect((await api.put(owner, `/guilds/${guild.id}/vanity-url`, { code })).status).toBe(400);
+    }
+    const taker = await makeUser();
+    const taken = await createGuild(taker);
+    expect((await api.put(taker, `/guilds/${taken.id}/vanity-url`, { code: 'taken' })).status).toBe(200);
+    expect((await api.put(owner, `/guilds/${guild.id}/vanity-url`, { code: 'TAKEN' })).status).toBe(409);
+
+    // An ordinary invite's code, in any case, is taken too.
+    const invite = await api.post(owner, `/guilds/${guild.id}/invites`);
+    expect((await api.put(owner, `/guilds/${guild.id}/vanity-url`, { code: invite.body.code.toLowerCase() })).status).toBe(409);
+  });
+});
+
 describe('guild channels and categories', () => {
   it('creates channels (Discord-style names) and categories, owner only', async () => {
     const { owner, member, guild } = await guildWithMember();

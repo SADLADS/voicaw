@@ -1305,6 +1305,30 @@ img.guild-icon {
   font-family: monospace;
 }
 
+/* Guild Settings → Invites: the vanity URL above the list. */
+.guild-vanity {
+  margin-bottom: 20px;
+}
+
+.vc-form label.guild-vanity-prefix {
+  color: var(--vc-fg-muted);
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: normal;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.guild-vanity-link {
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.guild-vanity-link .guild-settings-code {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
 .guild-settings-danger h6 {
   color: var(--vc-danger-text);
 }

@@ -15,7 +15,7 @@ export function inviteCodeFromUrl(link) {
     return null;
   }
   if (!/^https?:$/.test(url.protocol) || !isVoicawHost(url.host)) return null;
-  return /^\/invite\/([A-Za-z0-9]{1,32})\/?$/.exec(url.pathname)?.[1] ?? null;
+  return /^\/invite\/([A-Za-z0-9-]{1,32})\/?$/.exec(url.pathname)?.[1] ?? null;
 }
 
 // The guild and event of an event link ("https://app.voicaw.com/guild/12?event=34", as

@@ -312,7 +312,7 @@ function guildObject(guild, { roles, emojis }) {
     rules_channel_id: null,
     max_presences: null,
     max_members: 500000,
-    vanity_url_code: null,
+    vanity_url_code: guild.vanity_code ?? null,
     description: null,
     banner: null,
     premium_tier: 0,

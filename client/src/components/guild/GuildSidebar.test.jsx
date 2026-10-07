@@ -6,6 +6,7 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 vi.mock('../../services/guildService', () => ({
   leaveGuild: vi.fn(async () => {}),
   createInvite: vi.fn(async () => ({ code: 'abc12345', expires_at: null, max_uses: null })),
+  fetchVanityInvite: vi.fn(async () => ({ code: null, uses: 0 })),
   muteChannel: vi.fn(async (channelId, duration) => ({
     guildId: 5, channelId, muted: true, until: duration == null ? null : Math.floor(Date.now() / 1000) + duration,
   })),

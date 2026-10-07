@@ -127,7 +127,8 @@
       <div class="table"><table class="endpoints">
         <tr><th>Endpoint</th><th>Needs</th><th>Notes</th></tr>
         <tr><td><span class="method post">POST</span> <code>/channels/{channel}/invites</code></td><td>Create Invite</td><td><code>max_age</code> in seconds (default a day, up to 30 days, 0 for none), <code>max_uses</code> (up to 1000, 0 for any). Voicaw's invites are to the guild: the channel is only given back. The link is <code>{{APP_URL}}/invite/{code}</code>.</td></tr>
-        <tr><td><span class="method get">GET</span> <code>/guilds/{guild}/invites</code></td><td>Manage Guild</td><td>Invites that still work.</td></tr>
+        <tr><td><span class="method get">GET</span> <code>/guilds/{guild}/invites</code></td><td>Manage Guild</td><td>Invites that still work (not the vanity URL).</td></tr>
+        <tr><td><span class="method get">GET</span> <code>/guilds/{guild}/vanity-url</code></td><td>Manage Guild</td><td><code>{ code, uses }</code>; <code>code</code> is null when there's none. Only the guild's owner sets it, in the app. Also the guild's <code>vanity_url_code</code>.</td></tr>
       </table></div>
 
       <h2 id="scheduled-events">Scheduled events</h2>
