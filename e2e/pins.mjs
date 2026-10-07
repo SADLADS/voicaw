@@ -3,7 +3,7 @@
 // guild only with Pin Messages; in a group DM; on a phone (long press, full-screen list).
 //   node e2e/serve.mjs &   then   node e2e/pins.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
-import { launchChrome, signUp, openChat, send, BASE, devices } from './helpers.mjs';
+import { launchChrome, signUp, openChat, send, BASE, devices, makeFriends } from './helpers.mjs';
 
 const dir = process.argv[2];
 if (dir) mkdirSync(dir, { recursive: true });
@@ -61,6 +61,8 @@ try {
   const alice = await signUp(browser, 'alice');
   const bob = await signUp(browser, 'bob');
   const carol = await signUp(browser, 'carol', devices['Pixel 7']);
+  // Groups are made from friends.
+  await makeFriends(alice, bob, carol);
   const a = alice.page;
   const b = bob.page;
   const c = carol.page;

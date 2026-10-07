@@ -546,6 +546,31 @@ CREATE TABLE IF NOT EXISTS webhook_blocks (
 CREATE INDEX IF NOT EXISTS webhook_blocks_webhook ON webhook_blocks (webhook_id);
 `);
 
+// Bots' users rows (see BOTS below), here since migration 14 needs the column.
+addColumn('ALTER TABLE users ADD COLUMN bot INTEGER NOT NULL DEFAULT 0');
+
+// Friends (friends.js): `friends` holds each friendship twice, once from each side (user_id is
+// friends with friend_id, since created_at); `friend_requests` those waiting for an answer.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS friends (
+  user_id INTEGER NOT NULL,
+  friend_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, friend_id),
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (friend_id) REFERENCES users(id)
+);
+CREATE TABLE IF NOT EXISTS friend_requests (
+  from_id INTEGER NOT NULL,
+  to_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (from_id, to_id),
+  FOREIGN KEY (from_id) REFERENCES users(id),
+  FOREIGN KEY (to_id) REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS friend_requests_to ON friend_requests (to_id);
+`);
+
 // Reports (reports.js), for the global admins (Settings → Admin → Reports). `kind` 'message' or
 // 'user'; `place` 'dm', 'group' or 'guild' with the ids that say where. A guild message is kept
 // as it was (`content`, the server has it anyway); an encrypted one only if the reporter chose to
@@ -864,6 +889,18 @@ function linkExistingGuildUploads() {
   }
 }
 
+// Makes every person with an account friends with every other (migration 14). Not bots,
+// accounts waiting for approval, deleted ones, or people who've blocked each other.
+function befriendEveryone() {
+  sqlite.exec(`
+    INSERT OR IGNORE INTO friends (user_id, friend_id, created_at)
+    SELECT a.id, b.id, strftime('%s','now') FROM users a JOIN users b ON a.id != b.id
+    WHERE a.bot = 0 AND b.bot = 0 AND a.pending = 0 AND b.pending = 0
+      AND a.deleted_at IS NULL AND b.deleted_at IS NULL
+      AND NOT EXISTS (SELECT 1 FROM user_blocks ub
+        WHERE (ub.blocker_id = a.id AND ub.blocked_id = b.id) OR (ub.blocker_id = b.id AND ub.blocked_id = a.id))`);
+}
+
 // Changes to existing data that must happen once, numbered in SQLite's user_version (add the
 // next one at the end; each runs in its own transaction with its version bump):
 const MIGRATIONS = [
@@ -923,6 +960,9 @@ const MIGRATIONS = [
   // 13. Scheduled events: @everyone gets Create Events, as in new guilds (Manage Events isn't a
   // default).
   () => sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.CREATE_EVENTS} WHERE is_everyone = 1`),
+  // 14. Friends are new (the DM list used to show everyone): everyone with an account is made
+  // friends with everyone else, so nobody's list changes.
+  () => befriendEveryone(),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');
@@ -970,7 +1010,7 @@ CREATE INDEX IF NOT EXISTS guild_thread_members_user ON guild_thread_members (us
 // id is the application's id, as in Discord. Its token is shown once; only its SHA-256 is kept.
 // A bot added to a guild is a member with its own role (`guild_roles.bot_id`), holding the
 // permissions it was added with; that role can't be deleted or given to anyone else.
-addColumn('ALTER TABLE users ADD COLUMN bot INTEGER NOT NULL DEFAULT 0');
+// (users.bot is added before the migrations, which use it.)
 addColumn('ALTER TABLE guild_roles ADD COLUMN bot_id INTEGER');
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS bot_applications (
@@ -1250,4 +1290,4 @@ async function indexGuildMessage(id) {
   await uploads.linkUploads('guild', row.id, uploads.guildMessageKeys(row));
 }
 
-module.exports = { db: sqlite, get, all, run, transaction, indexGuildMessage, lowercaseUsernames };
+module.exports = { db: sqlite, get, all, run, transaction, indexGuildMessage, lowercaseUsernames, befriendEveryone };

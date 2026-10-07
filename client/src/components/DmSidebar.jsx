@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBellSlash, faNoteSticky, faThumbtack, faUserGroup } from '@fortawesome/free-solid-svg-icons';
+import { faBellSlash, faNoteSticky, faThumbtack, faUserGroup, faUserFriends } from '@fortawesome/free-solid-svg-icons';
 import { showContent } from '../utils/mobilePanes';
 import { InteractionContext, LayoutContext } from '../contexts';
 import { useLongPress } from '../hooks/useLongPress';
@@ -13,14 +13,17 @@ import StatusIcon from './StatusIcon';
 import NewGroupDialog from './group/NewGroupDialog';
 import { displayName, getProfile, nameOf, useProfiles } from '../utils/profiles';
 import Avatar from './Avatar';
+import { useFriends, visibleInDmList } from '../utils/friends';
 import { t } from '../i18n';
 
 // The conversation list: people, group DMs and conversations with bots (`botDms`, tagged BOT;
 // not end-to-end encrypted, see BotDm), most recent first. `unreadDms`
 // ([{ from_user_id, count }], from Layout) and each group's `unread` mark conversations with
 // unread messages, except the one being viewed. The header's button makes a new group.
-// Your notes (a DM to yourself) come first under the header, with a line between them and
-// the conversations; they don't scroll with the list. Right-clicking a conversation (touch and
+// People are your friends and whoever you have a conversation with (utils/friends.js), not
+// everyone. Friends (the Friends page, with how many requests are waiting) and your notes (a DM
+// to yourself) come first under the header, with a line between them and the conversations;
+// they don't scroll with the list. Right-clicking a conversation (touch and
 // hold on a phone) opens its menu (DmMenu: read, call, pin, mute); pinned ones come first, in
 // the order they were pinned, and muted ones are dimmed, with no unread dot.
 export default function DmSidebar({ user, users, groups = [], botDms = [], unreadDms = [] }) {
@@ -28,7 +31,11 @@ export default function DmSidebar({ user, users, groups = [], botDms = [], unrea
   const { id: activeId, groupId: activeGroupId, dmId: activeBotDmId } = useParams();
   const { isMobile } = useContext(InteractionContext);
   const { conversationSettings, groupList } = useContext(LayoutContext) ?? {};
-  const notesActive = useLocation().pathname === '/dm/notes';
+  const { pathname } = useLocation();
+  const notesActive = pathname === '/dm/notes';
+  const friendsActive = pathname === '/dm/friends';
+  const friends = useFriends();
+  const people = users.filter((person) => visibleInDmList(friends, person, activeId));
   const presenceOf = usePresence();
   const [newGroup, setNewGroup] = useState(false);
   // { person | group, anchor } while a conversation's menu is open.
@@ -43,7 +50,7 @@ export default function DmSidebar({ user, users, groups = [], botDms = [], unrea
   const byTime = [...groups.map((group) => ({ group, at: group.last_timestamp })), ...botDms.map((botDm) => ({ botDm, at: botDm.last_timestamp }))]
     .sort((a, b) => b.at - a.at);
   let g = 0;
-  for (const person of users) {
+  for (const person of people) {
     while (g < byTime.length && byTime[g].at >= (person.last_timestamp ?? 0)) all.push(byTime[g++]);
     all.push({ person });
   }
@@ -98,6 +105,13 @@ export default function DmSidebar({ user, users, groups = [], botDms = [], unrea
         </button>
       </h4>
       <div className="dm-notes-link-wrap">
+        <Link to="/dm/friends" replace={isMobile} onClick={showContent} className={`dm-user dm-friends-link ${friendsActive ? 'active' : ''}`}>
+          <span className="dm-notes-icon"><FontAwesomeIcon icon={faUserFriends} /></span>
+          <span className="dm-user-name">{t('friends.title')}</span>
+          {friends.incoming.length > 0 && (
+            <span className="friends-badge" title={t('friends.tabs.pending')}>{friends.incoming.length}</span>
+          )}
+        </Link>
         <Link to="/dm/notes" replace={isMobile} onClick={showContent} className={`dm-user dm-notes-link ${notesActive ? 'active' : ''}`}>
           <span className="dm-notes-icon"><FontAwesomeIcon icon={faNoteSticky} /></span>
           <span className="dm-user-name">{t('chat.notes.title')}</span>
@@ -190,7 +204,7 @@ export default function DmSidebar({ user, users, groups = [], botDms = [], unrea
           );
         })}
       </div>
-      {newGroup && <NewGroupDialog user={user} users={users} onCreated={groupList?.upsert} onClose={() => setNewGroup(false)} />}
+      {newGroup && <NewGroupDialog user={user} users={users.filter((u) => friends.friends.has(Number(u.id)))} onCreated={groupList?.upsert} onClose={() => setNewGroup(false)} />}
       {menu && (
         <DmMenu
           person={menu.person}

@@ -75,6 +75,9 @@ try {
   await p.fill('input[placeholder="Password"]', alice.password);
   await p.keyboard.press('Enter');
   await p.waitForSelector('.dm-notes-link', { timeout: 15000 });
+  // A fresh start shows the chat on top (useSwipePanes): back to the list.
+  await p.tap('#dm-main .pane-back-button');
+  await p.waitForTimeout(800);
   await shot(p, 'notes-phone-list');
   await p.click('.dm-notes-link');
   await p.waitForSelector('.dm-message >> text=milk', { timeout: 15000 });

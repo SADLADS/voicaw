@@ -3,7 +3,7 @@
 // keyboard), and not while another text box has the focus.
 //   node e2e/serve.mjs &   then   node e2e/focus.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
-import { launchChrome, signUp, openChat, BASE, devices } from './helpers.mjs';
+import { launchChrome, signUp, openChat, BASE, devices, makeFriends } from './helpers.mjs';
 
 const dir = process.argv[2];
 if (dir) mkdirSync(dir, { recursive: true });
@@ -36,6 +36,8 @@ try {
   const bob = await signUp(browser, 'bob');
   const carol = await signUp(browser, 'carol');
   const dave = await signUp(browser, 'dave', { ...devices['Pixel 7'] });
+  // In each other's DM list (it shows friends and conversations).
+  await makeFriends(alice, bob, carol, dave);
   const a = alice.page;
 
   // A DM opened by its link, then another from the list: typing goes straight in.

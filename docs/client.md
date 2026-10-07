@@ -459,6 +459,40 @@ server refuses anything else. Add new app-wide keys to `SETTINGS` and read them 
 `getSetting` rather than from `config.js`. The panel also lists sign-up requests and app invites
 (see Sign-ups in `docs/auth-and-encryption.md`).
 
+## Friends
+
+Built 2026-10-07, as Discord's. The DM list shows your friends and whoever you have a
+conversation with (and the conversation open now), not everyone; friends are made by a request
+the other person accepts.
+- **Server** (`server/friends.js`, `routes/friends.js`): `friends` holds a friendship twice, once
+  from each side; `friend_requests` those waiting. `GET /friends` → `{ friends: [{ id, since }],
+  incoming, outgoing: [{ id, created_at }], admin }`; `PUT /friends/:id` asks (or accepts their
+  request: asking someone who asked you makes you friends), `POST /friends { username }` the same
+  by username, `DELETE /friends/:id` removes a friend, declines or cancels. Each answers with your
+  lists plus `{ id, result }` ('requested', 'accepted', 'friends', 'removed', 'none'), and both
+  people's devices get the `friends` event with their own lists. Bots, accounts waiting for
+  approval and deleted accounts can't be friends (404); blocking either way (403 `code:
+  'blocked'`, not saying who) stops requests, and blocking someone ends the friendship and any
+  request (`routes/blocks.js`). Deleting an account deletes its friends and requests. Migration
+  14 made every account at the time friends with every other (not bots, pending, deleted or
+  blocked pairs), so nobody's list changed. No pushes for requests yet: the count in the app only.
+- **Not a privacy boundary**: `/dms-list` still returns everyone (it's the app's directory:
+  names, pictures and contact keys for guilds, calls and mentions; "Everyone sees everyone" in
+  CLAUDE.md), and being friends isn't needed to DM someone (people meet in guilds, as in
+  Discord). Friends only decide who's listed, and who can be put in a group DM (`NewGroupDialog`,
+  `GroupMembers`' Add: friends only, in the app).
+- **Client**: `utils/friends.js` (the store: `useFriends`, `addFriend`, `addFriendByName`,
+  `removeFriend`, `relationOf`, `visibleInDmList`), kept by `hooks/useFriendsSync.js` in Layout.
+  `DmSidebar` filters people with `visibleInDmList` and has a Friends row above Notes with how many
+  requests wait (they also light the rail's DM button). A non-friend's first DM adds them to the
+  list live (Layout marks `last_timestamp` on `new_dm`). Landing on `/dm` opens your latest
+  conversation, or `/dm/friends` if you have none. `Friends.jsx` (`/dm/friends`): tabs Online, All,
+  Pending (opens there when someone's asked), Add friend (by username), and for admins Everyone
+  (every account, as the DM list used to be); a row opens the DM. `FriendButton.jsx` on profile
+  cards (inside `UserSafetyActions`): Add friend / Request sent (click cancels) / Accept friend
+  request / Remove friend (asks). e2e: `e2e/friends.mjs`; `makeFriends` in `e2e/helpers.mjs` for
+  scripts that need people in each other's list.
+
 ## Blocking, reports and suspensions
 
 What Google Play's rules for apps with people's posts ask for (2026-10-05), and how the terms of
@@ -476,6 +510,7 @@ use (voicaw.com/terms/) say rules are enforced.
   `utils/safetyDialogs.js` makes the items, and since a menu closes on a pick, the confirmation
   and the report form are drawn by `SafetyDialogs.jsx` (in `App`). Not on yourself or a deleted
   account. Settings → Blocked users lists them. Deleting an account deletes its blocks both ways.
+  Blocking also ends a friendship and any friend request either way (Friends).
 - **Blocking webhooks** (`webhook_blocks`: who, the webhook, its guild and name then; `PUT` /
   `DELETE /blocks/webhooks/:id`, in the same `GET /blocks` / `blocks` event as `webhooks:
   [{ id, name, guild_id, guild_name }]`): right-click a webhook's name or picture on its message

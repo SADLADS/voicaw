@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useContext } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
+import { act } from 'react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
 const newDmListeners = vi.hoisted(() => ({ list: [] }));
@@ -20,6 +21,7 @@ vi.mock('../utils/ws-client', () => ({
   onConversationSettings: () => () => {},
   onPreferences: () => () => {},
   onBlocks: () => () => {},
+  onFriends: () => () => {},
   onDictionary: () => () => {},
 }));
 
@@ -72,6 +74,7 @@ vi.mock('../services/keyStore', () => ({
 }));
 
 import Layout from './Layout';
+import { applyFriends } from '../utils/friends';
 import { LayoutContext } from '../contexts';
 import { ConfigContext, InteractionContext } from '../contexts';
 import { getPushStatus, ensureSubscription } from '../services/pushService';
@@ -161,15 +164,35 @@ describe('Layout', () => {
     expect(document.getElementById('dm-sidebar')).toBeInTheDocument();
   });
 
-  it('redirects /dm with no id to /dm/:firstUserId', async () => {
+  it('redirects /dm with no id to your latest conversation', async () => {
     fetchUsersList.mockResolvedValue([
-      { id: 7, username: 'bob', status: 'offline' },
-      { id: 8, username: 'carol', status: 'online' },
+      { id: 7, username: 'bob', status: 'offline', last_timestamp: 200 },
+      { id: 8, username: 'carol', status: 'online', last_timestamp: 100 },
     ]);
 
     renderLayout({ path: '/dm' });
 
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/dm/7'));
+  });
+
+  it('redirects /dm to the Friends page when you have no conversations', async () => {
+    fetchUsersList.mockResolvedValue([{ id: 7, username: 'bob', status: 'offline', last_timestamp: null }]);
+
+    renderLayout({ path: '/dm' });
+
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/dm/friends'));
+  });
+
+  it("puts someone who isn't a friend in the DM list with their first message", async () => {
+    applyFriends({ friends: [], incoming: [], outgoing: [] });
+    fetchUsersList.mockResolvedValue([{ id: 7, username: 'bob', status: 'offline', last_timestamp: null }]);
+    renderLayout({ path: '/dm/8' });
+    await waitFor(() => expect(fetchUsersList).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId('users')).toHaveTextContent('bob'));
+    expect(document.querySelector('#dm-sidebar a[href="/dm/7"]')).toBeNull();
+
+    act(() => newDmListeners.list.forEach((cb) => cb({ sender_id: 7, recipient_id: 1, timestamp: 100 })));
+    expect(document.querySelector('#dm-sidebar a[href="/dm/7"]')).not.toBeNull();
   });
 
   it('surfaces an error from fetchUsersList via errorUsers', async () => {

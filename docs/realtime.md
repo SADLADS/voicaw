@@ -22,7 +22,9 @@ webhook's edit also carries `embeds`, `attachments`, `flags`),
 unmuted a channel, to your other devices; see Mentions), `guild_channel_notify` (you set a
 channel's notification level, to your other devices), `conversation_settings` (you pinned or
 muted a DM or group, to your other devices; see `docs/client.md`), `preferences` (you changed
-an account preference, to your other devices; see `docs/client.md`), `dictionary` (your
+an account preference, to your other devices; see `docs/client.md`), `friends` (your friends
+or friend requests changed, to both people's devices with each one's lists; see Friends in
+`docs/client.md`), `dictionary` (your
 encrypted spellcheck dictionary was saved, to your devices; see `docs/auth-and-encryption.md`),
 `guild_voice_state` (someone
 joined, left or (un)muted in a voice channel), `guild_watch_party` (a voice channel's Watch

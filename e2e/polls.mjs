@@ -5,7 +5,7 @@
 // "poll ended" row with the result: a draw in a DM, a winner in a guild channel and a group DM);
 // a multiple-choice poll in a guild channel.
 //   node e2e/serve.mjs &   then   node e2e/polls.mjs [screenshot dir]
-import { launchChrome, signUp, openChat, devices, BASE } from './helpers.mjs';
+import { launchChrome, signUp, openChat, devices, BASE, makeFriends } from './helpers.mjs';
 
 const shots = process.argv[2];
 const shot = async (page, name) => {
@@ -318,6 +318,8 @@ try {
 
   // A group DM: the row reaches its members, the winner worked out on each device.
   const cal = await signUp(browser, 'cal');
+  // Groups are made from friends.
+  await makeFriends(alice, bob, cal);
   const c = cal.page;
   await a.goto(`${BASE}/dm`);
   await a.click('button[aria-label="New group"]');

@@ -105,6 +105,9 @@ async function deleteAccount(userId, plan) {
     // until a year after they're resolved, reports.js).
     await db.run('DELETE FROM user_blocks WHERE blocker_id = ? OR blocked_id = ?', [userId, userId]);
     await db.run('DELETE FROM webhook_blocks WHERE user_id = ?', [userId]);
+    // Their friends and friend requests, both ways (friends.js).
+    await db.run('DELETE FROM friends WHERE user_id = ? OR friend_id = ?', [userId, userId]);
+    await db.run('DELETE FROM friend_requests WHERE from_id = ? OR to_id = ?', [userId, userId]);
     await db.run('DELETE FROM login_states WHERE username = ?', [user?.username]);
     // Sites they logged in to with Voicaw lose access (oauth.js).
     await require('./oauth').forgetUser(userId);

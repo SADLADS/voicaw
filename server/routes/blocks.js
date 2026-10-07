@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { authenticateJWT } = require('../auth');
 const blocks = require('../blocks');
+const friends = require('../friends');
 const { sendToUserSockets } = require('../sockets');
 
 // Your blocked list (blocks.js): GET it, PUT or DELETE /blocks/:userId, and webhooks with PUT
@@ -41,6 +42,12 @@ router.put('/blocks/:userId', authenticateJWT, async (req, res) => {
   const user = await db.get('SELECT id FROM users WHERE id = ?', [id]);
   if (!user) return res.status(404).json({ error: 'User not found' });
   await blocks.block(req.user.id, id);
+  // Blocking ends a friendship and any request either way (friends.js).
+  if (await friends.remove(req.user.id, id)) {
+    for (const userId of [req.user.id, id]) {
+      sendToUserSockets(userId, { type: 'friends', ...(await friends.listFor(userId)) });
+    }
+  }
   res.json(await announce(req.user.id));
 });
 

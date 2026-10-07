@@ -2,7 +2,7 @@
 // app (another DM, Settings, a guild) and back, without telling anyone you're typing; a
 // reload (like closing the tab) forgets it. Desktop + phone.
 //   node e2e/serve.mjs &   then   node e2e/drafts.mjs [screenshot dir]
-import { launchChrome, signUp, openChat, devices } from './helpers.mjs';
+import { launchChrome, signUp, openChat, devices, makeFriends } from './helpers.mjs';
 
 const shots = process.argv[2];
 let failed = false;
@@ -25,6 +25,8 @@ try {
   const alice = await signUp(browser, 'alice');
   const bob = await signUp(browser, 'bob');
   const carol = await signUp(browser, 'carol');
+  // In each other's DM list (it shows friends and conversations).
+  await makeFriends(alice, bob, carol);
   const a = alice.page;
   const b = bob.page;
   await openChat(b, alice.id);
@@ -88,6 +90,7 @@ try {
   // Phone: chat -> list -> another chat -> back.
   const phone = await signUp(browser, 'phone', devices['Pixel 7']);
   const p = phone.page;
+  await makeFriends(phone, bob, carol);
   await openChat(p, bob.id);
   await p.tap('#dm-input');
   await p.keyboard.type('typed on the phone');

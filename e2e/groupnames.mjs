@@ -7,7 +7,7 @@
 // key, Bea's notification has the new name. Reloading keeps it.
 //   node e2e/serve.mjs &   then   node e2e/groupnames.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
-import { launchChrome, signUp, devices, BASE } from './helpers.mjs';
+import { launchChrome, signUp, devices, BASE, makeFriends } from './helpers.mjs';
 
 const dir = process.argv[2];
 if (dir) mkdirSync(dir, { recursive: true });
@@ -89,6 +89,8 @@ try {
     return { ...b, page };
   });
   const [a, b, c, d] = [ann.page, bea.page, cal.page, dan.page];
+  // Groups are made from friends.
+  await makeFriends(ann, bea, cal, dan);
   for (const [who, page] of [['ann', a], ['bea', b], ['cal', c], ['dan', d]]) {
     page.on('console', (m) => {
       const text = m.text();

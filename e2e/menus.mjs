@@ -7,7 +7,7 @@
 // still drags a guild on the rail.
 //   node e2e/serve.mjs &   then   node e2e/menus.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
-import { launchChrome, signUp, BASE, devices } from './helpers.mjs';
+import { launchChrome, signUp, BASE, devices, makeFriends } from './helpers.mjs';
 
 const dir = process.argv[2];
 if (dir) mkdirSync(dir, { recursive: true });
@@ -35,6 +35,8 @@ try {
   const alice = await signUp(browser, 'alice');
   const bob = await signUp(browser, 'bob');
   const carol = await signUp(browser, 'carol', { ...devices['Pixel 7'] });
+  // In each other's DM list (it shows friends and conversations).
+  await makeFriends(alice, bob, carol);
 
   const guild = await api(alice.page, 'POST', '/guilds', { name: 'Alpha' });
   const beta = await api(alice.page, 'POST', '/guilds', { name: 'Beta' });
@@ -133,9 +135,9 @@ try {
   await a.waitForSelector('#dm-input');
   await dm(bob, alice, 'are you there?');
   await a.waitForTimeout(1500);
-  check(!(await a.locator('.nav-item:has([aria-label="Direct Messages"]) .dot').evaluate((el) => el.classList.contains('visible'))), "a muted DM doesn't light the DMs icon");
+  check(!(await a.locator('.nav-item:has(a[href="/dm"]) .dot').evaluate((el) => el.classList.contains('visible'))), "a muted DM doesn't light the DMs icon");
   await dm(carol, alice, 'ping');
-  await a.waitForSelector('.nav-item:has([aria-label="Direct Messages"]) .dot.visible', { timeout: 10000 });
+  await a.waitForSelector('.nav-item:has(a[href="/dm"]) .dot.visible', { timeout: 10000 });
   check(true, 'an unmuted one does');
 
   // Phone: touch and hold.

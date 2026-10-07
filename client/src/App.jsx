@@ -9,6 +9,7 @@ import PendingApproval from './components/PendingApproval.jsx';
 import Layout from './components/Layout.jsx';
 import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
+import Friends from './components/Friends';
 import Notes from './components/Notes.jsx';
 import GroupDm from './components/group/GroupDm.jsx';
 import BotDm from './components/BotDm.jsx';
@@ -210,6 +211,7 @@ export default function App() {
                 <Route path="/settings/profile" element={<Settings onLogout={handleLogout} />} />
                 <Route path="/dm/:id?" element={<Dm user={user} />} />
                 <Route path="/dm/notes" element={<Notes user={user} />} />
+                <Route path="/dm/friends" element={<Friends user={user} />} />
                 <Route path="/dm/g/:groupId" element={<GroupDm user={user} />} />
                 <Route path="/dm/b/:dmId" element={<BotDm user={user} />} />
                 <Route path="/guild/:guildId/:channelId?" element={<GuildView user={user} />} />

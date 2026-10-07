@@ -25,6 +25,8 @@ import { useBotDmList } from '../hooks/useBotDmList';
 import { useConversationSettings } from '../hooks/useConversationSettings';
 import { usePreferencesSync } from '../hooks/usePreferencesSync';
 import { useBlocksSync } from '../hooks/useBlocksSync';
+import { useFriendsSync } from '../hooks/useFriendsSync';
+import { useFriends } from '../utils/friends';
 import { useDictionarySync } from '../hooks/useDictionarySync';
 import { useSwipePanes } from '../hooks/useSwipePanes';
 import { useDesktopApp } from '../hooks/useDesktopApp';
@@ -97,6 +99,9 @@ export default function Layout({ user, onLogout }) {
   // Your account preferences (utils/preferences), e.g. whether NSFW channels' media is blurred.
   usePreferencesSync(user?.id);
   useBlocksSync(user?.id);
+  useFriendsSync(user?.id);
+  // Friend requests waiting for your answer light the rail's DM button too.
+  const hasFriendRequests = useFriends().incoming.length > 0;
   useDictionarySync(user?.id);
   const activeGroups = useMemo(
     () => groupList.groups.map((g) => (g.unread && conversationSettings.isMuted('group', g.id) ? { ...g, unread: 0 } : g)),
@@ -168,9 +173,10 @@ export default function Layout({ user, onLogout }) {
           setUsers(data);
           mergeProfiles(data);
           setErrorUsers(null);
-          // If user lands on /dm without an ID, redirect to the first user
-          if (location.pathname === '/dm' && data.length > 0) {
-            navigate(`/dm/${data[0].id}`, { replace: true });
+          // Landing on /dm opens your latest conversation (the list is newest first), or the
+          // Friends page if you have none yet.
+          if (location.pathname === '/dm') {
+            navigate(data[0]?.last_timestamp != null ? `/dm/${data[0].id}` : '/dm/friends', { replace: true });
           }
         } catch (e) {
           setErrorUsers(e.message);
@@ -213,9 +219,15 @@ export default function Layout({ user, onLogout }) {
     if (user?.id) {
       connectWebSocket(user.id);
 
-      // Notifications come from web push (service-worker.js); here just refresh the badge.
-      const unsubscribe = onNewDm(() => {
+      // Notifications come from web push (service-worker.js); here just refresh the badge, and
+      // mark the conversation as started, so someone who isn't a friend joins the DM list
+      // (utils/friends.js visibleInDmList) with their first message.
+      const unsubscribe = onNewDm((message) => {
         fetchUnreadMessages();
+        const other = message && (message.sender_id === user?.id ? message.recipient_id : message.sender_id);
+        if (other != null) {
+          setUsers((list) => list.map((u) => (u.id === other && u.last_timestamp == null ? { ...u, last_timestamp: message.timestamp } : u)));
+        }
       });
 
       return () => unsubscribe();
@@ -270,7 +282,7 @@ export default function Layout({ user, onLogout }) {
           <Sidebar
             user={user}
             onLogout={onLogout}
-            hasUnreadDms={activeUnreadDms.length > 0 || hasUnreadGroups}
+            hasUnreadDms={activeUnreadDms.length > 0 || hasUnreadGroups || hasFriendRequests}
             unreadFrom={unreadFrom}
             guilds={guildList.guilds}
             unreadGuildIds={unreadGuildIds}

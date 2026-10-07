@@ -2794,7 +2794,8 @@ body.mobile-mode .dm-user-list-container .dm-user {
   background-color: var(--vc-border-light);
 }
 
-.dm-notes-link {
+.dm-notes-link,
+.dm-friends-link {
   gap: 8px;
 }
 
@@ -2810,7 +2811,8 @@ body.mobile-mode .dm-user-list-container .dm-user {
   color: var(--vc-fg-muted);
 }
 
-.dm-notes-link.active .dm-notes-icon {
+.dm-notes-link.active .dm-notes-icon,
+.dm-friends-link.active .dm-notes-icon {
   color: var(--vc-fg);
 }
 
@@ -3860,4 +3862,225 @@ body.mobile-mode .poll-voters-list {
   display: block;
   width: 100%;
   margin-top: 8px;
+}
+
+/* FRIENDS (Friends.jsx, FriendButton.jsx): the page's tabs in its header, a search box, the
+   list (click a row to open the DM; actions on the right), Add friend; the request count on the
+   DM list's Friends row and the Pending tab. */
+.friends-header {
+  gap: 4px;
+}
+
+.friends-title {
+  margin-right: 12px;
+}
+
+.friends-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.friends-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.friends-tab:hover {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.friends-tab.active {
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+}
+
+.friends-tab-add {
+  background-color: var(--vc-action);
+  color: var(--vc-on-action);
+}
+
+.friends-tab-add:hover {
+  background-color: var(--vc-action-hover);
+  color: var(--vc-on-action);
+}
+
+.friends-tab-add.active {
+  background: none;
+  color: var(--vc-action-text);
+}
+
+.friends-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background-color: var(--vc-mention-badge);
+  color: var(--vc-on-mention-badge);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dm-friends-link .friends-badge {
+  margin-left: auto;
+}
+
+.friends-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.friends-search {
+  margin-bottom: 16px;
+}
+
+.friends-count {
+  margin-bottom: 8px;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.friends-empty {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.friends-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.friends-list li + li {
+  border-top: 1px solid var(--vc-border-light);
+}
+
+.friends-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.friends-row:hover,
+.friends-row:focus-visible {
+  background-color: var(--vc-bg-hover);
+}
+
+.friends-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.friends-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.friends-username {
+  margin-left: 6px;
+  color: var(--vc-fg-muted);
+  font-weight: 400;
+  font-size: 13px;
+  opacity: 0;
+}
+
+.friends-row:hover .friends-username,
+.friends-row:focus-visible .friends-username {
+  opacity: 1;
+}
+
+.friends-subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+}
+
+.friends-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.friends-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+}
+
+.friends-action:hover {
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+}
+
+.friends-action.accept:hover {
+  color: var(--vc-success);
+}
+
+.friends-action.danger:hover {
+  color: var(--vc-danger);
+}
+
+.friends-add {
+  max-width: 640px;
+}
+
+.friends-add-row {
+  display: flex;
+  gap: 8px;
+}
+
+.friends-add-row .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.friends-add-row .btn {
+  white-space: nowrap;
+}
+
+.friends-add-ok {
+  margin-top: 8px;
+  color: var(--vc-success);
+}
+
+.friend-button-error {
+  align-self: center;
+  font-size: 12px;
 }

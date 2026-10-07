@@ -4,7 +4,7 @@
 // in the DM (still readable, no composer), Ann's guild gone, Ann out of her guild and the
 // group. Also the section on a phone.
 //   node e2e/serve.mjs &   then   node e2e/account.mjs [screenshot dir]
-import { launchChrome, signUp, devices, openChat, send, BASE } from './helpers.mjs';
+import { launchChrome, signUp, devices, openChat, send, BASE, makeFriends } from './helpers.mjs';
 
 const shots = process.argv[2];
 const shot = async (page, name) => {
@@ -33,6 +33,8 @@ try {
   const ann = await signUp(browser, 'ann');
   const bea = await signUp(browser, 'bea');
   const cal = await signUp(browser, 'cal');
+  // Groups are made from friends.
+  await makeFriends(ann, bea, cal);
   const [a, b] = [ann.page, bea.page];
 
   await openChat(a, bea.id);

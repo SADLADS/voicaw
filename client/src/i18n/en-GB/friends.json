@@ -1,0 +1,53 @@
+{
+  "friends": {
+    "title": "Friends",
+    "tabs": {
+      "online": "Online",
+      "all": "All",
+      "pending": "Pending",
+      "everyone": "Everyone",
+      "add": "Add friend"
+    },
+    "search": "Search",
+    "count": {
+      "online": "Online — {{count}}",
+      "all": "All friends — {{count}}",
+      "pending": "Pending — {{count}}",
+      "everyone": "Everyone — {{count}}"
+    },
+    "everyoneHint": "Everyone with an account. Only admins see this list.",
+    "empty": {
+      "online": "None of your friends are online.",
+      "all": "No friends yet. Add someone by their username.",
+      "pending": "No friend requests.",
+      "search": "Nobody matches."
+    },
+    "incoming": "Sent you a friend request",
+    "outgoing": "Friend request sent",
+    "friend": "Friend",
+    "message": "Message",
+    "accept": "Accept",
+    "decline": "Decline",
+    "cancel": "Cancel request",
+    "remove": "Remove friend",
+    "addFriend": "Add friend",
+    "requestSent": "Request sent",
+    "acceptRequest": "Accept friend request",
+    "removeConfirmTitle": "Remove {{name}}?",
+    "removeConfirm": "You'll no longer be friends. Your conversation stays, and either of you can send a new request.",
+    "add": {
+      "title": "Add friend",
+      "hint": "Send a friend request with someone's username.",
+      "placeholder": "Username",
+      "send": "Send friend request",
+      "requested": "Friend request sent to {{name}}.",
+      "accepted": "You and {{name}} are now friends.",
+      "friends": "You're already friends with {{name}}.",
+      "failed": "That didn't work. Check the username and try again.",
+      "notFound": "Nobody has that username.",
+      "self": "That's you!",
+      "blocked": "Your friend request couldn't be sent."
+    },
+    "actionFailed": "That didn't work. Try again."
+  }
+}

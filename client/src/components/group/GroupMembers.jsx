@@ -13,16 +13,18 @@ import { changeMembership, renameGroup } from '../../services/groupKeys';
 import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME } from '../../services/groupCrypto';
 import { nameOf, useProfiles } from '../../utils/profiles';
 import { usePresence } from '../../hooks/usePresence';
+import { useFriends } from '../../utils/friends';
 import { lastSeenText, statusLabel } from '../../utils/presence';
 import { t } from '../../i18n';
 
 const errorText = (err) => err.response?.data?.error ?? err.message;
 
 // A group DM's members (from its checked membership log), with the owner's crown. Anyone adds
-// people and renames; the owner removes people; anyone leaves.
+// people (from their friends, as in Discord) and renames; the owner removes people; anyone leaves.
 export default function GroupMembers({ group, user, users, onClose }) {
   useProfiles();
   const presenceOf = usePresence();
+  const friends = useFriends();
   const navigate = useNavigate();
   const [dialog, setDialog] = useState(null); // { type: 'add' | 'remove' | 'leave' | 'rename', ... }
   const [selected, setSelected] = useState(new Set());
@@ -124,7 +126,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
           )}
         >
           <p className="vc-hint">{t('groups.members.addHint')}</p>
-          <UserPicker users={users.filter((u) => !log.members.has(u.id))} selected={selected} onChange={setSelected} max={room} />
+          <UserPicker users={users.filter((u) => !log.members.has(u.id) && friends.friends.has(Number(u.id)))} selected={selected} onChange={setSelected} max={room} />
           {error && <p className="error-msg" role="alert">{error}</p>}
         </Modal>
       )}

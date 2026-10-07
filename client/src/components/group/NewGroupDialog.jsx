@@ -9,7 +9,7 @@ import { MAX_GROUP_MEMBERS } from '../../services/groupCrypto';
 import { showContent } from '../../utils/mobilePanes';
 import { t } from '../../i18n';
 
-// Pick two or more people (and optionally a name) for a new group DM.
+// Pick two or more people (and optionally a name) for a new group DM. `users`: your friends.
 export default function NewGroupDialog({ user, users, onCreated, onClose }) {
   const navigate = useNavigate();
   const [selected, setSelected] = useState(new Set());

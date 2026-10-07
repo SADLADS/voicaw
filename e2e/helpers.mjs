@@ -48,6 +48,22 @@ export async function openChat(page, otherId) {
   await page.waitForSelector('#dm-input');
 }
 
+// Makes the users ({ page } from signUp) friends with each other, through the API (the DM
+// list shows only friends and conversations; e2e/friends.mjs tests the real buttons). Pages
+// that are open get the change live.
+export async function makeFriends(...users) {
+  const call = (user, method, path) => user.page.evaluate(async ([m, p]) => {
+    const res = await fetch(`/api${p}`, { method: m, headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    if (!res.ok) throw new Error(`${m} ${p}: ${res.status}`);
+  }, [method, path]);
+  for (const [i, a] of users.entries()) {
+    for (const b of users.slice(i + 1)) {
+      await call(a, 'PUT', `/friends/${b.id}`);
+      await call(b, 'PUT', `/friends/${a.id}`);
+    }
+  }
+}
+
 // Types into the message box (a contenteditable editor) and sends with Enter (desktop).
 export async function send(page, text) {
   await page.click('#dm-input');

@@ -290,7 +290,14 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only
   logged-out visitors, and accounts still waiting for an admin's approval (sign-ups, 2026-10-05),
-  must not learn usernames. Pending accounts are hidden from everyone else too.
+  must not learn usernames. Pending accounts are hidden from everyone else too. Friends
+  (2026-10-07) don't change that: `/dms-list` is still everyone (the app's directory of names
+  and keys); friends only decide who the DM list shows.
+- **Friends** (built 2026-10-07, see Friends in `docs/client.md`): as Discord's. The DM list shows
+  friends and people you have a conversation with; requests by username or from a profile card;
+  group DMs are made from friends. DMs don't need friendship (guild members meet there).
+  Migration 14 made everyone who had an account then friends with everyone else. Admins get an
+  Everyone tab on the Friends page listing every account.
 - **Known issues:**
   - Keycap emoji (1️⃣) and Unicode 15.1+ emoji (🙂‍↔️) show in the system font while typing
     (digits are kept out of the Twemoji font; 15.1 isn't in Twemoji 15).

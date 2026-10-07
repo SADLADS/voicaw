@@ -77,6 +77,7 @@ app.use('/api', require('./routes/avatars'));
 app.use('/api', require('./routes/gifs'));
 app.use('/api', require('./routes/admin'));
 app.use('/api', require('./routes/blocks'));
+app.use('/api', require('./routes/friends'));
 app.use('/api', require('./routes/reports'));
 app.use('/api', require('./routes/testerRequests'));
 app.use('/api', require('./routes/applications'));

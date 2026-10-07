@@ -6,7 +6,7 @@
 // added answer; nothing added or removed once closed. Encrypted DM (phone), guild channel (a
 // moderator), group DM (signed answers, the author's removal).
 //   node e2e/serve.mjs &   then   node e2e/openpolls.mjs [screenshot dir]
-import { launchChrome, signUp, openChat, devices, BASE } from './helpers.mjs';
+import { launchChrome, signUp, openChat, devices, BASE, makeFriends } from './helpers.mjs';
 
 const shots = process.argv[2];
 const shot = async (page, name) => {
@@ -170,6 +170,8 @@ try {
 
   // ---- A guild channel: a moderator, and the author's own answers ----
   const cal = await signUp(browser, 'cal');
+  // Groups are made from friends.
+  await makeFriends(alice, bob, cal);
   const c = cal.page;
   const guild = await a.evaluate(async (MANAGE_MESSAGES) => {
     const h = { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };

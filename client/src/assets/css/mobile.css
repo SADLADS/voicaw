@@ -235,3 +235,17 @@
     bottom: auto;
     width: 200px;
 }
+
+/* Friends (Friends.jsx): the icon without the word, so the tabs fit (they scroll sideways if
+   not); no hover, so usernames always show; a little less padding. */
+.mobile-mode .friends-title {
+    display: none;
+}
+
+.mobile-mode .friends-body {
+    padding: 12px;
+}
+
+.mobile-mode .friends-username {
+    opacity: 1;
+}

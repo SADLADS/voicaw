@@ -8,7 +8,7 @@
 // (E2E_API_PORT too when serve.mjs isn't on the default ports: it reads LiveKit's keys.)
 import { readFileSync } from 'fs';
 import { RoomServiceClient } from 'livekit-server-sdk';
-import { launchChrome, signUp, openChat, devices, fakeMicArgs, livekitInfoPath, BASE } from './helpers.mjs';
+import { launchChrome, signUp, openChat, devices, fakeMicArgs, livekitInfoPath, BASE, makeFriends } from './helpers.mjs';
 
 const shots = process.argv[2];
 const shot = async (page, name) => {
@@ -80,6 +80,8 @@ try {
   const alice = await signUp(browser, 'alice');
   const bob = await signUp(browser, 'bob');
   const carol = await signUp(browser, 'carol', { ...devices['Pixel 7'] });
+  // Groups are made from friends.
+  await makeFriends(alice, bob, carol);
   const a = alice.page;
   const b = bob.page;
   const c = carol.page;

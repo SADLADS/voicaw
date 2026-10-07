@@ -5,6 +5,7 @@ import { act } from 'react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { applyPresenceSnapshot, applyUserStatus, resetPresence } from '../utils/presence';
 import DmSidebar from './DmSidebar';
+import { applyFriends } from '../utils/friends';
 import { ConfigContext } from '../contexts';
 
 function renderSidebar(users, { path = '/dm/2', unreadDms } = {}) {
@@ -21,6 +22,7 @@ function renderSidebar(users, { path = '/dm/2', unreadDms } = {}) {
 
 beforeEach(() => {
   resetPresence();
+  applyFriends({ friends: [{ id: 1 }, { id: 2 }], incoming: [], outgoing: [] });
 });
 
 describe('DmSidebar', () => {
@@ -34,6 +36,29 @@ describe('DmSidebar', () => {
 
     expect(screen.getByText('alice')).toBeInTheDocument();
     expect(screen.getByText('bob')).toBeInTheDocument();
+  });
+
+  it('lists friends and people you have a conversation with, not everyone', () => {
+    renderSidebar([
+      ...users,
+      { id: 3, username: 'cal', status: 'offline', last_timestamp: 100 },
+      { id: 4, username: 'dee', status: 'offline', last_timestamp: null },
+      { id: 5, username: 'eve', status: 'offline', last_timestamp: null },
+    ], { path: '/dm/5' });
+
+    expect(screen.getByText('cal')).toBeInTheDocument();
+    expect(screen.queryByText('dee')).not.toBeInTheDocument();
+    // The one open now, though neither.
+    expect(screen.getByText('eve')).toBeInTheDocument();
+  });
+
+  it('links to Friends, with how many requests are waiting', () => {
+    act(() => applyFriends({ friends: [{ id: 1 }, { id: 2 }], incoming: [{ id: 9 }, { id: 10 }], outgoing: [] }));
+    renderSidebar(users);
+
+    const link = screen.getByText('Friends').closest('a');
+    expect(link).toHaveAttribute('href', '/dm/friends');
+    expect(link).toHaveTextContent('2');
   });
 
   it('marks the conversation matching the current route as active', () => {
@@ -82,7 +107,7 @@ describe('DmSidebar', () => {
 
   it('marks conversations with unread messages, except the open one', () => {
     renderSidebar(
-      [...users, { id: 3, username: 'carol', status: 'offline' }],
+      [...users, { id: 3, username: 'carol', status: 'offline', last_timestamp: 50 }],
       { unreadDms: [{ from_user_id: 1, count: 2 }, { from_user_id: 2, count: 1 }] }
     );
     const dot = (name) => screen.getByText(name).closest('a').querySelector('.userdot');

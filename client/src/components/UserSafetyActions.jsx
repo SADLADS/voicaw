@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import ConfirmDialog from './guild/ConfirmDialog';
 import ReportDialog from './ReportDialog';
+import FriendButton from './FriendButton';
 import { blockUser, unblockUser, useBlocked } from '../utils/blocks';
 import { useAuth } from '../hooks/useAuth';
 import { t } from '../i18n';
 
-// Block / Unblock and Report for someone else (a profile card, a guild member card). Blocking
-// asks first. A blocked bot can't message you (server/botDms.js); it stays in its guilds.
+// Add friend (FriendButton), Block / Unblock and Report for someone else (a profile card, a
+// guild member card). Blocking asks first. A blocked bot can't message you (server/botDms.js); it stays in its guilds.
 export default function UserSafetyActions({ userId, name }) {
   const { user } = useAuth() ?? {};
   const blocked = useBlocked().has(Number(userId));
@@ -16,6 +17,7 @@ export default function UserSafetyActions({ userId, name }) {
 
   return (
     <div className="user-safety-actions">
+      {!blocked && <FriendButton userId={Number(userId)} name={name} />}
       {blocked ? (
         <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => unblockUser(userId).catch(() => {})}>
           {t('chat.blocked.unblock')}

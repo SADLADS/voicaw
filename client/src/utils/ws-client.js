@@ -24,6 +24,7 @@ const testerRequestListeners = new Set();
 const conversationSettingsListeners = new Set();
 const preferencesListeners = new Set();
 const blocksListeners = new Set();
+const friendsListeners = new Set();
 const reportsListeners = new Set();
 const dictionaryListeners = new Set();
 let reconnectTimeout = null;
@@ -213,6 +214,9 @@ export function connectWebSocket() {
       else if (data.type === 'blocks') {
         blocksListeners.forEach((cb) => cb(data.blocked, data.webhooks));
       }
+      else if (data.type === 'friends') {
+        friendsListeners.forEach((cb) => cb(data));
+      }
       else if (data.type === 'reports_changed') {
         reportsListeners.forEach((cb) => cb(data.open));
       }
@@ -364,6 +368,12 @@ export function onPreferences(callback) {
 export function onBlocks(callback) {
   blocksListeners.add(callback);
   return () => blocksListeners.delete(callback);
+}
+
+// Your friends or friend requests changed (utils/friends.js): { friends, incoming, outgoing, admin }.
+export function onFriends(callback) {
+  friendsListeners.add(callback);
+  return () => friendsListeners.delete(callback);
 }
 
 // Admins: how many reports are open changed (Settings → Admin → Reports).

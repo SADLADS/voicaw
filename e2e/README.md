@@ -33,6 +33,7 @@ node e2e/calllog.mjs [dir] # calls in the chat: lasted …, declined, didn't ans
 node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, group call, owner leaves
 node e2e/groupnames.mjs [dir] # encrypted group names: API never has them, list/header/rename line, new member reads it (phone), desktop notifications decrypted
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
+node e2e/friends.mjs [dir] # friends: new account's list is empty (/dm = Friends), Add friend by username, request live (count on the Friends row, Pending), Accept = both lists, profile card Add/Request sent/Remove, non-friend's first DM joins the list live, Remove asks (conversation stays), admin's Everyone tab, phone
 node e2e/notes.mjs [dir]  # notes: row under the header, send, pin, reload, not leaked to/from DMs, phone login
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
 node e2e/terms.mjs [dir]  # terms of use: sign-up needs the tick (form and server), someone who hasn't accepted sees only the terms until they agree, not asked again; phone
@@ -122,7 +123,7 @@ Never use port 3002 (the live API) or 7880-7882 (the live LiveKit); `serve.mjs` 
 processes by PID, never `pkill -f` with a pattern that's in your own command line (it kills your
 shell). In the throwaway API, anyone whose name starts with `admin` is a global admin
 (`signUp(browser, 'admin')`). `e2e/helpers.mjs` has `signUp` (registers a user in its own browser context, unique
-name; returns its `password` and `recoveryCode` too), `openChat`, `send`, `launchChrome`, and `devices` (e.g. `devices['Pixel 7']` for a phone).
+name; returns its `password` and `recoveryCode` too), `openChat`, `send`, `makeFriends` (puts people in each other's DM list), `launchChrome`, and `devices` (e.g. `devices['Pixel 7']` for a phone).
 Vite re-optimises its dependencies (and reloads the page) on its first start after the lockfile
 changes; if the first check fails that way, run it again.
 The message box is a contenteditable: `page.fill('#dm-input', …)` and `page.keyboard.type` work.
