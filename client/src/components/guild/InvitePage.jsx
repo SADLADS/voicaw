@@ -55,7 +55,10 @@ export default function InvitePage() {
         ) : (
           <>
             <GuildIcon guild={{ id: invite.guild_id, name: invite.name, icon_version: invite.icon_version }} className="invite-icon" />
-            <p className="vc-hint">{t('guilds.invite.page.invitedBy', { name: invite.creator_username })}</p>
+            <p className="vc-hint">
+              {/* A vanity invite has no one behind it. */}
+              {invite.creator_username ? t('guilds.invite.page.invitedBy', { name: invite.creator_username }) : t('guilds.invite.page.invited')}
+            </p>
             <h4>{invite.name}</h4>
             <p className="vc-hint">{t('guilds.invite.memberCount', { count: invite.member_count })}</p>
             {invite.is_member ? (

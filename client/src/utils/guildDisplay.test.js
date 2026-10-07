@@ -52,6 +52,7 @@ describe('guildDisplay', () => {
     expect(parseInviteCode(' hTKzmak1 ')).toBe('hTKzmak1');
     expect(parseInviteCode('http://localhost:5199/invite/abc/')).toBe('abc');
     expect(parseInviteCode('not a code!')).toBeNull();
+    expect(parseInviteCode('https://app.voicaw.com/invite/cool-guild')).toBe('cool-guild');
     expect(parseInviteCode('')).toBeNull();
   });
 

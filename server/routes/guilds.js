@@ -306,7 +306,9 @@ async function createInvite(actor, { maxAge, maxUses }) {
   if (!has(actor.permissions, PERMISSIONS.CREATE_INVITE)) throw new ActionError(403, "You don't have permission to do that");
   if (!Number.isInteger(maxAge) || maxAge < 0 || maxAge > MAX_INVITE_AGE) throw new ActionError(400, 'Invalid maxAge');
   if (!Number.isInteger(maxUses) || maxUses < 0 || maxUses > MAX_INVITE_USES) throw new ActionError(400, 'Invalid maxUses');
-  const code = newInviteCode();
+  let code = newInviteCode();
+  // Never one a vanity code also answers to (those are looked up in any case).
+  while (await db.get('SELECT 1 FROM guilds WHERE vanity_code = ?', [code.toLowerCase()])) code = newInviteCode();
   await db.transaction(async () => {
     await db.run(
       'INSERT INTO guild_invites (code, guild_id, creator_id, expires_at, max_uses) VALUES (?, ?, ?, ?, ?)',
@@ -349,38 +351,90 @@ router.delete('/invites/:code', authenticateJWT, async (req, res) => {
   res.json({ success: true });
 });
 
-// What the invite page shows before joining.
+// ---- Vanity invite ----
+
+// A guild's own permanent invite, /invite/<code>: set (or removed) by its owner alone, never
+// expires, any number of uses. 3–32 lowercase letters, digits and hyphens (not at either end);
+// stored lowercase and looked up in any case, after ordinary invite codes.
+const VANITY_CODE = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/;
+
+const vanityOf = async (guildId) => {
+  const { vanity_code: code, vanity_uses: uses } = await db.get('SELECT vanity_code, vanity_uses FROM guilds WHERE id = ?', [guildId]);
+  return { code, uses: code ? uses : 0 };
+};
+
+// The vanity invite, `{ code, uses }` (code null when there's none). Anyone who may invite
+// people, or manage the guild, can see it.
+router.get('/guilds/:guildId/vanity-url', member, async (req, res) => {
+  if (!has(req.member.permissions, PERMISSIONS.CREATE_INVITE) && !has(req.member.permissions, PERMISSIONS.MANAGE_GUILD)) {
+    return res.status(403).json({ error: "You don't have permission to do that" });
+  }
+  res.json(await vanityOf(req.guild.id));
+});
+
+// `{ code }` sets it (a new code starts again at 0 uses); null or '' removes it, after which
+// its links stop working and another guild may take the code.
+router.put('/guilds/:guildId/vanity-url', owner, async (req, res) => {
+  const raw = req.body?.code;
+  if (raw != null && typeof raw !== 'string') return res.status(400).json({ error: 'Invalid code' });
+  const code = raw?.trim().toLowerCase() || null;
+  if (code && !VANITY_CODE.test(code)) {
+    return res.status(400).json({ error: 'A vanity code is 3–32 letters, numbers and hyphens, not starting or ending with a hyphen' });
+  }
+  const before = (await vanityOf(req.guild.id)).code;
+  if (code === before) return res.json(await vanityOf(req.guild.id));
+
+  const taken = await db.transaction(async () => {
+    if (code && (
+      await db.get('SELECT 1 FROM guilds WHERE vanity_code = ?', [code])
+      || await db.get('SELECT 1 FROM guild_invites WHERE lower(code) = ?', [code])
+    )) return true;
+    await db.run('UPDATE guilds SET vanity_code = ?, vanity_uses = 0 WHERE id = ?', [code, req.guild.id]);
+    await audit(req, { action: 'vanity_update', targetType: 'invite', targetId: code ?? before, details: { before, after: code } });
+    return false;
+  });
+  if (taken) return res.status(409).json({ error: 'That code is already taken' });
+  res.json({ code, uses: 0 });
+});
+
+// What the invite page shows before joining (a vanity invite's has no creator_username).
 router.get('/invites/:code', authenticateJWT, async (req, res) => {
+  const counts = `(SELECT COUNT(*) FROM guild_members WHERE guild_id = g.id) AS member_count,
+            EXISTS (SELECT 1 FROM guild_members WHERE guild_id = g.id AND user_id = ?) AS is_member`;
   const invite = await db.get(
-    `SELECT i.code, g.id AS guild_id, g.name, g.icon_version, u.username AS creator_username,
-            (SELECT COUNT(*) FROM guild_members WHERE guild_id = g.id) AS member_count,
-            EXISTS (SELECT 1 FROM guild_members WHERE guild_id = g.id AND user_id = ?) AS is_member
+    `SELECT i.code, g.id AS guild_id, g.name, g.icon_version, u.username AS creator_username, ${counts}
      FROM guild_invites i JOIN guilds g ON g.id = i.guild_id JOIN users u ON u.id = i.creator_id
      WHERE i.code = ? AND ${INVITE_VALID}`,
     [req.user.id, req.params.code]
+  ) ?? await db.get(
+    `SELECT g.vanity_code AS code, g.id AS guild_id, g.name, g.icon_version, NULL AS creator_username, ${counts}
+     FROM guilds g WHERE g.vanity_code = ?`,
+    [req.user.id, req.params.code.toLowerCase()]
   );
   if (!invite) return res.status(404).json({ error: 'This invite is invalid or has expired' });
   res.json({ ...invite, is_member: Boolean(invite.is_member) });
 });
 
-// Joins through an invite. Joining a guild you're already in is a no-op (uses no use).
+// Joins through an invite or a vanity code. Joining a guild you're already in is a no-op (uses
+// no use).
 router.post('/invites/:code', authenticateJWT, async (req, res) => {
   const userId = req.user.id;
   const invite = await db.get('SELECT guild_id FROM guild_invites WHERE code = ?', [req.params.code]);
-  if (!invite) return res.status(404).json({ error: 'This invite is invalid or has expired' });
-  const guildId = invite.guild_id;
+  const vanity = invite ? null : await db.get('SELECT id, vanity_code FROM guilds WHERE vanity_code = ?', [req.params.code.toLowerCase()]);
+  if (!invite && !vanity) return res.status(404).json({ error: 'This invite is invalid or has expired' });
+  const guildId = invite ? invite.guild_id : vanity.id;
 
   if (await getMember(guildId, userId)) return res.json(await getGuildLayout(guildId, userId));
   if (await db.get('SELECT 1 FROM guild_bans WHERE guild_id = ? AND user_id = ?', [guildId, userId])) {
     return res.status(403).json({ error: 'You are banned from this guild' });
   }
 
-  // Claims a use only if the invite is still good (atomic, so the last use can't go twice).
+  // Claims a use only if the invite is still good (atomic, so the last use can't go twice), or
+  // the vanity code still the guild's.
   const claimed = await db.transaction(async () => {
-    const { changes } = await db.run(
-      `UPDATE guild_invites AS i SET uses = uses + 1 WHERE code = ? AND ${INVITE_VALID}`,
-      [req.params.code]
-    );
+    const { changes } = vanity
+      ? await db.run('UPDATE guilds SET vanity_uses = vanity_uses + 1 WHERE id = ? AND vanity_code = ?', [guildId, vanity.vanity_code])
+      : await db.run(`UPDATE guild_invites AS i SET uses = uses + 1 WHERE code = ? AND ${INVITE_VALID}`, [req.params.code]);
     if (!changes) return false;
     await addMember(guildId, userId);
     await markGuildRead(guildId, userId);
@@ -754,3 +808,4 @@ module.exports.deleteChannel = deleteChannel;
 module.exports.createInvite = createInvite;
 module.exports.INVITE_SELECT = INVITE_SELECT;
 module.exports.INVITE_VALID = INVITE_VALID;
+module.exports.vanityOf = vanityOf;

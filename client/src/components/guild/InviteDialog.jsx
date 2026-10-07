@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Modal from './Modal';
-import { createInvite } from '../../services/guildService';
+import { createInvite, fetchVanityInvite } from '../../services/guildService';
 import { errorMessage, inviteLink } from '../../utils/guildDisplay';
 import { formatDateTime } from '../../utils/dateFormat';
 import { t } from '../../i18n';
@@ -21,13 +21,15 @@ const USE_OPTIONS = [
 ];
 
 // "Invite people": makes a link straight away (7 days, any number of uses, like Discord), with
-// settings for a different one.
+// settings for a different one, and the guild's vanity URL if it has one.
 export default function InviteDialog({ guild, onClose }) {
   const [maxAge, setMaxAge] = useState(7 * 24 * 60 * 60);
   const [maxUses, setMaxUses] = useState(0);
   const [invite, setInvite] = useState(null);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [vanity, setVanity] = useState(null);
+  const [vanityCopied, setVanityCopied] = useState(false);
 
   const generate = useCallback(async (options) => {
     setError(null);
@@ -43,10 +45,14 @@ export default function InviteDialog({ guild, onClose }) {
     generate({ maxAge: 7 * 24 * 60 * 60, maxUses: 0 });
   }, [generate]);
 
-  async function copy() {
+  useEffect(() => {
+    fetchVanityInvite(guild.id).then((data) => setVanity(data.code)).catch(() => {});
+  }, [guild.id]);
+
+  async function copy(code, done) {
     try {
-      await navigator.clipboard.writeText(inviteLink(invite.code));
-      setCopied(true);
+      await navigator.clipboard.writeText(inviteLink(code));
+      done(true);
     } catch {
       setError(t('guildAdmin.invite.copyFailed'));
     }
@@ -63,11 +69,24 @@ export default function InviteDialog({ guild, onClose }) {
       <label htmlFor="invite-link">{t('guildAdmin.invite.linkLabel')}</label>
       <div className="vc-form-row">
         <input id="invite-link" className="form-control" readOnly value={link} onFocus={(e) => e.target.select()} />
-        <button type="button" className="btn btn-primary vc-button" onClick={copy} disabled={!invite}>
+        <button type="button" className="btn btn-primary vc-button" onClick={() => copy(invite.code, setCopied)} disabled={!invite}>
           {copied ? t('common.copied') : t('common.copy')}
         </button>
       </div>
       {summary && <p className="vc-hint">{summary}</p>}
+
+      {vanity && (
+        <>
+          <label htmlFor="invite-vanity-link">{t('guildAdmin.invite.vanityLabel')}</label>
+          <div className="vc-form-row">
+            <input id="invite-vanity-link" className="form-control" readOnly value={inviteLink(vanity)} onFocus={(e) => e.target.select()} />
+            <button type="button" className="btn btn-secondary" onClick={() => copy(vanity, setVanityCopied)}>
+              {vanityCopied ? t('common.copied') : t('common.copy')}
+            </button>
+          </div>
+          <p className="vc-hint">{t('guildAdmin.invite.vanityHint')}</p>
+        </>
+      )}
 
       <div className="vc-form-row invite-options">
         <label>

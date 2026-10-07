@@ -37,6 +37,14 @@ describe('audit log wording', () => {
     expect(entryChanges({ action: 'invite_create', details: { maxUses: 1, maxAge: 86400 } })).toEqual(['Up to 1 use', 'Expires after 1 day']);
   });
 
+  it('says how the vanity invite changed', () => {
+    expect(text(describeEntry({ action: 'vanity_update', actor_id: 1, details: { before: 'old', after: 'new' } }, names)))
+      .toBe('[Alice] set the vanity invite to [new]');
+    expect(entryChanges({ action: 'vanity_update', details: { before: 'old', after: 'new' } })).toEqual(['Was old']);
+    expect(text(describeEntry({ action: 'vanity_update', actor_id: 1, details: { before: 'old', after: null } }, names)))
+      .toBe('[Alice] removed the vanity invite [old]');
+  });
+
   it('says what the owner cleared', () => {
     expect(text(describeEntry({ action: 'audit_log_clear', actor_id: 1, details: { olderThanDays: 90, deleted: 12 } }, names)))
       .toBe('[Alice] cleared entries older than 90 days (12 entries)');

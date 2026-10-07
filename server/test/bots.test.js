@@ -460,3 +460,16 @@ describe('the gateway', () => {
     expect(await gw.closed).toBe(4004);
   });
 });
+
+describe('the vanity invite', () => {
+  it("is Discord's vanity-url for bots that manage the guild, and on the guild object", async () => {
+    const { owner, guild, bot } = await setUp(toDiscordPermissions(P.VIEW_CHANNEL | P.MANAGE_GUILD));
+    expect((await discord.get(bot, `/guilds/${guild.id}/vanity-url`)).body).toEqual({ code: null, uses: 0 });
+    await api.put(owner, `/guilds/${guild.id}/vanity-url`, { code: 'bots-place' });
+    expect((await discord.get(bot, `/guilds/${guild.id}/vanity-url`)).body).toEqual({ code: 'bots-place', uses: 0 });
+    expect((await discord.get(bot, `/guilds/${guild.id}`)).body.vanity_url_code).toBe('bots-place');
+
+    const plain = await setUp();
+    expect((await discord.get(plain.bot, `/guilds/${plain.guild.id}/vanity-url`)).status).toBe(403);
+  });
+});

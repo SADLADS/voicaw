@@ -8,12 +8,14 @@ import {
   deleteGuild,
   fetchBans,
   fetchInvites,
+  fetchVanityInvite,
   revokeInvite,
+  setVanityInvite,
   unbanMember,
   updateGuild,
   uploadGuildIcon,
 } from '../../services/guildService';
-import { errorMessage } from '../../utils/guildDisplay';
+import { errorMessage, inviteLink } from '../../utils/guildDisplay';
 import { formatDateTime } from '../../utils/dateFormat';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import { t } from '../../i18n';
@@ -103,7 +105,108 @@ function Overview({ guild, isOwner }) {
   );
 }
 
-function Invites({ guild }) {
+// The guild's vanity invite: a permanent link with any number of uses, which only the owner sets
+// (others who manage the guild see it).
+function VanityInvite({ guild, isOwner }) {
+  const [vanity, setVanity] = useState(null);
+  const [code, setCode] = useState('');
+  const [status, setStatus] = useState(null);
+  const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    fetchVanityInvite(guild.id)
+      .then((data) => { setVanity(data); setCode(data.code ?? ''); })
+      .catch((err) => setError(errorMessage(err)));
+  }, [guild.id]);
+
+  async function save(next, done) {
+    setError(null);
+    setStatus(null);
+    setCopied(false);
+    try {
+      const data = await setVanityInvite(guild.id, next);
+      setVanity(data);
+      setCode(data.code ?? '');
+      setStatus(done);
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(inviteLink(vanity.code));
+      setCopied(true);
+    } catch {
+      setError(t('guildAdmin.invite.copyFailed'));
+    }
+  }
+
+  const trimmed = code.trim().toLowerCase();
+  return (
+    <section className="guild-vanity">
+      <h6>{t('guildAdmin.guildSettings.vanity.title')}</h6>
+      <p className="vc-hint">{t('guildAdmin.guildSettings.vanity.hint')}</p>
+      {vanity == null ? (
+        !error && <p className="vc-hint">{t('common.loading')}</p>
+      ) : isOwner ? (
+        <form
+          className="vc-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (trimmed && trimmed !== vanity.code) save(trimmed, t('guildAdmin.guildSettings.saved'));
+          }}
+        >
+          <label htmlFor="guild-vanity-code" className="guild-vanity-prefix">{inviteLink('')}</label>
+          <div className="vc-form-row">
+            <input
+              id="guild-vanity-code"
+              className="form-control"
+              maxLength={32}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={t('guildAdmin.guildSettings.vanity.placeholder')}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
+            <button type="submit" className="btn btn-primary btn-sm vc-button" disabled={!trimmed || trimmed === vanity.code}>{t('common.save')}</button>
+          </div>
+        </form>
+      ) : (
+        !vanity.code && <p className="vc-hint">{t('guildAdmin.guildSettings.vanity.none')}</p>
+      )}
+      {vanity?.code && (
+        <div className="vc-form-row guild-vanity-link">
+          <span className="guild-settings-code">{inviteLink(vanity.code)}</span>
+          <span className="vc-hint">{t('guildAdmin.guildSettings.vanity.uses', { count: vanity.uses })}</span>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={copy}>{copied ? t('common.copied') : t('common.copy')}</button>
+          {isOwner && (
+            <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => save(null, t('guildAdmin.guildSettings.vanity.removed'))}>
+              {t('guildAdmin.guildSettings.vanity.remove')}
+            </button>
+          )}
+        </div>
+      )}
+      {status && <p className="success-msg">{status}</p>}
+      {error && <p className="error-msg" role="alert">{error}</p>}
+    </section>
+  );
+}
+
+function Invites({ guild, isOwner }) {
+  return (
+    <>
+      <VanityInvite guild={guild} isOwner={isOwner} />
+      <section>
+        <h6>{t('guildAdmin.guildSettings.activeInvites')}</h6>
+        <InviteList guild={guild} />
+      </section>
+    </>
+  );
+}
+
+function InviteList({ guild }) {
   const [invites, setInvites] = useState(null);
   const [error, setError] = useState(null);
 
@@ -214,7 +317,7 @@ export default function GuildSettingsDialog({ guild, user, onClose }) {
         {tab === 'overview' && <Overview guild={guild} isOwner={guild.owner === user.id} />}
         {tab === 'roles' && <RolesSettings guild={guild} user={user} />}
         {tab === 'emoji' && <EmojiSettings guild={guild} />}
-        {tab === 'invites' && <Invites guild={guild} />}
+        {tab === 'invites' && <Invites guild={guild} isOwner={guild.owner === user.id} />}
         {tab === 'bans' && <Bans guild={guild} />}
         {tabs.length === 0 && <p className="vc-hint">{t('guildAdmin.guildSettings.noPermission')}</p>}
       </div>

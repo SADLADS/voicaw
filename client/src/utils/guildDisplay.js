@@ -89,9 +89,9 @@ export function parseChannelLink(href) {
 // The invite code in something pasted: a whole link or just the code.
 export function parseInviteCode(text) {
   const trimmed = (text ?? '').trim();
-  const match = /\/invite\/([A-Za-z0-9]+)\/?$/.exec(trimmed);
+  const match = /\/invite\/([A-Za-z0-9-]+)\/?$/.exec(trimmed);
   if (match) return match[1];
-  return /^[A-Za-z0-9]+$/.test(trimmed) ? trimmed : null;
+  return /^[A-Za-z0-9-]+$/.test(trimmed) ? trimmed : null;
 }
 
 // What to tell the user about a failed request: the server's message if it sent one.

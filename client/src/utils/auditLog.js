@@ -21,7 +21,7 @@ export const AUDIT_FILTERS = [
       'thread_create', 'thread_update', 'thread_delete',
     ],
   },
-  { key: 'invites', label: t('guildAdmin.auditLog.filters.invites'), actions: ['invite_create', 'invite_delete'] },
+  { key: 'invites', label: t('guildAdmin.auditLog.filters.invites'), actions: ['invite_create', 'invite_delete', 'vanity_update'] },
   { key: 'emoji', label: t('guildAdmin.auditLog.filters.emoji'), actions: ['emoji_create', 'emoji_update', 'emoji_delete'] },
   { key: 'webhooks', label: t('guildAdmin.auditLog.filters.webhooks'), actions: ['webhook_create', 'webhook_update', 'webhook_delete'] },
   { key: 'events', label: t('guildAdmin.auditLog.filters.events'), actions: ['event_create', 'event_update', 'event_delete'] },
@@ -117,6 +117,9 @@ export function describeEntry(entry, names) {
     case 'category_delete': return sentence('categoryDelete', { actor, category: named(d.name) });
     case 'invite_create': return sentence('inviteCreate', { actor, invite: named(d.code) });
     case 'invite_delete': return sentence('inviteDelete', { actor, invite: named(d.code) });
+    case 'vanity_update': return d.after
+      ? sentence('vanitySet', { actor, invite: named(d.after) })
+      : sentence('vanityRemove', { actor, invite: named(d.before) });
     case 'emoji_create': return sentence('emojiCreate', { actor, emoji: named(`:${d.name}:`) });
     case 'emoji_update': return sentence('emojiUpdate', { actor, emoji: named(`:${d.changes?.name?.[0] ?? d.name}:`) });
     case 'emoji_delete': return sentence('emojiDelete', { actor, emoji: named(`:${d.name}:`) });
@@ -188,6 +191,9 @@ export function entryChanges(entry) {
         lines.push(change(permissionLabel(key), t(`guildAdmin.auditLog.overrideStates.${was}`), t(`guildAdmin.auditLog.overrideStates.${now}`)));
       }
     }
+  }
+  if (entry.action === 'vanity_update' && d.before && d.after) {
+    lines.push(t('guildAdmin.auditLog.changes.vanityWas', { code: d.before }));
   }
   if (entry.action === 'invite_create') {
     lines.push(d.maxUses ? t('guildAdmin.auditLog.changes.maxUses', { count: d.maxUses }) : t('guildAdmin.auditLog.changes.noUseLimit'));

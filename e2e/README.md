@@ -54,6 +54,7 @@ node e2e/threads.mjs [dir] # threads: Create Thread from a message (suggested na
 node e2e/pins.mjs [dir]   # pins: DM (list, jump into unloaded history), guild permission, group, phone
 node e2e/replies.mjs [dir] # replying highlights the message (cleared on ×, Escape, send); reply snippet: click jumps to the message (loads older history), flashes it like search/pins, phone tap
 node e2e/invites.mjs [dir] # invite embeds: channel and DM (load at once), Join Guild, Settings → Privacy off = Show first, phone
+node e2e/vanity.mjs [dir]  # vanity invites: owner sets one (Guild Settings → Invites), Invite People shows it, phone opens it in another case (no inviter) and joins, use counted, card in chat, audit log, non-owner refused, removed = invalid, phone settings fit
 node e2e/webhooks.mjs [dir] # webhook made in the UI, posted to like Discord (embed, files), edit/delete, phone
 node e2e/commands.mjs [dir] # bot commands: a bot in the script registers them (autocomplete, number, true/false, member, subcommand with choices, message command), "/" lists and filters, fields filled, suggestions, run and the reply, Apps in the message menu, phone
 node e2e/bots.mjs [dir]   # bots: Settings → Developer Portal (own page), new application, token once + reset (old refused), invite link from ticked permissions, authorise into a guild (bot role), phone

@@ -320,6 +320,7 @@
         "invalid": "Invite invalid",
         "back": "Back to Voicaw",
         "invitedBy": "{{name}} invited you to join",
+        "invited": "You’ve been invited to join",
         "goTo": "Go to guild",
         "accept": "Accept invite"
       }

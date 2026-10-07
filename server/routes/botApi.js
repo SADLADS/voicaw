@@ -621,7 +621,7 @@ router.delete(`${INTERACTION_HOOK}/messages/:messageId`, byInteractionToken, rou
 // ---- Guilds ----
 
 async function guildObject(guildId, { counts = false } = {}) {
-  const guild = await db.get('SELECT id, name, owner, icon_version, created_at FROM guilds WHERE id = ?', [guildId]);
+  const guild = await db.get('SELECT id, name, owner, icon_version, created_at, vanity_code FROM guilds WHERE id = ?', [guildId]);
   const roles = await db.all('SELECT * FROM guild_roles WHERE guild_id = ? ORDER BY position, id', [guildId]);
   const emojis = await db.all('SELECT id, name, animated, available FROM guild_emojis WHERE guild_id = ? AND available = 1 ORDER BY id', [guildId]);
   const object = D.guildObject(guild, { roles, emojis });
@@ -979,6 +979,12 @@ router.get('/guilds/:guildId/invites', auth, inGuild, route(async (req, res) => 
     [req.member.guild.id]
   );
   res.json(await Promise.all(invites.map((i) => inviteObject(i, null))));
+}));
+
+// The guild's vanity invite (set by its owner in the app), as Discord's: `{ code, uses }`.
+router.get('/guilds/:guildId/vanity-url', auth, inGuild, route(async (req, res) => {
+  requirePermission(req.member.permissions, PERMISSIONS.MANAGE_GUILD);
+  res.json(await guildActions.vanityOf(req.member.guild.id));
 }));
 
 // Voicaw's invites are to a guild, not a channel; the channel is only echoed back.

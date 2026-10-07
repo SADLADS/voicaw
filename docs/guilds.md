@@ -56,6 +56,19 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - Invites: 8-character codes, optional expiry (`maxAge` s, up to 30 days) and `maxUses`,
   claimed atomically. Joining marks existing history read. Bans remove and block rejoining.
   The owner has to transfer ownership before leaving.
+- **Vanity invite** (Discord's vanity URL, but no paid tier): a guild's own permanent link,
+  `/invite/<code>`, that never expires and has no use limit. Only the owner sets, changes or
+  removes it (`PUT /guilds/:id/vanity-url { code }`, null removes; Guild Settings → Invites,
+  Vanity URL); anyone with Create Invite or Manage Guild reads it (`GET`, `{ code, uses }`),
+  and Invite People shows it under the fresh link. It's columns on the guild
+  (`vanity_code`, unique, `vanity_uses`), not a `guild_invites` row: no creator (the invite
+  page says "You've been invited" without a name), it follows ownership, isn't in the invite
+  list and can't be revoked there. Codes are 3–32 letters, digits and hyphens (not at either
+  end), stored lowercase and matched in any case; `GET`/`POST /invites/:code` try ordinary
+  codes first, and the two never overlap (setting a vanity refuses one an invite already
+  has, in any case; new invite codes skip vanity ones). A new code starts again at 0 uses;
+  a removed one stops working at once and is free for any guild. Logged as `vanity_update`
+  `{ before, after }`. Bots: `GET /guilds/{id}/vanity-url` and `vanity_url_code`.
 - **Invite embeds:** an invite link in a message (`utils/inviteLinks.js`: this app's host or
   `*voicaw.com`, path `/invite/<code>`) gets a card under it (`guild/InviteEmbed.jsx`, from
   `UrlPreviews`): the guild's icon, name, member count, and Join Guild (joins, opens the guild)

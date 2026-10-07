@@ -62,6 +62,11 @@ addColumn('ALTER TABLE users ADD COLUMN recovery_backup TEXT');
 addColumn('ALTER TABLE users ADD COLUMN recovery_created INTEGER');
 addColumn('ALTER TABLE guilds ADD COLUMN icon_version INTEGER NOT NULL DEFAULT 0');
 addColumn('ALTER TABLE guilds ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0');
+// A guild's vanity invite (/invite/<vanity_code>, set by its owner): permanent, any number of
+// uses, lowercase, unique. Not a guild_invites row, so it has no creator and follows ownership.
+addColumn('ALTER TABLE guilds ADD COLUMN vanity_code TEXT');
+addColumn('ALTER TABLE guilds ADD COLUMN vanity_uses INTEGER NOT NULL DEFAULT 0');
+sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS guilds_vanity_code ON guilds (vanity_code) WHERE vanity_code IS NOT NULL');
 
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_members (

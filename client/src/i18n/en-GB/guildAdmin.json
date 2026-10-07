@@ -313,6 +313,8 @@
         "categoryDelete": "{{actor}} deleted the category {{category}}",
         "inviteCreate": "{{actor}} created the invite {{invite}}",
         "inviteDelete": "{{actor}} revoked the invite {{invite}}",
+        "vanitySet": "{{actor}} set the vanity invite to {{invite}}",
+        "vanityRemove": "{{actor}} removed the vanity invite {{invite}}",
         "emojiCreate": "{{actor}} added the emoji {{emoji}}",
         "emojiUpdate": "{{actor}} renamed the emoji {{emoji}}",
         "emojiDelete": "{{actor}} deleted the emoji {{emoji}}",
@@ -373,6 +375,7 @@
         "noUseLimit": "No use limit",
         "expiresAfter": "Expires after {{age}}",
         "neverExpires": "Never expires",
+        "vanityWas": "Was {{code}}",
         "cover": {
           "added": "Cover image added",
           "changed": "Cover image changed",
@@ -479,6 +482,17 @@
       "deleteHint": "This deletes every channel and message. It can't be undone. Type the guild's name to confirm.",
       "deleteConfirmLabel": "Guild name to confirm",
       "noInvites": "No active invites.",
+      "activeInvites": "Active invites",
+      "vanity": {
+        "title": "Vanity URL",
+        "hint": "A permanent invite link of your choosing: it never expires and can be used any number of times. Only the guild's owner can set it.",
+        "placeholder": "your-guild",
+        "none": "This guild has no vanity URL.",
+        "uses_one": "{{count}} use",
+        "uses_other": "{{count}} uses",
+        "remove": "Remove",
+        "removed": "Vanity URL removed."
+      },
       "inviteUsage_one": "by {{name}} · {{count}} use",
       "inviteUsage_other": "by {{name}} · {{count}} uses",
       "inviteUsageLimited_one": "by {{name}} · {{uses}}/{{count}} use",
@@ -506,7 +520,9 @@
       "linkLabel": "Send a guild invite link to a friend",
       "expireAfter": "Expire after",
       "maxUses": "Max number of uses",
-      "generate": "Generate a new link"
+      "generate": "Generate a new link",
+      "vanityLabel": "Or share the guild's vanity URL",
+      "vanityHint": "Never expires, any number of uses."
     },
     "notifyLevels": {
       "all": {

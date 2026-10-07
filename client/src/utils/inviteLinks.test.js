@@ -6,6 +6,7 @@ describe('inviteCodeFromUrl', () => {
     expect(inviteCodeFromUrl('https://voicaw.com/invite/Ab3dEf7h')).toBe('Ab3dEf7h');
     expect(inviteCodeFromUrl('https://test.voicaw.com/invite/Ab3dEf7h/')).toBe('Ab3dEf7h');
     expect(inviteCodeFromUrl('http://www.voicaw.com/invite/xyz12345')).toBe('xyz12345');
+    expect(inviteCodeFromUrl('https://voicaw.com/invite/cool-guild')).toBe('cool-guild');
   });
 
   it('ignores other links', () => {

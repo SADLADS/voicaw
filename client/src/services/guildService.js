@@ -75,6 +75,16 @@ export async function revokeInvite(code) {
   await api.delete(`/invites/${code}`);
 }
 
+// The guild's vanity invite, `{ code, uses }` (code null: none).
+export async function fetchVanityInvite(guildId) {
+  return (await api.get(`/guilds/${guildId}/vanity-url`)).data;
+}
+
+// Sets the vanity invite (owner only); null removes it.
+export async function setVanityInvite(guildId, code) {
+  return (await api.put(`/guilds/${guildId}/vanity-url`, { code })).data;
+}
+
 export async function fetchInvite(code) {
   return (await api.get(`/invites/${code}`)).data;
 }
