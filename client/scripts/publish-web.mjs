@@ -25,7 +25,10 @@ for (const file of ['index.html', 'service-worker.js', 'manifest.json']) {
 }
 
 const sw = fs.readFileSync(path.join(source, 'service-worker.js'), 'utf8');
-const urls = [...new Set([...sw.matchAll(/"url":"([^"]+)"/g)].map((m) => m[1]))];
+// Only Workbox's manifest entries ({"revision":…,"url":…}): the worker also bundles the
+// translations, whose keys can be "url" too.
+const entry = /\{"revision":(?:null|"[^"]*"),"url":"([^"]+)"\}/g;
+const urls = [...new Set([...sw.matchAll(entry)].map((m) => m[1]))];
 if (urls.length === 0) fail('the service worker has no precache list');
 const files = urls.map((url) => {
   const file = path.join(source, url);
