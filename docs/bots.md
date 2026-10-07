@@ -194,8 +194,11 @@ gives, so the server never makes requests to addresses bots choose).
 - **In the app** (`services/interactionService.js` for the calls and the open form):
   - **"/" picker** (`CommandSuggestions`, `hooks/useChannelCommands.js`): typing "/" at the
     start of an empty message in a guild channel or thread lists the slash commands.
-    Subcommands are their own entries. The list is cached 30 s per channel and fetched again
-    when it opens.
+    Subcommands are their own entries. Every match is listed (no cap), one section per bot
+    under its picture and name (`groupCommandsByBot`: bots in the order of their best match),
+    and the list scrolls inside its height with the bot's name staying at the top; arrow keys
+    follow the list as drawn and keep the highlighted command in view. The list is cached 30 s
+    per channel and fetched again when it opens.
   - **Command mode** (`CommandComposer`, `utils/commandOptions.js`,
     `hooks/useCommandAutocomplete.js`): picking a command swaps the message box for its
     option fields. Typed fields check their limits; choices are dropdowns; members, roles and

@@ -75,7 +75,8 @@ describe('the "/" command picker', () => {
     type('/');
     await waitFor(() => expect(options()).toHaveLength(2));
     expect(options()[0]).toContain('/weather');
-    expect(options()[0]).toContain('Weather Bot');
+    // Under their bot's section.
+    expect(screen.getByRole('group', { name: 'Weather Bot' }).textContent).toContain('/weather');
     expect(options()[1]).toContain('/admin kick');
     // Message commands aren't in the list.
     expect(screen.queryByText('/Quote')).toBeNull();

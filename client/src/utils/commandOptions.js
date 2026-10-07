@@ -47,6 +47,18 @@ export function searchCommands(entries, query, limit = 25) {
   return [...starts, ...contains].slice(0, limit);
 }
 
+// `entries` (best first) as one section per bot, [{ bot, entries }]: the bots in the order of
+// their best match, each bot's commands in the order given.
+export function groupCommandsByBot(entries) {
+  const sections = new Map();
+  for (const entry of entries) {
+    const id = entry.command.bot?.id ?? entry.command.application_id ?? null;
+    if (!sections.has(id)) sections.set(id, { bot: entry.command.bot ?? null, entries: [] });
+    sections.get(id).entries.push(entry);
+  }
+  return [...sections.values()];
+}
+
 // What's wrong with `raw` (what's in an option's field) for `option`, or null. Empty is fine
 // here (required options are checked by missingOptions).
 export function optionProblem(option, raw) {

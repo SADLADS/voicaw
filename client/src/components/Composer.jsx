@@ -9,7 +9,7 @@ import MentionSuggestions from './MentionSuggestions';
 import CommandSuggestions from './CommandSuggestions';
 import CommandComposer from './CommandComposer';
 import { useChannelCommands } from '../hooks/useChannelCommands';
-import { commandEntries, searchCommands } from '../utils/commandOptions';
+import { commandEntries, groupCommandsByBot, searchCommands } from '../utils/commandOptions';
 import AttachmentTray from './AttachmentTray';
 import '../assets/css/commands.css';
 import FileDropOverlay from './FileDropOverlay';
@@ -222,7 +222,7 @@ export default function Composer({
     : [];
   const commandQuery = commandChannelId != null && !editing && inputValue === beforeCaret ? COMMAND_QUERY.exec(beforeCaret)?.[1] ?? null : null;
   const commandSuggestions = commandQuery != null && `/${commandQuery}` !== dismissedQuery
-    ? searchCommands(commandEntries(commands), commandQuery, 10)
+    ? groupCommandsByBot(searchCommands(commandEntries(commands), commandQuery, Infinity)).flatMap((s) => s.entries)
     : [];
   // Only one kind can match what's before the cursor.
   const suggestions = commandSuggestions.length > 0 ? commandSuggestions
