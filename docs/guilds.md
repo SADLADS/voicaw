@@ -517,8 +517,9 @@ Guilded's XP (built 2026-10-07): members earn XP in a guild for what they do the
 - **Settings** (`guilds.levels`, JSON; null = the defaults in `server/guildLevels.js`
   `DEFAULT_SETTINGS`), changed with Manage Guild (Guild Settings → Levels,
   `guild/LevelSettings.jsx`; `PATCH /guilds/:id/levels` with any of them), sent to everyone in
-  the layout as `levels`: `enabled` (on by default; off, nothing earns XP and the app hides
-  levels, but what people have is kept), `xpPerLevel` (1–1,000,000, default 100; at **1 the app
+  the layout as `levels`: `enabled` (off by default since 2026-10-07, so a guild turns levels
+  on; off, nothing earns XP and the app hides levels, but what people have is kept; a guild
+  that has saved its settings keeps the `enabled` it saved), `xpPerLevel` (1–1,000,000, default 100; at **1 the app
   never mentions XP**: settings, card and leaderboard talk of levels only), `xpName`,
   `levelName`, `levelShort` (32, 32, 12 characters; empty = the app's own translated "XP",
   "Level", "lvl"), `showInMemberList` (the badge), `messageCooldown` (0–3600 s, default 60) and

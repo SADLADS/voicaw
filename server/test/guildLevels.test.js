@@ -44,7 +44,7 @@ function connect(user) {
 }
 
 // A guild with an owner and two members, and its #general.
-async function setUp() {
+async function setUp({ levelsOn = true } = {}) {
   const owner = await makeUser('l-owner');
   const guild = (await api.post(owner, '/guilds', { name: 'Levels' })).body;
   const members = [];
@@ -54,6 +54,11 @@ async function setUp() {
     await api.post(user, `/invites/${invite.body.code}`);
     members.push(user);
   }
+  // Levels are off until a guild turns them on.
+  if (levelsOn) {
+    await api.patch(owner, `/guilds/${guild.id}/levels`, { enabled: true });
+    guild.levels = (await api.get(owner, `/guilds/${guild.id}`)).body.levels;
+  }
   return { owner, members, guild, general: guild.channels[0] };
 }
 
@@ -62,9 +67,13 @@ const xpOf = async (guild, user) => (await db.get('SELECT xp FROM guild_member_x
 const configure = (user, guild, patch) => api.patch(user, `/guilds/${guild.id}/levels`, patch);
 
 describe('levels', () => {
-  it('are on by default, and messages earn XP once per cooldown', async () => {
-    const { owner, members: [alice], guild, general } = await setUp();
-    expect(guild.levels).toMatchObject({ enabled: true, xpPerLevel: 100, levelShort: '', showInMemberList: true });
+  it('are off by default, and once on messages earn XP once per cooldown', async () => {
+    const { owner, members: [alice], guild, general } = await setUp({ levelsOn: false });
+    expect(guild.levels).toMatchObject({ enabled: false, xpPerLevel: 100, levelShort: '', showInMemberList: true });
+    await say(alice, general.id, 'nothing earns XP yet');
+    expect(await xpOf(guild, alice)).toBe(0);
+
+    await configure(owner, guild, { enabled: true });
     expect(guild.levels.sources.message).toEqual({ enabled: true, xp: 10 });
     expect(guild.levels.sources.voiceMinute.enabled).toBe(false);
 

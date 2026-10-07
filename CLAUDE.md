@@ -297,11 +297,11 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   Google Play only allows after a declaration (chosen over the system photo picker alone,
   accepting Google may refuse it; then the grid goes and Photos remains). The gallery never
   leaves the phone; only picked files are read by the page.
-- **Levels** (built 2026-10-07, see Levels in `docs/guilds.md`): Guilded's XP per guild, on by
-  default; the guild (Manage Guild) chooses what earns XP and how much (messages, replies and
+- **Levels** (built 2026-10-07, see Levels in `docs/guilds.md`): Guilded's XP per guild, off until
+  a guild turns it on (decided the same day); the guild (Manage Guild) chooses what earns XP and how much (messages, replies and
   reactions received on by default; mentions, reacting, threads, documents, tasks, voice minutes
   off), XP per level (linear; 1 = levels only, XP never shown), its own names for XP, levels and
-  the member list's short badge ("12 lvl"), or turns it off. Manage Levels (not a default) sets
+  the member list's short badge ("12 lvl"), or turns it off again. Manage Levels (not a default) sets
   or adds to anyone's XP or level, mainly for bots (bot API `/guilds/:id/levels...` and a
   `GUILD_MEMBER_LEVEL_UPDATE` gateway event). Bots never earn XP; XP is kept when someone leaves.
 - **Reaction notifications** (built 2026-10-07, see Reaction notifications in `docs/realtime.md`):

@@ -30,7 +30,7 @@ const SOURCES = {
 };
 
 const DEFAULT_SETTINGS = {
-  enabled: true,
+  enabled: false, // a guild turns levels on in Guild Settings → Levels
   xpPerLevel: 100,
   // Empty: the app's own words ("XP", "Level", "lvl", translated).
   xpName: '',
