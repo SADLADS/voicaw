@@ -646,7 +646,9 @@ like the rest of a guild.
   @everyone, @here and any role (`mentions.js` `allowed`).
 - **Files** (up to 10, 25 MB together) go to `uploads/webhooks/<uuid>/<name>`, unencrypted;
   images, videos and sounds are served as themselves, anything else as
-  `application/octet-stream` (never HTML or SVG). Pictures (data URIs, 8 MB) are processed like
+  `application/octet-stream` (never HTML or SVG). A file sent as `application/octet-stream` (as
+  discord.py sends every file) gets its type from its extension, a picture only if sharp reads it
+  as that format, so bots' images still show inline. Pictures (data URIs, 8 MB) are processed like
   profile pictures into `profile-pics/webhooks/<id>/<avatar>.webp`. The app's JSON parser skips
   `/webhooks` paths; the router has its own (12 MB JSON, forms, raw multipart read with
   `Response.formData()`).

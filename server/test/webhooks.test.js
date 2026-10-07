@@ -203,6 +203,20 @@ describe('executing a webhook (Discord API)', () => {
     // Just a file, the simplest multipart (curl -F file=@x).
     const only = await request(app).post(hookPath(hook)).attach('file', image, { filename: 'x.png', contentType: 'image/png' });
     expect(only.status).toBe(204);
+
+    // discord.py sends every file as application/octet-stream: the type comes from the name,
+    // checked against the contents for pictures.
+    const sent = await request(app)
+      .post(`${hookPath(hook)}?wait=true`)
+      .attach('files[0]', image, { filename: 'graph.png', contentType: 'application/octet-stream' })
+      .attach('files[1]', Buffer.from('not a picture'), { filename: 'fake.png', contentType: 'application/octet-stream' })
+      .attach('files[2]', Buffer.from('ID3'), { filename: 'song.MP3', contentType: 'application/octet-stream' });
+    const [graph, fake, song] = sent.body.attachments;
+    expect(graph).toMatchObject({ content_type: 'image/png', width: 64, height: 32 });
+    expect(objects.get(graph.url.slice(graph.url.indexOf('uploads/'))).contentType).toBe('image/png');
+    expect(fake.content_type).toBe('application/octet-stream');
+    expect(fake.width).toBeUndefined();
+    expect(song.content_type).toBe('audio/mpeg');
   });
 
   it('pings like Discord: everything by default, narrowed by allowed_mentions', async () => {

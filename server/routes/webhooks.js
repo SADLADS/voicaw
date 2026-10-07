@@ -42,6 +42,15 @@ const AVATAR_BUCKET = 'profile-pics';
 const FILE_BUCKET = 'uploads';
 // Served as themselves; anything else is served as a download (application/octet-stream).
 const INLINE_TYPES = /^(image\/(png|jpeg|gif|webp|avif)|video\/(mp4|webm|quicktime)|audio\/(mpeg|ogg|wav|webm|mp4|flac))$/;
+// Libraries send every file as application/octet-stream (discord.py does; Discord works the
+// type out itself), so a file not declared as one of those gets one from its extension.
+const EXTENSION_TYPES = {
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif',
+  mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
+  mp3: 'audio/mpeg', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', wav: 'audio/wav', m4a: 'audio/mp4', flac: 'audio/flac',
+};
+// sharp's name for each picture format, to check a picture is what its extension says.
+const SHARP_FORMATS = { 'image/png': ['png'], 'image/jpeg': ['jpeg'], 'image/gif': ['gif'], 'image/webp': ['webp'], 'image/avif': ['heif'] };
 
 const now = () => Math.floor(Date.now() / 1000);
 
@@ -253,16 +262,19 @@ async function storeFiles(files, meta = []) {
     const info = (Array.isArray(meta) ? meta : []).find((m) => m && String(m.id) === n) ?? {};
     const filename = cleanFilename(info.filename ?? file.name, index);
     const body = Buffer.from(await file.arrayBuffer());
-    const contentType = INLINE_TYPES.test(file.type) ? file.type : 'application/octet-stream';
+    const declared = INLINE_TYPES.test(file.type);
+    let contentType = declared ? file.type : (EXTENSION_TYPES[filename.split('.').pop().toLowerCase()] ?? 'application/octet-stream');
     const id = crypto.randomUUID();
     const key = `webhooks/${id}/${filename}`;
     let size = {};
     if (contentType.startsWith('image/')) {
       try {
         const meta2 = await sharp(body, { limitInputPixels: 100_000_000 }).metadata();
+        if (!declared && !SHARP_FORMATS[contentType].includes(meta2.format)) throw new Error('not that format');
         size = { width: meta2.width, height: meta2.pageHeight ?? meta2.height };
       } catch {
-        // Not readable as an image: still a file.
+        // Not readable as an image: still a file (shown as one if only its name said picture).
+        if (!declared) contentType = 'application/octet-stream';
       }
     }
     await putObject(FILE_BUCKET, key, body, contentType);
