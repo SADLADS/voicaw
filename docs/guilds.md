@@ -270,9 +270,16 @@ its own, that opens beside the channel. Not encrypted, like the rest of a guild.
   (to your own devices).
 - **Client:** `?thread=<id>` on a text channel's URL opens `guild/ThreadPane.jsx` in the member
   list's place (on a phone it covers the channel, with Back): header (name, #channel, Archived,
-  Join, a menu: Join/Leave, Rename, Archive/Unarchive, Copy Link, Copy Thread ID, Delete), the starter message,
-  and a `ChatPane` over `useChannel({ side: true })` (the "side chat" in presence, `setSideChat`,
-  so a thread on screen isn't pushed either). `ThreadContext` (`contexts.js`, from `GuildView`)
+  Join, a menu: Join/Leave, Rename, Archive/Unarchive, Copy Link, Copy Thread ID, Delete, and on
+  a computer full view and close), and a `ChatPane` over `useChannel({ side: true })` (the "side
+  chat" in presence, `setSideChat`, so a thread on screen isn't pushed either). As in Discord, the
+  chat starts with the thread itself (`ThreadStart`, given as `ChatPane`'s `listHead`, drawn by
+  `MessageList` above the first message once history reaches it): its name, who started it and
+  the starter message drawn as a message, all one scrolling list with the thread's messages.
+  **Full view** (computers only, `&full=1`, Discord's "open in full view"): the header's expand
+  button gives the thread the whole page, the channel and its header aren't shown (nor loaded:
+  `GuildView` passes no channel to `useChannel`, so it isn't marked read or "active" meanwhile);
+  the button or the header's #channel go back. The channel list opens joined threads this way. `ThreadContext` (`contexts.js`, from `GuildView`)
   gives the channel's messages Create Thread (right-click menu and phone action sheet;
   `guild/ThreadDialog.jsx` suggests a name from the message), the line under a starter message
   (`guild/ThreadSummary.jsx`: name, message count, last activity), and the header's threads

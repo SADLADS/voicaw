@@ -217,7 +217,8 @@ export default function GuildSidebar({ guild, user }) {
     showContent();
   }
 
-  // A joined thread, indented under its channel; it opens beside the channel.
+  // A joined thread, indented under its channel; on a computer it opens in full view, as in
+  // Discord (on a phone a thread always covers its channel).
   function renderThread(thread) {
     const active = String(thread.id) === openThreadId && String(thread.parent_id) === channelId;
     const unread = unreadChannels.has(thread.id) && !active;
@@ -225,7 +226,7 @@ export default function GuildSidebar({ guild, user }) {
     return (
       <li key={`thread-${thread.id}`} className={`guild-thread${active ? ' active' : ''}${unread ? ' unread' : ''}`}>
         <Link
-          to={`/guild/${guild.id}/${thread.parent_id}?thread=${thread.id}`}
+          to={`/guild/${guild.id}/${thread.parent_id}?thread=${thread.id}${isMobile ? '' : '&full=1'}`}
           replace={isMobile}
           onClick={showContent}
           className="guild-channel-link guild-thread-link"
