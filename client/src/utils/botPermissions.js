@@ -57,6 +57,7 @@ export const BOT_PERMISSION_GROUPS = [
       { name: 'VOICAW_QUEUE_VIDEOS', bit: 58, ours: 'QUEUE_VIDEOS' },
       { name: 'VOICAW_MANAGE_QUEUE', bit: 59, ours: 'MANAGE_QUEUE' },
       { name: 'VOICAW_CONTROL_PLAYBACK', bit: 60, ours: 'CONTROL_PLAYBACK' },
+      { name: 'VOICAW_MANAGE_LEVELS', bit: 62, ours: 'MANAGE_LEVELS' },
     ],
   },
 ];

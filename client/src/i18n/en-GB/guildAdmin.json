@@ -207,6 +207,10 @@
         "label": "Manage Events",
         "description": "Lets members edit, start, end and cancel anyone's events."
       },
+      "MANAGE_LEVELS": {
+        "label": "Manage Levels",
+        "description": "Lets members set anyone's XP and level. Mostly for bots that hand out XP."
+      },
       "ADMINISTRATOR": {
         "label": "Administrator",
         "description": "Every permission, in every channel, whatever the channel settings. Handle with care."
@@ -263,6 +267,7 @@
         "emoji": "Emoji",
         "webhooks": "Webhooks",
         "events": "Events",
+        "levels": "Levels",
         "guild": "Guild settings"
       },
       "deletedChannel": "deleted-channel",
@@ -325,6 +330,8 @@
         "eventUpdate": "{{actor}} changed the event {{event}}",
         "eventDelete": "{{actor}} cancelled the event {{event}}",
         "guildUpdate": "{{actor}} changed the guild settings",
+        "levelsUpdate": "{{actor}} changed the level settings",
+        "memberXpUpdate": "{{actor}} changed the XP of {{target}}",
         "auditLogClearOlder_one": "{{actor}} cleared entries older than {{age}} ({{count}} entry)",
         "auditLogClearOlder_other": "{{actor}} cleared entries older than {{age}} ({{count}} entries)",
         "auditLogClearAll_one": "{{actor}} cleared the whole audit log ({{count}} entry)",
@@ -504,6 +511,7 @@
       "tabs": {
         "roles": "Roles",
         "emoji": "Emoji",
+        "levels": "Levels",
         "invites": "Invites",
         "bans": "Bans"
       },

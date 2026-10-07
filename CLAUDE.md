@@ -293,6 +293,13 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   Google Play only allows after a declaration (chosen over the system photo picker alone,
   accepting Google may refuse it; then the grid goes and Photos remains). The gallery never
   leaves the phone; only picked files are read by the page.
+- **Levels** (built 2026-10-07, see Levels in `docs/guilds.md`): Guilded's XP per guild, on by
+  default; the guild (Manage Guild) chooses what earns XP and how much (messages, replies and
+  reactions received on by default; mentions, reacting, threads, documents, tasks, voice minutes
+  off), XP per level (linear; 1 = levels only, XP never shown), its own names for XP, levels and
+  the member list's short badge ("12 lvl"), or turns it off. Manage Levels (not a default) sets
+  or adds to anyone's XP or level, mainly for bots (bot API `/guilds/:id/levels...` and a
+  `GUILD_MEMBER_LEVEL_UPDATE` gateway event). Bots never earn XP; XP is kept when someone leaves.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

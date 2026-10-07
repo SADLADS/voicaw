@@ -275,6 +275,14 @@ class Session {
       }
       case 'guild_member_update':
         return this.memberUpdate(guildId, event.userId);
+      // Voicaw's own (guildLevels.js): someone's level changed, or their XP was set by hand.
+      case 'guild_member_xp':
+        if (this.wants(INTENTS.GUILD_MEMBERS)) {
+          this.dispatch('GUILD_MEMBER_LEVEL_UPDATE', {
+            guild_id: g, user_id: String(event.userId), xp: event.xp, level: event.level, previous_level: event.previousLevel,
+          });
+        }
+        return;
       case 'user_profile':
         return this.profileChanged(event.user);
       case 'user_status':

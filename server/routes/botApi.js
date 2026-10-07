@@ -3,7 +3,7 @@ const db = require('../db');
 const config = require('../config');
 const { PERMISSIONS, CHANNEL_PERMISSIONS, has } = require('../permissions');
 const {
-  getMember, getChannelAccess, getGuildLayout, getOverrides, getChannelViewers, removeMember,
+  getMember, getChannelAccess, getGuildLayout, getOverrides, getChannelViewers, removeMember, announceGuildUpdate,
 } = require('../guilds');
 const { sendToUserSockets, getStatus } = require('../sockets');
 const { createLimiter } = require('../rateLimit');
@@ -22,6 +22,7 @@ const interactions = require('../interactions');
 const guildEvents = require('../guildEvents');
 const oauth = require('../oauth');
 const botDms = require('../botDms');
+const levels = require('../guildLevels');
 
 // The bot API: Discord's REST API (https://discord.com/developers/docs/reference), for bots made
 // in the developer portal (bots.js, docs/bots.md), at /api/v10 (and /api/v9), so Discord's
@@ -1463,6 +1464,93 @@ router.get('/guilds/:guildId/scheduled-events/:eventId/users', auth, inGuild, in
       ...(member ? { member: { ...member, user: undefined } } : {}),
     };
   }));
+}));
+
+// ---- Levels (Voicaw's own; guildLevels.js) ----
+// Settings and changes are snake_case, as the rest of the API: sources by the same names
+// (reply_received...). Names left to the app ("" in the settings) read as the English defaults.
+
+const snake = (key) => key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+const camel = (key) => key.replace(/_([a-z])/g, (m, c) => c.toUpperCase());
+
+function levelSettingsObject(settings) {
+  return {
+    enabled: settings.enabled,
+    xp_per_level: settings.xpPerLevel,
+    xp_name: settings.xpName || 'XP',
+    level_name: settings.levelName || 'Level',
+    level_short_name: settings.levelShort || 'lvl',
+    show_in_member_list: settings.showInMemberList,
+    message_cooldown: settings.messageCooldown,
+    sources: Object.fromEntries(Object.entries(settings.sources).map(([key, source]) => [snake(key), { enabled: source.enabled, xp: source.xp }])),
+  };
+}
+
+// The bot API's body as guildLevels.js's patch.
+function levelSettingsPatch(body = {}) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+  const names = { level_short_name: 'levelShort' };
+  const patch = {};
+  for (const [key, value] of Object.entries(body)) {
+    if (key === 'sources' && value && typeof value === 'object' && !Array.isArray(value)) {
+      patch.sources = Object.fromEntries(Object.entries(value).map(([source, change]) => [camel(source), change]));
+    } else {
+      patch[names[key] ?? camel(key)] = value;
+    }
+  }
+  return patch;
+}
+
+const memberLevelObject = (guildId, entry, settings) => ({
+  guild_id: String(guildId),
+  user_id: String(entry.user_id),
+  xp: entry.xp,
+  level: entry.level,
+  rank: entry.rank,
+  xp_per_level: settings.xpPerLevel,
+});
+
+router.get('/guilds/:guildId/levels', auth, inGuild, route(async (req, res) => {
+  res.json(levelSettingsObject(await levels.getSettings(req.member.guild.id)));
+}));
+
+// Manage Guild, as in the app.
+router.patch('/guilds/:guildId/levels', auth, limit('levels-update', 5, 5000), inGuild, route(async (req, res) => {
+  const settings = await levels.updateSettings(req.member, levelSettingsPatch(req.body));
+  await announceGuildUpdate(req.member.guild.id);
+  res.json(levelSettingsObject(settings));
+}));
+
+// The leaderboard, most XP first: `limit` (1–1000, default 100), `offset`.
+router.get('/guilds/:guildId/levels/members', auth, inGuild, route(async (req, res) => {
+  const guildId = req.member.guild.id;
+  const settings = await levels.getSettings(guildId);
+  const rows = await levels.leaderboard(guildId, {
+    limit: Math.min(Math.max(Number(req.query.limit) || 100, 1), 1000),
+    offset: Math.max(Number.parseInt(req.query.offset, 10) || 0, 0),
+  });
+  res.json(rows.map((row) => memberLevelObject(guildId, row, settings)));
+}));
+
+const levelUserId = (req) => (req.params.userId === '@me' ? req.bot.id : D.ourId(req.params.userId));
+
+router.get('/guilds/:guildId/levels/members/:userId', auth, inGuild, route(async (req, res) => {
+  const guildId = req.member.guild.id;
+  const userId = levelUserId(req);
+  await memberOr404(guildId, userId);
+  const settings = await levels.getSettings(guildId);
+  res.json(memberLevelObject(guildId, await levels.memberLevel(guildId, userId, settings), settings));
+}));
+
+// Manage Levels. One of { xp } or { level } (set), { add_xp } or { add_levels } (add; below 0
+// takes away).
+router.patch('/guilds/:guildId/levels/members/:userId', auth, limit('levels-member', 10, 5000), inGuild, route(async (req, res) => {
+  const guildId = req.member.guild.id;
+  const body = req.body ?? {};
+  const entry = await levels.changeMemberXp(req.member, levelUserId(req), {
+    xp: body.xp, level: body.level, addXp: body.add_xp, addLevels: body.add_levels,
+  });
+  res.json(memberLevelObject(guildId, entry, await levels.getSettings(guildId)));
 }));
 
 // ---- Discord's CDN ----

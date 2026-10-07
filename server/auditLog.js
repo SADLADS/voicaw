@@ -28,6 +28,8 @@ const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 //   event_create / event_delete { name }, event_update { name, changes (start_time/end_time
 //     unix s, channel by name), cover?: 'added' | 'changed' | 'removed', repeat?: 'changed' |
 //     'removed' } (target: the event; channel: its voice channel, if any)
+//   levels_update { changes: { field or 'sources.<source>.<enabled|xp>': [before, after] } }
+//   member_xp_update { before, after } (XP; target: the member)
 //   audit_log_clear { olderThanDays (0: everything), deleted }
 // Never a message's content: deleting it should get rid of it.
 //

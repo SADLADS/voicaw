@@ -184,7 +184,7 @@ export default function GuildView({ user }) {
 
   useEffect(() => setMembersOpenMobile(false), [channelId]);
 
-  // Members, kept current: joins, leaves and roles (online status: usePresence).
+  // Members, kept current: joins, leaves, roles and XP (online status: usePresence).
   useEffect(() => {
     let cancelled = false;
     setMembers([]);
@@ -204,6 +204,8 @@ export default function GuildView({ user }) {
         setMembers((prev) => prev.filter((m) => m.id !== event.userId));
       } else if (event.type === 'guild_member_update') {
         setMembers((prev) => prev.map((m) => (m.id === event.userId ? { ...m, role_ids: event.roleIds } : m)));
+      } else if (event.type === 'guild_member_xp') {
+        setMembers((prev) => prev.map((m) => (m.id === event.userId ? { ...m, xp: event.xp } : m)));
       }
     });
     return () => {

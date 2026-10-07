@@ -17,6 +17,7 @@ const { parseDuration, listMutes, setMute, CHANNEL_NOTIFY_LEVELS, listChannelLev
 const { sendToUserSockets } = require('../sockets');
 const { ActionError, withActionErrors } = require('../actionError');
 const { refreshLinkPreviews } = require('../linkPreviews');
+const levels = require('../guildLevels');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
 // same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
@@ -267,6 +268,9 @@ async function createMessage({
   if (channel.type === 'thread') await threads.announceThread(channel.id, { joinedIds });
   notifyNewMessage(message, channel, mentions, { silent }).catch((err) => console.error('Guild push failed:', err.message));
   refreshLinkPreviews(message.id);
+  // XP (guildLevels.js): for sending it, and to whoever it replies to or names.
+  const named = [...parseMentions(content).userIds].filter((userId) => mentions.mentioned.has(userId));
+  await levels.awardMessage(channel.guild_id, message, named);
   return message;
 }
 
@@ -472,6 +476,7 @@ async function addReaction(message, channel, userId, permissions, emoji) {
     [lastID]
   );
   await sendToChannel(channel, { type: 'guild_reaction_add', guildId, channelId, reaction });
+  if (!forPoll) await levels.awardReaction(guildId, message, userId);
   return reaction;
 }
 

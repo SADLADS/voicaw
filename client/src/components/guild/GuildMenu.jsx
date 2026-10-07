@@ -6,6 +6,7 @@ import {
   faGear,
   faLink,
   faRightFromBracket,
+  faTrophy,
   faUserPlus,
 } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../../contexts';
@@ -14,6 +15,7 @@ import { guildLink } from '../../utils/guildDisplay';
 import { copyIdItem } from '../../utils/copyId';
 import { NOTIFY_LEVEL_LABELS } from '../../utils/channelMutes';
 import { PERMISSIONS, has } from '../../utils/permissions';
+import { levelsOn } from '../../utils/levels';
 import ContextMenu from '../ContextMenu';
 import { t } from '../../i18n';
 
@@ -74,6 +76,7 @@ export default function GuildMenu({ guildId, user, anchor, sheet, onDialog, onCl
     },
   });
   if (opensSettings) items.push({ key: 'settings', label: t('guildAdmin.guildMenu.settings'), icon: faGear, onSelect: () => onDialog('settings') });
+  if (levelsOn(guild)) items.push({ key: 'leaderboard', label: t('levels.leaderboard.title'), icon: faTrophy, onSelect: () => onDialog('leaderboard') });
   if (can(PERMISSIONS.VIEW_AUDIT_LOG)) items.push({ key: 'audit', label: t('guildAdmin.auditLog.title'), icon: faClipboardList, onSelect: () => onDialog('audit') });
   items.push({
     key: 'link',

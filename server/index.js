@@ -61,6 +61,7 @@ app.use('/api', require('./routes/guildEmojis'));
 app.use('/api', require('./routes/guildTasks'));
 app.use('/api', require('./routes/guildDocuments'));
 app.use('/api', require('./routes/guildEvents'));
+app.use('/api', require('./routes/guildLevels'));
 app.use('/api', require('./routes/auditLog'));
 app.use('/api', require('./routes/voice'));
 app.use('/api', require('./routes/watchParty'));
@@ -125,6 +126,8 @@ if (require.main === module) {
   require('./pollTimers').startPollTimers();
   // Starts, ends and cancels scheduled events on time (guildEvents.js).
   require('./guildEvents').startEventTimers();
+  // XP for time in voice, and forgetting old once-only awards (guildLevels.js).
+  require('./guildLevels').startLevelTimers();
   // Deletes files nothing uses any more (uploads.js).
   require('./uploads').startUploadCleanup();
   // Forgets sessions unused for 30 days (auth.js).

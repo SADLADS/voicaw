@@ -27,6 +27,7 @@ const { logAudit, diff } = require('../auditLog');
 const { releaseUploads } = require('../uploads');
 const { ActionError, withActionErrors } = require('../actionError');
 const { channelEvents, announceDeleted } = require('../guildEvents');
+const { xpByMember } = require('../guildLevels');
 
 // Guilds: creating and managing them, members, bans, invites, categories and
 // channels. Roles and channel overrides are in routes/guildRoles.js, messages in
@@ -189,7 +190,8 @@ router.post('/guilds/:guildId/transfer', owner, async (req, res) => {
 
 // ---- Members and bans ----
 
-// Everyone in the guild, with their role ids (for colours, grouping and the member card).
+// Everyone in the guild, with their role ids (for colours, grouping and the member card) and
+// XP (levels, guildLevels.js).
 router.get('/guilds/:guildId/members', member, async (req, res) => {
   const members = await db.all(
     `SELECT u.id, u.username, u.display_name, u.custom_status, u.bio, u.avatar, u.last_online, u.bot, gm.joined_at
@@ -200,7 +202,8 @@ router.get('/guilds/:guildId/members', member, async (req, res) => {
   const roleRows = await db.all('SELECT user_id, role_id FROM guild_member_roles WHERE guild_id = ?', [req.guild.id]);
   const roleIds = new Map(members.map((m) => [m.id, []]));
   for (const { user_id: userId, role_id: roleId } of roleRows) roleIds.get(userId)?.push(roleId);
-  res.json(members.map((m) => ({ ...m, role_ids: roleIds.get(m.id), status: getStatus(m.id) })));
+  const xp = await xpByMember(req.guild.id);
+  res.json(members.map((m) => ({ ...m, role_ids: roleIds.get(m.id), xp: xp.get(m.id) ?? 0, status: getStatus(m.id) })));
 });
 
 // Leave. The owner has to hand the guild over (or delete it) first.

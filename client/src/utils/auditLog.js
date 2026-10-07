@@ -25,6 +25,7 @@ export const AUDIT_FILTERS = [
   { key: 'emoji', label: t('guildAdmin.auditLog.filters.emoji'), actions: ['emoji_create', 'emoji_update', 'emoji_delete'] },
   { key: 'webhooks', label: t('guildAdmin.auditLog.filters.webhooks'), actions: ['webhook_create', 'webhook_update', 'webhook_delete'] },
   { key: 'events', label: t('guildAdmin.auditLog.filters.events'), actions: ['event_create', 'event_update', 'event_delete'] },
+  { key: 'levels', label: t('guildAdmin.auditLog.filters.levels'), actions: ['levels_update', 'member_xp_update'] },
   { key: 'guild', label: t('guildAdmin.auditLog.filters.guild'), actions: ['guild_update', 'audit_log_clear'] },
 ];
 
@@ -130,6 +131,8 @@ export function describeEntry(entry, names) {
     case 'event_update': return sentence('eventUpdate', { actor, event: named(d.name) });
     case 'event_delete': return sentence('eventDelete', { actor, event: named(d.name) });
     case 'guild_update': return sentence('guildUpdate', { actor });
+    case 'levels_update': return sentence('levelsUpdate', { actor });
+    case 'member_xp_update': return sentence('memberXpUpdate', { actor, target: target() });
     case 'audit_log_clear': return d.olderThanDays
       ? sentence('auditLogClearOlder', { actor }, { age: clearAge(d.olderThanDays), count: d.deleted })
       : sentence('auditLogClearAll', { actor }, { count: d.deleted });
@@ -161,6 +164,8 @@ const change = (field, before, after) => t('guildAdmin.auditLog.changes.change',
 export function entryChanges(entry) {
   const d = entry.details ?? {};
   const lines = [];
+  if (entry.action === 'levels_update') return levelChanges(d.changes ?? {});
+  if (entry.action === 'member_xp_update') return [t('levels.audit.xp', { before: d.before, after: d.after })];
   for (const [field, [before, after]] of Object.entries(d.changes ?? {})) {
     if (field === 'permissions') {
       const granted = permissionNames(after & ~before);
@@ -200,6 +205,22 @@ export function entryChanges(entry) {
     lines.push(d.maxAge ? t('guildAdmin.auditLog.changes.expiresAfter', { age: formatAge(d.maxAge) }) : t('guildAdmin.auditLog.changes.neverExpires'));
   }
   return lines;
+}
+
+// Levels' settings changes (server/guildLevels.js settingsChanges): plain fields, and
+// `sources.<source>.enabled` / `.xp`.
+const LEVEL_FIELDS = ['enabled', 'xpPerLevel', 'xpName', 'levelName', 'levelShort', 'showInMemberList', 'messageCooldown'];
+function levelChanges(changes) {
+  return Object.entries(changes).map(([field, [before, after]]) => {
+    const [, source, part] = field.match(/^sources\.(\w+)\.(\w+)$/) ?? [];
+    const label = source
+      ? t(`levels.audit.fields.${part === 'enabled' ? 'sourceEnabled' : 'sourceXp'}`, { source: t(`levels.settings.source.${source}.label`) })
+      : LEVEL_FIELDS.includes(field) ? t(`levels.audit.fields.${field}`) : field;
+    const show = (value) => (typeof value === 'boolean'
+      ? t(`guildAdmin.auditLog.values.${value ? 'yes' : 'no'}`)
+      : value === '' ? t('guildAdmin.auditLog.values.none') : String(value));
+    return change(label, show(before), show(after));
+  });
 }
 
 function clearAge(days) {

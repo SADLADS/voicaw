@@ -32,6 +32,7 @@ export const PERMISSIONS = {
   LISTEN: 1 << 26,
   CREATE_EVENTS: 1 << 27,
   MANAGE_EVENTS: 1 << 28,
+  MANAGE_LEVELS: 1 << 29,
 };
 
 export const DEFAULT_EVERYONE_PERMISSIONS = PERMISSIONS.VIEW_CHANNEL | PERMISSIONS.SEND_MESSAGES |
@@ -54,7 +55,7 @@ export function threadPermissions(channelPermissions) {
 // and .description.
 export const PERMISSION_GROUPS = [
   { key: 'general', items: ['VIEW_CHANNEL', 'MANAGE_CHANNELS', 'MANAGE_ROLES', 'MANAGE_GUILD', 'MANAGE_EMOJIS', 'MANAGE_WEBHOOKS', 'VIEW_AUDIT_LOG'] },
-  { key: 'membership', items: ['CREATE_INVITE', 'KICK_MEMBERS', 'BAN_MEMBERS'] },
+  { key: 'membership', items: ['CREATE_INVITE', 'KICK_MEMBERS', 'BAN_MEMBERS', 'MANAGE_LEVELS'] },
   { key: 'text', items: ['SEND_MESSAGES', 'ADD_REACTIONS', 'MANAGE_MESSAGES', 'PIN_MESSAGES', 'CREATE_THREADS', 'SEND_MESSAGES_IN_THREADS', 'MENTION_EVERYONE'] },
   { key: 'voice', items: ['CONNECT', 'SPEAK', 'LISTEN', 'STREAM', 'QUEUE_VIDEOS', 'MANAGE_QUEUE', 'CONTROL_PLAYBACK'] },
   { key: 'list', items: ['EDIT_TASKS'] },
