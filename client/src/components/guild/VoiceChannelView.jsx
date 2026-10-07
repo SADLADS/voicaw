@@ -42,6 +42,13 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
   const volumeMenu = useVolumeMenu(here);
   const speaking = new Set(here ? voice.speaking : []);
   const canConnect = has(channel.my_permissions, PERMISSIONS.CONNECT);
+  // Its user limit reached (Manage Channels joins anyway, as the server allows).
+  const full = !here && channel.user_limit > 0 && members.length >= channel.user_limit &&
+    !has(channel.my_permissions, PERMISSIONS.MANAGE_CHANNELS);
+  // Joining from here failed (full, or anything else): said here too, where a phone has no
+  // voice bar.
+  const [tried, setTried] = useState(false);
+  const joinError = tried && voice.status === 'idle' ? voice.error : null;
   // A bot that can hear the channel gets an ear (Listen; people all have it by default).
   const listeningBot = (m) => isBot(m.user_id) && m.listening !== false;
   // Without Listen you're there but hear nobody (LiveKit sends you nothing).
@@ -92,9 +99,21 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
     footer = <p className="voice-view-note">{t('guilds.voice.noPermission')}</p>;
   } else {
     footer = (
-      <button type="button" className="voice-view-join" onClick={() => joinVoice(guild.id, channel.id)}>
-        {t('guilds.voice.join')}
-      </button>
+      <div className="voice-view-join-area">
+        {(joinError || full) && (
+          <p className="voice-view-note voice-view-error" role="alert">{joinError ?? t('guilds.voice.full')}</p>
+        )}
+        <button
+          type="button"
+          className="voice-view-join"
+          onClick={() => {
+            setTried(true);
+            joinVoice(guild.id, channel.id);
+          }}
+        >
+          {t('guilds.voice.join')}
+        </button>
+      </div>
     );
   }
 

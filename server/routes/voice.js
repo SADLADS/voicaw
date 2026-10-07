@@ -1,5 +1,6 @@
 const express = require('express');
-const config = require('../config');
+const voiceRegions = require('../voiceRegions');
+const { ActionError } = require('../actionError');
 const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has } = require('../permissions');
 const { getChannelAccess } = require('../guilds');
@@ -10,7 +11,7 @@ const voice = require('../voice');
 const router = express.Router();
 
 function requireVoice(req, res, next) {
-  if (!config.livekit) return res.status(503).json({ error: "Voice isn't set up yet" });
+  if (!voiceRegions.available()) return res.status(503).json({ error: "Voice isn't set up yet" });
   next();
 }
 
@@ -30,14 +31,26 @@ router.post('/guilds/:guildId/channels/:channelId/voice', authenticateJWT, requi
   }
   if (access.channel.guild_id !== Number(req.params.guildId)) return res.status(404).json({ error: 'Channel not found' });
   const { selfMute, selfDeaf } = req.body ?? {};
-  res.json(await voice.joinToken({
-    channel: access.channel,
-    userId: req.user.id,
-    username: req.user.username,
-    permissions: access.permissions,
-    selfMute,
-    selfDeaf,
-  }));
+  try {
+    res.json(await voice.joinToken({
+      channel: access.channel,
+      userId: req.user.id,
+      username: req.user.username,
+      permissions: access.permissions,
+      selfMute,
+      selfDeaf,
+    }));
+  } catch (err) {
+    // The channel is full, or its region can't be reached.
+    if (err instanceof ActionError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// The voice regions a voice channel can be put in (channel settings): [{ id, name, flag,
+// default }]. No addresses or keys.
+router.get('/voice/regions', authenticateJWT, (req, res) => {
+  res.json(voiceRegions.listPublic());
 });
 
 // Your own mute/deafen: { selfMute, selfDeaf }. Returns your voice state (null when you're
@@ -57,16 +70,16 @@ router.delete('/voice', authenticateJWT, async (req, res) => {
   res.json({ success: true });
 });
 
-// LiveKit's webhooks (livekit.yaml `webhook:`), signed with the API key.
-router.post('/livekit/webhook', requireVoice, express.text({ type: '*/*' }), async (req, res) => {
-  let event;
+// Every region's LiveKit's webhooks (livekit.yaml `webhook:`), each signed with its API key.
+router.post('/livekit/webhook', express.text({ type: '*/*' }), async (req, res) => {
+  let verified;
   try {
-    event = await voice.verifyWebhook(req.body, req.get('Authorization'));
+    verified = await voice.verifyWebhook(req.body, req.get('Authorization'));
   } catch (err) {
     console.warn('Rejected a LiveKit webhook:', err.message);
     return res.status(401).json({ error: 'Invalid webhook' });
   }
-  await voice.handleWebhookEvent(event);
+  await voice.handleWebhookEvent(verified.event, verified.regionId);
   res.json({ success: true });
 });
 

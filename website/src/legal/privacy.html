@@ -82,7 +82,11 @@
   sent) are deleted, normally within a day.</p>
 
 <h2 id="others">Who else is involved</h2>
-<p>Voicaw's server, file store and voice server are its own. Some things involve other services:</p>
+<p>Voicaw's server, file store and voice servers are its own. There can be more than one voice
+  server, in different places (voice regions): a guild chooses which one each of its voice
+  channels uses, and calls use the default one. Guild voice goes through the chosen server
+  without end-to-end encryption; calls are end-to-end encrypted, so no voice server can hear
+  them. Some things involve other services:</p>
 <ul>
   <li><strong>Notifications.</strong> In a browser, notifications go through your browser maker's
     push service (Google, Mozilla, Apple or Microsoft), encrypted so only your browser can read

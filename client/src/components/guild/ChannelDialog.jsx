@@ -4,13 +4,15 @@ import { faFileLines, faHashtag, faListCheck, faVolumeHigh } from '@fortawesome/
 import Modal from './Modal';
 import ChannelPermissions from './ChannelPermissions';
 import ChannelWebhooks from './ChannelWebhooks';
+import VoiceChannelSettings from './VoiceChannelSettings';
 import { createChannel, deleteChannel, updateChannel } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
 import { PERMISSIONS, colorToHex, has, memberRank } from '../../utils/permissions';
 import { t } from '../../i18n';
 
 // Creating a channel (no `channel`; in `categoryId` if given), optionally private to some
-// roles, or editing one: Overview (name, topic, category, NSFW, delete), with Manage Roles
+// roles, or editing one: Overview (name, topic, category, NSFW, a voice channel's bitrate, user
+// limit and region (VoiceChannelSettings), delete), with Manage Roles
 // Permissions (ChannelPermissions) and, for a text channel with Manage Webhooks, Webhooks
 // (ChannelWebhooks). The server checks every permission again.
 export default function ChannelDialog({ guild, channel, user, categoryId = null, onCreated, onClose }) {
@@ -34,6 +36,10 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
   const [topic, setTopic] = useState(channel?.topic ?? '');
   const [category, setCategory] = useState(editing ? channel.category_id : categoryId);
   const [nsfw, setNsfw] = useState(Boolean(channel?.nsfw));
+  const savedVoice = {
+    bitrate: channel?.bitrate ?? 64000, userLimit: channel?.user_limit ?? 0, rtcRegion: channel?.rtc_region ?? null,
+  };
+  const [voiceSettings, setVoiceSettings] = useState(savedVoice);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -53,15 +59,20 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
   function save(e) {
     e.preventDefault();
     if (!name.trim()) return;
+    // A voice channel's settings, only those changed.
+    const isVoice = (editing ? channel.type : type) === 'voice';
+    const voiceChanges = isVoice
+      ? Object.fromEntries(Object.entries(voiceSettings).filter(([key, value]) => value !== savedVoice[key]))
+      : {};
     run(async () => {
       if (editing) {
         await updateChannel(guild.id, channel.id, {
-          name, topic: topic.trim() || null, categoryId: category, ...(nsfw !== Boolean(channel.nsfw) ? { nsfw } : {}),
+          name, topic: topic.trim() || null, categoryId: category, ...(nsfw !== Boolean(channel.nsfw) ? { nsfw } : {}), ...voiceChanges,
         });
       } else {
         const created = await createChannel(guild.id, {
           name, type, topic: topic.trim() || null, categoryId: category, ...(nsfw ? { nsfw: true } : {}),
-          ...(isPrivate ? { private: true, roleIds: privateRoleIds } : {}),
+          ...(isPrivate ? { private: true, roleIds: privateRoleIds } : {}), ...voiceChanges,
         });
         onCreated?.(created);
       }
@@ -197,6 +208,10 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
               <span className="vc-hint">{t('guildAdmin.channelDialog.nsfw.hint')}</span>
             </span>
           </label>
+        )}
+
+        {(editing ? channel.type : type) === 'voice' && (
+          <VoiceChannelSettings value={voiceSettings} onChange={setVoiceSettings} />
         )}
 
         {!editing && managesRoles && (

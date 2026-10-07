@@ -150,10 +150,23 @@ many streams (video). To raise it:
 echo 'net.core.rmem_max=5000000' > /etc/sysctl.d/90-livekit.conf && sysctl --system
 ```
 
-Bandwidth: each voice stream is about 30–50 kbit/s, and the server sends everyone every other
-speaker, so the upload a channel needs grows with the square of its size. For example, 10
-people with everyone talking come to about 90 streams, around 4 Mbit/s up. Silent listeners
-send almost nothing.
+Bandwidth: each voice stream is the channel's bitrate (64 kbit/s unless a guild changes it, up
+to 384) about twice over, since LiveKit's packet loss protection (RED) sends every frame twice,
+and the server sends everyone every other speaker, so the upload a channel needs grows with the
+square of its size. For example, 10 people with everyone talking at 64 kbit/s come to about 90
+streams, around 12 Mbit/s up. Silent listeners send almost nothing.
+
+**More voice regions (optional).** Voice can go through more than one LiveKit server, like
+Discord's regions: a server nearer some people (another host, another country), which a guild
+picks per voice channel and an admin can make the default (see Voice regions in
+`docs/voice-and-calls.md`). Set up LiveKit on that host as above, with its own API key and
+secret (each server needs a different key), its own name (`rtc-de.example.com` behind nginx
+there, or anything browsers reach over `wss://`), and its `webhook:` pointing at this API
+from outside: `https://api.voicaw.com/api/livekit/webhook` (with that server's `api_key`).
+Then add it in Settings → Admin → Voice regions: flag, name, its `wss://` address, the address
+this API reaches it on if not the same over https, and the key and secret (stored in the
+database; the panel never shows the secret again). Nothing to change in `server/.env`: the
+LiveKit there is the built-in "Main" region.
 
 ### 6. Running (pm2)
 

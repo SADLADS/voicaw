@@ -7,6 +7,9 @@ const { findUserByName } = require('../usernames');
 const { authenticateJWT } = require('../auth');
 const { SETTINGS, MAX_VALUE_LENGTH, setSetting, isValidValue, describeSettings } = require('../appSettings');
 const signups = require('../signups');
+const voiceRegions = require('../voiceRegions');
+const voice = require('../voice');
+const { ActionError } = require('../actionError');
 
 const router = express.Router();
 
@@ -33,8 +36,43 @@ router.get('/admin', admin, async (req, res) => {
     admins: await listAdmins(),
     requests: await signups.listRequests(),
     invites: await signups.listInvites(),
+    voiceRegions: voiceRegions.listForAdmin(),
   });
 });
+
+// ---- Voice regions (voiceRegions.js): the LiveKit servers voice can use ----
+
+const regionAction = (fn) => async (req, res) => {
+  try {
+    await fn(req, res);
+  } catch (err) {
+    if (err instanceof ActionError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+};
+
+// { name, flag, url, apiUrl?, apiKey, apiSecret }. Resolves to every region.
+router.post('/admin/voice-regions', admin, regionAction(async (req, res) => {
+  await voiceRegions.createRegion(req.body);
+  res.status(201).json(voiceRegions.listForAdmin());
+}));
+
+// Any of { name, flag, url, apiUrl, apiKey, apiSecret (empty: kept), default: true }. A new
+// default moves the voice channels left on Automatic (and a new server, everyone in it).
+router.patch('/admin/voice-regions/:id', admin, regionAction(async (req, res) => {
+  const id = Number(req.params.id);
+  const { connection, defaultChanged } = await voiceRegions.updateRegion(id, req.body);
+  if (connection || defaultChanged) await voice.regionsChanged({ changedRegionId: connection ? id : null });
+  res.json(voiceRegions.listForAdmin());
+}));
+
+// Removes a region; its voice channels go back to Automatic, and the people in them move.
+router.delete('/admin/voice-regions/:id', admin, regionAction(async (req, res) => {
+  const id = Number(req.params.id);
+  await voiceRegions.deleteRegion(id);
+  await voice.regionsChanged({ removedRegionId: id });
+  res.json(voiceRegions.listForAdmin());
+}));
 
 // { value }: a string sets it; null or '' clears it (back to the .env value).
 router.put('/admin/settings/:key', admin, async (req, res) => {

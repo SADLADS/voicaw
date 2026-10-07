@@ -661,6 +661,16 @@ router.get('/guilds/:guildId/channels', auth, inGuild, route(async (req, res) =>
   res.json(await guildChannels(req.member.guild.id, req.bot.id));
 }));
 
+// A voice channel's `bitrate`, `user_limit` and `rtc_region` (a voice region's id as a string,
+// null: Automatic) from a Discord body, as guildActions.updateChannel and createChannel take them.
+function voiceFields(body) {
+  const out = {};
+  if (body.bitrate !== undefined) out.bitrate = body.bitrate;
+  if (body.user_limit !== undefined) out.userLimit = body.user_limit;
+  if (body.rtc_region !== undefined) out.rtcRegion = body.rtc_region === null ? null : Number(body.rtc_region);
+  return out;
+}
+
 // Text (0) or voice (2) channels; `parent_id` a category; `permission_overwrites` set after.
 router.post('/guilds/:guildId/channels', auth, limit('channel-create', 5, 5000), inGuild, route(async (req, res) => {
   const body = req.body ?? {};
@@ -669,7 +679,7 @@ router.post('/guilds/:guildId/channels', auth, limit('channel-create', 5, 5000),
   const categoryId = body.parent_id != null ? D.ourId(body.parent_id, 'category') : null;
   if (body.parent_id != null && categoryId == null) throw new webhooks.FormError(['parent_id'], 'Unknown category.', 'CHANNEL_PARENT_INVALID');
   const id = await guildActions.createChannel(req.member, {
-    name: body.name, type, topic: body.topic ?? null, categoryId, nsfw: Boolean(body.nsfw),
+    name: body.name, type, topic: body.topic ?? null, categoryId, nsfw: Boolean(body.nsfw), ...voiceFields(body),
   });
   await applyOverwrites(req, id, body.permission_overwrites);
   const channel = await db.get('SELECT * FROM guild_channels WHERE id = ?', [id]);
@@ -882,15 +892,21 @@ router.delete('/guilds/:guildId/bans/:userId', auth, limit('ban', 5, 5000), inGu
 
 // ---- Voice (voice.js) ----
 
+// Discord's voice regions: Voicaw's (voiceRegions.js), their ids as strings. `optimal`: the
+// default one (where Automatic goes).
+const regionObjects = () => require('../voiceRegions').listPublic()
+  .map((r) => ({ id: String(r.id), name: r.name, optimal: r.default, deprecated: false, custom: false }));
+router.get('/voice/regions', auth, route(async (req, res) => res.json(regionObjects())));
+router.get('/guilds/:guildId/regions', auth, inGuild, route(async (req, res) => res.json(regionObjects())));
+
 // Voicaw's own, not Discord's: a voice channel's audio is a LiveKit room, and a bot joins it
 // with LiveKit's SDKs and the token this gives (Discord's voice protocol isn't spoken here).
 // Speak lets it send audio, Listen lets it hear the others; LiveKit enforces both, live.
 // Joining another channel leaves the first. Body: { self_mute, self_deaf } (optional).
 router.post('/channels/:channelId/voice', auth, limit('voice-join', 5, 10000), inChannel, route(async (req, res) => {
-  const config = require('../config');
   const voice = require('../voice');
   if (req.category || req.access.channel.type !== 'voice') throw new ActionError(400, 'Cannot execute action on this channel type', 50024);
-  if (!config.livekit) throw new ActionError(503, "Voice isn't available on this server", 0);
+  if (!require('../voiceRegions').available()) throw new ActionError(503, "Voice isn't available on this server", 0);
   const access = await voice.voiceAccess(req.access.channel.id, req.bot.id);
   if (!access) throw missingPermissions();
   const user = await userRow(req.bot.id);
@@ -1004,7 +1020,8 @@ router.get('/channels/:channelId', auth, inChannel, route(async (req, res) => {
   res.json(await channelOf(req.access.channel));
 }));
 
-// Threads: `name`, `archived`. Channels: `name`, `topic`, `nsfw`, `parent_id`.
+// Threads: `name`, `archived`. Channels: `name`, `topic`, `nsfw`, `parent_id`, and voice
+// channels' `bitrate`, `user_limit`, `rtc_region`.
 router.patch('/channels/:channelId', auth, limit('channel-update', 5, 10000), inChannel, route(async (req, res) => {
   if (req.category) throw new ActionError(400, "Categories can't be changed through the bot API yet", 50024);
   const { channel, permissions, member } = req.access;
@@ -1013,7 +1030,7 @@ router.patch('/channels/:channelId', auth, limit('channel-update', 5, 10000), in
     const thread = await threads.getThread(channel.id);
     await threadActions.updateThread({ thread, channel, permissions, userId: req.bot.id }, { name: body.name, archived: body.archived });
   } else {
-    const changes = {};
+    const changes = voiceFields(body);
     if (body.name !== undefined) changes.name = body.name;
     if (body.topic !== undefined) changes.topic = body.topic;
     if (body.nsfw !== undefined) changes.nsfw = Boolean(body.nsfw);

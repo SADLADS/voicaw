@@ -116,7 +116,7 @@ async function getChannelAccess(channelId, userId) {
   if (!Number.isInteger(channelId)) return null;
   const channel = await db.get(
     `SELECT c.id, c.guild_id, c.category_id, c.name, c.type, c.topic, COALESCE(p.nsfw, c.nsfw) AS nsfw, c.position,
-       c.parent_id, p.name AS parent_name
+       c.parent_id, p.name AS parent_name, c.bitrate, c.user_limit, c.rtc_region
      FROM guild_channels c LEFT JOIN guild_channels p ON p.id = c.parent_id WHERE c.id = ?`,
     [channelId]
   );
@@ -147,7 +147,7 @@ async function layoutFor(member, overridesByChannel) {
     [guild.id]
   );
   const allChannels = await db.all(
-    `SELECT id, category_id, name, type, topic, nsfw, position FROM guild_channels
+    `SELECT id, category_id, name, type, topic, nsfw, position, bitrate, user_limit, rtc_region FROM guild_channels
      WHERE guild_id = ? AND type != 'thread' ORDER BY position, id`,
     [guild.id]
   );
@@ -162,6 +162,11 @@ async function layoutFor(member, overridesByChannel) {
     if (channel.type === 'voice') {
       entry.voice = require('./voice').membersOf(channel.id);
       entry.watch_party = require('./watchParty').summaryOf(channel.id);
+    } else {
+      // Voice channels' settings (bitrate, user limit, region).
+      delete entry.bitrate;
+      delete entry.user_limit;
+      delete entry.rtc_region;
     }
     channels.push(entry);
   }

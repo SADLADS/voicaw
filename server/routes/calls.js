@@ -1,5 +1,4 @@
 const express = require('express');
-const config = require('../config');
 const { authenticateJWT } = require('../auth');
 const calls = require('../calls');
 const groups = require('../groupDms');
@@ -15,7 +14,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_KEY_ENVELOPE = 200;
 
 function requireVoice(req, res, next) {
-  if (!config.livekit) return res.status(503).json({ error: "Calls aren't set up yet" });
+  if (!require('../voiceRegions').available()) return res.status(503).json({ error: "Calls aren't set up yet" });
   next();
 }
 

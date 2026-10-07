@@ -7,6 +7,7 @@ import { onSignupRequests, onTesterRequests } from '../utils/ws-client';
 import { shareOrigin } from '../utils/guildDisplay';
 import { formatDateTime } from '../utils/dateFormat';
 import { displayName } from '../utils/profiles';
+import VoiceRegionsAdmin from './VoiceRegionsAdmin';
 
 const SOURCE_LABELS = {
   admin: 'settings.admin.source.admin',
@@ -507,6 +508,7 @@ export default function AdminSettings({ onAvailable }) {
       <RequestList requests={data.requests ?? []} onChange={(requests) => setData((d) => ({ ...d, requests }))} />
       <TesterList />
       <InviteList invites={data.invites ?? []} onChange={(invites) => setData((d) => ({ ...d, invites }))} />
+      <VoiceRegionsAdmin regions={data.voiceRegions ?? []} onChange={(voiceRegions) => setData((d) => ({ ...d, voiceRegions }))} />
       <AdminList admins={data.admins} me={user?.id} onChange={(admins) => setData((d) => ({ ...d, admins }))} />
     </div>
   );

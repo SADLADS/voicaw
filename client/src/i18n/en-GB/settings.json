@@ -198,6 +198,28 @@
         "used_other": "Used {{count}} times",
         "usedOf_one": "Used {{count}} of {{max}}",
         "usedOf_other": "Used {{count}} of {{max}}"
+      },
+      "voiceRegions": {
+        "title": "Voice regions",
+        "help": "The LiveKit servers voice can go through, each with a flag and a name. Calls, and voice channels left on Automatic, use the default; a guild can put a voice channel in any of them (its settings), closer to its people. Each server sends its webhooks to this API's /api/livekit/webhook and needs its own API key.",
+        "default": "Default",
+        "fromEnv": "set in server/.env",
+        "notSetUp": "Not set up (no LiveKit in server/.env)",
+        "keyAndSecret": "key {{key}}, secret {{hint}}",
+        "makeDefault": "Make default",
+        "confirmRemove": "Remove it? Its voice channels go back to Automatic, and anyone in them moves.",
+        "addRegion": "Add a region",
+        "add": "Add region",
+        "flag": "Flag",
+        "name": "Name",
+        "namePlaceholder": "London",
+        "url": "LiveKit address (for the apps)",
+        "apiUrl": "API address (optional)",
+        "apiUrlPlaceholder": "The same over https://",
+        "apiKey": "API key",
+        "apiSecret": "API secret",
+        "keepSecret": "Leave empty to keep {{hint}}",
+        "builtinHelp": "This server's own LiveKit: its address and keys are in server/.env."
       }
     },
     "developers": {

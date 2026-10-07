@@ -851,8 +851,88 @@ body:not(.mobile-mode) .settings-category-title {
   margin-bottom: 1rem;
 }
 
-.admin-setting > label {
+.admin-setting > label,
+.admin-setting-label {
   font-weight: 600;
+}
+
+/* Settings → Admin → Voice regions: a row per region, its form in its place when edited. */
+.voice-region-list li.voice-region {
+  flex-wrap: wrap;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--vc-border-light);
+}
+
+.voice-region-summary {
+  flex: 1 1 12rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.voice-region-summary .admin-list-detail {
+  overflow-wrap: anywhere;
+}
+
+.voice-region-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-region-badge {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--vc-accent);
+  color: var(--vc-on-accent);
+}
+
+.voice-region-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin: 4px 0 8px;
+}
+
+.voice-region-name-row {
+  display: flex;
+  gap: 8px;
+}
+
+.voice-region-name-row .voice-region-field:last-child {
+  flex: 1;
+}
+
+.voice-region-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+}
+
+.voice-region-field input {
+  min-width: 0;
+}
+
+.voice-region-flag-input {
+  width: 4.5em;
+}
+
+/* A voice channel's own settings (ChannelDialog). */
+.voice-channel-settings {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.75rem;
+}
+
+.voice-channel-settings .vc-hint {
+  margin: 0.25rem 0 0.75rem;
 }
 
 .admin-setting-help,

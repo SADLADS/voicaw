@@ -41,7 +41,9 @@
       "leave": {
         "title": "Leave '{{name}}'",
         "message": "Are you sure you want to leave {{name}}? You won't be able to rejoin unless you are re-invited."
-      }
+      },
+      "userLimit_one": "Room for {{count}} person",
+      "userLimit_other": "Room for {{count}} people"
     },
     "view": {
       "notFound": "This guild doesn't exist, or you're not in it.",
@@ -289,7 +291,8 @@
       "inChannel": "In {{name}}",
       "watchStream": "Watch Stream",
       "connecting": "Connecting…",
-      "cameraOn": "Camera on"
+      "cameraOn": "Camera on",
+      "full": "This voice channel is full."
     },
     "voiceChat": {
       "label": "{{name}}'s chat",

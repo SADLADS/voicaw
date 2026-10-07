@@ -275,6 +275,15 @@ export default function GuildSidebar({ guild, user }) {
         >
           <ChannelIcon channel={channel} className="guild-channel-icon" />
           <span className="guild-channel-name">{channel.name}</span>
+          {channel.type === 'voice' && channel.user_limit > 0 && (
+            // How many are in it of how many can be, as in Discord.
+            <span
+              className={`guild-channel-limit${(channel.voice?.length ?? 0) >= channel.user_limit ? ' full' : ''}`}
+              title={t('guilds.sidebar.userLimit', { count: channel.user_limit })}
+            >
+              {String(channel.voice?.length ?? 0).padStart(2, '0')}/{String(channel.user_limit).padStart(2, '0')}
+            </span>
+          )}
           {muted && <FontAwesomeIcon icon={faBellSlash} className="guild-channel-muted" title={t('guilds.sidebar.muted')} aria-label={t('guilds.sidebar.muted')} />}
           {mentions > 0 && ' '}
           {mentions > 0 && (

@@ -379,6 +379,22 @@ img.guild-icon {
   font-size: 11px;
 }
 
+/* A voice channel's "02/05" (user limit). */
+.guild-channel-limit {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--vc-fg-muted);
+  background: var(--vc-bg-subtle);
+}
+
+.guild-channel-limit.full {
+  color: var(--vc-warning);
+}
+
 /* The mute menu: floating by the header's bell or where a channel was right-clicked. */
 .guild-menu.channel-mute-menu {
   position: fixed;

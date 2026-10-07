@@ -2,6 +2,7 @@ const db = require('./db');
 const { sendToUserSockets } = require('./sockets');
 const { sendPushToUser, sendToAndroidApps, getUserImageUrl, groupNameForPush } = require('./push');
 const voice = require('./voice');
+const voiceRegions = require('./voiceRegions');
 const { displayNameOf } = require('./profiles');
 const { logCall } = require('./callLog');
 
@@ -120,7 +121,7 @@ function stopRinging(call, userId) {
 }
 
 function removeFromRoom(call, userId) {
-  voice.livekit.roomService?.removeParticipant(roomName(call.id), String(userId))
+  voice.serviceFor(call.regionId)?.removeParticipant(roomName(call.id), String(userId))
     .catch((err) => voice.logLiveKitError('removing someone from a call', err));
 }
 
@@ -131,7 +132,7 @@ async function endCall(call, reason) {
   clearTimeout(call.timer);
   await tellAll(call, { type: 'call_end', id: call.id, reason });
   await logCall(call, reason);
-  voice.livekit.roomService?.deleteRoom(roomName(call.id))
+  voice.serviceFor(call.regionId)?.deleteRoom(roomName(call.id))
     .catch((err) => voice.logLiveKitError('closing a call', err));
   // A ringing notification becomes a missed call.
   const missed = call.groupId ? [...call.ringing] : (reason === 'missed' || reason === 'cancelled' ? [call.calleeId] : []);
@@ -176,6 +177,8 @@ function newCall(fields) {
     ringing: new Set(),
     participants: new Set(),
     joined: new Set(),
+    // The voice region it's on (voiceRegions.js): the default one when it started.
+    regionId: voiceRegions.forCalls()?.id ?? null,
     ...fields,
   };
 }
@@ -285,13 +288,14 @@ async function declineCall(call, userId) {
 
 // Everyone in a call may talk and show their camera (no screen sharing in calls yet).
 const tokenFor = (call, userId, username) =>
-  voice.roomToken({ room: roomName(call.id), userId, username, canSpeak: true, canCamera: true });
+  voice.roomToken({ room: roomName(call.id), regionId: call.regionId, userId, username, canSpeak: true, canCamera: true });
 
 // LiveKit webhooks for call rooms (voice.js passes them on): someone gone for good (not back
-// within REJOIN_GRACE_MS) ends a 1:1 call, or leaves a group call.
-async function handleWebhookEvent(event) {
+// within REJOIN_GRACE_MS) ends a 1:1 call, or leaves a group call. Only from the call's own
+// region's server.
+async function handleWebhookEvent(event, regionId) {
   const call = calls.get(event.room.name.slice(ROOM_PREFIX.length));
-  if (!call) return;
+  if (!call || (regionId !== undefined && regionId !== call.regionId)) return;
   const userId = Number(event.participant?.identity);
   const gone = async () => {
     if (call.groupId) await leaveCall(call, userId);
@@ -310,7 +314,7 @@ async function handleWebhookEvent(event) {
       removeFromRoom(call, userId);
     }
   } else if (event.event === 'participant_left') {
-    const { roomService } = voice.livekit;
+    const roomService = voice.serviceFor(call.regionId);
     if (!roomService) {
       await gone();
       return;

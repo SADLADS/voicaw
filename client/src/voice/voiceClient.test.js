@@ -16,6 +16,11 @@ const lk = vi.hoisted(() => {
       this.isMuted = false;
       this.raw = { enabled: true, stopped: false };
       this.processor = null;
+      const parameters = { encodings: [{ maxBitrate: undefined }] };
+      this.sender = {
+        getParameters: () => structuredClone(parameters),
+        setParameters: async (p) => { parameters.encodings = p.encodings; },
+      };
     }
     get mediaStreamTrack() { return this.processor?.processedTrack ?? this.raw; }
     getProcessor() { return this.processor; }
@@ -143,6 +148,10 @@ vi.mock('../services/voiceService', () => ({
   leaveVoiceChannel: vi.fn(async () => {}),
 }));
 vi.mock('../sounds/sounds', () => ({ playSound: vi.fn() }));
+// The server's guild events (onGuildEvent), sent by the tests.
+const guildEvents = vi.hoisted(() => ({ listeners: [] }));
+vi.mock('../utils/ws-client', () => ({ onGuildEvent: (cb) => guildEvents.listeners.push(cb) }));
+const sendGuildEvent = (event) => guildEvents.listeners.forEach((cb) => cb(event));
 vi.mock('./noise/noiseStages', () => ({ VOICE_SAMPLE_RATE: 48000, voiceProcessingStage: vi.fn() }));
 vi.mock('./speaking', () => ({
   createSpeakingMeters: () => ({ add() {}, remove() {}, destroy() {} }),
@@ -323,5 +332,48 @@ describe('voiceClient mute and deafen', () => {
     expect(sound.heardAt).toBe(0.25);
     setStreamVolume('8', 1);
     setUserVolume('8', 1);
+  });
+});
+
+describe('voiceClient channel settings', () => {
+  beforeEach(async () => {
+    await voice.leaveVoice();
+  });
+
+  it('sends the microphone at the channel\'s bitrate, and follows a change', async () => {
+    const { fetchVoiceToken } = await import('../services/voiceService');
+    fetchVoiceToken.mockResolvedValueOnce({ url: 'wss://lk', token: 'token', bitrate: 96000 });
+    lk.state.capture = lk.deferred();
+    lk.state.capture.resolve();
+    voice.setSelfMute(false);
+    voice.setSelfDeaf(false);
+    await voice.joinVoice(1, 2);
+    await flush();
+    expect(lk.state.room.options.publishDefaults.audioPreset).toEqual({ maxBitrate: 96000 });
+
+    const mic = lk.state.room.localParticipant.mic;
+    sendGuildEvent({ type: 'guild_voice_channel', guildId: 1, channelId: 2, bitrate: 256000, moved: false });
+    await flush();
+    expect(mic.sender.getParameters().encodings[0].maxBitrate).toBe(256000);
+    expect(lk.state.room.options.publishDefaults.audioPreset).toEqual({ maxBitrate: 256000 });
+    // Another channel's change isn't ours.
+    sendGuildEvent({ type: 'guild_voice_channel', guildId: 1, channelId: 3, bitrate: 8000, moved: false });
+    await flush();
+    expect(mic.sender.getParameters().encodings[0].maxBitrate).toBe(256000);
+  });
+
+  it('joins the channel again (a new token, another server) when it moves to another region', async () => {
+    const { fetchVoiceToken } = await import('../services/voiceService');
+    await voice.joinVoice(1, 2);
+    await flush();
+    const before = lk.state.room;
+    const asked = fetchVoiceToken.mock.calls.length;
+    fetchVoiceToken.mockResolvedValueOnce({ url: 'wss://elsewhere', token: 'token-2', bitrate: 64000 });
+    sendGuildEvent({ type: 'guild_voice_channel', guildId: 1, channelId: 2, bitrate: 64000, moved: true });
+    await new Promise((resolve) => { setTimeout(resolve, 10); });
+    await flush();
+    expect(fetchVoiceToken.mock.calls.length).toBe(asked + 1);
+    expect(lk.state.room).not.toBe(before);
+    expect(voice.getVoiceSnapshot()).toMatchObject({ status: 'connected', channelId: 2 });
   });
 });

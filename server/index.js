@@ -38,7 +38,7 @@ app.get('/api/config', async (req, res) => {
     s3Endpoint: config.s3Endpoint,
     maxPlaintextLength: config.maxPlaintextLength,
     vapidPublicKey: config.vapid.publicKey,
-    voiceEnabled: Boolean(config.livekit),
+    voiceEnabled: require('./voiceRegions').available(),
     // The emoji picker's GIFs tab (a Klipy key, from .env or Settings → Admin).
     gifsEnabled: Boolean(await getSetting('klipyApiKey')),
     // Who can sign up (signups.js): 'open', 'invite' or 'request'. The sign-up form follows it.

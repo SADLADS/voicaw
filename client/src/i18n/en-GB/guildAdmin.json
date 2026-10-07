@@ -45,6 +45,21 @@
         "listHint": "Who may edit its tasks is set in its Permissions tab (Edit Tasks).",
         "docHint": "Who may write documents is set in its Permissions tab (Create Documents).",
         "whoCanSee": "Who can see it"
+      },
+      "voice": {
+        "bitrate": "Bitrate",
+        "kbps": "{{kbps}} kbps",
+        "bitrateHint": "How much sound each microphone sends: 64 kbps is Discord's default. Higher sounds clearer and uses more data.",
+        "bitrateHighHint": "Above 96 kbps voices hardly sound different (the microphone is mono); it suits music. Everyone in the channel uses more data.",
+        "userLimit": "User limit",
+        "noLimit": "No limit",
+        "users_one": "{{count}} person",
+        "users_other": "{{count}} people",
+        "userLimitHint": "Once it's full nobody else can join, except people who can manage channels.",
+        "region": "Region",
+        "automatic": "Automatic",
+        "automaticIs": "Automatic ({{region}})",
+        "regionHint": "The voice server the channel's calls go through: the closest to most of its people sounds best. Changing it moves everyone in it there (a moment of silence)."
       }
     },
     "channelPermissions": {

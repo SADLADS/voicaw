@@ -1,4 +1,5 @@
 import { fetchVoiceToken, leaveVoiceChannel, saveVoiceState } from '../services/voiceService';
+import { onGuildEvent } from '../utils/ws-client';
 import { createVoiceChain } from './voiceChain';
 import { VOICE_SAMPLE_RATE, voiceProcessingStage } from './noise/noiseStages';
 import {
@@ -55,8 +56,13 @@ import { t } from '../i18n';
 // A voice channel connection that's lost (not left, removed or replaced) is joined again
 // (rejoin.js): the voice bar says "Reconnecting…" meanwhile. Phones wait until the app is
 // visible again (iOS stops a page's microphone and connection in the background).
+//
+// The microphone goes out at the voice channel's bitrate (its settings; 64 kbps in calls),
+// changed live when the channel's is. A channel moved to another voice region (another LiveKit
+// server) is joined again there, as after a lost connection (server/voice.js).
 
 const PREFS_KEY = 'voicePrefs';
+export const DEFAULT_BITRATE = 64000;
 const CONNECT_TIMEOUT_MS = 20 * 1000;
 
 function loadPrefs() {
@@ -647,7 +653,7 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
   });
   try {
     livekit ??= await import('livekit-client');
-    const { url, token } = await getToken();
+    const { url, token, bitrate = DEFAULT_BITRATE } = await getToken();
     if (current !== attempt) return;
     const e2ee = e2eeKey ? await e2eeOptions(e2eeKey) : undefined;
     playback = newPlaybackContext();
@@ -658,7 +664,7 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
       videoCaptureDefaults: cameraOptions(),
       audioOutput: { deviceId: outputSinkId() || 'default' },
       // stopMicTrackOnMute is a publish option (as a Room option LiveKit ignores it).
-      publishDefaults: { dtx: true, red: true, stopMicTrackOnMute: true },
+      publishDefaults: { dtx: true, red: true, stopMicTrackOnMute: true, audioPreset: { maxBitrate: bitrate } },
       e2ee,
     });
     room = newRoom;
@@ -708,12 +714,52 @@ export async function joinVoice(guildId, channelId) {
   guildId = Number(guildId);
   channelId = Number(channelId);
   if (snapshot.channelId === channelId && snapshot.status !== 'idle' && !rejoin) return;
+  listenForChannelChanges();
   await connect({ guildId, channelId }, () => fetchVoiceToken(guildId, channelId, prefs()));
 }
 
 // Joins a DM call's room (callClient.js has the token and the call's key).
 export async function joinCall({ callId, url, token, key }) {
   await connect({ callId }, async () => ({ url, token }), key);
+}
+
+// The voice channel's bitrate changed: the microphone goes out at it from now on (its sender's
+// limit; LiveKit's server allows Opus up to 510 kbps), and when published again.
+async function setBitrate(bitrate) {
+  const current = room;
+  if (!current || !Number.isInteger(bitrate)) return;
+  current.options.publishDefaults = { ...current.options.publishDefaults, audioPreset: { maxBitrate: bitrate } };
+  const sender = current.localParticipant.getTrackPublication(livekit.Track.Source.Microphone)?.track?.sender;
+  if (!sender) return;
+  try {
+    const parameters = sender.getParameters();
+    if (!parameters.encodings?.length) return;
+    parameters.encodings[0].maxBitrate = bitrate;
+    await sender.setParameters(parameters);
+  } catch (err) {
+    console.warn('Could not change the microphone bitrate', err);
+  }
+}
+
+// The server says our voice channel's settings changed (`guild_voice_channel`): its bitrate, or
+// it moved to another region, whose server we join instead (with a new token).
+function channelChanged(event) {
+  if (event.channelId !== snapshot.channelId || snapshot.status === 'idle') return;
+  if (event.moved) {
+    if (snapshot.status === 'connected') takeOver();
+    return;
+  }
+  setBitrate(event.bitrate);
+}
+
+// Listened for from the first join on.
+let listeningForChannels = false;
+function listenForChannelChanges() {
+  if (listeningForChannels) return;
+  listeningForChannels = true;
+  onGuildEvent((event) => {
+    if (event.type === 'guild_voice_channel') channelChanged(event);
+  });
 }
 
 // Leaves the voice channel or call (hanging up a call is callClient.js's hangUp).

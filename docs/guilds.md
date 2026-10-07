@@ -164,6 +164,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   ▸ / Unmute, Notification Settings ▸ (see Mentions), Copy Link (`channelLink`: this site's
   address, app.voicaw.com from the desktop app), Copy Channel ID, and with Manage Channels Edit, Duplicate
   (`CloneChannelDialog`) and Delete (voice channels too: their chat, see Voice channels' chat).
+  A voice channel's Edit also has its bitrate, user limit and voice region (see Channel settings
+  and Voice regions in `docs/voice-and-calls.md`).
   `CategoryMenu`: Mark
   As Read, Collapse/Expand, Copy Category ID (the bot API's: offset by 2^40, see Ids in
   `docs/bots.md`), Edit, Create Channel, Delete. The Copy … ID items (here, on guilds, threads

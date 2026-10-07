@@ -644,6 +644,25 @@ CREATE TABLE IF NOT EXISTS app_invites (
 );
 `);
 
+// VOICE REGIONS (voiceRegions.js, Settings → Admin): the LiveKit servers voice can use, each with a
+// name and a flag (an emoji). The `builtin` one is server/.env's LiveKit (its url and keys stay
+// there, never here); the others are added by admins with their own keys. `is_default` (exactly
+// one) is where calls and voice channels left on Automatic go.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS voice_regions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  flag TEXT NOT NULL DEFAULT '',
+  url TEXT,
+  api_url TEXT,
+  api_key TEXT,
+  api_secret TEXT,
+  builtin INTEGER NOT NULL DEFAULT 0,
+  is_default INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+`);
+
 // GIF FAVOURITES (the emoji picker's GIFs tab): per user, the GIF as the picker shows it (JSON).
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS gif_favorites (
@@ -976,6 +995,9 @@ const MIGRATIONS = [
   // 14. Friends are new (the DM list used to show everyone): everyone with an account is made
   // friends with everyone else, so nobody's list changes.
   () => befriendEveryone(),
+  // 15. Voice regions: the server's own LiveKit (.env) is the first, and the default.
+  () => sqlite.prepare("INSERT INTO voice_regions (name, flag, builtin, is_default, created_at) VALUES ('Main', '', 1, 1, ?)")
+    .run(Math.floor(Date.now() / 1000)),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');
@@ -992,6 +1014,12 @@ for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; ver
 // NSFW channels (docs/guilds.md): their media is covered until clicked. Added after the
 // migrations, since 6 and 8 copy guild_channels column by column (allowEveryChannelType).
 addColumn('ALTER TABLE guild_channels ADD COLUMN nsfw INTEGER NOT NULL DEFAULT 0');
+// Voice channels' settings (docs/voice-and-calls.md, Channel settings): the microphones'
+// bitrate (bits/s, Discord's default), how many people can be in it (0: any), and its voice
+// region (voice_regions.id; null: Automatic, the default region).
+addColumn('ALTER TABLE guild_channels ADD COLUMN bitrate INTEGER NOT NULL DEFAULT 64000');
+addColumn('ALTER TABLE guild_channels ADD COLUMN user_limit INTEGER NOT NULL DEFAULT 0');
+addColumn('ALTER TABLE guild_channels ADD COLUMN rtc_region INTEGER');
 
 // THREADS (threads.js, docs/guilds.md): a thread is a guild_channels row of type 'thread' in
 // text channel `parent_id` (category_id stays null), started by `owner_id`, from message

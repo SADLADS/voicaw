@@ -26,6 +26,8 @@ const { NOTIFY_LEVELS } = require('../mentions');
 const { logAudit, diff } = require('../auditLog');
 const { releaseUploads } = require('../uploads');
 const { ActionError, withActionErrors } = require('../actionError');
+const voice = require('../voice');
+const voiceRegions = require('../voiceRegions');
 const { channelEvents, announceDeleted } = require('../guildEvents');
 const { xpByMember } = require('../guildLevels');
 const { JOIN, setJoinLog, logMembership } = require('../joinLog');
@@ -520,10 +522,42 @@ async function checkCategory(guildId, categoryId) {
   ));
 }
 
-// A channel as the routes below return it.
+// A channel as the routes below return it (a voice channel with its settings: `bitrate`,
+// `user_limit`, `rtc_region`).
 async function channelRow(id) {
-  const row = await db.get('SELECT id, category_id, name, type, topic, nsfw, position FROM guild_channels WHERE id = ?', [id]);
-  return row && { ...row, nsfw: Boolean(row.nsfw) };
+  const row = await db.get('SELECT id, category_id, name, type, topic, nsfw, position, bitrate, user_limit, rtc_region FROM guild_channels WHERE id = ?', [id]);
+  if (!row) return row;
+  const { bitrate, user_limit: userLimit, rtc_region: rtcRegion, ...rest } = row;
+  return { ...rest, nsfw: Boolean(row.nsfw), ...(row.type === 'voice' ? { bitrate, user_limit: userLimit, rtc_region: rtcRegion } : {}) };
+}
+
+// A voice channel's settings from `body` (`bitrate` in bits/s, `userLimit` (0: any) and
+// `rtcRegion`, a voice region's id or null for Automatic; docs/voice-and-calls.md), as the
+// columns to save. Throws ActionError.
+function voiceSettingsOf(body, type) {
+  const out = {};
+  const given = ['bitrate', 'userLimit', 'rtcRegion'].filter((key) => body[key] !== undefined);
+  if (!given.length) return out;
+  if (type !== 'voice') throw new ActionError(400, 'Only voice channels have a bitrate, user limit and region');
+  if (body.bitrate !== undefined) {
+    if (!Number.isInteger(body.bitrate) || body.bitrate < voice.MIN_BITRATE || body.bitrate > voice.MAX_BITRATE) {
+      throw new ActionError(400, `The bitrate is ${voice.MIN_BITRATE / 1000}–${voice.MAX_BITRATE / 1000} kbps`);
+    }
+    out.bitrate = body.bitrate;
+  }
+  if (body.userLimit !== undefined) {
+    if (!Number.isInteger(body.userLimit) || body.userLimit < 0 || body.userLimit > voice.MAX_USER_LIMIT) {
+      throw new ActionError(400, `The user limit is 0–${voice.MAX_USER_LIMIT} (0: no limit)`);
+    }
+    out.user_limit = body.userLimit;
+  }
+  if (body.rtcRegion !== undefined) {
+    if (body.rtcRegion !== null && !voiceRegions.listPublic().some((r) => r.id === body.rtcRegion)) {
+      throw new ActionError(400, 'Unknown voice region');
+    }
+    out.rtc_region = body.rtcRegion;
+  }
+  return out;
 }
 
 // The channel in the URL, if it's in this guild and the caller can see it (not a thread:
@@ -538,14 +572,16 @@ async function findChannel(req) {
 // to its creator unless they'd see it anyway (owner, administrators). `nsfw: true` covers its
 // media until clicked (docs/guilds.md).
 router.post('/guilds/:guildId/channels', manageChannels, withActionErrors(async (req, res) => {
-  const { type = 'text', topic, private: isPrivate = false, nsfw = false, roleIds = [] } = req.body ?? {};
-  const id = await createChannel(req.member, { name: req.body?.name, type, topic, categoryId: req.body?.categoryId ?? null, nsfw, isPrivate, roleIds });
+  const { type = 'text', topic, private: isPrivate = false, nsfw = false, roleIds = [], bitrate, userLimit, rtcRegion } = req.body ?? {};
+  const id = await createChannel(req.member, {
+    name: req.body?.name, type, topic, categoryId: req.body?.categoryId ?? null, nsfw, isPrivate, roleIds, bitrate, userLimit, rtcRegion,
+  });
   res.status(201).json(await channelRow(id));
 }));
 
 // `actor` (a member context with Manage Channels) makes a channel; resolves to its id. Shared
 // with the bot API (routes/botApi.js). Throws ActionError.
-async function createChannel(actor, { name: givenName, type = 'text', topic = null, categoryId = null, nsfw = false, isPrivate = false, roleIds = [] }) {
+async function createChannel(actor, { name: givenName, type = 'text', topic = null, categoryId = null, nsfw = false, isPrivate = false, roleIds = [], ...settings }) {
   if (!has(actor.permissions, PERMISSIONS.MANAGE_CHANNELS)) throw new ActionError(403, "You don't have permission to do that");
   const name = normalizeChannelName(givenName);
   if (!name) throw new ActionError(400, 'Channel names are 1–100 characters');
@@ -553,6 +589,7 @@ async function createChannel(actor, { name: givenName, type = 'text', topic = nu
   if (topic != null && (typeof topic !== 'string' || topic.length > MAX_TOPIC)) throw new ActionError(400, 'Invalid topic');
   if (typeof nsfw !== 'boolean') throw new ActionError(400, 'Invalid nsfw');
   if (!(await checkCategory(actor.guild.id, categoryId))) throw new ActionError(400, 'Invalid category');
+  const voiceSettings = voiceSettingsOf(settings, type);
   if (isPrivate && !has(actor.permissions, PERMISSIONS.MANAGE_ROLES)) {
     throw new ActionError(403, 'Making a channel private needs Manage Roles');
   }
@@ -566,6 +603,10 @@ async function createChannel(actor, { name: givenName, type = 'text', topic = nu
       'INSERT INTO guild_channels (guild_id, category_id, name, type, topic, nsfw, position) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [actor.guild.id, categoryId, name, type, topic?.trim() || null, nsfw, position]
     );
+    const keys = Object.keys(voiceSettings);
+    if (keys.length) {
+      await db.run(`UPDATE guild_channels SET ${keys.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`, [...keys.map((k) => voiceSettings[k]), id]);
+    }
     if (isPrivate) {
       const view = PERMISSIONS.VIEW_CHANNEL;
       const addOverride = (targetType, targetId, allow, deny) => db.run(
@@ -617,8 +658,10 @@ router.post('/guilds/:guildId/channels/:channelId/clone', manageChannels, async 
       [req.guild.id, source.position]
     );
     const { lastID } = await db.run(
-      'INSERT INTO guild_channels (guild_id, category_id, name, type, topic, nsfw, position) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [req.guild.id, source.category_id, name, source.type, source.topic, source.nsfw, source.position + 1]
+      `INSERT INTO guild_channels (guild_id, category_id, name, type, topic, nsfw, position, bitrate, user_limit, rtc_region)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.guild.id, source.category_id, name, source.type, source.topic, source.nsfw, source.position + 1,
+        source.bitrate ?? voice.DEFAULT_BITRATE, source.user_limit ?? 0, source.rtc_region ?? null]
     );
     for (const o of overrides) {
       await db.run(
@@ -639,7 +682,8 @@ router.post('/guilds/:guildId/channels/:channelId/clone', manageChannels, async 
   res.status(201).json(await channelRow(id));
 });
 
-// Rename, change the topic or the NSFW flag (`nsfw`), or move to another category.
+// Rename, change the topic or the NSFW flag (`nsfw`), move to another category, or change a
+// voice channel's `bitrate`, `userLimit` or `rtcRegion`.
 router.patch('/guilds/:guildId/channels/:channelId', manageChannels, withActionErrors(async (req, res) => {
   const channel = await findChannel(req);
   if (!channel) return res.status(404).json({ error: 'Channel not found' });
@@ -648,7 +692,8 @@ router.patch('/guilds/:guildId/channels/:channelId', manageChannels, withActionE
 }));
 
 // `actor` (with Manage Channels) changes `channel` (not a thread): `name`, `topic`, `nsfw`,
-// `categoryId`. Shared with the bot API. Throws ActionError.
+// `categoryId`, and a voice channel's `bitrate`, `userLimit`, `rtcRegion` (the people in it
+// follow at once). Shared with the bot API. Throws ActionError.
 async function updateChannel(actor, channel, body) {
   if (!has(actor.permissions, PERMISSIONS.MANAGE_CHANNELS)) throw new ActionError(403, "You don't have permission to do that");
   const updates = [];
@@ -674,10 +719,18 @@ async function updateChannel(actor, channel, body) {
     updates.push('category_id = ?');
     params.push(body.categoryId);
   }
+  const voiceSettings = voiceSettingsOf(body, channel.type);
+  for (const [key, value] of Object.entries(voiceSettings)) {
+    updates.push(`${key} = ?`);
+    params.push(value);
+  }
   if (!updates.length) return;
-  await db.transaction(async () => {
+  const saved = await db.transaction(async () => {
     await db.run(`UPDATE guild_channels SET ${updates.join(', ')} WHERE id = ?`, [...params, channel.id]);
-    const saved = await db.get('SELECT name, topic, nsfw, category_id FROM guild_channels WHERE id = ?', [channel.id]);
+    const saved = await db.get(
+      `SELECT name, topic, nsfw, category_id${channel.type === 'voice' ? ', bitrate, user_limit, rtc_region' : ''} FROM guild_channels WHERE id = ?`,
+      [channel.id]
+    );
     const changes = diff(channel, saved);
     if (changes.nsfw) changes.nsfw = changes.nsfw.map(Boolean);
     if (changes.category_id) {
@@ -685,11 +738,22 @@ async function updateChannel(actor, channel, body) {
       changes.category = changes.category_id.map((id) => names.find((c) => c.id === id)?.name ?? null);
       delete changes.category_id;
     }
+    if (changes.rtc_region) {
+      // The regions by name (Automatic: null).
+      changes.region = changes.rtc_region.map((id) => (id == null ? null : voiceRegions.byId(id)?.name ?? null));
+      delete changes.rtc_region;
+    }
     if (Object.keys(changes).length) {
       await logAudit({ guildId: actor.guild.id, actorId: actor.userId, action: 'channel_update', targetType: 'channel', targetId: channel.id, channelId: channel.id, details: { name: saved.name, changes } });
     }
+    return saved;
   });
   await announceGuildUpdate(actor.guild.id);
+  if (Object.keys(voiceSettings).length) {
+    const updated = { ...channel, ...saved };
+    const moved = voiceRegions.forChannel(channel)?.id !== voiceRegions.forChannel(updated)?.id;
+    await voice.channelSettingsChanged(updated, { moved });
+  }
 }
 
 // Deletes the channel and its messages.

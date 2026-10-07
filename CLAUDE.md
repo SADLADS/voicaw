@@ -258,6 +258,13 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - **Voice channels' chat** (built 2026-10-06, see `docs/guilds.md`): as in Discord, every voice
   channel is also a permanent chat for anyone who can see it, in the call or not (not only
   those connected); a side panel toggled from the header (`?chat=1`), no threads.
+- **Voice channel settings and regions** (built 2026-10-07, see Channel settings and Voice
+  regions in `docs/voice-and-calls.md`): after "low quality" reports (LiveKit's default was
+  48 kbps), voice channels have Discord's bitrate (8–384 kbps, default 64), user limit and
+  region. Global admins add regions (more LiveKit servers, a flag and a name; secrets in the
+  database, never shown again) in Settings → Admin; `.env`'s LiveKit is the built-in "Main".
+  Automatic means the admin's default region (decided: not Discord's nearest-to-first-joiner),
+  calls use the default too. A channel moving region makes its people's apps rejoin there.
 - **Link previews** (built 2026-10-05, see Link previews in `docs/messages.md`): guilds' page
   previews are fetched by the server (`safeFetch.js`: public addresses only); encrypted
   chats never send links to the server: there links straight to a picture or video show it,

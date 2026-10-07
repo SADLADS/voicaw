@@ -266,7 +266,9 @@ function channelObject(channel, { everyoneRoleId, overrides = [], lastMessageId 
     nsfw: Boolean(channel.nsfw),
   };
   if (channel.type === 'voice') {
-    return { ...shared, bitrate: 64000, user_limit: 0, rtc_region: null, video_quality_mode: 1, last_message_id: id(lastMessageId), rate_limit_per_user: 0 };
+    // rtc_region: the voice region's id as a string (voiceRegions.js), null for Automatic.
+    return { ...shared, bitrate: channel.bitrate ?? 64000, user_limit: channel.user_limit ?? 0,
+      rtc_region: channel.rtc_region == null ? null : String(channel.rtc_region), video_quality_mode: 1, last_message_id: id(lastMessageId), rate_limit_per_user: 0 };
   }
   return { ...shared, topic: channel.topic ?? null, last_message_id: id(lastMessageId), rate_limit_per_user: 0, default_auto_archive_duration: 10080 };
 }

@@ -249,6 +249,13 @@ maybe DAVE) may come later. Audio only: bots never get Video (`voice.canStreamWi
   so VOICE_STATE_UPDATE goes to bots with Guild Voice States, and GUILD_CREATE's
   `voice_states` lists who's in the voice channels the bot can see. Gateway op 4 (Discord's
   voice join) is still ignored.
+- **Channel settings and regions** (2026-10-07, see Channel settings and Voice regions in
+  `docs/voice-and-calls.md`): voice channels' `bitrate`, `user_limit` and `rtc_region` (a
+  voice region's id as a string, null Automatic) are the channel's own and can be set on
+  create and `PATCH /channels/:id` (Manage Channels); `GET /voice/regions` and
+  `GET /guilds/:id/regions` list the regions (`optimal`: the default). The join token answers
+  with the channel's region's `url`. When a channel moves to another region a bot in it is
+  disconnected, to join again with a new token.
 - **Checked** (2026-10-05, e2e's throwaway API with its own LiveKit): a Node bot
   (`@livekit/rtc-node`) publishing a tone with Speak; a bot with Listen hears it (Node, and
   Python `livekit`); a bot without Listen gets no audio at all (LiveKit refuses to subscribe it).

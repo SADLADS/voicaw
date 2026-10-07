@@ -15,7 +15,8 @@ LiveKit carries the audio.
   see Voice in `docs/bots.md`; without it the call view says you can't hear the channel). One
   voice channel per user: getting a token for another
   removes you from the first. Who's actually in comes from LiveKit's **webhooks** (`POST
-  /livekit/webhook`, signed with the API key): joined/left/room finished. The state is in memory
+  /livekit/webhook`, signed with the API key of the region's server, see Voice regions):
+  joined/left/room finished. The state is in memory
   (`states`), rebuilt from LiveKit's room list when the API starts (`restoreFromLiveKit`, only
   when run as the server). A "left" only counts for the session (sid) that's in, since joining
   from a second device replaces the first. After any guild change (`announceGuildUpdate`) and
@@ -364,6 +365,73 @@ LiveKit carries the audio.
   rejoins when the app is back, see Lost connections). Staying in while locked needs a native
   app: background audio, and voice through LiveKit's native SDK (iOS also pauses microphone
   capture in a Capacitor WebView).
+
+## Channel settings (bitrate, user limit)
+
+Like Discord's (built 2026-10-07): a voice channel's Overview (`guild/ChannelDialog.jsx`, its
+voice part `guild/VoiceChannelSettings.jsx`; Manage Channels) has a **bitrate** and a **user
+limit**, and a region (below) when there's more than one. Columns `guild_channels.bitrate`
+(bits/s, 8000–384000, Discord's range up to its most boosted servers; default 64000, Discord's
+default, also for channels made before), `user_limit` (0–99, 0: none) and `rtc_region`. Set on
+`POST`/`PATCH /guilds/:g/channels[/:c]` as `bitrate`, `userLimit`, `rtcRegion`
+(`routes/guilds.js` `voiceSettingsOf`, shared with the bot API), audit-logged, copied by Clone.
+- **Bitrate**: the join token comes with the channel's `bitrate`, and the client publishes its
+  microphone with `audioPreset: { maxBitrate }` (LiveKit's default was 48 kbps, the "low
+  quality" people heard). LiveKit's server answers with Opus `maxaveragebitrate=510000`, so the
+  sender's limit is what counts. A change reaches the people in the channel at once
+  (`guild_voice_channel { guildId, channelId, bitrate, moved: false }`, sent only to them,
+  `voice.channelSettingsChanged`), and `voiceClient.setBitrate` changes the sender's
+  `maxBitrate` live (no reconnect) and the publish default for a republish. Above ~96 kbps a
+  voice hardly changes (the chain is mono); the dialog says so. RED (LiveKit's packet loss
+  protection, on) sends each frame twice, so about twice the bitrate goes out: e2e measured
+  ~210 kbps for 128. DM and group calls stay at 64 kbps.
+- **User limit**: `joinToken` refuses (403 "This voice channel is full") once the others in it
+  reach the limit; Manage Channels joins anyway (Discord's Move Members, which we don't have),
+  and someone already in it gets a new token (a rejoin). Counted from who LiveKit says is in,
+  so two tokens handed out at the same moment can both get in. The channel list shows "02/05"
+  (amber when full), and the channel's page says it's full above Join (and why a join failed:
+  a phone has no voice bar there).
+
+## Voice regions
+
+Several LiveKit servers, like Discord's voice regions (built 2026-10-07): global admins add them
+in Settings → Admin → Voice regions (`VoiceRegionsAdmin.jsx`, `routes/admin.js`
+`/admin/voice-regions`), each a flag (an emoji), a name, its LiveKit address for the apps
+(`wss://`), optionally the address this API reaches it on, and its API key and secret
+(`server/voiceRegions.js`, table `voice_regions`). The secret is stored in the database (like
+an admin's Klipy key) and never sent back: the panel shows its last four characters, and an
+empty secret on an edit keeps it. Each server needs its own API key (that's how its webhooks
+are told apart) and its `webhook:` pointed at this API's `/api/livekit/webhook`.
+- **Main**: migration 15 made `server/.env`'s LiveKit the built-in region (`builtin`, named
+  "Main"; its address and keys stay in .env, only its name and flag change here). It can't be
+  removed. Without LIVEKIT_* it's "not set up" and voice works only if another region is the
+  default.
+- **Default**: one region (`is_default`), Main at first. DM and group calls start on it (the
+  call keeps its region, `call.regionId`), and so do voice channels left on **Automatic**
+  (`rtc_region` null; Discord picks the region nearest the first person in, we don't).
+  `GET /voice/regions` lists them for the channel dialog (no addresses or keys); the dialog
+  shows the menu only with two or more.
+- **Server side** (`voice.js`): `serviceFor(regionId)` is each region's LiveKit client;
+  states and calls remember their region, and everything (tokens, removing people, mute
+  attributes, the start-up `restoreFromLiveKit`) goes to that one. A webhook is checked against
+  the region whose API key signed it (`verifyWebhook`, from the JWT's issuer). A "joined" from a
+  server that isn't the channel's region now (a token from before a move) is removed; a
+  "room finished" only clears the people on that server.
+- **Moving**: a channel's region changed (its setting, the default changed under Automatic,
+  its region removed, or a region's server changed) sends `guild_voice_channel { moved: true }`
+  to the people in it; their apps drop the connection and join again with a new token
+  (`takeOver`, as after a lost connection: "Reconnecting…" for a moment, the camera comes back,
+  a screen share doesn't). When the new session starts, the API ends the old one on the old
+  server (LiveKit only replaces a session on the same server). Bots are taken out instead, to
+  join again. People still on a removed region after a minute are disconnected.
+- **Bot API**: channels' `bitrate`, `user_limit` and `rtc_region` (the region's id as a string)
+  are real and can be set (`PATCH /channels/:id`, create), and `GET /voice/regions` and
+  `GET /guilds/:id/regions` list them (`optimal`: the default).
+- **Not done**: picking a region by latency (Discord's Automatic), and moving a call to
+  another region.
+- e2e: `e2e/regions.mjs` runs a second LiveKit as "Frankfurt" (adds it in the admin panel,
+  measures the bitrate going out, full channel on a phone, live bitrate change, a move both
+  servers confirm, removal).
 
 ## DM calls
 
