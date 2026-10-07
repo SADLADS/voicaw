@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
+import AttachPanel from './AttachPanel';
 import EmojiPicker from './EmojiPicker';
 import EmojiSuggestions from './EmojiSuggestions';
 import MentionSuggestions from './MentionSuggestions';
@@ -59,6 +60,10 @@ const COMMAND_QUERY = /^\/([^\s/]{0,32})$/;
 // (CommandSuggestions); picking one turns the box into CommandComposer until it's run or left.
 //
 // `textOnly` (a bot DM) takes away the + menu and files pasted or dropped: text and emoji only.
+// The + button: a menu on a computer (upload a file, create a poll, create a thread), on a
+// phone a panel in the keyboard's place (AttachPanel: camera, the phone's photos, then the
+// same and the photo picker). `onStartThread` (a guild text channel you may start threads in)
+// opens the new thread dialog.
 // `onSend({ text, replyTo, localAttachments, resolveText })` sends (see useConversation's
 // sendMessage); `onSendPoll({ poll, replyTo })` sends a poll made in PollDialog (see ChatPane).
 // `error` is shown above the box (Dm reports its own errors there too). On
@@ -87,6 +92,7 @@ export default function Composer({
   onInputFocus,
   onSend,
   onSendPoll,
+  onStartThread = null,
   people,
   roles,
   roleInfo,
@@ -122,6 +128,8 @@ export default function Composer({
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [creatingPoll, setCreatingPoll] = useState(false);
   const addMenuRef = useRef(null);
+  // Mobile: the + panel, which takes turns with the keyboard and the emoji panel.
+  const [showAttachPanel, setShowAttachPanel] = useState(false);
   // The conversation the box's text is saved for, and whether its draft is being put back.
   const draftChatId = useRef(chatId);
   // Bot commands (guild channels only), and the one being filled in (command mode).
@@ -142,7 +150,8 @@ export default function Composer({
   const attachments = useAttachmentDrafts({
     chatId,
     s3Endpoint,
-    insertAttachments: (drafts) => inputRef.current?.insertAttachments(drafts),
+    // Mobile: not focused (as emoji), so the + panel stays open for more and the keyboard down.
+    insertAttachments: (drafts) => inputRef.current?.insertAttachments(drafts, { focus: !isMobile }),
     onError: setError,
     onDiscard: (dropped) => {
       dropped.forEach((d) => inputRef.current?.removeAttachment(d.id));
@@ -168,11 +177,34 @@ export default function Composer({
         inputRef.current?.focus(); // inside the tap, so the keyboard opens
       } else {
         inputRef.current?.blur();
+        setShowAttachPanel(false);
         setShowEmojiPicker(true);
       }
       return;
     }
     setShowEmojiPicker(!showEmojiPicker);
+  }
+
+  // The + button: on mobile the panel swaps with the keyboard (as the emoji panel does).
+  function toggleAdd() {
+    if (!isMobile) {
+      setAddMenuOpen(!addMenuOpen);
+      return;
+    }
+    if (showAttachPanel) {
+      setShowAttachPanel(false);
+      inputRef.current?.focus();
+    } else {
+      inputRef.current?.blur();
+      setShowEmojiPicker(false);
+      setShowAttachPanel(true);
+    }
+  }
+
+  // A photo picked in the + panel and tapped again: taken back out of the message.
+  function removePicked(source) {
+    const draft = attachments.drafts.find((d) => d.source === source);
+    if (draft) removeDraft(draft.id);
   }
 
   const emojiQuery = emojiIndex ? EMOJI_QUERY.exec(beforeCaret)?.[1] ?? null : null;
@@ -440,9 +472,10 @@ export default function Composer({
     if (commandListOpen) refreshCommands({ fresh: true });
   }, [commandListOpen, refreshCommands]);
 
-  // Another conversation: out of command mode.
+  // Another conversation: out of command mode, the + panel closed.
   useEffect(() => {
     setCommandEntry(null);
+    setShowAttachPanel(false);
   }, [chatId]);
 
   // The + menu closes on a click outside it or Escape.
@@ -478,6 +511,8 @@ export default function Composer({
   // until send so that undoing a deletion brings them back.
   const referencedDraftIds = findPlaceholderIds(inputValue);
   const visibleDrafts = attachments.drafts.filter((d) => referencedDraftIds.has(d.id));
+  const pickedSources = visibleDrafts.filter((d) => d.source != null).map((d) => d.source);
+  const attachPanelOpen = showAttachPanel && isMobile && !textOnly && !editing;
 
   return (
     <>
@@ -587,9 +622,11 @@ export default function Composer({
               className="attach-button"
               type="button"
               aria-label={t('common.add')}
-              aria-haspopup="menu"
-              aria-expanded={addMenuOpen}
-              onClick={() => setAddMenuOpen(!addMenuOpen)}
+              aria-haspopup={isMobile ? 'dialog' : 'menu'}
+              aria-expanded={isMobile ? attachPanelOpen : addMenuOpen}
+              // Mobile: the box keeps the keyboard's state until toggleAdd decides.
+              onMouseDown={isMobile ? (e) => e.preventDefault() : undefined}
+              onClick={toggleAdd}
             >
               <FontAwesomeIcon icon={faPlus} />
             </button>
@@ -612,6 +649,16 @@ export default function Composer({
                 >
                   <FontAwesomeIcon icon={faSquarePollHorizontal} fixedWidth /> {t('chat.composer.createPoll')}
                 </button>
+                {onStartThread && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="composer-add-item"
+                    onClick={() => { setAddMenuOpen(false); onStartThread(); }}
+                  >
+                    <FontAwesomeIcon icon={faComments} fixedWidth /> {t('chat.composer.createThread')}
+                  </button>
+                )}
               </div>
             )}
           </div>}
@@ -635,6 +682,7 @@ export default function Composer({
             onFocus={() => {
               if (!isMobile) return;
               setShowEmojiPicker(false);
+              setShowAttachPanel(false);
               onInputFocus?.();
             }}
           />
@@ -668,6 +716,19 @@ export default function Composer({
       )}
 
       {creatingPoll && <PollDialog onSubmit={sendPoll} onClose={() => setCreatingPoll(false)} />}
+
+      {attachPanelOpen && (
+        <AttachPanel
+          height={getKeyboardHeight()}
+          picked={pickedSources}
+          onAddFiles={attachments.addFiles}
+          onRemove={removePicked}
+          onPickFiles={attachments.pickFiles}
+          onPoll={chatName ? () => { setShowAttachPanel(false); setCreatingPoll(true); } : null}
+          onThread={onStartThread ? () => { setShowAttachPanel(false); onStartThread(); } : null}
+          onError={setError}
+        />
+      )}
 
       {showEmojiPicker && isMobile && (
         // Where the keyboard would be, the same height.

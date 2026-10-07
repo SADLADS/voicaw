@@ -465,6 +465,7 @@ export default function ChatPane({
         onInputFocus={reactions.closePicker}
         onSend={conversation.sendMessage}
         onSendPoll={sendPoll}
+        onStartThread={threads?.startThread ?? null}
         people={people}
         roles={suggestRoles}
         roleInfo={mentionRoles}

@@ -96,4 +96,10 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Saving files to Downloads on Android 8 and 9 (10+ needs no permission for that). -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- The message box's + panel: the phone's recent photos and videos (asked for when it
+         first opens; Android 14+ can allow only some). Older Android: storage. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 </manifest>
