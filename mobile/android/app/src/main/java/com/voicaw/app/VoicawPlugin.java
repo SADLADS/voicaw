@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * push registration, the ongoing-call notification, and the events notifications send the page
  * (`navigate` to a chat, `callAction` answer / mute / unmute / hangUp), and updating the app
  * (AppUpdater: `updateProgress` while downloading, `updateResult` if Android didn't install it),
- * and saving files to Downloads (Downloads).
+ * saving files to Downloads (Downloads), and the phone's photos for the + panel (Media).
  */
 @CapacitorPlugin(
     name = "Voicaw",
@@ -40,11 +40,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
         @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS }),
         // Only asked for on Android 8 and 9 (Downloads.needsPermission).
         @Permission(alias = "storage", strings = { Manifest.permission.WRITE_EXTERNAL_STORAGE }),
+        // The + panel's photos (Media.alias): Android 13+, or older.
+        @Permission(alias = "media", strings = {
+            Manifest.permission.READ_MEDIA_IMAGES,
+            Manifest.permission.READ_MEDIA_VIDEO,
+            Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
+        }),
+        @Permission(alias = "mediaLegacy", strings = { Manifest.permission.READ_EXTERNAL_STORAGE }),
     }
 )
 public class VoicawPlugin extends Plugin {
     private static VoicawPlugin instance;
     private static final ExecutorService updates = Executors.newSingleThreadExecutor();
+    // Thumbnails for the + panel, off the plugin's own thread so its other calls don't wait.
+    private static final ExecutorService thumbnails = Executors.newFixedThreadPool(2);
     private final AtomicBoolean updating = new AtomicBoolean();
 
     @Override
@@ -188,12 +197,15 @@ public class VoicawPlugin extends Plugin {
         });
     }
 
-    /** Android's settings for the app: `which` is "notifications" or "fullScreen" (Android 14+). */
+    /** Android's settings for the app: `which` is "notifications", "fullScreen" (Android 14+) or "app". */
     @PluginMethod
     public void openSettings(PluginCall call) {
         String packageName = getContext().getPackageName();
         Intent intent;
-        if ("fullScreen".equals(call.getString("which")) && Build.VERSION.SDK_INT >= 34) {
+        if ("app".equals(call.getString("which"))) {
+            // The app's page, where its permissions are (photos, when refused for good).
+            intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + packageName));
+        } else if ("fullScreen".equals(call.getString("which")) && Build.VERSION.SDK_INT >= 34) {
             intent = new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:" + packageName));
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName);
@@ -312,5 +324,51 @@ public class VoicawPlugin extends Plugin {
         String message = call.getString("message", "");
         getActivity().runOnUiThread(() -> Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show());
         call.resolve();
+    }
+
+    /** What the + panel may show of the phone's photos: { access: "all" | "some" | "none" }. */
+    @PluginMethod
+    public void mediaAccess(PluginCall call) {
+        call.resolve(new JSObject().put("access", Media.access(getContext())));
+    }
+
+    /**
+     * Asks for the phone's photos and videos (with only some allowed, Android 14+ lets the
+     * person choose more); resolves { access } as mediaAccess.
+     */
+    @PluginMethod
+    public void requestMediaAccess(PluginCall call) {
+        requestPermissionForAlias(Media.alias(), call, "mediaPermission");
+    }
+
+    @PermissionCallback
+    private void mediaPermission(PluginCall call) {
+        call.resolve(new JSObject().put("access", Media.access(getContext())));
+    }
+
+    /** The phone's photos and videos, newest first ({ offset, limit }): resolves { items }. */
+    @PluginMethod
+    public void listMedia(PluginCall call) {
+        int offset = Math.max(0, call.getInt("offset", 0));
+        int limit = Math.min(200, Math.max(1, call.getInt("limit", 60)));
+        try {
+            call.resolve(new JSObject().put("items", Media.list(getContext(), offset, limit)));
+        } catch (Exception e) {
+            call.reject("Couldn't list the photos", e);
+        }
+    }
+
+    /** A small picture of one of them ({ uri, size }): resolves { url } (a data: URL). */
+    @PluginMethod
+    public void mediaThumbnail(PluginCall call) {
+        String uri = call.getString("uri");
+        int size = Math.min(512, Math.max(64, call.getInt("size", 256)));
+        thumbnails.execute(() -> {
+            try {
+                call.resolve(new JSObject().put("url", Media.thumbnail(getContext(), uri, size)));
+            } catch (Exception e) {
+                call.reject("No thumbnail", e);
+            }
+        });
     }
 }

@@ -213,7 +213,8 @@ const MessageMarkdown = memo(function MessageMarkdown({ text, localAttachments, 
 // draws itself), unless Discord's SUPPRESS_EMBEDS is set ("Remove previews", or a webhook or
 // bot asked). Markdown in embeds is drawn like the message's own text.
 // Memoised like MessageMarkdown: an embed can hold a dozen bits of markdown.
-const EmbedParts = memo(function EmbedParts({ embeds: sent, linkEmbeds, attachments, flags, rehypePlugins, mentions }) {
+// `onRemove(messageId, event)`: the X beside each link preview (the sender's own embeds have none).
+const EmbedParts = memo(function EmbedParts({ embeds: sent, linkEmbeds, attachments, flags, rehypePlugins, mentions, messageId, onRemove }) {
   if (!sent?.length && !attachments?.length && !linkEmbeds?.length) return null;
   const renderMarkdown = (text) => (
     <MentionContext.Provider value={mentions}>
@@ -227,7 +228,7 @@ const EmbedParts = memo(function EmbedParts({ embeds: sent, linkEmbeds, attachme
       <MessageEmbeds embeds={embeds} renderMarkdown={renderMarkdown} ownUrls={attachments?.map((a) => a.url)} />
       {/* Files an embed shows (attachment://…) aren't shown again, as in Discord. */}
       <MessageFiles attachments={attachments} shownElsewhere={embeds.flatMap((e) => [e.image?.url, e.thumbnail?.url])} />
-      <MessageEmbeds embeds={previews} links />
+      <MessageEmbeds embeds={previews} links onRemove={onRemove ? (event) => onRemove(messageId, event) : undefined} />
     </>
   );
 });
@@ -322,6 +323,10 @@ export function MessageRow({
   canAddReactions = true,
   canPin = false,
   onTogglePin,
+  // Desktop: the X beside link previews, for those `canRemovePreviews(msg)` says may (ChatPane).
+  canRemovePreviews,
+  removePreviewsById,
+  onRemovePreviews,
   nameColors,
   mentionRoles,
   myRoleIds,
@@ -353,6 +358,7 @@ export function MessageRow({
   // dismiss it, so no menus, reactions or replies. A deferred reply shows "thinking…".
   const ephemeral = isEphemeral(msg);
   const thinking = isThinking(msg);
+  const removable = Boolean(onRemovePreviews && canRemovePreviews?.(msg)) && !ephemeral;
   // Mobile: touch and hold opens the message's action sheet (there's no hover there).
   const longPress = useLongPress(() => onOpenActions(msg), { enabled: isMobile && Boolean(onOpenActions) && !ephemeral });
   // Desktop: right-clicking opens its menu, except on a picture, a link, selected text or a
@@ -577,10 +583,16 @@ export function MessageRow({
           {grouped && msg.edited && editingMessageId !== msg.id ? <small className="message-edited">{t('chat.message.editedInline')}</small> : null}
           {grouped && editingMessageId !== msg.id ? pinMark : null}
 
-          <EmbedParts {...embedProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
+          <EmbedParts
+            {...embedProps(msg)}
+            rehypePlugins={rehypePlugins}
+            mentions={mentions}
+            messageId={msg.id}
+            onRemove={removable ? removePreviewsById : undefined}
+          />
           <MessageComponents messageId={msg.id} channelId={msg.channel_id} components={msg.components} names={reactionNames} roles={mentionRoles} />
 
-          {!poll && !(msg.flags & SUPPRESS_EMBEDS) && <UrlPreviews text={msg.plaintext} encrypted={encrypted} />}
+          {!poll && !(msg.flags & SUPPRESS_EMBEDS) && <UrlPreviews text={msg.plaintext} encrypted={encrypted} onRemove={removable ? (e) => onRemovePreviews(msg, e) : undefined} />}
         </div>
 
         {msg.thread && msg.system == null && <ThreadSummary thread={msg.thread} />}
@@ -668,6 +680,8 @@ export default function MessageList({
   canAddReactions,
   canPin,
   onTogglePin,
+  canRemovePreviews,
+  onRemovePreviews,
   nameColors,
   mentionRoles,
   myRoleIds,
@@ -688,8 +702,13 @@ export default function MessageList({
   // difference is exactly how far to scroll to keep the row still.
   const anchor = useRef(null);
 
-  const latest = useRef({ hasMore, loadMoreMessages, messages, setHoveredMsgId, isMobile });
-  latest.current = { hasMore, loadMoreMessages, messages, setHoveredMsgId, isMobile };
+  const latest = useRef({ hasMore, loadMoreMessages, messages, setHoveredMsgId, isMobile, onRemovePreviews });
+  latest.current = { hasMore, loadMoreMessages, messages, setHoveredMsgId, isMobile, onRemovePreviews };
+  // The previews' X by message id, the same function every render, so memoised EmbedParts stay drawn.
+  const removePreviewsById = useCallback((id, event) => {
+    const msg = latest.current.messages.find((m) => m.id === id);
+    if (msg) latest.current.onRemovePreviews?.(msg, event);
+  }, []);
 
   // Where the mouse pointer is (null outside the window), for rehover.
   const pointer = useRef(null);
@@ -771,6 +790,9 @@ export default function MessageList({
     canAddReactions,
     canPin,
     onTogglePin,
+    canRemovePreviews,
+    removePreviewsById,
+    onRemovePreviews,
     nameColors,
     mentionRoles,
     myRoleIds,

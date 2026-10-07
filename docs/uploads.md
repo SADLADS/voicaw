@@ -48,7 +48,7 @@ emoji are deleted by their own code (a deleted guild takes its icon and emoji im
 
 Attachments are never uploaded when attached. The composer (`Composer.jsx`, `hooks/useAttachmentDrafts.js`) keeps them as local drafts
 and inserts a markdown placeholder `![name](attachment:ID)` (`utils/attachmentMarkup.js`; the editor
-shows it as a "📎 name" chip). Files come from the + menu, a paste, or a drop anywhere on the
+shows it as a "📎 name" chip). Files come from the + button (see The + panel), a paste, or a drop anywhere on the
 window, as in Discord (`hooks/useFileDrop.js` `useWindowFileDrop`, while a composer is shown):
 a file dragged in from outside the page covers the window with "Upload to <chat>"
 (`FileDropOverlay.jsx`); drags that start in the page (an image from a message) and drags while
@@ -63,6 +63,25 @@ to S3 and the URL only exists inside the E2EE message. `Attachment.jsx` renders 
 placeholders (pending messages, from local blob URLs), encrypted attachments (fetched, decrypted,
 cached in `services/attachmentCache.js`; images inline, videos in the player below, anything else
 a download box), and plain URLs (legacy unencrypted uploads, external images) as `<img>`.
+
+**The + panel** (2026-10-07, as in Discord's phone app): on a computer the + button is a menu
+(Upload a file, Create poll, and Create thread in a guild text channel you may start threads in,
+`ThreadContext` `startThread`). On a phone it's a panel in the keyboard's place
+(`AttachPanel.jsx`), taking turns with the keyboard and the emoji panel and pulled up to full
+screen the same way (`useSheetDrag`). A 4-wide grid: a camera tile (the file chooser with
+`capture`), then, in the Android app only, the phone's photos and videos, newest first
+(`hooks/useDeviceMedia.js`, `Media.java`; a web page can't list them, so mobile web shows a Photos
+tile instead). Tapping one attaches it (a normal draft, tagged with its gallery id as `source`,
+so the tile shows its number in the order picked) and tapping again takes it back out. Access is
+asked for in the panel ("Allow access"; once refused, a button to Android's settings); on
+Android 14+ people may allow only some photos, and "Choose more" asks again. Thumbnails are made
+by Android (`mediaThumbnail`, data: URLs) as tiles scroll into view; a file is only read by the
+page once picked (`readMedia`, through Capacitor's `_capacitor_content_` route), then sent like
+any other attachment. Nothing about the gallery leaves the phone. Under the grid a bar: Photos
+(the phone's own picker, `accept="image/*,video/*"`), Poll, Thread (when it can) and Files.
+Google Play only lets apps keep `READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO` after a declaration in
+the Play Console (Photo and Video Permissions); if Google refuses it, the permissions go and the
+grid falls back to the Photos tile as on the web.
 
 **Image thumbnails** (since 2026-10-02): a big still image (JPEG, PNG, WebP or BMP that doesn't fit
 the chat's 420×360 box at twice that, 840×720) also gets a smaller copy, made on the device at

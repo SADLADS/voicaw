@@ -86,6 +86,7 @@ node e2e/calendar.mjs [dir] # events calendar: one dialog size for both tabs and
 node e2e/docs.mjs [dir]   # document channels: write (typed markdown, toolbar, checklist, bullets and numbers shown while editing, table, cover), card live, react (page and card), reply thread, edit live, phone tabs
 node e2e/uploads.mjs      # deleting files: a DM send lists its file, deleting the message (DM, guild) removes it from the store, others kept
 node e2e/filedrop.mjs [dir] # files dragged in: "Upload to <chat>" over the window, drop anywhere attaches (DM, guild, document replies), leave/in-page drag/dialog = none, document cover button and body, phone
+node e2e/attachpanel.mjs [dir] # + button: phone panel in the keyboard's place (web: Camera/Photos tiles, bar Photos/Poll/Files, Thread in a guild channel, full screen, Files sends), Android app (stand-in bridge): Allow access, photo grid, numbered picks, tap again takes back, only picked files read, Bob sees it; computer's + menu Create thread
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
 node e2e/openpolls.mjs [dir] # open polls: add an answer from the vote screen (not ticked or voted), repeats refused, "added by", ✕ (vote screen only, asks; creator, author, guild moderator not on the author's), gone once others vote, new question drops all, closed = no changes (DM phone, guild, group)
 node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>
@@ -104,7 +105,7 @@ node e2e/colours.mjs [dir] # screenshots for colour changes: login, DM (mention,
 node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept per device, no dark flash, Match system, color-scheme, phone
 node e2e/avatar.mjs [dir] # message avatars: top with the name, bottom with the first line of text, reply line to its middle (desktop + phone)
 node e2e/safearea.mjs [dir] # safe areas (CDP-made iPhone insets): user panel above the home indicator, landscape notch, unchanged without insets
-node e2e/linkpreviews.mjs [dir] # link previews (stand-in website, needs ffmpeg): guild card/picture/video fetched by the server, live; Privacy off = text only, nothing asked of the site until Show/Play (phone); Remove Previews for both; DM: server fetches nothing, picture links only
+node e2e/linkpreviews.mjs [dir] # link previews (stand-in website, needs ffmpeg): guild card/picture/video fetched by the server, live; Privacy off = text only, nothing asked of the site until Show/Play (phone); Remove Previews for both; the X beside a preview (on hover, asks, Shift skips, none on a phone); DM: server fetches nothing, picture links only
 node e2e/embedprivacy.mjs [dir] # Settings → Privacy YouTube/GIFs off: placeholders, nothing asked of YouTube/Klipy until Play/Show, GIF picker warns first; defaults load at once (stand-ins, phone)
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)

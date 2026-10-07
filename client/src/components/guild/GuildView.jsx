@@ -146,6 +146,8 @@ export default function GuildView({ user }) {
   const threadContext = useMemo(() => ({
     openThread,
     createThread: canCreateThreads ? (msg) => setStartingThread({ message: msg }) : null,
+    // A thread on its own (the message box's + menu).
+    startThread: canCreateThreads ? () => setStartingThread({}) : null,
     // From a "started a thread" row: the list opens under the header's button.
     showThreads: () => setThreadsAnchor(document.querySelector('.threads-button')?.getBoundingClientRect() ?? null),
   }), [openThread, canCreateThreads]);

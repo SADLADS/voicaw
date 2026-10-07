@@ -13,6 +13,7 @@ import EventEmbed from './events/EventEmbed';
 import MediaCover from './MediaCover';
 import YouTubeViewer from './YouTubeViewer';
 import { SiteImage, SiteVideo } from './LinkMedia';
+import RemovableEmbed from './RemovableEmbed';
 import { t } from '../i18n';
 
 // Videos played since the app was opened, so they stay loaded when the list redraws.
@@ -92,7 +93,8 @@ function YouTubeEmbed({ id, link }) {
 // (`encrypted`), links straight to a picture or a video, shown from that site (LinkMedia; a
 // guild's come from the server's link previews instead, MessageEmbeds). Invites in encrypted
 // chats only load when tapped (see InviteEmbed); event links only show in guild channels.
-export default function UrlPreviews({ text, encrypted = false }) {
+// `onRemove(event)`: an X beside each (RemovableEmbed), removing the message's previews.
+export default function UrlPreviews({ text, encrypted = false, onRemove }) {
   const links = linksIn(text);
   const inviteCodes = [...new Set(links.map(inviteCodeFromUrl).filter(Boolean))];
   const videos = new Map();
@@ -110,9 +112,9 @@ export default function UrlPreviews({ text, encrypted = false }) {
   }
   return (
     <>
-      {inviteCodes.map((code) => <InviteEmbed key={code} code={code} autoLoad={!encrypted} />)}
-      {[...events.values()].map((e) => <EventEmbed key={e.eventId} guildId={e.guildId} eventId={e.eventId} />)}
-      {[...videos].map(([id, link]) => <YouTubeEmbed key={id} id={id} link={link} />)}
+      {inviteCodes.map((code) => <RemovableEmbed key={code} onRemove={onRemove}><InviteEmbed code={code} autoLoad={!encrypted} /></RemovableEmbed>)}
+      {[...events.values()].map((e) => <RemovableEmbed key={e.eventId} onRemove={onRemove}><EventEmbed guildId={e.guildId} eventId={e.eventId} /></RemovableEmbed>)}
+      {[...videos].map(([id, link]) => <RemovableEmbed key={id} onRemove={onRemove}><YouTubeEmbed id={id} link={link} /></RemovableEmbed>)}
       {media.length > 0 && (
         <div className="message-files">
           {media.map((link) => (mediaLinkKind(link) === 'image'
