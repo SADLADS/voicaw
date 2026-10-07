@@ -193,3 +193,36 @@
 .member-card-apps .member-card-label {
   flex-basis: 100%;
 }
+
+/* The "/" list scrolls (every matching command), one section per bot. */
+.command-suggestions {
+  position: relative;
+  max-height: min(360px, calc(var(--vc-app-height) * 0.45));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.command-suggestion-section + .command-suggestion-section {
+  margin-top: 4px;
+}
+
+.command-suggestion-bot {
+  position: sticky;
+  top: -4px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background-color: var(--vc-bg-elevated);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vc-fg-muted);
+}
+
+.command-suggestion-bot-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
