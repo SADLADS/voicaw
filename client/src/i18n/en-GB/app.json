@@ -72,7 +72,11 @@
     "push": {
       "serviceUnavailable": "this browser's push service isn't available. In Brave, turn on \"Use Google services for push messaging\" (Settings → Privacy and security) and restart Brave. Chromium builds without Google services can't receive web push; Chrome, Edge, Firefox and Safari can.",
       "noServiceWorker": "Service worker is not available",
-      "newMessage": "New message"
+      "newMessage": "New message",
+      "reacted": "Reacted {{emoji}} to your message",
+      "reactedTo": "Reacted {{emoji}} to your message: {{text}}",
+      "nameReacted": "{{name}} reacted {{emoji}} to your message",
+      "nameReactedTo": "{{name}} reacted {{emoji}} to your message: {{text}}"
     }
   }
 }

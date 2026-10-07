@@ -36,9 +36,11 @@ export async function requestAndroidNotifications() {
 
 // The subscription the server keeps for this phone (server/push.js `sendFcm`): its Firebase
 // token, and the key it encrypts each push with, so Firebase only relays ciphertext.
+// `reactionPushes`: it drops reactions it shouldn't show (notifyPage.js), so the server sends it
+// those in encrypted chats too, which browsers never get (server/push.js).
 export async function androidSubscription() {
   const { token, key } = await android.getPushToken();
-  return { endpoint: `fcm:${token}`, fcm: { token, key } };
+  return { endpoint: `fcm:${token}`, fcm: { token, key, reactionPushes: true } };
 }
 
 // The ongoing-call notification (`title`: what the voice bar links to, `status`: its state,

@@ -18,6 +18,7 @@ const { sendToUserSockets } = require('../sockets');
 const { ActionError, withActionErrors } = require('../actionError');
 const { refreshLinkPreviews } = require('../linkPreviews');
 const levels = require('../guildLevels');
+const { notifyGuildReaction } = require('../reactionPushes');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
 // same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
@@ -487,7 +488,10 @@ async function addReaction(message, channel, userId, permissions, emoji) {
     [lastID]
   );
   await sendToChannel(channel, { type: 'guild_reaction_add', guildId, channelId, reaction });
-  if (!forPoll) await levels.awardReaction(guildId, message, userId);
+  if (!forPoll) {
+    await levels.awardReaction(guildId, message, userId);
+    notifyGuildReaction(message, channel, reaction);
+  }
   return reaction;
 }
 

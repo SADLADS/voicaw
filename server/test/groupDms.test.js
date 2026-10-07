@@ -24,6 +24,7 @@ import {
   decryptGroupMessage,
   messageSignatureContext,
   encryptGroupReaction,
+  decryptGroupReaction,
   reactionSignatureContext,
   groupReactionContext,
   sealGroupName,
@@ -702,6 +703,43 @@ describe('group DM link previews', () => {
     expect((await row()).link_previews).toBe('v2.previews');
     await api.put(ann, `/group-dm-messages/${sent.id}`, { content: 'v2.edited' });
     expect((await row()).link_previews).toBe(null);
+  });
+});
+
+describe('group DM reaction notifications', () => {
+  it("go to the author's apps that can drop them, with all a device needs to open them", async () => {
+    const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal], 'Lunch');
+    const sent = (await send(ann, groupId, 'Pizza?')).body;
+    const notifications = [];
+    const ws = { readyState: 1, presence: { at: Date.now(), desktopNotifications: true, reactionPushes: true }, send: (m) => notifications.push(JSON.parse(m)) };
+    clients.set(String(ann.id), [...(clients.get(String(ann.id)) || []), ws]);
+    await api.post(ann, '/save-subscription', { subscription: { endpoint: `https://push.test/${ann.username}`, keys: { p256dh: 'p', auth: 'a' } } });
+    const since = sentPushes.length;
+
+    const key = await keyOf(bea, groupId, 1);
+    const content = await encryptGroupReaction(
+      '🍕', key, groupReactionContext(groupId, sent.id, bea.id), bea.signingKey,
+      reactionSignatureContext({ groupId, epoch: 1, messageId: sent.id, reactorId: bea.id })
+    );
+    expect((await api.post(bea, `/group-dm-messages/${sent.id}/reactions`, { content })).status).toBe(201);
+    await new Promise((r) => setTimeout(r, 100));
+
+    const pushes = notifications.filter((e) => e.type === 'notification').map((e) => e.payload);
+    expect(pushes).toEqual([expect.objectContaining({
+      type: 'reaction', chat: 'group', groupId, epoch: 1, messageId: sent.id, reactorId: bea.id,
+      senderId: ann.id, replyTo: null, edited: false, url: `/dm/g/${groupId}`, tag: `reaction-group-${sent.id}`,
+      reaction: content, ciphertext: sent.content, nameEpoch: 1,
+    })]);
+    const [push] = pushes;
+    const { emoji, verified } = await decryptGroupReaction(
+      push.reaction, await keyOf(ann, groupId, push.epoch), groupReactionContext(groupId, push.messageId, push.reactorId),
+      bea.keys.public.identityKey,
+      reactionSignatureContext({ groupId, epoch: push.epoch, messageId: push.messageId, reactorId: push.reactorId })
+    );
+    expect({ emoji, verified }).toEqual({ emoji: '🍕', verified: true });
+    // Never a browser.
+    expect(sentPushes.slice(since).filter((p) => p.payload.type === 'reaction')).toEqual([]);
   });
 });
 

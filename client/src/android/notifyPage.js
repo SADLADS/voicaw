@@ -14,7 +14,10 @@ import { t } from '../i18n';
 
 const handlers = {
   async render({ payload }) {
-    const { title, options } = await notificationFromPush(payload);
+    const notification = await notificationFromPush(payload);
+    // A reaction not to show (a poll vote, or one that won't open): Notifications.java drops it.
+    if (!notification) return { skip: true };
+    const { title, options } = notification;
     return {
       title,
       body: options.body,

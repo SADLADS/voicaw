@@ -228,7 +228,8 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   couldn't look them up per message). `GET /api/dm-messages` returns each message's `reactions`
   (`withReactions`); `POST /api/dm-reactions` / `DELETE /api/dm-reactions/:id` (own only, max 50
   per person per message, enough for a poll's votes and added answers) push `reaction_add` / `reaction_remove`. Deleting a message deletes its
-  reactions. No push notifications for reactions.
+  reactions. Reacting notifies the message's author only in the desktop and Android apps, which
+  open the reaction and drop poll votes (see Reaction notifications in `docs/realtime.md`).
 - **Notes** (`/dm/notes`, `Notes.jsx`): a DM to yourself (`direct_messages` with sender =
   recipient), first under the Direct Messages header in `DmSidebar`, with a line between it and
   the conversations, not scrolling with them (you aren't in `/dms-list`). The

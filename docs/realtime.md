@@ -145,6 +145,28 @@ one user at a time).
   endpoint, with the phone's own key), and `sendPushToUser` sends it the same payload through
   FCM, encrypted for that phone (`fcm.js`). Calls also get `call_stop` there
   (`sendToAndroidApps`) to stop the phone ringing. See Android app in `docs/desktop-and-site.md`.
+- **Reaction notifications** (`reactionPushes.js`, as Discord's): a `reaction` push to a message's
+  author when someone else reacts, never for poll votes or added answers, a reactor they
+  blocked, a conversation they're looking at or have muted (in guilds: their level for the
+  channel, its thread's channel or the guild being Nothing, or the channel muted; the default
+  Mentions counts, since the reaction is to them), and only as their account preference
+  `reactionNotifications` allows (Settings → Notifications: `all` by default, `dms`, `off`).
+  At most one per message and reactor in 30 s; each replaces the last for that message (`tag`
+  `reaction-<chat>-<message id>`); no sound, and taking the reaction back leaves it.
+  - Guilds (`chat: 'guild'`): the server sees the emoji, leaves votes out (`addReaction`'s
+    `forPoll`, so bots' reactions too) and sends `emoji`, the message's `preview` and a worded
+    `body` to every device, browsers included.
+  - DMs and group DMs (`chat: 'dm'` / `'group'`): the server can't tell a vote from an emoji (on
+    purpose, see Polls), and a browser must show a notification for every push, so these go
+    only to apps that can drop one unshown (`sendToReactionApps`): desktop apps whose presence
+    says `reactionPushes`, Android apps whose subscription does (`fcm.reactionPushes`; older
+    apps say neither and get none). The push carries the encrypted reaction (`reaction`) and,
+    when it fits, the message (`ciphertext`), with the ids they're bound to (`messageId`,
+    `reactorId`, `senderId` = the author, `recipientId` / `groupId`, `epoch`, `replyTo`,
+    `edited`). `notificationFromPush` opens them with the keys the device keeps (the reactor's
+    pinned key; the group's saved keys, the reaction only if signed by its reactor) and returns
+    null, i.e. nothing shown, for a vote, an added answer or anything that won't open. Browsers
+    therefore never hear about reactions in encrypted chats.
 - Message pushes (`dm`, `group`, `guild`) also send `message_sound` to every socket of the user
   (see Sounds). Before showing one, the service worker asks the open pages
   (`handles-message-sound`, answered within 500 ms) whether one plays the Message sound itself;

@@ -97,6 +97,14 @@ final class Notifications {
             boolean ringing = "call".equals(type) && payload.optBoolean("ringing") && callId != null;
             if ("call".equals(type) && !ringing && callId != null) stopRinging(context, callId);
             JSONObject rendered = render(context, payload, ringing ? RENDER_CALL_MS : RENDER_MS);
+            // A reaction the page says not to show (a poll vote, or one it can't open). One in an
+            // encrypted chat the page couldn't word in time goes too: the push's own text can't
+            // tell a vote from an emoji (a guild's can: the server leaves votes out).
+            boolean encryptedReaction = "reaction".equals(type) && !"guild".equals(payload.optString("chat"));
+            if (rendered != null && rendered.optBoolean("skip") || encryptedReaction && rendered == null) {
+                PushLog.add(context, type, rendered == null ? "dropped; the page couldn't word it" : "dropped (not one to show)");
+                return;
+            }
             String outcome = ringing ? showRinging(context, payload, rendered, callId) : showMessage(context, payload, rendered);
             PushLog.add(context, ringing ? "call (ringing)" : type, rendered == null ? outcome + "; the page couldn't word it" : outcome);
         } catch (Exception e) {

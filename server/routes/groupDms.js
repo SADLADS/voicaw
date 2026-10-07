@@ -7,6 +7,7 @@ const { sendToUserSockets, getStatus, isViewingConversation } = require('../sock
 const { sendPushToUser, buildGroupPushPayload } = require('../push');
 const { isConversationMuted } = require('../conversationSettings');
 const groups = require('../groupDms');
+const { notifyGroupReaction } = require('../reactionPushes');
 const calls = require('../calls');
 const { displayNameOf } = require('../profiles');
 const { setPinned } = require('../pins');
@@ -384,6 +385,7 @@ router.post('/group-dm-messages/:messageId/reactions', authenticateJWT, findMess
   );
   const reaction = await db.get('SELECT id, message_id, user_id, content, timestamp FROM group_dm_reactions WHERE id = ?', [lastID]);
   await groups.sendToGroup(req.message.group_id, { type: 'group_dm_reaction_add', groupId: req.message.group_id, reaction });
+  notifyGroupReaction(req.message, reaction);
   res.status(201).json(reaction);
 });
 

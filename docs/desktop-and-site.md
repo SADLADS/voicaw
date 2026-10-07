@@ -192,7 +192,9 @@ native bridge. Check real behaviour on a phone.
   invisible WebView at the same origin, so the same storage): it runs the service worker's
   `notificationFromPush`, so DM and group previews are decrypted with the keys the app already
   keeps, the same previews setting applies, and nothing of the encryption is written twice. The
-  push's own text if the page can't (8 s). Channels (each with its own sound in Android's
+  push's own text if the page can't (8 s), except a reaction in an encrypted chat, dropped then
+  (and whenever the page answers `skip`: a poll vote; see Reaction notifications in
+  `docs/realtime.md`). Channels (each with its own sound in Android's
   settings): Messages, Mentions, Incoming calls, Missed calls, Ongoing call. One notification per
   conversation (its tag); silent while the app is in front (the page plays its sounds). A token
   Firebase drops is forgotten (`UNREGISTERED`); a new token is registered the next time the app

@@ -304,6 +304,12 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   the member list's short badge ("12 lvl"), or turns it off. Manage Levels (not a default) sets
   or adds to anyone's XP or level, mainly for bots (bot API `/guilds/:id/levels...` and a
   `GUILD_MEMBER_LEVEL_UPDATE` gateway event). Bots never earn XP; XP is kept when someone leaves.
+- **Reaction notifications** (built 2026-10-07, see Reaction notifications in `docs/realtime.md`):
+  as Discord's, the author is told when someone reacts (Settings → Notifications: everywhere by
+  default, DMs and groups only, or never). In encrypted chats the server can't tell a poll vote
+  from an emoji and a browser must show every push, so a notification there could be wrong
+  ("reacted" for a vote); the user chose none over wrong ones: those go only to the desktop and
+  Android apps, which open the reaction and show nothing for a vote. Browsers get guild ones only.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

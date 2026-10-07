@@ -12,10 +12,11 @@ import { getSetting } from './settingsStore';
 import { getPinnedContact } from './contactKeys';
 import {
   generateUserKeys, importEncryptionPrivateKey, importIdentityPrivateKey, deriveConversationKey, encryptMessage, dmContext,
+  encryptReaction, reactionContext,
 } from './encryptionService';
 import {
-  encryptGroupMessage, generateGroupKey, groupMessageContext, importGroupKey, messageSignatureContext,
-  sealGroupName, signGroupName,
+  encryptGroupMessage, encryptGroupReaction, generateGroupKey, groupMessageContext, groupReactionContext, importGroupKey,
+  messageSignatureContext, reactionSignatureContext, sealGroupName, signGroupName,
 } from './groupCrypto';
 
 const ALICE = 7; // sender
@@ -190,5 +191,102 @@ describe('group notifications', () => {
     const call = await notificationFromPush({ type: 'call', title: 'Group call', body: 'alice started a call', groupId: GROUP, nameCiphertext: push.nameCiphertext, nameEpoch: 3 });
     expect(call.title).toBe('Climbing');
     expect(call.options.body).toBe('alice started a call');
+  });
+});
+
+describe('reaction notifications', () => {
+  const MESSAGE = 41;
+
+  // Alice reacted with `emoji` to Bob's (this device's) DM saying `text`.
+  async function dmReactionPush(emoji, { text = 'see you at 8', extra = {} } = {}) {
+    const key = await deriveConversationKey(await importEncryptionPrivateKey(alice.private.encryptionKey), bob.public.encryptionKey);
+    return {
+      type: 'reaction', chat: 'dm', title: 'alice', body: 'Reacted to your message', url: `/dm/${ALICE}`, tag: `reaction-dm-${MESSAGE}`,
+      messageId: MESSAGE, reactorId: ALICE, senderId: BOB, recipientId: ALICE, authorName: 'bob',
+      reaction: await encryptReaction(emoji, key, reactionContext(MESSAGE, ALICE, BOB, ALICE)),
+      ciphertext: await encryptMessage(text, key, dmContext(BOB, ALICE)),
+      ...extra,
+    };
+  }
+
+  it('words a guild reaction from its emoji and the message, without the text when previews are off', async () => {
+    const push = { type: 'reaction', chat: 'guild', title: 'alice (#general, Club)', body: 'Reacted 👍 to your message: hi', emoji: '<:party:12>', preview: 'Lunch?', tag: 'reaction-guild-5', url: '/guild/1/2' };
+    const { title, options } = await notificationFromPush(push);
+    expect(title).toBe('alice (#general, Club)');
+    expect(options).toMatchObject({ body: 'Reacted :party: to your message: Lunch?', tag: 'reaction-guild-5', data: { url: '/guild/1/2' } });
+    getSetting.mockResolvedValue(false);
+    expect((await notificationFromPush(push)).options.body).toBe('Reacted :party: to your message');
+  });
+
+  it('opens a DM reaction with the key this device checked, and the message for a preview', async () => {
+    const { title, options } = await notificationFromPush(await dmReactionPush('🍕', { text: `ok <@${BOB}>` }));
+    expect(getPinnedContact).toHaveBeenCalledWith(BOB, ALICE);
+    expect(title).toBe('alice');
+    expect(options).toMatchObject({ body: 'Reacted 🍕 to your message: ok @bob', tag: `reaction-dm-${MESSAGE}` });
+    getSetting.mockResolvedValue(false);
+    expect((await notificationFromPush(await dmReactionPush('🍕'))).options.body).toBe('Reacted 🍕 to your message');
+  });
+
+  it('shows nothing for a poll vote or an added answer', async () => {
+    expect(await notificationFromPush(await dmReactionPush('poll:aaaa1111'))).toBeNull();
+    expect(await notificationFromPush(await dmReactionPush('poll:+{"id":"bbbb2222","t":"Soup","r":0}'))).toBeNull();
+  });
+
+  it("shows nothing for a reaction it can't open: unchecked key, swapped people, another message", async () => {
+    getPinnedContact.mockResolvedValueOnce(null);
+    expect(await notificationFromPush(await dmReactionPush('👍'))).toBeNull();
+    expect(await notificationFromPush(await dmReactionPush('👍', { extra: { senderId: ALICE, recipientId: BOB } }))).toBeNull();
+    expect(await notificationFromPush(await dmReactionPush('👍', { extra: { messageId: MESSAGE + 1 } }))).toBeNull();
+    loadEncryptionKey.mockResolvedValueOnce(null);
+    expect(await notificationFromPush(await dmReactionPush('👍'))).toBeNull();
+  });
+
+  describe('in groups', () => {
+    const GROUP = '11111111-2222-4333-8444-555555555555';
+    let epochKey;
+
+    // Alice (or `signer`) reacted with `emoji` to Bob's group message saying `text`.
+    async function groupReactionPush(emoji, { signer, text = 'Pizza?' } = {}) {
+      const aliceSigns = await importIdentityPrivateKey(alice.private.identityKey);
+      return {
+        type: 'reaction', chat: 'group', title: 'Group', body: 'alice reacted to your message', url: `/dm/g/${GROUP}`,
+        tag: `reaction-group-${MESSAGE}`, groupId: GROUP, epoch: 3, messageId: MESSAGE, reactorId: ALICE, reactorName: 'alice',
+        senderId: BOB, replyTo: null, edited: false,
+        reaction: await encryptGroupReaction(
+          emoji, epochKey, groupReactionContext(GROUP, MESSAGE, ALICE), signer ?? aliceSigns,
+          reactionSignatureContext({ groupId: GROUP, epoch: 3, messageId: MESSAGE, reactorId: ALICE })
+        ),
+        ciphertext: await encryptGroupMessage(
+          text, epochKey, groupMessageContext(GROUP, 3, BOB), await importIdentityPrivateKey(bob.private.identityKey),
+          messageSignatureContext({ groupId: GROUP, epoch: 3, senderId: BOB })
+        ),
+      };
+    }
+
+    beforeEach(async () => {
+      epochKey = await importGroupKey(generateGroupKey());
+      loadOwnPublicKeys.mockResolvedValue({ userId: String(BOB) });
+      recallGroup.mockResolvedValue({
+        userId: String(BOB),
+        epochs: { 3: epochKey },
+        identityKeys: { [ALICE]: alice.public.identityKey, [BOB]: bob.public.identityKey },
+        members: [{ id: ALICE, name: 'Alice A.' }, { id: BOB, name: 'bob' }, { id: 9, name: 'cleo' }],
+        name: { name: 'Climbing', version: 2 },
+      });
+    });
+
+    it("opens a signed reaction with the group's saved keys", async () => {
+      const { title, options } = await notificationFromPush(await groupReactionPush('🧗'));
+      expect(title).toBe('Climbing');
+      expect(options.body).toBe('Alice A. reacted 🧗 to your message: Pizza?');
+    });
+
+    it("shows nothing for a vote, a reaction not signed by its reactor, someone else's message or an unknown group", async () => {
+      expect(await notificationFromPush(await groupReactionPush('poll:aaaa1111'))).toBeNull();
+      expect(await notificationFromPush(await groupReactionPush('🧗', { signer: await importIdentityPrivateKey(bob.private.identityKey) }))).toBeNull();
+      expect(await notificationFromPush({ ...(await groupReactionPush('🧗')), senderId: 9 })).toBeNull();
+      recallGroup.mockResolvedValue(null);
+      expect(await notificationFromPush(await groupReactionPush('🧗'))).toBeNull();
+    });
   });
 });

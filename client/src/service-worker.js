@@ -95,7 +95,9 @@ self.addEventListener('push', (event) => {
 
     // Every push must show a notification (browsers, Safari especially, revoke push for
     // sites that don't). The server skips pushes for a chat the user is looking at.
-    const { title, options } = await notificationFromPush(data);
+    // (Only reactions in encrypted chats can come back empty, and the server never web-pushes
+    // those; should one arrive anyway, something must still be shown.)
+    const { title, options } = await notificationFromPush(data) ?? await notificationFromPush({ title: data.title });
     // When one of the app's pages plays its own Message sound for it (sounds/sounds.js), the
     // notification itself stays quiet.
     if (MESSAGE_PUSHES.has(data.type) && await aPagePlaysMessageSound()) options.silent = true;

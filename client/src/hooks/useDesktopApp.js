@@ -15,7 +15,9 @@ export function useDesktopApp({ navigate, unreadDms, groups, guildUnread }) {
     if (!desktop) return undefined;
     const stopNotifications = onNotification(async (payload) => {
       try {
-        const { title, options } = await notificationFromPush(payload);
+        const notification = await notificationFromPush(payload);
+        if (!notification) return; // a reaction not to show (a poll vote)
+        const { title, options } = notification;
         desktop.notify({
           title,
           body: options.body,

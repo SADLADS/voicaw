@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMagnifyingGlass, faPuzzlePiece, faSignOutAlt, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { InteractionContext, LayoutContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
+import ReactionNotificationSettings from "./ReactionNotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
 import DeveloperSettings from './DeveloperSettings';
 import AccountSecuritySettings from "./AccountSecuritySettings";
@@ -143,7 +144,12 @@ export default function Settings({ onLogout }) {
     {
       id: 'notifications', category: 'app', title: t('settings.sections.notifications.title'),
       keywords: t('settings.sections.notifications.keywords'),
-      content: <NotificationSettings />,
+      content: (
+        <>
+          <NotificationSettings />
+          <ReactionNotificationSettings />
+        </>
+      ),
     },
     {
       id: 'sounds', category: 'app', title: t('settings.sections.sounds.title'),

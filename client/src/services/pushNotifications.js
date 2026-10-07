@@ -1,12 +1,16 @@
 import { loadEncryptionKey, loadOwnPublicKeys } from './keyStore';
-import { deriveConversationKey, decryptMessage, dmContext } from './encryptionService';
-import { decryptGroupMessage, groupMessageContext, messageSignatureContext, openGroupName } from './groupCrypto';
+import { deriveConversationKey, decryptMessage, decryptReaction, dmContext, reactionContext } from './encryptionService';
+import {
+  decryptGroupMessage, decryptGroupReaction, groupMessageContext, groupReactionContext, messageSignatureContext, openGroupName,
+  reactionSignatureContext,
+} from './groupCrypto';
 import { getPinnedContact } from './contactKeys';
 import { recallGroup, rememberGroupName } from './groupCache';
 import { summarizeAttachments } from '../utils/attachmentMarkup';
 import { customEmojiToText } from '../emoji/customEmoji';
 import { mentionsToText } from '../utils/mentions';
 import { hideSpoilers } from '../utils/remarkDiscord';
+import { isPollReaction } from '../utils/pollMarkup';
 import { getSetting } from './settingsStore';
 import { t } from '../i18n';
 
@@ -97,15 +101,99 @@ async function groupNotification(data) {
   return { title, body };
 }
 
+// "Reacted 👍 to your message: <its text>" (`text` null: without it). Custom emoji as :name:.
+function reactedText(emoji, text, reactorName = null) {
+  const params = { emoji: customEmojiToText(emoji), text, name: reactorName };
+  const key = reactorName ? 'app.push.nameReacted' : 'app.push.reacted';
+  return t(text ? `${key}To` : key, params);
+}
+
+// A reaction to your message in a DM: opened with the reactor's key this device has already
+// checked and remembered (never a key from the push), bound to the message, its two people and
+// the reactor, so a server that swapped any of them gets nothing. -> { title, body } or null.
+async function dmReaction(data, previews) {
+  const myKey = await loadEncryptionKey();
+  if (!myKey) return null;
+  const reactor = await getPinnedContact(data.senderId, data.reactorId);
+  if (!reactor) return null;
+  const key = await deriveConversationKey(myKey, reactor.encryptionKey);
+  const emoji = await decryptReaction(data.reaction, key, reactionContext(data.messageId, data.reactorId, data.senderId, data.recipientId));
+  if (isPollReaction(emoji)) return null;
+  let text = null;
+  if (previews && data.ciphertext) {
+    try {
+      const plaintext = await decryptMessage(data.ciphertext, key, dmContext(data.senderId, data.recipientId));
+      text = previewText(plaintext, { [data.senderId]: data.authorName, [data.recipientId]: data.title });
+    } catch (err) {
+      console.warn('Could not decrypt notification preview', err);
+    }
+  }
+  return { title: data.title, body: reactedText(emoji, text) };
+}
+
+// The same in a group: the group keys saved on this device (groupCache.js), and the reaction
+// only if its signature is the reactor's. -> { title, body } or null.
+async function groupReaction(data, previews) {
+  const own = await loadOwnPublicKeys();
+  const saved = own && String(own.userId) === String(data.senderId) && await recallGroup(own.userId, data.groupId);
+  const key = saved?.epochs[data.epoch];
+  if (!key) return null;
+  const { groupId, epoch, messageId, reactorId, senderId } = data;
+  const { emoji, signed, verified } = await decryptGroupReaction(
+    data.reaction, key, groupReactionContext(groupId, messageId, reactorId),
+    saved.identityKeys[reactorId] ?? 'unknown', reactionSignatureContext({ groupId, epoch, messageId, reactorId })
+  );
+  if (!signed || !verified || isPollReaction(emoji)) return null;
+  const names = Object.fromEntries(saved.members.map((m) => [m.id, m.name]));
+  let text = null;
+  if (previews && data.ciphertext) {
+    try {
+      const message = await decryptGroupMessage(
+        data.ciphertext, key, groupMessageContext(groupId, epoch, senderId), saved.identityKeys[senderId] ?? 'unknown',
+        messageSignatureContext({ groupId, epoch, senderId, replyTo: data.replyTo ?? null, editOf: data.edited ? messageId : null })
+      );
+      if (message.signed && message.verified) text = previewText(message.text, names);
+    } catch (err) {
+      console.warn('Could not decrypt notification preview', err);
+    }
+  }
+  const { title } = await groupNotification(data);
+  return { title: title || data.title, body: reactedText(emoji, text, names[reactorId] ?? data.reactorName) };
+}
+
+// Someone reacted to your message (server/reactionPushes.js). A guild's arrives worded, with
+// its emoji and the message's text. An encrypted chat's carries the encrypted reaction (and the
+// message when it fits) for this device to open; there the server can't tell a poll vote from
+// an emoji, so a vote, or a reaction that won't open, gives null: no notification. Those only
+// reach apps that can show nothing (desktop and Android), never a browser, which must show
+// every push. -> { title, body } or null.
+async function reactionNotification(data) {
+  const previews = await getSetting('notificationPreviews');
+  if (data.chat === 'guild') return { title: data.title, body: reactedText(data.emoji, previews ? data.preview : null) };
+  try {
+    if (data.chat === 'dm') return await dmReaction(data, previews);
+    if (data.chat === 'group') return await groupReaction(data, previews);
+  } catch (err) {
+    console.warn('Could not open a reaction for a notification', err);
+  }
+  return null;
+}
+
 // Pushes whose body is a message's text, which Settings → Privacy's "Show message text in
 // notifications" (settingsStore `notificationPreviews`) leaves out. DMs and groups decrypt
 // theirs (above) only when it's on; guild messages and bot DMs arrive readable from the server,
 // so their body is swapped for a generic one here.
 const PLAIN_MESSAGE_PUSHES = new Set(['guild', 'bot_dm']);
 
+// -> { title, options }, or null for a push to drop unshown (only reactions, see above).
 export async function notificationFromPush(data) {
   let title = data.title || 'Voicaw';
   let body = data.type === 'dm' ? (await dmPreview(data)) || t('app.push.newMessage') : data.body || '';
+  if (data.type === 'reaction') {
+    const reaction = await reactionNotification(data);
+    if (!reaction) return null;
+    ({ title, body } = reaction);
+  }
   if (PLAIN_MESSAGE_PUSHES.has(data.type) && !(await getSetting('notificationPreviews'))) body = t('app.push.newMessage');
   if ((data.type === 'group' || data.type === 'call') && data.groupId) {
     try {

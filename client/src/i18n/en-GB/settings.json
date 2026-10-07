@@ -56,7 +56,7 @@
       },
       "notifications": {
         "title": "Notifications",
-        "keywords": "push alerts previews"
+        "keywords": "push alerts previews reactions reacted emoji"
       },
       "sounds": {
         "title": "Sounds",
@@ -342,6 +342,13 @@
       "tryAgain": "Try again",
       "turnOff": "Turn off",
       "sendTest": "Send test notification"
+    },
+    "reactionNotifications": {
+      "title": "Reactions to your messages",
+      "all": "Everywhere",
+      "dms": "Only in DMs and group DMs",
+      "off": "Never",
+      "hint": "For your whole account. In DMs and group DMs only the desktop and Android apps tell you: they're end-to-end encrypted, so only your device can see whether a reaction is a poll vote (votes never notify), and a browser would have to show a notification for each one."
     },
     "notificationPrompt": {
       "failed": "Couldn't turn on notifications. Try again from Settings.",

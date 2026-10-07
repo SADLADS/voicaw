@@ -77,6 +77,9 @@ function sendPresence() {
     type: 'presence', visible, chatId: activeChatId, sideChatId, mobile: mobileDevice, idleIn: idleIn(),
     // The desktop app gets its notifications here instead of by web push (see onNotification).
     desktopNotifications: desktopNotificationsOn(),
+    // It drops reactions it shouldn't show (services/pushNotifications.js), so the server sends
+    // it those in encrypted chats too, which browsers never get (server/push.js).
+    reactionPushes: true,
   }));
 }
 

@@ -11,8 +11,17 @@ const db = require('./db');
 // - `botDms`: bots you share a guild with may message you (on by default; botDms.js). Off, they
 //   can't start or continue a conversation; it stays readable.
 
-const DEFAULTS = { blurNsfw: true, adultConfirmed: false, botDms: true };
-const isValid = { blurNsfw: (v) => typeof v === 'boolean', adultConfirmed: (v) => typeof v === 'boolean', botDms: (v) => typeof v === 'boolean' };
+// - `reactionNotifications`: notifications when someone reacts to your message, as Discord's:
+//   'all' (the default), 'dms' (DMs and group DMs only) or 'off' (reactionPushes.js).
+
+const REACTION_NOTIFICATIONS = ['all', 'dms', 'off'];
+const DEFAULTS = { blurNsfw: true, adultConfirmed: false, botDms: true, reactionNotifications: 'all' };
+const isValid = {
+  blurNsfw: (v) => typeof v === 'boolean',
+  adultConfirmed: (v) => typeof v === 'boolean',
+  botDms: (v) => typeof v === 'boolean',
+  reactionNotifications: (v) => REACTION_NOTIFICATIONS.includes(v),
+};
 
 function parse(json) {
   try {

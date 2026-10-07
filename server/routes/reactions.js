@@ -4,6 +4,7 @@ const { CALL_LOG } = require('../callLog');
 const { getMaxEncryptedLength } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets } = require('../sockets');
+const { notifyDmReaction } = require('../reactionPushes');
 
 // Reactions. The emoji is encrypted by the client with the conversation key, padded to
 // REACTION_PLAINTEXT_BYTES so every reaction is the same length; the server sees only who
@@ -59,6 +60,7 @@ router.post('/dm-reactions', authenticateJWT, async (req, res) => {
   );
 
   notifyParticipants(message, { type: 'reaction_add', reaction });
+  notifyDmReaction(message, reaction);
   res.status(201).json(reaction);
 });
 

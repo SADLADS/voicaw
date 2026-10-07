@@ -76,9 +76,11 @@ const MESSAGE_PUSHES = new Set(['dm', 'group', 'guild', 'bot_dm']);
 // Sends a web push to every device the user has subscribed (forgetting devices whose
 // subscription is gone), and the same payload to their desktop apps over the websocket.
 // Resolves to { devices, delivered } (desktop apps count as both).
-async function sendPushToUser(userId, payload, options = {}) {
+// `appsOnly`: only to desktop and Android apps that said they can drop it unshown (see
+// sendToReactionApps), never a browser.
+async function sendPushToUser(userId, payload, options = {}, { appsOnly = false } = {}) {
   const sockets = require('./sockets');
-  const desktop = sockets.sendToDesktopSockets(userId, payload);
+  const desktop = sockets.sendToDesktopSockets(userId, payload, { reactionPushes: appsOnly });
   if (MESSAGE_PUSHES.has(payload.type)) sockets.sendToUserSockets(userId, { type: 'message_sound' });
   let rows;
   try {
@@ -89,6 +91,7 @@ async function sendPushToUser(userId, payload, options = {}) {
   const body = JSON.stringify(payload);
   const results = await Promise.all(rows.map(async (row) => {
     const subscription = JSON.parse(row.subscription);
+    if (appsOnly && !subscription.fcm?.reactionPushes) return false;
     try {
       if (subscription.fcm) {
         // The Android app (fcm.js).
@@ -108,6 +111,15 @@ async function sendPushToUser(userId, payload, options = {}) {
     }
   }));
   return { devices: rows.length + desktop, delivered: results.filter(Boolean).length + desktop };
+}
+
+// A reaction in an encrypted chat. The server can't tell a poll vote from an emoji there (on
+// purpose), and a browser must show a notification for every push, so it would sometimes say
+// "reacted" about a vote. So these go only to apps that decrypt first and show nothing for a
+// vote or a reaction they can't open: desktop apps whose page said so in its presence
+// (`reactionPushes`), Android apps whose subscription did (`fcm.reactionPushes`).
+function sendToReactionApps(userId, payload, options) {
+  return sendPushToUser(userId, payload, options, { appsOnly: true });
 }
 
 // Something only the Android app acts on, and shows nothing for (web push must show a
@@ -138,4 +150,4 @@ async function getUserImageUrl(userId) {
   return require('./avatars').avatarUrl(userId, user?.avatar) ?? '/default.png';
 }
 
-module.exports = { buildDmPushPayload, buildGroupPushPayload, groupNameForPush, sendPushToUser, sendToAndroidApps, getUserImageUrl };
+module.exports = { MAX_PUSH_CIPHERTEXT_LENGTH, buildDmPushPayload, buildGroupPushPayload, groupNameForPush, sendPushToUser, sendToReactionApps, sendToAndroidApps, getUserImageUrl };
