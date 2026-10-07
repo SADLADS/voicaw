@@ -19,7 +19,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   Watch Together in voice channels Queue Videos, Manage Queue (not a default) and Control
   Playback (`QUEUE_VIDEOS`, `MANAGE_QUEUE`, `CONTROL_PLAYBACK`; see Voice channels in
   `docs/voice-and-calls.md`), and Create Events (a default, migration 13) and Manage Events
-  (`CREATE_EVENTS`, `MANAGE_EVENTS`; see Events). Every guild has an `@everyone`
+  (`CREATE_EVENTS`, `MANAGE_EVENTS`; see Events), and Manage Levels (`MANAGE_LEVELS`, not a
+  default, guild-wide only; see Levels). Every guild has an `@everyone`
   role (`is_everyone`, position 0, default: view, send, react, invite, connect, speak, edit tasks, video, create documents,
   create threads, send in threads, queue videos, control playback) plus orderable roles (`guild_roles`: name, colour
   0xRRGGBB or null, `hoist` = shown separately in the member list, `mentionable` = anyone may
@@ -508,6 +509,53 @@ Not end-to-end encrypted, like the rest of a guild.
   beyond Interested (Going / Maybe / Can't, limits), reminders before an event, editing an
   occurrence other than the next one, per-occurrence interest, event invite links that also
   invite into the guild, and stage channels.
+
+## Levels
+
+Guilded's XP (built 2026-10-07): members earn XP in a guild for what they do there, and every
+`xpPerLevel` XP is a level. Not end-to-end encrypted, like the rest of a guild.
+- **Settings** (`guilds.levels`, JSON; null = the defaults in `server/guildLevels.js`
+  `DEFAULT_SETTINGS`), changed with Manage Guild (Guild Settings → Levels,
+  `guild/LevelSettings.jsx`; `PATCH /guilds/:id/levels` with any of them), sent to everyone in
+  the layout as `levels`: `enabled` (on by default; off, nothing earns XP and the app hides
+  levels, but what people have is kept), `xpPerLevel` (1–1,000,000, default 100; at **1 the app
+  never mentions XP**: settings, card and leaderboard talk of levels only), `xpName`,
+  `levelName`, `levelShort` (32, 32, 12 characters; empty = the app's own translated "XP",
+  "Level", "lvl"), `showInMemberList` (the badge), `messageCooldown` (0–3600 s, default 60) and
+  `sources`, each `{ enabled, xp }` (0–1,000,000). Sources, on by default: `message` (sending
+  one, once per cooldown), `replyReceived` (someone else replies to yours), `reactionReceived`
+  (someone else reacts to yours, once per person and message; poll votes don't count); off by
+  default: `mentionReceived` (named with `<@id>` by someone else, up to 50 a message),
+  `reactionGiven` (once per message), `threadCreated`, `documentCreated`, `taskCompleted` (once
+  per task, whoever completes it again), `voiceMinute` (each minute in a voice channel with at
+  least one other person who isn't a bot, not self-deafened; a minute timer over `voice.js`'s
+  states). Changes are in the audit log (`levels_update`, what changed).
+- **Earning** (`award`, after the action's own transaction; never throws): only members who
+  aren't bots (webhooks have no user); bots' replies, mentions and reactions give nobody XP.
+  Once-only awards are keys in `guild_xp_awards` (kept 90 days, pruned hourly), so taking a
+  reaction back and adding it again earns nothing. Hooks: `createMessage` (`awardMessage`),
+  `addReaction` (`awardReaction`), `startThread`, creating a document, completing a task.
+- **XP** is `guild_member_xp` (guild, user, `xp` up to 10^12, `message_xp_at` for the
+  cooldown). It's kept when someone leaves (theirs again if they rejoin), deleted with the
+  guild or the account. The member list (`GET /guilds/:id/members`, `guild_member_add`) has each
+  member's `xp`. A change of level, and any change by hand, is sent to the guild as
+  `guild_member_xp { guildId, userId, xp, level, previousLevel }`.
+- **Manage Levels** sets or adds to anyone's XP or level (no rank check; meant for bots):
+  `PATCH /guilds/:id/levels/members/:userId` with one of `{ xp }`, `{ level }` (puts them at
+  the level's start), `{ addXp }`, `{ addLevels }` (below 0 takes away; never under 0). Logged
+  as `member_xp_update { before, after }`. Anyone in the guild reads `GET
+  /guilds/:id/levels/members/:userId` (`{ user_id, xp, level, rank }`; ties share a rank, null
+  with no XP) and the leaderboard, `GET /guilds/:id/levels/members?limit&offset` (members with
+  XP, most first, with names and pictures).
+- **Client** (`utils/levels.js`): the member list shows a member's level beside their picture
+  ("12 lvl", "1.5k lvl": `compactNumber`; not at level 0, nor with `showInMemberList` off);
+  their card (`guild/MemberLevel.jsx`) shows level, rank and progress to the next, and with
+  Manage Levels a Change form (Set / Add, Level / XP). The guild menus (rail and header) have
+  Leaderboard (`guild/LeaderboardDialog.jsx`) while levels are on. Styles in `guilds.css`.
+- **Bots** get the same through the bot API (see Levels in `docs/bots.md`).
+- **Not done yet:** level-up messages in a channel, roles given at a level, XP multipliers per
+  role or channel, excluding channels, resetting everyone's XP at once, and a curve (levels
+  needing more XP as they go: it's linear).
 
 ## Guild search
 

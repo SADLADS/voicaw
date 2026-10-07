@@ -7,6 +7,7 @@ const { logAudit, diff } = require('../auditLog');
 const { releaseUploads } = require('../uploads');
 const threads = require('../threads');
 const { ActionError, withActionErrors } = require('../actionError');
+const levels = require('../guildLevels');
 
 // Threads in guild text channels (threads.js, docs/guilds.md). Seeing a thread follows its
 // channel's View Channel; starting one needs Create Threads there, posting in one Send Messages
@@ -101,6 +102,7 @@ async function startThread({ channel, permissions, userId }, { name: givenName, 
     await sendToChannel(channel, { type: 'guild_message_new', guildId: channel.guild_id, message });
   }
   await threads.announceThread(threadId, { joinedIds: [userId] });
+  await levels.award(channel.guild_id, userId, 'threadCreated');
   return threads.getThread(threadId, userId);
 }
 

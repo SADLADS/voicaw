@@ -11,6 +11,7 @@ import GuildMenu from './guild/GuildMenu';
 import InviteDialog from './guild/InviteDialog';
 import GuildSettingsDialog from './guild/GuildSettingsDialog';
 import AuditLogDialog from './guild/AuditLogDialog';
+import LeaderboardDialog from './guild/LeaderboardDialog';
 import ConfirmDialog from './guild/ConfirmDialog';
 import { InteractionContext, LayoutContext } from '../contexts';
 import { leaveGuild } from '../services/guildService';
@@ -144,6 +145,7 @@ export default function Sidebar({ user, hasUnreadDms, unreadFrom = null,guilds =
       {dialogGuild && dialog.type === 'invite' && <InviteDialog guild={dialogGuild} onClose={closeDialog} />}
       {dialogGuild && dialog.type === 'settings' && <GuildSettingsDialog guild={dialogGuild} user={user} onClose={closeDialog} />}
       {dialogGuild && dialog.type === 'audit' && <AuditLogDialog guild={dialogGuild} user={user} onClose={closeDialog} />}
+      {dialogGuild && dialog.type === 'leaderboard' && <LeaderboardDialog guild={dialogGuild} user={user} onClose={closeDialog} />}
       {dialogGuild && dialog.type === 'leave' && (
         <ConfirmDialog
           title={t('app.sidebar.leaveGuild.title', { name: dialogGuild.name })}

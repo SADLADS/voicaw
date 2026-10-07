@@ -123,7 +123,8 @@
       "VOICAW_CREATE_DOCUMENTS": "Create Documents",
       "VOICAW_QUEUE_VIDEOS": "Queue Videos",
       "VOICAW_MANAGE_QUEUE": "Manage Queue",
-      "VOICAW_CONTROL_PLAYBACK": "Control Playback"
+      "VOICAW_CONTROL_PLAYBACK": "Control Playback",
+      "VOICAW_MANAGE_LEVELS": "Manage Levels"
     },
     "authorize": {
       "title": "Add a bot",

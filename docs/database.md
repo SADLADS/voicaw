@@ -28,6 +28,7 @@ and Send Messages in Threads); add the next one at the end.
   apart with `AsyncLocalStorage`), so keep it to database work: no S3, LiveKit, pushes or socket
   sends inside. A nested call is a savepoint (a failure inside undoes only its own writes, so the
   outer one can catch it and carry on, as posting a group log entry does with its epoch).
-- Guild tables are `guilds` plus `guild_*`. An earlier sketch left unused, empty tables in old databases
+- Guild tables are `guilds` plus `guild_*` (levels: `guild_member_xp`, `guild_xp_awards` and
+  `guilds.levels`, see Levels in `docs/guilds.md`). An earlier sketch left unused, empty tables in old databases
 (`roles`, `user_roles`, `categories`, `channels`, `channel_permissions`, `messages`); nothing
 creates or reads them any more, and they can be dropped.

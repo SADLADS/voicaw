@@ -513,3 +513,24 @@ export async function setEventInterest(eventId, interested) {
 export async function fetchEventUsers(eventId) {
   return (await api.get(`/guild-events/${eventId}/users`)).data;
 }
+
+// ---- Levels (server/guildLevels.js) ----
+
+export async function updateLevelSettings(guildId, changes) {
+  return (await api.patch(`/guilds/${guildId}/levels`, changes)).data;
+}
+
+// The leaderboard: [{ user_id, xp, level, rank }], most XP first.
+export async function fetchLeaderboard(guildId, { limit = 50, offset = 0 } = {}) {
+  return (await api.get(`/guilds/${guildId}/levels/members`, { params: { limit, offset } })).data;
+}
+
+// { user_id, xp, level, rank }
+export async function fetchMemberLevel(guildId, userId) {
+  return (await api.get(`/guilds/${guildId}/levels/members/${userId}`)).data;
+}
+
+// `change`: one of { xp }, { level }, { addXp }, { addLevels } (Manage Levels).
+export async function changeMemberXp(guildId, userId, change) {
+  return (await api.patch(`/guilds/${guildId}/levels/members/${userId}`, change)).data;
+}

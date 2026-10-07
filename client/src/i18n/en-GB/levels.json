@@ -1,0 +1,76 @@
+{
+  "levels": {
+    "defaults": {
+      "xp": "XP",
+      "level": "Level",
+      "levelShort": "lvl"
+    },
+    "badge": "{{level}} {{short}}",
+    "card": {
+      "level": "{{name}} {{level}}",
+      "progress": "{{into}} / {{needed}} {{xp}}",
+      "rank": "#{{rank}}",
+      "change": "Change",
+      "set": "Set",
+      "add": "Add",
+      "editLabel": "Change {{name}}'s {{what}}",
+      "amount": "Amount",
+      "cancel": "Cancel"
+    },
+    "settings": {
+      "enabled": {
+        "label": "Levels",
+        "hint": "Members earn {{xp}} for what they do here and go up a level every so often. Turned off, nobody earns any and levels are hidden; what members have is kept."
+      },
+      "names": "Names",
+      "xpName": "What XP is called",
+      "levelName": "What a level is called",
+      "levelShort": "Short name for levels",
+      "levelShortHint": "Shown next to pictures in the member list, e.g. \"12 {{short}}\".",
+      "default": "Default: {{value}}",
+      "xpPerLevel": "{{xp}} per level",
+      "xpPerLevelHint": "At 1, every {{xp}} is a level and {{xp}} is never mentioned: things earn levels instead.",
+      "showInMemberList": {
+        "label": "Show levels in the member list",
+        "hint": "Next to each member's picture."
+      },
+      "sources": "What earns {{xp}}",
+      "sourcesHint": "Bots and webhooks never earn any. Each item turned on gives the amount beside it.",
+      "amount": "{{xp}} for {{what}}",
+      "cooldown": "Seconds between messages that earn {{xp}}",
+      "cooldownHint": "Messages sent sooner after one that earned some earn nothing. 0 counts every message.",
+      "save": "Save",
+      "saved": "Saved",
+      "source": {
+        "message": { "label": "Sending a message", "hint": "At most once per cooldown." },
+        "replyReceived": { "label": "Getting a reply", "hint": "Someone else replies to your message." },
+        "reactionReceived": { "label": "Getting a reaction", "hint": "Once per person and message." },
+        "mentionReceived": { "label": "Being mentioned", "hint": "Someone else mentions you by name." },
+        "reactionGiven": { "label": "Reacting", "hint": "To someone else's message, once per message." },
+        "threadCreated": { "label": "Starting a thread", "hint": "In text channels." },
+        "documentCreated": { "label": "Writing a document", "hint": "In document channels." },
+        "taskCompleted": { "label": "Completing a task", "hint": "In list channels, once per task." },
+        "voiceMinute": { "label": "Each minute in voice", "hint": "With at least one other person there, and not deafened." }
+      }
+    },
+    "leaderboard": {
+      "title": "Leaderboard",
+      "empty": "Nobody has earned any yet.",
+      "loadMore": "Load more"
+    },
+    "audit": {
+      "fields": {
+        "enabled": "Levels on",
+        "xpPerLevel": "XP per level",
+        "xpName": "XP name",
+        "levelName": "Level name",
+        "levelShort": "Short level name",
+        "showInMemberList": "In the member list",
+        "messageCooldown": "Message cooldown (s)",
+        "sourceEnabled": "{{source}}: on",
+        "sourceXp": "{{source}}: amount"
+      },
+      "xp": "XP: {{before}} → {{after}}"
+    }
+  }
+}

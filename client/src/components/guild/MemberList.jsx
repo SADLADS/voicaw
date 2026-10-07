@@ -16,13 +16,16 @@ import { interactionError } from '../../utils/commandOptions';
 import ProfileCard from '../ProfileCard';
 import Avatar from '../Avatar';
 import UserSafetyActions from '../UserSafetyActions';
+import MemberLevel from './MemberLevel';
+import { levelBadge, levelName, levelOf, levelsOn } from '../../utils/levels';
 import { t } from '../../i18n';
 
 // The guild's members down the right (like Discord), names in their role colour. Clicking one
 // opens a card: their roles (added and removed there by people who manage roles, for roles
 // below their own), Message, and, as permissions and rank allow, Make owner / Kick / Ban.
 // `userApps` (the channel's bots' user commands) show as Apps on the card, run with
-// `onRunUserApp(command, userId)`.
+// `onRunUserApp(command, userId)`. With levels on (utils/levels.js), each member's level shows
+// beside their picture (unless the guild hides it there, or it's 0) and on their card.
 export default function MemberList({ guild, members: memberList, user, onClose, userApps = [], onRunUserApp }) {
   useProfiles();
   const presenceOf = usePresence();
@@ -86,6 +89,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
       <div className="member-card" ref={cardRef} role="dialog" aria-label={nameOf(member)}>
         <ProfileCard user={member} color={memberColor(guild.roles, member.role_ids) ?? undefined} />
         <div className="vc-hint">{t('guilds.memberList.memberSince', { date: formatDate(member.joined_at * 1000) })}</div>
+        {levelsOn(guild) && <MemberLevel guild={guild} member={member} canEdit={can(PERMISSIONS.MANAGE_LEVELS)} />}
 
         {(roles.length > 0 || editsRoles) && (
           <div className="member-card-roles">
@@ -218,6 +222,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
   function renderMember(member) {
     const isSelected = selectedId === member.id;
     const color = memberColor(guild.roles, member.role_ids);
+    const level = levelsOn(guild) && guild.levels.showInMemberList ? levelOf(member.xp, guild.levels) : 0;
     return (
       <li key={member.id} className="member-item">
         <button
@@ -230,6 +235,11 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
             <Avatar userId={member.id} />
             <StatusIcon status={member.status} />
           </span>
+          {level > 0 && (
+            <span className="member-level" title={t('levels.card.level', { name: levelName(guild.levels), level })}>
+              {levelBadge(level, guild.levels)}
+            </span>
+          )}
           <span className="member-name-block">
             <span className="member-name" style={{ color: color ?? undefined }}>
               {nameOf(member)}

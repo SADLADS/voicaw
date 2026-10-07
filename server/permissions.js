@@ -36,6 +36,7 @@ const PERMISSIONS = {
   LISTEN: 1 << 26, // voice channels: hear the others (LiveKit only sends audio to those with it)
   CREATE_EVENTS: 1 << 27, // scheduled events: create them (and edit or cancel your own)
   MANAGE_EVENTS: 1 << 28, // scheduled events: edit, start, end and cancel anyone's
+  MANAGE_LEVELS: 1 << 29, // levels: change members' XP and levels (guild-wide only; mostly for bots)
 };
 
 const ALL_PERMISSIONS = Object.values(PERMISSIONS).reduce((all, bit) => all | bit, 0);

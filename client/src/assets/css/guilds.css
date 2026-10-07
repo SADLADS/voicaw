@@ -2757,3 +2757,192 @@ img.emoji.custom-emoji {
   flex-direction: column;
   overflow: hidden;
 }
+
+/* ---- Levels (guildLevels; utils/levels.js) ---- */
+
+/* "12 lvl" beside a picture in the member list. */
+.member-level {
+  flex-shrink: 0;
+  max-width: 64px;
+  padding: 1px 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: var(--vc-accent-soft);
+  color: var(--vc-accent-text);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-card-level {
+  margin-top: 8px;
+}
+
+.member-card-level-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.member-card-rank {
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.level-progress {
+  height: 6px;
+  margin: 4px 0 2px;
+  overflow: hidden;
+  border-radius: 3px;
+  background-color: var(--vc-bg-hover);
+}
+
+.level-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background-color: var(--vc-accent);
+}
+
+.member-level-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.member-level-edit .form-control,
+.member-level-edit .form-select {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 70px;
+}
+
+.level-settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.level-settings-body:disabled {
+  opacity: 0.55;
+}
+
+.level-settings-heading {
+  margin: 14px 0 0;
+}
+
+.level-settings-number {
+  max-width: 120px;
+}
+
+.level-settings-names {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.level-settings-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.level-sources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.level-source {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.level-source .role-toggle {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.level-source-amount {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+}
+
+.level-source-amount .level-settings-number {
+  width: 80px;
+}
+
+.leaderboard-dialog {
+  max-width: 520px;
+}
+
+.leaderboard {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.leaderboard-row.mine {
+  background-color: var(--vc-accent-soft);
+}
+
+.leaderboard-row img {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.leaderboard-rank {
+  min-width: 1.5em;
+  flex-shrink: 0;
+  color: var(--vc-fg-muted);
+  font-weight: 600;
+  text-align: right;
+}
+
+.leaderboard-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-xp {
+  flex-shrink: 0;
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+}
+
+.leaderboard-level {
+  flex-shrink: 0;
+  font-weight: 600;
+}

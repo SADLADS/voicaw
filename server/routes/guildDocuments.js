@@ -6,6 +6,7 @@ const { getChannelAccess, sendToChannel } = require('../guilds');
 const { logAudit } = require('../auditLog');
 const { linkUploads, releaseUploads } = require('../uploads');
 const { uploadKeysIn } = require('../uploadKeys');
+const levels = require('../guildLevels');
 const {
   MAX_TITLE,
   MAX_CONTENT,
@@ -105,6 +106,7 @@ router.post('/channels/:channelId/documents', authenticateJWT, requireDocChannel
   });
   if (!id) return res.status(400).json({ error: `A channel holds at most ${MAX_DOCUMENTS_PER_CHANNEL} documents` });
   await announceCard(req.access, id);
+  await levels.award(channel.guild_id, req.user.id, 'documentCreated');
   res.status(201).json(await getDocument(id));
 });
 

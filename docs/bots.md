@@ -92,7 +92,7 @@ Unknown paths get Discord's 404.
   Embed Links, Attach Files, Use External Emoji and Use Application Commands by Send Messages;
   Use Voice Activity by Speak; Create Guild Expressions by Manage Emoji). Edit Tasks, Create
   Documents, and Watch Together's Queue Videos, Manage Queue and Control Playback are ours only
-  (bits 56 to 60). Coming in, only the bits that stand for ours count.
+  (bits 56 to 60), as are Listen (61) and Manage Levels (62, `VOICAW_MANAGE_LEVELS`). Coming in, only the bits that stand for ours count.
   The client has a copy of the mapping for the portal's checkboxes (a test checks they match).
 - **Messages**: Discord's message object, with `member` (gateway), `mentions` (users named in
   the text), `referenced_message` for replies, reactions summed per emoji (`me` for the bot),
@@ -250,6 +250,27 @@ maybe DAVE) may come later. Audio only: bots never get Video (`voice.canStreamWi
 - **Checked** (2026-10-05, e2e's throwaway API with its own LiveKit): a Node bot
   (`@livekit/rtc-node`) publishing a tone with Speak; a bot with Listen hears it (Node, and
   Python `livekit`); a bot without Listen gets no audio at all (LiveKit refuses to subscribe it).
+
+## Levels (Voicaw's own)
+
+A guild's levels (see Levels in `docs/guilds.md`; `server/guildLevels.js`'s actions, shared with
+the app) under the bot API, snake_case like the rest; Discord has nothing like them.
+- `GET /guilds/:id/levels`: `{ enabled, xp_per_level, xp_name, level_name, level_short_name,
+  show_in_member_list, message_cooldown, sources: { message, reply_received, reaction_received,
+  mention_received, reaction_given, thread_created, document_created, task_completed,
+  voice_minute: { enabled, xp } } }` (names the guild left empty read as "XP", "Level", "lvl").
+  `PATCH` it (Manage Guild) with any of those fields.
+- `GET /guilds/:id/levels/members?limit&offset` (1–1000, default 100): the leaderboard, most XP
+  first; `GET /guilds/:id/levels/members/:user_id` (or `@me`): one member. Each is `{ guild_id,
+  user_id, xp, level, rank, xp_per_level }`.
+- `PATCH /guilds/:id/levels/members/:user_id` (Manage Levels) with exactly one of `{ xp }`,
+  `{ level }` (set), `{ add_xp }`, `{ add_levels }` (add; below 0 subtracts, never under 0).
+  Answers the member's new object.
+- Gateway: `GUILD_MEMBER_LEVEL_UPDATE { guild_id, user_id, xp, level, previous_level }` (Guild
+  Members intent) whenever someone's level changes, or their XP is set by hand, so a bot can
+  announce level-ups or give roles. discord.js and discord.py ignore events they don't know
+  (read it from the raw packet: `client.on('raw')`, `on_socket_raw_receive`).
+- Bots never earn XP themselves (they can be given some).
 
 ## Login with Voicaw (`server/oauth.js`)
 

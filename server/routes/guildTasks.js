@@ -3,6 +3,7 @@ const db = require('../db');
 const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has } = require('../permissions');
 const { getChannelAccess, getChannelViewers, sendToChannel } = require('../guilds');
+const levels = require('../guildLevels');
 const {
   MAX_TITLE,
   MAX_DESCRIPTION,
@@ -228,6 +229,10 @@ router.patch('/tasks/:taskId', authenticateJWT, requireTask, requireEdit, async 
   const task = await getTask(req.task.id);
   await sendToChannel(channel, event(req.access, 'guild_task_upsert', { task }));
   notifyAssigned(task, channel, req.user, added).catch((err) => console.error('Task notification failed:', err.message));
+  // XP for completing it, once per task whoever completes it again.
+  if (body.completed === true && !req.task.completed_at) {
+    await levels.award(channel.guild_id, req.user.id, 'taskCompleted', { key: `task:${req.task.id}` });
+  }
   res.json(task);
 });
 

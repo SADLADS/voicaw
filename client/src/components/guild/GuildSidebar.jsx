@@ -15,6 +15,7 @@ import {
   faMessage,
   faPlus,
   faRightFromBracket,
+  faTrophy,
   faUserPlus,
   faXmark,
 } from '@fortawesome/free-solid-svg-icons';
@@ -30,6 +31,8 @@ import GuildSettingsDialog from './GuildSettingsDialog';
 import ConfirmDialog from './ConfirmDialog';
 import NotificationDialog from './NotificationDialog';
 import AuditLogDialog from './AuditLogDialog';
+import LeaderboardDialog from './LeaderboardDialog';
+import { levelsOn } from '../../utils/levels';
 import ChannelMenu from './ChannelMenu';
 import ContextMenu from '../ContextMenu';
 import { useLongPress } from '../../hooks/useLongPress';
@@ -357,6 +360,11 @@ export default function GuildSidebar({ guild, user }) {
                 {t('guilds.sidebar.guildSettings')} <FontAwesomeIcon icon={faGear} />
               </button>
             )}
+            {levelsOn(guild) && (
+              <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'leaderboard' })}>
+                {t('levels.leaderboard.title')} <FontAwesomeIcon icon={faTrophy} />
+              </button>
+            )}
             {can(PERMISSIONS.VIEW_AUDIT_LOG) && (
               <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'audit' })}>
                 {t('guilds.sidebar.auditLog')} <FontAwesomeIcon icon={faClipboardList} />
@@ -561,6 +569,7 @@ export default function GuildSidebar({ guild, user }) {
       )}
       {dialog?.type === 'invite' && <InviteDialog guild={guild} onClose={closeDialog} />}
       {dialog?.type === 'audit' && <AuditLogDialog guild={guild} user={user} onClose={closeDialog} />}
+      {dialog?.type === 'leaderboard' && <LeaderboardDialog guild={guild} user={user} onClose={closeDialog} />}
       {dialog?.type === 'notifications' && <NotificationDialog guild={guild} onClose={closeDialog} />}
       {dialog?.type === 'settings' && <GuildSettingsDialog guild={guild} user={user} onClose={closeDialog} />}
       {dialog?.type === 'category' && <CategoryDialog guild={guild} category={dialog.category} onClose={closeDialog} />}

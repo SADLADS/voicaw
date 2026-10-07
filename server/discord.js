@@ -52,6 +52,7 @@ const PERMISSION_BITS = [
   [P.LISTEN, [61]], // ours only: hear the others in voice
   [P.MANAGE_EVENTS, [33]],
   [P.CREATE_EVENTS, [44]],
+  [P.MANAGE_LEVELS, [62]], // ours only: change members' XP and levels
 ];
 const DISCORD_PERMISSIONS = Object.fromEntries([
   ['CREATE_INSTANT_INVITE', 0], ['KICK_MEMBERS', 1], ['BAN_MEMBERS', 2], ['ADMINISTRATOR', 3], ['MANAGE_CHANNELS', 4],
@@ -63,6 +64,7 @@ const DISCORD_PERMISSIONS = Object.fromEntries([
   ['VOICAW_EDIT_TASKS', 56], ['VOICAW_CREATE_DOCUMENTS', 57],
   ['VOICAW_QUEUE_VIDEOS', 58], ['VOICAW_MANAGE_QUEUE', 59], ['VOICAW_CONTROL_PLAYBACK', 60],
   ['VOICAW_LISTEN', 61], ['MANAGE_EVENTS', 33], ['CREATE_EVENTS', 44],
+  ['VOICAW_MANAGE_LEVELS', 62],
 ].map(([name, bit]) => [name, 1n << BigInt(bit)]));
 
 function toDiscordPermissions(bits) {

@@ -56,6 +56,9 @@ const publishes = (participant, source) => (participant?.tracks ?? []).some((t) 
 const sharesScreen = (participant) => publishes(participant, TrackSource.SCREEN_SHARE);
 const showsCamera = (participant) => publishes(participant, TrackSource.CAMERA);
 
+// Everyone in a voice channel right now (their states; levels' voice XP, guildLevels.js).
+const allStates = () => [...states.values()];
+
 // Who's in each of the given voice channels (for the guild layout), in joining order.
 function membersOf(channelId) {
   return [...states.values()]
@@ -363,6 +366,7 @@ module.exports = {
   states,
   roomName,
   membersOf,
+  allStates,
   guildVoiceFor,
   joinToken,
   roomToken,

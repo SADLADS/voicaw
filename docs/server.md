@@ -31,6 +31,8 @@ unexpected errors. The rest:
   Account preferences in `docs/client.md`); `routes/preferences.js`.
 - `dictionary.js`: each person's spellcheck dictionary, one encrypted envelope with a version
   (see Spellcheck dictionary in `docs/auth-and-encryption.md`); `routes/dictionary.js`.
+- `guildLevels.js`: levels, Guilded's XP (settings, earning, setting by hand, the leaderboard;
+  see Levels in `docs/guilds.md`); `routes/guildLevels.js` has their routes.
 - `auditLog.js`: a guild's audit log (`logAudit`, `readAuditLog`; see Guilds); `routes/auditLog.js`.
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
 - `watchParty.js`: Watch Together, each voice channel's YouTube queue and clock (see Voice

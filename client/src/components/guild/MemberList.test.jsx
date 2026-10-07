@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('../../services/guildService', () => ({
@@ -8,11 +8,13 @@ vi.mock('../../services/guildService', () => ({
   kickMember: vi.fn(async () => {}),
   banMember: vi.fn(async () => {}),
   transferGuild: vi.fn(async () => {}),
+  fetchMemberLevel: vi.fn(async (guildId, userId) => ({ user_id: userId, xp: 1250, level: 12, rank: 3 })),
+  changeMemberXp: vi.fn(async () => ({})),
 }));
 vi.mock('../../services/botDmService', () => ({ startBotDm: vi.fn() }));
 
 import MemberList from './MemberList';
-import { setMemberRoles } from '../../services/guildService';
+import { changeMemberXp, setMemberRoles } from '../../services/guildService';
 import { startBotDm } from '../../services/botDmService';
 
 const roles = [
@@ -109,5 +111,57 @@ describe('MemberList', () => {
     fireEvent.click(screen.getByText('newbie'));
     const card = screen.getByRole('dialog', { name: 'newbie' });
     expect(within(card).getAllByRole('button').map((b) => b.textContent)).toEqual(['Message']);
+  });
+
+  describe('levels', () => {
+    const levels = {
+      enabled: true, xpPerLevel: 100, xpName: '', levelName: '', levelShort: '', showInMemberList: true, messageCooldown: 60, sources: {},
+    };
+    const ranked = members.map((m) => ({ ...m, xp: { 1: 0, 2: 1250, 3: 150000, 4: 50 }[m.id] }));
+    const renderLevels = (settings = levels, permissions = 0) => {
+      const guild = { id: 5, name: 'G', owner: 1, roles, my_permissions: permissions, my_role_ids: [3], levels: settings };
+      render(<MemoryRouter><MemberList guild={guild} members={ranked} user={{ id: 2 }} /></MemoryRouter>);
+    };
+
+    it('shows levels beside pictures, not level 0, in the guild\'s words', () => {
+      renderLevels({ ...levels, levelShort: 'rk' });
+      expect(screen.getByText('12 rk')).toBeInTheDocument();
+      expect(screen.getByText('1.5k rk')).toBeInTheDocument();
+      expect(screen.queryByText(/^0 rk/)).toBeNull();
+    });
+
+    it('hides them when the guild turns them off, or off the member list', () => {
+      renderLevels({ ...levels, showInMemberList: false });
+      expect(screen.queryByText('12 lvl')).toBeNull();
+      cleanup();
+      renderLevels({ ...levels, enabled: false });
+      expect(screen.queryByText('12 lvl')).toBeNull();
+      fireEvent.click(screen.getByText('mod'));
+      expect(screen.queryByText(/Level 12/)).toBeNull();
+    });
+
+    it('shows the level, rank and progress on the card, and lets Manage Levels change it', async () => {
+      renderLevels(levels, 1 << 29);
+      fireEvent.click(screen.getByText('mod'));
+      const card = screen.getByRole('dialog', { name: 'mod' });
+      expect(within(card).getByText('Level 12')).toBeInTheDocument();
+      expect(await within(card).findByText('#3')).toBeInTheDocument();
+      expect(within(card).getByText('50 / 100 XP')).toBeInTheDocument();
+      fireEvent.click(within(card).getByRole('button', { name: 'Change' }));
+      fireEvent.change(within(card).getByRole('textbox', { name: 'Amount' }), { target: { value: '20' } });
+      fireEvent.click(within(card).getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(changeMemberXp).toHaveBeenCalledWith(5, 2, { level: 20 }));
+    });
+
+    it('never mentions XP when one XP is one level', async () => {
+      renderLevels({ ...levels, xpPerLevel: 1 }, 1 << 29);
+      fireEvent.click(screen.getByText('mod'));
+      const card = screen.getByRole('dialog', { name: 'mod' });
+      expect(await within(card).findByText('#3')).toBeInTheDocument();
+      expect(within(card).getByText('Level 1,250')).toBeInTheDocument();
+      expect(within(card).queryByText(/XP/)).toBeNull();
+      fireEvent.click(within(card).getByRole('button', { name: 'Change' }));
+      expect(within(card).queryByRole('option', { name: 'XP' })).toBeNull();
+    });
   });
 });

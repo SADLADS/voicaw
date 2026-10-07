@@ -175,8 +175,11 @@ async function layoutFor(member, overridesByChannel) {
   const threads = (await require('./threads').activeThreads(guild.id, member.userId))
     .filter((t) => textChannels.has(t.parent_id))
     .map((t) => ({ ...t, my_permissions: threadPermissions(textChannels.get(t.parent_id).my_permissions) }));
+  // Levels' settings (guildLevels.js): every member draws levels with them.
+  const levels = require('./guildLevels').parseSettings((await db.get('SELECT levels FROM guilds WHERE id = ?', [guild.id]))?.levels);
   return {
     ...guild,
+    levels,
     my_notify_level: own?.notify_level ?? 'mentions',
     my_permissions: member.permissions,
     my_role_ids: member.roles.map((r) => r.id),
@@ -229,7 +232,7 @@ async function announceGuildUpdate(guildId) {
   await require('./voice').enforceGuild(guildId);
 }
 
-// A member for the member list: id, name, join time, role ids.
+// A member for the member list: id, name, join time, role ids, XP (guildLevels.js).
 async function getMemberListEntry(guildId, userId) {
   const row = await db.get(
     `SELECT u.id, u.username, u.display_name, u.custom_status, u.bio, u.avatar, u.last_online, u.bot, gm.joined_at FROM guild_members gm JOIN users u ON u.id = gm.user_id
@@ -238,7 +241,8 @@ async function getMemberListEntry(guildId, userId) {
   );
   if (!row) return null;
   const roles = await db.all('SELECT role_id FROM guild_member_roles WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
-  return { ...row, role_ids: roles.map((r) => r.role_id) };
+  const xp = await db.get('SELECT xp FROM guild_member_xp WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+  return { ...row, role_ids: roles.map((r) => r.role_id), xp: xp?.xp ?? 0 };
 }
 
 // Channel names are Discord style: lower case, no spaces.
@@ -346,6 +350,7 @@ async function deleteGuild(guildId) {
   await db.transaction(async () => {
     await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);
     await require('./guildEvents').deleteGuildEvents(guildId);
+    await require('./guildLevels').deleteGuildLevels(guildId);
     for (const table of [
       'guild_emojis', 'guild_audit_log', 'webhook_blocks',
       'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',

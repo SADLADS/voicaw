@@ -1189,6 +1189,31 @@ CREATE INDEX IF NOT EXISTS guild_event_users_user ON guild_event_users (user_id)
 addColumn('ALTER TABLE guild_events ADD COLUMN all_day INTEGER NOT NULL DEFAULT 0');
 addColumn('ALTER TABLE guild_events ADD COLUMN emoji TEXT');
 addColumn('ALTER TABLE guild_events ADD COLUMN color INTEGER');
+// LEVELS (guildLevels.js, routes/guildLevels.js): Guilded's XP. `guilds.levels` is the guild's
+// settings (JSON, null = the defaults). guild_member_xp is each person's XP there, kept when
+// they leave (rejoining picks it up again; deleted with the guild or the account);
+// `message_xp_at` is when a message last earned them XP (the cooldown). guild_xp_awards remembers
+// awards that must happen once (a reaction from someone on a message, a task completed), so
+// taking a reaction back and adding it again earns nothing; rows go after 90 days.
+addColumn('ALTER TABLE guilds ADD COLUMN levels TEXT');
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_member_xp (
+  guild_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  xp INTEGER NOT NULL DEFAULT 0,
+  message_xp_at INTEGER,
+  PRIMARY KEY (guild_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS guild_member_xp_rank ON guild_member_xp (guild_id, xp DESC);
+CREATE INDEX IF NOT EXISTS guild_member_xp_user ON guild_member_xp (user_id);
+CREATE TABLE IF NOT EXISTS guild_xp_awards (
+  guild_id INTEGER NOT NULL,
+  award_key TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, award_key)
+);
+CREATE INDEX IF NOT EXISTS guild_xp_awards_age ON guild_xp_awards (created_at);
+`);
 // People asking to join the Android app's closed test on Google Play (voicaw.com's form,
 // routes/testerRequests.js): the Google account's email, to add to Play's tester list by hand.
 // Kept until an admin deletes it; `added_at` once an admin has added it to the list.
