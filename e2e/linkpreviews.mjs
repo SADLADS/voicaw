@@ -192,6 +192,12 @@ try {
   await xButton.click({ modifiers: ['Shift'] });
   await a.waitForSelector('.removable-embed', { state: 'detached' });
   check(!(await a.$('.vc-dialog')), 'Shift: removed without asking');
+  // A YouTube player with the X keeps its size (its 100% width once fell back to the iframe's 300px).
+  await send(a, 'A video https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+  const player = a.locator('.removable-embed .youtube-wrapper').last();
+  await player.waitFor({ timeout: 15000 });
+  const size = await player.evaluate((el) => ({ width: el.getBoundingClientRect().width, column: el.closest('.dm-message-content').clientWidth }));
+  check(Math.round(size.width) === Math.min(500, size.column), `a YouTube player with the X keeps its width (500, or the column: ${JSON.stringify(size)})`);
 
   console.log('DM');
   const before = botFetched().length;

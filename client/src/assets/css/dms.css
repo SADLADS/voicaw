@@ -2888,6 +2888,13 @@ body.mobile-mode .dm-user-list-container .dm-user {
   max-width: 100%;
 }
 
+/* A YouTube player is 100% wide, which a fit-content box can't resolve: the iframe's own
+   300px wins. Give it its usual 500px (or what fits), as without the X. */
+.removable-embed .youtube-wrapper {
+  width: 500px;
+  max-width: 100%;
+}
+
 .remove-embed-button {
   position: absolute;
   top: 0;
