@@ -507,7 +507,7 @@
       "namesHidden": "Your browser hides device names until Voicaw may use the microphone.",
       "allowIt": "Allow it",
       "micTest": "Mic test",
-      "micTestHint": "Talk and you'll hear yourself back, as others hear you. Headphones help.",
+      "micTestHint": "Talk and you'll hear yourself back, as others hear you. Headphones help. While testing, you're muted and deafened.",
       "stopTesting": "Stop testing",
       "letsCheck": "Let's check",
       "micLevel": "Microphone level",

@@ -221,7 +221,10 @@ LiveKit carries the audio.
   (`restartTrack`), or while muted drops the track so unmuting captures it afresh. A mic test
   (`voice/micTest.js`, like Discord's "Let's Check"): the microphone as a call would send it,
   through the same noise suppression and gate (in its own 48 kHz context), a level meter
-  (`levelOf`), played back through the chosen speakers. The app's sounds play
+  (`levelOf`), played back through the chosen speakers. While it runs you're muted and
+  deafened, in a call too (`setMicTesting`, 2026-10-07: a call doesn't hear the test, nor play
+  over it): the buttons and shortcuts are held (`micTesting`), the device keeps remembering
+  the mute and deafen from before, and those come back when the test stops. The app's sounds play
   through the chosen speakers too (`AudioContext.setSinkId`). Browsers name devices only once
   the page may use the microphone ("Allow it"). Each remote voice's `<audio>` element is kept
   per track (`audioElementsByTrack`): LiveKit has often detached it already by the time it

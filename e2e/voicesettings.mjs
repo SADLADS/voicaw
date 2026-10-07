@@ -1,7 +1,7 @@
 // Voice settings (Settings → Voice & video), with Chrome's fake microphones and speakers and
 // the e2e LiveKit: the devices are listed, the mic test's meter moves; then in a voice channel,
 // Alice's input volume at 0 silences her for Bob (her "speaking" ring goes out) and back at
-// 100% she's heard again; a new microphone and each noise suppression (Strong, Off, Standard) keep her heard;
+// 100% she's heard again; her mic test mutes and deafens her until it stops; a new microphone and each noise suppression (Strong, Off, Standard) keep her heard;
 // Bob's output volume and speakers apply to the voices he's playing. Phone layout (no
 // microphone picker). Then a browser that hasn't allowed the microphone: no placeholders.
 //   node e2e/serve.mjs &   then   node e2e/voicesettings.mjs [screenshot dir]
@@ -147,6 +147,22 @@ try {
   await setRange('Input volume', '100');
   await b.waitForSelector(`${tile(alice.name)}.speaking`, { timeout: 15000 });
   console.log('back at 100%: heard again');
+
+  // The mic test mutes and deafens her (Bob sees it, her buttons are held) until it stops.
+  await a.click('button:has-text("Let\'s check")');
+  await b.waitForSelector(`${tile(alice.name)} [aria-label="Deafened"]`, { timeout: 15000 });
+  await b.waitForSelector(`${tile(alice.name)}:not(.speaking)`, { timeout: 15000 });
+  await b.waitForTimeout(2000);
+  if (await b.$(`${tile(alice.name)}.speaking`)) throw new Error('alice heard during her mic test');
+  const held = await a.$$eval('.voice-toggle', (els) => els.map((el) => [el.disabled, el.getAttribute('aria-pressed')]));
+  if (!held.length || held.some(([disabled, pressed]) => !disabled || pressed !== 'true')) {
+    throw new Error(`mute/deafen not held during the test: ${JSON.stringify(held)}`);
+  }
+  await shot(a, '02a-alice-mic-test-in-call');
+  await a.click('button:has-text("Stop testing")');
+  await b.waitForSelector(`${tile(alice.name)} [aria-label="Deafened"]`, { state: 'detached', timeout: 15000 });
+  await b.waitForSelector(`${tile(alice.name)}.speaking`, { timeout: 15000 });
+  console.log('mic test in a call: muted and deafened, then heard again');
 
   // Another microphone, and each noise suppression: captured again, still heard.
   const otherMic = inputs.find(([value]) => value)?.[0];
