@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { cleanUserVolumes, playbackVolume } from './userVolumes';
+import {
+  cleanUserVolumes, getStreamVolume, getUserVolume, onStreamVolumesChange, playbackVolume, setStreamVolume,
+} from './userVolumes';
+
+describe('stream volumes', () => {
+  it('are kept apart from the person’s own volume', () => {
+    let changes = 0;
+    const stop = onStreamVolumesChange(() => { changes += 1; });
+    setStreamVolume(5, 0.4);
+    expect(getStreamVolume('5')).toBe(0.4);
+    expect(getUserVolume('5')).toBe(1);
+    expect(changes).toBe(1);
+    setStreamVolume(5, 1);
+    expect(getStreamVolume('5')).toBe(1);
+    stop();
+  });
+});
 
 describe('cleanUserVolumes', () => {
   it('keeps user ids with volumes, clamped to 0–200%, and drops 100%', () => {

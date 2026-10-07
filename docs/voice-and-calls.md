@@ -69,8 +69,8 @@ LiveKit carries the audio.
   stays attached but muted (Chrome only feeds a remote stream to Web Audio while it plays). Where
   the browser can pick speakers for elements but not for an AudioContext (Firefox) it plays
   from the elements instead, capped at 100%. `applyVolumes` sets every track to
-  `playbackVolume` (`userVolumes.js`: 0 deafened, else output volume × the person's volume
-  (microphones only, not a screen share's sound)) on any change. Through Web Audio that's a
+  `playbackVolume` (`userVolumes.js`: 0 deafened, else output volume × the person's volume, or
+  their stream's volume for a screen share's sound) on any change. Through Web Audio that's a
   GainNode of ours that LiveKit puts before its own (`setWebAudioPlugins`), not LiveKit's
   `setVolume`: LiveKit rebuilds a track's graph now and then and only re-applies a volume that
   isn't 0 (and fades towards 0 without reaching it), so a deafened listener heard people
@@ -82,6 +82,12 @@ LiveKit carries the audio.
   DM/group call panel, once you're in that channel or call (`hooks/useVolumeMenu.js`), for
   `voice/UserVolumeMenu.jsx`: a slider, Reset and Copy User ID, floating on a computer (placed like
   `ContextMenu`, `utils/menuPlacement.js`), a sheet on a phone. Applied live.
+- **Stream volume** (like Discord's Stream Volume): a screen share's sound has its own volume per
+  sharer, apart from their voice's (`userVolumes.js` `streamVolumes`, `localStorage
+  streamVolumes`, 0–200%, per device), set in the watched stream's bar (`StreamView`, popped out
+  too): a speaker button mutes it (unmuting goes back to the volume it had) and a slider beside
+  it (shown on hover or focus on a computer, always on a phone). Not on your own stream (you
+  don't hear it); greyed out while deafened.
 - **Lost connections** (voice channels; `voice/rejoin.js`): the bar says "Reconnecting…"
   (LiveKit's `Reconnecting` and `SignalReconnecting`, the latter being a signalling-only resume,
   e.g. after a phone's app was in the background). LiveKit's own retries can take minutes to
@@ -111,7 +117,8 @@ LiveKit carries the audio.
   sharing" ends it. **Nobody downloads a stream they aren't watching:** `voiceClient` connects
   with `autoSubscribe: false` and `syncSubscriptions` subscribes every microphone, and a screen
   share (and its sound) only for the one person `watching` (`watchStream(id)`; `attachStream`
-  plays it in a `<video>`). The stream's sound plays like the others' (deafen mutes it). UI: a
+  plays it in a `<video>`). The stream's sound plays like the others' (deafen mutes it), at its
+  own volume (Stream volume, above). UI: a
   Live badge in the channel list and on tiles, Watch Stream on a live tile once you're in, the
   stream big above the tiles (`voice/StreamView.jsx`: full screen, stop watching; the people
   become a row; pop out, below), and the share button (`voice/ScreenShareButton.jsx`) in the voice bar and the
@@ -341,8 +348,7 @@ LiveKit carries the audio.
     Referer fix covers the embed (see Desktop app); its voicaw:// pages can't be given as the
     `origin`, and Watch Together hasn't been checked there yet.
   - `e2e/watchparty.mjs` checks it with real videos (needs the internet).
-- **Not done yet:** a per-user local mute and a separate volume for someone's stream sound (Discord
-  has both), push-to-talk, output volume above 100%, server mute/move (Mute Members, Move Members), a global
+- **Not done yet:** a per-user local mute (Discord has one), push-to-talk, output volume above 100%, server mute/move (Mute Members, Move Members), a global
   push-to-talk key in the desktop app (it has global mute/deafen toggles; holding a key needs a
   native keyboard hook), noise suppression and the gate on the other side (for people whose
   app doesn't, like Discord's "suppress others' noise"), screen share in DM/group calls (LiveKit's E2EE

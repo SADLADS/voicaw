@@ -165,6 +165,7 @@ FakeAudioContext.prototype.setSinkId = async () => {};
 globalThis.AudioContext = FakeAudioContext;
 
 const voice = await import('./voiceClient');
+const { setStreamVolume, setUserVolume } = await import('./userVolumes');
 
 const flush = async () => {
   for (let i = 0; i < 20; i++) await Promise.resolve();
@@ -256,5 +257,37 @@ describe('voiceClient mute and deafen', () => {
 
     voice.setSelfDeaf(false);
     expect(track.heardAt).toBe(1);
+  });
+
+  it('a stream’s sound follows the stream’s volume, the microphone the person’s', async () => {
+    lk.state.capture = lk.deferred();
+    lk.state.capture.resolve();
+    voice.setSelfMute(false);
+    voice.setSelfDeaf(false);
+    await voice.joinVoice(1, 2);
+    const room = lk.state.room;
+    const mic = new lk.RemoteAudioTrack();
+    const sound = new lk.RemoteAudioTrack();
+    const micPublication = { source: 'microphone', track: mic, setSubscribed() {} };
+    const soundPublication = { source: 'screen_share_audio', track: sound, setSubscribed() {} };
+    const participant = {
+      identity: '8',
+      isMicrophoneEnabled: true,
+      trackPublications: new Map([['a', micPublication], ['b', soundPublication]]),
+      audioTrackPublications: new Map([['a', micPublication], ['b', soundPublication]]),
+      getTrackPublication: () => undefined,
+    };
+    room.remoteParticipants.set('8', participant);
+    room.emit('TrackSubscribed', mic, micPublication, participant);
+    room.emit('TrackSubscribed', sound, soundPublication, participant);
+
+    setStreamVolume('8', 0.25);
+    expect(sound.heardAt).toBe(0.25);
+    expect(mic.heardAt).toBe(1);
+    setUserVolume('8', 1.5);
+    expect(mic.heardAt).toBe(1.5);
+    expect(sound.heardAt).toBe(0.25);
+    setStreamVolume('8', 1);
+    setUserVolume('8', 1);
   });
 });

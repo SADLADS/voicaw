@@ -29,7 +29,12 @@
       "bringBack": "Bring back",
       "popOut": "Pop out",
       "fullScreen": "Full screen",
-      "stopWatching": "Stop watching"
+      "stopWatching": "Stop watching",
+      "mute": "Mute the stream",
+      "unmute": "Unmute the stream",
+      "deafened": "You're deafened",
+      "volume": "Stream volume (just for you)",
+      "percent": "{{percent}}%"
     },
     "userVolume": {
       "title": "User Volume",

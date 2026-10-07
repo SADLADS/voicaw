@@ -434,6 +434,36 @@ button.user-panel-button {
   background-color: rgba(0, 0, 0, 0.8);
 }
 
+.stream-button:disabled {
+  opacity: 0.5;
+}
+
+/* The stream's volume: the slider shows while the pointer is over it (always on a phone). */
+.stream-volume {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stream-volume-slider {
+  width: 90px;
+  accent-color: var(--vc-accent);
+}
+
+@media (hover: hover) {
+  .stream-volume-slider {
+    width: 0;
+    opacity: 0;
+    transition: width 0.15s, opacity 0.15s;
+  }
+
+  .stream-volume:hover .stream-volume-slider,
+  .stream-volume:focus-within .stream-volume-slider {
+    width: 90px;
+    opacity: 1;
+  }
+}
+
 .stream-view:fullscreen {
   margin: 0;
   border-radius: 0;

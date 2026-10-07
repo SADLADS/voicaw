@@ -4,7 +4,9 @@ import { VOICE_SAMPLE_RATE, voiceProcessingStage } from './noise/noiseStages';
 import {
   canChooseOutput, captureOptions, getAudioSettings, inputGainStage, onAudioSettingsChange, outputSinkId, processingChanged,
 } from './audioSettings';
-import { getUserVolume, onUserVolumesChange, playbackVolume } from './userVolumes';
+import {
+  getStreamVolume, getUserVolume, onStreamVolumesChange, onUserVolumesChange, playbackVolume,
+} from './userVolumes';
 import { CAMERA_PUBLISH, cameraOptions, onVideoSettingsChange } from './videoSettings';
 import { createSpeakingMeters, whoIsSpeaking } from './speaking';
 import { playSound } from '../sounds/sounds';
@@ -27,7 +29,7 @@ import { t } from '../i18n';
 // Sounds, like Discord's: joining (yours and others'), leaving, being disconnected, mute and
 // deafen (sounds/). The microphone, speakers and their volumes are the device's voice
 // settings (audioSettings.js, Settings → Voice & video), applied as they change, and each
-// person's own volume (userVolumes.js) too.
+// person's own volume and their stream's (userVolumes.js) too.
 //
 // Others' voices play through Web Audio (LiveKit's webAudioMix, in our own AudioContext,
 // `playback`), each through its own gain, so one person can be turned up past 100%. Not where
@@ -438,14 +440,15 @@ onAudioSettingsChange(async (next, previous) => {
   applyMicrophone();
 });
 
-// Deafen, the output volume and each person's volume, on every voice we receive. (Through
+// Deafen, the output volume and each person's volume (their stream's volume for a screen
+// share's sound), on every voice we receive. (Through
 // media elements LiveKit unmutes them when the audio is started again, so this runs after
 // that too.)
 function volumeOf(identity, source) {
   return playbackVolume({
     selfDeaf: snapshot.selfDeaf,
     outputVolume: getAudioSettings().outputVolume,
-    userVolume: source === livekit.Track.Source.Microphone ? getUserVolume(identity) : undefined,
+    userVolume: source === livekit.Track.Source.ScreenShareAudio ? getStreamVolume(identity) : getUserVolume(identity),
     canBoost: Boolean(playback),
   });
 }
@@ -488,6 +491,7 @@ function applyVolumes() {
 }
 
 onUserVolumesChange(applyVolumes);
+onStreamVolumesChange(applyVolumes);
 
 function startMeters(current) {
   if (!playback && typeof AudioContext !== 'undefined') meterContext = new AudioContext({ latencyHint: 'interactive' });
