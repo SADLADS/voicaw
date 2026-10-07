@@ -1,7 +1,8 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faArrowLeft, faBoxArchive, faBoxOpen, faComments, faEdit, faEllipsis, faLink, faRightFromBracket, faTrash, faUserPlus, faXmark,
+  faArrowLeft, faBoxArchive, faBoxOpen, faComments, faDownLeftAndUpRightToCenter, faEdit, faEllipsis, faLink,
+  faRightFromBracket, faTrash, faUpRightAndDownLeftFromCenter, faUserPlus, faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import ChatPane from '../ChatPane';
 import ContextMenu from '../ContextMenu';
@@ -22,11 +23,13 @@ import { t } from '../../i18n';
 
 // A thread beside its text channel (`parent`), like Discord's: its name, a menu (join or leave,
 // rename and archive for its starter or Manage Messages, delete for Manage Messages, copy
-// link), the message it started from, and its chat (ChatPane over useChannel, as the side
-// chat). On a phone it covers the channel, with a way back. `chatProps` are what GuildView
-// gives a channel's ChatPane (names, mentions, reactions). `onClose` closes it (also when it's
-// deleted).
-export default function ThreadPane({ guild, parent, threadId, user, isMobile, chatProps, onClose }) {
+// link), and its chat (ChatPane over useChannel, as the side chat), which starts, above its
+// first message, with the thread's name, who started it and the message it started from
+// (ThreadStart). On a phone it covers the channel, with a way back. On a computer, `full` gives
+// it the whole page (Discord's full view), `onSetFull(full)` switches. `chatProps` are what
+// GuildView gives a channel's ChatPane (names, mentions, reactions). `onClose` closes it (also
+// when it's deleted).
+export default function ThreadPane({ guild, parent, threadId, user, isMobile, chatProps, full = false, onSetFull, onClose }) {
   useProfiles();
   useDateFormat();
   const { s3Endpoint } = useContext(ConfigContext);
@@ -102,8 +105,19 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
     ...(canManage ? [{ separator: true }, { key: 'delete', label: t('guilds.threads.pane.deleteThread'), icon: faTrash, danger: true, onSelect: () => setDialog('delete') }] : []),
   ] : [];
 
+  const head = thread && (
+    <ThreadStart
+      thread={thread}
+      starter={starter}
+      empty={!conversation.isLoading && conversation.messages.length === 0}
+      user={user}
+      s3Endpoint={s3Endpoint}
+      chatProps={chatProps}
+    />
+  );
+
   return (
-    <aside className={`thread-pane${isMobile ? ' mobile' : ''}`} aria-label={t('guilds.threads.pane.label')}>
+    <aside className={`thread-pane${isMobile ? ' mobile' : ''}${full ? ' full' : ''}`} aria-label={t('guilds.threads.pane.label')}>
       <header className="thread-pane-header">
         {isMobile && (
           <button type="button" className="icon-button" aria-label={t('guilds.threads.pane.back', { name: parent.name })} onClick={onClose}>
@@ -113,7 +127,14 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
         <FontAwesomeIcon icon={faComments} className="thread-pane-icon" />
         <div className="thread-pane-title">
           <h5>{thread?.name ?? ''}</h5>
-          <small>{thread?.archived ? t('guilds.threads.pane.channelArchived', { name: parent.name }) : t('guilds.threads.pane.channel', { name: parent.name })}</small>
+          {full ? (
+            // Full view: back to the channel.
+            <button type="button" className="thread-pane-parent" title={t('guilds.threads.pane.back', { name: parent.name })} onClick={onClose}>
+              {thread?.archived ? t('guilds.threads.pane.channelArchived', { name: parent.name }) : t('guilds.threads.pane.channel', { name: parent.name })}
+            </button>
+          ) : (
+            <small>{thread?.archived ? t('guilds.threads.pane.channelArchived', { name: parent.name }) : t('guilds.threads.pane.channel', { name: parent.name })}</small>
+          )}
         </div>
         {thread && !thread.joined && (
           <button type="button" className="btn btn-sm btn-secondary thread-pane-join" onClick={() => act(() => setThreadJoined(thread.id, true))}>
@@ -131,6 +152,17 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
             <FontAwesomeIcon icon={faEllipsis} />
           </button>
         )}
+        {!isMobile && onSetFull && (
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={full ? t('guilds.threads.pane.sideView') : t('guilds.threads.pane.fullView')}
+            title={full ? t('guilds.threads.pane.sideView') : t('guilds.threads.pane.fullView')}
+            onClick={() => onSetFull(!full)}
+          >
+            <FontAwesomeIcon icon={full ? faDownLeftAndUpRightToCenter : faUpRightAndDownLeftFromCenter} />
+          </button>
+        )}
         {!isMobile && (
           <button type="button" className="icon-button" aria-label={t('guilds.threads.pane.close')} title={t('common.close')} onClick={onClose}>
             <FontAwesomeIcon icon={faXmark} />
@@ -140,23 +172,6 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
 
       {error && <p className="error-text thread-pane-error">{error}</p>}
 
-      {starter && (
-        <div className="thread-starter">
-          <div className="thread-starter-header">
-            <Avatar userId={starter.sender_id} alt={displayName(starter.sender_id, starter.sender_username)} className="thread-starter-avatar" />
-            <strong style={{ color: chatProps.nameColors?.[starter.sender_id] }}>{displayName(starter.sender_id, starter.sender_username)}</strong>
-            <small>{formatDateTime(starter.timestamp * 1000)}</small>
-          </div>
-          <MessageContent
-            msg={{ ...starter, plaintext: starter.content }}
-            user={user}
-            s3Endpoint={s3Endpoint}
-            reactionNames={chatProps.reactionNames}
-            mentionRoles={chatProps.mentionRoles}
-            myRoleIds={chatProps.myRoleIds}
-          />
-        </div>
-      )}
       {thread?.archived && (
         <p className="thread-pane-archived" role="status">
           {canSend ? t('guilds.threads.pane.archivedCanSend') : t('guilds.threads.pane.archived')}
@@ -177,6 +192,7 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
               cantSendText={t('guilds.threads.pane.cantSend')}
               canPin={has(permissions, PERMISSIONS.PIN_MESSAGES)}
               emptyText={t('guilds.threads.pane.empty')}
+              listHead={head}
             />
           )}
         </ThreadContext.Provider>
@@ -208,5 +224,46 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
         />
       )}
     </aside>
+  );
+}
+
+// The top of a thread's chat, as in Discord: its icon and name, who started it, then the message
+// it started from, drawn like a message of the thread's (it's the channel's: no menu here), and
+// `empty` adds that nothing's been said yet.
+function ThreadStart({ thread, starter, empty, user, s3Endpoint, chatProps }) {
+  const owner = displayName(thread.owner_id, '');
+  return (
+    <div className="thread-start">
+      <div className="thread-start-icon" aria-hidden="true"><FontAwesomeIcon icon={faComments} /></div>
+      <h3 className="thread-start-name">{thread.name}</h3>
+      {owner && (
+        <p className="thread-start-by">
+          {t('guilds.threads.pane.startedBy')}{' '}
+          <strong style={{ color: chatProps.nameColors?.[thread.owner_id] }}>{owner}</strong>
+        </p>
+      )}
+      {starter && (
+        <div className="each-dm-message-wrapper received thread-start-message">
+          <div className="dm-message message received">
+            <Avatar userId={starter.sender_id} alt={displayName(starter.sender_id, starter.sender_username)} className="message-avatar" />
+            <strong className="message-author" style={{ color: chatProps.nameColors?.[starter.sender_id] }}>
+              {displayName(starter.sender_id, starter.sender_username)}
+            </strong>{' '}
+            <small>
+              <span title={formatDateTime(starter.timestamp * 1000, { seconds: true })}>{formatDateTime(starter.timestamp * 1000)}</span>
+            </small>
+            <MessageContent
+              msg={{ ...starter, plaintext: starter.content }}
+              user={user}
+              s3Endpoint={s3Endpoint}
+              reactionNames={chatProps.reactionNames}
+              mentionRoles={chatProps.mentionRoles}
+              myRoleIds={chatProps.myRoleIds}
+            />
+          </div>
+        </div>
+      )}
+      {empty && <p className="chat-empty thread-start-empty">{t('guilds.threads.pane.empty')}</p>}
+    </div>
   );
 }

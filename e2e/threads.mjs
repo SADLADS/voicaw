@@ -1,5 +1,7 @@
 // Threads in guild text channels: Create Thread from a message's right-click menu (name
-// suggested from it), the panel beside the channel (starter message, chat, member list hidden),
+// suggested from it), the panel beside the channel (its chat starting with the name, who started
+// it and the starter message, scrolling with the rest; member list hidden), full view (the whole
+// page, from the header's button or the channel list, back to the side),
 // the message's "N messages" line kept live, posting joins (in the channel list, unread there),
 // a thread started on its own (the row in the channel, Threads list), archive, a phone (the
 // thread covers the channel, Back returns, long press → Create thread).
@@ -53,7 +55,12 @@ try {
   await a.waitForSelector('.thread-pane');
   check(new URL(a.url()).searchParams.has('thread'), 'the thread opens beside the channel (?thread=)');
   check((await a.textContent('.thread-pane-title h5')) === 'Summer trip', 'with its name in the panel header');
-  check((await a.textContent('.thread-starter')).includes('Shall we plan the summer trip?'), 'and the message it started from on top');
+  await a.waitForSelector('.thread-pane .message-scroller .thread-start');
+  check((await a.textContent('.thread-pane .thread-start-name')) === 'Summer trip', "the thread's chat starts with its name");
+  check((await a.textContent('.thread-pane .thread-start-by')).includes(alice.name), 'and who started it');
+  check((await a.textContent('.thread-pane .message-scroller .thread-start-message')).includes('Shall we plan the summer trip?'),
+    "then the message it started from, in the same scrolling list as the thread's messages");
+  check(await a.locator('.thread-pane .thread-start-empty').count() === 1, 'an empty thread says so under it');
   check(!(await a.$('.member-list')), 'in the member list\'s place');
   const paneBox = await a.locator('.thread-pane').boundingBox();
   const chatBox = await a.locator('.guild-chat').boundingBox();
@@ -66,6 +73,13 @@ try {
   await a.keyboard.type('July works for me');
   await a.keyboard.press('Enter');
   await a.waitForSelector('.thread-pane .message-scroller >> text=July works for me');
+  check(await a.locator('.thread-pane .thread-start-empty').count() === 0, 'the empty line goes with the first message');
+  check(await a.evaluate(() => {
+    const content = document.querySelector('.thread-pane .message-scroller-content');
+    const head = content.querySelector('.thread-start');
+    const first = content.querySelector('[data-msg-id]');
+    return Boolean(head && first && content.firstElementChild.contains(head) && (head.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING));
+  }), "the starter is the top row, the thread's first message after it");
   check(!(await a.locator('.guild-chat .message-scroller >> text=July works for me').count()), 'the message went into the thread only');
   await a.waitForFunction((id) => document.querySelector(`[data-msg-id="${id}"] .thread-summary-count`)?.textContent === '1 message', message.id);
   check(true, 'the "N messages" line counted it');
@@ -88,6 +102,32 @@ try {
   await a.waitForSelector('.thread-pane >> text=August is better');
   check(true, 'Alice sees his reply live in the thread');
 
+  // Full view: the thread gets the whole page (no channel, no channel header), and back.
+  await a.click('.thread-pane [aria-label="Open in full view"]');
+  await a.waitForSelector('.thread-pane.full');
+  check(new URL(a.url()).searchParams.get('full') === '1', 'full view is in the URL (&full=1)');
+  check(!(await a.$('.guild-chat')) && !(await a.$('.channel-header')), "the channel and its header aren't shown");
+  const fullBox = await a.locator('.thread-pane').boundingBox();
+  const bodyBox = await a.locator('.guild-body').boundingBox();
+  check(Math.abs(fullBox.width - bodyBox.width) < 2, `the thread is as wide as the page (${Math.round(fullBox.width)} of ${Math.round(bodyBox.width)})`);
+  check((await a.textContent('.thread-pane .message-scroller')).includes('August is better'), 'with its messages');
+  await a.mouse.move(400, 400);
+  await shot(a, 'thread-full');
+  await a.click('.thread-pane [aria-label="Show beside the channel"]');
+  await a.waitForSelector('.thread-pane:not(.full)');
+  await a.waitForSelector('.guild-chat .message-scroller');
+  check(!new URL(a.url()).searchParams.has('full') && new URL(a.url()).searchParams.has('thread'), 'and back beside the channel');
+  await a.click('.thread-pane [aria-label="Open in full view"]');
+  await a.waitForSelector('.thread-pane.full');
+  await a.click('.thread-pane .thread-pane-parent');
+  await a.waitForFunction(() => !document.querySelector('.thread-pane') && document.querySelector('.guild-chat'));
+  check(true, "the header's #general goes back to the channel");
+  await a.click('.guild-thread-link');
+  await a.waitForSelector('.thread-pane.full');
+  check(true, 'the channel list opens a thread in full view, as Discord does');
+  await a.click('.thread-pane [aria-label="Show beside the channel"]');
+  await a.waitForSelector('.thread-pane:not(.full)');
+
   // Alice closes the thread; Bob writes again: the thread is unread in her list.
   await a.click('.thread-pane [aria-label="Close thread"]');
   await a.waitForFunction(() => !document.querySelector('.thread-pane'));
@@ -102,6 +142,8 @@ try {
   await a.waitForSelector('.thread-pane >> text=Or September?');
   await a.waitForFunction(() => !document.querySelector('.guild-thread.unread'));
   check(true, 'opening it from the list reads it');
+  await a.click('.thread-pane [aria-label="Show beside the channel"]');
+  await a.waitForSelector('.channel-header .threads-button');
 
   // A thread started on its own, from the Threads list.
   await a.click('.threads-button');

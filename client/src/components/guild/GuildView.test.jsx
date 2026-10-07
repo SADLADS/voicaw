@@ -52,8 +52,9 @@ vi.mock('../../services/attachmentUpload', () => ({ uploadAttachment: vi.fn(), M
 // MessageList needs a real browser's layout; the tests look at what it's given.
 vi.mock('../MessageList', () => ({
   MessageContent: ({ msg }) => <div>{msg.plaintext}</div>,
-  default: ({ messages, onToggleReaction, canModerate, canAddReactions, nameColors }) => (
+  default: ({ messages, head, onToggleReaction, canModerate, canAddReactions, nameColors }) => (
     <div data-testid="message-list" data-can-moderate={String(canModerate)} data-can-react={String(canAddReactions)} data-colors={JSON.stringify(nameColors)}>
+      {head && <div data-testid="list-head">{head}</div>}
       {messages.map((m) => (
         <div key={m.clientKey ?? m.id} data-testid="message">
           {m.sender_username}: {m.plaintext} [{m.status || 'sent'}]
@@ -325,11 +326,14 @@ describe('GuildView', () => {
       fetchChannelMessages.mockImplementation(async (channelId) => (channelId === '50' ? [{ ...row(7, 'in the thread'), channel_id: 50 }] : [row(1, 'shall we plan the trip?')]));
       renderView('/guild/5/10?thread=50');
       const pane = await screen.findByRole('complementary', { name: 'Thread' });
-      expect(within(pane).getByRole('heading', { name: 'Trip planning' })).toBeInTheDocument();
+      expect(within(pane).getByRole('heading', { name: 'Trip planning', level: 5 })).toBeInTheDocument();
       expect(fetchThread).toHaveBeenCalledWith('50');
       await waitFor(() => expect(fetchChannelMessages).toHaveBeenCalledWith('50', { limit: 50 }));
       await waitFor(() => expect(within(pane).getAllByTestId('message').map((m) => m.textContent)).toEqual(['bob: in the thread [sent]']));
-      expect(within(pane).getByText('shall we plan the trip?')).toBeInTheDocument();
+      // The thread's chat starts with its name and the message it started from, in the same list.
+      const head = within(pane).getByTestId('list-head');
+      expect(within(head).getByRole('heading', { name: 'Trip planning', level: 3 })).toBeInTheDocument();
+      expect(within(head).getByText('shall we plan the trip?')).toBeInTheDocument();
       expect(setSideChat).toHaveBeenCalledWith('channel-50');
       expect(document.querySelector('.member-list')).toBeNull();
 
@@ -340,10 +344,28 @@ describe('GuildView', () => {
 
       // Renamed live; closing goes back to the channel alone.
       await emit({ type: 'guild_thread_update', guildId: 5, thread: { ...thread, name: 'Trip!' } });
-      expect(within(pane).getByRole('heading', { name: 'Trip!' })).toBeInTheDocument();
+      expect(within(pane).getByRole('heading', { name: 'Trip!', level: 5 })).toBeInTheDocument();
       fireEvent.click(within(pane).getByRole('button', { name: 'Close thread' }));
       await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/guild\/5\/10$/));
       expect(screen.queryByRole('complementary', { name: 'Thread' })).toBeNull();
+    });
+
+    it('opens a thread in full view (&full=1) without the channel, and back beside it', async () => {
+      fetchThread.mockResolvedValue({ thread, starter: null });
+      fetchChannelMessages.mockImplementation(async (channelId) => (channelId === '50' ? [{ ...row(7, 'in the thread'), channel_id: 50 }] : [row(1, 'in the channel')]));
+      renderView('/guild/5/10?thread=50');
+      const pane = await screen.findByRole('complementary', { name: 'Thread' });
+      fireEvent.click(within(pane).getByRole('button', { name: 'Open in full view' }));
+      await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/guild/5/10?thread=50&full=1'));
+      expect(pane).toHaveClass('full');
+      expect(document.querySelector('.guild-chat')).toBeNull();
+      expect(document.querySelector('.channel-header')).toBeNull();
+      await waitFor(() => expect(screen.getAllByTestId('message').map((m) => m.textContent)).toEqual(['bob: in the thread [sent]']));
+
+      fireEvent.click(within(pane).getByRole('button', { name: 'Show beside the channel' }));
+      await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/guild\/5\/10\?thread=50$/));
+      expect(document.querySelector('.guild-chat')).not.toBeNull();
+      await screen.findByText(/in the channel/);
     });
 
     it("lists the channel's threads from the header, and starts one", async () => {
@@ -365,7 +387,7 @@ describe('GuildView', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Create thread' }));
       await waitFor(() => expect(createThread).toHaveBeenCalledWith(10, 'New idea', null));
       await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/guild/5/10?thread=60'));
-      expect(await screen.findByRole('heading', { name: 'New idea' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'New idea', level: 5 })).toBeInTheDocument();
     });
   });
 });

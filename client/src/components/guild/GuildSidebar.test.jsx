@@ -110,7 +110,7 @@ beforeEach(() => {
 });
 
 describe('GuildSidebar', () => {
-  it('lists the threads you joined under their channel, opening beside it', () => {
+  it('lists the threads you joined under their channel, opening in full view', () => {
     const threads = [
       { id: 50, parent_id: 10, name: 'Trip planning', joined: true },
       { id: 51, parent_id: 10, name: 'Not mine', joined: false },
@@ -118,7 +118,7 @@ describe('GuildSidebar', () => {
     ];
     renderSidebar({ threads, path: '/guild/5/10?thread=50', unread: [{ channel_id: 52, guild_id: 5, count: 1, mentions: 1 }] });
     const trip = screen.getByRole('link', { name: 'Trip planning' });
-    expect(trip).toHaveAttribute('href', '/guild/5/10?thread=50');
+    expect(trip).toHaveAttribute('href', '/guild/5/10?thread=50&full=1');
     expect(trip.closest('li')).toHaveClass('guild-thread', 'active');
     expect(screen.queryByText('Not mine')).toBeNull();
     const memes = screen.getByRole('link', { name: 'Meme ideas 1 mention' }).closest('li');
@@ -414,6 +414,11 @@ describe('GuildSidebar', () => {
     fireEvent.click(screen.getByRole('link', { name: 'lounge' }));
     expect(joinVoice).toHaveBeenCalledWith(5, 12);
     expect(screen.getByTestId('where')).toHaveTextContent('/guild/5/12');
+  });
+
+  it('opens a thread over its channel on a phone (no full view there)', () => {
+    renderSidebar({ isMobile: true, threads: [{ id: 50, parent_id: 10, name: 'Trip planning', joined: true }] });
+    expect(screen.getByRole('link', { name: 'Trip planning' })).toHaveAttribute('href', '/guild/5/10?thread=50');
   });
 
   it("doesn't join from a phone", () => {

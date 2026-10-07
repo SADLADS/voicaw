@@ -37,7 +37,8 @@ const VOICE_CHAT_KEY = 'voiceChatOpen';
 // A guild page (/guild/:guildId/:channelId): the channel's header (name, topic, members
 // button), its chat (ChatPane over useChannel) and the member list. In a text channel,
 // `?thread=<id>` opens that thread beside it (ThreadPane, in the member list's place; on a
-// phone over the chat), and the header's threads button lists the channel's threads. Without a channel in the
+// phone over the chat; on a computer `&full=1` gives it the whole page instead, Discord's full
+// view, the channel not loaded meanwhile), and the header's threads button lists the channel's threads. Without a channel in the
 // URL it opens the one last viewed here (or the first). In a voice channel, `?chat=1` opens its
 // chat beside it (VoiceChatPane, in the member list's place; on a phone over the voice page);
 // on a computer it reopens open if it was left open. The guild's channel sidebar is in the
@@ -107,10 +108,11 @@ export default function GuildView({ user }) {
   const ageGated = Boolean(channel?.nsfw) && !(preferencesReady && adultConfirmed);
   const textChannelId = channel?.type === 'text' && !ageGated ? channelId : null;
   const openThreadId = textChannelId && threadId ? threadId : null;
+  const threadFull = Boolean(openThreadId) && !isMobile && searchParams.get('full') === '1';
   // A voice channel's chat: loaded (and marked read) only while it's open.
   const isVoice = channel?.type === 'voice';
   const voiceChatOpen = isVoice && searchParams.get('chat') === '1';
-  const chatChannelId = textChannelId ?? (voiceChatOpen && !ageGated ? channelId : null);
+  const chatChannelId = threadFull ? null : textChannelId ?? (voiceChatOpen && !ageGated ? channelId : null);
   // On a phone it's a page of its own: Back closes it.
   const setVoiceChat = useCallback((open) => {
     setSearchParams(open ? { chat: '1' } : {}, { replace: !isMobile || !open });
@@ -142,6 +144,9 @@ export default function GuildView({ user }) {
     setSearchParams({ thread: String(id) }, { replace: isMobile ? false : Boolean(threadId) });
   }, [setSearchParams, isMobile, threadId]);
   const closeThread = useCallback(() => setSearchParams({}, { replace: true }), [setSearchParams]);
+  const setThreadFull = useCallback((full) => {
+    setSearchParams(full ? { thread: threadId, full: '1' } : { thread: threadId }, { replace: true });
+  }, [setSearchParams, threadId]);
   const canCreateThreads = has(channel?.my_permissions, PERMISSIONS.CREATE_THREADS);
   const threadContext = useMemo(() => ({
     openThread,
@@ -343,6 +348,8 @@ export default function GuildView({ user }) {
 
   return (
     <div id="guild-main" className="guild-main">
+      {/* A thread in full view has its own header. */}
+      {!threadFull && (
       <header className="channel-header">
         <PaneBackButton />
         <ChannelIcon channel={channel} className="channel-header-icon" />
@@ -436,8 +443,10 @@ export default function GuildView({ user }) {
           nameColors={nameColors}
         />
       </header>
+      )}
 
       <div className="guild-body">
+        {!threadFull && (
         <ThreadContext.Provider value={channel?.type === 'text' ? threadContext : null}>
         <div className="guild-chat" data-current-user-id={user.id}>
           <NsfwChannelContext.Provider value={Boolean(channel?.nsfw)}>
@@ -503,6 +512,7 @@ export default function GuildView({ user }) {
           </NsfwChannelContext.Provider>
         </div>
         </ThreadContext.Provider>
+        )}
 
         {openThreadId && (
           <NsfwChannelContext.Provider value={Boolean(channel.nsfw)}>
@@ -514,6 +524,8 @@ export default function GuildView({ user }) {
               user={user}
               isMobile={isMobile}
               chatProps={chatProps}
+              full={threadFull}
+              onSetFull={setThreadFull}
               onClose={closeThread}
             />
           </NsfwChannelContext.Provider>

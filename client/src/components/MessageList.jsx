@@ -687,6 +687,7 @@ export default function MessageList({
   myRoleIds,
   encrypted = true,
   canReply = true,
+  head = null,
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
@@ -898,6 +899,8 @@ export default function MessageList({
       onScroll={handleScroll}
     >
       <div className="message-scroller-content" ref={contentRef}>
+        {/* What comes before the first message (a thread's start), once history reaches it. */}
+        {head && !hasMore && <div data-key="list-head">{head}</div>}
         {messages.map((msg, i) => (
           <div key={rowKey(msg)} data-key={rowKey(msg)}>
             {startsNewDay(messages[i - 1], msg, { hasMore }) && <DayDivider time={rowTime(msg)} />}

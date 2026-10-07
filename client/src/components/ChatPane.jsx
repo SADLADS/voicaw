@@ -53,6 +53,8 @@ import ReportDialog from './ReportDialog';
 // time) scrolls to that message once the chat is loaded, then calls `onJumped`.
 // `focusOnOpen` false keeps the composer from taking the focus when the chat opens.
 // `textOnly` (a bot DM) leaves only text: no files, polls or replies (see Composer).
+// `listHead` is drawn above the first message, scrolling with them (a thread's start); with
+// one, an empty chat shows it instead of `emptyText`.
 export default function ChatPane({
   chatId,
   chatName,
@@ -84,6 +86,7 @@ export default function ChatPane({
   textOnly = false,
   pollKind,
   emptyText = t('chat.pane.empty'),
+  listHead = null,
 }) {
   const { s3Endpoint, maxPlaintextLength } = useContext(ConfigContext);
   const { isMobile } = useContext(InteractionContext);
@@ -380,13 +383,14 @@ export default function ChatPane({
           <p></p>
         ) : conversation.error ? (
           <p className="error-text">{t('chat.pane.error', { error: conversation.error })}</p>
-        ) : messages.length === 0 ? (
+        ) : messages.length === 0 && !listHead ? (
           <p className="chat-empty">{emptyText}</p>
         ) : (
           <MessageList
             messages={messages}
             user={user}
             hasMore={conversation.hasMore}
+            head={listHead}
             loadMoreMessages={conversation.loadMoreMessages}
             s3Endpoint={s3Endpoint}
             hoveredMsgId={hoveredMsgId}
