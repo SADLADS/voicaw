@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { useLocation, useNavigationType } from 'react-router-dom';
+import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { onPaneRequest, takePendingContent } from '../utils/mobilePanes';
+import { isPanesPage } from '../utils/phoneHistory';
 import { isTouchDragging } from './usePointerDrag';
 
 // The phone layout's two panes, Discord style: the list (rail + conversations or channels)
@@ -12,7 +13,10 @@ import { isTouchDragging } from './usePointerDrag';
 // History: the content showing is a history entry of its own (`history.state[MARK]`, over the
 // same URL), so the back button (and Android's back gesture) slides back to the list. MARK is
 // 'pushed' when that entry was added over a list entry (going back to the list pops it), or
-// 'replaced' when a navigation made while the chat showed was marked in place.
+// 'replaced' when a navigation made while the chat showed was marked in place. On phones, going
+// from one chat to another replaces the entry (utils/phoneHistory.js), so the list's entry
+// keeps the page it last showed: going back to it shows the list of the chat just left (the
+// guild's channels, or the DMs), as Discord does, not the one before.
 //
 // The panes only have a transform while moving: at rest the one on screen has none, since a
 // transform would become the containing block of everything `position: fixed` inside it.
@@ -72,7 +76,13 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
   const motion = useRef({ x: null, v: 0, target: null, raf: 0 });
   const location = useLocation();
   const navigationType = useNavigationType();
+  // In a ref: react-router makes a new one each navigation, and the popstate listener mustn't
+  // be swapped while a popstate is being handled (the new one wouldn't hear it).
+  const navigateRef = useRef(null);
+  navigateRef.current = useNavigate();
   const lastMark = useRef(null);
+  const contentPath = useRef(null); // the page the chat last showed
+  const leavingContent = useRef(false); // slideTo went back from the chat's entry
   const wasEnabled = useRef(null);
 
   const width = useCallback(() => wrapperRef.current?.clientWidth || window.innerWidth, [wrapperRef]);
@@ -140,6 +150,7 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
           }
         });
       } else if (markOf() === 'pushed') {
+        leavingContent.current = true;
         window.history.back(); // popstate lands here again, already on its way
       } else if (markOf()) {
         clearMark();
@@ -209,11 +220,26 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
     if (!enabled) return undefined;
     const onPopState = () => {
       const next = markOf() ? 'content' : 'list';
+      const fromContent = paneRef.current === 'content' || leavingContent.current;
+      leavingContent.current = false;
       if (next !== paneRef.current) slideTo(next, { fromHistory: true });
+      // The list's entry is behind the chat's: show the list of the chat just left.
+      const path = contentPath.current;
+      const here = window.location.pathname;
+      if (next === 'list' && fromContent && path && path !== here && isPanesPage(here)) {
+        navigateRef.current(path, { replace: true });
+      }
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, [enabled, slideTo]);
+
+  // The page the chat shows. A back to the list's entry renders (react-router hears popstate
+  // first) before the panes know, so a pop counts only onto the chat's entry.
+  useEffect(() => {
+    if (!enabled || paneRef.current !== 'content' || (navigationType === 'POP' && !markOf())) return;
+    contentPath.current = location.pathname;
+  }, [enabled, location.key, location.pathname, navigationType]);
 
   // A navigation while the chat shows (a link in a message, an answered call) makes an entry
   // without the mark: mark it in place. A replace keeps the kind of the entry it replaced.

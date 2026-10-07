@@ -303,7 +303,14 @@
   finishes or undoes it by position and speed (a critically damped spring); the list moves a
   little and dims behind it. The chat showing is its own history entry (`history.state.voicawPane`),
   so back slides to the list; list rows navigate with `replace` on phones, so entries don't pile
-  up. Every chat's header (DM, group DM, bot DM, notes, guild channel) starts with a back arrow
+  up. Back works as in Discord's app, never like a browser's: from a chat it shows the list,
+  from the list it leaves the app. So on phones the router's history (`utils/phoneHistory.js`,
+  `App.jsx`) turns every navigation from one chat page (`/dm…`, `/guild…`) to another into a
+  replace, wherever it comes from (the rail, a link or mention in a message, Friends' Message,
+  the voice bar); a thread or a voice channel's chat (same page, other search params), Settings
+  and the developer portal keep an entry of their own, so Back closes them. Going back to the
+  list's entry shows the list of the chat just left (a channel link from a DM: that guild's
+  channels), since the useSwipePanes popstate handler replaces it with the chat's page. Every chat's header (DM, group DM, bot DM, notes, guild channel) starts with a back arrow
   on phones (`PaneBackButton`, like Discord's): it shows the chat can be swiped away, and
   pressing it slides to the list the same way (`showList()`); threads and voice channels' chat
   have their own, back to their channel. Open the chat from elsewhere with `showContent()`

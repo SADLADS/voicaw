@@ -2,16 +2,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useRef } from 'react';
 import { act, render } from '@testing-library/react';
-import { BrowserRouter, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, unstable_HistoryRouter as HistoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { useSwipePanes } from './useSwipePanes';
 import { showContent, showList } from '../utils/mobilePanes';
+import { createPhoneHistory, isPanesPage } from '../utils/phoneHistory';
 
 let navigate;
 
-// Layout's use of the panes: on for the chats (/dm...), off elsewhere (/settings).
+// Layout's use of the panes: on for the chats (/dm..., /guild...), off elsewhere (/settings).
 function Panes() {
   navigate = useNavigate();
-  const enabled = useLocation().pathname.startsWith('/dm');
+  const enabled = isPanesPage(useLocation().pathname);
   const wrapperRef = useRef(null);
   const listRef = useRef(null);
   const contentRef = useRef(null);
@@ -26,9 +27,13 @@ function Panes() {
   );
 }
 
-function start(path) {
+// `phone`: with the phone's history (App.jsx), as on a phone.
+function start(path, { phone = false } = {}) {
   window.history.replaceState(null, '', path);
-  const { getByTestId } = render(<BrowserRouter><Panes /></BrowserRouter>);
+  const router = phone
+    ? <HistoryRouter history={createPhoneHistory()}><Panes /></HistoryRouter>
+    : <BrowserRouter><Panes /></BrowserRouter>;
+  const { getByTestId } = render(router);
   const wrapper = getByTestId('wrapper');
   return () => (wrapper.classList.contains('pane-content') ? 'content' : wrapper.classList.contains('pane-list') ? 'list' : 'off');
 }
@@ -38,6 +43,14 @@ async function openFromNotification(url) {
   await act(async () => {
     navigate(url);
     showContent();
+  });
+}
+
+async function back() {
+  await act(async () => {
+    const popped = new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
+    window.history.back();
+    await popped;
   });
 }
 
@@ -80,5 +93,46 @@ describe('useSwipePanes', () => {
     await act(async () => navigate('/settings'));
     await act(async () => navigate('/dm'));
     expect(pane()).toBe('list');
+  });
+
+  it('goes back from a chat opened from another chat to its own list, as Discord does', async () => {
+    const pane = start('/dm/1', { phone: true });
+    const entries = window.history.length;
+    // A link in a message, or a mention, to a guild's channel.
+    await act(async () => navigate('/guild/5/6'));
+    expect(pane()).toBe('content');
+    expect(window.history.length).toBe(entries);
+
+    await back();
+    expect(pane()).toBe('list');
+    expect(window.location.pathname).toBe('/guild/5/6');
+  });
+
+  it('does the same after the chat was swiped away', async () => {
+    const pane = start('/dm/1', { phone: true });
+    await act(async () => navigate('/dm/2'));
+    await act(async () => {
+      const popped = new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
+      showList();
+      await popped;
+    });
+    expect(pane()).toBe('list');
+    expect(window.location.pathname).toBe('/dm/2');
+  });
+
+  it('keeps Settings and threads as entries of their own', async () => {
+    const pane = start('/guild/5/6', { phone: true });
+    const entries = window.history.length;
+    await act(async () => navigate('/guild/5/6?thread=7'));
+    expect(window.history.length).toBe(entries + 1);
+    await back();
+    expect(window.location.search).toBe('');
+    expect(pane()).toBe('content');
+
+    await act(async () => navigate('/settings'));
+    expect(pane()).toBe('off');
+    await back();
+    expect(window.location.pathname).toBe('/guild/5/6');
+    expect(pane()).toBe('content');
   });
 });

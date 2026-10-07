@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { HashRouter, BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { HashRouter, BrowserRouter, unstable_HistoryRouter as HistoryRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { ConfigContext, InteractionContext } from './contexts';
 import { showContent } from './utils/mobilePanes';
+import { createPhoneHistory } from './utils/phoneHistory';
 
 import Login from './components/Login.jsx';
 import PendingApproval from './components/PendingApproval.jsx';
@@ -77,6 +78,8 @@ function JoinPage({ onLoginSuccess }) {
 const isMobile = typeof navigator !== 'undefined' &&
   (navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
 const interaction = { isMobile };
+// Phones: chat pages replace each other in history, so Back goes as in Discord's app.
+const phoneHistory = isMobile && window.location.protocol !== 'file:' ? createPhoneHistory() : null;
 
 // How soon the server's config is asked again when it couldn't be loaded, doubling up to the
 // maximum.
@@ -182,14 +185,20 @@ export default function App() {
 
   // A page opened from a file (no server to answer every route) needs hash URLs; the desktop
   // app serves real paths (electron/protocol.js).
-  const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
+  // Phones have their own history (utils/phoneHistory.js).
+  let Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
+  let routerProps = {};
+  if (phoneHistory) {
+    Router = HistoryRouter;
+    routerProps = { history: phoneHistory };
+  }
 
   return (
     <ConfigContext.Provider value={config}>
       <EmojiProvider>
       <InteractionContext.Provider value={interaction}>
         <ImageViewerProvider>
-        <Router>
+        <Router {...routerProps}>
           <SWMessageHandler />
           <PageMenus />
           <SafetyDialogs />
