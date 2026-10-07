@@ -205,6 +205,13 @@ YouTube links and guild invites keep their own player and card (`UrlPreviews.jsx
   card (its description plain text, not markdown: it's another site's words), a picture
   (`LinkMedia.jsx` `SiteImage`: opens in the image viewer, draws nothing if it fails to load)
   or our video player (`SiteVideo`). Covered in an NSFW channel like other media.
+- **Settings → Privacy's "Show link previews"** (`showLinkPreviews`, per device, on by
+  default): off, links to other sites get nothing drawn under them: no guild cards
+  (`MessageEmbeds` with `links`), no YouTube players and no linked pictures or videos in
+  encrypted chats (`UrlPreviews`), so nothing loads from those sites. Voicaw's own invite and
+  event cards and bots' and webhooks' embeds still show. Only this device's display changes:
+  the server still makes guild previews for everyone else. The setting below is then moot
+  (greyed out).
 - **Settings → Privacy's "Show pictures and videos from links straight away"** (`linkPreviews`,
   per device, on by default): off, other sites' pictures (link previews', links to pictures,
   webhook and bot embeds' unless they're the message's own files; their small author and

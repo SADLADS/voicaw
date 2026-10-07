@@ -93,16 +93,18 @@ function YouTubeEmbed({ id, link }) {
 // (`encrypted`), links straight to a picture or a video, shown from that site (LinkMedia; a
 // guild's come from the server's link previews instead, MessageEmbeds). Invites in encrypted
 // chats only load when tapped (see InviteEmbed); event links only show in guild channels.
+// With Settings → Privacy's "Show link previews" off, only invites and events (Voicaw's own) show.
 // `onRemove(event)`: an X beside each (RemovableEmbed), removing the message's previews.
 export default function UrlPreviews({ text, encrypted = false, onRemove }) {
+  const sitePreviews = usePrivacyPrefs().showLinkPreviews;
   const links = linksIn(text);
   const inviteCodes = [...new Set(links.map(inviteCodeFromUrl).filter(Boolean))];
   const videos = new Map();
-  for (const link of links) {
+  for (const link of sitePreviews ? links : []) {
     const id = youtubeVideoId(link);
     if (id && !videos.has(id)) videos.set(id, link);
   }
-  const media = encrypted ? links.filter((link) => !inviteCodeFromUrl(link) && !youtubeVideoId(link) && mediaLinkKind(link)) : [];
+  const media = encrypted && sitePreviews ? links.filter((link) => !inviteCodeFromUrl(link) && !youtubeVideoId(link) && mediaLinkKind(link)) : [];
   const events = new Map();
   if (!encrypted) {
     for (const link of links) {

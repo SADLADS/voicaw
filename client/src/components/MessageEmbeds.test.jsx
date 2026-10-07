@@ -50,6 +50,18 @@ describe('MessageEmbeds (link previews)', () => {
     }
   });
 
+  it("hides link previews, not the sender's own embeds, when Settings → Privacy turns them off", () => {
+    setPrivacyPref('showLinkPreviews', false);
+    try {
+      const { container } = render(<MessageEmbeds embeds={[card]} links />);
+      expect(container).toBeEmptyDOMElement();
+      render(<MessageEmbeds embeds={[{ title: 'From a bot' }]} renderMarkdown={(text) => text} />);
+      expect(screen.getByText('From a bot')).toBeInTheDocument();
+    } finally {
+      setPrivacyPref('showLinkPreviews', true);
+    }
+  });
+
   it("doesn't hold back a webhook embed's picture that is one of its own files", () => {
     setPrivacyPref('linkPreviews', false);
     try {

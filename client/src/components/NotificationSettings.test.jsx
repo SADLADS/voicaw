@@ -9,10 +9,6 @@ vi.mock('../services/pushService', () => ({
   sendTestNotification: vi.fn(async () => ({ devices: 2, delivered: 2 })),
   ensureSubscription: vi.fn(async () => {}),
 }));
-vi.mock('../services/settingsStore', () => ({
-  getSetting: vi.fn(async () => true),
-  setSetting: vi.fn(async () => {}),
-}));
 
 import NotificationSettings from './NotificationSettings';
 import { ConfigContext } from '../contexts';
@@ -20,7 +16,6 @@ import {
   getPushStatus, enableNotifications, disableNotificationsOnThisDevice, sendTestNotification,
   ensureSubscription,
 } from '../services/pushService';
-import { setSetting } from '../services/settingsStore';
 
 const renderSettings = () =>
   render(
@@ -60,17 +55,6 @@ describe('NotificationSettings', () => {
 
     expect(sendTestNotification).toHaveBeenCalled();
     expect(await screen.findByText('Sent to 2 devices.')).toBeInTheDocument();
-  });
-
-  it('saves the message preview setting', async () => {
-    getPushStatus.mockReturnValue('granted');
-    renderSettings();
-    const checkbox = await screen.findByRole('checkbox', { name: /Show message text/ });
-    await waitFor(() => expect(checkbox).toBeChecked());
-
-    fireEvent.click(checkbox);
-
-    expect(setSetting).toHaveBeenCalledWith('notificationPreviews', false);
   });
 
   it('explains blocked notifications and the iOS Home Screen requirement', () => {

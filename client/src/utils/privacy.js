@@ -18,9 +18,14 @@ import { useSyncExternalStore } from 'react';
 // a picture or a video, in any chat) load at once (on by default), which tells those sites your
 // IP address and what you were sent; turned off, each waits for a tap on Show. A guild preview's
 // text comes from our server, so it shows either way (see docs/messages.md, Link previews).
+// `showLinkPreviews`: links to other sites get a preview at all (on by default): a guild's
+// cards, a picture or video linked in any chat, a YouTube player. Turned off, only the link
+// shows (Voicaw's own invite and event cards, and bots' embeds, still do).
+// Notification previews are Settings → Privacy too, but kept in services/settingsStore (the
+// service worker reads them).
 
 const STORAGE_KEY = 'privacy';
-const DEFAULTS = { inviteEmbedsInEncrypted: true, sendTyping: true, youtubeEmbeds: true, gifs: true, linkPreviews: true };
+const DEFAULTS = { inviteEmbedsInEncrypted: true, sendTyping: true, youtubeEmbeds: true, gifs: true, linkPreviews: true, showLinkPreviews: true };
 const listeners = new Set();
 
 function load() {

@@ -97,6 +97,22 @@ describe('notificationFromPush', () => {
     expect((await notificationFromPush(noCiphertext)).options.body).toBe('New message');
   });
 
+  it("leaves guild messages' and bot DMs' text out when previews are off", async () => {
+    const guild = { type: 'guild', title: 'alice (#general, Club)', body: 'meet at 8', tag: 'channel-1' };
+    const botDm = { type: 'bot_dm', title: 'slotto', body: 'Your daily spin is ready', tag: 'bot-dm-2' };
+    expect((await notificationFromPush(guild)).options.body).toBe('meet at 8');
+    expect((await notificationFromPush(botDm)).options.body).toBe('Your daily spin is ready');
+
+    getSetting.mockResolvedValue(false);
+    const hidden = await notificationFromPush(guild);
+    expect(hidden.title).toBe('alice (#general, Club)');
+    expect(hidden.options.body).toBe('New message');
+    expect((await notificationFromPush(botDm)).options.body).toBe('New message');
+    // Not a message: shown as sent.
+    expect((await notificationFromPush({ type: 'test', title: 'Voicaw', body: 'Notifications are working.' })).options.body)
+      .toBe('Notifications are working.');
+  });
+
   it('shows non-DM pushes (e.g. the test notification) as sent', async () => {
     const { title, options } = await notificationFromPush({ type: 'test', title: 'Voicaw', body: 'Notifications are working.', url: '/settings', tag: 'test' });
     expect(title).toBe('Voicaw');
