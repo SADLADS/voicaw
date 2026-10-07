@@ -70,3 +70,35 @@ export function setAndroidSystemBars(light) {
   if (!color) return;
   android.setSystemBars({ color, light }).catch((err) => console.warn('Could not colour the system bars', err));
 }
+
+// Pieces of a file sent to the app at a time (as base64, through Capacitor's bridge).
+export const SAVE_CHUNK = 512 * 1024;
+
+function toBase64(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+// Saves `blob` to the phone's Downloads folder as `name` (VoicawPlugin `saveFile*`): the WebView
+// ignores <a download>, and only the page can read its blob: URLs. With `open`, then opens it
+// in the app that handles its type. Resolves { opened }.
+export async function saveToDownloads(blob, name, { open = false } = {}, plugin = android) {
+  const { id } = await plugin.saveFileStart({ name, type: blob.type || '' });
+  try {
+    for (let at = 0; at < blob.size; at += SAVE_CHUNK) {
+      const bytes = new Uint8Array(await blob.slice(at, at + SAVE_CHUNK).arrayBuffer());
+      await plugin.saveFileAppend({ id, data: toBase64(bytes) });
+    }
+  } catch (err) {
+    plugin.saveFileCancel({ id }).catch(() => {});
+    throw err;
+  }
+  return plugin.saveFileFinish({ id, open });
+}
+
+export function showAndroidToast(message) {
+  android?.showToast({ message }).catch(() => {});
+}

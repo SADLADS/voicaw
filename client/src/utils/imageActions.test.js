@@ -29,7 +29,7 @@ describe('picture menus', () => {
     await find(imageMenuItems(encrypted), 'Save Image').onSelect();
     expect(saveUrlAs).toHaveBeenCalledWith('blob:decrypted', 'photo.jpg');
     await find(imageMenuItems(encrypted), 'Open Image').onSelect();
-    expect(openInNewTab).toHaveBeenCalledWith('blob:decrypted');
+    expect(openInNewTab).toHaveBeenCalledWith('blob:decrypted', 'photo.jpg');
 
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });

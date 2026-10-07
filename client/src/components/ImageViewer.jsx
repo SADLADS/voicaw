@@ -429,7 +429,7 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
           </button>
           <button
             type="button"
-            onClick={() => openInNewTab(src)}
+            onClick={() => openInNewTab(src, item.name)}
             disabled={!src}
             title={t('media.viewer.openInNewTab')}
             aria-label={t('media.viewer.openInNewTab')}

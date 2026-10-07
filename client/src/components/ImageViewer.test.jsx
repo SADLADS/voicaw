@@ -84,7 +84,7 @@ describe('ImageViewer', () => {
     expect(saveUrlAs).toHaveBeenCalledWith('blob:cat', 'cat.png');
 
     fireEvent.click(screen.getByRole('button', { name: 'Open in new tab' }));
-    expect(openInNewTab).toHaveBeenCalledWith('blob:cat');
+    expect(openInNewTab).toHaveBeenCalledWith('blob:cat', 'cat.png');
   });
 
   it("right-clicking the image opens its menu (no link: it's encrypted); Escape closes only the menu", async () => {

@@ -94,7 +94,7 @@ export function imageMenuItems(item) {
         key: 'open-image',
         label: t('media.image.openImage'),
         icon: faArrowUpRightFromSquare,
-        onSelect: async () => openInNewTab(await srcOf(item)),
+        onSelect: async () => openInNewTab(await srcOf(item), item.name || t('media.image.defaultFileName')),
       },
     );
   }

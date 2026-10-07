@@ -148,7 +148,8 @@ native bridge. Check real behaviour on a phone.
   permission; whether calls may ring full screen, which Android 14 lets people turn off; whether
   the build has Firebase), `getPushToken`, `setOngoing` / `clearOngoing`, `stopRinging`,
   `openSettings`, `checkForUpdate` / `installUpdate` (Updating itself), `setSystemBars`
-  (System bars); events `navigate` (a
+  (System bars), `saveFileStart` / `saveFileAppend` / `saveFileFinish` / `saveFileCancel`
+  (Saving files), `showToast`; events `navigate` (a
   tapped notification), `callAction` (`answer` with a call id, `mute`, `unmute`, `hangUp`),
   `updateProgress` and `updateResult`, kept until the page listens, so a notification that
   started the app still counts. `hooks/useAndroidApp.js` (in `Layout`) is the page's side.
@@ -167,6 +168,14 @@ native bridge. Check real behaviour on a phone.
   `utils/theme.js` `applyTheme` calls `setSystemBars` (`android.js` `setAndroidSystemBars`), and
   `MainActivity` puts it back after every configuration change (Capacitor's SystemBars resets
   it to the system theme's, a rotation too).
+- **Saving files** (`Downloads.java`, `android.js` `saveToDownloads`, used by
+  `utils/saveFile.js`): Android's WebView ignores `<a download>`, and the page's files
+  (decrypted attachments, pictures, the recovery code) are `blob:` URLs no other app can read,
+  so Download / Save sends the bytes to the app in 512 KB base64 pieces, written straight into
+  the phone's Downloads folder (MediaStore on Android 10+, no permission; on 8 and 9 the folder
+  itself, asking for `WRITE_EXTERNAL_STORAGE`, `maxSdkVersion` 28), then a toast says so.
+  "Open in new tab" on a `blob:` saves the file the same way and opens it in the app for its
+  type. Guilds' plain file links (https) still open in the phone's browser, which downloads them.
 - **Notifications** (`PushService.java`, `Notifications.java`): Firebase Cloud Messaging, the
   only way to wake a closed Android app. The phone registers its FCM token with a 256-bit key
   it made (`PushCrypto.deviceKey`) as a push subscription (`{ endpoint: 'fcm:<token>', fcm:

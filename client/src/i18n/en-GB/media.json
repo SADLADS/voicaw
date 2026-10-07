@@ -12,6 +12,11 @@
       "nsfw": "NSFW",
       "reveal": "{{label}}: {{name}}, select to reveal"
     },
+    "save": {
+      "saved": "Saved {{name}} to Downloads",
+      "failed": "Couldn't save the file",
+      "defaultName": "file"
+    },
     "attachment": {
       "defaultName": "attachment",
       "decrypting": "Decrypting…",

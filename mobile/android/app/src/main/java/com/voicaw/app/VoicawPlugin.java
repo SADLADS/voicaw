@@ -7,6 +7,8 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
+import android.util.Base64;
+import android.widget.Toast;
 
 import androidx.core.app.NotificationManagerCompat;
 
@@ -29,11 +31,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The page's bridge to the app (client/src/utils/android.js `android`): notifications and the
  * push registration, the ongoing-call notification, and the events notifications send the page
  * (`navigate` to a chat, `callAction` answer / mute / unmute / hangUp), and updating the app
- * (AppUpdater: `updateProgress` while downloading, `updateResult` if Android didn't install it).
+ * (AppUpdater: `updateProgress` while downloading, `updateResult` if Android didn't install it),
+ * and saving files to Downloads (Downloads).
  */
 @CapacitorPlugin(
     name = "Voicaw",
-    permissions = { @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS }) }
+    permissions = {
+        @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS }),
+        // Only asked for on Android 8 and 9 (Downloads.needsPermission).
+        @Permission(alias = "storage", strings = { Manifest.permission.WRITE_EXTERNAL_STORAGE }),
+    }
 )
 public class VoicawPlugin extends Plugin {
     private static VoicawPlugin instance;
@@ -237,5 +244,73 @@ public class VoicawPlugin extends Plugin {
                 updating.set(false);
             }
         });
+    }
+
+    /** Starts saving a file to Downloads ({ name, type }); resolves { id } for the pieces. */
+    @PluginMethod
+    public void saveFileStart(PluginCall call) {
+        if (Downloads.needsPermission() && getPermissionState("storage") != PermissionState.GRANTED) {
+            requestPermissionForAlias("storage", call, "storagePermission");
+            return;
+        }
+        startSaving(call);
+    }
+
+    @PermissionCallback
+    private void storagePermission(PluginCall call) {
+        if (getPermissionState("storage") == PermissionState.GRANTED) startSaving(call);
+        else call.reject("Storage permission denied", "denied");
+    }
+
+    private void startSaving(PluginCall call) {
+        try {
+            String id = Downloads.start(getContext(), call.getString("name"), call.getString("type"));
+            call.resolve(new JSObject().put("id", id));
+        } catch (Exception e) {
+            call.reject("Couldn't save the file", e);
+        }
+    }
+
+    /** The next piece of a file being saved ({ id, data: base64 }). */
+    @PluginMethod
+    public void saveFileAppend(PluginCall call) {
+        String id = call.getString("id");
+        try {
+            Downloads.append(id, Base64.decode(call.getString("data", ""), Base64.DEFAULT));
+            call.resolve();
+        } catch (Exception e) {
+            Downloads.cancel(getContext(), id);
+            call.reject("Couldn't save the file", e);
+        }
+    }
+
+    /** Ends a file being saved ({ id, open: open it afterwards }); resolves { opened }. */
+    @PluginMethod
+    public void saveFileFinish(PluginCall call) {
+        String id = call.getString("id");
+        try {
+            Uri uri = Downloads.finish(getContext(), id);
+            boolean opened = Boolean.TRUE.equals(call.getBoolean("open", false))
+                && Downloads.open(getContext(), uri, Downloads.mimeOf(getContext(), uri));
+            call.resolve(new JSObject().put("opened", opened));
+        } catch (Exception e) {
+            Downloads.cancel(getContext(), id);
+            call.reject("Couldn't save the file", e);
+        }
+    }
+
+    /** Throws away a file the page couldn't finish sending ({ id }). */
+    @PluginMethod
+    public void saveFileCancel(PluginCall call) {
+        Downloads.cancel(getContext(), call.getString("id"));
+        call.resolve();
+    }
+
+    /** A short message at the bottom of the screen ({ message }). */
+    @PluginMethod
+    public void showToast(PluginCall call) {
+        String message = call.getString("message", "");
+        getActivity().runOnUiThread(() -> Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show());
+        call.resolve();
     }
 }
