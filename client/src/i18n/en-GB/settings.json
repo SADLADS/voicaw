@@ -528,7 +528,7 @@
       "yourPicture": "Your profile picture",
       "changePicture": "Change picture",
       "choosePicture": "Choose a profile picture",
-      "pictureHint": "PNG, JPEG, GIF or WebP, up to 8 MB; cropped to a square. Everyone can see it.",
+      "pictureHint": "PNG, JPEG, GIF or WebP. up to 8 MB.",
       "displayName": "Display name",
       "displayNameHint": "Shown instead of your username ({{username}}). Leave it empty to use your username.",
       "customStatus": "Custom status",
