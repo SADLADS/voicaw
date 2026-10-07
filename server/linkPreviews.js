@@ -8,8 +8,9 @@ const { getSetting } = require('./appSettings');
 // (`guild_message_embeds`; bots get MESSAGE_UPDATE). A page gives its OpenGraph / Twitter card
 // (site, title, description, colour, picture, a video file); a link straight to an image or a
 // video gives that. Only guilds: they aren't end-to-end encrypted, so the server already has
-// the text. DMs and group DMs never come here (their clients show only links that are plainly
-// pictures or videos, loaded by the reader). Off for the whole app with Settings → Admin's
+// the text. DMs and group DMs never come here (the sender's desktop or Android app makes their
+// previews and stores them encrypted, `link_previews`; see the client's linkPreviewCrypto.js and
+// pageEmbed.js, whose embedFromHtml is a copy of this one). Off for the whole app with Settings → Admin's
 // "Link previews" (appSettings.js `linkPreviews`). Links in code, in spoilers or written as
 // <https://…> are left alone, and SUPPRESS_EMBEDS (the author's or a moderator's "Remove
 // previews") hides them. Pictures aren't copied: readers load them from the site (see

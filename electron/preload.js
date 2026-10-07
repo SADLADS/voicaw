@@ -35,6 +35,9 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
         suggestions: (word) => webFrame.getWordSuggestions(String(word)),
     },
     setSpellingWords: (words) => ipcRenderer.send('desktop:spelling-words', words),
+    // A linked page for a link preview in an encrypted chat (electron/pageFetch.js):
+    // { status, url, contentType, html } or null.
+    fetchPage: (url) => ipcRenderer.invoke('desktop:fetch-page', String(url)),
     onNavigate: listen('desktop:navigate'),
     onShortcut: listen('desktop:shortcut'),
     onUpdateReady: listen('desktop:update-ready'),

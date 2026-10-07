@@ -1,6 +1,8 @@
 const express = require('express');
 const db = require('../db');
-const { maxPlaintextLength, maxMessageLength } = require('../config');
+const { maxPlaintextLength, maxMessageLength, getMaxEncryptedLength, MAX_LINK_PREVIEWS_BYTES } = require('../config');
+
+const maxPreviewsLength = getMaxEncryptedLength(MAX_LINK_PREVIEWS_BYTES);
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
 const { buildDmPushPayload, sendPushToUser, getUserImageUrl } = require('../push');
@@ -20,7 +22,7 @@ const router = express.Router();
 const DM_SELECT = `
   SELECT
     dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, dm.parent_message_id, dm.edited,
-    dm.pinned_at, dm.pinned_by, dm.system,
+    dm.pinned_at, dm.pinned_by, dm.system, dm.link_previews,
     u.username AS sender_username,
     u.display_name AS sender_display_name,
     pm.content AS parent_content,
@@ -232,13 +234,30 @@ router.put('/update-message/:id', authenticateJWT, async (req, res) => {
   if (row.system) return res.status(403).json({ error: "This message can't be edited" });
 
   await db.transaction(async () => {
-    await db.run('UPDATE direct_messages SET content = ?, edited = 1 WHERE id = ?', [content, messageId]);
+    await db.run('UPDATE direct_messages SET content = ?, edited = 1, link_previews = NULL WHERE id = ?', [content, messageId]);
     await linkListed('dm', messageId, uploads, req.user.id, { edit: true });
   });
   releaseUploads();
 
   sendToConversation(row, { type: 'edit_dm', messageId, content });
   res.json({ success: true, messageId, content });
+});
+
+// The sender's app's link previews for their message (Link previews in docs/messages.md):
+// { previews }, encrypted like the message, or null to remove them. An edit clears them.
+router.put('/dm-messages/:id/link-previews', authenticateJWT, async (req, res) => {
+  const messageId = parseInt(req.params.id, 10);
+  const previews = req.body?.previews;
+  if (!messageId || !(previews === null || (typeof previews === 'string' && previews.startsWith('v1.') && previews.length <= maxPreviewsLength))) {
+    return res.status(400).json({ error: 'Invalid input' });
+  }
+  const row = await db.get('SELECT id, sender_id, recipient_id, system FROM direct_messages WHERE id = ?', [messageId]);
+  if (!row) return res.status(404).json({ error: 'Message not found' });
+  if (row.sender_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+  if (row.system) return res.status(403).json({ error: "This message can't be changed" });
+  await db.run('UPDATE direct_messages SET link_previews = ? WHERE id = ?', [previews, messageId]);
+  sendToConversation(row, { type: 'dm_link_previews', messageId, link_previews: previews });
+  res.json({ success: true });
 });
 
 // ---- Pins: either person can pin or unpin any message of the conversation ----

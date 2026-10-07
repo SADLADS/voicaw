@@ -54,6 +54,8 @@ public class VoicawPlugin extends Plugin {
     private static final ExecutorService updates = Executors.newSingleThreadExecutor();
     // Thumbnails for the + panel, off the plugin's own thread so its other calls don't wait.
     private static final ExecutorService thumbnails = Executors.newFixedThreadPool(2);
+    // Linked pages for link previews (PageFetch), a few at a time.
+    private static final ExecutorService pages = Executors.newFixedThreadPool(3);
     private final AtomicBoolean updating = new AtomicBoolean();
 
     @Override
@@ -356,6 +358,32 @@ public class VoicawPlugin extends Plugin {
         } catch (Exception e) {
             call.reject("Couldn't list the photos", e);
         }
+    }
+
+    /**
+     * A linked page for a link preview in an encrypted chat ({ url }; PageFetch): resolves
+     * { status, url, contentType, html (pages only) }, or nothing if it couldn't be fetched.
+     */
+    @PluginMethod
+    public void fetchPage(PluginCall call) {
+        String url = call.getString("url");
+        if (url == null || url.length() > 2048) {
+            call.resolve();
+            return;
+        }
+        pages.execute(() -> {
+            try {
+                PageFetch.Page page = PageFetch.fetch(url);
+                JSObject result = new JSObject()
+                    .put("status", page.status)
+                    .put("url", page.url)
+                    .put("contentType", page.contentType);
+                if (page.html != null) result.put("html", page.html);
+                call.resolve(result);
+            } catch (Exception e) {
+                call.resolve();
+            }
+        });
     }
 
     /** A small picture of one of them ({ uri, size }): resolves { url } (a data: URL). */

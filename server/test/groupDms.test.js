@@ -684,6 +684,24 @@ describe('group polls', () => {
   });
 });
 
+describe('group DM link previews', () => {
+  it('lets only the sender set them, sends them to the group, and an edit clears them', async () => {
+    const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    const sent = (await send(ann, groupId, 'see https://example.com')).body;
+    const url = `/group-dm-messages/${sent.id}/link-previews`;
+    expect((await api.put(bea, url, { previews: 'v2.previews' })).status).toBe(403);
+    expect((await api.put(ann, url, { previews: 'v1.unsigned' })).status).toBe(400);
+    const events = listen(bea);
+    expect((await api.put(ann, url, { previews: 'v2.previews' })).status).toBe(200);
+    expect(events).toContainEqual({ type: 'group_dm_message_link_previews', groupId, messageId: sent.id, link_previews: 'v2.previews' });
+    const row = () => api.get(bea, `/group-dms/${groupId}/messages`).then((r) => r.body.find((m) => m.id === sent.id));
+    expect((await row()).link_previews).toBe('v2.previews');
+    await api.put(ann, `/group-dm-messages/${sent.id}`, { content: 'v2.edited' });
+    expect((await row()).link_previews).toBe(null);
+  });
+});
+
 // A signed group reaction's length (signature + 64 padded bytes, encrypted).
 function signedReactionLength() {
   return require('../config.js').getMaxEncryptedLength(64 + 64);

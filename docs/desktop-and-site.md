@@ -37,7 +37,8 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
 - **Bridge** (`preload.js` → `window.voicawDesktop`, wrapped by `client/src/utils/desktop.js`
   `desktop`, null in a browser): `notify`, `setUnread`, `getSettings` / `updateSettings`,
   `checkForUpdates` / `installUpdate`, `getScreenSources` / `chooseScreenSource`, `paste`,
-  `spelling` / `setSpellingWords`, `onNavigate`, `onShortcut`, `onUpdateReady`. The main
+  `spelling` / `setSpellingWords`, `fetchPage` (a linked page for an encrypted chat's link
+  preview, `pageFetch.js`; see Link previews in `docs/messages.md`), `onNavigate`, `onShortcut`, `onUpdateReady`. The main
   process only answers the app's own frames and checks what it's given (`cleanNotification`,
   `cleanChanges`).
 - **Notifications** (`notifications.js`): the server sends what would be a web push over the
@@ -151,7 +152,8 @@ native bridge. Check real behaviour on a phone.
   (System bars), `saveFileStart` / `saveFileAppend` / `saveFileFinish` / `saveFileCancel`
   (Saving files), `showToast`, `mediaAccess` / `requestMediaAccess` / `listMedia` /
   `mediaThumbnail` (the + panel's photos, `Media.java`, see The + panel in `docs/uploads.md`;
-  `openSettings({ which: 'app' })` when photos were refused); events `navigate` (a
+  `openSettings({ which: 'app' })` when photos were refused), `fetchPage` (a linked page for an
+  encrypted chat's link preview, `PageFetch.java`; see Link previews in `docs/messages.md`); events `navigate` (a
   tapped notification), `callAction` (`answer` with a call id, `mute`, `unmute`, `hangUp`),
   `updateProgress` and `updateResult`, kept until the page listens, so a notification that
   started the app still counts. `hooks/useAndroidApp.js` (in `Layout`) is the page's side.

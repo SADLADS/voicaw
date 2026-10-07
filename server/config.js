@@ -83,4 +83,6 @@ module.exports = {
   // What a message of maxPlaintextLength is once encrypted (the server only sees that).
   maxMessageLength: getMaxEncryptedLength(maxPlaintextLength),
   getMaxEncryptedLength,
+  // A message's link previews (made by the sender's app in encrypted chats), before encryption.
+  MAX_LINK_PREVIEWS_BYTES: 16 * 1024,
 };

@@ -10,6 +10,7 @@ import {
   sendGroupMessage,
   fetchGroupPins,
   setGroupMessagePinned,
+  setGroupLinkPreviews,
 } from '../services/groupService';
 import {
   decryptGroupMessage,
@@ -23,6 +24,8 @@ import {
   reactionSignatureContext,
 } from '../services/groupCrypto';
 import { loadIdentityKey } from '../services/keyStore';
+import { groupPreviewsContext, groupPreviewsSignatureContext, openGroupPreviews, sealGroupPreviews } from '../services/linkPreviewCrypto';
+import { previewsFor } from '../services/linkPreviewService';
 import { currentEpoch, openGroup, renameGroup } from '../services/groupKeys';
 import { nameOf } from '../utils/profiles';
 import { uploadNamesIn } from '../utils/attachmentMarkup';
@@ -108,6 +111,17 @@ export function useGroupConversation({ groupId, user, onRead }) {
     }
   }
 
+  // A message's link previews (services/linkPreviewCrypto.js), for its stored `content` and
+  // text, if its sender signed them: the embeds to show, or null.
+  async function openPreviews(previews, msg, text) {
+    if (!previews) return null;
+    const at = [groupId, msg.epoch, msg.id, msg.sender_id];
+    return openGroupPreviews(
+      previews, msg.content, text, await keyFor(msg.epoch), groupPreviewsContext(...at),
+      groupRef.current?.log.identityKeys.get(msg.sender_id), groupPreviewsSignatureContext(...at)
+    );
+  }
+
   async function decryptReactions(messageId, epoch, reactions) {
     const key = await keyFor(epoch);
     const out = [];
@@ -162,9 +176,11 @@ export function useGroupConversation({ groupId, user, onRead }) {
     // A call (utils/callLog.js): plaintext from the server, shown as a notice.
     if (row.system === 'call') return { ...row, plaintext: null, reactions: [] };
     const text = await decryptText(row.content, row.epoch, row.sender_id, signatureContextOf(row));
+    const readable = text.plaintext !== UNREADABLE && !text.unverified;
     return {
       ...row,
       ...text,
+      link_embeds: readable ? await openPreviews(row.link_previews, row, text.plaintext) : null,
       parent_plaintext: row.parent_content
         ? (await decryptText(row.parent_content, row.parent_epoch, row.parent_sender_id, null, false)).plaintext
         : null,
@@ -313,6 +329,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
         if (prev.some((m) => m.id === saved.id)) return prev.filter((m) => m.id !== tempId);
         return prev.map((m) => (m.id === tempId ? { ...saved, clientKey: tempId, localAttachments, status: 'sent' } : m));
       });
+      attachLinkPreviews(saved, saved.content, finalText);
       return saved;
     } catch (err) {
       console.error('Error sending message:', err);
@@ -327,12 +344,30 @@ export function useGroupConversation({ groupId, user, onRead }) {
     const context = messageSignatureContext({
       groupId, epoch: original.epoch, senderId: user.id, replyTo: original.parent_message_id ?? null, editOf: messageId,
     });
-    await editGroupMessage(
-      messageId,
-      await encryptGroupMessage(text, key, groupMessageContext(groupId, original.epoch, user.id), await loadIdentityKey(), context),
-      uploadNamesIn(text)
-    );
-    updateMessage(messageId, () => ({ plaintext: text, edited: 1 }));
+    const content = await encryptGroupMessage(text, key, groupMessageContext(groupId, original.epoch, user.id), await loadIdentityKey(), context);
+    await editGroupMessage(messageId, content, uploadNamesIn(text));
+    // An edit clears the previews (the server too); this device makes them again.
+    updateMessage(messageId, () => ({ plaintext: text, content, edited: 1, link_embeds: null }));
+    attachLinkPreviews(original, content, text);
+  }
+
+  // Makes and stores the link previews for this device's message `msg` (stored as `content`),
+  // if it can (services/linkPreviewService.js). Not awaited: the message is already sent.
+  async function attachLinkPreviews(msg, content, text) {
+    try {
+      const embeds = await previewsFor(text);
+      if (!embeds.length) return;
+      const at = [groupId, msg.epoch, msg.id, user.id];
+      const previews = await sealGroupPreviews(
+        embeds, content, await keyFor(msg.epoch), groupPreviewsContext(...at), await loadIdentityKey(), groupPreviewsSignatureContext(...at)
+      );
+      if (!previews) return;
+      await setGroupLinkPreviews(msg.id, previews);
+      const linkEmbeds = await openPreviews(previews, { ...msg, content }, text);
+      updateMessage(msg.id, (m) => (m.content === content ? { link_embeds: linkEmbeds } : {}));
+    } catch (err) {
+      console.warn('Could not add link previews', err?.message);
+    }
   }
 
   async function deleteMessage(messageId) {
@@ -369,7 +404,14 @@ export function useGroupConversation({ groupId, user, onRead }) {
           const original = messagesRef.current.find((m) => m.id === event.messageId);
           if (!original) break;
           const text = await decryptText(event.content, original.epoch, original.sender_id, signatureContextOf({ ...original, edited: 1 }));
-          updateMessage(event.messageId, () => ({ ...text, edited: 1 }));
+          updateMessage(event.messageId, () => ({ ...text, content: event.content, edited: 1, link_embeds: null }));
+          break;
+        }
+        case 'group_dm_message_link_previews': {
+          const msg = messagesRef.current.find((m) => m.id === event.messageId);
+          if (!msg || msg.plaintext == null || msg.plaintext === UNREADABLE || msg.unverified) break;
+          const linkEmbeds = await openPreviews(event.link_previews, msg, msg.plaintext);
+          updateMessage(event.messageId, (m) => (m.content === msg.content ? { link_embeds: linkEmbeds } : {}));
           break;
         }
         case 'group_dm_message_delete':

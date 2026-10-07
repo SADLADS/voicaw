@@ -42,6 +42,11 @@ export async function editGroupMessage(messageId, content, uploads = []) {
   await api.put(`/group-dm-messages/${messageId}`, { content, uploads });
 }
 
+// The previews this device made for its own message (services/linkPreviewCrypto.js), or null.
+export async function setGroupLinkPreviews(messageId, previews) {
+  await api.put(`/group-dm-messages/${messageId}/link-previews`, { previews });
+}
+
 export async function deleteGroupMessage(messageId) {
   await api.delete(`/group-dm-messages/${messageId}`);
 }

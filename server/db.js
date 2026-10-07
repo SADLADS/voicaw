@@ -317,6 +317,10 @@ CREATE TABLE IF NOT EXISTS direct_messages (
   FOREIGN KEY (recipient_id) REFERENCES users(id)
 );
 `);
+// Link previews the sender's app made (the server never sees an encrypted chat's links):
+// encrypted like the message, set after it's sent and cleared by an edit. See Link previews in
+// docs/messages.md. Group DM messages have the same.
+addColumn('ALTER TABLE direct_messages ADD COLUMN link_previews TEXT');
 
 // DM REACTIONS
 // The emoji is encrypted (padded to a fixed size, so its length doesn't give it away); which
@@ -423,6 +427,7 @@ CREATE TABLE IF NOT EXISTS group_dm_messages (
 );
 `);
 sqlite.exec('CREATE INDEX IF NOT EXISTS group_dm_messages_group ON group_dm_messages (group_id, id)');
+addColumn('ALTER TABLE group_dm_messages ADD COLUMN link_previews TEXT');
 
 // Encrypted like DM reactions (same fixed size), with the message's epoch key.
 sqlite.exec(`

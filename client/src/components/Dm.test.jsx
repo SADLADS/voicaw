@@ -31,6 +31,7 @@ vi.mock('../utils/ws-client', () => ({
     dmListeners.pin.push(cb);
     return () => { dmListeners.pin = dmListeners.pin.filter((x) => x !== cb); };
   },
+  onDmLinkPreviews: () => () => {},
 }));
 
 vi.mock('../utils/api', () => ({

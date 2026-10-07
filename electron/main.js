@@ -16,6 +16,7 @@ const { setStartAtLogin, startedHidden } = require('./autoStart');
 const { createScreenShare } = require('./screenShare');
 const { windowOpenAction, streamWindowPermission } = require('./windowOpen');
 const { setUpYouTubeReferer } = require('./youtube');
+const { fetchPage } = require('./pageFetch');
 
 const APP_ID = 'com.voicaw.app';
 const BUILD_DIR = app.isPackaged ? path.join(process.resourcesPath, 'app') : path.join(__dirname, '../build');
@@ -184,6 +185,8 @@ function setUpIpc() {
     ipcMain.on('desktop:spelling-words', (event, words) => {
         if (fromApp(event)) syncSpellingWords(event.sender.session, words).catch(() => {});
     });
+    // A linked page for a link preview in an encrypted chat (pageFetch.js).
+    ipcMain.handle('desktop:fetch-page', (event, url) => (fromApp(event) ? fetchPage(url) : null));
     ipcMain.handle('desktop:check-updates', (event) => (fromApp(event) ? updater.check() : null));
     // Resolves to false if there was nothing to install; otherwise the app restarts onto it.
     ipcMain.handle('desktop:install-update', (event) => {

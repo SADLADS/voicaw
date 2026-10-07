@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { CALL_LOG } = require('../callLog');
-const { maxPlaintextLength, getMaxEncryptedLength } = require('../config');
+const { maxPlaintextLength, getMaxEncryptedLength, MAX_LINK_PREVIEWS_BYTES } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
 const { sendPushToUser, buildGroupPushPayload } = require('../push');
@@ -26,6 +26,7 @@ const MAX_REACTIONS_PER_USER_PER_MESSAGE = 50;
 const SIGNED_PREFIX = 'v2.';
 const SIGNATURE_BYTES = 64;
 const MAX_MESSAGE_LENGTH = getMaxEncryptedLength(maxPlaintextLength + SIGNATURE_BYTES);
+const MAX_PREVIEWS_LENGTH = getMaxEncryptedLength(MAX_LINK_PREVIEWS_BYTES + SIGNATURE_BYTES);
 // A signed reaction is always one of these long: signature + 256 padded bytes (64 from apps
 // from before answers could be added to polls; see DM reactions).
 const REACTION_LENGTHS = [256, 64].map((padded) => getMaxEncryptedLength(SIGNATURE_BYTES + padded));
@@ -43,7 +44,7 @@ function contentError(content) {
 // a reply's parent only if they can read that too.
 const MESSAGE_SELECT = `
   SELECT m.id, m.group_id, m.epoch, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
-    m.pinned_at, m.pinned_by, m.system,
+    m.pinned_at, m.pinned_by, m.system, m.link_previews,
     u.username AS sender_username,
     u.display_name AS sender_display_name,
     CASE WHEN pk.user_id IS NOT NULL THEN pm.content END AS parent_content,
@@ -330,11 +331,25 @@ router.put('/group-dm-messages/:messageId', authenticateJWT, findMessage, async 
   if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not your message' });
   if (req.message.system) return res.status(403).json({ error: "This message can't be edited" });
   await db.transaction(async () => {
-    await db.run('UPDATE group_dm_messages SET content = ?, edited = 1 WHERE id = ?', [content.trim(), req.message.id]);
+    await db.run('UPDATE group_dm_messages SET content = ?, edited = 1, link_previews = NULL WHERE id = ?', [content.trim(), req.message.id]);
     await linkListed('group', req.message.id, uploads, req.user.id, { edit: true });
   });
   releaseUploads();
   await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_edit', groupId: req.message.group_id, messageId: req.message.id, content: content.trim() });
+  res.json({ success: true });
+});
+
+// The sender's app's link previews for their message (Link previews in docs/messages.md):
+// { previews }, signed and encrypted like the message, or null to remove them. An edit clears them.
+router.put('/group-dm-messages/:messageId/link-previews', authenticateJWT, findMessage, async (req, res) => {
+  const previews = req.body?.previews;
+  if (!(previews === null || (typeof previews === 'string' && previews.startsWith(SIGNED_PREFIX) && previews.length <= MAX_PREVIEWS_LENGTH))) {
+    return res.status(400).json({ error: 'Invalid input' });
+  }
+  if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not your message' });
+  if (req.message.system) return res.status(403).json({ error: "This message can't be changed" });
+  await db.run('UPDATE group_dm_messages SET link_previews = ? WHERE id = ?', [previews, req.message.id]);
+  await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_link_previews', groupId: req.message.group_id, messageId: req.message.id, link_previews: previews });
   res.json({ success: true });
 });
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { onNewDm, onDeleteDm, onEditDm, onReactionAdd, onReactionRemove, onDmPin, setActiveChat } from '../utils/ws-client';
+import { onNewDm, onDeleteDm, onEditDm, onReactionAdd, onReactionRemove, onDmPin, onDmLinkPreviews, setActiveChat } from '../utils/ws-client';
 import { uploadNamesIn } from '../utils/attachmentMarkup';
 import {
   fetchMessagesForUser,
@@ -9,6 +9,7 @@ import {
   deleteMessage as deleteMessageOnServer,
   fetchPins,
   setMessagePinned,
+  setLinkPreviews,
 } from '../services/dmService';
 import {
   encryptMessage,
@@ -23,10 +24,22 @@ import {
 } from '../services/encryptionService';
 import { loadEncryptionKey, loadOwnPublicKeys } from '../services/keyStore';
 import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
+import { dmPreviewsContext, openDmPreviews, sealDmPreviews } from '../services/linkPreviewCrypto';
+import { previewsFor } from '../services/linkPreviewService';
 import { t } from '../i18n';
 
 // Older history is fetched in pages this size as you scroll up.
 export const PAGE_SIZE = 50;
+
+// A decrypted row with its link previews opened (`link_embeds`, drawn as a guild's are; see
+// services/linkPreviewCrypto.js), when its sender's app made some.
+async function withLinkPreviews(row, key) {
+  if (!row.link_previews || row.plaintext == null) return row;
+  const context = dmPreviewsContext(row.id, row.sender_id, row.recipient_id);
+  return { ...row, link_embeds: await openDmPreviews(row.link_previews, row.content, row.plaintext, key, context) };
+}
+
+const decryptRows = async (rows, key) => Promise.all((await decryptMessagesBatch(rows, key)).map((row) => withLinkPreviews(row, key)));
 
 // One DM conversation (with `chatUser`): checks their keys, loads and pages the history,
 // sends, edits and deletes, and applies live changes from the websocket. `onRead` runs after
@@ -134,7 +147,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
         }
 
         const page = await fetchMessagesForUser(id, { limit: PAGE_SIZE });
-        const decrypted = await decryptMessagesBatch(page, key);
+        const decrypted = await decryptRows(page, key);
         if (cancelled) return;
 
         setSharedKey(key);
@@ -177,7 +190,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     const chatId = id;
     try {
       const page = await fetchMessagesForUser(chatId, { before: oldest.id, limit: PAGE_SIZE });
-      const decrypted = await decryptMessagesBatch(page, sharedKey);
+      const decrypted = await decryptRows(page, sharedKey);
       if (activeChatId.current !== chatId) return;
 
       // Skip anything already shown (e.g. overlapping pages), which would otherwise
@@ -266,6 +279,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
         parent_plaintext: tempMessage.parent_plaintext,
       }));
       setError(null);
+      attachLinkPreviews(saved.id, saved.content, finalText);
       return saved;
     } catch (err) {
       console.error('Error sending message:', err);
@@ -277,7 +291,27 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   async function editMessage(messageId, text) {
     const encrypted = await encryptMessage(text, sharedKey, dmContext(user.id, chatUser.id));
     await saveEditedMessage(messageId, encrypted, uploadNamesIn(text));
-    updateMessage(messageId, () => ({ plaintext: text }));
+    // An edit clears the previews (the server too); this device makes them again.
+    updateMessage(messageId, () => ({ plaintext: text, content: encrypted, link_embeds: null }));
+    attachLinkPreviews(messageId, encrypted, text);
+  }
+
+  // Makes and stores the link previews for this device's message (stored as `content`), if it
+  // can (services/linkPreviewService.js). Not awaited: the message is already sent, and its
+  // previews follow, as a guild's do.
+  async function attachLinkPreviews(messageId, content, text) {
+    try {
+      const embeds = await previewsFor(text);
+      if (!embeds.length) return;
+      const context = dmPreviewsContext(messageId, user.id, chatUser.id);
+      const envelope = await sealDmPreviews(embeds, content, sharedKey, context);
+      if (!envelope) return;
+      await setLinkPreviews(messageId, envelope);
+      const linkEmbeds = await openDmPreviews(envelope, content, text, sharedKey, context);
+      updateMessage(messageId, (m) => (m.content === content ? { link_embeds: linkEmbeds } : {}));
+    } catch (err) {
+      console.warn('Could not add link previews', err?.message);
+    }
   }
 
   async function deleteMessage(messageId) {
@@ -288,7 +322,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   // The conversation's pinned messages, decrypted, most recently pinned first.
   async function loadPins() {
     if (!sharedKey) return [];
-    return decryptMessagesBatch(await fetchPins(chatUser.id), sharedKey);
+    return decryptRows(await fetchPins(chatUser.id), sharedKey);
   }
 
   async function setPinned(msg, pinned) {
@@ -300,7 +334,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     if (!user?.id || !chatUser?.id || !sharedKey) return undefined;
 
     const unsubscribeNew = onNewDm(async (message) => {
-      addIncomingMessage(await decryptMessageRow({ ...message, reactions: [] }, sharedKey));
+      addIncomingMessage(await withLinkPreviews(await decryptMessageRow({ ...message, reactions: [] }, sharedKey), sharedKey));
     });
 
     const unsubscribeDelete = onDeleteDm(({ messageId }) => {
@@ -312,7 +346,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
       if (!original) return;
       try {
         const plaintext = await decryptMessage(content, sharedKey, dmContext(original.sender_id, original.recipient_id));
-        updateMessage(messageId, () => ({ plaintext, edited: 1 }));
+        updateMessage(messageId, () => ({ plaintext, content, edited: 1, link_embeds: null }));
       } catch (err) {
         console.error('Failed to decrypt edited message', err);
       }
@@ -342,8 +376,16 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
       if (between === [user.id, chatUser.id].map(String).sort().join()) applyPin(event);
     });
 
+    const unsubscribeLinkPreviews = onDmLinkPreviews(async ({ messageId, link_previews: previews }) => {
+      const msg = messagesRef.current.find((m) => m.id === messageId);
+      if (!msg) return;
+      const linkEmbeds = await openDmPreviews(previews, msg.content, msg.plaintext, sharedKey, dmPreviewsContext(msg.id, msg.sender_id, msg.recipient_id));
+      updateMessage(messageId, (m) => (m.content === msg.content ? { link_embeds: linkEmbeds } : {}));
+    });
+
     return () => {
       unsubscribeNew();
+      unsubscribeLinkPreviews();
       unsubscribeDelete();
       unsubscribeEdit();
       unsubscribeReactionAdd();

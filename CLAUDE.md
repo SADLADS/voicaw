@@ -258,11 +258,15 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - **Voice channels' chat** (built 2026-10-06, see `docs/guilds.md`): as in Discord, every voice
   channel is also a permanent chat for anyone who can see it, in the call or not (not only
   those connected); a side panel toggled from the header (`?chat=1`), no threads.
-- **Link previews** (built 2026-10-05, see Link previews in `docs/messages.md`): guilds only
-  have page previews, fetched by the server (`safeFetch.js`: public addresses only); encrypted
-  chats never send links to the server, so there only links straight to a picture or video show
-  it, loaded by the reader. Pictures load from the sites (not proxied); Settings → Privacy can
-  hold them back (on by default), Settings → Admin can stop the fetching.
+- **Link previews** (built 2026-10-05, see Link previews in `docs/messages.md`): guilds' page
+  previews are fetched by the server (`safeFetch.js`: public addresses only); encrypted
+  chats never send links to the server: there links straight to a picture or video show it,
+  loaded by the reader, and since 2026-10-07 the sender's desktop or Android app makes page
+  previews itself (as Signal does; the site sees the sender's IP address) and sends them
+  encrypted beside the message, bound to it (and signed in groups). The web app can't (browsers
+  can't read other sites' pages) and deliberately doesn't ask the server instead. Pictures load
+  from the sites (not proxied); Settings → Privacy can hold them back (on by default), Settings →
+  Admin can stop the server's fetching.
 - **Events** (built 2026-10-05, see Events in `docs/guilds.md`): Discord's scheduled events
   (Discord has no calendar), in a voice channel or somewhere else, with covers, Interested and
   Discord's repeat rules laid on the creator's time zone's wall clock. Every event starts on its own

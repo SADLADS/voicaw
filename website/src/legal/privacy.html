@@ -17,11 +17,12 @@
 
 <h2 id="encrypted">What's end-to-end encrypted</h2>
 <p>In direct messages, group chats and your notes: the text of messages, files and pictures, which
-  emoji you react with, polls, a group's name, and calls (voice and camera). Your spellcheck dictionary is
+  emoji you react with, polls, link previews, a group's name, and calls (voice and camera). Your spellcheck dictionary is
   encrypted too. Your device locks these with keys only you and the people in the conversation
   have.</p>
 <p>The server still has to know some things to deliver them: who sent a message to whom, and when,
-  which message it replies to, whether it was edited or pinned, its size, who reacted to which
+  which message it replies to, whether it was edited or pinned, its size (and whether it has link
+  previews, and theirs), who reacted to which
   message, who's in a group and when people were added or removed, and when someone is typing. A
   call's record in the chat (whether it was answered, how long it lasted, who joined) isn't
   encrypted.</p>
@@ -94,9 +95,13 @@
     from YouTube (unless you've made YouTube wait), which then sees your IP address.</li>
   <li><strong>Link previews.</strong> When a link is posted in a guild, Voicaw's server visits
     it to show a preview (the page's title, description and picture), so that website sees
-    Voicaw's server asking, not who posted it. Links in direct messages and group chats are never
-    sent to the server for this. You can turn previews off for the whole of a Voicaw server in
-    its admin settings.</li>
+    Voicaw's server asking, not who posted it. You can turn these off for the whole of a Voicaw
+    server in its admin settings. Links in direct messages and group chats are never sent to the
+    server for this: if you send one from the desktop or Android app, your app visits the website
+    itself to make the preview, so that website sees your IP address (as it would if you opened the
+    link), and the preview is sent end-to-end encrypted with your message. The web app doesn't make
+    them. Turning off "Show link previews" in Settings → Privacy stops your app visiting links for
+    this.</li>
   <li><strong>Pictures and videos from other websites</strong> in messages (link previews, links
     straight to a picture or a video, and bots' and webhooks' messages) load from those websites,
     which see your IP address (but not which page you're on). You can make them wait until you

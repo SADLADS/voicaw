@@ -12,6 +12,7 @@ const editListeners = new Set();
 const reactionAddListeners = new Set();
 const reactionRemoveListeners = new Set();
 const dmPinListeners = new Set();
+const dmLinkPreviewsListeners = new Set();
 const guildListeners = new Set();
 const callListeners = new Set();
 const groupListeners = new Set();
@@ -167,6 +168,9 @@ export function connectWebSocket() {
       else if (data.type === 'dm_pin') {
         dmPinListeners.forEach((cb) => cb(data));
       }
+      else if (data.type === 'dm_link_previews') {
+        dmLinkPreviewsListeners.forEach((cb) => cb(data));
+      }
       else if (data.type?.startsWith('guild_')) {
         guildListeners.forEach((cb) => cb(data));
       }
@@ -285,6 +289,7 @@ export function closeWebSocket() {
   reactionAddListeners.clear();
   reactionRemoveListeners.clear();
   dmPinListeners.clear();
+  dmLinkPreviewsListeners.clear();
   guildListeners.clear();
 }
 
@@ -331,6 +336,12 @@ export function onReactionRemove(callback) {
 export function onDmPin(callback) {
   dmPinListeners.add(callback);
   return () => dmPinListeners.delete(callback);
+}
+
+// A DM's sender set its link previews: { messageId, link_previews } (encrypted, or null).
+export function onDmLinkPreviews(callback) {
+  dmLinkPreviewsListeners.add(callback);
+  return () => dmLinkPreviewsListeners.delete(callback);
 }
 
 // Every guild event, as sent by the server: `{ type: 'guild_add' | 'guild_update' |

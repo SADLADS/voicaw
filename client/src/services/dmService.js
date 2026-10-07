@@ -52,6 +52,11 @@ export async function editMessage(messageId, content, uploads = []) {
   await api.put(`/update-message/${messageId}`, { content, uploads });
 }
 
+// The previews this device made for its own message (services/linkPreviewCrypto.js), or null.
+export async function setLinkPreviews(messageId, previews) {
+  await api.put(`/dm-messages/${messageId}/link-previews`, { previews });
+}
+
 export async function deleteMessage(messageId) {
   await api.delete(`/messages/${messageId}`);
 }

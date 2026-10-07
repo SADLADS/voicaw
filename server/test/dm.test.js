@@ -286,3 +286,29 @@ describe('direct messages', () => {
   });
 });
 
+describe('DM link previews', () => {
+  const put = (user, id, previews) => request(app).put(`/api/dm-messages/${id}/link-previews`).set(authed(user.token)).send({ previews });
+
+  it('lets only the sender set them, and an edit clears them', async () => {
+    const alice = await makeAuthedUser('lp-alice', 'pw-alice-123');
+    const bob = await makeAuthedUser('lp-bob', 'pw-bob-123');
+    const sent = await request(app).post('/api/dm-send').set(authed(alice.token)).send({ recipient_id: bob.id, content: 'v1.message' });
+    const id = sent.body.id;
+    expect(sent.body.link_previews).toBe(null);
+
+    expect((await put(bob, id, 'v1.previews')).status).toBe(403);
+    expect((await put(alice, id, 'plain')).status).toBe(400);
+    expect((await put(alice, id, `v1.${'A'.repeat(maxEncryptedLength(16 * 1024))}`)).status).toBe(400);
+    expect((await put(alice, 999999, 'v1.previews')).status).toBe(404);
+    expect((await put(alice, id, 'v1.previews')).status).toBe(200);
+    const listed = await request(app).get(`/api/dm-messages/${bob.id}`).set(authed(alice.token));
+    expect(listed.body.find((m) => m.id === id).link_previews).toBe('v1.previews');
+
+    await request(app).put(`/api/update-message/${id}`).set(authed(alice.token)).send({ content: 'v1.edited' });
+    const after = await request(app).get(`/api/dm-messages/${alice.id}`).set(authed(bob.token));
+    expect(after.body.find((m) => m.id === id).link_previews).toBe(null);
+
+    expect((await put(alice, id, null)).status).toBe(200);
+  });
+});
+

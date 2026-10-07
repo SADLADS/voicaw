@@ -10,7 +10,8 @@ module-level in `sockets.js`, so routes can push events (and tests can fake sock
 identify themselves post-connect with `{ type: 'identify', token }` (JWT); the server maps
 `userId -> [sockets]` in an in-memory `clients` Map (a user can have multiple open sockets/tabs).
 Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, `reaction_remove`,
-`dm_pin` (see Pinned messages),
+`dm_pin` (see Pinned messages), `dm_link_previews` (and groups' `group_dm_message_link_previews`:
+a sender's encrypted link previews; see Link previews),
 `user_status` and `presence_snapshot` (see Online status), `user_profile` (someone changed their
 profile, to every logged-in socket; see Profiles), `account_deleted` (to your own sockets: log
 out; see Deleting an account), `session_revoked` (to the sockets of a session logged out from

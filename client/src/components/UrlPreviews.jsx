@@ -90,8 +90,9 @@ function YouTubeEmbed({ id, link }) {
 
 // Embeds the app makes itself for links in a message (those utils/linkPreviews `linksIn`
 // finds): Voicaw guild invites and YouTube videos and, in an end-to-end encrypted chat
-// (`encrypted`), links straight to a picture or a video, shown from that site (LinkMedia; a
-// guild's come from the server's link previews instead, MessageEmbeds). Invites in encrypted
+// (`encrypted`), links straight to a picture or a video, shown from that site (LinkMedia; page
+// previews come from the server in a guild and from the sender's app in an encrypted chat,
+// drawn by MessageEmbeds). Invites in encrypted
 // chats only load when tapped (see InviteEmbed); event links only show in guild channels.
 // With Settings → Privacy's "Show link previews" off, only invites and events (Voicaw's own) show.
 // `onRemove(event)`: an X beside each (RemovableEmbed), removing the message's previews.

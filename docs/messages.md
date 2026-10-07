@@ -199,8 +199,28 @@ YouTube links and guild invites keep their own player and card (`UrlPreviews.jsx
 - **DMs, group DMs and notes** (encrypted): the server never sees the links, so it makes no
   previews. A link whose address ends in a picture's or a video's file name (`mediaLinkKind`:
   png, jpg, gif, webp, avif, bmp; mp4, webm, mov, m4v) shows that file, loaded by the reader's
-  browser from the site; other pages stay plain links (a browser can't read other sites'
-  pages, and asking our server would tell it the link).
+  browser from the site. Other pages get a preview only from a sender using the desktop or
+  Android app, as Signal does: the message is sent as usual, then the sender's app fetches its
+  links (`services/linkPreviewService.js` `previewsFor`; not YouTube, invite or media links,
+  and nothing with "Show link previews" off) through its native side, which can read other
+  sites (a web page can't, and asking our server would tell it the link): `electron/pageFetch.js`
+  (the server's `safeFetch.js`, copied; a test keeps them the same) or `PageFetch.java` (its own
+  sockets, to the address it checked), both public addresses only, ports 80/443, 5 redirects,
+  5 s, a page's first 1 MB, nothing of a picture or video. `utils/pageEmbed.js` (a copy of
+  the server's `embedFromHtml`, tested alike) reads the card. The embeds go encrypted beside the
+  message (`services/linkPreviewCrypto.js`): `PUT /dm-messages/:id/link-previews` or
+  `/group-dm-messages/:id/link-previews` `{ previews }` (the sender only; null removes) stores
+  them in `link_previews` and sends `dm_link_previews` / `group_dm_message_link_previews`; an
+  edit clears them and the sender's app makes them again. The payload is
+  `{"v":1,"content":<base64 SHA-256 of the message's stored ciphertext>,"embeds":[...]}`,
+  encrypted with the conversation's key under `voicaw/link-previews/v1|<message id>|<sender>|<recipient>`
+  (groups: the message's epoch key, `voicaw/group-link-previews/v1|<group>|<epoch>|<message id>|<sender>`,
+  signed by the sender like messages, `voicaw/group-link-previews-sig/v1|…`), so the server can't
+  move them to another message or keep them past an edit, and a group member can't make them for
+  someone else's. Readers check them again (`checkedEmbed`: only for links in the text, 5 at most,
+  only an embed's fields and http(s) addresses) and draw them as guild previews
+  (`link_embeds`). Up to 16 KB before encryption (`MAX_LINK_PREVIEWS_BYTES`). Older apps ignore
+  the field.
 - **Drawing:** `MessageEmbeds` with `links` (after the message's own embeds and files): a page's
   card (its description plain text, not markdown: it's another site's words), a picture
   (`LinkMedia.jsx` `SiteImage`: opens in the image viewer, draws nothing if it fails to load)
@@ -210,7 +230,8 @@ YouTube links and guild invites keep their own player and card (`UrlPreviews.jsx
   (`MessageEmbeds` with `links`), no YouTube players and no linked pictures or videos in
   encrypted chats (`UrlPreviews`), so nothing loads from those sites. Voicaw's own invite and
   event cards and bots' and webhooks' embeds still show. Only this device's display changes:
-  the server still makes guild previews for everyone else. The setting below is then moot
+  the server still makes guild previews for everyone else. The desktop and Android apps also stop
+  fetching links for previews of the encrypted messages sent from them. The setting below is then moot
   (greyed out).
 - **Settings → Privacy's "Show pictures and videos from links straight away"** (`linkPreviews`,
   per device, on by default): off, other sites' pictures (link previews', links to pictures,
@@ -226,8 +247,11 @@ YouTube links and guild invites keep their own player and card (`UrlPreviews.jsx
   hovered; `RemovableEmbed`, for the same people) does the same, asking first unless Shift is
   held. A bot's or webhook's own embeds have no X (the menu still removes them).
 - **Who sees what:** the sites linked in guilds see our server ask for the page (not who
-  posted it); the sites whose pictures or videos are shown see each reader's IP address, in
-  any chat, unless the setting is off. Checked in `e2e/linkpreviews.mjs`.
+  posted it); the sites linked in encrypted chats see the sender's desktop or Android app ask
+  (their IP address, as opening the link would), and our server sees only that a message has
+  previews and their size; the sites whose pictures or videos are shown see each reader's IP
+  address, in any chat, unless the setting is off. Checked in `e2e/linkpreviews.mjs` (the
+  encrypted chats' previews in `e2e/dmlinkpreviews.mjs`).
 
 ## Polls
 

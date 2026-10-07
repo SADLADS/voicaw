@@ -108,6 +108,7 @@ node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept p
 node e2e/avatar.mjs [dir] # message avatars: top with the name, bottom with the first line of text, reply line to its middle (desktop + phone)
 node e2e/safearea.mjs [dir] # safe areas (CDP-made iPhone insets): user panel above the home indicator, landscape notch, unchanged without insets
 node e2e/linkpreviews.mjs [dir] # link previews (stand-in website, needs ffmpeg): guild card/picture/video fetched by the server, live; Privacy off = text only, nothing asked of the site until Show/Play (phone); Remove Previews for both; the X beside a preview (on hover, asks, Shift skips, none on a phone); DM: server fetches nothing, picture links only
+node e2e/dmlinkpreviews.mjs [dir] # encrypted chats' link previews (stand-in website on E2E_SITE_PORT, 3107; needs ffmpeg): the sender's desktop app (stand-in bridge) makes a video card and an article card, live for the other person, only ciphertext on the server and the server fetches nothing, after a reload, an edit remakes them, none from the web app or with Privacy's "Show link previews" off, group DM on a phone (signed, fits)
 node e2e/embedprivacy.mjs [dir] # Settings → Privacy YouTube/GIFs off: placeholders, nothing asked of YouTube/Klipy until Play/Show, GIF picker warns first; defaults load at once (stand-ins, phone)
 KLIPY_API_KEY=… node e2e/gifs.mjs [dir] # admin sets the Klipy key, GIFs tab, search, favourites, send (real Klipy)
 kill %1                  # stops all the servers (kill the serve.mjs process itself)
