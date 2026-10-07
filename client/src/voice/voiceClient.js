@@ -69,7 +69,8 @@ function loadPrefs() {
 // status: 'idle' | 'connecting' | 'connected' | 'reconnecting'. `speaking` holds the user ids
 // (strings) talking right now. `error` is why joining failed or the connection ended;
 // `micError` why the microphone can't be used (you stay in, listening). `audioBlocked`: the
-// browser wants a click before it plays sound.
+// browser wants a click before it plays sound. `micTesting`: the mic test is running, which
+// mutes and deafens you (setMicTesting).
 // In a voice channel: `guildId`, `channelId`; in a call: `callId`. `muted` holds the others
 // whose microphone is off (in a call, where the API doesn't track it).
 // `identity`: our own user id (a string) in the room.
@@ -99,6 +100,7 @@ let snapshot = {
   ...NOT_IN_VOICE,
   ...loadPrefs(),
   canSpeak: true,
+  micTesting: false,
   canStream: false,
   canCamera: false,
   error: null,
@@ -397,6 +399,7 @@ async function syncMicrophone() {
     if (room !== current) return;
     // No microphone, or not allowed: stay in the channel, muted.
     console.warn('Microphone unavailable', err);
+    if (beforeMicTest) beforeMicTest.selfMute = true;
     setPrefs({ selfMute: true }, { micError: micErrorMessage(err) });
   } finally {
     // Whatever happened, what's sent matches what's wanted now: LiveKit's mute stops the mic
@@ -841,10 +844,15 @@ export function setVoiceError(error) {
 
 const prefs = () => ({ selfMute: snapshot.selfMute, selfDeaf: snapshot.selfDeaf });
 
+// While the microphone test runs (Settings → Voice & video) you're muted and deafened, so a
+// call doesn't hear the test or play over it: what mute and deafen were before, put back when
+// it ends. The device keeps remembering those (a page closed mid-test isn't left muted).
+let beforeMicTest = null;
+
 function setPrefs(changes, extra = {}) {
   update({ ...changes, ...extra });
   try {
-    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs()));
+    localStorage.setItem(PREFS_KEY, JSON.stringify(beforeMicTest ?? prefs()));
   } catch {
     // Not remembered, then.
   }
@@ -855,13 +863,27 @@ function setPrefs(changes, extra = {}) {
   }
 }
 
-// Unmuting while deafened undeafens too (like Discord).
+export function setMicTesting(on) {
+  if (on === (beforeMicTest !== null)) return;
+  if (on) {
+    beforeMicTest = prefs();
+    setPrefs({ selfMute: true, selfDeaf: true }, { micTesting: true });
+  } else {
+    const before = beforeMicTest;
+    beforeMicTest = null;
+    setPrefs(before, { micTesting: false });
+  }
+}
+
+// Unmuting while deafened undeafens too (like Discord). Neither changes during a mic test.
 export function setSelfMute(selfMute) {
+  if (beforeMicTest) return;
   playSound(selfMute ? 'mute' : 'unmute');
   setPrefs(selfMute || !snapshot.selfDeaf ? { selfMute } : { selfMute, selfDeaf: false }, { micError: null });
 }
 
 export function setSelfDeaf(selfDeaf) {
+  if (beforeMicTest) return;
   playSound(selfDeaf ? 'deafen' : 'undeafen');
   setPrefs({ selfDeaf });
 }

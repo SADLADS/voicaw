@@ -3,6 +3,7 @@ import {
   canChooseInput, canChooseOutput, listAudioDevices, onDeviceChange, resetAudioSettings, setAudioSettings, useAudioSettings,
 } from '../voice/audioSettings';
 import { startMicTest } from '../voice/micTest';
+import { setMicTesting } from '../voice/voiceClient';
 import CameraSettings from './CameraSettings';
 import { ALWAYS_OPEN_DB } from '../voice/noise/gate';
 import {
@@ -67,6 +68,14 @@ export default function VoiceSettings() {
     }
     refreshDevices();
   };
+
+  // Testing mutes and deafens you (in a call too) until it stops; a restart below doesn't
+  // let go in between.
+  useEffect(() => {
+    if (!testing) return undefined;
+    setMicTesting(true);
+    return () => setMicTesting(false);
+  }, [testing]);
 
   // The test runs with the chosen microphone and processing; changing those restarts it.
   const { inputDeviceId, echoCancellation, noiseSuppression, autoGainControl } = settings;

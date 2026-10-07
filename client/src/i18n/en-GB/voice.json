@@ -58,7 +58,8 @@
     },
     "controls": {
       "deafen": "Deafen",
-      "undeafen": "Undeafen"
+      "undeafen": "Undeafen",
+      "micTesting": "Muted and deafened while you test your mic"
     },
     "errors": {
       "micBlocked": "Microphone access is blocked. Allow it in your browser to talk.",

@@ -49,6 +49,16 @@ button.user-panel-button {
   color: var(--vc-danger-text);
 }
 
+/* Held on by the mic test. */
+.voice-toggle:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.voice-toggle:disabled:hover {
+  background-color: transparent;
+}
+
 /* ---- Voice bar ---- */
 
 .voice-bar {

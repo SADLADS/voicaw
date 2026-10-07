@@ -229,6 +229,40 @@ describe('voiceClient mute and deafen', () => {
     expect(sending()).toBe(true);
   });
 
+  it('the mic test mutes and deafens until it ends, then puts both back', async () => {
+    lk.state.capture = lk.deferred();
+    lk.state.capture.resolve();
+    voice.setSelfMute(false);
+    voice.setSelfDeaf(false);
+    await voice.joinVoice(1, 2);
+    await flush();
+    expect(sending()).toBe(true);
+
+    voice.setMicTesting(true);
+    await flush();
+    expect(voice.getVoiceSnapshot()).toMatchObject({ selfMute: true, selfDeaf: true, micTesting: true });
+    expect(sending()).toBe(false);
+    // Remembered as before the test, and the buttons can't let go of it.
+    expect(JSON.parse(localStorage.getItem('voicePrefs'))).toEqual({ selfMute: false, selfDeaf: false });
+    voice.setSelfDeaf(false);
+    voice.setSelfMute(false);
+    await flush();
+    expect(sending()).toBe(false);
+
+    voice.setMicTesting(false);
+    await flush();
+    expect(voice.getVoiceSnapshot()).toMatchObject({ selfMute: false, selfDeaf: false, micTesting: false });
+    expect(sending()).toBe(true);
+  });
+
+  it('after the mic test, someone already muted stays muted', async () => {
+    voice.setSelfDeaf(false);
+    voice.setSelfMute(true);
+    voice.setMicTesting(true);
+    voice.setMicTesting(false);
+    expect(voice.getVoiceSnapshot()).toMatchObject({ selfMute: true, selfDeaf: false });
+  });
+
   it('deafened, a voice stays silent when LiveKit rebuilds its audio', async () => {
     lk.state.capture = lk.deferred();
     lk.state.capture.resolve();
