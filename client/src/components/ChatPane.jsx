@@ -22,7 +22,7 @@ import { handleInteractionResult, runCommand } from '../services/interactionServ
 import { interactionError } from '../utils/commandOptions';
 import { t } from '../i18n';
 import { flashRow } from '../utils/flashRow';
-import { SUPPRESS_EMBEDS } from '../utils/linkPreviews';
+import { drawnByApp, linksIn, SUPPRESS_EMBEDS } from '../utils/linkPreviews';
 import { clearTyping } from '../utils/typing';
 import { endPoll, parsePoll, pollEnded, pollMarkup, pollWithAnswers } from '../utils/pollMarkup';
 import { endPollOnServer, registerPollTimer, removeGuildPollAnswer } from '../services/pollService';
@@ -119,6 +119,8 @@ export default function ChatPane({
   const closeMenu = useCallback(() => setMenuFor(null), []);
   // The message the "Delete message?" dialog is asking about.
   const [confirmingDelete, setConfirmingDelete] = useState(null);
+  // The message whose previews the "Remove previews?" dialog is asking about (the X on one).
+  const [confirmingRemovePreviews, setConfirmingRemovePreviews] = useState(null);
   // The message being reported (ReportDialog): anyone else's real message, sent.
   const [reporting, setReporting] = useState(null);
   const reportable = (msg) => Boolean(pollKind) && msg.sender_id !== user.id && !msg.system && !msg.ephemeral &&
@@ -306,19 +308,30 @@ export default function ChatPane({
     }
   }
 
-  // "Remove previews" on a guild message (useChannel), for its author or a moderator, while it has some.
-  function removePreviewsFor(msg) {
-    if (!conversation.suppressEmbeds || msg.flags & SUPPRESS_EMBEDS) return undefined;
-    if (msg.sender_id !== user.id && !canModerate) return undefined;
-    if (!msg.link_embeds?.length && !msg.embeds?.length) return undefined;
-    return async () => {
-      try {
-        await conversation.suppressEmbeds(msg);
-      } catch (err) {
-        console.error('Failed to remove previews', err);
-        setComposerError(err.response?.data?.error || t('chat.pane.removePreviewsFailed'));
-      }
-    };
+  // "Remove previews" on a guild message (useChannel), for its author or a moderator, while it
+  // has some: the server's, a bot's, or the app's own (YouTube players, invite cards).
+  function canRemovePreviews(msg) {
+    if (!conversation.suppressEmbeds || msg.flags & SUPPRESS_EMBEDS) return false;
+    if (msg.sender_id !== user.id && !canModerate) return false;
+    return Boolean(msg.link_embeds?.length || msg.embeds?.length || linksIn(msg.plaintext ?? '').some(drawnByApp));
+  }
+
+  async function removePreviews(msg) {
+    try {
+      await conversation.suppressEmbeds(msg);
+    } catch (err) {
+      console.error('Failed to remove previews', err);
+      setComposerError(err.response?.data?.error || t('chat.pane.removePreviewsFailed'));
+    }
+  }
+
+  // The menus' "Remove previews" (asked for already, so no question).
+  const removePreviewsFor = (msg) => (canRemovePreviews(msg) ? () => removePreviews(msg) : undefined);
+
+  // The X beside a preview (MessageList): asks first, unless Shift is held, as Discord does.
+  function requestRemovePreviews(msg, event) {
+    if (event?.shiftKey) removePreviews(msg);
+    else setConfirmingRemovePreviews(msg);
   }
 
   // Scrolls the chat to message `id` (loading older history until it's there) and flashes it.
@@ -403,6 +416,8 @@ export default function ChatPane({
             canAddReactions={canAddReactions}
             canPin={canPin}
             onTogglePin={togglePin}
+            canRemovePreviews={isMobile ? undefined : canRemovePreviews}
+            onRemovePreviews={requestRemovePreviews}
             nameColors={nameColors}
             mentionRoles={mentionRoles}
             myRoleIds={myRoleIds}
@@ -476,6 +491,19 @@ export default function ChatPane({
             </span>
           </div>
           <p className="vc-hint">{t('chat.deleteMessage.shiftTip')}</p>
+        </ConfirmDialog>
+      )}
+
+      {confirmingRemovePreviews && (
+        <ConfirmDialog
+          title={t('chat.removePreviews.title')}
+          message={t('chat.removePreviews.confirm')}
+          confirmLabel={t('common.remove')}
+          focusConfirm
+          onConfirm={() => conversation.suppressEmbeds(confirmingRemovePreviews)}
+          onClose={() => setConfirmingRemovePreviews(null)}
+        >
+          <p className="vc-hint">{t('chat.removePreviews.shiftTip')}</p>
         </ConfirmDialog>
       )}
 

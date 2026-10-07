@@ -679,6 +679,23 @@ describe('MessageList reactions', () => {
       expect(container.querySelector('.embed')).toHaveTextContent('Sunny');
     });
 
+    it("puts an X beside a link preview, not the sender's own embeds, for those allowed to remove them", () => {
+      const preview = { type: 'link', url: 'https://news.test/a', title: 'Story', description: 'Words' };
+      const msg = hookMessage({ link_embeds: [preview] });
+      const onRemovePreviews = vi.fn();
+      const { container, rerender } = render(<MessageList {...baseProps({ messages: [msg], canRemovePreviews: () => true, onRemovePreviews })} />);
+      const buttons = screen.getAllByRole('button', { name: 'Remove previews' });
+      expect(buttons).toHaveLength(1);
+      expect(buttons[0].closest('.removable-embed')).toHaveTextContent('Story');
+      fireEvent.click(buttons[0], { shiftKey: true });
+      expect(onRemovePreviews).toHaveBeenCalledWith(msg, expect.objectContaining({ shiftKey: true }));
+
+      rerender(<MessageList {...baseProps({ messages: [msg], canRemovePreviews: () => false, onRemovePreviews })} />);
+      expect(screen.queryByRole('button', { name: 'Remove previews' })).toBeNull();
+      expect(container.querySelector('.removable-embed')).toBeNull();
+      expect(container.querySelectorAll('.embed')).toHaveLength(2);
+    });
+
     it("doesn't show a file twice when an embed shows it", () => {
       const chart = { id: 'a', filename: 'chart.png', content_type: 'image/png', url: 'https://s3.test/uploads/webhooks/a/chart.png', size: 10 };
       const { container } = render(<MessageList {...baseProps({ messages: [hookMessage({ attachments: [chart], embeds: [{ type: 'rich', title: 'Load', image: { url: chart.url } }] })] })} />);

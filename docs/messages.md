@@ -214,7 +214,10 @@ YouTube links and guild invites keep their own player and card (`UrlPreviews.jsx
 - **Remove Previews** (message menu, phone action sheet; the author, or Manage Messages):
   `PUT /guild-messages/:id/suppress-embeds` (`{ suppress: false }` undoes it) sets Discord's
   SUPPRESS_EMBEDS flag, which hides the message's embeds, link previews and YouTube/invite
-  cards for everyone (`guild_message_embeds` with `flags`). Guilds only.
+  cards for everyone (`guild_message_embeds` with `flags`). Guilds only. On a computer, as in
+  Discord, an X beside each link preview, YouTube player or invite/event card (shown while it's
+  hovered; `RemovableEmbed`, for the same people) does the same, asking first unless Shift is
+  held. A bot's or webhook's own embeds have no X (the menu still removes them).
 - **Who sees what:** the sites linked in guilds see our server ask for the page (not who
   posted it); the sites whose pictures or videos are shown see each reader's IP address, in
   any chat, unless the setting is off. Checked in `e2e/linkpreviews.mjs`.

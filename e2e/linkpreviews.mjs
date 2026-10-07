@@ -160,6 +160,39 @@ try {
   await a.waitForSelector('.dm-message-content:has-text("Have a look")');
   check(!(await a.$('.message-embeds')), 'still gone after a reload');
 
+  console.log('the X beside a preview');
+  await send(a, `Another ${SITE}/small${RUN}&x=1`);
+  const xCard = a.locator('.removable-embed', { hasText: 'A small card' });
+  await xCard.waitFor({ timeout: 15000 });
+  const xButton = xCard.locator('button[aria-label="Remove previews"]');
+  check(await xButton.evaluate((el) => getComputedStyle(el).opacity) === '0', 'hidden until the preview is hovered');
+  await xCard.hover();
+  await a.waitForFunction(() => getComputedStyle(document.querySelector('.remove-embed-button')).opacity === '1');
+  const place = await xCard.evaluate((wrap) => {
+    const card = wrap.querySelector('.embed').getBoundingClientRect();
+    const x = wrap.querySelector('.remove-embed-button').getBoundingClientRect();
+    const column = wrap.closest('.dm-message-content').clientWidth;
+    return { gap: x.left - card.right, top: x.top - card.top, width: card.width, column };
+  });
+  check(place.gap >= 0 && place.gap < 10 && Math.abs(place.top) < 2, `beside the card's top right corner (${JSON.stringify(place)})`);
+  check(Math.round(place.width) === Math.min(520, place.column), 'the card keeps its width (520, or the column)');
+  await shot(a, 'remove-x-hover');
+  await b.waitForSelector('.embed-title:has-text("A small card")', { timeout: 15000 });
+  check(!(await b.$('.remove-embed-button')), 'no X on a phone (the action sheet has Remove previews)');
+  await xButton.click();
+  await a.waitForSelector('.vc-dialog:has-text("Remove all the previews")');
+  await shot(a, 'remove-x-confirm');
+  await a.click('.vc-dialog button.btn-danger');
+  await a.waitForSelector('.removable-embed', { state: 'detached' });
+  await b.waitForSelector('.embed-title:has-text("A small card")', { state: 'detached', timeout: 10000 });
+  check(true, 'confirmed: gone for Alice and Bob');
+  await send(a, `Once more ${SITE}/small${RUN}&x=2`);
+  await xCard.waitFor({ timeout: 15000 });
+  await xCard.hover();
+  await xButton.click({ modifiers: ['Shift'] });
+  await a.waitForSelector('.removable-embed', { state: 'detached' });
+  check(!(await a.$('.vc-dialog')), 'Shift: removed without asking');
+
   console.log('DM');
   const before = botFetched().length;
   await openChat(a, bob.id);

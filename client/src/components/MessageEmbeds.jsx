@@ -4,6 +4,7 @@ import { useMediaCover } from '../hooks/useMediaCover';
 import { usePrivacyPrefs } from '../utils/privacy';
 import MediaCover from './MediaCover';
 import SiteMediaGate from './SiteMediaGate';
+import RemovableEmbed from './RemovableEmbed';
 import { SiteImage, SiteVideo } from './LinkMedia';
 import { t } from '../i18n';
 
@@ -106,15 +107,16 @@ function LinkEmbed({ embed }) {
 
 // A message's embeds. `renderMarkdown(text)` draws markdown as the message's own text is drawn;
 // `ownUrls`: the message's own files (an embed showing one isn't another site's picture).
-// `links`: these are the server's link previews (LinkEmbed), not the sender's own embeds.
-export default function MessageEmbeds({ embeds, renderMarkdown, ownUrls, links = false }) {
+// `links`: these are the server's link previews (LinkEmbed), not the sender's own embeds;
+// `onRemove(event)` puts an X beside each (RemovableEmbed).
+export default function MessageEmbeds({ embeds, renderMarkdown, ownUrls, links = false, onRemove }) {
   useDateFormat();
   if (!embeds?.length) return null;
   const isExternal = (url) => !ownUrls?.includes(url);
   return (
     <div className="message-embeds">
       {embeds.map((embed, i) => (links
-        ? <LinkEmbed key={i} embed={embed} />
+        ? <RemovableEmbed key={i} onRemove={onRemove}><LinkEmbed embed={embed} /></RemovableEmbed>
         : <Embed key={i} embed={embed} renderMarkdown={renderMarkdown} isExternal={isExternal} />))}
     </div>
   );

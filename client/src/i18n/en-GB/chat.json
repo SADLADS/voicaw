@@ -26,6 +26,11 @@
       "confirm": "Are you sure you want to delete this message?",
       "shiftTip": "Tip: hold Shift when you click delete to skip this."
     },
+    "removePreviews": {
+      "title": "Remove previews",
+      "confirm": "Remove all the previews from this message? They won't come back.",
+      "shiftTip": "Tip: hold Shift when you click the X to skip this."
+    },
     "composer": {
       "tooLongWithLinks_one": "Message is {{count}} character too long once attachment links are added.",
       "tooLongWithLinks_other": "Message is {{count}} characters too long once attachment links are added.",
@@ -100,6 +105,7 @@
       "botTitle": "A bot: an app made in the developer portal",
       "botTag": "BOT",
       "edited": "edited",
+      "removePreviewsButton": "Remove previews",
       "editedInline": "(edited)",
       "unsigned": "not signed",
       "unsignedTitle": "Sent before group messages were signed: who sent it can't be verified",
