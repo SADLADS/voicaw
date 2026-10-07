@@ -32,5 +32,6 @@ export const NsfwChannelContext = createContext(false);
 
 // Threads of the guild text channel on screen (GuildView): `openThread(threadId)` shows one
 // beside the channel, `createThread(msg)` asks for a name and starts one from a message (null
-// when you can't start threads there), `showThreads()` opens the channel's thread list.
+// when you can't start threads there), `startThread()` one on its own (the message box's +;
+// null the same way), `showThreads()` opens the channel's thread list.
 export const ThreadContext = createContext(null);

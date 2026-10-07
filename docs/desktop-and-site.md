@@ -149,7 +149,9 @@ native bridge. Check real behaviour on a phone.
   the build has Firebase), `getPushToken`, `setOngoing` / `clearOngoing`, `stopRinging`,
   `openSettings`, `checkForUpdate` / `installUpdate` (Updating itself), `setSystemBars`
   (System bars), `saveFileStart` / `saveFileAppend` / `saveFileFinish` / `saveFileCancel`
-  (Saving files), `showToast`; events `navigate` (a
+  (Saving files), `showToast`, `mediaAccess` / `requestMediaAccess` / `listMedia` /
+  `mediaThumbnail` (the + panel's photos, `Media.java`, see The + panel in `docs/uploads.md`;
+  `openSettings({ which: 'app' })` when photos were refused); events `navigate` (a
   tapped notification), `callAction` (`answer` with a call id, `mute`, `unmute`, `hangUp`),
   `updateProgress` and `updateResult`, kept until the page listens, so a notification that
   started the app still counts. `hooks/useAndroidApp.js` (in `Layout`) is the page's side.

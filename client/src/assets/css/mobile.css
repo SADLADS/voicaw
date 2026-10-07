@@ -235,3 +235,174 @@
     bottom: auto;
     width: 200px;
 }
+
+/* The message box's + panel (AttachPanel): docked in the keyboard's place like the emoji panel
+   (height inline), pulled up to full screen the same way (useSheetDrag; its spacer is the emoji
+   panel's). */
+.attach-panel {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    border-top: 1px solid var(--vc-border-dark);
+    background-color: var(--vc-bg-elevated);
+    color: var(--vc-fg);
+}
+
+.attach-panel.expanded + .emoji-picker-spacer,
+.attach-panel.sheet-dragging + .emoji-picker-spacer {
+    display: block;
+}
+
+.attach-panel.expanded,
+.attach-panel.sheet-dragging {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 200;
+}
+
+.attach-panel.expanded {
+    top: 0;
+    height: auto;
+    padding-top: env(safe-area-inset-top);
+    border-top-width: 0;
+}
+
+.attach-panel.sheet-dragging {
+    top: auto;
+    height: var(--sheet-height) !important;
+}
+
+.attach-panel.sheet-settling {
+    transition: height 0.2s ease-out;
+}
+
+.attach-panel-grid {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: max-content;
+    gap: 2px;
+    padding: 0 2px;
+}
+
+.attach-tile {
+    position: relative;
+    aspect-ratio: 1;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    overflow: hidden;
+    background-color: var(--vc-bg-subtle);
+    color: var(--vc-fg);
+}
+
+.attach-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.attach-action svg {
+    font-size: 22px;
+}
+
+.attach-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.attach-media[aria-busy="true"] img {
+    opacity: 0.6;
+}
+
+.attach-media.picked img {
+    transform: scale(0.88);
+    transition: transform 0.12s ease-out;
+}
+
+/* The pick circle, numbered in the order photos were picked. */
+.attach-media-check {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--vc-on-accent);
+    border-radius: 50%;
+    background-color: var(--vc-shadow);
+    color: var(--vc-on-accent);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 18px;
+    text-align: center;
+}
+
+.attach-media.picked .attach-media-check {
+    background-color: var(--vc-accent);
+}
+
+.attach-media-duration {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    padding: 0 4px;
+    border-radius: 3px;
+    background-color: var(--vc-popup);
+    color: var(--vc-fg);
+    font-size: 11px;
+}
+
+.attach-panel-ask {
+    grid-column: span 3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--vc-fg-muted);
+}
+
+.attach-panel-ask p {
+    margin: 0;
+}
+
+.attach-panel-bar {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-around;
+    padding: 6px 4px;
+    border-top: 1px solid var(--vc-border-dark);
+}
+
+.attach-panel-bar button {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 4px 0;
+    border: 0;
+    background: none;
+    color: var(--vc-fg-muted);
+    font-size: 11px;
+}
+
+.attach-panel-bar button svg {
+    font-size: 18px;
+}
+
+.attach-panel-bar button:disabled {
+    opacity: 0.5;
+}

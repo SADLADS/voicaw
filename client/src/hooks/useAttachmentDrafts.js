@@ -31,8 +31,10 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     onDiscardRef.current?.(dropped);
   }, [chatId]);
 
-  function addFiles(files) {
-    if (files.length === 0) return;
+  // `source`: what the files were picked from (the + panel's gallery item), kept on their drafts
+  // so the panel can show them as picked. Returns the new drafts.
+  function addFiles(files, { source } = {}) {
+    if (files.length === 0) return [];
 
     const tooBig = files.filter((f) => f.size > MAX_ATTACHMENT_BYTES);
     const accepted = files.filter((f) => f.size <= MAX_ATTACHMENT_BYTES);
@@ -45,7 +47,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
         })
         : null
     );
-    if (accepted.length === 0) return;
+    if (accepted.length === 0) return [];
 
     const newDrafts = accepted.map((file) => ({
       id: nextDraftId.current++,
@@ -54,6 +56,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
       type: file.type || 'application/octet-stream',
       size: file.size,
       previewUrl: URL.createObjectURL(file),
+      ...(source != null ? { source } : {}),
     }));
     setDrafts((prev) => [...prev, ...newDrafts]);
 
@@ -69,6 +72,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     });
 
     insertAttachments(newDrafts);
+    return newDrafts;
   }
 
   // Marks an image or video as a spoiler (or not): it's sent blurred until clicked.
@@ -152,10 +156,15 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     }
   }
 
-  function pickFiles() {
+  // The device's file chooser; `accept` limits it (image/*,video/* is a phone's photo picker),
+  // `capture` takes a new photo with the camera instead.
+  function pickFiles({ accept, capture } = {}) {
     const input = document.createElement('input');
     input.type = 'file';
-    input.multiple = true;
+    input.multiple = !capture;
+    if (accept) input.accept = accept;
+    // The attribute: Chrome has no `capture` property to set.
+    if (capture) input.setAttribute('capture', capture);
     input.style.display = 'none';
     input.onchange = (e) => {
       addFiles(Array.from(e.target.files || []));

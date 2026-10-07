@@ -286,6 +286,13 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   encrypted reactions are padded to 256 bytes. Its creator, the poll's author or a guild
   moderator removes one nobody else voted for; a new question drops every vote and added
   answer. Polls take 20 answers.
+- **The + panel** (built 2026-10-07, see The + panel in `docs/uploads.md`): on phones the
+  + button opens Discord's panel (camera, a grid of recent photos, then Photos / Poll / Thread /
+  Files); computers keep the menu, which gained Create thread. The grid is the Android app's
+  only (web pages can't list a phone's photos) and needs `READ_MEDIA_IMAGES`/`_VIDEO`, which
+  Google Play only allows after a declaration (chosen over the system photo picker alone,
+  accepting Google may refuse it; then the grid goes and Photos remains). The gallery never
+  leaves the phone; only picked files are read by the page.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

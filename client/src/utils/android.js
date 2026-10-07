@@ -99,6 +99,26 @@ export async function saveToDownloads(blob, name, { open = false } = {}, plugin 
   return plugin.saveFileFinish({ id, open });
 }
 
+// The phone's photos and videos, for the message box's + panel (VoicawPlugin `*Media*`, Media.java).
+// Access is 'all', 'some' (Android 14+: only those the person chose; asking again lets them
+// choose more) or 'none'.
+export const mediaAccess = async () => (await android.mediaAccess()).access;
+export const requestMediaAccess = async () => (await android.requestMediaAccess()).access;
+
+// Newest first: [{ id, uri, type, name, size, duration (ms, videos) }].
+export const listMedia = async (offset, limit) => (await android.listMedia({ offset, limit })).items;
+
+// A data: URL of a small picture of `item`.
+export const mediaThumbnail = async (item, size = 256) => (await android.mediaThumbnail({ uri: item.uri, size })).url;
+
+// The file itself, read by the page through Capacitor's server (`_capacitor_content_`), which
+// serves the app's content:// files: only once it's picked.
+export async function readMedia(item) {
+  const res = await fetch(Capacitor.convertFileSrc(item.uri));
+  if (!res.ok) throw new Error(`Couldn't read ${item.name} (${res.status})`);
+  return new File([await res.blob()], item.name, { type: item.type || '' });
+}
+
 export function showAndroidToast(message) {
   android?.showToast({ message }).catch(() => {});
 }
