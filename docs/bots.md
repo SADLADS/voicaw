@@ -97,7 +97,9 @@ Unknown paths get Discord's 404.
 - **Messages**: Discord's message object, with `member` (gateway), `mentions` (users named in
   the text), `referenced_message` for replies, reactions summed per emoji (`me` for the bot),
   embeds and attachments; system rows map to Discord's types (thread started 18, poll result
-  46). Content is always included: there's no message content intent to need.
+  46, a join in the join log 7; Discord has no leave, so a join log leave is type 0 with no
+  content). Content is always included: there's no message content intent to need. A guild's
+  join log channel is its `system_channel_id` (read only: the bot API can't set it).
 
 ### Gateway (`server/gateway.js`)
 

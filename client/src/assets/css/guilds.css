@@ -2946,3 +2946,40 @@ img.emoji.custom-emoji {
   flex-shrink: 0;
   font-weight: 600;
 }
+
+/* A join log row (JoinLogNotice): an arrow, who joined or left, and the time; laid out like a
+   call in a DM (.call-log), the arrow where avatars go. */
+.join-log {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 2px 1.25rem;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+}
+
+.join-log-icon {
+  flex-shrink: 0;
+  width: 40px;
+  font-size: 16px;
+  color: var(--vc-online);
+}
+
+.join-log.left .join-log-icon {
+  color: var(--vc-danger-text);
+}
+
+.join-log-name {
+  color: var(--vc-fg);
+  cursor: pointer;
+}
+
+.join-log-name:hover,
+.join-log-name:focus-visible {
+  text-decoration: underline;
+}
+
+.join-log-time {
+  font-size: 12px;
+}

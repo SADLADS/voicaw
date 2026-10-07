@@ -354,7 +354,9 @@
         "start_time": "Start",
         "end_time": "End",
         "all_day": "All day",
-        "emoji": "Emoji"
+        "emoji": "Emoji",
+        "join_log": "Join log",
+        "join_log_leaves": "Join log shows leaves"
       },
       "values": {
         "none": "none",
@@ -490,6 +492,14 @@
       "deleteConfirmLabel": "Guild name to confirm",
       "noInvites": "No active invites.",
       "activeInvites": "Active invites",
+      "joinLog": {
+        "title": "Join log",
+        "hint": "A channel where the guild says who joined, as they join. Everyone who can see that channel sees it.",
+        "channel": "Join log channel",
+        "off": "Off",
+        "leaves": "Also say who left",
+        "leavesHint": "Leaving, being kicked and being banned all show as \"left\": the audit log keeps who did what."
+      },
       "vanity": {
         "title": "Vanity URL",
         "hint": "A permanent invite link of your choosing: it never expires and can be used any number of times. Only the guild's owner can set it.",

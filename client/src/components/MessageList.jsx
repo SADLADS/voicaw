@@ -19,6 +19,7 @@ import Poll from './Poll';
 import PollEndNotice from './PollEndNotice';
 import CallLogNotice from './CallLogNotice';
 import { ThreadStartNotice, ThreadSummary } from './guild/ThreadSummary';
+import JoinLogNotice from './guild/JoinLogNotice';
 import defaultAvatar from '../assets/images/default.png';
 import { useLongPress } from '../hooks/useLongPress';
 import { useSwipeToReply } from '../hooks/useSwipeToReply';
@@ -934,6 +935,8 @@ export default function MessageList({
               ? <CallLogNotice msg={msg} meId={user?.id} />
               : msg.system === 'thread'
               ? <ThreadStartNotice msg={msg} />
+              : msg.system === 'member_join' || msg.system === 'member_leave'
+              ? <JoinLogNotice msg={msg} onOpenProfile={openProfile} />
               : msg.system
               ? <p className="message-system">{msg.text}</p>
               : (msg.webhook_id ? blockedWebhooks.has(Number(msg.webhook_id)) : blocked.has(Number(msg.sender_id)))

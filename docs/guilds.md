@@ -106,7 +106,7 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   Messages shows a notice instead of the composer. `guild/MemberList.jsx`: grouped under
   hoisted roles, then Online, Offline; click for a card with roles (add/remove below your
   rank), Message / Make owner / Kick / Ban (a panel over the chat on mobile). Guild Settings
-  (`GuildSettingsDialog`) has tabs by permission: Overview, Roles (`RolesSettings`: drag or
+  (`GuildSettingsDialog`) has tabs by permission: Overview (also the join log, see Join log), Roles (`RolesSettings`: drag or
   arrows to reorder, colour swatches, permissions), Emoji (`EmojiSettings`), Invites, Bans. A channel's settings have a
   Permissions tab (`ChannelPermissions`: private toggle, ✕ / / ✓ per role or member). Dialogs use `guild/Modal.jsx`; styles are
   `assets/css/guilds.css`. Attachments in channels still go through the encrypted upload (the
@@ -209,6 +209,30 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   rail, search dates (see Guild search), muting a category or a whole guild, a list of your
   recent mentions. Voice: see
   Voice channels.
+
+## Join log
+
+Discord's join messages, off until a guild turns them on, plus leaves if it wants.
+- **Settings** (`guilds.join_log_channel_id`, null = off, and `join_log_leaves`): Manage Guild
+  picks one of the guild's text channels in Guild Settings → Overview → Join log
+  (`GuildSettingsDialog` `JoinLog`, saved as soon as it changes) or turns it off, and whether
+  leaves are posted too (`PATCH /guilds/:id { joinLog: { channelId, leaves } }`, either left
+  out = unchanged; `server/joinLog.js` `setJoinLog`, an action that throws `ActionError`).
+  The layout carries them as `join_log: { channel_id, leaves }`. Changes are in the audit log
+  (`guild_update`, `changes.join_log` as channel names, `changes.join_log_leaves`). Deleting the
+  channel turns the join log off (`deleteChannelContents`).
+- **Rows** (`logMembership`, after the join or leave is saved; never throws): a `guild_messages`
+  row with `system` `'member_join'` or `'member_leave'`, the person as sender, no content, sent
+  as `guild_message_new`, so only those who can see the channel get it, and it's unread like
+  a message (never a push). Your own join is read for you. Joins are through an invite (or a
+  vanity code) and bots being added; the owner creating the guild isn't one. Leaves are
+  everything through `removeMember`: leaving, a kick, a ban, a deleted account. All are worded
+  "left", on purpose: the channel would otherwise tell everyone who can see it what moderators
+  did, which only View Audit Log may see. Guild search leaves the rows out.
+- **Client:** `guild/JoinLogNotice.jsx` (from `MessageList`): a green arrow (red for a leave),
+  "**Name** joined the guild." and the time; the name opens the profile card.
+- **Bots:** joins are Discord's message type 7 (USER_JOIN), leaves type 0 with no content
+  (Discord has none), and the channel is the guild's `system_channel_id` (see `docs/bots.md`).
 
 ## Voice channels' chat
 

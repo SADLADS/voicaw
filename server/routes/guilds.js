@@ -28,6 +28,7 @@ const { releaseUploads } = require('../uploads');
 const { ActionError, withActionErrors } = require('../actionError');
 const { channelEvents, announceDeleted } = require('../guildEvents');
 const { xpByMember } = require('../guildLevels');
+const { JOIN, setJoinLog, logMembership } = require('../joinLog');
 
 // Guilds: creating and managing them, members, bans, invites, categories and
 // channels. Roles and channel overrides are in routes/guildRoles.js, messages in
@@ -147,9 +148,14 @@ router.put('/guilds/:guildId/notifications', member, async (req, res) => {
 });
 
 // Rename, and/or `iconUploaded: true` once a new icon is in the object store (see
-// /upload_guild_icon), or `icon: null` to remove it.
-router.patch('/guilds/:guildId', withPermission(PERMISSIONS.MANAGE_GUILD), async (req, res) => {
-  const { name: rawName, iconUploaded, icon } = req.body ?? {};
+// /upload_guild_icon), or `icon: null` to remove it, and/or `joinLog: { channelId, leaves }`
+// (joinLog.js; channelId null turns it off).
+router.patch('/guilds/:guildId', withPermission(PERMISSIONS.MANAGE_GUILD), withActionErrors(async (req, res) => {
+  const { name: rawName, iconUploaded, icon, joinLog } = req.body ?? {};
+  if (joinLog !== undefined) {
+    if (!joinLog || typeof joinLog !== 'object') return res.status(400).json({ error: 'Invalid join log' });
+    await setJoinLog(req.member, { channelId: joinLog.channelId, leaves: joinLog.leaves });
+  }
   const details = {};
   if (rawName !== undefined) {
     const name = cleanName(rawName, MAX_GUILD_NAME);
@@ -167,7 +173,7 @@ router.patch('/guilds/:guildId', withPermission(PERMISSIONS.MANAGE_GUILD), async
   if (Object.keys(details).length) await audit(req, { action: 'guild_update', details });
   await announceGuildUpdate(req.guild.id);
   res.json(await getGuildLayout(req.guild.id, req.user.id));
-});
+}));
 
 router.delete('/guilds/:guildId', owner, async (req, res) => {
   await deleteGuild(req.guild.id);
@@ -449,6 +455,7 @@ router.post('/invites/:code', authenticateJWT, async (req, res) => {
   const joined = await getMemberListEntry(guildId, userId);
   sendToUserSockets(userId, { type: 'guild_add', guild });
   await sendToGuild(guildId, { type: 'guild_member_add', guildId, member: { ...joined, status: getStatus(userId) } });
+  await logMembership(guildId, userId, JOIN);
   res.status(201).json(guild);
 });
 

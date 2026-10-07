@@ -309,7 +309,8 @@ function guildObject(guild, { roles, emojis }) {
     features: [],
     mfa_level: 0,
     application_id: null,
-    system_channel_id: null,
+    // The join log (joinLog.js). Discord's flag 1 << 0 is "no join messages"; ours are always on.
+    system_channel_id: guild.join_log_channel_id ? id(guild.join_log_channel_id) : null,
     system_channel_flags: 0,
     rules_channel_id: null,
     max_presences: null,
@@ -439,7 +440,9 @@ function voiceStateObject({ guildId, channelId, userId, state, member = null }) 
   };
 }
 
-const MESSAGE_TYPES = { default: 0, reply: 19, thread: 18, poll_end: 46 };
+// Join log rows (joinLog.js): a join is Discord's USER_JOIN; Discord has no leave, so a leave is
+// a default message with no content.
+const MESSAGE_TYPES = { default: 0, member_join: 7, reply: 19, thread: 18, poll_end: 46 };
 
 // Messages (rows from guildMessages' MESSAGE_SELECT, after withReactions) as Discord's, seen by
 // bot `botId`. `guildId` adds guild_id (and `member` for authors who are still members), as
@@ -489,6 +492,8 @@ async function messageObjects(rows, { botId = null, guildId = null, references =
     let type = MESSAGE_TYPES.default;
     if (m.system === 'thread') type = MESSAGE_TYPES.thread;
     else if (m.system === 'poll_end') type = MESSAGE_TYPES.poll_end;
+    else if (m.system === 'member_join') type = MESSAGE_TYPES.member_join;
+    else if (m.system === 'member_leave') type = MESSAGE_TYPES.default;
     else if (m.parent_message_id) type = MESSAGE_TYPES.reply;
     // An answer to a command: Discord's CHAT_INPUT_COMMAND (20) or CONTEXT_MENU_COMMAND (23).
     else if (m.interaction?.type === 2) type = m.interaction.command_type === 1 ? 20 : 23;

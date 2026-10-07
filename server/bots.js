@@ -269,6 +269,8 @@ async function addBotToGuild(app, adder, permissions) {
   sendToUserSockets(app.id, { type: 'guild_add', guild: await getGuildLayout(guildId, app.id) });
   await sendToGuild(guildId, { type: 'guild_member_add', guildId, member: { ...joined, status: getStatus(app.id) } });
   await announceGuildUpdate(guildId);
+  const joinLog = require('./joinLog');
+  await joinLog.logMembership(guildId, app.id, joinLog.JOIN);
   return null;
 }
 

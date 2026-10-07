@@ -1230,6 +1230,11 @@ CREATE TABLE IF NOT EXISTS tester_requests (
   added_at INTEGER
 );
 `);
+// JOIN LOG (joinLog.js): the text channel where the guild posts "X joined the guild." rows
+// (guild_messages with `system` 'member_join'; 'member_leave' too when `join_log_leaves`).
+// Null = no join log.
+addColumn('ALTER TABLE guilds ADD COLUMN join_log_channel_id INTEGER');
+addColumn('ALTER TABLE guilds ADD COLUMN join_log_leaves INTEGER NOT NULL DEFAULT 0');
 
 // ---- Queries ----
 // get / all / run return promises (callers await them) though the driver is synchronous, and

@@ -336,6 +336,10 @@
       "back": "Go back",
       "continue": "Continue",
       "error": "Couldn't save that. Check your connection and try again."
+    },
+    "joinLog": {
+      "joined": "<b>{{name}}</b> joined the guild.",
+      "left": "<b>{{name}}</b> left the guild."
     }
   }
 }

@@ -35,6 +35,10 @@ describe('audit log wording', () => {
 
     expect(entryChanges({ action: 'member_role_update', details: { added: [{ id: 1, name: 'mods' }], removed: [] } })).toEqual(['Added: mods']);
     expect(entryChanges({ action: 'invite_create', details: { maxUses: 1, maxAge: 86400 } })).toEqual(['Up to 1 use', 'Expires after 1 day']);
+    expect(entryChanges({
+      action: 'guild_update',
+      details: { changes: { join_log: [null, 'arrivals'], join_log_leaves: [false, true] } },
+    })).toEqual(['Join log: none → #arrivals', 'Join log shows leaves: no → yes']);
   });
 
   it('says how the vanity invite changed', () => {

@@ -176,10 +176,13 @@ async function layoutFor(member, overridesByChannel) {
     .filter((t) => textChannels.has(t.parent_id))
     .map((t) => ({ ...t, my_permissions: threadPermissions(textChannels.get(t.parent_id).my_permissions) }));
   // Levels' settings (guildLevels.js): every member draws levels with them.
-  const levels = require('./guildLevels').parseSettings((await db.get('SELECT levels FROM guilds WHERE id = ?', [guild.id]))?.levels);
+  const settings = await db.get('SELECT levels, join_log_channel_id, join_log_leaves FROM guilds WHERE id = ?', [guild.id]);
+  const levels = require('./guildLevels').parseSettings(settings?.levels);
   return {
     ...guild,
     levels,
+    // The join log (joinLog.js): { channel_id (null: off), leaves }.
+    join_log: require('./joinLog').settingsOf(settings),
     my_notify_level: own?.notify_level ?? 'mentions',
     my_permissions: member.permissions,
     my_role_ids: member.roles.map((r) => r.id),
@@ -290,6 +293,8 @@ async function deleteChannelContents(channelIdsSql, params, { threads = true } =
   await db.run(`DELETE FROM guild_channel_notify WHERE channel_id IN (${channelIdsSql})`, params);
   await db.run(`DELETE FROM guild_channel_overrides WHERE channel_id IN (${channelIdsSql})`, params);
   await db.run(`DELETE FROM guild_webhooks WHERE channel_id IN (${channelIdsSql})`, params);
+  // A deleted join log channel turns the join log off (joinLog.js).
+  await db.run(`UPDATE guilds SET join_log_channel_id = NULL WHERE join_log_channel_id IN (${channelIdsSql})`, params);
 }
 
 // Marks every channel of the guild read up to now for a new member, so joining doesn't show
@@ -331,6 +336,8 @@ async function removeMember(guildId, userId) {
   });
   sendToUserSockets(userId, { type: 'guild_remove', guildId });
   await sendToGuild(guildId, { type: 'guild_member_remove', guildId, userId });
+  const joinLog = require('./joinLog');
+  await joinLog.logMembership(guildId, userId, joinLog.LEAVE);
   for (const event of events) await require('./guildEvents').broadcastInterest(event, userId, false);
   if (botRoleRemoved) await announceGuildUpdate(guildId);
   await require('./voice').enforceGuild(guildId);

@@ -142,7 +142,7 @@ export function describeEntry(entry, names) {
 
 const FIELDS = [
   'name', 'topic', 'category', 'color', 'hoist', 'mentionable', 'channel', 'permissions', 'nsfw', 'archived',
-  'description', 'location', 'start_time', 'end_time', 'all_day', 'emoji',
+  'description', 'location', 'start_time', 'end_time', 'all_day', 'emoji', 'join_log', 'join_log_leaves',
 ];
 const fieldLabel = (field) => (FIELDS.includes(field) ? t(`guildAdmin.auditLog.fields.${field}`) : field);
 
@@ -150,8 +150,8 @@ function showValue(field, value) {
   if (value === null || value === undefined || value === '') return t('guildAdmin.auditLog.values.none');
   if (field === 'color') return colorToHex(value);
   if (field === 'emoji') return customEmojiToText(value);
-  if (['hoist', 'mentionable', 'nsfw', 'archived', 'all_day'].includes(field)) return value ? t('guildAdmin.auditLog.values.yes') : t('guildAdmin.auditLog.values.no');
-  if (field === 'channel') return `#${value}`;
+  if (['hoist', 'mentionable', 'nsfw', 'archived', 'all_day', 'join_log_leaves'].includes(field)) return value ? t('guildAdmin.auditLog.values.yes') : t('guildAdmin.auditLog.values.no');
+  if (field === 'channel' || field === 'join_log') return `#${value}`;
   if (field === 'start_time' || field === 'end_time') return formatDateTime(value * 1000);
   return String(value);
 }

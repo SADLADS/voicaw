@@ -310,6 +310,10 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   from an emoji and a browser must show every push, so a notification there could be wrong
   ("reacted" for a vote); the user chose none over wrong ones: those go only to the desktop and
   Android apps, which open the reaction and show nothing for a vote. Browsers get guild ones only.
+- **Join log** (built 2026-10-07, see Join log in `docs/guilds.md`): Discord's join messages in
+  a text channel the guild picks (off by default), plain "X joined the guild.", and leaves too
+  if the guild ticks it. Kicks and bans read "left" like leaving, so the channel doesn't show
+  moderation (the audit log does). Bots see it as `system_channel_id` (read only) and type 7.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

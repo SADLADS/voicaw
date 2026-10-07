@@ -622,7 +622,7 @@ router.delete(`${INTERACTION_HOOK}/messages/:messageId`, byInteractionToken, rou
 // ---- Guilds ----
 
 async function guildObject(guildId, { counts = false } = {}) {
-  const guild = await db.get('SELECT id, name, owner, icon_version, created_at, vanity_code FROM guilds WHERE id = ?', [guildId]);
+  const guild = await db.get('SELECT id, name, owner, icon_version, created_at, vanity_code, join_log_channel_id FROM guilds WHERE id = ?', [guildId]);
   const roles = await db.all('SELECT * FROM guild_roles WHERE guild_id = ? ORDER BY position, id', [guildId]);
   const emojis = await db.all('SELECT id, name, animated, available FROM guild_emojis WHERE guild_id = ? AND available = 1 ORDER BY id', [guildId]);
   const object = D.guildObject(guild, { roles, emojis });

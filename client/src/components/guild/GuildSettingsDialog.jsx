@@ -82,6 +82,8 @@ function Overview({ guild, isOwner }) {
         {error && <p className="error-msg" role="alert">{error}</p>}
       </section>
 
+      <JoinLog guild={guild} />
+
       {isOwner && (
         <section className="guild-settings-danger">
           <h6>{t('guildAdmin.guildSettings.delete')}</h6>
@@ -103,6 +105,68 @@ function Overview({ guild, isOwner }) {
         </section>
       )}
     </>
+  );
+}
+
+// The join log (server/joinLog.js): a text channel where "X joined the guild." appears, and
+// leaves too if chosen. Saved as soon as it changes; the layout's `join_log` follows.
+function JoinLog({ guild }) {
+  const saved = guild.join_log ?? { channel_id: null, leaves: false };
+  // Shown at once, until the guild's new layout (or a failure) brings back what's saved.
+  const [pending, setPending] = useState(null);
+  const settings = { ...saved, ...pending };
+  const [status, setStatus] = useState(null);
+  const [error, setError] = useState(null);
+  const textChannels = (guild.channels ?? []).filter((c) => c.type === 'text');
+
+  useEffect(() => setPending(null), [saved.channel_id, saved.leaves]);
+
+  async function save(joinLog, shown) {
+    setError(null);
+    setStatus(null);
+    setPending((prev) => ({ ...prev, ...shown }));
+    try {
+      await updateGuild(guild.id, { joinLog });
+      setStatus(t('guildAdmin.guildSettings.saved'));
+    } catch (err) {
+      setPending(null);
+      setError(errorMessage(err));
+    }
+  }
+
+  return (
+    <section className="guild-join-log">
+      <h6>{t('guildAdmin.guildSettings.joinLog.title')}</h6>
+      <p className="vc-hint">{t('guildAdmin.guildSettings.joinLog.hint')}</p>
+      <div className="vc-form">
+        <select
+          className="form-select form-control"
+          aria-label={t('guildAdmin.guildSettings.joinLog.channel')}
+          value={settings.channel_id ?? ''}
+          onChange={(e) => {
+            const channelId = e.target.value ? Number(e.target.value) : null;
+            save({ channelId }, { channel_id: channelId });
+          }}
+        >
+          <option value="">{t('guildAdmin.guildSettings.joinLog.off')}</option>
+          {textChannels.map((c) => <option key={c.id} value={c.id}>#{c.name}</option>)}
+        </select>
+        <label className="role-toggle">
+          <input
+            type="checkbox"
+            checked={settings.leaves}
+            disabled={settings.channel_id == null}
+            onChange={(e) => save({ leaves: e.target.checked }, { leaves: e.target.checked })}
+          />
+          <span>
+            <strong>{t('guildAdmin.guildSettings.joinLog.leaves')}</strong>
+            <span className="vc-hint">{t('guildAdmin.guildSettings.joinLog.leavesHint')}</span>
+          </span>
+        </label>
+      </div>
+      {status && <p className="success-msg">{status}</p>}
+      {error && <p className="error-msg" role="alert">{error}</p>}
+    </section>
   );
 }
 
