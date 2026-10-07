@@ -38,6 +38,28 @@ describe('EmojiPicker', () => {
     expect(pizza).toHaveClass('emoji-sheet-foods');
   });
 
+  it('with a category (a voice region\'s flag), shows and searches only that one', () => {
+    localStorage.setItem('emojiFrequency', JSON.stringify({ grinning: 5 }));
+    const { onSelect } = renderPicker({ category: 'flags' });
+    expect(screen.getByRole('heading', { name: 'Flags' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Smileys & People' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Frequently Used' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Skin tone' })).not.toBeInTheDocument();
+    // Not only countries.
+    expect(screen.getByRole('button', { name: 'Pirate Flag' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Chequered Flag' })).toBeInTheDocument();
+    const search = screen.getByRole('searchbox', { name: 'Search emoji' });
+    fireEvent.change(search, { target: { value: 'rainbow' } });
+    expect(screen.getByRole('button', { name: 'Rainbow Flag' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rainbow' })).not.toBeInTheDocument();
+    fireEvent.change(search, { target: { value: 'germany' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Germany Flag' }));
+    expect(onSelect).toHaveBeenCalledWith('🇩🇪');
+    fireEvent.change(search, { target: { value: 'pizza' } });
+    expect(screen.getByText('No emoji match "pizza"')).toBeInTheDocument();
+  });
+
   it('uses the skin tone sheet for the chosen tone', () => {
     localStorage.setItem('emojiSkinTone', '3');
     renderPicker();

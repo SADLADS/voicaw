@@ -163,11 +163,14 @@ function CustomEmojiButton({ emoji, s3Endpoint, onPick, onHover, keepFocus }) {
 // tapping its handle) makes it full screen, to see more emoji or GIFs at once; swiping down
 // (on its top bar, or on the grid scrolled to the top) or the handle again brings it back
 // (useSheetDrag). It stays full screen after a search from there.
-export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true, docked = false, height }) {
+//
+// `category` (e.g. 'flags', a voice region's flag): only that category's emoji, searched
+// within it; no custom emoji, Frequently Used, GIFs, category bar or skin tones.
+export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true, docked = false, height, category = null }) {
   const index = useEmojiIndex();
   const custom = useCustomEmoji();
   const { s3Endpoint, gifsEnabled } = useContext(ConfigContext) ?? {};
-  const hasGifs = Boolean(onGif && gifsEnabled);
+  const hasGifs = Boolean(onGif && gifsEnabled && !category);
   const [tab, setTabState] = useState(savedTab);
   const gifTab = hasGifs && tab === 'gifs';
   const [query, setQuery] = useState('');
@@ -224,6 +227,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
 
   const sections = useMemo(() => {
     if (!index) return [];
+    if (category) return index.categories.filter((c) => c.id === category);
     const frequent = frequentEmojiIds()
       .map((id) => (id.startsWith('custom:') ? custom.byId.get(id.slice(7)) : index.emojis.get(id)))
       .filter(Boolean);
@@ -232,13 +236,17 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
       ...custom.guilds.map(({ guild, emojis }) => ({ id: `guild-${guild.id}`, name: guild.name, guild, emojis })),
       ...index.categories,
     ];
-  }, [index, custom]);
+  }, [index, custom, category]);
 
   // Custom emoji first (their names are what people search for), then the standard ones.
-  const results = useMemo(
-    () => (index && query.trim() ? [...searchCustomEmoji(custom, query, 60), ...index.search(query, 120)] : null),
-    [index, custom, query]
-  );
+  const results = useMemo(() => {
+    if (!index || !query.trim()) return null;
+    if (category) {
+      const allowed = new Set(sections.flatMap((section) => section.emojis));
+      return index.search(query, Infinity).filter((emoji) => allowed.has(emoji)).slice(0, 120);
+    }
+    return [...searchCustomEmoji(custom, query, 60), ...index.search(query, 120)];
+  }, [index, custom, query, category, sections]);
 
   // The keyboard went away (search box lost focus, or e.g. Android's back button closed the
   // keyboard while the box kept focus): back to the docked size, keeping the results.
@@ -408,7 +416,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
             onBlur={docked ? keyboardClosed : undefined}
             aria-label={gifTab ? t('chat.emojiPicker.searchGifs') : t('chat.emojiPicker.searchEmoji')}
           />
-          {toneSample && !gifTab && !(docked && searching) && (
+          {toneSample && !gifTab && !category && !(docked && searching) && (
             <div className="emoji-picker-tones">
               <button
                 type="button"
@@ -445,7 +453,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
           <div className="emoji-picker-empty">{t('chat.emojiPicker.loading')}</div>
         ) : (
           <div className="emoji-picker-body">
-            {!results && (
+            {!results && !category && (
               <nav className="emoji-picker-nav" aria-label={t('chat.emojiPicker.categoriesLabel')}>
                 {sections.map((section) => (
                   <button key={section.id} type="button" onClick={() => jumpTo(section.id)} title={section.name} aria-label={section.name}>

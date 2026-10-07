@@ -419,7 +419,7 @@ default, also for channels made before), `user_limit` (0–99, 0: none) and `rtc
 
 Several LiveKit servers, like Discord's voice regions (built 2026-10-07): global admins add them
 in Settings → Admin → Voice regions (`VoiceRegionsAdmin.jsx`, `routes/admin.js`
-`/admin/voice-regions`), each a flag (an emoji), a name, its LiveKit address for the apps
+`/admin/voice-regions`), each a flag (any flag emoji, countries or not, chosen from the emoji picker's Flags: `EmojiPicker category="flags"`, drawn as Twemoji everywhere, since Windows has no flag emoji), a name, its LiveKit address for the apps
 (`wss://`), optionally the address this API reaches it on, and its API key and secret
 (`server/voiceRegions.js`, table `voice_regions`). The secret is stored in the database (like
 an admin's Klipy key) and never sent back: the panel shows its last four characters, and an
@@ -433,7 +433,7 @@ are told apart) and its `webhook:` pointed at this API's `/api/livekit/webhook`.
   call keeps its region, `call.regionId`), and so do voice channels left on **Automatic**
   (`rtc_region` null; Discord picks the region nearest the first person in, we don't).
   `GET /voice/regions` lists them for the channel dialog (no addresses or keys); the dialog
-  shows the menu only with two or more.
+  shows the choice (a list, not a menu, so flags can be pictures) only with two or more.
 - **Server side** (`voice.js`): `serviceFor(regionId)` is each region's LiveKit client;
   states and calls remember their region, and everything (tokens, removing people, mute
   attributes, the start-up `restoreFromLiveKit`) goes to that one. A webhook is checked against

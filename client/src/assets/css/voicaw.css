@@ -920,8 +920,32 @@ body:not(.mobile-mode) .settings-category-title {
   min-width: 0;
 }
 
-.voice-region-flag-input {
-  width: 4.5em;
+.voice-region-flag-choice {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.voice-region-flag-choice .btn-secondary {
+  min-width: 3em;
+  height: 2.2em;
+}
+
+/* A region's flag (Twemoji), before its name: the admin list, the form, the channel dialog. */
+.voice-region-flag .emoji {
+  width: 1.25em;
+  height: 1.25em;
+  vertical-align: -0.25em;
+}
+
+.voice-region-title .voice-region-flag,
+.voice-region-choice .voice-region-flag {
+  margin-right: 6px;
+}
+
+.voice-region-choice .vc-hint {
+  display: inline;
+  margin: 0;
 }
 
 /* A voice channel's own settings (ChannelDialog). */

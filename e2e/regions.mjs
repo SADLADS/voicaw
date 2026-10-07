@@ -125,7 +125,18 @@ try {
   await a.waitForSelector('.voice-regions-admin');
   await a.waitForSelector('.voice-region:has-text("Main") .voice-region-badge:has-text("Default")');
   await a.click('button:has-text("Add a region")');
-  await a.fill('#region-new-flag', '🇩🇪');
+  // The flag from the emoji picker's Flags (only those: no smileys found).
+  await a.click('button[aria-label="Choose a flag"]');
+  await a.waitForSelector('.emoji-picker h6:has-text("Flags")');
+  await a.fill('.emoji-picker-search', 'smile');
+  await a.waitForSelector('.emoji-picker-empty');
+  await a.fill('.emoji-picker-search', 'pirate');
+  await a.waitForSelector('.emoji-picker button[aria-label="Pirate Flag"]');
+  await shot(a, '00-flag-picker');
+  await a.fill('.emoji-picker-search', 'germany');
+  await a.click('.emoji-picker button[aria-label="Germany Flag"]');
+  await a.waitForSelector('.emoji-picker', { state: 'detached' });
+  await a.waitForSelector('button[aria-label="Change the flag"] img[alt="🇩🇪"]');
   await a.fill('#region-new-name', 'Frankfurt');
   await a.fill('#region-new-url', 'https://wrong.example.com');
   await a.fill('#region-new-apiKey', frankfurt.key);
@@ -154,8 +165,8 @@ try {
   await a.click('text=Create Channel');
   await a.click('label:has-text("Voice")');
   await a.fill('#channel-name', 'Lounge');
-  await a.waitForSelector('#channel-region option:has-text("Frankfurt")', { state: 'attached' });
-  const automatic = await a.textContent('#channel-region option[value=""]');
+  await a.waitForSelector('#channel-region label:has-text("Frankfurt") img[alt="🇩🇪"]');
+  const automatic = await a.textContent('#channel-region label:first-of-type');
   if (!automatic.includes('Main')) throw new Error(`Automatic says ${automatic}`);
   await a.$eval('#channel-bitrate', (el) => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '128');
@@ -230,8 +241,7 @@ try {
 
   // Moved to Frankfurt: both apps follow (the main server lets go of them), still hearing.
   await a.click(`.guild-channel:has-text("lounge") button[aria-label^="Edit"]`);
-  await a.waitForSelector('#channel-region option:has-text("Frankfurt")', { state: 'attached' });
-  await a.selectOption('#channel-region', { label: '🇩🇪 Frankfurt' });
+  await a.click('#channel-region label:has-text("Frankfurt")');
   await a.click('.vc-dialog button:has-text("Save")');
   await a.waitForSelector('#channel-region', { state: 'detached' });
   await waitForRoom('frankfurt', channelId, [admin.name, bob.name]);

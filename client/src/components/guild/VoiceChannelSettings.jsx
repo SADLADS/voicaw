@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fetchVoiceRegions } from '../../services/voiceService';
+import { ReactionEmoji } from '../MessageReactions';
 import { t } from '../../i18n';
 
 const MIN_BITRATE = 8000;
@@ -20,7 +21,19 @@ export default function VoiceChannelSettings({ value, onChange }) {
   const set = (changes) => onChange({ ...value, ...changes });
   const kbps = Math.round(value.bitrate / 1000);
   const fallback = regions.find((r) => r.default);
-  const regionName = (r) => (r.flag ? `${r.flag} ${r.name}` : r.name);
+  // Flags as Twemoji: a <select> could only show text, and Windows has no flag emoji.
+  const regionName = (r) => (
+    <>
+      {r.flag && <span className="voice-region-flag" aria-hidden="true"><ReactionEmoji native={r.flag} /></span>}
+      {r.name}
+    </>
+  );
+  const choice = (id, label) => (
+    <label key={id ?? 'automatic'} className={(value.rtcRegion ?? null) === id ? 'selected' : ''}>
+      <input type="radio" name="channel-region" checked={(value.rtcRegion ?? null) === id} onChange={() => set({ rtcRegion: id })} />
+      <span>{label}</span>
+    </label>
+  );
 
   return (
     <div className="voice-channel-settings">
@@ -58,18 +71,13 @@ export default function VoiceChannelSettings({ value, onChange }) {
 
       {regions.length > 1 && (
         <>
-          <label htmlFor="channel-region">{t('guildAdmin.channelDialog.voice.region')}</label>
-          <select
-            id="channel-region"
-            className="form-select form-control"
-            value={value.rtcRegion ?? ''}
-            onChange={(e) => set({ rtcRegion: e.target.value === '' ? null : Number(e.target.value) })}
-          >
-            <option value="">
-              {fallback ? t('guildAdmin.channelDialog.voice.automaticIs', { region: regionName(fallback) }) : t('guildAdmin.channelDialog.voice.automatic')}
-            </option>
-            {regions.map((r) => <option key={r.id} value={r.id}>{regionName(r)}</option>)}
-          </select>
+          <fieldset className="channel-type-choice voice-region-choice" id="channel-region">
+            <legend>{t('guildAdmin.channelDialog.voice.region')}</legend>
+            {choice(null, fallback ? (
+              <>{t('guildAdmin.channelDialog.voice.automatic')} <span className="vc-hint">({regionName(fallback)})</span></>
+            ) : t('guildAdmin.channelDialog.voice.automatic'))}
+            {regions.map((r) => choice(r.id, regionName(r)))}
+          </fieldset>
           <p className="vc-hint">{t('guildAdmin.channelDialog.voice.regionHint')}</p>
         </>
       )}

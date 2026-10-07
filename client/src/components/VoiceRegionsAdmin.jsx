@@ -1,10 +1,67 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFlag } from '@fortawesome/free-solid-svg-icons';
 import api from '../utils/api';
+import EmojiPicker from './EmojiPicker';
+import { ReactionEmoji } from './MessageReactions';
+import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 import { t } from '../i18n';
 
 const errorText = (err, fallback) => err.response?.data?.error || fallback;
 
 const EMPTY = { name: '', flag: '', url: '', apiUrl: '', apiKey: '', apiSecret: '' };
+
+// A region's flag, drawn as Twemoji (Windows has no flag emoji in its font).
+function RegionFlag({ flag }) {
+  if (!flag) return null;
+  return <span className="voice-region-flag" aria-hidden="true"><ReactionEmoji native={flag} /></span>;
+}
+
+const PICKER_WIDTH = 360;
+
+// The flag: any flag emoji (countries, 🏳️‍🌈, 🏴‍☠️, 🏁...), from the emoji picker's Flags.
+function FlagField({ value, onChange }) {
+  // The picker's place (the button's rect), while it's open.
+  const [picking, setPicking] = useState(null);
+  const close = useCallback(() => setPicking(null), []);
+  // Opening to the right of the button's left edge (the picker lines up with a right edge; the
+  // button is at the form's left, so the picker would cover it).
+  const picker = picking && reactionPickerPosition({ ...picking, right: picking.left + PICKER_WIDTH });
+  return (
+    <div className="voice-region-field">
+      <span>{t('settings.admin.voiceRegions.flag')}</span>
+      <div className="voice-region-flag-choice">
+        <button
+          type="button"
+          className="btn btn-sm btn-secondary"
+          aria-expanded={Boolean(picking)}
+          aria-label={value ? t('settings.admin.voiceRegions.changeFlag') : t('settings.admin.voiceRegions.chooseFlag')}
+          // Don't let the open picker's outside-click handler close it before this toggles.
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            if (picking) return setPicking(null);
+            const { top, bottom, left, right } = e.currentTarget.getBoundingClientRect();
+            setPicking({ top, bottom, left, right });
+          }}
+        >
+          {value ? <RegionFlag flag={value} /> : <FontAwesomeIcon icon={faFlag} />}
+        </button>
+        {value && (
+          <button type="button" className="btn btn-sm btn-link voice-region-flag-remove" onClick={() => onChange('')}>
+            {t('common.remove')}
+          </button>
+        )}
+      </div>
+      {picker && createPortal(
+        <div className={`reaction-picker-anchor${picker.below ? ' below' : ''}`} style={picker.style}>
+          <EmojiPicker category="flags" onSelect={onChange} onClose={close} />
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
 
 // Adding or editing a region. The main one (`builtin`) only has a name and a flag here: its
 // server is server/.env's. A secret is never shown; left empty when editing, it's kept.
@@ -44,7 +101,7 @@ function RegionForm({ region, onSaved, onCancel }) {
   return (
     <form className="voice-region-form" onSubmit={save}>
       <div className="voice-region-name-row">
-        {field('flag', t('settings.admin.voiceRegions.flag'), { placeholder: '🇬🇧', className: 'voice-region-flag-input', maxLength: 16 })}
+        <FlagField value={fields.flag} onChange={(flag) => setFields((f) => ({ ...f, flag }))} />
         {field('name', t('settings.admin.voiceRegions.name'), { placeholder: t('settings.admin.voiceRegions.namePlaceholder'), maxLength: 50 })}
       </div>
       {region?.builtin ? (
@@ -108,7 +165,7 @@ export default function VoiceRegionsAdmin({ regions, onChange }) {
               <>
                 <span className="voice-region-summary">
                   <span className="voice-region-title">
-                    {region.flag && <span className="voice-region-flag">{region.flag}</span>}
+                    <RegionFlag flag={region.flag} />
                     {region.name}
                     {region.default && <span className="voice-region-badge">{t('settings.admin.voiceRegions.default')}</span>}
                   </span>

@@ -58,7 +58,6 @@
         "userLimitHint": "Once it's full nobody else can join, except people who can manage channels.",
         "region": "Region",
         "automatic": "Automatic",
-        "automaticIs": "Automatic ({{region}})",
         "regionHint": "The voice server the channel's calls go through: the closest to most of its people sounds best. Changing it moves everyone in it there (a moment of silence)."
       }
     },

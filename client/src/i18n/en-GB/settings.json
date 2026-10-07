@@ -233,7 +233,9 @@
         "apiKey": "API key",
         "apiSecret": "API secret",
         "keepSecret": "Leave empty to keep {{hint}}",
-        "builtinHelp": "This server's own LiveKit: its address and keys are in server/.env."
+        "builtinHelp": "This server's own LiveKit: its address and keys are in server/.env.",
+        "chooseFlag": "Choose a flag",
+        "changeFlag": "Change the flag"
       }
     },
     "developers": {
