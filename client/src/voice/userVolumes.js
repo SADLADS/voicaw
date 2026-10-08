@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { canChooseOutput } from './audioSettings';
 
 // How loud each person is on this device (like Discord's User Volume and Stream Volume): 0–200%
 // of their voice, and separately of their screen share's sound, on top of the output volume
@@ -8,6 +9,15 @@ import { useSyncExternalStore } from 'react';
 
 export const MAX_USER_VOLUME = 2;
 export const DEFAULT_USER_VOLUME = 1;
+
+// Whether others' voices play through Web Audio here, so a person can be turned up past 100%:
+// not where the browser can choose the speakers for a media element but not for an
+// AudioContext (Firefox), which then plays them from <audio> elements, whose volume stops at 1.
+export const canBoostVolume = () => typeof AudioContext !== 'undefined'
+  && ('setSinkId' in AudioContext.prototype || !canChooseOutput());
+
+// How far the volume sliders go on this device: 200%, or 100% where that's all it can play.
+export const maxUserVolume = () => (canBoostVolume() ? MAX_USER_VOLUME : 1);
 
 export function cleanUserVolumes(raw) {
   const volumes = {};

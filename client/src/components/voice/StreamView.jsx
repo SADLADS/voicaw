@@ -9,7 +9,7 @@ import { useVoice } from '../../hooks/useVoice';
 import { useShowsStreamOnPage } from '../../hooks/useStreamOnPage';
 import { attachStream, setStreamError, watchStream } from '../../voice/voiceClient';
 import { closeStreamWindow, openStreamWindow } from '../../voice/streamWindow';
-import { DEFAULT_USER_VOLUME, MAX_USER_VOLUME, setStreamVolume, useStreamVolume } from '../../voice/userVolumes';
+import { DEFAULT_USER_VOLUME, maxUserVolume, setStreamVolume, useStreamVolume } from '../../voice/userVolumes';
 import { t } from '../../i18n';
 
 // The screen share being watched, big (the voice channel view's stage, or its own window when
@@ -84,7 +84,8 @@ function StreamVolume({ userId, deafened }) {
   const unmutedRef = useRef(DEFAULT_USER_VOLUME);
   if (volume > 0) unmutedRef.current = volume;
   const muted = deafened || volume === 0;
-  const percent = Math.round(volume * 100);
+  // One saved above what this device can play shows (and plays) as the most it can.
+  const percent = Math.round(Math.min(volume, maxUserVolume()) * 100);
 
   return (
     <span className="stream-volume">
@@ -103,7 +104,7 @@ function StreamVolume({ userId, deafened }) {
         type="range"
         className="stream-volume-slider"
         min={0}
-        max={MAX_USER_VOLUME * 100}
+        max={maxUserVolume() * 100}
         step={1}
         value={percent}
         disabled={deafened}

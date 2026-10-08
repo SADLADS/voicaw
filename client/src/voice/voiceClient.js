@@ -3,10 +3,10 @@ import { onGuildEvent } from '../utils/ws-client';
 import { createVoiceChain } from './voiceChain';
 import { VOICE_SAMPLE_RATE, voiceProcessingStage } from './noise/noiseStages';
 import {
-  canChooseOutput, captureOptions, getAudioSettings, inputGainStage, onAudioSettingsChange, outputSinkId, processingChanged,
+  captureOptions, getAudioSettings, inputGainStage, onAudioSettingsChange, outputSinkId, processingChanged,
 } from './audioSettings';
 import {
-  getStreamVolume, getUserVolume, onStreamVolumesChange, onUserVolumesChange, playbackVolume,
+  canBoostVolume, getStreamVolume, getUserVolume, onStreamVolumesChange, onUserVolumesChange, playbackVolume,
 } from './userVolumes';
 import { CAMERA_PUBLISH, cameraOptions, onVideoSettingsChange } from './videoSettings';
 import { getStreamSettings, screenShareOptions } from './streamSettings';
@@ -152,11 +152,8 @@ let meters = null;
 let meterContext = null;
 let liveKitSpeakers = [];
 
-const playsThroughWebAudio = () => typeof AudioContext !== 'undefined'
-  && ('setSinkId' in AudioContext.prototype || !canChooseOutput());
-
 function newPlaybackContext() {
-  if (!playsThroughWebAudio()) return null;
+  if (!canBoostVolume()) return null;
   try {
     const context = new AudioContext({ latencyHint: 'interactive' });
     // LiveKit sets the speakers on it without waiting or catching, and may do so after we've
