@@ -2543,6 +2543,7 @@ body.mobile-mode .dm-user-list-container .dm-user {
 }
 
 .profile-card-custom-status {
+  display: block;
   margin-top: 10px;
   font-size: 14px;
   overflow-wrap: anywhere;
@@ -2552,6 +2553,77 @@ body.mobile-mode .dm-user-list-container .dm-user {
   margin-top: 10px;
   padding-top: 8px;
   border-top: 1px solid var(--vc-border-dark);
+}
+
+/* A custom status's emoji, before its text (CustomStatus). */
+.custom-status-emoji {
+  margin-right: 4px;
+}
+
+.custom-status-emoji .emoji {
+  width: 1.25em;
+  height: 1.25em;
+  vertical-align: -0.25em;
+}
+
+/* Choosing a custom status's emoji (StatusEmojiButton): the emoji, or a smiley without one,
+   then ✕ to remove it. */
+.status-emoji-picker {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.status-emoji-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-size: 16px;
+}
+
+.status-emoji-button:hover {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.status-emoji-button .emoji {
+  width: 20px;
+  height: 20px;
+}
+
+.status-emoji-remove {
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-size: 11px;
+}
+
+.status-emoji-remove:hover {
+  color: var(--vc-fg);
+}
+
+/* Over Settings and the user menu. */
+.reaction-picker-anchor.status-emoji-anchor {
+  z-index: 110;
+}
+
+.edit-profile-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.edit-profile-status .form-control {
+  flex: 1;
+  min-width: 0;
 }
 
 .profile-card-bio {

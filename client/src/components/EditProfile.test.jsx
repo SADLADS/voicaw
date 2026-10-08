@@ -6,6 +6,10 @@ vi.mock('../utils/api', () => ({
   default: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
 }));
 
+vi.mock('./EmojiPicker', () => ({
+  default: ({ onSelect, onClose }) => <button type="button" onClick={() => { onSelect('🐇'); onClose(); }}>Pick a rabbit</button>,
+}));
+
 import api from '../utils/api';
 import EditProfile from './EditProfile';
 import { AuthContext } from '../hooks/useAuth';
@@ -75,6 +79,24 @@ describe('EditProfile', () => {
     expect(api.put).toHaveBeenCalledWith('/profile', { displayName: 'Ally', customStatus: 'busy' });
     expect(getProfile(1)).toMatchObject({ display_name: 'Ally', custom_status: 'busy' });
     expect(api.get).not.toHaveBeenCalled(); // no picture to upload
+  });
+
+  it("adds an emoji to the custom status, shown in the preview and saved", async () => {
+    api.put.mockResolvedValue({ data: { id: 1, username: 'alice', display_name: 'Alice', custom_status: null, custom_status_emoji: '🐇', bio: 'Hi there' } });
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Add an emoji' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a rabbit' }));
+    expect(document.querySelector('.edit-profile-preview .profile-card-custom-status')).toHaveTextContent('🐇');
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => expect(screen.getByText('Profile saved.')).toBeInTheDocument());
+    expect(api.put).toHaveBeenCalledWith('/profile', { customStatusEmoji: '🐇' });
+    expect(getProfile(1)).toMatchObject({ custom_status_emoji: '🐇' });
+    expect(screen.getByRole('button', { name: 'Change the emoji' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the emoji' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(api.put).toHaveBeenLastCalledWith('/profile', { customStatusEmoji: '' }));
   });
 
   it('rejects non-images and pictures over 8 MB', () => {

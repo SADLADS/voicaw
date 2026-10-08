@@ -66,7 +66,7 @@
   row with `UserPanel` across the bottom: your picture, name, this device's connection state
   (`ws-client` `getConnectionState`/`onConnectionState`: online / connecting / offline) and the
   settings button. Clicking the picture and name opens `UserMenu` above it: your picture, name
-  and custom status (click to change it there), Edit Profile, Copy User ID and Log out.
+  and custom status (click to change it and its emoji there), Edit Profile, Copy User ID and Log out.
   Neither the panel's picture and name nor the menu has a right-click menu (they call
   `preventDefault`, so PageMenus' Copy User ID doesn't open there either). It's shown under the DM list, a guild's channel list, and Settings' column on
   a computer (Layout adds an empty column, `settingsNavSlot` in `LayoutContext`, and `Settings`
@@ -404,10 +404,12 @@
 ## Profiles
 
 Everyone has an optional display name (32 characters), custom status (a line of text, 128;
-not an online status: those stay automatic) and bio (190), in `users` (`display_name`,
-`custom_status`, `bio`; `server/profiles.js`), visible to everyone logged in. The username
+not an online status: those stay automatic) with an optional emoji before it, and bio (190), in
+`users` (`display_name`, `custom_status`, `custom_status_emoji`, `bio`; `server/profiles.js`),
+visible to everyone logged in. The username
 stays the unique handle (logins, @username on the card).
-- `PUT /api/profile { displayName, customStatus, bio }` (null or "" clears one) saves and
+- `PUT /api/profile { displayName, customStatus, customStatusEmoji, bio }` (null or "" clears
+  one) saves and
   sends `user_profile { user }` to every logged-in socket. `GET /profile`, `/dms-list`, guild
   members and group details include the fields; message rows carry `sender_display_name`, used
   for push titles (DMs, guild pushes, group pushes, calls use `displayNameOf`).
@@ -444,8 +446,17 @@ stays the unique handle (logins, @username on the card).
   and `ProfilePopover`'s body (clicking a name or avatar in chat), which has no buttons:
   what can be done to someone is in their right-click menu (see Right-click menus). The DM list and member list
   show the custom status under names.
+- **Custom status emoji**: a Unicode emoji or a guild's custom one (`<:name:id>`, which shows
+  everywhere, as in messages: custom emoji aren't encrypted), checked like a reaction's (64
+  characters, no spaces); the text and the emoji are each optional, so a status can be just an
+  emoji. `CustomStatus` draws both wherever a status shows (`ReactionEmoji` for the emoji).
+  `StatusEmojiButton` chooses it: a smiley (or the emoji) opening the floating `EmojiPicker`,
+  and ✕ to remove it; the picker is drawn inside it, not portalled, so `UserMenu` counts
+  clicks in it as inside. In `UserMenu` the emoji and text are edited together (moving to the
+  emoji button or picker doesn't end the edit; Enter or clicking away saves both, ✕ on the
+  status clears both); in Edit Profile it's beside the text box, saved with the rest.
 - Settings → Edit Profile is its own page (`/settings/profile`, `EditProfile.jsx`): picture
-  (change or remove), display name, custom status, bio, with a live preview; Save uploads the
+  (change or remove), display name, custom status and its emoji, bio, with a live preview; Save uploads the
   picture (if picked) or removes it, and saves the rest.
 
 ## Sounds

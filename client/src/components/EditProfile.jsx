@@ -3,16 +3,18 @@ import defaultpfp from '../assets/images/default.png';
 import { useAuth } from '../hooks/useAuth';
 import Avatar from './Avatar';
 import ProfileCard from './ProfileCard';
+import StatusEmojiButton from './StatusEmojiButton';
 import ImageCropper from './ImageCropper';
 import { MAX_PROFILE_PIC_BYTES, removeProfilePicture, updateProfile, uploadProfilePicture } from '../services/profileService';
 import { PROFILE_LIMITS, getProfile, mergeProfiles, useProfiles } from '../utils/profiles';
 import { croppedPreview } from '../utils/pictureData';
 import { t } from '../i18n';
 
-const FIELDS = ['display_name', 'custom_status', 'bio'];
+const FIELDS = ['display_name', 'custom_status', 'custom_status_emoji', 'bio'];
 const fromProfile = (profile) => Object.fromEntries(FIELDS.map((f) => [f, profile?.[f] ?? '']));
 
-// Settings → Edit Profile (/settings/profile): picture, display name, custom status and bio,
+// Settings → Edit Profile (/settings/profile): picture, display name, custom status (and its
+// emoji) and bio,
 // with a preview of your profile card as others will see it. A picked picture opens the
 // cropper (ImageCropper) first. Nothing is saved until Save (which uploads a new picture, if
 // one was picked, or removes yours, and saves the rest); Reset drops changes.
@@ -115,7 +117,7 @@ export default function EditProfile() {
         setRemoving(false);
       }
       if (changedFields.length) {
-        const keys = { display_name: 'displayName', custom_status: 'customStatus', bio: 'bio' };
+        const keys = { display_name: 'displayName', custom_status: 'customStatus', custom_status_emoji: 'customStatusEmoji', bio: 'bio' };
         const profile = await updateProfile(Object.fromEntries(changedFields.map((f) => [keys[f], draft[f].trim()])));
         mergeProfiles([profile]);
         touched.current = false;
@@ -165,16 +167,21 @@ export default function EditProfile() {
             <span className="vc-hint">{t('settings.profile.displayNameHint', { username: user.username })}</span>
           </label>
 
-          <label className="edit-profile-field">
-            <span className="edit-profile-label">{t('settings.profile.customStatus')} <span className="edit-profile-count">{counter('custom_status')}</span></span>
-            <input
-              className="form-control"
-              value={draft.custom_status}
-              maxLength={PROFILE_LIMITS.custom_status}
-              placeholder={t('settings.profile.customStatusPlaceholder')}
-              onChange={(e) => change('custom_status', e.target.value)}
-            />
-          </label>
+          {/* Not a <label> around it all: it would label the emoji button. */}
+          <div className="edit-profile-field">
+            <label className="edit-profile-label" htmlFor="edit-profile-status">{t('settings.profile.customStatus')} <span className="edit-profile-count">{counter('custom_status')}</span></label>
+            <div className="edit-profile-status">
+              <StatusEmojiButton emoji={draft.custom_status_emoji || null} onChange={(emoji) => change('custom_status_emoji', emoji ?? '')} />
+              <input
+                id="edit-profile-status"
+                className="form-control"
+                value={draft.custom_status}
+                maxLength={PROFILE_LIMITS.custom_status}
+                placeholder={t('settings.profile.customStatusPlaceholder')}
+                onChange={(e) => change('custom_status', e.target.value)}
+              />
+            </div>
+          </div>
 
           <label className="edit-profile-field">
             <span className="edit-profile-label">{t('settings.profile.aboutMe')} <span className="edit-profile-count">{counter('bio')}</span></span>

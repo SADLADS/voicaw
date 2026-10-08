@@ -5,6 +5,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFaceSmile, faIdCard, faPen, faRightFromBracket, faXmark } from '@fortawesome/free-solid-svg-icons';
 import Avatar from './Avatar';
 import StatusIcon from './StatusIcon';
+import CustomStatus from './CustomStatus';
+import StatusEmojiButton from './StatusEmojiButton';
 import { usePresence } from '../hooks/usePresence';
 import { updateProfile } from '../services/profileService';
 import { apiId } from '../utils/copyId';
@@ -14,7 +16,7 @@ import { t } from '../i18n';
 const MARGIN = 8;
 
 // The menu the user panel's left side opens (above it): your picture, name and custom status
-// (click it to change it: Enter saves, Escape cancels, ✕ clears), Edit Profile, Copy User ID and
+// (click it to change it and its emoji: Enter or clicking away saves, Escape cancels, ✕ clears both), Edit Profile, Copy User ID and
 // Log out. Right-clicking it opens nothing (neither PageMenus' menu nor the browser's).
 // `anchor` is the clicked element's rect; `trigger` its element (clicking it again closes the
 // menu through the panel, not as an outside click).
@@ -26,11 +28,16 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
   const [position, setPosition] = useState({ left: anchor.left, bottom: window.innerHeight - anchor.top + MARGIN, visibility: 'hidden' });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+  const [draftEmoji, setDraftEmoji] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const finished = useRef(false); // Enter or Escape already ended this edit (so blur doesn't)
+  const editRef = useRef(null); // the text box and its emoji button
+  const inputRef = useRef(null);
   const profile = { ...user, ...getProfile(user.id) };
   const customStatus = profile.custom_status ?? '';
+  const customEmoji = profile.custom_status_emoji ?? null;
+  const hasStatus = Boolean(customStatus || customEmoji);
 
   // Above what was clicked, within the window.
   useLayoutEffect(() => {
@@ -55,16 +62,16 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
     };
   }, [onClose, trigger, editing]);
 
-  async function saveStatus(value) {
+  async function saveStatus(value, emoji) {
     const next = value.trim();
-    if (next === customStatus) {
+    if (next === customStatus && emoji === customEmoji) {
       setEditing(false);
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      mergeProfiles([await updateProfile({ customStatus: next || null })]);
+      mergeProfiles([await updateProfile({ customStatus: next || null, customStatusEmoji: emoji })]);
       setEditing(false);
     } catch (err) {
       setError(err.response?.data?.error ?? t('app.userMenu.statusSaveFailed'));
@@ -90,42 +97,56 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
           <div className="user-menu-name">{nameOf(profile)}</div>
           {profile.display_name && <div className="user-menu-username">{profile.username}</div>}
           {editing ? (
-            <input
-              className="user-menu-status-input"
-              aria-label={t('app.userMenu.customStatus')}
-              placeholder={t('app.userMenu.statusPlaceholder')}
-              value={draft}
-              maxLength={PROFILE_LIMITS.custom_status}
-              disabled={saving}
-              autoFocus
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={() => { if (!finished.current) saveStatus(draft); }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  finished.current = true;
-                  saveStatus(draft);
-                }
-                if (e.key === 'Escape') {
-                  finished.current = true;
-                  e.stopPropagation();
-                  setEditing(false);
-                  setError(null);
-                }
-              }}
-            />
+            <div className="user-menu-status-edit" ref={editRef}>
+              <StatusEmojiButton
+                emoji={draftEmoji}
+                disabled={saving}
+                onChange={(emoji) => { setDraftEmoji(emoji); inputRef.current?.focus(); }}
+                onPickerClosed={() => inputRef.current?.focus()}
+              />
+              <input
+                ref={inputRef}
+                className="user-menu-status-input"
+                aria-label={t('app.userMenu.customStatus')}
+                placeholder={t('app.userMenu.statusPlaceholder')}
+                value={draft}
+                maxLength={PROFILE_LIMITS.custom_status}
+                disabled={saving}
+                autoFocus
+                onChange={(e) => setDraft(e.target.value)}
+                // Moving to the emoji button or its picker isn't leaving the edit.
+                onBlur={(e) => { if (!finished.current && !editRef.current?.contains(e.relatedTarget)) saveStatus(draft, draftEmoji); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    finished.current = true;
+                    saveStatus(draft, draftEmoji);
+                  }
+                  if (e.key === 'Escape') {
+                    finished.current = true;
+                    e.stopPropagation();
+                    setEditing(false);
+                    setError(null);
+                  }
+                }}
+              />
+            </div>
           ) : (
             <div className="user-menu-status-row">
               <button
                 type="button"
-                className={`user-menu-status${customStatus ? '' : ' empty'}`}
+                className={`user-menu-status${hasStatus ? '' : ' empty'}`}
                 title={t('app.userMenu.changeStatus')}
-                onClick={() => { setDraft(customStatus); finished.current = false; setEditing(true); }}
+                onClick={() => { setDraft(customStatus); setDraftEmoji(customEmoji); finished.current = false; setEditing(true); }}
               >
-                {!customStatus && <FontAwesomeIcon icon={faFaceSmile} />}
-                <span>{customStatus || t('app.userMenu.setStatus')}</span>
+                {hasStatus ? <CustomStatus profile={profile} /> : (
+                  <>
+                    <FontAwesomeIcon icon={faFaceSmile} />
+                    <span>{t('app.userMenu.setStatus')}</span>
+                  </>
+                )}
               </button>
-              {customStatus && (
-                <button type="button" className="user-menu-status-clear" aria-label={t('app.userMenu.clearStatus')} title={t('app.userMenu.clear')} disabled={saving} onClick={() => saveStatus('')}>
+              {hasStatus && (
+                <button type="button" className="user-menu-status-clear" aria-label={t('app.userMenu.clearStatus')} title={t('app.userMenu.clear')} disabled={saving} onClick={() => saveStatus('', null)}>
                   <FontAwesomeIcon icon={faXmark} />
                 </button>
               )}

@@ -71,7 +71,7 @@ unexpected errors. The rest:
 - `pollTimers.js`: when every poll closes and its "poll ended" row (see Polls), and dropping
   the timers of polls whose chat was deleted (hourly); `routes/polls.js`.
 - `routes/typing.js`: "… is typing" (`POST /typing`, relayed as `typing`; see Typing indicator in `docs/realtime.md`).
-- `profiles.js`: display name, custom status and bio (limits, cleaning, `displayNameOf`; see Profiles).
+- `profiles.js`: display name, custom status (and its emoji) and bio (limits, cleaning, `displayNameOf`; see Profiles).
 - `avatars.js` + `avatarImage.js`: profile pictures (processing, storage, the one-off migration;
   see Profiles). `routes/avatars.js` has their routes.
 - `routes/`: `auth.js` (OPAQUE register/login, profile), `sessions.js` (Settings → Devices, logout), `dms.js` (conversations, send, edit,

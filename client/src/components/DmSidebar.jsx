@@ -10,6 +10,7 @@ import { usePresence } from '../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../utils/presence';
 import { groupTitle } from '../utils/groupDisplay';
 import StatusIcon from './StatusIcon';
+import CustomStatus from './CustomStatus';
 import NewGroupDialog from './group/NewGroupDialog';
 import { displayName, getProfile, nameOf, useProfiles } from '../utils/profiles';
 import Avatar from './Avatar';
@@ -196,7 +197,7 @@ export default function DmSidebar({ user, users, groups = [], botDms = [], unrea
                 </span>
                 <span className="dm-user-names">
                   <span className="dm-user-name">{name}</span>
-                  {profile.custom_status && <span className="dm-user-custom-status">{profile.custom_status}</span>}
+                  <CustomStatus profile={profile} className="dm-user-custom-status" />
                 </span>
                 {marks(setting)}
               </div>

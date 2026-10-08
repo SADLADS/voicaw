@@ -497,6 +497,7 @@ addColumn('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
 // Profiles (profiles.js): all optional, shown to everyone logged in.
 addColumn('ALTER TABLE users ADD COLUMN display_name TEXT');
 addColumn('ALTER TABLE users ADD COLUMN custom_status TEXT');
+addColumn('ALTER TABLE users ADD COLUMN custom_status_emoji TEXT');
 addColumn('ALTER TABLE users ADD COLUMN bio TEXT');
 addColumn('ALTER TABLE users ADD COLUMN avatar TEXT');
 // Your own settings that follow your account (preferences.js; JSON, only those changed).

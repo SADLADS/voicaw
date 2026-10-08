@@ -261,19 +261,20 @@ router.get('/profile', authenticatePending, async (req, res) => {
     pending: Boolean(user.pending),
     // false: the app asks them to accept the current terms before going on (TermsGate).
     termsAccepted: terms.hasAccepted(user),
-    display_name: user.display_name, custom_status: user.custom_status, bio: user.bio, avatar: user.avatar,
+    display_name: user.display_name, custom_status: user.custom_status, custom_status_emoji: user.custom_status_emoji, bio: user.bio, avatar: user.avatar,
   });
 });
 
-// Changes your profile (profiles.js): any of `displayName`, `customStatus`, `bio` (null or
-// "" clears one). Everyone logged in gets `user_profile` with the new one.
+// Changes your profile (profiles.js): any of `displayName`, `customStatus`,
+// `customStatusEmoji`, `bio` (null or "" clears one). Everyone logged in gets `user_profile` with the new one.
 router.put('/profile', authenticateJWT, async (req, res) => {
-  const fields = { displayName: 'display_name', customStatus: 'custom_status', bio: 'bio' };
+  const fields = { displayName: 'display_name', customStatus: 'custom_status', customStatusEmoji: 'custom_status_emoji', bio: 'bio' };
   const updates = [];
   const params = [];
   for (const [key, column] of Object.entries(fields)) {
     if (req.body?.[key] === undefined) continue;
     const value = cleanProfile(column, req.body[key]);
+    if (value === undefined && column === 'custom_status_emoji') return res.status(400).json({ error: 'Invalid emoji' });
     if (value === undefined) {
       return res.status(400).json({ error: `That ${column.replace('_', ' ')} is too long (at most ${PROFILE_LIMITS[column]} characters)` });
     }

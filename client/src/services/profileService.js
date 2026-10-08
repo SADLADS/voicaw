@@ -26,8 +26,8 @@ export async function removeProfilePicture() {
   return (await api.delete('/profile/avatar')).data;
 }
 
-// Saves your profile: any of { displayName, customStatus, bio } (null or "" clears one).
-// Resolves to the saved profile ({ id, username, display_name, custom_status, bio }).
+// Saves your profile: any of { displayName, customStatus, customStatusEmoji, bio } (null or "" clears one).
+// Resolves to the saved profile ({ id, username, display_name, custom_status, custom_status_emoji, bio }).
 export async function updateProfile(changes) {
   return (await api.put('/profile', changes)).data;
 }

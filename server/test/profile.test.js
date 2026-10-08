@@ -43,6 +43,28 @@ describe('profiles', () => {
     expect((await api.get(alice, '/profile')).body).toMatchObject({ display_name: 'Alice Liddell', custom_status: null });
   });
 
+  it('saves an emoji for the custom status, with or without text', async () => {
+    const amy = await makeUser();
+    expect((await api.get(amy, '/profile')).body).toMatchObject({ custom_status: null, custom_status_emoji: null });
+
+    const res = await api.put(amy, '/profile', { customStatusEmoji: '🐇', customStatus: 'Late' });
+    expect(res.body).toMatchObject({ custom_status: 'Late', custom_status_emoji: '🐇' });
+    // Only the text clears; the emoji stays on its own.
+    await api.put(amy, '/profile', { customStatus: null });
+    expect((await api.get(amy, '/profile')).body).toMatchObject({ custom_status: null, custom_status_emoji: '🐇' });
+    // A guild's custom emoji.
+    await api.put(amy, '/profile', { customStatusEmoji: '<:party_parrot:12>' });
+    expect((await api.get(amy, '/profile')).body.custom_status_emoji).toBe('<:party_parrot:12>');
+    await api.put(amy, '/profile', { customStatusEmoji: '' });
+    expect((await api.get(amy, '/profile')).body.custom_status_emoji).toBe(null);
+
+    for (const bad of [42, 'two words', 'x'.repeat(65)]) {
+      const refused = await api.put(amy, '/profile', { customStatusEmoji: bad });
+      expect(refused.status).toBe(400);
+      expect(refused.body.error).toBe('Invalid emoji');
+    }
+  });
+
   it('refuses what is too long or not text', async () => {
     const bob = await makeUser();
     expect((await api.put(bob, '/profile', { displayName: 'x'.repeat(33) })).status).toBe(400);
@@ -55,15 +77,15 @@ describe('profiles', () => {
     const carol = await makeUser();
     const dave = await makeUser();
     const events = listen(dave);
-    await api.put(carol, '/profile', { displayName: 'Caz', customStatus: 'busy' });
-    expect(events.find((e) => e.type === 'user_profile')).toMatchObject({ user: { id: carol.id, display_name: 'Caz', custom_status: 'busy' } });
+    await api.put(carol, '/profile', { displayName: 'Caz', customStatus: 'busy', customStatusEmoji: '⏳' });
+    expect(events.find((e) => e.type === 'user_profile')).toMatchObject({ user: { id: carol.id, display_name: 'Caz', custom_status: 'busy', custom_status_emoji: '⏳' } });
 
     const listed = (await api.get(dave, '/dms-list')).body.find((u) => u.id === carol.id);
-    expect(listed).toMatchObject({ username: carol.username, display_name: 'Caz', custom_status: 'busy', bio: null });
+    expect(listed).toMatchObject({ username: carol.username, display_name: 'Caz', custom_status: 'busy', custom_status_emoji: '⏳', bio: null });
 
     const guild = (await api.post(carol, '/guilds', { name: 'Profiles' })).body;
     const members = (await api.get(carol, `/guilds/${guild.id}/members`)).body;
-    expect(members.find((m) => m.id === carol.id)).toMatchObject({ display_name: 'Caz', custom_status: 'busy' });
+    expect(members.find((m) => m.id === carol.id)).toMatchObject({ display_name: 'Caz', custom_status: 'busy', custom_status_emoji: '⏳' });
   });
 
   it('uses the display name in DM notifications', async () => {

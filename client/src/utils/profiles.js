@@ -6,13 +6,13 @@ import { useSyncExternalStore } from 'react';
 // `mergeProfiles`) and by `user_profile` events when someone edits theirs (ws-client).
 // Components that draw names call useProfiles() so they redraw when one changes.
 
-const profiles = new Map(); // user id (string) -> { id, username, display_name, custom_status, bio }
+const profiles = new Map(); // user id (string) -> { id, username, display_name, custom_status, custom_status_emoji, bio }
 const listeners = new Set();
 let version = 0;
 
 // `deleted_at`: set once the account is deleted (server/accounts.js; shown as "Deleted User").
 // `bot`: a bot (server/bots.js), only ever met in guilds.
-const FIELDS = ['username', 'display_name', 'custom_status', 'bio', 'avatar', 'deleted_at', 'bot'];
+const FIELDS = ['username', 'display_name', 'custom_status', 'custom_status_emoji', 'bio', 'avatar', 'deleted_at', 'bot'];
 let avatarBase = '';
 
 // Called once the server config (with the object store's address) has loaded, which may be

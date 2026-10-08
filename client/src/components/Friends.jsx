@@ -6,6 +6,7 @@ import { LayoutContext } from '../contexts';
 import PaneBackButton from './PaneBackButton';
 import Avatar from './Avatar';
 import StatusIcon from './StatusIcon';
+import CustomStatus from './CustomStatus';
 import ConfirmDialog from './guild/ConfirmDialog';
 import { usePresence } from '../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../utils/presence';
@@ -99,7 +100,7 @@ export default function Friends() {
     if (kind === 'incoming') return t('friends.incoming');
     if (kind === 'outgoing') return t('friends.outgoing');
     const profile = getProfile(person.id) ?? person;
-    if (profile.custom_status) return profile.custom_status;
+    if (profile.custom_status || profile.custom_status_emoji) return <CustomStatus profile={profile} />;
     const { status, lastOnline } = presenceOf(person);
     return status === 'offline' ? lastSeenText(lastOnline) ?? statusLabel(status) : statusLabel(status);
   };

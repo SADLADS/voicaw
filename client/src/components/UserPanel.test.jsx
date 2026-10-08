@@ -15,6 +15,11 @@ vi.mock('../utils/ws-client', () => ({
   },
 }));
 
+// The picker itself is tested in EmojiPicker.test.jsx: here it picks a rabbit.
+vi.mock('./EmojiPicker', () => ({
+  default: ({ onSelect, onClose }) => <button type="button" onClick={() => { onSelect('🐇'); onClose(); }}>Pick a rabbit</button>,
+}));
+
 import UserPanel from './UserPanel';
 import { ConfigContext } from '../contexts';
 import { clearProfiles, mergeProfiles, setAvatarBase } from '../utils/profiles';
@@ -135,14 +140,50 @@ describe('UserPanel', () => {
       const input = screen.getByRole('textbox', { name: 'Custom status' });
       fireEvent.change(input, { target: { value: '  coding ' } });
       await act(async () => fireEvent.keyDown(input, { key: 'Enter' }));
-      expect(updateProfile).toHaveBeenCalledWith({ customStatus: 'coding' });
+      expect(updateProfile).toHaveBeenCalledWith({ customStatus: 'coding', customStatusEmoji: null });
       expect(updateProfile).toHaveBeenCalledTimes(1);
       expect(screen.getByRole('button', { name: 'coding' })).toBeInTheDocument();
 
       updateProfile.mockResolvedValueOnce({ id: 7, username: 'alice', custom_status: null });
       await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Clear custom status' })));
-      expect(updateProfile).toHaveBeenLastCalledWith({ customStatus: null });
+      expect(updateProfile).toHaveBeenLastCalledWith({ customStatus: null, customStatusEmoji: null });
       expect(screen.getByRole('button', { name: 'Set a custom status' })).toBeInTheDocument();
+    });
+
+    it('adds an emoji to your custom status, saved with its text', async () => {
+      clearProfiles();
+      mergeProfiles([{ id: 7, username: 'alice', custom_status: 'late' }]);
+      updateProfile.mockReset();
+      updateProfile.mockResolvedValueOnce({ id: 7, username: 'alice', custom_status: 'late', custom_status_emoji: '🐇' });
+      renderPanel();
+      openMenu();
+      fireEvent.click(screen.getByRole('button', { name: 'late' }));
+      const input = screen.getByRole('textbox', { name: 'Custom status' });
+      // Going to the emoji button (and its picker) isn't leaving the edit.
+      const emojiButton = screen.getByRole('button', { name: 'Add an emoji' });
+      fireEvent.blur(input, { relatedTarget: emojiButton });
+      fireEvent.click(emojiButton);
+      fireEvent.click(screen.getByRole('button', { name: 'Pick a rabbit' }));
+      expect(updateProfile).not.toHaveBeenCalled();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Change the emoji' })).toHaveTextContent('🐇');
+
+      await act(async () => fireEvent.keyDown(input, { key: 'Enter' }));
+      expect(updateProfile).toHaveBeenCalledWith({ customStatus: 'late', customStatusEmoji: '🐇' });
+      expect(screen.getByRole('button', { name: '🐇late' })).toBeInTheDocument();
+    });
+
+    it('removes the emoji alone, keeping the text', async () => {
+      clearProfiles();
+      mergeProfiles([{ id: 7, username: 'alice', custom_status: 'late', custom_status_emoji: '🐇' }]);
+      updateProfile.mockReset();
+      updateProfile.mockResolvedValueOnce({ id: 7, username: 'alice', custom_status: 'late', custom_status_emoji: null });
+      renderPanel();
+      openMenu();
+      fireEvent.click(screen.getByRole('button', { name: '🐇late' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Remove the emoji' }));
+      await act(async () => fireEvent.keyDown(screen.getByRole('textbox', { name: 'Custom status' }), { key: 'Enter' }));
+      expect(updateProfile).toHaveBeenCalledWith({ customStatus: 'late', customStatusEmoji: null });
     });
 
     it('keeps the status when editing is cancelled with Escape (and the menu open)', () => {

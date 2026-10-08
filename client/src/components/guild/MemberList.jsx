@@ -6,6 +6,7 @@ import { setMemberRoles } from '../../services/guildService';
 import { PERMISSIONS, colorToHex, has, memberColor, memberRank, memberRoles } from '../../utils/permissions';
 import { errorMessage, groupMembers } from '../../utils/guildDisplay';
 import StatusIcon from '../StatusIcon';
+import CustomStatus from '../CustomStatus';
 import { usePresence } from '../../hooks/usePresence';
 import { formatDate } from '../../utils/dateFormat';
 import { displayName, getProfile, nameOf, useProfiles } from '../../utils/profiles';
@@ -218,7 +219,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
               {nameOf(member)}
               {member.bot ? <span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span> : null}
             </span>
-            {getProfile(member.id)?.custom_status && <span className="member-custom-status">{getProfile(member.id).custom_status}</span>}
+            <CustomStatus profile={getProfile(member.id)} className="member-custom-status" />
           </span>
           {member.id === guild.owner && <FontAwesomeIcon icon={faCrown} className="member-owner" title={t('guilds.memberList.owner')} />}
         </button>
