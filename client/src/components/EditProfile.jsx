@@ -3,24 +3,28 @@ import defaultpfp from '../assets/images/default.png';
 import { useAuth } from '../hooks/useAuth';
 import Avatar from './Avatar';
 import ProfileCard from './ProfileCard';
+import ImageCropper from './ImageCropper';
 import { MAX_PROFILE_PIC_BYTES, removeProfilePicture, updateProfile, uploadProfilePicture } from '../services/profileService';
 import { PROFILE_LIMITS, getProfile, mergeProfiles, useProfiles } from '../utils/profiles';
+import { croppedPreview } from '../utils/pictureData';
 import { t } from '../i18n';
 
 const FIELDS = ['display_name', 'custom_status', 'bio'];
 const fromProfile = (profile) => Object.fromEntries(FIELDS.map((f) => [f, profile?.[f] ?? '']));
 
 // Settings → Edit Profile (/settings/profile): picture, display name, custom status and bio,
-// with a preview of your profile card as others will see it. Nothing is saved until Save
-// (which uploads a new picture, if one was picked, or removes yours, and saves the rest);
-// Reset drops changes.
+// with a preview of your profile card as others will see it. A picked picture opens the
+// cropper (ImageCropper) first. Nothing is saved until Save (which uploads a new picture, if
+// one was picked, or removes yours, and saves the rest); Reset drops changes.
 export default function EditProfile() {
   const { user } = useAuth();
   useProfiles();
   const saved = getProfile(user.id);
   const [draft, setDraft] = useState(() => fromProfile(saved));
   const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null); // the picked picture's blob URL
+  const [crop, setCrop] = useState(null); // the part of `file` chosen in the cropper
+  const [cropping, setCropping] = useState(null); // a picked file, in the cropper
+  const [preview, setPreview] = useState(null); // the cropped picture's blob URL
   const [removing, setRemoving] = useState(false); // back to the default picture on save
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -58,14 +62,28 @@ export default function EditProfile() {
       return;
     }
     setError(null);
+    setCropping(f);
+  }
+
+  async function applyCrop(chosen) {
+    const f = cropping;
+    setCropping(null);
+    let url;
+    try {
+      url = await croppedPreview(f, chosen);
+    } catch {
+      url = URL.createObjectURL(f); // can't draw it here: the whole picture stands in
+    }
     setRemoving(false);
     setFile(f);
-    setPreview(URL.createObjectURL(f));
+    setCrop(chosen);
+    setPreview(url);
   }
 
   function removePicture() {
     setDone(false);
     setFile(null);
+    setCrop(null);
     setPreview(null);
     setRemoving(true);
   }
@@ -74,6 +92,7 @@ export default function EditProfile() {
     touched.current = false;
     setDraft(fromProfile(saved));
     setFile(null);
+    setCrop(null);
     setPreview(null);
     setRemoving(false);
     setError(null);
@@ -87,8 +106,9 @@ export default function EditProfile() {
     setDone(false);
     try {
       if (file) {
-        mergeProfiles([await uploadProfilePicture(file)]);
+        mergeProfiles([await uploadProfilePicture(file, crop)]);
         setFile(null);
+        setCrop(null);
         setPreview(null);
       } else if (removing) {
         mergeProfiles([await removeProfilePicture()]);
@@ -189,6 +209,7 @@ export default function EditProfile() {
           </div>
         </div>
       </div>
+      {cropping && <ImageCropper file={cropping} onApply={applyCrop} onCancel={() => setCropping(null)} />}
     </div>
   );
 }

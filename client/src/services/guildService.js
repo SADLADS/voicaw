@@ -29,13 +29,14 @@ export async function transferGuild(guildId, userId) {
   await api.post(`/guilds/${guildId}/transfer`, { userId });
 }
 
-// Uploads `file` as the guild's icon (owner only), then tells the server it's there.
-export async function uploadGuildIcon(guildId, file) {
+// Uploads `file` as the guild's icon (Manage Guild), then tells the server it's there, to cut
+// out `crop` (from ImageCropper; optional: the middle).
+export async function uploadGuildIcon(guildId, file, crop) {
   const { data } = await api.get('/upload_guild_icon', { params: { guildId, type: file.type, size: file.size } });
   if (!data?.url) throw new Error(t('guildAdmin.upload.noUrl'));
   const res = await fetch(data.url, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
   if (!res.ok) throw new Error(t('guildAdmin.upload.failed'));
-  return updateGuild(guildId, { iconUploaded: true });
+  return updateGuild(guildId, crop ? { iconUploaded: true, iconCrop: crop } : { iconUploaded: true });
 }
 
 export async function fetchMembers(guildId) {

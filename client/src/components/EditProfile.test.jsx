@@ -26,6 +26,14 @@ function renderPage() {
 
 const imageFile = (name = 'pic.png') => new File(['fake-bytes'], name, { type: 'image/png' });
 const pickFile = (file) => fireEvent.change(screen.getByLabelText('Choose a profile picture'), { target: { files: [file] } });
+// Picks it, and applies the cropper as it opens (a 200×100 picture: the middle square).
+async function pickAndCrop(file) {
+  pickFile(file);
+  fireEvent.load(document.querySelector('.image-cropper-frame img'));
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+}
+const MIDDLE = { x: 0.25, y: 0, width: 0.5, height: 1 };
 const field = (name) => screen.getByRole('textbox', { name: new RegExp(`^${name}`) });
 
 beforeEach(() => {
@@ -35,6 +43,8 @@ beforeEach(() => {
   globalThis.fetch = vi.fn();
   globalThis.URL.createObjectURL = vi.fn(() => 'blob:preview');
   globalThis.URL.revokeObjectURL = vi.fn();
+  Object.defineProperty(HTMLImageElement.prototype, 'naturalWidth', { configurable: true, get: () => 200 });
+  Object.defineProperty(HTMLImageElement.prototype, 'naturalHeight', { configurable: true, get: () => 100 });
 });
 
 describe('EditProfile', () => {
@@ -76,6 +86,15 @@ describe('EditProfile', () => {
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
   });
 
+  it('opens a picked picture in the cropper; cancelling leaves the picture as it was', async () => {
+    renderPage();
+    pickFile(imageFile());
+    expect(screen.getByRole('dialog', { name: 'Edit image' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+  });
+
   it('uploads a picked picture on save (previewing it first), and shows the processed one', async () => {
     setAvatarBase('https://s3.test');
     api.post.mockImplementation(async (url) => (url === '/profile/avatar'
@@ -83,14 +102,14 @@ describe('EditProfile', () => {
       : { data: { id: 1, username: 'alice', display_name: 'Alice', custom_status: null, bio: 'Hi there', avatar: 'new1' } }));
     globalThis.fetch.mockResolvedValue({ ok: true });
     renderPage();
-    pickFile(imageFile());
+    await pickAndCrop(imageFile());
     expect(screen.getByAltText('Your profile picture')).toHaveAttribute('src', 'blob:preview');
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
     await waitFor(() => expect(screen.getByText('Profile saved.')).toBeInTheDocument());
     expect(api.post).toHaveBeenCalledWith('/profile/avatar', { type: 'image/png', size: 10 });
     expect(globalThis.fetch).toHaveBeenCalledWith('https://s3.test/signed-put-url', expect.objectContaining({ method: 'PUT' }));
-    expect(api.post).toHaveBeenCalledWith('/profile/avatar/up1/ready');
+    expect(api.post).toHaveBeenCalledWith('/profile/avatar/up1/ready', { crop: MIDDLE });
     expect(api.put).not.toHaveBeenCalled(); // nothing else changed
     expect(getProfile(1).avatar).toBe('new1');
     expect(screen.getByAltText('Your profile picture')).toHaveAttribute('src', 'https://s3.test/profile-pics/1/new1.webp');
@@ -112,7 +131,7 @@ describe('EditProfile', () => {
   it('shows upload errors', async () => {
     api.post.mockResolvedValue({ data: {} });
     renderPage();
-    pickFile(imageFile());
+    await pickAndCrop(imageFile());
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(screen.getByText('Invalid upload URL')).toBeInTheDocument());
 

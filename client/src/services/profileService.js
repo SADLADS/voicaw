@@ -6,9 +6,9 @@ export const MAX_PROFILE_PIC_BYTES = 8 * 1024 * 1024;
 
 // Sets a new profile picture: the original goes straight to the object store (through a URL
 // the server signs for this file's type and size), then the server crops and shrinks it and
-// tells everyone (server/avatars.js). Resolves to your profile (with its new `avatar`).
-// (Profile pictures aren't encrypted.)
-export async function uploadProfilePicture(file) {
+// tells everyone (server/avatars.js), keeping `crop` (from ImageCropper; optional: the middle).
+// Resolves to your profile (with its new `avatar`). (Profile pictures aren't encrypted.)
+export async function uploadProfilePicture(file, crop) {
   const { data } = await api.post('/profile/avatar', { type: file.type, size: file.size });
   if (!data?.url) throw new Error(t('app.profile.invalidUploadUrl'));
 
@@ -18,7 +18,7 @@ export async function uploadProfilePicture(file) {
     body: file,
   });
   if (!res.ok) throw new Error(t('app.profile.uploadFailed'));
-  return (await api.post(`/profile/avatar/${data.uploadId}/ready`)).data;
+  return (await api.post(`/profile/avatar/${data.uploadId}/ready`, crop ? { crop } : {})).data;
 }
 
 // Back to the default picture. Resolves to your profile.

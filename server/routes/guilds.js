@@ -31,6 +31,8 @@ const voiceRegions = require('../voiceRegions');
 const { channelEvents, announceDeleted } = require('../guildEvents');
 const { xpByMember } = require('../guildLevels');
 const { JOIN, setJoinLog, logMembership } = require('../joinLog');
+const { getObject, putObject } = require('../s3');
+const { processAvatar, parseCrop, AvatarImageError } = require('../avatarImage');
 
 // Guilds: creating and managing them, members, bans, invites, categories and
 // channels. Roles and channel overrides are in routes/guildRoles.js, messages in
@@ -149,11 +151,31 @@ router.put('/guilds/:guildId/notifications', member, async (req, res) => {
   res.json({ level });
 });
 
+// The icon just uploaded to guild-icons/<id> (see /upload_guild_icon), as it came, becomes a
+// square WebP cut to `crop` (from the app's cropper; null: the middle), like profile pictures
+// (avatarImage.js). Throws ActionError if it isn't there or isn't a usable image.
+async function processGuildIcon(guildId, crop) {
+  let original;
+  try {
+    original = await getObject('guild-icons', String(guildId));
+  } catch {
+    throw new ActionError(400, "The icon wasn't uploaded");
+  }
+  try {
+    const image = await processAvatar(original, parseCrop(crop));
+    await putObject('guild-icons', String(guildId), image.buffer, image.contentType);
+  } catch (err) {
+    if (err instanceof AvatarImageError) throw new ActionError(400, err.message);
+    throw err;
+  }
+}
+
 // Rename, and/or `iconUploaded: true` once a new icon is in the object store (see
-// /upload_guild_icon), or `icon: null` to remove it, and/or `joinLog: { channelId, leaves }`
-// (joinLog.js; channelId null turns it off).
+// /upload_guild_icon; `iconCrop` from the app's cropper, optional), or `icon: null` to remove
+// it, and/or `joinLog: { channelId, leaves }` (joinLog.js; channelId null turns it off).
 router.patch('/guilds/:guildId', withPermission(PERMISSIONS.MANAGE_GUILD), withActionErrors(async (req, res) => {
-  const { name: rawName, iconUploaded, icon, joinLog } = req.body ?? {};
+  const { name: rawName, iconUploaded, iconCrop, icon, joinLog } = req.body ?? {};
+  if (iconUploaded === true) await processGuildIcon(req.guild.id, iconCrop);
   if (joinLog !== undefined) {
     if (!joinLog || typeof joinLog !== 'object') return res.status(400).json({ error: 'Invalid join log' });
     await setJoinLog(req.member, { channelId: joinLog.channelId, leaves: joinLog.leaves });

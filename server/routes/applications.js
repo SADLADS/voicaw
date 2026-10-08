@@ -3,7 +3,7 @@ const db = require('../db');
 const { authenticateJWT } = require('../auth');
 const { getMember } = require('../guilds');
 const { setAvatarFrom, removeAvatar } = require('../avatars');
-const { AvatarImageError, MAX_AVATAR_UPLOAD_BYTES } = require('../avatarImage');
+const { AvatarImageError, MAX_AVATAR_UPLOAD_BYTES, parseCrop } = require('../avatarImage');
 const { fromDiscordPermissions } = require('../discord');
 const bots = require('../bots');
 const oauth = require('../oauth');
@@ -42,7 +42,8 @@ router.get('/applications/:appId', authenticateJWT, ownApplication, async (req, 
   res.json(await bots.applicationFor(req.application));
 });
 
-// `name`, `description`, `public`; `avatar` as a data URI (or null for the default picture).
+// `name`, `description`, `public`; `avatar` as a data URI (or null for the default picture),
+// with `avatarCrop` from the app's cropper (optional, see avatarImage.js parseCrop).
 router.patch('/applications/:appId', authenticateJWT, ownApplication, async (req, res) => {
   const body = req.body ?? {};
   const error = await bots.updateApplication(req.application, body);
@@ -56,7 +57,7 @@ router.patch('/applications/:appId', authenticateJWT, ownApplication, async (req
       const original = Buffer.from(match[1], 'base64');
       if (original.length > MAX_AVATAR_UPLOAD_BYTES) return res.status(413).json({ error: 'That picture is too big' });
       try {
-        await setAvatarFrom(req.application.id, original);
+        await setAvatarFrom(req.application.id, original, parseCrop(body.avatarCrop));
       } catch (err) {
         if (err instanceof AvatarImageError) return res.status(400).json({ error: err.message });
         throw err;

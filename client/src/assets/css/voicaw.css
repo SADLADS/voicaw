@@ -1976,3 +1976,77 @@ body.sidebar-resizing * {
   aspect-ratio: 16 / 9;
   border-radius: 8px;
 }
+
+/* ---- Image cropper (ImageCropper.jsx): the picture under a round hole ---- */
+
+.image-cropper-frame {
+  position: relative;
+  width: min(300px, 100%);
+  aspect-ratio: 1;
+  margin: 8px auto 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background-color: var(--vc-bg-base);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.image-cropper-frame:active {
+  cursor: grabbing;
+}
+
+.image-cropper-frame:focus-visible {
+  outline: 2px solid var(--vc-accent);
+  outline-offset: 2px;
+}
+
+.image-cropper-frame img {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+}
+
+/* Darkens everything outside the circle (like the dialog's backdrop, the same in both themes). */
+.image-cropper-mask {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.6);
+  outline: 2px solid var(--vc-on-accent);
+  outline-offset: -2px;
+  pointer-events: none;
+}
+
+.image-cropper-zoom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(300px, 100%);
+  margin: 12px auto 0;
+}
+
+.image-cropper-zoom input {
+  flex: 1;
+  accent-color: var(--vc-accent);
+}
+
+.image-cropper-zoom-step {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.image-cropper-zoom-step:hover:not(:disabled) {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.image-cropper-hint {
+  text-align: center;
+}

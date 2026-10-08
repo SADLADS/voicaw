@@ -136,6 +136,16 @@
       "play": "Play YouTube video",
       "hint": "Playing loads it from YouTube",
       "openOnYouTube": "Open on YouTube"
+    },
+    "cropper": {
+      "title": "Edit image",
+      "frame": "Image position: drag or use the arrow keys to move it, + and - to zoom",
+      "hint": "Drag to move it; scroll, pinch or use the slider to zoom.",
+      "zoom": "Zoom",
+      "zoomOut": "Zoom out",
+      "zoomIn": "Zoom in",
+      "apply": "Apply",
+      "loadFailed": "Couldn't open that image."
     }
   }
 }

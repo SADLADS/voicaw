@@ -6,7 +6,7 @@ const { getUploadUrl, getObject, deleteObject } = require('../s3');
 const { sendToAllSockets } = require('../sockets');
 const { PROFILE_COLUMNS } = require('../profiles');
 const { BUCKET, sourceKey, setAvatarFrom, removeAvatar } = require('../avatars');
-const { AvatarImageError, MAX_AVATAR_UPLOAD_BYTES } = require('../avatarImage');
+const { AvatarImageError, MAX_AVATAR_UPLOAD_BYTES, parseCrop } = require('../avatarImage');
 
 // Your profile picture (see avatars.js): upload the original, then say it's ready; or remove it.
 const router = express.Router();
@@ -36,8 +36,9 @@ router.post('/profile/avatar', authenticateJWT, async (req, res) => {
   res.status(201).json({ uploadId, url });
 });
 
-// Step 2: the original is uploaded. It's processed into your new picture (the original is
-// deleted either way); returns your profile, and everyone gets `user_profile`.
+// Step 2: the original is uploaded, with `crop` from the app's cropper (optional: the middle
+// square). It's processed into your new picture (the original is deleted either way); returns
+// your profile, and everyone gets `user_profile`.
 router.post('/profile/avatar/:uploadId/ready', authenticateJWT, async (req, res) => {
   const { uploadId } = req.params;
   const upload = pending.get(uploadId);
@@ -53,7 +54,7 @@ router.post('/profile/avatar/:uploadId/ready', authenticateJWT, async (req, res)
     return res.status(400).json({ error: "The picture wasn't uploaded" });
   }
   try {
-    await setAvatarFrom(req.user.id, original);
+    await setAvatarFrom(req.user.id, original, parseCrop(req.body?.crop));
   } catch (err) {
     if (err instanceof AvatarImageError) return res.status(400).json({ error: err.message });
     throw err;

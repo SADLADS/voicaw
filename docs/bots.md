@@ -37,7 +37,8 @@ commands, Discord-style ephemeral replies, interactions over the gateway only.
   `bot_add`. A banned bot can't be added back until unbanned.
 - **The developer portal** (the app's `/developers`, outside the guild layout; from Settings →
   Developer Portal) uses `routes/applications.js` (logged in): list, create (returns the token
-  once), change name, description, public and picture, reset the token, take the bot out of a
+  once), change name, description, public and picture (`avatar` as a data URI, `avatarCrop` from
+  the cropper), reset the token, take the bot out of a
   guild, delete; and builds the invite link from permission checkboxes.
 
 ### REST (`server/routes/botApi.js`)

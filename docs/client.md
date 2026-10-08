@@ -407,9 +407,9 @@ stays the unique handle (logins, @username on the card).
   names and usernames) all do. Admin lists (bans, invites, channel overrides) keep usernames.
 - **Profile pictures** (`server/avatars.js`, `avatarImage.js`, `routes/avatars.js`): `POST
   /profile/avatar { type, size }` signs an upload of the original (image, up to 8 MB) to
-  `profile-pics/src/<user id>/<upload id>`; `POST /profile/avatar/:uploadId/ready` has the server
-  crop it square and shrink it (`sharp`: 256×256 at most, never enlarged, WebP, animation
-  kept, pixel/frame limits), store it as `profile-pics/<user id>/<avatar id>.webp` (a new name
+  `profile-pics/src/<user id>/<upload id>`; `POST /profile/avatar/:uploadId/ready { crop }` has
+  the server cut out the square chosen in the cropper (or the middle without one) and shrink it
+  (`sharp`: 256×256 at most, never enlarged, WebP, animation kept, pixel/frame limits), store it as `profile-pics/<user id>/<avatar id>.webp` (a new name
   each time, so it's cacheable forever), delete the original and the previous picture, set
   `users.avatar` and send `user_profile`. `DELETE /profile/avatar` goes back to the default. Push
   images use `users.avatar` (no requests to the store). Client: the profile store has `avatar`,
@@ -418,6 +418,16 @@ stays the unique handle (logins, @username on the card).
   URLs itself. Pictures from before (one unprocessed `profile-pics/<user id>` each) are converted
   when the server starts (`migrateLegacyAvatars`: lists the bucket's top level, converts,
   deletes; afterwards there's nothing to list).
+- **Picture cropper** (`components/ImageCropper.jsx`, maths in `utils/imageCrop.js`): a picked
+  profile picture (Edit Profile), guild icon (Guild Settings) or bot picture (Developer Portal)
+  opens in a dialog first: the picture under a round hole, dragged into place and zoomed (slider,
+  wheel, pinch, arrows and +/- on the frame; up to 5×, never leaving a gap). Apply gives the crop
+  as fractions `{ x, y, width, height }` of the picture as shown (after EXIF rotation), which the
+  server cuts out (`avatarImage.js` `parseCrop`), so animated pictures stay animated. Edit Profile
+  previews it (`croppedPreview`, a still canvas copy) until Save; bot pictures, sent as data URIs,
+  are cut in the browser before shrinking (`croppedPictureData`; GIFs go whole with `avatarCrop`).
+  Escape closes only the cropper (caught before the dialog under it). Webhook pictures don't use
+  it yet.
 - `ProfileCard` (picture with status, names, custom status, bio) is the guild member card's top
   and `ProfilePopover`'s body (clicking a name or avatar in chat). The DM list and member list
   show the custom status under names.

@@ -24,3 +24,29 @@ export async function pictureData(file) {
   canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL('image/webp', 0.9);
 }
+
+// `crop` (from ImageCropper) of the picture, sent as a data: URI: { data, crop }, where `crop` is
+// what the server still has to cut out (avatarCrop). Pictures are cut here, so a close crop of a
+// big photo isn't shrunk to a blur first; GIFs go whole with the crop, to stay animated.
+export async function croppedPictureData(file, crop) {
+  if (file.type === 'image/gif' || typeof createImageBitmap !== 'function') return { data: await readAsDataUri(file), crop };
+  return { data: await drawCrop(file, crop, SHRINK_TO, 'image/webp'), crop: null };
+}
+
+// What `crop` of the picture looks like, as a blob URL at most 256 px across (a preview before
+// saving; the server makes the real one, animated if the picture is). Revoke it when done.
+export async function croppedPreview(file, crop) {
+  return URL.createObjectURL(await (await fetch(await drawCrop(file, crop, 256, 'image/png'))).blob());
+}
+
+// The crop drawn on a canvas at most `max` px across (never enlarged), as a data: URI.
+async function drawCrop(file, crop, max, type) {
+  const bitmap = await createImageBitmap(file); // upright, as the cropper showed it
+  const side = Math.min(crop.width * bitmap.width, crop.height * bitmap.height);
+  const size = Math.max(1, Math.round(Math.min(max, side)));
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  canvas.getContext('2d').drawImage(bitmap, crop.x * bitmap.width, crop.y * bitmap.height, side, side, 0, 0, size, size);
+  return canvas.toDataURL(type, 0.9);
+}

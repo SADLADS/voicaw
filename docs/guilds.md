@@ -87,7 +87,10 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - Unread: `guild_channel_reads` holds each member's last read message per channel;
   `GET /guild-unread` counts newer messages by others. Sending marks your own channel read.
 - Icons: `GET /upload_guild_icon` (Manage Guild, image, 8MB) signs `guild-icons/<guild id>`; then
-  `PATCH /guilds/:id {iconUploaded: true}` bumps `icon_version` (use it as `?v=` to bust caches).
+  `PATCH /guilds/:id {iconUploaded: true, iconCrop}` has the server make it a square WebP like a
+  profile picture (`avatarImage.js`: cut to `iconCrop` from the cropper, or the middle; animation
+  kept), written back to the same key, and bumps `icon_version` (use it as `?v=` to bust caches).
+  Guild Settings opens a picked icon in the cropper first (see Picture cropper in `docs/client.md`).
 - **Client:** routes `/guild/:guildId/:channelId?` (`guild/GuildView.jsx`; without a channel it
   opens the last one viewed there, `localStorage guildChannel:<id>`, or the first text one) and
   `/invite/:code` (`guild/InvitePage.jsx`; logged out, that URL shows the login form, then the

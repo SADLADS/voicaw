@@ -21,15 +21,30 @@ const authed = (user) => ({ Authorization: `Bearer ${user.token}` });
 const post = (user, url, body = {}) => request(app).post(`/api${url}`).set(authed(user)).send(body);
 
 const png = (width, height) => sharp({ create: { width, height, channels: 3, background: '#e33' } }).png().toBuffer();
+// 200×100: the left half red, the right half blue.
+async function halves(format = 'png', metadata) {
+  const red = await sharp({ create: { width: 100, height: 100, channels: 3, background: '#f00' } }).png().toBuffer();
+  let image = sharp({ create: { width: 200, height: 100, channels: 3, background: '#00f' } }).composite([{ input: red, left: 0, top: 0 }]);
+  if (metadata) image = image.withMetadata(metadata);
+  return image[format]().toBuffer();
+}
+// The middle pixel's [r, g, b], each rounded to 0 or 255.
+async function middle(buffer) {
+  const { data, info } = await sharp(buffer).raw().toBuffer({ resolveWithObject: true });
+  const i = (Math.floor(info.height / 2) * info.width + Math.floor(info.width / 2)) * info.channels;
+  return [data[i], data[i + 1], data[i + 2]].map((v) => (v > 128 ? 255 : 0));
+}
+const RIGHT_HALF = { x: 0.5, y: 0, width: 0.5, height: 1 };
 
 // Starts an upload, puts `image` where it was signed for, and says it's ready.
-async function upload(user, image, type = 'image/png') {
+async function upload(user, image, type = 'image/png', crop) {
   const start = await post(user, '/profile/avatar', { type, size: image.length });
   expect(start.status).toBe(201);
   const signed = signedUploads.at(-1);
   putMockObject('profile-pics', signed.filename, image, type);
-  return post(user, `/profile/avatar/${start.body.uploadId}/ready`);
+  return post(user, `/profile/avatar/${start.body.uploadId}/ready`, crop ? { crop } : {});
 }
+const stored = (user, avatar) => objects.get(`profile-pics/${user.id}/${avatar}.webp`).body;
 
 describe('profile pictures', () => {
   it('signs the original upload for the exact type and size, only for images up to 8 MB', async () => {
@@ -92,6 +107,46 @@ describe('profile pictures', () => {
     expect((await post(erin, `/profile/avatar/${start.body.uploadId}/ready`)).status).toBe(404);
     // Not uploaded yet.
     expect((await post(dave, `/profile/avatar/${start.body.uploadId}/ready`)).status).toBe(400);
+  });
+
+  it("keeps the square chosen in the cropper, from the picture as it's shown", async () => {
+    const gina = await makeUser();
+    const res = await upload(gina, await halves(), 'image/png', RIGHT_HALF);
+    expect(res.status).toBe(200);
+    const picture = stored(gina, res.body.avatar);
+    expect(await sharp(picture).metadata()).toMatchObject({ width: 100, height: 100 });
+    expect(await middle(picture)).toEqual([0, 0, 255]);
+
+    // A photo turned by its EXIF orientation is cropped as shown: 6 stands it up, red on top.
+    const top = { x: 0, y: 0, width: 1, height: 0.5 };
+    const photo = await upload(gina, await halves('jpeg', { orientation: 6 }), 'image/jpeg', top);
+    expect(await middle(stored(gina, photo.body.avatar))).toEqual([255, 0, 0]);
+
+    // Crops that don't fit are refused, and the upload dropped.
+    for (const crop of [{ x: 0.6, y: 0, width: 0.5, height: 1 }, { x: 0, y: 0, width: 0, height: 1 }, 'all']) {
+      expect((await upload(gina, await halves(), 'image/png', crop)).status).toBe(400);
+    }
+    expect([...objects.keys()].some((k) => k.startsWith(`profile-pics/src/${gina.id}/`))).toBe(false);
+  });
+
+  it('keeps animated pictures animated when cropped', async () => {
+    const hal = await makeUser();
+    const frame = (colour) => sharp({ create: { width: 80, height: 40, channels: 4, background: colour } }).png().toBuffer();
+    const gif = await sharp([await frame('#0f0'), await frame('#f00'), await frame('#00f')], { join: { animated: true } }).gif().toBuffer();
+    const res = await upload(hal, gif, 'image/gif', { x: 0.25, y: 0.25, width: 0.25, height: 0.5 });
+    expect(res.status).toBe(200);
+    expect(await sharp(stored(hal, res.body.avatar), { animated: true }).metadata()).toMatchObject({ pages: 3, width: 20, pageHeight: 20 });
+  });
+
+  it("crops bots' pictures too", async () => {
+    const owner = await makeUser();
+    const created = await post(owner, '/applications', { name: 'Cropped bot' });
+    const avatar = `data:image/png;base64,${(await halves()).toString('base64')}`;
+    const patch = (body) => request(app).patch(`/api/applications/${created.body.id}`).set(authed(owner)).send(body);
+    const res = await patch({ avatar, avatarCrop: RIGHT_HALF });
+    expect(res.status).toBe(200);
+    expect(await middle(objects.get(`profile-pics/${res.body.bot.id}/${res.body.bot.avatar}.webp`).body)).toEqual([0, 0, 255]);
+    expect((await patch({ avatar, avatarCrop: { x: 2 } })).status).toBe(400);
   });
 
   it('converts pictures from before (profile-pics/<id>) once, on start', async () => {
