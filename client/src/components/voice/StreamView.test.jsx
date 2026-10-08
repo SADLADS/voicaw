@@ -12,12 +12,14 @@ import { getStreamVolume, getUserVolume, setStreamVolume } from '../../voice/use
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
   setStreamVolume(7, 1);
   voice.state = { watchingReady: false, selfDeaf: false };
 });
 
 describe('StreamView volume', () => {
   it('sets the stream’s own volume, up to 200%', () => {
+    vi.stubGlobal('AudioContext', class {});
     render(<StreamView userId={7} name="alice" />);
     const slider = screen.getByRole('slider', { name: 'Stream volume (just for you)' });
     expect(slider.value).toBe('100');
@@ -25,6 +27,15 @@ describe('StreamView volume', () => {
     expect(getStreamVolume(7)).toBe(1.5);
     expect(getUserVolume(7)).toBe(1);
     expect(slider.getAttribute('aria-valuetext')).toBe('150%');
+    expect(slider.max).toBe('200');
+  });
+
+  it('stops at 100% where voices can’t be boosted', () => {
+    setStreamVolume(7, 1.5);
+    render(<StreamView userId={7} name="alice" />);
+    const slider = screen.getByRole('slider', { name: 'Stream volume (just for you)' });
+    expect(slider.max).toBe('100');
+    expect(slider.getAttribute('aria-valuetext')).toBe('100%');
   });
 
   it('mutes, and unmuting goes back to the volume it had', () => {

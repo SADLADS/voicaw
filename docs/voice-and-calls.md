@@ -69,7 +69,8 @@ LiveKit carries the audio.
   its own GainNode (`track.setVolume`), so volumes can go past 100%. Its `<audio>` element
   stays attached but muted (Chrome only feeds a remote stream to Web Audio while it plays). Where
   the browser can pick speakers for elements but not for an AudioContext (Firefox) it plays
-  from the elements instead, capped at 100%. `applyVolumes` sets every track to
+  from the elements instead, capped at 100% (`userVolumes.js` `canBoostVolume`; there the
+  per-user and stream volume sliders stop at 100%, `maxUserVolume`). `applyVolumes` sets every track to
   `playbackVolume` (`userVolumes.js`: 0 deafened, else output volume × the person's volume, or
   their stream's volume for a screen share's sound) on any change. Through Web Audio that's a
   GainNode of ours that LiveKit puts before its own (`setWebAudioPlugins`), not LiveKit's

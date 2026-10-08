@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  cleanUserVolumes, getStreamVolume, getUserVolume, onStreamVolumesChange, playbackVolume, setStreamVolume,
+  canBoostVolume, maxUserVolume, cleanUserVolumes, getStreamVolume, getUserVolume, onStreamVolumesChange, playbackVolume, setStreamVolume,
 } from './userVolumes';
 
 describe('stream volumes', () => {
@@ -43,5 +43,31 @@ describe('playbackVolume', () => {
   it('is silent while deafened or at 0%', () => {
     expect(playbackVolume({ selfDeaf: true, outputVolume: 1, userVolume: 2, canBoost: true })).toBe(0);
     expect(playbackVolume({ selfDeaf: false, outputVolume: 1, userVolume: 0, canBoost: true })).toBe(0);
+  });
+});
+
+describe('canBoostVolume', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('boosts through Web Audio that can choose the speakers (Chrome)', () => {
+    vi.stubGlobal('AudioContext', class { setSinkId() {} });
+    vi.stubGlobal('HTMLMediaElement', class { setSinkId() {} });
+    expect(canBoostVolume()).toBe(true);
+    expect(maxUserVolume()).toBe(2);
+  });
+
+  it('boosts through Web Audio where no speakers can be chosen at all', () => {
+    vi.stubGlobal('AudioContext', class {});
+    expect(canBoostVolume()).toBe(true);
+  });
+
+  it('stops at 100% where only media elements can choose the speakers (Firefox), or without Web Audio', () => {
+    vi.stubGlobal('AudioContext', class {});
+    vi.stubGlobal('HTMLMediaElement', class { setSinkId() {} });
+    expect(canBoostVolume()).toBe(false);
+    expect(maxUserVolume()).toBe(1);
+    vi.unstubAllGlobals();
+    vi.stubGlobal('AudioContext', undefined);
+    expect(maxUserVolume()).toBe(1);
   });
 });
