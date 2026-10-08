@@ -49,10 +49,11 @@ try {
   await b.click('.invite-card button:has-text("Accept invite")');
   await b.waitForURL(/\/guild\/\d+/, { timeout: 10000 });
 
-  // Guild Settings → Levels: on by default, defaults shown as placeholders.
+  // Guild Settings → Levels: off by default, turned on; defaults shown as placeholders.
   await openSettingsTab(a, 'Levels');
   await a.waitForSelector('.level-settings');
-  check(await a.isChecked('.level-settings > .role-toggle input'), 'levels are on by default');
+  check(!(await a.isChecked('.level-settings > .role-toggle input')), 'levels are off by default');
+  await a.click('.level-settings > .role-toggle input');
   check(await a.getAttribute('#level-levelShort', 'placeholder') === 'lvl', 'short name defaults to lvl');
   check((await a.locator('.level-source').count()) === 9, 'nine things to earn XP for');
   await a.fill('#level-per', '20');
@@ -70,7 +71,7 @@ try {
   check(!(await a.locator(`${bobRow} .member-level`).count()), 'no badge at level 0');
   for (const text of ['one', 'two', 'three']) await send(b, text);
   await a.waitForSelector(`${bobRow} .member-level:has-text("1 rk")`, { timeout: 10000 });
-  check(true, 'badge "1 rk" beside Bob\'s picture, live');
+  check(true, 'badge "1 rk" under Bob\'s name, live');
   await shot(a, 'member-list');
 
   // His card: level, rank, progress; Alice (owner, so Manage Levels) sets him to level 5.

@@ -581,7 +581,7 @@ Guilded's XP (built 2026-10-07): members earn XP in a guild for what they do the
   /guilds/:id/levels/members/:userId` (`{ user_id, xp, level, rank }`; ties share a rank, null
   with no XP) and the leaderboard, `GET /guilds/:id/levels/members?limit&offset` (members with
   XP, most first, with names and pictures).
-- **Client** (`utils/levels.js`): the member list shows a member's level beside their picture
+- **Client** (`utils/levels.js`): the member list shows a member's level under their name
   ("12 lvl", "1.5k lvl": `compactNumber`; not at level 0, nor with `showInMemberList` off);
   their card (`guild/MemberLevel.jsx`) shows level, rank and progress to the next, and with
   Manage Levels a Change form (Set / Add, Level / XP). The guild menus (rail and header) have

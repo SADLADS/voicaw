@@ -208,15 +208,17 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
             <Avatar userId={member.id} />
             <StatusIcon status={member.status} />
           </span>
-          {level > 0 && (
-            <span className="member-level" title={t('levels.card.level', { name: levelName(guild.levels), level })}>
-              {levelBadge(level, guild.levels)}
-            </span>
-          )}
           {/* No custom status here (the rows are busy enough): their card shows it. */}
-          <span className="member-name" style={{ color: color ?? undefined }}>
-            {nameOf(member)}
-            {member.bot ? <span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span> : null}
+          <span className="member-text">
+            <span className="member-name" style={{ color: color ?? undefined }}>
+              {nameOf(member)}
+              {member.bot ? <span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span> : null}
+            </span>
+            {level > 0 && (
+              <span className="member-level" title={t('levels.card.level', { name: levelName(guild.levels), level })}>
+                {levelBadge(level, guild.levels)}
+              </span>
+            )}
           </span>
           {member.id === guild.owner && <FontAwesomeIcon icon={faCrown} className="member-owner" title={t('guilds.memberList.owner')} />}
         </button>

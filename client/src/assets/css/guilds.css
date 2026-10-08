@@ -1025,8 +1025,17 @@ img.guild-icon {
   object-fit: cover;
 }
 
-.member-name {
+/* The name, and under it the level badge when levels show one. */
+.member-text {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.member-name {
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2761,18 +2770,18 @@ img.emoji.custom-emoji {
 
 /* ---- Levels (guildLevels; utils/levels.js) ---- */
 
-/* "12 lvl" beside a picture in the member list. */
+/* "12 lvl" under a name in the member list. */
 .member-level {
-  flex-shrink: 0;
   max-width: 64px;
-  padding: 1px 6px;
+  margin-top: 1px;
+  padding: 0 6px;
   overflow: hidden;
   border-radius: 999px;
   background-color: var(--vc-accent-soft);
   color: var(--vc-accent-text);
   font-size: 11px;
   font-weight: 600;
-  line-height: 16px;
+  line-height: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
