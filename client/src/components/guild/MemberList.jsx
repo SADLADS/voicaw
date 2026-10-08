@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { InteractionContext } from '../../contexts';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCrown, faPlus, faRobot, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faCrown, faPlus, faRobot, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { setMemberRoles } from '../../services/guildService';
 import { PERMISSIONS, colorToHex, has, memberColor, memberRank, memberRoles } from '../../utils/permissions';
 import { errorMessage, groupMembers } from '../../utils/guildDisplay';
@@ -13,6 +13,7 @@ import { interactionError } from '../../utils/commandOptions';
 import ProfileCard from '../ProfileCard';
 import Avatar from '../Avatar';
 import { useLongPress } from '../../hooks/useLongPress';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 import { openPersonMenu } from '../../utils/personMenu';
 import MemberLevel from './MemberLevel';
 import { levelBadge, levelName, levelOf, levelsOn } from '../../utils/levels';
@@ -25,7 +26,9 @@ import { t } from '../../i18n';
 // (utils/personMenu.js): right-clicking a row, or holding it on a phone.
 // `userApps` (the channel's bots' user commands) show as Apps on the card, run with
 // `onRunUserApp(command, userId)`. With levels on (utils/levels.js), each member's level shows
-// beside their picture (unless the guild hides it there, or it's 0) and on their card.
+// under their name (unless the guild hides it there, or it's 0) and on their card.
+// `onClose` (phones): the list is full screen, with a back arrow, and a swipe to the right
+// closes it (useSwipeToClose).
 export default function MemberList({ guild, members: memberList, user, onClose, userApps = [], onRunUserApp }) {
   useProfiles();
   const presenceOf = usePresence();
@@ -36,6 +39,8 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
   const [roleQuery, setRoleQuery] = useState('');
   const [error, setError] = useState(null);
   const cardRef = useRef(null);
+  const rootRef = useRef(null);
+  useSwipeToClose(rootRef, { enabled: Boolean(onClose), onClose });
 
   const me = members.find((m) => m.id === user.id);
   const myRank = memberRank(guild, user.id, me?.role_ids);
@@ -228,11 +233,13 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
   }
 
   return (
-    <aside className="member-list" aria-label={t('common.members')} {...longPress}>
+    <aside ref={rootRef} className="member-list" aria-label={t('common.members')} {...longPress}>
       {onClose && (
         <div className="member-list-top">
+          <button type="button" className="member-list-back" aria-label={t('guilds.memberList.close')} title={t('guilds.memberList.close')} onClick={onClose}>
+            <FontAwesomeIcon icon={faArrowLeft} />
+          </button>
           <span>{t('common.members')}</span>
-          <button type="button" className="vc-dialog-close" aria-label={t('guilds.memberList.close')} onClick={onClose}>×</button>
         </div>
       )}
       {groupMembers(members, guild.roles).map((group) => (

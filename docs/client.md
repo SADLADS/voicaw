@@ -328,7 +328,11 @@
   (decided after 8px, so scrolling never moves them; not in pickers, sheets, member panels or
   anything that scrolls sideways itself) drags the chat with the finger, and letting go
   finishes or undoes it by position and speed (a critically damped spring); the list moves a
-  little and dims behind it. The chat showing is its own history entry (`history.state.voicawPane`),
+  little and dims behind it. A guild's member list (the header's button) covers the whole
+  guild page on a phone, header included, with a back arrow; Back (`useBackCloses`) or a swipe
+  to the right closes it (`hooks/useSwipeToClose.js`: it follows the finger and settles closed
+  or back by distance and speed; `e2e/memberswipe.mjs`). No swipe opens it: leftward replies
+  to a message. The chat showing is its own history entry (`history.state.voicawPane`),
   so back slides to the list; list rows navigate with `replace` on phones, so entries don't pile
   up. Back works as in Discord's app, never like a browser's: from a chat it shows the list,
   from the list it leaves the app. So on phones the router's history (`utils/phoneHistory.js`,

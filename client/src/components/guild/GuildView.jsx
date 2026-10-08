@@ -19,6 +19,7 @@ import ThreadPane from './ThreadPane';
 import ThreadList from './ThreadList';
 import ThreadDialog from './ThreadDialog';
 import { useChannel } from '../../hooks/useChannel';
+import { useBackCloses } from '../../hooks/useBackCloses';
 import { onGuildEvent } from '../../utils/ws-client';
 import { addGuildReaction, fetchChannelMembers, fetchMembers, removeGuildReaction } from '../../services/guildService';
 import { defaultChannel, errorMessage, rememberChannel } from '../../utils/guildDisplay';
@@ -63,8 +64,9 @@ export default function GuildView({ user }) {
       return true;
     }
   });
-  // Mobile: the member list is a panel over the chat, closed until asked for.
-  const [membersOpenMobile, setMembersOpenMobile] = useState(false);
+  // Phones: the member list covers the whole page, closed until asked for; Back (or a swipe
+  // to the right, in MemberList) closes it.
+  const [membersOpenMobile, openMembersMobile, closeMembersMobile] = useBackCloses('voicawMemberList');
 
   // The pinned messages list, under its header button (null: closed).
   const [pinsAnchor, setPinsAnchor] = useState(null);
@@ -188,7 +190,7 @@ export default function GuildView({ user }) {
     if (['text', 'list', 'doc'].includes(channel?.type)) rememberChannel(guildId, channel.id);
   }, [guildId, channel]);
 
-  useEffect(() => setMembersOpenMobile(false), [channelId]);
+  useEffect(() => closeMembersMobile(), [channelId, closeMembersMobile]);
 
   // Members, kept current: joins, leaves, roles and XP (online status: usePresence).
   useEffect(() => {
@@ -312,7 +314,8 @@ export default function GuildView({ user }) {
 
   function toggleMembers() {
     if (isMobile) {
-      setMembersOpenMobile((open) => !open);
+      if (membersOpenMobile) closeMembersMobile();
+      else openMembersMobile();
       return;
     }
     setShowMembers((show) => {
@@ -353,6 +356,18 @@ export default function GuildView({ user }) {
     nameColors,
     onRead: guildList.refreshUnread,
   };
+
+  // Beside the chat on a computer; on a phone over the whole page, header included.
+  const memberList = membersVisible && (
+    <MemberList
+      guild={guild}
+      members={channelMembers}
+      user={user}
+      userApps={userApps}
+      onRunUserApp={runUserApp}
+      onClose={isMobile ? closeMembersMobile : undefined}
+    />
+  );
 
   return (
     <div id="guild-main" className="guild-main">
@@ -554,17 +569,9 @@ export default function GuildView({ user }) {
           />
         )}
 
-        {membersVisible && (
-          <MemberList
-            guild={guild}
-            members={channelMembers}
-            user={user}
-            userApps={userApps}
-            onRunUserApp={runUserApp}
-            onClose={isMobile ? () => setMembersOpenMobile(false) : undefined}
-          />
-        )}
+        {!isMobile && memberList}
       </div>
+      {isMobile && memberList}
 
       {threadsAnchor && textChannelId && (
         <ThreadList

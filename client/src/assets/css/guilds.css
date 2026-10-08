@@ -948,23 +948,60 @@ img.guild-icon {
   padding: 0;
 }
 
-/* Mobile: a panel over the chat, from the right. */
+/* Phones: the whole guild page, header included; a swipe to the right drags it away
+   (useSwipeToClose), showing the chat underneath. */
+.mobile-mode .guild-main {
+  position: relative;
+}
+
 .mobile-mode .member-list {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   z-index: 30;
-  width: min(300px, 85vw);
+  width: auto;
+  padding-top: 0;
+  border-left: 0;
   box-shadow: -8px 0 16px var(--vc-popup-shadow);
 }
 
+.member-list.swipe-settling {
+  transition: transform 200ms ease-out;
+}
+
+/* Its top bar, in the channel header's place: back arrow and "Members". */
 .member-list-top {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 4px 4px 4px 8px;
+  gap: 4px;
+  height: var(--vc-header-height);
+  margin: 0 -8px;
+  padding: 0 12px 0 4px;
+  border-top: 1px solid var(--vc-border-light);
+  border-bottom: 1px solid var(--vc-border-light);
+  background-color: var(--vc-bg-base);
   font-weight: 600;
+}
+
+.member-list-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 18px;
+}
+
+.member-list-back:active {
+  color: var(--vc-fg);
+  background-color: var(--vc-bg-elevated-hover);
 }
 
 .member-group {
