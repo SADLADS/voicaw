@@ -18,7 +18,8 @@ const STATUS_LABELS = {
 
 // You, at the bottom of the sidebar (like Discord): profile picture, name, and whether this
 // device is connected, with mute, deafen (voice) and the settings button. Clicking the picture
-// and name opens UserMenu (custom status, Edit Profile, Log out).
+// and name opens UserMenu (custom status, Edit Profile, Copy User ID, Log out); right-clicking
+// them opens nothing.
 export default function UserPanel({ user, onLogout }) {
   useProfiles();
   const meRef = useRef(null);
@@ -37,6 +38,7 @@ export default function UserPanel({ user, onLogout }) {
         aria-expanded={Boolean(menuAnchor)}
         title={t('app.userMenu.yourAccount')}
         onClick={() => setMenuAnchor(menuAnchor ? null : meRef.current.getBoundingClientRect())}
+        onContextMenu={(e) => e.preventDefault()}
       >
         <span className="user-panel-avatar status-avatar">
           <Avatar userId={user.id} />

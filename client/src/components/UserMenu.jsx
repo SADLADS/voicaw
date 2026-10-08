@@ -2,18 +2,20 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFaceSmile, faPen, faRightFromBracket, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faFaceSmile, faIdCard, faPen, faRightFromBracket, faXmark } from '@fortawesome/free-solid-svg-icons';
 import Avatar from './Avatar';
 import StatusIcon from './StatusIcon';
 import { usePresence } from '../hooks/usePresence';
 import { updateProfile } from '../services/profileService';
+import { apiId } from '../utils/copyId';
 import { PROFILE_LIMITS, getProfile, mergeProfiles, nameOf, useProfiles } from '../utils/profiles';
 import { t } from '../i18n';
 
 const MARGIN = 8;
 
 // The menu the user panel's left side opens (above it): your picture, name and custom status
-// (click it to change it: Enter saves, Escape cancels, ✕ clears), Edit Profile and Log out.
+// (click it to change it: Enter saves, Escape cancels, ✕ clears), Edit Profile, Copy User ID and
+// Log out. Right-clicking it opens nothing (neither PageMenus' menu nor the browser's).
 // `anchor` is the clicked element's rect; `trigger` its element (clicking it again closes the
 // menu through the panel, not as an outside click).
 export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
@@ -26,6 +28,7 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
   const finished = useRef(false); // Enter or Escape already ended this edit (so blur doesn't)
   const profile = { ...user, ...getProfile(user.id) };
   const customStatus = profile.custom_status ?? '';
@@ -78,7 +81,7 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
   };
 
   return createPortal(
-    <div className="user-menu" ref={ref} style={position} role="dialog" aria-label={t('app.userMenu.yourAccount')}>
+    <div className="user-menu" ref={ref} style={position} role="dialog" onContextMenu={(e) => e.preventDefault()} aria-label={t('app.userMenu.yourAccount')}>
       <div className="user-menu-top">
         <span className="user-menu-avatar status-avatar">
           <Avatar userId={user.id} />
@@ -135,6 +138,17 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
       <div className="user-menu-actions">
         <button type="button" className="user-menu-item" onClick={() => go('/settings/profile')}>
           <FontAwesomeIcon icon={faPen} /> {t('app.userMenu.editProfile')}
+        </button>
+        <button
+          type="button"
+          className="user-menu-item"
+          aria-live="polite"
+          onClick={async () => {
+            await navigator.clipboard.writeText(apiId('user', user.id));
+            setCopied(true);
+          }}
+        >
+          <FontAwesomeIcon icon={faIdCard} /> {copied ? t('common.copyId.copied') : t('common.copyId.user')}
         </button>
         <button type="button" className="user-menu-item danger" onClick={() => { onClose(); onLogout?.(); }}>
           <FontAwesomeIcon icon={faRightFromBracket} /> {t('app.userMenu.logOut')}

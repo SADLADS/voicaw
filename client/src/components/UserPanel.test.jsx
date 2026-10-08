@@ -106,6 +106,25 @@ describe('UserPanel', () => {
       expect(onLogout).toHaveBeenCalled();
     });
 
+    it('copies your user id', async () => {
+      const writeText = vi.fn().mockResolvedValue();
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      renderPanel();
+      openMenu();
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Copy User ID' })); });
+      expect(writeText).toHaveBeenCalledWith('7');
+      expect(screen.getByRole('button', { name: 'ID copied' })).toBeInTheDocument();
+    });
+
+    it('gives no right-click menu on the panel or the menu', () => {
+      renderPanel();
+      const me = screen.getByRole('button', { name: /Online/ });
+      expect(fireEvent.contextMenu(me.querySelector('img'))).toBe(false);
+      openMenu();
+      const menu = screen.getByRole('dialog', { name: 'Your account' });
+      expect(fireEvent.contextMenu(menu.querySelector('img'))).toBe(false);
+    });
+
     it('sets and clears your custom status', async () => {
       clearProfiles();
       mergeProfiles([{ id: 7, username: 'alice' }]);

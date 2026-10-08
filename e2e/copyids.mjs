@@ -93,6 +93,29 @@ try {
   check(r.menu.at(-1) === 'Copy User ID', `the DM list's menu ends with Copy User ID: ${r.menu.join(', ')}`);
   check(r.copied === String(bob.id), 'and copies them');
 
+  // You, at the bottom: no right-click menu (ours or the browser's); the click menu has it.
+  await a.evaluate(() => {
+    window.__menuBlocked = [];
+    window.addEventListener('contextmenu', (e) => window.__menuBlocked.push(e.defaultPrevented));
+  });
+  for (const part of ['.user-panel-avatar img', '.user-panel-name']) {
+    await a.locator(part).click({ button: 'right' });
+  }
+  await a.waitForTimeout(300);
+  check(!(await a.$('.context-menu')), 'right-clicking your picture or name in the user panel opens no menu');
+  check(JSON.stringify(await a.evaluate(() => window.__menuBlocked)) === '[true,true]', "nor the browser's");
+  await a.click('.user-panel-me');
+  await a.waitForSelector('.user-menu');
+  await a.locator('.user-menu-avatar img').click({ button: 'right' });
+  await a.waitForTimeout(300);
+  check(!(await a.$('.context-menu')) && await a.evaluate(() => window.__menuBlocked.at(-1)), 'nor does the open menu');
+  check(JSON.stringify(await a.$$eval('.user-menu-item', (els) => els.map((e) => e.textContent.trim()))) === '["Edit Profile","Copy User ID","Log out"]', 'the user panel menu: Edit Profile, Copy User ID, Log out');
+  await a.click('.user-menu-item:has-text("Copy User ID")');
+  await a.waitForSelector('.user-menu-item:has-text("ID copied")');
+  await shot(a, 'user-menu-copied');
+  check(await clipboard() === String(alice.id), 'and copies your id');
+  await a.keyboard.press('Escape');
+
   // Phone: hold a conversation; the sheet has it too.
   const c = carol.page;
   await api(c, 'POST', '/dm-send', { recipient_id: alice.id, content: 'hey' });
