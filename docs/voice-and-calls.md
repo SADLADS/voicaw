@@ -130,11 +130,17 @@ LiveKit carries the audio.
   **The corner** (like Watch Together's player, and Discord's): someone else's stream you're
   watching, once no page shows it (you went to another channel, conversation or page), plays
   small in a corner (`voice/StreamCorner.jsx`, drawn from Layout; bottom right, on a phone top
-  right under the header) with whose it is, its volume, Go to the voice channel (or the call),
+  right under the header, until dragged elsewhere) with whose it is, its volume, Go to the voice channel (or the call),
   Pop out and Stop watching. Pages showing it (`StreamView` on the channel page, a call panel)
   say so (`hooks/useStreamOnPage.js`), and the corner steps aside. Not your own stream, which
   you can see on your screen. It sits in `.corner-players` above Watch Together's mini player,
-  so both fit; while a page shows a stream the column moves to the top right (`.top`), so
+  so both fit. **Dragged** (like Discord's picture in picture; `hooks/useCornerDrag.js`): the
+  column moves as one, from anywhere on the players but their controls (a mouse or a finger;
+  under 6 px is a click), and snaps to the nearest of the screen's four corners when let go,
+  kept on the device (`localStorage pipCorner`; bottom right, on a phone top right, until
+  then). On a computer the left corners keep inside the page's content (`--vc-pip-left`,
+  measured from the content pane), clear of the rail, channel list, voice bar and user panel;
+  on a phone the bottom corners cover part of the message box (as the person chose). While a page shows a stream, a bottom corner moves to the top on the same side, so
   Watch Together's mini player doesn't cover the stream's bar or the call's buttons. On a
   phone the corner's volume is just the mute button (no room for the slider). DM and group
   calls' streams go there too. `e2e/streamcorner.mjs` checks it all, Watch Together's pop-out

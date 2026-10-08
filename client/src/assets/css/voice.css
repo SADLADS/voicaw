@@ -507,10 +507,9 @@ body.popout-window {
 
 /* The small players in a corner, on every page (Layout): a watched stream no page shows
    (StreamCorner), above Watch Together's player. Only what's in it takes clicks. */
+/* Dragged as one to any of the four corners (hooks/useCornerDrag.js), which it snaps to. */
 .corner-players {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
   z-index: 40;
   display: flex;
   flex-direction: column;
@@ -523,10 +522,39 @@ body.popout-window {
   pointer-events: auto;
 }
 
-/* A page shows a stream (its bar and the call's buttons along the bottom): top right instead. */
-.corner-players.top {
+.corner-players.at-top-left,
+.corner-players.at-top-right {
   top: calc(var(--vc-header-height) + 16px);
-  bottom: auto;
+}
+
+.corner-players.at-bottom-left,
+.corner-players.at-bottom-right {
+  bottom: 16px;
+}
+
+.corner-players.at-top-left,
+.corner-players.at-bottom-left {
+  /* Inside the page's content, clear of the sidebar (measured by useCornerDrag). */
+  left: calc(var(--vc-pip-left, 0px) + 16px);
+  align-items: flex-start;
+}
+
+.corner-players.at-top-right,
+.corner-players.at-bottom-right {
+  right: 16px;
+}
+
+/* What's dragged (not its controls). */
+.stream-view.corner,
+.watch-party-player.mini {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.corner-players.dragging,
+.corner-players.dragging * {
+  cursor: grabbing;
 }
 
 .stream-view.corner {

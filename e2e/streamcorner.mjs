@@ -8,7 +8,10 @@
 // without overlapping. Watch Together pops out into its own window (in step with Alice's), the
 // channel page saying so; Bring back and closing the window put it back over the slot. A DM
 // call's stream goes to the corner too ("Go to the call"). Carol on a phone gets it top right
-// under the header.
+// under the header. The corner players drag as one (from a picture or the mini player's bar,
+// not a button; under 6 px is a click) and snap to the nearest of the four corners, kept after
+// a reload; a bottom corner shows at the top while a page shows the stream; the docked player
+// doesn't drag; on a phone a finger drags it without scrolling the page.
 //   node e2e/serve.mjs &   then   node e2e/streamcorner.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
 import { launchChrome, signUp, openChat, devices, fakeMicArgs, BASE, makeFriends } from './helpers.mjs';
@@ -58,6 +61,87 @@ const rect = (page, selector) => page.evaluate((s) => new Promise((resolve) => {
     ch.port2.postMessage(0);
   });
 }), selector);
+
+// ---- Dragging the corner players (hooks/useCornerDrag.js) ----
+const COLUMN = '.corner-players';
+const cornerOf = (page) => page.$eval(COLUMN, (el) => {
+  const c = [...el.classList].find((k) => k.startsWith('at-'));
+  return { corner: c?.slice(3) ?? null, dragging: el.classList.contains('dragging') };
+});
+
+// Where the column must sit in `corner` (desktop 16 px in, top ones under the header; phone 8).
+async function checkPlaced(page, corner, what, phone = false) {
+  const st = await cornerOf(page);
+  const col = await rect(page, COLUMN);
+  const header = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--vc-header-height')));
+  const gap = phone ? 8 : 16;
+  const [y, x] = corner.split('-');
+  const okY = y === 'top' ? Math.abs(col.top - (header + gap)) < 1.5 : Math.abs(col.vh - gap - col.bottom) < 1.5;
+  // On a computer the left corners keep to the content pane (clear of the rail, channel list,
+  // voice bar and user panel).
+  const paneLeft = phone ? 0 : await page.$eval('.main-content-wrapper', (el) => el.getBoundingClientRect().left);
+  const okX = x === 'left' ? Math.abs(col.left - (paneLeft + gap)) < 1.5 : Math.abs(col.vw - gap - col.right) < 1.5;
+  const covers = phone ? [] : await page.evaluate(() => {
+    const hidden = [];
+    for (const el of document.querySelectorAll('.voice-bar button, .user-panel button, .user-panel a, .guild-channel-link, .sidebar-resizer')) {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (top?.closest('.corner-players')) hidden.push(el.getAttribute('aria-label') || el.textContent.trim().slice(0, 20));
+    }
+    return hidden;
+  });
+  if (covers.length) throw new Error(`FAILED: ${what}: the corner players cover ${covers.join(', ')}`);
+  // Every player in it stacked, inside the viewport, aligned to the corner's side.
+  const kids = await page.$$eval(`${COLUMN} > *:not(.docked)`, (els) => els.map((e) => {
+    const r = e.getBoundingClientRect();
+    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, cls: e.className };
+  }));
+  const vw = col.vw;
+  const vh = col.vh;
+  const inside = kids.every((k) => k.left >= 0 && k.top >= 0 && k.right <= vw + 0.5 && k.bottom <= vh + 0.5);
+  const stacked = kids.every((k, i) => i === 0 || kids[i - 1].bottom <= k.top + 0.5);
+  const aligned = kids.every((k) => (x === 'left' ? Math.abs(k.left - col.left) < 1 : Math.abs(k.right - col.right) < 1));
+  check(st.corner === corner && !st.dragging && okY && okX && inside && stacked && aligned,
+    `${what}: at-${corner}, column ${Math.round(col.left)},${Math.round(col.top)}–${Math.round(col.right)},${Math.round(col.bottom)} of ${vw}×${vh} (header ${header}${x === 'left' && !phone ? `, content pane from ${paneLeft}` : ''}); ${kids.length} player(s) stacked, inside, ${x}-aligned`);
+}
+
+// A mouse drag from (x, y) to (tx, ty) in `steps`; halfway, the column must be `dragging` and
+// have moved with the pointer (clamped to the viewport). Returns what it saw halfway.
+async function mouseDrag(page, [x, y], [tx, ty], { steps = 14, expectFollow = true } = {}) {
+  const before = await rect(page, COLUMN);
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  let mid = null;
+  for (let i = 1; i <= steps; i++) {
+    const px = x + ((tx - x) * i) / steps;
+    const py = y + ((ty - y) * i) / steps;
+    await page.mouse.move(px, py);
+    if (i === Math.floor(steps / 2)) {
+      const now = await rect(page, COLUMN);
+      const st = await cornerOf(page);
+      const wantLeft = Math.min(Math.max(before.left + px - x, 0), before.vw - before.width);
+      const wantTop = Math.min(Math.max(before.top + py - y, 0), before.vh - before.height);
+      mid = { dragging: st.dragging, follows: Math.abs(now.left - wantLeft) < 2 && Math.abs(now.top - wantTop) < 2, now, wantLeft, wantTop };
+    }
+  }
+  await page.mouse.up();
+  await sleep(250);
+  if (expectFollow && !(mid.dragging && mid.follows)) throw new Error(`FAILED: mid-drag the column follows the pointer (${JSON.stringify(mid)})`);
+  return mid;
+}
+
+// A point on the corner stream's picture (above its bar), or the mini player's title.
+async function grabPoint(page, which = 'stream') {
+  const r = which === 'stream' ? await rect(page, CORNER) : await rect(page, '.watch-party-mini-title');
+  return which === 'stream' ? [r.left + r.width / 2, r.top + r.height * 0.3] : [r.left + r.width / 2, r.top + r.height / 2];
+}
+
+// Pointer targets that put the column's middle in each corner's quarter.
+const targetFor = (corner, vw, vh) => {
+  const [y, x] = corner.split('-');
+  return [x === 'left' ? vw * 0.2 : vw * 0.8, y === 'top' ? vh * 0.25 : vh * 0.8];
+};
 
 // The corner's bar: which buttons it has, and whether everything in it fits inside the corner.
 const cornerBar = (page) => page.$eval(CORNER, (el) => {
@@ -212,6 +296,51 @@ try {
   await playing(b, ON_PAGE);
   await b.click('.guild-channel-link:has-text("general")');
   await b.waitForSelector(CORNER);
+
+  // Dragging the corner stream (from its picture) to each corner in turn: it follows the
+  // pointer, then snaps to the corner nearest its middle.
+  await checkPlaced(b, 'bottom-right', 'by default');
+  const vp = b.viewportSize();
+  for (const corner of ['bottom-left', 'top-left', 'top-right', 'bottom-right']) {
+    await mouseDrag(b, await grabPoint(b), targetFor(corner, vp.width, vp.height));
+    await checkPlaced(b, corner, `dragged to ${corner} (followed the pointer, dragging class)`);
+  }
+  await mouseDrag(b, await grabPoint(b), [vp.width * 0.4, vp.height * 0.4]);
+  await checkPlaced(b, 'top-left', 'dropped a little up and left of the middle: snaps top left');
+  await shot(b, '01b-corner-top-left');
+
+  // A move under 6 px is a click, not a drag; a press on a button doesn't drag either.
+  const still = await rect(b, COLUMN);
+  const [gx, gy] = await grabPoint(b);
+  await b.mouse.move(gx, gy);
+  await b.mouse.down();
+  await b.mouse.move(gx + 3, gy + 2, { steps: 3 });
+  const tiny = await cornerOf(b);
+  await b.mouse.up();
+  const afterTiny = await rect(b, COLUMN);
+  check(!tiny.dragging && afterTiny.left === still.left && afterTiny.top === still.top && (await cornerOf(b)).corner === 'top-left', 'a 3 px move does nothing');
+  const muteSel = `${CORNER} .stream-volume button`;
+  const pressedBefore = await b.getAttribute(muteSel, 'aria-pressed');
+  const mb = await rect(b, muteSel);
+  await b.mouse.move(mb.left + mb.width / 2, mb.top + mb.height / 2);
+  await b.mouse.down();
+  await b.mouse.move(mb.left + 200, mb.top + 250, { steps: 10 });
+  const onButton = await cornerOf(b);
+  await b.mouse.up();
+  const afterButton = await rect(b, COLUMN);
+  check(!onButton.dragging && afterButton.left === still.left && afterButton.top === still.top, 'a drag starting on the mute button moves nothing');
+  check(await b.getAttribute(muteSel, 'aria-pressed') === pressedBefore, "and doesn't press it (released elsewhere)");
+  const sb = await rect(b, `${CORNER} button[aria-label="Stop watching"]`);
+  await b.mouse.move(sb.left + sb.width / 2, sb.top + sb.height / 2);
+  await b.mouse.down();
+  await b.mouse.move(sb.left + 250, sb.top + 300, { steps: 10 });
+  const onStop = await cornerOf(b);
+  await b.mouse.up();
+  check(!onStop.dragging && (await cornerOf(b)).corner === 'top-left' && Boolean(await b.$(CORNER)), 'a drag starting on Stop watching moves nothing (and still watching)');
+
+  // Back to bottom right; the click right after a drag (Pop out) still works.
+  await mouseDrag(b, await grabPoint(b), targetFor('bottom-right', vp.width, vp.height));
+  await checkPlaced(b, 'bottom-right', 'dragged back to bottom right');
   const [sw] = await Promise.all([
     b.context().waitForEvent('page'),
     b.click(`${CORNER} button[aria-label="Pop out"]`),
@@ -219,7 +348,7 @@ try {
   await sw.waitForSelector('.stream-view.popped-out');
   await playing(sw, '.stream-view.popped-out');
   await b.waitForSelector(CORNER, { state: 'detached', timeout: 5000 });
-  check(await sw.evaluate(() => document.body.classList.contains('popout-window') && Boolean(document.querySelector('.popout-window-root'))), 'Pop out from the corner: its own window (popout-window), corner gone');
+  check(await sw.evaluate(() => document.body.classList.contains('popout-window') && Boolean(document.querySelector('.popout-window-root'))), 'Pop out clicked right after a drag works: its own window (popout-window), corner gone');
   await sw.close();
   await b.waitForSelector(CORNER, { timeout: 5000 });
   await playing(b, CORNER);
@@ -251,6 +380,20 @@ try {
     check(await b.isVisible('.watch-party-mini-bar button[aria-label="Pop out"]'), 'the mini player has Pop out');
     await shot(b, '02-stream-and-watch-together');
 
+    // Dragged from the mini player's bar, both move as one, stacked, in every corner.
+    for (const corner of ['top-right', 'top-left', 'bottom-left']) {
+      await mouseDrag(b, await grabPoint(b, 'mini'), targetFor(corner, vp.width, vp.height));
+      await checkPlaced(b, corner, `both dragged by the mini player to ${corner}`);
+      if (corner === 'top-left') await shot(b, '02c-both-top-left');
+    }
+    // From the mini player's picture too (its shield, over YouTube's frame).
+    const shield = await rect(b, '.watch-party-player.mini .watch-party-shield');
+    await mouseDrag(b, [shield.left + shield.width / 2, shield.top + shield.height / 2], targetFor('bottom-right', vp.width, vp.height));
+    await checkPlaced(b, 'bottom-right', "both dragged by the mini player's picture to bottom-right");
+    await mouseDrag(b, await grabPoint(b), targetFor('bottom-left', vp.width, vp.height));
+    await checkPlaced(b, 'bottom-left', 'both dragged by the stream to bottom-left');
+    await shot(b, '02d-both-bottom-left');
+
     // Back on the channel page the stream takes the page and Watch Together stays in the corner.
     await b.click('.guild-channel-link:has-text("lounge")');
     await b.waitForSelector(CORNER, { state: 'detached', timeout: 5000 });
@@ -259,13 +402,10 @@ try {
     check(true, 'channel page: the stream on the page, Watch Together in the corner');
     await shot(b, '02b-channel-page-stream-and-mini');
 
-    // While a page shows the stream, the corner column goes top right under the header, clear
-    // of the stream's bar and the voice controls.
-    check(await b.$eval('.corner-players', (el) => el.classList.contains('top')), 'the corner column has class top');
-    const mini = await rect(b, '.watch-party-player.mini');
-    const header = await b.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--vc-header-height')));
-    console.log('mini on the channel page:', JSON.stringify(mini), 'header', header);
-    check(Math.abs(mini.top - (header + 16)) < 1.5 && Math.abs(mini.vw - 16 - mini.right) < 1.5, `top right under the header (top ${mini.top}, right ${mini.right} of ${mini.vw})`);
+    // While a page shows the stream, a bottom corner shows as the top one on its side (stored
+    // bottom-left → top left under the header), clear of the stream's bar and the voice controls.
+    await checkPlaced(b, 'top-left', 'channel page showing the stream, stored bottom-left');
+    check(await b.evaluate(() => localStorage.getItem('pipCorner')) === 'bottom-left', 'still stored as bottom-left');
     const blocked = await b.evaluate(() => {
       const hidden = [];
       for (const el of document.querySelectorAll('.stream-view:not(.corner) .stream-bar button, .voice-view-controls button')) {
@@ -281,6 +421,14 @@ try {
     // own Stop watching, now clickable: the player docks over its slot).
     await b.click(`${ON_PAGE} button[aria-label="Stop watching"]`, { timeout: 5000 });
     await b.waitForSelector('.watch-party-player.docked iframe', { timeout: 10000 });
+    await checkPlaced(b, 'bottom-left', 'stream no longer on the page: back to the stored bottom-left');
+    // The docked player (over its slot) isn't dragged.
+    const dockedBefore = await rect(b, '.watch-party-player.docked');
+    const ds = await rect(b, '.watch-party-player.docked .watch-party-shield');
+    const dragDocked = await mouseDrag(b, [ds.left + ds.width / 2, ds.top + ds.height / 2], [ds.left + 40, ds.top + 300], { expectFollow: false });
+    const dockedAfter = await rect(b, '.watch-party-player.docked');
+    check(!dragDocked.dragging && dockedAfter.left === dockedBefore.left && dockedAfter.top === dockedBefore.top && (await cornerOf(b)).corner === 'bottom-left',
+      'a drag on the docked player does nothing (not dragging, same place, corner unchanged)');
     const [ww] = await Promise.all([
       b.context().waitForEvent('page'),
       b.click('.watch-party-controls button[aria-label="Pop out"]'),
@@ -336,9 +484,42 @@ try {
     // From the mini player's bar too (watching the stream again); the party ending closes the window.
     await b.click(`${tile(alice.name)} .voice-tile-watch`);
     await playing(b, ON_PAGE);
-    await b.click('.guild-channel-link:has-text("general")');
+    await b.waitForSelector('.watch-party-player.mini iframe');
+    // Stored bottom-left shows top left here, beside the channel list: #general is clickable.
+    await checkPlaced(b, 'top-left', 'channel page, stored bottom-left (left corner clear of the sidebar)');
+    await b.click('.guild-channel-link:has-text("general")', { timeout: 5000 });
+    check(true, '#general clicked with the column at top left');
     await b.waitForSelector(CORNER);
     await b.waitForSelector('.watch-party-player.mini');
+    await checkPlaced(b, 'bottom-left', 'on #general both at the stored bottom left');
+
+    // It follows the sidebar's width (Shift+ArrowRight on its resizer: 40 px wider).
+    const paneBefore = await b.$eval('.main-content-wrapper', (el) => el.getBoundingClientRect().left);
+    await b.focus('.sidebar-resizer');
+    await b.keyboard.press('Shift+ArrowRight');
+    await b.waitForFunction((x) => document.querySelector('.main-content-wrapper').getBoundingClientRect().left > x + 30, paneBefore);
+    await sleep(200);
+    await checkPlaced(b, 'bottom-left', 'after widening the sidebar by 40 px, still beside it');
+    await b.dblclick('.sidebar-resizer');
+    await b.waitForFunction((x) => Math.abs(document.querySelector('.main-content-wrapper').getBoundingClientRect().left - x) < 1, paneBefore);
+    await sleep(200);
+    await checkPlaced(b, 'bottom-left', 'sidebar back to its default width');
+
+    // Settings (its own column beside the rail): still beside it.
+    await b.click('.user-panel-settings');
+    await b.waitForURL((u) => u.pathname.startsWith('/settings'));
+    await sleep(500);
+    await checkPlaced(b, 'bottom-left', 'on Settings');
+    await shot(b, '02e-settings-bottom-left');
+    await b.goBack();
+    await b.waitForSelector('#dm-input');
+    await b.waitForSelector(CORNER);
+
+    // To top right (stored, for the reload check later).
+    await mouseDrag(b, await grabPoint(b, 'mini'), targetFor('top-right', vp.width, vp.height));
+    await b.waitForSelector(CORNER);
+    await b.waitForSelector('.watch-party-player.mini');
+    await checkPlaced(b, 'top-right', 'on #general both at the stored top right');
     const [ww3] = await Promise.all([
       b.context().waitForEvent('page'),
       b.click('.watch-party-mini-bar button[aria-label="Pop out"]'),
@@ -382,6 +563,37 @@ try {
   check(pbar.labels.includes('Mute the stream'), 'the mute button stays');
   check(!pbar.labels.includes('Pop out'), 'no Pop out on a phone');
   await shot(c, '05-phone-corner');
+
+  // A finger drags it from top right to bottom left: 8 px in, and the page doesn't move.
+  await checkPlaced(c, 'top-right', 'phone default', true);
+  const cdp = await c.context().newCDPSession(c);
+  const pv = c.viewportSize();
+  const [fx, fy] = await grabPoint(c);
+  const [tx, ty] = targetFor('bottom-left', pv.width, pv.height);
+  const pageState = () => c.evaluate(() => ({
+    scroll: document.scrollingElement.scrollTop,
+    scroller: document.querySelector('.message-scroller')?.scrollTop ?? null,
+    panes: [...document.querySelector('.main-wrapper').classList].filter((k) => k.startsWith('pane')).join(' '),
+    url: location.pathname,
+  }));
+  const before = await pageState();
+  const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  await touch('touchStart', fx, fy);
+  const steps = 16;
+  let midTouch = null;
+  for (let i = 1; i <= steps; i++) {
+    await touch('touchMove', fx + ((tx - fx) * i) / steps, fy + ((ty - fy) * i) / steps);
+    await sleep(16);
+    if (i === steps / 2) midTouch = { ...(await cornerOf(c)), page: await pageState() };
+  }
+  await touch('touchEnd');
+  await sleep(300);
+  const after = await pageState();
+  console.log('touch drag: before', JSON.stringify(before), 'mid', JSON.stringify(midTouch), 'after', JSON.stringify(after));
+  check(midTouch.dragging, 'mid-drag (touch) the column is dragging');
+  check(JSON.stringify(midTouch.page) === JSON.stringify(before) && JSON.stringify(after) === JSON.stringify(before), "the page doesn't scroll or slide its panes during the drag");
+  await checkPlaced(c, 'bottom-left', 'phone dragged by touch', true);
+  await shot(c, '05b-phone-bottom-left');
   await c.click('.voice-bar button[aria-label="Disconnect"], button[aria-label="Disconnect"]').catch(() => {});
 
   await a.click('.voice-bar button[aria-label="Stop sharing your screen"]');
@@ -389,6 +601,7 @@ try {
 
   // A DM call: Bob watches Alice's screen, opens the guild: the corner, "Go to the call".
   await openChat(b, alice.id);
+  check((await cornerOf(b)).corner === (internet ? 'top-right' : 'bottom-right') && await b.evaluate(() => localStorage.getItem('pipCorner')) === (internet ? 'top-right' : 'bottom-right'), 'after a reload the corner is kept (localStorage pipCorner)');
   await openChat(a, bob.id);
   await a.click(`button[aria-label="Call ${bob.name}"]:not([disabled])`);
   await b.waitForSelector('.incoming-call');
@@ -403,6 +616,7 @@ try {
   await playing(b, CORNER);
   const cbar = await cornerBar(b);
   check(cbar.labels.includes('Go to the call'), "a call's stream in the corner: Go to the call");
+  await checkPlaced(b, internet ? 'top-right' : 'bottom-right', "the call's stream in the kept corner");
   await shot(b, '06-call-corner');
   await b.click(`${CORNER} button[aria-label="Go to the call"]`);
   await b.waitForURL((u) => u.pathname === `/dm/${alice.id}`);
