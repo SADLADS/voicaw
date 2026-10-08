@@ -121,8 +121,8 @@ page once picked (`readMedia`, through Capacitor's `_capacitor_content_` route),
 any other attachment. Nothing about the gallery leaves the phone. Under the grid a bar: Photos
 (the phone's own picker, `accept="image/*,video/*"`), Poll, Thread (when it can) and Files.
 Google Play only lets apps keep `READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO` after a declaration in
-the Play Console (Photo and Video Permissions); if Google refuses it, the permissions go and the
-grid falls back to the Photos tile as on the web.
+the Play Console (Photo and Video Permissions); Google accepted Voicaw's (2026-10-09). Should it
+ever be withdrawn, the permissions go and the grid falls back to the Photos tile as on the web.
 
 **Image thumbnails** (since 2026-10-02): a big still image (JPEG, PNG, WebP or BMP that doesn't fit
 the chat's 420×360 box at twice that, 840×720) also gets a smaller copy, made on the device at

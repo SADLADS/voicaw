@@ -314,8 +314,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   + button opens Discord's panel (camera, a grid of recent photos, then Photos / Poll / Thread /
   Files); computers keep the menu, which gained Create thread. The grid is the Android app's
   only (web pages can't list a phone's photos) and needs `READ_MEDIA_IMAGES`/`_VIDEO`, which
-  Google Play only allows after a declaration (chosen over the system photo picker alone,
-  accepting Google may refuse it; then the grid goes and Photos remains). The gallery never
+  Google Play only allows after a declaration (chosen over the system photo picker alone;
+  Google accepted it, 2026-10-09). The gallery never
   leaves the phone; only picked files are read by the page.
 - **Levels** (built 2026-10-07, see Levels in `docs/guilds.md`): Guilded's XP per guild, off until
   a guild turns it on (decided the same day); the guild (Manage Guild) chooses what earns XP and how much (messages, replies and
