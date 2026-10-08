@@ -90,6 +90,14 @@ Client-only (run inside `client/`):
 - `npm test` inside `server/`, `client/`, `electron/` or `mobile/` — run one package's suite
 - Single file / single test: `npx vitest run test/dm.test.js` (in `server/`) or
   `npx vitest run src/components/Dm.test.jsx -t "test name"` (in `client/`)
+- **Memory:** several chats share one 4-core, 16 GB host, and a RAM-full host freezes for
+  hours. While working, run only the test files you touched; run the full suites once, before
+  committing. The client and server configs run 2 files at a time (`maxWorkers`) and cap each
+  worker's heap at 2 GB, so a leaking test fails with "heap out of memory" instead of filling
+  the host (Buffers aren't counted: a test allocating them can still grow, so keep big uploads
+  small in tests). The full client suite peaks around 1.8 GB, the server's around 0.8 GB. The
+  chats' service, `code-server@otto.service`, is capped at 8 GB, so going over kills a process
+  in some chat.
 
 Server tests (`server/test/*.test.js`) are supertest integration tests against the real Express
 app with an in-memory SQLite DB:
