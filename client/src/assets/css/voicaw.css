@@ -1045,6 +1045,75 @@ body:not(.mobile-mode) .settings-category-title {
   min-width: 140px;
 }
 
+/* Settings → Admin → Storage: free space, then a bar of Voicaw's files, everything else, free. */
+.admin-storage-free {
+  margin: 0.25rem 0;
+  font-weight: 600;
+}
+
+.admin-storage-free.low {
+  color: var(--vc-danger-text);
+}
+
+.admin-storage-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--vc-border-light);
+}
+
+.admin-storage-bar > span {
+  height: 100%;
+}
+
+.admin-storage-ours {
+  background: var(--vc-accent);
+}
+
+.admin-storage-other {
+  background: var(--vc-fg-muted);
+}
+
+.admin-storage-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+  margin: 0.4rem 0;
+}
+
+.admin-storage-key > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.admin-storage-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--vc-border-light);
+}
+
+.admin-storage-swatch.admin-storage-ours {
+  background: var(--vc-accent);
+}
+
+.admin-storage-swatch.admin-storage-other {
+  background: var(--vc-fg-muted);
+}
+
+.admin-storage .admin-list li {
+  justify-content: space-between;
+}
+
+.admin-storage-amount {
+  text-align: right;
+  white-space: nowrap;
+}
+
 /* Settings → Devices (DeviceSettings) */
 .device-list {
   list-style: none;

@@ -84,7 +84,7 @@
       },
       "admin": {
         "title": "Admin",
-        "keywords": "global admins klipy gif api key sign up signup sign-ups register registration invite invites invite only approve approval requests"
+        "keywords": "global admins klipy gif api key sign up signup sign-ups register registration invite invites invite only approve approval requests storage disk space free full minio s3"
       },
       "about": {
         "title": "About",
@@ -243,6 +243,31 @@
         "builtinHelp": "This server's own LiveKit: its address and keys are in server/.env.",
         "chooseFlag": "Choose a flag",
         "changeFlag": "Change the flag"
+      },
+      "storage": {
+        "title": "Storage",
+        "help": "How full the object store (MinIO) is, where attachments, pictures and emoji are kept. Its free space is its drive's, so anything else on that drive counts too.",
+        "unavailable": "The object store doesn't say how much space it has: only MinIO reports it, and it couldn't be reached or isn't MinIO.",
+        "free": "{{free}} free of {{total}} ({{percent}}%)",
+        "barLabel": "{{used}} of {{total}} used",
+        "voicaw": "Voicaw {{size}}",
+        "other": "Other {{size}}",
+        "freeKey": "Free {{size}}",
+        "amount_one": "{{size}} · {{count}} file",
+        "amount_other": "{{size}} · {{count}} files",
+        "buckets": {
+          "uploads": "Attachments",
+          "profilePics": "Profile pictures",
+          "guildIcons": "Guild icons",
+          "emojis": "Custom emoji"
+        },
+        "otherBuckets": "Other buckets on the store",
+        "otherFiles": "Everything else on the drive",
+        "lag": "MinIO counts each bucket every few minutes and rereads the drive about once a minute, so these can be a little behind.",
+        "checked": "Checked {{date}}",
+        "refresh": "Refresh",
+        "checking": "Checking…",
+        "couldntLoad": "Couldn't load the storage figures"
       }
     },
     "developers": {

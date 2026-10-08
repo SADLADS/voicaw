@@ -499,6 +499,19 @@ server refuses anything else. Add new app-wide keys to `SETTINGS` and read them 
 `getSetting` rather than from `config.js`. The panel also lists sign-up requests and app invites
 (see Sign-ups in `docs/auth-and-encryption.md`).
 
+**Storage** (`StorageAdmin.jsx`, `GET /admin/storage[?fresh=1]`, built 2026-10-08): how full the
+object store is: free of total (red under 10%), a bar and a list of Voicaw's four buckets (size
+and file count), other buckets on the same store, and everything else on the drive (total − free
+− buckets). `server/storageStats.js` reads MinIO's Prometheus metrics
+(`/minio/v2/metrics/cluster`, and `/minio/v2/metrics/bucket` where newer MinIO moved bucket
+usage) over the network at `S3_ENDPOINT`, with a token it signs from `S3_ROOT_USER`/`_PASSWORD`
+(HS512, `iss: prometheus`, as `mc admin prometheus generate`), so it works wherever the store
+runs and needs no setup. MinIO's free space is its drive's (statfs), so files put on that drive
+any other way count (checked: 2 GB written beside it showed within 45 s; it rereads the drive
+about once a minute); bucket usage comes from its scanner, a few minutes behind. Cached 30 s on
+the server; Refresh skips that. Stores without these metrics (AWS S3, R2...) have no "space
+left": `{ available: false }` and the panel says so.
+
 ## Friends
 
 Built 2026-10-07, as Discord's. The DM list shows your friends and whoever you have a
