@@ -74,8 +74,6 @@
       "copyLink": "Copy Link",
       "openLink": "Open Link",
       "openImage": "Open Image",
-      "imageCopied": "Image copied",
-      "linkCopied": "Link copied",
       "loadFailedStatus": "Couldn't load the image ({{status}})",
       "copyFailed": "Couldn't copy the image",
       "browserCantCopy": "This browser can't copy images",

@@ -80,11 +80,11 @@ describe('MessageMenu', () => {
     expect(onDelete.mock.calls[0][0].shiftKey).toBe(true);
   });
 
-  it('says when the text is copied', async () => {
+  it('closes as soon as the text is copied, saying nothing', async () => {
     const { onClose } = renderMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Copy Text' }));
-    expect(await screen.findByRole('menuitem', { name: 'Copied' })).toBeInTheDocument();
     await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(screen.queryByText('Copied')).toBeNull();
   });
 
   it('shows a failed copy in the menu', async () => {

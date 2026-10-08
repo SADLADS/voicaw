@@ -116,10 +116,11 @@ describe('our right-click menus', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     const $ = page('<span data-user-id="42"><b id="name">bob</b></span>');
     fireEvent.contextMenu($('#name'));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Copy User ID' }));
+    await screen.findByRole('menuitem', { name: 'Copy User ID' });
     expect(menuItems()).toEqual(['Copy User ID']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy User ID' }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('42'));
-    expect(await screen.findByText('ID copied')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
   });
 
   it('on someone else: Block (asking first) and Report, then Copy User ID; none of those on yourself', async () => {

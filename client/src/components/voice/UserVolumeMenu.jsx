@@ -17,7 +17,6 @@ export default function UserVolumeMenu({ userId, name, anchor, sheet = false, on
   const sliderId = useId();
   const rootRef = useRef(null);
   const sliderRef = useRef(null);
-  const [copied, setCopied] = useState(false);
   const [position, setPosition] = useState({ left: anchor?.left ?? 0, top: anchor?.bottom ?? 0, visibility: 'hidden' });
 
   useLayoutEffect(() => {
@@ -83,12 +82,12 @@ export default function UserVolumeMenu({ userId, name, anchor, sheet = false, on
         <button
           type="button"
           className="user-volume-reset"
-          onClick={async () => {
-            await navigator.clipboard.writeText(apiId('user', userId));
-            setCopied(true);
+          onClick={() => {
+            onClose();
+            navigator.clipboard.writeText(apiId('user', userId));
           }}
         >
-          {copied ? t('common.copyId.copied') : t('common.copyId.user')}
+          {t('common.copyId.user')}
         </button>
       </div>
     </>

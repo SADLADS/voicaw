@@ -241,7 +241,6 @@
         "unarchive": "スレッドのアーカイブを解除",
         "archive": "スレッドをアーカイブ",
         "copyLink": "リンクをコピー",
-        "linkCopied": "リンクをコピーしました",
         "deleteThread": "スレッドを削除",
         "label": "スレッド",
         "back": "#{{name}} に戻る",

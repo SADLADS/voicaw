@@ -13,9 +13,9 @@ const ITEMS = '[role^="menuitem"]:not([disabled])';
 // when true), onSelect?, submenu?: { title, items } } or { separator: true }. On a computer it
 // floats by `anchor` (a rect) and a submenu opens beside its item on hover, click or →; on a
 // phone the sheet rises from the bottom with `title` on top, and a submenu replaces it (with a
-// way back). Picking an item runs `onSelect` and closes the menu once it's done; if it throws,
-// the error shows in the menu instead. `onSelect` returning a string shows it in place of the
-// item's label for a moment first ("Link copied"); it's given the click (Shift held...).
+// way back). Picking an item runs `onSelect` (given the click: Shift held...) and closes the
+// menu as soon as it's done, with nothing to say so (a Copy … item just closes it); if it
+// throws, the error shows in the menu instead.
 // `header` (desktop) goes above the items, e.g. a message's quick reactions. Escape, or a
 // click outside, closes it.
 // `overViewer`: shown over the full-screen image viewer (which sits above everything else).
@@ -23,11 +23,6 @@ export default function ContextMenu({ title, label, items, header = null, anchor
   const rootRef = useRef(null);
   const [submenu, setSubmenu] = useState(null); // { key, anchor (desktop: the item's rect) }
   const [error, setError] = useState(null);
-  const [done, setDone] = useState(null); // { key, text }
-  const closeTimer = useRef(null);
-
-  useEffect(() => () => clearTimeout(closeTimer.current), []);
-
   const open = submenu && items.find((item) => item.key === submenu.key)?.submenu;
 
   // `fromKeyboard`: Enter, Space or → (the submenu then takes the focus).
@@ -38,13 +33,8 @@ export default function ContextMenu({ title, label, items, header = null, anchor
     }
     setError(null);
     try {
-      const result = await item.onSelect?.(event);
-      if (typeof result === 'string') {
-        setDone({ key: item.key, text: result });
-        closeTimer.current = setTimeout(onClose, 700);
-      } else {
-        onClose();
-      }
+      await item.onSelect?.(event);
+      onClose();
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -86,7 +76,6 @@ export default function ContextMenu({ title, label, items, header = null, anchor
         items={open ? open.items : items}
         onBack={open ? () => setSubmenu(null) : null}
         onPick={pick}
-        done={done}
         error={error}
         onClose={onClose}
         overViewer={overViewer}
@@ -107,7 +96,6 @@ export default function ContextMenu({ title, label, items, header = null, anchor
           if (!item.submenu) return null;
           return current?.key === item.key ? current : { key: item.key, anchor: target.getBoundingClientRect(), target };
         })}
-        done={done}
         error={error}
         autoFocus
       />
@@ -123,7 +111,6 @@ export default function ContextMenu({ title, label, items, header = null, anchor
             submenu.target?.focus();
             setSubmenu(null);
           }}
-          done={done}
           autoFocus={submenu.fromKeyboard}
         />
       )}
@@ -133,7 +120,7 @@ export default function ContextMenu({ title, label, items, header = null, anchor
 }
 
 // One floating panel of the desktop menu (the menu, or a submenu `beside` its item).
-function MenuPanel({ label, items, header = null, anchor, beside = false, openKey, onPick, onHover, onBack, done, error, autoFocus }) {
+function MenuPanel({ label, items, header = null, anchor, beside = false, openKey, onPick, onHover, onBack, error, autoFocus }) {
   const ref = useRef(null);
   const [position, setPosition] = useState({ left: anchor.left, top: anchor.bottom, visibility: 'hidden' });
 
@@ -190,7 +177,7 @@ function MenuPanel({ label, items, header = null, anchor, beside = false, openKe
             onClick={(e) => onPick(item, e.currentTarget, e.detail === 0, e)}
           >
             <span className="context-menu-label">
-              {done?.key === item.key ? done.text : item.label}
+              {item.label}
               {item.hint && <small>{item.hint}</small>}
             </span>
             {item.submenu && <FontAwesomeIcon icon={faChevronRight} />}
@@ -206,7 +193,7 @@ function MenuPanel({ label, items, header = null, anchor, beside = false, openKe
 }
 
 // The phone's version: a sheet from the bottom, like a message's actions.
-function SheetMenu({ title, label, items, onBack, onPick, done, error, onClose, overViewer }) {
+function SheetMenu({ title, label, items, onBack, onPick, error, onClose, overViewer }) {
   // A click only counts from a touch that started on the sheet (not the finger lifting from
   // the long press that opened it).
   const touchedHere = useRef(false);
@@ -248,7 +235,7 @@ function SheetMenu({ title, label, items, onBack, onPick, done, error, onClose, 
               >
                 {item.icon && <FontAwesomeIcon icon={item.icon} fixedWidth />}
                 <span className="context-menu-label">
-                  {done?.key === item.key ? done.text : item.label}
+                  {item.label}
                   {item.hint && <small>{item.hint}</small>}
                 </span>
                 {item.submenu && <FontAwesomeIcon icon={faChevronRight} className="context-sheet-end" />}

@@ -236,7 +236,7 @@ describe('GuildSidebar', () => {
     fireEvent.contextMenu(screen.getByRole('link', { name: 'memes' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Copy Link' }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/guild/5/11`));
-    expect(await screen.findByText('Link copied')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
   });
 
   it("copies a channel's id, and a category's as bots see it", async () => {
@@ -246,7 +246,7 @@ describe('GuildSidebar', () => {
     fireEvent.contextMenu(screen.getByRole('link', { name: 'memes' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Copy Channel ID' }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('11'));
-    expect(await screen.findByText('ID copied')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Fun' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Copy Category ID' }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(String(2 ** 40 + 2)));

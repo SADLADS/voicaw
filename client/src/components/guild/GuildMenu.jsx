@@ -84,7 +84,6 @@ export default function GuildMenu({ guildId, user, anchor, sheet, onDialog, onCl
     icon: faLink,
     onSelect: async () => {
       await navigator.clipboard.writeText(guildLink(guildId));
-      return t('guildAdmin.guildMenu.linkCopied');
     },
   }, copyIdItem('guild', guildId));
   if (guild.owner !== user?.id) {

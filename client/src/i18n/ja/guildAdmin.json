@@ -455,7 +455,6 @@
       "notifications": "通知設定",
       "settings": "ギルド設定",
       "copyLink": "リンクをコピー",
-      "linkCopied": "リンクをコピーしました",
       "leave": "ギルドから退出"
     },
     "guildSettings": {

@@ -45,10 +45,11 @@ try {
     await a.locator(selector).first().click({ button: 'right' });
     await a.waitForSelector('.context-menu');
     const menu = await items(a);
+    const clicked = Date.now();
     await a.click(`.context-menu >> text=${label}`);
-    await a.waitForSelector('.context-menu >> text=ID copied');
-    await a.keyboard.press('Escape');
     await a.waitForSelector('.context-menu', { state: 'detached' });
+    const closedIn = Date.now() - clicked;
+    check(closedIn < 400, `${label} closes the menu at once (${closedIn} ms)`);
     return { menu, copied: await clipboard() };
   };
 
@@ -73,11 +74,10 @@ try {
   await a.locator('.dm-message-content .mention').first().click({ button: 'right' });
   await a.waitForSelector('.context-menu');
   await shot(a, 'mention-menu');
-  await a.click('.context-menu >> text=Copy User ID');
-  await a.waitForSelector('.context-menu >> text=ID copied');
-  check(await clipboard() === String(alice.id), 'a mention copies the mentioned person');
   check(!(await items(a)).includes('Block'), 'no Block or Report on yourself');
-  await a.keyboard.press('Escape');
+  await a.click('.context-menu >> text=Copy User ID');
+  await a.waitForSelector('.context-menu', { state: 'detached' });
+  check(await clipboard() === String(alice.id), 'a mention copies the mentioned person');
   await a.locator('.dm-message-content p').first().click({ button: 'right', position: { x: 2, y: 4 } });
   await a.waitForSelector('.context-menu');
   check(!(await items(a)).includes('Copy User ID') && (await items(a)).includes('Copy Text'), "the rest of the message keeps the message's own menu");
@@ -110,11 +110,10 @@ try {
   await a.waitForTimeout(300);
   check(!(await a.$('.context-menu')) && await a.evaluate(() => window.__menuBlocked.at(-1)), 'nor does the open menu');
   check(JSON.stringify(await a.$$eval('.user-menu-item', (els) => els.map((e) => e.textContent.trim()))) === '["Edit Profile","Copy User ID","Log out"]', 'the user panel menu: Edit Profile, Copy User ID, Log out');
+  await shot(a, 'user-menu');
   await a.click('.user-menu-item:has-text("Copy User ID")');
-  await a.waitForSelector('.user-menu-item:has-text("ID copied")');
-  await shot(a, 'user-menu-copied');
-  check(await clipboard() === String(alice.id), 'and copies your id');
-  await a.keyboard.press('Escape');
+  await a.waitForSelector('.user-menu', { state: 'detached', timeout: 400 });
+  check(await clipboard() === String(alice.id), 'and copies your id, closing at once');
 
   // Phone: hold a conversation; the sheet has it too.
   const c = carol.page;

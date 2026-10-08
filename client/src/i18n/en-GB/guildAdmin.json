@@ -489,7 +489,6 @@
       "notifications": "Notification Settings",
       "settings": "Guild Settings",
       "copyLink": "Copy Link",
-      "linkCopied": "Link copied",
       "leave": "Leave Guild"
     },
     "guildSettings": {

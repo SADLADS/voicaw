@@ -28,7 +28,6 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [copied, setCopied] = useState(false);
   const finished = useRef(false); // Enter or Escape already ended this edit (so blur doesn't)
   const profile = { ...user, ...getProfile(user.id) };
   const customStatus = profile.custom_status ?? '';
@@ -142,13 +141,12 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
         <button
           type="button"
           className="user-menu-item"
-          aria-live="polite"
-          onClick={async () => {
-            await navigator.clipboard.writeText(apiId('user', user.id));
-            setCopied(true);
+          onClick={() => {
+            onClose();
+            navigator.clipboard.writeText(apiId('user', user.id));
           }}
         >
-          <FontAwesomeIcon icon={faIdCard} /> {copied ? t('common.copyId.copied') : t('common.copyId.user')}
+          <FontAwesomeIcon icon={faIdCard} /> {t('common.copyId.user')}
         </button>
         <button type="button" className="user-menu-item danger" onClick={() => { onClose(); onLogout?.(); }}>
           <FontAwesomeIcon icon={faRightFromBracket} /> {t('app.userMenu.logOut')}

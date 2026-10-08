@@ -228,7 +228,7 @@ try {
   await rightClick(a, a.locator('.document-page-cover img'));
   check(same(await items(a), ['Copy Image', 'Save Image', 'Open Image']), "the document's cover gets it");
   await a.click('.context-menu >> text=Copy Image');
-  await a.waitForSelector('.context-menu >> text=Image copied');
+  await a.waitForSelector('.context-menu', { state: 'detached' });
   await a.waitForSelector('.context-menu', { state: 'detached' });
   await imageShown(a, '.document-page .document-body img');
   await rightClick(a, a.locator('.document-page .document-body img').first());

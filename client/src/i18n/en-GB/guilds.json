@@ -252,7 +252,6 @@
         "unarchive": "Unarchive Thread",
         "archive": "Archive Thread",
         "copyLink": "Copy Link",
-        "linkCopied": "Link copied",
         "deleteThread": "Delete Thread",
         "label": "Thread",
         "back": "Back to #{{name}}",

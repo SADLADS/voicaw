@@ -98,7 +98,6 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
       icon: faLink,
       onSelect: async () => {
         await navigator.clipboard.writeText(`${channelLink(guild.id, parent.id)}?thread=${thread.id}`);
-        return t('guilds.threads.pane.linkCopied');
       },
     },
     copyIdItem('thread', thread.id),

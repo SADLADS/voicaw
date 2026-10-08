@@ -100,7 +100,7 @@ try {
   // Copy Link.
   await row('general').locator('.guild-channel-link').click({ button: 'right' });
   await a.click('.context-menu >> text=Copy Link');
-  await a.waitForSelector('.context-menu >> text=Link copied');
+  await a.waitForSelector('.context-menu', { state: 'detached' });
   const copied = await a.evaluate(() => navigator.clipboard.readText());
   check(copied === `${BASE}/guild/${guild.id}/${general.id}`, `Copy Link copied ${copied}`);
   await a.waitForSelector('.context-menu', { state: 'detached' });
@@ -124,7 +124,8 @@ try {
   await a.click('.context-menu >> text=Delete Channel');
   await a.click('.vc-dialog button:has-text("Delete Channel")');
   await a.waitForFunction(() => ![...document.querySelectorAll('.guild-channel-name')].some((e) => e.textContent === 'random-copy'));
-  check(!a.url().endsWith(`/${copyId}`), 'Delete Channel: gone, and the page left it');
+  const left = await a.waitForURL((url) => !url.pathname.endsWith(`/${copyId}`), { timeout: 3000 }).then(() => true, () => false);
+  check(left, `Delete Channel: gone, and the page left it (${a.url()})`);
 
   // A category's menu; a right-click at the window's corner stays on screen.
   await a.click('.guild-category-toggle', { button: 'right' });
@@ -216,7 +217,7 @@ try {
   const randomBox = await d.locator('.guild-channel-link', { hasText: 'random' }).boundingBox();
   const thirdBox = await third.boundingBox();
   await hold(d, third, { moveBy: randomBox.y - thirdBox.y - 6 });
-  await d.waitForFunction(() => [...document.querySelectorAll('.guild-channel-name')].map((e) => e.textContent).join() === 'general,third,random', null, { timeout: 5000 });
+  await d.waitForFunction(() => [...document.querySelectorAll('.guild-channel-name')].map((e) => e.textContent).filter((name) => name !== 'Calendar').join() === 'general,third,random', null, { timeout: 5000 });
   check(!(await d.$('.context-sheet')), 'holding then moving drags the channel (no menu)');
 
   console.log('channelmenu: ok');

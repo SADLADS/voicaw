@@ -63,7 +63,6 @@ export function imageMenuItems(item) {
       icon: faCopy,
       onSelect: async () => {
         await copyImage(item);
-        return t('media.image.imageCopied');
       },
     },
     {
@@ -82,7 +81,6 @@ export function imageMenuItems(item) {
         icon: faLink,
         onSelect: async () => {
           await navigator.clipboard.writeText(link);
-          return t('media.image.linkCopied');
         },
       },
       { key: 'open-link', label: t('media.image.openLink'), icon: faArrowUpRightFromSquare, onSelect: () => openInNewTab(link) },

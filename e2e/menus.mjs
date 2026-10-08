@@ -79,7 +79,7 @@ try {
   check((await api(a, 'GET', `/guilds/${guild.id}`)).my_notify_level === 'none', 'Notification Settings → Nothing saved for Alpha');
   await a.click('.rail-guild[aria-label="Alpha"]', { button: 'right' });
   await a.click('.context-menu >> text=Copy Link');
-  await a.waitForSelector('.context-menu >> text=Link copied');
+  await a.waitForSelector('.context-menu', { state: 'detached' });
   check((await a.evaluate(() => navigator.clipboard.readText())) === `${BASE}/guild/${guild.id}`, 'Copy Link copied the guild link');
   await a.waitForSelector('.context-menu', { state: 'detached' });
   await a.click('.rail-guild[aria-label="Beta"]', { button: 'right' });

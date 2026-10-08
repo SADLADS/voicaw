@@ -31,10 +31,7 @@ import { t } from '../i18n';
 // How long the menu waits for spelling suggestions before opening without them.
 const SPELLING_WAIT_MS = 400;
 
-const copied = async (text, done) => {
-  await navigator.clipboard.writeText(text);
-  return done;
-};
+const copy = (text) => navigator.clipboard.writeText(text);
 
 function textBoxItems({ target, spelling }) {
   const items = [];
@@ -65,11 +62,11 @@ function textBoxItems({ target, spelling }) {
 
 function pageItems({ link, selected, userId, webhook }, meId) {
   const items = [];
-  if (selected) items.push({ key: 'copy', label: t('common.copy'), icon: faCopy, onSelect: () => copied(selected, t('common.copied')) });
+  if (selected) items.push({ key: 'copy', label: t('common.copy'), icon: faCopy, onSelect: () => copy(selected) });
   if (link) {
     if (items.length) items.push({ separator: true });
     items.push(
-      { key: 'copy-link', label: t('app.pageMenus.copyLink'), icon: faLink, onSelect: () => copied(link, t('app.pageMenus.linkCopied')) },
+      { key: 'copy-link', label: t('app.pageMenus.copyLink'), icon: faLink, onSelect: () => copy(link) },
       { key: 'open-link', label: t('app.pageMenus.openLink'), icon: faArrowUpRightFromSquare, onSelect: () => openInNewTab(link) },
     );
   }

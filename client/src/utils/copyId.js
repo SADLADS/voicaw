@@ -22,7 +22,7 @@ export function apiId(kind, id) {
   return String(kind === 'category' ? CATEGORY_ID_BASE + Number(id) : id);
 }
 
-// A ContextMenu item copying it (and saying so).
+// A ContextMenu item copying it.
 export function copyIdItem(kind, id) {
   return {
     key: `copy-${kind}-id`,
@@ -30,7 +30,6 @@ export function copyIdItem(kind, id) {
     icon: faIdCard,
     onSelect: async () => {
       await navigator.clipboard.writeText(apiId(kind, id));
-      return t('common.copyId.copied');
     },
   };
 }

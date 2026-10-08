@@ -106,7 +106,6 @@ export default function ChannelMenu({ guild, channel, anchor, sheet, onEdit, onC
     icon: faLink,
     onSelect: async () => {
       await navigator.clipboard.writeText(channelLink(guild.id, channel.id));
-      return t('guildAdmin.guildMenu.linkCopied');
     },
   }, copyIdItem('channel', channel.id));
   if (managesChannels || editsWebhooks) {

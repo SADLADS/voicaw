@@ -176,7 +176,9 @@
   `components/ContextMenu.jsx` draws them (items with icons, hints, ticks, disabled items and
   submenus, and an optional `header` above them;
   floating by the pointer with submenus beside it on a computer, hover/click/arrow keys; a
-  bottom sheet on a phone where a submenu replaces it, with Back). Channels, categories, the
+  bottom sheet on a phone where a submenu replaces it, with Back). Picking an item closes the
+  menu as soon as it's done; Copy … items (text, links, pictures, ids) just close it, with no
+  "Copied" message (only a failure shows, in the menu). Channels, categories, the
   channel list's empty space and guild icons have one (see `docs/guilds.md`), and so do
   conversations in the DM list (`DmMenu.jsx`: Mark As Read, Start/Join Call, Pin / Unpin,
   Mute ▸ / Unmute, Block / Report and Copy User ID; not for a group). Messages have one too (`MessageMenu.jsx`, see Message actions above).

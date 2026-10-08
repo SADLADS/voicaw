@@ -53,13 +53,13 @@ try {
   check(same(await items(a, '.context-menu'), ['Copy Image', 'Save Image', 'Copy Link', 'Open Link']), "a plain picture's menu");
   await shot(a, 'plain-menu');
   await a.click('.context-menu >> text=Copy Image');
-  await a.waitForSelector('.context-menu >> text=Image copied');
+  await a.waitForSelector('.context-menu', { state: 'detached' });
   const types = await a.evaluate(async () => (await navigator.clipboard.read()).flatMap((item) => item.types));
   check(types.includes('image/png'), `Copy Image: the clipboard holds ${types.join(', ')}`);
   await a.waitForSelector('.context-menu', { state: 'detached' });
   await plain.click({ button: 'right' });
   await a.click('.context-menu >> text=Copy Link');
-  await a.waitForSelector('.context-menu >> text=Link copied');
+  await a.waitForSelector('.context-menu', { state: 'detached' });
   check((await a.evaluate(() => navigator.clipboard.readText())) === plainUrl, 'Copy Link copies its URL');
   await a.waitForSelector('.context-menu', { state: 'detached' });
 
@@ -89,7 +89,7 @@ try {
   check(await a.locator('.image-viewer').count() === 1, 'Escape closes the menu, the viewer stays');
   await a.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
   await a.click('.context-menu >> text=Copy Image');
-  await a.waitForSelector('.context-menu >> text=Image copied');
+  await a.waitForSelector('.context-menu', { state: 'detached' });
   const viewerTypes = await a.evaluate(async () => (await navigator.clipboard.read()).flatMap((item) => item.types));
   check(viewerTypes.includes('image/png'), 'Copy Image from the viewer (a decrypted JPEG, copied as PNG)');
   await a.keyboard.press('Escape');

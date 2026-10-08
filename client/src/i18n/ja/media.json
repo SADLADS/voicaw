@@ -68,8 +68,6 @@
       "copyLink": "リンクをコピー",
       "openLink": "リンクを開く",
       "openImage": "画像を開く",
-      "imageCopied": "画像をコピーしました",
-      "linkCopied": "リンクをコピーしました",
       "loadFailedStatus": "画像を読み込めませんでした（{{status}}）",
       "copyFailed": "画像をコピーできませんでした",
       "browserCantCopy": "このブラウザは画像をコピーできません",

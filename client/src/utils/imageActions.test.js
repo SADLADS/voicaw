@@ -33,7 +33,7 @@ describe('picture menus', () => {
 
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-    expect(await find(imageMenuItems(plain), 'Copy Link').onSelect()).toBe('Link copied');
+    await find(imageMenuItems(plain), 'Copy Link').onSelect();
     expect(writeText).toHaveBeenCalledWith(plain.src);
     find(imageMenuItems(plain), 'Open Link').onSelect();
     expect(openInNewTab).toHaveBeenCalledWith(plain.src);

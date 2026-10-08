@@ -106,14 +106,14 @@ describe('UserPanel', () => {
       expect(onLogout).toHaveBeenCalled();
     });
 
-    it('copies your user id', async () => {
+    it('copies your user id and closes', () => {
       const writeText = vi.fn().mockResolvedValue();
       Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
       renderPanel();
       openMenu();
-      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Copy User ID' })); });
+      fireEvent.click(screen.getByRole('button', { name: 'Copy User ID' }));
       expect(writeText).toHaveBeenCalledWith('7');
-      expect(screen.getByRole('button', { name: 'ID copied' })).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
     it('gives no right-click menu on the panel or the menu', () => {

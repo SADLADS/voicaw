@@ -55,7 +55,7 @@ export default function MessageMenu({
   }
   if (sent && onCreateThread) items.push({ key: 'thread', label: t('chat.messageMenu.createThread'), icon: faComments, onSelect: onCreateThread });
   if (msg.plaintext) {
-    items.push({ key: 'copy', label: t('chat.messageMenu.copyText'), icon: faCopy, onSelect: async () => { await onCopy(); return t('common.copied'); } });
+    items.push({ key: 'copy', label: t('chat.messageMenu.copyText'), icon: faCopy, onSelect: onCopy });
   }
   if (sent && onRemovePreviews) {
     items.push({ key: 'previews', label: t('chat.messageMenu.removePreviews'), icon: faLinkSlash, onSelect: onRemovePreviews });
