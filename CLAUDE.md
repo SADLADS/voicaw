@@ -206,7 +206,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - **Voice** (decided 2026-09-29): a self-hosted LiveKit SFU (setup in `README.md`), not
   peer-to-peer mesh, so channels scale past a handful of people. The API only checks permissions
   and hands out short-lived LiveKit tokens. Guild voice isn't end-to-end encrypted (like guild
-  text). DM calls are (LiveKit's E2EE with a per-call key sent inside the DM encryption). The microphone
+  text). DM calls are (LiveKit's E2EE with a per-call key sent inside the DM encryption), screen
+  sharing in them too (2026-10-08: everyone in a call may share; a 1:1 call opens the other's
+  stream on its own, a group call waits for Watch Stream). The microphone
   path is a Web Audio chain (capture with echo cancellation → input volume → noise
   suppression → gate → published track). Krisp needs LiveKit Cloud or a licence, so it's out:
   noise suppression is RNNoise by default and DeepFilterNet as Strong (decided 2026-10-01),

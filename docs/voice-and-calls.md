@@ -102,7 +102,8 @@ LiveKit carries the audio.
   its HTTP answers). A `Disconnected` before a room finished joining is a failed join, handled
   by `connect` (`joinedRooms`). DM and group calls don't rejoin (their token and key come from
   `callClient`).
-- **Screen sharing** (guild voice channels, with Video): the token lets you publish
+- **Screen sharing** (guild voice channels, with Video; DM and group calls always, see Screen
+  sharing in calls under DM calls): the token lets you publish
   `screen_share` and `screen_share_audio` (and `camera`, see Cameras) only with Video (`publishPermission`), and
   `enforceGuild` changes that live (LiveKit then ends a stream that's no longer allowed; the
   client lets go of the capture). Who's live (`self_stream`) comes from LiveKit's
@@ -378,8 +379,7 @@ LiveKit carries the audio.
 - **Not done yet:** a per-user local mute (Discord has one), push-to-talk, output volume above 100%, server mute/move (Mute Members, Move Members), a global
   push-to-talk key in the desktop app (it has global mute/deafen toggles; holding a key needs a
   native keyboard hook), noise suppression and the gate on the other side (for people whose
-  app doesn't, like Discord's "suppress others' noise"), screen share in DM/group calls (LiveKit's E2EE
-  would cover the video too), switching between a phone's front and back camera in a call,
+  app doesn't, like Discord's "suppress others' noise"), switching between a phone's front and back camera in a call,
   background blur, a camera spotlight (one camera big, like a watched stream), viewers picking
   a stream's quality (its simulcast copy; see Stream quality), and a TURN server for
   networks that block UDP 7882 and
@@ -523,5 +523,20 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
   edited, deleted, reacted to, pinned or replied to. A call going on when the API restarts gets
   no row.
 - **Video** in calls: see Cameras under Voice channels (the same code, always allowed in calls).
-- **Not done yet:** screen sharing in calls, and the incoming
+- **Screen sharing in calls** (2026-10-08): the same code as voice channels' (Screen sharing,
+  Stream quality, pop out), always allowed: `calls.js` `tokenFor` gives everyone `canStream`
+  (`screen_share` and `screen_share_audio`) and the admin's `streamLimit`, which `callClient`
+  passes to `joinCall`. **End-to-end encrypted** like the rest of the call: LiveKit's E2EE
+  encrypts every track of the room, so the screen and its sound reach LiveKit as ciphertext.
+  The share button is in the call panels and the voice bar (computers only, as in channels;
+  phones watch). `call/CallStream.jsx`, in `CallPanel` and `GroupCallPanel`: the watched
+  stream big in the panel (`StreamView`, at most 40% of the app's height, the chat below; full screen and pop out for more),
+  the "in its own window" note while popped out, and "X is sharing their screen." with Watch
+  Stream for every other stream; a Live badge on the sharer. **Watching:** in a 1:1 call the
+  other person's stream opens on its own once the DM is shown (you're its only viewer; not
+  over your own preview or a stream you're already watching), and Stop watching keeps it
+  closed until they share again; in a group call it waits for Watch Stream, as in channels
+  (only watched streams are downloaded). No `self_stream` from the server: calls aren't
+  voice states, so Live comes from the room itself and only people in the call see it.
+- **Not done yet:** the incoming
   call screen of a native app (a closed PWA only gets the notification).

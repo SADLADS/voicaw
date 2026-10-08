@@ -89,7 +89,8 @@ describe('DM calls', () => {
     });
     const claims = jwt.verify(res.body.token, process.env.LIVEKIT_API_SECRET);
     expect(claims.sub).toBe(String(alice.id));
-    expect(claims.video).toMatchObject({ room: `call-${callId}`, canPublish: true, canPublishSources: ['microphone', 'camera'] });
+    expect(claims.video).toMatchObject({ room: `call-${callId}`, canPublish: true, canPublishSources: ['microphone', 'camera', 'screen_share', 'screen_share_audio'] });
+    expect(res.body.streamLimit).toEqual({ resolution: 'source', frameRate: 60 });
 
     expect(ofType(bobEvents, 'call_incoming')[0].call).toEqual({ ...res.body.call, server_now: expect.any(Number) });
     expect(ofType(aliceEvents, 'call_update')[0].call.id).toBe(callId);

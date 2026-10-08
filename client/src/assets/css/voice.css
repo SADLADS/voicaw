@@ -1568,3 +1568,29 @@ body.stream-window {
 .group-call-panel .call-panel-video {
   width: min(220px, calc((100vw - 64px) / 2));
 }
+
+/* A screen share in a DM or group call (CallStream): the panel's width, at most 40% of
+   the app's height, room left for the chat below. */
+.call-panel .stream-view {
+  flex: none;
+  align-self: stretch;
+  margin: 0;
+  aspect-ratio: 16 / 9;
+  max-height: calc(var(--vc-app-height) * 0.4);
+}
+
+.call-panel .stream-view:fullscreen {
+  max-height: none;
+}
+
+.call-panel .call-stream-note {
+  align-self: stretch;
+  margin: 0;
+}
+
+.call-panel-live {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  z-index: 1;
+}

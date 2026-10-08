@@ -722,9 +722,10 @@ export async function joinVoice(guildId, channelId) {
   await connect({ guildId, channelId }, () => fetchVoiceToken(guildId, channelId, prefs()));
 }
 
-// Joins a DM call's room (callClient.js has the token and the call's key).
-export async function joinCall({ callId, url, token, key }) {
-  await connect({ callId }, async () => ({ url, token }), key);
+// Joins a DM call's room (callClient.js has the token, the server's screen share limit and the
+// call's key).
+export async function joinCall({ callId, url, token, streamLimit = null, key }) {
+  await connect({ callId }, async () => ({ url, token, streamLimit }), key);
 }
 
 // The voice channel's bitrate changed: the microphone goes out at it from now on (its sender's

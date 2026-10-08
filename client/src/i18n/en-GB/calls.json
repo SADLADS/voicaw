@@ -29,6 +29,15 @@
       "leave": "Leave call",
       "join": "Join call"
     },
+    "stream": {
+      "live": "Live",
+      "sharing": "{{name}} is sharing their screen.",
+      "watch": "Watch Stream",
+      "poppedOut": "{{name}}'s stream is in its own window.",
+      "ownPoppedOut": "Your stream is in its own window.",
+      "bringBack": "Bring back",
+      "stopWatching": "Stop watching"
+    },
     "notices": {
       "declined": "{{name}} declined the call.",
       "noAnswer": "{{name}} didn't answer.",

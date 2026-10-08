@@ -28,6 +28,7 @@ node e2e/watchkeyboard.mjs [dir] # Watch Together search on a phone with the key
 node e2e/screenshare.mjs [dir] # screen share: own preview, Live, no download until Watch, phone watches, Video taken away
 node e2e/camera.mjs [dir] # cameras: own (mirrored), tile plays at a small layer, channel list mark, nothing downloaded on another page, phone, Video taken away, off; DM call (encrypted in LiveKit, both decode), group call on a phone
 node e2e/streampopout.mjs [dir] # stream pop-out: own window (styled, theme follows), plays on other pages, full screen, close/Bring back return it, Stop watching/stream end/leave close it, phone has none
+node e2e/callscreenshare.mjs [dir] # screen sharing in calls: DM call (call panel's button, own preview, the other's opens by itself and plays, encrypted in LiveKit, chat still in view, Stop watching = no download and stays closed, Watch Stream), group call (phone can't share, waits for Watch Stream, nothing downloaded before, fits the phone)
 node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mute, decline, phone
 node e2e/calllog.mjs [dir] # calls in the chat: lasted …, declined, didn't answer / missed (unread), after reload, phone
 node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, group call, owner leaves

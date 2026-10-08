@@ -63,7 +63,7 @@ export default function VoiceBar({ user }) {
           )}
         </div>
         <CameraButton />
-        {!inCall && <ScreenShareButton />}
+        <ScreenShareButton />
         <button
           type="button"
           className="user-panel-button voice-bar-leave"

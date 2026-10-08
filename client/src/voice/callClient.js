@@ -203,9 +203,9 @@ export async function startCall(peer) {
   try {
     const key = generateCallKey();
     const envelope = await encryptCallKey(key, await conversationKey(peer), callKeyContext(id, me.id, peer.id));
-    const { url, token } = await startCallRequest(peer.id, id, envelope);
+    const { url, token, streamLimit } = await startCallRequest(peer.id, id, envelope);
     if (snapshot.call?.id !== id) return; // hung up meanwhile
-    await joinCall({ callId: id, url, token, key });
+    await joinCall({ callId: id, url, token, streamLimit, key });
   } catch (err) {
     if (snapshot.call?.id !== id) return;
     console.warn('Could not start the call', err);
@@ -232,10 +232,10 @@ async function joinGroupCall(call) {
       console.warn('Group call key', err);
       throw new Error(t('calls.errors.unverified'));
     });
-    const { url, token, call: joined } = await acceptCallRequest(call.id);
+    const { url, token, streamLimit, call: joined } = await acceptCallRequest(call.id);
     if (snapshot.call?.id !== call.id) return;
     set(localCall(joined, { outgoing: joined.caller_id === me.id, state: 'active' }));
-    await joinCall({ callId: call.id, url, token, key });
+    await joinCall({ callId: call.id, url, token, streamLimit, key });
   } catch (err) {
     if (snapshot.call?.id !== call.id) return;
     console.warn('Could not join the call', err);
@@ -277,7 +277,7 @@ export async function startGroupCall(groupId) {
     if (snapshot.call?.id !== id) return;
     setGroupCall(groupId, started.call);
     set(localCall(started.call, { outgoing: true, state: 'active' }));
-    await joinCall({ callId: id, url: started.url, token: started.token, key });
+    await joinCall({ callId: id, url: started.url, token: started.token, streamLimit: started.streamLimit, key });
   } catch (err) {
     if (snapshot.call?.id !== id) return;
     console.warn('Could not start the call', err);
@@ -309,10 +309,10 @@ export async function acceptCall() {
   try {
     const peer = await findUser(offer.caller_id);
     const key = await decryptCallKey(offer.key_envelope, await conversationKey(peer), callKeyContext(offer.id, offer.caller_id, me.id));
-    const { url, token, call: answered } = await acceptCallRequest(offer.id);
+    const { url, token, streamLimit, call: answered } = await acceptCallRequest(offer.id);
     if (snapshot.call?.id !== offer.id) return;
     set({ ...snapshot.call, state: 'active', answeredAt: localTime(answered.answered_at, answered) });
-    await joinCall({ callId: offer.id, url, token, key });
+    await joinCall({ callId: offer.id, url, token, streamLimit, key });
   } catch (err) {
     if (snapshot.call?.id !== offer.id) return;
     console.warn('Could not answer the call', err);

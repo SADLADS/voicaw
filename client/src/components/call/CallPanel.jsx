@@ -7,10 +7,13 @@ import { useVoice } from '../../hooks/useVoice';
 import { useVolumeMenu } from '../../hooks/useVolumeMenu';
 import { InteractionContext } from '../../contexts';
 import { hangUp } from '../../voice/callClient';
+import { watchStream } from '../../voice/voiceClient';
 import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
 import CameraButton from '../voice/CameraButton';
 import CameraVideo from '../voice/CameraVideo';
+import ScreenShareButton from '../voice/ScreenShareButton';
+import CallStream from './CallStream';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
 import { MicIcon } from '../voice/VoiceIcons';
 import { nameOf } from '../../utils/profiles';
@@ -32,21 +35,29 @@ function useDuration(since) {
 }
 
 // At the top of a DM while you're calling that person: both of you (ringed while talking,
-// the mic icon when muted, their camera instead of their picture when it's on), the state or
-// how long it's been going, and the controls. Clicking the other person once you're in sets
-// how loud they are for you.
+// the mic icon when muted, their camera instead of their picture when it's on, Live while
+// sharing their screen), the state or how long it's been going, a shared screen (CallStream)
+// and the controls. Clicking the other person once you're in sets how loud they are for you.
+// The other person's screen share opens on its own (you're its only viewer); Stop watching
+// keeps it closed until they share again.
 export default function CallPanel({ user, peer }) {
   const call = useCall();
   const voice = useVoice();
   const { isMobile } = useContext(InteractionContext);
   const duration = useDuration(call?.state === 'active' ? call.answeredAt : null);
   const volumeMenu = useVolumeMenu(call != null && voice.callId === call.id && voice.status !== 'idle');
+  const peerLive = call != null && voice.callId === call.id && voice.status === 'connected'
+    && String(call.peerId) === String(peer?.id) && voice.streams.includes(String(peer.id));
+  useEffect(() => {
+    if (peerLive && voice.watching == null) watchStream(peer.id);
+  }, [peerLive]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!call || String(call.peerId) !== String(peer?.id)) return null;
 
   const connected = voice.callId === call.id && voice.status === 'connected';
   const speaking = new Set(connected ? voice.speaking : []);
   const peerMuted = connected && voice.muted.includes(String(peer.id));
   const cameras = new Set(connected ? voice.cameras : []);
+  const live = new Set(connected ? voice.streams : []);
   const selfMuted = voice.selfMute || voice.selfDeaf;
   let status;
   if (call.state === 'ringing') status = call.outgoing ? t('calls.panel.calling') : t('calls.panel.incoming');
@@ -66,6 +77,7 @@ export default function CallPanel({ user, peer }) {
             ) : (
               <UserAvatar userId={person.id} className="call-panel-avatar" speaking={!muted && speaking.has(String(person.id))} />
             )}
+            {live.has(String(person.id)) && <span className="voice-live-badge call-panel-live">{t('calls.stream.live')}</span>}
             {muted && <span className="call-panel-muted" title={t('calls.panel.muted')} aria-label={t('calls.panel.muted')}><MicIcon muted /></span>}
           </div>
         ))}
@@ -76,12 +88,15 @@ export default function CallPanel({ user, peer }) {
           <FontAwesomeIcon icon={faLock} /> {t('calls.panel.e2ee')}
         </span>
       </div>
+      {connected && <CallStream nameOf={(id) => nameOf(String(id) === String(user.id) ? user : peer)} />}
+      {connected && voice.streamError && <p className="voice-view-note voice-view-error" role="alert">{voice.streamError}</p>}
       {connected && voice.cameraError && <p className="voice-view-note voice-view-error" role="alert">{voice.cameraError}</p>}
       {volumeMenu.menu && <UserVolumeMenu {...volumeMenu.menu} sheet={isMobile} onClose={volumeMenu.close} />}
       {call.outgoing || call.state !== 'ringing' ? (
         <div className="voice-view-controls">
           <VoiceControls className="voice-view-button" />
           <CameraButton className="voice-view-button" />
+          <ScreenShareButton className="voice-view-button" />
           <button type="button" className="voice-view-button leave" aria-label={t('calls.panel.hangUp')} title={t('calls.panel.hangUp')} onClick={hangUp}>
             <FontAwesomeIcon icon={faPhoneSlash} fixedWidth />
           </button>

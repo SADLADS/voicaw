@@ -503,6 +503,7 @@ module.exports = {
   guildVoiceFor,
   joinToken,
   roomToken,
+  streamLimit,
   logLiveKitError,
   setSelfState,
   voiceAccess,

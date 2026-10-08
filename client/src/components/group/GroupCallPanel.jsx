@@ -11,13 +11,16 @@ import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
 import CameraButton from '../voice/CameraButton';
 import CameraVideo from '../voice/CameraVideo';
+import ScreenShareButton from '../voice/ScreenShareButton';
+import CallStream from '../call/CallStream';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
 import { MicIcon } from '../voice/VoiceIcons';
 import { t } from '../../i18n';
 
 // A group's call, at the top of the group: who's in it, and Join; once you're in, ringed
-// while talking, the mic icon when muted, their camera when it's on, and the controls;
-// clicking someone sets how loud they are for you.
+// while talking, the mic icon when muted, their camera when it's on, Live while sharing their
+// screen (Watch Stream to see it, CallStream), and the controls; clicking someone sets how
+// loud they are for you.
 export default function GroupCallPanel({ groupId, names, user }) {
   const groupCall = useGroupCall(groupId);
   const call = useCall();
@@ -32,6 +35,8 @@ export default function GroupCallPanel({ groupId, names, user }) {
   const speaking = new Set(connected ? voice.speaking : []);
   const muted = new Set(connected ? voice.muted : []);
   const cameras = new Set(connected ? voice.cameras : []);
+  const live = new Set(connected ? voice.streams : []);
+  const nameOf = (id) => names.get(Number(id)) ?? names.get(String(id)) ?? t('calls.group.someone');
   const isMuted = (id) => (id === user.id ? voice.selfMute || voice.selfDeaf : muted.has(String(id)));
 
   let status;
@@ -51,6 +56,7 @@ export default function GroupCallPanel({ groupId, names, user }) {
             ) : (
               <UserAvatar userId={id} className="call-panel-avatar small" speaking={connected && !isMuted(id) && speaking.has(String(id))} />
             )}
+            {live.has(String(id)) && <span className="voice-live-badge call-panel-live">{t('calls.stream.live')}</span>}
             {connected && isMuted(id) && <span className="call-panel-muted" aria-label={t('calls.panel.muted')}><MicIcon muted /></span>}
             <span className="call-panel-name">{names.get(id) ?? t('calls.group.someone')}</span>
           </div>
@@ -62,12 +68,15 @@ export default function GroupCallPanel({ groupId, names, user }) {
           <FontAwesomeIcon icon={faLock} /> {t('calls.panel.e2ee')}
         </span>
       </div>
+      {connected && <CallStream nameOf={nameOf} />}
+      {connected && voice.streamError && <p className="voice-view-note voice-view-error" role="alert">{voice.streamError}</p>}
       {connected && voice.cameraError && <p className="voice-view-note voice-view-error" role="alert">{voice.cameraError}</p>}
       {volumeMenu.menu && <UserVolumeMenu {...volumeMenu.menu} sheet={isMobile} onClose={volumeMenu.close} />}
       {mine && mine.state !== 'ringing' ? (
         <div className="voice-view-controls">
           <VoiceControls className="voice-view-button" />
           <CameraButton className="voice-view-button" />
+          <ScreenShareButton className="voice-view-button" />
           <button type="button" className="voice-view-button leave" aria-label={t('calls.group.leave')} title={t('calls.group.leave')} onClick={hangUp}>
             <FontAwesomeIcon icon={faPhoneSlash} fixedWidth />
           </button>
