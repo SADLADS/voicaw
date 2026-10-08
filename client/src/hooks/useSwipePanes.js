@@ -126,6 +126,9 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
   // Picks the pane; it's shown when the panes next come to rest (now, if they aren't moving).
   const choose = useCallback((next) => {
     paneRef.current = next;
+    // The chat shows this page now, even if the URL didn't change (swiped to from the list of a
+    // guild opened on the rail): going back must keep it, not restore the chat shown before.
+    if (next === 'content') contentPath.current = window.location.pathname;
     if (!motion.current.raf && motion.current.x === null) apply();
   }, [apply]);
 

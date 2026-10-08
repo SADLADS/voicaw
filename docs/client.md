@@ -310,7 +310,7 @@
   the voice bar); a thread or a voice channel's chat (same page, other search params), Settings
   and the developer portal keep an entry of their own, so Back closes them. Going back to the
   list's entry shows the list of the chat just left (a channel link from a DM: that guild's
-  channels), since the useSwipePanes popstate handler replaces it with the chat's page. Every chat's header (DM, group DM, bot DM, notes, guild channel) starts with a back arrow
+  channels), since the useSwipePanes popstate handler replaces it with the chat's page (noted whenever the chat is shown, not only when the URL changes: a guild opened on the rail shows its channels, and swiping to its chat and back must keep that guild, not bring back the DM shown before; `e2e/guildswipe.mjs`). Every chat's header (DM, group DM, bot DM, notes, guild channel) starts with a back arrow
   on phones (`PaneBackButton`, like Discord's): it shows the chat can be swiped away, and
   pressing it slides to the list the same way (`showList()`); threads and voice channels' chat
   have their own, back to their channel. Open the chat from elsewhere with `showContent()`
