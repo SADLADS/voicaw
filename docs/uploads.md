@@ -212,3 +212,35 @@ doesn't allow it), Save Image, and Copy Link / Open Link for a plain picture. An
 attachment has no link worth sharing (the file is ciphertext and its key lives only in the
 message), so it offers Open Image instead (the decrypted copy in a new tab). Videos keep their
 player's own download button.
+
+## Voice messages
+
+Since 2026-10-09, as Discord's. **Recording:** on a phone the mic button takes Send's place while
+the message box is empty (`VoiceRecorder.jsx` `MicButton`, right of the emoji button; typing or
+attaching brings Send back): hold to record, let go to send; slide left to cancel, slide up to the
+lock to keep recording hands-free; a tap only shows "Hold to record, release to send". On a
+computer, the + menu's Voice message starts it locked. Locked, the box gives way to a bar
+(`VoiceRecorderBar`): Delete, the time and a live waveform, Stop (then the recording to play
+back before sending) and Send; Escape deletes it. `hooks/useVoiceRecording.js` holds the state;
+`services/voiceMessage.js` records: the microphone chosen in Settings → Voice, with the browser's
+echo cancellation, noise suppression and gain (not the call chain), MediaRecorder at 48 kbps in
+the first type the browser has (Opus in WebM on Chrome and Android, Ogg on Firefox, AAC in MP4
+on Safari), at most 20 minutes (then it stops and waits), under half a second is a tap and
+nothing is sent. Not in bot DMs nor while editing.
+- **Sending:** its own message (`Composer` `sendVoice`, replying if a reply is set up; what's
+  typed stays), `voice-message.<ext>` as an ordinary `v=2` encrypted attachment (see DM
+  attachments above; guilds, DMs and groups alike), its URL fragment adding `vm=1`, `d=` (the
+  length) and `wf=` (the waveform: 64 bytes, the loudest level of each 64th of the recording,
+  measured live by an analyser beside the recorder, so the file is never decoded for it). The
+  server sees one more upload, never what it is (in guilds, where it can read the message, it
+  sees `vm=1`; guild pushes say "🎤 Voice message", `server/mentions.js`). Older clients show
+  it as a file to download.
+- **Playing** (`VoiceMessage.jsx`): play/pause, the waveform (40 bars, filled as it plays; click,
+  drag or ← → to seek), the time (its length until played), speed 1×/1.5×/2×, download. The file
+  is downloaded and decrypted whole on the first Play (a minute is about 360 KB). One plays at a
+  time. Chrome's recordings carry no length, so the player reads to the end once
+  (`findDuration`) before it can seek.
+- Voice messages can't be edited (`isVoiceMessage` in `utils/attachmentMarkup.js`: one, alone);
+  previews and replies say "🎤 Voice message".
+- Checked by `e2e/voicemessages.mjs`. Not yet tried on a real iPhone: Safari records AAC, which
+  everything plays, but Safari may not play others' WebM/Opus.

@@ -1,0 +1,271 @@
+/* Voice messages: the player in a message (VoiceMessage.jsx) and the recorder in the message
+   box (VoiceRecorder.jsx). */
+
+.voice-message {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 340px);
+  margin: 4px 0;
+  padding: 8px 10px;
+  border-radius: 24px;
+  border: 1px solid var(--vc-border-light);
+  background-color: var(--vc-bg-elevated);
+  vertical-align: middle;
+}
+
+.voice-message-play {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
+  font-size: 13px;
+}
+
+.voice-message-play:hover:not(:disabled) {
+  background-color: var(--vc-accent-hover);
+}
+
+.voice-message-wave,
+.voice-recording-wave {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  touch-action: none;
+}
+
+.voice-message-wave {
+  cursor: pointer;
+}
+
+.voice-message-wave:focus-visible {
+  outline: 2px solid var(--vc-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.voice-message-bar {
+  flex: 1 1 0;
+  max-width: 4px;
+  min-height: 3px;
+  border-radius: 2px;
+  background-color: var(--vc-fg-muted);
+  opacity: 0.45;
+}
+
+.voice-message-bar.played {
+  background-color: var(--vc-accent);
+  opacity: 1;
+}
+
+.voice-message-time {
+  flex: none;
+  min-width: 2.6em;
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.voice-message.failed .voice-message-time {
+  color: var(--vc-danger-text);
+}
+
+.voice-message-rate,
+.voice-message-download {
+  flex: none;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 10px;
+  background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 3.2em;
+}
+
+.voice-message-download {
+  min-width: 0;
+  background: none;
+  color: var(--vc-fg-muted);
+}
+
+.voice-message-rate:hover,
+.voice-message-download:hover {
+  color: var(--vc-fg);
+  background-color: var(--vc-bg-hover);
+}
+
+/* The recorder, in the message box's place. */
+.voice-recorder {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.voice-recorder .voice-message {
+  margin: 0;
+  width: auto;
+  flex: 1;
+  padding: 4px 8px;
+}
+
+.voice-recording-clock {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--vc-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.voice-recording-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--vc-fg-muted);
+}
+
+.voice-recording-dot.live {
+  background-color: var(--vc-danger);
+  animation: voice-recording-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes voice-recording-pulse {
+  50% { opacity: 0.3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-recording-dot.live { animation: none; }
+}
+
+.voice-recording-wave .voice-message-bar {
+  background-color: var(--vc-danger);
+  opacity: 0.8;
+}
+
+.voice-slide-cancel {
+  flex: 1;
+  text-align: center;
+  color: var(--vc-fg-muted);
+  white-space: nowrap;
+}
+
+.voice-recorder-button {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg);
+}
+
+.voice-recorder-button:hover:not(:disabled) {
+  background-color: var(--vc-bg-hover);
+}
+
+.voice-recorder-button:disabled {
+  opacity: 0.5;
+}
+
+.voice-recorder-delete {
+  background: none;
+  color: var(--vc-danger-text);
+}
+
+.voice-recorder-send {
+  background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
+}
+
+.voice-recorder-send:hover:not(:disabled) {
+  background-color: var(--vc-accent-hover);
+}
+
+/* A phone's mic button (in Send's place), held to record. */
+.voice-mic-wrapper {
+  position: relative;
+  display: flex;
+}
+
+.voice-mic-button {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
+  font-size: 17px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.voice-mic-button.holding {
+  transform: scale(1.35);
+  background-color: var(--vc-danger);
+}
+
+/* Above the held mic: slide up to here to lock. */
+.voice-lock {
+  position: absolute;
+  bottom: calc(100% + 18px);
+  left: 50%;
+  margin-left: -18px;
+  width: 36px;
+  padding: 8px 0 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border-radius: 18px;
+  background-color: var(--vc-popup);
+  box-shadow: 0 4px 12px var(--vc-popup-shadow);
+  color: var(--vc-fg);
+  pointer-events: none;
+}
+
+.voice-lock-arrow {
+  font-size: 11px;
+  color: var(--vc-fg-muted);
+}
+
+.voice-hint {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background-color: var(--vc-popup);
+  box-shadow: 0 4px 12px var(--vc-popup-shadow);
+  color: var(--vc-fg);
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 40;
+}

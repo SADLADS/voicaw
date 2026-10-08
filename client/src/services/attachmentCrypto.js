@@ -17,8 +17,12 @@
 // &p=<the poster's or thumbnail's object name, next to the file> (sealed as a v2 poster).
 // Videos have been v2 since 2026-10-01, every file since 2026-10-08 (big files had to be);
 // v1 is only read now.
+// A voice message (2026-10-09, services/voiceMessage.js) is a v2 audio file with &vm=1, its
+// length (&d=) and &wf=<base64url waveform: one byte (0-255) per slice of the recording>.
+// Older clients show it as a file to download.
 
 import { toBase64Url, fromBase64Url } from './chunkedAttachment';
+import { decodeWaveform, encodeWaveform } from './voiceMessage';
 
 const IV_LENGTH = 12;
 
@@ -72,7 +76,7 @@ export function decryptThumbnail(encrypted, keyB64Url) {
   return unseal(encrypted, keyB64Url, THUMBNAIL_CONTEXT);
 }
 
-export function buildAttachmentUrl(fileUrl, { key, type, size, width, height, spoiler, nonce, duration, poster }) {
+export function buildAttachmentUrl(fileUrl, { key, type, size, width, height, spoiler, nonce, duration, poster, waveform }) {
   const params = new URLSearchParams({ v: nonce ? '2' : '1', k: key, t: type, s: String(size) });
   if (nonce) params.set('n', nonce);
   if (width > 0 && height > 0) {
@@ -82,6 +86,10 @@ export function buildAttachmentUrl(fileUrl, { key, type, size, width, height, sp
   if (nonce && duration > 0) params.set('d', String(Math.round(duration * 10) / 10));
   if (poster) params.set('p', poster); // a video's poster, an image's thumbnail
   if (spoiler) params.set('sp', '1');
+  if (nonce && waveform) {
+    params.set('vm', '1');
+    params.set('wf', encodeWaveform(waveform));
+  }
   return `${fileUrl}#${params}`;
 }
 
@@ -91,7 +99,7 @@ function positiveInt(value) {
 
 // Returns { version, fileUrl, key, type, size, width, height, spoiler } for an encrypted
 // attachment URL, or null for any other URL (legacy unencrypted uploads, external images, …).
-// v2 adds { nonce, duration }. `posterUrl` is a video's poster (v2) or an image's thumbnail
+// v2 adds { nonce, duration, voice (a voice message), waveform (its Uint8Array, or null) }. `posterUrl` is a video's poster (v2) or an image's thumbnail
 // (v1), or null.
 export function parseAttachmentUrl(url) {
   if (typeof url !== 'string') return null;
@@ -114,6 +122,8 @@ export function parseAttachmentUrl(url) {
     const duration = Number(params.get('d'));
     v2.nonce = nonce;
     v2.duration = Number.isFinite(duration) && duration > 0 ? duration : null;
+    v2.voice = params.get('vm') === '1';
+    v2.waveform = v2.voice ? decodeWaveform(params.get('wf')) : null;
   }
   const poster = params.get('p');
   // Only a plain name in the same folder: the URL can't point the poster anywhere else.

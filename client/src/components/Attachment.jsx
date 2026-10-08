@@ -19,6 +19,7 @@ import { MAX_INLINE_IMAGE_BYTES } from '../utils/mediaDimensions';
 import { useMediaCover } from '../hooks/useMediaCover';
 import { t } from '../i18n';
 import VideoPlayer from './VideoPlayer';
+import VoiceMessage from './VoiceMessage';
 import MediaCover from './MediaCover';
 
 // `size` and `hasThumbnail`: an image too big to show whole (and with nothing smaller to show)
@@ -125,6 +126,9 @@ function VideoView({ spoiler, poster, width, height, ...player }) {
 function LocalAttachment({ local, name }) {
   const kind = kindOf(local.type, local.size, !!local.thumbnail);
   const download = () => triggerDownload(local.previewUrl, name);
+  if (local.voice) {
+    return <VoiceMessage src={local.previewUrl} duration={local.duration} waveform={local.waveform} name={name} onDownload={download} />;
+  }
   if (kind === 'file') return <FileBox name={name} size={local.size} onDownload={download} />;
   if (kind === 'video') {
     return (
@@ -204,6 +208,21 @@ function EncryptedVideo({ url, meta, name }) {
       duration={meta.duration}
       spoiler={meta.spoiler}
       onDownload={download}
+    />
+  );
+}
+
+// A voice message (services/voiceMessage.js): downloaded and decrypted whole when it's first
+// played (a minute is about 360 KB).
+function EncryptedVoice({ url, meta, name }) {
+  return (
+    <VoiceMessage
+      src={getCachedAttachment(url)}
+      load={() => loadDecryptedAttachment(url, meta)}
+      duration={meta.duration}
+      waveform={meta.waveform}
+      name={name}
+      onDownload={() => saveAttachment(url, meta, name).catch((err) => console.error('Failed to download attachment', err))}
     />
   );
 }
@@ -368,6 +387,7 @@ export default function Attachment({ src, alt, localAttachments }) {
   const meta = parseAttachmentUrl(src);
   if (!meta) return <ExternalImage src={src} item={{ src, name }} />;
 
+  if (meta.voice) return <EncryptedVoice url={src} meta={meta} name={name} />;
   if (kindOf(meta.type) === 'video') return <EncryptedVideo url={src} meta={meta} name={name} />;
   return <EncryptedAttachment url={src} meta={meta} name={name} />;
 }

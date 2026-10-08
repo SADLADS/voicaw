@@ -91,7 +91,7 @@ async function saveMentions(message, channel, permissions, allowed) {
 
 // The message as notification text: mentions by name (channels `channelNames` gives, { id: name }:
 // those the reader can see; others are #unknown-channel, as in the app), custom emoji as :name:, attachments as
-// their names (their links carry keys; spoilers just "spoiler"), spoilers hidden, cut to MAX_PREVIEW_LENGTH.
+// their names (their links carry keys; spoilers just "spoiler", voice messages "Voice message"), spoilers hidden, cut to MAX_PREVIEW_LENGTH.
 async function previewText(content, guildId, channelNames = {}) {
   const userIds = [...String(content).matchAll(/<@(\d+)>/g)].map((m) => Number(m[1]));
   const users = userIds.length
@@ -102,7 +102,8 @@ async function previewText(content, guildId, channelNames = {}) {
   const roleName = new Map(roles.map((r) => [r.id, r.name]));
   const text = pollPreview(content) ?? String(content)
     .replace(/!\[((?:\\.|[^\]\\])*)\]\(([^)]*)\)/g, (_, alt, url) =>
-      /#(?:.*&)?sp=1(?:&|$)/.test(url) ? '📎 spoiler' : `📎 ${alt.replace(/\\(.)/g, '$1') || 'attachment'}`)
+      /#(?:.*&)?vm=1(?:&|$)/.test(url) ? '🎤 Voice message'
+        : /#(?:.*&)?sp=1(?:&|$)/.test(url) ? '📎 spoiler' : `📎 ${alt.replace(/\\(.)/g, '$1') || 'attachment'}`)
     .replace(/<:([A-Za-z0-9_]+):\d+>/g, ':$1:')
     .replace(/\|\|(?!\|)([\s\S]+?)\|\|/g, '[spoiler]')
     .replace(/<@&(\d+)>/g, (_, id) => `@${roleName.get(Number(id)) ?? 'deleted-role'}`)

@@ -140,6 +140,8 @@ describe('attachmentCrypto', () => {
       nonce: 'NNNNNNNNNNNNNNNN',
       duration: 12.3,
       posterUrl: 'https://s3.test/uploads/def-1.bin',
+      voice: false,
+      waveform: null,
     });
   });
 

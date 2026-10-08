@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faComments, faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faMicrophone, faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
 import AttachPanel from './AttachPanel';
 import EmojiPicker from './EmojiPicker';
 import EmojiSuggestions from './EmojiSuggestions';
@@ -14,13 +14,15 @@ import AttachmentTray from './AttachmentTray';
 import '../assets/css/commands.css';
 import FileDropOverlay from './FileDropOverlay';
 import PollDialog from './PollDialog';
+import VoiceRecorderBar, { MicButton } from './VoiceRecorder';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { getSkinTone, recordEmojiUse, skinFor } from '../emoji/emojiUsage';
 import { getKeyboardHeight } from '../utils/keyboardHeight';
-import { findPlaceholderIds, replacePlaceholders } from '../utils/attachmentMarkup';
+import { findPlaceholderIds, makePlaceholder, replacePlaceholders } from '../utils/attachmentMarkup';
 import { seedAttachmentCache } from '../services/attachmentCache';
 import { useAttachmentDrafts } from '../hooks/useAttachmentDrafts';
 import { useWindowFileDrop } from '../hooks/useFileDrop';
+import { useVoiceRecording } from '../hooks/useVoiceRecording';
 import MessageEditor from '../editor/MessageEditor';
 import {
   customEmojiByName,
@@ -60,6 +62,9 @@ const COMMAND_QUERY = /^\/([^\s/]{0,32})$/;
 // (CommandSuggestions); picking one turns the box into CommandComposer until it's run or left.
 //
 // `textOnly` (a bot DM) takes away the + menu and files pasted or dropped: text and emoji only.
+// Voice messages (useVoiceRecording, VoiceRecorder): on a phone the mic button in Send's place
+// while the box is empty (hold to record), on a computer the + menu's Voice message; either
+// way the box gives way to the recording until it's sent (its own message) or deleted.
 // The + button: a menu on a computer (upload a file, create a poll, create a thread), on a
 // phone a panel in the keyboard's place (AttachPanel: camera, the phone's photos, then the
 // same and the photo picker). `onStartThread` (a guild text channel you may start threads in)
@@ -158,6 +163,12 @@ export default function Composer({
       setError(null);
     },
   });
+
+  // Voice messages: what's being recorded, and (a phone's hold) how far the finger slid left.
+  const voice = useVoiceRecording({ onSend: sendVoice, onError: setError, resetKey: chatId });
+  const [voiceDragX, setVoiceDragX] = useState(0);
+  const canRecord = !textOnly && !editing && !!chatName
+    && typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
   // Files dragged in anywhere on the window are attached (FileDropOverlay while dragging).
   const draggingFiles = useWindowFileDrop({ enabled: !!chatName && !textOnly, onFiles: attachments.addFiles });
@@ -433,6 +444,36 @@ export default function Composer({
     }
   }
 
+  // A recorded voice message goes out as its own message (as Discord's), replying if a reply is
+  // set up; whatever is typed stays in the box. `take` is useVoiceRecording's.
+  async function sendVoice(take) {
+    if (!chatName) return;
+    const draft = attachments.voiceDraft(take.file, { duration: take.duration, waveform: take.waveform, previewUrl: take.url });
+    const text = makePlaceholder(draft.id, draft.name);
+    if (replacePlaceholders(text, { [draft.id]: attachments.projectedUrl(draft) }).length > maxPlaintextLength) {
+      setError(t('media.voice.tooLong'));
+      return;
+    }
+    setError(null);
+    onCancelReply();
+    try {
+      await onSend({
+        text,
+        replyTo,
+        localAttachments: {
+          [draft.id]: { previewUrl: draft.previewUrl, type: draft.type, size: draft.size, duration: draft.duration, waveform: draft.waveform, voice: true },
+        },
+        resolveText: async () => {
+          const urls = await attachments.upload([draft]);
+          seedAttachmentCache(urls[draft.id], draft.previewUrl);
+          return replacePlaceholders(text, urls);
+        },
+      });
+    } catch (err) {
+      setError(t('chat.composer.sendFailed', { error: err.message }));
+    }
+  }
+
   // A poll goes out as its own message, replying if a reply is set up (like a GIF). The dialog
   // stays open (showing the error) if it can't be sent.
   async function sendPoll(poll) {
@@ -495,9 +536,9 @@ export default function Composer({
     };
   }, [addMenuOpen]);
 
-  // Escape cancels a reply (not while it's closing the poll dialog).
+  // Escape cancels a reply (not while it's closing the poll dialog or deleting a recording).
   useEffect(() => {
-    if (creatingPoll) return undefined;
+    if (creatingPoll || voice.active) return undefined;
     const onKeyDown = (e) => {
       if (e.key !== 'Escape') return;
       onCancelReply();
@@ -505,7 +546,7 @@ export default function Composer({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onCancelReply, onCancelEdit, editingId, creatingPoll]);
+  }, [onCancelReply, onCancelEdit, editingId, creatingPoll, voice.active]);
 
   // The tray only shows drafts still referenced from the text; unreferenced ones are kept
   // until send so that undoing a deletion brings them back.
@@ -513,6 +554,8 @@ export default function Composer({
   const visibleDrafts = attachments.drafts.filter((d) => referencedDraftIds.has(d.id));
   const pickedSources = visibleDrafts.filter((d) => d.source != null).map((d) => d.source);
   const attachPanelOpen = showAttachPanel && isMobile && !textOnly && !editing;
+  // A phone's mic button takes Send's place while there's nothing to send (as in Discord).
+  const showMic = isMobile && canRecord && (voice.active ? !voice.locked : !inputValue.trim());
 
   return (
     <>
@@ -617,7 +660,7 @@ export default function Composer({
 
         {/* Kept (hidden) in command mode, so what's typed and the editor survive it. */}
         <form id="dm-chat-form" className={commandEntry ? 'd-none' : 'd-flex flex-grow-1'} hidden={Boolean(commandEntry)} onSubmit={handleSubmit}>
-          {!textOnly && !editing && <div className="attach-wrapper" ref={addMenuRef}>
+          {!textOnly && !editing && !voice.active && <div className="attach-wrapper" ref={addMenuRef}>
             <button
               className="attach-button"
               type="button"
@@ -659,6 +702,16 @@ export default function Composer({
                     <FontAwesomeIcon icon={faComments} fixedWidth /> {t('chat.composer.createThread')}
                   </button>
                 )}
+                {canRecord && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="composer-add-item"
+                    onClick={() => { setAddMenuOpen(false); voice.start({ locked: true }); }}
+                  >
+                    <FontAwesomeIcon icon={faMicrophone} fixedWidth /> {t('media.voice.menuItem')}
+                  </button>
+                )}
               </div>
             )}
           </div>}
@@ -666,7 +719,7 @@ export default function Composer({
           <MessageEditor
             ref={inputRef}
             id="dm-input"
-            className="message-editor-wrapper"
+            className={`message-editor-wrapper${voice.active ? ' d-none' : ''}`}
             ariaLabel={texts.label}
             placeholder={texts.placeholder}
             maxLength={maxPlaintextLength}
@@ -686,8 +739,9 @@ export default function Composer({
               onInputFocus?.();
             }}
           />
-          <div className="chat-buttons">
-            <button
+          {voice.active && <VoiceRecorderBar voice={voice} dragX={voiceDragX} />}
+          <div className={`chat-buttons${voice.active && voice.locked ? ' d-none' : ''}`}>
+            {!voice.active && <button
               type="button"
               className="emoji-button"
               aria-label={isMobile && showEmojiPicker ? t('chat.composer.showKeyboard') : t('chat.composer.emoji')}
@@ -697,16 +751,18 @@ export default function Composer({
               onClick={toggleEmojiPicker}
             >
               {isMobile && showEmojiPicker ? '⌨️' : '😎'}
-            </button>
-            <button
-              className="send-button"
-              type="submit"
-              // The message box keeps focus, so a phone's keyboard stays up for the next message
-              // (and doesn't come up if it was down).
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              {editing ? t('common.save') : t('chat.composer.send')}
-            </button>
+            </button>}
+            {showMic ? <MicButton voice={voice} onDrag={setVoiceDragX} /> : (
+              <button
+                className="send-button"
+                type="submit"
+                // The message box keeps focus, so a phone's keyboard stays up for the next message
+                // (and doesn't come up if it was down).
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                {editing ? t('common.save') : t('chat.composer.send')}
+              </button>
+            )}
           </div>
         </form>
       </div>

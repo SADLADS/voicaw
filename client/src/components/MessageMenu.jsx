@@ -15,7 +15,7 @@ const QUICK_REACTION_COUNT = 5; // what fits across the menu
 // channel), Copy Text, Remove Previews (`onRemovePreviews`: a guild message's link previews and
 // embeds, for its author or Manage Messages) and Delete. What the message doesn't
 // allow is left out, as in the sheet: only copying for one still sending or failed, editing
-// only your own (`onEdit`, not given for a closed poll), deleting your own or with
+// only your own (`onEdit`, not given for a closed poll or a voice message), deleting your own or with
 // `canDelete`, pinning when `onTogglePin` is given, reacting when `canReact`.
 // `onDelete(event)` asks first unless Shift is held (ChatPane's requestDelete). `onCopy`
 // returns a promise; its failure shows in the menu. `anchor` is where it was right-clicked.

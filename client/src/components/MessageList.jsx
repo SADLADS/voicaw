@@ -25,7 +25,7 @@ import { useLongPress } from '../hooks/useLongPress';
 import { openPersonMenu } from '../utils/personMenu';
 import { useSwipeToReply } from '../hooks/useSwipeToReply';
 import MessageEditor from '../editor/MessageEditor';
-import { placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
+import { isVoiceMessage, placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { isEmojiOnly } from '../emoji/emojiIndex';
 import { rehypeTwemoji } from '../emoji/rehypeTwemoji';
@@ -452,8 +452,8 @@ export function MessageRow({
               <FontAwesomeIcon icon={faThumbtack} title={pinned ? t('common.unpin') : t('common.pin')} />
             </button>
           )}
-          {/* A closed poll can't be edited. */}
-          {msg.sender_id === user.id && !(poll && pollEnded(poll, msg.timestamp)) && (
+          {/* A closed poll and a voice message can't be edited. */}
+          {msg.sender_id === user.id && !(poll && pollEnded(poll, msg.timestamp)) && !isVoiceMessage(msg.plaintext) && (
             <button className="icon-button" onClick={() => handleEdit(msg)}>
               <FontAwesomeIcon icon={faEdit} title={t('common.edit')} />
             </button>
