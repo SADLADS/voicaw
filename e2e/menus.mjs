@@ -70,7 +70,7 @@ try {
   await a.click('.rail-guild[aria-label="Alpha"]', { button: 'right' });
   await a.waitForSelector('.context-menu');
   const railItems = await items(a, '.context-menu');
-  check(same(railItems, ['Invite People', 'Notification Settings', 'Guild Settings', 'Audit Log', 'Copy Link', 'Copy Guild ID']), `the owner's guild menu: ${railItems.join(', ')}`);
+  check(same(railItems, ['Invite People', 'Mute Guild', 'Notification Settings', 'Guild Settings', 'Audit Log', 'Copy Link', 'Copy Guild ID']), `the owner's guild menu: ${railItems.join(', ')}`);
   await a.hover('.context-menu >> text=Notification Settings');
   await a.waitForSelector('.context-submenu');
   await shot(a, 'rail-menu');

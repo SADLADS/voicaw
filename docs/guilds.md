@@ -183,7 +183,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   or hold on a phone): Create Channel and Create Category (Manage Channels), Invite People.
 - **A guild's menu on the rail** (`guild/GuildMenu.jsx`, right-click its icon or hold it on a
   phone; hold and move still drags it, `useDragReorder` `onMenu`): Mark As Read (every unread
-  channel), Invite People, Notification Settings ▸ (your level for the guild), Guild Settings,
+  channel), Invite People, Mute Guild ▸ / Unmute Guild (see Muted guilds in `docs/messages.md`),
+  Notification Settings ▸ (your level for the guild), Guild Settings,
   Audit Log, Copy Link (`guildLink`), Copy Guild ID and Leave Guild, as your permissions allow; the dialogs
   live in `Sidebar` (the menu closes on a pick). It loads the guild's layout first if it isn't
   open yet.
@@ -215,7 +216,7 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   ticked never sees the gate flash. It's a client-side check: the API still serves an NSFW
   channel to any member (bots included), as Discord's does.
 - **Not done yet:** category-level permissions (overrides are per channel), server folders in the
-  rail, search dates (see Guild search), muting a category or a whole guild, a list of your
+  rail, search dates (see Guild search), muting a category, a list of your
   recent mentions. Voice: see
   Voice channels.
 

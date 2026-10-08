@@ -5,7 +5,7 @@ const { sendPushToUser, getUserImageUrl } = require('./push');
 const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 const { getAllMembers, getOverrides, getChannelViewers } = require('./guilds');
 const { pollPreview } = require('./polls');
-const { mutedUserIds, channelLevels } = require('./channelMutes');
+const { mutedUserIds, guildMutedUserIds, channelLevels } = require('./channelMutes');
 
 // Mentions in guild messages, and the pushes they (and plain messages) cause.
 // In the text: `<@userId>`, `<@&roleId>`, `@everyone` (everyone who can see the channel) and
@@ -135,7 +135,7 @@ function fallbackPreview(message) {
 // After a new message: tells the people mentioned (`guild_mention`, for their unread mention
 // counts) and pushes to every viewer whose notification level wants it ('all': every message;
 // 'mentions': when mentioned; their own level for the channel, if they set one, else the
-// guild's), unless they're looking at the channel or have muted it (then
+// guild's), unless they're looking at the channel or have muted it or the guild (then
 // only when mentioned, like Discord; channelMutes.js). In a thread, its channel's level and mute
 // count when the thread has none of its own, and only its members get messages that don't
 // mention them. `silent` (a webhook's
@@ -150,6 +150,7 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }, { sile
   )).map((r) => [r.user_id, r.notify_level]));
   const thread = channel.type === 'thread';
   const muted = await mutedUserIds(channel.id);
+  const guildMuted = await guildMutedUserIds(channel.guild_id);
   const ownLevels = await channelLevels(channel.id);
   const parentMuted = thread ? await mutedUserIds(channel.parent_id) : new Set();
   const parentLevels = thread ? await channelLevels(channel.parent_id) : new Map();
@@ -164,7 +165,8 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }, { sile
     const level = ownLevels.get(userId) ?? parentLevels.get(userId) ?? levels.get(userId) ?? 'mentions';
     const wants = mentioned.has(userId)
       ? level !== 'none'
-      : level === 'all' && !muted.has(userId) && !parentMuted.has(userId) && (!thread || threadMembers.has(userId));
+      : level === 'all' && !muted.has(userId) && !parentMuted.has(userId) && !guildMuted.has(userId)
+        && (!thread || threadMembers.has(userId));
     if (!wants) return false;
     return !isViewingConversation(userId, `channel-${channel.id}`);
   });

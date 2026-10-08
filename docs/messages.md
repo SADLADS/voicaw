@@ -409,6 +409,17 @@ in a DM, everyone in a group's log, a guild's members; anyone else `@unknown-use
   channel deletes the mute. Client: `guild/ChannelMuteMenu.jsx`, from the bell in the channel
   header (crossed out and red while muted), or the channel menu (see Guilds); muted channels are
   dimmed with a crossed-out bell. Assignment pushes (list channels) aren't muted.
+- **Muted guilds** (Discord's Mute Server; `channelMutes.js`, `guild_mutes`: member, guild,
+  `until` unix s or NULL): the same choices and rules as a muted channel, for every channel
+  and thread in the guild at once (`PUT /guilds/:id/mute { duration: s | null }`, `DELETE`
+  unmutes, `GET /guild-mutes`; members only; `guild_mute` to your other devices). Its messages
+  don't push or play the Message sound unless they mention you (even in a channel set to All
+  Messages), nor do reactions to yours; the guild's rail dot, the favicon dot and the desktop
+  app's badge stay off (`useGuildList` `guildMutes`, `isGuildMuted`, `activeUnread`), and the
+  mention count still shows. Inside the guild the channel list still marks what's unread.
+  Leaving or deleting the guild deletes the mute. Assignment pushes and events starting
+  (things you're told about directly) aren't muted. Client: the guild's menu on the rail, Mute
+  Guild ▸ / Unmute Guild (with when it ends).
 - **Channel notification levels** (Discord's per-channel Notification Settings;
   `guild_channel_notify`: member, channel, level): your own 'all' / 'mentions' / 'none' for one
   channel, overriding your guild level for its messages (`notifyNewMessage`); no row means the

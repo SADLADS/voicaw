@@ -20,7 +20,8 @@ another device: log out; see Login sessions), `message_sound` (play the Message 
 webhook's edit also carries `embeds`, `attachments`, `flags`),
 `guild_reaction_add` / `_remove` (the removal with who and which emoji, for bots), `guild_member_update` (roles), `guild_emojis_update`,
 `guild_order` (your guild rail order, to your other devices), `guild_channel_mute` (you muted or
-unmuted a channel, to your other devices; see Mentions), `guild_channel_notify` (you set a
+unmuted a channel, to your other devices; see Mentions), `guild_mute` (the same for a whole
+guild), `guild_channel_notify` (you set a
 channel's notification level, to your other devices), `conversation_settings` (you pinned or
 muted a DM or group, to your other devices; see `docs/client.md`), `preferences` (you changed
 an account preference, to your other devices; see `docs/client.md`), `friends` (your friends
@@ -150,7 +151,7 @@ one user at a time).
 - **Reaction notifications** (`reactionPushes.js`, as Discord's): a `reaction` push to a message's
   author when someone else reacts, never for poll votes or added answers, a reactor they
   blocked, a conversation they're looking at or have muted (in guilds: their level for the
-  channel, its thread's channel or the guild being Nothing, or the channel muted; the default
+  channel, its thread's channel or the guild being Nothing, or the channel or guild muted; the default
   Mentions counts, since the reaction is to them), and only as their account preference
   `reactionNotifications` allows (Settings → Notifications: `all` by default, `dms`, `off`).
   At most one per message and reactor in 30 s; each replaces the last for that message (`tag`

@@ -24,7 +24,7 @@ unexpected errors. The rest:
   List channels); `routes/guildTasks.js` has their routes.
 - `guildDocuments.js`: document channels' documents (rows, limits, cleanup; see Document
   channels); `routes/guildDocuments.js` has their routes.
-- `channelMutes.js`: each member's muted channels and own channel notification levels (see Mentions).
+- `channelMutes.js`: each member's muted channels and guilds, and own channel notification levels (see Mentions).
 - `conversationSettings.js`: each person's pinned and muted DMs and group DMs (see
   `docs/client.md`); `routes/conversationSettings.js`.
 - `preferences.js`: each person's account preferences, e.g. blurring NSFW channels' media (see

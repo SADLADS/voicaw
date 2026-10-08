@@ -486,6 +486,8 @@
     },
     "guildMenu": {
       "invite": "Invite People",
+      "mute": "Mute Guild",
+      "unmute": "Unmute Guild",
       "notifications": "Notification Settings",
       "settings": "Guild Settings",
       "copyLink": "Copy Link",

@@ -44,6 +44,7 @@ node e2e/spoilers.mjs [dir] # spoiler images: mark in tray, blurred for both, ta
 node e2e/nsfw.mjs [dir]   # NSFW channels: dialog switch, header tag, age gate ("I am 18 or over": nothing loads before, kept as just the answer, not asked again), NSFW covers (image, embed, YouTube unloaded), spoiler = one cover, phone taps, Settings → Content off (account-wide, kept)
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
 node e2e/mutes.mjs [dir]  # muted channels: right-click mute, dimmed, no unread (mentions still count), header bell unmutes, phone
+node e2e/guildmute.mjs [dir] # muted guilds: rail icon menu → Mute Guild → 1 hour, no rail dot (a mention still counts), Unmute Guild says until when, channels not drawn muted, unmuting lights it again; phone hold → sheet → mute
 node e2e/channelmenu.mjs [dir] # channel/category menus: read, mute, notify level, copy link, duplicate, delete, keys, edge; phone hold = sheet, hold+move = drag
 node e2e/imagemenu.mjs [dir] # picture menu: plain (copy image as PNG, copy link) vs encrypted (save, open, no link), over the viewer (Escape closes only it), phone hold in the viewer
 node e2e/menus.mjs [dir]  # browser menu off everywhere (Shift keeps it); guild icon menu, channel list empty space, DM list pin/mute (no ping, no dot); phone sheets, rail hold+move drags

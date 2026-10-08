@@ -127,11 +127,11 @@ async function notifyGuildReaction(message, channel, reaction) {
   if (!(await wantsReactionPushes(authorId, 'guild'))) return;
 
   // Their level for the channel (or its thread's channel, or the guild): 'none' is nothing at
-  // all; a muted channel too. Any other level counts, since the reaction is to them.
+  // all; a muted channel or guild too. Any other level counts, since the reaction is to them.
   const { getChannelAccess } = require('./guilds');
   const access = await getChannelAccess(channel.id, authorId);
   if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) return;
-  const { mutedUserIds, channelLevels } = require('./channelMutes');
+  const { mutedUserIds, guildMutedUserIds, channelLevels } = require('./channelMutes');
   const thread = channel.type === 'thread';
   const level = (await channelLevels(channel.id)).get(authorId)
     ?? (thread ? (await channelLevels(channel.parent_id)).get(authorId) : undefined)
@@ -139,6 +139,7 @@ async function notifyGuildReaction(message, channel, reaction) {
   if (level === 'none') return;
   if ((await mutedUserIds(channel.id)).has(authorId)) return;
   if (thread && (await mutedUserIds(channel.parent_id)).has(authorId)) return;
+  if ((await guildMutedUserIds(channel.guild_id)).has(authorId)) return;
   if (await blocked(authorId, reactorId)) return;
   if (tooSoon(`guild:${message.id}:${reactorId}`)) return;
 

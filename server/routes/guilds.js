@@ -23,6 +23,7 @@ const {
   markGuildRead,
 } = require('../guilds');
 const { NOTIFY_LEVELS } = require('../mentions');
+const { parseDuration, listGuildMutes, setGuildMute } = require('../channelMutes');
 const { logAudit, diff } = require('../auditLog');
 const { releaseUploads } = require('../uploads');
 const { ActionError, withActionErrors } = require('../actionError');
@@ -150,6 +151,25 @@ router.put('/guilds/:guildId/notifications', member, async (req, res) => {
   sendToUserSockets(req.user.id, { type: 'guild_update', guild });
   res.json({ level });
 });
+
+// Your muted guilds (channelMutes.js): [{ guild_id, until }].
+router.get('/guild-mutes', authenticateJWT, async (req, res) => {
+  res.json(await listGuildMutes(req.user.id));
+});
+
+// Mutes the guild for `duration` seconds, or until you unmute it (null or none); DELETE
+// unmutes. Your other devices get `guild_mute`.
+async function changeGuildMute(req, res, muted) {
+  const duration = parseDuration(req.body?.duration);
+  if (muted && duration === undefined) return res.status(400).json({ error: 'Invalid mute duration' });
+  const mute = await setGuildMute(req.user.id, req.guild.id, { muted, duration });
+  const result = { guildId: req.guild.id, muted, until: mute?.until ?? null };
+  sendToUserSockets(req.user.id, { type: 'guild_mute', ...result });
+  res.json(result);
+}
+
+router.put('/guilds/:guildId/mute', member, (req, res) => changeGuildMute(req, res, true));
+router.delete('/guilds/:guildId/mute', member, (req, res) => changeGuildMute(req, res, false));
 
 // The icon just uploaded to guild-icons/<id> (see /upload_guild_icon), as it came, becomes a
 // square WebP cut to `crop` (from the app's cropper; null: the middle), like profile pictures

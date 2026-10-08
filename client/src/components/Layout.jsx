@@ -146,7 +146,7 @@ export default function Layout({ user, onLogout }) {
     || activeBotDms.some((d) => d.unread > 0 && d.id !== botDmId);
   // Groups and bot DMs count alike for the badges below (each has `unread`).
   const activeChats = useMemo(() => [...activeGroups, ...activeBotDms], [activeGroups, activeBotDms]);
-  // Muted channels don't count, unless they mention you.
+  // Muted channels and guilds don't count, unless they mention you.
   const unreadGuildIds = useMemo(() => new Set(guildList.activeUnread.map((u) => u.guild_id)), [guildList.activeUnread]);
   // Unread mentions of you, by guild id.
   const guildMentions = useMemo(() => {

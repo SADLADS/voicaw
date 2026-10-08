@@ -6,6 +6,7 @@ import {
   fetchChannelMutes,
   fetchChannelNotifications,
   fetchGuild,
+  fetchGuildMutes,
   fetchGuilds,
   fetchGuildUnread,
   saveGuildOrder,
@@ -24,8 +25,11 @@ import {
 // - `emojis`: custom emoji by guild id ({ [guildId]: [{ id, guild_id, name, animated }] }).
 // - `mutes`: your muted channels ({ [channelId]: { guildId, until } }, until: unix s or null),
 //   dropped as they run out; `isMuted(channelId)`; `applyMute(event)` takes what muting
-//   returned (as the `guild_channel_mute` event other devices get). A muted channel's unread
-//   messages don't count (`activeUnread`: the unread rows that do, or that mention you).
+//   returned (as the `guild_channel_mute` event other devices get).
+// - `guildMutes`: your muted guilds ({ [guildId]: { until } }), the same way:
+//   `isGuildMuted(guildId)`, `applyGuildMute(event)` (as the `guild_mute` event). A muted
+//   channel's or guild's unread messages don't count (`activeUnread`: the unread rows that do,
+//   or that mention you); inside the guild its channels still show what's unread.
 // - `channelLevels`: your own notification level per channel ({ [channelId]: { guildId, level } },
 //   'all' | 'mentions' | 'none'; none set: the guild's); `applyChannelLevel(event)` takes what
 //   setting one returned (as the `guild_channel_notify` event other devices get).
@@ -48,6 +52,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
   const [unread, setUnread] = useState([]);
   const [emojis, setEmojis] = useState({});
   const [mutes, setMutes] = useState({});
+  const [guildMutes, setGuildMutes] = useState({});
   const [channelLevels, setChannelLevels] = useState({});
   // { [guildId]: { [channelId]: [userId] } }: who's in voice, in every guild.
   const [voice, setVoice] = useState({});
@@ -120,8 +125,19 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
       return rest;
     });
     setMutes((prev) => Object.fromEntries(Object.entries(prev).filter(([, m]) => m.guildId !== guildId)));
+    setGuildMutes((prev) => {
+      const { [guildId]: _removed, ...rest } = prev;
+      return rest;
+    });
     setChannelLevels((prev) => Object.fromEntries(Object.entries(prev).filter(([, l]) => l.guildId !== guildId)));
     onRemovedRef.current?.(guildId);
+  }, []);
+
+  const applyGuildMute = useCallback(({ guildId, muted, until }) => {
+    setGuildMutes((prev) => {
+      const { [guildId]: _old, ...rest } = prev;
+      return muted ? { ...rest, [guildId]: { until: until ?? null } } : rest;
+    });
   }, []);
 
   const applyMute = useCallback(({ channelId, guildId, muted, until }) => {
@@ -149,6 +165,12 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
       setMutes(Object.fromEntries(list.map((m) => [m.channel_id, { guildId: m.guild_id, until: m.until }])));
     } catch (err) {
       console.warn('Failed to load muted channels', err);
+    }
+    try {
+      const list = await fetchGuildMutes();
+      setGuildMutes(Object.fromEntries(list.map((m) => [m.guild_id, { until: m.until }])));
+    } catch (err) {
+      console.warn('Failed to load muted guilds', err);
     }
     try {
       const list = await fetchChannelNotifications();
@@ -180,20 +202,26 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
     });
   }, [userId, loadMutes, loadEmojis, loadList]);
 
-  // A mute that runs out is dropped then.
+  // A mute that runs out is dropped then (channels' and guilds').
   useEffect(() => {
-    const ends = Object.values(mutes).map((m) => m.until).filter((until) => until != null);
+    const ends = [...Object.values(mutes), ...Object.values(guildMutes)].map((m) => m.until).filter((until) => until != null);
     if (!ends.length) return undefined;
     const wait = Math.max(0, Math.min(...ends) * 1000 - Date.now());
     const timer = setTimeout(() => {
       const now = Date.now() / 1000;
-      setMutes((prev) => Object.fromEntries(Object.entries(prev).filter(([, m]) => m.until == null || m.until > now)));
+      const running = (prev) => Object.fromEntries(Object.entries(prev).filter(([, m]) => m.until == null || m.until > now));
+      setMutes(running);
+      setGuildMutes(running);
     }, Math.min(wait + 50, 2 ** 31 - 1));
     return () => clearTimeout(timer);
-  }, [mutes]);
+  }, [mutes, guildMutes]);
 
   const isMuted = useCallback((channelId) => Boolean(mutes[channelId]), [mutes]);
-  const activeUnread = useMemo(() => unread.filter((u) => !mutes[u.channel_id] || u.mentions > 0), [unread, mutes]);
+  const isGuildMuted = useCallback((guildId) => Boolean(guildMutes[guildId]), [guildMutes]);
+  const activeUnread = useMemo(
+    () => unread.filter((u) => (!mutes[u.channel_id] && !guildMutes[u.guild_id]) || u.mentions > 0),
+    [unread, mutes, guildMutes]
+  );
 
   const loadGuild = useCallback(async (guildId) => {
     const guild = await fetchGuild(guildId);
@@ -258,6 +286,9 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
           break;
         case 'guild_channel_mute':
           applyMute(event);
+          break;
+        case 'guild_mute':
+          applyGuildMute(event);
           break;
         case 'guild_channel_notify':
           applyChannelLevel(event);
@@ -353,7 +384,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
         default:
       }
     });
-  }, [userId, upsertGuild, removeGuild, applyOrder, applyMute, applyChannelLevel]);
+  }, [userId, upsertGuild, removeGuild, applyOrder, applyMute, applyGuildMute, applyChannelLevel]);
 
   const guildVoice = useMemo(() => {
     const result = {};
@@ -365,7 +396,8 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
   }, [voice, userId]);
 
   return {
-    guilds, layouts, guildVoice, unread, activeUnread, emojis, mutes, isMuted, applyMute, channelLevels, applyChannelLevel, loaded,
+    guilds, layouts, guildVoice, unread, activeUnread, emojis, mutes, isMuted, applyMute,
+    guildMutes, isGuildMuted, applyGuildMute, channelLevels, applyChannelLevel, loaded,
     loadGuild, upsertGuild, removeGuild, refreshUnread, clearUnread, reorderGuilds,
   };
 }

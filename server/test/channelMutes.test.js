@@ -142,6 +142,86 @@ describe('channel mutes', () => {
   });
 });
 
+describe('guild mutes', () => {
+  it('mutes and unmutes a guild, listed per person, on your other devices too', async () => {
+    const { members: [bob, carol], guild } = await setUp();
+    const events = connect(bob);
+    const res = await api.put(bob, `/guilds/${guild.id}/mute`, {});
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ guildId: guild.id, muted: true, until: null });
+    expect(events).toContainEqual({ type: 'guild_mute', ...res.body });
+    expect((await api.get(bob, '/guild-mutes')).body).toEqual([{ guild_id: guild.id, until: null }]);
+    expect((await api.get(carol, '/guild-mutes')).body).toEqual([]);
+
+    const before = Math.floor(Date.now() / 1000);
+    const timed = await api.put(bob, `/guilds/${guild.id}/mute`, { duration: 900 });
+    expect(timed.body.until).toBeGreaterThanOrEqual(before + 900);
+
+    expect((await api.delete(bob, `/guilds/${guild.id}/mute`)).body.muted).toBe(false);
+    expect((await api.get(bob, '/guild-mutes')).body).toEqual([]);
+    events.stop();
+  });
+
+  it("refuses bad durations and guilds you aren't in", async () => {
+    const { members: [bob], guild } = await setUp(1);
+    for (const duration of [0, -5, 'soon', 400 * 24 * 3600]) {
+      expect((await api.put(bob, `/guilds/${guild.id}/mute`, { duration })).status).toBe(400);
+    }
+    const stranger = await makeUser();
+    expect((await api.put(stranger, `/guilds/${guild.id}/mute`, {})).status).not.toBe(200);
+    expect((await api.get(stranger, '/guild-mutes')).body).toEqual([]);
+  });
+
+  it("stops pushes from every channel (not mentions) and reactions' pushes", async () => {
+    const { owner, members: [bob, carol], guild, general } = await setUp();
+    const other = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'other' })).body;
+    await api.put(bob, `/guilds/${guild.id}/notifications`, { level: 'all' });
+    await api.put(carol, `/guilds/${guild.id}/notifications`, { level: 'all' });
+    // Even a channel set to all.
+    await api.put(bob, `/channels/${other.id}/notifications`, { level: 'all' });
+    await api.put(bob, `/guilds/${guild.id}/mute`, {});
+
+    let since = sentPushes.length;
+    await say(owner, general, 'hello all');
+    await say(owner, other, 'hello other');
+    expect((await pushesSince(since)).map((p) => p.endpoint)).toEqual([carol.endpoint, carol.endpoint]);
+
+    since = sentPushes.length;
+    await say(owner, other, `hey <@${bob.id}>`);
+    expect((await pushesSince(since)).map((p) => p.endpoint).sort()).toEqual([bob.endpoint, carol.endpoint].sort());
+    expect(await unreadFor(bob, other)).toMatchObject({ count: 2, mentions: 1 });
+
+    const mine = (await say(bob, general, 'react to me')).body;
+    const react = (emoji) => api.post(owner, `/guild-messages/${mine.id}/reactions`, { emoji });
+    since = sentPushes.length;
+    expect((await react('👍')).status).toBe(201);
+    expect((await pushesSince(since)).filter((p) => p.endpoint === bob.endpoint)).toEqual([]);
+    await api.delete(bob, `/guilds/${guild.id}/mute`);
+    since = sentPushes.length;
+    await react('🎉');
+    expect((await pushesSince(since)).filter((p) => p.endpoint === bob.endpoint)).toHaveLength(1);
+  });
+
+  it('ends by itself, and goes with leaving the guild', async () => {
+    const { owner, members: [bob], guild, general } = await setUp(1);
+    await api.put(bob, `/guilds/${guild.id}/notifications`, { level: 'all' });
+    await api.put(bob, `/guilds/${guild.id}/mute`, { duration: 60 });
+    const realNow = Date.now;
+    Date.now = () => realNow() + 61_000;
+    try {
+      const since = sentPushes.length;
+      await say(owner, general, 'after the mute');
+      expect((await pushesSince(since)).map((p) => p.endpoint)).toEqual([bob.endpoint]);
+      expect((await api.get(bob, '/guild-mutes')).body).toEqual([]);
+    } finally {
+      Date.now = realNow;
+    }
+    await api.put(bob, `/guilds/${guild.id}/mute`, {});
+    await api.delete(bob, `/guilds/${guild.id}/members/me`);
+    expect((await api.get(bob, '/guild-mutes')).body).toEqual([]);
+  });
+});
+
 describe('Mark As Read', () => {
   it('marks a channel read up to its newest message', async () => {
     const { owner, members: [bob], general } = await setUp(1);

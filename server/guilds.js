@@ -329,6 +329,7 @@ async function removeMember(guildId, userId) {
       'DELETE FROM guild_thread_members WHERE user_id = ? AND thread_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)',
       [userId, guildId]
     );
+    await db.run('DELETE FROM guild_mutes WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
     for (const table of ['guild_channel_reads', 'guild_channel_mutes', 'guild_channel_notify']) {
       await db.run(
         `DELETE FROM ${table} WHERE user_id = ? AND channel_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)`,
@@ -366,7 +367,7 @@ async function deleteGuild(guildId) {
     for (const table of [
       'guild_emojis', 'guild_audit_log', 'webhook_blocks',
       'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',
-      'guild_member_roles', 'guild_roles', 'guild_members',
+      'guild_member_roles', 'guild_roles', 'guild_members', 'guild_mutes',
     ]) {
       await db.run(`DELETE FROM ${table} WHERE guild_id = ?`, [guildId]);
     }

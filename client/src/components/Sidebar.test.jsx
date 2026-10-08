@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 
 vi.mock('../services/guildService', () => ({
   leaveGuild: vi.fn(async () => {}),
   markChannelReadToLatest: vi.fn(async () => {}),
   setGuildNotifications: vi.fn(async () => {}),
+  muteGuild: vi.fn(async (guildId, duration) => ({ guildId, muted: true, until: duration && 1_900_000_000 })),
+  unmuteGuild: vi.fn(async (guildId) => ({ guildId, muted: false, until: null })),
   createInvite: vi.fn(async () => ({ code: 'abc12345', expires_at: null, max_uses: null })),
 }));
 
@@ -16,7 +18,7 @@ vi.mock('../hooks/useVoice', () => ({ useVoice: () => myVoice }));
 
 import Sidebar from './Sidebar';
 import { ConfigContext, InteractionContext, LayoutContext } from '../contexts';
-import { leaveGuild, markChannelReadToLatest, setGuildNotifications } from '../services/guildService';
+import { leaveGuild, markChannelReadToLatest, muteGuild, setGuildNotifications, unmuteGuild } from '../services/guildService';
 import { mergeProfiles } from '../utils/profiles';
 
 const ALL = 2 ** 31 - 1;
@@ -26,11 +28,13 @@ const layout = (id, permissions, extra = {}) => ({
   ...guilds.find((g) => g.id === id), my_permissions: permissions, my_notify_level: 'mentions', roles: [], categories: [], channels: [], ...extra,
 });
 
-function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [], guildVoice, guildMentions, unreadFrom, path = '/dm' } = {}) {
+function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [], guildMutes = {}, guildVoice, guildMentions, unreadFrom, path = '/dm' } = {}) {
   const guildList = {
     guilds,
     layouts,
     unread,
+    guildMutes,
+    applyGuildMute: vi.fn(),
     loadGuild: vi.fn(async () => {}),
     clearUnread: vi.fn(),
     removeGuild: vi.fn(),
@@ -138,11 +142,11 @@ describe('the guild rail menu', () => {
     renderRail({ unread: [{ guild_id: 5, channel_id: 10, count: 2, mentions: 0 }] });
     fireEvent.contextMenu(icon('Alpha'));
     expect(items(screen.getByRole('menu', { name: 'Alpha' }))).toEqual([
-      'Mark As Read', 'Invite People', 'Notification Settings', 'Guild Settings', 'Audit Log', 'Copy Link', 'Copy Guild ID',
+      'Mark As Read', 'Invite People', 'Mute Guild', 'Notification Settings', 'Guild Settings', 'Audit Log', 'Copy Link', 'Copy Guild ID',
     ]);
     fireEvent.keyDown(window, { key: 'Escape' });
     fireEvent.contextMenu(icon('Beta'));
-    expect(items(screen.getByRole('menu', { name: 'Beta' }))).toEqual(['Invite People', 'Notification Settings', 'Copy Link', 'Copy Guild ID', 'Leave Guild']);
+    expect(items(screen.getByRole('menu', { name: 'Beta' }))).toEqual(['Invite People', 'Mute Guild', 'Notification Settings', 'Copy Link', 'Copy Guild ID', 'Leave Guild']);
   });
 
   it('marks a guild read and sets its notification level', async () => {
@@ -160,6 +164,26 @@ describe('the guild rail menu', () => {
     fireEvent.click(within(levels).getByRole('menuitemradio', { name: 'Nothing' }));
     await waitFor(() => expect(setGuildNotifications).toHaveBeenCalledWith(5, 'none'));
     expect(guildList.loadGuild).toHaveBeenCalledWith(5);
+  });
+
+  it('mutes a guild for a while, and unmutes a muted one', async () => {
+    let guildList = renderRail();
+    fireEvent.contextMenu(icon('Alpha'));
+    fireEvent.mouseEnter(screen.getByRole('menuitem', { name: 'Mute Guild' }));
+    fireEvent.click(within(screen.getByRole('menu', { name: 'Mute Guild' })).getByRole('menuitem', { name: 'For 8 hours' }));
+    await waitFor(() => expect(muteGuild).toHaveBeenCalledWith(5, 8 * 60 * 60));
+    expect(guildList.applyGuildMute).toHaveBeenCalledWith({ guildId: 5, muted: true, until: 1_900_000_000 });
+
+    cleanup();
+    guildList = renderRail({ guildMutes: { 6: { until: null } } });
+    fireEvent.contextMenu(icon('Beta'));
+    const menu = screen.getByRole('menu', { name: 'Beta' });
+    expect(items(menu)).toContain('Unmute Guild');
+    expect(items(menu)).not.toContain('Mute Guild');
+    expect(menu.textContent).toContain('Muted until you unmute it');
+    fireEvent.click(within(menu).getByRole('menuitem', { name: /^Unmute Guild/ }));
+    await waitFor(() => expect(unmuteGuild).toHaveBeenCalledWith(6));
+    expect(guildList.applyGuildMute).toHaveBeenCalledWith({ guildId: 6, muted: false, until: null });
   });
 
   it('leaves a guild after asking, and loads a layout not opened yet', async () => {

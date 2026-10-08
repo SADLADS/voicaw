@@ -52,6 +52,40 @@ async function mutedUserIds(channelId) {
   return new Set(rows.map((r) => r.user_id));
 }
 
+// Muted guilds (Discord's Mute Server), each member's own: the same as muting every channel in
+// it (threads too), for `duration` seconds or until unmuted. Mentions still get through.
+
+// `userId`'s guild mutes that are still on: [{ guild_id, until }].
+async function listGuildMutes(userId) {
+  await db.run('DELETE FROM guild_mutes WHERE user_id = ? AND until <= ?', [userId, now()]);
+  return db.all('SELECT guild_id, until FROM guild_mutes WHERE user_id = ? ORDER BY guild_id', [userId]);
+}
+
+// Mutes (duration: seconds or null) or unmutes (`muted` false) the guild for `userId`.
+// Returns the mute ({ until }) or null.
+async function setGuildMute(userId, guildId, { muted, duration = null }) {
+  if (!muted) {
+    await db.run('DELETE FROM guild_mutes WHERE user_id = ? AND guild_id = ?', [userId, guildId]);
+    return null;
+  }
+  const until = duration == null ? null : now() + duration;
+  await db.run(
+    `INSERT INTO guild_mutes (user_id, guild_id, until) VALUES (?, ?, ?)
+     ON CONFLICT(user_id, guild_id) DO UPDATE SET until = excluded.until`,
+    [userId, guildId, until]
+  );
+  return { until };
+}
+
+// The ids of the users who have the guild muted right now.
+async function guildMutedUserIds(guildId) {
+  const rows = await db.all(
+    'SELECT user_id FROM guild_mutes WHERE guild_id = ? AND (until IS NULL OR until > ?)',
+    [guildId, now()]
+  );
+  return new Set(rows.map((r) => r.user_id));
+}
+
 // Each member's own notification level for a channel ('all', 'mentions', 'none'), overriding
 // their guild's (guild_members.notify_level) for that channel's messages, like Discord's
 // per-channel Notification Settings. Muting still wins over 'all' (mentions get through).
@@ -91,6 +125,9 @@ module.exports = {
   listMutes,
   setMute,
   mutedUserIds,
+  listGuildMutes,
+  setGuildMute,
+  guildMutedUserIds,
   CHANNEL_NOTIFY_LEVELS,
   listChannelLevels,
   setChannelLevel,

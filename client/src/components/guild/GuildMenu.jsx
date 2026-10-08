@@ -1,6 +1,7 @@
 import React, { useContext, useEffect } from 'react';
 import {
   faBell,
+  faBellSlash,
   faCheckDouble,
   faClipboardList,
   faGear,
@@ -10,18 +11,18 @@ import {
   faUserPlus,
 } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../../contexts';
-import { markChannelReadToLatest, setGuildNotifications } from '../../services/guildService';
+import { markChannelReadToLatest, muteGuild, setGuildNotifications, unmuteGuild } from '../../services/guildService';
 import { guildLink } from '../../utils/guildDisplay';
 import { copyIdItem } from '../../utils/copyId';
-import { NOTIFY_LEVEL_LABELS } from '../../utils/channelMutes';
+import { MUTE_DURATIONS, NOTIFY_LEVEL_LABELS, mutedUntilText } from '../../utils/channelMutes';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import { levelsOn } from '../../utils/levels';
 import ContextMenu from '../ContextMenu';
 import { t } from '../../i18n';
 
 // A guild's menu on the rail (right-click its icon, or touch and hold on a phone): the guild
-// menu's options that aren't about channels: Mark As Read, Invite People, Notification Settings
-// (your level for the guild), Guild Settings, Audit Log, Copy Link, Copy Guild ID and Leave Guild, each as your
+// menu's options that aren't about channels: Mark As Read, Invite People, Mute Guild (for how
+// long) or Unmute, Notification Settings (your level for the guild), Guild Settings, Audit Log, Copy Link, Copy Guild ID and Leave Guild, each as your
 // permissions allow. The dialogs are the rail's (`onDialog(type)`: 'invite' | 'settings' |
 // 'audit' | 'leave'), since the menu closes on a pick. Waits for the guild's layout (for your
 // permissions) if it isn't loaded yet.
@@ -39,6 +40,7 @@ export default function GuildMenu({ guildId, user, anchor, sheet, onDialog, onCl
   const can = (bit) => has(guild.my_permissions, bit);
   const unread = guildList.unread.filter((u) => u.guild_id === guildId && (u.count > 0 || u.mentions > 0));
   const level = guild.my_notify_level ?? 'mentions';
+  const mute = guildList.guildMutes?.[guildId];
   const opensSettings = can(PERMISSIONS.MANAGE_GUILD) || can(PERMISSIONS.MANAGE_ROLES) ||
     can(PERMISSIONS.MANAGE_EMOJIS) || can(PERMISSIONS.BAN_MEMBERS);
 
@@ -57,6 +59,27 @@ export default function GuildMenu({ guildId, user, anchor, sheet, onDialog, onCl
   if (can(PERMISSIONS.CREATE_INVITE)) {
     items.push({ key: 'invite', label: t('guildAdmin.guildMenu.invite'), icon: faUserPlus, onSelect: () => onDialog('invite') });
   }
+  items.push(mute
+    ? {
+      key: 'mute',
+      label: t('guildAdmin.guildMenu.unmute'),
+      hint: mutedUntilText(mute.until),
+      icon: faBell,
+      onSelect: async () => guildList.applyGuildMute(await unmuteGuild(guildId)),
+    }
+    : {
+      key: 'mute',
+      label: t('guildAdmin.guildMenu.mute'),
+      icon: faBellSlash,
+      submenu: {
+        title: t('guildAdmin.guildMenu.mute'),
+        items: MUTE_DURATIONS.map(([label, duration]) => ({
+          key: `mute-${duration}`,
+          label,
+          onSelect: async () => guildList.applyGuildMute(await muteGuild(guildId, duration)),
+        })),
+      },
+    });
   items.push({
     key: 'notifications',
     label: t('guildAdmin.guildMenu.notifications'),

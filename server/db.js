@@ -270,6 +270,17 @@ CREATE TABLE IF NOT EXISTS guild_channel_mutes (
 );
 `);
 
+// Guilds a member muted (channelMutes.js, Discord's Mute Server): like muting every channel in
+// it. `until` is unix s, or NULL until they unmute it.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_mutes (
+  user_id INTEGER NOT NULL,
+  guild_id INTEGER NOT NULL,
+  until INTEGER,
+  PRIMARY KEY (user_id, guild_id)
+);
+`);
+
 // A member's own notification level for one channel (channelMutes.js), overriding their level
 // for the guild ('all', 'mentions' or 'none'); no row: the guild's.
 sqlite.exec(`

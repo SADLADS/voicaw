@@ -17,6 +17,7 @@ vi.mock('../services/guildService', () => ({
   ]),
   fetchGuildUnread: vi.fn(async () => []),
   fetchChannelMutes: vi.fn(async () => []),
+  fetchGuildMutes: vi.fn(async () => []),
   fetchChannelNotifications: vi.fn(async () => []),
   fetchAllEmojis: vi.fn(async () => []),
   fetchGuild: vi.fn(),
@@ -24,7 +25,7 @@ vi.mock('../services/guildService', () => ({
 }));
 
 import { useGuildList } from './useGuildList';
-import { fetchAllEmojis } from '../services/guildService';
+import { fetchAllEmojis, fetchGuildMutes, fetchGuildUnread } from '../services/guildService';
 
 const voiceState = (guildId, channelId, userId, joined = true) => ({
   type: 'guild_voice_state', guildId, channelId, userId, state: joined ? { user_id: userId } : null,
@@ -71,5 +72,44 @@ describe('useGuildList emojis', () => {
     const calls = fetchAllEmojis.mock.calls.length;
     act(() => emit({ type: 'guild_update', guild: { id: 7, name: 'Gamma 2', owner: 3, icon_version: 0 } }));
     expect(fetchAllEmojis).toHaveBeenCalledTimes(calls);
+  });
+});
+
+describe('useGuildList guild mutes', () => {
+  it("leaves a muted guild's unread messages out, but not its mentions, until unmuted or run out", async () => {
+    fetchGuildUnread.mockResolvedValueOnce([
+      { channel_id: 50, guild_id: 5, count: 3, mentions: 0 },
+      { channel_id: 51, guild_id: 5, count: 1, mentions: 1 },
+      { channel_id: 60, guild_id: 6, count: 2, mentions: 0 },
+    ]);
+    fetchGuildMutes.mockResolvedValueOnce([{ guild_id: 5, until: null }]);
+    const { result } = renderHook(() => useGuildList({ userId: 1, activeChannelId: null }));
+    await waitFor(() => expect(result.current.isGuildMuted(5)).toBe(true));
+    await waitFor(() => expect(result.current.unread).toHaveLength(3));
+    expect(result.current.activeUnread.map((u) => u.channel_id)).toEqual([51, 60]);
+    expect(result.current.isMuted(50)).toBe(false);
+
+    // Muted on another device for a minute; unmuted.
+    const until = Math.floor(Date.now() / 1000) + 60;
+    act(() => emit({ type: 'guild_mute', guildId: 6, muted: true, until }));
+    expect(result.current.guildMutes[6]).toEqual({ until });
+    expect(result.current.activeUnread.map((u) => u.channel_id)).toEqual([51]);
+    act(() => emit({ type: 'guild_mute', guildId: 5, muted: false, until: null }));
+    expect(result.current.activeUnread.map((u) => u.channel_id)).toEqual([50, 51]);
+
+    // The timed one ends by itself.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'Date'] });
+    try {
+      act(() => emit({ type: 'guild_mute', guildId: 6, muted: true, until: Math.floor(Date.now() / 1000) + 60 }));
+      act(() => vi.advanceTimersByTime(61_000));
+      expect(result.current.isGuildMuted(6)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    // Leaving the guild forgets its mute.
+    act(() => emit({ type: 'guild_mute', guildId: 6, muted: true, until: null }));
+    act(() => emit({ type: 'guild_remove', guildId: 6 }));
+    expect(result.current.guildMutes).toEqual({});
   });
 });
