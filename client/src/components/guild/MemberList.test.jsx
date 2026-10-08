@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within, waitFor, cleanup } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../services/guildService', () => ({
   setMemberRoles: vi.fn(async () => {}),
@@ -11,11 +11,9 @@ vi.mock('../../services/guildService', () => ({
   fetchMemberLevel: vi.fn(async (guildId, userId) => ({ user_id: userId, xp: 1250, level: 12, rank: 3 })),
   changeMemberXp: vi.fn(async () => ({})),
 }));
-vi.mock('../../services/botDmService', () => ({ startBotDm: vi.fn() }));
 
 import MemberList from './MemberList';
 import { changeMemberXp, setMemberRoles } from '../../services/guildService';
-import { startBotDm } from '../../services/botDmService';
 
 const roles = [
   { id: 4, name: 'Admins', color: 0xe67e22, position: 3, hoist: 1, permissions: 0, is_everyone: 0 },
@@ -45,17 +43,40 @@ describe('MemberList', () => {
     expect(screen.getByText('mod')).toHaveStyle({ color: '#e91e63' });
   });
 
-  it('lets you give roles below yours to people below you, and kick them', async () => {
+  it('lets you give roles below yours to people below you', async () => {
     renderList();
     fireEvent.click(screen.getByText('newbie'));
     const card = screen.getByRole('dialog', { name: 'newbie' });
-    expect(within(card).getByRole('button', { name: 'Kick' })).toBeInTheDocument();
     fireEvent.click(within(card).getByRole('button', { name: 'Add role' }));
     const picker = within(card).getByRole('list', { name: 'Roles to add' });
     // Only Regulars is below Mods.
     expect(within(picker).getAllByRole('button').map((b) => b.textContent)).toEqual(['Regulars']);
     fireEvent.click(within(picker).getByRole('button', { name: 'Regulars' }));
     await waitFor(() => expect(setMemberRoles).toHaveBeenCalledWith(5, 4, [2]));
+  });
+
+  it('searches the roles to add: focused when + opens it, Enter adds the first match, Escape closes', async () => {
+    renderList(32, 3); // as the Admin: Mods and Regulars are below
+    fireEvent.click(screen.getByText('newbie'));
+    const card = screen.getByRole('dialog', { name: 'newbie' });
+    fireEvent.click(within(card).getByRole('button', { name: 'Add role' }));
+    const search = within(card).getByRole('searchbox', { name: 'Search roles' });
+    expect(search).toHaveFocus();
+    const listed = () => within(within(card).getByRole('list', { name: 'Roles to add' })).queryAllByRole('button').map((b) => b.textContent);
+    expect(listed()).toEqual(['Mods', 'Regulars']);
+    fireEvent.change(search, { target: { value: 'REG' } });
+    expect(listed()).toEqual(['Regulars']);
+    fireEvent.change(search, { target: { value: 'nothing' } });
+    expect(listed()).toEqual([]);
+    expect(within(card).getByText('No roles match.')).toBeInTheDocument();
+    fireEvent.change(search, { target: { value: 'mo' } });
+    fireEvent.keyDown(search, { key: 'Enter' });
+    await waitFor(() => expect(setMemberRoles).toHaveBeenCalledWith(5, 4, [3]));
+    expect(within(card).queryByRole('searchbox')).toBeNull();
+    fireEvent.click(within(card).getByRole('button', { name: 'Add role' }));
+    expect(within(card).getByRole('searchbox', { name: 'Search roles' })).toHaveValue('');
+    fireEvent.keyDown(within(card).getByRole('searchbox'), { key: 'Escape' });
+    expect(within(card).queryByRole('searchbox')).toBeNull();
   });
 
   it("doesn't offer anything over people as high or higher", () => {
@@ -67,27 +88,15 @@ describe('MemberList', () => {
     expect(within(card).queryByRole('button', { name: 'Remove Admins' })).toBeNull();
   });
 
-  it("tags bots, offers Message (their own DM), and leaves a bot's own role alone", async () => {
+  it("tags bots and leaves a bot's own role alone", () => {
     const botRole = { id: 5, name: 'Helper', color: null, position: 1, hoist: 0, permissions: 0, is_everyone: 0, bot_id: 6 };
     const guild = { id: 5, name: 'G', owner: 1, roles: [...roles.slice(0, 2), botRole, ...roles.slice(2)], my_permissions: 32, my_role_ids: [3] };
     const bot = { id: 6, username: 'helper#0420', display_name: 'Helper', bot: 1, joined_at: 1, role_ids: [5], status: 'online' };
-    startBotDm.mockResolvedValue({ id: 31, bot_id: 6, unread: 0 });
-    render(
-      <MemoryRouter>
-        <Routes>
-          <Route path="/" element={<MemberList guild={guild} members={[...members, bot]} user={{ id: 2 }} />} />
-          <Route path="/dm/b/:dmId" element={<p>bot dm page</p>} />
-        </Routes>
-      </MemoryRouter>
-    );
+    render(<MemoryRouter><MemberList guild={guild} members={[...members, bot]} user={{ id: 2 }} /></MemoryRouter>);
     expect(screen.getByText('BOT')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Helper', { selector: '.member-name' }));
     const card = screen.getByRole('dialog', { name: 'Helper' });
     expect(within(card).queryByRole('button', { name: 'Remove Helper' })).toBeNull();
-    fireEvent.click(within(card).getByRole('button', { name: 'Message' }));
-    expect(await screen.findByText('bot dm page')).toBeInTheDocument();
-    expect(startBotDm).toHaveBeenCalledWith(6);
-    render(<MemoryRouter><MemberList guild={guild} members={[...members, bot]} user={{ id: 2 }} /></MemoryRouter>);
     // Nor offered to anyone else.
     fireEvent.click(screen.getByText('newbie'));
     const other = screen.getByRole('dialog', { name: 'newbie' });
@@ -106,11 +115,15 @@ describe('MemberList', () => {
     await waitFor(() => expect(onRunUserApp).toHaveBeenCalledWith(apps[0], 4));
   });
 
-  it('shows no management without the permissions', () => {
+  it('shows no buttons without the permissions (Message, Kick, Block... are in the right-click menu)', () => {
+    renderList(32 | 256 | 4);
+    fireEvent.click(screen.getByText('newbie'));
+    const withPermissions = screen.getByRole('dialog', { name: 'newbie' });
+    expect(within(withPermissions).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual(['Add role']);
+    cleanup();
     renderList(0);
     fireEvent.click(screen.getByText('newbie'));
-    const card = screen.getByRole('dialog', { name: 'newbie' });
-    expect(within(card).getAllByRole('button').map((b) => b.textContent)).toEqual(['Message']);
+    expect(within(screen.getByRole('dialog', { name: 'newbie' })).queryAllByRole('button')).toEqual([]);
   });
 
   describe('levels', () => {

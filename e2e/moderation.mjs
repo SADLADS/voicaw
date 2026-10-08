@@ -39,14 +39,15 @@ try {
   await api(b, 'POST', `/invites/${invite.code}`);
   await api(b, 'POST', `/channels/${channel.id}/messages`, { content: 'buy my pills, cheap' });
 
-  // Alice blocks Bob from his name on his message.
+  // Alice blocks Bob from his name on his message (its right-click menu).
   await a.goto(`${BASE}/guild/${guild.id}/${channel.id}`);
   await a.waitForSelector('text=buy my pills, cheap');
-  await a.click('.message-author:has-text("bob")');
-  await a.click('.profile-popover button:has-text("Block")');
+  await a.click('.message-author:has-text("bob")', { button: 'right' });
+  await a.click('.context-menu >> text=Block');
   await a.click('.vc-dialog button:has-text("Block")');
   await a.waitForSelector('.blocked-message:has-text("Blocked message")');
-  check(await a.isVisible('.profile-popover button:has-text("Unblock")'), 'the card now offers Unblock');
+  await a.click('.member-row:has-text("bob")', { button: 'right' });
+  check(await a.isVisible('.context-menu >> text=Unblock'), 'his menu now offers Unblock');
   await a.keyboard.press('Escape');
   check(!(await a.isVisible('text=buy my pills, cheap')), "Bob's message is collapsed for Alice");
   await shot(a, '1-collapsed');

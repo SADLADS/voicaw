@@ -36,7 +36,9 @@ import { useAndroidApp } from '../hooks/useAndroidApp';
 import { useFaviconDot } from '../hooks/useFaviconDot';
 import { latestUnreadSender } from '../utils/latestUnread';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
-import { clearProfiles, mergeProfiles } from '../utils/profiles';
+import { clearProfiles, isBot, mergeProfiles } from '../utils/profiles';
+import { setPersonMessenger } from '../utils/personMenu';
+import { startBotDm } from '../services/botDmService';
 import { loadSidebarWidth, onSidebarWidthStorage, saveSidebarWidth } from '../utils/sidebarWidth';
 
 export default function Layout({ user, onLogout }) {
@@ -97,6 +99,22 @@ export default function Layout({ user, onLogout }) {
     if (removedId === botDmId) navigate('/dm', { replace: true });
   }, [botDmId, navigate]);
   const botDmList = useBotDmList({ userId: user?.id, activeDmId: botDmId, onRemoved: onBotDmRemoved });
+  // A person's menu's Message (utils/personMenu.js); a bot's conversation is its own kind.
+  const upsertBotDm = useRef(botDmList.upsert);
+  upsertBotDm.current = botDmList.upsert;
+  useEffect(() => {
+    setPersonMessenger(async (id) => {
+      if (!isBot(id)) {
+        navigate(`/dm/${id}`);
+        return;
+      }
+      const dm = await startBotDm(id);
+      if (dm.bot) mergeProfiles([dm.bot]);
+      upsertBotDm.current?.(dm);
+      navigate(`/dm/b/${dm.id}`);
+    });
+    return () => setPersonMessenger(null);
+  }, [navigate]);
   // Your pins and mutes for DMs and groups. Muted ones don't light the rail or the desktop app.
   const conversationSettings = useConversationSettings(user?.id);
   // Your account preferences (utils/preferences), e.g. whether NSFW channels' media is blurred.

@@ -24,6 +24,7 @@ import { addGuildReaction, fetchChannelMembers, fetchMembers, removeGuildReactio
 import { defaultChannel, errorMessage, rememberChannel } from '../../utils/guildDisplay';
 import { PERMISSIONS, colorToHex, has, memberColor } from '../../utils/permissions';
 import { mergeProfiles, nameOf, useProfiles } from '../../utils/profiles';
+import { setPersonMenuGuild } from '../../utils/personMenu';
 import { useChannelCommands } from '../../hooks/useChannelCommands';
 import { handleInteractionResult, runCommand } from '../../services/interactionService';
 import { usePreferences, usePreferencesLoaded } from '../../utils/preferences';
@@ -50,6 +51,11 @@ export default function GuildView({ user }) {
   const guild = guildList.layouts[guildId];
   const [loadError, setLoadError] = useState(null);
   const [members, setMembers] = useState([]);
+  // A person's menu (utils/personMenu.js) offers Make Owner, Kick and Ban for this guild's members.
+  useEffect(() => {
+    setPersonMenuGuild(guild ? { guild, members } : null);
+  }, [guild, members]);
+  useEffect(() => () => setPersonMenuGuild(null), []);
   const [showMembers, setShowMembers] = useState(() => {
     try {
       return localStorage.getItem(SHOW_MEMBERS_KEY) !== 'false';

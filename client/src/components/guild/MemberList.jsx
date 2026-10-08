@@ -1,28 +1,28 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { LayoutContext } from '../../contexts';
-import { useNavigate } from 'react-router-dom';
+import { InteractionContext } from '../../contexts';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCrown, faPlus, faRobot, faXmark } from '@fortawesome/free-solid-svg-icons';
-import { banMember, kickMember, setMemberRoles, transferGuild } from '../../services/guildService';
-import { startBotDm } from '../../services/botDmService';
+import { setMemberRoles } from '../../services/guildService';
 import { PERMISSIONS, colorToHex, has, memberColor, memberRank, memberRoles } from '../../utils/permissions';
 import { errorMessage, groupMembers } from '../../utils/guildDisplay';
-import ConfirmDialog from './ConfirmDialog';
 import StatusIcon from '../StatusIcon';
 import { usePresence } from '../../hooks/usePresence';
 import { formatDate } from '../../utils/dateFormat';
-import { displayName, getProfile, mergeProfiles, nameOf, useProfiles } from '../../utils/profiles';
+import { displayName, getProfile, nameOf, useProfiles } from '../../utils/profiles';
 import { interactionError } from '../../utils/commandOptions';
 import ProfileCard from '../ProfileCard';
 import Avatar from '../Avatar';
-import UserSafetyActions from '../UserSafetyActions';
+import { useLongPress } from '../../hooks/useLongPress';
+import { openPersonMenu } from '../../utils/personMenu';
 import MemberLevel from './MemberLevel';
 import { levelBadge, levelName, levelOf, levelsOn } from '../../utils/levels';
 import { t } from '../../i18n';
 
 // The guild's members down the right (like Discord), names in their role colour. Clicking one
 // opens a card: their roles (added and removed there by people who manage roles, for roles
-// below their own), Message, and, as permissions and rank allow, Make owner / Kick / Ban.
+// below their own; + opens the roles to add with a search box, focused, Enter adding the first).
+// Message, the friend item, Make Owner / Kick / Ban, Block and Report are in the person's menu
+// (utils/personMenu.js): right-clicking a row, or holding it on a phone.
 // `userApps` (the channel's bots' user commands) show as Apps on the card, run with
 // `onRunUserApp(command, userId)`. With levels on (utils/levels.js), each member's level shows
 // beside their picture (unless the guild hides it there, or it's 0) and on their card.
@@ -30,11 +30,10 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
   useProfiles();
   const presenceOf = usePresence();
   const members = memberList.map((m) => ({ ...m, ...presenceOf(m) }));
-  const navigate = useNavigate();
-  const botDmList = useContext(LayoutContext)?.botDmList;
+  const { isMobile } = useContext(InteractionContext);
   const [selectedId, setSelectedId] = useState(null);
-  const [confirm, setConfirm] = useState(null);
   const [addingRole, setAddingRole] = useState(false);
+  const [roleQuery, setRoleQuery] = useState('');
   const [error, setError] = useState(null);
   const cardRef = useRef(null);
 
@@ -57,18 +56,11 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
   // Whether you outrank `member` (or it's you, for roles).
   const outranks = (member) => member.id !== guild.owner && myRank > memberRank(guild, member.id, member.role_ids);
 
-  // Opens (or starts) your conversation with a bot.
-  async function messageBot(member) {
-    setError(null);
-    try {
-      const dm = await startBotDm(member.id);
-      if (dm.bot) mergeProfiles([dm.bot]);
-      botDmList?.upsert(dm);
-      navigate(`/dm/b/${dm.id}`);
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-  }
+  // Phone: holding a row opens the person's menu as a sheet (the tap that ends it isn't a click).
+  const longPress = useLongPress((target) => {
+    const row = target?.closest?.('[data-user-id]');
+    if (row) openPersonMenu(row.dataset.userId);
+  }, { enabled: isMobile });
 
   async function changeRoles(member, roleIds) {
     setError(null);
@@ -84,7 +76,8 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
     const editsRoles = can(PERMISSIONS.MANAGE_ROLES) && (member.id === user.id || outranks(member));
     // A bot's own role (server/bots.js) stays with its bot: never given or taken here.
     const assignable = (guild.roles ?? []).filter((r) => !r.is_everyone && !r.bot_id && r.position < myRank && !member.role_ids?.includes(r.id));
-    const isOwnerViewing = guild.owner === user.id;
+    const query = roleQuery.trim().toLowerCase();
+    const matching = query ? assignable.filter((r) => r.name.toLowerCase().includes(query)) : assignable;
     return (
       <div className="member-card" ref={cardRef} role="dialog" aria-label={nameOf(member)}>
         <ProfileCard user={member} color={memberColor(guild.roles, member.role_ids) ?? undefined} />
@@ -113,84 +106,64 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
               ))}
               {editsRoles && assignable.length > 0 && (
                 <li>
-                  <button type="button" className="role-chip role-chip-add" aria-label={t('guilds.memberList.addRole')} onClick={() => setAddingRole((open) => !open)}>
+                  <button
+                    type="button"
+                    className="role-chip role-chip-add"
+                    aria-label={t('guilds.memberList.addRole')}
+                    aria-expanded={addingRole}
+                    onClick={() => {
+                      setRoleQuery('');
+                      setAddingRole((open) => !open);
+                    }}
+                  >
                     <FontAwesomeIcon icon={faPlus} />
                   </button>
                 </li>
               )}
             </ul>
             {addingRole && (
-              <ul className="role-picker" aria-label={t('guilds.memberList.rolesToAdd')}>
-                {assignable.map((role) => (
-                  <li key={role.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAddingRole(false);
-                        changeRoles(member, [...(member.role_ids ?? []), role.id]);
-                      }}
-                    >
-                      <span className="role-dot" style={{ backgroundColor: role.color != null ? colorToHex(role.color) : undefined }} />
-                      {role.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div className="role-picker">
+                <input
+                  type="search"
+                  className="form-control form-control-sm role-picker-search"
+                  aria-label={t('guilds.memberList.searchRoles')}
+                  placeholder={t('guilds.memberList.searchRoles')}
+                  value={roleQuery}
+                  autoFocus
+                  onChange={(e) => setRoleQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && matching[0]) {
+                      e.preventDefault();
+                      setAddingRole(false);
+                      changeRoles(member, [...(member.role_ids ?? []), matching[0].id]);
+                    } else if (e.key === 'Escape') {
+                      e.stopPropagation();
+                      setAddingRole(false);
+                    }
+                  }}
+                />
+                <ul aria-label={t('guilds.memberList.rolesToAdd')}>
+                  {matching.map((role) => (
+                    <li key={role.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddingRole(false);
+                          changeRoles(member, [...(member.role_ids ?? []), role.id]);
+                        }}
+                      >
+                        <span className="role-dot" style={{ backgroundColor: role.color != null ? colorToHex(role.color) : undefined }} />
+                        {role.name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {matching.length === 0 && <p className="vc-hint role-picker-empty">{t('guilds.memberList.noRolesMatch')}</p>}
+              </div>
             )}
           </div>
         )}
 
-        <div className="member-card-actions">
-          {/* A bot's DM is its own, unencrypted kind (botDmService); bots can't own a guild. */}
-          {member.id !== user.id && (
-            <button type="button" className="btn btn-primary btn-sm vc-button" onClick={() => (member.bot ? messageBot(member) : navigate(`/dm/${member.id}`))}>
-              {t('guilds.memberList.message')}
-            </button>
-          )}
-          {isOwnerViewing && member.id !== user.id && !member.bot && (
-            <button
-              type="button"
-              className="btn btn-outline-secondary btn-sm"
-              onClick={() => setConfirm({
-                title: t('guilds.memberList.transfer.title', { name: nameOf(member) }),
-                message: t('guilds.memberList.transfer.message', { name: nameOf(member), guild: guild.name }),
-                confirmLabel: t('guilds.memberList.transfer.confirm'),
-                onConfirm: () => transferGuild(guild.id, member.id),
-              })}
-            >
-              {t('guilds.memberList.makeOwner')}
-            </button>
-          )}
-          {can(PERMISSIONS.KICK_MEMBERS) && member.id !== user.id && outranks(member) && (
-            <button
-              type="button"
-              className="btn btn-outline-danger btn-sm"
-              onClick={() => setConfirm({
-                title: t('guilds.memberList.kick.title', { name: nameOf(member) }),
-                message: t('guilds.memberList.kick.message', { name: nameOf(member), guild: guild.name }),
-                confirmLabel: t('guilds.memberList.kick.button'),
-                onConfirm: () => kickMember(guild.id, member.id),
-              })}
-            >
-              {t('guilds.memberList.kick.button')}
-            </button>
-          )}
-          {can(PERMISSIONS.BAN_MEMBERS) && member.id !== user.id && outranks(member) && (
-            <button
-              type="button"
-              className="btn btn-danger btn-sm"
-              onClick={() => setConfirm({
-                title: t('guilds.memberList.ban.title', { name: nameOf(member) }),
-                message: t('guilds.memberList.ban.message', { name: nameOf(member), guild: guild.name }),
-                confirmLabel: t('guilds.memberList.ban.button'),
-                onConfirm: () => banMember(guild.id, member.id),
-              })}
-            >
-              {t('guilds.memberList.ban.button')}
-            </button>
-          )}
-        </div>
-        <UserSafetyActions userId={member.id} name={nameOf(member)} />
         {userApps.length > 0 && onRunUserApp && (
           <div className="member-card-apps" role="group" aria-label={t('commands.apps.label')}>
             <div className="member-card-label">{t('commands.apps.label')}</div>
@@ -255,7 +228,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
   }
 
   return (
-    <aside className="member-list" aria-label={t('common.members')}>
+    <aside className="member-list" aria-label={t('common.members')} {...longPress}>
       {onClose && (
         <div className="member-list-top">
           <span>{t('common.members')}</span>
@@ -269,16 +242,6 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
         </section>
       ))}
 
-      {confirm && (
-        <ConfirmDialog
-          {...confirm}
-          onConfirm={async () => {
-            await confirm.onConfirm();
-            setSelectedId(null);
-          }}
-          onClose={() => setConfirm(null)}
-        />
-      )}
     </aside>
   );
 }

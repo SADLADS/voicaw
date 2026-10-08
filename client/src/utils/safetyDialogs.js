@@ -5,8 +5,9 @@ import { t } from '../i18n';
 
 // Block / Unblock and Report in right-click menus (a person, a webhook), like Discord's. A menu
 // closes on a pick, so what Block and Report open (asking first, the report form) is kept here
-// and drawn by SafetyDialogs (mounted once in App): { kind: 'block' | 'report', userId, name }
-// or { kind: 'block-webhook', webhookId, name }. Unblocking needs no asking.
+// and drawn by SafetyDialogs (mounted once in App): { kind: 'block' | 'report' | 'unfriend', userId,
+// name }, { kind: 'transfer' | 'kick' | 'ban', guild, userId, name } (a person's menu,
+// utils/personMenu.js) or { kind: 'block-webhook', webhookId, name }. Unblocking needs no asking.
 
 let dialog = null;
 const listeners = new Set();
@@ -24,8 +25,10 @@ function subscribe(listener) {
 }
 
 // The open dialog, or null.
+export const getSafetyDialog = () => dialog;
+
 export function useSafetyDialog() {
-  return useSyncExternalStore(subscribe, () => dialog);
+  return useSyncExternalStore(subscribe, getSafetyDialog);
 }
 
 // Block (or Unblock) and Report for user `userId` (shown as `name`), none for yourself (`meId`).

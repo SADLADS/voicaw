@@ -104,8 +104,9 @@
       "removeRole": "Remove {{name}}",
       "addRole": "Add role",
       "rolesToAdd": "Roles to add",
-      "message": "Message",
-      "makeOwner": "Make owner",
+      "searchRoles": "Search roles",
+      "noRolesMatch": "No roles match.",
+      "makeOwner": "Make Owner",
       "transfer": {
         "title": "Transfer ownership to {{name}}",
         "message": "{{name}} will own {{guild}} and be able to manage everything, including removing you. This can't be undone by you.",

@@ -67,7 +67,7 @@ try {
   await api(bob.page, 'POST', `/channels/${general.id}/messages`, { content: `hello <@${alice.id}>` });
   await a.waitForSelector('.message-author');
   r = await copyFrom(`.message-author:has-text("${bob.name}")`, 'Copy User ID');
-  check(JSON.stringify(r.menu) === '["Block","Report","Copy User ID"]', `a message's author gets the person's menu: ${r.menu}`);
+  check(JSON.stringify(r.menu) === '["Message","Add Friend","Make Owner","Kick","Ban","Block","Report","Copy User ID"]', `a message's author gets the person's menu: ${r.menu}`);
   check(r.copied === String(bob.id), `and copies their id: ${r.copied}`);
   r = await copyFrom(`.message-avatar[data-user-id="${bob.id}"]`, 'Copy User ID');
   check(r.copied === String(bob.id), 'so does their picture');

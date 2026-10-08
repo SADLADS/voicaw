@@ -22,6 +22,7 @@ import { ThreadStartNotice, ThreadSummary } from './guild/ThreadSummary';
 import JoinLogNotice from './guild/JoinLogNotice';
 import defaultAvatar from '../assets/images/default.png';
 import { useLongPress } from '../hooks/useLongPress';
+import { openPersonMenu } from '../utils/personMenu';
 import { useSwipeToReply } from '../hooks/useSwipeToReply';
 import MessageEditor from '../editor/MessageEditor';
 import { placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
@@ -360,8 +361,13 @@ export function MessageRow({
   const ephemeral = isEphemeral(msg);
   const thinking = isThinking(msg);
   const removable = Boolean(onRemovePreviews && canRemovePreviews?.(msg)) && !ephemeral;
-  // Mobile: touch and hold opens the message's action sheet (there's no hover there).
-  const longPress = useLongPress(() => onOpenActions(msg), { enabled: isMobile && Boolean(onOpenActions) && !ephemeral });
+  // Mobile: touch and hold opens the message's action sheet (there's no hover there), or on a
+  // person (the author's picture or name, a mention) their menu (utils/personMenu.js).
+  const longPress = useLongPress((target) => {
+    const person = target?.closest?.('[data-user-id]');
+    if (person) openPersonMenu(person.dataset.userId);
+    else onOpenActions(msg);
+  }, { enabled: isMobile && Boolean(onOpenActions) && !ephemeral });
   // Desktop: right-clicking opens its menu, except on a picture, a link, selected text or a
   // text box (editing it), which have their own (PageMenus).
   const onContextMenu = !isMobile && onOpenMenu && !ephemeral ? (e) => {

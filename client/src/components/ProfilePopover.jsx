@@ -1,15 +1,14 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import ProfileCard from './ProfileCard';
-import UserSafetyActions from './UserSafetyActions';
-import { nameOf } from '../utils/profiles';
 import { t } from '../i18n';
 
 const MARGIN = 8;
 
 // Someone's ProfileCard floating by what was clicked (a name or avatar in chat), kept on
-// screen; closes on a click elsewhere or Escape. `anchor` is the clicked element's rect. Under
-// the card: Block and Report (UserSafetyActions), whose dialogs don't count as elsewhere.
+// screen; closes on a click elsewhere or Escape. `anchor` is the clicked element's rect. What
+// can be done to them (Message, friends, Block, Report...) is in their right-click menu
+// (utils/personMenu.js); dialogs don't count as elsewhere.
 export default function ProfilePopover({ user, anchor, onClose }) {
   const ref = useRef(null);
   const [position, setPosition] = useState({ left: anchor.right + MARGIN, top: anchor.top, visibility: 'hidden' });
@@ -44,9 +43,7 @@ export default function ProfilePopover({ user, anchor, onClose }) {
 
   return createPortal(
     <div className="profile-popover" ref={ref} style={position} role="dialog" aria-label={t('app.profile.profileOf', { name: user.username })}>
-      <ProfileCard user={user}>
-        <UserSafetyActions userId={user.id} name={nameOf(user)} />
-      </ProfileCard>
+      <ProfileCard user={user} />
     </div>,
     document.body
   );

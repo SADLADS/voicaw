@@ -116,10 +116,13 @@ try {
   await shot(a, 'desktop-settings');
   await a.keyboard.press('Escape');
 
-  // Bob's member card on Alice's side: kick option exists (not used).
+  // Bob's member card on Alice's side; Kick is in his right-click menu (not used).
   await a.click(`.member-row:has-text("${bob.name}")`);
-  await a.waitForSelector('.member-card button:has-text("Kick")');
+  await a.waitForSelector('.member-card');
   await shot(a, 'desktop-member-card');
+  await a.click(`.member-row:has-text("${bob.name}")`, { button: 'right' });
+  await a.waitForSelector('.context-menu >> text=Kick');
+  await a.keyboard.press('Escape');
   await a.click('.channel-header-name');
 
   // Mobile: a phone user joins through the same link.

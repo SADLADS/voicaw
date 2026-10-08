@@ -65,6 +65,9 @@ function subscribe(listener) {
 
 const snapshot = () => state;
 
+// The same, read once (a menu being built).
+export const getFriends = snapshot;
+
 // { friends: Set of ids, incoming, outgoing, admin, loaded }, redrawing when it changes.
 export function useFriends() {
   return useSyncExternalStore(subscribe, snapshot);

@@ -1,7 +1,7 @@
 // Friends (server/friends.js, client Friends.jsx): a new account's DM list has no one (landing on
 // /dm opens the Friends page); Add friend by username, the request live on the other side
-// (rail dot, count on the Friends row, Pending), Accept = both lists gain each other; Add friend
-// / Request sent / Remove friend on a guild profile card; a non-friend's first DM puts them in
+// (rail dot, count on the Friends row, Pending), Accept = both lists gain each other; Add Friend
+// / Cancel Friend Request / Remove Friend in a person's right-click menu; a non-friend's first DM puts them in
 // the list live; admins' Everyone tab; Remove friend (asks); phone.
 //   node e2e/serve.mjs &   then   node e2e/friends.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
@@ -83,7 +83,8 @@ try {
   await rowFor(a, carol.name).waitFor({ timeout: 10000 });
   check(true, "a non-friend's first DM puts them in the list live");
 
-  // A guild profile card: Add friend → Request sent → (Alice accepts) Remove friend.
+  // A person's right-click menu (a message's author): Add Friend → Cancel Friend Request →
+  // (Alice accepts) Remove Friend.
   const guild = (await api(a, 'POST', '/guilds', { name: 'Hangout' })).body;
   const channel = guild.channels[0];
   const invite = (await api(a, 'POST', `/guilds/${guild.id}/invites`, {})).body;
@@ -91,15 +92,27 @@ try {
   await api(a, 'POST', `/channels/${channel.id}/messages`, { content: 'welcome!' });
   await c.goto(`${BASE}/guild/${guild.id}/${channel.id}`);
   await c.waitForSelector('text=welcome!');
-  await c.click(`.message-author:has-text("${alice.name}")`);
-  await c.click('.profile-popover button:has-text("Add friend")');
-  await c.waitForSelector('.profile-popover button:has-text("Request sent")');
-  await shot(c, 'profile-request-sent');
+  const authorMenu = async () => {
+    await c.click(`.message-author:has-text("${alice.name}")`, { button: 'right' });
+    await c.waitForSelector('.context-menu');
+    return c.$$eval('.context-menu [role^="menuitem"] .context-menu-label', (els) => els.map((e) => e.firstChild.textContent));
+  };
+  check((await authorMenu()).includes('Add Friend'), 'the menu offers Add Friend');
+  await c.click('.context-menu >> text=Add Friend');
+  await c.waitForSelector('.context-menu', { state: 'detached' });
+  check((await authorMenu()).includes('Cancel Friend Request'), 'then Cancel Friend Request');
+  await shot(c, 'menu-request-sent');
+  await c.keyboard.press('Escape');
   await a.waitForSelector('.dm-friends-link .friends-badge:has-text("1")', { timeout: 10000 });
   await api(a, 'PUT', `/friends/${carol.id}`);
-  await c.waitForSelector('.profile-popover button:has-text("Remove friend")', { timeout: 10000 });
-  check(true, 'profile card follows: Add friend → Request sent → Remove friend');
-  await c.keyboard.press('Escape');
+  for (let i = 0; i < 20; i += 1) {
+    const items = await authorMenu();
+    await c.keyboard.press('Escape');
+    if (items.includes('Remove Friend')) break;
+    if (i === 19) throw new Error(`no Remove Friend: ${items}`);
+    await c.waitForTimeout(500);
+  }
+  check(true, 'the menu follows: Add Friend → Cancel Friend Request → Remove Friend');
 
   // Removing asks first; the conversation stays in the list.
   await a.goto(`${BASE}/dm/friends`);

@@ -101,14 +101,14 @@ try {
   if ((await bot(token, 'GET', `/channels/${channel.id}`)).status !== 404) throw new Error('the bot still has the deleted DM');
   console.log('Delete conversation: gone from the list and for the bot');
 
-  // A bot's member card has Message, which starts the DM.
+  // A bot's right-click menu (its member list row) has Message, which starts the DM.
   await a.goto(`${BASE}/guild/${guild.id}`);
-  await a.click('.member-name:has-text("Chess Bot")');
-  await a.click('.member-card button:has-text("Message")');
+  await a.click('.member-row:has-text("Chess Bot")', { button: 'right' });
+  await a.click('.context-menu >> text=Message');
   await a.waitForURL(/\/dm\/b\/\d+/);
   await a.waitForSelector('.bot-dm-notice');
-  await shot(a, 'from-member-card');
-  console.log("the bot's member card's Message opened a new DM");
+  await shot(a, 'from-member-menu');
+  console.log("the bot's right-click menu's Message opened a new DM");
 
   // A phone: Bob joins, the bot messages him.
   const bob = await signUp(browser, 'bob', devices['Pixel 7']);
@@ -120,11 +120,10 @@ try {
   await b.goto(`${BASE}/dm`);
   const phoneRow = b.locator('.dm-bot', { hasText: 'Chess Bot' });
   await phoneRow.waitFor({ state: 'attached' });
-  // The list is under the chat a phone opens with: back slides to it.
-  if (!(await phoneRow.isVisible())) {
-    await b.goBack();
-    await b.waitForTimeout(600);
-  }
+  // The list is under the page a phone opens with (Friends): its back arrow slides to it.
+  await b.waitForSelector('.friends-body, #dm-main');
+  await b.click('.pane-back-button');
+  await b.waitForSelector('.main-wrapper.pane-list:not(.panes-moving)');
   await shot(b, 'phone-list');
   await phoneRow.click();
   await b.waitForSelector('text=Welcome to Game Night!');
