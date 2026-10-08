@@ -20,6 +20,7 @@
     "attachment": {
       "defaultName": "attachment",
       "decrypting": "Decrypting…",
+      "downloading": "Downloading… {{percent}}%",
       "downloadFailed": "Download failed",
       "download": "Download {{name}}",
       "loading": "Loading {{name}}",

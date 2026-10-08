@@ -57,4 +57,30 @@ describe('the Android app bridge', () => {
     await expect(saveToDownloads(new Blob(['hello']), 'a.txt', {}, plugin)).rejects.toThrow('disk full');
     expect(plugin.calls.map(([name]) => name)).toEqual(['saveFileStart', 'saveFileAppend', 'saveFileCancel']);
   });
+
+  it('saves a stream, SAVE_CHUNK at a time whatever its pieces', async () => {
+    const plugin = fakePlugin();
+    const pieces = [new Uint8Array(SAVE_CHUNK - 1).fill(1), new Uint8Array(3).fill(2), new Uint8Array(5).fill(3)];
+    const stream = new ReadableStream({
+      start(controller) {
+        pieces.forEach((p) => controller.enqueue(p));
+        controller.close();
+      },
+    });
+    await saveToDownloads(stream, 'film.mp4', { type: 'video/mp4' }, plugin);
+    expect(plugin.calls[0][1]).toEqual({ name: 'film.mp4', type: 'video/mp4' });
+    const appended = plugin.calls.filter(([name]) => name === 'saveFileAppend').map(([, args]) => atob(args.data).length);
+    expect(appended).toEqual([SAVE_CHUNK, 7]);
+  });
+
+  it('cancels a stream that fails', async () => {
+    const plugin = fakePlugin();
+    const stream = new ReadableStream({
+      pull(controller) {
+        controller.error(new Error('network'));
+      },
+    });
+    await expect(saveToDownloads(stream, 'a.bin', {}, plugin)).rejects.toThrow('network');
+    expect(plugin.calls.map(([name]) => name)).toEqual(['saveFileStart', 'saveFileCancel']);
+  });
 });

@@ -8,18 +8,33 @@ const cache = new Map();
 // The same entries once decrypted, readable synchronously so a remounted attachment can
 // render straight away instead of flashing its loading state.
 const resolved = new Map();
+// The size of each entry's file (decrypted files are held by the browser, in memory or on
+// disk), so a few big ones don't stay for the whole session. The newest is always kept.
+const sizes = new Map();
+let cachedBytes = 0;
 const MAX_CACHED = 200;
+const MAX_CACHED_BYTES = 256 * 1024 * 1024;
 
-function remember(url, promise) {
+function forget(url) {
+  const promise = cache.get(url);
+  cache.delete(url);
+  resolved.delete(url);
+  cachedBytes -= sizes.get(url) ?? 0;
+  sizes.delete(url);
+  return promise;
+}
+
+// `bytes`: how big the file is (0 for one the browser already holds, e.g. the sender's own).
+function remember(url, promise, bytes = 0) {
+  if (cache.has(url)) forget(url);
   cache.set(url, promise);
+  sizes.set(url, bytes);
+  cachedBytes += bytes;
   promise.then((objectUrl) => {
     if (cache.get(url) === promise) resolved.set(url, objectUrl);
   }, () => {});
-  while (cache.size > MAX_CACHED) {
-    const [oldestUrl, oldest] = cache.entries().next().value;
-    cache.delete(oldestUrl);
-    resolved.delete(oldestUrl);
-    oldest.then(URL.revokeObjectURL, () => {});
+  while (cache.size > 1 && (cache.size > MAX_CACHED || cachedBytes > MAX_CACHED_BYTES)) {
+    forget(cache.keys().next().value).then(URL.revokeObjectURL, () => {});
   }
   return promise;
 }
@@ -67,8 +82,8 @@ export function loadDecryptedAttachment(url, meta, onProgress) {
     .then((plain) => URL.createObjectURL(new Blob([plain], { type: meta.type })));
 
   // Don't cache failures, so a later render can retry.
-  promise.catch(() => cache.delete(url));
-  return remember(url, promise);
+  promise.catch(() => cache.get(url) === promise && forget(url));
+  return remember(url, promise, meta.size ?? 0);
 }
 
 // The type of a poster or thumbnail, from its first bytes (a JPEG, or a thumbnail with
@@ -89,7 +104,7 @@ export function loadDecryptedPoster(meta) {
   const promise = download(meta.posterUrl)
     .then((encrypted) => (meta.version === 2 ? decryptPoster(encrypted, meta.key) : decryptThumbnail(encrypted, meta.key)))
     .then((plain) => URL.createObjectURL(new Blob([plain], { type: stillType(plain) })));
-  promise.catch(() => cache.delete(key));
+  promise.catch(() => cache.get(key) === promise && forget(key));
   return remember(key, promise);
 }
 

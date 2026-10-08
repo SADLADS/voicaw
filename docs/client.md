@@ -479,7 +479,8 @@ back. Secrets are write-only: the panel only shows where the value comes from an
 characters. `GET /admin`, `PUT /admin/settings/:key { value | null }`, `POST /admin/admins
 { username }`, `DELETE /admin/admins/:id` (not yourself). Settings so far: the Klipy key,
 who can sign up (`signupMode`), link previews (`linkPreviews`) and the screen share limits
-(`streamMaxResolution`, `streamMaxFramerate`; see Stream quality in `docs/voice-and-calls.md`). A setting with `choices` (and its `fallback`) takes only one of
+(`streamMaxResolution`, `streamMaxFramerate`; see Stream quality in `docs/voice-and-calls.md`) and
+the File size limit (`uploadLimit`, 500 MB by default; see Big files in `docs/uploads.md`). A setting with `choices` (and its `fallback`) takes only one of
 them: the panel shows a menu (`ChoiceRow`, labels `settings.admin.choices.<key>.<value>`) and the
 server refuses anything else. Add new app-wide keys to `SETTINGS` and read them with
 `getSetting` rather than from `config.js`. The panel also lists sign-up requests and app invites

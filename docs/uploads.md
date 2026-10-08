@@ -10,9 +10,48 @@ emoji originals, see Profiles and Guilds); the
 client uploads the file straight to S3, bypassing the app server. Both routes require a `size` query
 param, which is signed into the URL together with the content type (`s3.js` `signableHeaders`), so
 the object store rejects a body of any other length or type (verified against the live MinIO).
-Limits: 100MB for attachments (nginx's cap on media.voicaw.com), 8MB for profile picture originals,
-which must be `image/*`. Profile pictures are unencrypted. Webhooks' files are the exception to
-client-direct uploads: they arrive in the webhook request and the server stores them (see Webhooks).
+Limits: attachments up to Settings → Admin's File size limit (`appSettings.js` `uploadLimit`:
+500, 250, 100, 50 or 25 MB, 500 by default; `/api/config` tells clients as `maxUploadBytes`), one
+request at most 100MB (nginx's cap on media.voicaw.com, so a bigger file comes in parts, see Big
+files); 8MB for profile picture originals, which must be `image/*`. Profile pictures are
+unencrypted. Webhooks' files are the exception to client-direct uploads: they arrive in the
+webhook request and the server stores them (see Webhooks); bots' own limit is Discord's 25 MB.
+
+### Big files
+
+Since 2026-10-08 (the limit went from 100 MB to 500 MB), no file is ever whole in the page's
+memory, sending or saving, since a phone would run out:
+- **Sending** (`services/attachmentUpload.js`): every file is `v=2` (chunked, see Videos below),
+  encrypted a run of chunks at a time straight from the file (`chunkedAttachment.js`
+  `chunkedEncryptor`, `file.slice`). Up to 16 MB of ciphertext goes in one request as before;
+  more goes as an S3 multipart upload (`routes/uploads.js`): `POST /upload_file/multipart`
+  (`{ type, size }`, checked against the limit; at most 10 going per person) starts it and
+  registers the file like any upload; each part is 32 encrypted chunks (`PART_BYTES`, 8 MiB and
+  a bit, so the client encrypts part by part), its URL asked for just before it's sent
+  (`POST …/parts/:n`, signed for 5 minutes with its exact length, so the store refuses any
+  other); `POST …/complete` puts them together only once the store lists every part at its
+  length (`s3.js` `listUploadedParts`: the client never sends ETags, which media.voicaw.com's
+  CORS needn't expose); `DELETE` abandons it. The client sends three parts at a time and tries
+  a failed part twice more before abandoning the upload (no resuming after a reload: the user
+  chose that, as a browser can't reopen the file without it being picked again). Unfinished
+  uploads are kept in the server's memory (a restart fails those going on) and dropped by MinIO
+  after a day (its default `stale_uploads_expiry`). Checked against a real MinIO: a part of the
+  wrong length gets 403. A 300 MB send holds about 75 MB in the page (the parts in flight).
+- **Saving** (`services/attachmentSave.js`): a `v2` file from 32 MB is decrypted a chunk at a
+  time as it downloads (`chunkedAttachment.js` `decryptingStream`) and written as it comes:
+  in the Android app into Downloads (`utils/android.js` `saveToDownloads` takes a stream), in
+  the desktop app to where the Save dialog says (`electron/fileSave.js`, `desktop:save-*` IPC;
+  cancelling or a failure deletes the part written), in a browser by the service worker
+  (`mediaStreamWorker.js`), which answers a hidden frame opening `/__voicaw-media/<id>` (an id
+  whose meta has `download`) with the whole file as a `Content-Disposition: attachment`, so the
+  browser saves it with its own progress; the worker tells the page `voicaw-media-saving` (or
+  `-failed`) and since 2026-10-08 answers the ping `{ stream, download }` (older ones `true`, and
+  aren't asked to save). Without any of those, and for smaller or `v=1` files, it's the
+  whole-file way (`attachmentCache.js`), whose cache now also stops at 256 MB of files. A file box
+  shows "Downloading… n%" while the app is the one downloading.
+- **Huge images** (over 50 MB, `mediaDimensions.js` `MAX_INLINE_IMAGE_BYTES`) aren't decoded
+  when attached, so get no size or thumbnail, and are shown as a file to download.
+- Checked by `e2e/largeuploads.mjs` (120 MB in a DM; `LARGE_MB` for more).
 
 ## Deleting files
 
@@ -54,9 +93,11 @@ a file dragged in from outside the page covers the window with "Upload to <chat>
 (`FileDropOverlay.jsx`); drags that start in the page (an image from a message) and drags while
 an `aria-modal` dialog is open are left alone. The tray
 (`AttachmentTray.jsx`) previews drafts still referenced from the text. On send, each referenced
-draft is encrypted with its own AES-GCM key (`services/attachmentCrypto.js`), uploaded as
+draft is encrypted with its own AES-GCM key in 256 KiB chunks (`services/chunkedAttachment.js`,
+see Videos; every file since 2026-10-08, before then only videos, the rest `v=1`, one AES-GCM
+message, `services/attachmentCrypto.js`), uploaded as
 `application/octet-stream` (`services/attachmentUpload.js`; server names it `<uuid>.bin`), and its
-placeholder is replaced with `<fileUrl>#v=1&k=<key>&t=<mime>&s=<size>[&w=<px>&h=<px>][&p=<thumbnail>][&sp=1]` (image/video
+placeholder is replaced with `<fileUrl>#v=2&k=<key>&t=<mime>&s=<size>&n=<nonce>[&w=<px>&h=<px>][&d=<s>][&p=<thumbnail or poster>][&sp=1]` (image/video
 dimensions, read at attach time by `utils/mediaDimensions.js`, let the renderer reserve the final
 box before the file loads; `sp=1` marks a spoiler, see below). The fragment is never sent
 to S3 and the URL only exists inside the E2EE message. `Attachment.jsx` renders every markdown image:
@@ -88,8 +129,9 @@ the chat's 420×360 box at twice that, 840×720) also gets a smaller copy, made 
 attach time (`utils/mediaDimensions.js` `makeThumbnail`: drawn on a canvas, already turned the
 way its EXIF says, so the copy carries no EXIF; a JPEG, or a WebP when it has transparency, a
 PNG where the browser can't make WebPs). It's encrypted with the image's key, with additional
-data `voicaw/attachment-thumbnail/v1` so neither can pass for the other
-(`attachmentCrypto.js` `encryptAttachment` / `decryptThumbnail`), uploaded as its own
+data so neither can pass for the other (a `v=2` image's is sealed like a video's poster,
+`voicaw/attachment-poster/v2`; a `v=1` one's, from before 2026-10-08, `voicaw/attachment-thumbnail/v1`,
+`attachmentCrypto.js` `decryptThumbnail`), uploaded as its own
 `<uuid>.bin`, and named in the image's URL as `p=` (like a video's poster, so the upload
 registry and cleanup follow it with no change). The chat shows the copy, as does the viewer's
 thumbnail strip; the file itself downloads only when it's opened in the viewer, saved or copied
@@ -121,7 +163,9 @@ own additional data, so it can't pass for a chunk). Old `v=1` videos still play.
   store, allowed by media.voicaw.com's CORS) and passes the bytes on only as the player reads them
   (`highWaterMark: 0`), with a small cache of decrypted chunks. So a seek to the middle downloads
   nothing before it, and the browser's own buffering decides how far ahead it reads (Chrome:
-  ~6 MB at the start, then topping up as it plays). Needs a worker controlling the page that
+  ~6 MB at the start, then topping up as it plays). A read-ahead of our own was tried
+  (2026-10-08, 4 MB): it only added to Chrome's (11.7 MB read for 2 s of a 15.6 MB video), and
+  can't help a connection slower than the video, so it was dropped. Needs a worker controlling the page that
   answers `voicaw-media-ping`: not the desktop app, a first visit, or an older worker. There (and
   for `v=1`), Play downloads and decrypts the whole file first, with a progress figure. If
   streaming fails (the worker reports `voicaw-media-failed`, or never served it), the player

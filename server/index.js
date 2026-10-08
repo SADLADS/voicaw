@@ -2,7 +2,7 @@ const config = require('./config'); // first: loads .env and checks it
 const express = require('express');
 const cors = require('cors');
 const { clients, attachWebSocketServer } = require('./sockets');
-const { getSetting } = require('./appSettings');
+const { getSetting, uploadLimitBytes } = require('./appSettings');
 const { RENEWED_TOKEN_HEADER } = require('./auth');
 
 // The HTTP API (all under /api). Required by tests as-is; the port and the websocket server
@@ -43,6 +43,8 @@ app.get('/api/config', async (req, res) => {
     gifsEnabled: Boolean(await getSetting('klipyApiKey')),
     // Who can sign up (signups.js): 'open', 'invite' or 'request'. The sign-up form follows it.
     signupMode: await getSetting('signupMode'),
+    // The biggest attachment anyone may send (Settings → Admin's File size limit).
+    maxUploadBytes: await uploadLimitBytes(),
     // The terms of use registering accepts (terms.js).
     termsVersion: require('./terms').TERMS_VERSION,
   });

@@ -1,4 +1,8 @@
-const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand } = require("@aws-sdk/client-s3");
+const {
+    S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, CreateBucketCommand,
+    HeadBucketCommand, PutBucketPolicyCommand, CreateMultipartUploadCommand, UploadPartCommand, ListPartsCommand,
+    CompleteMultipartUploadCommand, AbortMultipartUploadCommand,
+} = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const s3 = new S3Client({
@@ -58,6 +62,62 @@ async function getUploadUrl(filename, bucket, contentType, contentLength) {
     });
 }
 
+// Multipart uploads (big attachments, routes/uploads.js): started here, each part put by the
+// client to its own pre-signed URL (its length signed in, as above), then put together here
+// from what the store says it holds. Returns the upload id.
+async function startMultipartUpload(bucket, key, contentType) {
+    const res = await s3.send(new CreateMultipartUploadCommand({ Bucket: bucket, Key: key, ContentType: contentType }));
+    return res.UploadId;
+}
+
+// A URL for part `partNumber` (from 1), which must be `contentLength` bytes. Longer-lived than
+// a whole upload's: parts are signed just before they're sent, but a slow phone sends three
+// at a time.
+async function getUploadPartUrl(bucket, key, uploadId, partNumber, contentLength) {
+    const command = new UploadPartCommand({
+        Bucket: bucket,
+        Key: key,
+        UploadId: uploadId,
+        PartNumber: partNumber,
+        ContentLength: contentLength,
+    });
+    return await getSignedUrl(s3, command, {
+        expiresIn: 300,
+        signableHeaders: new Set(["content-length"]),
+    });
+}
+
+// The parts the store has received: [{ PartNumber, Size, ETag }], in order.
+async function listUploadedParts(bucket, key, uploadId) {
+    const parts = [];
+    let marker;
+    do {
+        const res = await s3.send(new ListPartsCommand({ Bucket: bucket, Key: key, UploadId: uploadId, PartNumberMarker: marker }));
+        parts.push(...(res.Parts ?? []));
+        marker = res.IsTruncated ? res.NextPartNumberMarker : undefined;
+    } while (marker);
+    return parts.sort((a, b) => a.PartNumber - b.PartNumber);
+}
+
+async function completeMultipartUpload(bucket, key, uploadId, parts) {
+    await s3.send(new CompleteMultipartUploadCommand({
+        Bucket: bucket,
+        Key: key,
+        UploadId: uploadId,
+        MultipartUpload: { Parts: parts.map(({ PartNumber, ETag }) => ({ PartNumber, ETag })) },
+    }));
+}
+
+// Failures are logged, not thrown: the store drops unfinished uploads on its own after a day
+// (MinIO's stale_uploads_expiry).
+async function abortMultipartUpload(bucket, key, uploadId) {
+    try {
+        await s3.send(new AbortMultipartUploadCommand({ Bucket: bucket, Key: key, UploadId: uploadId }));
+    } catch (err) {
+        console.error("Failed to abort upload:", bucket, key, err.code || err.name);
+    }
+}
+
 // The buckets exist and are publicly readable (attachments are encrypted; profile pictures
 // and guild icons are public on purpose). If the object store is unreachable, log it rather than crash the
 // server: messaging works without it, and the next start tries again.
@@ -99,4 +159,7 @@ async function listTopLevelKeys(bucket) {
     return (res.Contents ?? []).map((object) => object.Key);
 }
 
-module.exports = { s3, getUploadUrl, getObject, putObject, deleteObject, listTopLevelKeys };
+module.exports = {
+    s3, getUploadUrl, getObject, putObject, deleteObject, listTopLevelKeys,
+    startMultipartUpload, getUploadPartUrl, listUploadedParts, completeMultipartUpload, abortMultipartUpload,
+};

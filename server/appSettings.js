@@ -41,7 +41,17 @@ const SETTINGS = {
     choices: ['60', '30', '15'],
     fallback: '60',
   },
+  // routes/uploads.js, in MB (uploadLimitBytes).
+  uploadLimit: {
+    label: 'File size limit',
+    description: "The biggest file anyone may attach, anywhere (DMs, group DMs, notes, guilds, documents, events). Files are kept until what shows them is deleted, so this is mostly about the object store's disk. Bots' files have their own limit (25 MB, as in Discord).",
+    choices: ['500', '250', '100', '50', '25'],
+    fallback: '500',
+  },
 };
+
+const MB = 1024 * 1024;
+const uploadLimitBytes = async () => Number(await getSetting('uploadLimit')) * MB;
 
 const MAX_VALUE_LENGTH = 2000;
 
@@ -116,4 +126,4 @@ async function describeSettings() {
   return out;
 }
 
-module.exports = { SETTINGS, MAX_VALUE_LENGTH, getSetting, setSetting, isValidValue, describeSettings };
+module.exports = { SETTINGS, MAX_VALUE_LENGTH, getSetting, setSetting, isValidValue, describeSettings, uploadLimitBytes };

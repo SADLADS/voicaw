@@ -46,8 +46,8 @@ vi.mock('../../voice/voiceClient', () => ({
   setSelfMute: vi.fn(),
   setSelfDeaf: vi.fn(),
 }));
-vi.mock('../../utils/mediaDimensions', () => ({ readMediaDimensions: vi.fn(async () => null) }));
-vi.mock('../../services/attachmentUpload', () => ({ uploadAttachment: vi.fn(), MAX_ATTACHMENT_BYTES: 1000 }));
+vi.mock('../../utils/mediaDimensions', () => ({ readMediaDimensions: vi.fn(async () => null), MAX_INLINE_IMAGE_BYTES: 50 * 1024 * 1024 }));
+vi.mock('../../services/attachmentUpload', () => ({ uploadAttachment: vi.fn(), maxAttachmentBytes: () => 1000, DEFAULT_MAX_UPLOAD_BYTES: 1000 }));
 
 // MessageList needs a real browser's layout; the tests look at what it's given.
 vi.mock('../MessageList', () => ({

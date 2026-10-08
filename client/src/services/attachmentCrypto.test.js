@@ -6,7 +6,6 @@ import {
   buildAttachmentUrl,
   parseAttachmentUrl,
   ENCRYPTION_OVERHEAD_BYTES,
-  isStreamable,
 } from './attachmentCrypto';
 
 describe('attachmentCrypto', () => {
@@ -148,11 +147,5 @@ describe('attachmentCrypto', () => {
     const meta = parseAttachmentUrl('https://s3.test/uploads/a.bin#v=2&k=K&s=1&n=NNNNNNNNNNNNNNNN&p=..%2Fprofile-pics%2Fx.bin');
     expect(meta.posterUrl).toBeNull();
     expect(parseAttachmentUrl('https://s3.test/uploads/a.bin#v=2&k=K&s=1&n=NNNNNNNNNNNNNNNN&p=https://evil.test/x.bin').posterUrl).toBeNull();
-  });
-
-  it('only streams videos', () => {
-    expect(isStreamable('video/mp4')).toBe(true);
-    expect(isStreamable('image/png')).toBe(false);
-    expect(isStreamable(undefined)).toBe(false);
   });
 });

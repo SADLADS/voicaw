@@ -331,6 +331,13 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   installs any update before opening (the user chose this over updating only in the background;
   "Start anyway" after 10 s), and the Windows installer is restyled to match (NSIS, since
   electron-updater doesn't do Squirrel).
+- **Big files** (built 2026-10-08, see Big files in `docs/uploads.md`): attachments up to
+  500 MB everywhere (was 100), Settings → Admin's File size limit (500/250/100/50/25 MB). No file
+  is ever whole in the page: every file is sent chunked (`v=2`, videos' format), encrypted part
+  by part as an S3 multipart upload (each request under nginx's 100M), and big ones are saved
+  as they're decrypted (service worker download, the desktop app's Save dialog, Android's
+  Downloads). The user chose: no resuming after a reload (failed parts retry while open), no
+  per-account storage quota for now. Bots keep Discord's 25 MB. No re-encoding of videos.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

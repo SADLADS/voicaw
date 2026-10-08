@@ -74,11 +74,13 @@ vi.mock('../services/encryptionService', () => {
 
 vi.mock('../utils/mediaDimensions', () => ({
   readMediaDimensions: vi.fn(async () => null),
+  MAX_INLINE_IMAGE_BYTES: 50 * 1024 * 1024,
 }));
 
 vi.mock('../services/attachmentUpload', () => ({
   uploadAttachment: vi.fn(),
-  MAX_ATTACHMENT_BYTES: 1000,
+  maxAttachmentBytes: () => 1000,
+  DEFAULT_MAX_UPLOAD_BYTES: 1000,
 }));
 
 vi.mock('../services/keyStore', () => ({

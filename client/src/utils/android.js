@@ -84,17 +84,36 @@ function toBase64(bytes) {
   return btoa(binary);
 }
 
-// Saves `blob` to the phone's Downloads folder as `name` (VoicawPlugin `saveFile*`): the WebView
-// ignores <a download>, and only the page can read its blob: URLs. With `open`, then opens it
-// in the app that handles its type. Resolves { opened }.
-export async function saveToDownloads(blob, name, { open = false } = {}, plugin = android) {
-  const { id } = await plugin.saveFileStart({ name, type: blob.type || '' });
+// Saves `source` to the phone's Downloads folder as `name` (VoicawPlugin `saveFile*`): the
+// WebView ignores <a download>, and only the page can read its blob: URLs. `source` is a Blob,
+// or a ReadableStream of Uint8Arrays (a big file decrypted as it downloads, never whole; then
+// `type` is its type). With `open`, then opens it in the app that handles its type. Resolves
+// { opened }.
+export async function saveToDownloads(source, name, { open = false, type = '' } = {}, plugin = android) {
+  const stream = source instanceof Blob ? source.stream() : source;
+  const { id } = await plugin.saveFileStart({ name, type: (source instanceof Blob ? source.type : type) || '' });
+  const reader = stream.getReader();
   try {
-    for (let at = 0; at < blob.size; at += SAVE_CHUNK) {
-      const bytes = new Uint8Array(await blob.slice(at, at + SAVE_CHUNK).arrayBuffer());
-      await plugin.saveFileAppend({ id, data: toBase64(bytes) });
+    // Sent SAVE_CHUNK at a time, whatever size the stream's pieces are.
+    const pending = new Uint8Array(SAVE_CHUNK);
+    let filled = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      for (let at = 0; at < value.length;) {
+        const take = Math.min(SAVE_CHUNK - filled, value.length - at);
+        pending.set(value.subarray(at, at + take), filled);
+        filled += take;
+        at += take;
+        if (filled === SAVE_CHUNK) {
+          await plugin.saveFileAppend({ id, data: toBase64(pending) });
+          filled = 0;
+        }
+      }
     }
+    if (filled) await plugin.saveFileAppend({ id, data: toBase64(pending.subarray(0, filled)) });
   } catch (err) {
+    reader.cancel(err).catch(() => {});
     plugin.saveFileCancel({ id }).catch(() => {});
     throw err;
   }

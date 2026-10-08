@@ -7,7 +7,14 @@
 //
 // The key never goes into a URL: the worker asks the page that plays the video for it (by
 // id), and keeps it in memory, which the browser clears whenever the worker stops.
-import { CHUNK_SIZE, encryptedRange, decryptChunks, importChunkKey } from './chunkedAttachment';
+//
+// It also saves files (v2, any type) without the page holding them: the page opens
+// /__voicaw-media/<id> in a hidden frame for an id whose meta has `download` (the file's name),
+// and the worker answers with the whole file, downloaded and decrypted a chunk at a time, as an
+// attachment, so the browser saves it as it arrives (attachmentSave.js).
+import {
+  CHUNK_SIZE, encryptedRange, decryptChunks, importChunkKey, decryptingStream, encryptedSize,
+} from './chunkedAttachment';
 
 export const MEDIA_PATH = '/__voicaw-media/';
 export const MEDIA_META = 'voicaw-media-meta';
@@ -15,6 +22,8 @@ export const MEDIA_PING = 'voicaw-media-ping';
 // To the page: streaming this id failed (a download or a chunk that didn't decrypt), so it
 // can fall back to downloading the whole file, rather than blaming the video's format.
 export const MEDIA_FAILED = 'voicaw-media-failed';
+// To the page: a download (meta with `download`) has begun, so the browser is saving it.
+export const MEDIA_SAVING = 'voicaw-media-saving';
 
 // Chunks fetched per request: few at first (a quick start, also after a seek), then more.
 const FIRST_BATCH = 2;
@@ -81,11 +90,13 @@ export function parseRange(header, size) {
   return start > end || start >= size ? 'invalid' : [start, end];
 }
 
-async function reportFailure(clientId, id) {
+async function tellClients(clientId, message) {
   const client = clientId ? await self.clients.get(clientId) : null;
   const targets = client ? [client] : await self.clients.matchAll({ type: 'window' });
-  targets.forEach((c) => c.postMessage({ type: MEDIA_FAILED, id }));
+  targets.forEach((c) => c.postMessage(message));
 }
+
+const reportFailure = (clientId, id) => tellClients(clientId, { type: MEDIA_FAILED, id });
 
 // Recently decrypted chunks, per video: players re-read (the start again after reading the
 // index at the end, a little before a seek point), and those needn't be downloaded twice.
@@ -96,7 +107,9 @@ function remember(entry, index, plain) {
 }
 
 // The plaintext bytes [start, end] of a video, fetched and decrypted only as the player reads
-// them (no read-ahead of our own: the player's buffering decides).
+// them (no read-ahead of our own: the player's buffering decides. Tried 2026-10-08: 4 MB more
+// ahead only added to what Chrome already buffers, 11.7 MB read for 2 s of a 15.6 MB video
+// rather than about 6 MB).
 function plaintextStream(entry, start, end, onFailure) {
   const { meta, key } = entry;
   const abort = new AbortController();
@@ -159,6 +172,32 @@ function plaintextStream(entry, start, end, onFailure) {
   }
 }
 
+// `name` as a Content-Disposition attachment (RFC 6266: an ASCII fallback, then UTF-8).
+export function attachmentDisposition(name) {
+  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, '_');
+  const encoded = encodeURIComponent(name).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
+
+// The whole file, decrypted as it downloads, to be saved as `meta.download`.
+async function respondWithDownload(event, id, entry) {
+  const { meta, key } = entry;
+  const res = await fetch(meta.fileUrl).catch(() => null);
+  if (!res?.ok || !res.body || Number(res.headers.get('Content-Length') ?? encryptedSize(meta.size)) !== encryptedSize(meta.size)) {
+    reportFailure(event.clientId, id);
+    return new Response(null, { status: 502 });
+  }
+  tellClients(event.clientId, { type: MEDIA_SAVING, id });
+  return new Response(res.body.pipeThrough(decryptingStream(key, meta.nonce, meta.size)), {
+    headers: {
+      'Content-Type': meta.type || 'application/octet-stream',
+      'Content-Length': String(meta.size),
+      'Content-Disposition': attachmentDisposition(meta.download),
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
 async function respond(event) {
   const id = new URL(event.request.url).pathname.slice(MEDIA_PATH.length);
   let entry;
@@ -168,6 +207,7 @@ async function respond(event) {
     reportFailure(event.clientId, id);
     return new Response(null, { status: 404 });
   }
+  if (entry.meta.download) return respondWithDownload(event, id, entry);
   const { size, type } = entry.meta;
   const range = parseRange(event.request.headers.get('Range'), size);
   if (range === 'invalid') {

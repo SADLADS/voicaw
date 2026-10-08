@@ -38,6 +38,15 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
     // A linked page for a link preview in an encrypted chat (electron/pageFetch.js):
     // { status, url, contentType, html } or null.
     fetchPage: (url) => ipcRenderer.invoke('desktop:fetch-page', String(url)),
+    // Saving a file a piece at a time (electron/fileSave.js): start(name) asks where (resolves
+    // to an id, or null if cancelled), then append(id, Uint8Array) each piece, then finish(id),
+    // or cancel(id) to delete what was written.
+    saveFile: {
+        start: (name) => ipcRenderer.invoke('desktop:save-start', String(name)),
+        append: (id, bytes) => ipcRenderer.invoke('desktop:save-append', id, bytes),
+        finish: (id) => ipcRenderer.invoke('desktop:save-finish', id),
+        cancel: (id) => ipcRenderer.invoke('desktop:save-cancel', id),
+    },
     onNavigate: listen('desktop:navigate'),
     onShortcut: listen('desktop:shortcut'),
     onUpdateReady: listen('desktop:update-ready'),

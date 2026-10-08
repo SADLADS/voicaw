@@ -1,4 +1,6 @@
-import { signedUploads } from './helpers/mockS3.js';
+import {
+  signedUploads, signedParts, multipartUploads, putMockPart, abortedUploads, objects,
+} from './helpers/mockS3.js';
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { registerUser, loginUser } from './helpers/authFlow.js';
@@ -69,7 +71,7 @@ describe('upload URL routes', () => {
     expect(signedUploads.at(-1)).toMatchObject({ bucket: 'uploads', contentType: 'application/octet-stream', contentLength: 12345 });
   });
 
-  it('refuses attachment uploads without a size or over 100MB', async () => {
+  it('refuses single attachment uploads without a size or over 100MB', async () => {
     const get = (query) => request(app).get('/api/upload_file').query(query).set(authed());
     expect((await get({ type: 'application/octet-stream' })).status).toBe(400);
     expect((await get({ type: 'application/octet-stream', size: 0 })).status).toBe(400);
@@ -77,5 +79,101 @@ describe('upload URL routes', () => {
     expect((await get({ type: 'application/octet-stream', size: 100 * MB + 1 })).status).toBe(413);
     expect((await get({ type: 'application/octet-stream', size: 100 * MB })).status).toBe(201);
     expect((await get({ size: 10 })).status).toBe(400);
+  });
+});
+
+describe('multipart attachment uploads', () => {
+  const MB = 1024 * 1024;
+  const db = require('../db.js');
+  const { PART_BYTES } = require('../routes/uploads.js');
+  let user;
+  let admin;
+  let other;
+  const as = (who) => ({ Authorization: `Bearer ${who.token}` });
+  const start = (who, body) => request(app).post('/api/upload_file/multipart').set(as(who)).send(body);
+  const partUrl = (who, name, n) => request(app).post(`/api/upload_file/multipart/${name}/parts/${n}`).set(as(who));
+  const complete = (who, name) => request(app).post(`/api/upload_file/multipart/${name}/complete`).set(as(who));
+  const setLimit = (value) => request(app).put('/api/admin/settings/uploadLimit').set(as(admin)).send({ value });
+
+  async function makeUser(username, { isAdmin = false } = {}) {
+    const { response } = await registerUser(app, request, username, 'multipart-pw');
+    if (isAdmin) await db.run('UPDATE users SET is_admin = 1 WHERE id = ?', [response.body.id]);
+    return { id: response.body.id, token: (await loginUser(app, request, username, 'multipart-pw')).response.body.token };
+  }
+
+  it('starts an upload in parts, signs each part at its length and puts them together', async () => {
+    user = await makeUser('multipart1');
+    other = await makeUser('multipart2');
+    admin = await makeUser('multipart-admin', { isAdmin: true });
+    const size = 2 * PART_BYTES + 1234;
+
+    const started = await start(user, { type: 'application/octet-stream', size });
+    expect(started.status).toBe(201);
+    expect(started.body).toMatchObject({ partSize: PART_BYTES, partCount: 3 });
+    expect(started.body.fileUrl).toMatch(/\/uploads\/[0-9a-f-]{36}\.bin$/);
+    const { name } = started.body;
+    expect(await db.get('SELECT user_id FROM uploads WHERE key = ?', [name])).toEqual({ user_id: user.id });
+    const [uploadId] = [...multipartUploads.keys()].filter((id) => multipartUploads.get(id).key === name);
+
+    for (const n of [1, 2, 3]) expect((await partUrl(user, name, n)).status).toBe(200);
+    expect(signedParts.slice(-3).map((p) => p.contentLength)).toEqual([PART_BYTES, PART_BYTES, 1234]);
+    expect((await partUrl(user, name, 4)).status).toBe(400);
+    expect((await partUrl(user, name, 0)).status).toBe(400);
+    // Someone else's upload doesn't exist for them.
+    expect((await partUrl(other, name, 1)).status).toBe(404);
+    expect((await complete(other, name)).status).toBe(404);
+
+    // Not until every part is there, at its length.
+    putMockPart(uploadId, 1, PART_BYTES);
+    putMockPart(uploadId, 3, 1234);
+    expect((await complete(user, name)).status).toBe(409);
+    putMockPart(uploadId, 2, PART_BYTES - 1);
+    expect((await complete(user, name)).status).toBe(409);
+    putMockPart(uploadId, 2, PART_BYTES);
+    const done = await complete(user, name);
+    expect(done.status).toBe(200);
+    expect(done.body.fileUrl).toBe(started.body.fileUrl);
+    expect(objects.get(`uploads/${name}`).size).toBe(size);
+    // Finished: no more parts.
+    expect((await partUrl(user, name, 1)).status).toBe(404);
+  });
+
+  it('abandons an upload', async () => {
+    const { name } = (await start(user, { type: 'application/octet-stream', size: 20 * MB })).body;
+    expect((await request(app).delete(`/api/upload_file/multipart/${name}`).set(as(other))).status).toBe(404);
+    expect((await request(app).delete(`/api/upload_file/multipart/${name}`).set(as(user))).status).toBe(204);
+    expect(abortedUploads.at(-1).key).toBe(name);
+    expect((await complete(user, name)).status).toBe(404);
+  });
+
+  it("follows the admin's file size limit, 500MB by default", async () => {
+    const config = async () => (await request(app).get('/api/config')).body.maxUploadBytes;
+    expect(await config()).toBe(500 * MB);
+    expect((await start(user, { type: 'application/octet-stream', size: 500 * MB + 1 })).status).toBe(413);
+    expect((await start(user, { type: 'application/octet-stream', size: 500 * MB })).status).toBe(201);
+    expect((await start(user, { type: 'application/octet-stream' })).status).toBe(400);
+    expect((await start(user, { size: 10 })).status).toBe(400);
+
+    expect((await setLimit('300')).status).toBe(400);
+    expect((await setLimit('50')).status).toBe(200);
+    try {
+      expect(await config()).toBe(50 * MB);
+      expect((await start(user, { type: 'application/octet-stream', size: 50 * MB + 1 })).status).toBe(413);
+      // Single uploads too.
+      const single = (size) => request(app).get('/api/upload_file').query({ type: 'application/octet-stream', size }).set(as(user));
+      expect((await single(50 * MB + 1)).status).toBe(413);
+      expect((await single(50 * MB)).status).toBe(201);
+    } finally {
+      await setLimit(null);
+    }
+  });
+
+  it('limits how many uploads one person has going', async () => {
+    const someone = await makeUser('multipart3');
+    for (let i = 0; i < 10; i++) {
+      expect((await start(someone, { type: 'application/octet-stream', size: MB })).status).toBe(201);
+    }
+    expect((await start(someone, { type: 'application/octet-stream', size: MB })).status).toBe(429);
+    expect((await start(user, { type: 'application/octet-stream', size: MB })).status).toBe(201);
   });
 });
