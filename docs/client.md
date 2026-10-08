@@ -59,7 +59,10 @@
   `unreadFrom`) shows the picture of whoever sent the newest unread DM or group message
   (`utils/latestUnread.js`: `/dm-get-unread`'s `last_timestamp`, a group's
   `last_unread_sender_id` / `last_unread_timestamp`; muted ones and the open group left out),
-  and its usual icon when nothing's unread. `SidebarWrapper` puts the sidebars in a
+  and its usual icon when nothing's unread. Clicking the DM button while on a DM page, or the
+  open guild's icon, does nothing (as in Discord): following the link went to bare `/dm` or
+  `/guild/:id`, which showed an empty page for a moment before redirecting (`e2e/samepage.mjs`).
+  `SidebarWrapper` puts the sidebars in a
   row with `UserPanel` across the bottom: your picture, name, this device's connection state
   (`ws-client` `getConnectionState`/`onConnectionState`: online / connecting / offline) and the
   settings button. Clicking the picture and name opens `UserMenu` above it: your picture, name
