@@ -229,11 +229,26 @@
     display: none;
 }
 
-/* The corner players: top right under the header, clear of the message box. */
-.mobile-mode .corner-players {
+/* The corner players (top right under the header, clear of the message box, until dragged
+   elsewhere): closer to the edges. */
+.mobile-mode .corner-players.at-top-left,
+.mobile-mode .corner-players.at-top-right {
     top: calc(var(--vc-header-height) + 8px + env(safe-area-inset-top));
+}
+
+.mobile-mode .corner-players.at-bottom-left,
+.mobile-mode .corner-players.at-bottom-right {
+    bottom: calc(8px + env(safe-area-inset-bottom));
+}
+
+.mobile-mode .corner-players.at-top-left,
+.mobile-mode .corner-players.at-bottom-left {
+    left: 8px;
+}
+
+.mobile-mode .corner-players.at-top-right,
+.mobile-mode .corner-players.at-bottom-right {
     right: 8px;
-    bottom: auto;
 }
 
 .mobile-mode .watch-party-player.mini,

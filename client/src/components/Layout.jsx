@@ -10,6 +10,7 @@ import VoiceBar from './voice/VoiceBar';
 import StreamCorner from './voice/StreamCorner';
 import StreamPopout from './voice/StreamPopout';
 import { useStreamOnPage } from '../hooks/useStreamOnPage';
+import { useCornerDrag } from '../hooks/useCornerDrag';
 import WatchPartyPlayer from './voice/WatchPartyPlayer';
 import IncomingCall from './call/IncomingCall';
 import BotModal from './BotModal';
@@ -79,6 +80,12 @@ export default function Layout({ user, onLogout }) {
   const contentPaneRef = useRef(null);
   const scrimRef = useRef(null);
   useSwipePanes({ enabled: slidey, wrapperRef, listRef: listPaneRef, contentRef: contentPaneRef, scrimRef });
+
+  // The corner players, dragged to any corner (bottom right, on a phone top right, until then).
+  // While a page shows a stream, a bottom corner moves to the top on the same side, clear of
+  // the stream's bar and the call's buttons.
+  const pip = useCornerDrag(isMobile ? 'top-right' : 'bottom-right', contentPaneRef);
+  const pipCorner = streamOnPage ? pip.corner.replace('bottom', 'top') : pip.corner;
 
   // Leaving (or being removed from) the guild on screen goes back to the DMs.
   const onGuildRemoved = useCallback((removedId) => {
@@ -304,9 +311,12 @@ export default function Layout({ user, onLogout }) {
         <StreamPopout />
         {/* Small players in a corner, on every page: a watched stream no page shows, above
             Watch Together's player while you're in a channel watching (which sits over the
-            channel page's slot instead while that's on screen). Top right while a page shows a
-            stream, so they don't cover its bar or the page's buttons under it. */}
-        <div className={`corner-players${streamOnPage ? ' top' : ''}`}>
+            channel page's slot instead while that's on screen). Dragged to any corner. */}
+        <div
+          ref={pip.ref}
+          className={`corner-players at-${pipCorner}${pip.dragging ? ' dragging' : ''}`}
+          onPointerDown={pip.onPointerDown}
+        >
           <StreamCorner />
           <WatchPartyPlayer />
         </div>
