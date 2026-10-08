@@ -324,6 +324,11 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   a text channel the guild picks (off by default), plain "X joined the guild.", and leaves too
   if the guild ticks it. Kicks and bans read "left" like leaving, so the channel doesn't show
   moderation (the audit log does). Bots see it as `system_channel_id` (read only) and type 7.
+- **Desktop splash and installer** (built 2026-10-08, see Splash window and Windows installer in
+  `docs/desktop-and-site.md`): Discord-like, not a copy. The app starts in a splash window that
+  installs any update before opening (the user chose this over updating only in the background;
+  "Start anyway" after 10 s), and the Windows installer is restyled to match (NSIS, since
+  electron-updater doesn't do Squirrel).
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

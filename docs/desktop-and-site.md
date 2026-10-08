@@ -74,8 +74,29 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   global shortcuts for toggle mute / toggle deafen (`shortcuts.js`, `globalShortcut`; recorded
   from a key press with a modifier, `acceleratorFromEvent`; a key another app holds is
   reported).
+- **Splash window** (`splash.js`, `assets/splash.html`, `splashPreload.js`; built 2026-10-08, as
+  Discord's): a small frameless window (square on Linux, which has no transparent windows without
+  a compositor) with the bird in a ring, shown while the app starts. It looks for an update
+  (`updater.js` `launch`, up to 5 s; offline or slow, the app just opens) and, if there is one,
+  downloads it with the ring filling and restarts onto it before the app opens (decided the same
+  day: everyone starts on the latest version, page included). After 10 s of downloading it
+  offers "Start anyway" (the download carries on and the page offers it once ready; the main
+  window re-announces a ready update when its page loads). Then "Starting" until the main
+  window is on screen. Started at login (`--hidden`), there's no splash: the app opens to the
+  tray and updates in the background as below. `e2e/desktopsplash.mjs` draws each state and
+  starts the real app under Xvfb.
+- **Windows installer** (`installer/installer.nsh`, electron-builder's `nsis.include`): the
+  one-click installer shows a borderless window like the splash instead of electron-builder's grey
+  box: `installer/splash.bmp` / `splash@2x.bmp` (drawn from the splash page by
+  `installer/render-art.mjs`: rerun it after changing the splash's look), "Installing Voicaw" or
+  "Installing update" (an update runs the same installer) and a flat purple progress bar. It's
+  DPI aware, taking the 2x art from 150%. It hooks electron-builder's template: the install
+  page's show function restyles NSIS's window, and `customCheckAppRunning` (run just after the
+  template's `SpiderBanner::Show`, which shrinks the window into its own box) puts it back, then
+  runs the template's own running-app check. Check it after upgrading electron-builder: README
+  "Desktop app" (trying the installer under wine).
 - **Updates** (`updater.js`, electron-updater): the installed app looks for a new version at
-  start and every 4 hours on the generic feed in `builder.config.js` (`https://updates.voicaw.com/desktop/`: its own static
+  start (the splash, above) and every 4 hours on the generic feed in `builder.config.js` (`https://updates.voicaw.com/desktop/`: its own static
   site, `/opt/voicaw-updates`, nginx config in `updates/nginx/`, a download page from
   `updates/site/`, filled by `node updates/publish.mjs`; README "Desktop app"), downloads it, and the page offers "Update now" (UpdateBanner,
   Settings → App version, which also shows the app's version); that restarts onto it. It keeps

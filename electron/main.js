@@ -2,6 +2,7 @@
 // protocol.js), plus what a browser tab can't do: notifications without web push, a tray
 // icon with the unread count, closing to the tray, starting at login, global mute/deafen
 // shortcuts, a screen picker for screen sharing and updating itself. The page reaches these through preload.js.
+// It starts with a splash window (splash.js) that installs any update before the app opens.
 // (Its only other window is a popped-out screen share, which the page draws itself; windowOpen.js.)
 const path = require('path');
 const { app, BrowserWindow, Menu, desktopCapturer, globalShortcut, ipcMain, net, protocol, screen, session, shell } = require('electron');
@@ -12,6 +13,7 @@ const { createTray } = require('./tray');
 const { createNotifier } = require('./notifications');
 const { applyShortcuts } = require('./shortcuts');
 const { createUpdater } = require('./updater');
+const { createSplash } = require('./splash');
 const { setStartAtLogin, startedHidden } = require('./autoStart');
 const { createScreenShare } = require('./screenShare');
 const { windowOpenAction, streamWindowPermission } = require('./windowOpen');
@@ -19,6 +21,7 @@ const { setUpYouTubeReferer } = require('./youtube');
 const { fetchPage } = require('./pageFetch');
 
 const APP_ID = 'com.voicaw.app';
+const ICON = path.join(__dirname, 'assets', 'icon.png');
 const BUILD_DIR = app.isPackaged ? path.join(process.resourcesPath, 'app') : path.join(__dirname, '../build');
 // Only the app's own pages get these (microphone, notifications, copying, full screen video,
 // and screen capture, which only ever gets what the person picked in our picker).
@@ -27,6 +30,7 @@ const ALLOWED_PERMISSIONS = new Set(['media', 'notifications', 'clipboard-saniti
 registerScheme(protocol);
 
 let win = null;
+let splash = null; // while the app starts
 // The popped-out screen share's window (windowOpen.js), while it's open.
 const streamWindows = new WeakSet();
 let quitting = false;
@@ -48,7 +52,10 @@ if (!app.requestSingleInstanceLock()) {
 const fromApp = (event) => (event.senderFrame?.url ?? '').startsWith(`${ORIGIN}/`);
 
 function showWindow() {
-    if (!win) return;
+    if (!win) {
+        splash?.window.focus();
+        return;
+    }
     if (win.isMinimized()) win.restore();
     win.show();
     win.focus();
@@ -75,9 +82,10 @@ function rememberBounds() {
     settings.setWindow({ ...(maximized ? settings.get().window : win.getBounds()), maximized });
 }
 
-function createWindow(hidden) {
+// `onShown`: once it's on screen (or would be, when hidden).
+function createWindow(hidden, onShown = () => {}) {
     win = new BrowserWindow({
-        icon: path.join(__dirname, 'assets', 'icon.png'),
+        icon: ICON,
         width: 1200,
         height: 800,
         minWidth: 480,
@@ -105,11 +113,19 @@ function createWindow(hidden) {
         win.removeMenu();
     }
 
-    win.once('ready-to-show', () => { if (!hidden) win.show(); });
+    win.once('ready-to-show', () => {
+        if (!hidden) win.show();
+        onShown();
+    });
+    // An update that finished downloading before the page was there to hear it (or before a reload).
+    win.webContents.on('did-finish-load', () => {
+        const version = updater.readyVersion();
+        if (version) win.webContents.send('desktop:update-ready', version);
+    });
 
     // Links to other sites open in the browser; the window only ever shows the app, and the
     // one window it may open is a popped-out screen share (windowOpen.js).
-    const icon = path.join(__dirname, 'assets', 'icon.png');
+    const icon = ICON;
     win.webContents.setWindowOpenHandler((details) => windowOpenAction(details, { icon, openExternal: (url) => shell.openExternal(url) }));
     win.webContents.on('did-create-window', (child) => {
         child.removeMenu();
@@ -215,15 +231,21 @@ function start() {
     updater = createUpdater({
         app,
         onReady: (version) => win?.webContents.send('desktop:update-ready', version),
-        onProgress: (fraction) => win?.webContents.send('desktop:update-progress', fraction),
+        onProgress: (fraction) => {
+            splash?.progress(fraction);
+            win?.webContents.send('desktop:update-progress', fraction);
+        },
     });
     setUpIpc();
     // Keeps the login item current (e.g. after the AppImage moved).
     if (settings.get().startAtLogin) setStartAtLogin(app, true);
 
-    createWindow(startedHidden(app));
-    applyDesktopShortcuts();
-    updater.start();
+    if (startedHidden(app)) {
+        openApp(true);
+        updater.start();
+    } else {
+        startWithSplash();
+    }
 
     app.on('activate', showWindow); // macOS: clicking the dock icon
     app.on('before-quit', () => {
@@ -231,6 +253,29 @@ function start() {
         rememberBounds();
     });
     app.on('will-quit', () => globalShortcut.unregisterAll());
+}
+
+function openApp(hidden, onShown) {
+    createWindow(hidden, onShown);
+    applyDesktopShortcuts();
+}
+
+// The splash looks for an update and installs it (the app restarts onto it), or opens the app,
+// staying up until the main window is on screen. Closing it quits.
+function startWithSplash() {
+    let launch = null;
+    splash = createSplash({ icon: ICON, onStartAnyway: () => launch?.startAnyway() });
+    splash.window.on('closed', () => { splash = null; });
+    launch = updater.launch({
+        onStatus: (status) => splash?.status(status),
+        beforeQuit: () => { quitting = true; },
+    });
+    launch.result.then((outcome) => {
+        if (outcome === 'installing' || quitting) return;
+        splash?.status(null); // starting
+        openApp(false, () => splash?.close());
+        updater.start({ lookNow: false });
+    });
 }
 
 app.on('window-all-closed', () => {

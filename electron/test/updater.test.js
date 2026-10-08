@@ -4,6 +4,7 @@ import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
 const { createUpdater } = require('../updater.js');
+const { splashView } = require('../splash.js');
 
 // A stand-in for electron-updater's autoUpdater: `latest` is what the feed says, `cached` the
 // version already downloaded. Downloads finish when the test says (`finishDownload`).
@@ -115,5 +116,77 @@ describe('desktop updates (updater.js)', () => {
         autoUpdater.emit('error', new Error('offline'));
         expect(await installing).toBe(false);
         expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+    });
+
+    describe('at launch (the splash)', () => {
+        it('opens the app when there is nothing new', async () => {
+            const onStatus = vi.fn();
+            const launch = updater.launch({ onStatus });
+            expect(await launch.result).toBe('start');
+            expect(onStatus).toHaveBeenCalledWith({ state: 'checking' });
+            expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+        });
+
+        it('opens the app at once in a development run', async () => {
+            const dev = createUpdater({ app: { isPackaged: false }, onReady, autoUpdater });
+            expect(await dev.launch().result).toBe('start');
+            expect(autoUpdater.checkForUpdates).not.toHaveBeenCalled();
+        });
+
+        it('downloads an update and restarts onto it before opening', async () => {
+            autoUpdater.latest = '1.1.0';
+            const onStatus = vi.fn();
+            const beforeQuit = vi.fn();
+            const launch = updater.launch({ onStatus, beforeQuit });
+            await vi.advanceTimersByTimeAsync(0);
+            expect(onStatus).toHaveBeenLastCalledWith({ state: 'downloading', version: '1.1.0' });
+            expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+
+            autoUpdater.finishDownload();
+            expect(await launch.result).toBe('installing');
+            expect(onStatus).toHaveBeenLastCalledWith({ state: 'installing', version: '1.1.0' });
+            expect(beforeQuit).toHaveBeenCalled();
+            expect(autoUpdater.quitAndInstall).toHaveBeenCalledTimes(1);
+        });
+
+        it("opens the app when the look doesn't answer in time", async () => {
+            autoUpdater.checkForUpdates.mockImplementation(() => new Promise(() => {}));
+            const launch = updater.launch();
+            await vi.advanceTimersByTimeAsync(5000);
+            expect(await launch.result).toBe('start');
+        });
+
+        it('opens the app when the download fails', async () => {
+            autoUpdater.latest = '1.1.0';
+            const launch = updater.launch();
+            await vi.advanceTimersByTimeAsync(0);
+            autoUpdater.emit('error', new Error('offline'));
+            expect(await launch.result).toBe('start');
+            expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+        });
+
+        it('"Start anyway" opens the app, and the page is offered the update later', async () => {
+            autoUpdater.latest = '1.1.0';
+            const launch = updater.launch();
+            await vi.advanceTimersByTimeAsync(0);
+            launch.startAnyway();
+            expect(await launch.result).toBe('start');
+
+            autoUpdater.finishDownload();
+            await vi.advanceTimersByTimeAsync(0);
+            expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+            expect(onReady).toHaveBeenCalledWith('1.1.0');
+            expect(updater.readyVersion()).toBe('1.1.0');
+        });
+    });
+});
+
+describe('the splash window (splash.js)', () => {
+    it('says what the launch is doing', () => {
+        expect(splashView({ state: 'checking' })).toEqual({ ring: 'spin', text: 'Checking for updates' });
+        expect(splashView({ state: 'downloading', version: '1.2.0' }))
+            .toEqual({ ring: 'progress', text: 'Downloading update', detail: 'Version 1.2.0' });
+        expect(splashView({ state: 'installing', version: '1.2.0' }).text).toBe('Installing update');
+        expect(splashView(null)).toEqual({ ring: 'spin', text: 'Starting' });
     });
 });

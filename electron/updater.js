@@ -8,10 +8,17 @@
 // noticed. electron-updater keeps only one download, so while a newer one downloads there's
 // nothing to install yet: "Update now" waits for it (the page shows its progress).
 //
+// At launch (`launch`, the splash window), it looks first and, if there's an update, downloads
+// it and restarts onto it before the app opens, as Discord does.
+//
 // A development run, or a package it can't update in place, reports 'unsupported'.
 const CHECK_EVERY_MS = 4 * 60 * 60 * 1000;
 // How long "Update now" waits for its last look before installing what it has.
 const LAST_LOOK_MS = 5000;
+// How long the launch waits for its look (offline or a slow server: open the app anyway).
+const LAUNCH_LOOK_MS = 5000;
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // `autoUpdater` is for tests (electron-updater's otherwise).
 function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater }) {
@@ -22,6 +29,7 @@ function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater }) {
     let download = null; // settles when the running download ends
     let endDownload = () => {};
     let installing = false;
+    let onLaunchStatus = null; // the splash's, while the launch runs
 
     if (app.isPackaged) {
         try {
@@ -35,6 +43,7 @@ function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater }) {
                 // replaces it (electron-updater empties its cache first).
                 if (info.version !== readyVersion) readyVersion = null;
                 if (!download) download = new Promise((resolve) => { endDownload = resolve; });
+                onLaunchStatus?.({ state: 'downloading', version: info.version });
             });
             updater.on('update-not-available', () => { state = 'current'; });
             updater.on('download-progress', (progress) => onProgress(progress.percent / 100));
@@ -79,9 +88,10 @@ function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater }) {
         return { downloading: 'downloading', error: 'error' }[state] ?? 'current';
     }
 
-    function start() {
+    // `lookNow` false: the launch has just looked.
+    function start({ lookNow = true } = {}) {
         if (!updater) return;
-        check();
+        if (lookNow) check();
         setInterval(() => { if (!installing) check(); }, CHECK_EVERY_MS);
     }
 
@@ -105,7 +115,35 @@ function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater }) {
         }
     }
 
-    return { check, install, start };
+    // The launch: looks (for up to LAUNCH_LOOK_MS) and downloads any update, telling `onStatus`
+    // ({ state: 'checking' | 'downloading' | 'installing', version }; progress goes to
+    // onProgress), then restarts onto it. `result` resolves to 'installing', or to 'start' to
+    // open the app: nothing new, no answer in time, a failed download, or `startAnyway()`
+    // (the download carries on and the page offers it once it's ready).
+    function launch({ onStatus = () => {}, beforeQuit = () => {} } = {}) {
+        let startAnyway = () => {};
+        const skipped = new Promise((resolve) => { startAnyway = () => resolve('start'); });
+        async function run() {
+            if (!updater) return 'start';
+            onStatus({ state: 'checking' });
+            await Promise.race([look(), wait(LAUNCH_LOOK_MS)]);
+            while (download) await download;
+            return readyVersion ? 'install' : 'start';
+        }
+        onLaunchStatus = onStatus;
+        const result = Promise.race([run(), skipped]).then((outcome) => {
+            onLaunchStatus = null;
+            if (outcome !== 'install' || installing) return 'start';
+            installing = true;
+            onStatus({ state: 'installing', version: readyVersion });
+            beforeQuit();
+            updater.quitAndInstall();
+            return 'installing';
+        });
+        return { result, startAnyway: () => startAnyway() };
+    }
+
+    return { check, install, start, launch, readyVersion: () => readyVersion };
 }
 
 module.exports = { createUpdater };
