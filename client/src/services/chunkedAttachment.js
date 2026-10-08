@@ -1,8 +1,9 @@
-// Attachments that can be read in parts (v2, used for videos): the file is encrypted in
-// CHUNK_SIZE pieces, each its own AES-GCM message, so any byte range can be fetched, checked
-// and decrypted without the rest. That lets a video start (or jump to the middle) without
-// downloading what comes before. See attachmentCrypto.js for the URL; this module has no DOM
-// use, since the service worker (mediaStreamWorker.js) streams videos with it.
+// Attachments that can be read in parts (v2: videos since 2026-10-01, every file since
+// 2026-10-08): the file is encrypted in CHUNK_SIZE pieces, each its own AES-GCM message, so any
+// byte range can be fetched, checked and decrypted without the rest. That lets a video start
+// (or jump to the middle) without downloading what comes before, and a big file be sent and
+// saved a piece at a time, never whole. See attachmentCrypto.js for the URL; this module has no
+// DOM use, since the service worker (mediaStreamWorker.js) streams videos with it.
 //
 // Stored object layout: chunk 0 || chunk 1 || … each = AES-GCM(plaintext piece) incl. its
 //   16-byte tag; every piece is CHUNK_SIZE bytes except the last (at least 1 byte, unless the
@@ -61,37 +62,56 @@ export function importChunkKey(keyB64Url) {
   return crypto.subtle.importKey('raw', fromBase64Url(keyB64Url), { name: 'AES-GCM' }, false, ['decrypt']);
 }
 
-// Encrypts `file` (and its poster, a Blob, if any) with a fresh key.
-// Resolves to { blob, key, nonce, poster: Blob | null }.
-export async function encryptChunkedAttachment(file, posterBlob = null) {
+// A fresh key and base nonce for encrypting `file` (a File or Blob) a part at a time, so a
+// big file is never in memory whole: { size, count, encrypt(first, last), poster(blob), key,
+// nonce } (`key` and `nonce` as they go in the URL). `encrypt` resolves to the stored bytes of
+// chunks `first`..`last` (a Uint8Array); `poster` seals a still (a Blob) as the poster.
+export async function chunkedEncryptor(file) {
   const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
   const nonce = crypto.getRandomValues(new Uint8Array(NONCE_BYTES));
-  const plain = new Uint8Array(await file.arrayBuffer());
-  const count = chunkCount(plain.length);
-  const parts = [];
-  for (let i = 0; i < count; i++) {
-    const piece = plain.subarray(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-    parts.push(await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv: chunkIv(nonce, i), additionalData: chunkContext(i, i === count - 1) },
-      key,
-      piece,
-    ));
-  }
-  let poster = null;
-  if (posterBlob) {
-    const iv = crypto.getRandomValues(new Uint8Array(NONCE_BYTES));
-    const sealed = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv, additionalData: POSTER_CONTEXT },
-      key,
-      await posterBlob.arrayBuffer(),
-    );
-    poster = new Blob([iv, sealed], { type: 'application/octet-stream' });
-  }
+  const { size } = file;
+  const count = chunkCount(size);
   return {
-    blob: new Blob(parts, { type: 'application/octet-stream' }),
+    size,
+    count,
     key: toBase64Url(await crypto.subtle.exportKey('raw', key)),
     nonce: toBase64Url(nonce),
-    poster,
+    async encrypt(first, last) {
+      const plain = new Uint8Array(await file.slice(first * CHUNK_SIZE, Math.min(size, (last + 1) * CHUNK_SIZE)).arrayBuffer());
+      const out = new Uint8Array(plain.length + (last - first + 1) * TAG_BYTES);
+      for (let i = first, at = 0; i <= last; i++) {
+        const piece = plain.subarray((i - first) * CHUNK_SIZE, (i - first + 1) * CHUNK_SIZE);
+        const sealed = new Uint8Array(await crypto.subtle.encrypt(
+          { name: 'AES-GCM', iv: chunkIv(nonce, i), additionalData: chunkContext(i, i === count - 1) },
+          key,
+          piece,
+        ));
+        out.set(sealed, at);
+        at += sealed.length;
+      }
+      return out;
+    },
+    async poster(blob) {
+      const iv = crypto.getRandomValues(new Uint8Array(NONCE_BYTES));
+      const sealed = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv, additionalData: POSTER_CONTEXT },
+        key,
+        await blob.arrayBuffer(),
+      );
+      return new Blob([iv, sealed], { type: 'application/octet-stream' });
+    },
+  };
+}
+
+// Encrypts `file` (and its poster, a Blob, if any) with a fresh key, all at once (small files,
+// sent in one request). Resolves to { blob, key, nonce, poster: Blob | null }.
+export async function encryptChunkedAttachment(file, posterBlob = null) {
+  const encryptor = await chunkedEncryptor(file);
+  return {
+    blob: new Blob([await encryptor.encrypt(0, encryptor.count - 1)], { type: 'application/octet-stream' }),
+    key: encryptor.key,
+    nonce: encryptor.nonce,
+    poster: posterBlob ? await encryptor.poster(posterBlob) : null,
   };
 }
 
@@ -141,6 +161,43 @@ export async function decryptChunks(cryptoKey, nonceB64Url, size, first, data) {
     at += piece.length;
   }
   return out;
+}
+
+// Decrypts a whole stored file as it arrives: a TransformStream from its bytes (in pieces of
+// any size, e.g. a fetch's body) to its plaintext, a chunk at a time, so saving a big file
+// never holds it whole. Errors if a chunk was tampered with, or there's too much or too little.
+export function decryptingStream(cryptoKey, nonceB64Url, size) {
+  const nonce = fromBase64Url(nonceB64Url);
+  const count = chunkCount(size);
+  const stride = CHUNK_SIZE + TAG_BYTES;
+  const lengthOf = (i) => (i < count - 1 ? stride : size - (count - 1) * CHUNK_SIZE + TAG_BYTES);
+  const chunk = new Uint8Array(stride);
+  let filled = 0;
+  let index = 0;
+  return new TransformStream({
+    async transform(bytes, controller) {
+      for (let at = 0; at < bytes.length;) {
+        if (index >= count) throw new Error('Too much data for this attachment');
+        const need = lengthOf(index) - filled;
+        const take = Math.min(need, bytes.length - at);
+        chunk.set(bytes.subarray(at, at + take), filled);
+        filled += take;
+        at += take;
+        if (filled === lengthOf(index)) {
+          controller.enqueue(new Uint8Array(await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: chunkIv(nonce, index), additionalData: chunkContext(index, index === count - 1) },
+            cryptoKey,
+            chunk.subarray(0, filled),
+          )));
+          filled = 0;
+          index++;
+        }
+      }
+    },
+    flush() {
+      if (index < count) throw new Error('Attachment cut short');
+    },
+  });
 }
 
 // The whole file at once (downloads, and playing where there's no service worker).

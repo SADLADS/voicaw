@@ -40,7 +40,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `desktop`, null in a browser): `notify`, `setUnread`, `getSettings` / `updateSettings`,
   `checkForUpdates` / `installUpdate`, `getScreenSources` / `chooseScreenSource`, `paste`,
   `spelling` / `setSpellingWords`, `fetchPage` (a linked page for an encrypted chat's link
-  preview, `pageFetch.js`; see Link previews in `docs/messages.md`), `onNavigate`, `onShortcut`, `onUpdateReady`. The main
+  preview, `pageFetch.js`; see Link previews in `docs/messages.md`), `saveFile` (start / append /
+  finish / cancel: a big attachment written to where the Save dialog says as it's decrypted,
+  `fileSave.js`; see Big files in `docs/uploads.md`), `onNavigate`, `onShortcut`, `onUpdateReady`. The main
   process only answers the app's own frames and checks what it's given (`cleanNotification`,
   `cleanChanges`).
 - **Notifications** (`notifications.js`): the server sends what would be a web push over the

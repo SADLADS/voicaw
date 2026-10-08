@@ -6,6 +6,7 @@ import {
   loadDecryptedAttachment, getCachedAttachment, loadDecryptedPoster, getCachedPoster,
 } from '../services/attachmentCache';
 import { canStream, streamUrl, isStreamUrl, streamFailed, releaseStream } from '../services/videoStream';
+import { saveAttachment } from '../services/attachmentSave';
 import { formatBytes } from '../utils/formatBytes';
 import { placeholderIdFromUrl } from '../utils/attachmentMarkup';
 import { triggerDownload } from '../utils/saveFile';
@@ -14,29 +15,35 @@ import { galleryAround, galleryItemRef } from '../utils/imageGallery';
 import { parseGifUrl } from '../utils/gifMarkup';
 import { usePrivacyPrefs } from '../utils/privacy';
 import { reservedBoxStyle, mediaBoxStyle } from '../utils/mediaBox';
+import { MAX_INLINE_IMAGE_BYTES } from '../utils/mediaDimensions';
 import { useMediaCover } from '../hooks/useMediaCover';
 import { t } from '../i18n';
 import VideoPlayer from './VideoPlayer';
 import MediaCover from './MediaCover';
 
-function kindOf(type) {
-  if (type?.startsWith('image/')) return 'image';
+// `size` and `hasThumbnail`: an image too big to show whole (and with nothing smaller to show)
+// is a file to download.
+function kindOf(type, size = 0, hasThumbnail = false) {
+  if (type?.startsWith('image/')) return size > MAX_INLINE_IMAGE_BYTES && !hasThumbnail ? 'file' : 'image';
   if (type?.startsWith('video/')) return 'video';
   return 'file';
 }
 
-// Spans rather than divs throughout: markdown renders images inside <p>.
-function FileBox({ name, size, onDownload, status }) {
+// Spans rather than divs throughout: markdown renders images inside <p>. `progress` (0 to 1):
+// how far its download is, while the app downloads it.
+function FileBox({ name, size, onDownload, status, progress = null }) {
+  let detail = formatBytes(size);
+  if (status === 'loading') {
+    detail = progress != null && progress < 1
+      ? t('media.attachment.downloading', { percent: Math.floor(progress * 100) })
+      : t('media.attachment.decrypting');
+  } else if (status === 'error') detail = t('media.attachment.downloadFailed');
   return (
     <span className="attachment-file">
       <FontAwesomeIcon icon={faFile} className="attachment-file-icon" />
       <span className="attachment-file-info">
         <span className="attachment-file-name" title={name}>{name}</span>
-        <span className="attachment-file-size">
-          {status === 'loading'
-            ? t('media.attachment.decrypting')
-            : status === 'error' ? t('media.attachment.downloadFailed') : formatBytes(size)}
-        </span>
+        <span className="attachment-file-size">{detail}</span>
       </span>
       <button
         type="button"
@@ -116,7 +123,7 @@ function VideoView({ spoiler, poster, width, height, ...player }) {
 }
 
 function LocalAttachment({ local, name }) {
-  const kind = kindOf(local.type);
+  const kind = kindOf(local.type, local.size, !!local.thumbnail);
   const download = () => triggerDownload(local.previewUrl, name);
   if (kind === 'file') return <FileBox name={name} size={local.size} onDownload={download} />;
   if (kind === 'video') {
@@ -182,7 +189,7 @@ function EncryptedVideo({ url, meta, name }) {
   const recover = async (failedSrc, onProgress) => (
     isStreamUrl(failedSrc) && await streamFailed(failedSrc) ? loadWhole(onProgress) : null
   );
-  const download = async (onProgress) => triggerDownload(await loadWhole(onProgress), name);
+  const download = (onProgress) => saveAttachment(url, meta, name, onProgress);
 
   return (
     <VideoView
@@ -215,12 +222,13 @@ function loadShownImage(url, meta) {
 }
 
 function EncryptedAttachment({ url, meta, name }) {
-  const kind = kindOf(meta.type);
+  const kind = kindOf(meta.type, meta.size, !!meta.posterUrl);
   const covered = Boolean(useMediaCover(meta.spoiler));
   const [state, setState] = useState(() => {
     const cached = kind === 'image' ? cachedImage(url, meta) : getCachedAttachment(url);
     return cached ? { status: 'ready', objectUrl: cached } : { status: 'idle', objectUrl: null };
   });
+  const [progress, setProgress] = useState(null);
 
   // Shows what `loading` resolves to (the file, or an image's thumbnail).
   const load = (loading) => {
@@ -244,19 +252,26 @@ function EncryptedAttachment({ url, meta, name }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
-  // Always the file itself, never the thumbnail.
+  // Always the file itself, never the thumbnail. A file box shows how it's going.
   const download = async () => {
-    const objectUrl = getCachedAttachment(url) || (kind === 'file'
-      ? await load(loadDecryptedAttachment(url, meta))
-      : await loadDecryptedAttachment(url, meta).catch((err) => {
-        console.error('Failed to download attachment', err);
-        return null;
-      }));
-    if (objectUrl) triggerDownload(objectUrl, name);
+    if (kind !== 'file') {
+      await saveAttachment(url, meta, name).catch((err) => console.error('Failed to download attachment', err));
+      return;
+    }
+    setProgress(null);
+    setState((s) => (s.objectUrl ? s : { status: 'loading', objectUrl: null }));
+    try {
+      await saveAttachment(url, meta, name, setProgress);
+      const objectUrl = getCachedAttachment(url); // a big one isn't kept
+      setState({ status: objectUrl ? 'ready' : 'idle', objectUrl });
+    } catch (err) {
+      console.error('Failed to download attachment', err);
+      setState({ status: 'error', objectUrl: null });
+    }
   };
 
   if (kind === 'file') {
-    return <FileBox name={name} size={meta.size} onDownload={download} status={state.status} />;
+    return <FileBox name={name} size={meta.size} onDownload={download} status={state.status} progress={progress} />;
   }
   const galleryItem = { src: url, name, size: meta.size, width: meta.width, height: meta.height, meta };
   if (state.status === 'error') {

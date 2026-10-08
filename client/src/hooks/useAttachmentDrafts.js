@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { uploadAttachment, MAX_ATTACHMENT_BYTES } from '../services/attachmentUpload';
-import { buildAttachmentUrl, isStreamable, ENCRYPTION_OVERHEAD_BYTES } from '../services/attachmentCrypto';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { uploadAttachment, maxAttachmentBytes, DEFAULT_MAX_UPLOAD_BYTES } from '../services/attachmentUpload';
+import { buildAttachmentUrl } from '../services/attachmentCrypto';
+import { encryptedSize } from '../services/chunkedAttachment';
+import { ConfigContext } from '../contexts';
 import { formatBytes } from '../utils/formatBytes';
 import { readMediaDimensions } from '../utils/mediaDimensions';
 import { t } from '../i18n';
@@ -23,6 +25,9 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
   const [progress, setProgress] = useState(0);
   const onDiscardRef = useRef(onDiscard);
   onDiscardRef.current = onDiscard;
+  // Settings → Admin's File size limit, less room for the encryption.
+  const limit = useContext(ConfigContext)?.maxUploadBytes || DEFAULT_MAX_UPLOAD_BYTES;
+  const maxBytes = maxAttachmentBytes(limit);
 
   useEffect(() => () => {
     const dropped = draftsRef.current;
@@ -36,14 +41,14 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
   function addFiles(files, { source } = {}) {
     if (files.length === 0) return [];
 
-    const tooBig = files.filter((f) => f.size > MAX_ATTACHMENT_BYTES);
-    const accepted = files.filter((f) => f.size <= MAX_ATTACHMENT_BYTES);
+    const tooBig = files.filter((f) => f.size > maxBytes);
+    const accepted = files.filter((f) => f.size <= maxBytes);
     onError(
       tooBig.length > 0
         ? t('media.drafts.tooBig', {
           count: tooBig.length,
           names: tooBig.map((f) => f.name).join(', '),
-          limit: formatBytes(MAX_ATTACHMENT_BYTES),
+          limit: formatBytes(limit),
         })
         : null
     );
@@ -98,7 +103,6 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
   // The final attachment URL has a fixed shape (see attachmentCrypto/attachmentUpload), so
   // a same-length stand-in lets us check the message length before uploading anything.
   function projectedUrl(draft) {
-    const streamable = isStreamable(draft.type);
     return buildAttachmentUrl(`${s3Endpoint}/uploads/${'0'.repeat(36)}.bin`, {
       key: 'A'.repeat(43),
       type: draft.type,
@@ -106,10 +110,8 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
       width: draft.width,
       height: draft.height,
       spoiler: draft.spoiler,
-      ...(streamable ? {
-        nonce: 'A'.repeat(16),
-        duration: draft.duration,
-      } : {}),
+      nonce: 'A'.repeat(16),
+      duration: draft.duration,
       poster: draft.poster || draft.thumbnail ? `${'0'.repeat(36)}.bin` : null,
     });
   }
@@ -117,7 +119,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
   // Encrypts and uploads `attachments`, reporting overall progress; resolves to
   // { [draftId]: url }.
   async function upload(attachments) {
-    const total = attachments.reduce((sum, d) => sum + d.size + ENCRYPTION_OVERHEAD_BYTES, 0);
+    const total = attachments.reduce((sum, d) => sum + encryptedSize(d.size), 0);
     const loaded = {};
     const report = () => {
       const done = Object.values(loaded).reduce((a, b) => a + b, 0);

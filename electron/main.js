@@ -5,7 +5,8 @@
 // It starts with a splash window (splash.js) that installs any update before the app opens.
 // (Its only other window is a popped-out screen share, which the page draws itself; windowOpen.js.)
 const path = require('path');
-const { app, BrowserWindow, Menu, desktopCapturer, globalShortcut, ipcMain, net, protocol, screen, session, shell } = require('electron');
+const { app, BrowserWindow, Menu, desktopCapturer, dialog, globalShortcut, ipcMain, net, protocol, screen, session, shell } = require('electron');
+const fs = require('fs');
 const { setUpSpellcheck, syncSpellingWords } = require('./spellcheck');
 const { ORIGIN, isAppOrigin, registerScheme, handleScheme } = require('./protocol');
 const { createSettingsStore } = require('./desktopSettings');
@@ -19,6 +20,7 @@ const { createScreenShare } = require('./screenShare');
 const { windowOpenAction, streamWindowPermission } = require('./windowOpen');
 const { setUpYouTubeReferer } = require('./youtube');
 const { fetchPage } = require('./pageFetch');
+const { createFileSaver } = require('./fileSave');
 
 const APP_ID = 'com.voicaw.app';
 const ICON = path.join(__dirname, 'assets', 'icon.png');
@@ -39,6 +41,7 @@ let tray;
 let notifier;
 let updater;
 let screenShare;
+let fileSaver;
 
 // One app at a time: starting it again brings the running one forward.
 if (!app.requestSingleInstanceLock()) {
@@ -203,6 +206,16 @@ function setUpIpc() {
     });
     // A linked page for a link preview in an encrypted chat (pageFetch.js).
     ipcMain.handle('desktop:fetch-page', (event, url) => (fromApp(event) ? fetchPage(url) : null));
+    // Saving a big attachment a piece at a time (fileSave.js).
+    ipcMain.handle('desktop:save-start', (event, name) => (fromApp(event) ? fileSaver.start(name) : null));
+    ipcMain.handle('desktop:save-append', (event, id, bytes) => {
+        if (!fromApp(event) || !(bytes instanceof Uint8Array)) throw new Error('Not allowed');
+        return fileSaver.append(id, bytes);
+    });
+    ipcMain.handle('desktop:save-finish', async (event, id) => {
+        if (fromApp(event)) await fileSaver.finish(id);
+    });
+    ipcMain.handle('desktop:save-cancel', (event, id) => (fromApp(event) ? fileSaver.cancel(id) : null));
     ipcMain.handle('desktop:check-updates', (event) => (fromApp(event) ? updater.check() : null));
     // Resolves to false if there was nothing to install; otherwise the app restarts onto it.
     ipcMain.handle('desktop:install-update', (event) => {
@@ -221,6 +234,11 @@ function start() {
         ownSourceId: () => (win && !win.isDestroyed() ? win.getMediaSourceId() : null),
     });
     setUpPermissions();
+    fileSaver = createFileSaver({
+        showSaveDialog: (options) => (win && !win.isDestroyed() ? dialog.showSaveDialog(win, options) : dialog.showSaveDialog(options)),
+        fs,
+        downloadsDir: () => app.getPath('downloads'),
+    });
     notifier = createNotifier({
         onClick(url) {
             showWindow();

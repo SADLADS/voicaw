@@ -12,18 +12,16 @@
 //      copied. It's IV || AES-GCM(JPEG/WebP/PNG) under the same key, with additional data
 //      "voicaw/attachment-thumbnail/v1", so neither can pass for the other. Older clients
 //      ignore it and show the file.)
-// Videos are v=2 (chunkedAttachment.js: encrypted in pieces, so they can be streamed and
-// seeked), plus &n=<base nonce> and optionally &d=<duration in seconds> and
-// &p=<the poster's object name, next to the file>.
+// v=2 (chunkedAttachment.js: encrypted in pieces, so they can be streamed, seeked and saved a
+// piece at a time) adds &n=<base nonce>, optionally &d=<duration in seconds> (videos) and
+// &p=<the poster's or thumbnail's object name, next to the file> (sealed as a v2 poster).
+// Videos have been v2 since 2026-10-01, every file since 2026-10-08 (big files had to be);
+// v1 is only read now.
 
 import { toBase64Url, fromBase64Url } from './chunkedAttachment';
 
 const IV_LENGTH = 12;
 
-// Videos are encrypted in pieces (v2), so they can be streamed and seeked.
-export function isStreamable(type) {
-  return typeof type === 'string' && type.startsWith('video/');
-}
 export const ENCRYPTION_OVERHEAD_BYTES = IV_LENGTH + 16;
 
 const THUMBNAIL_CONTEXT = new TextEncoder().encode('voicaw/attachment-thumbnail/v1');
@@ -38,7 +36,8 @@ async function seal(key, plain, additionalData) {
   return new Blob([iv, ciphertext], { type: 'application/octet-stream' });
 }
 
-// Encrypts `file` (and its thumbnail, a Blob, if any) with a fresh key.
+// Encrypts `file` (and its thumbnail, a Blob, if any) with a fresh key, as v1: no longer sent
+// (attachmentUpload.js sends v2), kept for the tests of reading old files.
 // Resolves to { blob, key, thumbnail: Blob | null }.
 export async function encryptAttachment(file, thumbnailBlob = null) {
   const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);

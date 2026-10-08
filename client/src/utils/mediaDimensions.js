@@ -1,5 +1,9 @@
 import { MAX_MEDIA_WIDTH, MAX_MEDIA_HEIGHT } from './mediaBox';
 
+// Images bigger than this aren't decoded when attached, and without a thumbnail are shown as a
+// file to download rather than in the chat (Attachment.jsx).
+export const MAX_INLINE_IMAGE_BYTES = 50 * 1024 * 1024;
+
 // Reads an image or video file's pixel size so its space in the chat can be reserved
 // before it has downloaded. Resolves to { width, height } or null if unknown; for a video
 // also its `duration` (s) and `poster`, a JPEG Blob of its first frame (or null), so others
@@ -9,6 +13,8 @@ import { MAX_MEDIA_WIDTH, MAX_MEDIA_HEIGHT } from './mediaBox';
 export async function readMediaDimensions(file, objectUrl) {
   try {
     if (file.type.startsWith('image/')) {
+      // Decoding it would take more memory than a phone has; it's sent as a plain file.
+      if (file.size > MAX_INLINE_IMAGE_BYTES) return null;
       if (typeof createImageBitmap === 'function') {
         const bitmap = await createImageBitmap(file); // applies EXIF orientation, like <img>
         try {

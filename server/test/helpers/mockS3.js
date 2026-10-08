@@ -18,6 +18,16 @@ export const objects = new Map();
 export function putMockObject(bucket, key, body, contentType = 'application/octet-stream') {
   objects.set(`${bucket}/${key}`, { body, contentType });
 }
+// Unfinished multipart uploads, by upload id: { bucket, key, contentType, parts: Map<number, size> }.
+// Tests "put" a part with putMockPart, as the client would to its signed URL.
+export const multipartUploads = new Map();
+// Every part URL the server signed: { key, uploadId, partNumber, contentLength }.
+export const signedParts = [];
+export const abortedUploads = [];
+let nextUploadId = 1;
+export function putMockPart(uploadId, partNumber, size) {
+  multipartUploads.get(uploadId).parts.set(partNumber, size);
+}
 
 require.cache[s3Path] = {
   id: s3Path,
@@ -42,6 +52,27 @@ require.cache[s3Path] = {
     },
     putObject: async (bucket, key, body, contentType) => {
       objects.set(`${bucket}/${key}`, { body, contentType });
+    },
+    startMultipartUpload: async (bucket, key, contentType) => {
+      const uploadId = `upload-${nextUploadId++}`;
+      multipartUploads.set(uploadId, { bucket, key, contentType, parts: new Map() });
+      return uploadId;
+    },
+    getUploadPartUrl: async (bucket, key, uploadId, partNumber, contentLength) => {
+      signedParts.push({ key, uploadId, partNumber, contentLength });
+      return `https://mock-s3.test/${bucket}/${key}?uploadId=${uploadId}&partNumber=${partNumber}`;
+    },
+    listUploadedParts: async (bucket, key, uploadId) => [...multipartUploads.get(uploadId).parts]
+      .map(([PartNumber, Size]) => ({ PartNumber, Size, ETag: `"etag-${PartNumber}"` }))
+      .sort((a, b) => a.PartNumber - b.PartNumber),
+    completeMultipartUpload: async (bucket, key, uploadId, parts) => {
+      const size = parts.reduce((sum, p) => sum + multipartUploads.get(uploadId).parts.get(p.PartNumber), 0);
+      objects.set(`${bucket}/${key}`, { body: Buffer.alloc(0), size, contentType: multipartUploads.get(uploadId).contentType });
+      multipartUploads.delete(uploadId);
+    },
+    abortMultipartUpload: async (bucket, key, uploadId) => {
+      abortedUploads.push({ key, uploadId });
+      multipartUploads.delete(uploadId);
     },
     listTopLevelKeys: async (bucket) => [...objects.keys()]
       .filter((k) => k.startsWith(`${bucket}/`))

@@ -17,6 +17,10 @@ const s3Port = process.env.E2E_S3_PORT || String(Number(process.env.E2E_API_PORT
 const s3Endpoint = `http://localhost:${s3Port}`;
 const objects = new Map();
 const reads = [];
+// Unfinished multipart uploads (big attachments), by upload id: { key, contentType, signed:
+// Map<part, length>, parts: Map<part, Buffer> }. Parts are PUT to /__part/<upload id>/<part>.
+const multipart = new Map();
+let nextUploadId = 1;
 http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, PUT');
@@ -27,8 +31,18 @@ http.createServer((req, res) => {
     const chunks = [];
     req.on('data', (c) => chunks.push(c));
     req.on('end', () => {
-      objects.set(key, { body: Buffer.concat(chunks), contentType: req.headers['content-type'] || 'application/octet-stream' });
-      res.writeHead(200).end();
+      const body = Buffer.concat(chunks);
+      // A multipart upload's part, refused at any length but the signed one (as MinIO does).
+      const part = /^__part\/([^/]+)\/(\d+)$/.exec(key);
+      if (part) {
+        const upload = multipart.get(part[1]);
+        const expected = upload?.signed.get(Number(part[2]));
+        if (expected !== body.length) return res.writeHead(403).end();
+        upload.parts.set(Number(part[2]), body);
+        return res.writeHead(200).end();
+      }
+      objects.set(key, { body, contentType: req.headers['content-type'] || 'application/octet-stream' });
+      return res.writeHead(200).end();
     });
     return undefined;
   }
@@ -96,6 +110,28 @@ require.cache[s3Path] = {
     deleteObject: async (bucket, key) => {
       objects.delete(`${bucket}/${key}`);
       return true;
+    },
+    startMultipartUpload: async (bucket, key, contentType) => {
+      const uploadId = `u${nextUploadId++}`;
+      multipart.set(uploadId, { key: `${bucket}/${key}`, contentType, signed: new Map(), parts: new Map() });
+      return uploadId;
+    },
+    getUploadPartUrl: async (bucket, key, uploadId, partNumber, contentLength) => {
+      multipart.get(uploadId).signed.set(partNumber, contentLength);
+      return `${s3Endpoint}/__part/${uploadId}/${partNumber}`;
+    },
+    listUploadedParts: async (bucket, key, uploadId) => {
+      const upload = multipart.get(uploadId);
+      if (!upload) throw Object.assign(new Error('NoSuchUpload'), { name: 'NoSuchUpload' });
+      return [...upload.parts].sort(([a], [b]) => a - b).map(([PartNumber, body]) => ({ PartNumber, Size: body.length, ETag: `"${PartNumber}"` }));
+    },
+    completeMultipartUpload: async (bucket, key, uploadId, parts) => {
+      const upload = multipart.get(uploadId);
+      objects.set(upload.key, { body: Buffer.concat(parts.map((p) => upload.parts.get(p.PartNumber))), contentType: upload.contentType });
+      multipart.delete(uploadId);
+    },
+    abortMultipartUpload: async (bucket, key, uploadId) => {
+      multipart.delete(uploadId);
     },
     listTopLevelKeys: async (bucket) => [...objects.keys()]
       .filter((k) => k.startsWith(`${bucket}/`))

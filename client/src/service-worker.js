@@ -13,11 +13,13 @@ cleanupOutdatedCaches();
 // which sends this (workbox-window's messageSkipWaiting) to switch over.
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
-  // The page checks this worker can stream encrypted videos (an older one can't).
-  if (event.data?.type === MEDIA_PING) event.ports[0]?.postMessage(true);
+  // The page checks this worker can stream encrypted videos (an older one can't), and save
+  // files (since 2026-10-08; older ones answered `true`).
+  if (event.data?.type === MEDIA_PING) event.ports[0]?.postMessage({ stream: true, download: true });
 });
 
-// Encrypted videos, streamed and seeked a piece at a time (services/mediaStreamWorker.js).
+// Encrypted videos, streamed and seeked a piece at a time, and files saved without the page
+// holding them (services/mediaStreamWorker.js).
 self.addEventListener('fetch', (event) => {
   if (isMediaRequest(event.request)) handleMediaFetch(event);
 });
