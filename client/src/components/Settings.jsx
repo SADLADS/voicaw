@@ -57,7 +57,8 @@ function matches(section, query) {
 // removed, so what's been typed or picked in them stays. `/settings#<section id>` opens
 // scrolled to that section. On a computer the column is drawn beside the rail, above the user
 // panel (Layout's `settingsNavSlot`). Edit Profile is a page of its own (/settings/profile),
-// reached from the card with your picture and name at the top of the column.
+// reached from the card with your picture and name at the top of the column (on a phone, it
+// scrolls down past the column to the form).
 export default function Settings({ onLogout }) {
   useProfiles();
   const { user } = useAuth() ?? {};
@@ -238,6 +239,12 @@ export default function Settings({ onLogout }) {
     const id = location.hash.slice(1);
     if (id) document.getElementById(`settings-${id}`)?.scrollIntoView({ block: 'start' });
   }, [location.hash]);
+
+  // On a phone the column is on top of the page, so Edit Profile would open below it, out of
+  // sight: scroll down to it (again each time the card is tapped, a new history entry).
+  useEffect(() => {
+    if (onProfilePage && isMobile) document.querySelector('.edit-profile')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [onProfilePage, isMobile, location.key]);
 
   const nav = (
       <nav className="settings-nav" aria-label={t('settings.nav.label')}>

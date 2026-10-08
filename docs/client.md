@@ -123,7 +123,7 @@
   the user panel, on a computer; on top of the page on a phone)
   searches them (non-matching sections are hidden, not unmounted, so their state stays) and
   jumps to one; above its search, a card with your picture and name opens Edit Profile (its own
-  page, `/settings/profile`); `/settings#<section id>` opens scrolled there (e.g. `RecoveryPrompt`'s
+  page, `/settings/profile`; on a phone, where the column is on top, it scrolls down to the form); `/settings#<section id>` opens scrolled there (e.g. `RecoveryPrompt`'s
   `#account-security`). Add a new setting as a section there; a section may have an `icon`
   (Font Awesome; shown in the column, its card draws it in its heading).
 - **Privacy** (Settings → Privacy, the puzzle piece, `PrivacySettings.jsx`): choices that give
