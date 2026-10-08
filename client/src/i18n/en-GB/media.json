@@ -4,7 +4,8 @@
       "bytes": "{{size}} B",
       "kilobytes": "{{size}} KB",
       "megabytes": "{{size}} MB",
-      "gigabytes": "{{size}} GB"
+      "gigabytes": "{{size}} GB",
+      "terabytes": "{{size}} TB"
     },
     "percent": "{{percent}}%",
     "cover": {

@@ -8,6 +8,7 @@ import { shareOrigin } from '../utils/guildDisplay';
 import { formatDateTime } from '../utils/dateFormat';
 import { displayName } from '../utils/profiles';
 import VoiceRegionsAdmin from './VoiceRegionsAdmin';
+import StorageAdmin from './StorageAdmin';
 
 const SOURCE_LABELS = {
   admin: 'settings.admin.source.admin',
@@ -509,6 +510,7 @@ export default function AdminSettings({ onAvailable }) {
       <TesterList />
       <InviteList invites={data.invites ?? []} onChange={(invites) => setData((d) => ({ ...d, invites }))} />
       <VoiceRegionsAdmin regions={data.voiceRegions ?? []} onChange={(voiceRegions) => setData((d) => ({ ...d, voiceRegions }))} />
+      <StorageAdmin />
       <AdminList admins={data.admins} me={user?.id} onChange={(admins) => setData((d) => ({ ...d, admins }))} />
     </div>
   );

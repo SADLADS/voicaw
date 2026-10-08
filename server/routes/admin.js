@@ -1,5 +1,5 @@
 // Global admin panel (the client's Settings → Admin): app-wide settings (appSettings.js), who
-// else is an admin, and sign-ups (signups.js): accounts waiting for approval and app invites. Admins are users with users.is_admin = 1; the first one is made with
+// else is an admin, how full the object store is, and sign-ups (signups.js): accounts waiting for approval and app invites. Admins are users with users.is_admin = 1; the first one is made with
 // `npm run admin -- <username>` in server/ (scripts/admin.js).
 const express = require('express');
 const db = require('../db');
@@ -10,6 +10,7 @@ const signups = require('../signups');
 const voiceRegions = require('../voiceRegions');
 const voice = require('../voice');
 const { ActionError } = require('../actionError');
+const storageStats = require('../storageStats');
 
 const router = express.Router();
 
@@ -38,6 +39,12 @@ router.get('/admin', admin, async (req, res) => {
     invites: await signups.listInvites(),
     voiceRegions: voiceRegions.listForAdmin(),
   });
+});
+
+// How full the object store is (storageStats.js). Separate from GET /admin, since it asks the
+// store over the network; `?fresh=1` skips the half-minute cache (the panel's Refresh).
+router.get('/admin/storage', admin, async (req, res) => {
+  res.json(await storageStats.getStorageStats({ fresh: req.query.fresh === '1' }));
 });
 
 // ---- Voice regions (voiceRegions.js): the LiveKit servers voice can use ----

@@ -3,7 +3,7 @@ import { t } from '../i18n';
 export function formatBytes(bytes) {
   if (bytes == null) return '';
   if (bytes < 1024) return t('media.size.bytes', { size: bytes });
-  const units = ['media.size.kilobytes', 'media.size.megabytes', 'media.size.gigabytes'];
+  const units = ['media.size.kilobytes', 'media.size.megabytes', 'media.size.gigabytes', 'media.size.terabytes'];
   let value = bytes / 1024;
   let unit = 0;
   while (value >= 1024 && unit < units.length - 1) {

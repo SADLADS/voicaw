@@ -36,6 +36,8 @@ unexpected errors. The rest:
 - `auditLog.js`: a guild's audit log (`logAudit`, `readAuditLog`; see Guilds); `routes/auditLog.js`.
 - `voice.js`: voice channels (who's in which, LiveKit tokens and webhooks; see Voice channels).
 - `voiceRegions.js`: the LiveKit servers voice can use (see Voice regions in `docs/voice-and-calls.md`).
+- `storageStats.js`: how full the object store is, from MinIO's metrics (Settings → Admin → Storage, see
+  Admin settings in `docs/client.md`).
 - `watchParty.js`: Watch Together, each voice channel's YouTube queue and clock (see Voice
   channels); `routes/watchParty.js` has its routes.
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).
