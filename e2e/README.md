@@ -118,6 +118,7 @@ node e2e/drafts.mjs [dir] # unsent messages: back after another DM, Settings, a 
 node e2e/typing.mjs [dir] # typing indicator: DM (dots, cleared on send, clear of the last message), two typers in a guild channel on a phone, timeout, Privacy off
 node e2e/colours.mjs [dir] # screenshots for colour changes: login, DM (mention, link), guild + rail, menu, Settings, list, poll, voice Join / Connecting…, incoming call; every theme (THEMES=…), desktop + phone (fresh serve.mjs per run)
 node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept per device, no dark flash, Match system, color-scheme, phone
+node e2e/avatarcrop.mjs [dir] # picture cropper: Edit Profile (opens at the middle square, wheel zooms, drag stops at the edge, Apply previews, Save stores that square), guild icon (over Guild Settings, Escape closes only it, stored cropped), bot picture, phone pinch zooms and fits
 node e2e/avatar.mjs [dir] # message avatars: top with the name, bottom with the first line of text, reply line to its middle (desktop + phone)
 node e2e/safearea.mjs [dir] # safe areas (CDP-made iPhone insets): user panel above the home indicator, landscape notch, unchanged without insets
 node e2e/linkpreviews.mjs [dir] # link previews (stand-in website, needs ffmpeg): guild card/picture/video fetched by the server, live; Privacy off = text only, nothing asked of the site until Show/Play (phone); Remove Previews for both; the X beside a preview (on hover, asks, Shift skips, none on a phone); DM: server fetches nothing, picture links only

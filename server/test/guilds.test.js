@@ -2,7 +2,8 @@ import './helpers/mockS3.js';
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { registerUser, loginUser } from './helpers/authFlow.js';
-import { signedUploads } from './helpers/mockS3.js';
+import { signedUploads, objects, putMockObject } from './helpers/mockS3.js';
+import sharp from 'sharp';
 
 const app = require('../index.js');
 const clients = app.locals.clients;
@@ -117,8 +118,21 @@ describe('guilds', () => {
     expect(signedUploads.at(-1)).toEqual({ filename: String(guild.id), bucket: 'guild-icons', contentType: 'image/png', contentLength: 100 });
     expect((await api.get(owner, `/upload_guild_icon?guildId=${guild.id}&type=text/html&size=100`)).status).toBe(400);
 
+    // Not uploaded yet.
+    expect((await api.patch(owner, `/guilds/${guild.id}`, { iconUploaded: true })).status).toBe(400);
+    // It becomes a square WebP, from the middle or the part chosen in the cropper.
+    const icon = () => sharp({ create: { width: 600, height: 300, channels: 3, background: '#3a3' } }).png().toBuffer();
+    putMockObject('guild-icons', String(guild.id), await icon(), 'image/png');
     expect((await api.patch(owner, `/guilds/${guild.id}`, { iconUploaded: true })).body.icon_version).toBe(1);
-    expect((await api.patch(owner, `/guilds/${guild.id}`, { iconUploaded: true })).body.icon_version).toBe(2);
+    const stored = objects.get(`guild-icons/${guild.id}`);
+    expect(stored.contentType).toBe('image/webp');
+    expect(await sharp(stored.body).metadata()).toMatchObject({ format: 'webp', width: 256, height: 256 });
+    putMockObject('guild-icons', String(guild.id), await icon(), 'image/png');
+    const cropped = await api.patch(owner, `/guilds/${guild.id}`, { iconUploaded: true, iconCrop: { x: 0, y: 0, width: 0.1, height: 0.2 } });
+    expect(cropped.body.icon_version).toBe(2);
+    expect(await sharp(objects.get(`guild-icons/${guild.id}`).body).metadata()).toMatchObject({ width: 60, height: 60 });
+    putMockObject('guild-icons', String(guild.id), Buffer.from('not an image'), 'image/png');
+    expect((await api.patch(owner, `/guilds/${guild.id}`, { iconUploaded: true })).status).toBe(400);
     expect((await api.patch(owner, `/guilds/${guild.id}`, { icon: null })).body.icon_version).toBe(0);
   });
 

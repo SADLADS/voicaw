@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
 import GuildIcon from './GuildIcon';
+import ImageCropper from '../ImageCropper';
 import RolesSettings from './RolesSettings';
 import EmojiSettings from './EmojiSettings';
 import LevelSettings from './LevelSettings';
@@ -29,6 +30,7 @@ function Overview({ guild, isOwner }) {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
   const [deleteText, setDeleteText] = useState('');
+  const [cropping, setCropping] = useState(null); // a picked icon, in the cropper
   const fileInput = useRef(null);
 
   async function run(action, done) {
@@ -53,7 +55,7 @@ function Overview({ guild, isOwner }) {
     if (!file) return;
     if (!file.type.startsWith('image/')) return setError(t('guildAdmin.guildSettings.iconNotImage'));
     if (file.size > MAX_ICON_BYTES) return setError(t('guildAdmin.guildSettings.iconTooBig'));
-    run(() => uploadGuildIcon(guild.id, file), t('guildAdmin.guildSettings.iconUpdated'));
+    setCropping(file);
   }
 
   return (
@@ -80,6 +82,17 @@ function Overview({ guild, isOwner }) {
         </div>
         {status && <p className="success-msg">{status}</p>}
         {error && <p className="error-msg" role="alert">{error}</p>}
+        {cropping && (
+          <ImageCropper
+            file={cropping}
+            onCancel={() => setCropping(null)}
+            onApply={(crop) => {
+              const file = cropping;
+              setCropping(null);
+              run(() => uploadGuildIcon(guild.id, file, crop), t('guildAdmin.guildSettings.iconUpdated'));
+            }}
+          />
+        )}
       </section>
 
       <JoinLog guild={guild} />

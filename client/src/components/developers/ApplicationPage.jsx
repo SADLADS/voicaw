@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import Avatar from '../Avatar';
+import ImageCropper from '../ImageCropper';
 import Modal from '../guild/Modal';
 import GuildIcon from '../guild/GuildIcon';
 import CopyField from './CopyField';
@@ -12,7 +13,7 @@ import {
   updateApplication,
 } from '../../services/developerService';
 import { toBitfield } from '../../utils/botPermissions';
-import { MAX_PICTURE_BYTES, pictureData } from '../../utils/pictureData';
+import { MAX_PICTURE_BYTES, croppedPictureData } from '../../utils/pictureData';
 import { errorMessage } from '../../utils/guildDisplay';
 import { formatDate, formatDateTime, useDateFormat } from '../../utils/dateFormat';
 import { displayName, useProfiles } from '../../utils/profiles';
@@ -106,6 +107,7 @@ function GeneralTab({ app, onChanged }) {
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [cropping, setCropping] = useState(null); // a picked picture, in the cropper
   const fileRef = useRef(null);
 
   const dirty = name.trim() !== app.name || description.trim() !== (app.description ?? '');
@@ -136,7 +138,16 @@ function GeneralTab({ app, onChanged }) {
     e.target.value = '';
     if (!file) return;
     if (file.size > MAX_PICTURE_BYTES) return setError(t('developers.general.pictureTooBig'));
-    run(async () => onChanged(await updateApplication(app.id, { avatar: await pictureData(file) })));
+    setCropping(file);
+  };
+
+  const applyCrop = (crop) => {
+    const file = cropping;
+    setCropping(null);
+    run(async () => {
+      const picture = await croppedPictureData(file, crop);
+      onChanged(await updateApplication(app.id, { avatar: picture.data, avatarCrop: picture.crop }));
+    });
   };
 
   return (
@@ -210,6 +221,7 @@ function GeneralTab({ app, onChanged }) {
           <p>{t('developers.general.confirmDelete')}</p>
         </Modal>
       )}
+      {cropping && <ImageCropper file={cropping} onApply={applyCrop} onCancel={() => setCropping(null)} />}
     </form>
   );
 }

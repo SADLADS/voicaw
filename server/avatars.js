@@ -20,10 +20,11 @@ function avatarUrl(userId, avatar) {
   return avatar ? `${s3Endpoint}/${BUCKET}/${key(userId, avatar)}` : null;
 }
 
-// Processes `original`, stores it as the user's new picture and removes the previous one.
-// Resolves to the new avatar id. Throws AvatarImageError for images that can't be used.
-async function setAvatarFrom(userId, original) {
-  const image = await processAvatar(original);
+// Processes `original` (cut to `crop`, see avatarImage.js parseCrop), stores it as the user's
+// new picture and removes the previous one. Resolves to the new avatar id. Throws
+// AvatarImageError for images that can't be used.
+async function setAvatarFrom(userId, original, crop = null) {
+  const image = await processAvatar(original, crop);
   const avatar = crypto.randomUUID();
   await putObject(BUCKET, key(userId, avatar), image.buffer, image.contentType);
   const before = await db.get('SELECT avatar FROM users WHERE id = ?', [userId]);
