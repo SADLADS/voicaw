@@ -12,7 +12,8 @@ import { isSpellcheckEnabled, setSpellcheckEnabled } from '../utils/spellcheck';
 import { addWord } from '../spellcheck/personalDictionary';
 import { openInNewTab } from '../utils/saveFile';
 import { copyIdItem } from '../utils/copyId';
-import { userSafetyItems, webhookSafetyItems } from '../utils/safetyDialogs';
+import { webhookSafetyItems } from '../utils/safetyDialogs';
+import { onOpenPersonMenu, personMenuItems } from '../utils/personMenu';
 import ContextMenu from './ContextMenu';
 import ImageMenu from './ImageMenu';
 import { displayName } from '../utils/profiles';
@@ -22,11 +23,12 @@ import { t } from '../i18n';
 // messages... handle theirs first): a picture (ImageMenu), a text box (spelling corrections,
 // Add to Dictionary, Cut / Copy / Paste / Select All, and Spellcheck on or off), a link to
 // another site (Copy Link, Open Link), selected text (Copy), a person (anything marked
-// `data-user-id`: Block / Unblock and Report, not on yourself, then Copy User ID) and a webhook on
-// its message (Block / Unblock Webhook, Copy Webhook ID). Mounted once (App), listening
-// on the page; Shift+right-click still gets the browser's (utils/nativeContextMenu.js). Not on
-// a phone: holding a message opens its actions, a picture in a document its menu
-// (useImageHold), and text boxes keep the phone's own.
+// `data-user-id`: the person's menu, utils/personMenu.js) and a webhook on its message (Block /
+// Unblock Webhook, Copy Webhook ID). Mounted once (App), listening on the page; Shift+right-click
+// still gets the browser's (utils/nativeContextMenu.js). Not on a phone: holding a message opens
+// its actions, a picture in a document its menu (useImageHold), and text boxes keep the
+// phone's own; holding a person (a member row, a message's picture or name) opens the person's
+// menu as a sheet here (openPersonMenu).
 
 // How long the menu waits for spelling suggestions before opening without them.
 const SPELLING_WAIT_MS = 400;
@@ -72,8 +74,7 @@ function pageItems({ link, selected, userId, webhook }, meId) {
   }
   if (userId) {
     if (items.length) items.push({ separator: true });
-    const safety = userSafetyItems(userId, displayName(userId, t('app.pageMenus.user')), meId);
-    items.push(...safety, ...(safety.length ? [{ separator: true }] : []), copyIdItem('user', userId));
+    items.push(...personMenuItems(userId, displayName(userId, t('app.pageMenus.user')), meId));
   } else if (webhook) {
     if (items.length) items.push({ separator: true });
     items.push(...webhookSafetyItems(webhook.id, webhook.name), { separator: true }, copyIdItem('webhook', webhook.id));
@@ -86,6 +87,9 @@ export default function PageMenus() {
   const meId = useAuth()?.user?.id;
   const [menu, setMenu] = useState(null); // { kind: 'image' | 'text' | 'page', anchor, ... }
   const close = useCallback(() => setMenu(null), []);
+
+  // A person held on a phone: their menu as a sheet.
+  useEffect(() => onOpenPersonMenu((userId) => setMenu({ kind: 'page', userId, sheet: true, anchor: { left: 0, right: 0, top: 0, bottom: 0 } })), []);
 
   useEffect(() => {
     if (isMobile) return undefined;
@@ -123,5 +127,5 @@ export default function PageMenus() {
     : menu.link ? t('app.pageMenus.link')
       : menu.selected ? t('app.pageMenus.selection')
         : menu.webhook ? menu.webhook.name : displayName(menu.userId, t('app.pageMenus.user'));
-  return <ContextMenu key={`${menu.anchor.left},${menu.anchor.top}`} title={label} label={label} items={items} anchor={menu.anchor} onClose={close} />;
+  return <ContextMenu key={menu.sheet ? `sheet-${menu.userId}` : `${menu.anchor.left},${menu.anchor.top}`} title={label} label={label} items={items} anchor={menu.anchor} sheet={Boolean(menu.sheet)} onClose={close} />;
 }

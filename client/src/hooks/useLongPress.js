@@ -4,13 +4,14 @@ const HOLD_MS = 450;
 // A finger drifting further than this is scrolling, not holding.
 const MOVE_TOLERANCE_PX = 10;
 
-// Touch-and-hold on an element: returns props to spread on it. `onLongPress()` runs once the
-// finger has been held still for HOLD_MS. The tap that ends a long press doesn't also count
+// Touch-and-hold on an element: returns props to spread on it. `onLongPress(target)` runs once
+// the finger has been held still for HOLD_MS (`target`: what the finger is on, e.g. a name in it). The tap that ends a long press doesn't also count
 // as a click (e.g. on a link or image in the message), and the browser's own long-press menu
 // is suppressed. Scrolling or lifting the finger early cancels it.
 export function useLongPress(onLongPress, { enabled = true } = {}) {
   const timer = useRef(null);
   const start = useRef(null);
+  const target = useRef(null);
   const fired = useRef(false);
   const callback = useRef(onLongPress);
   callback.current = onLongPress;
@@ -29,12 +30,13 @@ export function useLongPress(onLongPress, { enabled = true } = {}) {
       if (e.touches.length !== 1) return cancel();
       fired.current = false;
       start.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      target.current = e.target;
       cancel();
       timer.current = setTimeout(() => {
         timer.current = null;
         fired.current = true;
         navigator.vibrate?.(10);
-        callback.current();
+        callback.current(target.current);
       }, HOLD_MS);
     },
     onTouchMove(e) {

@@ -108,7 +108,11 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   the normal colour), in chat (`nameColors`) and the member list. A channel without Send
   Messages shows a notice instead of the composer. `guild/MemberList.jsx`: grouped under
   hoisted roles, then Online, Offline; click for a card with roles (add/remove below your
-  rank), Message / Make owner / Kick / Ban (a panel over the chat on mobile). Guild Settings
+  rank; + opens the roles to add under a search box that takes the focus, Enter adding the
+  first match, Escape closing it) (a panel over the chat on mobile). Message, friends, Make
+  Owner / Kick / Ban, Block and Report are in the person's right-click menu (held on a phone;
+  `utils/personMenu.js`, see Right-click menus in `docs/client.md`), the same on a row as on a
+  message's picture or name. Guild Settings
   (`GuildSettingsDialog`) has tabs by permission: Overview (also the join log, see Join log), Roles (`RolesSettings`: drag or
   arrows to reorder, colour swatches, permissions), Emoji (`EmojiSettings`), Invites, Bans. A channel's settings have a
   Permissions tab (`ChannelPermissions`: private toggle, ✕ / / ✓ per role or member). Dialogs use `guild/Modal.jsx`; styles are

@@ -346,7 +346,7 @@ people's encrypted DMs, which bots still never see. The app says so on every one
 - **Gateway**: `bot_dm_message_new` / `_edit` / `_delete` (sent to the bot's sockets like the
   person's) → MESSAGE_CREATE / _UPDATE / _DELETE with the Direct Messages intent, on shard 0.
 - **App** (routes/botDms.js, logged in): list (`/bot-dms`, with each bot's profile and unread),
-  start one from a bot's member card (`POST /bot-dms`, same rules), messages (pages of 50), send
+  start one from a bot's right-click menu, Message (`POST /bot-dms`, same rules), messages (pages of 50), send
   plain text (2000 characters, 10 per 10 s), edit and delete your own, read, and delete the whole
   conversation (gone for the bot too). Pushes are `bot_dm` (plain title and body, like a guild
   mention's) unless you're looking (`bot-dm-<id>`) or muted it (conversation settings kind

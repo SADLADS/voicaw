@@ -31,8 +31,6 @@
     "cancel": "Cancel request",
     "remove": "Remove friend",
     "addFriend": "Add friend",
-    "requestSent": "Request sent",
-    "acceptRequest": "Accept friend request",
     "removeConfirmTitle": "Remove {{name}}?",
     "removeConfirm": "You'll no longer be friends. Your conversation stays, and either of you can send a new request.",
     "add": {

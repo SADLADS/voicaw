@@ -39,6 +39,13 @@
       "editProfile": "Edit Profile",
       "logOut": "Log out"
     },
+    "personMenu": {
+      "message": "Message",
+      "addFriend": "Add Friend",
+      "acceptRequest": "Accept Friend Request",
+      "cancelRequest": "Cancel Friend Request",
+      "removeFriend": "Remove Friend"
+    },
     "pageMenus": {
       "text": "Text",
       "link": "Link",

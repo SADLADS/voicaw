@@ -1051,13 +1051,6 @@ img.guild-icon {
   font-weight: 600;
 }
 
-.member-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-
 /* ---- Dialogs ---- */
 
 .vc-dialog-backdrop {
@@ -1707,13 +1700,26 @@ button.audit-log-row:focus-visible {
 }
 
 .role-picker {
-  list-style: none;
   margin: 6px 0 0;
   padding: 4px;
-  max-height: 180px;
-  overflow-y: auto;
   border-radius: 6px;
   background-color: var(--vc-bg-base);
+}
+
+.role-picker ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.role-picker-search {
+  margin-bottom: 4px;
+}
+
+.role-picker-empty {
+  margin: 4px 8px;
 }
 
 .role-picker button {

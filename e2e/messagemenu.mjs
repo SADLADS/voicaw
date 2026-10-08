@@ -61,8 +61,8 @@ try {
   await a.waitForSelector('.context-menu', { state: 'detached' });
 
   await menuOn(a, 'hi from bob');
-  check(same(await items(a, '.context-menu'), ['Add Reaction', 'Reply', 'Pin Message', 'Copy Text']),
-    "someone else's: no Edit or Delete");
+  check(same(await items(a, '.context-menu'), ['Add Reaction', 'Reply', 'Pin Message', 'Copy Text', 'Report Message']),
+    `someone else's: no Edit or Delete (${await items(a, '.context-menu')})`);
   await a.click('.context-menu-reaction[aria-label="React with Thumbs Up"]');
   await a.waitForSelector('.context-menu', { state: 'detached' });
   await row(a, 'hi from bob').locator('.message-reactions button[aria-pressed="true"]').waitFor({ timeout: 10000 });
@@ -107,9 +107,8 @@ try {
 
   await menuOn(a, 'hi from bob');
   await a.click('.context-menu [role="menuitem"]:has-text("Copy Text")');
-  await a.waitForSelector('.context-menu >> text=Copied');
-  check(await a.evaluate(() => navigator.clipboard.readText()) === 'hi from bob', 'Copy Text copies it and says so');
   await a.waitForSelector('.context-menu', { state: 'detached' });
+  check(await a.evaluate(() => navigator.clipboard.readText()) === 'hi from bob', 'Copy Text copies it and closes the menu');
 
   // A link gets its own menu instead (PageMenus), not the message's.
   await send(a, 'see https://example.com/page');

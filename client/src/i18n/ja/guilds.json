@@ -99,7 +99,6 @@
       "removeRole": "{{name}} を外す",
       "addRole": "ロールを追加",
       "rolesToAdd": "追加するロール",
-      "message": "メッセージ",
       "makeOwner": "オーナーにする",
       "transfer": {
         "title": "{{name}} さんに所有権を譲渡",

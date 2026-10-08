@@ -51,7 +51,7 @@ try {
   // A person: Block asks first, then their message collapses.
   await a.click(`.message-author:has-text("${bob.name}")`, { button: 'right' });
   await a.waitForSelector('.context-menu');
-  check(JSON.stringify(await items(a)) === '["Block","Report","Copy User ID"]', `a person's menu: ${await items(a)}`);
+  check(JSON.stringify(await items(a)) === '["Message","Add Friend","Block","Report","Copy User ID"]', `a person's menu: ${await items(a)}`);
   await shot(a, 'person-menu');
   await a.click('.context-menu >> text=Block');
   await a.waitForSelector(`.vc-dialog[aria-label="Block ${bob.name}?"]`);

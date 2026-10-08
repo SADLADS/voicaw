@@ -187,9 +187,17 @@
   `docs/uploads.md`); a text box (`utils/editActions.js`: spelling fixes for the word clicked,
   Add to Dictionary, Cut / Copy (with a selection, not in passwords), Paste, Select All, and a
   Spellcheck tick); a link to another site (Copy Link, Open Link); selected text (Copy); a
-  person (Block / Unblock and Report, not on yourself, then Copy User ID: anything marked
-  `data-user-id`, which `Avatar` always is, and so are a message's author, user mentions, member
-  list rows, voice channel members and profile cards); a webhook's name or picture on its
+  person (anything marked `data-user-id`, which `Avatar` always is, and so are a message's
+  author, user mentions, member list rows, voice channel members and profile cards): the
+  person's menu (`utils/personMenu.js`, one menu wherever they're shown), Message (Layout
+  registers how: a bot's conversation is its own kind), the friend item (Add Friend / Accept
+  Friend Request / Cancel Friend Request / Remove Friend, which asks; not for bots, deleted or
+  blocked accounts), in a guild (GuildView registers the open guild and its members) Make
+  Owner (the owner, not to a bot) / Kick / Ban as permissions and rank allow, Block / Unblock
+  and Report, then Copy User ID; only Copy User ID on yourself. Those that ask first open
+  through `SafetyDialogs.jsx`. On a phone, holding a guild member row, or a message's picture,
+  name or a mention (instead of the message's actions; `useLongPress` passes what was held),
+  opens the same menu as a sheet (`openPersonMenu`); a webhook's name or picture on its
   message (Block Webhook, Copy Webhook ID). A message's own menu gives way to those (right-clicking its author or a mention gets
   the person's). The menu takes the focus, so each action puts it back
   in the box first. Paste in a browser asks to read the clipboard (the first time, the browser
@@ -433,7 +441,8 @@ stays the unique handle (logins, @username on the card).
   Escape closes only the cropper (caught before the dialog under it). Webhook pictures don't use
   it yet.
 - `ProfileCard` (picture with status, names, custom status, bio) is the guild member card's top
-  and `ProfilePopover`'s body (clicking a name or avatar in chat). The DM list and member list
+  and `ProfilePopover`'s body (clicking a name or avatar in chat), which has no buttons:
+  what can be done to someone is in their right-click menu (see Right-click menus). The DM list and member list
   show the custom status under names.
 - Settings → Edit Profile is its own page (`/settings/profile`, `EditProfile.jsx`): picture
   (change or remove), display name, custom status, bio, with a live preview; Save uploads the
@@ -518,9 +527,9 @@ the other person accepts.
   list live (Layout marks `last_timestamp` on `new_dm`). Landing on `/dm` opens your latest
   conversation, or `/dm/friends` if you have none. `Friends.jsx` (`/dm/friends`): tabs Online, All,
   Pending (opens there when someone's asked), Add friend (by username), and for admins Everyone
-  (every account, as the DM list used to be); a row opens the DM. `FriendButton.jsx` on profile
-  cards (inside `UserSafetyActions`): Add friend / Request sent (click cancels) / Accept friend
-  request / Remove friend (asks). e2e: `e2e/friends.mjs`; `makeFriends` in `e2e/helpers.mjs` for
+  (every account, as the DM list used to be); a row opens the DM. A person's right-click menu
+  (held on a phone; `utils/personMenu.js`) has Add Friend / Cancel Friend Request / Accept
+  Friend Request / Remove Friend (asks). e2e: `e2e/friends.mjs`; `makeFriends` in `e2e/helpers.mjs` for
   scripts that need people in each other's list.
 
 ## Blocking, reports and suspensions
@@ -534,9 +543,8 @@ use (voicaw.com/terms/) say rules are enforced.
   about the other's group messages, guild mentions or group calls (`blockersAmong`). In the app,
   their messages are collapsed ("Blocked message · Show", `BlockedMessage.jsx` in `MessageList`),
   they don't show as typing, and a DM with them is closed ("You've blocked …" with Unblock in
-  the header). Block / Unblock and Report are on the profile popover and the guild member card
-  (`UserSafetyActions.jsx`; blocking asks first), and in the right-click menus of a person
-  (anything marked `data-user-id`, PageMenus) and of the DM list (`DmMenu`, people and bots):
+  the header). Block / Unblock and Report are in the right-click menus of a person (anything
+  marked `data-user-id`, PageMenus and `utils/personMenu.js`; held on a phone) and of the DM list (`DmMenu`, people and bots):
   `utils/safetyDialogs.js` makes the items, and since a menu closes on a pick, the confirmation
   and the report form are drawn by `SafetyDialogs.jsx` (in `App`). Not on yourself or a deleted
   account. Settings → Blocked users lists them. Deleting an account deletes its blocks both ways.

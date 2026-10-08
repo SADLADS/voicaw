@@ -3771,14 +3771,6 @@ body.mobile-mode .poll-voters-list {
   margin-left: auto;
 }
 
-/* Block / Report on a profile or member card (UserSafetyActions.jsx). */
-.user-safety-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
-
 /* ReportDialog.jsx */
 .report-categories {
   display: flex;
@@ -4156,9 +4148,4 @@ body.mobile-mode .poll-voters-list {
 .friends-add-ok {
   margin-top: 8px;
   color: var(--vc-success);
-}
-
-.friend-button-error {
-  align-self: center;
-  font-size: 12px;
 }
