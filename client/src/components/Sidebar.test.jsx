@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 
 vi.mock('../services/guildService', () => ({
   leaveGuild: vi.fn(async () => {}),
@@ -26,7 +26,7 @@ const layout = (id, permissions, extra = {}) => ({
   ...guilds.find((g) => g.id === id), my_permissions: permissions, my_notify_level: 'mentions', roles: [], categories: [], channels: [], ...extra,
 });
 
-function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [], guildVoice, guildMentions, unreadFrom } = {}) {
+function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [], guildVoice, guildMentions, unreadFrom, path = '/dm' } = {}) {
   const guildList = {
     guilds,
     layouts,
@@ -39,7 +39,8 @@ function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, un
     <ConfigContext.Provider value={{ s3Endpoint: '' }}>
       <InteractionContext.Provider value={{ isMobile: false }}>
         <LayoutContext.Provider value={{ guildList }}>
-          <MemoryRouter initialEntries={['/dm']}>
+          <MemoryRouter initialEntries={[path]}>
+            <ShowPath />
             <Sidebar user={{ id: 1, username: 'owner' }} guilds={guilds} guildVoice={guildVoice} guildMentions={guildMentions} unreadFrom={unreadFrom} />
           </MemoryRouter>
         </LayoutContext.Provider>
@@ -47,6 +48,11 @@ function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, un
     </ConfigContext.Provider>
   );
   return guildList;
+}
+
+function ShowPath() {
+  const location = useLocation();
+  return <output data-testid="path">{location.pathname}</output>;
 }
 
 const items = (menu) => [...menu.querySelectorAll('[role^="menuitem"]')].map((b) => b.firstChild.firstChild.textContent);
@@ -69,6 +75,28 @@ describe('the rail\'s DM button', () => {
     const button = icon('Direct Messages: new message from Zed');
     expect(button).toHaveAttribute('href', '/dm');
     expect(button.querySelector('img')).not.toBeNull();
+  });
+});
+
+describe('clicking where you already are', () => {
+  const path = () => screen.getByTestId('path').textContent;
+
+  it('stays in the open DM instead of going to bare /dm and back', () => {
+    renderRail({ path: '/dm/7' });
+    fireEvent.click(icon('Direct Messages'));
+    expect(path()).toBe('/dm/7');
+    fireEvent.click(icon('Alpha'));
+    expect(path()).toBe('/guild/5');
+  });
+
+  it("stays in the open guild's channel, and still opens another guild", () => {
+    renderRail({ path: '/guild/5/12' });
+    fireEvent.click(icon('Alpha'));
+    expect(path()).toBe('/guild/5/12');
+    fireEvent.click(icon('Beta'));
+    expect(path()).toBe('/guild/6');
+    fireEvent.click(icon('Direct Messages'));
+    expect(path()).toBe('/dm');
   });
 });
 

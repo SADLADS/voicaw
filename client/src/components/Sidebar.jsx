@@ -51,6 +51,12 @@ export default function Sidebar({ user, hasUnreadDms, unreadFrom = null,guilds =
 
   // Helper to check if path is active (starts with)
   const isActivePath = (path) => location.pathname.startsWith(path);
+  // Clicking the DMs or the guild you're already in does nothing (as in Discord): following the
+  // link would open bare /dm or /guild/:id, which shows an empty page for a moment before
+  // redirecting to a conversation or channel.
+  const stayIfIn = (active) => (e) => {
+    if (active) e.preventDefault();
+  };
 
   return (
     <div
@@ -70,13 +76,14 @@ export default function Sidebar({ user, hasUnreadDms, unreadFrom = null,guilds =
           <NavLink
             to="/dm"
             className="nav-icon rail-dm-unread"
+            onClick={stayIfIn(isActivePath('/dm'))}
             aria-label={t('app.sidebar.unreadFrom', { name: displayName(unreadFrom) })}
             title={t('app.sidebar.unreadFrom', { name: displayName(unreadFrom) })}
           >
             <Avatar userId={unreadFrom} />
           </NavLink>
         ) : (
-          <NavLink to="/dm" className="nav-icon" aria-label={t('app.sidebar.directMessages')} title={t('app.sidebar.directMessages')}>
+          <NavLink to="/dm" className="nav-icon" onClick={stayIfIn(isActivePath('/dm'))} aria-label={t('app.sidebar.directMessages')} title={t('app.sidebar.directMessages')}>
             <FontAwesomeIcon icon={faComments} />
           </NavLink>
         )}
@@ -93,16 +100,17 @@ export default function Sidebar({ user, hasUnreadDms, unreadFrom = null,guilds =
             if (index > dragFrom && index <= drag.targetIndex) shift = -1;
             else if (index < dragFrom && index >= drag.targetIndex) shift = 1;
           }
+          const active = isActivePath(`/guild/${guild.id}/`) || location.pathname === `/guild/${guild.id}`;
           const inVoice = myVoiceGuildId != null && String(myVoiceGuildId) === String(guild.id) ? 'self' : guildVoice[guild.id];
           return (
             <div
               key={guild.id}
-              className={`nav-item${isActivePath(`/guild/${guild.id}/`) || location.pathname === `/guild/${guild.id}` ? ' active' : ''}${dragging ? ' dragging' : ''}`}
+              className={`nav-item${active ? ' active' : ''}${dragging ? ' dragging' : ''}`}
               style={dragging ? { transform: `translateY(${drag.dy}px)` } : shift ? { transform: `translateY(${shift * 100}%) translateY(${shift * 16}px)` } : undefined}
               {...itemProps(guild.id)}
             >
               <span className={`dot${unreadGuildIds.has(guild.id) ? ' visible' : ''}`}></span>
-              <NavLink to={`/guild/${guild.id}`} className="nav-icon rail-guild" aria-label={guild.name} title={guild.name} draggable={false}>
+              <NavLink to={`/guild/${guild.id}`} className="nav-icon rail-guild" onClick={stayIfIn(active)} aria-label={guild.name} title={guild.name} draggable={false}>
                 <GuildIcon guild={guild} />
               </NavLink>
               {inVoice && (
