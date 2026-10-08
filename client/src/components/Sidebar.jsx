@@ -58,16 +58,22 @@ export default function Sidebar({ user, hasUnreadDms, unreadFrom = null,guilds =
     if (active) e.preventDefault();
   };
 
+  // The logo doesn't go anywhere for now: a click only makes it pop, restarting on every
+  // click so quick clicks each get their own.
+  const popLogo = (e) => {
+    e.currentTarget.animate?.(
+      [{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }],
+      { duration: 160, easing: 'ease-out' },
+    );
+  };
+
   return (
     <div
       className="sidebar d-flex flex-column align-items-center"
       style={{ width: '72px' }}
     >
       <div className="nav-item">
-      <NavLink to="/" className="" style={{ display: 'block' }}>
-      <img src={logo} alt={t('app.sidebar.logoAlt')} style={{ width: '50px', height: '50px' }} />
-
-      </NavLink>
+        <img src={logo} alt={t('app.sidebar.logoAlt')} className="rail-logo" onClick={popLogo} />
       </div>
 
       <div className={`nav-item ${isActivePath('/dm') ? 'active' : ''}`}>

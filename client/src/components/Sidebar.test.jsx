@@ -100,6 +100,19 @@ describe('clicking where you already are', () => {
   });
 });
 
+describe('the rail\'s logo', () => {
+  it('goes nowhere when clicked, and pops on every click', () => {
+    renderRail({ path: '/dm/7' });
+    const logo = screen.getByAltText('Voicaw Logo');
+    expect(logo.closest('a')).toBeNull();
+    logo.animate = vi.fn();
+    fireEvent.click(logo);
+    fireEvent.click(logo);
+    expect(screen.getByTestId('path').textContent).toBe('/dm/7');
+    expect(logo.animate).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('the guild rail voice speaker', () => {
   const badge = (name) => icon(name).parentElement.querySelector('.rail-voice-badge');
 

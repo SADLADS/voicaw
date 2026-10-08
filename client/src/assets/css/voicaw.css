@@ -359,6 +359,14 @@ body {
   background-color: var(--vc-bg-base);
   border-right: 1px solid var(--vc-border-light);
 }
+.rail-logo {
+  display: block;
+  width: 50px;
+  height: 50px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-drag: none;
+}
 .sidebar::-webkit-scrollbar {
   width: 0px;
   background: transparent;
