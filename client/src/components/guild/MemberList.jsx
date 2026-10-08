@@ -6,10 +6,9 @@ import { setMemberRoles } from '../../services/guildService';
 import { PERMISSIONS, colorToHex, has, memberColor, memberRank, memberRoles } from '../../utils/permissions';
 import { errorMessage, groupMembers } from '../../utils/guildDisplay';
 import StatusIcon from '../StatusIcon';
-import CustomStatus from '../CustomStatus';
 import { usePresence } from '../../hooks/usePresence';
 import { formatDate } from '../../utils/dateFormat';
-import { displayName, getProfile, nameOf, useProfiles } from '../../utils/profiles';
+import { displayName, nameOf, useProfiles } from '../../utils/profiles';
 import { interactionError } from '../../utils/commandOptions';
 import ProfileCard from '../ProfileCard';
 import Avatar from '../Avatar';
@@ -214,12 +213,10 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
               {levelBadge(level, guild.levels)}
             </span>
           )}
-          <span className="member-name-block">
-            <span className="member-name" style={{ color: color ?? undefined }}>
-              {nameOf(member)}
-              {member.bot ? <span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span> : null}
-            </span>
-            <CustomStatus profile={getProfile(member.id)} className="member-custom-status" />
+          {/* No custom status here (the rows are busy enough): their card shows it. */}
+          <span className="member-name" style={{ color: color ?? undefined }}>
+            {nameOf(member)}
+            {member.bot ? <span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span> : null}
           </span>
           {member.id === guild.owner && <FontAwesomeIcon icon={faCrown} className="member-owner" title={t('guilds.memberList.owner')} />}
         </button>

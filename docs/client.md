@@ -445,8 +445,10 @@ stays the unique handle (logins, @username on the card).
   it yet.
 - `ProfileCard` (picture with status, names, custom status, bio) is the guild member card's top
   and `ProfilePopover`'s body (clicking a name or avatar in chat), which has no buttons:
-  what can be done to someone is in their right-click menu (see Right-click menus). The DM list and member list
-  show the custom status under names.
+  what can be done to someone is in their right-click menu (see Right-click menus). The DM list, the Friends
+  page and your user panel show the custom status under names; a guild's member list
+  deliberately doesn't (its rows already have role colours, levels, tags and the crown), only
+  the member card does.
 - **Custom status emoji**: a Unicode emoji or a guild's custom one (`<:name:id>`, which shows
   everywhere, as in messages: custom emoji aren't encrypted), checked like a reaction's (64
   characters, no spaces); the text and the emoji are each optional, so a status can be just an

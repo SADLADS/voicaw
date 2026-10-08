@@ -149,6 +149,25 @@ try {
   await waitForStatus(b, alice.id, { emoji: coffee, text: null });
   check(true, 'still there after a reload');
 
+  console.log("guild member list: none (the card has it)");
+  const guild = await a.evaluate(async () => {
+    const res = await fetch('/api/guilds', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ name: 'Statuses' }),
+    });
+    return res.json();
+  });
+  await a.goto(`${BASE}/guild/${guild.id}/${guild.channels[0].id}`);
+  const aliceRow = `.member-row[data-user-id="${alice.id}"]`;
+  await a.waitForSelector(aliceRow);
+  check(!(await a.$(`${aliceRow} .custom-status`)), 'no status in her member list row');
+  await shot(a, '6b-member-list');
+  await a.click(aliceRow);
+  await a.waitForSelector(`.member-card .profile-card-custom-status img[alt="${coffee}"]`);
+  check(true, 'her member card shows it');
+  await a.keyboard.press('Escape');
+
   console.log('phone');
   const phone = await browser.newContext({ ...devices['Pixel 7'] });
   const p = await phone.newPage();
