@@ -7,7 +7,9 @@ import SidebarWrapper from './SidebarWrapper';
 import SidebarResizer from './SidebarResizer';
 import UserPanel from './UserPanel';
 import VoiceBar from './voice/VoiceBar';
+import StreamCorner from './voice/StreamCorner';
 import StreamPopout from './voice/StreamPopout';
+import { useStreamOnPage } from '../hooks/useStreamOnPage';
 import WatchPartyPlayer from './voice/WatchPartyPlayer';
 import IncomingCall from './call/IncomingCall';
 import BotModal from './BotModal';
@@ -48,6 +50,7 @@ export default function Layout({ user, onLogout }) {
   
   // Check if we are on the DM page
   const isDmPage = location.pathname.startsWith('/dm');
+  const streamOnPage = useStreamOnPage();
   // A guild page: /guild/:guildId[/:channelId].
   const guildMatch = /^\/guild\/(\d+)(?:\/(\d+))?/.exec(location.pathname);
   const guildId = guildMatch?.[1];
@@ -299,8 +302,14 @@ export default function Layout({ user, onLogout }) {
 
         <IncomingCall user={user} />
         <StreamPopout />
-        {/* Watch Together's player, on every page while you're in a channel watching. */}
-        <WatchPartyPlayer />
+        {/* Small players in a corner, on every page: a watched stream no page shows, above
+            Watch Together's player while you're in a channel watching (which sits over the
+            channel page's slot instead while that's on screen). Top right while a page shows a
+            stream, so they don't cover its bar or the page's buttons under it. */}
+        <div className={`corner-players${streamOnPage ? ' top' : ''}`}>
+          <StreamCorner />
+          <WatchPartyPlayer />
+        </div>
         {/* A bot's form, when one of its commands or buttons opens one. */}
         <BotModal />
 

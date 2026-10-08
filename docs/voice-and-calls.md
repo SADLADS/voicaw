@@ -123,18 +123,32 @@ LiveKit carries the audio.
   own volume (Stream volume, above). UI: a
   Live badge in the channel list and on tiles, Watch Stream on a live tile once you're in, the
   stream big above the tiles (`voice/StreamView.jsx`: full screen, stop watching; the people
-  become a row; pop out, below), and the share button (`voice/ScreenShareButton.jsx`) in the voice bar and the
+  become a row; pop out and the corner, below), and the share button (`voice/ScreenShareButton.jsx`) in the voice bar and the
   channel page. Not offered where the browser has no `getDisplayMedia` (phones, which can
   still watch). The desktop app shows our own picker first (`voice/ScreenPicker.jsx`, see
   Desktop app).
+  **The corner** (like Watch Together's player, and Discord's): someone else's stream you're
+  watching, once no page shows it (you went to another channel, conversation or page), plays
+  small in a corner (`voice/StreamCorner.jsx`, drawn from Layout; bottom right, on a phone top
+  right under the header) with whose it is, its volume, Go to the voice channel (or the call),
+  Pop out and Stop watching. Pages showing it (`StreamView` on the channel page, a call panel)
+  say so (`hooks/useStreamOnPage.js`), and the corner steps aside. Not your own stream, which
+  you can see on your screen. It sits in `.corner-players` above Watch Together's mini player,
+  so both fit; while a page shows a stream the column moves to the top right (`.top`), so
+  Watch Together's mini player doesn't cover the stream's bar or the call's buttons. On a
+  phone the corner's volume is just the mute button (no room for the slider). DM and group
+  calls' streams go there too. `e2e/streamcorner.mjs` checks it all, Watch Together's pop-out
+  included.
   **Pop out** (computers, like Discord's): the stream in a window of its own
-  (`voice/streamWindow.js`), to put on another screen, maximise or make full screen. It's a
+  (`voice/streamWindow.js`, on `voice/popoutWindow.js`, shared with Watch Together's), to put
+  on another screen, maximise or make full screen. It's a
   blank window opened from the click (`window.open('', 'voicaw-stream')`; a blocked pop-up
   says so), with the page's stylesheets copied in (and any added later) and `<html>`'s theme
   attributes kept in step; `StreamPopout` (drawn from Layout, so it carries on on every page)
   renders `StreamView` into it with a portal, playing the same LiveKit track (nothing more is
-  downloaded). The channel page shows a note instead (Bring back, Stop watching). Closing the
-  window or Bring back puts the stream back on the page; Stop watching, the stream ending,
+  downloaded). The channel page shows a note instead (Bring back, Stop watching); the corner
+  shows nothing. Closing the window or Bring back puts the stream back on the page (or the
+  corner); Stop watching, the stream ending,
   leaving voice or the page going (reload, logout) closes it. The desktop app allows exactly
   this window (see Desktop app).
   Bandwidth: the sharer uploads once; LiveKit sends a copy to each viewer.
@@ -341,8 +355,17 @@ LiveKit carries the audio.
     `WatchPartyPanel` with `setPlayerSlot`; its rect followed every frame, since the phone layout
     slides panes), or, with no slot on screen (another page, or a stream being watched there),
     small in a corner (bottom right; on a phone top right under the header, clear of the message
-    box) with the title, Go to the voice channel and close (stops it on this device until you
-    open the channel again). Its controls follow your permissions: play/pause, skip, the time,
+    box; in `.corner-players`, under a stream in the corner) with the title, Go to the voice
+    channel, Pop out and close (stops it on this device until you open the channel again).
+    **Pop out** (computers): the player in a window of its own (`voice/watchPartyWindow.js`, on
+    the same `popoutWindow.js` as streams'), from the docked player's controls or the corner's
+    bar. Not a blank window like the stream's: YouTube refuses to play without a Referer
+    (Error 153) and a blank window sends none, so it opens `public/popout.html` (an empty page
+    of ours), waits for it to load, then draws into it. The frame can't move without reloading,
+    so it starts afresh there and catches up (`useWatchPartySync`; the browser may ask for
+    Click to watch); `youtubeEmbed.js` listens on the frame's own window. Bring back, or
+    closing the window, puts it back; the party ending or leaving the channel closes it. The
+    channel page says it's playing in its own window, with Bring back. Its controls follow your permissions: play/pause, skip, the time,
     a seek bar, and for you alone volume (`localStorage watchPartyVolume`; deafened: muted) and
     full screen. A transparent shield covers the frame, so clicks never reach YouTube's own
     controls (which are hidden: `controls=0`, `disablekb=1`), which would put one person out

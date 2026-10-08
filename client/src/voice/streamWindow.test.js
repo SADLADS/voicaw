@@ -46,7 +46,7 @@ describe('the popped-out stream window', () => {
     expect(doc.head.querySelector('link[rel=stylesheet]').getAttribute('href')).toBe('/assets/main.css');
     expect(doc.head.querySelector('script')).toBeNull();
     expect(doc.documentElement.dataset.theme).toBe('light');
-    expect(getStreamWindow()).toBe(doc.querySelector('.stream-window-root'));
+    expect(getStreamWindow()).toBe(doc.querySelector('.popout-window-root'));
   });
 
   it('follows theme changes and styles added later', async () => {

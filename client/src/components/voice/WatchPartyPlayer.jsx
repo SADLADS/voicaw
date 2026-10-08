@@ -1,14 +1,21 @@
 import React, { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCompress, faExpand, faForwardStep, faPause, faPlay, faUpRightFromSquare, faVolumeHigh, faVolumeXmark, faXmark } from '@fortawesome/free-solid-svg-icons';
-import { LayoutContext } from '../../contexts';
+import {
+  faArrowRight, faCompress, faDownLeftAndUpRightToCenter, faExpand, faForwardStep, faPause, faPlay, faUpRightFromSquare, faVolumeHigh,
+  faVolumeXmark, faXmark,
+} from '@fortawesome/free-solid-svg-icons';
+import { InteractionContext, LayoutContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
 import { useWatchPartySync } from '../../hooks/useWatchPartySync';
 import { embedUrl, YouTubeEmbed } from '../../voice/youtubeEmbed';
 import {
   expectedPosition, formatClock, serverNow, setPlayback, skipVideo, usePlayerSlot, useWatchParty,
 } from '../../voice/watchParty';
+import {
+  closeWatchPartyWindow, openWatchPartyWindow, setWatchPartyWindowTitle, useWatchPartyWindow,
+} from '../../voice/watchPartyWindow';
 import { usePrivacyPrefs } from '../../utils/privacy';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import { t } from '../../i18n';
@@ -36,7 +43,8 @@ const allowedChannels = new Set();
 // Watch Together's player (voice/watchParty.js): the voice channel you're in, while its party
 // has a video. Drawn from Layout and never moved, so it plays on whatever page you open: over
 // the channel page's slot (WatchPartyPanel) while that's on screen, else small in a corner
-// (close it there to stop watching until you open the channel again).
+// (close it there to stop watching until you open the channel again), or, popped out
+// (computers), in a window of its own (voice/watchPartyWindow.js), where it starts afresh.
 export default function WatchPartyPlayer() {
   const voice = useVoice();
   const inChannel = voice.status !== 'idle' && voice.channelId != null && voice.guildId != null;
@@ -45,12 +53,40 @@ export default function WatchPartyPlayer() {
   const party = useWatchParty(guildId, channelId);
   const slot = usePlayerSlot();
   const [dismissed, setDismissed] = useState(null);
+  const popoutRoot = useWatchPartyWindow();
+  const live = inChannel && Boolean(party?.current);
+  const title = party?.current ? party.current.title ?? t('voice.watchParty.untitled') : '';
 
   useEffect(() => {
     if (slot) setDismissed(null);
   }, [slot]);
 
-  if (!inChannel || !party?.current || (!slot && dismissed === channelId)) return null;
+  // The window goes once there's nothing to watch.
+  useEffect(() => {
+    if (popoutRoot && !live) closeWatchPartyWindow();
+  }, [popoutRoot, live]);
+
+  useEffect(() => {
+    if (popoutRoot && title) setWatchPartyWindowTitle(t('voice.watchParty.windowTitleOf', { title }));
+  }, [popoutRoot, title]);
+
+  if (!live) return null;
+  if (popoutRoot) {
+    return createPortal(
+      <PlayerBox
+        key={`popout-${channelId}`}
+        popout
+        guildId={guildId}
+        channelId={channelId}
+        party={party}
+        slot={null}
+        deafened={voice.selfDeaf}
+        myId={voice.identity == null ? null : Number(voice.identity)}
+      />,
+      popoutRoot,
+    );
+  }
+  if (!slot && dismissed === channelId) return null;
   return (
     <PlayerBox
       key={channelId}
@@ -65,9 +101,10 @@ export default function WatchPartyPlayer() {
   );
 }
 
-function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose }) {
+function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, popout = false }) {
   const navigate = useNavigate();
   const { guildList } = useContext(LayoutContext);
+  const { isMobile } = useContext(InteractionContext);
   const channel = guildList?.layouts?.[guildId]?.channels?.find((c) => c.id === channelId);
   const permissions = channel?.my_permissions ?? 0;
   const canControl = has(permissions, PERMISSIONS.CONTROL_PLAYBACK);
@@ -76,7 +113,10 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose })
   const autoLoad = usePrivacyPrefs().youtubeEmbeds;
   const [allowed, setAllowed] = useState(() => autoLoad || allowedChannels.has(channelId));
   const boxRef = useRef(null);
-  const [docked, setDocked] = useState(Boolean(slot));
+  const [onSlot, setOnSlot] = useState(Boolean(slot));
+  // Popped out, it fills its window and has all its controls, as over the slot.
+  const docked = popout || onSlot;
+  const [popupBlocked, setPopupBlocked] = useState(false);
   const [frame, setFrame] = useState(null);
   const [embed, setEmbed] = useState(null);
   const [ready, setReady] = useState(false);
@@ -95,7 +135,7 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose })
   // Over the slot while it's on screen (followed every frame: the phone layout slides panes).
   useLayoutEffect(() => {
     const box = boxRef.current;
-    if (!box) return undefined;
+    if (!box || popout) return undefined;
     let raf = 0;
     let last = '';
     const place = () => {
@@ -104,7 +144,7 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose })
       const key = onScreen ? `${rect.left},${rect.top},${rect.width},${rect.height}` : 'mini';
       if (key !== last) {
         last = key;
-        setDocked(Boolean(onScreen));
+        setOnSlot(Boolean(onScreen));
         if (onScreen) Object.assign(box.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
         else Object.assign(box.style, { left: '', top: '', width: '', height: '' });
       }
@@ -112,7 +152,7 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose })
     };
     place();
     return () => cancelAnimationFrame(raf);
-  }, [slot]);
+  }, [slot, popout]);
 
   useEffect(() => {
     if (!frame) return undefined;
@@ -136,20 +176,34 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose })
     return () => clearInterval(timer);
   }, [party.playing]);
 
+  // Full screen in the document it's in: the pop-out window's, when it's there.
+  const ownDocument = () => boxRef.current?.ownerDocument ?? document;
   useEffect(() => {
-    const changed = () => setFullscreen(document.fullscreenElement === boxRef.current);
-    document.addEventListener('fullscreenchange', changed);
-    return () => document.removeEventListener('fullscreenchange', changed);
+    const doc = boxRef.current?.ownerDocument ?? document;
+    const changed = () => setFullscreen(doc.fullscreenElement === boxRef.current);
+    doc.addEventListener('fullscreenchange', changed);
+    return () => doc.removeEventListener('fullscreenchange', changed);
   }, []);
+
+  useEffect(() => {
+    if (!popupBlocked) return undefined;
+    const timer = setTimeout(() => setPopupBlocked(false), 5000);
+    return () => clearTimeout(timer);
+  }, [popupBlocked]);
 
   const changeVolume = (value) => {
     setVolume(value);
     saveVolume(value);
   };
   const toggleFullscreen = () => {
-    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    const doc = ownDocument();
+    if (doc.fullscreenElement) doc.exitFullscreen?.().catch(() => {});
     else boxRef.current?.requestFullscreen?.().catch(() => {});
   };
+  const popOut = () => {
+    if (!openWatchPartyWindow()) setPopupBlocked(true);
+  };
+  const canPopOut = !popout && !isMobile;
   const itemId = party.current.id;
   const send = useCallback((playback) => {
     setPlayback(guildId, channelId, { ...playback, itemId }).catch(() => {});
@@ -166,13 +220,18 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose })
   const muted = deafened || volume === 0;
 
   return (
-    <div ref={boxRef} className={`watch-party-player${docked ? ' docked' : ' mini'}${fullscreen ? ' fullscreen' : ''}`}>
+    <div ref={boxRef} className={`watch-party-player${popout ? ' popped-out' : docked ? ' docked' : ' mini'}${fullscreen ? ' fullscreen' : ''}`}>
       {!docked && (
         <div className="watch-party-mini-bar">
           <span className="watch-party-mini-title" title={title}>{title}</span>
           <button type="button" className="watch-party-icon-button" title={t('voice.watchParty.openChannel')} aria-label={t('voice.watchParty.openChannel')} onClick={() => navigate(`/guild/${guildId}/${channelId}`)}>
-            <FontAwesomeIcon icon={faUpRightFromSquare} fixedWidth />
+            <FontAwesomeIcon icon={faArrowRight} fixedWidth />
           </button>
+          {canPopOut && (
+            <button type="button" className="watch-party-icon-button" title={t('voice.watchParty.popOut')} aria-label={t('voice.watchParty.popOut')} onClick={popOut}>
+              <FontAwesomeIcon icon={faUpRightFromSquare} fixedWidth />
+            </button>
+          )}
           <button type="button" className="watch-party-icon-button" title={t('voice.watchParty.closePlayer')} aria-label={t('voice.watchParty.closePlayer')} onClick={onClose}>
             <FontAwesomeIcon icon={faXmark} fixedWidth />
           </button>
@@ -190,6 +249,7 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose })
             />
             {/* Clicks go to our controls, not YouTube's player (everyone's must stay in step). */}
             <div className="watch-party-shield" onDoubleClick={toggleFullscreen} />
+            {popupBlocked && <p className="watch-party-popup-blocked" role="alert">{t('voice.watchParty.popupBlocked')}</p>}
             {blocked && (
               <button type="button" className="watch-party-blocked" onClick={retry}>
                 <FontAwesomeIcon icon={faPlay} /> {t('voice.watchParty.clickToWatch')}
@@ -276,6 +336,16 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose })
             aria-label={t('voice.watchParty.volume')}
             onChange={(e) => changeVolume(Number(e.target.value))}
           />
+        )}
+        {docked && canPopOut && (
+          <button type="button" className="watch-party-icon-button" aria-label={t('voice.watchParty.popOut')} title={t('voice.watchParty.popOut')} onClick={popOut}>
+            <FontAwesomeIcon icon={faUpRightFromSquare} fixedWidth />
+          </button>
+        )}
+        {popout && (
+          <button type="button" className="watch-party-icon-button" aria-label={t('voice.watchParty.bringBack')} title={t('voice.watchParty.bringBack')} onClick={closeWatchPartyWindow}>
+            <FontAwesomeIcon icon={faDownLeftAndUpRightToCenter} fixedWidth />
+          </button>
         )}
         {docked && (
           <button

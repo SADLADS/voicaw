@@ -124,7 +124,7 @@ function createWindow(hidden, onShown = () => {}) {
     });
 
     // Links to other sites open in the browser; the window only ever shows the app, and the
-    // one window it may open is a popped-out screen share (windowOpen.js).
+    // windows it may open are a popped-out screen share and Watch Together (windowOpen.js).
     const icon = ICON;
     win.webContents.setWindowOpenHandler((details) => windowOpenAction(details, { icon, openExternal: (url) => shell.openExternal(url) }));
     win.webContents.on('did-create-window', (child) => {

@@ -40,7 +40,9 @@ export class YouTubeEmbed {
     this.info = { ready: false, playerState: STATE.UNSTARTED, currentTime: 0, timeAt: 0, duration: 0, error: null, muted: false };
     this.listening = null;
     this.handleMessage = this.handleMessage.bind(this);
-    window.addEventListener('message', this.handleMessage);
+    // The frame's answers come to the window it's in: a popped-out player's is its own.
+    this.host = iframe.ownerDocument?.defaultView ?? window;
+    this.host.addEventListener('message', this.handleMessage);
     this.handleLoad = () => this.startListening();
     iframe.addEventListener('load', this.handleLoad);
   }
@@ -130,7 +132,7 @@ export class YouTubeEmbed {
 
   destroy() {
     clearInterval(this.listening);
-    window.removeEventListener('message', this.handleMessage);
+    this.host.removeEventListener('message', this.handleMessage);
     this.iframe.removeEventListener('load', this.handleLoad);
   }
 }

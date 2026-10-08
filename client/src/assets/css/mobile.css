@@ -229,11 +229,21 @@
     display: none;
 }
 
-.mobile-mode .watch-party-player.mini {
+/* The corner players: top right under the header, clear of the message box. */
+.mobile-mode .corner-players {
     top: calc(var(--vc-header-height) + 8px + env(safe-area-inset-top));
     right: 8px;
     bottom: auto;
+}
+
+.mobile-mode .watch-party-player.mini,
+.mobile-mode .stream-view.corner {
     width: 200px;
+}
+
+/* No room for the volume slider beside the name there; the mute button stays. */
+.mobile-mode .stream-view.corner .stream-volume-slider {
+    display: none;
 }
 
 /* Friends (Friends.jsx): the icon without the word, so the tabs fit (they scroll sideways if
