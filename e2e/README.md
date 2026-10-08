@@ -71,6 +71,7 @@ node e2e/components.mjs [dir] # bots' buttons (every style, link, emoji, disable
 node e2e/search.mjs [dir] # guild search: from:/in:/has:/mentions: suggestions, results, Jump into another channel, private channel, phone
 node e2e/days.mjs [dir]   # day dividers between days and above the first message (desktop + phone)
 node e2e/panes.mjs [dir]  # phone: swipe list <-> chat (flick, slow drag, vertical scroll), back button, header back arrow (DM, notes, channel; none on a computer), guild
+node e2e/guildswipe.mjs [dir] # phone: a guild opened on the rail (its channels), swipe left to its channel and back = still that guild's channels (not the DMs shown before), after tapping a channel, to and fro, after a reload; a DM still swipes back to the DM list
 node e2e/back.mjs [dir]   # phone Back as in Discord: chat -> its list -> leaves the app; guilds on the rail, the DMs button, a channel link in a DM add no entries (Back after the link = that guild's channels), header arrow the same, Back closes Settings
 node e2e/touchhover.mjs [dir] # phone: a finger resting on a channel/DM row then scrolling leaves no hover colour (background or link text), list scrolls; mouse hover unchanged
 node e2e/panesperf.mjs [runs] [cpu slowdown] # speed of the phone panes' swipe: frame gaps and long tasks while dragging and after letting go, style/script time; TRACE=<file.json> also traces one drag each way
