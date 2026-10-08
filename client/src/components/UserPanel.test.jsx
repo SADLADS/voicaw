@@ -62,6 +62,30 @@ describe('UserPanel', () => {
     connection.state = 'online';
   });
 
+  it('shows your custom status under your name while connected, the connection otherwise', () => {
+    clearProfiles();
+    mergeProfiles([{ id: 7, username: 'alice', custom_status: 'Out for lunch', custom_status_emoji: '🐇' }]);
+    const { container } = renderPanel();
+    const line = () => container.querySelector('.user-panel-state');
+    expect(line()).toHaveTextContent('🐇Out for lunch');
+    expect(screen.queryByText('Online')).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Online' })).toBeInTheDocument(); // the dot still says it
+    act(() => {
+      connection.state = 'connecting';
+      connection.listeners.forEach((cb) => cb('connecting'));
+    });
+    expect(line()).toHaveTextContent('Connecting…');
+    act(() => {
+      connection.state = 'online';
+      connection.listeners.forEach((cb) => cb('online'));
+    });
+    // Only an emoji is a status too.
+    act(() => mergeProfiles([{ id: 7, username: 'alice', custom_status: null }]));
+    expect(line()).toHaveTextContent('🐇');
+    act(() => mergeProfiles([{ id: 7, username: 'alice', custom_status_emoji: null }]));
+    expect(line()).toHaveTextContent('Online');
+  });
+
   it('shows the default picture without one (or if it fails), and a new one as soon as it changes', () => {
     setAvatarBase('https://s3.test');
     clearProfiles();

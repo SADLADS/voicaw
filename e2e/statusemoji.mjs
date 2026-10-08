@@ -98,6 +98,12 @@ try {
   await a.waitForSelector('.user-menu-status:has-text("Out for lunch")');
   check((await a.getAttribute('.user-menu .status-emoji-button img', 'alt')) === rabbit, 'the menu shows emoji and text');
   await shot(a, '3-menu-saved');
+  const panel = await a.$eval('.user-panel-state', (el) => ({
+    emoji: el.querySelector('.custom-status-emoji img')?.alt ?? null,
+    text: el.querySelector('.custom-status-text')?.textContent ?? null,
+    fits: el.scrollWidth <= el.clientWidth || getComputedStyle(el).textOverflow === 'ellipsis',
+  }));
+  check(panel.emoji === rabbit && panel.text === 'Out for lunch' && panel.fits, 'your user panel shows it under your name instead of Online');
 
   await waitForStatus(b, alice.id, { emoji: rabbit, text: 'Out for lunch' });
   await b.waitForFunction((id) => {

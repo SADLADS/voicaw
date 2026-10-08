@@ -63,9 +63,10 @@
   open guild's icon, does nothing (as in Discord): following the link went to bare `/dm` or
   `/guild/:id`, which showed an empty page for a moment before redirecting (`e2e/samepage.mjs`).
   `SidebarWrapper` puts the sidebars in a
-  row with `UserPanel` across the bottom: your picture, name, this device's connection state
-  (`ws-client` `getConnectionState`/`onConnectionState`: online / connecting / offline) and the
-  settings button. Clicking the picture and name opens `UserMenu` above it: your picture, name
+  row with `UserPanel` across the bottom: your picture, name, under it your custom status
+  (`CustomStatus`, emoji and text) while connected, otherwise this device's connection state
+  (`ws-client` `getConnectionState`/`onConnectionState`: online / connecting / offline; the dot
+  on the picture always shows it), and the settings button. Clicking the picture and name opens `UserMenu` above it: your picture, name
   and custom status (its emoji button and text change it there), Edit Profile, Copy User ID and Log out.
   Neither the panel's picture and name nor the menu has a right-click menu (they call
   `preventDefault`, so PageMenus' Copy User ID doesn't open there either). It's shown under the DM list, a guild's channel list, and Settings' column on

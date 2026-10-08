@@ -5,8 +5,9 @@ import { faGear } from '@fortawesome/free-solid-svg-icons';
 import { ConfigContext } from '../contexts';
 import { getConnectionState, onConnectionState } from '../utils/ws-client';
 import VoiceControls from './voice/VoiceControls';
-import { nameOf, useProfiles } from '../utils/profiles';
+import { getProfile, nameOf, useProfiles } from '../utils/profiles';
 import Avatar from './Avatar';
+import CustomStatus from './CustomStatus';
 import UserMenu from './UserMenu';
 import { t } from '../i18n';
 
@@ -16,8 +17,8 @@ const STATUS_LABELS = {
   offline: 'app.connection.offline',
 };
 
-// You, at the bottom of the sidebar (like Discord): profile picture, name, and whether this
-// device is connected, with mute, deafen (voice) and the settings button. Clicking the picture
+// You, at the bottom of the sidebar (like Discord): profile picture, name, and under it your
+// custom status (emoji and text) while connected, otherwise whether this device is connected, with mute, deafen (voice) and the settings button. Clicking the picture
 // and name opens UserMenu (custom status, Edit Profile, Copy User ID, Log out); right-clicking
 // them opens nothing.
 export default function UserPanel({ user, onLogout }) {
@@ -27,6 +28,8 @@ export default function UserPanel({ user, onLogout }) {
   const { voiceEnabled } = useContext(ConfigContext);
   const status = useSyncExternalStore(onConnectionState, getConnectionState);
   if (!user) return null;
+  const profile = { ...user, ...getProfile(user.id) };
+  const showStatus = status === 'online' && Boolean(profile.custom_status || profile.custom_status_emoji);
 
   return (
     <div className="user-panel" aria-label={t('app.userPanel.you')}>
@@ -46,7 +49,9 @@ export default function UserPanel({ user, onLogout }) {
         </span>
         <span className="user-panel-text">
           <span className="user-panel-name">{nameOf(user)}</span>
-          <span className="user-panel-state">{t(STATUS_LABELS[status])}</span>
+          {showStatus
+            ? <CustomStatus profile={profile} className="user-panel-state" />
+            : <span className="user-panel-state">{t(STATUS_LABELS[status])}</span>}
         </span>
       </button>
       {menuAnchor && (

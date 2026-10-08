@@ -1542,6 +1542,9 @@ body.sidebar-resizing * {
 }
 
 .user-panel-state {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   color: var(--vc-fg-muted);
 }
