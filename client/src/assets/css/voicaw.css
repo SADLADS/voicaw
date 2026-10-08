@@ -702,14 +702,9 @@ pre code {
   background: var(--box);
 }
 
+/* Settings' title, atop its column: a header like the other pages' (the nav's padding is
+   12px), as tall as the page's header beside it, so their lines meet. */
 .settings-header {
-  margin: 0;
-  padding: 0.5rem;
-}
-
-/* On a computer, Settings' title is a header like the other pages' (the nav's padding is
-   12px), and each category's title is as tall, so the first one's line meets it. */
-body:not(.mobile-mode) .settings-header {
   display: flex;
   align-items: center;
   height: var(--vc-header-height);
@@ -719,17 +714,6 @@ body:not(.mobile-mode) .settings-header {
   border-bottom: 1px solid var(--vc-border-light);
   font-size: 16px;
   font-weight: 600;
-}
-
-body:not(.mobile-mode) .settings-content {
-  border-top: 1px solid var(--vc-border-light);
-}
-
-body:not(.mobile-mode) .settings-category-title {
-  display: flex;
-  align-items: flex-end;
-  height: calc(var(--vc-header-height) - 2px);
-  padding-top: 0;
 }
 
 .settings-toggle {
@@ -1166,13 +1150,31 @@ body:not(.mobile-mode) .settings-category-title {
 }
 
 /* The app is a fixed-height screen (the chat scrolls inside itself; the page never does), so
-   pages that can be taller than the window scroll on their own. Settings: a column of
-   categories and a search box beside the sections (desktop), each scrolling on its own; on a
-   phone the column goes on top and the whole page scrolls. */
+   pages that can be taller than the window scroll on their own. Settings: the column of pages
+   (in Layout's slot beside the rail, or the list pane on a phone) and the open page, its
+   header above its content, which scrolls. */
 .settings-page {
   height: 100%;
   display: flex;
   min-height: 0;
+}
+
+.settings-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-page-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The header is the page's top line: no second one on the first card. */
+.settings-content > .settings-card:first-child,
+.settings-content > .settings-section:first-child > .settings-card:first-child {
+  border-top: 0;
 }
 
 .settings-nav {
@@ -1188,41 +1190,6 @@ body:not(.mobile-mode) .settings-category-title {
   min-width: 0;
   overflow-y: auto;
   padding-bottom: calc(1rem + env(safe-area-inset-bottom));
-}
-
-body.mobile-mode .settings-page {
-  flex-direction: column;
-  overflow-y: auto;
-}
-
-body.mobile-mode .settings-nav {
-  flex: none;
-  overflow: visible;
-  border-right: 0;
-  border-bottom: 1px solid var(--vc-border-dark);
-}
-
-body.mobile-mode .settings-content {
-  flex: none;
-  overflow: visible;
-}
-
-body.mobile-mode .settings-nav-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-
-body.mobile-mode .settings-nav-category {
-  flex-basis: 100%;
-}
-
-body.mobile-mode .settings-nav-item {
-  width: auto;
-  border: 1px solid var(--vc-border-dark);
-  border-radius: 14px;
-  padding: 2px 10px;
 }
 
 /* Your picture and name, to Edit Profile: above the search, apart from the sections. */
@@ -1343,7 +1310,59 @@ body.mobile-mode .settings-nav-item {
   background-color: var(--vc-bg-hover);
 }
 
-/* A section's icon (`icon` in Settings.jsx sections), in the column and on its card. */
+.settings-nav-item.active {
+  background-color: var(--vc-bg-elevated-hover);
+  font-weight: 600;
+}
+
+.settings-nav-item.danger {
+  color: var(--vc-danger-text);
+}
+
+/* The open page's subsections, under it in the column. */
+.settings-nav-subs {
+  margin: 2px 0 6px 12px;
+  padding-left: 8px;
+  border-left: 1px solid var(--vc-border-dark);
+}
+
+.settings-nav-sub {
+  display: block;
+  width: 100%;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+  text-align: left;
+}
+
+.settings-nav-sub:hover,
+.settings-nav-sub.active {
+  color: var(--vc-fg);
+  background-color: var(--vc-bg-hover);
+}
+
+/* About, Developer Portal and Log Out: after a line, at the end of the column. */
+.settings-nav-end {
+  padding-top: 12px;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+/* A search result: the subsection, and its page under it. */
+.settings-nav-result {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.settings-nav-result-page {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}
+
+/* An icon in the column (Developer Portal, Log Out) or on a card. */
 .settings-nav-icon,
 .settings-card-icon {
   width: 1em;
@@ -1357,16 +1376,10 @@ body.mobile-mode .settings-nav-item {
   color: var(--vc-fg-muted);
 }
 
-.settings-category-title {
-  margin: 0;
-  padding: 1rem 1.5rem 0.5rem;
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--vc-fg-muted);
-}
-
-.settings-section {
+/* What a subsection scrolls to (Settings.jsx: its block, or an id inside its page). */
+.settings-section,
+.settings-anchor,
+.settings-content [id^="settings-"] {
   scroll-margin-top: 8px;
 }
 
@@ -1825,7 +1838,8 @@ body.sidebar-resizing * {
   }
 }
 
-/* Settings on a computer: its column sits beside the rail (Layout), above the user panel. */
+/* Settings' column sits beside the rail (Layout), above the user panel (on a phone, the
+   list pane's width beside the rail: mobile.css). */
 .settings-nav-slot {
   display: flex;
   min-height: 0;

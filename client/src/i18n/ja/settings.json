@@ -6,33 +6,38 @@
     "saving": "保存中…",
     "savedOnDevice": "この端末に保存しました。",
     "dismiss": "閉じる",
-    "categories": {
-      "account": "マイアカウント",
+    "groups": {
       "app": "アプリの設定",
-      "developers": "開発者",
+      "admin": "管理"
+    },
+    "pages": {
+      "account": "マイアカウント",
+      "appearance": "外観",
+      "voiceVideo": "音声とビデオ",
+      "desktopApp": "デスクトップアプリ",
+      "androidApp": "Android アプリ",
+      "notifications": "通知",
       "admin": "管理",
+      "reports": "報告",
       "about": "情報"
     },
+    "nav": {
+      "label": "設定のセクション",
+      "editProfile": "プロフィールを編集",
+      "search": "設定を検索",
+      "clearSearch": "検索をクリア",
+      "noMatch": "「{{query}}」に一致する設定はありません。",
+      "developerPortal": "開発者ポータル",
+      "logOut": "ログアウト"
+    },
     "sections": {
-      "accountSecurity": {
-        "title": "パスワードとリカバリーコード",
-        "keywords": "パスワード 変更 セキュリティ リカバリーコード 忘れた password security recovery"
-      },
       "devices": {
         "title": "端末",
         "keywords": "セッション ログイン 端末 デバイス ログアウト すべて 他の端末 スマホ 携帯 パソコン ブラウザ セキュリティ sessions devices"
       },
-      "logOut": {
-        "title": "ログアウト",
-        "keywords": "ログアウト サインアウト logout"
-      },
       "deleteAccount": {
         "title": "アカウントを削除",
         "keywords": "削除 アカウント 退会 消去 delete account"
-      },
-      "appearance": {
-        "title": "外観",
-        "keywords": "テーマ ダークモード ライトモード 夜 色 システム キーボード theme dark light"
       },
       "language": {
         "title": "言語",
@@ -62,10 +67,6 @@
         "title": "サウンド",
         "keywords": "効果音 サウンド 音声 音量 着信音 メッセージ ミュート ミュート解除 スピーカーミュート 参加 退出 切断 sounds"
       },
-      "voiceVideo": {
-        "title": "音声とビデオ",
-        "keywords": "マイク 入力 出力 スピーカー ヘッドホン ヘッドセット デバイス 音声 音量 テスト エコー ノイズ抑制 ゲイン カメラ microphone voice video"
-      },
       "desktopApp": {
         "title": "デスクトップアプリ",
         "keywords": "トレイ 閉じる 最小化 起動 ログイン スタートアップ キーボード ショートカット ホットキー キーバインド ミュート スピーカーミュート グローバル desktop tray"
@@ -78,18 +79,6 @@
         "title": "アプリのバージョン",
         "keywords": "アップデート 更新 ビルド バージョン 再読み込み update version"
       },
-      "developerPortal": {
-        "title": "開発者ポータル",
-        "keywords": "Bot API アプリケーション 開発者 Discord トークン コード プログラミング bots developers"
-      },
-      "admin": {
-        "title": "管理",
-        "keywords": "グローバル 管理者 KLIPY GIF API キー 登録 サインアップ 招待 招待制 承認 申請 admin signup"
-      },
-      "about": {
-        "title": "情報",
-        "keywords": "クレジット 帰属 ライセンス Twemoji 絵文字 フォント KLIPY credits license"
-      },
       "blocked": {
         "title": "ブロック中のユーザー",
         "keywords": "ブロック ブロック解除 無視 ユーザー 人 block blocked"
@@ -97,22 +86,34 @@
       "reports": {
         "title": "報告",
         "keywords": "報告 通報 モデレーション 停止 BAN 迷惑行為 reports moderation"
+      },
+      "theme": {
+        "title": "テーマ",
+        "keywords": "テーマ ダークモード ライトモード 夜 色 システム キーボード theme dark light"
+      },
+      "credits": {
+        "keywords": "クレジット 帰属 ライセンス Twemoji 絵文字 フォント KLIPY credits license"
+      },
+      "adminGeneral": {
+        "keywords": "グローバル 管理者 KLIPY GIF API キー 登録 サインアップ 招待 招待制 承認 申請 admin signup"
+      },
+      "voice": {
+        "title": "音声",
+        "keywords": "マイク 入力 出力 スピーカー ヘッドホン ヘッドセット デバイス 音声 音量 テスト エコー ノイズ抑制 ゲイン カメラ microphone voice video"
+      },
+      "password": {
+        "title": "パスワード",
+        "keywords": "パスワード 変更 セキュリティ リカバリーコード 忘れた password security recovery"
+      },
+      "recoveryCode": {
+        "title": "リカバリーコード",
+        "keywords": "パスワード 変更 セキュリティ リカバリーコード 忘れた password security recovery"
+      },
+      "suspended": {
+        "title": "停止中のアカウント"
       }
     },
-    "nav": {
-      "label": "設定のセクション",
-      "editProfile": "プロフィールを編集",
-      "search": "設定を検索",
-      "clearSearch": "検索をクリア",
-      "noMatch": "「{{query}}」に一致する設定はありません。"
-    },
-    "logOut": {
-      "title": "ログアウト",
-      "buttonTitle": "ログアウト",
-      "button": "ログアウト"
-    },
     "about": {
-      "title": "情報",
       "attribution": "絵文字のグラフィックは <twemoji>Twemoji</twemoji>（© Twitter, Inc およびその他の貢献者、<ccby>CC-BY 4.0</ccby> ライセンス）を使用しています。絵文字フォントは <font>twemoji-color-font</font> を改変したもので、<ofl>SIL Open Font License 1.1</ofl> でライセンスされています。GIF は <klipy>KLIPY</klipy> 提供です。",
       "privacy": "プライバシーポリシー",
       "terms": "利用規約",
@@ -181,12 +182,6 @@
         "used_other": "{{count}} 回使用",
         "usedOf_other": "{{max}} 回中 {{count}} 回使用"
       }
-    },
-    "developers": {
-      "title": "開発者ポータル",
-      "description": "Bot を作りましょう。Bot は Voicaw の Bot API を通じてギルドに参加し、発言するプログラムです。API は Discord と同じように動くので、Discord のライブラリが使えます。",
-      "open": "開発者ポータルを開く",
-      "docs": "Bot API ドキュメント"
     },
     "appVersion": {
       "title": "アプリのバージョン",

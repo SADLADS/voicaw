@@ -137,8 +137,8 @@ await shot(page, 'command-reply-dark');
 
 // Light.
 await page.goto(`${BASE}/settings#appearance`);
-await page.waitForSelector('#settings-appearance');
-await page.click('#settings-appearance >> text=Light');
+await page.waitForSelector('#settings-theme');
+await page.click('#settings-theme >> text=Light');
 await page.goto(`${BASE}/guild/${guild.id}/${general.id}`);
 await page.waitForSelector('.bot-components');
 await page.waitForTimeout(500);

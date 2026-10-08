@@ -60,11 +60,11 @@ export default function Layout({ user, onLogout }) {
   const guildId = guildMatch?.[1];
   // A thread open beside the channel (?thread=<id>).
   const threadId = guildMatch ? new URLSearchParams(location.search).get('thread') : null;
-  // Settings on a computer: its column of sections goes beside the rail (Settings puts it into
-  // `settingsNavSlot` with a portal), so the user panel sits under it like on other pages. On a
-  // phone it stays at the top of the page.
+  // Settings: its column of pages goes beside the rail (Settings puts it into `settingsNavSlot`
+  // with a portal), so the user panel sits under it like on other pages; on a phone that's the
+  // list pane, under the page.
   const { isMobile } = useContext(InteractionContext);
-  const settingsColumn = location.pathname.startsWith('/settings') && !isMobile;
+  const settingsColumn = location.pathname.startsWith('/settings');
   const [settingsNavSlot, setSettingsNavSlot] = useState(null);
   // On a computer the column beside the rail (DM list, channel list, Settings) is one width,
   // dragged by its edge and remembered per device (utils/sidebarWidth.js). Phones: full width.
@@ -76,13 +76,14 @@ export default function Layout({ user, onLogout }) {
     saveSidebarWidth(width);
   }, []);
 
-  // Phone: the list and the chat are two panes, swiped between (hooks/useSwipePanes.js).
-  const slidey = isMobile && (isDmPage || Boolean(guildId));
+  // Phone: the list and the chat (or Settings' column and page) are two panes, swiped between
+  // (hooks/useSwipePanes.js). /settings alone has no page: it opens on the list.
+  const slidey = isMobile && (isDmPage || Boolean(guildId) || settingsColumn);
   const wrapperRef = useRef(null);
   const listPaneRef = useRef(null);
   const contentPaneRef = useRef(null);
   const scrimRef = useRef(null);
-  useSwipePanes({ enabled: slidey, wrapperRef, listRef: listPaneRef, contentRef: contentPaneRef, scrimRef });
+  useSwipePanes({ enabled: slidey, opensOnList: location.pathname === '/settings', wrapperRef, listRef: listPaneRef, contentRef: contentPaneRef, scrimRef });
 
   // The corner players, dragged to any corner (bottom right, on a phone top right, until then).
   // While a page shows a stream, a bottom corner moves to the top on the same side, clear of

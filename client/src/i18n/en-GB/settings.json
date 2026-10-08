@@ -6,32 +6,81 @@
     "saving": "Saving…",
     "savedOnDevice": "Saved on this device.",
     "dismiss": "Dismiss",
-    "categories": {
-      "account": "My Account",
+    "groups": {
+      "user": "User Settings",
       "app": "App Settings",
-      "developers": "Developers",
+      "admin": "Admin"
+    },
+    "pages": {
+      "account": "My Account",
+      "privacy": "Privacy & Safety",
+      "notifications": "Notifications",
+      "appearance": "Appearance",
+      "language": "Language & Region",
+      "voiceVideo": "Voice & Video",
+      "desktopApp": "Desktop App",
+      "androidApp": "Android App",
       "admin": "Admin",
+      "reports": "Reports",
       "about": "About"
     },
+    "nav": {
+      "label": "Settings sections",
+      "editProfile": "Edit Profile",
+      "search": "Search settings",
+      "clearSearch": "Clear search",
+      "noMatch": "No settings match “{{query}}”.",
+      "developerPortal": "Developer Portal",
+      "logOut": "Log Out",
+      "subsections": "{{page}} sections"
+    },
     "sections": {
-      "accountSecurity": {
-        "title": "Password & recovery code",
-        "keywords": "change password security recovery code forgot"
+      "password": {
+        "title": "Password",
+        "keywords": "change password security forgot"
+      },
+      "recoveryCode": {
+        "title": "Recovery code",
+        "keywords": "recovery code forgot password lost backup keys security"
       },
       "devices": {
         "title": "Devices",
         "keywords": "sessions logins logged in devices log out sign out everywhere other devices phone computer browser security"
       },
-      "logOut": {
-        "title": "Log out",
-        "keywords": "sign out logout leave"
-      },
       "deleteAccount": {
         "title": "Delete account",
         "keywords": "delete remove close account erase leave"
       },
-      "appearance": {
-        "title": "Appearance",
+      "privacy": {
+        "title": "Privacy",
+        "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy link links website websites image images picture pictures notification notifications lock screen"
+      },
+      "content": {
+        "title": "Content",
+        "keywords": "nsfw blur blurred spoiler spoilers media images pictures videos gifs adult explicit sensitive hide age 18 over confirm bots bot messages direct dms"
+      },
+      "blocked": {
+        "title": "Blocked users",
+        "keywords": "block blocked unblock ignore people users"
+      },
+      "authorisedApps": {
+        "title": "Authorised apps",
+        "keywords": "authorised authorized apps websites sites login log in with voicaw oauth access connections"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "keywords": "push alerts previews phone browser desktop test turn on off"
+      },
+      "reactionNotifications": {
+        "title": "Reactions",
+        "keywords": "reactions reacted emoji told notify notification"
+      },
+      "sounds": {
+        "title": "Sounds",
+        "keywords": "sound effects audio volume ding chime ring ringtone message mute unmute deafen join leave disconnect"
+      },
+      "theme": {
+        "title": "Theme",
         "keywords": "theme dark mode light mode night colours colors system keyboard"
       },
       "language": {
@@ -46,77 +95,100 @@
         "title": "Spellcheck",
         "keywords": "spelling spell check typos dictionary red underline squiggles language autocorrect words"
       },
-      "privacy": {
-        "title": "Privacy",
-        "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy link links website websites image images picture pictures notification notifications lock screen"
+      "voice": {
+        "title": "Voice",
+        "keywords": "microphone mic input output speakers headphones headset device audio volume"
       },
-      "content": {
-        "title": "Content",
-        "keywords": "nsfw blur blurred spoiler spoilers media images pictures videos gifs adult explicit sensitive hide age 18 over confirm bots bot messages direct dms"
+      "micTest": {
+        "title": "Mic test",
+        "keywords": "test microphone hear yourself check level"
       },
-      "notifications": {
-        "title": "Notifications",
-        "keywords": "push alerts previews reactions reacted emoji"
+      "noiseSuppression": {
+        "title": "Noise suppression",
+        "keywords": "noise suppression background rnnoise deepfilternet strong standard keyboard fan"
       },
-      "sounds": {
-        "title": "Sounds",
-        "keywords": "sound effects audio volume ding chime ring ringtone message mute unmute deafen join leave disconnect"
+      "inputSensitivity": {
+        "title": "Input sensitivity",
+        "keywords": "input sensitivity gate threshold voice activity automatic level"
       },
-      "voiceVideo": {
-        "title": "Voice & video",
-        "keywords": "microphone mic input output speakers headphones headset device audio volume test echo noise suppression gain"
+      "voiceProcessing": {
+        "title": "Voice processing",
+        "keywords": "echo cancellation automatic gain control agc processing"
+      },
+      "camera": {
+        "title": "Camera",
+        "keywords": "video camera webcam device preview"
+      },
+      "screenShare": {
+        "title": "Screen share",
+        "keywords": "screen share stream streaming go live resolution frame rate fps quality"
       },
       "desktopApp": {
-        "title": "Desktop app",
-        "keywords": "tray close minimise minimize start login startup boot keyboard shortcut hotkey keybind mute deafen global"
+        "title": "Desktop App",
+        "keywords": "tray close minimise minimize start login startup boot"
+      },
+      "shortcuts": {
+        "title": "Keyboard shortcuts",
+        "keywords": "keyboard shortcut shortcuts hotkey keybind mute deafen global"
       },
       "androidApp": {
-        "title": "Android app",
-        "keywords": "android phone mobile lock screen full screen calls ringing ringtone notification channels sounds"
+        "title": "Android App",
+        "keywords": "android phone mobile"
+      },
+      "lockScreenCalls": {
+        "title": "Calls on the lock screen",
+        "keywords": "lock screen full screen calls ringing"
+      },
+      "notificationChannels": {
+        "title": "Notification sounds",
+        "keywords": "notification channels sounds ringtone android"
+      },
+      "pushLog": {
+        "title": "Recent notifications",
+        "keywords": "recent notifications push log missing delivered"
+      },
+      "adminGeneral": {
+        "title": "General",
+        "keywords": "klipy gif api key link previews upload file size limit stream quality resolution frame rate"
+      },
+      "adminSignups": {
+        "title": "Sign-ups",
+        "keywords": "sign up signup sign-ups register registration invite invites invite only approve approval requests testers google play"
+      },
+      "adminRegions": {
+        "title": "Voice regions",
+        "keywords": "voice regions livekit servers region flag"
+      },
+      "adminStorage": {
+        "title": "Storage",
+        "keywords": "storage disk space free full minio s3 bucket"
+      },
+      "adminAdmins": {
+        "title": "Admins",
+        "keywords": "global admins administrators add remove"
+      },
+      "reports": {
+        "title": "Reports",
+        "keywords": "reports moderation moderate suspend suspended ban abuse"
+      },
+      "suspended": {
+        "title": "Suspended accounts",
+        "keywords": "suspended suspend unsuspend ban banned accounts"
       },
       "appVersion": {
         "title": "App version",
         "keywords": "update build version reload"
       },
-      "developerPortal": {
-        "title": "Developer Portal",
-        "keywords": "bots bot api applications developers discord token code programming"
-      },
-      "admin": {
-        "title": "Admin",
-        "keywords": "global admins klipy gif api key sign up signup sign-ups register registration invite invites invite only approve approval requests storage disk space free full minio s3"
-      },
-      "about": {
-        "title": "About",
+      "credits": {
+        "title": "Credits",
         "keywords": "credits attribution licence license twemoji emoji font klipy"
       },
-      "blocked": {
-        "title": "Blocked users",
-        "keywords": "block blocked unblock ignore people users"
-      },
-      "authorisedApps": {
-        "title": "Authorised apps",
-        "keywords": "authorised authorized apps websites sites login log in with voicaw oauth access connections"
-      },
-      "reports": {
-        "title": "Reports",
-        "keywords": "reports moderation moderate suspend suspended ban abuse"
+      "legal": {
+        "title": "Privacy policy & terms",
+        "keywords": "privacy policy terms of use legal delete account"
       }
     },
-    "nav": {
-      "label": "Settings sections",
-      "editProfile": "Edit Profile",
-      "search": "Search settings",
-      "clearSearch": "Clear search",
-      "noMatch": "No settings match “{{query}}”."
-    },
-    "logOut": {
-      "title": "Log Out",
-      "buttonTitle": "Logout",
-      "button": "Log out"
-    },
     "about": {
-      "title": "About",
       "attribution": "Emoji graphics by <twemoji>Twemoji</twemoji>, © Twitter, Inc and other contributors, licensed under <ccby>CC-BY 4.0</ccby>. Emoji font modified from <font>twemoji-color-font</font>, licensed under the <ofl>SIL Open Font License 1.1</ofl>. GIFs from <klipy>KLIPY</klipy>.",
       "privacy": "Privacy policy",
       "terms": "Terms of use",
@@ -269,12 +341,6 @@
         "checking": "Checking…",
         "couldntLoad": "Couldn't load the storage figures"
       }
-    },
-    "developers": {
-      "title": "Developer Portal",
-      "description": "Make bots: programs that join guilds and talk in them through Voicaw's bot API, which works like Discord's, so Discord's libraries can be used.",
-      "open": "Open the Developer Portal",
-      "docs": "Bot API docs"
     },
     "appVersion": {
       "title": "App Version",
@@ -690,6 +756,11 @@
         "suspended": "suspended"
       },
       "note": "“{{note}}”"
+    },
+    "logOut": {
+      "confirmTitle": "Log Out",
+      "confirmMessage": "Are you sure you want to log out?",
+      "confirm": "Log Out"
     }
   }
 }

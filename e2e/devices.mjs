@@ -85,8 +85,9 @@ try {
 
   // Logging out normally ends the session on the server too.
   const phone2Token = await tokenOf(phone2);
-  await phone2.goto(`${BASE}/settings#log-out`);
-  await phone2.click('#settings-log-out button:has-text("Log out")');
+  await phone2.goto(`${BASE}/settings`);
+  await phone2.click('.settings-nav-item:has-text("Log Out")');
+  await phone2.click('[role="dialog"] button:has-text("Log Out")');
   await atLogin(phone2);
   if (await works(a, phone2Token)) throw new Error('logged-out token still works');
   await a.reload();

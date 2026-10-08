@@ -23,9 +23,9 @@ export default function AndroidAppSettings() {
 
   return (
     <div className="settings-card">
-      <h5>{t('settings.androidApp.title')}</h5>
+      <h5 id="settings-android-app">{t('settings.androidApp.title')}</h5>
       {!state.push && <p className="vc-hint" role="status">{t('settings.androidApp.noPush')}</p>}
-      <h6>{t('settings.androidApp.lockScreenCalls')}</h6>
+      <h6 id="settings-lock-screen-calls">{t('settings.androidApp.lockScreenCalls')}</h6>
       <p className="vc-hint">
         {state.fullScreen ? t('settings.androidApp.lockScreenCallsOn') : t('settings.androidApp.lockScreenCallsOff')}
       </p>
@@ -34,7 +34,7 @@ export default function AndroidAppSettings() {
           {t('settings.androidApp.allowLockScreenCalls')}
         </button>
       )}
-      <h6 className="mt-3">{t('settings.androidApp.channels')}</h6>
+      <h6 id="settings-notification-channels" className="mt-3">{t('settings.androidApp.channels')}</h6>
       <p className="vc-hint">{t('settings.androidApp.channelsHint')}</p>
       <button type="button" className="btn btn-sm btn-secondary" onClick={() => open('notifications')}>
         {t('settings.androidApp.openChannels')}
@@ -57,7 +57,7 @@ function PushLog() {
 
   return (
     <>
-      <h6 className="mt-3">{t('settings.androidApp.pushLog')}</h6>
+      <h6 id="settings-push-log" className="mt-3">{t('settings.androidApp.pushLog')}</h6>
       <p className="vc-hint">{t('settings.androidApp.pushLogHint')}</p>
       {entries && entries.length === 0 && <p className="vc-hint">{t('settings.androidApp.pushLogEmpty')}</p>}
       {entries && entries.length > 0 && (

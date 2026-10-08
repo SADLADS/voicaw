@@ -117,7 +117,7 @@ export default function AdminReports() {
         </ul>
       )}
 
-      <h6 className="mt-3">{t('settings.reports.suspendedTitle')}</h6>
+      <h6 id="settings-suspended" className="mt-3">{t('settings.reports.suspendedTitle')}</h6>
       {data.suspended.length === 0 ? (
         <p className="vc-hint">{t('settings.reports.noneSuspended')}</p>
       ) : (

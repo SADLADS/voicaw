@@ -51,6 +51,21 @@
     will-change: transform;
 }
 
+/* Settings: its column beside the rail fills the list pane, like the channel list. */
+.mobile-mode .settings-nav-slot {
+    flex: 1;
+    min-width: 0;
+}
+
+.mobile-mode .settings-nav-slot .settings-nav {
+    flex: 1;
+    border-right: 0;
+}
+
+.mobile-mode .settings-nav-item {
+    padding: 9px 10px;
+}
+
 /* Swipe to reply (hooks/useSwipeToReply.js): a message swiped left follows the finger with
    the reply arrow coming in from the right edge (--swipe-progress, 0 to 1), filled in once
    it's far enough (data-swipe="armed"), and springs back when let go. data-swipe, not classes:

@@ -137,7 +137,6 @@ export default function EditProfile() {
 
   return (
     <div className="edit-profile">
-      <h3 className="settings-category-title">{t('settings.nav.editProfile')}</h3>
       <div className="edit-profile-body">
         <form className="edit-profile-form" onSubmit={save} aria-label={t('settings.profile.formLabel')}>
           <div className="edit-profile-field">
