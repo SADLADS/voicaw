@@ -28,6 +28,7 @@ const blocksListeners = new Set();
 const friendsListeners = new Set();
 const reportsListeners = new Set();
 const dictionaryListeners = new Set();
+const emojiUsageListeners = new Set();
 let reconnectTimeout = null;
 
 // This client's own connection: 'connecting' | 'online' | 'offline' (logged out, or the
@@ -200,6 +201,9 @@ export function connectWebSocket() {
       }
       else if (data.type === 'dictionary') {
         dictionaryListeners.forEach((cb) => cb({ dictionary: data.dictionary, version: data.version }));
+      }
+      else if (data.type === 'emoji_usage') {
+        emojiUsageListeners.forEach((cb) => cb({ emojiUsage: data.emojiUsage, version: data.version }));
       }
       else if (data.type === 'account_approved') {
         approvedListeners.forEach((cb) => cb());
@@ -403,6 +407,12 @@ export const SUSPENDED_NOTICE = 'voicaw-suspended';
 export function onDictionary(callback) {
   dictionaryListeners.add(callback);
   return () => dictionaryListeners.delete(callback);
+}
+
+// Your emoji usage was saved on another device (emoji/emojiUsage.js).
+export function onEmojiUsage(callback) {
+  emojiUsageListeners.add(callback);
+  return () => emojiUsageListeners.delete(callback);
 }
 
 // This device's login has ended elsewhere (logged out from Settings → Devices on another

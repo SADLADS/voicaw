@@ -23,6 +23,7 @@ vi.mock('../utils/ws-client', () => ({
   onBlocks: () => () => {},
   onFriends: () => () => {},
   onDictionary: () => () => {},
+  onEmojiUsage: () => () => {},
 }));
 
 // Group DMs (tested with their hooks and in e2e/groups.mjs): none here.

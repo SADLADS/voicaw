@@ -7,10 +7,16 @@ import { EmojiContext } from '../emoji/emojiContext';
 import EmojiPicker from './EmojiPicker';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { ConfigContext } from '../contexts';
+import { frequentEmojiIds, recordEmojiUse, resetEmojiUsage, setSkinTone } from '../emoji/emojiUsage';
 
 let index;
 beforeAll(() => { index = buildEmojiIndex(data); });
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  resetEmojiUsage();
+});
+
+const use = (id, times) => { for (let i = 0; i < times; i += 1) recordEmojiUse(id); };
 
 function renderPicker(props = {}) {
   const onSelect = vi.fn();
@@ -39,7 +45,7 @@ describe('EmojiPicker', () => {
   });
 
   it('with a category (a voice region\'s flag), shows and searches only that one', () => {
-    localStorage.setItem('emojiFrequency', JSON.stringify({ grinning: 5 }));
+    use('grinning', 5);
     const { onSelect } = renderPicker({ category: 'flags' });
     expect(screen.getByRole('heading', { name: 'Flags' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Smileys & People' })).not.toBeInTheDocument();
@@ -61,7 +67,7 @@ describe('EmojiPicker', () => {
   });
 
   it('uses the skin tone sheet for the chosen tone', () => {
-    localStorage.setItem('emojiSkinTone', '3');
+    setSkinTone(3);
     renderPicker();
     const thumbs = within(screen.getByRole('button', { name: 'Thumbs Up' })).getByRole('img');
     expect(thumbs).toHaveClass('emoji-sheet-tone3');
@@ -163,7 +169,8 @@ describe('EmojiPicker custom emoji', () => {
   }
 
   it("puts each guild's emoji after Frequently Used and before the standard ones, in rail order", () => {
-    localStorage.setItem('emojiFrequent', JSON.stringify({ grinning: 3, 'custom:20': 5 }));
+    use('grinning', 3);
+    use('custom:20', 5);
     renderWithCustom();
     const headings = screen.getAllByRole('heading').map((h) => h.textContent);
     expect(headings.slice(0, 4)).toEqual(['Frequently Used', 'Blob Land', 'Cool Guild', 'Smileys & People']);
@@ -181,7 +188,7 @@ describe('EmojiPicker custom emoji', () => {
     expect(within(button).getByRole('img')).toHaveAttribute('src', 'https://s3.test/emojis/10');
     fireEvent.click(button);
     expect(onSelect).toHaveBeenCalledWith('<:blob:10>');
-    expect(JSON.parse(localStorage.getItem('emojiFrequent'))).toEqual({ 'custom:10': 1 });
+    expect(frequentEmojiIds()).toEqual(['custom:10']);
   });
 
   it('finds custom emoji first when searching', () => {

@@ -138,7 +138,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - `docs/auth-and-encryption.md`: OPAQUE login, sessions and Settings → Devices, rate limits, sign-ups (open, invite
   only, admin approval), deleting an account,
   end-to-end encryption (keys, backups, recovery code, contact pinning, DMs, reactions, notes,
-  the spellcheck dictionary).
+  the spellcheck dictionary, emoji usage).
 - `docs/realtime.md`: websocket events, online status, web push.
 - `docs/guilds.md`: guilds (permissions, overrides, audit log, invites, custom emoji, channel
   menus, NSFW channels), threads, list channels, document channels, events (scheduled, repeating),

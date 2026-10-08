@@ -24,6 +24,8 @@ const DM_REACTION_CONTEXT = 'voicaw/dm-reaction/v1';
 const CALL_KEY_CONTEXT = 'voicaw/call-key/v1';
 const DICTIONARY_KEY_CONTEXT = 'voicaw/dictionary-key/v1';
 const DICTIONARY_CONTEXT = 'voicaw/dictionary/v1';
+const EMOJI_USAGE_KEY_CONTEXT = 'voicaw/emoji-usage-key/v1';
+const EMOJI_USAGE_CONTEXT = 'voicaw/emoji-usage/v1';
 export const MESSAGE_PREFIX = 'v1.';
 
 // ---------------------------------------------------------------- encoding
@@ -369,6 +371,47 @@ export async function decryptDictionary(envelope, key, userId) {
   const data = JSON.parse(await decryptMessage(envelope, key, dictionaryContext(userId)));
   if (data?.v !== 1 || !Array.isArray(data.words)) throw new Error('Unsupported dictionary format');
   return data.words.filter((word) => typeof word === 'string');
+}
+
+// ---------------------------------------------------------------- emoji usage
+
+// Your emoji usage (emoji/emojiUsage.js: how often you've used each emoji, your skin tone) is
+// encrypted the same way, under its own purpose.
+export function deriveEmojiUsageKey(myEncryptionPrivateKey, myEncryptionKey) {
+  return deriveEcdhKey(myEncryptionPrivateKey, myEncryptionKey, EMOJI_USAGE_KEY_CONTEXT);
+}
+
+export function emojiUsageContext(userId) {
+  return `${EMOJI_USAGE_CONTEXT}|${userId}`;
+}
+
+// Always padded to exactly this many bytes, so the server can't tell how many emoji it holds
+// (server/emojiUsage.js takes a little over its envelope).
+export const EMOJI_USAGE_BYTES = 8 * 1024;
+
+const emojiUsageJson = (counts, tone) => JSON.stringify({ v: 1, counts, ...(tone === undefined ? {} : { tone }) });
+
+// `counts` ({ emoji id: uses }) and `tone` (0-5, or undefined if never chosen) -> "v1.<base64>".
+// The least used are left out until it fits.
+export function encryptEmojiUsage(counts, tone, key, userId) {
+  let entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  let json = emojiUsageJson(Object.fromEntries(entries), tone);
+  while (te.encode(json).length > EMOJI_USAGE_BYTES) {
+    entries = entries.slice(0, -Math.max(1, Math.floor(entries.length / 10)));
+    json = emojiUsageJson(Object.fromEntries(entries), tone);
+  }
+  // JSON allows trailing spaces.
+  const padded = json + ' '.repeat(EMOJI_USAGE_BYTES - te.encode(json).length);
+  return encryptMessage(padded, key, emojiUsageContext(userId));
+}
+
+// -> { counts, tone } (tone undefined if never chosen).
+export async function decryptEmojiUsage(envelope, key, userId) {
+  const data = JSON.parse(await decryptMessage(envelope, key, emojiUsageContext(userId)));
+  if (data?.v !== 1 || !data.counts || typeof data.counts !== 'object') throw new Error('Unsupported emoji usage format');
+  const counts = Object.fromEntries(Object.entries(data.counts).filter(([, n]) => Number.isInteger(n) && n > 0));
+  const tone = Number.isInteger(data.tone) && data.tone >= 0 && data.tone <= 5 ? data.tone : undefined;
+  return { counts, tone };
 }
 
 // Decrypts a message's reactions into [{ id, user_id, emoji }], skipping any that fail.
