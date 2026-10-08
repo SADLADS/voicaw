@@ -216,8 +216,7 @@ export default function App() {
 
             {user && (
               <Route element={<Layout user={user} onLogout={handleLogout} />}>
-                <Route path="/settings" element={<Settings onLogout={handleLogout} />} />
-                <Route path="/settings/profile" element={<Settings onLogout={handleLogout} />} />
+                <Route path="/settings/*" element={<Settings onLogout={handleLogout} />} />
                 <Route path="/dm/:id?" element={<Dm user={user} />} />
                 <Route path="/dm/notes" element={<Notes user={user} />} />
                 <Route path="/dm/friends" element={<Friends user={user} />} />

@@ -69,7 +69,9 @@ export function scrollsSideways(el, stop, dx) {
   return false;
 }
 
-export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimRef }) {
+// `opensOnList`: the page has nothing for the content pane (/settings alone), so turning on
+// there shows the list, with no entry of the content's own.
+export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRef, contentRef, scrimRef }) {
   // A fresh start opens on the chat (with the list behind it in history, see below).
   const paneRef = useRef('content');
   // x: the content's offset in px (0: showing, the width: off to the right); null at rest.
@@ -205,7 +207,9 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
       return;
     }
     const opened = takePendingContent();
-    if (wasEnabled.current === null || opened) {
+    if (opensOnList && !opened) {
+      choose('list');
+    } else if (wasEnabled.current === null || opened) {
       if (!markOf()) {
         setMark('pushed', true);
         lastMark.current = 'pushed';
@@ -216,6 +220,7 @@ export function useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimR
     }
     apply();
     wasEnabled.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when turning on
   }, [enabled, choose, rest, apply]);
 
   // Back and forward: an entry with the mark is the chat, one without is the list.

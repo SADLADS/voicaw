@@ -28,8 +28,8 @@ try {
   const guildId = await makeGuild(a, 'Bot Home');
 
   // Settings → Developer Portal → its own page.
-  await a.goto(`${BASE}/settings#developer-portal`);
-  await a.click('button:has-text("Open the Developer Portal")');
+  await a.goto(`${BASE}/settings`);
+  await a.click('.settings-nav-item:has-text("Developer Portal")');
   await a.waitForURL(`${BASE}/developers`);
   await a.waitForSelector('text=You haven\'t made any applications yet.');
   if (await a.$('.guild-rail, .sidebar-wrapper')) throw new Error('the portal should be a page of its own');

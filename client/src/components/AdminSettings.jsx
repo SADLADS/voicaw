@@ -493,25 +493,35 @@ export default function AdminSettings({ onAvailable }) {
   }, []);
 
   if (!data) return null;
+  const row = (setting) => {
+    const Row = setting.choices ? ChoiceRow : SettingRow;
+    return (
+      <Row
+        key={setting.key}
+        setting={setting}
+        onSaved={(settings) => setData((d) => ({ ...d, settings }))}
+      />
+    );
+  };
+  // Settings → Admin's subsections (Settings.jsx) scroll to these ids: the sign-up mode goes
+  // with the requests, testers and invites, the other app settings first.
   return (
     <div className="settings-card admin-settings">
-      <h5>{t('settings.admin.title')}</h5>
-      {data.settings.map((setting) => {
-        const Row = setting.choices ? ChoiceRow : SettingRow;
-        return (
-          <Row
-            key={setting.key}
-            setting={setting}
-            onSaved={(settings) => setData((d) => ({ ...d, settings }))}
-          />
-        );
-      })}
-      <RequestList requests={data.requests ?? []} onChange={(requests) => setData((d) => ({ ...d, requests }))} />
-      <TesterList />
-      <InviteList invites={data.invites ?? []} onChange={(invites) => setData((d) => ({ ...d, invites }))} />
-      <VoiceRegionsAdmin regions={data.voiceRegions ?? []} onChange={(voiceRegions) => setData((d) => ({ ...d, voiceRegions }))} />
-      <StorageAdmin />
-      <AdminList admins={data.admins} me={user?.id} onChange={(admins) => setData((d) => ({ ...d, admins }))} />
+      <h5 id="settings-admin-general">{t('settings.admin.title')}</h5>
+      {data.settings.filter((s) => s.key !== 'signupMode').map(row)}
+      <div id="settings-admin-signups" className="settings-anchor">
+        {data.settings.filter((s) => s.key === 'signupMode').map(row)}
+        <RequestList requests={data.requests ?? []} onChange={(requests) => setData((d) => ({ ...d, requests }))} />
+        <TesterList />
+        <InviteList invites={data.invites ?? []} onChange={(invites) => setData((d) => ({ ...d, invites }))} />
+      </div>
+      <div id="settings-admin-regions" className="settings-anchor">
+        <VoiceRegionsAdmin regions={data.voiceRegions ?? []} onChange={(voiceRegions) => setData((d) => ({ ...d, voiceRegions }))} />
+      </div>
+      <div id="settings-admin-storage" className="settings-anchor"><StorageAdmin /></div>
+      <div id="settings-admin-admins" className="settings-anchor">
+        <AdminList admins={data.admins} me={user?.id} onChange={(admins) => setData((d) => ({ ...d, admins }))} />
+      </div>
     </div>
   );
 }

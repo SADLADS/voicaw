@@ -9,15 +9,18 @@ import { createPhoneHistory, isPanesPage } from '../utils/phoneHistory';
 
 let navigate;
 
-// Layout's use of the panes: on for the chats (/dm..., /guild...), off elsewhere (/settings).
+// Layout's use of the panes: on for the chats (/dm..., /guild...) and Settings (its column and
+// page; /settings alone opens on the list), off elsewhere (/developers).
 function Panes() {
   navigate = useNavigate();
-  const enabled = isPanesPage(useLocation().pathname);
+  const { pathname } = useLocation();
+  const enabled = isPanesPage(pathname) || pathname.startsWith('/settings');
+  const opensOnList = pathname === '/settings';
   const wrapperRef = useRef(null);
   const listRef = useRef(null);
   const contentRef = useRef(null);
   const scrimRef = useRef(null);
-  useSwipePanes({ enabled, wrapperRef, listRef, contentRef, scrimRef });
+  useSwipePanes({ enabled, opensOnList, wrapperRef, listRef, contentRef, scrimRef });
   return (
     <div ref={wrapperRef} data-testid="wrapper">
       <div ref={listRef} />
@@ -70,9 +73,9 @@ describe('useSwipePanes', () => {
     expect(pane()).toBe('content');
   });
 
-  it('shows the chat opened from a notification over Settings, with the list behind it', async () => {
+  it('shows the chat opened from a notification over another page, with the list behind it', async () => {
     const pane = start('/dm/1');
-    await act(async () => navigate('/settings'));
+    await act(async () => navigate('/developers'));
     expect(pane()).toBe('off');
 
     await openFromNotification('/dm/2');
@@ -87,10 +90,10 @@ describe('useSwipePanes', () => {
     expect(pane()).toBe('list');
   });
 
-  it('still shows the list going to the chats from Settings without opening one', async () => {
+  it('still shows the list going to the chats from another page without opening one', async () => {
     const pane = start('/dm/1');
     await act(async () => showList());
-    await act(async () => navigate('/settings'));
+    await act(async () => navigate('/developers'));
     await act(async () => navigate('/dm'));
     expect(pane()).toBe('list');
   });
@@ -120,7 +123,7 @@ describe('useSwipePanes', () => {
     expect(window.location.pathname).toBe('/dm/2');
   });
 
-  it('keeps Settings and threads as entries of their own', async () => {
+  it('keeps other pages and threads as entries of their own', async () => {
     const pane = start('/guild/5/6', { phone: true });
     const entries = window.history.length;
     await act(async () => navigate('/guild/5/6?thread=7'));
@@ -129,10 +132,34 @@ describe('useSwipePanes', () => {
     expect(window.location.search).toBe('');
     expect(pane()).toBe('content');
 
-    await act(async () => navigate('/settings'));
+    await act(async () => navigate('/developers'));
     expect(pane()).toBe('off');
     await back();
     expect(window.location.pathname).toBe('/guild/5/6');
     expect(pane()).toBe('content');
+  });
+
+  it('opens Settings on its list, and a page over it, Back going to the list', async () => {
+    const pane = start('/settings', { phone: true });
+    expect(pane()).toBe('list');
+    // Settings' go(): the page slides over the list, replacing the list's entry.
+    await act(async () => {
+      showContent();
+      navigate('/settings/account', { replace: true });
+    });
+    expect(pane()).toBe('content');
+    expect(window.history.state.voicawPane).toBe('pushed'); // the page's own entry, over the list's
+
+    await back();
+    expect(pane()).toBe('list');
+    expect(window.location.pathname).toBe('/settings/account');
+  });
+
+  it('opens a Settings page loaded on its own, with the list behind it', async () => {
+    const pane = start('/settings/voice-video', { phone: true });
+    expect(pane()).toBe('content');
+    await back();
+    expect(pane()).toBe('list');
+    expect(window.location.pathname).toBe('/settings/voice-video');
   });
 });

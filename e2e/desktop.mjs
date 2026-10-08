@@ -78,8 +78,9 @@ try {
   // Bob opens Alice's chat once (so this device has checked her keys), then goes elsewhere.
   await openChat(page, alice.id);
   await page.goto(`${BASE}/settings`);
+  await page.click('.settings-nav-item:text-is("Desktop App")');
   await page.waitForSelector('h5:text-is("Desktop App")');
-  check(true, 'Settings has a Desktop App section');
+  check(true, 'Settings has a Desktop App page');
   const card = page.locator('.settings-card:has(h5:text-is("Desktop App"))');
   await card.locator('button[aria-label="Toggle mute shortcut"]').click();
   await page.keyboard.press('Control+Shift+M');
@@ -108,7 +109,7 @@ try {
   // Alice is not the desktop app: no section, nothing recorded.
   await alice.page.goto(`${BASE}/settings`);
   await alice.page.waitForSelector('text=Notifications');
-  check(await alice.page.locator('h5:text-is("Desktop App")').count() === 0, 'no Desktop App section in a browser');
+  check(await alice.page.locator('.settings-nav-item:text-is("Desktop App")').count() === 0, 'no Desktop App page in a browser');
 
   // The mute shortcut.
   const muteButton = page.locator('.user-panel button[aria-label="Mute"], .user-panel button[aria-label="Unmute"]').first();
@@ -139,7 +140,7 @@ try {
   await page.click('.update-banner-close');
 
   // Notifications off: none come.
-  await page.goto(`${BASE}/settings`);
+  await page.goto(`${BASE}/settings/notifications`);
   await page.click('button:has-text("Turn off")');
   await page.waitForSelector('text=Notifications are off for this device.');
   await page.waitForTimeout(500);

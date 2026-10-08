@@ -31,12 +31,12 @@ try {
     await shot(a, `${tag}-guild`);
     await a.goto(`${BASE}/settings`);
     await a.waitForSelector('.settings-nav'); await a.waitForTimeout(300); await settle(a);
-    const sNav = await box(a, '.settings-nav'), sHead = await box(a, '.settings-header'), firstCard = await a.evaluate(() => Math.round(document.querySelector('.settings-card')?.getBoundingClientRect().top));
-    console.log(tag, 'settings', sNav, sHead, 'first card top', firstCard);
+    const sNav = await box(a, '.settings-nav'), sHead = await box(a, '.settings-header'), pageHead = await box(a, '.settings-page-header');
+    console.log(tag, 'settings', sNav, sHead, 'page header', pageHead);
     await shot(a, `${tag}-settings`);
     check(`${tag}: same width everywhere (${dmList.w}, ${gList.w}, ${sNav.w})`, dmList.w === gList.w && gList.w === sNav.w);
     check(`${tag}: headers 50 (${dmListHead.bottom} ${dmHead.bottom} ${notesHead.bottom} ${gHead.bottom} ${cHead.bottom} ${sHead.bottom})`, [dmListHead, dmHead, notesHead, gHead, cHead, sHead].every((b) => b.bottom === 50));
-    check(`${tag}: settings first card line meets header (${firstCard})`, firstCard === 49);
+    check(`${tag}: settings page header meets the column's (${pageHead.bottom})`, pageHead.bottom === 50);
     return dmList.w;
   }
 
@@ -68,7 +68,7 @@ try {
   await a.mouse.move(r2.x + 3, 300); await a.mouse.down(); await a.mouse.move(r2.x - 300, 300); await a.mouse.up(); await settle(a);
   check('min 200', (await box(a, '.settings-nav')).w === 200);
 
-  // Phone: one-screen settings, full-width lists, no handle.
+  // Phone: Settings' list (its page slides over it), full-width lists, no handle.
   const phone = await browser.newContext({ ...devices['Pixel 7'], storageState: await a.context().storageState() });
   const p = await phone.newPage();
   await p.goto(`${BASE}/settings`); await p.waitForSelector('.settings-nav'); await p.waitForTimeout(500);

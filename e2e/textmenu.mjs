@@ -252,9 +252,9 @@ try {
   await p.waitForTimeout(300);
   await shot(p, '05-phone-sheet');
   await p.click('.action-sheet-backdrop', { position: { x: 10, y: 10 } });
-  await p.goto(`${BASE}/settings`);
-  await p.waitForSelector('#settings-appearance');
-  check(await p.locator('#settings-spellcheck:not([hidden])').count() === 0, 'and Settings has no Spellcheck on a phone');
+  await p.goto(`${BASE}/settings/language`);
+  await p.waitForSelector('#settings-language');
+  check(await p.locator('#settings-spellcheck').count() === 0, 'and Settings has no Spellcheck on a phone');
 
   console.log('textmenu: all good');
 } finally {

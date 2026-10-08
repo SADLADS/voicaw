@@ -68,10 +68,9 @@
   settings button. Clicking the picture and name opens `UserMenu` above it: your picture, name
   and custom status (click to change it and its emoji there), Edit Profile, Copy User ID and Log out.
   Neither the panel's picture and name nor the menu has a right-click menu (they call
-  `preventDefault`, so PageMenus' Copy User ID doesn't open there either). It's shown under the DM list, a guild's channel list, and Settings' column on
-  a computer (Layout adds an empty column, `settingsNavSlot` in `LayoutContext`, and `Settings`
-  draws its column into it with a portal; on a phone the column stays in the page, without
-  the panel).
+  `preventDefault`, so PageMenus' Copy User ID doesn't open there either). It's shown under the DM list, a guild's channel list, and Settings' column
+  (Layout adds an empty column, `settingsNavSlot` in `LayoutContext`, and `Settings` draws its
+  column into it with a portal; on a phone that's the list pane, like the channel list).
   Uploading a profile picture calls `announceProfilePictureChange()` so it refreshes.
 - Message actions: on desktop, a hover menu (react, pin, edit, reply, delete) and a
   right-click menu (`MessageMenu.jsx`, on `ContextMenu`): a row of five quick reactions, then
@@ -119,16 +118,25 @@
   `UrlPreviews`) and `Composer.jsx` (message box, emoji, reply bar, attachments via
   `hooks/useAttachmentDrafts.js`). `Dm.jsx` owns what several of them share: reply target, edit
   state, the composer error line, and which emoji picker is open (never both).
-- Settings (`Settings.jsx`, `/settings`): sections (each with a category, title and search
-  keywords, in its `sections` list) under My Account, App Settings, Admin (only once
-  `AdminSettings` finds you're an admin) and About. The side column (beside the rail, above
-  the user panel, on a computer; on top of the page on a phone)
-  searches them (non-matching sections are hidden, not unmounted, so their state stays) and
-  jumps to one; above its search, a card with your picture and name opens Edit Profile (its own
-  page, `/settings/profile`; on a phone, where the column is on top, it scrolls down to the form); `/settings#<section id>` opens scrolled there (e.g. `RecoveryPrompt`'s
-  `#account-security`). Add a new setting as a section there; a section may have an `icon`
-  (Font Awesome; shown in the column, its card draws it in its heading).
-- **Privacy** (Settings → Privacy, the puzzle piece, `PrivacySettings.jsx`): choices that give
+- Settings (`Settings.jsx`, `/settings/<page>#<subsection>`, rebuilt 2026-10-08, Discord style):
+  a page per category, in its `pages` list, grouped under User Settings (My Account, Privacy &
+  Safety, Notifications), App Settings (Appearance, Language & Region, Voice & Video, and
+  Desktop App / Android App only in those apps) and Admin (Admin, Reports; listed once
+  `hooks/useIsAdmin.js` hears the server's yes to `GET /admin`), then About, and two buttons
+  with no page: Developer Portal (`/developers`) and Log Out (asks first, `ConfirmDialog`).
+  Each page has subsections (id, title, search keywords from `settings.sections.<key>`): one
+  with `content` is drawn in its own block, `id="settings-<id>"`; one without is a part of the
+  page's `content` carrying that id itself (VoiceSettings' and AdminSettings' headings). The
+  column (beside the rail, above the user panel, on a computer) lists the open page's
+  subsections under it (not a lone one), each scrolling to its part (`#<id>` in the URL); the
+  search lists matching subsections from every page, with their page's name. Above it, a card
+  with your picture and name opens Edit Profile (`/settings/profile`, a page like the others).
+  On a phone the column is the list pane and a page slides over it (see Phone panes); the list
+  shows only the pages, and `/settings` alone is the list (on a computer, My Account). The old
+  one-page Settings' links (`/settings#devices`) go to the page holding that subsection, by id
+  or `aliases` (`#account-security` → My Account → Password). Add a new setting as a
+  subsection of the fitting page (or a new page in `pages`).
+- **Privacy** (Settings → Privacy & Safety → Privacy, the puzzle piece, `PrivacySettings.jsx`): choices that give
   the server (or another site) a little more for convenience, per device (`utils/privacy.js`,
   `localStorage privacy`, JSON; never sent to the server). **Each defaults to the convenient
   (less private) option**; turning it off is for whoever wants the private one. So far:
@@ -311,8 +319,11 @@
   touch screens keep the system's overlay bar, which shows while swiping and can't be tapped or
   dragged (a styled bar becomes a classic, grabbable one on Android browsers that don't know
   `scrollbar-color`). Hiding a bar (`scrollbar-width: none`) still applies everywhere.
-- Phone panes (`hooks/useSwipePanes.js`, in `Layout`, DM and guild pages): the list (rail +
-  conversations or channels) underneath, the chat on top, Discord style. A sideways swipe
+- Phone panes (`hooks/useSwipePanes.js`, in `Layout`, DM, guild and Settings pages): the list
+  (rail + conversations or channels, or Settings' column) underneath, the chat (or a Settings
+  page) on top, Discord style. In Settings a page goes over the list with `replace` (Settings'
+  `go()`) and its own entry above it, so Back shows the list and Back again closes Settings;
+  `/settings` alone opens on the list (`opensOnList`). A sideways swipe
   (decided after 8px, so scrolling never moves them; not in pickers, sheets, member panels or
   anything that scrolls sideways itself) drags the chat with the finger, and letting go
   finishes or undoes it by position and speed (a critically damped spring); the list moves a
@@ -495,8 +506,8 @@ repeats (a burst of messages dings once).
 ## Admin settings
 
 Global admins (`users.is_admin`; the first made with `npm run admin -- <username>` in
-`server/`, then others from the panel) get an Admin card in Settings (`AdminSettings.jsx`; the
-server's 403 hides it from everyone else). App-wide settings are declared in
+`server/`, then others from the panel) get Settings → Admin (`AdminSettings.jsx`, in parts: General, Sign-ups,
+Voice regions, Storage, Admins) and Reports (the server's 403 hides both from everyone else). App-wide settings are declared in
 `server/appSettings.js` (`SETTINGS`: label, description, `env` fallback, `secret`); a value saved
 there (`app_settings` table, cached in memory) overrides the `.env` one, and clearing it goes
 back. Secrets are write-only: the panel only shows where the value comes from and its last 4

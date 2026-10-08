@@ -53,7 +53,7 @@ export default function DesktopAppSettings() {
   if (!settings) return null;
   return (
     <div className="settings-card">
-      <h5>{t('settings.desktopApp.title')}</h5>
+      <h5 id="settings-desktop-app">{t('settings.desktopApp.title')}</h5>
       <label className="settings-toggle">
         <input type="checkbox" checked={settings.closeToTray} onChange={(e) => save({ closeToTray: e.target.checked })} />
         {' '}{t('settings.desktopApp.closeToTray')}
@@ -65,7 +65,7 @@ export default function DesktopAppSettings() {
       </label>
       <p className="vc-hint">{t('settings.desktopApp.startAtLoginHint')}</p>
 
-      <h6 className="desktop-shortcuts-title">{t('settings.desktopApp.shortcuts')}</h6>
+      <h6 id="settings-shortcuts" className="desktop-shortcuts-title">{t('settings.desktopApp.shortcuts')}</h6>
       <p className="vc-hint">{t('settings.desktopApp.shortcutsHint')}</p>
       <div className="desktop-shortcuts">
         {SHORTCUTS.map(({ action, labelKey, shortcutKey }) => {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 vi.mock('../utils/api', () => ({
   default: { get: vi.fn() },
@@ -10,62 +10,138 @@ vi.mock('../utils/api', () => ({
 vi.mock('./AdminSettings', () => ({ default: () => null }));
 vi.mock('./DeviceSettings', () => ({ default: () => null }));
 
+import api from '../utils/api';
 import Settings from './Settings';
 import { AuthContext } from '../hooks/useAuth';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
-function renderSettings({ onLogout = vi.fn() } = {}) {
+function Where() {
+  const location = useLocation();
+  return <output data-testid="where">{location.pathname + location.hash}</output>;
+}
+
+function renderSettings({ onLogout = vi.fn(), at = '/settings' } = {}) {
   const utils = render(
     <AuthContext.Provider value={{ user: { id: 1, username: 'me', hasRecoveryCode: true }, setUser: vi.fn() }}>
-      <MemoryRouter><Settings onLogout={onLogout} /></MemoryRouter>
+      <MemoryRouter initialEntries={[at]}>
+        <Routes>
+          <Route path="/settings/*" element={<Settings onLogout={onLogout} />} />
+          <Route path="/developers" element={<p>Developer portal page</p>} />
+        </Routes>
+        <Where />
+      </MemoryRouter>
     </AuthContext.Provider>
   );
   return { ...utils, onLogout };
 }
 
+const where = () => screen.getByTestId('where').textContent;
+const nav = () => screen.getByRole('navigation', { name: 'Settings sections' });
+const navItems = () => [...nav().querySelectorAll('.settings-nav-item')].map((e) => e.textContent);
+const navSubs = () => [...nav().querySelectorAll('.settings-nav-sub')].map((e) => e.textContent);
+const pageTitle = () => document.querySelector('.settings-page-title')?.textContent;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  api.get.mockRejectedValue({ response: { status: 403 } });
   globalThis.fetch = vi.fn();
+  Element.prototype.scrollIntoView = vi.fn();
 });
 
-describe('Settings', () => {
-  it('has no interaction mode choice (the layout follows the device)', () => {
+describe('Settings pages', () => {
+  it('lists the pages in groups, then About, Developer Portal and Log Out', () => {
     renderSettings();
-    expect(screen.queryByText(/interaction mode/i)).toBeNull();
+    expect([...nav().querySelectorAll('.settings-nav-category')].map((e) => e.textContent)).toEqual(['User Settings', 'App Settings']);
+    expect(navItems()).toEqual([
+      'My Account', 'Privacy & Safety', 'Notifications',
+      'Appearance', 'Language & Region', 'Voice & Video',
+      'About', 'Developer Portal', 'Log Out',
+    ]);
+    expect(screen.queryByText(/bot api docs/i)).toBeNull();
   });
 
-  it('calls onLogout when the logout button is clicked', () => {
-    const { onLogout } = renderSettings();
-
-    fireEvent.click(screen.getByTitle('Logout'));
-
-    expect(onLogout).toHaveBeenCalled();
+  it('opens on My Account, its subsections under it and no other page\'s', () => {
+    renderSettings();
+    expect(pageTitle()).toBe('My Account');
+    expect(screen.getByRole('button', { name: 'My Account' })).toHaveAttribute('aria-current', 'page');
+    expect(navSubs()).toEqual(['Password', 'Recovery code', 'Devices', 'Delete account']);
+    expect(screen.queryByLabelText('Date format')).toBeNull();
   });
 
-});
-
-describe('Settings layout, search and date formats', () => {
-  it('groups sections in categories, and a link jumps to its section', () => {
+  it('a page opens on its own, and a subsection scrolls to its part', () => {
     renderSettings();
-    const nav = screen.getByRole('navigation', { name: 'Settings sections' });
-    expect([...nav.querySelectorAll('.settings-nav-category')].map((e) => e.textContent)).toEqual(['My Account', 'App Settings', 'Developers', 'About']);
+    fireEvent.click(screen.getByRole('button', { name: 'Language & Region' }));
+    expect(where()).toBe('/settings/language');
+    expect(pageTitle()).toBe('Language & Region');
+    expect(screen.getByLabelText('Date format')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Current password')).toBeNull();
+    expect(navSubs()).toEqual(['Language', 'Date & time', 'Spellcheck']);
     const scroll = vi.fn();
     document.getElementById('settings-date-time').scrollIntoView = scroll;
     fireEvent.click(screen.getByRole('button', { name: 'Date & time' }));
+    expect(where()).toBe('/settings/language#date-time');
     expect(scroll).toHaveBeenCalled();
   });
 
-  it('search hides the sections that do not match, keeping them in the page', () => {
+  it('shows no subsections for a page with only one', () => {
+    renderSettings({ at: '/settings/appearance' });
+    expect(pageTitle()).toBe('Appearance');
+    expect(navSubs()).toEqual([]);
+  });
+
+  it('takes the old one-page Settings\' links to the page holding that section', async () => {
+    renderSettings({ at: '/settings#date-time' });
+    await waitFor(() => expect(where()).toBe('/settings/language#date-time'));
+    expect(screen.getByLabelText('Date format')).toBeInTheDocument();
+  });
+
+  it('takes an old link to a section that was split or renamed by its alias', async () => {
+    renderSettings({ at: '/settings#account-security' });
+    await waitFor(() => expect(where()).toBe('/settings/account#password'));
+  });
+
+  it('asks before logging out', () => {
+    const { onLogout } = renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'Log Out' }));
+    expect(onLogout).not.toHaveBeenCalled();
+    expect(screen.getByText('Are you sure you want to log out?')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Log Out' }).find((b) => b.classList.contains('btn-danger')));
+    expect(onLogout).toHaveBeenCalled();
+  });
+
+  it('Developer Portal goes to the portal, with no page in Settings', () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'Developer Portal' }));
+    expect(screen.getByText('Developer portal page')).toBeInTheDocument();
+  });
+
+  it('lists Admin and Reports for admins', async () => {
+    api.get.mockResolvedValue({ data: { settings: [] } });
+    renderSettings();
+    await waitFor(() => expect(navItems()).toContain('Admin'));
+    expect(navItems()).toContain('Reports');
+  });
+});
+
+describe('Settings search and date formats', () => {
+  it('search lists the matching subsections with their page, and opens one', () => {
     renderSettings();
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: '24-hour' } });
-    const nav = screen.getByRole('navigation', { name: 'Settings sections' });
-    expect([...nav.querySelectorAll('.settings-nav-item')].map((e) => e.textContent)).toEqual(['Date & time']);
-    expect(document.getElementById('settings-date-time')).not.toHaveAttribute('hidden');
-    expect(document.getElementById('settings-account-security')).toHaveAttribute('hidden');
+    const results = [...nav().querySelectorAll('.settings-nav-result')];
+    expect(results.map((e) => e.textContent)).toEqual(['Date & timeLanguage & Region']);
+    expect(navItems()).not.toContain('Log Out');
+    fireEvent.click(results[0]);
+    expect(where()).toBe('/settings/language#date-time');
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: 'zzz' } });
     expect(screen.getByText('No settings match “zzz”.')).toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole('searchbox', { name: 'Search settings' }), { key: 'Escape' });
-    expect(document.getElementById('settings-account-security')).not.toHaveAttribute('hidden');
+    expect(navItems()).toContain('My Account');
+  });
+
+  it('search finds subsections inside one page\'s card', () => {
+    renderSettings();
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: 'webcam' } });
+    expect([...nav().querySelectorAll('.settings-nav-result-title')].map((e) => e.textContent)).toEqual(['Camera']);
   });
 
   it('has your name and Edit Profile above the search, whatever is searched', () => {
@@ -73,19 +149,20 @@ describe('Settings layout, search and date formats', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: 'zzz' } });
     const link = screen.getByRole('button', { name: /me\s*Edit Profile/ });
     expect(link.compareDocumentPosition(screen.getByRole('searchbox')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect([...document.querySelectorAll('.settings-nav-item')].map((e) => e.textContent)).not.toContain('Edit Profile');
+    expect(navItems()).not.toContain('Edit Profile');
   });
 
   it('changes the date and time formats', () => {
-    renderSettings();
+    renderSettings({ at: '/settings/language' });
     fireEvent.change(screen.getByLabelText('Date format'), { target: { value: 'ymd' } });
     fireEvent.change(screen.getByLabelText('Time format'), { target: { value: '24' } });
     expect(JSON.parse(localStorage.getItem('dateFormat'))).toEqual({ date: 'ymd', time: '24' });
     expect(screen.getByText(/Messages will show: \d{4}-\d{2}-\d{2}, \d{2}:\d{2}\./)).toBeInTheDocument();
   });
+
   it('turns spellcheck off and on for this device', () => {
     localStorage.removeItem('spellcheck');
-    renderSettings();
+    renderSettings({ at: '/settings/language' });
     const box = screen.getByRole('checkbox', { name: 'Check spelling as you type' });
     expect(box).toBeChecked();
     fireEvent.click(box);

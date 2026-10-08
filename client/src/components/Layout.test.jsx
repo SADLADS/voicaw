@@ -146,11 +146,13 @@ describe('Layout', () => {
     expect(document.querySelector('.sidebar-wrapper .settings-nav-slot')).toBeInTheDocument();
     view.unmount();
 
-    // A phone keeps Settings' column in the page, and no user panel there.
+    // A phone has it too: Settings' column is the list pane, with the user panel under it,
+    // and /settings alone opens on that list.
     renderLayout({ path: '/settings', isMobile: true });
     await waitFor(() => expect(api.get).toHaveBeenCalled());
-    expect(screen.queryByLabelText('You')).not.toBeInTheDocument();
-    expect(document.querySelector('.settings-nav-slot')).toBeNull();
+    expect(screen.getByLabelText('You')).toHaveTextContent('me');
+    expect(document.querySelector('.sidebar-wrapper .settings-nav-slot')).toBeInTheDocument();
+    expect(document.querySelector('.main-wrapper')).toHaveClass('slidey', 'pane-list');
   });
 
   it('fetches the DM user list on /dm routes and exposes it through LayoutContext', async () => {

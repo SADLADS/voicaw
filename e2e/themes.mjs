@@ -92,9 +92,9 @@ try {
 
   // Settings → Appearance → Light: changes at once.
   await a.goto(`${BASE}/settings#appearance`);
-  await a.waitForSelector("#settings-appearance");
+  await a.waitForSelector("#settings-theme");
   await shot(a, 'settings-dark');
-  await a.click('#settings-appearance >> text=Light');
+  await a.click('#settings-theme >> text=Light');
   t = await themeOf(a);
   check(t.theme === 'light' && t.bs === 'light' && t.scheme === 'light' && isLightBg(t.bg), `Light switches at once (${JSON.stringify(t)})`);
   await shot(a, 'settings-light');
@@ -138,9 +138,9 @@ try {
 
   // Match system: follows the system's setting, live.
   await a.goto(`${BASE}/settings#appearance`);
-  await a.waitForSelector("#settings-appearance");
+  await a.waitForSelector("#settings-theme");
   await a.emulateMedia({ colorScheme: 'dark' });
-  await a.click('#settings-appearance >> text=Match system');
+  await a.click('#settings-theme >> text=Match system');
   check((await themeOf(a)).theme === 'dark', 'Match system with a dark system: dark');
   await a.emulateMedia({ colorScheme: 'light' });
   await a.waitForFunction(() => document.documentElement.dataset.theme === 'light');
@@ -148,7 +148,7 @@ try {
   check((await a.evaluate(() => localStorage.getItem('theme'))) === 'system', 'stored as "system"');
 
   // Dark again, for the dark screenshots.
-  await a.click('#settings-appearance >> text=Dark');
+  await a.click('#settings-theme >> text=Dark');
   check((await themeOf(a)).theme === 'dark', 'Dark switches back');
   await a.goto(`${BASE}/dm/${bob.id}`);
   await a.waitForSelector('.hljs');

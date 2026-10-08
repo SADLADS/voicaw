@@ -58,7 +58,7 @@ export default function CameraSettings() {
 
   return (
     <>
-      <h6 className="voice-settings-heading">{t('settings.voice.video')}</h6>
+      <h6 id="settings-camera" className="voice-settings-heading">{t('settings.voice.video')}</h6>
       <div className="voice-settings-grid">
         <label className="voice-settings-field">
           <span>{t('settings.voice.camera')}</span>

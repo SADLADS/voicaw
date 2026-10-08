@@ -110,7 +110,7 @@ export default function VoiceSettings() {
 
   return (
     <div className="settings-card voice-settings">
-      <h5>{t('settings.voice.title')}</h5>
+      <h5 id="settings-voice">{t('settings.voice.title')}</h5>
       <div className="voice-settings-grid">
         {chooseInput && (
           <label className="voice-settings-field">
@@ -176,7 +176,7 @@ export default function VoiceSettings() {
         </p>
       )}
 
-      <h6 className="voice-settings-heading">{t('settings.voice.micTest')}</h6>
+      <h6 id="settings-mic-test" className="voice-settings-heading">{t('settings.voice.micTest')}</h6>
       <p className="vc-hint">{t('settings.voice.micTestHint')}</p>
       <div className="mic-test">
         <button
@@ -196,7 +196,7 @@ export default function VoiceSettings() {
       </div>
       {testError && <p className="error-text">{testError}</p>}
 
-      <h6 className="voice-settings-heading">{t('settings.voice.noiseSuppression')}</h6>
+      <h6 id="settings-noise-suppression" className="voice-settings-heading">{t('settings.voice.noiseSuppression')}</h6>
       <div role="radiogroup" aria-label={t('settings.voice.noiseSuppression')}>
         {NOISE_MODES.map(([mode, label, hint]) => {
           const unavailable = (mode === 'standard' && !suppressionAvailable)
@@ -223,7 +223,7 @@ export default function VoiceSettings() {
         <p className="error-text">{t('settings.voice.noise.strong.tooSlow')}</p>
       )}
 
-      <h6 className="voice-settings-heading">{t('settings.voice.inputSensitivity')}</h6>
+      <h6 id="settings-input-sensitivity" className="voice-settings-heading">{t('settings.voice.inputSensitivity')}</h6>
       <label className="settings-toggle voice-settings-toggle">
         <input
           type="checkbox" checked={settings.autoSensitivity}
@@ -264,7 +264,7 @@ export default function VoiceSettings() {
         </div>
       )}
 
-      <h6 className="voice-settings-heading">{t('settings.voice.voiceProcessing')}</h6>
+      <h6 id="settings-voice-processing" className="voice-settings-heading">{t('settings.voice.voiceProcessing')}</h6>
       {PROCESSING.map(([key, label, hint]) => (
         <label key={key} className="settings-toggle voice-settings-toggle">
           <input type="checkbox" checked={settings[key]} onChange={(e) => setAudioSettings({ [key]: e.target.checked })} />
@@ -277,7 +277,7 @@ export default function VoiceSettings() {
       <CameraSettings />
       {canShareScreen() && (
         <>
-          <h6 className="voice-settings-heading">{t('settings.voice.screenShare')}</h6>
+          <h6 id="settings-screen-share" className="voice-settings-heading">{t('settings.voice.screenShare')}</h6>
           <StreamQualityPicker />
           <p className="vc-hint">{t('settings.voice.screenShareHint')}</p>
         </>

@@ -5,14 +5,22 @@ import { MIN_PASSWORD_LENGTH, changePassword, createRecoveryCode } from '../serv
 import RecoveryCodeDisplay from './RecoveryCodeDisplay';
 import { t } from '../i18n';
 
-// Settings: change password, and make a (new) recovery code. Both need the current
-// password, since that's what unlocks the encryption keys to re-encrypt them.
-export default function AccountSecuritySettings() {
-  const { user, setUser } = useAuth();
+// Settings → My Account: change password, and make a (new) recovery code, a card each. Both
+// need the current password, since that's what unlocks the encryption keys to re-encrypt them.
+export function PasswordSettings() {
+  const { user } = useAuth();
   return (
-    <div className="settings-card" id="account-security">
+    <div className="settings-card">
       <h5>{t('settings.accountSecurity.passwordTitle')}</h5>
       <ChangePassword username={user.username} />
+    </div>
+  );
+}
+
+export function RecoveryCodeSettings() {
+  const { user, setUser } = useAuth();
+  return (
+    <div className="settings-card">
       <h5>{t('settings.accountSecurity.recoveryCodeTitle')}</h5>
       <RecoveryCode user={user} onCreated={() => setUser({ ...user, hasRecoveryCode: true })} />
     </div>

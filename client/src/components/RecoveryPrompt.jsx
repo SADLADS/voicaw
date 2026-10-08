@@ -21,7 +21,7 @@ export default function RecoveryPrompt({ user }) {
     <div className="notification-prompt" role="region" aria-label={t('settings.recoveryCode.title')}>
       <span>{t('settings.recoveryPrompt.text')}</span>
       <span className="notification-prompt-actions">
-        <button type="button" className="notification-prompt-enable" onClick={() => navigate('/settings#account-security')}>
+        <button type="button" className="notification-prompt-enable" onClick={() => navigate('/settings/account#recovery-code')}>
           {t('settings.recoveryPrompt.setUp')}
         </button>
         <button type="button" className="reply-close" onClick={dismiss} aria-label={t('settings.dismiss')}>

@@ -9,14 +9,15 @@ vi.mock('../services/authService', () => ({
 }));
 
 import { changePassword, createRecoveryCode } from '../services/authService';
-import AccountSecuritySettings from './AccountSecuritySettings';
+import { PasswordSettings, RecoveryCodeSettings } from './AccountSecuritySettings';
 import { AuthContext } from '../hooks/useAuth';
 
 function renderSettings(user = { id: 1, username: 'me', hasRecoveryCode: false }) {
   const setUser = vi.fn();
   render(
     <AuthContext.Provider value={{ user, setUser }}>
-      <AccountSecuritySettings />
+      <PasswordSettings />
+      <RecoveryCodeSettings />
     </AuthContext.Provider>
   );
   return { setUser };
