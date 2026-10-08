@@ -31,6 +31,7 @@ import { useBlocksSync } from '../hooks/useBlocksSync';
 import { useFriendsSync } from '../hooks/useFriendsSync';
 import { useFriends } from '../utils/friends';
 import { useDictionarySync } from '../hooks/useDictionarySync';
+import { useEmojiUsageSync } from '../hooks/useEmojiUsageSync';
 import { useSwipePanes } from '../hooks/useSwipePanes';
 import { useDesktopApp } from '../hooks/useDesktopApp';
 import { useAndroidApp } from '../hooks/useAndroidApp';
@@ -131,6 +132,7 @@ export default function Layout({ user, onLogout }) {
   // Friend requests waiting for your answer light the rail's DM button too.
   const hasFriendRequests = useFriends().incoming.length > 0;
   useDictionarySync(user?.id);
+  useEmojiUsageSync(user?.id);
   const activeGroups = useMemo(
     () => groupList.groups.map((g) => (g.unread && conversationSettings.isMuted('group', g.id) ? { ...g, unread: 0 } : g)),
     [groupList.groups, conversationSettings]

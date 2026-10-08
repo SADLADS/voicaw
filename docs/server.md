@@ -31,6 +31,10 @@ unexpected errors. The rest:
   Account preferences in `docs/client.md`); `routes/preferences.js`.
 - `dictionary.js`: each person's spellcheck dictionary, one encrypted envelope with a version
   (see Spellcheck dictionary in `docs/auth-and-encryption.md`); `routes/dictionary.js`.
+- `emojiUsage.js`: each person's emoji usage (Frequently Used, skin tone), the same kind of
+  envelope (see Emoji usage in `docs/auth-and-encryption.md`); `routes/emojiUsage.js`.
+- `ownEnvelopes.js`: what those two share: a users column holding one `v1.` envelope and its
+  version, saved only over the version it was made from.
 - `guildLevels.js`: levels, Guilded's XP (settings, earning, setting by hand, the leaderboard;
   see Levels in `docs/guilds.md`); `routes/guildLevels.js` has their routes.
 - `auditLog.js`: a guild's audit log (`logAudit`, `readAuditLog`; see Guilds); `routes/auditLog.js`.

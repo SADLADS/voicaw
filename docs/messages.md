@@ -64,8 +64,9 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   text box has the focus (a search left open after jumping to a result), not for a document's
   replies (the document has it) and not for a channel with a thread open beside it (the thread
   has it): `ChatPane`'s `focusOnOpen`. `e2e/focus.mjs` checks it.
-- Composer (`Composer.jsx`): `EmojiPicker` (search, categories, frequently used and skin tone, both in
-  localStorage via `emojiUsage.js`; on a computer its search box is focused on opening and on
+- Composer (`Composer.jsx`): `EmojiPicker` (search, categories, frequently used and skin tone, both
+  following the account, encrypted: `emojiUsage.js`, see Emoji usage in
+  `docs/auth-and-encryption.md`; on a computer its search box is focused on opening and on
   switching between the Emoji and GIFs tabs), `:sm` autocomplete (`EmojiSuggestions`), and a completed
   `:shortcode:` turns into the emoji as you type. `remark-emoji` still renders any leftover
   `:shortcode:` text.

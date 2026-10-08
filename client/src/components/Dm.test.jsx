@@ -140,6 +140,7 @@ const setBoxText = (text) => act(() => { editorFor(box()).setText(text); });
 import emojiData from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../emoji/emojiIndex';
 import { EmojiContext } from '../emoji/emojiContext';
+import { resetEmojiUsage } from '../emoji/emojiUsage';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { ConfigContext, InteractionContext } from '../contexts';
 import { LayoutContext } from '../contexts';
@@ -202,6 +203,7 @@ beforeEach(() => {
   dmListeners.reactionRemove = [];
   dmListeners.pin = [];
   localStorage.clear();
+  resetEmojiUsage();
   clearDrafts();
   fetchPins.mockResolvedValue([]);
   fetchMessagesForUser.mockResolvedValue([]);

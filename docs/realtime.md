@@ -27,6 +27,8 @@ an account preference, to your other devices; see `docs/client.md`), `friends` (
 or friend requests changed, to both people's devices with each one's lists; see Friends in
 `docs/client.md`), `dictionary` (your
 encrypted spellcheck dictionary was saved, to your devices; see `docs/auth-and-encryption.md`),
+`emoji_usage` (your encrypted emoji usage was saved, to your devices; see Emoji usage in
+`docs/auth-and-encryption.md`),
 `guild_voice_state` (someone
 joined, left or (un)muted in a voice channel), `guild_watch_party` (a voice channel's Watch
 Together changed or ended, with the activity log's new entry, to whoever can see it; see Voice channels in `docs/voice-and-calls.md`), `guild_thread_update` / `_delete` (to whoever can

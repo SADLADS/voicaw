@@ -250,6 +250,22 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   device decrypts it, makes its change again on top and saves again), bumps the version and
   sends `dictionary` to your devices. A change shows at once and is saved in the background;
   loaded at login and after a reconnect, forgotten on logout. Deleting the account clears it.
+- **Emoji usage** (the picker's Frequently Used, the quick reactions and the skin tone;
+  `client/src/emoji/emojiUsage.js`, `server/emojiUsage.js`): per account, not per device, and
+  encrypted, since which emoji you use says something about what you write in encrypted chats.
+  The same scheme as the dictionary (`server/ownEnvelopes.js`): one envelope in
+  `users.emoji_usage`, under `deriveEmojiUsageKey` (HKDF with `voicaw/emoji-usage-key/v1`) with
+  `voicaw/emoji-usage/v1|<user id>` as additional data. The plaintext is
+  `{"v":1,"counts":{"<emoji id>":uses},"tone":0-5}` (custom emoji as `custom:<id>`; no `tone`
+  until one is chosen) padded to exactly 8 KiB, the least used left out to fit, so the server
+  learns nothing from its size. `GET /emoji-usage` → `{ emojiUsage, version }`, `PUT
+  /emoji-usage { emojiUsage, version }` with the dictionary's 409 on a stale version, and the
+  `emoji_usage` event to your devices. A use counts at once and is saved 2 s later (one save
+  for a burst; also when the page is hidden), so the server sees a save soon after you've used
+  an emoji, not which. Before 2026-10-08 both were in localStorage (`emojiFrequent`,
+  `emojiSkinTone`): at the next login on that device they're added to the account (the
+  account's tone wins if it has one) and removed. In memory only, forgotten on logout; deleting
+  the account clears it.
 
 Never log plaintext, session keys, tokens or `OPAQUE_SERVER_SETUP`; server logs end up in pm2.
 The server stores and relays only ciphertext. Message length limits (`MAX_MESSAGE_LENGTH`
