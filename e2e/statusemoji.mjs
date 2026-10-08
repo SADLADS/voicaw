@@ -1,6 +1,8 @@
-// Custom status emoji: Alice sets "Out for lunch" with a rabbit from the user menu (picked in the
-// emoji picker without ending the edit), Bob sees both live in his DM list; Edit Profile removes the emoji (preview, save, Bob sees text only); a status that is
-// only an emoji, kept after a reload; phone (menu and picker fit).
+// Custom status emoji: in the user menu the emoji button shows without editing (one click opens
+// the picker, the pick saves at once), then Alice adds "Out for lunch" (the picker during the
+// edit doesn't end it), Bob sees both live in his DM list; Edit Profile removes the emoji
+// (preview, save, Bob sees text only); a status that is only an emoji, kept after a reload;
+// phone (menu and picker fit).
 //   node e2e/serve.mjs &   then   node e2e/statusemoji.mjs [dir]
 import { mkdirSync } from 'node:fs';
 import { launchChrome, signUp, makeFriends, devices, BASE } from './helpers.mjs';
@@ -59,15 +61,15 @@ try {
   await b.goto(`${BASE}/dm`);
   await b.waitForSelector(`a[href="/dm/${alice.id}"]`);
 
-  console.log('user menu: text and emoji');
+  console.log('user menu: the emoji button, one click');
   await openMenu(a);
-  await a.click('button:has-text("Set a custom status")');
-  await a.fill('.user-menu-status-input', 'Out for lunch');
+  check(await a.isVisible('.user-menu .status-emoji-button'), 'the emoji button shows without editing');
+  check(!(await a.isVisible('.user-menu-status-input')), 'no text box until the text is clicked');
+  await shot(a, '0-menu');
   await a.click('.user-menu .status-emoji-button');
   await a.waitForSelector('.user-menu .emoji-picker');
+  check(true, 'one click opens the picker');
   check(await a.isVisible('.user-menu'), 'the menu stays open with the picker');
-  // Nothing saved yet: the picker isn't leaving the edit.
-  check((await rowStatus(b, alice.id)) === null, 'opening the picker saved nothing');
   const box = await a.$eval('.user-menu .emoji-picker', (el) => {
     const r = el.getBoundingClientRect();
     return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
@@ -75,15 +77,26 @@ try {
   check(box.left >= 0 && box.top >= 0 && box.right <= 1100 && box.bottom <= 750, 'the picker is inside the window');
   await shot(a, '1-menu-picker');
   await pickEmoji(a, 'rabbit');
-  check(await a.isVisible('.user-menu-status-input'), 'still editing after the pick');
-  check(await a.evaluate(() => document.activeElement?.classList.contains('user-menu-status-input')), 'the text box has the focus back');
   // Whichever "rabbit" search puts first (🐰 or 🐇).
   const rabbit = await a.getAttribute('.user-menu .status-emoji-button img', 'alt');
   check(['🐰', '🐇'].includes(rabbit), `the button shows the rabbit (${rabbit})`);
+  await waitForStatus(b, alice.id, { emoji: rabbit, text: null });
+  check(true, 'the pick saved at once (Bob sees it)');
+
+  console.log('user menu: text, with the picker during the edit');
+  await a.click('button:has-text("Set a custom status")');
+  await a.fill('.user-menu-status-input', 'Out for lunch');
+  await a.click('.user-menu .status-emoji-button');
+  await a.waitForSelector('.user-menu .emoji-picker');
+  // Nothing saved: the picker isn't leaving the edit.
+  check((await rowStatus(b, alice.id)).text === null, 'opening the picker saved nothing');
+  await pickEmoji(a, 'rabbit');
+  check(await a.isVisible('.user-menu-status-input'), 'still editing after the pick');
+  check(await a.evaluate(() => document.activeElement?.classList.contains('user-menu-status-input')), 'the text box has the focus back');
   await shot(a, '2-menu-editing');
   await a.press('.user-menu-status-input', 'Enter');
-  await a.waitForSelector(`.user-menu-status .custom-status-emoji img[alt="${rabbit}"]`);
-  check((await a.textContent('.user-menu-status')).includes('Out for lunch'), 'the menu shows emoji and text');
+  await a.waitForSelector('.user-menu-status:has-text("Out for lunch")');
+  check((await a.getAttribute('.user-menu .status-emoji-button img', 'alt')) === rabbit, 'the menu shows emoji and text');
   await shot(a, '3-menu-saved');
 
   await waitForStatus(b, alice.id, { emoji: rabbit, text: 'Out for lunch' });
@@ -161,7 +174,8 @@ try {
   await p.waitForSelector('.emoji-picker', { state: 'detached' });
   await p.fill('.user-menu-status-input', 'Camping');
   await p.press('.user-menu-status-input', 'Enter');
-  await p.waitForSelector('.user-menu-status .custom-status-emoji img[alt="⛺"]');
+  await p.waitForSelector('.user-menu-status:has-text("Camping")');
+  check((await p.getAttribute('.user-menu .status-emoji-button img', 'alt')) === '⛺', 'the phone menu shows the tent');
   await shot(p, '8-phone-saved');
   await waitForStatus(b, alice.id, { emoji: '⛺', text: 'Camping' });
   check(true, 'set from a phone, Bob sees it');

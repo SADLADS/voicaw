@@ -66,7 +66,7 @@
   row with `UserPanel` across the bottom: your picture, name, this device's connection state
   (`ws-client` `getConnectionState`/`onConnectionState`: online / connecting / offline) and the
   settings button. Clicking the picture and name opens `UserMenu` above it: your picture, name
-  and custom status (click to change it and its emoji there), Edit Profile, Copy User ID and Log out.
+  and custom status (its emoji button and text change it there), Edit Profile, Copy User ID and Log out.
   Neither the panel's picture and name nor the menu has a right-click menu (they call
   `preventDefault`, so PageMenus' Copy User ID doesn't open there either). It's shown under the DM list, a guild's channel list, and Settings' column on
   a computer (Layout adds an empty column, `settingsNavSlot` in `LayoutContext`, and `Settings`
@@ -452,9 +452,11 @@ stays the unique handle (logins, @username on the card).
   emoji. `CustomStatus` draws both wherever a status shows (`ReactionEmoji` for the emoji).
   `StatusEmojiButton` chooses it: a smiley (or the emoji) opening the floating `EmojiPicker`,
   and ✕ to remove it; the picker is drawn inside it, not portalled, so `UserMenu` counts
-  clicks in it as inside. In `UserMenu` the emoji and text are edited together (moving to the
-  emoji button or picker doesn't end the edit; Enter or clicking away saves both, ✕ on the
-  status clears both); in Edit Profile it's beside the text box, saved with the rest.
+  clicks in it as inside. In `UserMenu` the emoji button is always beside the status text, so
+  one click opens the picker and the pick saves at once; while the text is being edited, a pick
+  goes with it instead (moving to the emoji button or picker doesn't end the edit; Enter or
+  clicking away saves both) and the emoji's own ✕ shows; ✕ on the status clears both. In Edit
+  Profile it's beside the text box, saved with the rest.
 - Settings → Edit Profile is its own page (`/settings/profile`, `EditProfile.jsx`): picture
   (change or remove), display name, custom status and its emoji, bio, with a live preview; Save uploads the
   picture (if picked) or removes it, and saves the rest.

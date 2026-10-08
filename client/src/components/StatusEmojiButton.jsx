@@ -7,10 +7,10 @@ import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 import { t } from '../i18n';
 
 // The custom status's emoji: a button showing it (a smiley without one) that opens the emoji
-// picker by it, and ✕ to remove it. The picker is drawn here, not portalled, so a menu around it
-// (UserMenu) counts clicks in it as inside. `onPickerClosed` runs when the picker closes, picked
+// picker by it, and ✕ to remove it (unless `removable` is false). The picker is drawn here, not
+// portalled, so a menu around it (UserMenu) counts clicks in it as inside. `onPickerClosed` runs when the picker closes, picked
 // or not (UserMenu gives its text box the focus back).
-export default function StatusEmojiButton({ emoji, onChange, onPickerClosed, disabled }) {
+export default function StatusEmojiButton({ emoji, onChange, onPickerClosed, disabled, removable = true }) {
   const [picking, setPicking] = useState(null); // the button's rect while the picker is open
   const closedRef = useRef(onPickerClosed);
   closedRef.current = onPickerClosed;
@@ -41,7 +41,7 @@ export default function StatusEmojiButton({ emoji, onChange, onPickerClosed, dis
       >
         {emoji ? <ReactionEmoji native={emoji} /> : <FontAwesomeIcon icon={faFaceSmile} />}
       </button>
-      {emoji && (
+      {emoji && removable && (
         <button type="button" className="status-emoji-remove" aria-label={t('app.userMenu.removeEmoji')} title={t('app.userMenu.removeEmoji')} disabled={disabled} onClick={() => onChange(null)}>
           <FontAwesomeIcon icon={faXmark} />
         </button>

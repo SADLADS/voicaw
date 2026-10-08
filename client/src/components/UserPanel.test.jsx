@@ -170,7 +170,25 @@ describe('UserPanel', () => {
 
       await act(async () => fireEvent.keyDown(input, { key: 'Enter' }));
       expect(updateProfile).toHaveBeenCalledWith({ customStatus: 'late', customStatusEmoji: '🐇' });
-      expect(screen.getByRole('button', { name: '🐇late' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'late' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Change the emoji' })).toHaveTextContent('🐇');
+    });
+
+    it('shows the emoji button without editing: one click opens the picker, the pick saves at once', async () => {
+      clearProfiles();
+      mergeProfiles([{ id: 7, username: 'alice', custom_status: 'late' }]);
+      updateProfile.mockReset();
+      updateProfile.mockResolvedValueOnce({ id: 7, username: 'alice', custom_status: 'late', custom_status_emoji: '🐇' });
+      renderPanel();
+      openMenu();
+      expect(screen.queryByRole('textbox', { name: 'Custom status' })).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Add an emoji' }));
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Pick a rabbit' })));
+      expect(updateProfile).toHaveBeenCalledWith({ customStatus: 'late', customStatusEmoji: '🐇' });
+      expect(screen.getByRole('button', { name: 'Change the emoji' })).toHaveTextContent('🐇');
+      // No ✕ beside the emoji outside editing: the status's own ✕ clears both.
+      expect(screen.queryByRole('button', { name: 'Remove the emoji' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('textbox', { name: 'Custom status' })).not.toBeInTheDocument();
     });
 
     it('removes the emoji alone, keeping the text', async () => {
@@ -180,7 +198,7 @@ describe('UserPanel', () => {
       updateProfile.mockResolvedValueOnce({ id: 7, username: 'alice', custom_status: 'late', custom_status_emoji: null });
       renderPanel();
       openMenu();
-      fireEvent.click(screen.getByRole('button', { name: '🐇late' }));
+      fireEvent.click(screen.getByRole('button', { name: 'late' }));
       fireEvent.click(screen.getByRole('button', { name: 'Remove the emoji' }));
       await act(async () => fireEvent.keyDown(screen.getByRole('textbox', { name: 'Custom status' }), { key: 'Enter' }));
       expect(updateProfile).toHaveBeenCalledWith({ customStatus: 'late', customStatusEmoji: null });

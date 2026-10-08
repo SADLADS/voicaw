@@ -2,10 +2,9 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFaceSmile, faIdCard, faPen, faRightFromBracket, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faIdCard, faPen, faRightFromBracket, faXmark } from '@fortawesome/free-solid-svg-icons';
 import Avatar from './Avatar';
 import StatusIcon from './StatusIcon';
-import CustomStatus from './CustomStatus';
 import StatusEmojiButton from './StatusEmojiButton';
 import { usePresence } from '../hooks/usePresence';
 import { updateProfile } from '../services/profileService';
@@ -16,7 +15,8 @@ import { t } from '../i18n';
 const MARGIN = 8;
 
 // The menu the user panel's left side opens (above it): your picture, name and custom status
-// (click it to change it and its emoji: Enter or clicking away saves, Escape cancels, ✕ clears both), Edit Profile, Copy User ID and
+// (its emoji button, always shown, opens the picker; click the text to change it: Enter or
+// clicking away saves it with the emoji, Escape cancels, ✕ clears both), Edit Profile, Copy User ID and
 // Log out. Right-clicking it opens nothing (neither PageMenus' menu nor the browser's).
 // `anchor` is the clicked element's rect; `trigger` its element (clicking it again closes the
 // menu through the panel, not as an outside click).
@@ -96,14 +96,20 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
         <div className="user-menu-names">
           <div className="user-menu-name">{nameOf(profile)}</div>
           {profile.display_name && <div className="user-menu-username">{profile.username}</div>}
-          {editing ? (
-            <div className="user-menu-status-edit" ref={editRef}>
-              <StatusEmojiButton
-                emoji={draftEmoji}
-                disabled={saving}
-                onChange={(emoji) => { setDraftEmoji(emoji); inputRef.current?.focus(); }}
-                onPickerClosed={() => inputRef.current?.focus()}
-              />
+          <div className="user-menu-status-row" ref={editRef}>
+            {/* Always there: picking saves at once, or goes with the text while it's edited. */}
+            <StatusEmojiButton
+              emoji={editing ? draftEmoji : customEmoji}
+              removable={editing}
+              disabled={saving}
+              onChange={(emoji) => {
+                if (!editing) return saveStatus(customStatus, emoji);
+                setDraftEmoji(emoji);
+                inputRef.current?.focus();
+              }}
+              onPickerClosed={() => inputRef.current?.focus()}
+            />
+            {editing ? (
               <input
                 ref={inputRef}
                 className="user-menu-status-input"
@@ -129,29 +135,24 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
                   }
                 }}
               />
-            </div>
-          ) : (
-            <div className="user-menu-status-row">
-              <button
-                type="button"
-                className={`user-menu-status${hasStatus ? '' : ' empty'}`}
-                title={t('app.userMenu.changeStatus')}
-                onClick={() => { setDraft(customStatus); setDraftEmoji(customEmoji); finished.current = false; setEditing(true); }}
-              >
-                {hasStatus ? <CustomStatus profile={profile} /> : (
-                  <>
-                    <FontAwesomeIcon icon={faFaceSmile} />
-                    <span>{t('app.userMenu.setStatus')}</span>
-                  </>
-                )}
-              </button>
-              {hasStatus && (
-                <button type="button" className="user-menu-status-clear" aria-label={t('app.userMenu.clearStatus')} title={t('app.userMenu.clear')} disabled={saving} onClick={() => saveStatus('', null)}>
-                  <FontAwesomeIcon icon={faXmark} />
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className={`user-menu-status${customStatus ? '' : ' empty'}`}
+                  title={t('app.userMenu.changeStatus')}
+                  onClick={() => { setDraft(customStatus); setDraftEmoji(customEmoji); finished.current = false; setEditing(true); }}
+                >
+                  <span>{customStatus || t('app.userMenu.setStatus')}</span>
                 </button>
-              )}
-            </div>
-          )}
+                {hasStatus && (
+                  <button type="button" className="user-menu-status-clear" aria-label={t('app.userMenu.clearStatus')} title={t('app.userMenu.clear')} disabled={saving} onClick={() => saveStatus('', null)}>
+                    <FontAwesomeIcon icon={faXmark} />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
           {error && <div className="user-menu-error">{error}</div>}
         </div>
       </div>
