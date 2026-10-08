@@ -5,6 +5,7 @@ import { useDragReorder } from '../../hooks/useDragReorder';
 import {
   addVideo, formatClock, looksLikeLink, movedItem, moveVideo, removeVideo, searchVideos, setPlayerSlot, useWatchParty, videoIdFromInput,
 } from '../../voice/watchParty';
+import { closeWatchPartyWindow, useWatchPartyWindow } from '../../voice/watchPartyWindow';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import WatchPartyActivity from './WatchPartyActivity';
 import WatchPartySearchResults from './WatchPartySearchResults';
@@ -14,13 +15,15 @@ import { t } from '../../i18n';
 const errorOf = (err) => err?.response?.data?.error ?? t('voice.watchParty.failed');
 
 // Watch Together on a voice channel's page, once you're in its voice: paste a YouTube link to
-// add it, or search YouTube and add from what it finds (WatchPartySearchResults), the player's place (WatchPartyPlayer draws itself over it), what's playing and the
+// add it, or search YouTube and add from what it finds (WatchPartySearchResults), the player's place (WatchPartyPlayer draws itself over it, or a note while it's
+// popped out into its own window), what's playing and the
 // queue (dragged into order with Manage Queue; your own videos, or anyone's with Manage Queue,
 // can be taken out), and who did what (WatchPartyActivity). What you may do follows the
 // channel's permissions; the server decides.
 export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
   useProfiles();
   const party = useWatchParty(guild.id, channel.id);
+  const poppedOut = useWatchPartyWindow() != null;
   const permissions = channel.my_permissions;
   const canQueue = has(permissions, PERMISSIONS.QUEUE_VIDEOS);
   const canManage = has(permissions, PERMISSIONS.MANAGE_QUEUE);
@@ -120,7 +123,12 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
   return (
     <section className="watch-party-panel" aria-label={t('voice.watchParty.title')}>
       <div className="watch-party-layout">
-        {party?.current ? (
+        {party?.current && poppedOut ? (
+          <div className="watch-party-slot watch-party-popped">
+            <p>{t('voice.watchParty.poppedOut')}</p>
+            <button type="button" className="stream-popped-button" onClick={closeWatchPartyWindow}>{t('voice.watchParty.bringBack')}</button>
+          </div>
+        ) : party?.current ? (
           <div className="watch-party-slot" ref={setPlayerSlot} />
         ) : (
           <div className="watch-party-empty">

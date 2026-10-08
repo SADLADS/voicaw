@@ -487,15 +487,15 @@ button.user-panel-button {
   border-radius: 0;
 }
 
-/* Popped out (voice/streamWindow.js): the stream is the whole window. */
-body.stream-window {
+/* Popped out (voice/popoutWindow.js): the stream or the player is the whole window. */
+body.popout-window {
   margin: 0;
   height: 100vh;
   overflow: hidden;
   background-color: #000;
 }
 
-.stream-window-root {
+.popout-window-root {
   display: flex;
   height: 100%;
 }
@@ -503,6 +503,56 @@ body.stream-window {
 .stream-view.popped-out {
   margin: 0;
   border-radius: 0;
+}
+
+/* The small players in a corner, on every page (Layout): a watched stream no page shows
+   (StreamCorner), above Watch Together's player. Only what's in it takes clicks. */
+.corner-players {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.corner-players > * {
+  pointer-events: auto;
+}
+
+/* A page shows a stream (its bar and the call's buttons along the bottom): top right instead. */
+.corner-players.top {
+  top: calc(var(--vc-header-height) + 16px);
+  bottom: auto;
+}
+
+.stream-view.corner {
+  flex: none;
+  width: 320px;
+  aspect-ratio: 16 / 9;
+  margin: 0;
+  box-shadow: var(--vc-popup-shadow);
+}
+
+.stream-view.corner .stream-bar {
+  gap: 4px;
+  padding: 16px 6px 6px;
+}
+
+.stream-view.corner .stream-name {
+  font-size: 0.85rem;
+}
+
+.stream-view.corner .stream-button {
+  width: 28px;
+  height: 28px;
+}
+
+.stream-view.corner .stream-volume-slider {
+  max-width: 70px;
 }
 
 /* On the channel's page while the stream is in its own window. */
@@ -984,6 +1034,22 @@ body.stream-window {
   background-color: var(--vc-bg-subtle);
 }
 
+/* The player popped out into its own window: a note in its place. */
+.watch-party-slot.watch-party-popped {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+  color: var(--vc-fg-muted);
+}
+
+.watch-party-popped p {
+  margin: 0;
+}
+
 .watch-party-empty {
   flex: 1;
   display: flex;
@@ -1339,9 +1405,9 @@ body.stream-window {
   color: #fff;
 }
 
+/* In the corner players (Layout's .corner-players, which places it). */
 .watch-party-player.mini {
-  right: 16px;
-  bottom: 16px;
+  position: relative;
   width: 320px;
   box-shadow: var(--vc-popup-shadow);
   background-color: var(--vc-popup);
@@ -1463,6 +1529,26 @@ body.stream-window {
 
 .watch-party-player.fullscreen {
   border-radius: 0;
+}
+
+/* Popped out (voice/watchPartyWindow.js): the whole window. */
+.watch-party-player.popped-out {
+  position: relative;
+  flex: 1;
+  border-radius: 0;
+}
+
+.watch-party-popup-blocked {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background-color: var(--vc-popup);
+  color: var(--vc-fg);
+  font-size: 0.85rem;
 }
 
 /* ---- Cameras ---- */

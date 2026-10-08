@@ -2,25 +2,28 @@ import React, { useContext, useEffect, useRef } from 'react';
 import '../../assets/css/voice.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faDownLeftAndUpRightToCenter, faExpand, faUpRightFromSquare, faVolumeHigh, faVolumeXmark, faXmark,
+  faArrowRight, faDownLeftAndUpRightToCenter, faExpand, faUpRightFromSquare, faVolumeHigh, faVolumeXmark, faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import { InteractionContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
+import { useShowsStreamOnPage } from '../../hooks/useStreamOnPage';
 import { attachStream, setStreamError, watchStream } from '../../voice/voiceClient';
 import { closeStreamWindow, openStreamWindow } from '../../voice/streamWindow';
 import { DEFAULT_USER_VOLUME, MAX_USER_VOLUME, setStreamVolume, useStreamVolume } from '../../voice/userVolumes';
 import { t } from '../../i18n';
 
 // The screen share being watched, big (the voice channel view's stage, or its own window when
-// popped out): the video, whose it is, its volume, pop out (or bring back), full screen and stop
-// watching. Its sound plays with the rest of voice (deafen mutes it), at the stream's own volume
+// popped out) or small in a corner (`corner`, StreamCorner, while no page shows it; `onOpen`
+// goes to its channel or call, `openLabel` saying which): the video, whose it is, its volume, pop out (or bring back),
+// full screen and stop watching. Its sound plays with the rest of voice (deafen mutes it), at the stream's own volume
 // on this device (like Discord's Stream Volume, userVolumes.js); not for our own, which we don't
 // hear.
-export default function StreamView({ userId, name, own, popout = false }) {
+export default function StreamView({ userId, name, own, popout = false, corner = false, onOpen, openLabel }) {
   const { watchingReady, selfDeaf } = useVoice();
   const { isMobile } = useContext(InteractionContext);
   const videoRef = useRef(null);
   const stageRef = useRef(null);
+  useShowsStreamOnPage(!popout && !corner);
 
   useEffect(() => {
     if (!watchingReady) return undefined;
@@ -40,14 +43,19 @@ export default function StreamView({ userId, name, own, popout = false }) {
   }
 
   return (
-    <div className={`stream-view${popout ? ' popped-out' : ''}`} ref={stageRef} onDoubleClick={fullScreen}>
+    <div className={`stream-view${popout ? ' popped-out' : ''}${corner ? ' corner' : ''}`} ref={stageRef} onDoubleClick={fullScreen}>
       {/* Muted: a screen share's sound plays through voice's own audio (see voiceClient). */}
       <video ref={videoRef} className="stream-video" autoPlay playsInline muted aria-label={t('voice.stream.screenOf', { name })} />
       {!watchingReady && <p className="stream-loading">{t('voice.stream.loading')}</p>}
       <div className="stream-bar">
-        <span className="voice-live-badge">{t('voice.stream.live')}</span>
-        <span className="stream-name">{own ? t('voice.stream.yourStream') : name}</span>
+        {!corner && <span className="voice-live-badge">{t('voice.stream.live')}</span>}
+        <span className="stream-name" title={corner ? name : undefined}>{own ? t('voice.stream.yourStream') : name}</span>
         {!own && <StreamVolume userId={userId} deafened={selfDeaf} />}
+        {corner && onOpen && (
+          <button type="button" className="stream-button" aria-label={openLabel} title={openLabel} onClick={onOpen}>
+            <FontAwesomeIcon icon={faArrowRight} fixedWidth />
+          </button>
+        )}
         {popout ? (
           <button type="button" className="stream-button" aria-label={t('voice.stream.bringBack')} title={t('voice.stream.bringBack')} onClick={closeStreamWindow}>
             <FontAwesomeIcon icon={faDownLeftAndUpRightToCenter} fixedWidth />
@@ -57,9 +65,11 @@ export default function StreamView({ userId, name, own, popout = false }) {
             <FontAwesomeIcon icon={faUpRightFromSquare} fixedWidth />
           </button>
         )}
-        <button type="button" className="stream-button" aria-label={t('voice.stream.fullScreen')} title={t('voice.stream.fullScreen')} onClick={fullScreen}>
-          <FontAwesomeIcon icon={faExpand} fixedWidth />
-        </button>
+        {!corner && (
+          <button type="button" className="stream-button" aria-label={t('voice.stream.fullScreen')} title={t('voice.stream.fullScreen')} onClick={fullScreen}>
+            <FontAwesomeIcon icon={faExpand} fixedWidth />
+          </button>
+        )}
         <button type="button" className="stream-button" aria-label={t('voice.stream.stopWatching')} title={t('voice.stream.stopWatching')} onClick={() => watchStream(null)}>
           <FontAwesomeIcon icon={faXmark} fixedWidth />
         </button>

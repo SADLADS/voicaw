@@ -18,10 +18,12 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `voicaw://app`. Only the app's pages get permissions (microphone and camera; notifications;
   screen capture, only of what was picked).
   `backgroundThrottling` is off so ringing and voice work from the tray.
-  The only other window the page may open is a popped-out screen share (`windowOpen.js`: a
-  blank window named `voicaw-stream`, which the page draws into itself; see Screen sharing in
-  `docs/voice-and-calls.md`): the app's icon, no menu, never navigates, opens nothing, and may
-  only go full screen. It stays open while the main window is in the tray.
+  The only other windows the page may open are popped out (`windowOpen.js`, by name): a
+  screen share (a blank window named `voicaw-stream`; see Screen sharing in
+  `docs/voice-and-calls.md`) and Watch Together's player (`voicaw-watch-together`, only on
+  `voicaw://app/popout.html`, which YouTube's player needs for its Referer; see Watch Together),
+  both drawn into by the page itself: the app's icon, no menu, never navigate, open nothing,
+  and may only go full screen. They stay open while the main window is in the tray.
 - **YouTube players** (`youtube.js`): YouTube refuses to play an embed without a Referer
   ("Error 153: Video player configuration error"), and Chromium sends none from `voicaw://`
   pages, so requests for youtube(-nocookie).com `/embed/` pages get `https://app.voicaw.com/`,
