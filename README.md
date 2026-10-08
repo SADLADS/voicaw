@@ -289,6 +289,14 @@ page are served uncached; installers (their names carry the version) are cached 
 Linux AppImages, `.deb` packages and Windows installers update this way. macOS only updates a
 signed app (an Apple developer account); unsigned, people download new versions by hand.
 
+The Windows installer's look (`electron/installer/installer.nsh`) hangs off electron-builder's
+NSIS template, so after upgrading electron-builder, try it under wine before releasing: run the
+installer in the same Docker image with `WINEARCH=win64`, `DISPLAY` set to an Xvfb on the host
+(mount `/tmp/.X11-unix`), and screenshot it with `import -window root`. It should show the
+splash-like window, not a grey box, with "Installing update" when run with `--updated`. Wine's
+process list makes the template's "Voicaw is running" check fire wrongly; a test build can skip it
+with an `nsis.include` that does `!define VOICAW_SKIP_APP_CHECK` and then includes `installer.nsh`.
+
 ### 10. Android app (optional)
 
 The Android app (`mobile/`, Capacitor) ships its own copy of the client like the desktop app

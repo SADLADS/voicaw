@@ -8,6 +8,7 @@ const UPDATE_URL = process.env.VOICAW_UPDATE_URL || 'https://updates.voicaw.com/
 // npm workspaces install electron in the repo root's node_modules, where electron-builder doesn't
 // look, and package.json only gives a range: so tell it the installed version.
 const { version: electronVersion } = require('electron/package.json');
+const path = require('path');
 
 module.exports = {
     appId: 'com.voicaw.app',
@@ -27,7 +28,8 @@ module.exports = {
     },
     deb: { depends: ['libnotify4', 'libxtst6', 'libnss3'] },
     win: { target: ['nsis'] },
-    nsis: { oneClick: true, perMachine: false },
+    // installer/installer.nsh: the installer looks like the app's splash window.
+    nsis: { oneClick: true, perMachine: false, include: path.join(__dirname, 'installer', 'installer.nsh') },
     // Auto-update on macOS needs the zip, and a signed app.
     mac: { target: ['dmg', 'zip'], category: 'public.app-category.social-networking' },
 };
