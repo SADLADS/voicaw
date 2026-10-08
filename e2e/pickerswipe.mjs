@@ -82,6 +82,19 @@ try {
   await page.waitForTimeout(500);
   check((await picker(page)).classes.includes('expanded'), 'swiping down mid-grid scrolls rather than shrinking');
 
+  // A slow drag down from the top bar, held mid-way: the top follows the finger and the bottom
+  // stays at the screen's bottom (not shrinking from the bottom up). A short drag stays full.
+  const liftDown = await drag(page, { x: 200, y: 30, dy: 50, steps: 10, ms: 30, hold: true });
+  const down = await picker(page);
+  check(down.classes.includes('sheet-dragging') && Math.abs(down.top - 50) < 4 && down.top + down.height === height,
+    `dragging down, the top follows the finger and the bottom stays put (${down.top}, ${down.height})`);
+  await shot(page, '3b-mid-drag-down');
+  await page.waitForTimeout(150);
+  await liftDown();
+  await settled(page);
+  const stayed = await picker(page);
+  check(stayed.classes.includes('expanded') && stayed.top === 0, 'a short slow drag down stays full screen');
+
   // A flick down on the top bar shrinks it back.
   await drag(page, { x: 200, y: 30, dy: 120, steps: 4, ms: 8 });
   await settled(page);

@@ -1539,7 +1539,10 @@ img.emoji,
   border-width: 0;
 }
 
-.emoji-picker.docked.sheet-dragging {
+/* `:not(.searching)` (never true while dragging) only matches the rule above's weight, so this,
+   coming later, wins while dragging a full-screen picker down: with its `top: 0` left in, the
+   picker stayed pinned to the top and shrank from the bottom up. */
+.emoji-picker.docked.sheet-dragging:not(.searching) {
   top: auto;
   height: var(--sheet-height) !important;
   padding-top: 0;
