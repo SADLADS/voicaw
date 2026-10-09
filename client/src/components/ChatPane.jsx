@@ -16,6 +16,8 @@ import { useReactions } from '../hooks/useReactions';
 import { useNewDivider } from '../hooks/useNewDivider';
 import { isVoiceMessage, summarizeAttachments } from '../utils/attachmentMarkup';
 import { customEmojiToText } from '../emoji/customEmoji';
+import { useEmojiIndex } from '../emoji/emojiContext';
+import { recordReactionUse } from '../emoji/quickReactions';
 import { mentionsToText } from '../utils/mentions';
 import { hideSpoilers } from '../utils/remarkDiscord';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
@@ -155,6 +157,15 @@ export default function ChatPane({
     setMessageReactions: conversation.setMessageReactions,
     onError: setComposerError,
   });
+  const emojiIndex = useEmojiIndex();
+
+  // A reaction added from the quick reactions or by clicking someone's counts as using that
+  // emoji, so the quick reactions become the ones you use (the picker counts its own).
+  const toggleReaction = (msg, emoji) => {
+    const current = conversation.messagesRef.current.find((m) => m.id === msg.id) ?? msg;
+    if (!(current.reactions ?? []).some((r) => r.user_id === user.id && r.emoji === emoji)) recordReactionUse(emoji, emojiIndex);
+    reactions.toggleReaction(msg, emoji);
+  };
 
   const setShowEmojiPicker = (open) => {
     if (open) reactions.closePicker();
@@ -416,7 +427,7 @@ export default function ChatPane({
             isMobile={isMobile}
             editRef={editRef}
             maxPlaintextLength={maxPlaintextLength}
-            onToggleReaction={reactions.toggleReaction}
+            onToggleReaction={toggleReaction}
             onOpenReactionPicker={openReactionPicker}
             onVote={reactions.vote}
             onAddPollAnswer={reactions.addAnswer}
@@ -557,7 +568,7 @@ export default function ChatPane({
           canDelete={actionsFor.sender_id === user.id || canModerate}
           canReact={canAddReactions}
           myReactions={new Set((actionsFor.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
-          onReact={(emoji) => reactions.toggleReaction(actionsFor, emoji)}
+          onReact={(emoji) => toggleReaction(actionsFor, emoji)}
           onMoreReactions={() => openReactionPicker(actionsFor, null)}
           onReply={textOnly ? undefined : () => handleReply(actionsFor)}
           onEdit={isClosedPoll(actionsFor) || isVoiceMessage(actionsFor.plaintext) ? undefined : () => handleEdit(actionsFor)}
@@ -582,7 +593,7 @@ export default function ChatPane({
           canDelete={menuMsg.sender_id === user.id || canModerate}
           canReact={canAddReactions}
           myReactions={new Set((menuMsg.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
-          onReact={(emoji) => reactions.toggleReaction(menuMsg, emoji)}
+          onReact={(emoji) => toggleReaction(menuMsg, emoji)}
           onMoreReactions={(rect) => openReactionPicker(menuMsg, { getBoundingClientRect: () => rect })}
           onReply={textOnly ? undefined : () => handleReply(menuMsg)}
           onEdit={isClosedPoll(menuMsg) || isVoiceMessage(menuMsg.plaintext) ? undefined : () => handleEdit(menuMsg)}

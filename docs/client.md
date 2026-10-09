@@ -82,7 +82,10 @@
   (`hooks/useLongPress.js`, 450ms, cancelled by scrolling) opens `MessageActionSheet` with the
   same actions: quick reactions and `+` for the full picker, Reply, Edit, Pin / Unpin, Copy text
   and Delete (asks first). Both offer only Copy for a message still sending or failed. Quick
-  reactions (`emoji/quickReactions.js`) are your most used emoji first, then 👍❤️😂😮😢🙏. Copying
+  reactions (`emoji/quickReactions.js`) are your most used emoji (custom ones too, while you're
+  in their guild), topped up with 👍❤️😂😮😢🙏 only until you've used enough. Every reaction you
+  add counts as a use (`ChatPane`'s `toggleReaction`: the quick row, the sheet, clicking someone's
+  reaction; the picker counts its own), as do emoji picked or typed in the message box. Copying
   turns attachments into their names, never their key-carrying links. On desktop, Delete in
   either menu asks too (`ChatPane`: a "Delete message" dialog showing the message; Enter
   confirms), unless Shift is held while clicking. The hover menu follows `mouseenter`/`mouseleave`,

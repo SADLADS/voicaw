@@ -1,7 +1,7 @@
 import React from 'react';
 import { faComments, faCopy, faEdit, faFaceSmile, faLinkSlash, faReply, faRobot, faThumbtack, faTrash, faFlag, faClockRotateLeft } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
-import { emojiImageUrl } from '../emoji/emojiIndex';
+import { useCustomEmoji } from '../emoji/customEmojiContext';
 import { quickReactions } from '../emoji/quickReactions';
 import ContextMenu from './ContextMenu';
 import { displayName } from '../utils/profiles';
@@ -43,6 +43,7 @@ export default function MessageMenu({
   onClose,
 }) {
   const index = useEmojiIndex();
+  const custom = useCustomEmoji();
   const sent = msg.status !== 'pending' && msg.status !== 'failed';
 
   const items = [];
@@ -79,18 +80,18 @@ export default function MessageMenu({
 
   const header = sent && canReact && index ? (
     <div className="context-menu-reactions" role="group" aria-label={t('chat.messageMenu.react')}>
-      {quickReactions(index, QUICK_REACTION_COUNT).map(({ emoji, skin }) => (
+      {quickReactions(index, QUICK_REACTION_COUNT, custom).map(({ id, text, name, title, alt, src }) => (
         <button
-          key={emoji.id}
+          key={id}
           type="button"
           role="menuitemcheckbox"
-          aria-checked={myReactions.has(skin.native)}
-          className={`context-menu-reaction${myReactions.has(skin.native) ? ' mine' : ''}`}
-          aria-label={t('chat.messageMenu.reactWith', { name: emoji.name })}
-          title={`:${emoji.id}:`}
-          onClick={() => { onReact(skin.native); onClose(); }}
+          aria-checked={myReactions.has(text)}
+          className={`context-menu-reaction${myReactions.has(text) ? ' mine' : ''}`}
+          aria-label={t('chat.messageMenu.reactWith', { name })}
+          title={title}
+          onClick={() => { onReact(text); onClose(); }}
         >
-          <img className="emoji" src={emojiImageUrl(skin.unified)} alt={skin.native} draggable={false} />
+          <img className="emoji" src={src} alt={alt} draggable={false} />
         </button>
       ))}
     </div>
