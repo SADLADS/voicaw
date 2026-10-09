@@ -239,6 +239,13 @@
   taskbar). Guild messages that don't mention you don't count. The dotted icon is drawn once
   on a canvas from `logo192.png` and swapped in as the `<link rel="icon">`'s href; the original
   comes back when read or logged out. Not in the desktop app (no tab).
+- **Page titles** (`hooks/usePageTitle.js`: `pageTitle` from the route in `Layout`, and
+  `DeveloperPage`'s heading): the tab's title follows the page: Direct Messages, Friends,
+  Notes, Settings, the guild's name, the developer pages' headings; "Voicaw" anywhere else (logged
+  out, invites, a guild not loaded yet). The desktop app's window takes it too (Electron's
+  window follows `<title>`; don't block `page-title-updated`). Deliberately never who a DM or
+  group is with, nor a group's name: window titles leave the page (task switchers, screen-share
+  pickers, the OS's window list) and those chats are end-to-end encrypted.
 - **Account preferences** (`server/preferences.js`, JSON in `users.preferences`, only those
   changed from the default; `GET /preferences`, `PUT /preferences { key: value }`; the
   `preferences` event to your other devices; `utils/preferences.js`, kept up to date by

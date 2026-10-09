@@ -6,10 +6,12 @@ import '../../assets/css/guilds.css';
 import '../../assets/css/developers.css';
 import { DOCS_URL } from '../../services/developerService';
 import { t } from '../../i18n';
+import { usePageTitle } from '../../hooks/usePageTitle';
 
 // The developer pages' own frame (the portal and the authorise page are pages of their own,
 // not inside the app's rail and sidebar): a header with the way back and the docs, then the page.
 export default function DeveloperPage({ title = t('developers.title'), titleLink = '/developers', children }) {
+  usePageTitle(title);
   return (
     <div className="dev-page">
       <header className="dev-header">

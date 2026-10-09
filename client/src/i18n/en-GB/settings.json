@@ -1,5 +1,6 @@
 {
   "settings": {
+    "pageTitle": "Settings",
     "pleaseWait": "Please wait…",
     "yourPassword": "Your password",
     "savingFailed": "Saving failed",

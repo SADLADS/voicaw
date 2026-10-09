@@ -36,6 +36,7 @@ import { useSwipePanes } from '../hooks/useSwipePanes';
 import { useDesktopApp } from '../hooks/useDesktopApp';
 import { useAndroidApp } from '../hooks/useAndroidApp';
 import { useFaviconDot } from '../hooks/useFaviconDot';
+import { pageTitle, usePageTitle } from '../hooks/usePageTitle';
 import { latestUnread } from '../utils/latestUnread';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { clearProfiles, isBot, mergeProfiles } from '../utils/profiles';
@@ -282,6 +283,7 @@ export default function Layout({ user, onLogout }) {
   );
   useDesktopApp({ navigate, unreadDms: activeUnreadDms, groups: activeChats, guildUnread: guildList.activeUnread });
   useFaviconDot({ unreadDms: activeUnreadDms, groups: activeChats, guildUnread: guildList.activeUnread });
+  usePageTitle(pageTitle(location.pathname, guildList.guilds));
   // The Android app: its notifications, call buttons and ongoing-call notification.
   useAndroidApp({ navigate, user, guildList, groupList });
 
