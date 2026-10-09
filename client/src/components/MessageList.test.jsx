@@ -176,7 +176,11 @@ describe('MessageList', () => {
     expect(onShowEdits).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }));
     unmount();
     // Without a handler (bot DMs), it's plain text.
-    render(<MessageList {...baseProps({ messages })} />);
+    const { unmount: unmountPlain } = render(<MessageList {...baseProps({ messages })} />);
+    expect(screen.queryAllByRole('button', { name: /edited/ })).toHaveLength(0);
+    unmountPlain();
+    // On a phone too (the long-press sheet has Edit history).
+    render(<MessageList {...baseProps({ messages, onShowEdits, isMobile: true })} />);
     expect(screen.queryAllByRole('button', { name: /edited/ })).toHaveLength(0);
   });
 

@@ -1,7 +1,8 @@
 // Message edit history: a message edited twice (inline, on a computer) shows "(edited)" as a
 // button; the other person opens its history there or from the right-click menu: Original,
 // Edit, Now, decrypted on the device (DM), checked against the sender's signature (group DM:
-// no "unverified"), or plain (guild). A phone opens it from the long-press sheet.
+// no "unverified"), or plain (guild). A phone opens it only from the long-press sheet (its "edited"
+// isn't a button).
 //   node e2e/serve.mjs &   then   node e2e/edithistory.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
 import { launchChrome, signUp, openChat, send, BASE, devices, makeFriends } from './helpers.mjs';
@@ -119,6 +120,7 @@ try {
   console.log('phone');
   await c.goto(groupUrl);
   await waitText(c, 'agenda: one, two, three');
+  check(await row(c, 'agenda: one, two, three').locator('button.message-edited-button').count() === 0, '"edited" is plain text on a phone');
   await c.waitForTimeout(500);
   const box = await content(c, 'agenda: one, two, three').boundingBox();
   const cdp = await c.context().newCDPSession(c);
