@@ -16,8 +16,31 @@
 # for notifications mobile/android/app/google-services.json (git-ignored, from the Firebase
 # console; README "Android app"): without it this stops, unless --no-push asks for an APK
 # without them. Tracked files aren't touched: the version is stamped into the build.
+# A published release tags the commit it was built from as android-vX.Y.Z (annotated, local:
+# git push origin android-vX.Y.Z to share it). --no-publish builds aren't tagged: the next run
+# gets the same version.
 set -e
 cd "$(dirname "$0")"
+
+# tag_release X.Y.Z: tags $COMMIT as android-vX.Y.Z. The release is out by then, so problems
+# here are warnings, not failures.
+tag_release() {
+  tag="android-v$1"
+  if [ -n "$DIRTY" ]; then
+    echo "Note: the build had uncommitted changes; $tag marks the commit under them."
+  fi
+  existing="$(git rev-parse -q --verify "refs/tags/$tag^{commit}" || true)"
+  if [ -n "$existing" ]; then
+    if [ "$existing" = "$COMMIT" ]; then echo "Tag $tag already there."
+    else echo "Not tagged: $tag already exists, on $(git rev-parse --short "$existing")." >&2; fi
+    return
+  fi
+  if git tag -a "$tag" "$COMMIT" -m "Android app $1"; then
+    echo "Tagged $(git rev-parse --short "$COMMIT") as $tag (push it with: git push origin $tag)."
+  else
+    echo "Not tagged: git tag failed." >&2
+  fi
+}
 BUMP=patch
 YES=
 PUBLISH=1
@@ -56,8 +79,10 @@ if [ ! -f "$keys/voicaw-release.jks" ]; then
 fi
 
 VERSION="$(node updates/publish-android.mjs next "$BUMP")"
+COMMIT="$(git rev-parse HEAD)"
+DIRTY="$(git status --porcelain --untracked-files=no)"
 echo "Android app $VERSION, from $(git rev-parse --abbrev-ref HEAD) $(git rev-parse --short HEAD)$([ -n "$PUBLISH" ] && echo ", published to the update site")."
-if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+if [ -n "$DIRTY" ]; then
   echo "Note: this checkout has uncommitted changes; they'll be in the build."
 fi
 if [ -z "$YES" ]; then
@@ -74,6 +99,7 @@ apk="$(pwd)/dist-android/voicaw-$VERSION.apk"
 if [ -n "$PUBLISH" ]; then
   node updates/publish-android.mjs publish "$apk" "$VERSION"
   echo "Published for the copies installed from the update site."
+  tag_release "$VERSION"
 else
   echo "APK: $apk"
 fi
