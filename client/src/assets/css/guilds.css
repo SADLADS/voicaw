@@ -1105,11 +1105,12 @@ img.guild-icon {
   font-size: 12px;
 }
 
-.member-card {
-  margin: 4px 0 8px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background-color: var(--vc-bg-elevated);
+/* A member's card: a ProfilePopover-style card (.profile-popover) floating over the chat beside
+   the list, roomier than the one names in chat open. */
+.member-card.profile-popover {
+  width: 340px;
+  max-height: calc(var(--vc-app-height) - 16px);
+  padding: 14px 16px;
 }
 
 .member-card-name {

@@ -79,6 +79,21 @@ describe('MemberList', () => {
     expect(within(card).queryByRole('searchbox')).toBeNull();
   });
 
+  it('opens the card over the chat, not inside the list, and closes it on Escape or a click elsewhere', () => {
+    renderList();
+    fireEvent.click(screen.getByText('newbie'));
+    const card = screen.getByRole('dialog', { name: 'newbie' });
+    expect(screen.getByRole('complementary', { name: 'Members' })).not.toContainElement(card);
+    expect(card.parentElement).toBe(document.body);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByText('newbie'));
+    fireEvent.mouseDown(within(screen.getByRole('dialog', { name: 'newbie' })).getByText('newbie', { selector: ':not(.member-name)' }));
+    expect(screen.getByRole('dialog', { name: 'newbie' })).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it("doesn't offer anything over people as high or higher", () => {
     renderList();
     fireEvent.click(screen.getByText('admin'));

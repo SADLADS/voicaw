@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { InteractionContext } from '../../contexts';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faCrown, faPlus, faRobot, faXmark } from '@fortawesome/free-solid-svg-icons';
@@ -21,7 +22,8 @@ import { levelBadge, levelName, levelOf, levelsOn } from '../../utils/levels';
 import { t } from '../../i18n';
 
 // The guild's members down the right (like Discord), names in their role colour. Clicking one
-// opens a card: their roles (added and removed there by people who manage roles, for roles
+// opens a card floating over the chat, beside the list at the row's height (on phones, where the
+// list fills the screen, below the row), closed by a click elsewhere or Escape: their roles (added and removed there by people who manage roles, for roles
 // below their own; + opens the roles to add with a search box, focused, Enter adding the first).
 // Message, the friend item, Make Owner / Kick / Ban, Block and Report are in the person's menu
 // (utils/personMenu.js): right-clicking a row, or holding it on a phone.
@@ -30,6 +32,8 @@ import { t } from '../../i18n';
 // under their name (unless the guild hides it there, or it's 0) and on their card.
 // `onClose` (phones): the list is full screen, with a back arrow, and a swipe to the right
 // closes it (useSwipeToClose).
+const CARD_MARGIN = 8;
+
 export default function MemberList({ guild, members: memberList, user, onClose, userApps = [], onRunUserApp }) {
   useProfiles();
   const presenceOf = usePresence();
@@ -39,6 +43,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
   const [addingRole, setAddingRole] = useState(false);
   const [roleQuery, setRoleQuery] = useState('');
   const [error, setError] = useState(null);
+  const [cardPosition, setCardPosition] = useState(null);
   const cardRef = useRef(null);
   const rootRef = useRef(null);
   useSwipeToClose(rootRef, { enabled: Boolean(onClose), onClose });
@@ -55,8 +60,45 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
     const close = (e) => {
       if (!cardRef.current?.contains(e.target) && !e.target.closest?.('.member-row, .vc-dialog-backdrop')) setSelectedId(null);
     };
+    const onKey = (e) => { if (e.key === 'Escape') setSelectedId(null); };
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [selectedId]);
+
+  // The card beside the list, its top at the row's (left of the list, over the chat); without
+  // room there (phones) centred below the row. Kept in the window, and placed again when it
+  // grows (the role picker) or the window changes.
+  useLayoutEffect(() => {
+    setCardPosition(null);
+    if (selectedId == null) return undefined;
+    const place = () => {
+      const card = cardRef.current;
+      const row = rootRef.current?.querySelector(`.member-row[data-user-id="${selectedId}"]`);
+      if (!card || !row) return;
+      const box = card.getBoundingClientRect();
+      const list = rootRef.current.getBoundingClientRect();
+      const anchor = row.getBoundingClientRect();
+      let left = list.left - box.width - CARD_MARGIN;
+      let top = anchor.top;
+      if (left < CARD_MARGIN) {
+        left = Math.max(CARD_MARGIN, (window.innerWidth - box.width) / 2);
+        top = anchor.bottom + CARD_MARGIN;
+      }
+      top = Math.max(CARD_MARGIN, Math.min(top, window.innerHeight - box.height - CARD_MARGIN));
+      setCardPosition({ left, top });
+    };
+    place();
+    window.addEventListener('resize', place);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
+    if (cardRef.current) observer?.observe(cardRef.current);
+    return () => {
+      window.removeEventListener('resize', place);
+      observer?.disconnect();
+    };
   }, [selectedId]);
 
   // Whether you outrank `member` (or it's you, for roles).
@@ -85,7 +127,13 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
     const query = roleQuery.trim().toLowerCase();
     const matching = query ? assignable.filter((r) => r.name.toLowerCase().includes(query)) : assignable;
     return (
-      <div className="member-card" ref={cardRef} role="dialog" aria-label={nameOf(member)}>
+      <div
+        className="profile-popover member-card"
+        ref={cardRef}
+        style={cardPosition ?? { left: 0, top: 0, visibility: 'hidden' }}
+        role="dialog"
+        aria-label={nameOf(member)}
+      >
         <ProfileCard user={member} color={memberColor(guild.roles, member.role_ids) ?? undefined} />
         <div className="vc-hint">{t('guilds.memberList.memberSince', { date: formatDate(member.joined_at * 1000) })}</div>
         {levelsOn(guild) && <MemberLevel guild={guild} member={member} canEdit={can(PERMISSIONS.MANAGE_LEVELS)} />}
@@ -230,7 +278,6 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
           </span>
           {member.id === guild.owner && <FontAwesomeIcon icon={faCrown} className="member-owner" title={t('guilds.memberList.owner')} />}
         </button>
-        {isSelected && selected && renderCard(selected)}
       </li>
     );
   }
@@ -251,7 +298,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
           <ul>{group.members.map(renderMember)}</ul>
         </section>
       ))}
-
+      {selected && createPortal(renderCard(selected), document.body)}
     </aside>
   );
 }

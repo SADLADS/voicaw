@@ -47,10 +47,22 @@ try {
   await a.waitForSelector('text=hello from bob');
   const bobRow = a.locator(`.member-row:has-text("${bob.name}")`);
 
-  // The card: no buttons but the roles' +.
+  // The card floats over the chat, left of the list at the row's height; no row moves.
+  const rowTops = () => a.$$eval('.member-row', (els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+  const topsBefore = await rowTops();
   await bobRow.click();
   const card = a.locator('.member-card');
   await card.waitFor();
+  await a.waitForFunction(() => getComputedStyle(document.querySelector('.member-card')).visibility === 'visible');
+  const cardBox = await card.boundingBox();
+  const listBox = await a.locator('.member-list').boundingBox();
+  const rowBox = await bobRow.boundingBox();
+  check(cardBox.x + cardBox.width <= listBox.x && cardBox.x > 0, `the card is left of the member list (card ${Math.round(cardBox.x)}-${Math.round(cardBox.x + cardBox.width)}, list from ${Math.round(listBox.x)})`);
+  check(Math.abs(cardBox.y - rowBox.y) < 2 && cardBox.width > listBox.width, `at Bob's row's height, wider than the list (${Math.round(cardBox.width)} px)`);
+  check(JSON.stringify(await rowTops()) === JSON.stringify(topsBefore), "the other members didn't move");
+  await shot(a, 'member-card');
+
+  // No buttons on it but the roles' +.
   const buttons = await card.locator('button').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? e.textContent.trim()));
   check(JSON.stringify(buttons) === '["Add role"]', `the card has no action buttons: ${buttons.join(', ')}`);
 
@@ -146,6 +158,16 @@ try {
   check(JSON.stringify(await menuItems(c, '.context-sheet')) === JSON.stringify(sheet), 'holding her member row: the same sheet');
   await shot(c, 'phone-row-sheet');
   check(!(await c.$('.member-card')), "and the hold didn't open her card");
+  await closeSheet();
+  // A tap opens it below the row, over the full-screen list, within the screen.
+  await aliceRow.tap();
+  await c.locator('.member-card').waitFor();
+  await c.waitForFunction(() => getComputedStyle(document.querySelector('.member-card')).visibility === 'visible');
+  const phoneCard = await c.locator('.member-card').boundingBox();
+  const phoneRow = await aliceRow.boundingBox();
+  const width = c.viewportSize().width;
+  check(phoneCard.x >= 0 && phoneCard.x + phoneCard.width <= width && phoneCard.y >= phoneRow.y + phoneRow.height, `phone: the card is below her row, on screen (${Math.round(phoneCard.x)}-${Math.round(phoneCard.x + phoneCard.width)} of ${width})`);
+  await shot(c, 'phone-member-card');
 
   console.log('membermenu: all good');
 } finally {
