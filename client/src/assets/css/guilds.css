@@ -740,6 +740,14 @@ img.guild-icon {
   margin-left: 6px;
 }
 
+/* A DM, group or notes header (ChatSearch): after its buttons (`order: 1`, voice.css), at the
+   end like a guild's. */
+.chat-recipient-header .guild-search,
+.chat-recipient-header .search-button {
+  order: 2;
+  margin-left: 6px;
+}
+
 .guild-search-input {
   width: 100%;
   height: 28px;
