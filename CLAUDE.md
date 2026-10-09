@@ -147,8 +147,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   chain, noise suppression, voice settings, playback and per-user volume, Watch Together), DM and
   group calls.
 - `docs/group-dms.md`: group DMs (membership log, epochs, signing).
-- `docs/messages.md`: emoji, message markdown, GIFs, YouTube links, link previews, polls, mentions, timestamps, pinned messages, drafts, the
-  message list and history loading.
+- `docs/messages.md`: emoji, message markdown, GIFs, YouTube links, link previews, polls, mentions, timestamps, pinned messages, drafts,
+  search in encrypted chats (on the device), the message list and history loading.
 - `docs/uploads.md`: the object store, encrypted attachments, video streaming, voice messages, spoilers, image
   viewer.
 - `docs/client.md`: client structure (contexts, translations, Layout, settings, dates, themes, sidebar, phone
@@ -369,6 +369,13 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   message keeps its earlier versions, for everyone who can see it (DMs and groups as the
   ciphertext they were; guilds plain); deleting the message deletes them. People's edits only:
   bots' and webhooks' aren't kept. Editing no longer takes text back (the privacy policy says so).
+- **Search in encrypted chats** (built 2026-10-09, see Search in encrypted chats in
+  `docs/messages.md`): DMs, group DMs and notes are searched on the device, in guild search's box
+  (no `in:`). Light on memory: an AES-GCM-encrypted copy of each searched chat in IndexedDB
+  (segments of ~200 messages; the key is non-extractable and made on the device), read a few
+  segments at a time; edits and deletes found by asking the server for per-range counts (never
+  which messages matched). Settings → Privacy can keep no copy (each search then reads the
+  whole history again); logging out deletes it.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

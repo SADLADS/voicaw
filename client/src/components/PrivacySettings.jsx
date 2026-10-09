@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPuzzlePiece } from '@fortawesome/free-solid-svg-icons';
 import { setPrivacyPref, usePrivacyPrefs } from '../utils/privacy';
 import { getSetting, setSetting } from '../services/settingsStore';
+import { clearSearchIndex } from '../services/searchIndex';
 import { t } from '../i18n';
 
 // Settings → Privacy: choices that trade a little privacy for convenience, on this device
@@ -100,6 +101,21 @@ export default function PrivacySettings() {
       </label>
       <p className="vc-hint">
         {t('settings.privacy.gifs.hint')}
+      </p>
+      <label className="settings-toggle">
+        <input
+          type="checkbox"
+          checked={prefs.searchCopy}
+          onChange={(e) => {
+            setPrivacyPref('searchCopy', e.target.checked);
+            // Off: the copy kept so far goes too.
+            if (!e.target.checked) clearSearchIndex().catch((err) => console.error('Could not delete the search copy', err));
+          }}
+        />
+        {' '}{t('settings.privacy.searchCopy.label')}
+      </label>
+      <p className="vc-hint">
+        {t('settings.privacy.searchCopy.hint')}
       </p>
     </div>
   );

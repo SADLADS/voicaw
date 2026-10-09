@@ -32,6 +32,13 @@
   end-to-end encrypted like the message, and the server keeps when each was written. Deleting the
   message deletes all its versions. Editing doesn't remove earlier text, so to take something back,
   delete the message (a file an edit takes out is deleted, though).</p>
+<p>Searching a direct message, group chat or your notes happens on your device: the server is
+  never told what you search for or what was found. The first search of a chat downloads its
+  history (still encrypted) to read it, and the server only sees that history being read, and
+  how many messages there are in parts of it, which it already knows. Your device keeps what
+  it read so later searches are quick, locked with a key that is made on that device and never
+  leaves it. Logging out deletes this copy, and you can turn it off in Settings → Privacy (then
+  nothing is kept, and each search downloads the history again).</p>
 <p>Your private keys are kept on your devices. So you can log in on a new device, the server also
   keeps a copy locked with your password (and, if you made one, a copy locked with your recovery
   code). It can't open either: it never has your password or your recovery code.</p>

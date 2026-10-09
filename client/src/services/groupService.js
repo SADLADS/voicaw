@@ -39,6 +39,11 @@ export async function fetchGroupMessages(groupId, params = {}) {
   return (await api.get(`/group-dms/${groupId}/messages`, { params })).data;
 }
 
+// As dmService's fetchMessageRanges, for the messages of the group you can read.
+export async function fetchGroupMessageRanges(groupId, ranges) {
+  return (await api.post(`/group-dms/${groupId}/messages/ranges`, { ranges })).data.ranges;
+}
+
 // `uploads`: the names of the files it shows (uploadNamesIn).
 export async function sendGroupMessage(groupId, epoch, content, replyTo = null, uploads = []) {
   return (await api.post(`/group-dms/${groupId}/messages`, { epoch, content, replyTo, uploads })).data;

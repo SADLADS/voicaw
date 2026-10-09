@@ -845,6 +845,27 @@ describe('group DM reaction notifications', () => {
   });
 });
 
+describe('group DM ranges', () => {
+  it('counts the messages a member can read in each range, and their latest edit', async () => {
+    const [ann, bea, cal, outsider] = [await makeUser(), await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    const first = (await send(ann, groupId, 'one')).body;
+    const second = (await send(bea, groupId, 'two')).body;
+    const ranges = (user, body) => api.post(user, `/group-dms/${groupId}/messages/ranges`, body);
+
+    let res = await ranges(bea, { ranges: [[0, first.id], [first.id + 1, second.id + 10]] });
+    expect(res.status).toBe(200);
+    expect(res.body.ranges).toEqual([{ rows: 1, edited: 0 }, { rows: 1, edited: 0 }]);
+
+    await api.delete(ann, `/group-dm-messages/${first.id}`);
+    res = await ranges(ann, { ranges: [[0, second.id]] });
+    expect(res.body.ranges).toEqual([{ rows: 1, edited: 0 }]);
+
+    expect((await ranges(outsider, { ranges: [[0, second.id]] })).status).toBe(404);
+    expect((await ranges(ann, { ranges: [[3, 1]] })).status).toBe(400);
+  });
+});
+
 // A signed group reaction's length (signature + 64 padded bytes, encrypted).
 function signedReactionLength() {
   return require('../config.js').getMaxEncryptedLength(64 + 64);

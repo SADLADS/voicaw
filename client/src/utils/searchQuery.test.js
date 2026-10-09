@@ -60,3 +60,19 @@ describe('suggestions', () => {
     expect(context).toMatchObject({ kind: 'from', value: 'al', start: 0 });
   });
 });
+
+describe('fewer filters (DMs and groups)', () => {
+  const keys = ['from', 'mentions', 'has'];
+  const hasValues = ['link', 'file', 'image', 'video', 'sound', 'poll'];
+  const dmOpts = { ...opts, keys, hasValues };
+
+  it('leaves out in: and has:embed', () => {
+    expect(searchSuggestions(searchContext('', 0, keys), dmOpts).map((s) => s.insert)).toEqual(['from:', 'mentions:', 'has:']);
+    expect(searchSuggestions(searchContext('i', 1, keys), dmOpts)).toEqual([]);
+    expect(searchSuggestions(searchContext('has:e', 5, keys), dmOpts)).toEqual([]);
+    // in: is only words there.
+    expect(parseSearch('in:general pizza', dmOpts).params).toMatchObject({ content: 'in:general pizza', channel_id: [] });
+    expect(parseSearch('has:embed', dmOpts).problems).toHaveLength(1);
+    expect(parseSearch('from:alice has:poll', dmOpts).params).toMatchObject({ author_id: [1], has: ['poll'] });
+  });
+});

@@ -558,11 +558,55 @@ or emptying the box, forgets it.
 
 Drafts are **only in memory**, never in `localStorage`, `sessionStorage` or IndexedDB: the text
 of encrypted chats stays off the disk, as with messages (the device stores no message
-plaintext). So closing the tab, window or app forgets them, and so does a reload. Logging out
+plaintext; search's copy is encrypted, see Search in encrypted chats). So closing the tab, window or app forgets them, and so does a reload. Logging out
 clears them all (`App.jsx`), so the next account on that tab doesn't see them. Attachments
 aren't kept: they're dropped on leaving the conversation (`useAttachmentDrafts`), so their
 placeholders are taken out of the saved text. A reply being set up isn't kept either.
 `e2e/drafts.mjs` checks it in the browser.
+
+## Search in encrypted chats
+
+DMs, group DMs and notes are searched **on the device** (built 2026-10-09): the server only has
+ciphertext, so it can't, and it's never told what's searched for or what was found. The box is
+guild search's (`MessageSearch.jsx`, see Guild search in docs/guilds.md) at the end of the chat's
+header (`ChatSearch.jsx` in `Dm`, `GroupDm`, `Notes`; a button opening it full screen on a
+phone): words (prefixes; `"quoted"` an exact phrase; an emoji as written), `from:`, `mentions:`,
+`has:` (link, file, image, video, sound, poll; no `embed`, since an encrypted chat's link
+previews arrive after the message), no `in:`. Matching follows the server's
+(`utils/messageSearch.js`: its `searchText`/`searchHas` copy `server/searchText.js`, and a test
+checks they agree; words without case or accents). Results are drawn with `MessageContent` (no
+reactions); Jump is `ChatPane`'s `jumpTo`.
+
+**The copy on the device** (`services/searchIndex.js`, IndexedDB `voicaw-search`), so memory
+stays small and the history is downloaded once:
+- The chat hooks give `searchMessages(params, options)` (`useConversation`,
+  `useGroupConversation`): a source that fetches pages (100) and decrypts only the text. A group
+  message whose signature fails, or that can't be opened, is left out; so are system rows.
+- A conversation is kept as **segments** of about 200 messages covering id ranges, newest
+  first, without overlap: `{ i, s, t, p, n, h, u }` (id, sender, time, text, its words, has: bits,
+  unsigned), as JSON encrypted with AES-GCM under a **non-extractable key made on the device**
+  and stored beside it (each bound to its conversation and range). The disk never holds
+  plaintext. The copy is as readable as the private keys already in IndexedDB (keyStore.js),
+  which open the whole history anyway. The meta (ranges, message counts, latest edit) isn't
+  encrypted: it's only what the server knows.
+- Each search syncs first: new messages (one page when nothing is new); then
+  `POST /dm-messages/:id/ranges` / `/group-dms/:id/messages/ranges` (`server/messageRanges.js`)
+  say how many messages each range holds now and its latest `edited_at`, and ranges that differ
+  (something deleted or edited) are dropped and read again; then gaps (an interrupted read) and
+  older history. So a deleted message leaves the copy at the next search, and the server learns
+  only ranges, never which messages matched. The first search of a long chat reads the whole
+  history and shows "Reading the history… N messages so far"; closing the search stops it, and
+  the next search carries on from there. One sync per conversation at a time (Web Locks, so
+  across tabs too).
+- Searching decrypts 16 segments at a time and keeps only the matches it shows (25 a page), so
+  memory doesn't grow with the history. Load more reads the copy again, without syncing.
+- **Settings → Privacy → "Keep a search copy on this device"** (`searchCopy`, on by default):
+  off deletes the copy, and every search then reads the history from the server again, keeping
+  only matches. Logging out deletes it (`App.jsx`, `clearSearchIndex`).
+- **Not done yet:** searching every conversation at once, `before:`/`after:`, building the copy
+  in the background before the first search.
+
+`e2e/dmsearch.mjs` checks it in the browser.
 
 ## DM message list and history loading
 

@@ -12,7 +12,9 @@ import {
   setGroupMessagePinned,
   setGroupLinkPreviews,
   fetchGroupEditHistory,
+  fetchGroupMessageRanges,
 } from '../services/groupService';
+import { searchConversation } from '../services/searchIndex';
 import {
   decryptGroupMessage,
   decryptGroupReaction,
@@ -392,6 +394,21 @@ export function useGroupConversation({ groupId, user, onRead }) {
     return Promise.all((await fetchGroupPins(groupId)).map(decryptRow));
   }
 
+  // Searches the group on this device (services/searchIndex.js), as useConversation's. Only
+  // messages that open and whose signature checks out are kept (unsigned old ones too, marked).
+  function searchMessages(params, options) {
+    return searchConversation({
+      key: `${user.id}/group/${groupId}`,
+      fetchPage: (before, limit) => fetchGroupMessages(groupId, before == null ? { limit } : { before, limit }),
+      toEntries: async (rows) => (await Promise.all(rows.filter((r) => !r.system).map(async (r) => {
+        const text = await decryptText(r.content, r.epoch, r.sender_id, signatureContextOf(r));
+        if (text.plaintext === UNREADABLE || text.unverified) return null;
+        return { i: r.id, s: r.sender_id, t: r.timestamp, p: text.plaintext, ...(text.unsigned ? { u: 1 } : {}) };
+      }))).filter(Boolean),
+      fetchRanges: (ranges) => fetchGroupMessageRanges(groupId, ranges),
+    }, params, options);
+  }
+
   // A message's earlier versions (EditHistoryDialog), decrypted and checked like the message:
   // { versions: [{ plaintext, unsigned?, unverified?, written_at, edited }], edited_at }. Each
   // was signed as an edit of it or not (`edited`).
@@ -539,5 +556,6 @@ export function useGroupConversation({ groupId, user, onRead }) {
     loadPins,
     setPinned,
     loadEdits,
+    searchMessages,
   };
 }

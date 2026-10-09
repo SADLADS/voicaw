@@ -11,7 +11,9 @@ import {
   setMessagePinned,
   setLinkPreviews,
   fetchEditHistory,
+  fetchMessageRanges,
 } from '../services/dmService';
+import { searchConversation } from '../services/searchIndex';
 import {
   encryptMessage,
   decryptMessage,
@@ -345,6 +347,26 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     applyPin(await setMessagePinned(msg.id, pinned));
   }
 
+  // Searches the conversation on this device (services/searchIndex.js): `params` from the
+  // search box (utils/searchQuery.js), `options` searchConversation's. -> { total, messages }.
+  function searchMessages(params, options) {
+    const key = sharedKey;
+    const otherId = id;
+    return searchConversation({
+      key: `${user.id}/${notes ? 'notes' : `dm/${otherId}`}`,
+      fetchPage: (before, limit) => fetchMessagesForUser(otherId, before == null ? { limit } : { before, limit }),
+      // Only the text: no replies, reactions or previews. Calls and poll ends have none.
+      toEntries: async (rows) => (await Promise.all(rows.filter((r) => !r.system).map(async (r) => {
+        try {
+          return { i: r.id, s: r.sender_id, t: r.timestamp, p: await decryptMessage(r.content, key, dmContext(r.sender_id, r.recipient_id)) };
+        } catch {
+          return null;
+        }
+      }))).filter(Boolean),
+      fetchRanges: (ranges) => fetchMessageRanges(otherId, ranges),
+    }, params, options);
+  }
+
   // Live changes from the websocket.
   useEffect(() => {
     if (!user?.id || !chatUser?.id || !sharedKey) return undefined;
@@ -431,5 +453,6 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     setPinned,
     loadEdits,
     firstUnread,
+    searchMessages,
   };
 }

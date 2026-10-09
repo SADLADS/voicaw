@@ -62,6 +62,9 @@ unexpected errors. The rest:
   wait, callbacks, follow-ups, ephemeral messages and open forms in memory); `botMessages.js`:
   bots' message bodies (shared by the bot API and interaction replies). See `docs/bots.md`.
 - `pins.js`: pinning and unpinning a message, the same for every kind of chat (see Pinned messages).
+- `messageRanges.js`: per id range, how many DM or group DM messages there are and their latest
+  edit, for the device's search copy (`POST /dm-messages/:id/ranges`,
+  `/group-dms/:id/messages/ranges`; see Search in encrypted chats in docs/messages.md).
 - `polls.js`: reading guild polls, when they close, and what an edit may change (see Polls).
 - `accounts.js`: deleting an account (see Deleting an account).
 - `sessions.js`: listing and ending login sessions (see Login sessions and Settings → Devices).

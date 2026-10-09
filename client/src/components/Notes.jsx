@@ -1,9 +1,11 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faNoteSticky, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import '../assets/css/dms.css';
 import '../assets/css/voice.css';
 import ChatPane from './ChatPane';
+import ChatSearch from './ChatSearch';
+import { InteractionContext } from '../contexts';
 import PaneBackButton from './PaneBackButton';
 import { useConversation } from '../hooks/useConversation';
 import { addReaction, removeReaction } from '../services/dmService';
@@ -17,6 +19,10 @@ export default function Notes({ user }) {
   const id = user?.id != null ? String(user.id) : undefined;
   const conversation = useConversation({ id, user, chatUser: user, notes: true });
   const { sharedKey } = conversation;
+  const { isMobile } = useContext(InteractionContext);
+  // A search result to scroll to ({ messageId }; ChatPane's jumpTo).
+  const [jumpTarget, setJumpTarget] = useState(null);
+  const clearJump = useCallback(() => setJumpTarget(null), []);
   const profilesVersion = useProfiles();
   const reactionNames = useMemo(
     () => ({ [user?.id]: nameOf(user) }),
@@ -59,6 +65,18 @@ export default function Notes({ user }) {
             <FontAwesomeIcon icon={faThumbtack} />
           </button>
         )}
+        {sharedKey && (
+          <ChatSearch
+            scopeId="notes"
+            chatName={t('chat.notes.title')}
+            conversation={conversation}
+            people={people}
+            user={user}
+            isMobile={isMobile}
+            onJump={(msg) => setJumpTarget({ messageId: msg.id })}
+            reactionNames={reactionNames}
+          />
+        )}
       </h4>
       {id && (
         <ChatPane
@@ -74,6 +92,8 @@ export default function Notes({ user }) {
           people={people}
           pinsAnchor={pinsAnchor}
           onClosePins={closePins}
+          jumpTo={jumpTarget}
+          onJumped={clearJump}
           emptyText={t('chat.notes.empty')}
         />
       )}
