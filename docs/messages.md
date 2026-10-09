@@ -107,6 +107,16 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   menu's smiley opens `EmojiPicker` for it: floating by the button on desktop
   (`reactionPickerPosition`, a zero-size fixed `.reaction-picker-anchor`), docked in the keyboard's
   place on mobile, closing after the pick. Search matches several words ("thumbs up").
+- Who reacted (Discord's): hovering a chip with a mouse shows a card over it (`ReactionCard` in
+  `MessageReactions.jsx`, portalled, fixed, below the chip when there's no room above): the
+  emoji big and ":+1: reacted by A, B, C and 2 others" (three names, the emoji's shortcode from
+  `reactionShortName`: a custom emoji's name, a Unicode one's emoji-mart id). Clicking the card,
+  or holding a chip on a phone (instead of the message's action sheet), opens `ReactionsDialog`:
+  PollVoters' layout, a tab per emoji with its count, who reacted (pictures, in the order they
+  reacted), live as reactions change, your own with a × taking it back; it closes once the last
+  reaction goes. Chips you can't tap (no Add Reactions) are `aria-disabled`, not `disabled`, so
+  they still show who reacted. Nothing new reaches the server: it's drawn from the reactions the
+  page already has (decrypted, in encrypted chats).
 
 ## Message markdown (Discord's set)
 

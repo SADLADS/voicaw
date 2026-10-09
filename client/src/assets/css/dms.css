@@ -1639,9 +1639,97 @@ img.emoji,
   font-variant-numeric: tabular-nums;
 }
 
+.reaction-chip.locked {
+  cursor: default;
+}
+
 .reaction-chip.reaction-add {
   font-size: 16px;
   opacity: 0;
+}
+
+/* Who reacted, over a hovered chip (MessageReactions' ReactionCard); clicking it opens the
+   breakdown. */
+.reaction-card {
+  position: fixed;
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(280px, calc(100vw - 16px));
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background-color: var(--vc-popup);
+  box-shadow: 0 8px 16px var(--vc-popup-shadow);
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reaction-card:hover .reaction-card-text {
+  color: var(--vc-fg);
+}
+
+.reaction-card-emoji {
+  flex-shrink: 0;
+}
+
+.reaction-card-emoji img.emoji {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+}
+
+.reaction-card-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.reaction-card-text strong,
+.reaction-card-name {
+  color: var(--vc-fg);
+  font-weight: 600;
+}
+
+/* Who reacted with each emoji (ReactionsDialog): PollVoters' layout, emoji tabs narrower. */
+.poll-voters .reactions-dialog-tab {
+  justify-content: space-between;
+}
+
+.poll-voters-tabs.reactions-dialog-tabs {
+  width: 110px;
+}
+
+body.mobile-mode .poll-voters-tabs.reactions-dialog-tabs {
+  width: auto;
+}
+
+.reactions-dialog-tab img.emoji {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+}
+
+.reactions-dialog-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.reactions-dialog-remove {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.reactions-dialog-remove:hover {
+  color: var(--vc-danger);
 }
 
 .each-dm-message-wrapper:hover .reaction-chip.reaction-add,
