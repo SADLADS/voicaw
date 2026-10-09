@@ -99,7 +99,7 @@ node e2e/signups.mjs [dir] # sign-ups: Settings → Admin → Sign-ups to approv
 node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
 node e2e/dmrail.mjs [dir] # rail's DM button: icon, newest unread sender's picture (live, after reload), clicking it opens their chat, the one before once read, icon when all read, phone
 node e2e/favicon.mjs [dir] # favicon dot: DM on, read = off, guild message without a mention = none, mention on (Discord's rule); dir gets the dotted icon
-node e2e/pagetitles.mjs # tab titles: Friends, a DM = Direct Messages (never the person), Notes, a guild's name (also after a reload), Settings, Developer Portal, logged out = Voicaw
+node e2e/pagetitles.mjs # web tab titles as Discord's: Voicaw | Friends, a DM = Voicaw | @name, Notes, Voicaw | #general | Guild (also after a reload), Settings, Developer Portal, logged out = Voicaw (desktop's plain ones: usePageTitle.test.js)
 node e2e/moderation.mjs [dir] # block from a profile (collapsed messages, Show, DMs refused both ways, DM closed, Unblock), Report Message (guild; DM sharing its text), admin's Reports, suspend (phone logged out and told why, login refused with the reason), lift
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings, updating (last look, a newer download's progress, failure)
 node e2e/desktopsplash.mjs [dir] # desktop app's splash window: each state drawn (checking spins, downloading fills the ring with version and %, Start anyway only when offered, installing, reduced motion), Linux square card; then the real app under Xvfb (:96, CDP 9334): splash, main window, splash closes

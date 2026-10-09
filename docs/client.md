@@ -239,13 +239,20 @@
   taskbar). Guild messages that don't mention you don't count. The dotted icon is drawn once
   on a canvas from `logo192.png` and swapped in as the `<link rel="icon">`'s href; the original
   comes back when read or logged out. Not in the desktop app (no tab).
-- **Page titles** (`hooks/usePageTitle.js`: `pageTitle` from the route in `Layout`, and
-  `DeveloperPage`'s heading): the tab's title follows the page: Direct Messages, Friends,
-  Notes, Settings, the guild's name, the developer pages' headings; "Voicaw" anywhere else (logged
-  out, invites, a guild not loaded yet). The desktop app's window takes it too (Electron's
-  window follows `<title>`; don't block `page-title-updated`). Deliberately never who a DM or
-  group is with, nor a group's name: window titles leave the page (task switchers, screen-share
-  pickers, the OS's window list) and those chats are end-to-end encrypted.
+- **Page titles** (`hooks/usePageTitle.js`: `useRouteTitle` in `Layout`, and `DeveloperPage`'s
+  heading): the title follows the page, two ways (the user's choice, 2026-10-09).
+  - **Web** (the tab), as Discord's: "Voicaw | @name" in a DM or bot DM, "Voicaw | <group's
+    name>" (or its members', as in the list), "Voicaw | #channel | Guild" (threads too),
+    "Voicaw | Friends", "Voicaw | Notes", "Voicaw | Settings", "Voicaw | Developer Portal".
+    Browsers keep titles in their history (and sync it), so who you DM and decrypted group
+    names end up there, as with Discord.
+  - **Desktop app** (the window: Electron follows `<title>`; don't block `page-title-updated`):
+    only the area, Direct Messages, Friends, Notes, Settings, the guild's name, never who a chat
+    is with, since the OS shows window titles in the taskbar, task switchers and screen-share
+    pickers.
+
+  Either way, "Voicaw" alone where nothing's known yet (logged out, invites, a guild still
+  loading); a DM whose name isn't loaded yet is "Direct Messages" until it is.
 - **Account preferences** (`server/preferences.js`, JSON in `users.preferences`, only those
   changed from the default; `GET /preferences`, `PUT /preferences { key: value }`; the
   `preferences` event to your other devices; `utils/preferences.js`, kept up to date by

@@ -1,6 +1,6 @@
-// Page titles: the tab's title (and the desktop app's window title) follows the page: Direct
-// Messages, Friends, Notes, Settings, the guild's name, the developer portal; a DM never names
-// who it's with.
+// Page titles on the web, as Discord's: "Voicaw | @name" in a DM, "Voicaw | #channel | Guild",
+// "Voicaw | Friends", "Voicaw | Settings"; the developer portal; logged out just "Voicaw". (The
+// desktop app's plain titles are in usePageTitle.test.js.)
 //   node e2e/serve.mjs &   then   node e2e/pagetitles.mjs
 import { launchChrome, signUp, openChat, BASE } from './helpers.mjs';
 
@@ -33,23 +33,23 @@ try {
   const a = alice.page;
 
   await a.goto(`${BASE}/dm`);
-  await titled(a, 'Friends', '/dm (opens on Friends)');
+  await titled(a, 'Voicaw | Friends', '/dm (opens on Friends)');
   await openChat(a, bob.id);
-  await titled(a, 'Direct Messages', 'a DM');
+  await titled(a, `Voicaw | @${bob.name}`, 'a DM');
   await go(a, '/dm/notes');
-  await titled(a, 'Notes', 'notes');
+  await titled(a, 'Voicaw | Notes', 'notes');
 
   const guild = await api(a, 'POST', '/guilds', { name: 'Book club' });
   const guildId = guild.id ?? guild.guild?.id;
   await go(a, `/guild/${guildId}`);
-  await titled(a, 'Book club', 'a guild');
+  await titled(a, 'Voicaw | #general | Book club', 'a guild');
   await a.goto(`${BASE}/guild/${guildId}`);
-  await titled(a, 'Book club', 'a guild after a reload');
+  await titled(a, 'Voicaw | #general | Book club', 'a guild after a reload');
 
   await go(a, '/settings');
-  await titled(a, 'Settings', 'settings');
+  await titled(a, 'Voicaw | Settings', 'settings');
   await a.goto(`${BASE}/developers`);
-  await titled(a, 'Developer Portal', 'developer portal');
+  await titled(a, 'Voicaw | Developer Portal', 'developer portal');
 
   const fresh = await browser.newPage();
   await fresh.goto(BASE);
