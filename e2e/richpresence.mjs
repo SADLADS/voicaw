@@ -4,12 +4,15 @@
 // arguments, as Wine shows it) connect and set activities in Discord's protocol. Alice (Chrome)
 // sees "Playing …" in her DM list and the guild member list, both on Bob's card with Steam's
 // cover and the time ticking; a game leaving takes its activity away; Settings → Desktop App's
-// "Share what I'm playing" off closes the socket and clears it, on opens it again.
+// "Share what I'm playing" off closes the socket and clears it, on opens it again. A music
+// player giving its cover as a web address (Feishin with Navidrome) shows that cover, fetched
+// by Bob's app only.
 //   node e2e/serve.mjs &   (the client built for the desktop app against it first: README,
 //   "The real desktop app")   then   node e2e/richpresence.mjs [screenshot dir]
 // E2E_RP_DISPLAY (:93) and E2E_RP_CDP_PORT (9341) if those are taken.
-import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync } from 'fs';
+import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync, readFileSync } from 'fs';
 import { spawn, execFileSync } from 'child_process';
+import http from 'http';
 import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -191,6 +194,29 @@ try {
   check(await until(() => existsSync(join(run, 'discord-ipc-0'))), 'on again: listening again');
   startGame({ details: 'Back again' }, { env: { SteamAppId: '367520' } });
   check(await until(async () => (await memberRow.locator('.member-activity').textContent()) === 'Playing Hollow Knight'), 'and new games show');
+
+  // A music player whose cover is a web address on its server (stand-in: a server here).
+  execFileSync('convert', ['-size', '300x300', 'gradient:#d02090-#30c0a0', join(scratch, 'cover.jpg')]);
+  const coverRequests = [];
+  const coverServer = http.createServer((req, res) => {
+    coverRequests.push(req.headers['user-agent'] ?? '');
+    res.writeHead(200, { 'Content-Type': 'image/jpeg' });
+    res.end(readFileSync(join(scratch, 'cover.jpg')));
+  });
+  await new Promise((resolve) => coverServer.listen(0, '127.0.0.1', resolve));
+  const coverUrl = `http://127.0.0.1:${coverServer.address().port}/share/img/token?size=300`;
+  startGame({ type: 2, details: 'Song Title', state: 'Some Artist', assets: { large_image: coverUrl, large_text: 'The Album', small_image: 'playing' } },
+    {});
+  check(await until(async () => /^Listening to /.test(await memberRow.locator('.member-activity').textContent())), 'a music player: "Listening to …"');
+  if (!(await page.locator('.member-card').count())) await memberRow.click();
+  const song = page.locator('.profile-card .activity:has-text("Song Title")');
+  await song.waitFor();
+  const songCover = song.locator('img.activity-image');
+  check(await until(() => songCover.evaluate((img) => img.complete && img.naturalWidth === 128)), "its cover from the address it gave, made 128 px");
+  check((await songCover.getAttribute('src')).includes('/activity-images/'), 'served by the API, not the music server');
+  check(coverRequests.length === 1 && !/Chrome/.test(coverRequests[0]), `the music server was asked once, by Bob's app (${coverRequests.length})`);
+  if (shots) await page.screenshot({ path: join(shots, 'music.png') });
+  coverServer.close();
 } finally {
   for (const game of games) game.kill();
   electron?.kill();

@@ -380,7 +380,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   Activities in `docs/realtime.md`): the desktop app listens on Discord's local `discord-ipc-N`
   socket, so games' "Playing X" reaches Voicaw unchanged (a Discord started first keeps them).
   Never asks Discord (the user's choice): names and pictures come from Steam's local files and
-  the program itself; games' own per-moment pictures (Discord asset keys) aren't shown. A 128 px
+  the program itself; games' own per-moment pictures (Discord asset keys) aren't shown, but a
+  picture given as a web address (Feishin's Navidrome album covers) is downloaded by the
+  player's app and shared as the small copy (never the address). A 128 px
   copy of the picture goes to the server; activities live in its memory only. Shown in the
   member list (unlike custom statuses), the DM list, Friends and profile cards; "Share what I'm
   playing" in Settings → Desktop App, on by default. Bots' own activities show too.

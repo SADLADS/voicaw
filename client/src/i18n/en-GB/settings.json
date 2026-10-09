@@ -454,7 +454,7 @@
       "recordingHint": "Hold Ctrl, Alt or Shift and press a key. Esc cancels.",
       "activity": "Activity",
       "shareActivity": "Share what I'm playing",
-      "shareActivityHint": "Games that show what you're doing in Discord show it to everyone here instead, while Discord isn't open. Names and pictures come from Steam and the games' own files on this computer; a small copy of the picture goes to the server."
+      "shareActivityHint": "Games that show what you're doing in Discord show it to everyone here instead, while Discord isn't open. Names and pictures come from Steam and the games' own files on this computer, or from a web address the game gives (a music player's album cover), which this computer downloads; a small copy of the picture goes to the server."
     },
     "androidApp": {
       "title": "Android App",

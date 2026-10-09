@@ -8,7 +8,7 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { OP, encode, decode, socketPath, createRichPresenceServer } = require('../richPresence.js');
 const { parseVdf, steamApps, steamGameForPaths, steamPicture, programName, identifyGame } = require('../gameLookup.js');
-const { cleanActivity, createGameActivities } = require('../gameActivities.js');
+const { cleanActivity, createGameActivities, pictureUrl } = require('../gameActivities.js');
 
 // A game: connects, and reads frames as they come.
 function connectGame(file) {
@@ -149,9 +149,11 @@ describe('finding games on this computer (gameLookup.js)', () => {
 
     it('names programs without Steam', () => {
         expect(programName({ exe: '/usr/bin/wine64-preloader', argv: ['C:\\Games\\Celeste\\Celeste.exe'], platform: 'linux' })).toBe('Celeste');
-        expect(programName({ exe: '/usr/bin/python3.12', argv: ['python3', '-u', '/home/me/mygame.py'], platform: 'linux' })).toBe('mygame');
+        expect(programName({ exe: '/usr/bin/python3.12', argv: ['python3', '-u', '/home/me/mygame.py'], platform: 'linux' })).toBe('Mygame');
         expect(programName({ exe: '/Applications/Balatro.app/Contents/MacOS/love', platform: 'darwin' })).toBe('Balatro');
         expect(programName({ exe: '/opt/game/Game.x86_64', platform: 'linux' })).toBe('Game');
+        expect(programName({ exe: '/opt/Feishin/feishin', platform: 'linux' })).toBe('Feishin');
+        expect(programName({ exe: '/usr/bin/node', argv: ['node', '/home/me/bot.cjs'], platform: 'linux' })).toBe('Bot');
     });
 
     it('identifies a process: Steam first, then Windows product names', async () => {
@@ -183,6 +185,34 @@ describe('activities for the page (gameActivities.js)', () => {
             name: 'Game', type: 0, details: 'In a match', state: 'x'.repeat(128), start: 1700000000000, end: null,
             partySize: 2, partyMax: 4, imageText: 'Dust',
         });
+    });
+
+    it("finds pictures given as web addresses, not Discord's asset keys", () => {
+        const cover = 'https://music.example.com/share/img/abc?size=600';
+        expect(pictureUrl({ assets: { large_image: cover } })).toBe(cover);
+        expect(pictureUrl({ assets: { large_image: 'mp:external/xyz/https/music.example.com/a.jpg' } })).toBe('https://music.example.com/a.jpg');
+        expect(pictureUrl({ assets: { large_image: 'icon' } })).toBeNull();
+        expect(pictureUrl({ assets: { large_image: 'file:///etc/passwd' } })).toBeNull();
+        expect(pictureUrl({})).toBeNull();
+    });
+
+    it("uses a music player's cover (fetched once per address) over the program's picture", async () => {
+        const fetched = [];
+        const sent = [];
+        const activities = createGameActivities({
+            identify: async () => ({ name: 'Feishin' }),
+            loadPicture: () => ({ id: 'icon', data: 'I' }),
+            fetchPicture: async (url) => { fetched.push(url); return url.includes('broken') ? null : { id: url.slice(-1), data: 'C' }; },
+            onChange: (list) => sent.push(list),
+        });
+        const song = (title, cover) => [{ id: '1', pid: 5, activity: { type: 2, details: title, assets: { large_image: cover } } }];
+        await activities.update(song('One', 'https://m.example/a'));
+        await activities.update(song('Two', 'https://m.example/a'));
+        await activities.update(song('Three', 'https://m.example/b'));
+        expect(sent.at(-1)[0]).toMatchObject({ name: 'Feishin', type: 2, details: 'Three', image: { id: 'b' } });
+        await activities.update(song('Four', 'https://m.example/broken'));
+        expect(sent.at(-1)[0].image).toEqual({ id: 'icon', data: 'I' });
+        expect(fetched).toEqual(['https://m.example/a', 'https://m.example/b', 'https://m.example/broken']);
     });
 
     it('looks each game up once and gives the page the latest', async () => {

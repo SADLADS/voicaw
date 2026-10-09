@@ -153,10 +153,12 @@ function steamPicture(fs, root, appId) {
 const RUNNERS = /^(java|javaw|python[\d.]*|pythonw|node|mono|love|wine.*|.*-preloader|godot.*)$/i;
 
 // A name for a program from its path and arguments (no Steam): a Wine program's .exe, a
-// runner's script, else the file name, without its extension.
+// runner's script, else the file name, without its extension (capitalised if it's all lower case).
 function programName({ exe, argv = [], platform }) {
     const base = (p) => String(p).split(/[\\/]/).pop();
-    const bare = (p) => base(p).replace(/\.(exe|x86_64|x86|bin|sh|py|jar|love|app)$/i, '');
+    // Linux programs are often all lower case ("feishin"): "Feishin".
+    const bare = (p) => base(p).replace(/\.(exe|x86_64|x86|bin|sh|py|jar|love|app|appimage|js|cjs|mjs)$/i, '')
+        .replace(/^[a-z][a-z0-9]*$/, (n) => n[0].toUpperCase() + n.slice(1));
     if (platform === 'darwin') {
         const app = /([^/]+)\.app(\/|$)/.exec(exe ?? '');
         if (app) return app[1];

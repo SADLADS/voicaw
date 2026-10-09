@@ -3,6 +3,9 @@
 // each game looked up once. The page gets
 // [{ key, name, type, details, state, start, end, partySize, partyMax, imageText, image }],
 // `image` being { id, data } (a small JPEG or PNG, base64; id its hash) or null.
+// A game whose big picture is a web address (a music player's album cover on the person's own
+// server, as Feishin sends with Navidrome) gets that picture instead: fetched by this computer
+// (`fetchPicture`), never by the server or the people looking, and the address isn't shared.
 const crypto = require('crypto');
 
 const MAX_TEXT = 128;
@@ -40,6 +43,22 @@ function cleanActivity(activity, name) {
     };
 }
 
+// The web address in a game's big picture, if it's one: `https://…`, or Discord's media proxy
+// form (`mp:external/<hash>/https/host/path`). Other values are Discord asset keys (only
+// Discord can look those up).
+function pictureUrl(activity) {
+    const value = activity?.assets?.large_image;
+    if (typeof value !== 'string' || value.length > 2048) return null;
+    const proxied = /^mp:external\/[^/]+\/(https?)\/(.+)$/.exec(value);
+    const url = proxied ? `${proxied[1]}://${proxied[2]}` : value;
+    try {
+        const parsed = new URL(url);
+        return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : null;
+    } catch {
+        return null;
+    }
+}
+
 // Square, at most 128 px: a cover as JPEG, an icon (which may be see-through) as PNG.
 // `image` is an Electron nativeImage.
 function pictureFrom(image, { photo }) {
@@ -55,10 +74,14 @@ function pictureFrom(image, { photo }) {
 }
 
 // `identify(pid)` → { name, picture, exe } or null (gameLookup.identifyGame); `loadPicture(game)`
-// → a nativeImage-made picture ({ id, data }) or null; `onChange(activities)`. A game nothing
+// → a nativeImage-made picture ({ id, data }) or null; `fetchPicture(url)` → the same for a web
+// address, or null; `onChange(activities)`. A game nothing
 // could be found about has no name (the page says "a game").
-function createGameActivities({ identify, loadPicture, onChange }) {
+const MAX_URL_PICTURES = 50;
+
+function createGameActivities({ identify, loadPicture, fetchPicture = async () => null, onChange }) {
     const identities = new Map(); // connection id + pid -> Promise<{ name, picture }>
+    const urlPictures = new Map(); // web address -> Promise<picture or null>, the latest used last
     let latest = [];
     let current = [];
     let running = Promise.resolve();
@@ -75,13 +98,27 @@ function createGameActivities({ identify, loadPicture, onChange }) {
         return identities.get(key);
     }
 
+    function urlPicture(url) {
+        let picture = urlPictures.get(url);
+        if (picture) {
+            urlPictures.delete(url);
+        } else {
+            picture = Promise.resolve().then(() => fetchPicture(url)).catch(() => null);
+        }
+        urlPictures.set(url, picture);
+        while (urlPictures.size > MAX_URL_PICTURES) urlPictures.delete(urlPictures.keys().next().value);
+        return picture;
+    }
+
     async function rebuild() {
         const games = latest;
         const activities = [];
         for (const game of games) {
             const { name, image } = await identityOf(game);
+            const url = pictureUrl(game.activity);
+            const own = url ? await urlPicture(url) : null;
             const activity = cleanActivity(game.activity, text(name));
-            activities.push({ key: game.id, ...activity, image });
+            activities.push({ key: game.id, ...activity, image: own ?? image });
         }
         // Forget games that left.
         const live = new Set(games.map((g) => `${g.id}:${g.pid ?? ''}`));
@@ -101,4 +138,4 @@ function createGameActivities({ identify, loadPicture, onChange }) {
     };
 }
 
-module.exports = { cleanActivity, pictureFrom, createGameActivities, GAME_TYPES };
+module.exports = { cleanActivity, pictureFrom, pictureUrl, createGameActivities, GAME_TYPES };

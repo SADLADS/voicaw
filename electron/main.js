@@ -212,6 +212,8 @@ async function windowsSteamPath() {
 
 // Rich Presence (richPresence.js): games' activities, named and pictured from this computer
 // (gameLookup.js), sent to the page, which shares them.
+const MAX_PICTURE_BYTES = 10 * 1024 * 1024;
+
 function setUpRichPresence() {
     gameActivities = createGameActivities({
         async identify(pid) {
@@ -224,6 +226,16 @@ function setUpRichPresence() {
             // Linux's file icons are only the theme's generic ones.
             if (game.exe && process.platform !== 'linux') return pictureFrom(await app.getFileIcon(game.exe, { size: 'large' }), { photo: false });
             return null;
+        },
+        // A picture the game gives as a web address (a music server's album cover): fetched
+        // here, as anything on this computer could, then made small like the others.
+        async fetchPicture(url) {
+            const response = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(8000) });
+            if (!response.ok || !/^image\//.test(response.headers.get('content-type') ?? '')) return null;
+            if (Number(response.headers.get('content-length')) > MAX_PICTURE_BYTES) return null;
+            const bytes = Buffer.from(await response.arrayBuffer());
+            if (bytes.length > MAX_PICTURE_BYTES) return null;
+            return pictureFrom(nativeImage.createFromBuffer(bytes), { photo: true });
         },
         onChange: (activities) => win?.webContents.send('desktop:activities', activities),
     });

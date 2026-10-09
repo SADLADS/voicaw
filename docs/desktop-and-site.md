@@ -99,14 +99,25 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `appcache/librarycache` (`<id>_library_600x900.jpg`, newer Steam's `<id>/` folder; else the
   header, else the icon). Otherwise the program: Windows' product name or description (one
   PowerShell call; engine names like "Unity Player" skipped), a macOS `.app`'s name, a Wine
-  program's `.exe`, a runner's script (python, java...), else the file name; its icon on
+  program's `.exe`, a runner's script (python, java...), else the file name (all lower case capitalised:
+  `feishin` → Feishin); its icon on
   Windows and macOS (`app.getFileIcon`; Linux only has the theme's generic ones). Nothing found:
   no name (people see "a game") and a gamepad. Pictures are cropped square and made at most
-  128 px (`pictureFrom`: covers JPEG, icons PNG), looked up once per game. The page gets the
+  128 px (`pictureFrom`: covers JPEG, icons PNG), looked up once per game. A game whose big
+  picture (`assets.large_image`) is a web address (`https://…`, or Discord's
+  `mp:external/<hash>/https/host/path`, turned back into the address) gets that picture instead:
+  music players do this with album covers on the person's own server (Feishin's "Serve Discord
+  images from server" with Navidrome or Jellyfin, added 2026-10-09). The main process downloads
+  it (`fetchPicture`: Node's fetch, 8 s, at most 10 MB, an `image/*` that nativeImage can read,
+  so PNG or JPEG; private addresses allowed, since it's the person's own computer asking, so a
+  home server works, unlike in Discord), caches the last 50 addresses, and shares only the small
+  copy: viewers and the server never see the address (it can hold a token) or ask that server.
+  Anything else in that field is a Discord asset key, which only Discord can look up, so the
+  program's picture is used. The page gets the
   cleaned activities (`gameActivities.js`: Discord's types Playing, Listening, Watching,
   Competing; details, state, start/end in ms, party size, the big picture's hover text) and
-  shares them (`setOwnActivities` in `ws-client.js`). Games' own pictures (asset keys, which
-  only Discord can resolve) and buttons aren't shown; games that don't use Rich Presence aren't
+  shares them (`setOwnActivities` in `ws-client.js`). Games' asset-key pictures (only Discord
+  can resolve them), small pictures and buttons aren't shown; games that don't use Rich Presence aren't
   detected. Turning it off closes the socket. Checked for real in `e2e/richpresence.mjs`.
 - **Splash window** (`splash.js`, `assets/splash.html`, `splashPreload.js`; built 2026-10-08, as
   Discord's): a small frameless window (square on Linux, which has no transparent windows without
