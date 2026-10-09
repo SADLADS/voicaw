@@ -19,6 +19,7 @@ import { useDragReorder } from '../hooks/useDragReorder';
 import { useVoice } from '../hooks/useVoice';
 import { t } from '../i18n';
 import { displayName } from '../utils/profiles';
+import { showContent } from '../utils/mobilePanes';
 
 // The guild rail down the left (like Discord's): home, DMs, then each guild (a pill on the
 // left marks unread messages, a taller one the open guild), then "+" to create or join one.
@@ -28,9 +29,10 @@ import { displayName } from '../utils/profiles';
 // grey, or green when you're in one there (this device counts as soon as it connects). Guilds can be dragged into a
 // new order (hold, then drag, on touch screens); `onReorderGuilds(ids)` saves it. Right-clicking
 // a guild (touch, hold and lift on a phone) opens its menu (GuildMenu), whose dialogs live here.
-// `unreadFrom` is whoever sent the newest unread DM or group message: the DM button shows their
-// picture instead of its icon until that's read (as in Discord).
-export default function Sidebar({ user, hasUnreadDms, unreadFrom = null,guilds = [], unreadGuildIds = new Set(), guildMentions = {}, guildVoice = {}, onReorderGuilds }) {
+// `newestUnread` ({ userId, path }) is the newest unread DM, group or bot DM message: the DM button
+// shows its sender's picture instead of its icon until that's read (as in Discord), and opens
+// that chat.
+export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guilds = [], unreadGuildIds = new Set(), guildMentions = {}, guildVoice = {}, onReorderGuilds }) {
   const location = useLocation();
   const { guildList } = useContext(LayoutContext) ?? {};
   const { isMobile } = useContext(InteractionContext);
@@ -78,15 +80,15 @@ export default function Sidebar({ user, hasUnreadDms, unreadFrom = null,guilds =
 
       <div className={`nav-item ${isActivePath('/dm') ? 'active' : ''}`}>
       <span className={`dot${hasUnreadDms ? ' visible' : ''}`}></span>
-        {unreadFrom != null ? (
+        {newestUnread != null ? (
           <NavLink
-            to="/dm"
+            to={newestUnread.path}
             className="nav-icon rail-dm-unread"
-            onClick={stayIfIn(isActivePath('/dm'))}
-            aria-label={t('app.sidebar.unreadFrom', { name: displayName(unreadFrom) })}
-            title={t('app.sidebar.unreadFrom', { name: displayName(unreadFrom) })}
+            onClick={showContent}
+            aria-label={t('app.sidebar.unreadFrom', { name: displayName(newestUnread.userId) })}
+            title={t('app.sidebar.unreadFrom', { name: displayName(newestUnread.userId) })}
           >
-            <Avatar userId={unreadFrom} />
+            <Avatar userId={newestUnread.userId} />
           </NavLink>
         ) : (
           <NavLink to="/dm" className="nav-icon" onClick={stayIfIn(isActivePath('/dm'))} aria-label={t('app.sidebar.directMessages')} title={t('app.sidebar.directMessages')}>

@@ -96,7 +96,7 @@ node e2e/edithistory.mjs [dir] # edit history: a DM edited twice inline, the oth
 node e2e/devices.mjs [dir] # Settings → Devices: three logins listed, log the phone out (back at login, token dead), all others, phone, logout ends the session
 node e2e/signups.mjs [dir] # sign-ups: Settings → Admin → Sign-ups to approval, new account sees only the waiting page, listed live for the admin, approved = app opens by itself, declined (phone) = logged out; invite only: refused without/with a bad code, /join/<code> link fills it in and lets them in, invite used up
 node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
-node e2e/dmrail.mjs [dir] # rail's DM button: icon, newest unread sender's picture (live, after reload), the one before once read, icon when all read, phone
+node e2e/dmrail.mjs [dir] # rail's DM button: icon, newest unread sender's picture (live, after reload), clicking it opens their chat, the one before once read, icon when all read, phone
 node e2e/favicon.mjs [dir] # favicon dot: DM on, read = off, guild message without a mention = none, mention on (Discord's rule); dir gets the dotted icon
 node e2e/moderation.mjs [dir] # block from a profile (collapsed messages, Show, DMs refused both ways, DM closed, Unblock), Report Message (guild; DM sharing its text), admin's Reports, suspend (phone logged out and told why, login refused with the reason), lift
 node e2e/desktop.mjs [dir] # desktop app page side (stand-in bridge): notifications, badge, shortcuts, settings, updating (last look, a newer download's progress, failure)

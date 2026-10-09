@@ -28,7 +28,7 @@ const layout = (id, permissions, extra = {}) => ({
   ...guilds.find((g) => g.id === id), my_permissions: permissions, my_notify_level: 'mentions', roles: [], categories: [], channels: [], ...extra,
 });
 
-function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [], guildMutes = {}, guildVoice, guildMentions, unreadFrom, path = '/dm' } = {}) {
+function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [], guildMutes = {}, guildVoice, guildMentions, newestUnread, path = '/dm' } = {}) {
   const guildList = {
     guilds,
     layouts,
@@ -45,7 +45,7 @@ function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, un
         <LayoutContext.Provider value={{ guildList }}>
           <MemoryRouter initialEntries={[path]}>
             <ShowPath />
-            <Sidebar user={{ id: 1, username: 'owner' }} guilds={guilds} guildVoice={guildVoice} guildMentions={guildMentions} unreadFrom={unreadFrom} />
+            <Sidebar user={{ id: 1, username: 'owner' }} guilds={guilds} guildVoice={guildVoice} guildMentions={guildMentions} newestUnread={newestUnread} />
           </MemoryRouter>
         </LayoutContext.Provider>
       </InteractionContext.Provider>
@@ -73,12 +73,14 @@ describe('the rail\'s DM button', () => {
     expect(icon('Direct Messages').querySelector('img')).toBeNull();
   });
 
-  it('shows the picture of whoever sent the newest unread message', () => {
+  it('shows the picture of whoever sent the newest unread message, and opens that chat', () => {
     mergeProfiles([{ id: 9, username: 'zed', display_name: 'Zed' }]);
-    renderRail({ unreadFrom: 9 });
+    renderRail({ newestUnread: { userId: 9, path: '/dm/g/4' }, path: '/dm/7' });
     const button = icon('Direct Messages: new message from Zed');
-    expect(button).toHaveAttribute('href', '/dm');
+    expect(button).toHaveAttribute('href', '/dm/g/4');
     expect(button.querySelector('img')).not.toBeNull();
+    fireEvent.click(button);
+    expect(screen.getByTestId('path').textContent).toBe('/dm/g/4');
   });
 });
 

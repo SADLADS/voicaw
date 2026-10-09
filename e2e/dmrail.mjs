@@ -1,6 +1,7 @@
 // The rail's DM button: its icon while nothing's unread, the picture of whoever sent the newest
-// unread DM otherwise (live, and after a reload), the one before once that's read, the icon again
-// when everything is; on a phone too.
+// unread DM otherwise (live, and after a reload), which opens that chat when clicked, the one
+// before once that's read, the icon again when everything is; on a phone too (opening the chat
+// pane).
 //   node e2e/serve.mjs &   then   node e2e/dmrail.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
 import { launchChrome, signUp, openChat, send, devices, BASE } from './helpers.mjs';
@@ -23,13 +24,15 @@ const check = (ok, what) => {
   console.log(`  ok: ${what}`);
 };
 
-// Whose picture the DM button shows (its label names them), or null for the plain icon.
-const button = (page) => page.locator('.sidebar a[href="/dm"]');
-const waitForButton = (page, name) => page.waitForFunction((want) => {
-  const a = document.querySelector('.sidebar a[href="/dm"]');
+// Whose picture the DM button shows (its label names them), or null for the plain icon (which
+// links to /dm; the picture links to its chat).
+const BUTTON = '.sidebar a.rail-dm-unread, .sidebar a[href="/dm"]';
+const button = (page) => page.locator(BUTTON);
+const waitForButton = (page, name) => page.waitForFunction(([sel, want]) => {
+  const a = document.querySelector(sel);
   const label = a?.getAttribute('aria-label') ?? '';
   return want ? label.endsWith(`from ${want}`) && a.querySelector('img') : label === 'Direct Messages' && !a.querySelector('img');
-}, name, { timeout: 10000 });
+}, [BUTTON, name], { timeout: 10000 });
 
 const browser = await launchChrome();
 try {
@@ -64,13 +67,17 @@ try {
   await waitForButton(b, carol.name);
   check(true, 'after a reload: still the newest sender');
 
-  await openChat(b, carol.id);
+  await button(b).click();
+  await b.waitForURL(`${BASE}/dm/${carol.id}`);
+  await b.waitForSelector('#dm-input');
+  check(true, "clicking the picture opens that sender's chat");
   await waitForButton(b, alice.name);
   check(true, "reading the newest: the one before's picture");
 
-  await openChat(b, alice.id);
+  await button(b).click();
+  await b.waitForURL(`${BASE}/dm/${alice.id}`);
   await waitForButton(b, null);
-  check(true, 'all read: the DM icon again');
+  check(true, 'clicking it again opens the one before; all read: the DM icon again');
 
   // A phone: the rail beside a guild's channel list.
   const dave = await signUp(browser, 'dave', { ...devices['Pixel 7'] });
@@ -93,6 +100,15 @@ try {
     await p.waitForTimeout(600);
     await p.screenshot({ path: `${dir}/rail-phone.png` });
   }
+  await button(p).click();
+  await p.waitForURL(`${BASE}/dm/${alice.id}`);
+  await p.waitForFunction(() => {
+    const box = document.querySelector('#dm-input')?.getBoundingClientRect();
+    return box && box.left >= 0 && box.right <= window.innerWidth + 1;
+  }, null, { timeout: 5000 });
+  check(true, 'phone: clicking the picture opens the chat, its pane in view');
+  await waitForButton(p, null);
+  if (dir) await p.screenshot({ path: `${dir}/rail-phone-opened.png` });
   console.log('dmrail: ok');
 } catch (err) {
   console.error('dmrail: FAILED', err.message.split('\n')[0]);
