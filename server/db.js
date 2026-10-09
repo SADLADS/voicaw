@@ -367,6 +367,11 @@ CREATE TABLE IF NOT EXISTS group_dms (
 addColumn('ALTER TABLE group_dms ADD COLUMN name_ciphertext TEXT');
 addColumn('ALTER TABLE group_dms ADD COLUMN name_epoch INTEGER');
 addColumn('ALTER TABLE group_dms ADD COLUMN name_version INTEGER NOT NULL DEFAULT 0');
+// The group's picture (Group pictures in docs/group-dms.md): `picture_data` is the picture
+// encrypted with its own key, which only the encrypted name record holds; `picture_id` names it
+// (a UUID made by the member who set it), null for none.
+addColumn('ALTER TABLE group_dms ADD COLUMN picture_id TEXT');
+addColumn('ALTER TABLE group_dms ADD COLUMN picture_data TEXT');
 
 // Who's in each group now (leaving or being removed deletes the row).
 sqlite.exec(`

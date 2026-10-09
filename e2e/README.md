@@ -35,6 +35,7 @@ node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mu
 node e2e/calllog.mjs [dir] # calls in the chat: lasted …, declined, didn't answer / missed (unread), after reload, phone
 node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, group call, owner leaves
 node e2e/groupnames.mjs [dir] # encrypted group names: API never has them, list/header/rename line, new member reads it (phone), desktop notifications decrypted
+node e2e/grouppictures.mjs [dir] # group pictures: cropper over the dialog (Escape closes only it), preview, header/list show the middle square, API only has ciphertext, live for others with a timeline line, kept by a rename, a member added later (phone) sees it, reload, removed
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen
 node e2e/friends.mjs [dir] # friends: new account's list is empty (/dm = Friends), Add friend by username, request live (count on the Friends row, Pending), Accept = both lists, profile card Add/Request sent/Remove, non-friend's first DM joins the list live, Remove asks (conversation stays), admin's Everyone tab, phone
 node e2e/notes.mjs [dir]  # notes: row under the header, send, pin, reload, not leaked to/from DMs, phone login

@@ -1,33 +1,35 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { encryptMessage, generateUserKeys, importEncryptionPrivateKey, importIdentityPrivateKey } from './encryptionService';
 import {
+  callKeySignatureContext,
+  cleanGroupName,
+  decryptGroupCallKey,
+  decryptGroupMessage,
+  decryptGroupPicture,
+  decryptGroupReaction,
+  encryptGroupCallKey,
+  encryptGroupMessage,
+  encryptGroupPicture,
+  encryptGroupReaction,
   entryHash,
   generateGroupKey,
+  groupCallKeyContext,
   groupKeyContext,
+  GroupLogError,
+  groupMessageContext,
+  groupReactionContext,
+  importGroupKey,
   makeRecord,
+  messageSignatureContext,
+  openGroupName,
+  reactionSignatureContext,
+  sealGroupName,
+  SIGNED_PREFIX,
+  signGroupName,
   signRecord,
   unwrapGroupKey,
   verifyGroupLog,
   wrapGroupKey,
-  GroupLogError,
-  importGroupKey,
-  groupMessageContext,
-  groupReactionContext,
-  messageSignatureContext,
-  reactionSignatureContext,
-  encryptGroupMessage,
-  decryptGroupMessage,
-  encryptGroupReaction,
-  decryptGroupReaction,
-  SIGNED_PREFIX,
-  groupCallKeyContext,
-  callKeySignatureContext,
-  encryptGroupCallKey,
-  decryptGroupCallKey,
-  cleanGroupName,
-  signGroupName,
-  sealGroupName,
-  openGroupName,
 } from './groupCrypto';
 
 const GROUP = '11111111-2222-4333-8444-555555555555';
@@ -226,12 +228,39 @@ describe('group names', () => {
     const [a] = people;
     const key = await importGroupKey(generateGroupKey());
     const lengths = new Set();
-    for (const name of ['', 'x', '"'.repeat(100), '🏕️'.repeat(60)]) {
-      lengths.add((await sealGroupName(await signGroupName({ groupId: GROUP, version: 1, renamerId: a.id, name }, a.sign), key, GROUP, 1)).length);
+    const picture = { id: '11111111-2222-4333-8444-555555555555', key: btoa(String.fromCharCode(...new Uint8Array(32))) };
+    for (const name of ['', 'x', '"'.repeat(100), '🏕️'.repeat(60), '😀'.repeat(100)]) {
+      for (const fields of [{}, { picture, change: 'picture', version: 999999, renamerId: 999999999, at: 9999999999 }]) {
+        const signed = await signGroupName({ groupId: GROUP, version: 1, renamerId: a.id, name, ...fields }, a.sign);
+        lengths.add((await sealGroupName(signed, key, GROUP, 1)).length);
+      }
     }
-    // server/groupDms.js NAME_CIPHERTEXT_LENGTH
-    expect([...lengths]).toEqual([3 + 4 * Math.ceil((12 + 64 + 512 + 16) / 3)]);
+    // server/groupDms.js NAME_CIPHERTEXT_LENGTHS
+    expect([...lengths]).toEqual([3 + 4 * Math.ceil((12 + 64 + 768 + 16) / 3)]);
     expect(cleanGroupName(' a\u0000b\nc ')).toBe('abc');
     expect([...cleanGroupName('é'.repeat(150))]).toHaveLength(100);
+  });
+
+  it('names the group picture in the signed record, which opens only with its key, group and id', async () => {
+    const [a] = people;
+    const epoch = await importGroupKey(generateGroupKey());
+    const image = new Uint8Array([82, 73, 70, 70, 1, 2, 3]);
+    const { picture, data } = await encryptGroupPicture(image, GROUP);
+    expect(data.startsWith('v1.')).toBe(true);
+    const signed = await signGroupName({ groupId: GROUP, version: 3, renamerId: a.id, name: 'Trip', picture, change: 'picture' }, a.sign);
+    const opened = await openGroupName(await sealGroupName(signed, epoch, GROUP, 1), epoch, GROUP, 1, identityKeyOf);
+    expect(opened).toMatchObject({ name: 'Trip', picture, change: 'picture' });
+    expect(await decryptGroupPicture(data, opened.picture, GROUP)).toEqual(image);
+
+    // Another group's, another picture's id, or another key: doesn't open.
+    await expect(decryptGroupPicture(data, picture, '99999999-2222-4333-8444-555555555555')).rejects.toThrow();
+    await expect(decryptGroupPicture(data, { ...picture, id: '11111111-2222-4333-8444-555555555555' }, GROUP)).rejects.toThrow();
+    const other = await encryptGroupPicture(image, GROUP);
+    await expect(decryptGroupPicture(data, { ...picture, key: other.picture.key }, GROUP)).rejects.toThrow();
+
+    // A record from before pictures: no picture, a rename.
+    const old = await signGroupName({ groupId: GROUP, version: 2, renamerId: a.id, name: 'Old' }, a.sign);
+    expect(await openGroupName(await sealGroupName(old, epoch, GROUP, 1), epoch, GROUP, 1, identityKeyOf)).toMatchObject({ picture: null, change: 'name' });
+    await expect(signGroupName({ groupId: GROUP, version: 2, renamerId: a.id, name: 'x', picture: { id: 'nope', key: picture.key } }, a.sign)).rejects.toThrow();
   });
 });

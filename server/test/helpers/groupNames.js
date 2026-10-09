@@ -2,8 +2,9 @@ import { importGroupKey, openGroupName, sealGroupName, signGroupName } from '../
 
 // A group's name as the app sends it with an epoch or a rename: signed by `signer` (a test
 // user with `signingKey`), encrypted with the epoch key `keyBytes` (raw) or `key` (CryptoKey).
-export async function sealName(signer, groupId, epoch, { keyBytes, key, name = '', version = 1, initial = version === 1 }) {
-  const signed = await signGroupName({ groupId, version, renamerId: signer.id, name, initial }, signer.signingKey);
+// `picture`, `change`: as signGroupName's.
+export async function sealName(signer, groupId, epoch, { keyBytes, key, name = '', version = 1, initial = version === 1, picture = null, change = 'name' }) {
+  const signed = await signGroupName({ groupId, version, renamerId: signer.id, name, initial, picture, change }, signer.signingKey);
   return sealGroupName(signed, key ?? await importGroupKey(keyBytes), groupId, epoch);
 }
 

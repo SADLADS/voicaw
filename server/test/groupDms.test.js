@@ -12,6 +12,8 @@ import {
 } from '../../client/src/services/encryptionService.js';
 import {
   makeRecord,
+  encryptGroupPicture,
+  decryptGroupPicture,
   signRecord,
   entryHash,
   verifyGroupLog,
@@ -462,6 +464,85 @@ describe('group DMs', () => {
       expect(group.log).toHaveLength(at.seq);
       expect(group.members.map((m) => m.id)).not.toContain(dan.id);
       expect((await api.get(dan, `/group-dms/${groupId}`)).status).toBe(404);
+    });
+
+    describe('pictures', () => {
+      // Sets (bytes), keeps (keep: the picture to name again) or removes (null) the picture as
+      // `user`, like the app: the picture named in a new signed name record. -> { res, picture }
+      async function setPicture(user, groupId, bytes, { keep, name = '', withData = true, data } = {}) {
+        const group = (await api.get(user, `/group-dms/${groupId}`)).body;
+        const epoch = group.latest_epoch.epoch;
+        const version = group.name_version + 1;
+        const made = bytes ? await encryptGroupPicture(bytes, groupId) : null;
+        const picture = keep ?? made?.picture ?? null;
+        const sealed = await sealName(user, groupId, epoch, {
+          key: await keyOf(user, groupId, epoch), name, version, picture, change: keep ? 'name' : 'picture',
+        });
+        const body = { name: sealed, epoch, version, pictureId: picture?.id ?? null };
+        if (made && withData) body.picture = data ?? made.data;
+        return { res: await api.patch(user, `/group-dms/${groupId}`, body), picture };
+      }
+
+      it('keeps the picture encrypted, readable by members with the key from the name record', async () => {
+        const [ann, bea, cal, dan] = [await makeUser(), await makeUser(), await makeUser(), await makeUser()];
+        const { groupId } = await createGroup(ann, [bea, cal], 'Trip');
+        const image = new Uint8Array(5000).fill(7);
+        const events = listen(cal);
+        const { res, picture } = await setPicture(bea, groupId, image, { name: 'Trip' });
+        expect(res.status).toBe(200);
+        expect(res.body).toMatchObject({ picture_id: picture.id, name_version: 2 });
+        expect(res.body.picture_data).toBeUndefined();
+        expect(events.find((e) => e.type === 'group_dm_update').group.picture_id).toBe(picture.id);
+        // A row in the timeline, like a rename.
+        expect(events.find((e) => e.type === 'group_dm_message_new').message).toMatchObject({ system: 'group_name', sender_id: bea.id });
+
+        // Cal reads it: the record names it, the server has only ciphertext.
+        const named = await readName(cal, groupId);
+        expect(named).toMatchObject({ name: 'Trip', picture, change: 'picture', renamerId: bea.id });
+        const fetched = await api.get(cal, `/group-dms/${groupId}/pictures/${picture.id}`);
+        expect(fetched.status).toBe(200);
+        expect(fetched.headers['cache-control']).toMatch(/immutable/);
+        expect(await decryptGroupPicture(fetched.body.data, named.picture, groupId)).toEqual(image);
+        expect((await api.get(dan, `/group-dms/${groupId}/pictures/${picture.id}`)).status).toBe(404);
+
+        // Someone added reads it too (the adder carries the record into the new epoch).
+        const at = await next(ann, groupId);
+        const epoch = await epochFor(ann, groupId, 2, at.seq, [ann, bea, cal, dan]);
+        epoch.name = await sealGroupName((await readName(ann, groupId)).signed, await importGroupKey(epoch.keyBytes), groupId, 2);
+        expect((await api.post(ann, `/group-dms/${groupId}/log`, { entry: await entry(ann, at, 'add', dan), epoch })).status).toBe(200);
+        expect((await readName(dan, groupId)).picture).toEqual(picture);
+        expect((await api.get(dan, `/group-dms/${groupId}/pictures/${picture.id}`)).status).toBe(200);
+      });
+
+      it('keeps it through renames, refuses apps that would drop it, and removes it', async () => {
+        const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+        const { groupId } = await createGroup(ann, [bea, cal]);
+        // A new picture needs its data, of the right form.
+        expect((await setPicture(ann, groupId, new Uint8Array(10), { withData: false })).res.status).toBe(400);
+        expect((await setPicture(ann, groupId, new Uint8Array(10), { data: `v1.${'A'.repeat(400000)}` })).res.status).toBe(400);
+
+        const { picture } = await setPicture(ann, groupId, new Uint8Array(10));
+        const before = (await api.get(bea, `/group-dms/${groupId}/pictures/${picture.id}`)).body.data;
+        // An app from before pictures renames without naming it: refused, it'd drop the picture.
+        const old = await rename(bea, groupId, 'Plans');
+        expect(old.status).toBe(400);
+        expect(old.body.error).toMatch(/update the app/);
+        // Renaming names the same picture: kept as it was.
+        expect((await setPicture(bea, groupId, null, { keep: picture, name: 'Plans' })).res.body).toMatchObject({ picture_id: picture.id });
+        expect((await api.get(cal, `/group-dms/${groupId}/pictures/${picture.id}`)).body.data).toBe(before);
+
+        // A new one replaces it; the old one is gone.
+        const { picture: second } = await setPicture(cal, groupId, new Uint8Array(20));
+        expect((await api.get(ann, `/group-dms/${groupId}/pictures/${picture.id}`)).status).toBe(404);
+        expect((await api.get(ann, `/group-dms/${groupId}/pictures/${second.id}`)).status).toBe(200);
+
+        const removed = await setPicture(ann, groupId, null);
+        expect(removed.res.body.picture_id).toBeNull();
+        expect((await api.get(ann, `/group-dms/${groupId}/pictures/${second.id}`)).status).toBe(404);
+        expect((await db.get('SELECT picture_data FROM group_dms WHERE id = ?', [groupId])).picture_data).toBeNull();
+        // With no picture, renames from older apps work again.
+        expect((await rename(bea, groupId, 'Plans again')).status).toBe(200);
+      });
     });
 
     it('pushes the encrypted name and message, never plaintext', async () => {

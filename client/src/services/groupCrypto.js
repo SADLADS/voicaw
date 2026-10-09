@@ -312,17 +312,20 @@ export async function decryptGroupCallKey(envelope, epochKey, aad, identityKey, 
 // ---------------------------------------------------------------- the group's name
 
 // The name is a record the renamer signs with their identity key: JSON `{ v, group, version,
-// renamer, name, initial, at }` (`version` counts renames from 1; `initial`: set at creation,
-// or a name from before names were encrypted, so not shown as a rename), padded with zeros to
-// NAME_RECORD_BYTES so every name is the same size. It's kept encrypted with the latest
-// epoch's key, bound to the group and epoch: "v1." + base64(IV || AES-GCM(signature ||
-// record)). Whoever makes a new epoch encrypts the same signed record again with the new key,
-// so it stays the renamer's words.
+// renamer, name, initial, at, picture, change }` (`version` counts renames from 1; `initial`:
+// set at creation, or a name from before names were encrypted, so not shown as a rename;
+// `picture`: the group's picture, { id, key } or null (see Group pictures); `change`: what
+// this version changed, 'name' or 'picture'; records from before pictures have neither),
+// padded with zeros to NAME_RECORD_BYTES so every name is the same size (512 before pictures).
+// It's kept encrypted with the latest epoch's key, bound to the group and epoch: "v1." +
+// base64(IV || AES-GCM(signature || record)). Whoever makes a new epoch encrypts the same
+// signed record again with the new key, so it stays the renamer's words (and picture).
 const GROUP_NAME_CONTEXT = 'voicaw/group-name/v1';
 const NAME_SIGNATURE_CONTEXT = 'voicaw/group-name-sig/v1';
 const NAME_PREFIX = 'v1.';
-export const NAME_RECORD_BYTES = 512;
+export const NAME_RECORD_BYTES = 768;
 export const MAX_GROUP_NAME = 100;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export function groupNameContext(groupId, epoch) {
   return `${GROUP_NAME_CONTEXT}|${groupId}|${epoch}`;
@@ -334,9 +337,28 @@ export function cleanGroupName(name) {
   return [...String(name ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim()].slice(0, MAX_GROUP_NAME).join('').trim();
 }
 
+// A picture as the name record holds it: { id (UUID), key (32 bytes, base64) }, or null.
+function cleanPicture(picture) {
+  if (picture == null) return null;
+  const { id, key } = picture;
+  if (typeof id !== 'string' || !UUID.test(id) || typeof key !== 'string') throw new Error('Invalid group picture');
+  let bytes;
+  try {
+    bytes = fromBase64(key);
+  } catch {
+    throw new Error('Invalid group picture');
+  }
+  if (bytes.length !== 32) throw new Error('Invalid group picture');
+  return { id, key };
+}
+
 // -> { record (padded bytes), signature (bytes) }: the signed name, to seal under an epoch key.
-export async function signGroupName({ groupId, version, renamerId, name, initial = false, at = Math.floor(Date.now() / 1000) }, identityPrivateKey) {
-  const json = te.encode(JSON.stringify({ v: 1, group: groupId, version, renamer: renamerId, name: cleanGroupName(name), initial, at }));
+// `picture`: the group's picture ({ id, key }) or null; `change`: what this version changes.
+export async function signGroupName({ groupId, version, renamerId, name, initial = false, picture = null, change = 'name', at = Math.floor(Date.now() / 1000) }, identityPrivateKey) {
+  if (change !== 'name' && change !== 'picture') throw new Error('Invalid change');
+  const json = te.encode(JSON.stringify({
+    v: 1, group: groupId, version, renamer: renamerId, name: cleanGroupName(name), initial, at, picture: cleanPicture(picture), change,
+  }));
   if (json.length > NAME_RECORD_BYTES) throw new Error('That name is too long');
   const record = new Uint8Array(NAME_RECORD_BYTES);
   record.set(json);
@@ -357,8 +379,8 @@ export async function sealGroupName(signed, epochKey, groupId, epoch) {
 
 // Opens an encrypted name and checks it: for this group, signed by its renamer
 // (`identityKeyOf(userId)`: their identity key from the group's checked log). -> { name,
-// version, renamerId, initial, at, signed } (`signed`, to seal again for a new epoch). Throws
-// if it doesn't decrypt or check out.
+// version, renamerId, initial, at, picture, change, signed } (`signed`, to seal again for a new
+// epoch). Throws if it doesn't decrypt or check out.
 export async function openGroupName(envelope, epochKey, groupId, epoch, identityKeyOf) {
   if (typeof envelope !== 'string' || !envelope.startsWith(NAME_PREFIX)) throw new Error('Not an encrypted name');
   const data = fromBase64(envelope.slice(NAME_PREFIX.length));
@@ -380,5 +402,53 @@ export async function openGroupName(envelope, epochKey, groupId, epoch, identity
   if (!(await crypto.subtle.verify(SIGN, key, signature, concatBytes(te.encode(`${NAME_SIGNATURE_CONTEXT}\n`), record)))) {
     throw new Error("The name's signature doesn't match its renamer");
   }
-  return { name: r.name, version: r.version, renamerId: r.renamer, initial: r.initial === true, at: r.at, signed: { record, signature } };
+  return {
+    name: r.name,
+    version: r.version,
+    renamerId: r.renamer,
+    initial: r.initial === true,
+    at: r.at,
+    picture: cleanPicture(r.picture),
+    change: r.change === 'picture' ? 'picture' : 'name',
+    signed: { record, signature },
+  };
+}
+
+// ---------------------------------------------------------------- the group's picture
+
+// A picture is encrypted with its own random key (32 bytes), bound to the group and the
+// picture's id: "v1." + base64(IV || AES-GCM(the image)). Only the name record holds the key,
+// so a picture is readable by whoever can read the name it came with.
+const GROUP_PICTURE_CONTEXT = 'voicaw/group-picture/v1';
+const PICTURE_PREFIX = 'v1.';
+
+export function groupPictureContext(groupId, pictureId) {
+  return `${GROUP_PICTURE_CONTEXT}|${groupId}|${pictureId}`;
+}
+
+// A new picture for the group: -> { picture: { id, key } (for the name record), data (for the
+// server) }. `bytes`: the image (a Uint8Array).
+export async function encryptGroupPicture(bytes, groupId) {
+  const id = crypto.randomUUID();
+  const keyBytes = crypto.getRandomValues(new Uint8Array(32));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: te.encode(groupPictureContext(groupId, id)) },
+    await importGroupKey(keyBytes),
+    bytes
+  );
+  return { picture: { id, key: toBase64(keyBytes) }, data: PICTURE_PREFIX + toBase64(concatBytes(iv, new Uint8Array(ciphertext))) };
+}
+
+// The image's bytes, from the server's `data` and the name record's `picture`. Throws if it
+// doesn't decrypt (not that picture, or changed).
+export async function decryptGroupPicture(data, picture, groupId) {
+  if (typeof data !== 'string' || !data.startsWith(PICTURE_PREFIX)) throw new Error('Not an encrypted picture');
+  const { id, key } = cleanPicture(picture);
+  const bytes = fromBase64(data.slice(PICTURE_PREFIX.length));
+  return new Uint8Array(await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: bytes.slice(0, 12), additionalData: te.encode(groupPictureContext(groupId, id)) },
+    await importGroupKey(fromBase64(key)),
+    bytes.slice(12)
+  ));
 }

@@ -63,6 +63,14 @@
   bottom: 0;
 }
 
+/* A group's own picture, in place of the two. */
+.group-picture {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .dm-group .dm-user-container {
   display: flex;
   align-items: center;
@@ -147,7 +155,46 @@
   color: var(--vc-fg-muted);
 }
 
+/* The group's picture, being changed */
+.group-picture-edit {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.group-picture-preview {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.group-picture-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--vc-fg-muted);
+  background-color: var(--vc-bg-hover);
+}
+
+.group-picture-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* The group page */
+.group-dm-header-picture {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-right: 8px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .group-dm-title {
   min-width: 0;
   overflow: hidden;

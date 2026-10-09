@@ -12,6 +12,7 @@ import { groupTitle } from '../utils/groupDisplay';
 import StatusIcon from './StatusIcon';
 import CustomStatus from './CustomStatus';
 import NewGroupDialog from './group/NewGroupDialog';
+import GroupPicture from './group/GroupPicture';
 import { displayName, getProfile, nameOf, useProfiles } from '../utils/profiles';
 import Avatar from './Avatar';
 import { useFriends, visibleInDmList } from '../utils/friends';
@@ -160,9 +161,11 @@ export default function DmSidebar({ user, users, groups = [], botDms = [], unrea
               >
                 <span className={`userdot${group.unread > 0 && !active && !setting.muted ? ' active' : ''}`} />
                 <div className="dm-user-container">
-                  <span className="group-avatar">
-                    {others.slice(0, 2).map((m) => <span key={m.id}>{avatar(m.id, '', 'group-avatar-img')}</span>)}
-                  </span>
+                  <GroupPicture groupId={group.id} picture={group.picture} className="group-avatar group-picture">
+                    <span className="group-avatar">
+                      {others.slice(0, 2).map((m) => <span key={m.id}>{avatar(m.id, '', 'group-avatar-img')}</span>)}
+                    </span>
+                  </GroupPicture>
                   <span className="dm-group-text">
                     <span className="dm-group-name">{groupTitle(group, user)}</span>
                     <span className="dm-group-count">{group.members.length} members</span>

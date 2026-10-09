@@ -171,9 +171,10 @@ router.get('/group-dms/:groupId', member, async (req, res) => {
   });
 });
 
-// Rename (any member): { name (encrypted with the latest epoch, signed by the renamer inside),
-// epoch, version (the current one + 1), initial? (encrypting a name from before names were
-// encrypted: no rename row) }. 409 if the group changed meanwhile.
+// Rename or change the picture (any member): { name (encrypted with the latest epoch, signed by
+// the renamer inside), epoch, version (the current one + 1), pictureId (the picture the name
+// record names, or null), picture? (a new picture's encrypted data), initial? (encrypting a
+// name from before names were encrypted: no rename row) }. 409 if the group changed meanwhile.
 router.patch('/group-dms/:groupId', member, handle(async (req, res) => {
   const { state } = req;
   const groupId = state.group.id;
@@ -184,6 +185,15 @@ router.patch('/group-dms/:groupId', member, handle(async (req, res) => {
   }
   res.json(await groups.groupSummary(groupId, req.user.id));
 }));
+
+// The group's picture, encrypted (its key is in the name record): { data }. 404 unless it's
+// still the group's picture; a new picture gets a new id, so it never changes.
+router.get('/group-dms/:groupId/pictures/:pictureId', member, async (req, res) => {
+  const data = await groups.groupPicture(req.state.group.id, req.params.pictureId);
+  if (!data) return res.status(404).json({ error: 'Picture not found' });
+  res.set('Cache-Control', 'private, max-age=31536000, immutable');
+  res.json({ data });
+});
 
 // A membership change: { entry: { record, signature } } (add, remove, leave), with the next
 // `epoch` for the new membership: always for an add (so whoever's added can read the group's

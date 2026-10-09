@@ -16,9 +16,15 @@ export async function createGroupRequest(body) {
   return (await api.post('/group-dms', body)).data;
 }
 
-// { name (encrypted), epoch, version, initial } (groupKeys.renameGroup makes it).
+// { name (encrypted), epoch, version, initial, pictureId, picture? } (groupKeys.updateGroup
+// makes it: a rename or a new picture).
 export async function patchGroupName(groupId, body) {
   return (await api.patch(`/group-dms/${groupId}`, body)).data;
+}
+
+// The group's picture, encrypted ({ data }; its key is in the name record).
+export async function fetchGroupPicture(groupId, pictureId) {
+  return (await api.get(`/group-dms/${groupId}/pictures/${pictureId}`)).data.data;
 }
 
 export async function postLogEntry(groupId, entry, epoch) {

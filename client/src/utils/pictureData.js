@@ -39,6 +39,13 @@ export async function croppedPreview(file, crop) {
   return URL.createObjectURL(await (await fetch(await drawCrop(file, crop, 256, 'image/png'))).blob());
 }
 
+// `crop` of the picture as WebP bytes (a Uint8Array) at most `max` px across: for pictures cut on
+// the device because the server never sees them (group DM pictures, which are encrypted). GIFs
+// become still.
+export async function croppedPictureBytes(file, crop, max = 256) {
+  return new Uint8Array(await (await fetch(await drawCrop(file, crop, max, 'image/webp'))).arrayBuffer());
+}
+
 // The crop drawn on a canvas at most `max` px across (never enlarged), as a data: URI.
 async function drawCrop(file, crop, max, type) {
   const bitmap = await createImageBitmap(file); // upright, as the cropper showed it

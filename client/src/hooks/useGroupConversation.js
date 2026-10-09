@@ -161,16 +161,21 @@ export function useGroupConversation({ groupId, user, onRead }) {
     };
   }
 
-  // A rename: the name it set (`renamedTo`; null if it doesn't check out against its sender).
+  // A rename: the name it set (`renamedTo`; null if it doesn't check out against its sender),
+  // or a new picture (`pictureChange`: 'set' or 'removed').
   async function decryptRenameRow(row) {
     let renamedTo = null;
+    let pictureChange = null;
     try {
       const name = await openGroupName(row.content, await keyFor(row.epoch), groupId, row.epoch, (id) => groupRef.current?.log.identityKeys.get(id));
-      if (name.renamerId === row.sender_id) renamedTo = name.name;
+      if (name.renamerId === row.sender_id) {
+        if (name.change === 'picture') pictureChange = name.picture ? 'set' : 'removed';
+        else renamedTo = name.name;
+      }
     } catch {
       // Shown as unreadable.
     }
-    return { ...row, plaintext: null, reactions: [], renamedTo };
+    return { ...row, plaintext: null, reactions: [], renamedTo, pictureChange };
   }
 
   async function decryptRow(row) {
@@ -483,6 +488,8 @@ export function useGroupConversation({ groupId, user, onRead }) {
     };
     const renameText = (m) => {
       const actor = name(m.sender_id);
+      if (m.pictureChange === 'set') return isMe(m.sender_id) ? t('groups.log.youChangedPicture') : t('groups.log.changedPicture', { actor });
+      if (m.pictureChange === 'removed') return isMe(m.sender_id) ? t('groups.log.youRemovedPicture') : t('groups.log.removedPicture', { actor });
       if (m.renamedTo == null) return isMe(m.sender_id) ? t('groups.log.youRenamedUnchecked') : t('groups.log.renamedUnchecked', { actor });
       if (m.renamedTo) return isMe(m.sender_id) ? t('groups.log.youRenamed', { name: m.renamedTo }) : t('groups.log.renamed', { actor, name: m.renamedTo });
       return isMe(m.sender_id) ? t('groups.log.youRemovedName') : t('groups.log.removedName', { actor });

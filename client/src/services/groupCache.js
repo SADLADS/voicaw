@@ -3,7 +3,8 @@
 // names and messages without opening the group again:
 // { userId, epochs: { epoch: CryptoKey }, identityKeys: { userId: key from the checked log },
 //   members: [{ id, name }] (current members, for a title when the group has no name),
-//   name: { name, version, signed } (the newest name seen, to refuse an older one) }
+//   name: { name, version, signed, picture } (the newest name seen, to refuse an older one;
+//   `picture`: the group picture it names, { id, key } or null) }
 // Epoch keys are non-extractable CryptoKeys, like the private keys in keyStore.js (which can
 // open every one of them anyway). Logging out forgets it all.
 
@@ -58,7 +59,7 @@ export async function rememberGroup(userId, groupId, { keys, identityKeys, membe
       epochs,
       identityKeys: Object.fromEntries(identityKeys),
       members: members ?? old?.members ?? [],
-      name: keepOld ? old.name : name && { name: name.name, version: name.version, signed: name.signed },
+      name: keepOld ? old.name : name && { name: name.name, version: name.version, signed: name.signed, picture: name.picture ?? null },
     }, groupId));
   } catch (err) {
     console.warn('Could not save group keys on this device', err);
@@ -69,8 +70,9 @@ export async function rememberGroup(userId, groupId, { keys, identityKeys, membe
 export async function rememberGroupName(userId, groupId, name) {
   try {
     const old = await recallGroup(userId, groupId);
-    if (!old || (old.name && old.name.version >= name.version)) return;
-    await withStore('readwrite', (store) => store.put({ ...old, name: { name: name.name, version: name.version, signed: name.signed } }, groupId));
+    // (A name saved before pictures existed is saved again, picture included.)
+    if (!old || (old.name && (old.name.version > name.version || (old.name.version === name.version && old.name.picture !== undefined)))) return;
+    await withStore('readwrite', (store) => store.put({ ...old, name: { name: name.name, version: name.version, signed: name.signed, picture: name.picture ?? null } }, groupId));
   } catch (err) {
     console.warn('Could not save the group name on this device', err);
   }

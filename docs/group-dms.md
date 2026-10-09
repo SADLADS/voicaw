@@ -5,8 +5,8 @@
 End-to-end encrypted chats of up to 10 people (`MAX_MEMBERS`), with calls (see DM calls). Anyone
 in a group adds people; only the owner (the creator) removes them; anyone leaves; an owner who
 leaves leaves the group without an owner (nobody can remove anyone then); the last one out
-deletes it. Messages, reactions, edits, call keys and the group's name are encrypted (see Group
-names).
+deletes it. Messages, reactions, edits, call keys and the group's name and picture are encrypted
+(see Group names and Group pictures).
 - **Membership log** (`group_dm_log`): every change is a record (`makeRecord`: `{ v, group, seq,
   prev, type, actor, target, targetIdentityKey, at }`, JSON in a fixed order) that its author
   signs with their identity key (`voicaw/group-log/v1`); `prev` is the previous entry's hash, so
@@ -77,10 +77,13 @@ names).
 End-to-end encrypted since 2026-10-02, like the messages (the server stored them in plaintext
 before).
 - **Format** (`groupCrypto.js`): the renamer signs a record `{ v, group, version, renamer, name,
-  initial, at }` with their identity key (`voicaw/group-name-sig/v1`), padded with zeros to 512
-  bytes so every name is the same size (`MAX_GROUP_NAME` 100 characters, control characters
-  removed). It's encrypted with an epoch key, bound to group and epoch (`voicaw/group-name/v1`):
-  "v1." + base64(IV || AES-GCM(signature || record)), always 811 characters (the server checks).
+  initial, at, picture, change }` with their identity key (`voicaw/group-name-sig/v1`), padded
+  with zeros to 768 bytes so every name is the same size (`MAX_GROUP_NAME` 100 characters,
+  control characters removed; 512 bytes before group pictures, still read). `picture` and
+  `change` are for Group pictures (records from before have neither: no picture, a rename).
+  It's encrypted with an epoch key, bound to group and epoch (`voicaw/group-name/v1`):
+  "v1." + base64(IV || AES-GCM(signature || record)), always 1151 characters (811 for the older
+  512-byte records; the server checks).
   `version` counts renames from 1 (the name given at creation, possibly '' for none, is version 1
   and `initial`). Clients check the group, and the signature against the renamer's identity key
   from the checked log.
@@ -111,8 +114,40 @@ before).
   new epoch, so it stays current while the app is open. Logging out forgets it; the private key
   next to it in `keyStore` opens every one of those keys anyway.
 - **Notifications:** group message pushes carry the encrypted name (`nameCiphertext`,
-  `nameEpoch`) and, when it fits (1800 characters), the signed message; call pushes the name.
+  `nameEpoch`) and, when it fits (1450 characters, 1800 before the name record grew), the signed
+  message; call pushes the name.
   `pushNotifications.js` opens them with the saved keys (never a key from the push): the title is
   the name (or the members' names), the body "Ann: text" when previews are on and the signature
   is the sender's, otherwise "New message from Ann" (as for a group never opened on this device,
   or a key made while the app was closed). The desktop app does the same in the page.
+
+## Group pictures
+
+Built 2026-10-09. Any member sets or removes the group's picture (members panel → Change
+picture), cropped like a profile picture (`ImageCropper`), and end-to-end encrypted like the name.
+- **Made on the device:** the server never sees the picture, so it can't cut or shrink it as it
+  does profile pictures: the crop is drawn at most 256 px across as WebP
+  (`pictureData.js croppedPictureBytes`). Animated GIFs become still.
+- **Encrypted with its own key** (`encryptGroupPicture` in `groupCrypto.js`): 32 random bytes,
+  AES-GCM bound to group and picture id (`voicaw/group-picture/v1`), "v1." + base64(IV ||
+  ciphertext). The picture's `{ id (UUID), key }` goes in the signed name record (see Group
+  names), with `change: 'picture'`; that record is sealed again into every new epoch, so the
+  picture follows the name's rules with no work of its own: someone added sees it, someone
+  removed doesn't see later ones (the server also refuses non-members the data). A picture
+  change is a new version of the record (a `group_name` row in the timeline: "Ann changed the
+  group's picture."); a rename carries the current picture over (`updateGroup` in
+  `groupKeys.js`, which refuses either when the current record can't be read rather than drop
+  the other half).
+- **Server** (`group_dms.picture_id`, `picture_data`): `PATCH /group-dms/:id` takes `pictureId`
+  (the id the new record names, null for none) and, for a new one, `picture` (its encrypted
+  data, up to 400,000 characters; the route takes 1 MB of JSON). The old picture's data is
+  replaced in the same update; the group's deletion takes it. Apps from before pictures send no
+  `pictureId`: refused once the group has a picture ("Please update the app"), since their
+  record would drop it. `GET /group-dms/:id/pictures/:pictureId` returns `{ data }` while it's
+  the current one (cached for good: a new picture has a new id). The server learns that a group
+  has a picture, its size and when it changes, not what it shows.
+- **Client:** summaries carry `picture_id`; `useGroupList` gives each group `picture` from its
+  decrypted record (`groupProfileOf`; saved on the device with the name in `groupCache.js`),
+  `services/groupPictures.js` fetches, decrypts and keeps blob URLs for the page's life, and
+  `GroupPicture` shows it (DM list, group header) or falls back to the members' pictures. Not
+  in notifications yet.
