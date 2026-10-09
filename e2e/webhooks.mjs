@@ -27,6 +27,8 @@ try {
   await a.click('button:has-text("New Webhook")');
   await a.fill('input[aria-label="Webhook name"]', 'Deploy Bot');
   await a.setInputFiles('input[aria-label="Webhook picture"]', { name: 'bot.png', mimeType: 'image/png', buffer: await png('#e0a030', 300, 300) });
+  await a.click('.image-cropper button:has-text("Apply")'); // the cropper (see avatarcrop.mjs)
+  await a.waitForSelector('.image-cropper', { state: 'detached' });
   await a.click('button:has-text("Save Changes")');
   await a.waitForSelector('.webhook-name:has-text("Deploy Bot")');
   await a.waitForFunction(() => document.querySelector('.webhook-summary .webhook-avatar')?.src.includes('/profile-pics/webhooks/'));

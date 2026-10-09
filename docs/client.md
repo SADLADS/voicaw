@@ -449,15 +449,16 @@ stays the unique handle (logins, @username on the card).
   when the server starts (`migrateLegacyAvatars`: lists the bucket's top level, converts,
   deletes; afterwards there's nothing to list).
 - **Picture cropper** (`components/ImageCropper.jsx`, maths in `utils/imageCrop.js`): a picked
-  profile picture (Edit Profile), guild icon (Guild Settings) or bot picture (Developer Portal)
-  opens in a dialog first: the picture under a round hole, dragged into place and zoomed (slider,
+  profile picture (Edit Profile), guild icon (Guild Settings), bot picture (Developer Portal) or
+  webhook picture (a channel's Webhooks tab) opens in a dialog first: the picture under a round hole, dragged into place and zoomed (slider,
   wheel, pinch, arrows and +/- on the frame; up to 5×, never leaving a gap). Apply gives the crop
   as fractions `{ x, y, width, height }` of the picture as shown (after EXIF rotation), which the
   server cuts out (`avatarImage.js` `parseCrop`), so animated pictures stay animated. Edit Profile
-  previews it (`croppedPreview`, a still canvas copy) until Save; bot pictures, sent as data URIs,
-  are cut in the browser before shrinking (`croppedPictureData`; GIFs go whole with `avatarCrop`).
-  Escape closes only the cropper (caught before the dialog under it). Webhook pictures don't use
-  it yet.
+  and the Webhooks tab preview it (`croppedPreview`, a still canvas copy) until Save; bot and
+  webhook pictures, sent as data URIs, are cut in the browser before shrinking
+  (`croppedPictureData`; GIFs go whole with `avatarCrop`, which `PATCH /applications/:id` and our
+  webhook routes take, Discord's don't have it). Escape closes only the cropper (caught before the
+  dialog under it).
 - `ProfileCard` (picture with status, names, custom status, bio) is the guild member card's top
   and `ProfilePopover`'s body (clicking a name or avatar in chat), which has no buttons:
   what can be done to someone is in their right-click menu (see Right-click menus). The DM list, the Friends

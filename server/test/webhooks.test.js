@@ -93,6 +93,24 @@ describe('managing webhooks (logged in)', () => {
     expect((await request(app).get(hookPath(hook))).body).toMatchObject({ code: 10015 });
   });
 
+  it("keeps the part of the picture chosen in the app's cropper", async () => {
+    const { owner, hook } = await setUp();
+    // 200×100: the left half red, the right half blue.
+    const red = await sharp({ create: { width: 100, height: 100, channels: 3, background: '#f00' } }).png().toBuffer();
+    const halves = await sharp({ create: { width: 200, height: 100, channels: 3, background: '#00f' } }).composite([{ input: red, left: 0, top: 0 }]).png().toBuffer();
+    const avatar = `data:image/png;base64,${halves.toString('base64')}`;
+    const middle = async (stored) => {
+      const { data, info } = await sharp(objects.get(`profile-pics/webhooks/${hook.id}/${stored.avatar}.webp`).body).raw().toBuffer({ resolveWithObject: true });
+      const i = (Math.floor(info.height / 2) * info.width + Math.floor(info.width / 2)) * info.channels;
+      return [data[i], data[i + 1], data[i + 2]].map((v) => (v > 128 ? 255 : 0));
+    };
+    const right = (await api.patch(owner, `/webhooks/${hook.id}`, { avatar, avatarCrop: { x: 0.5, y: 0, width: 0.5, height: 1 } })).body;
+    expect(await middle(right)).toEqual([0, 0, 255]);
+    const left = (await api.patch(owner, `/webhooks/${hook.id}`, { avatar, avatarCrop: { x: 0, y: 0, width: 0.5, height: 1 } })).body;
+    expect(await middle(left)).toEqual([255, 0, 0]);
+    expect((await api.patch(owner, `/webhooks/${hook.id}`, { avatar, avatarCrop: { x: 2 } })).body).toMatchObject({ code: 50035 });
+  });
+
   it("goes with its channel", async () => {
     const { owner, guild, general, hook } = await setUp();
     await api.delete(owner, `/guilds/${guild.id}/channels/${general.id}`);
