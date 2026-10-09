@@ -5,6 +5,7 @@
 // One activity: { name, type, details, state, start, end, partySize, partyMax, imageText, image }
 // (`name` null: a game nobody could name; `type` Discord's; start/end unix ms; `image` an id).
 
+import { faGamepad, faMusic, faTowerBroadcast, faTrophy, faTv } from '@fortawesome/free-solid-svg-icons';
 import { t } from '../i18n';
 
 const EMPTY = [];
@@ -66,6 +67,11 @@ export const activityName = (activity) => activity.name || t('activities.unknown
 // The i18n key for one line about it ("Playing {{name}}"), or null for a bot's custom status
 // (which is just its text).
 export const activityLineKey = (activity) => (activity.type === 4 ? null : VERBS[activity.type] ?? VERBS[0]);
+
+// The icon for its kind: a gamepad for Playing, a note for Listening, a TV for Watching, a
+// broadcast tower for Streaming, a trophy for Competing; none for a bot's custom status.
+const ICONS = { 0: faGamepad, 1: faTowerBroadcast, 2: faMusic, 3: faTv, 5: faTrophy };
+export const activityIcon = (activity) => (activity.type === 4 ? null : ICONS[activity.type] ?? faGamepad);
 
 // The profile card's heading: "Playing a game", "Watching", ...
 const HEADINGS = { 1: 'activities.headingStreaming', 2: 'activities.headingListening', 3: 'activities.headingWatching', 5: 'activities.headingCompeting' };

@@ -2801,6 +2801,11 @@ body.mobile-mode .dm-user-list-container .dm-user {
   font-weight: 600;
 }
 
+.activity-line-icon {
+  margin-right: 4px;
+  font-size: 0.9em;
+}
+
 .activity-body {
   display: flex;
   align-items: center;

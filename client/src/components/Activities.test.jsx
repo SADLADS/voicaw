@@ -50,11 +50,16 @@ describe('showing activities', () => {
     act(() => applyUserActivities({ userId: '7', activities: [hades] }));
     expect(container.textContent).toBe('Playing Hades');
     expect(container.querySelector('strong').textContent).toBe('Hades');
+    expect(container.querySelector('svg').getAttribute('data-icon')).toBe('gamepad');
+    act(() => applyUserActivities({ userId: '7', activities: [{ ...hades, type: 2, name: 'Feishin' }] }));
+    expect(container.textContent).toBe('Listening to Feishin');
+    expect(container.querySelector('svg').getAttribute('data-icon')).toBe('music');
     act(() => applyUserActivities({ userId: '7', activities: [{ type: 4, state: 'Helping out' }] }));
     expect(container.textContent).toBe('Helping out');
+    expect(container.querySelector('svg')).toBeNull();
   });
 
-  it("draws the profile card's section, with a gamepad without a picture", () => {
+  it("draws the profile card's section, with its kind's icon without a picture", () => {
     applyUserActivities({ userId: '8', activities: [hades, { ...hades, name: null, image: null, start: null, partyMax: null, type: 3, details: null, state: null }] });
     const { container } = render(<Activities userId="8" />);
     expect(screen.getByText('Playing a game')).toBeTruthy();
@@ -64,5 +69,6 @@ describe('showing activities', () => {
     expect(screen.getByText('Watching')).toBeTruthy();
     expect(screen.getByText('a game')).toBeTruthy();
     expect(container.querySelectorAll('.activity-image-none')).toHaveLength(1);
+    expect(container.querySelector('.activity-image-none svg').getAttribute('data-icon')).toBe('tv');
   });
 });
