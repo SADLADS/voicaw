@@ -317,7 +317,7 @@ scripts, it never changes tracked files: the version (one higher than the one pu
 first is `mobile/package.json`'s) is stamped into the build, and versionCode is X·10000 + Y·100 +
 Z, so Y and Z stay under 100. A published release tags the commit it was built from as
 `android-vX.Y.Z` (annotated, local: `git push origin android-vX.Y.Z` to share it); desktop
-releases are tagged `desktop-vX.Y.Z` (before 2026-10-09, plain `vX.Y.Z`).
+releases are tagged `desktop-vX.Y.Z`.
 
 **The release key**, made once (not once per machine):
 
