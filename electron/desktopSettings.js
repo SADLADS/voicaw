@@ -7,6 +7,9 @@ const DEFAULTS = {
     // Closing the window leaves the app running in the tray (so notifications keep coming).
     closeToTray: true,
     startAtLogin: false,
+    // Rich Presence (richPresence.js): games' "Playing X" shared with everyone. Off: not even
+    // listening for games.
+    richPresence: true,
     // Global keyboard shortcuts (Electron accelerators, e.g. "CommandOrControl+Shift+M"), or null.
     shortcuts: { toggleMute: null, toggleDeafen: null },
     // Where the window was, restored on the next start.
@@ -21,6 +24,7 @@ function cleanChanges(changes) {
     const clean = {};
     if (typeof changes?.closeToTray === 'boolean') clean.closeToTray = changes.closeToTray;
     if (typeof changes?.startAtLogin === 'boolean') clean.startAtLogin = changes.startAtLogin;
+    if (typeof changes?.richPresence === 'boolean') clean.richPresence = changes.richPresence;
     if (changes?.shortcuts && typeof changes.shortcuts === 'object') {
         clean.shortcuts = {};
         for (const action of SHORTCUT_ACTIONS) {

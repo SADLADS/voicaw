@@ -8,7 +8,8 @@ const SHORTCUTS = [
 ];
 
 // Settings → Desktop App (only in the desktop app): closing to the tray, starting at login,
-// and global mute/deafen shortcuts. Kept by the app itself (electron/desktopSettings.js).
+// sharing what you're playing (Rich Presence, electron/richPresence.js) and global mute/deafen
+// shortcuts. Kept by the app itself (electron/desktopSettings.js).
 export default function DesktopAppSettings() {
   const [settings, setSettings] = useState(null);
   const [recording, setRecording] = useState(null); // the action whose key is being set
@@ -64,6 +65,13 @@ export default function DesktopAppSettings() {
         {' '}{t('settings.desktopApp.startAtLogin')}
       </label>
       <p className="vc-hint">{t('settings.desktopApp.startAtLoginHint')}</p>
+
+      <h6 id="settings-activity" className="desktop-shortcuts-title">{t('settings.desktopApp.activity')}</h6>
+      <label className="settings-toggle">
+        <input type="checkbox" checked={settings.richPresence !== false} onChange={(e) => save({ richPresence: e.target.checked })} />
+        {' '}{t('settings.desktopApp.shareActivity')}
+      </label>
+      <p className="vc-hint">{t('settings.desktopApp.shareActivityHint')}</p>
 
       <h6 id="settings-shortcuts" className="desktop-shortcuts-title">{t('settings.desktopApp.shortcuts')}</h6>
       <p className="vc-hint">{t('settings.desktopApp.shortcutsHint')}</p>

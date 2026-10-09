@@ -79,6 +79,7 @@ app.use('/api', require('./routes/polls'));
 app.use('/api', require('./routes/push'));
 app.use('/api', require('./routes/uploads'));
 app.use('/api', require('./routes/avatars'));
+app.use('/api', require('./routes/activities'));
 app.use('/api', require('./routes/gifs'));
 app.use('/api', require('./routes/admin'));
 app.use('/api', require('./routes/blocks'));

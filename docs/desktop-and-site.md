@@ -42,7 +42,8 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `spelling` / `setSpellingWords`, `fetchPage` (a linked page for an encrypted chat's link
   preview, `pageFetch.js`; see Link previews in `docs/messages.md`), `saveFile` (start / append /
   finish / cancel: a big attachment written to where the Save dialog says as it's decrypted,
-  `fileSave.js`; see Big files in `docs/uploads.md`), `onNavigate`, `onShortcut`, `onUpdateReady`. The main
+  `fileSave.js`; see Big files in `docs/uploads.md`), `getActivities` / `onActivities` (Rich
+  Presence, below), `onNavigate`, `onShortcut`, `onUpdateReady`. The main
   process only answers the app's own frames and checks what it's given (`cleanNotification`,
   `cleanChanges`).
 - **Notifications** (`notifications.js`): the server sends what would be a web push over the
@@ -77,7 +78,36 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   or `~/.config/autostart/voicaw.desktop` on Linux; starts in the tray with `--hidden`), and
   global shortcuts for toggle mute / toggle deafen (`shortcuts.js`, `globalShortcut`; recorded
   from a key press with a modifier, `acceleratorFromEvent`; a key another app holds is
-  reported).
+  reported), and Activity's "Share what I'm playing" (Rich Presence, default on).
+- **Rich Presence** (`richPresence.js`, `gameLookup.js`, `gameActivities.js`; built 2026-10-09):
+  games that show what you're doing in Discord tell the app instead, unchanged, and everyone
+  sees it (see Activities in `docs/realtime.md`). Games talk to a local socket,
+  `$XDG_RUNTIME_DIR` (else `TMPDIR`...) `/discord-ipc-N` or the pipe `\\?\pipe\discord-ipc-N`,
+  in Discord's RPC protocol (frames of opcode, length, JSON: HANDSHAKE with the game's Discord
+  application id, then SET_ACTIVITY; answered with READY and a stand-in user, PING/PONG,
+  SUBSCRIBE said yes to, anything else an error), using the first one that answers. The app
+  takes the first free slot of 0-9 (removing a dead socket file left behind), so a Discord
+  started first keeps slot 0 and the games; started after Voicaw, it gets slot 1 and Voicaw
+  gets them (as arRPC). An activity lasts until it's set to null or the game disconnects.
+  **Nothing is asked of Discord** (decided 2026-10-09): the application id means nothing
+  without Discord's catalogue, so the game's name and picture are found from the process id the
+  game sends (`gameLookup.js`): first Steam, from `SteamAppId`/`SteamGameId`/`STEAM_COMPAT_APP_ID`
+  in the process's environment (Linux, `/proc`; Proton games too) or the program's or an
+  argument's path under a library's `steamapps/common/<dir>` (Wine's `Z:\` paths too) matched
+  to that library's `appmanifest_<id>.acf` (libraries from `libraryfolders.vdf`; Steam's own
+  tools such as Proton skipped), giving the name and the cover from Steam's
+  `appcache/librarycache` (`<id>_library_600x900.jpg`, newer Steam's `<id>/` folder; else the
+  header, else the icon). Otherwise the program: Windows' product name or description (one
+  PowerShell call; engine names like "Unity Player" skipped), a macOS `.app`'s name, a Wine
+  program's `.exe`, a runner's script (python, java...), else the file name; its icon on
+  Windows and macOS (`app.getFileIcon`; Linux only has the theme's generic ones). Nothing found:
+  no name (people see "a game") and a gamepad. Pictures are cropped square and made at most
+  128 px (`pictureFrom`: covers JPEG, icons PNG), looked up once per game. The page gets the
+  cleaned activities (`gameActivities.js`: Discord's types Playing, Listening, Watching,
+  Competing; details, state, start/end in ms, party size, the big picture's hover text) and
+  shares them (`setOwnActivities` in `ws-client.js`). Games' own pictures (asset keys, which
+  only Discord can resolve) and buttons aren't shown; games that don't use Rich Presence aren't
+  detected. Turning it off closes the socket. Checked for real in `e2e/richpresence.mjs`.
 - **Splash window** (`splash.js`, `assets/splash.html`, `splashPreload.js`; built 2026-10-08, as
   Discord's): a small frameless window (square on Linux, which has no transparent windows without
   a compositor) with the bird in a ring, shown while the app starts. It looks for an update

@@ -135,7 +135,7 @@ export default function Settings({ onLogout }) {
     {
       id: 'desktop-app', group: 'app', title: t('settings.pages.desktopApp'), available: isDesktopApp(),
       content: isDesktopApp() ? <DesktopAppSettings /> : null,
-      subs: [sub('desktop-app', 'desktopApp'), sub('shortcuts', 'shortcuts')],
+      subs: [sub('desktop-app', 'desktopApp'), sub('activity', 'activity'), sub('shortcuts', 'shortcuts')],
     },
     {
       id: 'android-app', group: 'app', title: t('settings.pages.androidApp'), available: isAndroidApp(),

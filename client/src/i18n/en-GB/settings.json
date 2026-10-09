@@ -135,6 +135,10 @@
         "title": "Keyboard shortcuts",
         "keywords": "keyboard shortcut shortcuts hotkey keybind mute deafen global"
       },
+      "activity": {
+        "title": "Activity",
+        "keywords": "activity game games playing rich presence status steam discord"
+      },
       "androidApp": {
         "title": "Android App",
         "keywords": "android phone mobile"
@@ -446,7 +450,10 @@
       "notSet": "Not set",
       "clear": "Clear",
       "shortcutTaken": "Another app is using this shortcut.",
-      "recordingHint": "Hold Ctrl, Alt or Shift and press a key. Esc cancels."
+      "recordingHint": "Hold Ctrl, Alt or Shift and press a key. Esc cancels.",
+      "activity": "Activity",
+      "shareActivity": "Share what I'm playing",
+      "shareActivityHint": "Games that show what you're doing in Discord show it to everyone here instead, while Discord isn't open. Names and pictures come from Steam and the games' own files on this computer; a small copy of the picture goes to the server."
     },
     "androidApp": {
       "title": "Android App",

@@ -47,6 +47,10 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
         finish: (id) => ipcRenderer.invoke('desktop:save-finish', id),
         cancel: (id) => ipcRenderer.invoke('desktop:save-cancel', id),
     },
+    // Rich Presence: what the games on this computer say you're doing (electron/gameActivities.js),
+    // now and whenever it changes.
+    getActivities: () => ipcRenderer.invoke('desktop:activities'),
+    onActivities: listen('desktop:activities'),
     onNavigate: listen('desktop:navigate'),
     onShortcut: listen('desktop:shortcut'),
     onUpdateReady: listen('desktop:update-ready'),

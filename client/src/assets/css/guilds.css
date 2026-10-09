@@ -1088,6 +1088,17 @@ img.guild-icon {
   font-size: 15px;
 }
 
+/* What they're playing (ActivityLine), under the name. */
+.member-activity {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .member-owner {
   flex-shrink: 0;
   color: var(--vc-action-text);

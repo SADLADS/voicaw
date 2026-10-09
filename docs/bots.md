@@ -108,7 +108,8 @@ At `wss://api.voicaw.com/api/gateway` (`sockets.js` hands upgrades to that path 
 already passes websocket upgrades on every path of api.voicaw.com). Discord's protocol: Hello
 (41.25 s heartbeat), Identify, Heartbeat/ACK, Resume (a dropped connection's session waits 2
 minutes, keeping up to 1000 events; a clean close ends it), Presence Update (idle shows idle,
-Do Not Disturb online, Invisible offline), Request Guild Members (chunks of 1000, by query or
+Do Not Disturb online, Invisible offline; its `activities` show on the bot's profile and in
+the member list, see Activities in `docs/realtime.md`), Request Guild Members (chunks of 1000, by query or
 ids, with presences if asked), Invalid Session; Voice State Update is ignored (voice is
 LiveKit's). JSON only, with optional `compress=zlib-stream` (one deflate stream per connection,
 flushed per message). Close codes: 4001 unknown opcode, 4002 decode error / unsupported

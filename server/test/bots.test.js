@@ -473,3 +473,36 @@ describe('the vanity invite', () => {
     expect((await discord.get(plain.bot, `/guilds/${plain.guild.id}/vanity-url`)).status).toBe(403);
   });
 });
+
+describe('activities through the gateway', () => {
+  it("gives bots people's games in presences, and shows bots' own", async () => {
+    const { member, bot } = await setUp();
+    // A person's app, on the same server.
+    const person = new WebSocket(`ws://127.0.0.1:${await port}`);
+    const heard = [];
+    person.on('message', (m) => heard.push(JSON.parse(m)));
+    await new Promise((resolve) => person.on('open', resolve));
+    person.send(JSON.stringify({ type: 'presence', visible: true, idleIn: 60000 }));
+    person.send(JSON.stringify({ type: 'identify', token: member.token }));
+
+    const gw = await connectGateway();
+    gw.send({ op: 2, d: { token: bot.token, intents: 1 | 256 } }); // GUILDS | GUILD_PRESENCES
+    await gw.next(dispatch('GUILD_CREATE'));
+    person.send(JSON.stringify({ type: 'activity', activities: [{ name: 'Hades', details: 'Tartarus', partySize: 1, partyMax: 1 }] }));
+    const update = await gw.next((p) => dispatch('PRESENCE_UPDATE')(p) && p.d.user.id === String(member.id) && p.d.activities.length > 0);
+    expect(update.d.activities).toEqual([expect.objectContaining({ name: 'Hades', type: 0, details: 'Tartarus', party: { size: [1, 1] } })]);
+
+    // The bot's own, as discord.js sets it.
+    const botActivities = () => heard.filter((e) => e.type === 'user_activities' && e.userId === String(bot.id)).at(-1)?.activities;
+    gw.send({ op: 3, d: { since: null, status: 'online', afk: false, activities: [{ name: 'Custom Status', type: 4, state: 'Helping' }] } });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(botActivities()).toEqual([expect.objectContaining({ type: 4, state: 'Helping' })]);
+
+    // Invisible: none shown.
+    gw.send({ op: 3, d: { status: 'invisible', activities: [{ name: 'Hidden', type: 0 }] } });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(botActivities()).toEqual([]);
+    person.close();
+    gw.ws.close(1000);
+  });
+});

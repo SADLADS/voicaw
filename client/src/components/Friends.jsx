@@ -7,6 +7,8 @@ import PaneBackButton from './PaneBackButton';
 import Avatar from './Avatar';
 import StatusIcon from './StatusIcon';
 import CustomStatus from './CustomStatus';
+import ActivityLine from './ActivityLine';
+import { useActivities } from '../hooks/useActivities';
 import ConfirmDialog from './guild/ConfirmDialog';
 import { usePresence } from '../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../utils/presence';
@@ -25,6 +27,7 @@ export default function Friends() {
   const { users = [] } = useContext(LayoutContext) ?? {};
   const friends = useFriends();
   const presenceOf = usePresence();
+  const activitiesOf = useActivities();
   const navigate = useNavigate();
   const [tab, setTab] = useState(() => (friends.incoming.length > 0 ? 'pending' : 'online'));
   const [query, setQuery] = useState('');
@@ -101,6 +104,7 @@ export default function Friends() {
     if (kind === 'outgoing') return t('friends.outgoing');
     const profile = getProfile(person.id) ?? person;
     if (profile.custom_status || profile.custom_status_emoji) return <CustomStatus profile={profile} />;
+    if (activitiesOf(person.id).length) return <ActivityLine userId={person.id} />;
     const { status, lastOnline } = presenceOf(person);
     return status === 'offline' ? lastSeenText(lastOnline) ?? statusLabel(status) : statusLabel(status);
   };

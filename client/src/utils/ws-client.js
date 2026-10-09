@@ -1,4 +1,5 @@
 import { applyPresenceSnapshot, applyUserStatus, isMobileDevice, resetPresence } from './presence';
+import { applyActivitiesSnapshot, applyUserActivities, resetActivities } from './activities';
 import { mergeProfiles } from './profiles';
 import { applyTyping, resetTyping } from './typing';
 import { desktopNotificationsOn } from '../services/pushService';
@@ -104,6 +105,38 @@ export function setSideChat(chatId) {
   sendPresence();
 }
 
+// This device's activities (the desktop app's Rich Presence, hooks/useDesktopApp.js), shared
+// on this socket ([]: none). Games update often: at most one send per ACTIVITY_SEND_MS, the
+// latest. Pictures go once per connection, then by their id. Sent again after each identify
+// (the presence snapshot says it's done: the server ignores them before).
+const ACTIVITY_SEND_MS = 5000;
+let ownActivities = [];
+let activitiesSentAt = 0;
+let activityTimer = null;
+let sentImages = new Set();
+let identified = false;
+
+function sendActivities() {
+  clearTimeout(activityTimer);
+  activityTimer = null;
+  if (!ws || ws.readyState !== WebSocket.OPEN || !identified) return;
+  activitiesSentAt = Date.now();
+  const activities = ownActivities.map(({ image, ...activity }) => ({
+    ...activity,
+    image: image ? (sentImages.has(image.id) ? { id: image.id } : image) : null,
+  }));
+  ws.send(JSON.stringify({ type: 'activity', activities }));
+  for (const { image } of ownActivities) if (image) sentImages.add(image.id);
+}
+
+export function setOwnActivities(list) {
+  const next = Array.isArray(list) ? list : [];
+  if (!next.length && !ownActivities.length) return;
+  ownActivities = next;
+  if (activityTimer) return;
+  activityTimer = setTimeout(sendActivities, Math.max(0, activitiesSentAt + ACTIVITY_SEND_MS - Date.now()));
+}
+
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   window.addEventListener('offline', () => { if (ws) setConnectionState('offline'); });
   window.addEventListener('online', () => {
@@ -142,6 +175,8 @@ export function connectWebSocket() {
   setConnectionState(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'connecting');
 
   ws.onopen = () => {
+    identified = false;
+    sentImages = new Set();
     setConnectionState('online');
     console.log('[WS] Connection opened');
     // Presence first, so the server already knows this device's status when it identifies.
@@ -239,6 +274,12 @@ export function connectWebSocket() {
       }
       else if (data.type === 'presence_snapshot') {
         applyPresenceSnapshot(data.statuses);
+        applyActivitiesSnapshot(data.activities);
+        identified = true;
+        if (ownActivities.length) sendActivities();
+      }
+      else if (data.type === 'user_activities') {
+        applyUserActivities(data);
       }
       else if (data.type === 'typing') {
         applyTyping(data);
@@ -288,7 +329,12 @@ export function closeWebSocket() {
     socket.close(1000, 'Client logout');
   }
   setConnectionState('offline');
+  identified = false;
+  ownActivities = [];
+  clearTimeout(activityTimer);
+  activityTimer = null;
   resetPresence();
+  resetActivities();
   resetTyping();
   newDmlisteners.clear();
   deleteListeners.clear();
