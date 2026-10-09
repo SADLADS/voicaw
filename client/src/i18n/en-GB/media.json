@@ -146,6 +146,27 @@
       "zoomIn": "Zoom in",
       "apply": "Apply",
       "loadFailed": "Couldn't open that image."
+    },
+    "voice": {
+      "menuItem": "Voice message",
+      "summary": "Voice message",
+      "record": "Record a voice message",
+      "holdHint": "Hold to record, release to send",
+      "recording": "Recording a voice message",
+      "slideToCancel": "Slide to cancel",
+      "delete": "Delete recording",
+      "stop": "Stop recording",
+      "send": "Send voice message",
+      "micBlocked": "Voicaw isn't allowed to use your microphone.",
+      "micFailed": "Couldn't start recording from your microphone.",
+      "tooLong": "This voice message is too long to send here.",
+      "play": "Play voice message",
+      "pause": "Pause voice message",
+      "seek": "Voice message position",
+      "failed": "Couldn't play",
+      "rate": "{{rate}}×",
+      "speed": "Playback speed {{rate}}×",
+      "speedTitle": "Playback speed"
     }
   }
 }

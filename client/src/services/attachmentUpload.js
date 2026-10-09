@@ -99,7 +99,7 @@ async function putInParts(encryptor, onProgress) {
 // returns the attachment URL to embed in the message (upload URL + decryption key/metadata in
 // the fragment). `onProgress(bytes)` hears how much has been sent. `info` is what's known of
 // the media: { width, height }, for a video { duration, poster (a JPEG Blob) }, and for a big
-// image { thumbnail (a Blob) }; `spoiler` marks it as a spoiler. The file itself is sent as it
+// image { thumbnail (a Blob) }, for a voice message { duration, waveform (bytes) }; `spoiler` marks it as a spoiler. The file itself is sent as it
 // is.
 export async function uploadAttachment(file, onProgress, info = null, spoiler = false) {
   const type = file.type || 'application/octet-stream';
@@ -122,5 +122,6 @@ export async function uploadAttachment(file, onProgress, info = null, spoiler = 
     nonce: encryptor.nonce,
     duration: info?.duration,
     poster: posterUrl?.split('/').pop(),
+    waveform: info?.waveform,
   });
 }

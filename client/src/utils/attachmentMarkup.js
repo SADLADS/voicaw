@@ -6,6 +6,7 @@
 
 import { parsePoll, pollSummary } from './pollMarkup';
 import { parseAttachmentUrl } from '../services/attachmentCrypto';
+import { t } from '../i18n';
 
 const PLACEHOLDER_PREFIX = 'attachment:';
 
@@ -62,23 +63,31 @@ export function replacePlaceholders(text, urlsById) {
   });
 }
 
-// Whether an attachment URL is marked as a spoiler (`sp=1` in its fragment, see
-// services/attachmentCrypto).
-function isSpoilerUrl(url) {
+// A flag in an attachment URL's fragment (see services/attachmentCrypto): `sp=1` a spoiler,
+// `vm=1` a voice message.
+function fragmentFlag(url, name) {
   const hashIndex = url.indexOf('#');
-  return hashIndex !== -1 && new URLSearchParams(url.slice(hashIndex + 1)).get('sp') === '1';
+  return hashIndex !== -1 && new URLSearchParams(url.slice(hashIndex + 1)).get(name) === '1';
+}
+
+// Whether a message is a voice message: one, alone (services/voiceMessage.js). They can't be
+// edited, as in Discord.
+export function isVoiceMessage(text) {
+  const embeds = [...(text ?? '').matchAll(EMBED_RE)];
+  return embeds.length === 1 && embeds[0][0] === text.trim() && fragmentFlag(embeds[0][2], 'vm');
 }
 
 // For places that show raw message text (notifications, reply previews): replaces each
 // embed with a short label so attachment URLs and keys aren't shown. A spoiler's name could
-// give it away, so it's just "spoiler". A poll is its question.
+// give it away, so it's just "spoiler". A voice message is "Voice message", a poll its question.
 export function summarizeAttachments(text) {
   if (!text) return text;
   const poll = parsePoll(text);
   if (poll) return pollSummary(poll);
-  return text.replace(EMBED_RE, (match, alt, url) =>
-    isSpoilerUrl(url) ? '📎 spoiler' : `📎 ${unescapeAltText(alt) || 'attachment'}`
-  );
+  return text.replace(EMBED_RE, (match, alt, url) => {
+    if (fragmentFlag(url, 'vm')) return `🎤 ${t('media.voice.summary')}`;
+    return fragmentFlag(url, 'sp') ? '📎 spoiler' : `📎 ${unescapeAltText(alt) || 'attachment'}`;
+  });
 }
 
 // The uploads an encrypted message shows (its attachments, and their videos' posters and

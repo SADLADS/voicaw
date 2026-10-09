@@ -80,6 +80,22 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     return newDrafts;
   }
 
+  // A recorded voice message (services/voiceMessage.js) as a draft of its own: never in the
+  // box nor the tray, as it's sent straight away as its own message. `previewUrl` is the
+  // recording's URL (the recorder made it); `duration` and `waveform` go in its URL.
+  function voiceDraft(file, { duration, waveform, previewUrl }) {
+    return {
+      id: nextDraftId.current++,
+      file,
+      name: file.name,
+      type: file.type || 'application/octet-stream',
+      size: file.size,
+      previewUrl,
+      duration,
+      waveform,
+    };
+  }
+
   // Marks an image or video as a spoiler (or not): it's sent blurred until clicked.
   function toggleSpoiler(id) {
     setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, spoiler: !d.spoiler } : d)));
@@ -113,6 +129,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
       nonce: 'A'.repeat(16),
       duration: draft.duration,
       poster: draft.poster || draft.thumbnail ? `${'0'.repeat(36)}.bin` : null,
+      waveform: draft.waveform,
     });
   }
 
@@ -144,7 +161,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
               poster: d.poster ?? read.poster,
               thumbnail: d.thumbnail ?? read.thumbnail,
             }
-            : null;
+            : d.waveform ? { duration: d.duration, waveform: d.waveform } : null;
           const url = await uploadAttachment(d.file, (bytes) => {
             loaded[d.id] = bytes;
             report();
@@ -183,6 +200,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     pickFiles,
     removeDraft,
     toggleSpoiler,
+    voiceDraft,
     takeDrafts,
     projectedUrl,
     upload,

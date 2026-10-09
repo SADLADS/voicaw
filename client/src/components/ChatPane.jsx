@@ -12,7 +12,7 @@ import { ChannelMentionContext, ConfigContext, InteractionContext, ThreadContext
 import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
 import { useReactions } from '../hooks/useReactions';
 import { useNewDivider } from '../hooks/useNewDivider';
-import { summarizeAttachments } from '../utils/attachmentMarkup';
+import { isVoiceMessage, summarizeAttachments } from '../utils/attachmentMarkup';
 import { customEmojiToText } from '../emoji/customEmoji';
 import { mentionsToText } from '../utils/mentions';
 import { hideSpoilers } from '../utils/remarkDiscord';
@@ -553,7 +553,7 @@ export default function ChatPane({
           onReact={(emoji) => reactions.toggleReaction(actionsFor, emoji)}
           onMoreReactions={() => openReactionPicker(actionsFor, null)}
           onReply={textOnly ? undefined : () => handleReply(actionsFor)}
-          onEdit={isClosedPoll(actionsFor) ? undefined : () => handleEdit(actionsFor)}
+          onEdit={isClosedPoll(actionsFor) || isVoiceMessage(actionsFor.plaintext) ? undefined : () => handleEdit(actionsFor)}
           onTogglePin={canPin ? () => togglePin(actionsFor) : undefined}
           onCreateThread={threadFrom(actionsFor)}
           onCopy={() => copyMessage(actionsFor)}
@@ -577,7 +577,7 @@ export default function ChatPane({
           onReact={(emoji) => reactions.toggleReaction(menuMsg, emoji)}
           onMoreReactions={(rect) => openReactionPicker(menuMsg, { getBoundingClientRect: () => rect })}
           onReply={textOnly ? undefined : () => handleReply(menuMsg)}
-          onEdit={isClosedPoll(menuMsg) ? undefined : () => handleEdit(menuMsg)}
+          onEdit={isClosedPoll(menuMsg) || isVoiceMessage(menuMsg.plaintext) ? undefined : () => handleEdit(menuMsg)}
           onTogglePin={canPin ? () => togglePin(menuMsg) : undefined}
           onCreateThread={threadFrom(menuMsg)}
           onCopy={() => copyText(menuMsg)}

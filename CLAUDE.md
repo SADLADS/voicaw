@@ -149,7 +149,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - `docs/group-dms.md`: group DMs (membership log, epochs, signing).
 - `docs/messages.md`: emoji, message markdown, GIFs, YouTube links, link previews, polls, mentions, pinned messages, drafts, the
   message list and history loading.
-- `docs/uploads.md`: the object store, encrypted attachments, video streaming, spoilers, image
+- `docs/uploads.md`: the object store, encrypted attachments, video streaming, voice messages, spoilers, image
   viewer.
 - `docs/client.md`: client structure (contexts, translations, Layout, settings, dates, themes, sidebar, phone
   panes, PWA updates, spellcheck, right-click menus, pinned and muted conversations, account preferences),
@@ -346,6 +346,14 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   as they're decrypted (service worker download, the desktop app's Save dialog, Android's
   Downloads). The user chose: no resuming after a reload (failed parts retry while open), no
   per-account storage quota for now. Bots keep Discord's 25 MB. No re-encoding of videos.
+- **Voice messages** (built 2026-10-09, see Voice messages in `docs/uploads.md`): as Discord's.
+  Phones hold the mic in Send's place (empty box only; slide left cancels, up locks), computers
+  start one from the + menu (Discord's desktop can't record; ours can, with Stop to listen first).
+  An ordinary encrypted attachment sent as its own message, with `vm=1`, its length and a
+  64-byte waveform in the URL fragment (inside the encryption in DMs and groups), so the server
+  needed no change but guild pushes' wording. Can't be edited. Up to 20 minutes, recorded with the
+  browser's own noise suppression, not the call chain. Bots see a guild one as a plain link in
+  the content (no Discord voice-message flags yet).
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only
