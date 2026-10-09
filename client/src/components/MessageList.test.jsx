@@ -16,6 +16,7 @@ import { editorFor } from '../editor/editorRegistry';
 import emojiData from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../emoji/emojiIndex';
 import { EmojiContext } from '../emoji/emojiContext';
+import { recordEmojiUse, resetEmojiUsage } from '../emoji/emojiUsage';
 import { loadDecryptedAttachment } from '../services/attachmentCache';
 import { buildAttachmentUrl } from '../services/attachmentCrypto';
 
@@ -614,6 +615,47 @@ describe('MessageList reactions', () => {
 
     rerender(<MessageList {...reactionProps({ messages: [sent, pending], hoveredMsgId: 'temp-1' })} />);
     expect(screen.queryByRole('button', { name: 'Add reaction' })).not.toBeInTheDocument();
+  });
+
+  it('offers your three most used emoji on hover, left of the buttons, reacting in one click', () => {
+    resetEmojiUsage();
+    recordEmojiUse('eyes');
+    recordEmojiUse('eyes');
+    recordEmojiUse('fire');
+    const msg = {
+      id: 5, sender_id: 2, recipient_id: 1, sender_username: 'bob', plaintext: 'nice', timestamp: 1000,
+      reactions: [{ id: 1, user_id: 1, emoji: '🔥' }],
+    };
+    const props = reactionProps({ messages: [msg], hoveredMsgId: 5 });
+    const { container } = render(
+      <EmojiContext.Provider value={buildEmojiIndex(emojiData)}>
+        <MessageList {...props} />
+      </EmojiContext.Provider>
+    );
+
+    const menu = container.querySelector('.message-menu');
+    const quick = [...menu.querySelectorAll('.quick-reaction-button')];
+    // Topped up with the defaults (👍) while fewer than three have been used.
+    expect(quick.map((b) => b.querySelector('img').alt)).toEqual(['👀', '🔥', '👍']);
+    expect(menu.firstElementChild).toBe(quick[0]);
+    expect(quick[2].nextElementSibling).toHaveClass('message-menu-separator');
+    expect(quick[1]).toHaveAttribute('aria-pressed', 'true');
+    expect(quick[0]).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(quick[0]);
+    expect(props.onToggleReaction).toHaveBeenCalledWith(msg, '👀');
+    resetEmojiUsage();
+  });
+
+  it('shows no quick reactions where you may not react', () => {
+    const msg = { id: 5, sender_id: 2, recipient_id: 1, sender_username: 'bob', plaintext: 'nice', timestamp: 1000 };
+    const { container } = render(
+      <EmojiContext.Provider value={buildEmojiIndex(emojiData)}>
+        <MessageList {...reactionProps({ messages: [msg], hoveredMsgId: 5, canAddReactions: false })} />
+      </EmojiContext.Provider>
+    );
+    expect(container.querySelector('.message-menu')).toBeTruthy();
+    expect(container.querySelector('.quick-reaction-button, .message-menu-separator')).toBeNull();
   });
 
   it('on mobile, a long press opens the message actions instead of a hover menu', () => {

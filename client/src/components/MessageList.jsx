@@ -27,6 +27,8 @@ import { useSwipeToReply } from '../hooks/useSwipeToReply';
 import MessageEditor from '../editor/MessageEditor';
 import { isVoiceMessage, placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
 import { useEmojiIndex } from '../emoji/emojiContext';
+import { useCustomEmoji } from '../emoji/customEmojiContext';
+import { quickReactions } from '../emoji/quickReactions';
 import { isEmojiOnly } from '../emoji/emojiIndex';
 import { rehypeTwemoji } from '../emoji/rehypeTwemoji';
 import { customEmojiToText } from '../emoji/customEmoji';
@@ -294,6 +296,34 @@ export function MessageContent({ msg, user, s3Endpoint, reactionNames, mentionRo
 // One message (with its reply snippet, hover menu, right-click menu and inline editor). `grouped`: it follows
 // another of the same person's (continuesGroup), so no avatar, name or date, just the time
 // when hovered.
+// The hover menu's one-click reactions: your three most used emoji (quickReactions), left of
+// its buttons, as Discord's. One you've already reacted with is taken back off.
+const HOVER_QUICK_REACTIONS = 3;
+function HoverQuickReactions({ msg, userId, onToggle }) {
+  const index = useEmojiIndex();
+  const custom = useCustomEmoji();
+  if (!index) return null;
+  const mine = new Set((msg.reactions ?? []).filter((r) => r.user_id === userId).map((r) => r.emoji));
+  return (
+    <>
+      {quickReactions(index, HOVER_QUICK_REACTIONS, custom).map(({ id, text, name, title, alt, src }) => (
+        <button
+          key={id}
+          type="button"
+          className={`quick-reaction-button${mine.has(text) ? ' mine' : ''}`}
+          aria-label={t('chat.messageMenu.reactWith', { name })}
+          aria-pressed={mine.has(text)}
+          title={title}
+          onClick={() => onToggle(text)}
+        >
+          <img className="emoji" src={src} alt={alt} draggable={false} />
+        </button>
+      ))}
+      <span className="message-menu-separator" aria-hidden="true" />
+    </>
+  );
+}
+
 export function MessageRow({
   msg,
   grouped = false,
@@ -451,6 +481,9 @@ export function MessageRow({
 
       {(focusedMsgId ?? hoveredMsgId) === msg.id && !isMobile && !ephemeral && (
         <div className="message-menu">
+          {canReact && canAddReactions && (
+            <HoverQuickReactions msg={msg} userId={user.id} onToggle={(emoji) => onToggleReaction(msg, emoji)} />
+          )}
           {canReact && canAddReactions && (
             <button
               className="icon-button"

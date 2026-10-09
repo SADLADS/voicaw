@@ -343,6 +343,31 @@ small {
   border-radius: 3px;
 }
 
+/* Your most used emoji, one click to react (HoverQuickReactions), then a line before the
+   menu's own buttons. */
+.message-menu .quick-reaction-button {
+  display: flex;
+  align-items: center;
+  border-radius: 3px;
+}
+
+.message-menu .quick-reaction-button.mine {
+  background: var(--vc-accent-soft);
+}
+
+.message-menu .quick-reaction-button img.emoji {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.message-menu-separator {
+  align-self: stretch;
+  width: 1px;
+  margin: 3px 0;
+  background: var(--vc-border-dark);
+}
+
 .icon-button:hover {
   color: var(--vc-fg);
 }

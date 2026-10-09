@@ -76,6 +76,34 @@ try {
   await shot(a, '01-desktop-menu');
   await closeMenu(a);
 
+  // Hovering a message: the first three, left of the hover menu's buttons, a line between.
+  await content(a, 'second').hover();
+  await a.waitForSelector('.message-menu .quick-reaction-button');
+  const hover = await quickRow(a, '.message-menu .quick-reaction-button');
+  check(JSON.stringify(hover) === JSON.stringify(desktop.slice(0, 3)), `hovering offers the top three (${hover.join(' ')})`);
+  const order = await a.$eval('.message-menu', (menu) => [...menu.children].map((el) => el.className));
+  check(order[3] === 'message-menu-separator' && order.slice(0, 3).every((c) => c.startsWith('quick-reaction-button')), 'before a separator and the other buttons');
+  const pressed = await a.$$eval('.message-menu .quick-reaction-button', (els) => els.map((e) => e.getAttribute('aria-pressed')));
+  check(pressed[0] === 'true' && pressed[1] === 'false', 'the one already yours is marked');
+  const bar = await a.$eval('.message-menu', (menu) => {
+    const r = menu.getBoundingClientRect();
+    return { h: r.height, buttons: [...menu.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().height)) };
+  });
+  check(bar.h < 40 && new Set(bar.buttons).size <= 2, `bar keeps its height (${bar.h}px, buttons ${bar.buttons.join('/')})`);
+  await shot(a, '02-hover-menu');
+  await a.click('.message-menu .quick-reaction-button >> nth=2');
+  await row(a, 'second').locator('.reaction-chip.mine').nth(1).waitFor({ timeout: 10000 });
+  check(true, 'one click reacts');
+  await content(a, 'second').hover();
+  await a.click('.message-menu .quick-reaction-button[aria-pressed="true"] >> nth=1');
+  await a.waitForFunction(() => document.querySelectorAll('.each-dm-message-wrapper .reaction-chip.mine').length === 3, null, { timeout: 10000 });
+  check(true, 'and clicking it again takes it back');
+  const theme = await a.evaluate(() => document.documentElement.dataset.theme);
+  await a.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
+  await content(a, 'second').hover();
+  await shot(a, '03-hover-menu-light');
+  await a.evaluate((t) => { document.documentElement.dataset.theme = t; }, theme);
+
   // The same account on a phone, once the usage has been saved.
   await a.waitForTimeout(3000);
   const phone = await browser.newContext(devices['Pixel 7']);

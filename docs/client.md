@@ -74,7 +74,9 @@
   (Layout adds an empty column, `settingsNavSlot` in `LayoutContext`, and `Settings` draws its
   column into it with a portal; on a phone that's the list pane, like the channel list).
   Uploading a profile picture calls `announceProfilePictureChange()` so it refreshes.
-- Message actions: on desktop, a hover menu (react, pin, edit, reply, delete) and a
+- Message actions: on desktop, a hover menu (your three most used emoji as one-click
+  reactions, as Discord's, a line, then react, pin, edit, reply, delete; `HoverQuickReactions`
+  in `MessageList.jsx`, clicking one you've already added takes it back) and a
   right-click menu (`MessageMenu.jsx`, on `ContextMenu`): a row of five quick reactions, then
   Add Reaction (the full picker, by the pointer), Reply, Edit Message (your own), Pin / Unpin
   Message (`canPin`), Copy Text and Delete Message (your own, or `canModerate`). Right-clicking a
@@ -85,7 +87,7 @@
   and Delete (asks first). Both offer only Copy for a message still sending or failed. Quick
   reactions (`emoji/quickReactions.js`) are your most used emoji (custom ones too, while you're
   in their guild), topped up with 👍❤️😂😮😢🙏 only until you've used enough. Every reaction you
-  add counts as a use (`ChatPane`'s `toggleReaction`: the quick row, the sheet, clicking someone's
+  add counts as a use (`ChatPane`'s `toggleReaction`: the quick row, the hover menu, the sheet, clicking someone's
   reaction; the picker counts its own), as do emoji picked or typed in the message box. Copying
   turns attachments into their names, never their key-carrying links. On desktop, Delete in
   either menu asks too (`ChatPane`: a "Delete message" dialog showing the message; Enter
