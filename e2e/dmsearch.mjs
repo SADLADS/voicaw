@@ -33,7 +33,7 @@ async function searchFor(page, text) {
   await input.fill('');
   await input.type(text);
   // The last search's results go as soon as the new one starts.
-  await page.evaluate(() => document.querySelectorAll('.search-panel .search-result').forEach((el) => el.classList.add('e2e-old')));
+  await page.evaluate(() => document.querySelectorAll('.search-panel .search-result, .search-panel .pins-panel-empty, .search-panel .error-text').forEach((el) => el.classList.add('e2e-old')));
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => !document.querySelector('.search-panel .e2e-old'), null, { timeout: 10000 });
   await page.locator('.search-panel').waitFor();
@@ -43,6 +43,14 @@ async function searchFor(page, text) {
       panel.querySelector('.search-result, .pins-panel-empty, .error-text');
   }, null, { timeout: 60000 });
 }
+
+// The search box (or the phone's button) is the last thing in the chat header, at its right end.
+const searchAtRight = (page) => page.evaluate(() => {
+  const header = document.querySelector('.chat-recipient-header');
+  const search = header.querySelector('.guild-search, .search-button').getBoundingClientRect();
+  const buttons = [...header.querySelectorAll('.chat-call-button')].map((b) => b.getBoundingClientRect());
+  return buttons.every((b) => b.right <= search.left) && header.getBoundingClientRect().right - search.right < 24;
+});
 
 const browser = await launchChrome({ ignoreDefaultArgs: ['--hide-scrollbars'] });
 try {
@@ -67,6 +75,7 @@ try {
 
   await openChat(a, bob.id);
   await a.locator('.dm-message-content', { hasText: /^chatter 130$/ }).waitFor();
+  check(await searchAtRight(a), 'the search box is at the right end of the DM header');
   const pages = countPages(a);
   const box = a.locator('.guild-search-input');
   await box.click();
@@ -148,6 +157,7 @@ try {
   await a.locator('.dm-message-content', { hasText: 'remember the milk' }).waitFor();
   await searchFor(a, 'milk');
   check((await resultTexts(a)).join('|') === 'remember the milk', 'notes are searchable');
+  check(await searchAtRight(a), 'and of the notes header');
   await shot(a, '03-notes');
 
   console.log('group DM on a phone');
@@ -165,6 +175,10 @@ try {
   await a.locator('.dm-message-content', { hasText: 'and a blanket' }).waitFor();
   await c.goto(groupUrl);
   await c.locator('.dm-message-content', { hasText: 'and a blanket' }).waitFor({ timeout: 20000 });
+  check(await searchAtRight(a), 'and of the group header');
+  await shot(a, '03b-group-header');
+  check(await searchAtRight(c), "the phone's search button is at the right end of the group header");
+  await shot(c, '03c-phone-header');
   await c.locator('.channel-header-button.search-button').click();
   await c.locator('.search-panel.mobile').waitFor();
   check(/narrow it down with from:, mentions: and has:/.test(await c.locator('.search-panel').textContent()), 'the phone panel explains it');
