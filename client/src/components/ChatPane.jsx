@@ -28,6 +28,8 @@ import { clearTyping } from '../utils/typing';
 import { endPoll, parsePoll, pollEnded, pollMarkup, pollWithAnswers } from '../utils/pollMarkup';
 import { endPollOnServer, registerPollTimer, removeGuildPollAnswer } from '../services/pollService';
 import ReportDialog from './ReportDialog';
+import ReactionsDialog from './ReactionsDialog';
+import { groupReactions } from '../utils/reactions';
 
 // The body of a chat, shared by DMs (Dm) and guild channels (GuildChannel): the messages, the
 // composer, reactions (the floating or docked picker), the desktop right-click menu and the
@@ -123,6 +125,9 @@ export default function ChatPane({
   // Desktop: the message whose right-click menu is open, { id, anchor (where it was clicked) }.
   const [menuFor, setMenuFor] = useState(null);
   const closeMenu = useCallback(() => setMenuFor(null), []);
+  // The message whose reactions the menu's View Reactions is showing (ReactionsDialog).
+  const [reactionsForId, setReactionsForId] = useState(null);
+  const closeReactions = useCallback(() => setReactionsForId(null), []);
   // The message the "Delete message?" dialog is asking about.
   const [confirmingDelete, setConfirmingDelete] = useState(null);
   // The message whose previews the "Remove previews?" dialog is asking about (the X on one).
@@ -376,6 +381,7 @@ export default function ChatPane({
   const actionsFor = actionsForId != null ? messages.find((m) => m.id === actionsForId) : null;
   // Gone if the message was deleted meanwhile.
   const menuMsg = menuFor ? messages.find((m) => m.id === menuFor.id) : null;
+  const reactionsMsg = reactionsForId != null ? messages.find((m) => m.id === reactionsForId) : null;
   // Phone: the message the message box is editing (gone if it was deleted meanwhile).
   const editingMsg = isMobile && editingMessageId != null ? messages.find((m) => m.id === editingMessageId) ?? null : null;
 
@@ -576,6 +582,7 @@ export default function ChatPane({
           myReactions={new Set((menuMsg.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
           onReact={(emoji) => reactions.toggleReaction(menuMsg, emoji)}
           onMoreReactions={(rect) => openReactionPicker(menuMsg, { getBoundingClientRect: () => rect })}
+          onViewReactions={() => setReactionsForId(menuMsg.id)}
           onReply={textOnly ? undefined : () => handleReply(menuMsg)}
           onEdit={isClosedPoll(menuMsg) || isVoiceMessage(menuMsg.plaintext) ? undefined : () => handleEdit(menuMsg)}
           onTogglePin={canPin ? () => togglePin(menuMsg) : undefined}
@@ -587,6 +594,17 @@ export default function ChatPane({
           onDelete={(event) => requestDelete(menuMsg, event)}
           onReport={reportable(menuMsg) ? () => setReporting(menuMsg) : undefined}
           onClose={closeMenu}
+        />
+      )}
+
+      {reactionsMsg && (
+        <ReactionsDialog
+          groups={groupReactions(reactionsMsg.reactions)}
+          names={reactionNames}
+          userId={user.id}
+          initialEmoji={groupReactions(reactionsMsg.reactions)[0]?.emoji}
+          onRemove={(emoji) => reactions.toggleReaction(reactionsMsg, emoji)}
+          onClose={closeReactions}
         />
       )}
 

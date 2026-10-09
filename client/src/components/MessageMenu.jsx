@@ -1,8 +1,9 @@
 import React from 'react';
-import { faComments, faCopy, faEdit, faFaceSmile, faLinkSlash, faReply, faRobot, faThumbtack, faTrash, faFlag } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faCopy, faEdit, faFaceSmile, faLinkSlash, faReply, faRobot, faThumbtack, faTrash, faFlag, faUserGroup } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { quickReactions } from '../emoji/quickReactions';
+import { groupReactions } from '../utils/reactions';
 import ContextMenu from './ContextMenu';
 import { displayName } from '../utils/profiles';
 import { t } from '../i18n';
@@ -11,7 +12,7 @@ const QUICK_REACTION_COUNT = 5; // what fits across the menu
 
 // Desktop: a message's right-click menu, Discord style (the phone's long press opens
 // MessageActionSheet instead). A row of quick reactions, then Add Reaction (the full picker,
-// by the pointer), Reply, Edit, Pin / Unpin, Create Thread (`onCreateThread`, in a guild text
+// by the pointer), View Reactions (`onViewReactions`, once it has some), Reply, Edit, Pin / Unpin, Create Thread (`onCreateThread`, in a guild text
 // channel), Copy Text, Remove Previews (`onRemovePreviews`: a guild message's link previews and
 // embeds, for its author or Manage Messages) and Delete. What the message doesn't
 // allow is left out, as in the sheet: only copying for one still sending or failed, editing
@@ -29,6 +30,7 @@ export default function MessageMenu({
   anchor,
   onReact,
   onMoreReactions,
+  onViewReactions,
   onReply,
   onEdit,
   onTogglePin,
@@ -47,6 +49,10 @@ export default function MessageMenu({
   const items = [];
   if (sent && canReact) {
     items.push({ key: 'react', label: t('chat.messageMenu.addReaction'), icon: faFaceSmile, onSelect: () => onMoreReactions(anchor) });
+  }
+  // Who reacted with what (ReactionsDialog), also for those who can't react.
+  if (sent && onViewReactions && groupReactions(msg.reactions).length > 0) {
+    items.push({ key: 'reactions', label: t('chat.messageMenu.viewReactions'), icon: faUserGroup, onSelect: onViewReactions });
   }
   if (sent && onReply) items.push({ key: 'reply', label: t('common.reply'), icon: faReply, onSelect: onReply });
   if (sent && isOwn && onEdit) items.push({ key: 'edit', label: t('chat.messageMenu.edit'), icon: faEdit, onSelect: onEdit });

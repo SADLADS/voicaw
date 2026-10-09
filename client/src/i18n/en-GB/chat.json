@@ -160,6 +160,7 @@
       "reactWith": "React with {{name}}",
       "moreReactions": "More reactions",
       "addReaction": "Add Reaction",
+      "viewReactions": "View Reactions",
       "edit": "Edit Message",
       "pin": "Pin Message",
       "unpin": "Unpin Message",

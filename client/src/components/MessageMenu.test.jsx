@@ -53,6 +53,25 @@ describe('MessageMenu', () => {
     expect(itemNames()).not.toContain('Add Reaction');
   });
 
+  it('offers View Reactions once the message has some, even to those who can\'t react', () => {
+    const onViewReactions = vi.fn();
+    const msg = { id: 1, plaintext: 'hi', reactions: [{ id: 'r1', user_id: 2, emoji: '👍' }] };
+    renderMenu({ msg, onViewReactions });
+    expect(itemNames()).toEqual(['Add Reaction', 'View Reactions', 'Reply', 'Edit Message', 'Pin Message', 'Copy Text', 'Delete Message']);
+    fireEvent.click(screen.getByRole('menuitem', { name: /View Reactions/ }));
+    expect(onViewReactions).toHaveBeenCalled();
+  });
+
+  it('has no View Reactions without reactions (poll votes not counting) or without a handler', () => {
+    renderMenu({ msg: { id: 1, plaintext: 'hi', reactions: [{ id: 'r1', user_id: 2, emoji: 'poll:abcd1234' }] }, onViewReactions: vi.fn() });
+    expect(itemNames()).not.toContain('View Reactions');
+  });
+
+  it('still offers View Reactions without Add Reactions', () => {
+    renderMenu({ canReact: false, isOwn: false, onTogglePin: undefined, msg: { id: 1, plaintext: 'hi', reactions: [{ id: 'r1', user_id: 2, emoji: '👍' }] }, onViewReactions: vi.fn() });
+    expect(itemNames()).toEqual(['View Reactions', 'Reply', 'Copy Text']);
+  });
+
   it('reacts in one click from the quick reactions, marking your own', () => {
     const { onReact, onClose } = renderMenu({ myReactions: new Set(['❤️']) });
     const row = screen.getByRole('group', { name: 'React' });

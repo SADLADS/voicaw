@@ -3,7 +3,7 @@
 // on a phone, holding a reaction opens it (not the message's actions); light theme.
 //   node e2e/serve.mjs &   then   node e2e/reactioncard.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
-import { BASE, launchChrome, signUp, devices } from './helpers.mjs';
+import { BASE, launchChrome, signUp, send, devices } from './helpers.mjs';
 
 const dir = process.argv[2];
 if (dir) mkdirSync(dir, { recursive: true });
@@ -113,6 +113,25 @@ try {
   check(await chip(a, '😂').getAttribute('aria-pressed') === 'false', 'removing your own takes it off the message');
   await a.keyboard.press('Escape');
   await dialog.waitFor({ state: 'detached' });
+
+  // The message's right-click menu: View Reactions, after Add Reaction.
+  await a.locator('.dm-message-content', { hasText: 'react to this' }).click({ button: 'right' });
+  await a.waitForSelector('.context-menu');
+  const menu = await a.$$eval('.context-menu [role="menuitem"] .context-menu-label', (els) => els.map((e) => e.firstChild.textContent));
+  check(menu[0] === 'Add Reaction' && menu[1] === 'View Reactions', `right-click menu: ${menu.slice(0, 3).join(', ')}…`);
+  await a.click('.context-menu [role="menuitem"]:has-text("View Reactions")');
+  await dialog.waitFor();
+  check(await a.locator('.context-menu').count() === 0, 'View Reactions opens the breakdown, closing the menu');
+  const firstTab = await dialog.locator('[role="tab"][aria-selected="true"]').getAttribute('aria-label');
+  check(firstTab === ':+1:: 5 reactions', `on the first emoji (${firstTab})`);
+  await shot(a, '02b-view-reactions');
+  await a.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'detached' });
+  await send(a, 'no reactions here');
+  await a.locator('.dm-message-content', { hasText: 'no reactions here' }).click({ button: 'right' });
+  await a.waitForSelector('.context-menu');
+  check(await a.locator('.context-menu [role="menuitem"]:has-text("View Reactions")').count() === 0, 'not on a message without reactions');
+  await a.keyboard.press('Escape');
 
   // The other theme (dark is the default).
   await a.emulateMedia({ colorScheme: 'light' });
