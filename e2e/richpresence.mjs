@@ -136,6 +136,18 @@ try {
   await send(page, 'gg');
   const dmRow = page.locator(`.dm-user:has-text("${bobWeb.name}") .dm-user-custom-status`);
   check(await until(async () => (await dmRow.textContent()) === 'Playing Celeste'), 'DM list: the activity under his name');
+  // The card from clicking his name in the chat.
+  await bob.goto(`voicaw://app/dm/${alice.id}`);
+  await bob.waitForSelector('#dm-input');
+  await bob.click('#dm-input');
+  await bob.keyboard.type('hi from the game');
+  await bob.keyboard.press('Enter');
+  await page.locator('text=hi from the game').waitFor();
+  await page.locator(`.message-author:has-text("${bobWeb.name}"), .msg-author:has-text("${bobWeb.name}")`).last().click();
+  const popover = page.locator('.profile-popover');
+  check(await until(async () => (await popover.locator('.activity').count()) === 2), "the card from his name in chat shows what he's playing");
+  if (shots) await page.screenshot({ path: join(shots, 'chat-card.png') });
+  await page.keyboard.press('Escape');
   if (shots) await page.screenshot({ path: join(shots, 'dm-list.png') });
 
   await page.goto(`${page.url().split('/').slice(0, 3).join('/')}/guild/${guildId}`);
