@@ -1,5 +1,5 @@
 import React from 'react';
-import { faComments, faCopy, faEdit, faFaceSmile, faLinkSlash, faReply, faRobot, faThumbtack, faTrash, faFlag } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faCopy, faEdit, faFaceSmile, faLinkSlash, faReply, faRobot, faThumbtack, faTrash, faFlag, faClockRotateLeft } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { quickReactions } from '../emoji/quickReactions';
@@ -12,7 +12,7 @@ const QUICK_REACTION_COUNT = 5; // what fits across the menu
 // Desktop: a message's right-click menu, Discord style (the phone's long press opens
 // MessageActionSheet instead). A row of quick reactions, then Add Reaction (the full picker,
 // by the pointer), Reply, Edit, Pin / Unpin, Create Thread (`onCreateThread`, in a guild text
-// channel), Copy Text, Remove Previews (`onRemovePreviews`: a guild message's link previews and
+// channel), Copy Text, Edit History (`onShowEdits`, for an edited message), Remove Previews (`onRemovePreviews`: a guild message's link previews and
 // embeds, for its author or Manage Messages) and Delete. What the message doesn't
 // allow is left out, as in the sheet: only copying for one still sending or failed, editing
 // only your own (`onEdit`, not given for a closed poll or a voice message), deleting your own or with
@@ -34,6 +34,7 @@ export default function MessageMenu({
   onTogglePin,
   onCreateThread,
   onCopy,
+  onShowEdits,
   onRemovePreviews,
   onDelete,
   onReport,
@@ -57,6 +58,7 @@ export default function MessageMenu({
   if (msg.plaintext) {
     items.push({ key: 'copy', label: t('chat.messageMenu.copyText'), icon: faCopy, onSelect: onCopy });
   }
+  if (onShowEdits) items.push({ key: 'edits', label: t('chat.messageMenu.editHistory'), icon: faClockRotateLeft, onSelect: onShowEdits });
   if (sent && onRemovePreviews) {
     items.push({ key: 'previews', label: t('chat.messageMenu.removePreviews'), icon: faLinkSlash, onSelect: onRemovePreviews });
   }

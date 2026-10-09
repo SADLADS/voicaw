@@ -10,6 +10,7 @@ import {
   fetchChannelPins,
   setChannelMessagePinned,
   setChannelMessageEmbedsSuppressed,
+  fetchMessageEditHistory,
 } from '../services/guildService';
 
 // Older history is fetched in pages this size as you scroll up.
@@ -222,6 +223,13 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
   }
 
   // The channel's pinned messages, most recently pinned first.
+  // A message's earlier versions (EditHistoryDialog): { versions: [{ plaintext, written_at,
+  // edited }], edited_at }.
+  async function loadEdits(msg) {
+    const { versions, edited_at } = await fetchMessageEditHistory(msg.id);
+    return { versions: versions.map((v) => ({ ...v, plaintext: v.content })), edited_at };
+  }
+
   async function loadPins() {
     return (await fetchChannelPins(channelId)).map(toChatMessage);
   }
@@ -343,6 +351,7 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
     pinsVersion,
     loadPins,
     setPinned,
+    loadEdits,
     suppressEmbeds,
   };
 }

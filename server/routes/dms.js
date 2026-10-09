@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const editHistory = require('../editHistory');
 const { maxPlaintextLength, maxMessageLength, getMaxEncryptedLength, MAX_LINK_PREVIEWS_BYTES } = require('../config');
 
 const maxPreviewsLength = getMaxEncryptedLength(MAX_LINK_PREVIEWS_BYTES);
@@ -21,7 +22,7 @@ const router = express.Router();
 // A DM row with its sender's name and the message it replies to (still encrypted).
 const DM_SELECT = `
   SELECT
-    dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, dm.parent_message_id, dm.edited,
+    dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp, dm.parent_message_id, dm.edited, dm.edited_at,
     dm.pinned_at, dm.pinned_by, dm.system, dm.link_previews,
     u.username AS sender_username,
     u.display_name AS sender_display_name,
@@ -240,13 +241,23 @@ router.put('/update-message/:id', authenticateJWT, async (req, res) => {
   if (row.system) return res.status(403).json({ error: "This message can't be edited" });
 
   await db.transaction(async () => {
-    await db.run('UPDATE direct_messages SET content = ?, edited = 1, link_previews = NULL WHERE id = ?', [content, messageId]);
+    await editHistory.keepVersion('dm', row, content);
+    await db.run("UPDATE direct_messages SET content = ?, edited = 1, edited_at = strftime('%s','now'), link_previews = NULL WHERE id = ?", [content, messageId]);
     await linkListed('dm', messageId, uploads, req.user.id, { edit: true });
   });
   releaseUploads();
 
   sendToConversation(row, { type: 'edit_dm', messageId, content });
   res.json({ success: true, messageId, content });
+});
+
+// A message's earlier versions (editHistory.js), still encrypted, for either person in the
+// conversation: { versions: [{ content, written_at, edited }] (oldest first), edited_at }.
+router.get('/dm-messages/:id/edits', authenticateJWT, async (req, res) => {
+  const messageId = parseInt(req.params.id, 10);
+  const row = messageId && await db.get('SELECT id, sender_id, recipient_id, edited_at FROM direct_messages WHERE id = ?', [messageId]);
+  if (!row || (row.sender_id !== req.user.id && row.recipient_id !== req.user.id)) return res.status(404).json({ error: 'Message not found' });
+  res.json({ versions: await editHistory.versions('dm', messageId), edited_at: row.edited_at ?? null });
 });
 
 // The sender's app's link previews for their message (Link previews in docs/messages.md):

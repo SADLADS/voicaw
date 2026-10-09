@@ -877,6 +877,35 @@ CREATE TRIGGER IF NOT EXISTS guild_messages_fts_delete AFTER DELETE ON guild_mes
 END;
 `);
 
+// EDIT HISTORY (editHistory.js): every earlier version of an edited message, for everyone
+// who can see the message. `kind` is 'guild', 'dm' or 'group'; in DMs and groups `content` is
+// the ciphertext as it was stored. `written_at` is when that version was sent or last edited
+// (null for an edit made before history was kept, whose time wasn't stored), `edited` whether
+// it was itself an edit (group signatures cover that). Deleting the message deletes its
+// versions (the triggers), whatever deletes it.
+addColumn('ALTER TABLE direct_messages ADD COLUMN edited_at INTEGER');
+addColumn('ALTER TABLE group_dm_messages ADD COLUMN edited_at INTEGER');
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS message_edits (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind TEXT NOT NULL CHECK (kind IN ('guild', 'dm', 'group')),
+  message_id INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  written_at INTEGER,
+  edited INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS message_edits_message ON message_edits (kind, message_id, id);
+CREATE TRIGGER IF NOT EXISTS guild_messages_edits_delete AFTER DELETE ON guild_messages BEGIN
+  DELETE FROM message_edits WHERE kind = 'guild' AND message_id = old.id;
+END;
+CREATE TRIGGER IF NOT EXISTS direct_messages_edits_delete AFTER DELETE ON direct_messages BEGIN
+  DELETE FROM message_edits WHERE kind = 'dm' AND message_id = old.id;
+END;
+CREATE TRIGGER IF NOT EXISTS group_dm_messages_edits_delete AFTER DELETE ON group_dm_messages BEGIN
+  DELETE FROM message_edits WHERE kind = 'group' AND message_id = old.id;
+END;
+`);
+
 function indexRow(row) {
   sqlite.prepare('UPDATE guild_messages SET search_has = ? WHERE id = ?').run(searchHas(row), row.id);
   sqlite.prepare('DELETE FROM guild_messages_fts WHERE rowid = ?').run(row.id);

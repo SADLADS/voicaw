@@ -134,7 +134,18 @@
       "unverifiedTitle": "The signature doesn't match the sender: it may be forged",
       "editLabel": "Edit message",
       "editHint": "Escape to <cancel>cancel</cancel> • Enter to <save>save</save>",
-      "hiddenSpoiler": "[spoiler]"
+      "hiddenSpoiler": "[spoiler]",
+      "showEdits": "Show edit history"
+    },
+    "editHistory": {
+      "title": "Edit history",
+      "original": "Original",
+      "edit": "Edit",
+      "current": "Now",
+      "unknownTime": "edited before history was kept",
+      "none": "Earlier versions weren't kept: it was edited before Voicaw kept edit history.",
+      "unreadable": "This version can't be decrypted.",
+      "loadFailed": "Couldn't load the edit history."
     },
     "reactions": {
       "add": "Add reaction",
@@ -146,6 +157,7 @@
     },
     "noKeys": "This device has no encryption keys. Log out and log in again.",
     "messageMenu": {
+      "editHistory": "Edit history",
       "label": "Message actions",
       "react": "React",
       "reactWith": "React with {{name}}",
