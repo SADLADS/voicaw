@@ -25,6 +25,18 @@ const time = (value) => {
     return Math.round(n < 1e12 ? n * 1000 : n);
 };
 
+// The small picture's meaning, when it's one we know: music players send Discord asset keys
+// such as 'playing' / 'paused' (Feishin), which only Discord could draw, so the page draws its
+// own play or pause icon instead. Anything else isn't shown.
+function smallIconOf(assets) {
+    for (const value of [assets?.small_image, assets?.small_text]) {
+        const word = typeof value === 'string' ? value.trim().toLowerCase() : '';
+        if (word === 'playing' || word === 'play') return 'playing';
+        if (word === 'paused' || word === 'pause') return 'paused';
+    }
+    return null;
+}
+
 function cleanActivity(activity, name) {
     const size = Array.isArray(activity.party?.size) ? activity.party.size.map(Number) : [];
     const [partySize, partyMax] = size.length === 2 && size.every((n) => Number.isInteger(n) && n >= 0 && n < 1e6) ? size : [null, null];
@@ -40,6 +52,9 @@ function cleanActivity(activity, name) {
         partyMax,
         // What the game says about its big picture ("Level 3"); the picture itself is ours.
         imageText: text(activity.assets?.large_text),
+        // 'playing' | 'paused' | null (smallIconOf), with the small picture's hover text.
+        smallIcon: smallIconOf(activity.assets),
+        smallText: text(activity.assets?.small_text),
     };
 }
 

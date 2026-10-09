@@ -76,6 +76,17 @@ describe('showing activities', () => {
     expect(screen.getByText('a game')).toBeTruthy();
     expect(container.querySelectorAll('.activity-image-none')).toHaveLength(1);
     expect(container.querySelector('.activity-image-none svg').getAttribute('data-icon')).toBe('tv');
+    expect(container.querySelector('.activity-small-icon')).toBeNull();
+  });
+
+  it("puts a music player's playing / paused on the picture's corner", () => {
+    applyUserActivities({ userId: '10', activities: [{ ...hades, type: 2, smallIcon: 'paused', smallText: 'Paused' }, { ...hades, smallIcon: 'playing', smallText: null }] });
+    const { container } = render(<Activities userId="10" />);
+    const [paused, playing] = container.querySelectorAll('.activity-small-icon');
+    expect(paused.getAttribute('title')).toBe('Paused');
+    expect(paused.querySelector('svg').getAttribute('data-icon')).toBe('pause');
+    expect(playing.getAttribute('aria-label')).toBe('Playing');
+    expect(playing.querySelector('svg').getAttribute('data-icon')).toBe('play');
   });
 });
 

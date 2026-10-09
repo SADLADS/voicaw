@@ -8,6 +8,8 @@
     "streamingIn": "Streaming in <b>{{channel}}</b>",
     "goToChannel": "Go to channel",
     "unknownChannel": "a voice channel",
+    "playingNow": "Playing",
+    "paused": "Paused",
     "headingPlaying": "Playing a game",
     "headingStreaming": "Streaming",
     "headingListening": "Listening",

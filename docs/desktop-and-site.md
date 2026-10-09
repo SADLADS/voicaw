@@ -116,8 +116,11 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   program's picture is used. The page gets the
   cleaned activities (`gameActivities.js`: Discord's types Playing, Listening, Watching,
   Competing; details, state, start/end in ms, party size, the big picture's hover text) and
-  shares them (`setOwnActivities` in `ws-client.js`). Games' asset-key pictures (only Discord
-  can resolve them), small pictures and buttons aren't shown; games that don't use Rich Presence aren't
+  shares them (`setOwnActivities` in `ws-client.js`). A small picture (`assets.small_image`/
+  `small_text`) that says playing or paused (`playing`/`play`, `paused`/`pause`: Feishin's keys)
+  becomes `smallIcon` 'playing' | 'paused' (2026-10-09), drawn by the page as its own play or
+  pause badge on the picture's corner with `smallText` as the hover text. Games' asset-key
+  pictures (only Discord can resolve them), other small pictures and buttons aren't shown; games that don't use Rich Presence aren't
   detected. Turning it off closes the socket. Checked for real in `e2e/richpresence.mjs`.
 - **Splash window** (`splash.js`, `assets/splash.html`, `splashPreload.js`; built 2026-10-08, as
   Discord's): a small frameless window (square on Linux, which has no transparent windows without

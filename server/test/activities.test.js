@@ -60,8 +60,10 @@ describe('activities (Rich Presence)', () => {
     }]);
     expect(a).toEqual({
       name: 'Hades', type: 0, details: 'x'.repeat(128), state: 'Tartarus', start: 1700000000000, end: null,
-      partySize: null, partyMax: null, imageText: 'Zagreus', image: null,
+      partySize: null, partyMax: null, imageText: 'Zagreus', image: null, smallIcon: null, smallText: null,
     });
+    expect(cleanActivities([{ name: 'Feishin', smallIcon: 'paused', smallText: 'Paused' }, { name: 'X', smallIcon: 'evil' }]).map((a) => a.smallIcon))
+      .toEqual(['paused', null]);
     expect(cleanActivities('nope')).toEqual([]);
     expect(cleanActivities([{}, {}, {}, {}])).toHaveLength(3);
     expect(cleanBotActivities([{ name: 'Custom Status', type: 4, state: 'Helping out' }, { name: '3 guilds', type: 3 }, { type: 0 }]))

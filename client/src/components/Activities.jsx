@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTowerBroadcast } from '@fortawesome/free-solid-svg-icons';
+import { faPause, faPlay, faTowerBroadcast } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../contexts';
 import { useActivities } from '../hooks/useActivities';
 import { useVoiceStreams } from '../hooks/useVoiceStreams';
@@ -11,7 +11,8 @@ import { activityHeading, activityIcon, activityImageUrl, activityName, activity
 // What someone's doing, as the profile card shows it (Discord's "Playing a game"): for each
 // activity a heading, the game's picture (without one, its kind's icon: a gamepad, a note...),
 // its name, what the game says (details; state with the party size) and the time played or
-// left, ticking. A bot's custom status is just its text. First, sharing their screen in a guild
+// left, ticking; a music player's playing / paused on the picture's corner (as Discord's small
+// picture). A bot's custom status is just its text. First, sharing their screen in a guild
 // voice channel you can see (StreamSection). Nothing without any.
 export default function Activities({ userId }) {
   const activitiesOf = useActivities();
@@ -41,9 +42,12 @@ export default function Activities({ userId }) {
         <div key={i} className="profile-card-section activity">
           <div className="member-card-label">{activityHeading(activity)}</div>
           <div className="activity-body">
-            {image
-              ? <img className="activity-image" src={image} alt="" title={activity.imageText ?? undefined} loading="lazy" />
-              : <span className="activity-image activity-image-none" aria-hidden="true"><FontAwesomeIcon icon={activityIcon(activity)} /></span>}
+            <span className="activity-image-wrap">
+              {image
+                ? <img className="activity-image" src={image} alt="" title={activity.imageText ?? undefined} loading="lazy" />
+                : <span className="activity-image activity-image-none" aria-hidden="true"><FontAwesomeIcon icon={activityIcon(activity)} /></span>}
+              {activity.smallIcon && <SmallIcon activity={activity} />}
+            </span>
             <div className="activity-text">
               <div className="activity-name">{activityName(activity)}</div>
               {activity.details && <div>{activity.details}</div>}
@@ -55,6 +59,16 @@ export default function Activities({ userId }) {
       );
     }),
   ];
+}
+
+// Playing or paused, on the picture's bottom right corner.
+function SmallIcon({ activity }) {
+  const label = activity.smallText ?? t(activity.smallIcon === 'paused' ? 'activities.paused' : 'activities.playingNow');
+  return (
+    <span className={`activity-small-icon ${activity.smallIcon}`} title={label} role="img" aria-label={label}>
+      <FontAwesomeIcon icon={activity.smallIcon === 'paused' ? faPause : faPlay} />
+    </span>
+  );
 }
 
 // "Streaming in" a guild voice channel: the channel, its guild, and a link to it.

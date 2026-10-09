@@ -2834,6 +2834,29 @@ body.mobile-mode .dm-user-list-container .dm-user {
   background-color: var(--vc-bg-subtle);
 }
 
+/* The picture, with a music player's playing / paused badge on its bottom right corner. */
+.activity-image-wrap {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+.activity-small-icon {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--vc-bg-elevated);
+  border-radius: 50%;
+  background-color: var(--vc-fg);
+  color: var(--vc-bg-elevated);
+  font-size: 9px;
+}
+
 .activity-image-none {
   display: inline-flex;
   align-items: center;

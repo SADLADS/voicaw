@@ -9,12 +9,15 @@ const crypto = require('crypto');
 // One activity: { name, type, details, state, start, end, partySize, partyMax, imageText, image }.
 // `name` may be null (a game the desktop app couldn't name: "a game"); `type` is Discord's
 // (0 Playing, 1 Streaming, 2 Listening to, 3 Watching, 4 a bot's custom status, 5 Competing in);
-// start/end are unix ms; `image` is a picture's id (see storeImage) or null.
+// start/end are unix ms; `image` is a picture's id (see storeImage) or null; `smallIcon`
+// 'playing' | 'paused' | null (a music player's state, drawn on the picture's corner) with
+// `smallText`, its hover text.
 
 const MAX_ACTIVITIES = 3;
 const MAX_TEXT = 128;
 const PERSON_TYPES = new Set([0, 2, 3, 5]);
 const BOT_TYPES = new Set([0, 1, 2, 3, 4, 5]);
+const SMALL_ICONS = new Set(['playing', 'paused']);
 
 // Pictures: a game's cover or icon, made small on the player's computer (at most 128 px), kept
 // here by the hash of their bytes and served at /api/activity-images/:id. In memory, the most
@@ -87,6 +90,8 @@ function cleanActivities(list) {
       partyMax: partySize != null && partyMax != null ? partyMax : null,
       imageText: text(a.imageText),
       image: imageId(a.image),
+      smallIcon: SMALL_ICONS.has(a.smallIcon) ? a.smallIcon : null,
+      smallText: text(a.smallText),
     };
   });
 }
@@ -108,6 +113,8 @@ function cleanBotActivities(list) {
       partyMax: null,
       imageText: null,
       image: null,
+      smallIcon: null,
+      smallText: null,
     };
   }).filter((a) => a.name || a.state);
 }
@@ -147,7 +154,7 @@ function discordActivity(a) {
     ...(a.state ? { state: a.state } : {}),
     ...(a.start || a.end ? { timestamps: { ...(a.start ? { start: a.start } : {}), ...(a.end ? { end: a.end } : {}) } } : {}),
     ...(a.partyMax != null ? { party: { size: [a.partySize, a.partyMax] } } : {}),
-    ...(a.imageText ? { assets: { large_text: a.imageText } } : {}),
+    ...(a.imageText || a.smallText ? { assets: { ...(a.imageText ? { large_text: a.imageText } : {}), ...(a.smallText ? { small_text: a.smallText } : {}) } } : {}),
   };
 }
 

@@ -205,7 +205,7 @@ try {
   });
   await new Promise((resolve) => coverServer.listen(0, '127.0.0.1', resolve));
   const coverUrl = `http://127.0.0.1:${coverServer.address().port}/share/img/token?size=300`;
-  startGame({ type: 2, details: 'Song Title', state: 'Some Artist', assets: { large_image: coverUrl, large_text: 'The Album', small_image: 'playing' } },
+  startGame({ type: 2, details: 'Song Title', state: 'Some Artist', assets: { large_image: coverUrl, large_text: 'The Album', small_image: 'paused', small_text: 'Paused' } },
     {});
   check(await until(async () => /^Listening to /.test(await memberRow.locator('.member-activity').textContent())), 'a music player: "Listening to …"');
   if (!(await page.locator('.member-card').count())) await memberRow.click();
@@ -214,6 +214,8 @@ try {
   const songCover = song.locator('img.activity-image');
   check(await until(() => songCover.evaluate((img) => img.complete && img.naturalWidth === 128)), "its cover from the address it gave, made 128 px");
   check((await songCover.getAttribute('src')).includes('/activity-images/'), 'served by the API, not the music server');
+  const badge = song.locator('.activity-small-icon');
+  check((await badge.getAttribute('title')) === 'Paused' && (await badge.locator('svg').getAttribute('data-icon')) === 'pause', 'paused: a pause badge on the cover\'s corner');
   check(coverRequests.length === 1 && !/Chrome/.test(coverRequests[0]), `the music server was asked once, by Bob's app (${coverRequests.length})`);
   if (shots) await page.screenshot({ path: join(shots, 'music.png') });
   coverServer.close();
