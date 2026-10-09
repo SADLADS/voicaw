@@ -402,8 +402,9 @@ export function MessageRow({
     <FontAwesomeIcon icon={faThumbtack} className="message-pinned" title={t('chat.message.pinned')} aria-label={t('chat.message.pinned')} />
   ) : null;
 
-  // "edited", as a button opening the earlier versions.
-  const showEdits = onShowEdits && hasEditHistory(msg) ? () => onShowEdits(msg) : null;
+  // "edited", as a button opening the earlier versions (computers only: phones open them from
+  // the long-press sheet, so a tap on the message never opens them by accident).
+  const showEdits = onShowEdits && !isMobile && hasEditHistory(msg) ? () => onShowEdits(msg) : null;
   const editedLabel = (text) => (showEdits ? (
     <button type="button" className="message-edited-button" title={t('chat.message.showEdits')} onClick={(e) => { e.stopPropagation(); showEdits(); }}>
       {text}

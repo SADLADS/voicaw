@@ -474,9 +474,9 @@ everyone who can see the message (Discord has no history; this is ours).
 - **Client**: each chat hook has `loadEdits(msg)` (`useChannel`, `useConversation`,
   `useGroupConversation`): DMs decrypt each version with the conversation key, groups with the
   message's epoch key and check its signature against the context it was signed with (`editOf`
-  only when `edited`), showing "unverified" like the chat. "edited" beside a message is a button
-  (`utils/editHistory.js` `hasEditHistory`), and the right-click menu and the phone's sheet have
-  Edit history; all open `EditHistoryDialog` (Original / Edit / Now, with times). Attachments show
+  only when `edited`), showing "unverified" like the chat. On a computer "edited" beside a
+  message is a button (`utils/editHistory.js` `hasEditHistory`; on phones it stays plain text, so
+  a tap never opens it), and the right-click menu and the phone's long-press sheet have Edit history; all open `EditHistoryDialog` (Original / Edit / Now, with times). Attachments show
   as their names (`summarizeAttachments`): a file an edit removed is deleted (docs/uploads.md),
   so old versions can't show it.
 - **Privacy**: editing no longer takes text back; deleting the message does. Said so in the
