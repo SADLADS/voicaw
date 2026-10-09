@@ -108,3 +108,32 @@
 .delete-account-guilds .recovery-confirm {
   margin-bottom: 0;
 }
+
+/* Two-factor set-up (TwoFactorSettings): the QR code is dark on light whatever the theme. */
+.two-factor-qr {
+  display: block;
+  width: 180px;
+  height: 180px;
+  margin: 0.5rem 0;
+  border-radius: 6px;
+}
+
+.two-factor-qr-light {
+  fill: var(--vc-qr-light);
+}
+
+.two-factor-qr-dark {
+  fill: var(--vc-qr-dark);
+}
+
+.two-factor-setup p {
+  color: var(--vc-fg);
+}
+
+.two-factor-backup-codes {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  justify-content: center;
+  gap: 0.25rem 1.5rem;
+}

@@ -52,6 +52,10 @@ function loadOpaque() {
 }
 
 // Resolves to the user ({ token, id, username }); throws an Error with a message to show.
+// With two-factor on (server/twoFactor.js), resolves to { twoFactor: true, finish(code) }
+// instead: `finish` takes the authenticator app's code or a backup code and resolves to the
+// user (a wrong code throws, `code` 'two_factor_invalid', and can be tried again;
+// 'two_factor_expired' means starting again with the password).
 export async function logIn(username, password) {
   if (!username || !password) throw new Error(t('auth.errors.usernameAndPasswordRequired'));
 
@@ -73,6 +77,18 @@ export async function logIn(username, password) {
     clientSessionKey: sessionKey,
     userIdentifier: username,
   });
+  if (data.twoFactor) {
+    // The exportKey stays in this closure (never sent, never stored) until a code is given.
+    return {
+      twoFactor: true,
+      finish: async (code) => finishLogIn(exportKey, await post('/login/two-factor', { ticket: data.ticket, code: String(code ?? '').trim() })),
+    };
+  }
+  return finishLogIn(exportKey, data);
+}
+
+// Opens the key backup from a finished login (`data`) and stores the keys and token.
+async function finishLogIn(exportKey, data) {
   const { token, id, keyBackup } = data;
   if (!token || !keyBackup) throw new Error(t('auth.errors.loginFailed'));
 
@@ -218,6 +234,51 @@ export async function createRecoveryCode(username, password) {
   return code;
 }
 
+// ---- Two-factor (Settings → My Account; server/twoFactor.js)
+
+// { enabled, backupCodesLeft }.
+export async function fetchTwoFactor() {
+  return send('get', '/two-factor');
+}
+
+// A new authenticator secret for setting it up: 20 random bytes in base32 (what the apps
+// take), and the otpauth:// link its QR code holds. Only sent to the server with a code.
+export function newTwoFactorSecret(username) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const bytes = crypto.getRandomValues(new Uint8Array(20));
+  let bits = 0;
+  let value = 0;
+  let secret = '';
+  for (const byte of bytes) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      secret += alphabet[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  const label = encodeURIComponent(`Voicaw:${username}`);
+  return { secret, uri: `otpauth://totp/${label}?secret=${secret}&issuer=Voicaw&algorithm=SHA1&digits=6&period=30` };
+}
+
+// Turns two-factor on with `secret` (newTwoFactorSecret) once the app's `code` matches it.
+// Resolves to the backup codes, shown once.
+export async function enableTwoFactor(username, password, secret, code) {
+  const { proof } = await unlockWithPassword(username, password);
+  return (await post('/two-factor/enable', { ...proof, secret, code: String(code ?? '').trim() })).backupCodes;
+}
+
+export async function disableTwoFactor(username, password, code) {
+  const { proof } = await unlockWithPassword(username, password);
+  await post('/two-factor/disable', { ...proof, code: String(code ?? '').trim() });
+}
+
+// New backup codes (the old ones stop working). Resolves to them.
+export async function newBackupCodes(username, password, code) {
+  const { proof } = await unlockWithPassword(username, password);
+  return (await post('/two-factor/backup-codes', { ...proof, code: String(code ?? '').trim() })).backupCodes;
+}
+
 // Your guilds that stop the account being deleted until they're handed over or deleted.
 export async function fetchOwnedGuilds() {
   return send('get', '/account/owned-guilds');
@@ -248,8 +309,10 @@ export async function deleteAccount(user, password, { deleteOwnedGuilds = false 
 export { generateRecoveryCode };
 
 // Logged out, password forgotten: sets a new password with the recovery code and logs in.
-// Resolves to the user, like logIn. The recovery code keeps working.
-export async function recoverAccount(username, code, newPassword) {
+// Resolves to the user, like logIn. The recovery code keeps working. An account with two-factor
+// on needs `twoFactorCode` too: without one, this throws with `code` 'two_factor_required'
+// before changing anything.
+export async function recoverAccount(username, code, newPassword, twoFactorCode = '') {
   if (!username) throw new Error(t('auth.errors.usernameRequired'));
   if (!normalizeRecoveryCode(code)) throw new Error(t('auth.errors.notARecoveryCode'));
   checkNewPassword(newPassword);
@@ -266,8 +329,13 @@ export async function recoverAccount(username, code, newPassword) {
     throw new Error(t('auth.errors.publicKeysMismatch'));
   }
 
+  twoFactorCode = String(twoFactorCode ?? '').trim();
+  if (data.twoFactor && !twoFactorCode) {
+    throw Object.assign(new Error(t('auth.twoFactor.recoverNeedsCode')), { code: 'two_factor_required' });
+  }
+
   const fields = await newPasswordFields(username, newPassword, keys);
-  const done = await post('/recover/finish', { userIdentifier: username, recoveryAuth: auth, ...fields });
+  const done = await post('/recover/finish', { userIdentifier: username, recoveryAuth: auth, ...fields, ...(twoFactorCode && { twoFactorCode }) });
 
   await storeUserKeys(done.id, keys);
   localStorage.setItem('token', done.token);

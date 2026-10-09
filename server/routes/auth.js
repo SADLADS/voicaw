@@ -12,6 +12,7 @@ const { normalizeUsername, findUserByName, opaqueIdOf, newOpaqueId } = require('
 const accounts = require('../accounts');
 const signups = require('../signups');
 const terms = require('../terms');
+const twoFactor = require('../twoFactor');
 
 // Registration and login use OPAQUE (the password never reaches the server), each in two
 // round trips. Login state between them lives in login_states for 5 minutes.
@@ -38,7 +39,20 @@ const limits = {
   // Recovery codes can't be guessed (125 bits), so these only stop pointless hammering.
   recoverPerIp: createLimiter({ windowMs: 15 * MINUTE, max: 30 }),
   recoverPerUsername: createLimiter({ windowMs: 15 * MINUTE, max: 20 }),
+  // Two-factor codes, per account (a ticket also dies after a few wrong ones): 3 right codes
+  // in a million at a time, so this keeps guessing hopeless.
+  twoFactorPerUser: createLimiter({ windowMs: 15 * MINUTE, max: 10 }),
 };
+
+// Counts a two-factor code attempt for `userId`; false (and 429 sent) once they're used up.
+function twoFactorAttemptAllowed(res, userId) {
+  if (!rateLimitsEnabled) return true;
+  const { allowed, retryAfterMs } = limits.twoFactorPerUser.hit(String(userId));
+  if (!allowed) tooManyAttempts(res, retryAfterMs);
+  return allowed;
+}
+
+const WRONG_TWO_FACTOR = { error: 'That code is wrong or has been used already', code: 'two_factor_invalid' };
 
 // Middleware: counts this request against `limiters` ([limiter, keyOf(req)] pairs) and
 // answers 429 once any of them is used up.
@@ -132,23 +146,12 @@ async function checkLoginProof(username, finishLoginRequest, clientSessionKey) {
   return null;
 }
 
-router.post('/finaliselogin', async (req, res) => {
-  const { finishLoginRequest, clientSessionKey, userIdentifier } = req.body;
-  if (!finishLoginRequest || !clientSessionKey || !userIdentifier || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing data' });
+const LOGIN_USER_COLUMNS = 'id, username, identity_key, encryption_key, encryption_key_signature, key_backup, recovery_verifier, pending, suspended_at, suspended_reason';
 
-  const user = await findUserByName(
-    userIdentifier,
-    'id, username, identity_key, encryption_key, encryption_key_signature, key_backup, recovery_verifier, pending, suspended_at, suspended_reason'
-  );
-  const failed = await checkLoginProof(user?.username ?? normalizeUsername(userIdentifier), finishLoginRequest, clientSessionKey);
-  if (failed) return res.status(failed[0]).json({ error: failed[1] });
-  if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-  // Suspended by an admin (reports.js): said only once the password is right.
-  if (user.suspended_at) return res.status(403).json(suspendedError(user));
-
-  // The client decrypts the backup with its OPAQUE exportKey and checks the published
-  // public keys against the ones inside it.
-  res.json({
+// What a finished login answers: a new session, and the key backup for the client to open with
+// its OPAQUE exportKey (it checks the published public keys against the ones inside it).
+async function loggedIn(user, req) {
+  return {
     token: await startSession(user, req),
     id: user.id,
     username: user.username,
@@ -159,7 +162,40 @@ router.post('/finaliselogin', async (req, res) => {
     identityKey: user.identity_key,
     encryptionKey: user.encryption_key,
     encryptionKeySignature: user.encryption_key_signature,
-  });
+  };
+}
+
+router.post('/finaliselogin', async (req, res) => {
+  const { finishLoginRequest, clientSessionKey, userIdentifier } = req.body;
+  if (!finishLoginRequest || !clientSessionKey || !userIdentifier || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing data' });
+
+  const user = await findUserByName(userIdentifier, LOGIN_USER_COLUMNS);
+  const failed = await checkLoginProof(user?.username ?? normalizeUsername(userIdentifier), finishLoginRequest, clientSessionKey);
+  if (failed) return res.status(failed[0]).json({ error: failed[1] });
+  if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+  // Suspended by an admin (reports.js): said only once the password is right.
+  if (user.suspended_at) return res.status(403).json(suspendedError(user));
+
+  // Two-factor on (twoFactor.js): no session or key backup until /login/two-factor gets a code.
+  if (await twoFactor.isEnabled(user.id)) return res.json({ twoFactor: true, ticket: twoFactor.createTicket(user.id) });
+  res.json(await loggedIn(user, req));
+});
+
+// The second step of logging in with two-factor on: { ticket, code } (the authenticator app's
+// six digits or a backup code). A wrong code is 401 `code: 'two_factor_invalid'`; after a few,
+// or 5 minutes, the ticket is gone (401 `code: 'two_factor_expired'`: type the password again).
+router.post('/login/two-factor', async (req, res) => {
+  const { ticket, code } = req.body ?? {};
+  const userId = twoFactor.useTicket(ticket);
+  if (!userId) return res.status(401).json({ error: 'Please log in again', code: 'two_factor_expired' });
+  if (!twoFactorAttemptAllowed(res, userId)) return;
+  if (!(await twoFactor.checkCode(userId, code))) return res.status(401).json(WRONG_TWO_FACTOR);
+  twoFactor.endTicket(ticket);
+  const user = await db.get(`SELECT ${LOGIN_USER_COLUMNS} FROM users WHERE id = ? AND deleted_at IS NULL`, [userId]);
+  if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+  if (user.suspended_at) return res.status(403).json(suspendedError(user));
+  limits.twoFactorPerUser.reset(String(userId));
+  res.json(await loggedIn(user, req));
 });
 
 router.post('/initiateregister', limit([limits.registerStartPerIp, byIp]), async (req, res) => {
@@ -422,11 +458,14 @@ router.post('/recover/start', recoverLimits, async (req, res) => {
     identityKey: user.identity_key,
     encryptionKey: user.encryption_key,
     encryptionKeySignature: user.encryption_key_signature,
+    // On: step 2 needs a two-factor code too, so the app asks for one first.
+    twoFactor: await twoFactor.isEnabled(user.id),
   });
 });
 
 // Step 2: the new password (registration record, and the keys encrypted for it). Logs in.
-// The recovery code stays the same.
+// The recovery code stays the same. With two-factor on, `twoFactorCode` too (the recovery code
+// alone would otherwise get round it): 401 `code: 'two_factor_required'` without one.
 router.post('/recover/finish', recoverLimits, async (req, res) => {
   const user = await checkRecoveryAuth(req.body.userIdentifier, req.body.recoveryAuth);
   if (!user) return res.status(401).json({ error: WRONG_RECOVERY });
@@ -434,6 +473,11 @@ router.post('/recover/finish', recoverLimits, async (req, res) => {
   if (suspended?.suspended_at) return res.status(403).json(suspendedError(suspended));
   const password = newPassword(req.body);
   if (password.error) return res.status(400).json({ error: password.error });
+  if (await twoFactor.isEnabled(user.id)) {
+    if (!req.body.twoFactorCode) return res.status(401).json({ error: 'Enter a two-factor code', code: 'two_factor_required' });
+    if (!twoFactorAttemptAllowed(res, user.id)) return;
+    if (!(await twoFactor.checkCode(user.id, req.body.twoFactorCode))) return res.status(401).json(WRONG_TWO_FACTOR);
+  }
 
   await db.transaction(async () => {
     await db.run(
@@ -451,6 +495,64 @@ router.post('/recover/finish', recoverLimits, async (req, res) => {
     pending: Boolean(user.pending),
     termsAccepted: await terms.acceptedTerms(user.id),
   });
+});
+
+// ---------------------------------------------------------------- two-factor (twoFactor.js)
+//
+// Turning it on needs the password (a login proof, as above), the secret the app made and
+// showed as a QR code, and a code from the authenticator app to show it was set up right.
+// Turning it off or making new backup codes needs the password and a code (or backup code).
+
+router.get('/two-factor', authenticatePending, async (req, res) => {
+  res.json(await twoFactor.status(req.user.id));
+});
+
+// { finishLoginRequest, clientSessionKey, secret, code } → { backupCodes } (shown once).
+router.post('/two-factor/enable', authenticatePending, async (req, res) => {
+  const secret = twoFactor.secretFromClient(req.body?.secret);
+  if (!secret) return res.status(400).json({ error: 'Invalid secret' });
+  if (await twoFactor.isEnabled(req.user.id)) return res.status(409).json({ error: 'Two-factor is already on' });
+  if (!twoFactorAttemptAllowed(res, req.user.id)) return;
+  const step = twoFactor.matchTotp(secret, req.body.code);
+  if (step == null) return res.status(400).json({ error: "That code doesn't match: check the app and try again", code: 'two_factor_invalid' });
+  const { username } = await usernameOf(req);
+  const failed = await checkLoginProof(username, req.body.finishLoginRequest, req.body.clientSessionKey);
+  if (failed) return res.status(failed[0]).json({ error: failed[0] === 401 ? 'Password is incorrect' : failed[1] });
+  res.json({ backupCodes: await twoFactor.enable(req.user.id, secret, step) });
+});
+
+// Checks the password proof and a two-factor code for the routes below; true, or false once
+// it has answered.
+async function checkPasswordAndCode(req, res) {
+  if (!(await twoFactor.isEnabled(req.user.id))) {
+    res.status(409).json({ error: 'Two-factor is off' });
+    return false;
+  }
+  if (!twoFactorAttemptAllowed(res, req.user.id)) return false;
+  const { username } = await usernameOf(req);
+  const failed = await checkLoginProof(username, req.body?.finishLoginRequest, req.body?.clientSessionKey);
+  if (failed) {
+    res.status(failed[0]).json({ error: failed[0] === 401 ? 'Password is incorrect' : failed[1] });
+    return false;
+  }
+  if (!(await twoFactor.checkCode(req.user.id, req.body.code))) {
+    res.status(401).json(WRONG_TWO_FACTOR);
+    return false;
+  }
+  return true;
+}
+
+// { finishLoginRequest, clientSessionKey, code }.
+router.post('/two-factor/disable', authenticatePending, async (req, res) => {
+  if (!(await checkPasswordAndCode(req, res))) return;
+  await twoFactor.disable(req.user.id);
+  res.json({ ok: true });
+});
+
+// { finishLoginRequest, clientSessionKey, code } → { backupCodes }; the old ones stop working.
+router.post('/two-factor/backup-codes', authenticatePending, async (req, res) => {
+  if (!(await checkPasswordAndCode(req, res))) return;
+  res.json({ backupCodes: await twoFactor.replaceBackupCodes(req.user.id) });
 });
 
 // Accepts the terms of use shown (`version`, which must be the current one: if they changed

@@ -37,10 +37,14 @@ export default function Login({ onLoginSuccess, invite = '' }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [registerData, setRegisterData] = useState({ username: '', password: '', invite });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [recoverData, setRecoverData] = useState({ username: '', code: '', password: '', confirm: '' });
+  const [recoverData, setRecoverData] = useState({ username: '', code: '', password: '', confirm: '', twoFactorCode: '' });
+  // The recovered account has two-factor on: the form asks for a code too.
+  const [recoverNeedsTwoFactor, setRecoverNeedsTwoFactor] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
   // 'login' (log in or register), 'recover' (forgot password), or { user, recoveryCode,
   // password? } while a new code is shown: after registering (already stored), or after
-  // logging in to an account without one (`password` set: stored once the user continues).
+  // logging in to an account without one (`password` set: stored once the user continues),
+  // or { twoFactor: { finish } } while asking for a two-factor code (authService logIn).
   const [mode, setMode] = useState('login');
   const [error, setError] = useState(takeSuspendedNotice);
   const [loading, setLoading] = useState(false);
@@ -55,16 +59,41 @@ export default function Login({ onLoginSuccess, invite = '' }) {
     setError('');
     setLoading(true);
     try {
-      const user = await logIn(loginData.username, loginData.password);
-      // Accounts from before recovery codes get one now.
-      if (!user.hasRecoveryCode) {
-        setMode({ user, recoveryCode: generateRecoveryCode(), password: loginData.password });
+      const result = await logIn(loginData.username, loginData.password);
+      if (result.twoFactor) {
+        setTwoFactorCode('');
+        setMode({ twoFactor: result });
         return;
       }
-      enterApp(user);
+      loggedIn(result);
     } catch (err) {
       setError(err.message);
       console.error('Login error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function loggedIn(user) {
+    // Accounts from before recovery codes get one now.
+    if (!user.hasRecoveryCode) {
+      setMode({ user, recoveryCode: generateRecoveryCode(), password: loginData.password });
+      return;
+    }
+    enterApp(user);
+  }
+
+  async function handleTwoFactor(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      loggedIn(await mode.twoFactor.finish(twoFactorCode));
+    } catch (err) {
+      if (err.code === 'two_factor_expired') {
+        setMode('login');
+        setError(t('auth.twoFactor.expired'));
+      } else setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -102,8 +131,9 @@ export default function Login({ onLoginSuccess, invite = '' }) {
     }
     setLoading(true);
     try {
-      enterApp(await recoverAccount(recoverData.username, recoverData.code, recoverData.password));
+      enterApp(await recoverAccount(recoverData.username, recoverData.code, recoverData.password, recoverData.twoFactorCode));
     } catch (err) {
+      if (err.code === 'two_factor_required') setRecoverNeedsTwoFactor(true);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -133,6 +163,40 @@ export default function Login({ onLoginSuccess, invite = '' }) {
             onDone={finishRecoveryCode}
             onSkip={mode.password ? () => enterApp(mode.user) : undefined}
           />
+        </div>
+      </div>
+    );
+  }
+
+  if (mode.twoFactor) {
+    return (
+      <div className="login-page">
+        <div className="form-container">
+          <h3 className="login-header text-center mb-3">{t('auth.twoFactor.title')}</h3>
+          <p className="register-password-hint">{t('auth.twoFactor.hint')}</p>
+
+          {error && <div className="login-error" role="alert">{error}</div>}
+
+          <form onSubmit={handleTwoFactor} className="mb-3">
+            <input
+              name="two-factor-code"
+              className="form-control mb-2"
+              placeholder={t('auth.twoFactor.codePlaceholder')}
+              autoComplete="one-time-code"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              autoFocus
+              value={twoFactorCode}
+              onChange={e => setTwoFactorCode(e.target.value)}
+            />
+            <button className="btn btn-vc w-100" type="submit" disabled={loading}>
+              {loading ? t('auth.pleaseWait') : t('auth.twoFactor.submit')}
+            </button>
+          </form>
+          <button type="button" className="link-button" onClick={() => switchTo('login')}>
+            {t('auth.twoFactor.back')}
+          </button>
         </div>
       </div>
     );
@@ -190,6 +254,20 @@ export default function Login({ onLoginSuccess, invite = '' }) {
               value={recoverData.confirm}
               onChange={e => setRecoverData({ ...recoverData, confirm: e.target.value })}
             />
+            {recoverNeedsTwoFactor && (
+              <input
+                name="two-factor-code"
+                className="form-control mb-2"
+                placeholder={t('auth.twoFactor.recoverCodePlaceholder')}
+                autoComplete="one-time-code"
+                autoCapitalize="none"
+                spellCheck={false}
+                required
+                autoFocus
+                value={recoverData.twoFactorCode}
+                onChange={e => setRecoverData({ ...recoverData, twoFactorCode: e.target.value })}
+              />
+            )}
             <button className="btn btn-vc w-100" type="submit" disabled={loading}>
               {loading ? t('auth.pleaseWait') : t('auth.recover.submit')}
             </button>

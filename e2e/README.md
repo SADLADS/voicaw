@@ -39,6 +39,7 @@ node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload,
 node e2e/friends.mjs [dir] # friends: new account's list is empty (/dm = Friends), Add friend by username, request live (count on the Friends row, Pending), Accept = both lists, profile card Add/Request sent/Remove, non-friend's first DM joins the list live, Remove asks (conversation stays), admin's Everyone tab, phone
 node e2e/notes.mjs [dir]  # notes: row under the header, send, pin, reload, not leaked to/from DMs, phone login
 node e2e/recovery.mjs [dir] # change password, recovery code reset, new code, code on old login
+node e2e/twofactor.mjs [dir] # two-factor: Settings set-up (QR dark on light, key, wrong code refused), 10 backup codes, login asks for a code (wrong refused, app's code, backup code once, phone), recovery-code reset asks for one, turn off with password + code, phone set-up fits
 node e2e/terms.mjs [dir]  # terms of use: sign-up needs the tick (form and server), someone who hasn't accepted sees only the terms until they agree, not asked again; phone
 node e2e/spoilers.mjs [dir] # spoiler images: mark in tray, blurred for both, tap/click reveals, reply preview
 node e2e/nsfw.mjs [dir]   # NSFW channels: dialog switch, header tag, age gate ("I am 18 or over": nothing loads before, kept as just the answer, not asked again), NSFW covers (image, embed, YouTube unloaded), spoiler = one cover, phone taps, Settings → Content off (account-wide, kept)

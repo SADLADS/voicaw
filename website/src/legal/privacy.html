@@ -29,6 +29,10 @@
 <p>Your private keys are kept on your devices. So you can log in on a new device, the server also
   keeps a copy locked with your password (and, if you made one, a copy locked with your recovery
   code). It can't open either: it never has your password or your recovery code.</p>
+<p>If you turn on two-factor authentication (it's off unless you do), the server keeps the key
+  your authenticator app makes its codes from (it needs it to check them; it isn't encrypted), and
+  your unused backup codes, only as one-way hashes. Both are deleted when you turn it off or delete
+  your account.</p>
 
 <h2 id="not-encrypted">What isn't encrypted</h2>
 <ul>

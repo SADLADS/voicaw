@@ -118,6 +118,7 @@ async function deleteAccount(userId, plan) {
     await db.run(
       `UPDATE users SET username = ?, display_name = ?, password = '', key_backup = '', opaque_id = NULL,
          recovery_verifier = NULL, recovery_backup = NULL, recovery_created = NULL,
+         two_factor_secret = NULL, two_factor_backup_codes = NULL, two_factor_last_step = NULL,
          custom_status = NULL, custom_status_emoji = NULL, bio = NULL, description = NULL, preferences = NULL, dictionary = NULL, dictionary_version = 0, emoji_usage = NULL, emoji_usage_version = 0, is_admin = 0, deleted_at = ?
        WHERE id = ?`,
       [`Deleted-User-${userId}`, DELETED_NAME, Math.floor(Date.now() / 1000), userId]

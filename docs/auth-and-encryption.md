@@ -82,6 +82,44 @@ the session exists, and only shown to the account itself.
   answer or a server error (no network yet after boot, an API restart) it keeps the token and
   asks again every 3 s, while `App` shows "Can't reach Voicaw. Trying again…".
 
+## Two-factor authentication
+
+Optional, off until someone turns it on (Settings → My Account → Two-factor authentication,
+`TwoFactorSettings.jsx`; built 2026-10-09). As Discord's: an authenticator app's six-digit codes
+(TOTP, RFC 6238: SHA-1, 30-second steps, which every app speaks) plus ten single-use backup codes
+(`abcd-efgh`, no 0/o/1/l/i). `server/twoFactor.js` does it with node's crypto, no library.
+- **Setting up:** the client makes the secret (20 random bytes, base32, `authService`
+  `newTwoFactorSecret`) and shows it as a QR code of an `otpauth://` link (`qrcode-generator`,
+  loaded only then, drawn as an SVG, dark on light in both themes: `--vc-qr-dark/-light`) and as
+  text. `POST /api/two-factor/enable { finishLoginRequest, clientSessionKey, secret, code }`: a
+  password proof (as change-password) and a code that matches the secret, so a typo'd set-up
+  can't lock anyone out. The answer is the backup codes, shown once (copy, save as a file).
+- **Kept:** `users.two_factor_secret` as is (the server has to compute codes; it guards logging
+  in to this server and has nothing to do with the encryption keys),
+  `two_factor_backup_codes` (a JSON array of SHA-256 hashes of the unused ones) and
+  `two_factor_last_step`: each code works once (a step at or before the last one used is
+  refused). Codes from one step either side of now count.
+- **Logging in:** with it on, a right password at `/finaliselogin` answers only `{ twoFactor:
+  true, ticket }`: no session and no key backup (someone with the password alone can't even get
+  the backup it opens). `POST /api/login/two-factor { ticket, code }` (the app's code or a
+  backup code, which is then used up) answers as `/finaliselogin` would have. Tickets live 5
+  minutes in the server's memory (by hash) and die after 5 wrong codes (401 `code:
+  'two_factor_expired'`: type the password again); a wrong code is 401 `two_factor_invalid`.
+  Codes are also limited per account (10 / 15 min, `twoFactorPerUser`). The client keeps the
+  login's exportKey in `logIn`'s closure meanwhile (`Login.jsx` asks for the code).
+- **Recovery code:** resetting a forgotten password would otherwise get round it, so
+  `/recover/start` says `twoFactor: true` and `/recover/finish` then needs `twoFactorCode` (401
+  `two_factor_required` without one, before anything changes). The recovery form shows a code
+  field once asked.
+- **Turning off / new backup codes:** `POST /api/two-factor/disable` and `/two-factor/backup-codes`,
+  each with a password proof and a code (or backup code). `GET /api/two-factor` says `{ enabled,
+  backupCodesLeft }`. Changing the password, the recovery code and deleting the account still
+  need only the password (as before), and turning it on doesn't log other devices out (Settings →
+  Devices does).
+- **Lost everything** (app and backup codes): an admin on the host runs `cd server && npm run
+  admin -- <username> --remove-two-factor`. Deleting an account clears all three columns.
+- Bots never log in with a password, so it doesn't apply to them.
+
 ## Sign-ups (open, invite only, approval)
 
 Who can make an account is the app-wide setting `signupMode` (Settings → Admin; `SIGNUP_MODE`

@@ -659,6 +659,13 @@ CREATE TABLE IF NOT EXISTS app_invites (
 );
 `);
 
+// TWO-FACTOR (twoFactor.js, Settings → My Account; off unless someone turns it on): the
+// authenticator app's secret (base32), the unused backup codes' hashes (JSON array) and the
+// last code's 30-second step, so a code can't be used twice.
+addColumn('ALTER TABLE users ADD COLUMN two_factor_secret TEXT');
+addColumn('ALTER TABLE users ADD COLUMN two_factor_backup_codes TEXT');
+addColumn('ALTER TABLE users ADD COLUMN two_factor_last_step INTEGER');
+
 // VOICE REGIONS (voiceRegions.js, Settings → Admin): the LiveKit servers voice can use, each with a
 // name and a flag (an emoji). The `builtin` one is server/.env's LiveKit (its url and keys stay
 // there, never here); the others are added by admins with their own keys. `is_default` (exactly

@@ -164,6 +164,60 @@ describe('Login - login form', () => {
   });
 });
 
+describe('Login - two-factor', () => {
+  function mockTwoFactorLogin(onCode) {
+    opaque.client.startLogin.mockReturnValue({ clientLoginState: 'CLS', startLoginRequest: 'SLR' });
+    opaque.client.finishLogin.mockReturnValue({ finishLoginRequest: 'FLR', sessionKey: 'SK', exportKey: 'EXPORT-KEY' });
+    api.post.mockImplementation(async (url, body) => {
+      if (url === '/initiatelogin') return { data: { loginResponse: 'LR' } };
+      if (url === '/finaliselogin') return { data: { twoFactor: true, ticket: 'TICKET' } };
+      if (url === '/login/two-factor') return onCode(body);
+      throw new Error(`unexpected url ${url}`);
+    });
+  }
+
+  it('asks for a code, then opens the key backup with the same login', async () => {
+    let tries = 0;
+    mockTwoFactorLogin(async ({ code }) => {
+      if (tries++ === 0) throw Object.assign(new Error('401'), { response: { data: { error: 'That code is wrong or has been used already', code: 'two_factor_invalid' } } });
+      expect(code).toBe('123456');
+      return { data: { token: 'jwt2fa', id: 5, username: 'alice', keyBackup: 'BACKUP', hasRecoveryCode: true, ...PUBLIC } };
+    });
+    unwrapKeyBackup.mockResolvedValue(KEYS);
+
+    const { loginForm, container, onLoginSuccess } = renderLogin();
+    fillLogin(container, 'alice', 'hunter2-hunter2');
+    fireEvent.submit(loginForm);
+    const input = await screen.findByPlaceholderText('Code or backup code');
+    expect(unwrapKeyBackup).not.toHaveBeenCalled();
+
+    fireEvent.change(input, { target: { value: '000000' } });
+    fireEvent.submit(input.closest('form'));
+    expect(await screen.findByText('That code is wrong or has been used already')).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: ' 123456 ' } });
+    fireEvent.submit(input.closest('form'));
+    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalled());
+    expect(api.post).toHaveBeenCalledWith('/login/two-factor', { ticket: 'TICKET', code: '123456' });
+    expect(unwrapKeyBackup).toHaveBeenCalledWith('EXPORT-KEY', 'BACKUP');
+    expect(localStorage.getItem('token')).toBe('jwt2fa');
+  });
+
+  it('goes back to the password when the ticket has expired', async () => {
+    mockTwoFactorLogin(async () => {
+      throw Object.assign(new Error('401'), { response: { data: { error: 'Please log in again', code: 'two_factor_expired' } } });
+    });
+    const { loginForm, container } = renderLogin();
+    fillLogin(container, 'alice', 'hunter2-hunter2');
+    fireEvent.submit(loginForm);
+    const input = await screen.findByPlaceholderText('Code or backup code');
+    fireEvent.change(input, { target: { value: '123456' } });
+    fireEvent.submit(input.closest('form'));
+    expect(await screen.findByText('That took too long. Log in again.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Login' })).toBeInTheDocument();
+  });
+});
+
 describe('Login - account without a recovery code', () => {
   async function logInWithoutCode() {
     mockLoginExchange({ token: 'jwt123', id: 5, username: 'alice', keyBackup: 'BACKUP', hasRecoveryCode: false, ...PUBLIC });
@@ -401,6 +455,30 @@ describe('Login - forgot password', () => {
     }
     expect(storeUserKeys).toHaveBeenCalledWith(5, KEYS);
     expect(localStorage.getItem('token')).toBe('rec-jwt');
+  });
+
+  it('asks for a two-factor code when the account has one, before changing anything', async () => {
+    opaque.client.startRegistration.mockReturnValue({ clientRegistrationState: 'CRS', registrationRequest: 'RR' });
+    opaque.client.finishRegistration.mockReturnValue({ registrationRecord: 'NEW-REC', exportKey: 'NEW-EXPORT' });
+    unwrapRecoveryBackup.mockResolvedValue(KEYS);
+    unwrapKeyBackup.mockResolvedValue(KEYS);
+    wrapKeyBackup.mockResolvedValue('NEW-BACKUP');
+    api.post.mockImplementation(async (url) => {
+      if (url === '/recover/start') return { data: { recoveryBackup: 'REC-BACKUP', twoFactor: true, ...PUBLIC } };
+      if (url === '/initiateregister') return { data: { registrationResponse: 'RRESP' } };
+      if (url === '/recover/finish') return { data: { token: 'rec-jwt', id: 5, username: 'alice' } };
+      throw new Error(`unexpected url ${url}`);
+    });
+
+    const { container, onLoginSuccess } = openRecover();
+    fillRecover(container);
+    expect(await screen.findByText(/This account has two-factor authentication/)).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalledWith('/initiateregister', expect.anything());
+
+    fireEvent.change(container.querySelector('input[name="two-factor-code"]'), { target: { value: 'abcd-efgh' } });
+    fireEvent.submit(container.querySelector('form'));
+    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalled());
+    expect(api.post).toHaveBeenCalledWith('/recover/finish', expect.objectContaining({ twoFactorCode: 'abcd-efgh' }));
   });
 
   it('shows the server refusing a wrong code', async () => {
