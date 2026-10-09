@@ -3,16 +3,20 @@
 // `<@id>` → <span class="mention" data-mention-id>, `<@&id>` → <span data-role-mention-id>,
 // `<#id>` → <span data-channel-mention-id>,
 // `@everyone` / `@here` → <span data-mention-everyone> (drawn as a mention only if the message
-// really pinged them). Code stays as typed.
+// really pinged them), and timestamps `<t:unix:style>` (utils/timestamps) → <span
+// data-timestamp data-timestamp-style>. Code stays as typed.
+import { validTimestamp } from './timestamps';
+
 const SKIP = new Set(['code', 'pre']);
 
-// A person, a role, @everyone/@here (not inside a word or an address), or a channel.
-const MENTION_RE = /<@(\d+)>|<@&(\d+)>|(^|[^\w@])@(everyone|here)\b|<#(\d+)>/g;
+// A person, a role, @everyone/@here (not inside a word or an address), a channel, or a timestamp.
+const MENTION_RE = /<@(\d+)>|<@&(\d+)>|(^|[^\w@])@(everyone|here)\b|<#(\d+)>|<t:(-?\d{1,13})(?::([tTdDfFR]))?>/g;
 
 function mentionNode(m) {
   if (m[1]) return { dataMentionId: m[1] };
   if (m[2]) return { dataRoleMentionId: m[2] };
   if (m[5]) return { dataChannelMentionId: m[5] };
+  if (m[6]) return { className: ['timestamp'], dataTimestamp: m[6], dataTimestampStyle: m[7] ?? '' };
   return { dataMentionEveryone: m[4] };
 }
 
@@ -29,6 +33,7 @@ export function rehypeMentions() {
         }
         let last = 0;
         for (const m of child.value.matchAll(MENTION_RE)) {
+          if (m[6] && !validTimestamp(m[6])) continue;
           // @everyone's match starts with the character before it, which stays text.
           const start = m.index + (m[3]?.length ?? 0);
           if (start > last) children.push({ type: 'text', value: child.value.slice(last, start) });

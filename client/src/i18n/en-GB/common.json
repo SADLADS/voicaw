@@ -15,6 +15,10 @@
       "guild": "Copy Guild ID"
     },
     "create": "Create",
+    "relativeTime": {
+      "soon": "in a few seconds",
+      "justNow": "a few seconds ago"
+    },
     "delete": "Delete",
     "done": "Done",
     "edit": "Edit",

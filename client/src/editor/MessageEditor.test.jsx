@@ -40,6 +40,36 @@ describe('MessageEditor', () => {
     expect(ref.current.getText()).toBe('hi <:blob:42> !');
   });
 
+  it('shows timestamps as they will read, typed, pasted as text or inserted', () => {
+    const { ref, element } = setup();
+    const unix = Math.floor(Date.now() / 1000) + 8 * 3600 + 60;
+    act(() => ref.current.insertText(`at <t:${unix}:R`));
+    expect(element.querySelector('.timestamp')).toBeNull();
+    act(() => ref.current.insertText('>'));
+    expect(element.querySelector('.timestamp')).toHaveTextContent('in 8 hours');
+    expect(ref.current.getText()).toBe(`at <t:${unix}:R>`);
+    act(() => ref.current.setText(`<t:${unix}:D> and <t:1:x>`));
+    expect(element.querySelectorAll('.timestamp')).toHaveLength(1);
+    expect(ref.current.getText()).toBe(`<t:${unix}:D> and <t:1:x>`);
+    act(() => ref.current.clear());
+    act(() => ref.current.insertTimestamp({ unix, style: 't' }));
+    expect(ref.current.getText()).toBe(`<t:${unix}:t> `);
+  });
+
+  it('keeps a relative timestamp counting', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 9, 10, 0, 0) });
+    try {
+      const { ref, element } = setup();
+      const unix = Math.floor(Date.now() / 1000) + 3 * 3600;
+      act(() => ref.current.insertTimestamp({ unix, style: 'R' }));
+      expect(element.querySelector('.timestamp')).toHaveTextContent('in 3 hours');
+      act(() => vi.advanceTimersByTime(2 * 3600 * 1000));
+      expect(element.querySelector('.timestamp')).toHaveTextContent('in 1 hour');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('completes a mention, and shows <@id> of people it knows as @name', () => {
     const { ref, element } = setup({ mentionNames: { 7: 'anna' } });
     act(() => ref.current.insertText('hi @an'));

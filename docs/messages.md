@@ -461,6 +461,30 @@ in a DM, everyone in a group's log, a guild's members; anyone else `@unknown-use
   For everyone else it stays the link. The message keeps the link as typed, so plain-text
   places (reply previews, pushes) show it as it is, and search finds it.
 
+## Timestamps
+
+Discord's `<t:unix>` / `<t:unix:style>` (unix seconds), in message text anywhere (DMs and groups
+inside the encryption, guilds, bots and webhooks as they come): each reader sees the time in
+their own time zone and Settings → Date & time format. Styles, Discord's letters: `t` 18:00,
+`T` 18:00:00, `d` 09/10/2026, `D` 9 October 2026, `f` (also no style) 9 October 2026, 18:00,
+`F` Friday 9 October 2026, 18:00, `R` in 8 hours (moment's rounding, as Discord's: "in a few
+seconds", minutes under 45, hours under 22, days under 26, then months and years). Helpers in
+`utils/timestamps.js`; `formatRelative` in `utils/dateFormat.js`. Anything out of a Date's range
+stays text, as do timestamps inside code.
+- **Messages:** `rehypeMentions` marks them, `MessageList`'s span draws `Timestamp` (a `<time>`
+  on a faint pill, the `F` form on hover). Relative ones keep counting: one shared clock ticks
+  each second while any is on screen (`onClockTick`), and each redraws only when its words change.
+- **Message box:** a `timestamp` node in `editor/messageDoc.js` shows it as it will read (a node
+  view in `MessageEditor` keeps `R` counting). Typed out in full (the closing `>`), pasted, put
+  back by editing or inserted, it becomes one; the text keeps `<t:…>` exactly.
+- **+ menu → Timestamps** (computers; on phones the last button of the + panel's bar):
+  `TimestampDialog`, a date and time (the next full hour to start), the seven formats each
+  previewed, the code it'll put in; Insert puts it where the cursor is.
+- **Plain-text places** (reply previews, copying, DM push previews): `mentionsToText` writes them
+  as they read now. Guild pushes are written by the server, which doesn't know the reader's time
+  zone: `R` as it reads at sending, the rest in UTC ("9 October 2026, 17:00 UTC";
+  `server/mentions.js` `timestampPreview`).
+
 ## Edit history
 
 Edited messages keep their earlier versions (built 2026-10-09), in DMs, notes, group DMs and

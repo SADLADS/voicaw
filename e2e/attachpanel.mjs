@@ -1,6 +1,6 @@
 // The message box's + button: on a phone a panel in the keyboard's place (AttachPanel), on a
 // computer the menu with Create thread. Phone web: camera and Photos tiles (no gallery), the bar
-// (Photos, Poll, Files; Thread only in a guild channel you may start threads in), full screen,
+// (Photos, Poll, Files, Timestamps; Thread only in a guild channel you may start threads in), full screen,
 // a file from Files sent; the Android app (stand-in bridge, as in android.mjs): Allow access,
 // the grid of photos, picking two (numbered, chips), taking one back, sending (Bob sees the
 // picture); a computer's + menu starts a thread; the phone panel's Thread does too.
@@ -99,7 +99,7 @@ try {
   const gridWidth = (await a.locator('.attach-panel-grid').boundingBox()).width;
   check(Math.abs(tiles[0].width - (gridWidth - 4 - 6) / 4) < 2 && Math.abs(tiles[0].width - tiles[0].height) < 1, 'square tiles, four across');
   const bar = await a.locator('.attach-panel-bar button').allTextContents();
-  check(bar.join(',') === 'Photos,Poll,Files', `the bar: ${bar.join(', ')} (no Thread in a DM)`);
+  check(bar.join(',') === 'Photos,Poll,Files,Timestamps', `the bar: ${bar.join(', ')} (no Thread in a DM)`);
   check(await a.locator('.attach-panel-bar button:has-text("Poll")').isEnabled(), 'Poll is there in a DM');
   await shot(a, 'phone-web-panel');
 
@@ -197,7 +197,9 @@ try {
   await a.waitForSelector('#dm-input');
   await a.tap('button[aria-label="Add"]');
   const guildBar = await a.locator('.attach-panel-bar button').allTextContents();
-  check(guildBar.join(',') === 'Photos,Poll,Thread,Files', `a guild channel's bar: ${guildBar.join(', ')}`);
+  check(guildBar.join(',') === 'Photos,Poll,Thread,Files,Timestamps', `a guild channel's bar: ${guildBar.join(', ')}`);
+  check(await a.locator('.attach-panel-bar').evaluate((el) => el.scrollWidth <= el.clientWidth
+    && [...el.querySelectorAll('span')].every((s) => s.scrollWidth <= s.parentElement.clientWidth)), 'all five fit the phone');
   await shot(a, 'phone-guild-panel');
   await a.tap('.attach-panel-bar button:has-text("Thread")');
   await a.waitForSelector('#thread-name');

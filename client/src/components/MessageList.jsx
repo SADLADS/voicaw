@@ -31,6 +31,7 @@ import { isEmojiOnly } from '../emoji/emojiIndex';
 import { rehypeTwemoji } from '../emoji/rehypeTwemoji';
 import { customEmojiToText } from '../emoji/customEmoji';
 import { rehypeMentions } from '../utils/rehypeMentions';
+import Timestamp from './Timestamp';
 import { rehypeHighlightShared } from '../utils/rehypeHighlightShared';
 import { isPlainText } from '../utils/plainText';
 import { cannotHover, flashRow } from '../utils/flashRow';
@@ -117,7 +118,8 @@ function ChannelMention({ id, guildId, unknown }) {
 }
 
 // A mention (from rehypeMentions): `@name`, highlighted more when it's you; a role in its colour;
-// @everyone/@here as a mention only if the message pinged them (else plain text).
+// @everyone/@here as a mention only if the message pinged them (else plain text); a timestamp
+// (Timestamp) in the reader's time.
 // Spoilers (remarkDiscord) are drawn by Spoiler. Other spans (code highlighting) only have a class.
 function MarkdownSpan({ className, children, ...rest }) {
   const mentions = useContext(MentionContext);
@@ -127,6 +129,7 @@ function MarkdownSpan({ className, children, ...rest }) {
   const everyone = rest['data-mention-everyone'];
   const channelId = rest['data-channel-mention-id'];
   if (channelId != null) return <ChannelMention id={channelId} />;
+  if (rest['data-timestamp'] != null) return <Timestamp unix={rest['data-timestamp']} style={rest['data-timestamp-style']} />;
   if (id != null) {
     const me = String(mentions?.meId) === id;
     return <span className={`mention${me ? ' mention-me' : ''}`} data-user-id={id}>@{mentionName(mentions?.names, id)}</span>;

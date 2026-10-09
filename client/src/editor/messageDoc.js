@@ -1,6 +1,7 @@
 import { Schema, Slice } from 'prosemirror-model';
 import { makePlaceholder, unescapeAltText } from '../utils/attachmentMarkup';
 import { customEmojiUrl } from '../emoji/customEmoji';
+import { formatTimestamp, timestampPattern, timestampText, validTimestamp } from '../utils/timestamps';
 
 // What the message editor holds, and its conversion to and from message text (the markdown
 // the rest of the app sends and stores). Lines are paragraphs. Inline, besides text:
@@ -11,6 +12,8 @@ import { customEmojiUrl } from '../emoji/customEmoji';
 // - mention: a person, shown as `@name`; in text `<@id>` (utils/mentions).
 // - roleMention: a guild role, shown as `@role` in its colour; in text `<@&id>`.
 // - channelMention: a guild channel, shown as `#channel`; in text `<#id>`.
+// - timestamp: a time, shown as it will read (MessageEditor's node view keeps a relative one
+//   counting); in text `<t:unix>` or `<t:unix:style>` (utils/timestamps), as typed.
 // Unicode emoji stay text (the Twemoji font draws them), which keeps typing, autocorrect and
 // copy/paste plain.
 
@@ -99,6 +102,18 @@ export const schema = new Schema({
         `#${node.attrs.name}`,
       ],
     },
+    timestamp: {
+      group: 'inline',
+      inline: true,
+      atom: true,
+      // `style`: Discord's letter, or '' for none (which reads as 'f').
+      attrs: { unix: {}, style: { default: '' } },
+      toDOM: (node) => [
+        'span',
+        { class: 'timestamp editor-timestamp', title: formatTimestamp(node.attrs.unix, 'F'), contenteditable: 'false' },
+        formatTimestamp(node.attrs.unix, node.attrs.style),
+      ],
+    },
   },
 });
 
@@ -114,6 +129,7 @@ function inlineToText(node) {
   if (node.type === schema.nodes.mention) return `<@${node.attrs.id}>`;
   if (node.type === schema.nodes.roleMention) return `<@&${node.attrs.id}>`;
   if (node.type === schema.nodes.channelMention) return `<#${node.attrs.id}>`;
+  if (node.type === schema.nodes.timestamp) return timestampText(node.attrs.unix, node.attrs.style);
   return '';
 }
 
@@ -128,8 +144,8 @@ export function docToText(doc) {
 }
 
 // A draft attachment placeholder, a sent attachment (or any other markdown image), a custom
-// emoji, a mention, a role mention, or a channel mention.
-const INLINE_OBJECT_RE = /!\[((?:\\.|[^\]\\])*)\]\((?:attachment:(\d+)|(https?:\/\/[^)\s]+))\)|<:([A-Za-z0-9_]+):(\w+)>|<@(\d+)>|<@&(\d+)>|<#(\d+)>/g;
+// emoji, a mention, a role mention, a channel mention, or a timestamp.
+const INLINE_OBJECT_RE = /!\[((?:\\.|[^\]\\])*)\]\((?:attachment:(\d+)|(https?:\/\/[^)\s]+))\)|<:([A-Za-z0-9_]+):(\w+)>|<@(\d+)>|<@&(\d+)>|<#(\d+)>|<t:(-?\d{1,13})(?::([tTdDfFR]))?>/g;
 
 // Message text -> editor document. `resolveCustomEmoji(id, name)` gives a custom emoji's image
 // URL (by default its place in the object store); without one, `<:name:id>` stays as text.
@@ -155,6 +171,8 @@ export function textToDoc(text, { resolveCustomEmoji = (id) => customEmojiUrl(id
       } else if (m[8]) {
         const channel = resolveChannel?.(m[8]);
         if (channel) node = schema.nodes.channelMention.create({ id: m[8], name: channel.name });
+      } else if (m[9]) {
+        if (validTimestamp(m[9])) node = schema.nodes.timestamp.create({ unix: m[9], style: m[10] ?? '' });
       } else {
         const url = resolveCustomEmoji?.(m[5], m[4]);
         if (url) node = schema.nodes.customEmoji.create({ id: m[5], name: m[4], url });
@@ -173,6 +191,19 @@ export function textToDoc(text, { resolveCustomEmoji = (id) => customEmojiUrl(id
 // Text to insert where the cursor is (lines become paragraphs, joined to the ones around).
 export function textToSlice(text, options) {
   return new Slice(textToDoc(text, options).content, 1, 1);
+}
+
+// Timestamps typed out in full (`<t:unix:style>` as text) in `doc`: [{ from, to, unix, style }],
+// positions in the document, for MessageEditor to turn into timestamp nodes.
+export function typedTimestamps(doc) {
+  const found = [];
+  doc.descendants((node, pos) => {
+    if (!node.isText) return;
+    for (const m of node.text.matchAll(timestampPattern())) {
+      if (validTimestamp(m[1])) found.push({ from: pos + m.index, to: pos + m.index + m[0].length, unix: m[1], style: m[2] ?? '' });
+    }
+  });
+  return found;
 }
 
 // The current line up to the cursor, with chips/custom emoji/mentions as OBJECT_CHAR.

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faComments, faMicrophone, faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faClock, faComments, faMicrophone, faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
 import AttachPanel from './AttachPanel';
 import EmojiPicker from './EmojiPicker';
 import EmojiSuggestions from './EmojiSuggestions';
@@ -14,6 +14,7 @@ import AttachmentTray from './AttachmentTray';
 import '../assets/css/commands.css';
 import FileDropOverlay from './FileDropOverlay';
 import PollDialog from './PollDialog';
+import TimestampDialog from './TimestampDialog';
 import VoiceRecorderBar, { MicButton } from './VoiceRecorder';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { getSkinTone, recordEmojiUse, skinFor } from '../emoji/emojiUsage';
@@ -65,9 +66,10 @@ const COMMAND_QUERY = /^\/([^\s/]{0,32})$/;
 // Voice messages (useVoiceRecording, VoiceRecorder): on a phone the mic button in Send's place
 // while the box is empty (hold to record), on a computer the + menu's Voice message; either
 // way the box gives way to the recording until it's sent (its own message) or deleted.
-// The + button: a menu on a computer (upload a file, create a poll, create a thread), on a
-// phone a panel in the keyboard's place (AttachPanel: camera, the phone's photos, then the
-// same and the photo picker). `onStartThread` (a guild text channel you may start threads in)
+// The + button: a menu on a computer (upload a file, create a poll, create a thread, voice
+// message, timestamps), on a phone a panel in the keyboard's place (AttachPanel: camera, the
+// phone's photos, then the same and the photo picker). Timestamps (TimestampDialog) puts a
+// `<t:unix:style>` in the box, shown as it will read. `onStartThread` (a guild text channel you may start threads in)
 // opens the new thread dialog.
 // `onSend({ text, replyTo, localAttachments, resolveText })` sends (see useConversation's
 // sendMessage); `onSendPoll({ poll, replyTo })` sends a poll made in PollDialog (see ChatPane).
@@ -129,9 +131,10 @@ export default function Composer({
   const [suggestionIndex, setSuggestionIndex] = useState(0);
   // The query (":smi" or "@na") whose suggestions Escape closed.
   const [dismissedQuery, setDismissedQuery] = useState(null);
-  // The + button's menu (upload a file, create a poll), and the poll dialog.
+  // The + button's menu (upload a file, create a poll...), the poll dialog and the timestamp one.
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [creatingPoll, setCreatingPoll] = useState(false);
+  const [addingTimestamp, setAddingTimestamp] = useState(false);
   const addMenuRef = useRef(null);
   // Mobile: the + panel, which takes turns with the keyboard and the emoji panel.
   const [showAttachPanel, setShowAttachPanel] = useState(false);
@@ -536,9 +539,9 @@ export default function Composer({
     };
   }, [addMenuOpen]);
 
-  // Escape cancels a reply (not while it's closing the poll dialog or deleting a recording).
+  // Escape cancels a reply (not while it's closing a dialog or deleting a recording).
   useEffect(() => {
-    if (creatingPoll || voice.active) return undefined;
+    if (creatingPoll || addingTimestamp || voice.active) return undefined;
     const onKeyDown = (e) => {
       if (e.key !== 'Escape') return;
       onCancelReply();
@@ -546,7 +549,7 @@ export default function Composer({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onCancelReply, onCancelEdit, editingId, creatingPoll, voice.active]);
+  }, [onCancelReply, onCancelEdit, editingId, creatingPoll, addingTimestamp, voice.active]);
 
   // The tray only shows drafts still referenced from the text; unreferenced ones are kept
   // until send so that undoing a deletion brings them back.
@@ -712,6 +715,14 @@ export default function Composer({
                     <FontAwesomeIcon icon={faMicrophone} fixedWidth /> {t('media.voice.menuItem')}
                   </button>
                 )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="composer-add-item"
+                  onClick={() => { setAddMenuOpen(false); setAddingTimestamp(true); }}
+                >
+                  <FontAwesomeIcon icon={faClock} fixedWidth /> {t('chat.composer.timestamps')}
+                </button>
               </div>
             )}
           </div>}
@@ -773,6 +784,14 @@ export default function Composer({
 
       {creatingPoll && <PollDialog onSubmit={sendPoll} onClose={() => setCreatingPoll(false)} />}
 
+      {addingTimestamp && (
+        <TimestampDialog
+          // Mobile: not focused (as emoji), so the keyboard stays down.
+          onInsert={(timestamp) => inputRef.current?.insertTimestamp(timestamp, { focus: !isMobile })}
+          onClose={() => setAddingTimestamp(false)}
+        />
+      )}
+
       {attachPanelOpen && (
         <AttachPanel
           height={getKeyboardHeight()}
@@ -782,6 +801,7 @@ export default function Composer({
           onPickFiles={attachments.pickFiles}
           onPoll={chatName ? () => { setShowAttachPanel(false); setCreatingPoll(true); } : null}
           onThread={onStartThread ? () => { setShowAttachPanel(false); onStartThread(); } : null}
+          onTimestamp={() => { setShowAttachPanel(false); setAddingTimestamp(true); }}
           onError={setError}
         />
       )}

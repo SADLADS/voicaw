@@ -89,8 +89,33 @@ async function saveMentions(message, channel, permissions, allowed) {
   return { mentioned: found.userIds, viewers };
 }
 
+// Timestamps (`<t:unix:style>`, Discord's, drawn by the app in each reader's time zone) for a
+// push, which the server writes without knowing the reader's: relative ones as they read now
+// ("in 8 hours"), the rest in UTC ("9 October 2026, 18:00 UTC").
+const TIMESTAMP_RE = /<t:(-?\d{1,13})(?::([tTdDfFR]))?>/g;
+const utcDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+const utcTime = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
+const relative = new Intl.RelativeTimeFormat('en-GB', { numeric: 'always' });
+function timestampPreview(unix, style, now = Date.now()) {
+  const ms = Number(unix) * 1000;
+  if (!(Math.abs(ms) <= 8.64e15)) return null;
+  if (style === 'R') {
+    const seconds = (ms - now) / 1000;
+    const abs = Math.abs(seconds);
+    if (abs < 45) return seconds >= 0 ? 'in a few seconds' : 'a few seconds ago';
+    const [unit, size] = [['minute', 60, 2700], ['hour', 3600, 79200], ['day', 86400, 26 * 86400],
+      ['month', 2630016, 11 * 2630016], ['year', 31557600, Infinity]].find(([, , below]) => abs < below);
+    return relative.format(Math.max(1, Math.round(abs / size)) * Math.sign(seconds), unit);
+  }
+  const date = new Date(ms);
+  if (style === 'd' || style === 'D') return `${utcDate.format(date)} (UTC)`;
+  if (style === 't' || style === 'T') return `${utcTime.format(date)} UTC`;
+  return `${utcDate.format(date)}, ${utcTime.format(date)} UTC`;
+}
+
 // The message as notification text: mentions by name (channels `channelNames` gives, { id: name }:
-// those the reader can see; others are #unknown-channel, as in the app), custom emoji as :name:, attachments as
+// those the reader can see; others are #unknown-channel, as in the app), custom emoji as :name:, timestamps
+// (timestampPreview), attachments as
 // their names (their links carry keys; spoilers just "spoiler", voice messages "Voice message"), spoilers hidden, cut to MAX_PREVIEW_LENGTH.
 async function previewText(content, guildId, channelNames = {}) {
   const userIds = [...String(content).matchAll(/<@(\d+)>/g)].map((m) => Number(m[1]));
@@ -109,6 +134,7 @@ async function previewText(content, guildId, channelNames = {}) {
     .replace(/<@&(\d+)>/g, (_, id) => `@${roleName.get(Number(id)) ?? 'deleted-role'}`)
     .replace(/<@(\d+)>/g, (_, id) => `@${userName.get(Number(id)) ?? 'unknown-user'}`)
     .replace(/<#(\d+)>/g, (_, id) => `#${channelNames[id] ?? 'unknown-channel'}`)
+    .replace(TIMESTAMP_RE, (whole, unix, style) => timestampPreview(unix, style) ?? whole)
     .trim();
   return text.length > MAX_PREVIEW_LENGTH ? `${text.slice(0, MAX_PREVIEW_LENGTH - 1)}…` : text;
 }

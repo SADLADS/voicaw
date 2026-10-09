@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { userLocale } from './locale';
+import { t } from '../i18n';
 
 // How dates and times are shown, chosen per device in Settings → Date & time (localStorage
 // `dateFormat`). Every date or time the app shows goes through here.
@@ -126,6 +127,31 @@ export function formatMonthYear(value) {
 // When something happens, in words: Tuesday 6 October 2026, 20:00 (scheduled events).
 export function formatEventTime(value, options = {}) {
   return `${formatWeekday(value)} ${formatLongDate(value, options)}, ${formatTime(value, options)}`;
+}
+
+// How far off something is, in words: in 8 hours, 3 days ago (Discord's <t:…:R>; moment's
+// rounding: under 45 seconds is "a few seconds", under 45 minutes minutes, under 22 hours hours,
+// under 26 days days, under 11 months months, then years). `now` in ms.
+export function formatRelative(value, now = Date.now()) {
+  const seconds = (toDate(value).getTime() - now) / 1000;
+  const abs = Math.abs(seconds);
+  if (abs < 45) return seconds >= 0 ? t('common.relativeTime.soon') : t('common.relativeTime.justNow');
+  const steps = [
+    ['minute', 60, 45 * 60],
+    ['hour', 3600, 22 * 3600],
+    ['day', 86400, 26 * 86400],
+    ['month', 30.44 * 86400, 11 * 30.44 * 86400],
+    ['year', 365.25 * 86400, Infinity],
+  ];
+  const [unit, size] = steps.find(([, , below]) => abs < below);
+  const amount = Math.max(1, Math.round(abs / size)) * Math.sign(seconds);
+  const key = `${userLocale()}|relative`;
+  let found = formatters.get(key);
+  if (!found) {
+    found = new Intl.RelativeTimeFormat(userLocale(), { numeric: 'always' });
+    formatters.set(key, found);
+  }
+  return found.format(amount, unit);
 }
 
 // The current choice ({ date, time }), redrawing the component when it changes.

@@ -1,5 +1,6 @@
 import { t } from '../i18n';
 import { nameOf } from './profiles';
+import { timestampsToText } from './timestamps';
 
 // Mentions, written like Discord's in message text: `<@id>` (a person), `<@&id>` (a guild role),
 // `<#id>` (a guild channel: anywhere, DMs too; a link to it, notifying nobody),
@@ -37,10 +38,11 @@ export function channelName(channels, id) {
 }
 
 // For plain-text places (reply previews, notifications, copying): `<@id>` → `@name`,
-// `<@&id>` → `@role`, `<#id>` → `#channel` (`channels`: { id: { name } }).
+// `<@&id>` → `@role`, `<#id>` → `#channel` (`channels`: { id: { name } }), and timestamps
+// `<t:unix:style>` as they read now (utils/timestamps).
 export function mentionsToText(text, names, roles, channels) {
   if (text == null) return text;
-  return String(text)
+  return timestampsToText(String(text))
     .replace(channelMentionPattern(), (_, id) => `#${channelName(channels, id)}`)
     .replace(roleMentionPattern(), (_, id) => `@${roleName(roles, id)}`)
     .replace(mentionPattern(), (_, id) => `@${mentionName(names, id)}`);

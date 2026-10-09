@@ -4,9 +4,10 @@ import { Decoration, DecorationSet, EditorView } from 'prosemirror-view';
 import { keymap } from 'prosemirror-keymap';
 import { baseKeymap, splitBlock } from 'prosemirror-commands';
 import { history, redo, undo } from 'prosemirror-history';
-import { Fragment, Slice } from 'prosemirror-model';
+import { DOMSerializer, Fragment, Slice } from 'prosemirror-model';
 import 'prosemirror-view/style/prosemirror.css';
-import { OBJECT_CHAR, docToText, schema, textBeforeCaret, textToDoc, textToSlice } from './messageDoc';
+import { OBJECT_CHAR, docToText, schema, textBeforeCaret, textToDoc, textToSlice, typedTimestamps } from './messageDoc';
+import { formatTimestamp, onClockTick } from '../utils/timestamps';
 import { markdownPreview } from './markdownPreview';
 import { registerEditor } from './editorRegistry';
 import { userLocale } from '../utils/locale';
@@ -34,7 +35,8 @@ import { ChannelMentionContext } from '../contexts';
 // replaceBeforeCaret(count, text, { focus }), replaceBeforeCaretWithCustomEmoji(count, emoji),
 // replaceBeforeCaretWithMention(count, { id, name }), replaceBeforeCaretWithRoleMention(count,
 // { id, name, color }), replaceBeforeCaretWithChannelMention(count, { id, name }),
-// removeAttachment(id), and element.
+// insertTimestamp({ unix, style }), removeAttachment(id), and element.
+// Timestamps (`<t:unix:style>`) show as they will read, whether typed, pasted or inserted.
 // The document's markdown as decorations: a class on each styled line, and on each styled
 // stretch of text (see markdownPreview; chips and custom emoji count as one character, as they
 // take one position).
@@ -71,6 +73,15 @@ function codeRanges(doc) {
     }
   });
   return ranges;
+}
+
+// A timestamp in the box: the schema's chip, its words kept up to date for a relative one.
+function timestampView(node) {
+  const dom = DOMSerializer.renderSpec(document, schema.nodes.timestamp.spec.toDOM(node)).dom;
+  const stop = node.attrs.style === 'R'
+    ? onClockTick(() => { dom.textContent = formatTimestamp(node.attrs.unix, 'R'); })
+    : null;
+  return { dom, ignoreMutation: () => true, destroy: () => stop?.() };
 }
 
 const MessageEditor = forwardRef(function MessageEditor(props, ref) {
@@ -122,6 +133,21 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
       },
     });
 
+    // A timestamp typed out in full (its closing `>`, or pasted along with other text) becomes
+    // one, shown as it will read (like a mention picked from the list).
+    const timestamps = new Plugin({
+      appendTransaction(trs, _, state) {
+        if (!trs.some((tr) => tr.docChanged && !tr.getMeta('composition'))) return null;
+        const found = typedTimestamps(state.doc);
+        if (!found.length) return null;
+        const tr = state.tr;
+        for (const { from, to, unix, style } of found.reverse()) {
+          tr.replaceWith(from, to, schema.nodes.timestamp.create({ unix, style }));
+        }
+        return tr.setMeta('ignoreLength', true);
+      },
+    });
+
     const markdown = new Plugin({
       state: {
         init: (_, state) => markdownDecorations(state.doc),
@@ -145,10 +171,12 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
           keymap(baseKeymap),
           lengthLimit,
           emptyState,
+          timestamps,
           markdown,
           spellcheckPlugin({ skipRanges: codeRanges }),
         ],
       }),
+      nodeViews: { timestamp: timestampView },
       handleKeyDown(v, event) {
         if (event.isComposing) return false;
         current().onKeyDown?.(event);
@@ -296,6 +324,13 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
           const start = Math.max(from - count, state.selection.$from.start());
           const node = schema.nodes.channelMention.create({ id: String(channel.id), name: channel.name });
           return tr.replaceWith(start, from, Fragment.from([node, schema.text(' ')]));
+        }, options);
+      },
+      // A timestamp ({ unix, style }) where the cursor is, and a space.
+      insertTimestamp(timestamp, options) {
+        run((tr) => {
+          const node = schema.nodes.timestamp.create({ unix: String(timestamp.unix), style: timestamp.style ?? '' });
+          return tr.replaceSelection(new Slice(Fragment.from([node, schema.text(' ')]), 0, 0));
         }, options);
       },
       // Replaces the `count` characters before the cursor (e.g. a ":smi" being completed).

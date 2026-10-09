@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCamera, faComments, faFile, faImages, faPlus, faSquarePollHorizontal } from '@fortawesome/free-solid-svg-icons';
+import { faCamera, faClock, faComments, faFile, faImages, faPlus, faSquarePollHorizontal } from '@fortawesome/free-solid-svg-icons';
 import { useDeviceMedia, useMediaThumbnail } from '../hooks/useDeviceMedia';
 import { useSheetDrag } from '../hooks/useSheetDrag';
 import { android, readMedia } from '../utils/android';
@@ -47,10 +47,10 @@ function MediaTile({ item, order, onToggle }) {
 // panel; swiped or tapped up to full screen). A camera tile, then the phone's photos and
 // videos (the Android app only: a web page can't list them), tapped to attach or take back;
 // `picked` lists the gallery ids attached so far, in order. Underneath, a bar: Photos (the
-// phone's own picker), Poll, Thread (when `onThread`) and Files.
+// phone's own picker), Poll, Thread (when `onThread`), Files and Timestamps (`onTimestamp`).
 // `onAddFiles(files, { source })` attaches files (`source`: the gallery id), `onRemove(source)`
 // takes one back, `onPickFiles(options)` opens the file chooser (useAttachmentDrafts).
-export default function AttachPanel({ height, picked, onAddFiles, onRemove, onPickFiles, onPoll, onThread, onError }) {
+export default function AttachPanel({ height, picked, onAddFiles, onRemove, onPickFiles, onPoll, onThread, onTimestamp, onError }) {
   const rootRef = useRef(null);
   const [expanded, setExpanded] = useState(false);
   useSheetDrag({ sheetRef: rootRef, enabled: true, expanded, setExpanded, collapsedHeight: height });
@@ -151,6 +151,10 @@ export default function AttachPanel({ height, picked, onAddFiles, onRemove, onPi
           <button type="button" onClick={() => onPickFiles()}>
             <FontAwesomeIcon icon={faFile} />
             <span>{t('chat.attachPanel.files')}</span>
+          </button>
+          <button type="button" onClick={onTimestamp}>
+            <FontAwesomeIcon icon={faClock} />
+            <span>{t('chat.attachPanel.timestamps')}</span>
           </button>
         </div>
       </div>

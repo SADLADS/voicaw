@@ -102,6 +102,13 @@ describe('guild mentions', () => {
     expect(bobEvents.find((e) => e.type === 'guild_mention')).toMatchObject({ channelId: general.id, messageId: res.body.id });
     expect(await unreadFor(bob, general)).toMatchObject({ count: 1, mentions: 1 });
     expect(await unreadFor(carol, general)).toMatchObject({ count: 1, mentions: 0 });
+
+    // Timestamps: the server doesn't know the reader's time zone, so UTC (relative ones as now).
+    const inEightHours = Math.floor(Date.now() / 1000) + 8 * 3600 + 60;
+    const later = sentPushes.length;
+    await say(owner, general, `<@${bob.id}> <t:1791565200:f> <t:1791565200:t> <t:${inEightHours}:R> <t:99999999999999:R>`);
+    expect((await pushesSince(later))[0].payload.body)
+      .toBe(`@${bob.username} 9 October 2026, 17:00 UTC 17:00 UTC in 8 hours <t:99999999999999:R>`);
     bobEvents.stop();
   });
 

@@ -2170,6 +2170,82 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   line-height: 1.4;
 }
 
+/* Timestamps (`<t:unix:style>`): the time as the reader sees it, on a faint pill (like
+   Discord's), in messages and in the message box. */
+.timestamp {
+  padding: 0 2px;
+  border-radius: 3px;
+  background-color: color-mix(in srgb, var(--vc-fg) 10%, transparent);
+  white-space: nowrap;
+}
+
+.editor-timestamp {
+  display: inline-block;
+  line-height: 1.4;
+}
+
+/* The + menu's Timestamps dialog. */
+.timestamp-dialog-when {
+  display: flex;
+  gap: 8px;
+}
+
+.timestamp-dialog-when input {
+  flex: 1;
+  min-width: 0;
+}
+
+.timestamp-styles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 12px 0 8px;
+}
+
+.timestamp-styles legend {
+  margin-bottom: 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.vc-form label.timestamp-style {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 15px;
+  font-weight: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.timestamp-style:hover,
+.timestamp-style.checked {
+  background-color: var(--vc-bg-hover);
+}
+
+.timestamp-style-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.timestamp-style-preview {
+  color: var(--vc-fg);
+}
+
+.timestamp-style-name {
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.timestamp-dialog-code code {
+  user-select: all;
+}
+
 /* A message that mentions you: tinted, with a bar on the left (like Discord). */
 .each-dm-message-wrapper.mentioned,
 .message-scroller.has-focused-message .each-dm-message-wrapper.mentioned:not(.focused):hover {
