@@ -187,6 +187,13 @@ who else is an admin) once you've registered:
 cd server && npm run admin -- <username>     # --remove takes it away
 ```
 
+Back up the database every night (one copy, replaced each time; needs the `sqlite3` package; see
+Backups in `docs/database.md`), with `crontab -e`:
+
+```
+30 3 * * * umask 077 && /usr/bin/sqlite3 /path/to/voicaw/server/voicaw.db ".timeout 30000" ".backup /path/to/backup/voicaw.db.tmp" && mv -f /path/to/backup/voicaw.db.tmp /path/to/backup/voicaw.db
+```
+
 ### 7. nginx
 
 One site per name, each with a certificate (`certbot --nginx -d <name>`):

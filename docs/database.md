@@ -32,3 +32,21 @@ and Send Messages in Threads); add the next one at the end.
   `guilds.levels`, see Levels in `docs/guilds.md`). An earlier sketch left unused, empty tables in old databases
 (`roles`, `user_roles`, `categories`, `channels`, `channel_permissions`, `messages`); nothing
 creates or reads them any more, and they can be dropped.
+
+## Backups
+
+The host keeps one copy of the database in `/home/otto/backup/voicaw/voicaw.db`, replaced every
+night at 03:30 by otto's crontab (the whole machine is backed up daily, weekly and monthly, which
+keeps the older ones; set up 2026-10-09):
+
+```
+30 3 * * * umask 077 && /usr/bin/sqlite3 /home/otto/git/voicaw/server/voicaw.db ".timeout 30000" ".backup /home/otto/backup/voicaw/voicaw.db.tmp" && mv -f /home/otto/backup/voicaw/voicaw.db.tmp /home/otto/backup/voicaw/voicaw.db
+```
+
+`.backup` is SQLite's online backup: a consistent copy while the API runs, WAL included (never
+`cp` the live file: it can miss the `-wal` or catch it mid-write). The copy is written beside the
+old one and moved over it, so a failed run leaves the previous one whole. It's readable by otto
+only: it holds guild messages in plain text, OPAQUE records and the encrypted key backups. Not in
+it: uploads (the object store) and `server/.env`, whose `OPAQUE_SERVER_SETUP` every login needs
+(the machine backup has that file). To restore: stop `voicaw-api`, delete `voicaw.db-wal` and
+`voicaw.db-shm`, copy the backup over `voicaw.db`, start it again.
