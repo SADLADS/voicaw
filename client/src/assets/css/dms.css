@@ -2806,6 +2806,18 @@ body.mobile-mode .dm-user-list-container .dm-user {
   font-size: 0.9em;
 }
 
+/* Sharing their screen in guild voice (utils/voiceStreams.js): the live colour, as the LIVE
+   badge under the voice channel. */
+.activity-line-live .activity-line-icon,
+.activity-image-none.activity-image-live {
+  color: var(--vc-danger);
+}
+
+.activity-stream-link {
+  color: var(--vc-link);
+  font-size: 13px;
+}
+
 .activity-body {
   display: flex;
   align-items: center;

@@ -385,7 +385,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   player's app and shared as the small copy (never the address). A 128 px
   copy of the picture goes to the server; activities live in its memory only. Shown in the
   member list (unlike custom statuses), the DM list, Friends and profile cards; "Share what I'm
-  playing" in Settings → Desktop App, on by default. Bots' own activities show too.
+  playing" in Settings → Desktop App, on by default. Bots' own activities show too. Sharing a
+  screen in a guild voice channel shows "Streaming in #channel" (before games) to those who can
+  see that channel only, from voice states, never for calls (2026-10-09).
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

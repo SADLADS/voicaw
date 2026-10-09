@@ -93,7 +93,8 @@ async function addMember(guildId, userId) {
 }
 
 // The caller's guilds, in their guild rail order (PUT /guilds-order).
-// Each with `voice`: who's in the voice channels they can see ({ [channelId]: [userId] }).
+// Each with `voice`: who's in the voice channels they can see ({ [channelId]: [userId] }), and
+// `streams`: who's sharing their screen in them ([{ user_id, channel_id, channel_name }]).
 router.get('/guilds', authenticateJWT, async (req, res) => {
   const guilds = await db.all(
     `SELECT g.id, g.name, g.owner, g.icon_version, g.created_at
@@ -102,7 +103,7 @@ router.get('/guilds', authenticateJWT, async (req, res) => {
     [req.user.id]
   );
   const { guildVoiceFor } = require('../voice');
-  for (const guild of guilds) guild.voice = await guildVoiceFor(guild.id, req.user.id);
+  for (const guild of guilds) Object.assign(guild, await guildVoiceFor(guild.id, req.user.id));
   res.json(guilds);
 });
 

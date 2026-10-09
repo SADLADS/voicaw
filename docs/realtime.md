@@ -137,6 +137,16 @@ guilds", a custom status; gateway Presence Update). Built 2026-10-09.
   in the DM list and Friends where there's no custom status, as Discord) and `Activities` (the
   profile card: per activity a heading, the picture or that icon, name, details, state with
   "(2 of 4)", "12:34 elapsed" / "3:00 left", ticking).
+- **Streaming in guild voice** (built 2026-10-09, as Discord's Go Live): someone sharing their
+  screen in a guild voice channel shows "Streaming in **lounge**" (broadcast tower, in the live
+  red) in `ActivityLine`, before any game, and a Streaming section first on their card (channel,
+  guild, Go to channel). Not an activity: nothing more is broadcast. `utils/voiceStreams.js` keeps
+  it from what the app already gets about voice channels it can see: the guild list's `streams`
+  (`[{ user_id, channel_id, channel_name }]`, from `voice.js` `guildVoiceFor`), guild layouts
+  (`self_stream` in each voice channel's `voice`) and `guild_voice_state` events (which carry
+  `channelName`), fed by `useGuildList`. So the server's channel visibility decides who learns
+  it, and a private channel's stream stays private. Never for DM or group calls (private and
+  end-to-end encrypted). Checked in `e2e/voicestream.mjs`.
 - Bots get people's in PRESENCE_UPDATE (`activities`, Discord's shape, no application id or
   pictures) with the presences intent, and when they change.
 

@@ -91,21 +91,34 @@ function membersOf(channelId) {
     .map(publicState);
 }
 
-// Who's in the voice channels of `guildId` that `userId` can see, { [channelId]: [userId] } (the
-// speaker on the guild rail, for guilds whose layout the app hasn't loaded).
+// Who's in the voice channels of `guildId` that `userId` can see, { voice, streams }: `voice` is
+// { [channelId]: [userId] } (the speaker on the guild rail, for guilds whose layout the app
+// hasn't loaded), `streams` who's sharing their screen there, [{ user_id, channel_id,
+// channel_name }] ("Streaming in …" on their card and in lists).
 async function guildVoiceFor(guildId, userId) {
   const occupied = new Map();
   for (const s of states.values()) {
     if (s.guildId !== guildId) continue;
     if (!occupied.has(s.channelId)) occupied.set(s.channelId, []);
-    occupied.get(s.channelId).push(s.userId);
+    occupied.get(s.channelId).push(s);
   }
   const voice = {};
-  for (const [channelId, userIds] of occupied) {
+  const streams = [];
+  for (const [channelId, inChannel] of occupied) {
     const access = await getChannelAccess(channelId, userId);
-    if (access && has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) voice[channelId] = userIds;
+    if (!access || !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) continue;
+    voice[channelId] = inChannel.map((s) => s.userId);
+    const streaming = inChannel.filter((s) => s.streaming);
+    if (streaming.length) {
+      const name = await channelName(channelId);
+      for (const s of streaming) streams.push({ user_id: s.userId, channel_id: channelId, channel_name: name });
+    }
   }
-  return voice;
+  return { voice, streams };
+}
+
+async function channelName(channelId) {
+  return (await require('./db').get('SELECT name FROM guild_channels WHERE id = ?', [channelId]))?.name ?? null;
 }
 
 // Tells everyone who can see the channel that `userId` is now in it with `state`, or left (null).
@@ -113,7 +126,8 @@ async function guildVoiceFor(guildId, userId) {
 async function announce(guildId, channelId, userId, state) {
   await sendToChannel(
     { id: channelId, guild_id: guildId },
-    { type: 'guild_voice_state', guildId, channelId, userId, state: state && publicState(state) }
+    // The channel's name, for "Streaming in …" where its guild isn't open.
+    { type: 'guild_voice_state', guildId, channelId, channelName: await channelName(channelId), userId, state: state && publicState(state) }
   );
   require('./watchParty').voiceChanged(channelId, [...states.values()].some((s) => s.channelId === channelId));
 }

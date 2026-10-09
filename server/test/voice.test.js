@@ -148,12 +148,16 @@ describe('voice channels', () => {
     expect(voiceEvents(events)).toEqual([]);
 
     await webhook('track_published', lounge, alice, sid, { sid: 'TR_screen', source: 'SCREEN_SHARE', type: 'VIDEO' });
-    expect(voiceEvents(events).at(-1).state.self_stream).toBe(true);
+    expect(voiceEvents(events).at(-1)).toMatchObject({ channelName: lounge.name, state: { self_stream: true } });
     expect((await voiceOf(owner, guild, lounge))[0].self_stream).toBe(true);
+    // The guild list says who's streaming where ("Streaming in …" on cards and in lists).
+    const streamsFor = async (user) => (await api.get(user, '/guilds')).body.find((g) => g.id === guild.id).streams;
+    expect(await streamsFor(owner)).toEqual([{ user_id: alice.id, channel_id: lounge.id, channel_name: lounge.name }]);
 
     await webhook('track_unpublished', lounge, alice, sid, { sid: 'TR_screen', source: 'SCREEN_SHARE', type: 'VIDEO' });
     expect(voiceEvents(events).at(-1).state.self_stream).toBe(false);
     expect(voiceEvents(events)).toHaveLength(2);
+    expect(await streamsFor(owner)).toEqual([]);
   });
 
   it('tells the channel whose camera is on, from the track webhooks', async () => {
@@ -186,7 +190,7 @@ describe('voice channels', () => {
     const expected = { user_id: alice.id, username: alice.username, self_mute: true, self_deaf: false, self_stream: false, self_video: false, listening: true };
     expect(await voiceOf(owner, guild, lounge)).toEqual([expected]);
     expect(voiceEvents(events)).toEqual([
-      { type: 'guild_voice_state', guildId: guild.id, channelId: lounge.id, userId: alice.id, state: expected },
+      { type: 'guild_voice_state', guildId: guild.id, channelId: lounge.id, channelName: lounge.name, userId: alice.id, state: expected },
     ]);
 
     // Another session of hers leaving (a replaced device) doesn't take her out.
@@ -215,7 +219,7 @@ describe('voice channels', () => {
     expect(await voiceInList(bob)).toEqual({});
 
     await join(alice, guild, lounge);
-    await webhook('participant_joined', lounge, alice);
+    const aliceSid = await webhook('participant_joined', lounge, alice);
     await join(owner, guild, gaming);
     await webhook('participant_joined', gaming, owner);
     expect(await voiceInList(bob)).toEqual({ [lounge.id]: [alice.id], [gaming.id]: [owner.id] });
@@ -225,6 +229,12 @@ describe('voice channels', () => {
     await api.put(owner, `/guilds/${guild.id}/channels/${lounge.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.VIEW_CHANNEL });
     expect(await voiceInList(bob)).toEqual({ [gaming.id]: [owner.id] });
     expect(await voiceInList(alice)).toEqual({ [lounge.id]: [alice.id], [gaming.id]: [owner.id] });
+
+    // Nor who's streaming in one.
+    await webhook('track_published', lounge, alice, aliceSid, { sid: 'TR_screen', source: 'SCREEN_SHARE', type: 'VIDEO' });
+    const streamsFor = async (user) => (await api.get(user, '/guilds')).body.find((g) => g.id === guild.id).streams;
+    expect(await streamsFor(bob)).toEqual([]);
+    expect((await streamsFor(alice)).map((s) => s.user_id)).toEqual([alice.id]);
   });
 
   it('updates mute and deafen', async () => {

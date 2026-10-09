@@ -1,5 +1,6 @@
 import { applyPresenceSnapshot, applyUserStatus, isMobileDevice, resetPresence } from './presence';
 import { applyActivitiesSnapshot, applyUserActivities, resetActivities } from './activities';
+import { resetVoiceStreams } from './voiceStreams';
 import { mergeProfiles } from './profiles';
 import { applyTyping, resetTyping } from './typing';
 import { desktopNotificationsOn } from '../services/pushService';
@@ -335,6 +336,7 @@ export function closeWebSocket() {
   activityTimer = null;
   resetPresence();
   resetActivities();
+  resetVoiceStreams();
   resetTyping();
   newDmlisteners.clear();
   deleteListeners.clear();

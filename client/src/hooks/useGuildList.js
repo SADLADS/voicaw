@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onConnectionState, onGuildEvent } from '../utils/ws-client';
 import { threadPermissions } from '../utils/permissions';
+import { applyStreamVoiceState, removeGuildStreams, setGuildStreams, setStreamsFromLayout } from '../utils/voiceStreams';
 import {
   fetchAllEmojis,
   fetchChannelMutes,
@@ -39,6 +40,8 @@ import {
 // messages there don't count as unread. A layout's `threads` are the active threads you can see
 // (with `joined`; only joined ones count as unread), kept current by the thread events.
 // `onRemoved(guildId)` runs when you leave, are removed from, or delete a guild.
+// Who's sharing their screen in voice (utils/voiceStreams.js) is kept from the same list,
+// layouts and events.
 const summaryOf = (guild) => ({ id: guild.id, name: guild.name, owner: guild.owner, icon_version: guild.icon_version, created_at: guild.created_at });
 
 // Who's in a layout's voice channels, { [channelId]: [userId] } (the occupied ones).
@@ -106,6 +109,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
     if (guild.categories) {
       setLayouts((prev) => ({ ...prev, [guild.id]: guild }));
       setVoice((prev) => ({ ...prev, [guild.id]: voiceOfLayout(guild) }));
+      setStreamsFromLayout(guild);
     }
   }, [loadEmojis]);
 
@@ -130,6 +134,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
       return rest;
     });
     setChannelLevels((prev) => Object.fromEntries(Object.entries(prev).filter(([, l]) => l.guildId !== guildId)));
+    removeGuildStreams(guildId);
     onRemovedRef.current?.(guildId);
   }, []);
 
@@ -185,6 +190,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
     const list = await fetchGuilds();
     setGuilds(list.map(summaryOf));
     setVoice(Object.fromEntries(list.map((g) => [g.id, g.voice ?? {}])));
+    for (const g of list) setGuildStreams(g.id, g.streams);
   }, []);
 
   // Mutes changed on another device, voice joins and leaves, and emoji added or removed, while
@@ -294,6 +300,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
           applyChannelLevel(event);
           break;
         case 'guild_voice_state':
+          applyStreamVoiceState(event);
           // They're taken out of wherever they were in the guild, and put in the channel (joined).
           setVoice((prev) => {
             const channels = {};
