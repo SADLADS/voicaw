@@ -7,7 +7,7 @@ import { BASE, launchChrome, signUp, send, devices } from './helpers.mjs';
 
 const dir = process.argv[2];
 if (dir) mkdirSync(dir, { recursive: true });
-const shot = (page, name) => (dir ? page.screenshot({ path: `${dir}/${name}.png` }) : null);
+const shot = (page, name) => (dir ? page.screenshot({ path: `${dir}/${name}.png` }) : Promise.resolve());
 
 const check = (ok, what) => {
   if (!ok) throw new Error(what);

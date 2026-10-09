@@ -659,6 +659,27 @@ describe('group DM pins', () => {
   });
 });
 
+describe('group DM edit history', () => {
+  it('keeps earlier versions for members who can read the message, until it goes', async () => {
+    const [ann, bea, cal, dan] = [await makeUser(), await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    const sent = (await send(ann, groupId, 'first')).body;
+    expect((await api.put(ann, `/group-dm-messages/${sent.id}`, { content: 'v2.second' })).status).toBe(200);
+
+    const res = await api.get(bea, `/group-dm-messages/${sent.id}/edits`);
+    expect(res.status).toBe(200);
+    expect(res.body.versions).toEqual([{ content: sent.content, written_at: sent.timestamp, edited: 0 }]);
+    expect(res.body.edited_at).toEqual(expect.any(Number));
+
+    // Dan, added later, can't read the message, nor its history.
+    await change(ann, groupId, 'add', dan, [ann, bea, cal, dan]);
+    expect((await api.get(dan, `/group-dm-messages/${sent.id}/edits`)).status).toBe(404);
+
+    expect((await api.delete(ann, `/group-dm-messages/${sent.id}`)).status).toBe(200);
+    expect(await db.all("SELECT id FROM message_edits WHERE kind = 'group' AND message_id = ?", [sent.id])).toEqual([]);
+  });
+});
+
 describe('group polls', () => {
   it('posts a "poll ended" row only to those who can read the poll, with its votes', async () => {
     const [ann, bea, cal, dan] = [await makeUser(), await makeUser(), await makeUser(), await makeUser()];

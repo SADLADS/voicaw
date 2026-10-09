@@ -461,6 +461,39 @@ in a DM, everyone in a group's log, a guild's members; anyone else `@unknown-use
   For everyone else it stays the link. The message keeps the link as typed, so plain-text
   places (reply previews, pushes) show it as it is, and search finds it.
 
+## Edit history
+
+Edited messages keep their earlier versions (built 2026-10-09), in DMs, notes, group DMs and
+guild channels (threads, voice channels' chat and document replies included), visible to
+everyone who can see the message (Discord has no history; this is ours).
+- **Server** (`server/editHistory.js`): each edit route (`PUT /guild-messages/:id`,
+  `/update-message/:id`, `/group-dm-messages/:id`) calls `keepVersion(kind, row, newContent)` in
+  its transaction before the update: the old `content` goes into `message_edits` (`kind`
+  'guild' | 'dm' | 'group'), with `written_at` (the message's time, or its last `edited_at`) and
+  `edited` (whether that version was itself an edit). Saving the same text keeps nothing. DMs
+  and groups store the ciphertext as it was (the server already had it and still can't read it);
+  `direct_messages` and `group_dm_messages` gained `edited_at`. Versions are never indexed for
+  guild search. Deleting a message deletes its versions (triggers in `db.js`, so every delete
+  path, purges and guild deletion included, takes them). Messages edited before this have no
+  history (or a first version with `written_at` null).
+- **Reading**: `GET /guild-messages/:id/edits` (anyone who can see the channel),
+  `/dm-messages/:id/edits` (either person), `/group-dm-messages/:id/edits` (members with the
+  message's epoch key) -> `{ versions: [{ content, written_at, edited }], edited_at }`, oldest
+  first, the current version not among them.
+- **Not kept**: bots' and webhooks' edits (they rewrite messages as they go, e.g. game
+  boards), bot DMs, task comments and documents.
+  Polls' edits are kept but not shown (mostly ending the poll).
+- **Client**: each chat hook has `loadEdits(msg)` (`useChannel`, `useConversation`,
+  `useGroupConversation`): DMs decrypt each version with the conversation key, groups with the
+  message's epoch key and check its signature against the context it was signed with (`editOf`
+  only when `edited`), showing "unverified" like the chat. On a computer "edited" beside a
+  message is a button (`utils/editHistory.js` `hasEditHistory`; on phones it stays plain text, so
+  a tap never opens it), and the right-click menu and the phone's long-press sheet have Edit history; all open `EditHistoryDialog` (Original / Edit / Now, with times). Attachments show
+  as their names (`summarizeAttachments`): a file an edit removed is deleted (docs/uploads.md),
+  so old versions can't show it.
+- **Privacy**: editing no longer takes text back; deleting the message does. Said so in the
+  privacy policy.
+
 ## Pinned messages
 
 Any message in a DM, group DM or guild text channel can be pinned. Who may: either person in a

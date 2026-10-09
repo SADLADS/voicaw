@@ -4,8 +4,9 @@ import { faChevronDown, faChevronRight, faCopy, faPlus } from '@fortawesome/free
 import { createWebhook, deleteWebhook, fetchChannelWebhooks, updateWebhook } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
 import { webhookUrl } from '../../utils/webhookUrl';
-import { MAX_PICTURE_BYTES, pictureData } from '../../utils/pictureData';
+import { MAX_PICTURE_BYTES, croppedPictureData, croppedPreview } from '../../utils/pictureData';
 import { useDateFormat, formatDate } from '../../utils/dateFormat';
+import ImageCropper from '../ImageCropper';
 import defaultAvatar from '../../assets/images/default.png';
 import { t } from '../../i18n';
 
@@ -13,19 +14,25 @@ import { t } from '../../i18n';
 const MAX_AVATAR_BYTES = MAX_PICTURE_BYTES;
 const NAME_LENGTH = 80;
 
-// One webhook: its picture and name, opened to change them, copy its URL or delete it.
+// One webhook: its picture (cropped like a profile picture) and name, opened to change them,
+// copy its URL or delete it.
 function WebhookRow({ hook, open, onToggle, onChanged, onDeleted }) {
   const [name, setName] = useState(hook.name);
-  const [avatar, setAvatar] = useState(undefined); // a data URI picked but not saved
+  // A picture picked and cropped but not saved ({ data, crop, preview }: croppedPictureData's
+  // data URI and crop, and a blob URL showing the crop), or null to remove it.
+  const [avatar, setAvatar] = useState(undefined);
+  const [cropping, setCropping] = useState(null); // a picked file, in the cropper
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const fileRef = useRef(null);
   useEffect(() => setName(hook.name), [hook.name]);
+  const preview = avatar?.preview;
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
   const dirty = name.trim() !== hook.name || avatar !== undefined;
-  const picture = avatar ?? hook.avatar_url ?? defaultAvatar;
+  const picture = avatar === undefined ? hook.avatar_url ?? defaultAvatar : avatar?.preview ?? defaultAvatar;
 
   async function run(action) {
     setBusy(true);
@@ -39,13 +46,26 @@ function WebhookRow({ hook, open, onToggle, onChanged, onDeleted }) {
     }
   }
 
-  async function pick(file) {
+  function pick(file) {
     if (!file) return;
     if (!file.type.startsWith('image/')) return setError(t('guildAdmin.webhooks.pickImage'));
     if (file.size > MAX_AVATAR_BYTES) return setError(t('guildAdmin.webhooks.tooBig'));
     setError(null);
+    setCropping(file);
+  }
+
+  async function applyCrop(crop) {
+    const file = cropping;
+    setCropping(null);
     try {
-      setAvatar(await pictureData(file));
+      const { data, crop: left } = await croppedPictureData(file, crop);
+      let url;
+      try {
+        url = await croppedPreview(file, crop);
+      } catch {
+        url = URL.createObjectURL(file); // can't draw it here: the whole picture stands in
+      }
+      setAvatar({ data, crop: left, preview: url });
     } catch {
       setError(t('guildAdmin.webhooks.unreadable'));
     }
@@ -54,7 +74,11 @@ function WebhookRow({ hook, open, onToggle, onChanged, onDeleted }) {
   const save = () => run(async () => {
     const changes = {};
     if (name.trim() !== hook.name) changes.name = name.trim();
-    if (avatar !== undefined) changes.avatar = avatar;
+    if (avatar === null) changes.avatar = null;
+    else if (avatar) {
+      changes.avatar = avatar.data;
+      if (avatar.crop) changes.avatarCrop = avatar.crop; // a GIF, cut by the server to stay animated
+    }
     onChanged(await updateWebhook(hook.id, changes));
     setAvatar(undefined);
   });
@@ -142,6 +166,7 @@ function WebhookRow({ hook, open, onToggle, onChanged, onDeleted }) {
           </div>
         </div>
       )}
+      {cropping && <ImageCropper file={cropping} onApply={applyCrop} onCancel={() => setCropping(null)} />}
     </li>
   );
 }

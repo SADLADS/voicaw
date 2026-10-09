@@ -5,9 +5,9 @@ import Modal from './guild/Modal';
 import { MAX_ZOOM, clampView, cropOf, initialView, layout, panView, zoomView } from '../utils/imageCrop';
 import { t } from '../i18n';
 
-// Before a profile picture, a bot's picture or a guild icon is uploaded: the picked `file` in a
-// round frame, to drag into place and zoom (slider, wheel, pinch, or arrows and +/- on the
-// frame). Apply calls onApply with the crop (utils/imageCrop.js cropOf), which the server cuts
+// Before a profile picture, a bot's or webhook's picture or a guild icon is uploaded: the picked
+// `file` in a round frame, to drag into place and zoom (slider, wheel, pinch, or arrows and +/- on
+// the frame). Apply calls onApply with the crop (utils/imageCrop.js cropOf), which the server cuts
 // out (avatarImage.js), so animated pictures stay animated.
 export default function ImageCropper({ file, onApply, onCancel }) {
   const [url, setUrl] = useState(null);

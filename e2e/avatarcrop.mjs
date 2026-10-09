@@ -2,7 +2,9 @@
 // (round hole, slider), the wheel zooms, dragging moves it (never past an edge), Apply previews
 // the crop and Save stores that square (checked in the stored file); Guild Settings' icon: the
 // cropper over the dialog, Escape closes only it, Apply stores the chosen square; a bot's
-// picture in the Developer Portal; a phone pinches to zoom and the dialog fits.
+// picture in the Developer Portal; a webhook's picture (over Channel settings, Escape closes only
+// the cropper, previewed until Save Changes, stored cropped); a phone pinches to zoom and the
+// dialog fits.
 //   node e2e/serve.mjs &   then   node e2e/avatarcrop.mjs [screenshot dir]
 import sharp from 'sharp';
 import { launchChrome, signUp, devices, BASE } from './helpers.mjs';
@@ -140,6 +142,38 @@ try {
   const bot = await colourAt(botUrl, 0.75, 0.25);
   check(bot.colour === 'yellow', `the bot's picture is the right-hand square (${bot.colour})`);
   await shot(a, 'bot-picture');
+
+  // ---- A webhook's picture ----
+  await a.goto(`${BASE}/guild/${guildId}`);
+  await a.waitForSelector('.guild-channel:has-text("general")');
+  await a.click('button[aria-label="Edit general"]');
+  await a.click('[role="tab"]:has-text("Webhooks")');
+  await a.click('button:has-text("New Webhook")');
+  await a.waitForSelector('input[aria-label="Webhook name"]');
+  await a.setInputFiles('input[aria-label="Webhook picture"]', PICTURE);
+  await a.waitForSelector('.image-cropper .image-cropper-frame img[style*="left"]');
+  await a.keyboard.press('Escape');
+  await a.waitForSelector('.image-cropper', { state: 'detached' });
+  check(await a.$('input[aria-label="Webhook name"]') !== null, 'Escape closes the cropper, not Channel settings under it');
+  check(await a.$('button:has-text("Save Changes")') === null, 'a cancelled crop changes nothing');
+  await a.setInputFiles('input[aria-label="Webhook picture"]', PICTURE);
+  await a.waitForSelector('.image-cropper .image-cropper-frame img[style*="left"]');
+  await shot(a, 'webhook-cropper');
+  await drag(a, -500, 0);
+  await a.click('.image-cropper button:has-text("Apply")');
+  await a.waitForSelector('.image-cropper', { state: 'detached' });
+  const hookPreview = await a.$eval('.webhook-avatar.large', (el) => el.src);
+  check(hookPreview.startsWith('blob:'), 'Apply previews the cropped webhook picture');
+  await shot(a, 'webhook-preview');
+  await a.click('button:has-text("Save Changes")');
+  await a.waitForFunction(() => document.querySelector('.webhook-summary .webhook-avatar')?.src.includes('/profile-pics/webhooks/'));
+  const hookUrl = await a.$eval('.webhook-summary .webhook-avatar', (el) => el.src);
+  const hookMiddle = await colourAt(hookUrl, 0.5, 0.5);
+  const hookCorner = await colourAt(hookUrl, 0.75, 0.25);
+  check(hookMiddle.colour === 'blue' && hookCorner.colour === 'yellow',
+    `the webhook's stored picture is the right-hand square (${hookMiddle.colour}, ${hookCorner.colour})`);
+  await shot(a, 'webhook-picture');
+  await a.keyboard.press('Escape');
 
   // ---- Phone: pinch to zoom ----
   const phone = await signUp(browser, 'pinch', { ...devices['Pixel 7'] });

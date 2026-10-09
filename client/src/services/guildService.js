@@ -163,6 +163,12 @@ export async function deleteChannelMessage(messageId) {
   await api.delete(`/guild-messages/${messageId}`);
 }
 
+// A message's earlier versions (server/editHistory.js):
+// { versions: [{ content, written_at, edited }] (oldest first), edited_at }.
+export async function fetchMessageEditHistory(messageId) {
+  return (await api.get(`/guild-messages/${messageId}/edits`)).data;
+}
+
 export async function fetchChannelPins(channelId) {
   return (await api.get(`/channels/${channelId}/pins`)).data;
 }

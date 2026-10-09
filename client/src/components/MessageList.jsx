@@ -41,6 +41,7 @@ import ProfilePopover from './ProfilePopover';
 import Avatar from './Avatar';
 import { formatDateTime, formatLongDate, formatTime, useDateFormat } from '../utils/dateFormat';
 import { parsePoll, pollEnded } from '../utils/pollMarkup';
+import { hasEditHistory } from '../utils/editHistory';
 import { UNKNOWN_CHANNEL, mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
 import { ChannelMentionContext } from '../contexts';
 import ChannelIcon from './guild/ChannelIcon';
@@ -325,6 +326,8 @@ export function MessageRow({
   canAddReactions = true,
   canPin = false,
   onTogglePin,
+  // "edited" opens the message's edit history (EditHistoryDialog, ChatPane).
+  onShowEdits,
   // Desktop: the X beside link previews, for those `canRemovePreviews(msg)` says may (ChatPane).
   canRemovePreviews,
   removePreviewsById,
@@ -398,6 +401,15 @@ export function MessageRow({
   const pinMark = pinned ? (
     <FontAwesomeIcon icon={faThumbtack} className="message-pinned" title={t('chat.message.pinned')} aria-label={t('chat.message.pinned')} />
   ) : null;
+
+  // "edited", as a button opening the earlier versions (computers only: phones open them from
+  // the long-press sheet, so a tap on the message never opens them by accident).
+  const showEdits = onShowEdits && !isMobile && hasEditHistory(msg) ? () => onShowEdits(msg) : null;
+  const editedLabel = (text) => (showEdits ? (
+    <button type="button" className="message-edited-button" title={t('chat.message.showEdits')} onClick={(e) => { e.stopPropagation(); showEdits(); }}>
+      {text}
+    </button>
+  ) : text);
 
   const parent = msg.parent_message_id
     ? {
@@ -512,7 +524,7 @@ export function MessageRow({
 
         <small>
           <span title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>{formatDateTime(msg.timestamp * 1000)}</span>
-          {msg.edited ? <em style={{ marginLeft: '6px' }}>{t('chat.message.edited')}</em> : null}
+          {msg.edited ? <em style={{ marginLeft: '6px' }}>{editedLabel(t('chat.message.edited'))}</em> : null}
           {pinMark}
           {/* Group DMs: sent before messages were signed (the sender can't be verified), or a
               signature that doesn't match the sender. */}
@@ -587,7 +599,7 @@ export function MessageRow({
             <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
           )}
           {/* Without a header to carry it, "edited" goes after the text. */}
-          {grouped && msg.edited && editingMessageId !== msg.id ? <small className="message-edited">{t('chat.message.editedInline')}</small> : null}
+          {grouped && msg.edited && editingMessageId !== msg.id ? <small className="message-edited">{editedLabel(t('chat.message.editedInline'))}</small> : null}
           {grouped && editingMessageId !== msg.id ? pinMark : null}
 
           <EmbedParts
@@ -701,6 +713,7 @@ export default function MessageList({
   canAddReactions,
   canPin,
   onTogglePin,
+  onShowEdits,
   canRemovePreviews,
   onRemovePreviews,
   nameColors,
@@ -813,6 +826,7 @@ export default function MessageList({
     canAddReactions,
     canPin,
     onTogglePin,
+    onShowEdits,
     canRemovePreviews,
     removePreviewsById,
     onRemovePreviews,

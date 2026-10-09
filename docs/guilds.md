@@ -669,15 +669,17 @@ like the rest of a guild.
   `application/octet-stream` (never HTML or SVG). A file sent as `application/octet-stream` (as
   discord.py sends every file) gets its type from its extension, a picture only if sharp reads it
   as that format, so bots' images still show inline. Pictures (data URIs, 8 MB) are processed like
-  profile pictures into `profile-pics/webhooks/<id>/<avatar>.webp`. The app's JSON parser skips
+  profile pictures (the middle square, or `avatarCrop`'s) into
+  `profile-pics/webhooks/<id>/<avatar>.webp`. The app's JSON parser skips
   `/webhooks` paths; the router has its own (12 MB JSON, forms, raw multipart read with
   `Response.formData()`).
 - **Logged in** (Manage Webhooks and View Channel): `POST/GET /channels/:id/webhooks`, `GET
   /guilds/:id/webhooks`, `GET/PATCH/DELETE /webhooks/:id` (PATCH can move it to another text
   or voice channel). Channel settings have a **Webhooks** tab (`guild/ChannelWebhooks.jsx`, for text
   and voice channels; someone with only Manage Webhooks gets just that tab): New Webhook (named "Captain
-  Hook", like Discord's), each one's picture (shrunk to 512 px in the browser, since nginx
-  takes 1 MB by default), name, Copy Webhook URL (built from the app's own API address,
+  Hook", like Discord's), each one's picture (cropped like a profile picture, see Picture
+  cropper in `docs/client.md`, and shrunk to 512 px in the browser, since nginx takes 1 MB by
+  default; a GIF goes whole with `avatarCrop`, our own field, for the server to cut), name, Copy Webhook URL (built from the app's own API address,
   `utils/webhookUrl.js`), delete.
 - **Drawing** (`MessageList`): the webhook's picture and name with an APP tag, no profile card;
   `MessageEmbeds` (colour bar, provider, author, title link, markdown description and fields,

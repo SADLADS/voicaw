@@ -10,6 +10,7 @@ import {
   fetchPins,
   setMessagePinned,
   setLinkPreviews,
+  fetchEditHistory,
 } from '../services/dmService';
 import {
   encryptMessage,
@@ -331,6 +332,15 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     return decryptRows(await fetchPins(chatUser.id), sharedKey);
   }
 
+  // A message's earlier versions (EditHistoryDialog), decrypted: { versions: [{ plaintext
+  // (null if it can't be read), written_at, edited }], edited_at }.
+  async function loadEdits(msg) {
+    const { versions, edited_at } = await fetchEditHistory(msg.id);
+    const context = dmContext(msg.sender_id, msg.recipient_id);
+    const open = (content) => decryptMessage(content, sharedKey, context).catch(() => null);
+    return { versions: await Promise.all(versions.map(async (v) => ({ ...v, plaintext: await open(v.content) }))), edited_at };
+  }
+
   async function setPinned(msg, pinned) {
     applyPin(await setMessagePinned(msg.id, pinned));
   }
@@ -419,6 +429,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     pinsVersion,
     loadPins,
     setPinned,
+    loadEdits,
     firstUnread,
   };
 }

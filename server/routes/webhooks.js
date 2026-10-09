@@ -9,7 +9,7 @@ const { getChannelAccess, getMember, sendToChannel } = require('../guilds');
 const { saveMentions, notifyNewMessage } = require('../mentions');
 const { putObject } = require('../s3');
 const { registerUpload, releaseUploads } = require('../uploads');
-const { processAvatar, AvatarImageError, MAX_AVATAR_UPLOAD_BYTES } = require('../avatarImage');
+const { processAvatar, parseCrop, AvatarImageError, MAX_AVATAR_UPLOAD_BYTES } = require('../avatarImage');
 const { createLimiter } = require('../rateLimit');
 const { MESSAGE_SELECT, withReactions, logMessageDelete } = require('./guildMessages');
 const { logAudit, diff } = require('../auditLog');
@@ -328,15 +328,16 @@ function cleanContent(value) {
 }
 
 // A data URI (Discord's "image data") as a processed picture, stored for `hookId`; returns the
-// new avatar id.
-async function storeAvatar(hookId, dataUri) {
+// new avatar id. `crop` is our app's cropper's (`avatarCrop`, not Discord's; see avatarImage.js
+// parseCrop): without one the middle square is kept.
+async function storeAvatar(hookId, dataUri, crop) {
   const match = typeof dataUri === 'string' && dataUri.match(/^data:image\/[a-z0-9.+-]+;base64,([A-Za-z0-9+/=\s]+)$/i);
   if (!match) throw new FormError(['avatar'], 'Invalid image data', 'IMAGE_INVALID');
   const original = Buffer.from(match[1], 'base64');
   if (original.length > MAX_AVATAR_UPLOAD_BYTES) throw new FormError(['avatar'], 'File cannot be larger than 8 MB.', 'BINARY_TYPE_MAX_SIZE');
   let image;
   try {
-    image = await processAvatar(original);
+    image = await processAvatar(original, parseCrop(crop));
   } catch (err) {
     if (err instanceof AvatarImageError) throw new FormError(['avatar'], err.message, 'IMAGE_INVALID');
     throw err;
@@ -436,7 +437,7 @@ async function createWebhook(req, res) {
   );
   if (req.body?.avatar) {
     try {
-      const avatar = await storeAvatar(lastID, req.body.avatar);
+      const avatar = await storeAvatar(lastID, req.body.avatar, req.body.avatarCrop);
       await db.run('UPDATE guild_webhooks SET avatar = ? WHERE id = ?', [avatar, lastID]);
     } catch (err) {
       await db.run('DELETE FROM guild_webhooks WHERE id = ?', [lastID]);
@@ -493,7 +494,8 @@ async function logWebhookAction(req, action, details) {
   });
 }
 
-// Changes name, avatar (image data, or null for the default) and, logged in, channel_id.
+// Changes name, avatar (image data, or null for the default; `avatarCrop` optional) and, logged
+// in, channel_id.
 async function modifyWebhook(req, res, { canMove }) {
   const body = req.body ?? {};
   const updates = {};
@@ -509,7 +511,7 @@ async function modifyWebhook(req, res, { canMove }) {
     updates.channel_id = target.channel.id;
   }
   // Old pictures stay: messages sent with them still show them.
-  if (body.avatar !== undefined) updates.avatar = body.avatar === null ? null : await storeAvatar(req.hook.id, body.avatar);
+  if (body.avatar !== undefined) updates.avatar = body.avatar === null ? null : await storeAvatar(req.hook.id, body.avatar, body.avatarCrop);
   const keys = Object.keys(updates);
   if (keys.length) {
     await db.run(`UPDATE guild_webhooks SET ${keys.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`, [...keys.map((k) => updates[k]), req.hook.id]);

@@ -8,12 +8,16 @@ import MessageMenu from './MessageMenu';
 import ConfirmDialog from './guild/ConfirmDialog';
 import PinnedMessages from './PinnedMessages';
 import PollDialog from './PollDialog';
+import EditHistoryDialog from './EditHistoryDialog';
+import { hasEditHistory } from '../utils/editHistory';
 import { ChannelMentionContext, ConfigContext, InteractionContext, ThreadContext } from '../contexts';
 import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
 import { useReactions } from '../hooks/useReactions';
 import { useNewDivider } from '../hooks/useNewDivider';
 import { isVoiceMessage, summarizeAttachments } from '../utils/attachmentMarkup';
 import { customEmojiToText } from '../emoji/customEmoji';
+import { useEmojiIndex } from '../emoji/emojiContext';
+import { recordReactionUse } from '../emoji/quickReactions';
 import { mentionsToText } from '../utils/mentions';
 import { hideSpoilers } from '../utils/remarkDiscord';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
@@ -136,6 +140,9 @@ export default function ChatPane({
   const [reporting, setReporting] = useState(null);
   const reportable = (msg) => Boolean(pollKind) && msg.sender_id !== user.id && !msg.system && !msg.ephemeral &&
     msg.status !== 'pending' && msg.status !== 'failed';
+  // The message whose edit history is open (EditHistoryDialog), from its "edited".
+  const [editsFor, setEditsFor] = useState(null);
+  const showEditsFor = (msg) => (conversation.loadEdits && hasEditHistory(msg) ? () => setEditsFor(msg) : undefined);
   // A poll being edited: { msg, poll } (polls are edited in PollDialog, not inline).
   const [editingPoll, setEditingPoll] = useState(null);
 
@@ -155,6 +162,15 @@ export default function ChatPane({
     setMessageReactions: conversation.setMessageReactions,
     onError: setComposerError,
   });
+  const emojiIndex = useEmojiIndex();
+
+  // A reaction added from the quick reactions or by clicking someone's counts as using that
+  // emoji, so the quick reactions become the ones you use (the picker counts its own).
+  const toggleReaction = (msg, emoji) => {
+    const current = conversation.messagesRef.current.find((m) => m.id === msg.id) ?? msg;
+    if (!(current.reactions ?? []).some((r) => r.user_id === user.id && r.emoji === emoji)) recordReactionUse(emoji, emojiIndex);
+    reactions.toggleReaction(msg, emoji);
+  };
 
   const setShowEmojiPicker = (open) => {
     if (open) reactions.closePicker();
@@ -220,6 +236,7 @@ export default function ChatPane({
     setReplyTo(null);
     setEditingMessageId(null);
     setEditingPoll(null);
+    setEditsFor(null);
   }, [chatId]);
 
   // Someone's message arriving means they've stopped typing (it can beat their typing timeout).
@@ -416,7 +433,7 @@ export default function ChatPane({
             isMobile={isMobile}
             editRef={editRef}
             maxPlaintextLength={maxPlaintextLength}
-            onToggleReaction={reactions.toggleReaction}
+            onToggleReaction={toggleReaction}
             onOpenReactionPicker={openReactionPicker}
             onVote={reactions.vote}
             onAddPollAnswer={reactions.addAnswer}
@@ -430,6 +447,7 @@ export default function ChatPane({
             canAddReactions={canAddReactions}
             canPin={canPin}
             onTogglePin={togglePin}
+            onShowEdits={conversation.loadEdits ? setEditsFor : undefined}
             canRemovePreviews={isMobile ? undefined : canRemovePreviews}
             onRemovePreviews={requestRemovePreviews}
             nameColors={nameColors}
@@ -556,13 +574,14 @@ export default function ChatPane({
           canDelete={actionsFor.sender_id === user.id || canModerate}
           canReact={canAddReactions}
           myReactions={new Set((actionsFor.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
-          onReact={(emoji) => reactions.toggleReaction(actionsFor, emoji)}
+          onReact={(emoji) => toggleReaction(actionsFor, emoji)}
           onMoreReactions={() => openReactionPicker(actionsFor, null)}
           onReply={textOnly ? undefined : () => handleReply(actionsFor)}
           onEdit={isClosedPoll(actionsFor) || isVoiceMessage(actionsFor.plaintext) ? undefined : () => handleEdit(actionsFor)}
           onTogglePin={canPin ? () => togglePin(actionsFor) : undefined}
           onCreateThread={threadFrom(actionsFor)}
           onCopy={() => copyMessage(actionsFor)}
+          onShowEdits={showEditsFor(actionsFor)}
           onRemovePreviews={removePreviewsFor(actionsFor)}
           apps={appsFor(actionsFor)}
           onRunApp={(command) => runMessageApp(command, actionsFor)}
@@ -580,7 +599,7 @@ export default function ChatPane({
           canDelete={menuMsg.sender_id === user.id || canModerate}
           canReact={canAddReactions}
           myReactions={new Set((menuMsg.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
-          onReact={(emoji) => reactions.toggleReaction(menuMsg, emoji)}
+          onReact={(emoji) => toggleReaction(menuMsg, emoji)}
           onMoreReactions={(rect) => openReactionPicker(menuMsg, { getBoundingClientRect: () => rect })}
           onViewReactions={() => setReactionsForId(menuMsg.id)}
           onReply={textOnly ? undefined : () => handleReply(menuMsg)}
@@ -588,6 +607,7 @@ export default function ChatPane({
           onTogglePin={canPin ? () => togglePin(menuMsg) : undefined}
           onCreateThread={threadFrom(menuMsg)}
           onCopy={() => copyText(menuMsg)}
+          onShowEdits={showEditsFor(menuMsg)}
           onRemovePreviews={removePreviewsFor(menuMsg)}
           apps={appsFor(menuMsg)}
           onRunApp={(command) => runMessageApp(command, menuMsg)}
@@ -603,8 +623,22 @@ export default function ChatPane({
           names={reactionNames}
           userId={user.id}
           initialEmoji={groupReactions(reactionsMsg.reactions)[0]?.emoji}
-          onRemove={(emoji) => reactions.toggleReaction(reactionsMsg, emoji)}
+          onRemove={(emoji) => toggleReaction(reactionsMsg, emoji)}
           onClose={closeReactions}
+        />
+      )}
+
+      {editsFor && (
+        <EditHistoryDialog
+          // The message as it is now (an edit while it's open shows at once).
+          msg={messages.find((m) => m.id === editsFor.id) ?? editsFor}
+          loadEdits={conversation.loadEdits}
+          onClose={() => setEditsFor(null)}
+          user={user}
+          s3Endpoint={s3Endpoint}
+          reactionNames={reactionNames}
+          mentionRoles={mentionRoles}
+          myRoleIds={myRoleIds}
         />
       )}
 
