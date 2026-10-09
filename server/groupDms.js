@@ -20,13 +20,21 @@ const { sendToUserSockets } = require('./sockets');
 // re-encrypts the current name for it (the renamer's signature inside stays the same), so
 // everyone in the group, newcomers included, can always read it. That needs whoever makes an
 // epoch to be able to read the name, so an add always comes with its new epoch.
+//
+// The group's picture rides on the name: the name record names it (its id and its own key), so
+// it follows the name into every epoch. The server keeps the picture encrypted with that key.
 
 const MAX_MEMBERS = 10;
 // An encrypted key: "v1." + base64 of IV, 44 bytes of base64 key, tag.
 const MAX_ENVELOPE = 200;
 // An encrypted name (client groupCrypto.js sealGroupName): "v1." + base64 of IV (12),
-// signature (64), the name record padded to 512 bytes, tag (16). Always this long.
-const NAME_CIPHERTEXT_LENGTH = 3 + 4 * Math.ceil((12 + 64 + 512 + 16) / 3);
+// signature (64), the name record padded to 768 bytes (512 before group pictures), tag (16).
+// Always one of these long.
+const NAME_CIPHERTEXT_LENGTHS = [768, 512].map((padded) => 3 + 4 * Math.ceil((12 + 64 + padded + 16) / 3));
+// An encrypted picture (groupCrypto.js encryptGroupPicture): "v1." + base64 of IV, the picture
+// (256×256, made on the device), tag. Its id is a UUID.
+const MAX_PICTURE_LENGTH = 400000;
+const PICTURE_OUTDATED = 'Please update the app (groups have pictures now)';
 // Rename rows in the timeline: a message with `system` = 'group_name' and the encrypted name
 // as content, in the epoch it was renamed in.
 const NAME_ROW = 'group_name';
@@ -36,7 +44,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const now = () => Math.floor(Date.now() / 1000);
 
-const isNameCiphertext = (value) => typeof value === 'string' && value.startsWith('v1.') && value.length === NAME_CIPHERTEXT_LENGTH;
+const isNameCiphertext = (value) => typeof value === 'string' && value.startsWith('v1.') && NAME_CIPHERTEXT_LENGTHS.includes(value.length);
+const isPictureData = (value) => typeof value === 'string' && value.startsWith('v1.') && value.length > 3 && value.length <= MAX_PICTURE_LENGTH;
 
 class GroupError extends Error {
   constructor(status, message) {
@@ -70,7 +79,7 @@ async function verifySignature(identityKey, record, signature) {
 // latestEpoch (row or undefined) }, or null.
 async function groupState(groupId) {
   if (typeof groupId !== 'string' || !UUID.test(groupId)) return null;
-  const group = await db.get('SELECT id, name, owner_id, created_at, name_epoch, name_version FROM group_dms WHERE id = ?', [groupId]);
+  const group = await db.get('SELECT id, name, owner_id, created_at, name_epoch, name_version, picture_id FROM group_dms WHERE id = ?', [groupId]);
   if (!group) return null;
   const members = new Set((await db.all('SELECT user_id FROM group_dm_members WHERE group_id = ?', [groupId])).map((r) => r.user_id));
   const last = await db.get('SELECT seq, record, signature FROM group_dm_log WHERE group_id = ? ORDER BY seq DESC LIMIT 1', [groupId]);
@@ -228,15 +237,23 @@ async function storeEpoch(state, creatorId, { epoch, logSeq, envelopes, name, na
   if (named) state.group.name_epoch = epoch;
 }
 
-// Renames the group: `name` (encrypted with the latest epoch `epoch`, which must be for the
-// current members) becomes version `version` (the current one + 1). `initial`: a group from
-// before encrypted names getting its name encrypted (no rename row). -> the rename row's id,
-// or null. 409 if the group changed meanwhile.
-async function storeName(state, userId, { name, epoch, version, initial = false }) {
+// Renames the group or changes its picture: `name` (encrypted with the latest epoch `epoch`,
+// which must be for the current members) becomes version `version` (the current one + 1).
+// `pictureId`: the picture the new name record names (null for none); a new one comes with
+// `picture`, its encrypted data. Apps from before pictures send no `pictureId`: refused once
+// the group has a picture (their record would drop it). `initial`: a group from before
+// encrypted names getting its name encrypted (no rename row). -> the rename row's id, or null.
+// 409 if the group changed meanwhile.
+async function storeName(state, userId, { name, epoch, version, initial = false, ...rest }) {
   if (!isNameCiphertext(name) || !Number.isInteger(version) || !Number.isInteger(epoch)) {
     throw new GroupError(400, NAME_OUTDATED);
   }
   if (initial && version !== 1) throw new GroupError(400, 'Invalid name');
+  if (!('pictureId' in rest) && state.group.picture_id) throw new GroupError(400, PICTURE_OUTDATED);
+  const pictureId = rest.pictureId ?? null;
+  if (pictureId !== null && (typeof pictureId !== 'string' || !UUID.test(pictureId))) throw new GroupError(400, 'Invalid picture');
+  const newPicture = pictureId !== null && pictureId !== state.group.picture_id;
+  if (newPicture && !isPictureData(rest.picture)) throw new GroupError(400, 'Invalid picture');
   return db.transaction(async () => {
     const latest = await db.get('SELECT epoch, log_seq FROM group_dm_epochs WHERE group_id = ? ORDER BY epoch DESC LIMIT 1', [state.group.id]);
     const last = await db.get('SELECT MAX(seq) AS seq FROM group_dm_log WHERE group_id = ?', [state.group.id]);
@@ -244,11 +261,14 @@ async function storeName(state, userId, { name, epoch, version, initial = false 
       throw new GroupError(409, 'The group changed; its key has to be renewed');
     }
     const { changes } = await db.run(
-      'UPDATE group_dms SET name = NULL, name_ciphertext = ?, name_epoch = ?, name_version = ? WHERE id = ? AND name_version = ?',
-      [name, epoch, version, state.group.id, version - 1]
+      `UPDATE group_dms SET name = NULL, name_ciphertext = ?, name_epoch = ?, name_version = ?, picture_id = ?,
+         picture_data = CASE WHEN ? THEN ? WHEN ? IS NULL THEN NULL ELSE picture_data END
+       WHERE id = ? AND name_version = ?`,
+      [name, epoch, version, pictureId, newPicture ? 1 : 0, rest.picture ?? null, pictureId, state.group.id, version - 1]
     );
     if (changes !== 1) throw new GroupError(409, 'The group was renamed meanwhile; try again');
     state.group.name_version = version;
+    state.group.picture_id = pictureId;
     state.group.name_epoch = epoch;
     if (initial) return null;
     const { lastID } = await db.run(
@@ -266,11 +286,12 @@ async function storeName(state, userId, { name, epoch, version, initial = false 
 }
 
 // The group for the list: id, its encrypted name (`name_ciphertext`, `name_epoch`,
-// `name_version`; `name` only for a group from before names were encrypted), owner, members
+// `name_version`; `name` only for a group from before names were encrypted), its picture's id
+// (`picture_id`; the picture itself is fetched on its own, see groupPicture), owner, members
 // (id, username), last message time, unread, and the newest unread message's sender and time
 // (`last_unread_sender_id`, `last_unread_timestamp`; null when none).
 async function groupSummary(groupId, userId) {
-  const group = await db.get('SELECT id, name, name_ciphertext, name_epoch, name_version, owner_id, created_at FROM group_dms WHERE id = ?', [groupId]);
+  const group = await db.get('SELECT id, name, name_ciphertext, name_epoch, name_version, picture_id, owner_id, created_at FROM group_dms WHERE id = ?', [groupId]);
   if (!group) return null;
   const members = await db.all(
     `SELECT u.id, u.username, u.display_name, u.avatar FROM group_dm_members gm JOIN users u ON u.id = gm.user_id
@@ -298,6 +319,12 @@ async function groupSummary(groupId, userId) {
     ...group, members, last_timestamp: last?.t ?? group.created_at, unread: unread.n,
     last_unread_sender_id: lastUnread?.sender_id ?? null, last_unread_timestamp: lastUnread?.timestamp ?? null,
   };
+}
+
+// The group's current picture, encrypted, if it's `pictureId`; else null.
+async function groupPicture(groupId, pictureId) {
+  const row = await db.get('SELECT picture_data FROM group_dms WHERE id = ? AND picture_id = ?', [groupId, pictureId]);
+  return row?.picture_data ?? null;
 }
 
 async function memberIds(groupId) {
@@ -341,6 +368,7 @@ module.exports = {
   MAX_MEMBERS,
   NAME_ROW,
   NAME_OUTDATED,
+  PICTURE_OUTDATED,
   UUID,
   isNameCiphertext,
   GroupError,
@@ -353,6 +381,7 @@ module.exports = {
   storeEpoch,
   storeName,
   groupSummary,
+  groupPicture,
   announceEntry,
   memberIds,
   sendToGroup,

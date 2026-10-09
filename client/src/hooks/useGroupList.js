@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { onGroupEvent } from '../utils/ws-client';
 import { fetchGroups } from '../services/groupService';
-import { groupNameOf, openGroup } from '../services/groupKeys';
+import { groupProfileOf, openGroup } from '../services/groupKeys';
 import { forgetGroup } from '../services/groupCache';
 import { parseCallLog } from '../utils/callLog';
 
@@ -9,7 +9,8 @@ import { parseCallLog } from '../utils/callLog';
 // [{ id, name, owner_id, members: [{ id, username }], last_timestamp, unread, last_unread_sender_id,
 // last_unread_timestamp }] (the last two: the newest unread message's), kept current by
 // the websocket. Names are end-to-end encrypted: each is decrypted here, on the device
-// (groupKeys.groupNameOf), and `name` is that ('' or missing: the members' names are shown).
+// (groupKeys.groupProfileOf), and `name` is that ('' or missing: the members' names are shown),
+// with `picture` ({ id, key } or null; see GroupPicture) from the same record.
 // A new epoch (someone added or removed) opens the group, so the keys saved on the device
 // (groupCache.js, which notifications use) stay current while the app is open.
 // `activeGroupId` is the group on screen (its new messages aren't unread).
@@ -25,16 +26,16 @@ export function useGroupList({ userId, activeGroupId, onRemoved }) {
   // doesn't replace a newer one.
   const shownVersion = useRef(new Map());
 
-  const setName = useCallback((groupId, version, name) => {
+  const setName = useCallback((groupId, version, { name, picture }) => {
     if ((shownVersion.current.get(groupId) ?? -1) > version) return;
     shownVersion.current.set(groupId, version);
-    setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name } : g)));
+    setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name, picture } : g)));
   }, []);
 
   const decryptName = useCallback(async (summary) => {
     try {
-      const name = await groupNameOf({ id: userId }, summary);
-      if (name != null) setName(summary.id, summary.name_version, name);
+      const profile = await groupProfileOf({ id: userId }, summary);
+      if (profile) setName(summary.id, summary.name_version, profile);
     } catch (err) {
       console.warn(`Failed to read the name of group ${summary.id}`, err);
     }
@@ -53,8 +54,8 @@ export function useGroupList({ userId, activeGroupId, onRemoved }) {
     try {
       const list = await fetchGroups();
       setGroups((prev) => list.map((g) => {
-        const shown = g.name_version ? prev.find((p) => p.id === g.id)?.name : undefined;
-        return shown == null ? withoutName(g) : { ...withoutName(g), name: shown };
+        const shown = g.name_version ? prev.find((p) => p.id === g.id) : undefined;
+        return shown?.name == null ? withoutName(g) : { ...withoutName(g), name: shown.name, picture: shown.picture };
       }));
       // One at a time: a group not seen on this device yet is opened (fetched and checked).
       for (const g of list) await decryptName(g);

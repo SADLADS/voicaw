@@ -34,9 +34,9 @@ function buildDmPushPayload(message, imageUrl, recipientName) {
   return payload;
 }
 
-// A group push also carries the group's encrypted name (~800 characters), so less room is
-// left for the message.
-const MAX_GROUP_PUSH_CIPHERTEXT_LENGTH = 1800;
+// A group push also carries the group's encrypted name (~1150 characters since group pictures,
+// ~800 before), so less room is left for the message.
+const MAX_GROUP_PUSH_CIPHERTEXT_LENGTH = 1450;
 
 // The group's name for a push: { nameCiphertext, nameEpoch } for the service worker to
 // decrypt with the group keys the app saved on the device (never a key from the push), or

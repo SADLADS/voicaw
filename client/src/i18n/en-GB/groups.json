@@ -43,6 +43,7 @@
       "removeFromGroup": "Remove from group",
       "addPeople": "Add people",
       "rename": "Rename",
+      "changePicture": "Change picture",
       "leave": "Leave group",
       "addTitle": "Add People",
       "adding": "Adding…",
@@ -51,6 +52,11 @@
       "namePlaceholder": "Group name (empty: the members' names)",
       "nameLabel": "Group name",
       "nameHint": "Group names are end-to-end encrypted, like messages.",
+      "pictureTitle": "Group Picture",
+      "uploadPicture": "Upload picture",
+      "choosePicture": "Choose a picture for the group",
+      "pictureHint": "Anyone in the group can change it. Group pictures are end-to-end encrypted, like the group's name.",
+      "pictureSaving": "Saving…",
       "removeMessage": "{{name}} won't see anything sent in this group from now on.",
       "leaveOwnerMessage": "You won't see this group any more, and it won't have an owner (nobody can remove people).",
       "leaveMessage": "You won't see this group any more unless someone adds you back.",
@@ -77,7 +83,11 @@
       "renamedUnchecked": "{{actor}} renamed the group (the new name couldn't be checked).",
       "youRenamedUnchecked": "You renamed the group (the new name couldn't be checked).",
       "removedName": "{{actor}} removed the group's name.",
-      "youRemovedName": "You removed the group's name."
+      "youRemovedName": "You removed the group's name.",
+      "changedPicture": "{{actor}} changed the group's picture.",
+      "youChangedPicture": "You changed the group's picture.",
+      "removedPicture": "{{actor}} removed the group's picture.",
+      "youRemovedPicture": "You removed the group's picture."
     },
     "errors": {
       "cantUseKey": "Can't use {{name}}'s key",

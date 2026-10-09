@@ -7,6 +7,7 @@ import {
   groupKeyContext,
   importGroupKey,
   cleanGroupName,
+  encryptGroupPicture,
   makeRecord,
   openGroupName,
   sealGroupName,
@@ -32,7 +33,8 @@ import { t } from '../i18n';
 // key their log identity key signed: the server can't slip anyone in.
 // The name is encrypted with the latest epoch's key, so every new epoch carries it, encrypted
 // again with the new key (the renamer's signed record, unchanged). An add always makes its
-// epoch, so whoever makes one can always read the name.
+// epoch, so whoever makes one can always read the name. The group's picture is named in that
+// record (its id and key), so it travels with the name.
 
 const MAX_ATTEMPTS = 3;
 
@@ -274,22 +276,37 @@ export async function changeMembership(me, groupId, type, user = null) {
   throw new Error(t('groups.errors.keepsChanging'));
 }
 
-// Renames the group (any member; '' clears the name): the name signed by me, encrypted with
-// the current epoch (made first if the members changed, so nobody who's left reads it).
-// `initial`: encrypting a name from before names were encrypted (no "renamed" line; nothing
-// to do if another member already has).
-export async function renameGroup(me, groupId, name, { initial = false, opened = null } = {}) {
+// A new version of the group's name record (any member), signed by me and encrypted with the
+// current epoch (made first if the members changed, so nobody who's left reads it): `change`
+// is { name } (a rename; '' clears the name) or { picture } (the new picture's bytes, or null
+// to remove it). Whatever isn't changed is carried over from the current record, so it has to
+// be readable. `initial`: encrypting a name from before names were encrypted (no "renamed"
+// line; nothing to do if another member already has).
+async function updateGroup(me, groupId, change, { initial = false, opened = null } = {}) {
+  const isPicture = 'picture' in change;
+  // Encrypted once: a retry names the same picture.
+  const upload = isPicture && change.picture ? await encryptGroupPicture(change.picture, groupId) : null;
   let group = opened;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const current = await currentEpoch(me, groupId, group);
     group = current.group;
     if (initial && group.detail.name_version > 0) return null;
+    const unreadable = (isPicture && group.detail.name_version > 0 && !group.name)
+      || (!isPicture && group.detail.picture_id && group.name?.picture?.id !== group.detail.picture_id);
+    if (unreadable) throw new GroupKeyProblem(t('groups.errors.cantReadName'));
     const version = group.detail.name_version + 1;
-    const signed = await signGroupName({ groupId, version, renamerId: me.id, name, initial }, await loadIdentityKey());
+    const name = isPicture ? group.name?.name ?? '' : change.name;
+    const picture = isPicture ? upload?.picture ?? null : group.name?.picture ?? null;
+    const signed = await signGroupName(
+      { groupId, version, renamerId: me.id, name, initial, picture, change: isPicture ? 'picture' : 'name' },
+      await loadIdentityKey()
+    );
+    const body = {
+      name: await sealGroupName(signed, current.key, groupId, current.epoch), epoch: current.epoch, version, initial, pictureId: picture?.id ?? null,
+    };
+    if (upload) body.picture = upload.data;
     try {
-      return await patchGroupName(groupId, {
-        name: await sealGroupName(signed, current.key, groupId, current.epoch), epoch: current.epoch, version, initial,
-      });
+      return await patchGroupName(groupId, body);
     } catch (err) {
       if (err.response?.status !== 409) throw err;
       group = await openGroup(me, groupId);
@@ -298,24 +315,38 @@ export async function renameGroup(me, groupId, name, { initial = false, opened =
   throw new Error(t('groups.errors.keepsChanging'));
 }
 
-// A group's name for the conversation list, from its summary (GET /group-dms): '' when it has
-// none, null when it can't be read. Uses the keys saved on this device when it can, else opens
-// the group (which checks it all again and saves them).
-export async function groupNameOf(me, summary) {
-  if (!summary.name_version) return summary.name ?? '';
+export function renameGroup(me, groupId, name, options = {}) {
+  return updateGroup(me, groupId, { name }, options);
+}
+
+// Sets the group's picture (`bytes`: the image, already cropped and shrunk) or removes it (null).
+export function setGroupPicture(me, groupId, bytes) {
+  return updateGroup(me, groupId, { picture: bytes });
+}
+
+// A group's name and picture for the conversation list, from its summary (GET /group-dms):
+// { name ('' when it has none), picture ({ id, key } or null) }, or null when they can't be read.
+// Uses the keys saved on this device when it can, else opens the group (which checks it all
+// again and saves them).
+export async function groupProfileOf(me, summary) {
+  if (!summary.name_version) return { name: summary.name ?? '', picture: null };
   const saved = await recallGroup(me.id, summary.id);
-  if (saved?.name && saved.name.version >= summary.name_version) return saved.name.name;
+  // Names saved before pictures existed don't say whether there's one.
+  if (saved?.name && saved.name.picture !== undefined && saved.name.version >= summary.name_version) {
+    return { name: saved.name.name, picture: saved.name.picture };
+  }
   const key = saved?.epochs[summary.name_epoch];
   if (key) {
     try {
       const name = await openGroupName(summary.name_ciphertext, key, summary.id, summary.name_epoch, (id) => saved.identityKeys[id]);
       await rememberGroupName(me.id, summary.id, name);
-      return name.name;
+      return { name: name.name, picture: name.picture };
     } catch {
       // Renamed by someone this device hasn't seen in the group yet, say: open it.
     }
   }
-  return (await openGroup(me, summary.id)).name?.name ?? null;
+  const { name } = await openGroup(me, summary.id);
+  return name ? { name: name.name, picture: name.picture ?? null } : null;
 }
 
 // A signed `leave` entry for the group as it is now (deleting the account sends one per group).

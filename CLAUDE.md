@@ -360,6 +360,11 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   With it on, a password alone gets no session and no key backup, and recovery-code resets need a
   code too. No SMS or email codes (the app has neither). Turning it on needs the password and a
   code; an admin on the host can turn it off for someone who lost everything (`npm run admin`).
+- **Group pictures** (built 2026-10-09, see Group pictures in `docs/group-dms.md`): any member
+  sets one, cropped like a profile picture, end-to-end encrypted like the name: cut and shrunk on
+  the device (256 px WebP, GIFs become still), encrypted with its own key, which rides in the
+  group's signed name record (so it follows the name into every epoch). The name record grew
+  to 768 bytes for it, so group pushes keep 1450 characters for the message (was 1800).
 - **Edit history** (built 2026-10-09, see Edit history in `docs/messages.md`): every edited
   message keeps its earlier versions, for everyone who can see it (DMs and groups as the
   ciphertext they were; guilds plain); deleting the message deletes them. People's edits only:

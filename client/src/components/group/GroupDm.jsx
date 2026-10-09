@@ -10,6 +10,7 @@ import PaneBackButton from '../PaneBackButton';
 import ChatPane from '../ChatPane';
 import GroupMembers from './GroupMembers';
 import GroupCallPanel from './GroupCallPanel';
+import GroupPicture from './GroupPicture';
 import { useGroupConversation } from '../../hooks/useGroupConversation';
 import { useCall } from '../../hooks/useCall';
 import { acceptChangedKeys } from '../../services/groupKeys';
@@ -76,6 +77,7 @@ export default function GroupDm({ user }) {
     <div id="dm-main" className="group-dm" data-current-user-id={user?.id}>
       <h4 className="chat-recipient-header">
         <PaneBackButton />
+        {summary && <GroupPicture groupId={groupId} picture={summary.picture} className="group-dm-header-picture" />}
         <span className="group-dm-title">{summary ? groupTitle(summary, user) : t('groups.dm.group')}</span>
         {voiceEnabled && group && (
           <button

@@ -1,17 +1,21 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCrown, faPen, faRightFromBracket, faUserMinus, faUserPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faCrown, faImage, faPen, faRightFromBracket, faUserMinus, faUserPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/guilds.css';
 import '../../assets/css/groups.css';
 import Modal from '../guild/Modal';
 import ConfirmDialog from '../guild/ConfirmDialog';
 import UserAvatar from '../voice/UserAvatar';
 import UserPicker from './UserPicker';
+import ImageCropper from '../ImageCropper';
 import StatusIcon from '../StatusIcon';
-import { changeMembership, renameGroup } from '../../services/groupKeys';
+import { changeMembership, renameGroup, setGroupPicture } from '../../services/groupKeys';
 import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME } from '../../services/groupCrypto';
 import { nameOf, useProfiles } from '../../utils/profiles';
+import { croppedPictureBytes, croppedPreview } from '../../utils/pictureData';
+import { MAX_PROFILE_PIC_BYTES } from '../../services/profileService';
+import { useGroupPicture } from '../../hooks/useGroupPicture';
 import { usePresence } from '../../hooks/usePresence';
 import { useFriends } from '../../utils/friends';
 import { lastSeenText, statusLabel } from '../../utils/presence';
@@ -20,18 +24,27 @@ import { t } from '../../i18n';
 const errorText = (err) => err.response?.data?.error ?? err.message;
 
 // A group DM's members (from its checked membership log), with the owner's crown. Anyone adds
-// people (from their friends, as in Discord) and renames; the owner removes people; anyone leaves.
+// people (from their friends, as in Discord), renames and changes the picture (cropped here, then
+// encrypted: see Group pictures in docs/group-dms.md); the owner removes people; anyone leaves.
 export default function GroupMembers({ group, user, users, onClose }) {
   useProfiles();
   const presenceOf = usePresence();
   const friends = useFriends();
   const navigate = useNavigate();
-  const [dialog, setDialog] = useState(null); // { type: 'add' | 'remove' | 'leave' | 'rename', ... }
+  const [dialog, setDialog] = useState(null); // { type: 'add' | 'remove' | 'leave' | 'rename' | 'picture', ... }
   const [selected, setSelected] = useState(new Set());
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // The picture dialog: a picked file in the cropper, then the cropped one ({ file, crop,
+  // preview (blob URL) }) or null to remove the picture, until saved.
+  const [cropping, setCropping] = useState(null);
+  const [newPicture, setNewPicture] = useState(undefined); // undefined: unchanged
+  const fileInput = useRef(null);
   const { detail, log } = group;
+  const pictureUrl = useGroupPicture(detail.id, group.name?.picture);
+
+  useEffect(() => () => { if (newPicture?.preview) URL.revokeObjectURL(newPicture.preview); }, [newPicture]);
   const names = new Map(detail.users.map((u) => [u.id, nameOf(u)]));
   const usersById = new Map(detail.users.map((u) => [u.id, u]));
   const memberIds = [...log.members.keys()];
@@ -42,6 +55,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
     setDialog(null);
     setError(null);
     setBusy(false);
+    setNewPicture(undefined);
   };
 
   async function run(action) {
@@ -62,6 +76,33 @@ export default function GroupMembers({ group, user, users, onClose }) {
     }
     setSelected(new Set());
   });
+
+  function pickPicture(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return setError(t('settings.profile.onlyImages'));
+    if (file.size > MAX_PROFILE_PIC_BYTES) return setError(t('settings.profile.tooLarge'));
+    setError(null);
+    setCropping(file);
+  }
+
+  async function applyCrop(crop) {
+    const file = cropping;
+    setCropping(null);
+    try {
+      setNewPicture({ file, crop, preview: await croppedPreview(file, crop) });
+    } catch {
+      setError(t('media.cropper.loadFailed'));
+    }
+  }
+
+  const savePicture = () => run(async () => {
+    const bytes = newPicture ? await croppedPictureBytes(newPicture.file, newPicture.crop) : null;
+    await setGroupPicture(user, detail.id, bytes);
+  });
+
+  const shownPicture = newPicture === undefined ? pictureUrl : newPicture?.preview;
 
   return (
     <aside className="member-list group-members" aria-label={t('common.members')}>
@@ -105,6 +146,9 @@ export default function GroupMembers({ group, user, users, onClose }) {
         </button>
         <button type="button" className="group-action" onClick={() => { setName(group.name?.name ?? ''); setDialog({ type: 'rename' }); }}>
           <FontAwesomeIcon icon={faPen} /> {t('groups.members.rename')}
+        </button>
+        <button type="button" className="group-action" onClick={() => setDialog({ type: 'picture' })}>
+          <FontAwesomeIcon icon={faImage} /> {t('groups.members.changePicture')}
         </button>
         <button type="button" className="group-action danger" onClick={() => setDialog({ type: 'leave' })}>
           <FontAwesomeIcon icon={faRightFromBracket} /> {t('groups.members.leave')}
@@ -154,6 +198,41 @@ export default function GroupMembers({ group, user, users, onClose }) {
           {error && <p className="error-msg" role="alert">{error}</p>}
         </Modal>
       )}
+      {dialog?.type === 'picture' && (
+        <Modal
+          title={t('groups.members.pictureTitle')}
+          className="group-dialog"
+          onClose={close}
+          actions={(
+            <>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={close}>{t('common.cancel')}</button>
+              <button type="button" className="btn btn-primary btn-sm vc-button" onClick={savePicture} disabled={busy || newPicture === undefined}>
+                {busy ? t('groups.members.pictureSaving') : t('common.save')}
+              </button>
+            </>
+          )}
+        >
+          <div className="group-picture-edit">
+            {shownPicture
+              ? <img src={shownPicture} alt="" className="group-picture-preview" />
+              : <span className="group-picture-preview group-picture-empty"><FontAwesomeIcon icon={faImage} /></span>}
+            <div className="group-picture-buttons">
+              <button type="button" className="btn btn-sm btn-secondary" onClick={() => fileInput.current?.click()} disabled={busy}>
+                {t('groups.members.uploadPicture')}
+              </button>
+              {shownPicture && (
+                <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setNewPicture(null)} disabled={busy}>
+                  {t('common.remove')}
+                </button>
+              )}
+              <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickPicture} aria-label={t('groups.members.choosePicture')} />
+            </div>
+          </div>
+          <p className="vc-hint">{t('groups.members.pictureHint')}</p>
+          {error && <p className="error-msg" role="alert">{error}</p>}
+        </Modal>
+      )}
+      {cropping && <ImageCropper file={cropping} onApply={applyCrop} onCancel={() => setCropping(null)} />}
       {dialog?.type === 'remove' && (
         <ConfirmDialog
           title={t('groups.members.removeName', { name: names.get(dialog.id) })}
