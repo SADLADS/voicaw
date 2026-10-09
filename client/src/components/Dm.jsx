@@ -6,7 +6,7 @@ import '../assets/css/dms.css';
 import '../assets/css/voice.css';
 import NotificationPrompt from './NotificationPrompt';
 import RecoveryPrompt from './RecoveryPrompt';
-import { ConfigContext, LayoutContext } from '../contexts';
+import { ConfigContext, InteractionContext, LayoutContext } from '../contexts';
 import PaneBackButton from './PaneBackButton';
 import CallPanel from './call/CallPanel';
 import { useCall } from '../hooks/useCall';
@@ -14,6 +14,7 @@ import { startCall } from '../voice/callClient';
 import ContactKeyWarning from './ContactKeyWarning';
 import SafetyNumberDialog from './SafetyNumberDialog';
 import ChatPane from './ChatPane';
+import ChatSearch from './ChatSearch';
 import { useConversation } from '../hooks/useConversation';
 import { addReaction, removeReaction } from '../services/dmService';
 import { encryptReaction, reactionContext } from '../services/encryptionService';
@@ -33,6 +34,7 @@ const SHOW_SAFETY_NUMBERS = false;
 export default function Dm({ user }) {
   const { users, errorUsers, fetchUnreadMessages } = useContext(LayoutContext);
   const { voiceEnabled } = useContext(ConfigContext);
+  const { isMobile } = useContext(InteractionContext);
   const call = useCall();
   const { id } = useParams();
   const chatUser = users.find((u) => u.id.toString() === id);
@@ -46,6 +48,9 @@ export default function Dm({ user }) {
   // The pinned messages list, under its header button (null: closed).
   const [pinsAnchor, setPinsAnchor] = useState(null);
   const closePins = useCallback(() => setPinsAnchor(null), []);
+  // A search result to scroll to ({ messageId }; ChatPane's jumpTo).
+  const [jumpTarget, setJumpTarget] = useState(null);
+  const clearJump = useCallback(() => setJumpTarget(null), []);
   const togglePins = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setPinsAnchor((open) => (open ? null : rect));
@@ -73,6 +78,7 @@ export default function Dm({ user }) {
   useEffect(() => {
     setShowSafetyNumber(false);
     setPinsAnchor(null);
+    setJumpTarget(null);
   }, [id]);
 
   // A changed or invalid contact key blocks the conversation until resolved.
@@ -126,6 +132,18 @@ export default function Dm({ user }) {
               <FontAwesomeIcon icon={faThumbtack} />
             </button>
             )}
+            {chatUser && sharedKey && !keyBlocked && (
+              <ChatSearch
+                scopeId={id}
+                chatName={chatName}
+                conversation={conversation}
+                people={people}
+                user={user}
+                isMobile={isMobile}
+                onJump={(msg) => setJumpTarget({ messageId: msg.id })}
+                reactionNames={reactionNames}
+              />
+            )}
             {SHOW_SAFETY_NUMBERS && (keyStatus === 'trusted' || keyStatus === 'verified') && (
               <button
                 type="button"
@@ -169,6 +187,8 @@ export default function Dm({ user }) {
               people={people}
               pinsAnchor={pinsAnchor}
               onClosePins={closePins}
+              jumpTo={jumpTarget}
+              onJumped={clearJump}
               canSend={!deleted && !blockedThem}
               cantSendText={deleted ? t('chat.dm.accountDeleted') : t('chat.blocked.youBlocked', { name: chatName })}
             />

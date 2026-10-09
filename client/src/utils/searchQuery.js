@@ -1,7 +1,9 @@
-// The guild search box's language, Discord's: words, `"exact phrases"`, and filters
+// The search box's language, Discord's: words, `"exact phrases"`, and filters
 // `from:user`, `mentions:user`, `in:channel`, `has:thing` (a value with spaces in quotes).
-// parseSearch turns it into the server's parameters (routes/guildSearch.js), with people and
-// channels as ids; searchSuggestions says what to offer while typing.
+// parseSearch turns it into the server's parameters (routes/guildSearch.js; the device's own
+// search of encrypted chats takes the same, services/searchIndex.js), with people and
+// channels as ids; searchSuggestions says what to offer while typing. `keys` (the filters
+// there are; DMs have no `in:`) and `hasValues` default to a guild's.
 
 import { t } from '../i18n';
 
@@ -9,7 +11,7 @@ export const SEARCH_KEYS = ['from', 'mentions', 'in', 'has'];
 
 export const HAS_VALUES = ['link', 'embed', 'file', 'image', 'video', 'sound', 'poll'];
 
-const FILTER_RE = /(^|\s)(from|mentions|in|has):("[^"]*"?|\S*)/gi;
+const filterRe = (keys) => new RegExp(`(^|\\s)(${keys.join('|')}):("[^"]*"?|\\S*)`, 'gi');
 
 const unquote = (value) => value.replace(/^"/, '').replace(/"$/, '');
 
@@ -31,10 +33,10 @@ function findMember(name, members) {
 
 // `query` → { params (for the API), problems ([text]), empty (nothing to search for) }.
 // `members` [{ id, username, display_name }], `channels` the text channels [{ id, name }].
-export function parseSearch(query, { members = [], channels = [] } = {}) {
+export function parseSearch(query, { members = [], channels = [], keys = SEARCH_KEYS, hasValues = HAS_VALUES } = {}) {
   const params = { content: '', author_id: [], mentions: [], channel_id: [], has: [] };
   const problems = [];
-  const content = String(query ?? '').replace(FILTER_RE, (all, space, rawKey, rawValue) => {
+  const content = String(query ?? '').replace(filterRe(keys), (all, space, rawKey, rawValue) => {
     const key = rawKey.toLowerCase();
     const value = unquote(rawValue).trim();
     if (!value) return space;
@@ -46,10 +48,10 @@ export function parseSearch(query, { members = [], channels = [] } = {}) {
       const channel = channels.find((c) => lower(c.name) === lower(value.replace(/^#/, '')));
       if (channel) params.channel_id.push(channel.id);
       else problems.push(t('guilds.search.noChannel', { name: value.replace(/^#/, '') }));
-    } else if (HAS_VALUES.includes(lower(value))) {
+    } else if (hasValues.includes(lower(value))) {
       params.has.push(lower(value));
     } else {
-      problems.push(t('guilds.search.hasValues', { values: HAS_VALUES.join(', ') }));
+      problems.push(t('guilds.search.hasValues', { values: hasValues.join(', ') }));
     }
     return space;
   });
@@ -64,31 +66,31 @@ export function parseSearch(query, { members = [], channels = [] } = {}) {
 // What to suggest for the word the caret is at the end of: { kind: 'keys', prefix } (the
 // filters, for an empty box or a word that starts one), { kind: 'from' | 'mentions' | 'in' |
 // 'has', value } (values for that filter), or null. `start` is where that word begins.
-export function searchContext(text, caret = text.length) {
+export function searchContext(text, caret = text.length, keys = SEARCH_KEYS) {
   const before = text.slice(0, caret);
   const start = before.search(/\S*$/);
   const word = before.slice(start);
-  const filter = word.match(/^(from|mentions|in|has):(.*)$/i);
+  const filter = word.match(new RegExp(`^(${keys.join('|')}):(.*)$`, 'i'));
   if (filter) return { kind: filter[1].toLowerCase(), value: unquote(filter[2]), start };
   if (!word.trim()) return before.trim() ? null : { kind: 'keys', prefix: '', start };
   const prefix = word.toLowerCase();
-  return SEARCH_KEYS.some((k) => k.startsWith(prefix)) ? { kind: 'keys', prefix, start } : null;
+  return keys.some((k) => k.startsWith(prefix)) ? { kind: 'keys', prefix, start } : null;
 }
 
 const MAX_SUGGESTIONS = 8;
 
 // The suggestions for `context` (searchContext): [{ kind, key?, value, label, ...item }], where
 // picking one writes `insert` at `context.start` up to the caret.
-export function searchSuggestions(context, { members = [], channels = [], nameOf = (m) => m.username } = {}) {
+export function searchSuggestions(context, { members = [], channels = [], nameOf = (m) => m.username, keys = SEARCH_KEYS, hasValues = HAS_VALUES } = {}) {
   if (!context) return [];
   if (context.kind === 'keys') {
-    return SEARCH_KEYS.filter((k) => k.startsWith(context.prefix))
+    return keys.filter((k) => k.startsWith(context.prefix))
       .map((key) => ({ kind: 'key', key, insert: `${key}:`, keepOpen: true }));
   }
   const value = lower(context.value).replace(/^[@#]/, '');
   const key = context.kind;
   if (key === 'has') {
-    return HAS_VALUES.filter((v) => v.startsWith(value))
+    return hasValues.filter((v) => v.startsWith(value))
       .map((v) => ({ kind: 'has', key, label: v, insert: `has:${v} ` }));
   }
   if (key === 'in') {

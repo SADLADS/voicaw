@@ -316,3 +316,39 @@ describe('DM link previews', () => {
   });
 });
 
+// The device's search copy asks how many messages each id range holds now, and the latest edit
+// (messageRanges.js), to find what was deleted or edited since it read them.
+describe('DM ranges', () => {
+  it('counts each range and its latest edit, in that conversation only', async () => {
+    const alice = await makeAuthedUser('ranges-alice', 'pw-alice-123');
+    const bob = await makeAuthedUser('ranges-bob', 'pw-bob-123');
+    const carol = await makeAuthedUser('ranges-carol', 'pw-carol-123');
+    const send = async (from, to) => (await request(app).post('/api/dm-send').set(authed(from.token)).send({ recipient_id: to.id, content: 'v1.x' })).body.id;
+    const a = await send(alice, bob);
+    const b = await send(bob, alice);
+    await send(alice, carol); // another conversation, between them
+    const c = await send(alice, bob);
+    const ranges = (token, other, body) => request(app).post(`/api/dm-messages/${other}/ranges`).set(authed(token)).send(body);
+
+    let res = await ranges(bob.token, alice.id, { ranges: [[a, b], [b + 1, c]] });
+    expect(res.status).toBe(200);
+    expect(res.body.ranges).toEqual([{ rows: 2, edited: 0 }, { rows: 1, edited: 0 }]);
+
+    await request(app).put(`/api/update-message/${c}`).set(authed(alice.token)).send({ content: 'v1.edited' });
+    await request(app).delete(`/api/messages/${a}`).set(authed(alice.token));
+    res = await ranges(alice.token, bob.id, { ranges: [[0, b], [b + 1, c + 100]] });
+    expect(res.body.ranges[0]).toEqual({ rows: 1, edited: 0 });
+    expect(res.body.ranges[1].rows).toBe(1);
+    expect(res.body.ranges[1].edited).toBeGreaterThan(0);
+
+    // Someone else's conversation with them counts nothing.
+    expect((await ranges(carol.token, bob.id, { ranges: [[0, c]] })).body.ranges).toEqual([{ rows: 0, edited: 0 }]);
+
+    const tooMany = Array.from({ length: 2001 }, (_, i) => [i * 2, i * 2]);
+    for (const bad of [{}, { ranges: [] }, { ranges: [[5, 1]] }, { ranges: [[0, 5], [5, 9]] }, { ranges: [[0, 'x']] }, { ranges: tooMany }]) {
+      expect((await ranges(alice.token, bob.id, bad)).status).toBe(400);
+    }
+    expect((await request(app).post(`/api/dm-messages/${bob.id}/ranges`).send({ ranges: [[0, 1]] })).status).toBe(401);
+  });
+});
+

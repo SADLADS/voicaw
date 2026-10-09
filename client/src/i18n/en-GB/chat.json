@@ -187,6 +187,12 @@
       "removePreviewsSheet": "Remove previews",
       "confirmDelete": "Delete this message? This can't be undone."
     },
+    "search": {
+      "placeholder": "Search {{name}}",
+      "intro": "Search for words, or narrow it down with from:, mentions: and has:. Only your device can read this chat, so it searches here: the first search reads the whole history.",
+      "reading_one": "Reading the history… {{count}} message so far",
+      "reading_other": "Reading the history… {{count}} messages so far"
+    },
     "pins": {
       "title": "Pinned messages",
       "heading": "Pinned Messages",

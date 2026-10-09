@@ -624,7 +624,8 @@ can; DMs and group DMs can't be searched this way).
   (user ids written in the text as `<@id>`; all of them), `sort_order` (desc/asc), `offset`
   (pages of 25, up to 5000). Returns `{ total_results, messages }` (channel message rows).
   Only text and voice channels the caller can view are searched; non-members get 404.
-- **Client:** `guild/GuildSearch.jsx`, at the end of the channel header (on a phone a button that
+- **Client:** `guild/GuildSearch.jsx` (its box and results are `MessageSearch.jsx`, shared with
+  the device's search of DMs: Search in encrypted chats in docs/messages.md), at the end of the channel header (on a phone a button that
   opens it full screen). `utils/searchQuery.js` parses the box (`from:user`, `mentions:user`
   by username or unique display name, `in:channel`, `has:thing`, quoted values with spaces)
   into those parameters and reports unknown names instead of searching; it also gives the
@@ -635,7 +636,8 @@ can; DMs and group DMs can't be searched this way).
   `useChannel`'s `loadedChannelId` is that channel; `ChatPane` then loads older pages until
   it's there, as the pinned list's Jump does.
 - **Not done yet:** `before:`/`after:`/`during:`, `pinned:`, author type (webhooks), a
-  "most relevant" order, and search in DMs and group DMs (it would have to run on the device).
+  "most relevant" order. DMs and group DMs are searched on the device instead (Search in
+  encrypted chats in docs/messages.md).
 
 ## Webhooks (Discord's API)
 

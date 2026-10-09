@@ -150,7 +150,9 @@
   Play (see docs/messages.md, YouTube links); `gifs`, GIFs load without Show and the GIF picker
   doesn't warn first (see docs/messages.md, GIFs); `linkPreviews`, other sites' pictures and
   videos in link previews and embeds load without Show / Play (see docs/messages.md, Link
-  previews); `showLinkPreviews`, links to other sites get previews at all (same section).
+  previews); `showLinkPreviews`, links to other sites get previews at all (same section);
+  `searchCopy`, searching an encrypted chat keeps an encrypted copy of it on the device (off
+  deletes it; see docs/messages.md, Search in encrypted chats).
   "Show message text in notifications" is here too, though it's kept in
   `services/settingsStore.js` (IndexedDB) for the service worker (see docs/realtime.md, Push
   notifications). New privacy trade-offs go here.

@@ -8,6 +8,7 @@ import '../../assets/css/groups.css';
 import { ConfigContext, InteractionContext, LayoutContext } from '../../contexts';
 import PaneBackButton from '../PaneBackButton';
 import ChatPane from '../ChatPane';
+import ChatSearch from '../ChatSearch';
 import GroupMembers from './GroupMembers';
 import GroupCallPanel from './GroupCallPanel';
 import GroupPicture from './GroupPicture';
@@ -49,7 +50,14 @@ export default function GroupDm({ user }) {
     setPinsAnchor((open) => (open ? null : rect));
   };
 
-  useEffect(() => setPinsAnchor(null), [groupId]);
+  // A search result to scroll to ({ messageId }; ChatPane's jumpTo).
+  const [jumpTarget, setJumpTarget] = useState(null);
+  const clearJump = useCallback(() => setJumpTarget(null), []);
+
+  useEffect(() => {
+    setPinsAnchor(null);
+    setJumpTarget(null);
+  }, [groupId]);
 
   useEffect(() => {
     if (group) noteGroupCall(groupId, group.detail.call);
@@ -112,6 +120,18 @@ export default function GroupDm({ user }) {
         >
           <FontAwesomeIcon icon={faUsers} />
         </button>
+        {group && (
+          <ChatSearch
+            scopeId={groupId}
+            chatName={summary ? groupTitle(summary, user) : null}
+            conversation={conversation}
+            people={group.detail.users}
+            user={user}
+            isMobile={isMobile}
+            onJump={(msg) => setJumpTarget({ messageId: msg.id })}
+            reactionNames={reactionNames}
+          />
+        )}
       </h4>
 
       {group && <GroupCallPanel groupId={groupId} names={names} user={user} />}
@@ -159,6 +179,8 @@ export default function GroupDm({ user }) {
             emptyText={t('groups.dm.empty')}
             pinsAnchor={pinsAnchor}
             onClosePins={closePins}
+            jumpTo={jumpTarget}
+            onJumped={clearJump}
           />
         </div>
         {showMembers && group && (

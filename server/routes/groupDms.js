@@ -15,6 +15,7 @@ const { setPinned } = require('../pins');
 const { reactionIdsFor, pollReactionsFor } = require('../polls');
 const { removePollRows } = require('../pollTimers');
 const { listedKeys, linkListed, releaseUploads } = require('../uploads');
+const { parseRanges, countRanges } = require('../messageRanges');
 
 // Group DMs (see groupDms.js): creating one, its membership log (add, remove, leave), key
 // epochs, and its messages and reactions (all ciphertext). Everything 404s for non-members.
@@ -263,6 +264,20 @@ router.get('/group-dms/:groupId/messages', member, async (req, res) => {
   }
   const rows = await db.all(`${MESSAGE_SELECT} WHERE ${where} ORDER BY m.id DESC LIMIT ?`, [...params, limit]);
   res.json(await withReactions(rows.reverse()));
+});
+
+// How many messages (that you can read) each id range holds, and its latest edit, as for DMs
+// (messageRanges.js): { ranges: [[from, to], ...] } -> { ranges: [{ rows, edited }] }.
+router.post('/group-dms/:groupId/messages/ranges', member, async (req, res) => {
+  const ranges = parseRanges(req.body);
+  if (!ranges) return res.status(400).json({ error: 'Invalid input' });
+  const rows = await db.all(
+    `SELECT m.id, m.edited_at FROM group_dm_messages m
+     JOIN group_dm_epoch_keys k ON k.group_id = m.group_id AND k.epoch = m.epoch AND k.user_id = ?
+     WHERE m.group_id = ? AND m.id BETWEEN ? AND ? ORDER BY m.id`,
+    [req.user.id, req.state.group.id, ranges[0][0], ranges[ranges.length - 1][1]]
+  );
+  res.json({ ranges: countRanges(rows, ranges) });
 });
 
 // Send: { epoch, content, replyTo, uploads }. The epoch must be the newest, for the current

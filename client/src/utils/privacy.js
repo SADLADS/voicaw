@@ -21,11 +21,15 @@ import { useSyncExternalStore } from 'react';
 // `showLinkPreviews`: links to other sites get a preview at all (on by default): a guild's
 // cards, a picture or video linked in any chat, a YouTube player. Turned off, only the link
 // shows (Voicaw's own invite and event cards, and bots' embeds, still do).
+// `searchCopy`: searching a DM, group DM or your notes keeps an encrypted copy of it on the
+// device, so the next search doesn't read the whole history from the server again (on by
+// default; services/searchIndex.js). Turned off, the copy is deleted and every search reads it
+// all again.
 // Notification previews are Settings → Privacy too, but kept in services/settingsStore (the
 // service worker reads them).
 
 const STORAGE_KEY = 'privacy';
-const DEFAULTS = { inviteEmbedsInEncrypted: true, sendTyping: true, youtubeEmbeds: true, gifs: true, linkPreviews: true, showLinkPreviews: true };
+const DEFAULTS = { inviteEmbedsInEncrypted: true, sendTyping: true, youtubeEmbeds: true, gifs: true, linkPreviews: true, showLinkPreviews: true, searchCopy: true };
 const listeners = new Set();
 
 function load() {

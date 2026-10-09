@@ -34,6 +34,7 @@ import PageMenus from './components/PageMenus';
 import SafetyDialogs from './components/SafetyDialogs';
 import { disableNotificationsOnThisDevice } from './services/pushService';
 import { clearDrafts } from './services/draftStore';
+import { clearSearchIndex } from './services/searchIndex';
 import { setCustomEmojiBase } from './emoji/customEmoji';
 import { setAvatarBase } from './utils/profiles';
 import { t } from './i18n';
@@ -165,6 +166,7 @@ export default function App() {
       localStorage.removeItem('token');
       await clearUserKeys();
       await forgetGroups();
+      await clearSearchIndex();
     } catch (err) {
       console.error('Failed to clear stored keys on logout', err);
     }

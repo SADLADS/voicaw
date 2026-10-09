@@ -57,7 +57,7 @@
       },
       "privacy": {
         "title": "Privacy",
-        "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy link links website websites image images picture pictures notification notifications lock screen"
+        "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy link links website websites image images picture pictures notification notifications lock screen search copy index history"
       },
       "content": {
         "title": "Content",
@@ -537,6 +537,10 @@
       "youtube": {
         "label": "Show YouTube videos straight away",
         "hint": "A YouTube link in a message gets a player. Loading it tells YouTube your IP address and which video you were sent, even if you never play it. Turn this off and the player waits until you tap Play; nothing comes from YouTube before then. Saved on this device."
+      },
+      "searchCopy": {
+        "label": "Keep a search copy on this device",
+        "hint": "Only your devices can read direct messages, group chats and your notes, so they're searched here. The first search of a chat reads its whole history from the server; this keeps what it read on this device, locked with a key that never leaves it, so later searches only read what's new. Turn this off and the copy is deleted, and every search reads the whole history again. Logging out deletes it too. Saved on this device."
       },
       "showLinkPreviews": {
         "label": "Show link previews",

@@ -14,6 +14,7 @@ const { reactionIdsFor, pollReactionsFor } = require('../polls');
 const { removePollRows } = require('../pollTimers');
 const { CALL_LOG } = require('../callLog');
 const { listedKeys, linkListed, releaseUploads } = require('../uploads');
+const { parseRanges, countRanges } = require('../messageRanges');
 
 // Direct messages. Contents are end-to-end encrypted: the server stores and relays
 // ciphertext only (and checks its length against the encrypted size of the plaintext limit).
@@ -98,6 +99,21 @@ router.get('/dm-messages/:otherUserId', authenticateJWT, async (req, res) => {
   }
   const rows = await db.all(`${DM_SELECT} WHERE ${where} ORDER BY dm.id DESC LIMIT ?`, [...params, limit]);
   res.json(await withReactions(rows.reverse()));
+});
+
+// How many messages each id range of a conversation holds, and its latest edit (for the
+// device's search copy, messageRanges.js): { ranges: [[from, to], ...] } -> { ranges: [{ rows,
+// edited }] }.
+router.post('/dm-messages/:otherUserId/ranges', authenticateJWT, async (req, res) => {
+  const me = req.user.id;
+  const other = parseInt(req.params.otherUserId, 10);
+  const ranges = parseRanges(req.body);
+  if (Number.isNaN(other) || !ranges) return res.status(400).json({ error: 'Invalid input' });
+  const rows = await db.all(
+    `SELECT dm.id, dm.edited_at FROM direct_messages dm WHERE ${IN_CONVERSATION} AND dm.id BETWEEN ? AND ? ORDER BY dm.id`,
+    [me, other, other, me, ranges[0][0], ranges[ranges.length - 1][1]]
+  );
+  res.json({ ranges: countRanges(rows, ranges) });
 });
 
 router.post('/dm-send', authenticateJWT, async (req, res) => {

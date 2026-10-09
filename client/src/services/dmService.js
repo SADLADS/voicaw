@@ -10,6 +10,12 @@ export async function fetchMessagesForUser(userId, params = {}) {
   return res.data;
 }
 
+// How many messages each id range ([[from, to]]) of the conversation holds now, and its latest
+// edit: [{ rows, edited }] (for the device's search copy, services/searchIndex.js).
+export async function fetchMessageRanges(userId, ranges) {
+  return (await api.post(`/dm-messages/${userId}/ranges`, { ranges })).data.ranges;
+}
+
 
 // `uploads`: the names of the files it shows (uploadNamesIn), so the server knows when
 // they're no longer used.
