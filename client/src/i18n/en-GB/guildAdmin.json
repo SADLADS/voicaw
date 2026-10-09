@@ -49,7 +49,7 @@
       "voice": {
         "bitrate": "Bitrate",
         "kbps": "{{kbps}} kbps",
-        "bitrateHint": "How much sound each microphone sends: 64 kbps is Discord's default. Higher sounds clearer and uses more data.",
+        "bitrateHint": "How much sound each microphone sends: 64 kbps is default. Higher sounds clearer and uses more data.",
         "bitrateHighHint": "Above 96 kbps voices hardly sound different (the microphone is mono); it suits music. Everyone in the channel uses more data.",
         "userLimit": "User limit",
         "noLimit": "No limit",
