@@ -162,6 +162,24 @@ describe('MessageList', () => {
     expect(screen.getAllByText('bob', { selector: '.message-author' })).toHaveLength(1);
   });
 
+  it('opens the edit history from "edited", except on bots\' messages', () => {
+    const onShowEdits = vi.fn();
+    const messages = [
+      { id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'first', timestamp: 1000, edited: 1 },
+      { id: 2, sender_id: 2, sender_username: 'bob', plaintext: 'grouped', timestamp: 1010, edited: 1 },
+      { id: 3, sender_id: 3, sender_username: 'bot', plaintext: 'beep', timestamp: 5000, edited: 1, sender_bot: 1 },
+    ];
+    const { unmount } = render(<MessageList {...baseProps({ messages, onShowEdits })} />);
+    const buttons = screen.getAllByRole('button', { name: /edited/ });
+    expect(buttons).toHaveLength(2);
+    fireEvent.click(buttons[1]);
+    expect(onShowEdits).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }));
+    unmount();
+    // Without a handler (bot DMs), it's plain text.
+    render(<MessageList {...baseProps({ messages })} />);
+    expect(screen.queryAllByRole('button', { name: /edited/ })).toHaveLength(0);
+  });
+
   it('hides spoilers until clicked, and in reply previews', () => {
     const messages = [
       { id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'the ||butler __did__ it||', timestamp: 1000 },

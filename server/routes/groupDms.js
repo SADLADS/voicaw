@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const editHistory = require('../editHistory');
 const { CALL_LOG } = require('../callLog');
 const { maxPlaintextLength, getMaxEncryptedLength, MAX_LINK_PREVIEWS_BYTES } = require('../config');
 const { authenticateJWT } = require('../auth');
@@ -44,7 +45,7 @@ function contentError(content) {
 // A message row, as `viewerId` may see it: only messages of epochs they have a key for, and
 // a reply's parent only if they can read that too.
 const MESSAGE_SELECT = `
-  SELECT m.id, m.group_id, m.epoch, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
+  SELECT m.id, m.group_id, m.epoch, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited, m.edited_at,
     m.pinned_at, m.pinned_by, m.system, m.link_previews,
     u.username AS sender_username,
     u.display_name AS sender_display_name,
@@ -332,12 +333,20 @@ router.put('/group-dm-messages/:messageId', authenticateJWT, findMessage, async 
   if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not your message' });
   if (req.message.system) return res.status(403).json({ error: "This message can't be edited" });
   await db.transaction(async () => {
-    await db.run('UPDATE group_dm_messages SET content = ?, edited = 1, link_previews = NULL WHERE id = ?', [content.trim(), req.message.id]);
+    await editHistory.keepVersion('group', req.message, content.trim());
+    await db.run("UPDATE group_dm_messages SET content = ?, edited = 1, edited_at = strftime('%s','now'), link_previews = NULL WHERE id = ?", [content.trim(), req.message.id]);
     await linkListed('group', req.message.id, uploads, req.user.id, { edit: true });
   });
   releaseUploads();
   await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_edit', groupId: req.message.group_id, messageId: req.message.id, content: content.trim() });
   res.json({ success: true });
+});
+
+// A message's earlier versions (editHistory.js), still encrypted with the message's epoch key,
+// for members who can read it: { versions: [{ content, written_at, edited }] (oldest first),
+// edited_at }.
+router.get('/group-dm-messages/:messageId/edits', authenticateJWT, findMessage, async (req, res) => {
+  res.json({ versions: await editHistory.versions('group', req.message.id), edited_at: req.message.edited_at ?? null });
 });
 
 // The sender's app's link previews for their message (Link previews in docs/messages.md):

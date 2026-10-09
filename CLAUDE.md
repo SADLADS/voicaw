@@ -360,6 +360,10 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   With it on, a password alone gets no session and no key backup, and recovery-code resets need a
   code too. No SMS or email codes (the app has neither). Turning it on needs the password and a
   code; an admin on the host can turn it off for someone who lost everything (`npm run admin`).
+- **Edit history** (built 2026-10-09, see Edit history in `docs/messages.md`): every edited
+  message keeps its earlier versions, for everyone who can see it (DMs and groups as the
+  ciphertext they were; guilds plain); deleting the message deletes them. People's edits only:
+  bots' and webhooks' aren't kept. Editing no longer takes text back (the privacy policy says so).
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

@@ -11,6 +11,7 @@ import {
   fetchGroupPins,
   setGroupMessagePinned,
   setGroupLinkPreviews,
+  fetchGroupEditHistory,
 } from '../services/groupService';
 import {
   decryptGroupMessage,
@@ -386,6 +387,20 @@ export function useGroupConversation({ groupId, user, onRead }) {
     return Promise.all((await fetchGroupPins(groupId)).map(decryptRow));
   }
 
+  // A message's earlier versions (EditHistoryDialog), decrypted and checked like the message:
+  // { versions: [{ plaintext, unsigned?, unverified?, written_at, edited }], edited_at }. Each
+  // was signed as an edit of it or not (`edited`).
+  async function loadEdits(msg) {
+    const { versions, edited_at } = await fetchGroupEditHistory(msg.id);
+    return {
+      versions: await Promise.all(versions.map(async (v) => ({
+        ...v,
+        ...await decryptText(v.content, msg.epoch, msg.sender_id, signatureContextOf({ ...msg, edited: v.edited })),
+      }))),
+      edited_at,
+    };
+  }
+
   async function setPinned(msg, pinned) {
     applyPin(await setGroupMessagePinned(msg.id, pinned));
   }
@@ -516,5 +531,6 @@ export function useGroupConversation({ groupId, user, onRead }) {
     pinsVersion,
     loadPins,
     setPinned,
+    loadEdits,
   };
 }

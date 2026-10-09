@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const editHistory = require('../editHistory');
 const { maxPlaintextLength } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has, channelPermissions } = require('../permissions');
@@ -158,7 +159,7 @@ async function requireReadableChannel(req, res, next) {
 async function requireMessage(req, res, next) {
   const messageId = Number(req.params.messageId);
   const message = Number.isInteger(messageId) && await db.get(
-    'SELECT id, channel_id, sender_id, content, timestamp, system, webhook_id, webhook_name FROM guild_messages WHERE id = ?',
+    'SELECT id, channel_id, sender_id, content, timestamp, edited, edited_at, system, webhook_id, webhook_name FROM guild_messages WHERE id = ?',
     [messageId]
   );
   const access = message && await getChannelAccess(message.channel_id, req.user.id);
@@ -306,6 +307,7 @@ router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async 
     )
     : [];
   await db.transaction(async () => {
+    await editHistory.keepVersion('guild', req.message, content);
     await db.run("UPDATE guild_messages SET content = ?, edited = 1, edited_at = strftime('%s','now') WHERE id = ?", [content, req.message.id]);
     await saveMentions({ id: req.message.id, content, sender_id: req.user.id }, req.channel, req.permissions);
     await db.indexGuildMessage(req.message.id);
@@ -325,6 +327,12 @@ router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async 
   });
   refreshLinkPreviews(req.message.id);
   res.json({ success: true, messageId: req.message.id, content });
+});
+
+// A message's earlier versions (editHistory.js), for anyone who can see it:
+// { versions: [{ content, written_at, edited }] (oldest first), edited_at }.
+router.get('/guild-messages/:messageId/edits', authenticateJWT, requireMessage, async (req, res) => {
+  res.json({ versions: await editHistory.versions('guild', req.message.id), edited_at: req.message.edited_at ?? null });
 });
 
 // Discord's SUPPRESS_EMBEDS: "Remove previews" hides a message's embeds and link previews

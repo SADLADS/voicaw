@@ -53,6 +53,12 @@ export async function editMessage(messageId, content, uploads = []) {
   await api.put(`/update-message/${messageId}`, { content, uploads });
 }
 
+// A message's earlier versions, still encrypted (server/editHistory.js):
+// { versions: [{ content, written_at, edited }] (oldest first), edited_at }.
+export async function fetchEditHistory(messageId) {
+  return (await api.get(`/dm-messages/${messageId}/edits`)).data;
+}
+
 // The previews this device made for its own message (services/linkPreviewCrypto.js), or null.
 export async function setLinkPreviews(messageId, previews) {
   await api.put(`/dm-messages/${messageId}/link-previews`, { previews });

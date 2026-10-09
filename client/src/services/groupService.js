@@ -42,6 +42,12 @@ export async function editGroupMessage(messageId, content, uploads = []) {
   await api.put(`/group-dm-messages/${messageId}`, { content, uploads });
 }
 
+// A message's earlier versions, encrypted with its epoch key (server/editHistory.js):
+// { versions: [{ content, written_at, edited }] (oldest first), edited_at }.
+export async function fetchGroupEditHistory(messageId) {
+  return (await api.get(`/group-dm-messages/${messageId}/edits`)).data;
+}
+
 // The previews this device made for its own message (services/linkPreviewCrypto.js), or null.
 export async function setGroupLinkPreviews(messageId, previews) {
   await api.put(`/group-dm-messages/${messageId}/link-previews`, { previews });

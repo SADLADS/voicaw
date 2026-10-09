@@ -8,6 +8,8 @@ import MessageMenu from './MessageMenu';
 import ConfirmDialog from './guild/ConfirmDialog';
 import PinnedMessages from './PinnedMessages';
 import PollDialog from './PollDialog';
+import EditHistoryDialog from './EditHistoryDialog';
+import { hasEditHistory } from '../utils/editHistory';
 import { ChannelMentionContext, ConfigContext, InteractionContext, ThreadContext } from '../contexts';
 import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
 import { useReactions } from '../hooks/useReactions';
@@ -131,6 +133,9 @@ export default function ChatPane({
   const [reporting, setReporting] = useState(null);
   const reportable = (msg) => Boolean(pollKind) && msg.sender_id !== user.id && !msg.system && !msg.ephemeral &&
     msg.status !== 'pending' && msg.status !== 'failed';
+  // The message whose edit history is open (EditHistoryDialog), from its "edited".
+  const [editsFor, setEditsFor] = useState(null);
+  const showEditsFor = (msg) => (conversation.loadEdits && hasEditHistory(msg) ? () => setEditsFor(msg) : undefined);
   // A poll being edited: { msg, poll } (polls are edited in PollDialog, not inline).
   const [editingPoll, setEditingPoll] = useState(null);
 
@@ -215,6 +220,7 @@ export default function ChatPane({
     setReplyTo(null);
     setEditingMessageId(null);
     setEditingPoll(null);
+    setEditsFor(null);
   }, [chatId]);
 
   // Someone's message arriving means they've stopped typing (it can beat their typing timeout).
@@ -424,6 +430,7 @@ export default function ChatPane({
             canAddReactions={canAddReactions}
             canPin={canPin}
             onTogglePin={togglePin}
+            onShowEdits={conversation.loadEdits ? setEditsFor : undefined}
             canRemovePreviews={isMobile ? undefined : canRemovePreviews}
             onRemovePreviews={requestRemovePreviews}
             nameColors={nameColors}
@@ -557,6 +564,7 @@ export default function ChatPane({
           onTogglePin={canPin ? () => togglePin(actionsFor) : undefined}
           onCreateThread={threadFrom(actionsFor)}
           onCopy={() => copyMessage(actionsFor)}
+          onShowEdits={showEditsFor(actionsFor)}
           onRemovePreviews={removePreviewsFor(actionsFor)}
           apps={appsFor(actionsFor)}
           onRunApp={(command) => runMessageApp(command, actionsFor)}
@@ -581,12 +589,27 @@ export default function ChatPane({
           onTogglePin={canPin ? () => togglePin(menuMsg) : undefined}
           onCreateThread={threadFrom(menuMsg)}
           onCopy={() => copyText(menuMsg)}
+          onShowEdits={showEditsFor(menuMsg)}
           onRemovePreviews={removePreviewsFor(menuMsg)}
           apps={appsFor(menuMsg)}
           onRunApp={(command) => runMessageApp(command, menuMsg)}
           onDelete={(event) => requestDelete(menuMsg, event)}
           onReport={reportable(menuMsg) ? () => setReporting(menuMsg) : undefined}
           onClose={closeMenu}
+        />
+      )}
+
+      {editsFor && (
+        <EditHistoryDialog
+          // The message as it is now (an edit while it's open shows at once).
+          msg={messages.find((m) => m.id === editsFor.id) ?? editsFor}
+          loadEdits={conversation.loadEdits}
+          onClose={() => setEditsFor(null)}
+          user={user}
+          s3Endpoint={s3Endpoint}
+          reactionNames={reactionNames}
+          mentionRoles={mentionRoles}
+          myRoleIds={myRoleIds}
         />
       )}
 
