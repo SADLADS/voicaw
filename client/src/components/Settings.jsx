@@ -8,6 +8,7 @@ import NotificationSettings from "./NotificationSettings";
 import ReactionNotificationSettings from "./ReactionNotificationSettings";
 import AppUpdateSettings from "./AppUpdateSettings";
 import { PasswordSettings, RecoveryCodeSettings } from "./AccountSecuritySettings";
+import TwoFactorSettings from "./TwoFactorSettings";
 import DeleteAccountSettings from "./DeleteAccountSettings";
 import DeviceSettings from "./DeviceSettings";
 import AdminSettings from "./AdminSettings";
@@ -83,6 +84,7 @@ export default function Settings({ onLogout }) {
       subs: [
         sub('password', 'password', { aliases: ['account-security', 'log-out'], content: <PasswordSettings /> }),
         sub('recovery-code', 'recoveryCode', { content: <RecoveryCodeSettings /> }),
+        sub('two-factor', 'twoFactor', { aliases: ['2fa'], content: <TwoFactorSettings /> }),
         sub('devices', 'devices', { content: <DeviceSettings /> }),
         sub('delete-account', 'deleteAccount', { content: <DeleteAccountSettings onDeleted={onLogout} /> }),
       ],

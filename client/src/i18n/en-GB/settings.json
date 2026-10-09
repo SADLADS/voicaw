@@ -43,6 +43,10 @@
         "title": "Recovery code",
         "keywords": "recovery code forgot password lost backup keys security"
       },
+      "twoFactor": {
+        "title": "Two-factor authentication",
+        "keywords": "two-factor 2fa mfa authenticator app totp code backup codes security login"
+      },
       "devices": {
         "title": "Devices",
         "keywords": "sessions logins logged in devices log out sign out everywhere other devices phone computer browser security"
@@ -211,6 +215,30 @@
       "showNewCode": "Show my new code",
       "newRecoveryCode": "Make a new recovery code",
       "setUpRecoveryCode": "Set up a recovery code"
+    },
+    "twoFactor": {
+      "title": "Two-factor authentication",
+      "off": "Off. Turn it on to be asked for a code from an authenticator app (such as Google Authenticator, Aegis or 1Password) as well as your password when you log in.",
+      "on": "On. Logging in needs a code from your authenticator app as well as your password.",
+      "backupCodesLeft_one": "{{count}} backup code left.",
+      "backupCodesLeft_other": "{{count}} backup codes left.",
+      "setUp": "Set up two-factor",
+      "turnOn": "Turn on",
+      "turnOff": "Turn off two-factor",
+      "newBackupCodes": "New backup codes",
+      "showNewCodes": "Show new backup codes",
+      "scan": "Scan this QR code with your authenticator app.",
+      "qrLabel": "QR code for your authenticator app",
+      "orType": "Or enter this key in it:",
+      "key": "Key for your authenticator app",
+      "enterCode": "Then enter the six-digit code it shows, and your password.",
+      "codePlaceholder": "Six-digit code",
+      "codeOrBackupPlaceholder": "Six-digit code or backup code",
+      "backupCodes": "Backup codes",
+      "backupCodesIntro_one": "Keep this backup code somewhere safe. It logs you in once if you lose your authenticator app. You won't see it again.",
+      "backupCodesIntro_other": "Keep these {{count}} backup codes somewhere safe. Each logs you in once if you lose your authenticator app. You won't see them again.",
+      "savedThem": "I've saved my backup codes",
+      "fileText": "Voicaw backup codes for {{username}}\n\nEach one works once, instead of a code from your authenticator app.\n\n{{codes}}\n"
     },
     "admin": {
       "title": "Admin",

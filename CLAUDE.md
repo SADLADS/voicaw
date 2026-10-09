@@ -135,7 +135,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 
 - `docs/server.md`: server layout (which module does what), env vars, Node/sqlite on the host.
 - `docs/database.md`: `node:sqlite`, query helpers, transactions, migrations.
-- `docs/auth-and-encryption.md`: OPAQUE login, sessions and Settings → Devices, rate limits, sign-ups (open, invite
+- `docs/auth-and-encryption.md`: OPAQUE login, sessions and Settings → Devices, two-factor, rate limits, sign-ups (open, invite
   only, admin approval), deleting an account,
   end-to-end encryption (keys, backups, recovery code, contact pinning, DMs, reactions, notes,
   the spellcheck dictionary, emoji usage).
@@ -354,6 +354,11 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   needed no change but guild pushes' wording. Can't be edited. Up to 20 minutes, recorded with the
   browser's own noise suppression, not the call chain. Bots see a guild one as a plain link in
   the content (no Discord voice-message flags yet).
+- **Two-factor** (built 2026-10-09, see Two-factor authentication in `docs/auth-and-encryption.md`):
+  optional (off by default), authenticator-app codes (TOTP) and ten backup codes, as Discord's.
+  With it on, a password alone gets no session and no key backup, and recovery-code resets need a
+  code too. No SMS or email codes (the app has neither). Turning it on needs the password and a
+  code; an admin on the host can turn it off for someone who lost everything (`npm run admin`).
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

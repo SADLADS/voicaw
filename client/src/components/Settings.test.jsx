@@ -64,7 +64,7 @@ describe('Settings pages', () => {
     renderSettings();
     expect(pageTitle()).toBe('My Account');
     expect(screen.getByRole('button', { name: 'My Account' })).toHaveAttribute('aria-current', 'page');
-    expect(navSubs()).toEqual(['Password', 'Recovery code', 'Devices', 'Delete account']);
+    expect(navSubs()).toEqual(['Password', 'Recovery code', 'Two-factor authentication', 'Devices', 'Delete account']);
     expect(screen.queryByLabelText('Date format')).toBeNull();
   });
 

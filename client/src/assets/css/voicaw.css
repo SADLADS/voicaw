@@ -27,6 +27,10 @@
   --vc-accent-soft: rgba(106, 82, 201, 0.18);
   --vc-on-accent: #ffffff;
 
+  /* QR codes (two-factor set-up): dark on light in every theme, or scanners can't read them. */
+  --vc-qr-dark: #000000;
+  --vc-qr-light: #ffffff;
+
   /* Bird yellow: never change it. */
   --vc-action: #d8b930;
   --vc-action-hover: #bfa22a;

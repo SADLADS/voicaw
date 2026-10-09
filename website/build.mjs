@@ -191,7 +191,7 @@ export function renderDocs(values) {
 export const LEGAL = [
   { slug: 'privacy', file: 'privacy.html', title: 'Privacy policy', updated: '2026-10-09', description: 'What Voicaw stores, what is end-to-end encrypted, and who else sees anything.' },
   { slug: 'terms', file: 'terms.html', title: 'Terms of use', updated: '2026-10-05', description: "Voicaw's rules: what you may not post or do, and what happens if you do." },
-  { slug: 'delete-account', file: 'delete-account.html', title: 'Deleting your account', updated: '2026-10-08', description: 'How to delete your Voicaw account and what that removes.' },
+  { slug: 'delete-account', file: 'delete-account.html', title: 'Deleting your account', updated: '2026-10-09', description: 'How to delete your Voicaw account and what that removes.' },
 ];
 
 
