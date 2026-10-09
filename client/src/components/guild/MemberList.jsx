@@ -6,6 +6,7 @@ import { setMemberRoles } from '../../services/guildService';
 import { PERMISSIONS, colorToHex, has, memberColor, memberRank, memberRoles } from '../../utils/permissions';
 import { errorMessage, groupMembers } from '../../utils/guildDisplay';
 import StatusIcon from '../StatusIcon';
+import ActivityLine from '../ActivityLine';
 import { usePresence } from '../../hooks/usePresence';
 import { formatDate } from '../../utils/dateFormat';
 import { displayName, nameOf, useProfiles } from '../../utils/profiles';
@@ -213,12 +214,14 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
             <Avatar userId={member.id} />
             <StatusIcon status={member.status} />
           </span>
-          {/* No custom status here (the rows are busy enough): their card shows it. */}
+          {/* No custom status here (the rows are busy enough): their card shows it. What
+              they're playing does show, as in Discord. */}
           <span className="member-text">
             <span className="member-name" style={{ color: color ?? undefined }}>
               {nameOf(member)}
               {member.bot ? <span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span> : null}
             </span>
+            {member.status !== 'offline' && <ActivityLine userId={member.id} className="member-activity" />}
             {level > 0 && (
               <span className="member-level" title={t('levels.card.level', { name: levelName(guild.levels), level })}>
                 {levelBadge(level, guild.levels)}

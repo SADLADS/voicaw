@@ -110,6 +110,34 @@ of a user's sockets (`sockets.js` `statusOf`): any active computer wins, then an
   the profile card shows the status or "Last seen …". Idle and mobile members count as online in
   the member list.
 
+## Activities (Rich Presence)
+
+What people are doing, as Discord's activities: "Playing Hades" from their games (the desktop
+app's Rich Presence, see Rich Presence in `docs/desktop-and-site.md`), and bots' own ("Watching 3
+guilds", a custom status; gateway Presence Update). Built 2026-10-09.
+- Server (`activities.js`): kept on the socket that set them, in memory only (never the
+  database), gone when it closes. A socket sends `activity { activities }` (cleaned: at most 3,
+  128-character texts, people's types 0/2/3/5, bots' 0-5; 30 a minute) once it's identified;
+  someone's activities are their most recently set socket's (an invisible bot's don't show).
+  Changes go to every logged-in socket as `user_activities { userId, activities }`, and
+  `presence_snapshot` carries `activities: { id: [...] }`. One activity: `{ name, type, details,
+  state, start, end, partySize, partyMax, imageText, image }`: `name` null for a game the app
+  couldn't name, start/end unix ms, `image` a picture's id.
+- Pictures: the app sends a game's picture (JPEG or PNG, at most 48 KB; the app makes them 128
+  px) as base64 in the activity the first time on each connection, then only its id; the server
+  keeps the last 500 in memory by the SHA-256 of their bytes and serves them at
+  `GET /api/activity-images/<id>` (no login: `<img>` can't send one, and the hash says nothing
+  about who plays it; cached a day).
+- Client: `utils/activities.js` is the store (snapshot + changes) and the wording, `hooks/
+  useActivities.js` subscribes. `ws-client.js` `setOwnActivities` (from `useDesktopApp`) sends this
+  device's, at most one every 5 s (the latest), and again after each reconnect. Shown in
+  `ActivityLine` ("Playing **Hades**", the latest one; under names in the guild member list, and
+  in the DM list and Friends where there's no custom status, as Discord) and `Activities` (the
+  profile card: per activity a heading, the picture or a gamepad, name, details, state with
+  "(2 of 4)", "12:34 elapsed" / "3:00 left", ticking).
+- Bots get people's in PRESENCE_UPDATE (`activities`, Discord's shape, no application id or
+  pictures) with the presences intent, and when they change.
+
 ## Push notifications (Web Push)
 
 Web push (`web-push` + VAPID) is the **only** source of OS notifications; the page itself never

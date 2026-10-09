@@ -1,12 +1,15 @@
 // The desktop app: one window showing the client build that ships inside the app (see
 // protocol.js), plus what a browser tab can't do: notifications without web push, a tray
 // icon with the unread count, closing to the tray, starting at login, global mute/deafen
-// shortcuts, a screen picker for screen sharing and updating itself. The page reaches these through preload.js.
+// shortcuts, a screen picker for screen sharing, games' Rich Presence and updating itself. The page reaches these through preload.js.
 // It starts with a splash window (splash.js) that installs any update before the app opens.
 // (Its only other window is a popped-out screen share, which the page draws itself; windowOpen.js.)
 const path = require('path');
-const { app, BrowserWindow, Menu, desktopCapturer, dialog, globalShortcut, ipcMain, net, protocol, screen, session, shell } = require('electron');
+const { app, BrowserWindow, Menu, desktopCapturer, dialog, globalShortcut, ipcMain, nativeImage, net, protocol, screen, session, shell } = require('electron');
 const fs = require('fs');
+const os = require('os');
+const { execFile } = require('child_process');
+const nodeNet = require('net');
 const { setUpSpellcheck, syncSpellingWords } = require('./spellcheck');
 const { ORIGIN, isAppOrigin, registerScheme, handleScheme } = require('./protocol');
 const { createSettingsStore } = require('./desktopSettings');
@@ -21,6 +24,9 @@ const { windowOpenAction, streamWindowPermission } = require('./windowOpen');
 const { setUpYouTubeReferer } = require('./youtube');
 const { fetchPage } = require('./pageFetch');
 const { createFileSaver } = require('./fileSave');
+const { createRichPresenceServer } = require('./richPresence');
+const { createGameActivities, pictureFrom } = require('./gameActivities');
+const { identifyGame, steamApps, steamRoots } = require('./gameLookup');
 
 const APP_ID = 'com.voicaw.app';
 const ICON = path.join(__dirname, 'assets', 'icon.png');
@@ -42,6 +48,8 @@ let notifier;
 let updater;
 let screenShare;
 let fileSaver;
+let richPresence;
+let gameActivities;
 
 // One app at a time: starting it again brings the running one forward.
 if (!app.requestSingleInstanceLock()) {
@@ -184,6 +192,56 @@ function applyDesktopShortcuts() {
     return applyShortcuts(settings.get().shortcuts, (action) => win?.webContents.send('desktop:shortcut', action));
 }
 
+// Runs a program, resolving to what it printed (for gameLookup.js: PowerShell, ps, reg).
+function run(command, args) {
+    return new Promise((resolve, reject) => {
+        execFile(command, args, { timeout: 5000, windowsHide: true, maxBuffer: 1024 * 1024 }, (err, stdout) => (err ? reject(err) : resolve(String(stdout))));
+    });
+}
+
+// Steam's install folder from the registry (Windows), looked up once.
+let registrySteamPath;
+async function windowsSteamPath() {
+    if (registrySteamPath === undefined) {
+        registrySteamPath = await run('reg', ['query', 'HKCU\\Software\\Valve\\Steam', '/v', 'SteamPath'])
+            .then((out) => /SteamPath\s+REG_SZ\s+(.+)/.exec(out)?.[1].trim().replace(/\//g, '\\') ?? null)
+            .catch(() => null);
+    }
+    return registrySteamPath;
+}
+
+// Rich Presence (richPresence.js): games' activities, named and pictured from this computer
+// (gameLookup.js), sent to the page, which shares them.
+function setUpRichPresence() {
+    gameActivities = createGameActivities({
+        async identify(pid) {
+            const platform = process.platform;
+            const roots = steamRoots({ platform, home: os.homedir(), registrySteamPath: platform === 'win32' ? await windowsSteamPath() : null });
+            return identifyGame(pid, { platform, fs, run, listSteamApps: () => steamApps(fs, roots) });
+        },
+        async loadPicture(game) {
+            if (game.picture) return pictureFrom(nativeImage.createFromPath(game.picture), { photo: true });
+            // Linux's file icons are only the theme's generic ones.
+            if (game.exe && process.platform !== 'linux') return pictureFrom(await app.getFileIcon(game.exe, { size: 'large' }), { photo: false });
+            return null;
+        },
+        onChange: (activities) => win?.webContents.send('desktop:activities', activities),
+    });
+    richPresence = createRichPresenceServer({ net: nodeNet, fs, onChange: (games) => gameActivities.update(games) });
+    applyRichPresence();
+    app.on('will-quit', () => richPresence.stop());
+}
+
+function applyRichPresence() {
+    if (!settings.get().richPresence) {
+        richPresence.stop();
+        return;
+    }
+    richPresence.start().then((file) => {
+        if (!file) console.error('Rich Presence: every discord-ipc socket is taken');
+    }).catch((err) => console.error('Rich Presence failed to start', err.message));
+}
+
 function setUpIpc() {
     ipcMain.handle('desktop:info', (event) => (fromApp(event) ? { version: app.getVersion(), packaged: app.isPackaged } : null));
     ipcMain.handle('desktop:settings', (event) => (fromApp(event) ? settings.get() : null));
@@ -192,8 +250,10 @@ function setUpIpc() {
         const before = settings.get();
         const next = settings.update(changes);
         if (next.startAtLogin !== before.startAtLogin) setStartAtLogin(app, next.startAtLogin);
+        if (next.richPresence !== before.richPresence) applyRichPresence();
         return { settings: next, failedShortcuts: applyDesktopShortcuts() };
     });
+    ipcMain.handle('desktop:activities', (event) => (fromApp(event) ? gameActivities.current() : []));
     ipcMain.on('desktop:notify', (event, notification) => { if (fromApp(event)) notifier.show(notification); });
     ipcMain.on('desktop:unread', (event, unread) => { if (fromApp(event)) tray.setUnread(win, unread); });
     ipcMain.handle('desktop:screen-sources', (event) => (fromApp(event) ? screenShare.listSources() : null));
@@ -255,6 +315,7 @@ function start() {
         },
     });
     setUpIpc();
+    setUpRichPresence();
     // Keeps the login item current (e.g. after the AppImage moved).
     if (settings.get().startAtLogin) setStartAtLogin(app, true);
 

@@ -11,6 +11,7 @@ import { lastSeenText, statusLabel } from '../utils/presence';
 import { groupTitle } from '../utils/groupDisplay';
 import StatusIcon from './StatusIcon';
 import CustomStatus from './CustomStatus';
+import ActivityLine from './ActivityLine';
 import NewGroupDialog from './group/NewGroupDialog';
 import GroupPicture from './group/GroupPicture';
 import { displayName, getProfile, nameOf, useProfiles } from '../utils/profiles';
@@ -200,7 +201,10 @@ export default function DmSidebar({ user, users, groups = [], botDms = [], unrea
                 </span>
                 <span className="dm-user-names">
                   <span className="dm-user-name">{name}</span>
-                  <CustomStatus profile={profile} className="dm-user-custom-status" />
+                  {/* As in Discord: the custom status, else what they're playing. */}
+                  {profile.custom_status || profile.custom_status_emoji
+                    ? <CustomStatus profile={profile} className="dm-user-custom-status" />
+                    : <ActivityLine userId={id} className="dm-user-custom-status" />}
                 </span>
                 {marks(setting)}
               </div>

@@ -1,6 +1,7 @@
 const WebSocket = require('ws');
 const auth = require('./auth');
 const db = require('./db');
+const activities = require('./activities');
 
 // Realtime push to the browser: each logged-in user's open sockets (one per tab/device),
 // keyed by user id as a string. Routes use sendToUserSockets; the socket server itself only
@@ -25,6 +26,9 @@ const OFFLINE_GRACE_MS = 15000;
 const MAX_IDLE_IN_MS = 10 * 60 * 1000;
 // last_online is also saved while someone is online, so a crash loses at most this much.
 const LAST_ONLINE_SAVE_MS = 60000;
+// Activities (activities.js) a socket may set per minute; games update often, the app sends at
+// most one every few seconds.
+const ACTIVITY_SETS_PER_MINUTE = 30;
 const statuses = new Map(); // user id (string) -> status, for everyone not offline
 const offlineTimers = new Map();
 let lastOnlineSavedAt = 0;
@@ -65,8 +69,9 @@ function addClient(ws, userId) {
   if (!clients.has(ws.userId)) clients.set(ws.userId, []);
   clients.get(ws.userId).push(ws);
   refreshStatus(ws.userId);
-  // Everyone not offline, so a client that was disconnected for a while catches up.
-  ws.send(JSON.stringify({ type: 'presence_snapshot', statuses: Object.fromEntries(statuses) }));
+  // Everyone not offline (and what they're playing), so a client that was disconnected for a
+  // while catches up.
+  ws.send(JSON.stringify({ type: 'presence_snapshot', statuses: Object.fromEntries(statuses), activities: activities.snapshot() }));
 }
 
 function removeFrom(map, key, ws) {
@@ -147,6 +152,14 @@ function refreshStatus(userId) {
       if (statusOf(clients.get(userId) || []) === 'offline') setStatus(userId, 'offline');
     }, OFFLINE_GRACE_MS));
   }
+}
+
+// Works out `userId`'s activities again after one of their sockets set some or closed, and
+// tells everyone if they changed.
+function refreshActivities(userId) {
+  userId = String(userId);
+  const list = activities.activitiesOf(clients.get(userId));
+  if (activities.remember(userId, list)) sendToAllSockets({ type: 'user_activities', userId, activities: list });
 }
 
 // Catches people going idle (their activeUntil passing), and saves last_online now and then.
@@ -232,6 +245,15 @@ function attachWebSocketServer(server) {
           at: now,
         };
         if (ws.userId) refreshStatus(ws.userId);
+      } else if (data.type === 'activity') {
+        // What this device's games say you're doing (the desktop app's Rich Presence), or [].
+        if (!ws.userId) return;
+        const now = Date.now();
+        if (!ws.activityWindow || now - ws.activityWindow.start > 60000) ws.activityWindow = { start: now, count: 0 };
+        if (++ws.activityWindow.count > ACTIVITY_SETS_PER_MINUTE) return;
+        ws.activities = activities.cleanActivities(data.activities);
+        ws.activitiesAt = now;
+        refreshActivities(ws.userId);
       }
     });
 
@@ -241,6 +263,7 @@ function attachWebSocketServer(server) {
       if (!userId || !clients.has(userId)) return;
       removeFrom(clients, userId, ws);
       refreshStatus(userId);
+      if (ws.activities?.length) refreshActivities(userId);
     });
 
     ws.on('error', (err) => {
@@ -265,5 +288,5 @@ function attachWebSocketServer(server) {
 }
 
 module.exports = {
-  clients, pendingClients, approvePendingSockets, closePendingSockets, sendToUserSockets, sendToAllSockets, sendToDesktopSockets, getStatus, refreshStatus, isViewingConversation, attachWebSocketServer,
+  clients, pendingClients, approvePendingSockets, closePendingSockets, sendToUserSockets, sendToAllSockets, sendToDesktopSockets, getStatus, refreshStatus, refreshActivities, isViewingConversation, attachWebSocketServer,
 };

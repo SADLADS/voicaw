@@ -2795,6 +2795,55 @@ body.mobile-mode .dm-user-list-container .dm-user {
   border-top: 1px solid var(--vc-border-dark);
 }
 
+/* What someone's playing (Rich Presence, utils/activities.js): one line in lists
+   (ActivityLine: "Playing **Hades**"), a section on the profile card (Activities). */
+.activity-line strong {
+  font-weight: 600;
+}
+
+.activity-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.activity-image {
+  flex-shrink: 0;
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+  background-color: var(--vc-bg-subtle);
+}
+
+.activity-image-none {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vc-fg-muted);
+  font-size: 26px;
+}
+
+.activity-text {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--vc-fg-muted);
+  overflow-wrap: anywhere;
+}
+
+.activity-name {
+  color: var(--vc-fg);
+  font-weight: 600;
+}
+
+.activity-custom {
+  margin-bottom: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
 /* A custom status's emoji, before its text (CustomStatus). */
 .custom-status-emoji {
   margin-right: 4px;

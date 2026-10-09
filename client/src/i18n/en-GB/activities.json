@@ -1,0 +1,18 @@
+{
+  "activities": {
+    "playing": "Playing <b>{{name}}</b>",
+    "streaming": "Streaming <b>{{name}}</b>",
+    "listening": "Listening to <b>{{name}}</b>",
+    "watching": "Watching <b>{{name}}</b>",
+    "competing": "Competing in <b>{{name}}</b>",
+    "headingPlaying": "Playing a game",
+    "headingStreaming": "Streaming",
+    "headingListening": "Listening",
+    "headingWatching": "Watching",
+    "headingCompeting": "Competing",
+    "unknownGame": "a game",
+    "elapsed": "{{time}} elapsed",
+    "left": "{{time}} left",
+    "party": "({{size}} of {{max}})"
+  }
+}

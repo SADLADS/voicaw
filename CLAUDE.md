@@ -376,6 +376,14 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   segments at a time; edits and deletes found by asking the server for per-range counts (never
   which messages matched). Settings → Privacy can keep no copy (each search then reads the
   whole history again); logging out deletes it.
+- **Rich Presence** (built 2026-10-09, see Rich Presence in `docs/desktop-and-site.md` and
+  Activities in `docs/realtime.md`): the desktop app listens on Discord's local `discord-ipc-N`
+  socket, so games' "Playing X" reaches Voicaw unchanged (a Discord started first keeps them).
+  Never asks Discord (the user's choice): names and pictures come from Steam's local files and
+  the program itself; games' own per-moment pictures (Discord asset keys) aren't shown. A 128 px
+  copy of the picture goes to the server; activities live in its memory only. Shown in the
+  member list (unlike custom statuses), the DM list, Friends and profile cards; "Share what I'm
+  playing" in Settings → Desktop App, on by default. Bots' own activities show too.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

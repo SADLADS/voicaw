@@ -2,7 +2,8 @@ const crypto = require('crypto');
 const zlib = require('zlib');
 const WebSocket = require('ws');
 const db = require('./db');
-const { clients, refreshStatus, getStatus } = require('./sockets');
+const { clients, refreshStatus, refreshActivities, getStatus } = require('./sockets');
+const { getActivities, cleanBotActivities, discordActivity } = require('./activities');
 const { getGuildLayout } = require('./guilds');
 const bots = require('./bots');
 const D = require('./discord');
@@ -71,7 +72,7 @@ function presenceObject(userId, guildId, status = getStatus(userId)) {
     user: { id: String(userId) },
     guild_id: String(guildId),
     status: s,
-    activities: [],
+    activities: s === 'offline' ? [] : getActivities(userId).map(discordActivity),
     client_status: s === 'offline' ? {} : { [status === 'mobile' ? 'mobile' : 'web']: s },
   };
 }
@@ -150,6 +151,7 @@ class Session {
     if (rest.length) clients.set(key, rest);
     else clients.delete(key);
     refreshStatus(this.bot.id);
+    if (this.socket.activities?.length) refreshActivities(this.bot.id);
     if (this.ws && code) this.ws.close(code, reason);
     this.ws = null;
   }
@@ -287,6 +289,10 @@ class Session {
         return this.profileChanged(event.user);
       case 'user_status':
         return this.statusChanged(Number(event.userId), event.status);
+      case 'user_activities':
+        // An invisible bot's or an offline person's activities aren't anyone's business.
+        if (getStatus(event.userId) === 'offline') return;
+        return this.statusChanged(Number(event.userId), getStatus(event.userId));
       case 'guild_message_new':
         return this.messageEvent('MESSAGE_CREATE', guildId, event.message.id);
       case 'guild_message_edit':
@@ -479,7 +485,11 @@ class Session {
       invisible: status === 'invisible' || status === 'offline',
       at: Date.now(),
     };
+    // "Playing X", "Watching Y", a custom status: shown like people's games (activities.js).
+    this.socket.activities = cleanBotActivities(d?.activities);
+    this.socket.activitiesAt = Date.now();
     refreshStatus(this.bot.id);
+    refreshActivities(this.bot.id);
   }
 
   async requestMembers(d) {

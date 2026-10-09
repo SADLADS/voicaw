@@ -2,13 +2,15 @@ import React from 'react';
 import Avatar from './Avatar';
 import StatusIcon from './StatusIcon';
 import CustomStatus from './CustomStatus';
+import Activities from './Activities';
 import { usePresence } from '../hooks/usePresence';
 import { getProfile, useProfiles } from '../utils/profiles';
 import { lastSeenText, statusLabel } from '../utils/presence';
 import { t } from '../i18n';
 
 // The top of someone's profile: picture (with online status), display name (in `color`, e.g. a
-// guild role's), @username, their status or last seen, custom status (with its emoji) and bio. `user` needs
+// guild role's), @username, their status or last seen, custom status (with its emoji), what
+// they're playing (Activities) and bio. `user` needs
 // { id, username }; the rest comes from the profile store (utils/profiles). `children` go
 // under it (the guild member card's roles and actions). For a preview (Edit Profile): `draft` ({ display_name, custom_status, custom_status_emoji, bio }) replaces the
 // saved profile and `avatarSrc` the picture.
@@ -35,6 +37,7 @@ export default function ProfileCard({ user, color, children, draft, avatarSrc })
         </div>
       </div>
       <CustomStatus profile={profile} className="profile-card-custom-status" />
+      {!draft && <Activities userId={user.id} />}
       {profile.bio && (
         <div className="profile-card-section">
           <div className="member-card-label">{t('app.profile.aboutMe')}</div>

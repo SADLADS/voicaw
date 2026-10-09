@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { desktop, unreadSummary } from '../utils/desktop';
-import { onNotification } from '../utils/ws-client';
+import { onNotification, setOwnActivities } from '../utils/ws-client';
 import { notificationFromPush } from '../services/pushNotifications';
 import { getVoiceSnapshot, setSelfDeaf, setSelfMute } from '../voice/voiceClient';
 
@@ -10,6 +10,7 @@ import { getVoiceSnapshot, setSelfDeaf, setSelfMute } from '../voice/voiceClient
 //   app shows it. Clicking one opens its chat (`navigate`).
 // - the unread count on the tray icon and taskbar/dock
 // - the global mute / deafen shortcuts
+// - Rich Presence: what this computer's games say you're doing, shared (utils/ws-client.js)
 export function useDesktopApp({ navigate, unreadDms, groups, guildUnread }) {
   useEffect(() => {
     if (!desktop) return undefined;
@@ -35,10 +36,15 @@ export function useDesktopApp({ navigate, unreadDms, groups, guildUnread }) {
       if (action === 'toggleMute') setSelfMute(!(selfMute || selfDeaf));
       else if (action === 'toggleDeafen') setSelfDeaf(!selfDeaf);
     });
+    // (Older copies of the app have no Rich Presence.)
+    const stopActivities = desktop.onActivities?.(setOwnActivities) ?? (() => {});
+    desktop.getActivities?.().then(setOwnActivities).catch(() => {});
     return () => {
       stopNotifications();
       stopNavigate();
       stopShortcut();
+      stopActivities();
+      setOwnActivities([]);
     };
   }, [navigate]);
 
