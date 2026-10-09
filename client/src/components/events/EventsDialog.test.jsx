@@ -11,7 +11,7 @@ vi.mock('../MessageList', () => ({ MessageContent: ({ msg }) => <p>{msg.plaintex
 
 import EventsDialog from './EventsDialog';
 import { ConfigContext, InteractionContext } from '../../contexts';
-import { dayKey, monthKey, startOnDay } from '../../utils/eventCalendar';
+import { addDays, dayKey, monthKey, startAtHour, startOnDay, weekDays } from '../../utils/eventCalendar';
 
 const CREATE_EVENTS = 1 << 27;
 const guild = { id: 5, my_permissions: 1 | CREATE_EVENTS, channels: [] };
@@ -64,8 +64,8 @@ describe('EventsDialog', () => {
     const onOpenEvent = vi.fn();
     render(<Harness events={[eventIn(2)]} onCreate={vi.fn()} onOpenEvent={onOpenEvent} />);
     // Calendar first, and open.
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Calendar', 'Events']);
-    expect(screen.getByRole('tab', { name: 'Calendar' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Month', 'Week', 'Events']);
+    expect(screen.getByRole('tab', { name: 'Month' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('grid')).toBeTruthy();
     // Weekly: on its day and a week later (both are within this page's six weeks).
     const chips = screen.getAllByRole('button', { name: /Board games/ }).filter((b) => b.classList.contains('event-calendar-chip'));
@@ -91,6 +91,32 @@ describe('EventsDialog', () => {
     const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
     const past = document.querySelector(`[data-day="${dayKey(yesterday)}"]`);
     if (past) expect(within(past).queryByRole('button', { name: /^Create an event on/ })).toBeNull();
+  });
+
+  it('shows a week of hours, and makes events on them', () => {
+    const onCreate = vi.fn();
+    const onOpenEvent = vi.fn();
+    render(<Harness events={[eventIn(0)]} onCreate={onCreate} onOpenEvent={onOpenEvent} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Week' }));
+    const today = dayKey(new Date());
+    expect(screen.getAllByRole('columnheader')).toHaveLength(7);
+    expect(document.querySelector('.event-week-day.today')).toBeTruthy();
+    const block = screen.getByRole('button', { name: /Board games/ });
+    expect(block).toHaveStyle({ top: `${18 * 44}px` });
+    fireEvent.click(block);
+    expect(onOpenEvent).toHaveBeenCalledWith(7);
+    expect(onCreate).not.toHaveBeenCalled();
+    // Next week: the weekly event again, and a click on an hour (here its first) makes one then.
+    fireEvent.click(screen.getByRole('button', { name: 'Next week' }));
+    expect(screen.getByRole('button', { name: /Board games/ })).toBeTruthy();
+    expect(document.querySelector('.event-week-day.today')).toBeNull();
+    const column = screen.getAllByRole('gridcell').find((cell) => cell.classList.contains('event-week-column'));
+    fireEvent.click(column, { clientY: 0 });
+    const monday = dayKey(weekDays(addDays(today, 7))[0]);
+    expect(onCreate).toHaveBeenCalledWith(startAtHour(monday, 0));
+    // Back to the month, on that week.
+    fireEvent.click(screen.getByRole('tab', { name: 'Month' }));
+    expect(document.querySelector('.event-calendar-cell.selected').dataset.day).toBe(monday);
   });
 
   it("offers no creating to those who can't make events", () => {

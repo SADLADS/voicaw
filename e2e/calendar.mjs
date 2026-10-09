@@ -50,13 +50,13 @@ try {
   check(await a.textContent('.guild-events-button') === 'Calendar', 'Calendar in the channel list');
   await a.click('.guild-events-button');
   await a.waitForSelector('.event-calendar-grid');
-  check(await a.locator('.events-dialog [role="tab"]').first().textContent() === 'Calendar', 'Calendar is the first tab');
+  check(await a.locator('.events-dialog [role="tab"]').first().textContent() === 'Month', 'Month is the first tab');
   const listSize = await size(a);
   await a.click('.events-dialog [role="tab"]:has-text("Events")');
   await a.waitForSelector('.events-empty');
   check(await size(a) === listSize, `same size on both tabs (${listSize})`);
   await shot(a, 'list-empty');
-  await a.click('.events-dialog [role="tab"]:has-text("Calendar")');
+  await a.click('.events-dialog [role="tab"]:has-text("Month")');
   check(await a.locator('.event-calendar-cell').count() === 42, 'six weeks of days');
   check(await a.locator('.event-calendar-cell.today').count() === 1, 'today marked');
   await shot(a, 'calendar-empty');
@@ -99,7 +99,7 @@ try {
 
   // Bob's calendar, live; the chip opens it.
   await b.click('.guild-events-button');
-  await b.click('.events-dialog [role="tab"]:has-text("Calendar")');
+  await b.click('.events-dialog [role="tab"]:has-text("Month")');
   if (!(await b.locator(`[data-day="${key(day)}"]`).count())) await b.click('.event-calendar-nav[aria-label="Next month"]');
   await b.waitForSelector(`[data-day="${key(day)}"] .event-calendar-chip:has-text("Board games")`);
   await b.click(`[data-day="${key(day)}"] .event-calendar-chip`);
@@ -221,7 +221,7 @@ try {
   // Dark.
   await a.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await a.click('.guild-events-button');
-  await a.click('.events-dialog [role="tab"]:has-text("Calendar")');
+  await a.click('.events-dialog [role="tab"]:has-text("Month")');
   await shot(a, 'calendar-dark');
   await a.keyboard.press('Escape');
 
@@ -235,7 +235,7 @@ try {
   await c.goBack();
   await c.waitForTimeout(600);
   await c.click('.guild-events-button');
-  await c.click('.events-dialog [role="tab"]:has-text("Calendar")');
+  await c.click('.events-dialog [role="tab"]:has-text("Month")');
   await c.waitForSelector('.event-calendar-grid');
   const box = await c.locator('.events-dialog').boundingBox();
   const width = c.viewportSize().width;

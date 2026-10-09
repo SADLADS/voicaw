@@ -455,7 +455,7 @@ describe('GuildSidebar', () => {
       fireEvent.click(button);
       const dialog = await screen.findByRole('dialog', { name: '2 Events' });
       // It opens on the calendar; the list is the other tab.
-      expect(within(dialog).getByRole('tab', { name: 'Calendar' })).toHaveAttribute('aria-selected', 'true');
+      expect(within(dialog).getByRole('tab', { name: 'Month' })).toHaveAttribute('aria-selected', 'true');
       fireEvent.click(within(dialog).getByRole('tab', { name: 'Events' }));
       expect(within(dialog).getByRole('article', { name: 'Picnic' })).toHaveTextContent('Starts in 3 hours');
       expect(within(dialog).getByRole('article', { name: 'Game night' })).toHaveTextContent('Happening now');

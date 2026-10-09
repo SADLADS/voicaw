@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { addMonths, allDayInputs, allDayTimes, dayKey, defaultStart, eventsByDay, fromKey, isPastDay, monthGrid, startOnDay } from './eventCalendar';
+import {
+  addDays, addMonths, allDayInputs, allDayTimes, dayKey, defaultStart, eventsByDay, fromKey, isPastDay, monthGrid, startAtHour, startOnDay,
+  weekBlocks, weekDays,
+} from './eventCalendar';
 import { occurrencesBetween } from './eventRecurrence';
 import { formatEventWhen } from './eventDisplay';
 
@@ -125,5 +128,70 @@ describe('all-day events', () => {
     const [, second] = occurrencesBetween(event, start, start + 14 * 86400);
     expect(new Date(second.start * 1000).toISOString()).toBe('2026-10-31T00:00:00.000Z');
     expect(new Date(second.end * 1000).toISOString()).toBe('2026-11-01T00:00:00.000Z');
+  });
+});
+
+describe('the week view', () => {
+  // Local times on this device, as the calendar's days are.
+  const local = (y, m, d, h = 0, min = 0) => Math.floor(new Date(y, m - 1, d, h, min).getTime() / 1000);
+  const timed = (id, start, end = null, rest = {}) => ({ id, name: `Event ${id}`, status: 'scheduled', start_time: start, end_time: end, recurrence: null, ...rest });
+
+  it('is Monday to Sunday around any of its days', () => {
+    expect(weekDays('2026-10-09').map(dayKey)).toEqual(['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10', '2026-10-11']);
+    expect(weekDays('2026-10-05').map(dayKey)[0]).toBe('2026-10-05');
+    expect(weekDays('2026-10-11').map(dayKey)[0]).toBe('2026-10-05');
+    expect(addDays('2026-10-30', 7)).toBe('2026-11-06');
+    expect(addDays('2026-11-06', -7)).toBe('2026-10-30');
+  });
+
+  it('draws timed events on their hours, an hour long without an end', () => {
+    const blocks = weekBlocks([
+      timed(1, local(2026, 10, 7, 20), local(2026, 10, 7, 22, 30)),
+      timed(2, local(2026, 10, 8, 9, 15)),
+      { ...timed(3, local(2026, 10, 8)), all_day: true, end_time: local(2026, 10, 9), timezone: 'UTC' },
+    ], weekDays('2026-10-07'));
+    expect(blocks.get('2026-10-07')).toMatchObject([{ top: 1200, bottom: 1350, lane: 0, lanes: 1 }]);
+    expect(blocks.get('2026-10-08')).toMatchObject([{ event: { id: 2 }, top: 555, bottom: 615 }]);
+    expect(blocks.get('2026-10-08')).toHaveLength(1);
+    expect(blocks.get('2026-10-05')).toEqual([]);
+  });
+
+  it('splits an event across midnight, including one begun the week before', () => {
+    const blocks = weekBlocks([
+      timed(1, local(2026, 10, 10, 22), local(2026, 10, 11, 2)),
+      timed(2, local(2026, 10, 4, 23), local(2026, 10, 5, 1)),
+    ], weekDays('2026-10-07'));
+    expect(blocks.get('2026-10-10')).toMatchObject([{ top: 1320, bottom: 1440 }]);
+    expect(blocks.get('2026-10-11')).toMatchObject([{ top: 0, bottom: 120 }]);
+    expect(blocks.get('2026-10-05')).toMatchObject([{ event: { id: 2 }, top: 0, bottom: 60 }]);
+  });
+
+  it('puts overlapping events side by side', () => {
+    const blocks = weekBlocks([
+      timed(1, local(2026, 10, 7, 18), local(2026, 10, 7, 21)),
+      timed(2, local(2026, 10, 7, 19), local(2026, 10, 7, 20)),
+      timed(3, local(2026, 10, 7, 20), local(2026, 10, 7, 22)),
+      timed(4, local(2026, 10, 7, 23), local(2026, 10, 7, 23, 5)),
+    ], weekDays('2026-10-07')).get('2026-10-07');
+    expect(blocks.map((b) => [b.event.id, b.lane, b.lanes])).toEqual([[1, 0, 2], [2, 1, 2], [3, 1, 2], [4, 0, 1]]);
+    // Five minutes long, drawn half an hour tall.
+    expect(blocks[3]).toMatchObject({ top: 1380, bottom: 1410 });
+  });
+
+  it('shows every occurrence of a repeating event in the week', () => {
+    const daily = { frequency: 3, interval: 1, by_weekday: null, by_n_weekday: null, by_month: null, by_month_day: null };
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const start = local(2026, 10, 6, 8);
+    const event = timed(1, start, start + 1800, { recurrence: daily, timezone: zone, occurrence_start: start, duration: 1800 });
+    const blocks = weekBlocks([event], weekDays('2026-10-07'));
+    expect([...blocks.values()].map((list) => list.length)).toEqual([0, 1, 1, 1, 1, 1, 1]);
+    expect(blocks.get('2026-10-09')).toMatchObject([{ top: 480, bottom: 510 }]);
+  });
+
+  it('starts a new event on an hour still to come', () => {
+    const now = new Date(2026, 9, 7, 14, 20).getTime();
+    expect(startAtHour('2026-10-07', 12, now)).toBeNull();
+    expect(startAtHour('2026-10-07', 14, now)).toBe(local(2026, 10, 7, 16));
+    expect(startAtHour('2026-10-07', 19, now)).toBe(local(2026, 10, 7, 19));
   });
 });

@@ -10,6 +10,7 @@ import ContextMenu from '../ContextMenu';
 import Avatar from '../Avatar';
 import EventCard from './EventCard';
 import EventCalendar from './EventCalendar';
+import EventWeek from './EventWeek';
 import EventEmoji from './EventEmoji';
 import DocumentCover from '../documents/DocumentCover';
 import { MessageContent } from '../MessageList';
@@ -137,8 +138,8 @@ function EventDetail({ event, guild, user, buttons }) {
 }
 
 // The guild's events (Calendar in the channel list), in two tabs of one dialog that keeps its
-// size: the calendar (EventCalendar, first, where it opens) and the list, soonest first; or one event (`eventId`,
-// from either, a link or a notification). `view` ({ tab: 'events' | 'calendar', month, day })
+// size: the month (EventCalendar, first, where it opens), the week (EventWeek) and the list, soonest first; or one event (`eventId`,
+// from either, a link or a notification). `view` ({ tab: 'calendar' | 'week' | 'events', month, day; the week is the day's })
 // is kept by the caller, so it's still there after the editor, and changed with `onView`.
 // `onCreate(start?)` opens the editor (start: unix s, from a calendar day). Interested,
 // Start/End and the menu (edit, edit or cancel this occurrence, cancel, copy link) follow your
@@ -243,7 +244,7 @@ export default function EventsDialog({
   const missing = eventId != null && !open && loaded;
   const title = open ? open.name : t('events.dialog.title', { count: events.length });
   const mayCreate = canCreateEvents(guild);
-  const tabs = ['calendar', 'events'];
+  const tabs = ['calendar', 'week', 'events'];
   return (
     <Modal
       title={title}
@@ -254,7 +255,7 @@ export default function EventsDialog({
         <>
           {eventId != null && (
             <button type="button" className="btn btn-secondary btn-sm events-back" onClick={() => onOpenEvent(null)}>
-              <FontAwesomeIcon icon={faChevronLeft} /> {view.tab === 'calendar' ? t('events.dialog.backToCalendar') : t('events.dialog.allEvents')}
+              <FontAwesomeIcon icon={faChevronLeft} /> {view.tab !== 'events' ? t('events.dialog.backToCalendar') : t('events.dialog.allEvents')}
             </button>
           )}
           {eventId == null && view.tab === 'events' && mayCreate && (
@@ -289,6 +290,16 @@ export default function EventsDialog({
           day={view.day}
           onMonth={(month) => onView({ month })}
           onDay={(day) => onView({ day })}
+          onOpenEvent={onOpenEvent}
+          onCreate={mayCreate ? onCreate : null}
+        />
+      )}
+      {eventId == null && view.tab === 'week' && (
+        <EventWeek
+          guild={guild}
+          events={events}
+          day={view.day}
+          onDay={(day) => onView({ day, month: day.slice(0, 7) })}
           onOpenEvent={onOpenEvent}
           onCreate={mayCreate ? onCreate : null}
         />

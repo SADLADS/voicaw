@@ -446,7 +446,7 @@ take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
 ## Events
 
 Discord's scheduled events (Discord has no calendar: its Events are a list), with a month
-calendar of them beside the list (Guilded's calendar channels may come later, on the same data). An event is in a voice channel of the guild or
+and a week calendar of them beside the list (Guilded's calendar channels may come later, on the same data). An event is in a voice channel of the guild or
 somewhere else (optional free text: a place, a link; unlike Discord, it may be left out,
 and then no place is shown), with a name (100), description (1000, markdown
 like messages), start, end (required somewhere else), optional cover image, and how it repeats.
@@ -513,7 +513,7 @@ Not end-to-end encrypted, like the rest of a guild.
   now": their colour's dot, emoji and name; a click opens the event), and under a voice channel
   with an event on, "Live: name"; the guild menu has Create Event (Create Events, or a voice channel
   you may hold one in). `events/EventsDialog.jsx`: one dialog, the same size whatever it shows
-  (900 × 700 at most), with two tabs, Calendar (first) and Events (the tab, month and day are kept in `GuildSidebar`
+  (900 × 700 at most), with three tabs, Month (first), Week and Events (the tab, month and day are kept in `GuildSidebar`
   while the editor is open; it always opens on the calendar, on today), and the list (`EventCard`: cover, when and "Starts
   in 3 hours" / "Happening now", repeat, place, interested count, Interested, Start/End, the
   menu: edit, change or cancel this occurrence, copy link, cancel) and one event (info and an
@@ -539,7 +539,19 @@ Not end-to-end encrypted, like the rest of a guild.
   editor starts that day at 18:00 (`startOnDay`; the next whole hour if that's sooner than it
   allows). The Events tab keeps its own Create Event. Styles in
   `assets/css/events.css`; times through `formatEventTime` (`utils/dateFormat.js`).
-- **Not done yet**: a week view, events spanning days drawn across them, calendar channels, RSVP
+- **Week** (`events/EventWeek.jsx`, `weekBlocks` in `utils/eventCalendar.js`; added 2026-10-09,
+  as Guilded's calendar had one): the week (Monday first) of the chosen day, so Month and Week
+  stay on the same dates. All-day events are bars along the top; the others are blocks on a
+  24-hour grid (44 px an hour) that scrolls inside the dialog under the days, opening at 08:00
+  (or the week's earliest event). A block runs from start to end (an hour without an end, at
+  least half an hour tall); one past midnight is a block on each day it covers (also one begun
+  the week before); overlapping ones share the day side by side (lanes per group of overlaps),
+  with an 8 px strip on the right always clear so an hour that has an event can still be
+  clicked. A click on an hour still to come makes an event starting then (`startAtHour`; the
+  next whole hour if that's sooner than the editor allows), for those who may make events. A
+  red line marks now on today. On a phone the columns are about 43 px: the blocks show the
+  emoji and the start of the name, no times.
+- **Not done yet**: a day view, events spanning days drawn as one bar across them (they're a bar on each day), calendar channels, RSVP
   beyond Interested (Going / Maybe / Can't, limits), reminders before an event, editing an
   occurrence other than the next one, per-occurrence interest, event invite links that also
   invite into the guild, and stage channels.

@@ -501,6 +501,261 @@
   }
 }
 
+/* The Week tab: the days across, all-day events along the top, then the hours (scrolling). */
+.event-week {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.event-week-grid {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.event-week-head,
+.event-week-all-day,
+.event-week-body {
+  display: grid;
+  grid-template-columns: 52px repeat(7, minmax(0, 1fr));
+}
+
+.event-week-head,
+.event-week-all-day {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--vc-border-dark);
+  /* Room for the hours' scrollbar, so the columns line up. */
+  scrollbar-gutter: stable;
+  overflow: hidden;
+}
+
+.event-week-gutter {
+  min-width: 0;
+  color: var(--vc-fg-muted);
+  font-size: 0.7rem;
+}
+
+.event-week-all-day > .event-week-gutter {
+  padding: 4px 6px 0 0;
+  text-align: right;
+}
+
+.event-week-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 4px 2px;
+  border: 0;
+  border-left: 1px solid var(--vc-border-dark);
+  background: none;
+  color: var(--vc-fg);
+}
+
+.event-week-day:hover {
+  background: var(--vc-bg-hover);
+}
+
+.event-week-weekday {
+  max-width: 100%;
+  color: var(--vc-fg-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-week-date {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.event-week-day.past .event-week-date {
+  color: var(--vc-fg-muted);
+  font-weight: normal;
+}
+
+.event-week-day.selected .event-week-date {
+  box-shadow: inset 0 0 0 2px var(--vc-accent);
+}
+
+.event-week-day.today .event-week-date {
+  background: var(--vc-accent);
+  color: var(--vc-on-accent);
+  font-weight: 600;
+}
+
+.event-week-all-day-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 3px 2px;
+  border-left: 1px solid var(--vc-border-dark);
+}
+
+.event-week-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.event-week-body {
+  height: calc(24 * var(--event-week-hour));
+}
+
+.event-week-hours {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Each hour's label sits on the line where it starts. */
+.event-week-hour-label {
+  height: var(--event-week-hour);
+  flex-shrink: 0;
+  padding-right: 6px;
+  text-align: right;
+  transform: translateY(-0.5em);
+  white-space: nowrap;
+}
+
+.event-week-column {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid var(--vc-border-dark);
+  background-image: linear-gradient(to bottom, var(--vc-border-dark) 1px, transparent 1px);
+  background-size: 100% var(--event-week-hour);
+}
+
+.event-week-column.today {
+  background-color: var(--vc-bg-subtle);
+}
+
+.event-week-column.can-create {
+  cursor: pointer;
+}
+
+.event-week-block {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--vc-accent-soft);
+  box-shadow: inset 3px 0 0 var(--vc-accent);
+  color: var(--vc-accent-text);
+  font-size: 0.75rem;
+  line-height: 1.25;
+  text-align: left;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.event-week-block:hover {
+  z-index: 2;
+  filter: brightness(1.08);
+}
+
+.event-week-block.short {
+  justify-content: center;
+}
+
+/* In the event's colour (as the month's chips). */
+.event-week-block.coloured {
+  background: color-mix(in srgb, var(--event-color) 28%, var(--vc-bg-base));
+  box-shadow: inset 3px 0 0 var(--event-color);
+  color: var(--vc-fg);
+}
+
+.event-week-block.live {
+  background: var(--vc-success);
+  box-shadow: none;
+  color: var(--vc-on-accent);
+}
+
+.event-week-block-name {
+  max-width: 100%;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-week-block-time {
+  max-width: 100%;
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Now, across today. */
+.event-week-now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--vc-danger);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.event-week-now::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vc-danger);
+}
+
+/* A phone: narrow columns, so the blocks show the emoji and as much of the name as fits. */
+@container events-dialog (max-width: 620px) {
+  .event-week-head,
+  .event-week-all-day,
+  .event-week-body {
+    grid-template-columns: 38px repeat(7, minmax(0, 1fr));
+  }
+
+  .event-week-gutter {
+    font-size: 0.6rem;
+  }
+
+  .event-week-block {
+    padding: 1px 2px;
+    font-size: 0.65rem;
+  }
+
+  .event-week-block .event-emoji {
+    margin-right: 1px;
+  }
+
+  .event-week-block-time {
+    display: none;
+  }
+}
+
 .events-back {
   margin-right: auto;
 }

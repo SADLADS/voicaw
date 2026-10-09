@@ -113,3 +113,90 @@ export function allDayInputs(event, start = event.start_time, end = event.end_ti
   const { first, last } = allDayDates(event, start, end);
   return { start: dayKey(first), end: dayKey(last) };
 }
+
+// The day `by` days on from a day key.
+export function addDays(key, by) {
+  const date = fromKey(key);
+  return dayKey(new Date(date.getFullYear(), date.getMonth(), date.getDate() + by));
+}
+
+// The seven days (Monday first) of the week a day is in.
+export function weekDays(key) {
+  const date = fromKey(key);
+  const back = (date.getDay() + 6) % 7;
+  return Array.from({ length: 7 }, (_, i) => new Date(date.getFullYear(), date.getMonth(), date.getDate() - back + i));
+}
+
+// How long an event without an end is drawn on the week (it has no length of its own), and the
+// shortest block drawn, so a short event can still be read and clicked (minutes).
+const NO_END_MINUTES = 60;
+const MIN_BLOCK_MINUTES = 30;
+
+// Minutes since this device's midnight (a clock change's day still runs 0 to 1440).
+const minuteOfDay = (date) => date.getHours() * 60 + date.getMinutes();
+
+// The timed events of a week, as blocks on its days' hours: Map of day key -> [{ event, start,
+// end, top, bottom, lane, lanes }], top and bottom in minutes of that day (0–1440). One running
+// past midnight is a block on each day it covers. Blocks that overlap sit side by side: each
+// gets a lane of the `lanes` its group of overlapping ones needs.
+export function weekBlocks(events, days) {
+  const lastDay = days[days.length - 1];
+  const from = Math.floor(days[0].getTime() / 1000);
+  const to = Math.floor(new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate() + 1).getTime() / 1000);
+  const byDay = new Map(days.map((date) => [dayKey(date), []]));
+  for (const event of events) {
+    if (event.all_day) continue;
+    // From earlier too, for one that began before the week and is still going.
+    for (const { start, end } of occurrencesBetween(event, from - MAX_SPAN_DAYS * 86400, to)) {
+      const until = end != null && end > start ? end : start + NO_END_MINUTES * 60;
+      if (until <= from) continue;
+      for (let i = 0; i < days.length; i++) {
+        const dayStart = Math.floor(days[i].getTime() / 1000);
+        const next = days[i + 1] ?? new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate() + 1);
+        const dayEnd = Math.floor(next.getTime() / 1000);
+        if (start >= dayEnd || until <= dayStart) continue;
+        const top = start <= dayStart ? 0 : minuteOfDay(new Date(start * 1000));
+        const bottom = until >= dayEnd ? 1440 : minuteOfDay(new Date(until * 1000));
+        byDay.get(dayKey(days[i])).push({ event, start, end, top, bottom: Math.min(1440, Math.max(bottom, top + MIN_BLOCK_MINUTES)) });
+      }
+    }
+  }
+  for (const blocks of byDay.values()) {
+    blocks.sort((a, b) => a.top - b.top || b.bottom - a.bottom || a.event.id - b.event.id);
+    let group = [];
+    let groupEnd = -1;
+    const close = () => {
+      const lanes = Math.max(0, ...group.map((block) => block.lane)) + 1;
+      for (const block of group) block.lanes = lanes;
+    };
+    for (const block of blocks) {
+      if (block.top >= groupEnd && group.length) {
+        close();
+        group = [];
+      }
+      const taken = new Set(group.filter((other) => other.bottom > block.top).map((other) => other.lane));
+      let lane = 0;
+      while (taken.has(lane)) lane++;
+      block.lane = lane;
+      group.push(block);
+      groupEnd = group.length === 1 ? block.bottom : Math.max(groupEnd, block.bottom);
+    }
+    if (group.length) close();
+  }
+  return byDay;
+}
+
+// The all-day events of a week, by day (eventsByDay's, without the timed ones).
+export function weekAllDay(events, days) {
+  return eventsByDay(events.filter((event) => event.all_day), days);
+}
+
+// Where an event made on an hour of the week starts: that hour, or defaultStart if that's
+// sooner than it allows. Null when the hour is over.
+export function startAtHour(key, hour, now = Date.now()) {
+  const at = fromKey(key);
+  at.setHours(hour, 0, 0, 0);
+  const start = Math.floor(at.getTime() / 1000);
+  if ((start + 3600) * 1000 <= now) return null;
+  return Math.max(start, defaultStart(now));
+}

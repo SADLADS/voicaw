@@ -82,7 +82,8 @@
       "backToCalendar": "Calendar",
       "tab": {
         "events": "Events",
-        "calendar": "Calendar"
+        "calendar": "Month",
+        "week": "Week"
       }
     },
     "calendar": {
@@ -97,6 +98,10 @@
       "dayEvents": "The day's events",
       "nothing": "Nothing on this day.",
       "allDay": "All day"
+    },
+    "week": {
+      "previous": "Previous week",
+      "next": "Next week"
     },
     "editor": {
       "createTitle": "Create Event",
