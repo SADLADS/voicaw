@@ -99,7 +99,7 @@ self.addEventListener('push', (event) => {
     // sites that don't). The server skips pushes for a chat the user is looking at.
     // (Only reactions in encrypted chats can come back empty, and the server never web-pushes
     // those; should one arrive anyway, something must still be shown.)
-    const { title, options } = await notificationFromPush(data) ?? await notificationFromPush({ title: data.title });
+    const { title, options } = await notificationFromPush(data) ?? await notificationFromPush({ title: data.title, url: data.url, tag: data.tag });
     // When one of the app's pages plays its own Message sound for it (sounds/sounds.js), the
     // notification itself stays quiet.
     if (MESSAGE_PUSHES.has(data.type) && await aPagePlaysMessageSound()) options.silent = true;
@@ -132,10 +132,16 @@ self.addEventListener('notificationclick', (event) => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const existing = windows.find((c) => c.url.startsWith(self.registration.scope) && 'focus' in c);
     if (existing) {
-      await existing.focus();
-      // The app navigates itself (SWMessageHandler in App.jsx) to keep its state.
-      existing.postMessage({ action: 'navigate', url: new URL(targetUrl).pathname });
-      return;
+      // The app navigates itself (SWMessageHandler in App.jsx) to keep its state; told first,
+      // so a browser refusing the focus doesn't lose it. The search keeps ?thread= and ?doc=.
+      const { pathname, search } = new URL(targetUrl);
+      existing.postMessage({ action: 'navigate', url: pathname + search });
+      try {
+        await existing.focus();
+        return;
+      } catch {
+        // Not allowed to bring that window forward: open the chat in a new one instead.
+      }
     }
     await self.clients.openWindow(targetUrl);
   })());

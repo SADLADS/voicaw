@@ -101,6 +101,8 @@ function LocationDisplay() {
 }
 
 function renderLayout({ path, user = { id: 1, username: 'me' }, isMobile = false } = {}) {
+  // The address bar, as the app's routers keep it (Layout reads it, see the /dm landing).
+  window.history.replaceState(null, '', path);
   return render(
     <ConfigContext.Provider value={{ vapidPublicKey: 'VAPID-KEY' }}>
     <InteractionContext.Provider value={{ isMobile }}>
@@ -184,6 +186,20 @@ describe('Layout', () => {
     renderLayout({ path: '/dm' });
 
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/dm/friends'));
+  });
+
+  it("doesn't redirect /dm once the app has moved on (a tapped notification that started it)", async () => {
+    let answer;
+    fetchUsersList.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+    renderLayout({ path: '/dm' });
+    await waitFor(() => expect(fetchUsersList).toHaveBeenCalled());
+
+    // The navigation has changed the address, but react-router hasn't rendered it yet.
+    window.history.replaceState(null, '', '/dm/8');
+    answer([{ id: 7, username: 'bob', status: 'offline', last_timestamp: 200 }]);
+
+    await waitFor(() => expect(screen.getByTestId('users')).toHaveTextContent('bob'));
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/dm$/);
   });
 
   it("puts someone who isn't a friend in the DM list with their first message", async () => {

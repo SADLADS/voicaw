@@ -226,7 +226,9 @@ native bridge. Check real behaviour on a phone.
   encrypted chat's link preview, `PageFetch.java`; see Link previews in `docs/messages.md`); events `navigate` (a
   tapped notification), `callAction` (`answer` with a call id, `mute`, `unmute`, `hangUp`),
   `updateProgress` and `updateResult`, kept until the page listens, so a notification that
-  started the app still counts. `hooks/useAndroidApp.js` (in `Layout`) is the page's side.
+  started the app still counts (and `Layout`'s landing on /dm, opening the latest
+  conversation, gives way to it; `e2e/notificationtap.mjs`). `hooks/useAndroidApp.js` (in
+  `Layout`) is the page's side.
 - **System bars** (`MainActivity` `keepClearOfSystemBars`): the page never goes under the status
   bar, the navigation bar, a camera cutout or the keyboard, on any Android version. The window
   is edge to edge (as Android 15+ makes every app targeting it), the app pads itself by the bars
