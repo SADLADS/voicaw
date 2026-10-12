@@ -262,8 +262,24 @@
   border-radius: 4px;
 }
 
-.group-member:hover {
+.group-member:hover,
+.group-member.selected {
   background-color: var(--vc-bg-hover);
+}
+
+/* Picture, name and crown: opens their card (useFloatingCard). */
+.group-member-open {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 
 .group-member-avatar-wrap {
