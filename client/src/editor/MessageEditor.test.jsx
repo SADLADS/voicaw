@@ -4,6 +4,7 @@ import React, { createRef } from 'react';
 import { render, act, fireEvent } from '@testing-library/react';
 import MessageEditor from './MessageEditor';
 import { editorFor } from './editorRegistry';
+import { setCustomEmojiBase } from '../emoji/customEmoji';
 
 function setup(props = {}) {
   const ref = createRef();
@@ -166,6 +167,25 @@ describe('MessageEditor', () => {
 
     fireEvent.paste(element, { clipboardData: { files: [], getData: (type) => (type === 'text/plain' ? 'line 1\r\nline 2' : '<b>bold</b>') } });
     expect(ref.current.getText()).toBe('line 1\nline 2');
+  });
+
+  it('copies custom emoji and mentions as message text, so pasting gives them back', () => {
+    setCustomEmojiBase('https://s3.test');
+    const { ref, element } = setup({ mentionNames: { 2: 'Anna' } });
+    act(() => ref.current.insertText('hi :clu'));
+    act(() => ref.current.replaceBeforeCaretWithCustomEmoji(4, { id: '42', name: 'clueless', url: 'https://s3.test/emojis/42' }));
+    act(() => ref.current.insertText('<@2> '));
+    act(() => ref.current.setText(ref.current.getText()));
+    key(element, { key: 'a', ctrlKey: true });
+    const copied = {};
+    const clipboardData = { clearData: () => {}, setData: (type, value) => { copied[type] = value; }, getData: (type) => copied[type] ?? '' };
+    fireEvent.copy(element, { clipboardData });
+    expect(copied['text/plain']).toBe('hi <:clueless:42> <@2> ');
+    fireEvent.paste(element, { clipboardData: { files: [], getData: clipboardData.getData } });
+    expect(ref.current.getText()).toBe('hi <:clueless:42> <@2> ');
+    expect(element.querySelectorAll('img.emoji')).toHaveLength(1);
+    expect(element.querySelector('.editor-mention')).toHaveTextContent('@Anna');
+    setCustomEmojiBase('');
   });
 
   it('sets and clears its text', () => {

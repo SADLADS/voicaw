@@ -6,7 +6,7 @@ import { baseKeymap, splitBlock } from 'prosemirror-commands';
 import { history, redo, undo } from 'prosemirror-history';
 import { DOMSerializer, Fragment, Slice } from 'prosemirror-model';
 import 'prosemirror-view/style/prosemirror.css';
-import { OBJECT_CHAR, docToText, schema, textBeforeCaret, textToDoc, textToSlice, typedTimestamps } from './messageDoc';
+import { OBJECT_CHAR, docToText, schema, sliceToText, textBeforeCaret, textToDoc, textToSlice, typedTimestamps } from './messageDoc';
 import { formatTimestamp, onClockTick } from '../utils/timestamps';
 import { markdownPreview } from './markdownPreview';
 import { registerEditor } from './editorRegistry';
@@ -177,6 +177,8 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
         ],
       }),
       nodeViews: { timestamp: timestampView },
+      // Copied and cut as message text, which handlePaste reads back.
+      clipboardTextSerializer: sliceToText,
       handleKeyDown(v, event) {
         if (event.isComposing) return false;
         current().onKeyDown?.(event);
