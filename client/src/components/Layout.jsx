@@ -44,6 +44,13 @@ import { setPersonMessenger } from '../utils/personMenu';
 import { startBotDm } from '../services/botDmService';
 import { loadSidebarWidth, onSidebarWidthStorage, saveSidebarWidth } from '../utils/sidebarWidth';
 
+// The router's path as the address bar has it now (hash URLs for a page opened from a file,
+// see App.jsx), which can be ahead of the rendered `location`.
+function currentPath() {
+  const { protocol, hash, pathname } = window.location;
+  return protocol === 'file:' ? hash.slice(1).split('?')[0] || '/' : pathname;
+}
+
 export default function Layout({ user, onLogout }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -206,8 +213,10 @@ export default function Layout({ user, onLogout }) {
           mergeProfiles(data);
           setErrorUsers(null);
           // Landing on /dm opens your latest conversation (the list is newest first), or the
-          // Friends page if you have none yet.
-          if (location.pathname === '/dm') {
+          // Friends page if you have none yet. Unless the app has moved on while the list loaded
+          // (a tapped notification that started it): react-router applies navigations in a
+          // transition, so `location` here can still say /dm after the address has changed.
+          if (location.pathname === '/dm' && currentPath() === '/dm') {
             navigate(data[0]?.last_timestamp != null ? `/dm/${data[0].id}` : '/dm/friends', { replace: true });
           }
         } catch (e) {
