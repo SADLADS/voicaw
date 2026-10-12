@@ -84,6 +84,20 @@ try {
   check(!(await card.locator('.role-picker').count()), 'Escape closes the list');
   await a.click('.channel-header-name');
 
+  // His name on a message opens the same card: roles, + and all, as wide.
+  await a.locator(`.message-author:has-text("${bob.name}")`).first().click();
+  const fromName = a.locator('.profile-popover');
+  await fromName.waitFor();
+  check(await fromName.locator('.role-chip:has-text("Regulars")').count() === 1 && await fromName.locator('button[aria-label="Add role"]').count() === 1, "his name opens the member card (Regulars, +)");
+  check(Math.round((await fromName.boundingBox()).width) === 340, 'as wide as the list\'s');
+  await fromName.locator('button[aria-label="Add role"]').click();
+  await fromName.locator('.role-picker').waitFor();
+  await shot(a, 'name-card');
+  await a.keyboard.press('Escape');
+  await a.keyboard.press('Escape');
+  await fromName.waitFor({ state: 'detached' });
+  check(true, 'Escape closes the picker, then the card');
+
   // The member row's right-click menu = the message's picture's = the name's.
   await bobRow.click({ button: 'right' });
   await a.waitForSelector('.context-menu');

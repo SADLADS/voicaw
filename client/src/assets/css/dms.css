@@ -2712,14 +2712,15 @@ body.mobile-mode .dm-user-list-container .dm-user {
   visibility: hidden;
 }
 
+/* Someone's card, from a name or picture in chat or a member list (guild/MemberCard in guilds). */
 .profile-popover {
   position: fixed;
   z-index: 400;
-  width: 300px;
+  width: 340px;
   max-width: calc(100vw - 16px);
-  max-height: calc(100vh - 16px);
+  max-height: calc(var(--vc-app-height) - 16px);
   overflow-y: auto;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid var(--vc-border-dark);
   border-radius: 8px;
   background-color: var(--vc-bg-elevated);

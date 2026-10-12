@@ -35,3 +35,8 @@ export const NsfwChannelContext = createContext(false);
 // when you can't start threads there), `startThread()` one on its own (the message box's +;
 // null the same way), `showThreads()` opens the channel's thread list.
 export const ThreadContext = createContext(null);
+
+// The guild on screen, for a person's card opened from a name or picture in its chats
+// (ProfilePopover shows guild/MemberCard for its members): { guild, members, user, userApps,
+// onRunUserApp } (GuildView). Null elsewhere (DMs, group DMs).
+export const GuildMembersContext = createContext(null);

@@ -109,7 +109,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   Messages shows a notice instead of the composer. `guild/MemberList.jsx`: grouped under
   hoisted roles, then Online, Offline; click for a card floating over the chat beside the list
   at the row's height (on phones, below the row; the rows never move; `hooks/useFloatingCard.js`,
-  shared with group DMs' members), closed by a click
+  shared with group DMs' members; `guild/MemberCard.jsx`, which a name or picture in the guild's
+  chats opens too), closed by a click
   elsewhere or Escape, with roles (add/remove below your
   rank; + opens the roles to add under a search box that takes the focus, Enter adding the
   first match, Escape closing it) (a panel over the chat on mobile). Message, friends, Make
