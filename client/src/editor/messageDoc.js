@@ -143,6 +143,23 @@ export function docToText(doc) {
   return lines.join('\n');
 }
 
+// A copied part of the document as message text, for the clipboard: custom emoji, mentions
+// and the rest stay what they are when pasted back (left to themselves they'd copy as nothing).
+export function sliceToText(slice) {
+  const lines = [];
+  slice.content.forEach((node) => {
+    if (node.type === schema.nodes.paragraph) {
+      let line = '';
+      node.forEach((child) => { line += inlineToText(child); });
+      lines.push(line);
+    } else {
+      if (!lines.length) lines.push('');
+      lines[lines.length - 1] += inlineToText(node);
+    }
+  });
+  return lines.join('\n');
+}
+
 // A draft attachment placeholder, a sent attachment (or any other markdown image), a custom
 // emoji, a mention, a role mention, a channel mention, or a timestamp.
 const INLINE_OBJECT_RE = /!\[((?:\\.|[^\]\\])*)\]\((?:attachment:(\d+)|(https?:\/\/[^)\s]+))\)|<:([A-Za-z0-9_]+):(\w+)>|<@(\d+)>|<@&(\d+)>|<#(\d+)>|<t:(-?\d{1,13})(?::([tTdDfFR]))?>/g;

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState, TextSelection } from 'prosemirror-state';
-import { docToText, textToDoc, textBeforeCaret, OBJECT_CHAR, schema } from './messageDoc';
+import { docToText, sliceToText, textToDoc, textBeforeCaret, OBJECT_CHAR, schema } from './messageDoc';
 
 const emojiUrl = (id) => `https://s3.test/emoji/${id}.png`;
 
@@ -38,6 +38,15 @@ describe('messageDoc', () => {
     doc.descendants((n) => { if (n.type === schema.nodes.customEmoji) emoji.push(n.attrs); });
     expect(emoji).toEqual([{ id: '42', name: 'party', url: emojiUrl('42') }]);
     expect(docToText(doc)).toBe('hi <:party:42> <:gone:7>');
+  });
+
+  it('copies a selection as message text, objects included', () => {
+    const doc = textToDoc('one <:party:42> <@2>\ntwo <#5> end', {
+      resolveCustomEmoji: emojiUrl, resolveMention: () => 'Anna', resolveChannel: () => ({ name: 'general' }),
+    });
+    expect(sliceToText(doc.slice(0, doc.content.size))).toBe('one <:party:42> <@2>\ntwo <#5> end');
+    // From inside the first line to inside the second.
+    expect(sliceToText(doc.slice(5, doc.child(0).nodeSize + 5))).toBe('<:party:42> <@2>\ntwo ');
   });
 
   it('gives the current line up to the cursor, with objects as one character', () => {

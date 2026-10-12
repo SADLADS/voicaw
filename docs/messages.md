@@ -53,7 +53,9 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   headings: Discord doesn't preview them either). It's a line-by-line approximation of how
   messages are rendered (see Message markdown). Unicode emoji stay text, drawn by the Twemoji font, so
   typing, autocorrect, IME and copy/paste stay plain. Pasting is always plain text (files go to
-  attachments); edits past the length limit are refused. Saving an edit left empty or
+  attachments). Copying or cutting from the box writes message text (`sliceToText`: custom
+  emoji as `<:name:id>`, mentions as `<@id>`...), so pasting them back gives the emoji and
+  mentions again (elsewhere they paste as that markup); edits past the length limit are refused. Saving an edit left empty or
   only whitespace cancels it (`ChatPane`). Enter sends on desktop, Shift+Enter is a
   new line; on mobile Enter is a new line. The ref handle (`focus`, `blur`, `insertText`,
   `replaceBeforeCaret`, `insertAttachments`, `removeAttachment`, `clear`...) is how `Composer`
