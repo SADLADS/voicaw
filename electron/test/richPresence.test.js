@@ -174,6 +174,21 @@ describe('finding games on this computer (gameLookup.js)', () => {
         expect(await identifyGame(11, { platform: 'win32', fs, run, listSteamApps })).toMatchObject({ name: 'Foo Fighters', picture: null });
         expect(await identifyGame(12, { platform: 'win32', fs, run: async () => { throw new Error('gone'); }, listSteamApps })).toBeNull();
     });
+
+    it("finds anti-cheat games (no path, only a process name) by the program in a Steam folder", async () => {
+        fs.writeFileSync(path.join(steam, 'steamapps', 'appmanifest_252490.acf'),
+            '"AppState"\n{\n\t"appid"\t\t"252490"\n\t"name"\t\t"Rust"\n\t"installdir"\t\t"Rust"\n}\n');
+        fs.mkdirSync(path.join(steam, 'steamapps', 'common', 'Rust', 'Bundles'), { recursive: true });
+        fs.writeFileSync(path.join(steam, 'steamapps', 'common', 'Rust', 'RustClient.exe'), '');
+        const listSteamApps = () => steamApps(fs, [steam]);
+        // What PowerShell gives for a process Easy Anti-Cheat protects: its name, no path.
+        const asked = [];
+        const run = (name) => async (_cmd, args) => { asked.push(args.at(-1)); return JSON.stringify({ Name: name, Path: null, Product: null, Description: null }); };
+        expect(await identifyGame(20, { platform: 'win32', fs, run: run('RustClient'), listSteamApps })).toMatchObject({ name: 'Rust', steamAppId: '252490', exe: null });
+        expect(asked[0]).toContain('Win32_Process'); // WMI was tried for the path
+        // Not in Steam: the process name, rather than "a game".
+        expect(await identifyGame(21, { platform: 'win32', fs, run: run('ApexGame'), listSteamApps })).toMatchObject({ name: 'ApexGame', steamAppId: null });
+    });
 });
 
 describe('activities for the page (gameActivities.js)', () => {
