@@ -1,10 +1,11 @@
 // A group DM member's profile card: clicking someone in the members panel opens their card over
 // the chat, left of the panel at their row's height (the rows don't move), only the profile;
-// Escape and a click elsewhere close it; right-clicking a member gives the person's menu.
+// Escape and a click elsewhere close it; right-clicking a member gives the person's menu. A name
+// in the chat opens the same card.
 // Phone: below the row, on screen.
 //   node e2e/serve.mjs &   then   node e2e/groupcard.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
-import { launchChrome, signUp, devices, BASE, makeFriends } from './helpers.mjs';
+import { launchChrome, signUp, devices, BASE, makeFriends, send } from './helpers.mjs';
 
 const dir = process.argv[2];
 if (dir) mkdirSync(dir, { recursive: true });
@@ -70,6 +71,16 @@ try {
   const items = await a.$$eval('.context-menu [role^="menuitem"] .context-menu-label', (els) => els.map((e) => e.firstChild.textContent));
   check(items.includes('Copy User ID'), `right-clicking her gives the person's menu (${items.join(', ')})`);
   await a.keyboard.press('Escape');
+
+  // A name in the chat: the same card, the profile only.
+  await send(a, 'hello cards');
+  await a.locator(`.message-author:has-text("${ann.name}")`).first().click();
+  const fromName = a.locator('.profile-popover');
+  await fromName.waitFor();
+  check(Math.round((await fromName.boundingBox()).width) === 340 && !(await fromName.locator('.member-card-roles, button').count()), 'a name in the chat opens the same 340 px card, profile only');
+  await shot(a, 'group-name-card');
+  await a.keyboard.press('Escape');
+  await fromName.waitFor({ state: 'detached' });
 
   // Phone: below the row, within the screen.
   await d.goto(`${BASE}${groupPath}`);

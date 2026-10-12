@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBell, faBellSlash, faComments, faMessage, faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/dms.css';
 import '../../assets/css/guilds.css';
-import { InteractionContext, LayoutContext, NsfwChannelContext, ThreadContext } from '../../contexts';
+import { GuildMembersContext, InteractionContext, LayoutContext, NsfwChannelContext, ThreadContext } from '../../contexts';
 import ChatPane from '../ChatPane';
 import MemberList from './MemberList';
 import ChannelIcon from './ChannelIcon';
@@ -254,6 +254,11 @@ export default function GuildView({ user }) {
     () => (viewers ? members.filter((m) => viewers.has(m.id)) : members),
     [members, viewers]
   );
+  // A name or picture in the guild's chats opens the same member card as the list.
+  const membersContext = useMemo(
+    () => (guild ? { guild, members, user, userApps, onRunUserApp: runUserApp } : null),
+    [guild, members, user, userApps, runUserApp]
+  );
 
   const profilesVersion = useProfiles();
   const reactionNames = useMemo(
@@ -370,228 +375,230 @@ export default function GuildView({ user }) {
   );
 
   return (
-    <div id="guild-main" className="guild-main">
-      {/* A thread in full view has its own header. */}
-      {!threadFull && (
-      <header className="channel-header">
-        <PaneBackButton />
-        <ChannelIcon channel={channel} className="channel-header-icon" />
-        <h4 className="channel-header-name">{channel?.name ?? ''}</h4>
-        {channel?.nsfw && <span className="channel-nsfw-tag" title={t('guilds.view.nsfwHint')}>{t('guilds.view.nsfw')}</span>}
-        {channel?.topic && (
-          <>
-            <span className="channel-header-divider" />
-            <span className="channel-header-topic" title={channel.topic}>{channel.topic}</span>
-          </>
-        )}
-        {isVoice && (
-          <button
-            type="button"
-            className={`channel-header-button voice-chat-button${voiceChatOpen ? ' active' : ''}`}
-            aria-label={voiceChatOpen ? t('guilds.voiceChat.hide') : t('guilds.voiceChat.show')}
-            aria-pressed={voiceChatOpen}
-            title={voiceChatOpen ? t('guilds.voiceChat.hide') : t('guilds.voiceChat.show')}
-            onClick={() => setVoiceChat(!voiceChatOpen)}
-          >
-            <FontAwesomeIcon icon={faMessage} />
-          </button>
-        )}
-        {channel && (
-          <button
-            type="button"
-            className={`channel-header-button mute-button${muteAnchor ? ' active' : ''}${muted ? ' muted' : ''}`}
-            aria-label={muted ? t('guilds.view.unmuteChannel') : t('guilds.view.muteChannel')}
-            aria-haspopup="menu"
-            aria-expanded={Boolean(muteAnchor)}
-            title={muted ? t('guilds.view.unmuteChannel') : t('guilds.view.muteChannel')}
-            // The menu closes itself on a press outside it; this press is its toggle.
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              setMuteAnchor((open) => (open ? null : rect));
-            }}
-          >
-            <FontAwesomeIcon icon={muted ? faBellSlash : faBell} />
-          </button>
-        )}
-        {muteAnchor && channel && <ChannelMuteMenu channel={channel} anchor={muteAnchor} align="end" onClose={closeMute} />}
-        {chatChannelId && (
-          <button
-            type="button"
-            className={`channel-header-button pins-button${pinsAnchor ? ' active' : ''}`}
-            aria-label={t('guilds.view.pinnedMessages')}
-            aria-pressed={Boolean(pinsAnchor)}
-            title={t('guilds.view.pinnedMessages')}
-            onClick={togglePins}
-          >
-            <FontAwesomeIcon icon={faThumbtack} />
-          </button>
-        )}
-        {textChannelId && (
-          <button
-            type="button"
-            className={`channel-header-button threads-button${threadsAnchor ? ' active' : ''}`}
-            aria-label={t('guilds.view.threads')}
-            aria-pressed={Boolean(threadsAnchor)}
-            title={t('guilds.view.threads')}
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              setThreadsAnchor((open) => (open ? null : rect));
-            }}
-          >
-            <FontAwesomeIcon icon={faComments} />
-          </button>
-        )}
-        {!isList && (
-        <button
-          type="button"
-          className={`channel-header-button${membersVisible ? ' active' : ''}`}
-          aria-label={membersVisible ? t('guilds.view.hideMembers') : t('guilds.view.showMembers')}
-          aria-pressed={membersVisible}
-          title={membersVisible ? t('guilds.view.hideMembers') : t('guilds.view.showMembers')}
-          onClick={toggleMembers}
-        >
-          <FontAwesomeIcon icon={faUsers} />
-        </button>
-        )}
-        <GuildSearch
-          guild={guild}
-          members={members}
-          user={user}
-          isMobile={isMobile}
-          onJump={jumpToResult}
-          reactionNames={reactionNames}
-          mentionRoles={mentionRoles}
-          nameColors={nameColors}
-        />
-      </header>
-      )}
-
-      <div className="guild-body">
+    <GuildMembersContext.Provider value={membersContext}>
+      <div id="guild-main" className="guild-main">
+        {/* A thread in full view has its own header. */}
         {!threadFull && (
-        <ThreadContext.Provider value={channel?.type === 'text' ? threadContext : null}>
-        <div className="guild-chat" data-current-user-id={user.id}>
-          <NsfwChannelContext.Provider value={Boolean(channel?.nsfw)}>
-            {!channel || (ageGated && !preferencesReady) ? (
-              <p className="guild-placeholder">{t('common.loading')}</p>
-            ) : ageGated ? (
-              <NsfwAgeGate channelName={channel.name} onBack={() => navigate(-1)} />
-            ) : channel.type === 'voice' ? (
-              <VoiceChannelView guild={guild} channel={channel} nameColors={nameColors} />
-            ) : channel.type === 'list' ? (
-              <ListChannelView
-                guild={guild}
-                channel={channel}
-                user={user}
-                people={channelMembers}
-                reactionNames={reactionNames}
-                mentionRoles={mentionRoles}
-                nameColors={nameColors}
-                isMobile={isMobile}
-              />
-            ) : channel.type === 'doc' ? (
-              <DocChannelView
-                guild={guild}
-                channel={channel}
-                user={user}
-                isMobile={isMobile}
-                nameColors={nameColors}
-                chatProps={chatProps}
-              />
-            ) : (
-              <ChatPane
-                pollKind="guild"
-                chatId={`channel-${channel.id}`}
-                encrypted={false}
-                chatName={`#${channel.name}`}
-                user={user}
-                conversation={conversation}
-                reactionsReady
-                saveReaction={(msg, emoji) => addGuildReaction(msg.id, emoji)}
-                deleteReaction={removeGuildReaction}
-                reactionNames={reactionNames}
-                people={channelMembers}
-                mentionRoles={mentionRoles}
-                myRoleIds={guild.my_role_ids}
-                suggestRoles={suggestRoles}
-                canMentionEveryone={canMentionEveryone}
-                channels={mentionChannels}
-                canModerate={has(permissions, PERMISSIONS.MANAGE_MESSAGES)}
-                canSend={has(permissions, PERMISSIONS.SEND_MESSAGES)}
-                cantSendText={t('guilds.view.cantSend', { name: channel.name })}
-                canAddReactions={has(permissions, PERMISSIONS.ADD_REACTIONS)}
-                canPin={has(permissions, PERMISSIONS.PIN_MESSAGES)}
-                pinsAnchor={pinsAnchor}
-                onClosePins={closePins}
-                jumpTo={jumpTarget?.channelId === channel.id && conversation.loadedChannelId === channelId ? jumpTarget : null}
-                onJumped={clearJump}
-                nameColors={nameColors}
-                emptyText={t('guilds.view.welcome', { name: channel.name })}
-                // A thread opened beside it takes the focus instead.
-                focusOnOpen={!openThreadId}
-              />
-            )}
-          </NsfwChannelContext.Provider>
-        </div>
-        </ThreadContext.Provider>
+        <header className="channel-header">
+          <PaneBackButton />
+          <ChannelIcon channel={channel} className="channel-header-icon" />
+          <h4 className="channel-header-name">{channel?.name ?? ''}</h4>
+          {channel?.nsfw && <span className="channel-nsfw-tag" title={t('guilds.view.nsfwHint')}>{t('guilds.view.nsfw')}</span>}
+          {channel?.topic && (
+            <>
+              <span className="channel-header-divider" />
+              <span className="channel-header-topic" title={channel.topic}>{channel.topic}</span>
+            </>
+          )}
+          {isVoice && (
+            <button
+              type="button"
+              className={`channel-header-button voice-chat-button${voiceChatOpen ? ' active' : ''}`}
+              aria-label={voiceChatOpen ? t('guilds.voiceChat.hide') : t('guilds.voiceChat.show')}
+              aria-pressed={voiceChatOpen}
+              title={voiceChatOpen ? t('guilds.voiceChat.hide') : t('guilds.voiceChat.show')}
+              onClick={() => setVoiceChat(!voiceChatOpen)}
+            >
+              <FontAwesomeIcon icon={faMessage} />
+            </button>
+          )}
+          {channel && (
+            <button
+              type="button"
+              className={`channel-header-button mute-button${muteAnchor ? ' active' : ''}${muted ? ' muted' : ''}`}
+              aria-label={muted ? t('guilds.view.unmuteChannel') : t('guilds.view.muteChannel')}
+              aria-haspopup="menu"
+              aria-expanded={Boolean(muteAnchor)}
+              title={muted ? t('guilds.view.unmuteChannel') : t('guilds.view.muteChannel')}
+              // The menu closes itself on a press outside it; this press is its toggle.
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setMuteAnchor((open) => (open ? null : rect));
+              }}
+            >
+              <FontAwesomeIcon icon={muted ? faBellSlash : faBell} />
+            </button>
+          )}
+          {muteAnchor && channel && <ChannelMuteMenu channel={channel} anchor={muteAnchor} align="end" onClose={closeMute} />}
+          {chatChannelId && (
+            <button
+              type="button"
+              className={`channel-header-button pins-button${pinsAnchor ? ' active' : ''}`}
+              aria-label={t('guilds.view.pinnedMessages')}
+              aria-pressed={Boolean(pinsAnchor)}
+              title={t('guilds.view.pinnedMessages')}
+              onClick={togglePins}
+            >
+              <FontAwesomeIcon icon={faThumbtack} />
+            </button>
+          )}
+          {textChannelId && (
+            <button
+              type="button"
+              className={`channel-header-button threads-button${threadsAnchor ? ' active' : ''}`}
+              aria-label={t('guilds.view.threads')}
+              aria-pressed={Boolean(threadsAnchor)}
+              title={t('guilds.view.threads')}
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setThreadsAnchor((open) => (open ? null : rect));
+              }}
+            >
+              <FontAwesomeIcon icon={faComments} />
+            </button>
+          )}
+          {!isList && (
+          <button
+            type="button"
+            className={`channel-header-button${membersVisible ? ' active' : ''}`}
+            aria-label={membersVisible ? t('guilds.view.hideMembers') : t('guilds.view.showMembers')}
+            aria-pressed={membersVisible}
+            title={membersVisible ? t('guilds.view.hideMembers') : t('guilds.view.showMembers')}
+            onClick={toggleMembers}
+          >
+            <FontAwesomeIcon icon={faUsers} />
+          </button>
+          )}
+          <GuildSearch
+            guild={guild}
+            members={members}
+            user={user}
+            isMobile={isMobile}
+            onJump={jumpToResult}
+            reactionNames={reactionNames}
+            mentionRoles={mentionRoles}
+            nameColors={nameColors}
+          />
+        </header>
         )}
 
-        {openThreadId && (
-          <NsfwChannelContext.Provider value={Boolean(channel.nsfw)}>
-            <ThreadPane
-              key={openThreadId}
-              guild={guild}
-              parent={channel}
-              threadId={openThreadId}
-              user={user}
+        <div className="guild-body">
+          {!threadFull && (
+          <ThreadContext.Provider value={channel?.type === 'text' ? threadContext : null}>
+          <div className="guild-chat" data-current-user-id={user.id}>
+            <NsfwChannelContext.Provider value={Boolean(channel?.nsfw)}>
+              {!channel || (ageGated && !preferencesReady) ? (
+                <p className="guild-placeholder">{t('common.loading')}</p>
+              ) : ageGated ? (
+                <NsfwAgeGate channelName={channel.name} onBack={() => navigate(-1)} />
+              ) : channel.type === 'voice' ? (
+                <VoiceChannelView guild={guild} channel={channel} nameColors={nameColors} />
+              ) : channel.type === 'list' ? (
+                <ListChannelView
+                  guild={guild}
+                  channel={channel}
+                  user={user}
+                  people={channelMembers}
+                  reactionNames={reactionNames}
+                  mentionRoles={mentionRoles}
+                  nameColors={nameColors}
+                  isMobile={isMobile}
+                />
+              ) : channel.type === 'doc' ? (
+                <DocChannelView
+                  guild={guild}
+                  channel={channel}
+                  user={user}
+                  isMobile={isMobile}
+                  nameColors={nameColors}
+                  chatProps={chatProps}
+                />
+              ) : (
+                <ChatPane
+                  pollKind="guild"
+                  chatId={`channel-${channel.id}`}
+                  encrypted={false}
+                  chatName={`#${channel.name}`}
+                  user={user}
+                  conversation={conversation}
+                  reactionsReady
+                  saveReaction={(msg, emoji) => addGuildReaction(msg.id, emoji)}
+                  deleteReaction={removeGuildReaction}
+                  reactionNames={reactionNames}
+                  people={channelMembers}
+                  mentionRoles={mentionRoles}
+                  myRoleIds={guild.my_role_ids}
+                  suggestRoles={suggestRoles}
+                  canMentionEveryone={canMentionEveryone}
+                  channels={mentionChannels}
+                  canModerate={has(permissions, PERMISSIONS.MANAGE_MESSAGES)}
+                  canSend={has(permissions, PERMISSIONS.SEND_MESSAGES)}
+                  cantSendText={t('guilds.view.cantSend', { name: channel.name })}
+                  canAddReactions={has(permissions, PERMISSIONS.ADD_REACTIONS)}
+                  canPin={has(permissions, PERMISSIONS.PIN_MESSAGES)}
+                  pinsAnchor={pinsAnchor}
+                  onClosePins={closePins}
+                  jumpTo={jumpTarget?.channelId === channel.id && conversation.loadedChannelId === channelId ? jumpTarget : null}
+                  onJumped={clearJump}
+                  nameColors={nameColors}
+                  emptyText={t('guilds.view.welcome', { name: channel.name })}
+                  // A thread opened beside it takes the focus instead.
+                  focusOnOpen={!openThreadId}
+                />
+              )}
+            </NsfwChannelContext.Provider>
+          </div>
+          </ThreadContext.Provider>
+          )}
+
+          {openThreadId && (
+            <NsfwChannelContext.Provider value={Boolean(channel.nsfw)}>
+              <ThreadPane
+                key={openThreadId}
+                guild={guild}
+                parent={channel}
+                threadId={openThreadId}
+                user={user}
+                isMobile={isMobile}
+                chatProps={chatProps}
+                full={threadFull}
+                onSetFull={setThreadFull}
+                onClose={closeThread}
+              />
+            </NsfwChannelContext.Provider>
+          )}
+
+          {voiceChatOpen && !ageGated && (
+            <VoiceChatPane
+              channel={channel}
+              conversation={conversation}
               isMobile={isMobile}
               chatProps={chatProps}
-              full={threadFull}
-              onSetFull={setThreadFull}
-              onClose={closeThread}
+              pins={{ anchor: pinsAnchor, onClose: closePins }}
+              jump={{
+                jumpTo: jumpTarget?.channelId === channel.id && conversation.loadedChannelId === channelId ? jumpTarget : null,
+                onJumped: clearJump,
+              }}
+              onClose={() => setVoiceChat(false)}
             />
-          </NsfwChannelContext.Provider>
-        )}
+          )}
 
-        {voiceChatOpen && !ageGated && (
-          <VoiceChatPane
+          {!isMobile && memberList}
+        </div>
+        {isMobile && memberList}
+
+        {threadsAnchor && textChannelId && (
+          <ThreadList
             channel={channel}
-            conversation={conversation}
+            anchor={threadsAnchor}
             isMobile={isMobile}
-            chatProps={chatProps}
-            pins={{ anchor: pinsAnchor, onClose: closePins }}
-            jump={{
-              jumpTo: jumpTarget?.channelId === channel.id && conversation.loadedChannelId === channelId ? jumpTarget : null,
-              onJumped: clearJump,
-            }}
-            onClose={() => setVoiceChat(false)}
+            canCreate={canCreateThreads}
+            onOpen={(thread) => openThread(thread.id)}
+            onCreate={() => { setThreadsAnchor(null); setStartingThread({}); }}
+            onClose={closeThreads}
           />
         )}
-
-        {!isMobile && memberList}
+        {startingThread && channel && (
+          <ThreadDialog
+            channel={channel}
+            message={startingThread.message ?? null}
+            onDone={(thread) => openThread(thread.id)}
+            onClose={() => setStartingThread(null)}
+          />
+        )}
       </div>
-      {isMobile && memberList}
-
-      {threadsAnchor && textChannelId && (
-        <ThreadList
-          channel={channel}
-          anchor={threadsAnchor}
-          isMobile={isMobile}
-          canCreate={canCreateThreads}
-          onOpen={(thread) => openThread(thread.id)}
-          onCreate={() => { setThreadsAnchor(null); setStartingThread({}); }}
-          onClose={closeThreads}
-        />
-      )}
-      {startingThread && channel && (
-        <ThreadDialog
-          channel={channel}
-          message={startingThread.message ?? null}
-          onDone={(thread) => openThread(thread.id)}
-          onClose={() => setStartingThread(null)}
-        />
-      )}
-    </div>
+    </GuildMembersContext.Provider>
   );
 }

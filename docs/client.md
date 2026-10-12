@@ -482,8 +482,14 @@ stays the unique handle (logins, @username on the card).
   webhook routes take, Discord's don't have it). Escape closes only the cropper (caught before the
   dialog under it).
 - `ProfileCard` (picture with status, names, custom status, bio) is the guild member card's top
-  and `ProfilePopover`'s body (clicking a name or avatar in chat), which has no buttons:
-  what can be done to someone is in their right-click menu (see Right-click menus). The DM list, the Friends
+  (`guild/MemberCard.jsx`) and the whole card elsewhere. Every person's card is the same 340 px
+  floating box (`.profile-popover`): from a member list or a group DM's members
+  (`hooks/useFloatingCard.js`, beside the list) and from a name or avatar in chat
+  (`ProfilePopover`, beside what was clicked). In a guild's chats (`GuildMembersContext`, from
+  `GuildView`) a member's card from chat is the member list's `MemberCard` (roles, level, Apps);
+  in DMs and group DMs, and for someone who left the guild, the `ProfileCard` alone. Cards have no
+  buttons but the roles' and Apps: what can be done to someone is in their right-click menu
+  (see Right-click menus). The DM list, the Friends
   page and your user panel show the custom status under names; a guild's member list
   deliberately doesn't (its rows already have role colours, levels, tags and the crown), only
   the member card does.
