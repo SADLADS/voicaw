@@ -65,7 +65,8 @@ deletes it. Messages, reactions, edits, call keys and the group's name and pictu
   Non-members get 404 for everything.
 - **Client:** route `/dm/g/:groupId` (`group/GroupDm.jsx`: header with call and members
   buttons, `GroupCallPanel`, key warnings, `ChatPane`, `GroupMembers`: add people, remove
-  (owner), rename, leave). `hooks/useGroupConversation.js` is `useConversation` for a group
+  (owner), rename, leave; clicking a member opens their profile card over the chat, as the
+  guild member list does (`hooks/useFloatingCard.js`), right-clicking their person menu). `hooks/useGroupConversation.js` is `useConversation` for a group
   (decrypting with each message's epoch key; membership changes as `system` rows in the
   timeline, which `MessageList` draws as centred lines, from the time you joined).
   `hooks/useGroupList.js` (in `Layout`, `LayoutContext.groupList`) feeds `DmSidebar`, which

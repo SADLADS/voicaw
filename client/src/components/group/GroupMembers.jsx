@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCrown, faImage, faPen, faRightFromBracket, faUserMinus, faUserPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
@@ -10,6 +11,7 @@ import UserAvatar from '../voice/UserAvatar';
 import UserPicker from './UserPicker';
 import ImageCropper from '../ImageCropper';
 import StatusIcon from '../StatusIcon';
+import ProfileCard from '../ProfileCard';
 import { changeMembership, renameGroup, setGroupPicture } from '../../services/groupKeys';
 import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME } from '../../services/groupCrypto';
 import { nameOf, useProfiles } from '../../utils/profiles';
@@ -17,6 +19,7 @@ import { croppedPictureBytes, croppedPreview } from '../../utils/pictureData';
 import { MAX_PROFILE_PIC_BYTES } from '../../services/profileService';
 import { useGroupPicture } from '../../hooks/useGroupPicture';
 import { usePresence } from '../../hooks/usePresence';
+import { useFloatingCard } from '../../hooks/useFloatingCard';
 import { useFriends } from '../../utils/friends';
 import { lastSeenText, statusLabel } from '../../utils/presence';
 import { t } from '../../i18n';
@@ -26,6 +29,8 @@ const errorText = (err) => err.response?.data?.error ?? err.message;
 // A group DM's members (from its checked membership log), with the owner's crown. Anyone adds
 // people (from their friends, as in Discord), renames and changes the picture (cropped here, then
 // encrypted: see Group pictures in docs/group-dms.md); the owner removes people; anyone leaves.
+// Clicking someone opens their profile card over the chat, as in the guild member list
+// (hooks/useFloatingCard.js); right-clicking them, their menu (utils/personMenu.js).
 export default function GroupMembers({ group, user, users, onClose }) {
   useProfiles();
   const presenceOf = usePresence();
@@ -41,6 +46,11 @@ export default function GroupMembers({ group, user, users, onClose }) {
   const [cropping, setCropping] = useState(null);
   const [newPicture, setNewPicture] = useState(undefined); // undefined: unchanged
   const fileInput = useRef(null);
+  const [cardFor, setCardFor] = useState(null);
+  const listRef = useRef(null);
+  const cardRef = useRef(null);
+  const closeCard = useCallback(() => setCardFor(null), []);
+  const cardStyle = useFloatingCard(cardFor, { listRef, cardRef, rowSelector: '.group-member-open', onClose: closeCard });
   const { detail, log } = group;
   const pictureUrl = useGroupPicture(detail.id, group.name?.picture);
 
@@ -105,7 +115,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
   const shownPicture = newPicture === undefined ? pictureUrl : newPicture?.preview;
 
   return (
-    <aside className="member-list group-members" aria-label={t('common.members')}>
+    <aside ref={listRef} className="member-list group-members" aria-label={t('common.members')}>
       <div className="group-members-header">
         <span>{t('groups.members.header', { count: memberIds.length })}</span>
         {onClose && (
@@ -118,13 +128,15 @@ export default function GroupMembers({ group, user, users, onClose }) {
         {memberIds.map((id) => {
           const { status, lastOnline } = presenceOf(usersById.get(id) ?? { id });
           return (
-            <li key={id} className="group-member">
-              <span className="group-member-avatar-wrap status-avatar">
-                <UserAvatar userId={id} className="group-member-avatar" />
-                <StatusIcon status={status} title={status === 'offline' ? lastSeenText(lastOnline) ?? statusLabel(status) : undefined} />
-              </span>
-              <span className="group-member-name">{id === user.id ? t('groups.members.you', { name: names.get(id) ?? t('groups.members.someone') }) : (names.get(id) ?? t('groups.members.someone'))}</span>
-              {id === log.ownerId && <FontAwesomeIcon icon={faCrown} className="group-owner-crown" title={t('groups.members.owner')} aria-label={t('groups.members.owner')} />}
+            <li key={id} className={`group-member${cardFor === id ? ' selected' : ''}`}>
+              <button type="button" className="group-member-open" data-user-id={id} onClick={() => setCardFor(cardFor === id ? null : id)}>
+                <span className="group-member-avatar-wrap status-avatar">
+                  <UserAvatar userId={id} className="group-member-avatar" />
+                  <StatusIcon status={status} title={status === 'offline' ? lastSeenText(lastOnline) ?? statusLabel(status) : undefined} />
+                </span>
+                <span className="group-member-name">{id === user.id ? t('groups.members.you', { name: names.get(id) ?? t('groups.members.someone') }) : (names.get(id) ?? t('groups.members.someone'))}</span>
+                {id === log.ownerId && <FontAwesomeIcon icon={faCrown} className="group-owner-crown" title={t('groups.members.owner')} aria-label={t('groups.members.owner')} />}
+              </button>
               {isOwner && id !== user.id && (
                 <button
                   type="button"
@@ -140,6 +152,12 @@ export default function GroupMembers({ group, user, users, onClose }) {
           );
         })}
       </ul>
+      {cardFor != null && usersById.has(cardFor) && createPortal(
+        <div className="profile-popover member-card" ref={cardRef} style={cardStyle} role="dialog" aria-label={names.get(cardFor)}>
+          <ProfileCard user={usersById.get(cardFor)} />
+        </div>,
+        document.body
+      )}
       <div className="group-members-actions">
         <button type="button" className="group-action" onClick={() => setDialog({ type: 'add' })} disabled={room <= 0}>
           <FontAwesomeIcon icon={faUserPlus} /> {t('groups.members.addPeople')}
