@@ -61,10 +61,22 @@ describe('desktop settings (desktopSettings.js)', () => {
         expect(cleanChanges(null)).toEqual({});
     });
 
+    it('starts at login by default, even where an older version saved false, until chosen', () => {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'voicaw-settings-'));
+        fs.writeFileSync(path.join(dir, 'desktop-settings.json'), JSON.stringify({ closeToTray: true, startAtLogin: false }));
+        const store = createSettingsStore(dir);
+        expect(store.get().startAtLogin).toBe(true);
+        store.update({ startAtLogin: false });
+        expect(createSettingsStore(dir).get()).toMatchObject({ startAtLogin: false, startAtLoginChosen: true });
+        store.update({ closeToTray: false });
+        expect(createSettingsStore(dir).get().startAtLogin).toBe(false);
+        fs.rmSync(dir, { recursive: true, force: true });
+    });
+
     it('saves to the data folder and reads back, one shortcut at a time', () => {
         const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'voicaw-settings-'));
         const store = createSettingsStore(dir);
-        expect(store.get()).toMatchObject({ closeToTray: true, startAtLogin: false, shortcuts: { toggleMute: null, toggleDeafen: null } });
+        expect(store.get()).toMatchObject({ closeToTray: true, startAtLogin: true, shortcuts: { toggleMute: null, toggleDeafen: null } });
         store.update({ shortcuts: { toggleMute: 'Control+Shift+M' } });
         store.update({ shortcuts: { toggleDeafen: 'Control+Shift+D' }, closeToTray: false });
         store.setWindow({ x: 1, y: 2, width: 800, height: 600, maximized: false });

@@ -6,7 +6,11 @@ const path = require('path');
 const DEFAULTS = {
     // Closing the window leaves the app running in the tray (so notifications keep coming).
     closeToTray: true,
-    startAtLogin: false,
+    // Start at login (autoStart.js), on by default as Discord's. startAtLoginChosen is set once
+    // the person ticks or unticks it: saved files from before the default changed (which wrote
+    // `false` without anyone choosing it) get the default instead.
+    startAtLogin: true,
+    startAtLoginChosen: false,
     // Rich Presence (richPresence.js): games' "Playing X" shared with everyone. Off: not even
     // listening for games.
     richPresence: true,
@@ -41,6 +45,7 @@ function createSettingsStore(dir) {
     try {
         const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
         settings = { ...DEFAULTS, ...saved, shortcuts: { ...DEFAULTS.shortcuts, ...saved.shortcuts } };
+        if (!settings.startAtLoginChosen) settings.startAtLogin = DEFAULTS.startAtLogin;
     } catch {
         settings = { ...DEFAULTS, shortcuts: { ...DEFAULTS.shortcuts } };
     }
@@ -60,6 +65,7 @@ function createSettingsStore(dir) {
         update(changes) {
             const clean = cleanChanges(changes);
             settings = { ...settings, ...clean, shortcuts: { ...settings.shortcuts, ...clean.shortcuts } };
+            if ('startAtLogin' in clean) settings.startAtLoginChosen = true;
             save();
             return settings;
         },

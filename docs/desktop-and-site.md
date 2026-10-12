@@ -74,8 +74,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   favicon gets the same dot (see Favicon dot in `docs/client.md`).
 - **Settings → Desktop App** (`DesktopAppSettings.jsx`, only in the app; stored by
   `desktopSettings.js` as `desktop-settings.json` in the app's data folder): keep running in
-  the tray when closed (default on; macOS always), start at login (`autoStart.js`: login items,
-  or `~/.config/autostart/voicaw.desktop` on Linux; starts in the tray with `--hidden`), and
+  the tray when closed (default on; macOS always), start at login (default on, as Discord's, since 2026-10-12; installs from before that got it
+  turned on once, `startAtLoginChosen` marking a choice made in the box; `autoStart.js`: login
+  items, or `~/.config/autostart/voicaw.desktop` on Linux; starts in the tray with `--hidden`), and
   global shortcuts for toggle mute / toggle deafen (`shortcuts.js`, `globalShortcut`; recorded
   from a key press with a modifier, `acceleratorFromEvent`; a key another app holds is
   reported), and Activity's "Share what I'm playing" (Rich Presence, default on).
