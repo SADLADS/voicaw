@@ -6,6 +6,9 @@
 //    manifest, the cover from Steam's own library cache.
 // 2. Otherwise the program: Windows' product name (or description), a macOS .app's name, or
 //    the file's name; its icon on Windows and macOS (main.js asks Electron for it).
+// Games behind anti-cheat (Easy Anti-Cheat, BattlEye: Rust, Apex...) don't let other programs
+// open their process, so their path can't be read; their process name still can ("RustClient"),
+// and the Steam game whose folder holds that program is found by it (steamGameForProgram).
 const path = require('path');
 
 // Steam's text format (KeyValues): "key" "value" and "key" { ... }. Returns nested objects.
@@ -173,7 +176,8 @@ function programName({ exe, argv = [], platform }) {
     return name || null;
 }
 
-// What the process `pid` is: { exe, argv, env: { SteamAppId... }, product, description }.
+// What the process `pid` is: { exe, processName, argv, env: { SteamAppId... }, product,
+// description }; `exe` (its path) is null when it can't be read (anti-cheat).
 // `run(command, args)` runs a program and resolves to its output (main.js: execFile).
 async function processInfo(pid, { platform, fs, run }) {
     if (!Number.isInteger(pid) || pid <= 0) return null;
@@ -189,20 +193,52 @@ async function processInfo(pid, { platform, fs, run }) {
                 const [key, value] = entry.split(/=(.*)/s);
                 if (['SteamAppId', 'SteamGameId', 'STEAM_COMPAT_APP_ID'].includes(key)) env[key] = value;
             }
-            if (!exe && !argv.length) return null;
-            return { exe, argv, env };
+            const processName = (read(fs, `/proc/${pid}/comm`) ?? '').trim() || null;
+            if (!exe && !argv.length && !processName) return null;
+            return { exe, processName, argv, env };
         }
         if (platform === 'win32') {
-            const script = `$p = Get-Process -Id ${pid} -ErrorAction Stop; [pscustomobject]@{ Path = $p.Path; Product = $p.Product; Description = $p.Description } | ConvertTo-Json -Compress`;
+            // The path needs the process opened, which anti-cheat refuses: then WMI's, which
+            // sometimes still has it; the name always comes.
+            const script = [
+                `$p = Get-Process -Id ${pid} -ErrorAction Stop`,
+                '$path = $p.Path',
+                `if (-not $path) { $path = (Get-CimInstance Win32_Process -Filter 'ProcessId = ${pid}' -ErrorAction SilentlyContinue).ExecutablePath }`,
+                '[pscustomobject]@{ Name = $p.ProcessName; Path = $path; Product = $p.Product; Description = $p.Description } | ConvertTo-Json -Compress',
+            ].join('; ');
             const out = JSON.parse(await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script]));
-            if (!out?.Path) return null;
-            return { exe: out.Path, argv: [], env: {}, product: out.Product || null, description: out.Description || null };
+            if (!out?.Path && !out?.Name) return null;
+            return { exe: out.Path || null, processName: out.Name || null, argv: [], env: {}, product: out.Product || null, description: out.Description || null };
         }
         const exe = (await run('ps', ['-p', String(pid), '-o', 'comm='])).trim();
-        return exe ? { exe, argv: [], env: {} } : null;
+        return exe ? { exe, processName: null, argv: [], env: {} } : null;
     } catch {
         return null;
     }
+}
+
+// The Steam game whose install folder holds a program called `processName` (RustClient →
+// RustClient.exe in steamapps/common/Rust), at its top or one folder down, when the program's
+// path couldn't be read.
+function steamGameForProgram(fs, apps, processName) {
+    const wanted = new Set([processName.toLowerCase(), `${processName.toLowerCase()}.exe`]);
+    const has = (dir) => {
+        try {
+            return fs.readdirSync(dir, { withFileTypes: true });
+        } catch {
+            return [];
+        }
+    };
+    for (const app of apps) {
+        if (!app.installDir || STEAM_TOOL.test(app.name)) continue;
+        const dir = path.join(app.library, 'steamapps', 'common', app.installDir);
+        const entries = has(dir);
+        if (entries.some((e) => e.isFile() && wanted.has(e.name.toLowerCase()))) return app;
+        for (const sub of entries.filter((e) => e.isDirectory()).slice(0, 50)) {
+            if (has(path.join(dir, sub.name)).some((e) => e.isFile() && wanted.has(e.name.toLowerCase()))) return app;
+        }
+    }
+    return null;
 }
 
 // Windows' version info often says only what made the program.
@@ -217,10 +253,11 @@ async function identifyGame(pid, { platform, fs, run, listSteamApps }) {
     const envId = info.env.SteamAppId || info.env.SteamGameId || info.env.STEAM_COMPAT_APP_ID;
     let app = envId && envId !== '0' ? apps.find((a) => a.appId === String(envId) && !STEAM_TOOL.test(a.name)) : null;
     app ??= steamGameForPaths(apps, [info.exe, ...info.argv].filter(Boolean));
+    if (!app && !info.exe && info.processName) app = steamGameForProgram(fs, apps, info.processName);
     if (app) return { name: app.name, picture: steamPicture(fs, app.root, app.appId), steamAppId: app.appId, exe: info.exe };
     const product = [info.product, info.description].find((p) => p && !GENERIC_PRODUCT.test(p.trim()));
-    const name = product?.trim() || programName({ exe: info.exe, argv: info.argv, platform });
+    const name = product?.trim() || programName({ exe: info.exe ?? info.processName, argv: info.argv, platform });
     return name ? { name, picture: null, steamAppId: null, exe: info.exe } : null;
 }
 
-module.exports = { parseVdf, steamRoots, steamApps, steamGameForPaths, steamPicture, programName, processInfo, identifyGame, STEAM_TOOL };
+module.exports = { parseVdf, steamRoots, steamApps, steamGameForPaths, steamGameForProgram, steamPicture, programName, processInfo, identifyGame, STEAM_TOOL };

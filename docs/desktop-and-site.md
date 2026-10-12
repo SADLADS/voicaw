@@ -98,7 +98,11 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   to that library's `appmanifest_<id>.acf` (libraries from `libraryfolders.vdf`; Steam's own
   tools such as Proton skipped), giving the name and the cover from Steam's
   `appcache/librarycache` (`<id>_library_600x900.jpg`, newer Steam's `<id>/` folder; else the
-  header, else the icon). Otherwise the program: Windows' product name or description (one
+  header, else the icon). Games behind anti-cheat (Easy Anti-Cheat, BattlEye: Rust...) refuse to
+  let other programs open their process, so on Windows `Get-Process` gives no path (2026-10-12:
+  Rust showed as "a game"): then WMI's `ExecutablePath` is tried, and failing that the process
+  name alone ("RustClient") is matched to the Steam game whose install folder holds that
+  program (`steamGameForProgram`, its top or one folder down). Otherwise the program: Windows' product name or description (one
   PowerShell call; engine names like "Unity Player" skipped), a macOS `.app`'s name, a Wine
   program's `.exe`, a runner's script (python, java...), else the file name (all lower case capitalised:
   `feishin` → Feishin); its icon on
