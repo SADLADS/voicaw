@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faClock, faComments, faMicrophone, faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faClock, faComments, faFaceSmile, faKeyboard, faMicrophone, faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
 import AttachPanel from './AttachPanel';
 import EmojiPicker from './EmojiPicker';
 import EmojiSuggestions from './EmojiSuggestions';
@@ -761,7 +761,7 @@ export default function Composer({
               onMouseDown={(e) => e.stopPropagation()}
               onClick={toggleEmojiPicker}
             >
-              {isMobile && showEmojiPicker ? '⌨️' : '😎'}
+              <FontAwesomeIcon icon={isMobile && showEmojiPicker ? faKeyboard : faFaceSmile} />
             </button>}
             {showMic ? <MicButton voice={voice} onDrag={setVoiceDragX} /> : (
               <button
