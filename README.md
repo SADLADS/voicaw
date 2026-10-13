@@ -144,6 +144,21 @@ channel. After changing the file, `pm2 restart voicaw-livekit`.
 On start it logs `found external IP via STUN` with the public IP. `could not validate external
 IP` means UDP 7882 isn't forwarded yet, or the router can't loop back to its own public IP.
 
+LiveKit only looks the public IP up at startup. If the host's IP is dynamic (the ISP changes it
+now and then), LiveKit keeps handing out the old one, and people outside the ISP's network get
+"Could not connect to voice" until it restarts. `server/scripts/livekit-ip-watch.sh` restarts
+it when the IP changes (two IP services must agree; it remembers the IP in
+`~/livekit/public-ip`, and its first run restarts LiveKit once). Copy it next to LiveKit so it
+doesn't depend on which branch the checkout is on, and run it from `crontab -e`:
+
+```sh
+cp server/scripts/livekit-ip-watch.sh ~/livekit/ip-watch.sh
+```
+
+```
+*/5 * * * * /home/<you>/livekit/ip-watch.sh >> /home/<you>/livekit/ip-watch.log 2>&1
+```
+
 Optional, as root: LiveKit warns that the UDP receive buffer is small. That only matters with
 many streams (video). To raise it:
 
