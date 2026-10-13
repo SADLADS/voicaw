@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCamera, faImage, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faCamera, faImage, faTrash, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { ImageViewerContext, InteractionContext } from '../contexts';
 import Avatar from './Avatar';
 import StatusIcon from './StatusIcon';
@@ -111,7 +111,9 @@ export default function UserProfile({ userId, me, onClose, onOpenProfile }) {
         data-user-id={userId}
       >
         {isMobile && <button type="button" className="user-profile-handle" aria-label={t('common.close')} onClick={onClose} />}
-        <button type="button" className="vc-dialog-close user-profile-close" aria-label={t('common.close')} onClick={onClose}>×</button>
+        <button type="button" className="vc-dialog-close user-profile-close" aria-label={t('common.close')} onClick={onClose}>
+          <FontAwesomeIcon icon={faXmark} />
+        </button>
         {own ? <OwnBanner userId={userId} /> : <ProfileBanner userId={userId} className="user-profile-banner" />}
         <div className="user-profile-head">
           <span className="user-profile-avatar status-avatar">
