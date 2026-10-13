@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../services/profileService', () => ({
@@ -87,18 +87,31 @@ describe('UserProfile', () => {
     expect(screen.getByRole('button', { name: 'Change banner image' })).toBeInTheDocument();
     expect(screen.getByLabelText('Banner colour')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit about me' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'About me' }), { target: { value: 'New bio' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(updateProfile).toHaveBeenCalledWith({ bio: 'New bio' }));
-    await waitFor(() => expect(screen.getByText('New bio')).toBeInTheDocument());
+    // No pencils or Save buttons: the texts are edited where they're shown.
+    expect(screen.queryByRole('button', { name: /Edit|Save/ })).toBeNull();
+    const bio = screen.getByRole('textbox', { name: 'About me' });
+    expect(bio).toHaveAttribute('placeholder', 'Add something about you');
+    act(() => bio.focus());
+    fireEvent.change(bio, { target: { value: 'New bio\nsecond line' } });
+    act(() => bio.blur());
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledWith({ bio: 'New bio\nsecond line' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit display name' }));
     const nameBox = screen.getByRole('textbox', { name: 'Display name' });
     expect(nameBox).toHaveAttribute('placeholder', 'ann');
+    act(() => nameBox.focus());
     fireEvent.change(nameBox, { target: { value: '  Ann B ' } });
     fireEvent.keyDown(nameBox, { key: 'Enter' });
     await waitFor(() => expect(updateProfile).toHaveBeenCalledWith({ displayName: 'Ann B' }));
+
+    // Escape puts it back, unsaved.
+    updateProfile.mockClear();
+    const status = screen.getByRole('textbox', { name: 'Custom status' });
+    expect(status).toHaveAttribute('placeholder', 'Set a custom status');
+    act(() => status.focus());
+    fireEvent.change(status, { target: { value: 'Not this' } });
+    fireEvent.keyDown(status, { key: 'Escape' });
+    expect(updateProfile).not.toHaveBeenCalled();
+    expect(status).toHaveValue('');
 
     await waitFor(() => expect(tabs()).toEqual(['About me', 'Activity']));
     fireEvent.click(screen.getByRole('tab', { name: 'Activity' }));

@@ -3112,61 +3112,44 @@ body.mobile-mode .dm-user-list-container .dm-user {
   max-width: 360px;
 }
 
-.user-profile-editable {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.user-profile-editable .profile-card-custom-status,
-.user-profile-editable .profile-card-bio {
-  margin-top: 0;
-}
-
-.profile-card-custom-status + .user-profile-edit-inline {
-  margin-top: 8px;
-}
-
-.user-profile-names .user-profile-editable {
-  margin-top: 10px;
-}
-
-/* Your name with its pencil sits where the name does. */
-.user-profile-names > .user-profile-editable:first-child {
-  align-items: center;
-  margin-top: 0;
-}
-
-.user-profile-name-edit .user-profile-status-edit {
-  margin-top: 0;
-}
-
-.user-profile-edit-inline {
-  flex-shrink: 0;
-  padding: 2px 6px;
-  border: 0;
+/* Your own texts (InlineText): they look like the text until clicked, then like a box. */
+.user-profile .user-profile-inline {
+  display: block;
+  width: calc(100% + 10px);
+  margin: -3px -5px;
+  padding: 2px 4px;
+  border: 1px solid transparent;
   border-radius: 4px;
   background: none;
-  color: var(--vc-fg-muted);
+  color: inherit;
+  font-family: inherit;
+  resize: none;
+  overflow: hidden;
+  cursor: text;
 }
 
-.user-profile-edit-inline:hover {
+.user-profile .user-profile-inline:hover {
   background-color: var(--vc-bg-hover);
+}
+
+.user-profile .user-profile-inline:focus {
+  border-color: var(--vc-accent);
+  outline: none;
+  background-color: var(--vc-bg-base);
+}
+
+.user-profile .user-profile-inline::placeholder {
+  color: var(--vc-placeholder);
+}
+
+/* With no display name, its placeholder is your username: your name as shown, so not greyed. */
+.user-profile .user-profile-name.user-profile-inline::placeholder {
   color: var(--vc-fg);
+  opacity: 1;
 }
 
-.user-profile-add {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--vc-link);
-}
-
-.user-profile-add:hover {
-  text-decoration: underline;
-}
-
-.user-profile-status-edit {
+/* Your status: the emoji button, then its text (as in the user menu). */
+.user-profile-status {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -3174,21 +3157,16 @@ body.mobile-mode .dm-user-list-container .dm-user {
   margin-top: 10px;
 }
 
-.user-profile-status-edit input {
+.user-profile-status .user-profile-inline {
   flex: 1;
-  min-width: 160px;
+  width: auto;
+  min-width: 0;
+  margin: -3px 0;
+  font-size: 14px;
 }
 
-.user-profile-edit-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.user-profile-edit-actions .vc-hint {
-  margin-right: auto;
+.user-profile-status .error-msg {
+  flex-basis: 100%;
 }
 
 /* What someone's playing (Rich Presence, utils/activities.js): one line in lists

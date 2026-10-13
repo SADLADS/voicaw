@@ -543,8 +543,11 @@ picture or names, or straight from a tap on a phone.
   saying which are, and no mutual tabs.
 - Your own is edited in place, each part saved at once: picture and banner picture (camera / image
   buttons, through the cropper), banner colour (a colour input, saved once it rests 0.6 s),
-  remove either, display name (pencil; empty = your username), custom status (pencil; emoji
-  button, Enter saves, Escape cancels) and about me (pencil; a box with Save / Cancel). It's
+  remove either; display name, custom status's text and about me are edited where they're shown
+  (`InlineText`: no pencils or Save buttons; they look like the text until clicked, Enter or
+  clicking away saves, Ctrl+Enter in about me, where Enter is a new line; Escape puts it back),
+  an empty display name showing your username; the status's emoji button is always there, as in
+  the user menu, and a pick or ✕ saves at once. It's
   where profiles are edited: Settings' card (and `/settings/profile`), the user menu's Edit
   Profile, picture and names open it.
 - Phone: a full-screen sheet with the emoji panel's handle; a downward swipe (from the top of
