@@ -890,17 +890,20 @@ small {
 .typing-indicator {
   position: absolute;
   bottom: 0;
-  left: 0.75rem;
+  /* From the very left, so messages' pictures (10px in) don't show beside it; the text stays
+     where it was. */
+  left: 0;
   right: 0.75rem;
   height: var(--vc-typing-height);
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 4px;
+  padding: 0 4px 0 calc(0.75rem + 4px);
   font-size: 12.5px;
   line-height: var(--vc-typing-height);
   color: var(--vc-fg-muted);
-  background-color: var(--vc-bg-subtle);
+  /* Fades into the messages above instead of a hard edge, solid behind the text. */
+  background: linear-gradient(to top, var(--vc-bg-subtle) 40%, transparent);
   pointer-events: none;
 }
 
