@@ -5,6 +5,7 @@ import { keyboardInset, keyboardOpen, resetKeyboardViewport, watchKeyboardViewpo
 let listeners;
 const fire = () => listeners.forEach(({ fn }) => fn());
 const appHeight = () => document.documentElement.style.getPropertyValue('--vc-app-height');
+const appTop = () => document.documentElement.style.getPropertyValue('--vc-app-top');
 
 beforeEach(() => {
   resetKeyboardViewport();
@@ -24,6 +25,7 @@ beforeEach(() => {
 
 afterEach(() => {
   document.documentElement.style.removeProperty('--vc-app-height');
+  document.documentElement.style.removeProperty('--vc-app-top');
 });
 
 describe('keyboardViewport', () => {
@@ -50,6 +52,34 @@ describe('keyboardViewport', () => {
     window.visualViewport.offsetTop = 330; // slid up to show the message box
     fire();
     expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
+  });
+
+  it('iOS: undone slides leave the app where it is', () => {
+    watchKeyboardViewport();
+    window.scrollTo = vi.fn(() => { window.visualViewport.offsetTop = 0; window.visualViewport.pageTop = 0; });
+    window.visualViewport.height = 470;
+    window.visualViewport.offsetTop = 330;
+    window.visualViewport.pageTop = 330;
+    fire();
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
+    expect(appTop()).toBe('');
+  });
+
+  it("iOS 26: moves the app down to the visible part when the slide won't undo", () => {
+    const stop = watchKeyboardViewport();
+    window.visualViewport.height = 470;
+    window.visualViewport.offsetTop = 330; // scrollTo does nothing: still pushed down
+    window.visualViewport.pageTop = 330;
+    fire();
+    expect(appHeight()).toBe('470px');
+    expect(appTop()).toBe('330px');
+    window.visualViewport.height = 800; // keyboard closed
+    fire();
+    expect(appTop()).toBe('');
+    window.visualViewport.height = 470;
+    fire();
+    stop();
+    expect(appTop()).toBe('');
   });
 
   it('Android (resizes-content): sees the keyboard though the window shrinks with it', () => {

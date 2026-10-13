@@ -258,6 +258,9 @@ body {
   box-sizing: border-box;
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
+  /* On a phone with the keyboard open, where the visible part of the page starts when the
+     browser won't scroll back to the top (iOS 26 Safari; utils/keyboardViewport.js). */
+  padding-top: var(--vc-app-top, 0px);
 }
 
 /* Shown instead of the app while a saved login waits for the server (AuthProvider). */

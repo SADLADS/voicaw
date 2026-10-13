@@ -391,7 +391,11 @@
   focused from code, like swipe to reply's, sometimes missed, and a drag could slide back).
   iOS ignores that, so while the keyboard is open `--vc-app-height` is set to the visible
   height (`visualViewport`) and any slide of the page is scrolled back (only then: no page
-  scrolls the document). Everything screen-high uses `var(--vc-app-height)` (100svh
+  scrolls the document). iOS 26 Safari (installed or not; Brave, a WKWebView, doesn't) won't
+  always scroll back: the visible part stays pushed down by about the keyboard's height, which
+  left a keyboard-high gap under the message box (reported 2026-10-13). So while the keyboard is
+  open `--vc-app-top` (the visual viewport's `pageTop` after scrolling back) pads `#root` down to
+  meet it, 0 when the scroll back worked. Everything screen-high uses `var(--vc-app-height)` (100svh
   otherwise), never 100vh/svh. The keyboard's height is the visible height's shortfall from
   the keyboard-free height (the tallest seen at that width, capped at `screen.height`), not
   from `innerHeight`, which shrinks with it on Android; `utils/keyboardHeight.js` (the docked

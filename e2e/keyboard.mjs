@@ -26,7 +26,8 @@ const settled = (page) => page.evaluate(() => new Promise((resolve) => {
 // Where the message box and the newest message are, against the visible bottom.
 const layout = (page, visibleBottom) => page.evaluate((bottom) => {
   const box = document.querySelector('#dm-input').getBoundingClientRect();
-  const send = document.querySelector('.send-button').getBoundingClientRect();
+  // Send, or the mic in its place while the box is empty (phones).
+  const send = document.querySelector('.send-button, .voice-mic-button').getBoundingClientRect();
   const rows = [...document.querySelectorAll('.each-dm-message-wrapper')];
   const last = rows.at(-1)?.getBoundingClientRect();
   return {
@@ -108,8 +109,11 @@ try {
   await page.locator('.send-button').tap();
   await page.waitForSelector('.each-dm-message-wrapper:has-text("second of two")');
   check(await alice.page.locator('text=second of two').waitFor().then(() => true, () => false), 'the next message is typed and sent straight away');
+  // (Something typed: an empty box shows the mic in Send's place.)
+  await page.keyboard.type('third, sent unfocused');
   await page.evaluate(() => document.activeElement.blur());
   await page.locator('.send-button').tap();
+  await page.waitForSelector('.each-dm-message-wrapper:has-text("third, sent unfocused")');
   check(!(await layout(page)).focused, "Send with the box unfocused doesn't focus it (keyboard stays down)");
 
   // iOS: the keyboard lies over the page and the page slides up; a stand-in visualViewport.
@@ -127,7 +131,8 @@ try {
     Object.defineProperty(window, 'visualViewport', { configurable: true, get: () => fake });
     const scrollTo = window.scrollTo.bind(window);
     window.__scrolledBack = 0;
-    window.scrollTo = (...args) => { window.__scrolledBack++; state.offsetTop = 0; scrollTo(...args); };
+    // iOS 26 Safari (`__stuck`): scrolling back leaves the visible part pushed down.
+    window.scrollTo = (...args) => { window.__scrolledBack++; if (!window.__stuck) state.offsetTop = 0; scrollTo(...args); };
     // The keyboard opening (height) with the page slid up by `offsetTop`.
     window.__keyboard = (height, offsetTop = 0) => {
       state.height = height;
@@ -156,6 +161,26 @@ try {
   await page.evaluate(([h]) => window.__keyboard(h, 0), [viewport.height]);
   await settled(page);
   check((await layout(page)).appHeight === '', 'iOS: full height again once the keyboard closes');
+
+  // iOS 26: the slide can't be undone, so the app moves down to the visible part (no gap
+  // between the box and the keyboard, nothing above it cut off).
+  await page.evaluate(() => { window.__stuck = true; });
+  await page.locator('#dm-input').focus();
+  await page.evaluate(([h, k]) => window.__keyboard(h, k), [visible, KEYBOARD]);
+  await settled(page);
+  l = await layout(page, viewport.height);
+  const header = await page.evaluate(() => Math.round(document.querySelector('.slidey .main-content-wrapper').getBoundingClientRect().top));
+  check(l.appHeight === `${visible}px` && header >= KEYBOARD - 1,
+    `iOS 26: the app starts where the visible part does (${header}, visible from ${KEYBOARD})`);
+  check(l.boxBottom <= viewport.height && l.boxBottom >= viewport.height - 80,
+    `iOS 26: the box sits on the keyboard, no gap (bottom ${l.boxBottom}, keyboard at ${viewport.height})`);
+  check(l.lastBottom <= l.boxTop + 1 && l.lastBottom > KEYBOARD, 'iOS 26: the newest message is in view above it');
+  await shot(page, '3-ios26-keyboard');
+  await page.evaluate(([h]) => window.__keyboard(h, 0), [viewport.height]);
+  await settled(page);
+  l = await layout(page);
+  check(l.appHeight === '' && await page.evaluate(() => getComputedStyle(document.getElementById('root')).paddingTop) === '0px',
+    'iOS 26: back in place once the keyboard closes');
 } finally {
   await browser.close();
 }

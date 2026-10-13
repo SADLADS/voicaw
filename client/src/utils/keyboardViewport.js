@@ -6,6 +6,10 @@
 // the focused box, which the user can then scroll back down behind the keyboard. So while the
 // keyboard is open, `--vc-app-height` (the app's height in CSS; 100svh otherwise) is set to the
 // visible height, and any slide of the page is undone: the app always ends at the keyboard.
+// iOS 26 Safari doesn't always let a slide be undone (the visual viewport stays pushed down,
+// `offsetTop` > 0, though the page is scrolled to the top), which left a keyboard-high gap under
+// the message box: so the app is also moved down to wherever the visible part starts
+// (`--vc-app-top`, the visual viewport's `pageTop`), and lines up with it either way.
 //
 // The keyboard's height is the visible height's shortfall from the keyboard-free height, the
 // tallest seen at this width (a rotation starts over). Not window.innerHeight: with
@@ -69,6 +73,11 @@ export function watchKeyboardViewport() {
     // slide of the page is the browser's (showing the focused box) or the user's dragging
     // it under the keyboard. Undo it.
     if (open && (window.scrollY !== 0 || vv.offsetTop > 0.5)) window.scrollTo(0, 0);
+    // What's left of the slide: the app moves down to meet the visible part (older
+    // browsers have no pageTop: offsetTop plus the scroll).
+    const top = vv.pageTop ?? (window.scrollY + vv.offsetTop);
+    if (open && top > 0.5) root.style.setProperty('--vc-app-top', `${top}px`);
+    else root.style.removeProperty('--vc-app-top');
   };
 
   update();
@@ -80,5 +89,6 @@ export function watchKeyboardViewport() {
     vv.removeEventListener('scroll', update);
     window.removeEventListener('scroll', update);
     root.style.removeProperty('--vc-app-height');
+    root.style.removeProperty('--vc-app-top');
   };
 }
