@@ -2727,23 +2727,66 @@ body.mobile-mode .dm-user-list-container .dm-user {
   box-shadow: 0 8px 24px var(--vc-shadow);
 }
 
-/* ProfileCard: picture, names, status, custom status, bio. */
+/* ProfileCard: banner, picture over its bottom edge, names under it, status, custom status, bio. */
+.profile-banner {
+  position: relative;
+  height: 96px;
+  overflow: hidden;
+  border-radius: 6px;
+  background-color: var(--vc-accent-soft);
+}
+
+.profile-banner img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* In a floating card, edge to edge across its top. */
+.profile-popover .profile-card-banner {
+  height: 120px;
+  margin: -14px -16px 0;
+  border-radius: 7px 7px 0 0;
+}
+
 .profile-card-top {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: -40px;
+}
+
+/* The picture and names open the full profile (UserProfile). */
+.profile-card-open {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-card-name.profile-card-open:hover,
+.profile-card-username.profile-card-open:hover {
+  text-decoration: underline;
 }
 
 .profile-card-avatar {
   position: relative;
+  display: block;
   flex-shrink: 0;
-  width: 56px;
-  height: 56px;
-  --status-size: 11px;
-  --status-center: 8px;
-  --status-gap: 3px;
-  --status-phone-width: 13px;
-  --status-phone-height: 17px;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px var(--vc-bg-elevated);
+  --status-size: 14px;
+  --status-center: 10px;
+  --status-gap: 4px;
+  --status-phone-width: 15px;
+  --status-phone-height: 20px;
 }
 
 .profile-card-avatar img {
@@ -2794,6 +2837,340 @@ body.mobile-mode .dm-user-list-container .dm-user {
   margin-top: 10px;
   padding-top: 8px;
   border-top: 1px solid var(--vc-border-dark);
+}
+
+/* Someone's full profile (UserProfile): a wider window with a bigger banner and picture, then
+   tabs. A dialog like the others (the floating cards step aside: .profile-popover above), so
+   the cropper it opens comes over it. */
+.user-profile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 600px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(var(--vc-app-height) - 32px);
+  overflow-y: auto;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 10px;
+  background-color: var(--vc-bg-elevated);
+  box-shadow: 0 12px 32px var(--vc-popup-shadow);
+}
+
+.user-profile-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--vc-popup);
+  color: var(--vc-fg);
+}
+
+.user-profile-banner {
+  flex-shrink: 0;
+  height: 200px;
+  border-radius: 9px 9px 0 0;
+}
+
+.user-profile-head {
+  position: relative;
+  height: 64px;
+  padding: 0 20px;
+}
+
+.user-profile-avatar {
+  position: absolute;
+  top: -64px;
+  left: 20px;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px var(--vc-bg-elevated);
+  --status-size: 22px;
+  --status-center: 17px;
+  --status-gap: 6px;
+  --status-phone-width: 22px;
+  --status-phone-height: 30px;
+}
+
+.user-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-profile-avatar-view {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: zoom-in;
+}
+
+.user-profile-names {
+  padding: 8px 20px 0;
+}
+
+.user-profile-name {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.user-profile-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 14px 20px 0;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.user-profile-tab {
+  flex-shrink: 0;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-weight: 600;
+}
+
+.user-profile-tab:hover {
+  color: var(--vc-fg);
+}
+
+.user-profile-tab.active {
+  border-bottom-color: var(--vc-accent);
+  color: var(--vc-fg);
+}
+
+.user-profile-panel {
+  min-height: 120px;
+  padding: 12px 20px 20px;
+}
+
+.user-profile-since {
+  margin-top: 14px;
+}
+
+.user-profile-list,
+.user-profile-games {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.user-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+
+.user-profile-row:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.user-profile-row-avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.user-profile-row-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-profile-row-name {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-profile-game {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.user-profile-game-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.user-profile-game-time {
+  grid-row: span 2;
+  align-self: center;
+  color: var(--vc-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Your own: edit buttons on the banner and picture, pencils by the status and about me. */
+.user-profile-banner-edit {
+  position: absolute;
+  right: 52px;
+  top: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.user-profile-edit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 50%;
+  background-color: var(--vc-popup);
+  color: var(--vc-fg);
+  cursor: pointer;
+}
+
+.user-profile-edit-button:hover:not(:disabled) {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.user-profile-colour input {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.user-profile-banner-error {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  margin: 0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: var(--vc-popup);
+}
+
+/* At the picture's lower left (its lower right has the status), placed in the head. */
+.user-profile-picture-change,
+.user-profile-picture-remove {
+  position: absolute;
+  z-index: 1;
+  box-shadow: 0 0 0 3px var(--vc-bg-elevated);
+}
+
+.user-profile-picture-change {
+  left: 18px;
+  top: 28px;
+}
+
+.user-profile-picture-remove {
+  left: 54px;
+  top: 46px;
+}
+
+.user-profile-picture-error {
+  position: absolute;
+  left: 160px;
+  top: 8px;
+  width: max-content;
+  max-width: 360px;
+}
+
+.user-profile-editable {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.user-profile-editable .profile-card-custom-status,
+.user-profile-editable .profile-card-bio {
+  margin-top: 0;
+}
+
+.profile-card-custom-status + .user-profile-edit-inline {
+  margin-top: 8px;
+}
+
+.user-profile-names .user-profile-editable {
+  margin-top: 10px;
+}
+
+.user-profile-edit-inline {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--vc-fg-muted);
+}
+
+.user-profile-edit-inline:hover {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.user-profile-add {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vc-link);
+}
+
+.user-profile-add:hover {
+  text-decoration: underline;
+}
+
+.user-profile-status-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.user-profile-status-edit input {
+  flex: 1;
+  min-width: 160px;
+}
+
+.user-profile-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.user-profile-edit-actions .vc-hint {
+  margin-right: auto;
 }
 
 /* What someone's playing (Rich Presence, utils/activities.js): one line in lists
@@ -3003,8 +3380,34 @@ body.mobile-mode .dm-user-list-container .dm-user {
 
 .edit-profile-picture {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
+}
+
+/* The banner's preview (ProfileBanner), at the profile card's shape. */
+.edit-profile-banner {
+  width: min(340px, 100%);
+  height: auto;
+  aspect-ratio: 5 / 2;
+  margin-bottom: 8px;
+}
+
+.edit-profile-colour {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.edit-profile-colour input {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
 }
 
 .edit-profile-picture img {

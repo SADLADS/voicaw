@@ -134,11 +134,13 @@ describe('MemberList', () => {
     renderList(32 | 256 | 4);
     fireEvent.click(screen.getByText('newbie'));
     const withPermissions = screen.getByRole('dialog', { name: 'newbie' });
-    expect(within(withPermissions).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual(['Add role']);
+    // (The picture and names open the full profile: not actions.)
+    const actions = (card) => within(card).queryAllByRole('button').filter((b) => !b.classList.contains('profile-card-open'));
+    expect(actions(withPermissions).map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual(['Add role']);
     cleanup();
     renderList(0);
     fireEvent.click(screen.getByText('newbie'));
-    expect(within(screen.getByRole('dialog', { name: 'newbie' })).queryAllByRole('button')).toEqual([]);
+    expect(actions(screen.getByRole('dialog', { name: 'newbie' }))).toEqual([]);
   });
 
   describe('levels', () => {

@@ -18,6 +18,7 @@ import PrivacySettings from "./PrivacySettings";
 import BlockedUsers from './BlockedUsers';
 import AuthorisedApps from './AuthorisedApps';
 import AdminReports from './AdminReports';
+import ProfileVisibilitySettings from './ProfileVisibilitySettings';
 import ContentSettings from "./ContentSettings";
 import ThemeSettings from "./ThemeSettings";
 import LanguageSettings from "./LanguageSettings";
@@ -93,6 +94,7 @@ export default function Settings({ onLogout }) {
       id: 'privacy', group: 'user', title: t('settings.pages.privacy'),
       subs: [
         sub('privacy', 'privacy', { content: <PrivacySettings /> }),
+        sub('profile-visibility', 'profileVisibility', { content: <ProfileVisibilitySettings /> }),
         sub('content', 'content', { content: <ContentSettings /> }),
         sub('blocked', 'blocked', { content: <BlockedUsers /> }),
         sub('authorised-apps', 'authorisedApps', { content: <AuthorisedApps /> }),

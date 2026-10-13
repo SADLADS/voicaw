@@ -9,8 +9,16 @@ const db = require('./db');
 //   either can be set without the other
 // - bio: a few lines on their profile card
 // - avatar: their profile picture's id (avatars.js), null for the default one
+// - banner: the picture across the top of their card and profile (avatars.js), null for none
+// - banner_color: the banner's colour (0xRRGGBB) when there's no picture, null for the default
 const LIMITS = { display_name: 32, custom_status: 128, bio: 190, custom_status_emoji: 64 };
-const PROFILE_COLUMNS = 'display_name, custom_status, custom_status_emoji, bio, avatar';
+const PROFILE_COLUMNS = 'display_name, custom_status, custom_status_emoji, bio, avatar, banner, banner_color';
+
+// A banner colour as sent (0xRRGGBB, or null for none): the colour, null, or undefined if invalid.
+function cleanBannerColor(value) {
+  if (value === null) return null;
+  return Number.isInteger(value) && value >= 0 && value <= 0xffffff ? value : undefined;
+}
 
 // A trimmed value within its limit (null when empty), or undefined if it's not valid.
 function clean(field, value) {
@@ -32,4 +40,4 @@ async function displayNameOf(id, fallback = '') {
   return row ? nameOf(row) : fallback;
 }
 
-module.exports = { LIMITS, PROFILE_COLUMNS, clean, nameOf, displayNameOf };
+module.exports = { LIMITS, PROFILE_COLUMNS, clean, cleanBannerColor, nameOf, displayNameOf };

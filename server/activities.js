@@ -2,8 +2,9 @@ const crypto = require('crypto');
 
 // Activities ("Playing Hades", Discord's Rich Presence): what someone's games say they're
 // doing, shared by the desktop app (electron/richPresence.js), and bots' own ("Watching 3
-// guilds", gateway op 3). Kept in memory only, on the socket that set them: never in the
-// database, and gone when that socket closes. Everyone logged in sees them
+// guilds", gateway op 3). Kept in memory only, on the socket that set them, and gone when that
+// socket closes; only people's games' names and times are saved, for their profile's Activity
+// tab (activityHistory.js, 30 days, which they can turn off). Everyone logged in sees them
 // (`user_activities`), as statuses; bots through PRESENCE_UPDATE.
 //
 // One activity: { name, type, details, state, start, end, partySize, partyMax, imageText, image }.

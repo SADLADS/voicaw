@@ -383,11 +383,20 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   the program itself; games' own per-moment pictures (Discord asset keys) aren't shown, but a
   picture given as a web address (Feishin's Navidrome album covers) is downloaded by the
   player's app and shared as the small copy (never the address). A 128 px
-  copy of the picture goes to the server; activities live in its memory only. Shown in the
+  copy of the picture goes to the server; activities live in its memory only (but games' names
+  and times, for full profiles' Activity, 2026-10-13). Shown in the
   member list (unlike custom statuses), the DM list, Friends and profile cards; "Share what I'm
   playing" in Settings → Desktop App, on by default. Bots' own activities show too. Sharing a
   screen in a guild voice channel shows "Streaming in #channel" (before games) to those who can
   see that channel only, from voice states, never for calls (2026-10-09).
+- **Full profiles and banners** (built 2026-10-13, see Full profiles and Banners in
+  `docs/client.md`): Discord's. A card's picture or names open a full profile (a phone skips
+  the card: a full-screen sheet, swiped down to close) with tabs About me, Activity, Mutual
+  friends, Mutual guilds; the picture opens in the image viewer. Banners are a picture (5:2,
+  unencrypted like pictures) or a colour. Activity is the games played over the last 30 days:
+  saved on the server (names and times only, 30 days; a month's history was asked for, and it
+  has to reach other people's apps), the only activity data that is. Each tab can be hidden (Settings → Privacy, shown by default);
+  hiding Activity stops recording it and deletes it. Your own profile is edited in place.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

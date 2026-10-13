@@ -3,7 +3,7 @@ const groups = require('./groupDms');
 const { deleteGuild, removeMember } = require('./guilds');
 const { clients, sendToUserSockets, sendToAllSockets } = require('./sockets');
 const { PROFILE_COLUMNS } = require('./profiles');
-const { removeAvatar } = require('./avatars');
+const { removeAvatar, removeBanner } = require('./avatars');
 
 // Deleting an account (Settings → Delete account), like Discord: the person is gone, but what
 // they wrote stays, under "Deleted User". Their `users` row stays as a tombstone (so messages,
@@ -99,6 +99,7 @@ async function deleteAccount(userId, plan) {
       'DELETE FROM conversation_settings WHERE user_id = ?',
       'DELETE FROM guild_mentions WHERE user_id = ?',
       'DELETE FROM guild_member_xp WHERE user_id = ?', // their XP in every guild (guildLevels.js)
+      'DELETE FROM activity_sessions WHERE user_id = ?', // the games they played (activityHistory.js)
     ]) {
       await db.run(sql, [userId]);
     }
@@ -119,12 +120,13 @@ async function deleteAccount(userId, plan) {
       `UPDATE users SET username = ?, display_name = ?, password = '', key_backup = '', opaque_id = NULL,
          recovery_verifier = NULL, recovery_backup = NULL, recovery_created = NULL,
          two_factor_secret = NULL, two_factor_backup_codes = NULL, two_factor_last_step = NULL,
-         custom_status = NULL, custom_status_emoji = NULL, bio = NULL, description = NULL, preferences = NULL, dictionary = NULL, dictionary_version = 0, emoji_usage = NULL, emoji_usage_version = 0, is_admin = 0, deleted_at = ?
+         custom_status = NULL, custom_status_emoji = NULL, bio = NULL, banner_color = NULL, description = NULL, preferences = NULL, dictionary = NULL, dictionary_version = 0, emoji_usage = NULL, emoji_usage_version = 0, is_admin = 0, deleted_at = ?
        WHERE id = ?`,
       [`Deleted-User-${userId}`, DELETED_NAME, Math.floor(Date.now() / 1000), userId]
     );
   });
   await removeAvatar(userId);
+  await removeBanner(userId);
   // Their notes' and emptied groups' files.
   require('./uploads').releaseUploads();
 

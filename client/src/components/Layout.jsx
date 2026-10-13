@@ -13,6 +13,7 @@ import { useStreamOnPage } from '../hooks/useStreamOnPage';
 import { useCornerDrag } from '../hooks/useCornerDrag';
 import WatchPartyPlayer from './voice/WatchPartyPlayer';
 import IncomingCall from './call/IncomingCall';
+import UserProfileHost from './UserProfileHost';
 import BotModal from './BotModal';
 import { initCalls } from '../voice/callClient';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
@@ -356,6 +357,8 @@ export default function Layout({ user, onLogout }) {
         </div>
         {/* A bot's form, when one of its commands or buttons opens one. */}
         <BotModal />
+        {/* Someone's full profile, from a profile card's picture or names. */}
+        <UserProfileHost user={user} />
 
         {slidey && <div ref={scrimRef} className="pane-scrim" aria-hidden="true" />}
 

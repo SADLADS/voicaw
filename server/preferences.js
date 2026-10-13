@@ -14,9 +14,19 @@ const db = require('./db');
 // - `reactionNotifications`: notifications when someone reacts to your message, as Discord's:
 //   'all' (the default), 'dms' (DMs and group DMs only) or 'off' (reactionPushes.js).
 
+// - `showActivity`, `showMutualFriends`, `showMutualGuilds`: what your profile shows others
+//   (GET /users/:id/profile, routes/userProfiles.js), all on by default. `showActivity` off
+//   also stops recording the games you play and deletes those kept (activityHistory.js).
+
 const REACTION_NOTIFICATIONS = ['all', 'dms', 'off'];
-const DEFAULTS = { blurNsfw: true, adultConfirmed: false, botDms: true, reactionNotifications: 'all' };
+const DEFAULTS = {
+  blurNsfw: true, adultConfirmed: false, botDms: true, reactionNotifications: 'all',
+  showActivity: true, showMutualFriends: true, showMutualGuilds: true,
+};
 const isValid = {
+  showActivity: (v) => typeof v === 'boolean',
+  showMutualFriends: (v) => typeof v === 'boolean',
+  showMutualGuilds: (v) => typeof v === 'boolean',
   blurNsfw: (v) => typeof v === 'boolean',
   adultConfirmed: (v) => typeof v === 'boolean',
   botDms: (v) => typeof v === 'boolean',

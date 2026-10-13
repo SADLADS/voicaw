@@ -160,6 +160,7 @@ function refreshActivities(userId) {
   userId = String(userId);
   const list = activities.activitiesOf(clients.get(userId));
   if (activities.remember(userId, list)) sendToAllSockets({ type: 'user_activities', userId, activities: list });
+  require('./activityHistory').record(userId, list);
 }
 
 // Catches people going idle (their activeUntil passing), and saves last_online now and then.

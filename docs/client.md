@@ -470,6 +470,15 @@ stays the unique handle (logins, @username on the card).
   URLs itself. Pictures from before (one unprocessed `profile-pics/<user id>` each) are converted
   when the server starts (`migrateLegacyAvatars`: lists the bucket's top level, converts,
   deletes; afterwards there's nothing to list).
+- **Banners** (built 2026-10-13): a picture across the top of someone's card and full profile,
+  or a colour (`users.banner`, `users.banner_color` 0xRRGGBB, null = the soft accent). The
+  picture follows the profile picture's path: `POST /profile/banner`, `.../:uploadId/ready
+  { crop }`, `DELETE /profile/banner` (`routes/avatars.js` serves both kinds; an upload started
+  for one can't finish as the other), cut to the cropper's 5:2 rectangle and shrunk to 960×384
+  at most (`avatarImage.js` `processBanner`, never enlarged, animation kept, 2 MB), stored as
+  `profile-pics/<user id>/banner-<id>.webp`; the colour is `PUT /profile { bannerColor }`. Not
+  encrypted, like pictures. Client: `bannerUrl(id)`, drawn by `ProfileBanner`; deleting the
+  account deletes both.
 - **Picture cropper** (`components/ImageCropper.jsx`, maths in `utils/imageCrop.js`): a picked
   profile picture (Edit Profile), guild icon (Guild Settings), bot picture (Developer Portal) or
   webhook picture (a channel's Webhooks tab) opens in a dialog first: the picture under a round hole, dragged into place and zoomed (slider,
@@ -480,8 +489,9 @@ stays the unique handle (logins, @username on the card).
   webhook pictures, sent as data URIs, are cut in the browser before shrinking
   (`croppedPictureData`; GIFs go whole with `avatarCrop`, which `PATCH /applications/:id` and our
   webhook routes take, Discord's don't have it). Escape closes only the cropper (caught before the
-  dialog under it).
-- `ProfileCard` (picture with status, names, custom status, bio) is the guild member card's top
+  dialog under it). `aspect` (2.5 for banners) makes the frame a rectangle: the maths stays the
+  square frame's, with the picture measured as if `aspect` times narrower.
+- `ProfileCard` (banner, picture with status over its edge, names, custom status, bio) is the guild member card's top
   (`guild/MemberCard.jsx`) and the whole card elsewhere. Every person's card is the same 340 px
   floating box (`.profile-popover`): from a member list or a group DM's members
   (`hooks/useFloatingCard.js`, beside the list) and from a name or avatar in chat
@@ -489,7 +499,9 @@ stays the unique handle (logins, @username on the card).
   `GuildView`) a member's card from chat is the member list's `MemberCard` (roles, level, Apps);
   in DMs and group DMs, and for someone who left the guild, the `ProfileCard` alone. Cards have no
   buttons but the roles' and Apps: what can be done to someone is in their right-click menu
-  (see Right-click menus). The DM list, the Friends
+  (see Right-click menus), and the picture, display name and username, which open the full
+  profile. On a phone there's no card: tapping someone (member list, group members, a name or
+  picture in chat) opens the full profile straight away. The DM list, the Friends
   page and your user panel show the custom status under names; a guild's member list
   deliberately doesn't (its rows already have role colours, levels, tags and the crown), only
   the member card does.
@@ -505,8 +517,36 @@ stays the unique handle (logins, @username on the card).
   clicking away saves both) and the emoji's own ✕ shows; ✕ on the status clears both. In Edit
   Profile it's beside the text box, saved with the rest.
 - Settings → Edit Profile is its own page (`/settings/profile`, `EditProfile.jsx`): picture
-  (change or remove), display name, custom status and its emoji, bio, with a live preview; Save uploads the
-  picture (if picked) or removes it, and saves the rest.
+  (change or remove), banner (picture, colour), display name, custom status and its emoji, bio,
+  with a live preview; Save uploads the picture and banner (if picked) or removes them, and saves
+  the rest.
+
+### Full profiles
+
+Built 2026-10-13, as Discord's. `UserProfile.jsx`, opened with `openUserProfile(id)`
+(`utils/userProfile.js`, drawn by `UserProfileHost` in `Layout`, one at a time) from a card's
+picture or names, or straight from a tap on a phone.
+- A 600 px dialog: the banner, a 128 px picture (opens in the image viewer, to see it whole or
+  save it; none for the default picture), names, status, custom status, then tabs: About me (bio,
+  "Voicaw member since"), Activity (`Activities` for now, then the games of the last 30 days with
+  their time and when last played), Mutual friends (a row opens that person's profile in its
+  place) and Mutual guilds (a row goes to the guild). The floating card it was opened from steps
+  aside while it's up (it's a dialog) and comes back after.
+- Tabs come from `GET /users/:id/profile` (`server/routes/userProfiles.js`): `{ memberSince
+  (account_created), activity, mutualFriends (with their profile fields, merged into the store),
+  mutualGuilds }`, each null when hidden by that person's account preferences `showActivity`,
+  `showMutualFriends`, `showMutualGuilds` (Settings → Privacy → Your profile,
+  `ProfileVisibilitySettings`, all on by default), all null between people who blocked each other,
+  404 for pending or deleted accounts. Your own: your activity whatever the setting, with `hidden`
+  saying which are, and no mutual tabs.
+- Your own is edited in place, each part saved at once: picture and banner picture (camera / image
+  buttons, through the cropper), banner colour (a colour input, saved once it rests 0.6 s),
+  remove either, custom status (pencil; emoji button, Enter saves, Escape cancels) and about me
+  (pencil; a box with Save / Cancel).
+- Phone: a full-screen sheet with the emoji panel's handle; a downward swipe (from the top of
+  what's scrolled) follows the finger and closes it past a quarter of its height or with a flick,
+  else springs back (`hooks/useSheetDismiss.js`); the handle closes it too. Mutual tabs are
+  "Friends (n)" / "Guilds (n)" there, so the four fit.
 
 ## Sounds
 

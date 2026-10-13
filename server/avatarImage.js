@@ -78,4 +78,60 @@ async function processAvatar(input, crop = null) {
   return { buffer: output, animated, contentType: 'image/webp' };
 }
 
-module.exports = { processAvatar, parseCrop, AvatarImageError, MAX_AVATAR_UPLOAD_BYTES, AVATAR_SIZE };
+// Profile banners: BANNER_WIDTH×BANNER_HEIGHT (5:2, as Discord's), cut from the rectangle the
+// uploader chose (`crop`, the same fractions; any shape is stretched to 5:2 by `cover`) or from
+// the middle, never enlarged past the original. Animated ones stay animated.
+const BANNER_WIDTH = 960;
+const BANNER_HEIGHT = 384;
+const MAX_BANNER_BYTES = 2 * 1024 * 1024;
+
+async function processBanner(input, crop = null) {
+  let meta;
+  try {
+    meta = await sharp(input, { animated: true, limitInputPixels: false }).metadata();
+  } catch {
+    throw new AvatarImageError("That file isn't an image we can read");
+  }
+  const frames = meta.pages ?? 1;
+  const width = meta.autoOrient?.width ?? meta.width;
+  const frameHeight = frames > 1 ? meta.pageHeight : (meta.autoOrient?.height ?? meta.height);
+  if (!width || !frameHeight) throw new AvatarImageError("That file isn't an image we can read");
+  if (frames > MAX_FRAMES) throw new AvatarImageError(`Animated pictures can have at most ${MAX_FRAMES} frames`);
+  if (width * frameHeight * frames > MAX_PIXELS) throw new AvatarImageError('That image is too large');
+  const animated = frames > 1;
+  let rect = null;
+  if (crop) {
+    const left = Math.min(width - 1, Math.floor(crop.x * width));
+    const top = Math.min(frameHeight - 1, Math.floor(crop.y * frameHeight));
+    rect = {
+      left,
+      top,
+      width: Math.max(1, Math.min(Math.round(crop.width * width), width - left)),
+      height: Math.max(1, Math.min(Math.round(crop.height * frameHeight), frameHeight - top)),
+    };
+  }
+  const sourceWidth = rect ? rect.width : width;
+  const scale = Math.min(1, BANNER_WIDTH / sourceWidth);
+  const outWidth = Math.max(1, Math.round(Math.min(BANNER_WIDTH, sourceWidth * scale)));
+  const outHeight = Math.max(1, Math.round(outWidth * (BANNER_HEIGHT / BANNER_WIDTH)));
+
+  const encode = (quality) => {
+    let image = sharp(input, { animated, limitInputPixels: MAX_PIXELS }).timeout({ seconds: 30 }).autoOrient();
+    if (rect) image = image.extract(rect);
+    return image
+      .resize(outWidth, outHeight, { fit: 'cover', position: 'centre' })
+      .webp({ quality, effort: 4, ...(animated ? { loop: meta.loop ?? 0 } : {}) })
+      .toBuffer();
+  };
+  let output;
+  try {
+    output = await encode(85);
+    if (output.length > MAX_BANNER_BYTES) output = await encode(50);
+  } catch {
+    throw new AvatarImageError("That image couldn't be processed");
+  }
+  if (output.length > MAX_BANNER_BYTES) throw new AvatarImageError('That animation is too long, even when shrunk');
+  return { buffer: output, animated, contentType: 'image/webp' };
+}
+
+module.exports = { processAvatar, processBanner, parseCrop, AvatarImageError, MAX_AVATAR_UPLOAD_BYTES, AVATAR_SIZE, BANNER_WIDTH, BANNER_HEIGHT };

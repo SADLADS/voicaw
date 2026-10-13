@@ -60,6 +60,10 @@
         "title": "Privacy",
         "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy link links website websites image images picture pictures notification notifications lock screen search copy index history"
       },
+      "profileVisibility": {
+        "title": "Your profile",
+        "keywords": "profile activity games played history rich presence mutual friends guilds common shared hide show"
+      },
       "content": {
         "title": "Content",
         "keywords": "nsfw blur blurred spoiler spoilers media images pictures videos gifs adult explicit sensitive hide age 18 over confirm bots bot messages direct dms"
@@ -721,6 +725,12 @@
       "changePicture": "Change picture",
       "choosePicture": "Choose a profile picture",
       "pictureHint": "PNG, JPEG, GIF or WebP. up to 8 MB.",
+      "banner": "Banner",
+      "changeBanner": "Change banner image",
+      "chooseBanner": "Choose a banner image",
+      "bannerColour": "Banner colour",
+      "noColour": "Default colour",
+      "bannerHint": "A picture across the top of your profile (cut to 5:2, PNG, JPEG, GIF or WebP, up to 8 MB), or just a colour. Shown to everyone logged in.",
       "displayName": "Display name",
       "displayNameHint": "Shown instead of your username ({{username}}). Leave it empty to use your username.",
       "customStatus": "Custom status",
@@ -801,6 +811,16 @@
       "confirmTitle": "Log Out",
       "confirmMessage": "Are you sure you want to log out?",
       "confirm": "Log Out"
+    },
+    "profileVisibility": {
+      "title": "Your profile",
+      "hint": "What others see in your profile's tabs. Your picture, names, banner, status and about me are always shown to everyone logged in.",
+      "showActivity": "Show my activity",
+      "showActivityHint": "The games you played in the last 30 days, with how long, from what the desktop app shares (Settings → Desktop App). Only the game's name and the times are kept, for 30 days. Turned off, nothing is recorded and what was kept is deleted.",
+      "showMutualFriends": "Show mutual friends",
+      "showMutualFriendsHint": "The friends you have in common with whoever opens your profile.",
+      "showMutualGuilds": "Show mutual guilds",
+      "showMutualGuildsHint": "The guilds you're both in."
     }
   }
 }

@@ -2,7 +2,7 @@
 // the chat, left of the panel at their row's height (the rows don't move), only the profile;
 // Escape and a click elsewhere close it; right-clicking a member gives the person's menu. A name
 // in the chat opens the same card.
-// Phone: below the row, on screen.
+// Phone: a member or a name opens the full profile instead (no card).
 //   node e2e/serve.mjs &   then   node e2e/groupcard.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
 import { launchChrome, signUp, devices, BASE, makeFriends, send } from './helpers.mjs';
@@ -56,7 +56,7 @@ try {
   check(Math.abs(cardBox.y - rowBox.y) < 2 && Math.round(cardBox.width) === 340, `at Bea's row's height, 340 px wide (${Math.round(cardBox.width)})`);
   check(JSON.stringify(await rowTops()) === JSON.stringify(topsBefore), "the other members didn't move");
   check((await card.locator('.profile-card-name').textContent()).includes(bea.name), "it's Bea's profile");
-  check(!(await card.locator('.member-card-roles, button').count()), 'only the profile: no roles, no buttons');
+  check(!(await card.locator('.member-card-roles, button:not(.profile-card-open)').count()), 'only the profile: no roles, no buttons (but the picture and names, which open the profile)');
   await shot(a, 'group-card');
   await a.keyboard.press('Escape');
   await card.waitFor({ state: 'detached' });
@@ -77,23 +77,25 @@ try {
   await a.locator(`.message-author:has-text("${ann.name}")`).first().click();
   const fromName = a.locator('.profile-popover');
   await fromName.waitFor();
-  check(Math.round((await fromName.boundingBox()).width) === 340 && !(await fromName.locator('.member-card-roles, button').count()), 'a name in the chat opens the same 340 px card, profile only');
+  check(Math.round((await fromName.boundingBox()).width) === 340 && !(await fromName.locator('.member-card-roles, button:not(.profile-card-open)').count()), 'a name in the chat opens the same 340 px card, profile only');
   await shot(a, 'group-name-card');
   await a.keyboard.press('Escape');
   await fromName.waitFor({ state: 'detached' });
 
-  // Phone: below the row, within the screen.
+  // Phone: a tap skips the card, straight to the full profile (full screen); a name too.
   await d.goto(`${BASE}${groupPath}`);
   await d.waitForSelector('#dm-input[contenteditable="true"]', { timeout: 20000 });
   await showMembers(d);
-  const annRow = d.locator(`.group-member-open:has-text("${ann.name}")`);
-  await annRow.tap();
-  await visible(d);
-  const phoneCard = await d.locator('.member-card').boundingBox();
-  const phoneRow = await annRow.boundingBox();
-  const width = d.viewportSize().width;
-  check(phoneCard.x >= 0 && phoneCard.x + phoneCard.width <= width && phoneCard.y >= phoneRow.y + phoneRow.height, `phone: below Ann's row, on screen (${Math.round(phoneCard.x)}-${Math.round(phoneCard.x + phoneCard.width)} of ${width})`);
-  await shot(d, 'group-card-phone');
+  await d.locator(`.group-member-open:has-text("${ann.name}")`).tap();
+  await d.locator('.user-profile.sheet').waitFor();
+  check(!(await d.$('.member-card')), "phone: a tap opens Ann's full profile, no card");
+  await d.locator('.user-profile-handle').tap();
+  await d.locator('.user-profile').waitFor({ state: 'detached' });
+  if (await d.$('.group-members')) await d.click('.group-members-header button[aria-label="Close"]');
+  await d.locator(`.message-author:has-text("${ann.name}")`).first().tap();
+  await d.locator('.user-profile.sheet').waitFor();
+  check(!(await d.$('.profile-popover')), 'phone: a name in the chat opens the full profile, no card');
+  await shot(d, 'group-profile-phone');
 
   console.log('groupcard: all good');
 } finally {

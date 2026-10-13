@@ -2127,6 +2127,15 @@ body.sidebar-resizing * {
   pointer-events: none;
 }
 
+/* A banner (`aspect`): a wider rectangle, the whole frame kept. */
+.image-cropper-wide .image-cropper-frame {
+  width: min(440px, 100%);
+}
+
+.image-cropper-wide .image-cropper-mask {
+  border-radius: 0;
+}
+
 .image-cropper-zoom {
   display: flex;
   align-items: center;

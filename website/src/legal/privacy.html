@@ -63,14 +63,21 @@
     saved: they're forgotten a minute after everyone has left the channel. Voice
     channels, cameras and screen sharing go through Voicaw's own voice server without end-to-end
     encryption.</li>
-  <li><strong>Your profile</strong>: username, display name, status, bio and picture, and when you
-    were last online. Everyone logged in to Voicaw can see these.</li>
+  <li><strong>Your profile</strong>: username, display name, status, bio, picture and banner (a
+    picture or a colour), when you joined Voicaw, and when you were last online. Everyone logged
+    in to Voicaw can see these. Whoever opens your profile also sees the friends you have in
+    common and the guilds you're both in, unless you hide them in Settings → Privacy ("Your
+    profile").</li>
   <li><strong>What you're playing</strong>: if you use the desktop app and a game on your computer
     reports what you're doing (as it would to Discord), the app sends the game's name, what the
     game says (for example the level, your party's size and how long you've played) and a small
     copy of the game's picture to Voicaw's server. Everyone logged in to Voicaw can see them, and
-    so can bots in guilds you're in. They're kept only in the server's memory, never saved: they go
-    when the game stops or the app disconnects. The app finds games' names and pictures on your
+    so can bots in guilds you're in. All of this is kept only in the server's memory: it goes
+    when the game stops or the app disconnects. Only each game's name and when you played it
+    (when each session started and ended) are saved, for your profile's Activity tab, which shows
+    everyone logged in the games you played in the last 30 days and for how long; sessions older
+    than 30 days are deleted. Turning off "Show my activity" in Settings → Privacy hides it,
+    stops saving it and deletes what was saved at once. The app finds games' names and pictures on your
     computer (in Steam's files and the game's own) and never asks Discord or anyone else; when a
     game gives its picture as a web address instead (a music player's album cover on your music
     server), your app downloads it from there, so that server sees your IP address, and only the
@@ -99,14 +106,14 @@
   it, or you withdraw your request, the account is deleted completely, name included. If you
   sign up with an invite, Voicaw only counts that the invite was used, not who used it.</p>
 <p>Some settings are kept with your account so they follow you: muted and pinned conversations,
-  muted guilds and channels, notification levels, which reactions to your messages you're told about, favourite GIFs, whether pictures in NSFW channels are blurred, and whether
+  muted guilds and channels, notification levels, which reactions to your messages you're told about, favourite GIFs, which of your profile's tabs others see, whether pictures in NSFW channels are blurred, and whether
   you have said you are 18 or over (only that answer: never your date of birth or age). Most
   others (theme, language, privacy choices, unsent drafts) stay on the device.</p>
 
 <h2 id="files">Files</h2>
 <p>Files and pictures are kept in Voicaw's file store. Files in direct messages and group chats are
   encrypted before they leave your device, so the store only has scrambled data. Files in guilds,
-  profile pictures and custom emoji aren't encrypted, and can be opened by anyone who has their
+  profile pictures, profile banners and custom emoji aren't encrypted, and can be opened by anyone who has their
   (long, unguessable) link. Files no message uses any more (a deleted message's, or one never
   sent) are deleted, normally within a day.</p>
 
@@ -165,7 +172,9 @@
   received (and when), until you remove the friend, the request is answered or cancelled, either of
   you blocks the other, or either account is deleted. These aren't end-to-end encrypted: the server
   needs them to show your lists. Admins can see a list of every account, as everyone could before
-  friends existed; the app doesn't show them who your friends are.</p>
+  friends existed; the app doesn't show them who your friends are. Someone who opens your
+  profile sees the friends you both have, unless you turn off "Show mutual friends" in Settings →
+  Privacy.</p>
 
 <h2 id="safety">Blocking, reports and suspensions</h2>
 <p>Voicaw keeps who you've blocked (and when) until you unblock them or either account is deleted.
@@ -214,8 +223,8 @@
 
 <h2 id="deleting">Deleting your account</h2>
 <p>You can delete your account in Settings → Account (<a href="/delete-account/">how, and exactly
-  what goes</a>). Your profile, password data, key copies, devices, notes, settings and memberships
-  go at once. Messages you sent stay in the conversations and guilds they're in, shown as from
+  what goes</a>). Your profile (with the record of the games you played), password data, key
+  copies, devices, notes, settings and memberships go at once. Messages you sent stay in the conversations and guilds they're in, shown as from
   "Deleted User", as they are part of other people's chats.</p>
 
 <h2 id="rights">Your rights</h2>

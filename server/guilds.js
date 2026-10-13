@@ -243,7 +243,7 @@ async function announceGuildUpdate(guildId) {
 // A member for the member list: id, name, join time, role ids, XP (guildLevels.js).
 async function getMemberListEntry(guildId, userId) {
   const row = await db.get(
-    `SELECT u.id, u.username, u.display_name, u.custom_status, u.custom_status_emoji, u.bio, u.avatar, u.last_online, u.bot, gm.joined_at FROM guild_members gm JOIN users u ON u.id = gm.user_id
+    `SELECT u.id, u.username, u.display_name, u.custom_status, u.custom_status_emoji, u.bio, u.avatar, u.banner, u.banner_color, u.last_online, u.bot, gm.joined_at FROM guild_members gm JOIN users u ON u.id = gm.user_id
      WHERE gm.guild_id = ? AND gm.user_id = ?`,
     [guildId, userId]
   );
