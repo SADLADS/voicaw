@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCamera, faImage, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faCamera, faImage, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { ImageViewerContext, InteractionContext } from '../contexts';
 import Avatar from './Avatar';
 import StatusIcon from './StatusIcon';
@@ -44,8 +44,9 @@ function playTime(seconds) {
 // picture or names (utils/userProfile.js); a mutual friend opens theirs in its place
 // (`onOpenProfile`), a mutual guild goes there.
 // Yours (`me`) is edited in place, each part saved at once: picture and banner picture (through
-// the cropper), banner colour, display name, custom status (and its emoji) and about me (what
-// Settings' Edit Profile page had: it's opened from there now, and from the user menu);
+// the cropper), banner colour, and display name, custom status (its emoji button and text, as in
+// the user menu) and about me, each edited by clicking it (InlineText) (what Settings' Edit
+// Profile page had: it's opened from there now, and from the user menu);
 // Activity says when it's hidden from others or off.
 // On a phone it's a full-screen sheet, as the emoji panel pulled up, with its handle: swiping
 // it down (from the top of what's scrolled) closes it (useSheetDismiss), as does the handle.
@@ -125,7 +126,7 @@ export default function UserProfile({ userId, me, onClose, onOpenProfile }) {
           {own && <OwnPictureButtons userId={userId} />}
         </div>
         <div className="user-profile-names">
-          {own ? <OwnName userId={userId} name={name} /> : <h4 className="user-profile-name">{name}</h4>}
+          {own ? <OwnName userId={userId} /> : <h4 className="user-profile-name">{name}</h4>}
           {profile.display_name && <div className="profile-card-username">{profile.username}</div>}
           <div className={`profile-card-presence ${presence.status}`}>
             {presence.status === 'offline' ? lastSeenText(presence.lastOnline) ?? statusLabel('offline') : statusLabel(presence.status)}
@@ -317,177 +318,129 @@ function OwnPictureButtons({ userId }) {
   );
 }
 
-// Your display name: shown with a pencil, or edited (empty: your username; Enter or Save,
-// Escape or Cancel).
-function OwnName({ userId, name }) {
-  const profile = getProfile(userId) ?? {};
-  const [editing, setEditing] = useState(null);
-  const [busy, setBusy] = useState(false);
+// A text of your profile that's edited where it's shown (no pencil, no Save): it looks like the
+// text until clicked; Enter (or Ctrl+Enter when `multiline`, where Enter is a new line) or
+// clicking away saves it, Escape puts it back. `onSave(text)` resolves once saved (errors shown).
+function InlineText({ value, onSave, multiline = false, className = '', label, placeholder, maxLength, title }) {
+  const [draft, setDraft] = useState(value);
+  const [focused, setFocused] = useState(false);
   const [error, setError] = useState(null);
-  const save = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      mergeProfiles([await updateProfile({ displayName: editing.trim() })]);
-      setEditing(null);
-    } catch (err) {
-      setError(errorText(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-  if (editing == null) {
-    return (
-      <div className="user-profile-editable">
-        <h4 className="user-profile-name">{name}</h4>
-        <button
-          type="button"
-          className="user-profile-edit-inline"
-          aria-label={t('app.profile.editName')}
-          title={t('app.profile.editName')}
-          onClick={() => setEditing(profile.display_name ?? '')}
-        >
-          <FontAwesomeIcon icon={faPen} />
-        </button>
-      </div>
-    );
-  }
-  return (
-    <div className="user-profile-name-edit">
-      <div className="user-profile-status-edit">
-        <input
-          className="form-control form-control-sm"
-          aria-label={t('settings.profile.displayName')}
-          placeholder={profile.username}
-          maxLength={PROFILE_LIMITS.display_name}
-          value={editing}
-          autoFocus
-          onChange={(e) => setEditing(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); save(); }
-            if (e.key === 'Escape') { e.preventDefault(); setEditing(null); }
-          }}
-        />
-        <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={save}>{busy ? t('app.profile.saving') : t('common.save')}</button>
-        <button type="button" className="btn btn-sm btn-secondary" disabled={busy} onClick={() => setEditing(null)}>{t('common.cancel')}</button>
-      </div>
-      <p className="vc-hint">{t('settings.profile.displayNameHint', { username: profile.username })}</p>
-      {error && <p className="error-msg" role="alert">{error}</p>}
-    </div>
-  );
-}
+  const cancelled = useRef(false);
+  const ref = useRef(null);
+  // Follows the saved text (here or from another device) unless it's being edited.
+  useEffect(() => { if (!focused) setDraft(value); }, [value, focused]);
+  // A multi-line box grows with its text.
+  useEffect(() => {
+    const box = ref.current;
+    if (!multiline || !box) return;
+    box.style.height = 'auto';
+    box.style.height = `${box.scrollHeight}px`;
+  }, [multiline, draft]);
 
-// Your custom status: shown with a pencil, or edited (emoji, text; Enter or Save, Escape or Cancel).
-function OwnStatus({ userId }) {
-  const profile = getProfile(userId) ?? {};
-  const [editing, setEditing] = useState(null); // { text, emoji } while editing
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const save = async () => {
-    setBusy(true);
+  const commit = async () => {
+    setFocused(false);
+    if (cancelled.current) {
+      cancelled.current = false;
+      setDraft(value);
+      return;
+    }
+    const text = multiline ? draft.trim().replace(/\n{3,}/g, '\n\n') : draft.trim();
+    if (text === (value ?? '').trim()) return;
     setError(null);
     try {
-      mergeProfiles([await updateProfile({ customStatus: editing.text.trim(), customStatusEmoji: editing.emoji ?? '' })]);
-      setEditing(null);
+      await onSave(text);
     } catch (err) {
       setError(errorText(err));
-    } finally {
-      setBusy(false);
+      setDraft(value);
     }
   };
-  if (!editing) {
-    const has = profile.custom_status || profile.custom_status_emoji;
-    return (
-      <div className="user-profile-editable">
-        {has && <CustomStatus profile={profile} className="profile-card-custom-status" />}
-        <button
-          type="button"
-          className={has ? 'user-profile-edit-inline' : 'user-profile-add'}
-          aria-label={t('app.profile.editStatus')}
-          title={t('app.profile.editStatus')}
-          onClick={() => setEditing({ text: profile.custom_status ?? '', emoji: profile.custom_status_emoji ?? null })}
-        >
-          {has ? <FontAwesomeIcon icon={faPen} /> : t('app.profile.setStatus')}
-        </button>
-      </div>
-    );
-  }
+  const Field = multiline ? 'textarea' : 'input';
   return (
-    <div className="user-profile-status-edit">
-      <StatusEmojiButton emoji={editing.emoji} onChange={(emoji) => setEditing((e) => ({ ...e, emoji: emoji ?? null }))} />
-      <input
-        className="form-control form-control-sm"
-        aria-label={t('settings.profile.customStatus')}
-        placeholder={t('settings.profile.customStatusPlaceholder')}
-        maxLength={PROFILE_LIMITS.custom_status}
-        value={editing.text}
-        autoFocus
-        onChange={(e) => setEditing((s) => ({ ...s, text: e.target.value }))}
+    <>
+      <Field
+        ref={ref}
+        className={`user-profile-inline ${className}`}
+        aria-label={label}
+        title={title}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        rows={multiline ? 1 : undefined}
+        value={draft}
+        spellCheck={multiline}
+        onFocus={() => setFocused(true)}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); save(); }
-          if (e.key === 'Escape') { e.preventDefault(); setEditing(null); }
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelled.current = true;
+            e.currentTarget.blur();
+          } else if (e.key === 'Enter' && (!multiline || e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            e.currentTarget.blur();
+          }
         }}
       />
-      <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={save}>{busy ? t('app.profile.saving') : t('common.save')}</button>
-      <button type="button" className="btn btn-sm btn-secondary" disabled={busy} onClick={() => setEditing(null)}>{t('common.cancel')}</button>
+      {error && <p className="error-msg" role="alert">{error}</p>}
+    </>
+  );
+}
+
+// Your display name, edited where it's shown (empty: your username, its placeholder).
+function OwnName({ userId }) {
+  const profile = getProfile(userId) ?? {};
+  return (
+    <InlineText
+      className="user-profile-name"
+      label={t('settings.profile.displayName')}
+      title={t('settings.profile.displayNameHint', { username: profile.username })}
+      placeholder={profile.username}
+      maxLength={PROFILE_LIMITS.display_name}
+      value={profile.display_name ?? ''}
+      onSave={async (text) => mergeProfiles([await updateProfile({ displayName: text })])}
+    />
+  );
+}
+
+// Your custom status, as the user menu has it: the emoji button (a pick saves at once) and the
+// text, edited where it's shown.
+function OwnStatus({ userId }) {
+  const profile = getProfile(userId) ?? {};
+  const [error, setError] = useState(null);
+  const save = async (changes) => mergeProfiles([await updateProfile(changes)]);
+  return (
+    <div className="user-profile-status">
+      <StatusEmojiButton
+        emoji={profile.custom_status_emoji ?? null}
+        onChange={(emoji) => {
+          setError(null);
+          save({ customStatusEmoji: emoji ?? '' }).catch((err) => setError(errorText(err)));
+        }}
+      />
+      <InlineText
+        className="user-profile-status-text"
+        label={t('settings.profile.customStatus')}
+        placeholder={t('app.profile.setStatus')}
+        maxLength={PROFILE_LIMITS.custom_status}
+        value={profile.custom_status ?? ''}
+        onSave={(text) => save({ customStatus: text })}
+      />
       {error && <p className="error-msg" role="alert">{error}</p>}
     </div>
   );
 }
 
-// Your about me: shown with a pencil, or edited in a box (Save / Cancel; Escape cancels).
+// Your about me, edited where it's shown (new lines allowed: clicking away saves).
 function OwnBio({ userId }) {
-  const bio = getProfile(userId)?.bio ?? '';
-  const [editing, setEditing] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const save = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      mergeProfiles([await updateProfile({ bio: editing })]);
-      setEditing(null);
-    } catch (err) {
-      setError(errorText(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-  if (editing == null) {
-    return (
-      <div className="user-profile-editable">
-        {bio && <p className="profile-card-bio">{bio}</p>}
-        <button
-          type="button"
-          className={bio ? 'user-profile-edit-inline' : 'user-profile-add'}
-          aria-label={t('app.profile.editBio')}
-          title={t('app.profile.editBio')}
-          onClick={() => setEditing(bio)}
-        >
-          {bio ? <FontAwesomeIcon icon={faPen} /> : t('app.profile.addBio')}
-        </button>
-      </div>
-    );
-  }
   return (
-    <div className="user-profile-bio-edit">
-      <textarea
-        className="form-control"
-        rows={4}
-        aria-label={t('settings.profile.aboutMe')}
-        placeholder={t('settings.profile.aboutMePlaceholder')}
-        maxLength={PROFILE_LIMITS.bio}
-        value={editing}
-        autoFocus
-        onChange={(e) => setEditing(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setEditing(null); } }}
-      />
-      <div className="user-profile-edit-actions">
-        <span className="vc-hint">{editing.length}/{PROFILE_LIMITS.bio}</span>
-        <button type="button" className="btn btn-sm btn-secondary" disabled={busy} onClick={() => setEditing(null)}>{t('common.cancel')}</button>
-        <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={save}>{busy ? t('app.profile.saving') : t('common.save')}</button>
-      </div>
-      {error && <p className="error-msg" role="alert">{error}</p>}
-    </div>
+    <InlineText
+      multiline
+      className="profile-card-bio"
+      label={t('settings.profile.aboutMe')}
+      placeholder={t('app.profile.addBio')}
+      maxLength={PROFILE_LIMITS.bio}
+      value={getProfile(userId)?.bio ?? ''}
+      onSave={async (text) => mergeProfiles([await updateProfile({ bio: text })])}
+    />
   );
 }

@@ -101,12 +101,8 @@
       "changeBanner": "Change banner image",
       "removeBanner": "Remove banner",
       "bannerColour": "Banner colour",
-      "editStatus": "Edit status",
-      "editName": "Edit display name",
       "setStatus": "Set a custom status",
-      "editBio": "Edit about me",
-      "addBio": "Add something about you",
-      "saving": "Saving…"
+      "addBio": "Add something about you"
     },
     "presence": {
       "online": "Online",
