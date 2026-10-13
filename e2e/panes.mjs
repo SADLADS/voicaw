@@ -74,6 +74,27 @@ try {
   await settle(page);
   check(await pane(page) === 'content', 'a short slow drag goes back to the chat');
 
+  // A second finger mid-swipe (starting to scroll) lets the panes go: never left half way.
+  {
+    const cdp = await page.context().newCDPSession(page);
+    const y = height * 0.6;
+    const fingers = (type, points) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
+    await fingers('touchStart', [{ x: 40, y, id: 0 }]);
+    for (let i = 1; i <= 8; i++) {
+      await fingers('touchMove', [{ x: 40 + i * 15, y, id: 0 }]);
+      await page.waitForTimeout(16);
+    }
+    await fingers('touchStart', [{ x: 160, y, id: 0 }, { x: width * 0.7, y, id: 1 }]);
+    for (let i = 1; i <= 10; i++) {
+      await fingers('touchMove', [{ x: 160, y, id: 0 }, { x: width * 0.7, y: y - i * 20, id: 1 }]);
+      await page.waitForTimeout(16);
+    }
+    await fingers('touchEnd', []);
+    await cdp.detach();
+    await settle(page).catch(() => {});
+    check(await pane(page) === 'content', 'a second finger mid-swipe settles the panes');
+  }
+
   // Flick a short way: goes to the list.
   const historyBefore = await page.evaluate(() => history.length);
   await drag(page, { x: 40, y: height * 0.5, dx: width * 0.25, steps: 4, ms: 8 });

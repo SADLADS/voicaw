@@ -269,8 +269,28 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
     if (!enabled || !wrapper) return undefined;
     let touch = null; // { id, x0, y0, from, decided, samples }
 
+    // Lets go of the panes: they slide to the side the finger left them nearer to, or the way
+    // it was flicked (`samples`: its last positions).
+    const release = (samples = []) => {
+      const x = motion.current.x ?? 0;
+      const w = width();
+      // Speed over the last ~100ms (px/ms); an older sample would dull a quick flick.
+      const recent = samples.filter((s) => samples.at(-1).t - s.t <= 100);
+      const first = recent[0];
+      const lastSample = recent.at(-1);
+      const v = first && lastSample && lastSample.t > first.t ? (lastSample.x - first.x) / (lastSample.t - first.t) : 0;
+      let next;
+      if (v > FLING_PX_PER_MS) next = 'list';
+      else if (v < -FLING_PX_PER_MS) next = 'content';
+      else next = x > w / 2 ? 'list' : 'content';
+      slideTo(next, { v: v * 1000 });
+    };
+
     const onStart = (e) => {
       if (e.touches.length !== 1 || e.target.closest?.(NO_SWIPE)) {
+        // A second finger (scrolling, pinching) mid-swipe: the swipe ends there, never
+        // leaving the panes half way.
+        if (touch?.decided) release();
         touch = null;
         return;
       }
@@ -282,7 +302,9 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
         y0: t.clientY,
         // Where the content is when the finger lands (caught mid-slide, it stops there).
         from: m.x ?? (paneRef.current === 'content' ? 0 : width()),
-        decided: m.raf !== 0, // a slide in progress is grabbed at once
+        // Panes that aren't at rest (sliding, or somehow left part way) are grabbed at once,
+        // so even a tap settles them.
+        decided: m.x !== null,
         samples: [],
       };
       if (m.raf) {
@@ -310,6 +332,13 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
         touch.x0 = t.clientX; // no jump by the few pixels it took to decide
         wrapper.classList.add('panes-moving');
       }
+      if (!e.cancelable) {
+        // The browser is scrolling already and won't be stopped: let the panes go.
+        const { samples } = touch;
+        touch = null;
+        release(samples);
+        return;
+      }
       e.preventDefault();
       const x = Math.min(Math.max(touch.from + t.clientX - touch.x0, 0), width());
       motion.current.x = x;
@@ -323,19 +352,7 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
       if ([...e.touches].some((each) => each.identifier === touch.id)) return;
       const { decided, samples } = touch;
       touch = null;
-      if (!decided) return;
-      const x = motion.current.x ?? 0;
-      const w = width();
-      // Speed over the last ~100ms (px/ms); an older sample would dull a quick flick.
-      const recent = samples.filter((s) => samples.at(-1).t - s.t <= 100);
-      const first = recent[0];
-      const lastSample = recent.at(-1);
-      const v = first && lastSample && lastSample.t > first.t ? (lastSample.x - first.x) / (lastSample.t - first.t) : 0;
-      let next;
-      if (v > FLING_PX_PER_MS) next = 'list';
-      else if (v < -FLING_PX_PER_MS) next = 'content';
-      else next = x > w / 2 ? 'list' : 'content';
-      slideTo(next, { v: v * 1000 });
+      if (decided) release(samples);
     };
 
     wrapper.addEventListener('touchstart', onStart, { passive: true });
