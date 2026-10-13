@@ -147,7 +147,7 @@ The emoji picker in the message box has an Emoji / GIFs tab bar when the server 
 (`/api/config` `gifsEnabled`; read when the app loads). `components/GifPicker.jsx` shares the
 picker's search box (so mobile docked search works the same), shows Trending or Favourites
 without a query, loads pages as you scroll, lays GIFs out in two shortest-first columns, and
-has a star on each for favourites. The last tab is remembered (`localStorage emojiPickerTab`).
+has a star on each for favourites. It always opens on the Emoji tab.
 - **Server** (`routes/gifs.js`): `GET /gifs/trending|search?q=&page=` proxy Klipy, so the key
   stays on the server and Klipy gets an HMAC pseudonym per user (`customer_id`), not who's
   searching. Results are cut down to `{ id, title, url (hd WebP), width, height, preview (sm),

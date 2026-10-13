@@ -20,12 +20,6 @@ const KEYBOARD_DEBUG = typeof location !== 'undefined' && new URLSearchParams(lo
 
 const TONE_SAMPLE = 'raised_hand';
 
-// The tab (Emoji or GIFs) the picker last had open, per device.
-const TAB_KEY = 'emojiPickerTab';
-function savedTab() {
-  try { return localStorage.getItem(TAB_KEY) === 'gifs' ? 'gifs' : 'emoji'; } catch { return 'emoji'; }
-}
-
 // Custom emoji images only load once they're within a screen of the picker's visible area. The
 // browser's own `loading="lazy"` looks much further ahead (hundreds of images on open), so
 // the emoji actually on screen had to queue behind ones nobody could see yet.
@@ -171,7 +165,8 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
   const custom = useCustomEmoji();
   const { s3Endpoint, gifsEnabled } = useContext(ConfigContext) ?? {};
   const hasGifs = Boolean(onGif && gifsEnabled && !category);
-  const [tab, setTabState] = useState(savedTab);
+  // Always opens on Emoji (GIFs is one click away), whichever tab it was closed on.
+  const [tab, setTabState] = useState('emoji');
   const gifTab = hasGifs && tab === 'gifs';
   const [query, setQuery] = useState('');
   const [tone, setTone] = useState(getSkinTone);
@@ -277,7 +272,6 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
   const setTab = (value) => {
     setTabState(value);
     setQuery('');
-    try { localStorage.setItem(TAB_KEY, value); } catch { /* private mode */ }
     // Clicking the tab took focus from the search box: give it back, ready to type.
     if (autoFocus && !docked) searchRef.current?.focus();
   };

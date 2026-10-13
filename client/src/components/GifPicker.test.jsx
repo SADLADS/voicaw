@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 
 vi.mock('../services/gifService', () => ({
   trendingGifs: vi.fn(),
@@ -90,10 +90,17 @@ describe('GIFs tab', () => {
     expect(gifService.searchGifs).toHaveBeenCalledWith('cats', 1, expect.anything());
   });
 
-  it('remembers the tab, and keeps favourites', async () => {
+  it('opens on Emoji again after closing on GIFs', () => {
     renderPicker();
     fireEvent.click(screen.getByRole('tab', { name: 'GIFs' }));
-    expect(localStorage.getItem('emojiPickerTab')).toBe('gifs');
+    cleanup();
+    renderPicker();
+    expect(screen.getByRole('tab', { name: 'Emoji' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('keeps favourites', async () => {
+    renderPicker();
+    fireEvent.click(screen.getByRole('tab', { name: 'GIFs' }));
     await screen.findByRole('button', { name: 'Trending one' });
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Add to favourites' }));
