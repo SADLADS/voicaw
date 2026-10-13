@@ -382,7 +382,8 @@
   `inert`, which restyle the whole chat each time they change. The lists'
   rows (channels, threads, categories, DMs, members) colour on hover only with a mouse
   (`@media (hover: hover)`): a phone's Chrome sets `:hover` on the row a finger rests on before
-  scrolling, and keeps it. Their links also pin their own colour under `:hover`, or the link
+  scrolling, and keeps it. The rail's too: its marker grows on hover and the + turns green
+  only with a mouse, or a tap dragged off an icon leaves them so. Their links also pin their own colour under `:hover`, or the link
   colour every `a:hover` gets (`voicaw.css`) shows through there (`e2e/touchhover.mjs`).
 - Desktop vs. mobile layouts are two separate CSS files (`assets/css/desktop.css` /
   `mobile.css`) toggled via body classes rather than component-level responsive branches

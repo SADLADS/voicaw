@@ -356,9 +356,13 @@ body {
   opacity: 1;
 }
 
-.nav-item:hover .dot {
-  opacity: 1;
-  height: 20px;
+/* Only with a mouse: on a touch screen a tap dragged off the icon leaves :hover set, and the
+   pip stays grown. */
+@media (hover: hover) {
+  .nav-item:hover .dot {
+    opacity: 1;
+    height: 20px;
+  }
 }
 
 .nav-item.active .dot {

@@ -49,9 +49,12 @@
   color: inherit;
 }
 
-.nav-icon.rail-add:hover {
-  background-color: var(--vc-success);
-  color: var(--vc-on-accent);
+/* Only with a mouse, like the pip (voicaw.css): a touch would leave it green. */
+@media (hover: hover) {
+  .nav-icon.rail-add:hover {
+    background-color: var(--vc-success);
+    color: var(--vc-on-accent);
+  }
 }
 
 /* ---- Guild icon (picture or initials) ---- */
