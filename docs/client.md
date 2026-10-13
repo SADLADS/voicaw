@@ -142,7 +142,8 @@
   (see Full profiles); `/settings/profile`, the old Edit Profile page's address, opens it over
   `/settings`.
   On a phone the column is the list pane and a page slides over it (see Phone panes); the list
-  shows only the pages, and `/settings` alone is the list (on a computer, My Account). The old
+  shows only the pages, and `/settings` alone is My Account (a phone opens on the list, with
+  My Account behind it, so swiping left never shows an empty pane). The old
   one-page Settings' links (`/settings#devices`) go to the page holding that subsection, by id
   or `aliases` (`#account-security` → My Account → Password). Add a new setting as a
   subsection of the fitting page (or a new page in `pages`).
@@ -349,7 +350,7 @@
   (rail + conversations or channels, or Settings' column) underneath, the chat (or a Settings
   page) on top, Discord style. In Settings a page goes over the list with `replace` (Settings'
   `go()`) and its own entry above it, so Back shows the list and Back again closes Settings;
-  `/settings` alone opens on the list (`opensOnList`). A sideways swipe
+  `/settings` alone opens on the list (`opensOnList`), My Account behind it. A sideways swipe
   (decided after 8px, so scrolling never moves them; not in pickers, sheets, member panels or
   anything that scrolls sideways itself) drags the chat with the finger, and letting go
   finishes or undoes it by position and speed (a critically damped spring); the list moves a

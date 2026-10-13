@@ -4,7 +4,8 @@
 // /settings#<id> links land on the right page, admins get Admin and Reports, Log Out asks,
 // Developer Portal opens the portal. Phone: the column is the list pane, a page slides over it
 // (swipe or Back returns to the list, Back again leaves Settings), no subsections listed,
-// Edit Profile opens your full profile over it, /settings alone opens on the list, a page loaded on its own has
+// Edit Profile opens your full profile over it, /settings alone opens on the list (My Account
+// behind it, swiped to), a page loaded on its own has
 // the list behind it, nothing wider than the screen. Light and dark screenshots.
 //   node e2e/serve.mjs &   then   node e2e/settings.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
@@ -49,19 +50,23 @@ const back = async (page) => {
   await page.waitForTimeout(300);
   await settle(page);
 };
-async function swipeRight(page) {
+// A sideways swipe across most of the screen: right (dir 1) or left (-1).
+async function swipe(page, dir) {
   const { width, height } = page.viewportSize();
+  const x0 = dir > 0 ? 30 : width - 30;
   const cdp = await page.context().newCDPSession(page);
   const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
-  await touch('touchStart', 30, height * 0.6);
+  await touch('touchStart', x0, height * 0.6);
   for (let i = 1; i <= 10; i++) {
-    await touch('touchMove', 30 + (width * 0.7 * i) / 10, height * 0.6);
+    await touch('touchMove', x0 + (dir * width * 0.7 * i) / 10, height * 0.6);
     await new Promise((r) => setTimeout(r, 16));
   }
   await touch('touchEnd');
   await cdp.detach();
   await settle(page);
 }
+const swipeRight = (page) => swipe(page, 1);
+const swipeLeft = (page) => swipe(page, -1);
 
 const browser = await launchChrome();
 try {
@@ -196,6 +201,12 @@ try {
   await p.waitForSelector('.settings-nav');
   await settle(p);
   check(await pane(p) === 'list', '/settings loaded on its own is the list');
+  check(await p.$eval('.settings-nav-item.active', (e) => e.textContent) === 'My Account', 'with My Account marked');
+  await swipeLeft(p);
+  check(await pane(p) === 'content' && await title(p) === 'My Account', 'swiping left shows My Account, not an empty page');
+  await shot(p, '9b-phone-swiped-account');
+  await back(p);
+  check(await pane(p) === 'list', 'Back shows the list again');
   await p.goto(`${BASE}/settings/privacy#blocked`);
   await p.waitForSelector('.settings-page-title');
   await settle(p);
