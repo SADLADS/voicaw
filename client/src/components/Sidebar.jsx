@@ -2,7 +2,6 @@ import React, { useCallback, useContext, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faComments, faPlus, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
-import logo from '../assets/images/logo-no-border.svg';
 import GuildIcon from './guild/GuildIcon';
 import Avatar from './Avatar';
 import '../assets/css/guilds.css';
@@ -77,7 +76,8 @@ export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guild
       style={{ width: '72px' }}
     >
       <div className="nav-item">
-        <img src={logo} alt={t('app.sidebar.logoAlt')} className="rail-logo" onClick={popLogo} />
+        {/* The bird drawn as a mask in the theme's --vc-logo colour (voicaw.css). */}
+        <span role="img" aria-label={t('app.sidebar.logoAlt')} className="rail-logo" onClick={popLogo} />
       </div>
 
       <div className={`nav-item ${isActivePath('/dm') ? 'active' : ''}`}>
