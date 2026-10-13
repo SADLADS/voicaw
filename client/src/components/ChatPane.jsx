@@ -341,7 +341,7 @@ export default function ChatPane({
   function canRemovePreviews(msg) {
     if (!conversation.suppressEmbeds || msg.flags & SUPPRESS_EMBEDS) return false;
     if (msg.sender_id !== user.id && !canModerate) return false;
-    return Boolean(msg.link_embeds?.length || msg.embeds?.length || linksIn(msg.plaintext ?? '').some(drawnByApp));
+    return Boolean(msg.link_embeds?.length || msg.embeds?.length || linksIn(msg.plaintext ?? '').some((link) => drawnByApp(link)));
   }
 
   async function removePreviews(msg) {

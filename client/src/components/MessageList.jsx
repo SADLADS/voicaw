@@ -223,7 +223,8 @@ const MessageMarkdown = memo(function MessageMarkdown({ text, localAttachments, 
 // bot asked). Markdown in embeds is drawn like the message's own text.
 // Memoised like MessageMarkdown: an embed can hold a dozen bits of markdown.
 // `onRemove(messageId, event)`: the X beside each link preview (the sender's own embeds have none).
-const EmbedParts = memo(function EmbedParts({ embeds: sent, linkEmbeds, attachments, flags, rehypePlugins, mentions, messageId, onRemove }) {
+// `encrypted`: a DM, group DM or notes, where event links get no card, so their preview stays.
+const EmbedParts = memo(function EmbedParts({ embeds: sent, linkEmbeds, attachments, flags, rehypePlugins, mentions, messageId, onRemove, encrypted = false }) {
   if (!sent?.length && !attachments?.length && !linkEmbeds?.length) return null;
   const renderMarkdown = (text) => (
     <MentionContext.Provider value={mentions}>
@@ -231,7 +232,7 @@ const EmbedParts = memo(function EmbedParts({ embeds: sent, linkEmbeds, attachme
     </MentionContext.Provider>
   );
   const embeds = flags & SUPPRESS_EMBEDS ? [] : sent ?? [];
-  const previews = flags & SUPPRESS_EMBEDS ? [] : (linkEmbeds ?? []).filter((e) => !drawnByApp(e.url));
+  const previews = flags & SUPPRESS_EMBEDS ? [] : (linkEmbeds ?? []).filter((e) => !drawnByApp(e.url, encrypted));
   return (
     <>
       <MessageEmbeds embeds={embeds} renderMarkdown={renderMarkdown} ownUrls={attachments?.map((a) => a.url)} />
@@ -645,6 +646,7 @@ export function MessageRow({
             mentions={mentions}
             messageId={msg.id}
             onRemove={removable ? removePreviewsById : undefined}
+            encrypted={encrypted}
           />
           <MessageComponents messageId={msg.id} channelId={msg.channel_id} components={msg.components} names={reactionNames} roles={mentionRoles} />
 

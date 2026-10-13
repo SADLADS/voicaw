@@ -825,6 +825,15 @@ describe('MessageList reactions', () => {
       expect(container.querySelectorAll('.embed')).toHaveLength(2);
     });
 
+    it("drops the page preview of an event link in a guild (the event's card stands in), not in an encrypted chat", () => {
+      const preview = { type: 'link', url: 'https://app.voicaw.com/guild/1?event=13', title: 'Voicaw', description: 'Chat' };
+      const msg = hookMessage({ embeds: [], link_embeds: [preview] });
+      const { container, rerender } = render(<MessageList {...baseProps({ messages: [msg], encrypted: false })} />);
+      expect(container.querySelector('.embed')).toBeNull();
+      rerender(<MessageList {...baseProps({ messages: [msg], encrypted: true })} />);
+      expect(container.querySelector('.embed')).toHaveTextContent('Voicaw');
+    });
+
     it("doesn't show a file twice when an embed shows it", () => {
       const chart = { id: 'a', filename: 'chart.png', content_type: 'image/png', url: 'https://s3.test/uploads/webhooks/a/chart.png', size: 10 };
       const { container } = render(<MessageList {...baseProps({ messages: [hookMessage({ attachments: [chart], embeds: [{ type: 'rich', title: 'Load', image: { url: chart.url } }] })] })} />);

@@ -1,5 +1,5 @@
 import { youtubeVideoId } from './youtube';
-import { inviteCodeFromUrl } from './inviteLinks';
+import { eventFromUrl, inviteCodeFromUrl } from './inviteLinks';
 
 // Which links in a message get previews, as server/linkPreviews.js `linksIn` decides for guild
 // messages: not in code, spoilers, <…> (written that way to keep a link plain, as in Discord)
@@ -37,9 +37,10 @@ export function linksIn(text) {
   return links;
 }
 
-// Links the app draws in its own way (UrlPreviews: YouTube players, guild invite cards), so a
-// preview the server made for them isn't shown as well.
-export const drawnByApp = (link) => Boolean(youtubeVideoId(link) || inviteCodeFromUrl(link));
+// Links the app draws in its own way (UrlPreviews: YouTube players, guild invite cards and,
+// outside `encrypted` chats, event cards), so a preview made for them isn't shown as well.
+export const drawnByApp = (link, encrypted = false) =>
+  Boolean(youtubeVideoId(link) || inviteCodeFromUrl(link) || (!encrypted && eventFromUrl(link)));
 
 const IMAGE_PATH = /\.(png|jpe?g|gif|webp|avif|bmp)$/i;
 const VIDEO_PATH = /\.(mp4|webm|mov|m4v)$/i;
