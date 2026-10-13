@@ -75,6 +75,18 @@
         </provider>
     </application>
 
+    <!-- The + panel's camera tile (`<input capture>`): Capacitor opens the camera app only if it
+         can see one (`resolveActivity`), and since Android 11 apps can't without this. Some phones'
+         camera apps were visible anyway, others weren't, and those fell back to the photo picker. -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.VIDEO_CAPTURE" />
+        </intent>
+    </queries>
+
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />

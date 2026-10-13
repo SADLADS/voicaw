@@ -110,7 +110,8 @@ a download box), and plain URLs (legacy unencrypted uploads, external images) as
 `ThreadContext` `startThread`). On a phone it's a panel in the keyboard's place
 (`AttachPanel.jsx`), taking turns with the keyboard and the emoji panel and pulled up to full
 screen the same way (`useSheetDrag`). A 4-wide grid: a camera tile (the file chooser with
-`capture`), then, in the Android app only, the phone's photos and videos, newest first
+`capture`; in the Android app Capacitor opens the camera app for it, which needs the manifest's
+`<queries>` for `IMAGE_CAPTURE`: without it some phones got the photo picker instead), then, in the Android app only, the phone's photos and videos, newest first
 (`hooks/useDeviceMedia.js`, `Media.java`; a web page can't list them, so mobile web shows a Photos
 tile instead). Tapping one attaches it (a normal draft, tagged with its gallery id as `source`,
 so the tile shows its number in the order picked) and tapping again takes it back out. Access is
