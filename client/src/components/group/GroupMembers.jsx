@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -20,6 +20,8 @@ import { MAX_PROFILE_PIC_BYTES } from '../../services/profileService';
 import { useGroupPicture } from '../../hooks/useGroupPicture';
 import { usePresence } from '../../hooks/usePresence';
 import { useFloatingCard } from '../../hooks/useFloatingCard';
+import { openUserProfile } from '../../utils/userProfile';
+import { InteractionContext } from '../../contexts';
 import { useFriends } from '../../utils/friends';
 import { lastSeenText, statusLabel } from '../../utils/presence';
 import { t } from '../../i18n';
@@ -30,7 +32,8 @@ const errorText = (err) => err.response?.data?.error ?? err.message;
 // people (from their friends, as in Discord), renames and changes the picture (cropped here, then
 // encrypted: see Group pictures in docs/group-dms.md); the owner removes people; anyone leaves.
 // Clicking someone opens their profile card over the chat, as in the guild member list
-// (hooks/useFloatingCard.js); right-clicking them, their menu (utils/personMenu.js).
+// (hooks/useFloatingCard.js), on a phone their full profile (UserProfile); right-clicking them,
+// their menu (utils/personMenu.js).
 export default function GroupMembers({ group, user, users, onClose }) {
   useProfiles();
   const presenceOf = usePresence();
@@ -46,6 +49,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
   const [cropping, setCropping] = useState(null);
   const [newPicture, setNewPicture] = useState(undefined); // undefined: unchanged
   const fileInput = useRef(null);
+  const { isMobile } = useContext(InteractionContext);
   const [cardFor, setCardFor] = useState(null);
   const listRef = useRef(null);
   const cardRef = useRef(null);
@@ -129,7 +133,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
           const { status, lastOnline } = presenceOf(usersById.get(id) ?? { id });
           return (
             <li key={id} className={`group-member${cardFor === id ? ' selected' : ''}`}>
-              <button type="button" className="group-member-open" data-user-id={id} onClick={() => setCardFor(cardFor === id ? null : id)}>
+              <button type="button" className="group-member-open" data-user-id={id} onClick={() => (isMobile ? openUserProfile(id) : setCardFor(cardFor === id ? null : id))}>
                 <span className="group-member-avatar-wrap status-avatar">
                   <UserAvatar userId={id} className="group-member-avatar" />
                   <StatusIcon status={status} title={status === 'offline' ? lastSeenText(lastOnline) ?? statusLabel(status) : undefined} />

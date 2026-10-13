@@ -63,7 +63,7 @@ try {
   await shot(a, 'member-card');
 
   // No buttons on it but the roles' +.
-  const buttons = await card.locator('button').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? e.textContent.trim()));
+  const buttons = await card.locator('button:not(.profile-card-open)').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? e.textContent.trim()));
   check(JSON.stringify(buttons) === '["Add role"]', `the card has no action buttons: ${buttons.join(', ')}`);
 
   // + opens the roles to add with the search box focused: typing filters, Enter adds the first.
@@ -173,15 +173,14 @@ try {
   await shot(c, 'phone-row-sheet');
   check(!(await c.$('.member-card')), "and the hold didn't open her card");
   await closeSheet();
-  // A tap opens it below the row, over the full-screen list, within the screen.
+  // A tap skips the card: her full profile, the whole screen.
   await aliceRow.tap();
-  await c.locator('.member-card').waitFor();
-  await c.waitForFunction(() => getComputedStyle(document.querySelector('.member-card')).visibility === 'visible');
-  const phoneCard = await c.locator('.member-card').boundingBox();
-  const phoneRow = await aliceRow.boundingBox();
-  const width = c.viewportSize().width;
-  check(phoneCard.x >= 0 && phoneCard.x + phoneCard.width <= width && phoneCard.y >= phoneRow.y + phoneRow.height, `phone: the card is below her row, on screen (${Math.round(phoneCard.x)}-${Math.round(phoneCard.x + phoneCard.width)} of ${width})`);
-  await shot(c, 'phone-member-card');
+  const profileSheet = c.locator('.user-profile.sheet');
+  await profileSheet.waitFor();
+  const sheetBox = await profileSheet.boundingBox();
+  const viewport = c.viewportSize();
+  check(!(await c.$('.member-card')) && Math.round(sheetBox.width) === viewport.width && Math.round(sheetBox.height) === viewport.height, `phone: a tap opens her full profile, full screen (${Math.round(sheetBox.width)}x${Math.round(sheetBox.height)})`);
+  await shot(c, 'phone-member-profile');
 
   console.log('membermenu: all good');
 } finally {

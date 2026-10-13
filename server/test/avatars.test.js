@@ -37,12 +37,12 @@ async function middle(buffer) {
 const RIGHT_HALF = { x: 0.5, y: 0, width: 0.5, height: 1 };
 
 // Starts an upload, puts `image` where it was signed for, and says it's ready.
-async function upload(user, image, type = 'image/png', crop) {
-  const start = await post(user, '/profile/avatar', { type, size: image.length });
+async function upload(user, image, type = 'image/png', crop, kind = 'avatar') {
+  const start = await post(user, `/profile/${kind}`, { type, size: image.length });
   expect(start.status).toBe(201);
   const signed = signedUploads.at(-1);
   putMockObject('profile-pics', signed.filename, image, type);
-  return post(user, `/profile/avatar/${start.body.uploadId}/ready`, crop ? { crop } : {});
+  return post(user, `/profile/${kind}/${start.body.uploadId}/ready`, crop ? { crop } : {});
 }
 const stored = (user, avatar) => objects.get(`profile-pics/${user.id}/${avatar}.webp`).body;
 
@@ -158,5 +158,49 @@ describe('profile pictures', () => {
     expect(objects.has(`profile-pics/${frank.id}/${avatar}.webp`)).toBe(true);
     expect(objects.has(`profile-pics/${frank.id}`)).toBe(false);
     expect(objects.has('profile-pics/987654')).toBe(false);
+  });
+});
+
+describe('profile banners', () => {
+  it('makes a 960×384 WebP from the chosen rectangle, never enlarged, and replaces or removes it', async () => {
+    const fay = await makeUser();
+    const events = [];
+    clients.set('999998', [{ readyState: 1, identified: true, send: (m) => events.push(JSON.parse(m)) }]);
+    const res = await upload(fay, await halves(), 'image/png', RIGHT_HALF, 'banner');
+    expect(res.status).toBe(200);
+    const { banner } = res.body;
+    expect(banner).toMatch(/^[0-9a-f-]{36}$/);
+    const body = objects.get(`profile-pics/${fay.id}/banner-${banner}.webp`).body;
+    // The right half (100 px wide): kept small, 5:2.
+    expect(await sharp(body).metadata()).toMatchObject({ format: 'webp', width: 100, height: 40 });
+    expect(await middle(body)).toEqual([0, 0, 255]);
+    expect(events.find((e) => e.type === 'user_profile')).toMatchObject({ user: { id: fay.id, banner } });
+    clients.delete('999998');
+
+    const big = (await upload(fay, await png(2000, 1000), 'image/png', undefined, 'banner')).body.banner;
+    expect(await sharp(objects.get(`profile-pics/${fay.id}/banner-${big}.webp`).body).metadata()).toMatchObject({ width: 960, height: 384 });
+    expect(deletedObjects).toContainEqual({ bucket: 'profile-pics', key: `${fay.id}/banner-${banner}.webp` });
+    // The avatar is untouched by banners.
+    expect((await request(app).get('/api/profile').set(authed(fay))).body).toMatchObject({ avatar: null, banner: big });
+
+    const removed = await request(app).delete('/api/profile/banner').set(authed(fay));
+    expect(removed.body.banner).toBe(null);
+    expect(deletedObjects).toContainEqual({ bucket: 'profile-pics', key: `${fay.id}/banner-${big}.webp` });
+  });
+
+  it("doesn't take an avatar upload as a banner's", async () => {
+    const gus = await makeUser();
+    const start = await post(gus, '/profile/avatar', { type: 'image/png', size: 10 });
+    expect((await post(gus, `/profile/banner/${start.body.uploadId}/ready`)).status).toBe(404);
+  });
+
+  it('keeps a banner colour (0xRRGGBB or null)', async () => {
+    const hal = await makeUser();
+    const put = (body) => request(app).put('/api/profile').set(authed(hal)).send(body);
+    expect((await put({ bannerColor: 0x5865f2 })).body.banner_color).toBe(0x5865f2);
+    expect((await put({ bannerColor: 0x1000000 })).status).toBe(400);
+    expect((await put({ bannerColor: '#fff' })).status).toBe(400);
+    expect((await put({ bio: 'hi' })).body.banner_color).toBe(0x5865f2);
+    expect((await put({ bannerColor: null })).body.banner_color).toBe(null);
   });
 });

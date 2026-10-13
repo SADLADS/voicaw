@@ -75,8 +75,11 @@ unexpected errors. The rest:
   the timers of polls whose chat was deleted (hourly); `routes/polls.js`.
 - `routes/typing.js`: "… is typing" (`POST /typing`, relayed as `typing`; see Typing indicator in `docs/realtime.md`).
 - `profiles.js`: display name, custom status (and its emoji) and bio (limits, cleaning, `displayNameOf`; see Profiles).
-- `avatars.js` + `avatarImage.js`: profile pictures (processing, storage, the one-off migration;
-  see Profiles). `routes/avatars.js` has their routes.
+- `avatars.js` + `avatarImage.js`: profile pictures and banners (processing, storage, the
+  one-off migration; see Profiles). `routes/avatars.js` has their routes.
+- `activityHistory.js`: the games people played over the last 30 days, from their activities
+  (see Activity history in `docs/realtime.md`); `routes/userProfiles.js`: a profile's tabs
+  (`GET /users/:id/profile`, see Full profiles in `docs/client.md`).
 - `routes/`: `auth.js` (OPAQUE register/login, profile), `sessions.js` (Settings → Devices, logout), `dms.js` (conversations, send, edit,
   delete, unread; `DM_SELECT` is the shared message query), `reactions.js`, `guilds.js` (guilds,
   members, invites, bans, categories, channels), `guildMessages.js` (channel messages, reactions,

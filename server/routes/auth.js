@@ -6,7 +6,7 @@ const { opaqueServerSetup } = require('../config');
 const { startSession, authenticateJWT, authenticatePending } = require('../auth');
 const { rateLimitsEnabled } = require('../config');
 const { createLimiter, tooManyAttempts } = require('../rateLimit');
-const { LIMITS: PROFILE_LIMITS, PROFILE_COLUMNS, clean: cleanProfile } = require('../profiles');
+const { LIMITS: PROFILE_LIMITS, PROFILE_COLUMNS, clean: cleanProfile, cleanBannerColor } = require('../profiles');
 const { sendToAllSockets } = require('../sockets');
 const { normalizeUsername, findUserByName, opaqueIdOf, newOpaqueId } = require('../usernames');
 const accounts = require('../accounts');
@@ -297,12 +297,13 @@ router.get('/profile', authenticatePending, async (req, res) => {
     pending: Boolean(user.pending),
     // false: the app asks them to accept the current terms before going on (TermsGate).
     termsAccepted: terms.hasAccepted(user),
-    display_name: user.display_name, custom_status: user.custom_status, custom_status_emoji: user.custom_status_emoji, bio: user.bio, avatar: user.avatar,
+    display_name: user.display_name, custom_status: user.custom_status, custom_status_emoji: user.custom_status_emoji, bio: user.bio, avatar: user.avatar, banner: user.banner, banner_color: user.banner_color,
   });
 });
 
 // Changes your profile (profiles.js): any of `displayName`, `customStatus`,
-// `customStatusEmoji`, `bio` (null or "" clears one). Everyone logged in gets `user_profile` with the new one.
+// `customStatusEmoji`, `bio` (null or "" clears one), `bannerColor` (0xRRGGBB, null for none).
+// Everyone logged in gets `user_profile` with the new one.
 router.put('/profile', authenticateJWT, async (req, res) => {
   const fields = { displayName: 'display_name', customStatus: 'custom_status', customStatusEmoji: 'custom_status_emoji', bio: 'bio' };
   const updates = [];
@@ -316,6 +317,12 @@ router.put('/profile', authenticateJWT, async (req, res) => {
     }
     updates.push(`${column} = ?`);
     params.push(value);
+  }
+  if (req.body?.bannerColor !== undefined) {
+    const color = cleanBannerColor(req.body.bannerColor);
+    if (color === undefined) return res.status(400).json({ error: 'Invalid banner colour' });
+    updates.push('banner_color = ?');
+    params.push(color);
   }
   if (updates.length) await db.run(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, [...params, req.user.id]);
   const profile = await db.get(`SELECT id, username, ${PROFILE_COLUMNS} FROM users WHERE id = ?`, [req.user.id]);

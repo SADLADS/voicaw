@@ -151,7 +151,7 @@ router.get('/group-dms/:groupId', member, async (req, res) => {
   const groupId = req.state.group.id;
   const log = await db.all('SELECT seq, record, signature FROM group_dm_log WHERE group_id = ? ORDER BY seq', [groupId]);
   const users = await db.all(
-    `SELECT id, username, display_name, custom_status, custom_status_emoji, bio, avatar, last_online, identity_key, encryption_key, encryption_key_signature FROM users
+    `SELECT id, username, display_name, custom_status, custom_status_emoji, bio, avatar, banner, banner_color, last_online, identity_key, encryption_key, encryption_key_signature FROM users
      WHERE id IN (SELECT actor_id FROM group_dm_log WHERE group_id = ? UNION SELECT target_id FROM group_dm_log WHERE group_id = ?)`,
     [groupId, groupId]
   );

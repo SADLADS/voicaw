@@ -516,6 +516,9 @@ addColumn('ALTER TABLE users ADD COLUMN custom_status TEXT');
 addColumn('ALTER TABLE users ADD COLUMN custom_status_emoji TEXT');
 addColumn('ALTER TABLE users ADD COLUMN bio TEXT');
 addColumn('ALTER TABLE users ADD COLUMN avatar TEXT');
+// Profile banners (profiles.js): a picture's id (avatars.js) and/or a colour (0xRRGGBB).
+addColumn('ALTER TABLE users ADD COLUMN banner TEXT');
+addColumn('ALTER TABLE users ADD COLUMN banner_color INTEGER');
 // Your own settings that follow your account (preferences.js; JSON, only those changed).
 addColumn('ALTER TABLE users ADD COLUMN preferences TEXT');
 // Your spellcheck dictionary, encrypted on your devices (dictionary.js), and its version.
@@ -1319,6 +1322,19 @@ CREATE TABLE IF NOT EXISTS tester_requests (
 // Null = no join log.
 addColumn('ALTER TABLE guilds ADD COLUMN join_log_channel_id INTEGER');
 addColumn('ALTER TABLE guilds ADD COLUMN join_log_leaves INTEGER NOT NULL DEFAULT 0');
+// ACTIVITY HISTORY (activityHistory.js): people's game sessions from Rich Presence, for their
+// profile's Activity tab; the game's name and when (unix s), kept 30 days.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS activity_sessions (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  started_at INTEGER NOT NULL,
+  ended_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS activity_sessions_user ON activity_sessions (user_id, ended_at);
+CREATE INDEX IF NOT EXISTS activity_sessions_age ON activity_sessions (ended_at);
+`);
 
 // ---- Queries ----
 // get / all / run return promises (callers await them) though the driver is synchronous, and

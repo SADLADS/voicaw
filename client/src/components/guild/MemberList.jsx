@@ -14,12 +14,14 @@ import { useLongPress } from '../../hooks/useLongPress';
 import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 import { useFloatingCard } from '../../hooks/useFloatingCard';
 import { openPersonMenu } from '../../utils/personMenu';
+import { openUserProfile } from '../../utils/userProfile';
 import MemberCard from './MemberCard';
 import { levelBadge, levelName, levelOf, levelsOn } from '../../utils/levels';
 import { t } from '../../i18n';
 
 // The guild's members down the right (like Discord), names in their role colour. Clicking one
-// opens their MemberCard floating over the chat (hooks/useFloatingCard.js).
+// opens their MemberCard floating over the chat (hooks/useFloatingCard.js); on a phone, their
+// full profile instead (UserProfile).
 // Message, the friend item, Make Owner / Kick / Ban, Block and Report are in the person's menu
 // (utils/personMenu.js): right-clicking a row, or holding it on a phone.
 // `userApps` and `onRunUserApp` are passed to the card. With levels on (utils/levels.js), each
@@ -59,7 +61,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
           type="button"
           className={`member-row${member.status === 'offline' ? ' offline' : ''}${isSelected ? ' selected' : ''}`}
           data-user-id={member.id}
-          onClick={() => setSelectedId(isSelected ? null : member.id)}
+          onClick={() => (isMobile ? openUserProfile(member.id) : setSelectedId(isSelected ? null : member.id))}
         >
           <span className="member-avatar status-avatar">
             <Avatar userId={member.id} />

@@ -84,6 +84,7 @@ app.use('/api', require('./routes/gifs'));
 app.use('/api', require('./routes/admin'));
 app.use('/api', require('./routes/blocks'));
 app.use('/api', require('./routes/friends'));
+app.use('/api', require('./routes/userProfiles'));
 app.use('/api', require('./routes/reports'));
 app.use('/api', require('./routes/testerRequests'));
 app.use('/api', require('./routes/applications'));
@@ -137,4 +138,6 @@ if (require.main === module) {
   require('./uploads').startUploadCleanup();
   // Forgets sessions unused for 30 days (auth.js).
   require('./auth').startSessionCleanup();
+  // Moves open game sessions' ends on, and forgets those over 30 days old (activityHistory.js).
+  require('./activityHistory').startActivityHistory();
 }

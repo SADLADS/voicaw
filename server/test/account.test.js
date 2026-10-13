@@ -177,6 +177,7 @@ describe('deleting your account', () => {
     const content = 'v1.' + 'A'.repeat(40);
     expect((await api.post(bob, '/dm-send', { recipient_id: ann.id, content })).status).toBe(201);
     expect((await api.post(ann, '/dm-send', { recipient_id: ann.id, content })).status).toBe(201); // notes
+    expect((await request(app).put('/api/profile').set({ Authorization: `Bearer ${ann.token}` }).send({ bannerColor: 0xff0000 })).status).toBe(200);
     const annSocket = listen(ann);
     const bobSocket = listen(bob);
 
@@ -194,7 +195,7 @@ describe('deleting your account', () => {
 
     // Everyone sees the new name; the conversation stays (with the public keys), but can't be answered.
     const profile = bobSocket.events.find((e) => e.type === 'user_profile' && e.user.id === ann.id).user;
-    expect(profile).toMatchObject({ display_name: 'Deleted User', avatar: null, bio: null });
+    expect(profile).toMatchObject({ display_name: 'Deleted User', avatar: null, bio: null, banner: null, banner_color: null });
     expect(profile.deleted_at).toBeTruthy();
     const listed = (await api.get(bob, '/dms-list')).body.find((u) => u.id === ann.id);
     expect(listed).toMatchObject({ display_name: 'Deleted User', identity_key: ann.keys.public.identityKey });

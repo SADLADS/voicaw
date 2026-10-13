@@ -10,7 +10,10 @@ import { t } from '../i18n';
 // or arrows and +/- on the frame). Apply calls onApply with the crop (utils/imageCrop.js cropOf),
 // which the server cuts out (avatarImage.js), so animated pictures stay animated; a group DM's
 // picture is encrypted, so it's cut on the device instead (pictureData.js croppedPictureBytes).
-export default function ImageCropper({ file, onApply, onCancel }) {
+// `aspect` (width / height, e.g. 2.5 for a profile banner) gives a rectangular frame instead; the
+// maths (utils/imageCrop.js) is for a square frame, so the picture is measured as if `aspect`
+// times narrower, which keeps the crop's fractions right.
+export default function ImageCropper({ file, onApply, onCancel, aspect = 1 }) {
   const [url, setUrl] = useState(null);
   const [size, setSize] = useState(null); // the picture's { width, height } once loaded
   const [view, setView] = useState(null);
@@ -60,9 +63,9 @@ export default function ImageCropper({ file, onApply, onCancel }) {
   function loaded(e) {
     const { naturalWidth: width, naturalHeight: height } = e.currentTarget;
     if (!width || !height) return setFailed(true);
-    sizeRef.current = { width, height };
-    setSize({ width, height });
-    setView(initialView(width, height));
+    sizeRef.current = { width: width / aspect, height };
+    setSize(sizeRef.current);
+    setView(initialView(width / aspect, height));
   }
 
   // A point on screen in frame widths from the frame's top-left.
@@ -130,7 +133,7 @@ export default function ImageCropper({ file, onApply, onCancel }) {
     <Modal
       title={t('media.cropper.title')}
       onClose={onCancel}
-      className="image-cropper"
+      className={`image-cropper${aspect !== 1 ? ' image-cropper-wide' : ''}`}
       actions={(
         <>
           <button type="button" className="btn btn-secondary" onClick={onCancel}>{t('common.cancel')}</button>
@@ -147,6 +150,7 @@ export default function ImageCropper({ file, onApply, onCancel }) {
           <div
             ref={frame}
             className="image-cropper-frame"
+            style={aspect !== 1 ? { aspectRatio: aspect } : undefined}
             tabIndex={0}
             role="group"
             aria-label={t('media.cropper.frame')}

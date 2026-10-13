@@ -28,8 +28,9 @@ describe('GroupMembers', () => {
     const card = screen.getByRole('dialog', { name: 'bob' });
     expect(card.parentElement).toBe(document.body);
     expect(within(card).getByText('bob')).toBeInTheDocument();
-    // Only the profile: no roles here.
-    expect(within(card).queryByRole('button')).toBeNull();
+    // Only the profile: no roles here; its picture and names open the full profile.
+    expect(within(card).queryAllByRole('button').filter((b) => !b.classList.contains('profile-card-open'))).toEqual([]);
+    expect(within(card).getByRole('button', { name: 'Open profile' })).toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
   });

@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const db = require('./db');
 const { s3Endpoint } = require('./config');
 const { getObject, putObject, deleteObject, listTopLevelKeys } = require('./s3');
-const { processAvatar } = require('./avatarImage');
+const { processAvatar, processBanner } = require('./avatarImage');
 
 // Profile pictures. Each one is processed on the server (avatarImage.js) and stored under a
 // new name, profile-pics/<user id>/<avatar id>.webp, so its URL never changes and can be cached
@@ -13,6 +13,8 @@ const { processAvatar } = require('./avatarImage');
 
 const BUCKET = 'profile-pics';
 const key = (userId, avatar) => `${userId}/${avatar}.webp`;
+// Banners (users.banner) live beside the pictures: profile-pics/<user id>/banner-<id>.webp.
+const bannerKey = (userId, banner) => `${userId}/banner-${banner}.webp`;
 const sourceKey = (userId, uploadId) => `src/${userId}/${uploadId}`;
 
 // The picture's public URL, or null for the default one.
@@ -39,6 +41,23 @@ async function removeAvatar(userId) {
   if (before?.avatar) await deleteObject(BUCKET, key(userId, before.avatar));
 }
 
+// The same for banners (avatarImage.js processBanner); `crop` any rectangle.
+async function setBannerFrom(userId, original, crop = null) {
+  const image = await processBanner(original, crop);
+  const banner = crypto.randomUUID();
+  await putObject(BUCKET, bannerKey(userId, banner), image.buffer, image.contentType);
+  const before = await db.get('SELECT banner FROM users WHERE id = ?', [userId]);
+  await db.run('UPDATE users SET banner = ? WHERE id = ?', [banner, userId]);
+  if (before?.banner) await deleteObject(BUCKET, bannerKey(userId, before.banner));
+  return banner;
+}
+
+async function removeBanner(userId) {
+  const before = await db.get('SELECT banner FROM users WHERE id = ?', [userId]);
+  await db.run('UPDATE users SET banner = NULL WHERE id = ?', [userId]);
+  if (before?.banner) await deleteObject(BUCKET, bannerKey(userId, before.banner));
+}
+
 // Pictures from before this (one object per user, profile-pics/<user id>, unprocessed) become
 // processed ones. Run when the server starts: once they're all converted, there are no such
 // objects left and it's one listing request. Anything unreadable is dropped.
@@ -62,4 +81,4 @@ async function migrateLegacyAvatars() {
   }
 }
 
-module.exports = { BUCKET, avatarUrl, sourceKey, setAvatarFrom, removeAvatar, migrateLegacyAvatars };
+module.exports = { BUCKET, avatarUrl, sourceKey, setAvatarFrom, removeAvatar, setBannerFrom, removeBanner, migrateLegacyAvatars };

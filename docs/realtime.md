@@ -115,8 +115,8 @@ of a user's sockets (`sockets.js` `statusOf`): any active computer wins, then an
 What people are doing, as Discord's activities: "Playing Hades" from their games (the desktop
 app's Rich Presence, see Rich Presence in `docs/desktop-and-site.md`), and bots' own ("Watching 3
 guilds", a custom status; gateway Presence Update). Built 2026-10-09.
-- Server (`activities.js`): kept on the socket that set them, in memory only (never the
-  database), gone when it closes. A socket sends `activity { activities }` (cleaned: at most 3,
+- Server (`activities.js`): kept on the socket that set them, in memory only, gone when it
+  closes (only games' names and times are saved, below). A socket sends `activity { activities }` (cleaned: at most 3,
   128-character texts, people's types 0/2/3/5, bots' 0-5; 30 a minute) once it's identified;
   someone's activities are their most recently set socket's (an invisible bot's don't show).
   Changes go to every logged-in socket as `user_activities { userId, activities }`, and
@@ -151,6 +151,19 @@ guilds", a custom status; gateway Presence Update). Built 2026-10-09.
   end-to-end encrypted). Checked in `e2e/voicestream.mjs`.
 - Bots get people's in PRESENCE_UPDATE (`activities`, Discord's shape, no application id or
   pictures) with the presences intent, and when they change.
+
+### Activity history
+
+Built 2026-10-13, for the full profile's Activity tab (Full profiles in `docs/client.md`).
+`activityHistory.js` turns people's activities, as they change (`refreshActivities` calls
+`record`), into play sessions in `activity_sessions (user_id, name, started_at, ended_at)`, unix s:
+only "Playing" activities with a name, never bots', never the rest of what the game says. A game
+that stops and starts again within 5 minutes carries on its last session. Open sessions' ends
+move on every minute (`tick`), so a restart loses at most that; rows over 30 days old are deleted
+hourly (`prune`). Changes for one person run in order (a promise per person). With
+`showActivity` off nothing is recorded, and turning it off deletes their rows (`forget`, from
+`PUT /preferences`); deleting the account deletes them too. `historyOf(id)` sums them per game
+(`{ name, seconds, lastPlayed, sessions, playing }`, last played first).
 
 ## Push notifications (Web Push)
 

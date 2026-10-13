@@ -15,6 +15,8 @@ router.get('/preferences', authenticateJWT, async (req, res) => {
 router.put('/preferences', authenticateJWT, async (req, res) => {
   const preferences = await changePreferences(req.user.id, req.body);
   if (typeof preferences === 'string') return res.status(400).json({ error: preferences });
+  // Off: what was recorded of the games you play goes.
+  if (req.body.showActivity === false) await require('../activityHistory').forget(req.user.id);
   sendToUserSockets(req.user.id, { type: 'preferences', preferences });
   res.json(preferences);
 });

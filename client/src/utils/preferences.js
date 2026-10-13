@@ -8,8 +8,13 @@ import api from './api';
 // `adultConfirmed`: they ticked "I am 18 or over", which opens NSFW channels (guild/NsfwAgeGate).
 // `botDms`: bots you share a guild with may message you (on by default; BotDm).
 // `reactionNotifications`: 'all', 'dms' or 'off' (ReactionNotificationSettings).
+// `showActivity`, `showMutualFriends`, `showMutualGuilds`: your profile's tabs others see (on
+// by default; ProfileVisibilitySettings). `showActivity` off also deletes your game history.
 
-const DEFAULTS = { blurNsfw: true, adultConfirmed: false, botDms: true, reactionNotifications: 'all' };
+const DEFAULTS = {
+  blurNsfw: true, adultConfirmed: false, botDms: true, reactionNotifications: 'all',
+  showActivity: true, showMutualFriends: true, showMutualGuilds: true,
+};
 const listeners = new Set();
 let prefs = DEFAULTS;
 // Whether the account's own have arrived (until then they're the defaults, which would show the

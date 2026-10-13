@@ -12,7 +12,8 @@ let version = 0;
 
 // `deleted_at`: set once the account is deleted (server/accounts.js; shown as "Deleted User").
 // `bot`: a bot (server/bots.js), only ever met in guilds.
-const FIELDS = ['username', 'display_name', 'custom_status', 'custom_status_emoji', 'bio', 'avatar', 'deleted_at', 'bot'];
+// `banner` / `banner_color`: the banner's picture id and colour (0xRRGGBB), see bannerUrl.
+const FIELDS = ['username', 'display_name', 'custom_status', 'custom_status_emoji', 'bio', 'avatar', 'banner', 'banner_color', 'deleted_at', 'bot'];
 let avatarBase = '';
 
 // Called once the server config (with the object store's address) has loaded, which may be
@@ -30,6 +31,12 @@ export function setAvatarBase(s3Endpoint) {
 export function avatarUrl(id) {
   const avatar = getProfile(id)?.avatar;
   return avatar && avatarBase ? `${avatarBase}${id}/${avatar}.webp` : null;
+}
+
+// User `id`'s banner picture URL (server/avatars.js, beside their profile picture), or null.
+export function bannerUrl(id) {
+  const banner = getProfile(id)?.banner;
+  return banner && avatarBase ? `${avatarBase}${id}/banner-${banner}.webp` : null;
 }
 
 // Takes users ([{ id, username, display_name?, ... }]); fields they don't have are kept.

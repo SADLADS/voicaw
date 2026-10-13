@@ -460,3 +460,63 @@
 .attach-panel-bar button:disabled {
     opacity: 0.5;
 }
+
+/* The full profile on a phone (UserProfile): the whole screen, as the emoji panel pulled up,
+   with its handle; a swipe down moves it with the finger (--sheet-offset, useSheetDismiss)
+   and closes it. */
+.user-profile.sheet {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    max-width: none;
+    max-height: none;
+    padding-top: env(safe-area-inset-top);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    transform: translateY(var(--sheet-offset, 0px));
+}
+
+.user-profile.sheet.sheet-settling {
+    transition: transform 0.2s ease-out;
+}
+
+.user-profile.sheet .user-profile-banner {
+    height: auto;
+    aspect-ratio: 5 / 2;
+    max-height: 200px;
+    border-radius: 0;
+}
+
+.user-profile-handle {
+    flex-shrink: 0;
+    display: block;
+    width: 100%;
+    height: 14px;
+    padding: 0;
+    border: none;
+    background: none;
+}
+
+.user-profile-handle::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    margin: 6px auto 4px;
+    border-radius: 2px;
+    background-color: var(--vc-fg-muted);
+    opacity: 0.5;
+}
+
+.user-profile.sheet .user-profile-tabs {
+    gap: 14px;
+}
+
+.user-profile.sheet .user-profile-tab {
+    font-size: 15px;
+}
+
+.user-profile.sheet .user-profile-close {
+    top: calc(env(safe-area-inset-top) + 18px);
+}

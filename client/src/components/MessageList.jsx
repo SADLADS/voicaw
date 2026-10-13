@@ -41,6 +41,7 @@ import { hideSpoilers, remarkDiscord, remarkDocument } from '../utils/remarkDisc
 import { continuesGroup, rowTime, startsNewDay } from '../utils/messageGroups';
 import { displayName, useProfiles } from '../utils/profiles';
 import ProfilePopover from './ProfilePopover';
+import { openUserProfile } from '../utils/userProfile';
 import Avatar from './Avatar';
 import { formatDateTime, formatLongDate, formatTime, useDateFormat } from '../utils/dateFormat';
 import { parsePoll, pollEnded } from '../utils/pollMarkup';
@@ -813,7 +814,11 @@ export default function MessageList({
   // The profile card open from a name or avatar: { user, anchor (rect) }.
   const [profileFor, setProfileFor] = useState(null);
   const closeProfile = useCallback(() => setProfileFor(null), []);
-  const openProfile = useCallback((person, anchor) => setProfileFor({ user: person, anchor }), []);
+  // On a phone, straight to their full profile (no card: UserProfile).
+  const openProfile = useCallback((person, anchor) => {
+    if (isMobile) openUserProfile(person.id);
+    else setProfileFor({ user: person, anchor });
+  }, [isMobile]);
 
   // Mobile: swiping a message left replies to it (where there's a message box to reply in).
   const repliable = (key) => {
