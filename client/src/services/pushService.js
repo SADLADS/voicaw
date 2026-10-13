@@ -149,7 +149,10 @@ export async function enableNotifications(vapidPublicKey) {
 // Stops notifications to this device: tells the server, then drops the subscription.
 // `remember` keeps it off on future app starts (the user's choice); logout doesn't set it,
 // so the next person to log in here gets notifications if the permission is granted.
-export async function disableNotificationsOnThisDevice({ remember = false } = {}) {
+// `timeout` (ms) gives up on the server (logout goes on without it); the browser's
+// subscription is dropped either way.
+export async function disableNotificationsOnThisDevice({ remember = false, timeout } = {}) {
+  const options = timeout ? [{ timeout }] : [];
   if (remember) localStorage.setItem(DISABLED_KEY, '1');
   if (isDesktopApp()) {
     refreshPresence();
@@ -157,7 +160,7 @@ export async function disableNotificationsOnThisDevice({ remember = false } = {}
   }
   if (isAndroidApp()) {
     const { endpoint } = await androidSubscription();
-    await api.post('/delete-subscription', { endpoint });
+    await api.post('/delete-subscription', { endpoint }, ...options);
     return;
   }
   if (!('serviceWorker' in navigator)) return;
@@ -166,7 +169,7 @@ export async function disableNotificationsOnThisDevice({ remember = false } = {}
   const subscription = await registration?.pushManager?.getSubscription();
   if (!subscription) return;
   try {
-    await api.post('/delete-subscription', { endpoint: subscription.endpoint });
+    await api.post('/delete-subscription', { endpoint: subscription.endpoint }, ...options);
   } finally {
     await subscription.unsubscribe();
   }

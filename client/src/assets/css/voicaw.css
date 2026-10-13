@@ -266,6 +266,8 @@ body {
 /* Shown instead of the app while a saved login waits for the server (AuthProvider). */
 .auth-unreachable {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
   align-items: center;
   justify-content: center;
   height: var(--vc-app-height);
@@ -273,6 +275,10 @@ body {
   padding: 16px;
   text-align: center;
   color: var(--vc-fg-muted, var(--vc-fg));
+}
+
+.auth-unreachable p {
+  margin: 0;
 }
 
 /* Chat Page */

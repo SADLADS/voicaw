@@ -1,6 +1,7 @@
 {
   "app": {
     "unreachable": "Can't reach Voicaw. Trying again…",
+    "unreachableLogOut": "Log out on this device",
     "sidebar": {
       "logoAlt": "Voicaw Logo",
       "directMessages": "Direct Messages",

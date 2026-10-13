@@ -4,6 +4,9 @@ import { AuthContext } from './hooks/useAuth';
 
 // How long to wait before asking again when the server can't be reached.
 const RETRY_MS = 3000;
+// How long the profile may take: a server that takes connections but never answers (stuck,
+// restarting) counts as unreachable, rather than leaving a blank page.
+const PROFILE_TIMEOUT_MS = 10000;
 
 // Only the server saying the login is no good ends the session. Anything else (no network
 // yet after the computer starts, the API restarting) is retried, so a saved login isn't
@@ -29,7 +32,7 @@ export function AuthProvider({ children }) {
         return;
       }
       try {
-        const res = await api.get('/profile');
+        const res = await api.get('/profile', { timeout: PROFILE_TIMEOUT_MS });
         if (cancelled) return;
 
         if (res.data && res.data.id) {

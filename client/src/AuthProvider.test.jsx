@@ -53,7 +53,7 @@ describe('AuthProvider', () => {
     await waitFor(() =>
       expect(screen.getByText(/logged in as alice \(id 7, token jwt-abc\)/)).toBeInTheDocument()
     );
-    expect(api.get).toHaveBeenCalledWith('/profile');
+    expect(api.get).toHaveBeenCalledWith('/profile', { timeout: expect.any(Number) });
   });
 
   it('sets user to null when the response has no id', async () => {

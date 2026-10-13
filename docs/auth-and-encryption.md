@@ -79,8 +79,19 @@ the session exists, and only shown to the account itself.
 - Changing the password still leaves other devices logged in (Settings → Devices logs them out).
 - Deleting an account deletes its sessions.
 - On start, `AuthProvider` only drops the session when `/profile` answers 401/403/404. With no
-  answer or a server error (no network yet after boot, an API restart) it keeps the token and
-  asks again every 3 s, while `App` shows "Can't reach Voicaw. Trying again…".
+  answer (given up on after 10 s: a stuck or restarting API takes connections and never
+  answers) or a server error (no network yet after boot, an API restart) it keeps the token and
+  asks again every 3 s, while `App` shows "Can't reach Voicaw. Trying again…" with "Log out on
+  this device", which forgets the login here without the server (`forgetLogin`; the login is
+  in `localStorage`, so clearing cookies doesn't). The session itself then stays on the server
+  (Settings → Devices on another device ends it, or it expires).
+- **Logging out** (`services/logout.js`, 2026-10-13) gives the server 5 s
+  (`LOGOUT_SERVER_MS`) to turn off this device's notifications, hang up and end the session,
+  then forgets the token, keys, group keys, search copy and drafts whether it answered or not
+  (unanswered requests go on with the old token). A web push subscription is dropped in the
+  browser either way, so a logged-out browser gets no more of the account's notifications even
+  when the server never heard. Before, a server that didn't answer left logout waiting
+  forever, still logged in.
 
 ## Two-factor authentication
 

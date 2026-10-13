@@ -22,19 +22,13 @@ import api from './utils/api';
 import './assets/css/mobile.css';
 import './assets/css/desktop.css';
 
-import { closeWebSocket, onLoggedOutElsewhere } from './utils/ws-client';
-import { leaveVoice } from './voice/voiceClient';
-import { hangUp } from './voice/callClient';
-import { clearUserKeys } from './services/keyStore';
-import { forgetGroups } from './services/groupCache';
+import { onLoggedOutElsewhere } from './utils/ws-client';
+import { forgetLogin, logOut } from './services/logout';
 import EmojiProvider from './emoji/EmojiProvider';
 import UpdateBanner from './components/UpdateBanner';
 import ImageViewerProvider from './components/ImageViewerProvider';
 import PageMenus from './components/PageMenus';
 import SafetyDialogs from './components/SafetyDialogs';
-import { disableNotificationsOnThisDevice } from './services/pushService';
-import { clearDrafts } from './services/draftStore';
-import { clearSearchIndex } from './services/searchIndex';
 import { setCustomEmojiBase } from './emoji/customEmoji';
 import { setAvatarBase } from './utils/profiles';
 import { t } from './i18n';
@@ -143,35 +137,25 @@ export default function App() {
 
   // The saved login is kept while the server can't be reached; AuthProvider keeps asking.
   if (loading) {
-    return unreachable ? <div className="auth-unreachable">{t('app.unreachable')}</div> : <div></div>;
+    if (!unreachable) return <div></div>;
+    return (
+      <div className="auth-unreachable">
+        <p>{t('app.unreachable')}</p>
+        {/* The saved login can still be dropped (nothing else would: it isn't a cookie). */}
+        <button
+          type="button"
+          className="btn btn-link"
+          onClick={async () => { await forgetLogin(); window.location.reload(); }}
+        >
+          {t('app.unreachableLogOut')}
+        </button>
+      </div>
+    );
   }
 
+  // The server gets a few seconds to end the session; this device forgets it either way.
   async function handleLogout() {
-    // Before the token goes: the server must forget this device, or it would keep
-    // receiving this account's notifications after logout.
-    try {
-      await disableNotificationsOnThisDevice();
-    } catch (err) {
-      console.error('Failed to turn off notifications on logout', err);
-    }
-    await hangUp();
-    await leaveVoice();
-    // The token stops working on the server too (it may already have: logged out elsewhere).
-    try {
-      await api.post('/logout');
-    } catch (err) {
-      if (!err.response) console.error('Failed to end the session on logout', err);
-    }
-    try {
-      localStorage.removeItem('token');
-      await clearUserKeys();
-      await forgetGroups();
-      await clearSearchIndex();
-    } catch (err) {
-      console.error('Failed to clear stored keys on logout', err);
-    }
-    clearDrafts();
-    closeWebSocket();
+    await logOut();
     setUser(null);
   }
   logoutRef.current = handleLogout;

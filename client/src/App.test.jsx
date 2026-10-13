@@ -135,7 +135,24 @@ describe('App routing', () => {
     expect(closeWebSocket).toHaveBeenCalled();
     expect(localStorage.getItem('token')).toBeNull();
     expect(clearUserKeys).toHaveBeenCalled();
-    expect(api.post).toHaveBeenCalledWith('/logout');
+    expect(api.post).toHaveBeenCalledWith('/logout', null, { headers: { Authorization: 'Bearer jwt-abc' } });
+  });
+
+  it("can log out on this device while the server can't be reached, without asking it", async () => {
+    useAuth.mockReturnValue({ user: null, setUser: vi.fn(), loading: true, unreachable: true });
+    localStorage.setItem('token', 'jwt-abc');
+    const reload = vi.fn();
+    vi.stubGlobal('location', { ...window.location, reload });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Log out on this device' }));
+
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(clearUserKeys).toHaveBeenCalled();
+    expect(closeWebSocket).toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 
   it('logs out when logged out from another device (or the account is deleted there)', async () => {
