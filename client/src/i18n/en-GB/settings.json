@@ -608,6 +608,10 @@
       "outgoingRing": {
         "label": "Outgoing ring",
         "description": "Your call is ringing"
+      },
+      "logo": {
+        "label": "Logo",
+        "description": "You click the Voicaw bird"
       }
     },
     "spellcheck": {
