@@ -275,7 +275,7 @@
   channel topic. So dragging things (channels, guilds) doesn't highlight text. On mobile a long
   press on a message opens its actions instead.
 - **Themes** (`utils/theme.js`, Settings → Appearance, `ThemeSettings.jsx`): Dark (default),
-  Light, Ol' Familiar or Match system (follows `prefers-color-scheme` live, light or dark),
+  Light, Ol' Familiar, Halloween or Match system (follows `prefers-color-scheme` live, light or dark),
   **per device only**
   (`localStorage theme`; never sent to the server). It's `<html data-theme>` (and Bootstrap's
   `data-bs-theme`); a copy of the logic inline in `index.html` sets it before the CSS loads, so a
@@ -316,6 +316,11 @@
     dark underneath (`BASES` in `utils/theme.js`): Bootstrap's `data-bs-theme="dark"`, dark
     form controls and code highlighting. Nothing is loaded from Discord; only the colour
     values are copied.
+  - **Halloween** (`data-theme="halloween"`, added 2026-10-13): dark underneath like Ol'
+    Familiar. Night-purple neutrals, pumpkin orange accent (white on it 5:1), candlelight
+    yellow for attention and mention counts, orange unread markers, witch-purple links, slime
+    green online, blood red errors; warnings are a pale amber so they don't read as the accent.
+    Colours only: no decorations.
   - **Another colour scheme** later: a `:root[data-theme="<name>"]` block setting every colour
     token (copy the light one) and its `color-scheme`, the name in `THEMES` and `BASES`
     (`utils/theme.js`) and in `index.html`'s copy, and a preview in `ThemeSettings.jsx`

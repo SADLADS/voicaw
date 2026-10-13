@@ -207,6 +207,61 @@
   color-scheme: dark;
 }
 
+/* Halloween (added 2026-10-13): night-purple neutrals, pumpkin orange for what you can do,
+   candlelight yellow for attention, witch-purple links, slime green online, blood red errors.
+   Warnings are a pale amber so they don't read as the orange accent. */
+:root[data-theme="halloween"] {
+  /* White on the pumpkin is 5:1. */
+  --vc-accent: #b8500d;
+  --vc-accent-hover: #a8480b;
+  --vc-accent-strong: #9a430b;
+  --vc-accent-text: #ffa04d;
+  --vc-accent-soft: rgba(232, 112, 30, 0.2);
+  --vc-on-accent: #ffffff;
+
+  --vc-action: #e8b830;
+  --vc-action-hover: #cfa128;
+  --vc-action-text: #e8b830;
+  --vc-action-soft: rgba(232, 184, 48, 0.12);
+  --vc-on-action: #120d17;
+
+  --vc-bg-base: #120d17;
+  --vc-bg-subtle: #1a1320;
+  --vc-bg-elevated: #241a2c;
+  --vc-bg-elevated-hover: #2e2238;
+  --vc-bg-hover: #2a1f33;
+  --vc-border-dark: #2c2135;
+  --vc-border-light: #4a3a55;
+
+  --vc-fg: #f3ece6;
+  --vc-fg-muted: #b0a2b5;
+  --vc-placeholder: #7c6d84;
+
+  --vc-popup: #0c0810;
+  --vc-spoiler: #120d17;
+  --vc-spoiler-hover: #0c0810;
+  --vc-shadow: rgba(0, 0, 0, 0.3);
+  --vc-popup-shadow: rgba(0, 0, 0, 0.5);
+
+  --vc-online: #6fcf3a;
+  --vc-success: #2d7d2a;
+  --vc-success-hover: #256823;
+  --vc-idle: #e8b830;
+  --vc-warning: #ffb347;
+  --vc-warning-hover: #e89e38;
+  --vc-on-warning: #120d17;
+  --vc-danger: #c8243a;
+  --vc-danger-hover: #a91d30;
+  --vc-danger-text: #ff7a85;
+
+  --vc-link: #c39bf7;
+  --vc-unread: #ff8a2a;
+  --vc-mention-badge: #e8b830;
+  --vc-on-mention-badge: #120d17;
+
+  color-scheme: dark;
+}
+
 /* SPELLCHECK: our checker's underlines in the editors (spellcheck/spellcheckPlugin.js), like a
    browser's own. */
 .spelling-error {
@@ -672,6 +727,13 @@ pre code {
   --chat: #323339;
   --line: #4e4f56;
   --box: #393a41;
+}
+
+.theme-preview-halloween {
+  --side: #120d17;
+  --chat: #1a1320;
+  --line: #4a3a55;
+  --box: #b8500d;
 }
 
 /* Match system: half of each. */
