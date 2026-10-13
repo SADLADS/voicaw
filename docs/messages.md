@@ -620,7 +620,14 @@ scroll anchoring (`overflow-anchor`) keeps visible messages still when older pag
 or content above resizes. Where that's unsupported (Safari), `MessageList` does the same manually
 by tracking the first visible row's `offsetTop` (layout effect + ResizeObserver, both before paint).
 It also keeps the view pinned to the bottom while the user is there, and sending a message
-(a new pending row of your own at the end) goes back there, like Discord.
+(a new pending row of your own at the end) goes back there, like Discord. Only the user
+scrolling up stops that (2026-10-13): a scroll event that finds a gap below without the view
+having moved up is content that grew first (scroll events run before `ResizeObserver` in a
+frame), so it goes back to the bottom; and while following, the browser's scroll anchoring is
+off (`overflow-anchor: none` on the scroller), since it could pull the view up as rows above
+its anchor changed. Before, a burst of webhook embeds whose pictures load at random moments
+could leave the chat a little above the bottom, and then no longer following.
+`e2e/scrollpin.mjs` checks that.
 
 Messages are grouped like Discord's (`utils/messageGroups.js` `continuesGroup`): one from the
 same person within 7 minutes of the row above, on the same day and not a reply, drops its

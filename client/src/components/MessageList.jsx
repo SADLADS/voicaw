@@ -770,6 +770,8 @@ export default function MessageList({
   const pinnedToBottom = useRef(true);
   // The list's own height when last seen, to tell the list resizing apart from user scrolling.
   const lastListHeight = useRef(null);
+  // scrollTop at the last scroll event, to tell the user scrolling up apart from content growing.
+  const lastScrollTop = useRef(null);
   // Manual anchoring only: the first visible row and its position within the content.
   // Scrolling doesn't change that position; content changing above the row does, and that
   // difference is exactly how far to scroll to keep the row still.
@@ -878,6 +880,16 @@ export default function MessageList({
     canReply,
   };
 
+  // Start or stop following the newest message. While following, the browser's scroll
+  // anchoring is off: it's there to keep history still while you read it, and at the bottom
+  // it can pull the view up as rows above its anchor change (a burst of webhook embeds whose
+  // pictures load), which would look like the user scrolling away.
+  const follow = useCallback((on) => {
+    pinnedToBottom.current = on;
+    if (scrollerRef.current) scrollerRef.current.style.overflowAnchor = on ? 'none' : '';
+  }, []);
+  useLayoutEffect(() => follow(pinnedToBottom.current), [follow]);
+
   const rememberAnchor = useCallback(() => {
     if (NATIVE_SCROLL_ANCHORING) return;
     const scroller = scrollerRef.current;
@@ -924,10 +936,21 @@ export default function MessageList({
     lastListHeight.current = scroller.clientHeight;
     if (resized && pinnedToBottom.current) {
       scroller.scrollTop = scroller.scrollHeight;
+      lastScrollTop.current = scroller.scrollTop;
       return;
     }
-    pinnedToBottom.current =
-      scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <= PINNED_TOLERANCE_PX;
+    // Only the user scrolling up stops the following. Scroll events run before ResizeObserver
+    // in a frame, so the one from our own scroll to the bottom can find rows already taller
+    // (embed pictures loading as a webhook posts) and a gap below: that's not leaving the bottom.
+    const top = scroller.scrollTop;
+    const atBottom = scroller.scrollHeight - top - scroller.clientHeight <= PINNED_TOLERANCE_PX;
+    const movedUp = lastScrollTop.current !== null && top < lastScrollTop.current - 1;
+    lastScrollTop.current = top;
+    follow(atBottom || (pinnedToBottom.current && !movedUp));
+    if (pinnedToBottom.current && !atBottom) {
+      scroller.scrollTop = scroller.scrollHeight;
+      lastScrollTop.current = scroller.scrollTop;
+    }
     // Content may have shifted since the anchor was recorded (e.g. an image above loaded in
     // the same frame as this scroll): correct that before recording the new position.
     if (!pinnedToBottom.current) keepAnchorInPlace();
@@ -944,7 +967,7 @@ export default function MessageList({
     const lastKey = last ? rowKey(last) : null;
     // Sending a message (it shows at once as pending) goes back to the bottom, like Discord.
     if (lastKey !== lastRowKey.current && last?.status === 'pending' && last.sender_id === user.id) {
-      pinnedToBottom.current = true;
+      follow(true);
     }
     lastRowKey.current = lastKey;
     keepAnchorInPlace();
@@ -952,7 +975,7 @@ export default function MessageList({
     // Keep fetching until the viewport is filled or history runs out.
     maybeLoadOlder();
     rehover();
-  }, [messages, hasMore, user.id, keepAnchorInPlace, rememberAnchor, maybeLoadOlder, rehover]);
+  }, [messages, hasMore, user.id, follow, keepAnchorInPlace, rememberAnchor, maybeLoadOlder, rehover]);
 
   // Rows changing size (images/videos loading, code highlighting, edits), and the list itself
   // changing height (keyboard or mobile emoji panel opening). ResizeObserver callbacks run

@@ -122,6 +122,7 @@ node e2e/attachpanel.mjs [dir] # + button: phone panel in the keyboard's place (
 node e2e/polls.mjs [dir]  # polls: + menu, emoji, Vote (phone), results, who voted, edits, duration, end early + result rows (DM, guild, group)
 node e2e/openpolls.mjs [dir] # open polls: add an answer from the vote screen (not ticked or voted), repeats refused, "added by", ✕ (vote screen only, asks; creator, author, guild moderator not on the author's), gone once others vote, new question drops all, closed = no changes (DM phone, guild, group)
 node e2e/embedperf.mjs [n] [dir] # speed: channel of n webhook embeds with big posters; open/hover/scroll timings, CPU profile with PROFILE=<prefix>
+node e2e/scrollpin.mjs [dir] # following new messages: bursts of webhook embeds with slow pictures of no given size stay at the bottom (5 rounds); scrolled up stays put; back at the bottom follows again
 node e2e/thumbnails.mjs [dir] # image thumbnails: phone downloads only the copy (upright, no EXIF; transparent stays so), viewer opens the file, Save = the file as sent; animated PNG, GIF, small image left alone (needs ffmpeg)
 node e2e/largeuploads.mjs [dir] # big files: 120 MB (LARGE_MB) in a DM sent in parts and saved through the service worker and the desktop app (stand-in bridge), the page's memory staying far below the file's, byte-for-byte; 501 MB refused, the admin's 100 MB limit
 node e2e/video.mjs [dir]  # videos: only the poster before Play, streamed in pieces, seek reads nothing before it, download, keys, full screen, spoiler, phone (needs ffmpeg)

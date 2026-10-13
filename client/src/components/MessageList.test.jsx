@@ -431,12 +431,14 @@ describe('MessageList', () => {
   it('goes back to the bottom when you send a message, not when someone else does', () => {
     const older = [{ id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'hi', timestamp: 1000 }];
     const { container, rerender } = render(<MessageList {...baseProps({ messages: older })} />);
-    // jsdom has no layout: a 2000px list in a 500px view, scrolled up to 100.
+    // jsdom has no layout: a 2000px list in a 500px view, scrolled up from the bottom to 100.
     const scroller = container.querySelector('.message-scroller');
-    let top = 100;
+    let top = 1500;
     Object.defineProperty(scroller, 'scrollHeight', { configurable: true, get: () => 2000 });
     Object.defineProperty(scroller, 'clientHeight', { configurable: true, get: () => 500 });
     Object.defineProperty(scroller, 'scrollTop', { configurable: true, get: () => top, set: (v) => { top = v; } });
+    fireEvent.scroll(scroller);
+    top = 100;
     fireEvent.scroll(scroller);
 
     const theirs = [...older, { id: 2, sender_id: 2, sender_username: 'bob', plaintext: 'yo', timestamp: 1001 }];
@@ -446,6 +448,34 @@ describe('MessageList', () => {
     const mine = [...theirs, { id: 'temp-1', sender_id: 1, sender_username: 'alice', plaintext: 'hey', timestamp: 1002, status: 'pending' }];
     rerender(<MessageList {...baseProps({ messages: mine })} />);
     expect(top).toBe(2000);
+  });
+
+  it('keeps following when the content grows under it, and stops when you scroll up', () => {
+    const rows = [{ id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'hi', timestamp: 1000 }];
+    const { container } = render(<MessageList {...baseProps({ messages: rows })} />);
+    const scroller = container.querySelector('.message-scroller');
+    let top = 1500;
+    let height = 2000;
+    Object.defineProperty(scroller, 'scrollHeight', { configurable: true, get: () => height });
+    Object.defineProperty(scroller, 'clientHeight', { configurable: true, get: () => 500 });
+    Object.defineProperty(scroller, 'scrollTop', { configurable: true, get: () => top, set: (v) => { top = Math.min(v, height - 500); } });
+    fireEvent.scroll(scroller);
+    // Following: the browser's scroll anchoring is off, so it can't pull the view up.
+    expect(scroller.style.overflowAnchor).toBe('none');
+
+    // A picture loaded before the scroll event ran: a gap below, but nothing moved up.
+    height = 2400;
+    fireEvent.scroll(scroller);
+    expect(top).toBe(1900);
+    expect(scroller.style.overflowAnchor).toBe('none');
+
+    // The user scrolls up: no longer following, anchoring back on for reading history.
+    top = 1700;
+    fireEvent.scroll(scroller);
+    height = 2800;
+    fireEvent.scroll(scroller);
+    expect(top).toBe(1700);
+    expect(scroller.style.overflowAnchor).toBe('');
   });
 
   describe('loading older messages', () => {
