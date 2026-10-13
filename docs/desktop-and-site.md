@@ -138,6 +138,26 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   window is on screen. Started at login (`--hidden`), there's no splash: the app opens to the
   tray and updates in the background as below. `e2e/desktopsplash.mjs` draws each state and
   starts the real app under Xvfb.
+- **Steam Deck Gaming Mode** (`gamingMode.js`, `appImageInstall.js`; 2026-10-13): Gaming Mode
+  runs the AppImage, added to Steam as a non-Steam game, as one full-screen "game" under
+  gamescope: no taskbar, no tray, no window manager, and Steam counts the game as over once the
+  process it started exits. A friend's report (it crashed there, and couldn't be quit, while
+  Desktop Mode was fine) wasn't reproducible here; what's below fixes the causes found by reading
+  the code. Detected by `XDG_CURRENT_DESKTOP=gamescope` or `GAMESCOPE_WAYLAND_DISPLAY` (Linux only;
+  Desktop Mode is plain KDE and is unchanged). There: closing the window quits (closing to a tray
+  that isn't there left it running invisibly, Steam still thinking the game ran, and the
+  single-instance lock made every new start quit at once); no splash, so no update-and-restart at
+  launch (the restarted copy is outside Steam's view); updates download in the background
+  without the page being told (no "Restarting…" banner), installing when the app quits, and
+  Settings' "Update now" quits without restarting; `--ozone-platform=x11` (gamescope shows X11
+  apps through its Xwayland). Settings → Desktop App's tray box still shows but does nothing
+  there. **AppImage updates keep the file's name** (everywhere, not only on the Deck):
+  electron-updater moved the download in under the new version's name (`Voicaw-1.0.1.AppImage`)
+  and deleted the old file, so a Steam shortcut or menu entry pointing at it launched nothing
+  after the first update; `keepAppImageName` replaces its install with the same steps writing
+  over `$APPIMAGE`. The update that brings this still renames once (the old version installs
+  it), so a shortcut made before then needs pointing at the new file once.
+  `e2e/desktopgamingmode.mjs` fakes Gaming Mode under Xvfb; not yet tried on a real Deck.
 - **Windows installer** (`installer/installer.nsh`, electron-builder's `nsis.include`): the
   one-click installer shows a borderless window like the splash instead of electron-builder's grey
   box: `installer/splash.bmp` / `splash@2x.bmp` (drawn from the splash page by
@@ -157,7 +177,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   restarts onto the latest release, not the first one it noticed; electron-updater keeps only one
   download, so a newer one replaces the ready one and "Update now" waits for it, showing its
   progress (`onUpdateProgress`), and offers it again if it fails. A
-  development run or an unsigned macOS app can't update itself ('unsupported'). Releases are
+  development run or an unsigned macOS app can't update itself ('unsupported'). An AppImage
+  keeps its file name across updates, and in the Steam Deck's Gaming Mode nothing restarts (both
+  above). Releases are
   only as trustworthy as that server (no signature of our own on the feed yet).
 - **Not done yet:** push-to-talk (held key), screen share sound on macOS and
   Linux (Electron's loopback is Windows only), streaming videos (no

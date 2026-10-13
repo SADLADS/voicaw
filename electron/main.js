@@ -3,6 +3,7 @@
 // icon with the unread count, closing to the tray, starting at login, global mute/deafen
 // shortcuts, a screen picker for screen sharing, games' Rich Presence and updating itself. The page reaches these through preload.js.
 // It starts with a splash window (splash.js) that installs any update before the app opens.
+// The Steam Deck's Gaming Mode changes a few of these (gamingMode.js).
 // (Its only other window is a popped-out screen share, which the page draws itself; windowOpen.js.)
 const path = require('path');
 const { app, BrowserWindow, Menu, desktopCapturer, dialog, globalShortcut, ipcMain, nativeImage, net, protocol, screen, session, shell } = require('electron');
@@ -27,6 +28,7 @@ const { createFileSaver } = require('./fileSave');
 const { createRichPresenceServer } = require('./richPresence');
 const { createGameActivities, pictureFrom } = require('./gameActivities');
 const { identifyGame, steamApps, steamRoots } = require('./gameLookup');
+const { inGamingMode } = require('./gamingMode');
 
 const APP_ID = 'com.voicaw.app';
 const ICON = path.join(__dirname, 'assets', 'icon.png');
@@ -36,6 +38,10 @@ const BUILD_DIR = app.isPackaged ? path.join(process.resourcesPath, 'app') : pat
 const ALLOWED_PERMISSIONS = new Set(['media', 'notifications', 'clipboard-sanitized-write', 'fullscreen', 'display-capture']);
 
 registerScheme(protocol);
+
+const gamingMode = inGamingMode();
+// gamescope shows X11 apps (through its Xwayland); Electron would otherwise pick Wayland there.
+if (gamingMode) app.commandLine.appendSwitch('ozone-platform', 'x11');
 
 let win = null;
 let splash = null; // while the app starts
@@ -131,7 +137,7 @@ function createWindow(hidden, onShown = () => {}) {
     // An update that finished downloading before the page was there to hear it (or before a reload).
     win.webContents.on('did-finish-load', () => {
         const version = updater.readyVersion();
-        if (version) win.webContents.send('desktop:update-ready', version);
+        if (version && !gamingMode) win.webContents.send('desktop:update-ready', version);
     });
 
     // Links to other sites open in the browser; the window only ever shows the app, and the
@@ -159,9 +165,10 @@ function createWindow(hidden, onShown = () => {}) {
     }
 
     // Closing leaves it running in the tray (on macOS always, as apps there do), unless quitting.
+    // Gaming Mode has no tray to come back from: closing there quits.
     win.on('close', (event) => {
         rememberBounds();
-        if (!quitting && (settings.get().closeToTray || process.platform === 'darwin')) {
+        if (!quitting && !gamingMode && (settings.get().closeToTray || process.platform === 'darwin')) {
             event.preventDefault();
             win.hide();
         }
@@ -320,6 +327,7 @@ function start() {
     tray = createTray({ showWindow, quit });
     updater = createUpdater({
         app,
+        gamingMode,
         onReady: (version) => win?.webContents.send('desktop:update-ready', version),
         onProgress: (fraction) => {
             splash?.progress(fraction);
@@ -333,6 +341,10 @@ function start() {
 
     if (startedHidden(app)) {
         openApp(true);
+        updater.start();
+    } else if (gamingMode) {
+        // No splash: its update restarts the app, and Steam would think the game had closed.
+        openApp(false);
         updater.start();
     } else {
         startWithSplash();
