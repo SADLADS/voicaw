@@ -2937,14 +2937,16 @@ body.mobile-mode .dm-user-list-container .dm-user {
   flex-wrap: nowrap;
   gap: 16px;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
   margin: 14px 20px 0;
-  border-bottom: 1px solid var(--vc-border-dark);
+  /* The line under the tabs, inside the row (the active tab's underline paints over it): a
+     border with tabs hanging over it would give the row a pixel to scroll up and down. */
+  box-shadow: inset 0 -1px 0 var(--vc-border-dark);
 }
 
 .user-profile-tab {
   flex-shrink: 0;
-  margin-bottom: -1px;
   white-space: nowrap;
   padding: 6px 0;
   border: 0;

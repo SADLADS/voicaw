@@ -182,6 +182,13 @@ try {
   check(short.top >= 0 && short.bottom <= 420 && short.scrolls, `short window: it fits and scrolls (${Math.round(short.top)}-${Math.round(short.bottom)} of 420)`);
   check(Math.round(short.head) === 64 && Math.round(short.banner) === 200, `nothing squashed (head ${Math.round(short.head)} px, banner ${Math.round(short.banner)} px)`);
   await shot(a, 'short-window');
+  // The wheel over the tabs scrolls the profile, not the tabs' own row.
+  const tabBox = await profile.locator('[role="tab"]').first().boundingBox();
+  await a.mouse.move(tabBox.x + tabBox.width / 2, tabBox.y + tabBox.height / 2);
+  await a.mouse.wheel(0, 60);
+  await a.waitForTimeout(300);
+  const wheel = await profile.evaluate((el) => ({ tabs: el.querySelector('.user-profile-tabs').scrollTop, profile: el.scrollTop }));
+  check(wheel.tabs === 0 && wheel.profile > 0, `the wheel over the tabs scrolls the profile, not the tabs (tabs ${wheel.tabs}, profile ${wheel.profile})`);
   await profile.evaluate((el) => { el.scrollTop = el.scrollHeight; });
   const panel = await a.locator('.user-profile-panel').boundingBox();
   check(panel.y + panel.height <= 421, 'scrolled down, the tab content is in view');
