@@ -21,6 +21,7 @@ node e2e/emojisheets.mjs [dir] # picker sprite sheets: no per-emoji SVGs, time t
 node e2e/emojiusage.mjs [dir] # emoji usage follows the account: Frequently Used and skin tone on a second device (another browser logging in), live while open, only ciphertext on the server, nothing in localStorage, another account's own
 node e2e/voice.mjs [dir]  # voice: join, hear, speaking ring, mute/deafen, unmute+mute at once with a slow mic (never heard; asks LiveKit), phone, leave
 node e2e/speaking.mjs [dir] # speaking ring timed against the received audio (fake mic in phrases): lights within ~30 ms, out ~300 ms after, own ring, mute = out at once, still shown deafened
+node e2e/logo.mjs [dir]   # the rail's bird logo: each click plays the Philly hit (14 oscillators, no clipping, quick clicks each get one, no navigation), Settings → Sounds' Logo switch (off = silent)
 node e2e/railvoice.mjs [dir] # guild rail speaker: green on yours, grey on others' (guild not opened, after reload, live), phone, light, above a mention badge, gone on leave
 node e2e/links.mjs [dir] # message links: open in a new tab (target _blank), the app page stays and voice stays connected
 node e2e/rejoin.mjs [dir] # voice after a lost connection: Reconnecting, rejoins by itself, phone waits until back in view, leave stays left

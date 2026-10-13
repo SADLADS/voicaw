@@ -565,8 +565,10 @@ picture or names, or straight from a tap on a phone.
 
 Discord's sound effects, for what Voicaw has (`client/src/sounds/`). `soundList.js` lists them
 (`SOUNDS`): Message, Mute, Unmute, Deafen, Undeafen, User join, User leave, Voice disconnected,
-Incoming ring, Outgoing ring. Each is a `tone` drawn with Web Audio oscillators (notes, volume,
-wave, `bell` or `flat` shape); **a sound with a `file`** (e.g. `/sounds/message.ogg` in
+Incoming ring, Outgoing ring, and Logo (not Discord's: a Philly hit, the 80s orchestra stab, on
+every click of the bird at the top of the guild rail, until the logo gets a real use). Each is a
+`tone` drawn with Web Audio oscillators (notes, volume, wave, `bell` or `flat` shape, optional
+`detune` and a closing lowpass `filter`, which Logo uses); **a sound with a `file`** (e.g. `/sounds/message.ogg` in
 `client/public/sounds/`) plays that instead, falling back to its tone if it can't load, so real
 recordings can replace tones one at a time. `every` makes it a loop (rings), `minGap` stops
 repeats (a burst of messages dings once).

@@ -19,7 +19,8 @@ class FakeAudioContext {
   }
   resume() { return Promise.resolve(); }
   createGain() { return node('gain', { gain: param() }); }
-  createOscillator() { return node('oscillator', { frequency: param(), start: vi.fn(), stop: vi.fn() }); }
+  createOscillator() { return node('oscillator', { frequency: param(), detune: param(), start: vi.fn(), stop: vi.fn() }); }
+  createBiquadFilter() { return node('filter', { frequency: param(), Q: param() }); }
   createBufferSource() { return node('buffer', { start: vi.fn() }); }
   decodeAudioData() { return Promise.resolve({ decoded: true }); }
 }
@@ -52,6 +53,20 @@ describe('sounds', () => {
     const out = made.find((n) => n.kind === 'gain');
     expect(out.gain.value).toBe(0.5);
     expect(out.connect).toHaveBeenCalledWith(expect.objectContaining({ kind: 'destination' }));
+  });
+
+  it('plays the logo\'s Philly hit as detuned pairs through a closing lowpass, on every click', async () => {
+    sounds.playSound('logo');
+    sounds.playSound('logo');
+    await flush();
+    const { notes, detune } = soundList.SOUNDS.logo.tone;
+    expect(oscillators()).toHaveLength(notes.length * 2 * 2);
+    expect(oscillators().slice(0, 2).map((o) => o.detune.value)).toEqual([-detune, detune]);
+    const filter = made.find((n) => n.kind === 'filter');
+    expect(filter.type).toBe('lowpass');
+    expect(filter.frequency.exponentialRampToValueAtTime).toHaveBeenCalled();
+    expect(made.find((n) => n.kind === 'gain').connect).toHaveBeenCalledWith(expect.objectContaining({ kind: 'destination' }));
+    expect(filter.connect).toHaveBeenCalledWith(expect.objectContaining({ kind: 'gain' }));
   });
 
   it('skips sounds turned off (and everything at volume 0), but previews them', async () => {
