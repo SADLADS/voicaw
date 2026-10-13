@@ -6,6 +6,8 @@
 //   volume), wave ('sine' default, 'triangle'...), shape ('bell': struck and fading, the
 //   default; 'flat': held, for rings), detune (cents: two oscillators per note, pulled apart),
 //   filter ({ from, to, length, q }: a lowpass closing from `from` to `to` Hz) }.
+// fileVolume: 0-1, the `file`'s level before the user's volume (a file at full scale is far
+//   louder than the tones).
 // every: ms between repeats when it's played as a loop (rings).
 // minGap: ms during which the same sound isn't played again (a burst of messages dings once).
 
@@ -65,8 +67,11 @@ export const SOUNDS = {
   logo: {
     labelKey: 'settings.sounds.logo.label',
     descriptionKey: 'settings.sounds.logo.description',
-    // A Philly hit (the 80s orchestra stab): a big C major chord of detuned saws, struck all at
+    // A Philly hit (the 80s orchestra stab). The file peaks near full scale, so it's turned down
+    // to the tones' level. If it can't load: a big C major chord of detuned saws, struck all at
     // once, through a lowpass closing fast. Every click plays, however quick.
+    file: '/sounds/hit.mp3',
+    fileVolume: 0.3,
     tone: {
       notes: [65.41, 130.81, 196, 261.63, 329.63, 392, 523.25].map((frequency) => [0, frequency, 0.9]),
       volume: 0.035,

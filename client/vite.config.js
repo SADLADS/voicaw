@@ -157,7 +157,7 @@ export default defineConfig(({ mode }) => {
         filename: 'service-worker.js',
         // The app offers updates (UpdateBanner) rather than swapping versions under the user.
         registerType: 'prompt',
-        includeAssets: ['favicon.ico', 'logo192.png', 'logo512.png', 'logo-maskable-512.png', 'apple-touch-icon.png', 'badge.png', 'default.png'],
+        includeAssets: ['favicon.ico', 'logo192.png', 'logo512.png', 'logo-maskable-512.png', 'apple-touch-icon.png', 'badge.png', 'default.png', 'sounds/hit.mp3'],
         // The app links public/manifest.json itself (served as application/json; nginx has
         // no MIME type for .webmanifest), so don't generate a second manifest.
         manifest: false,

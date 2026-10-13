@@ -155,7 +155,13 @@ async function playInto(ctx, out, sound) {
     if (buffer) {
       const source = ctx.createBufferSource();
       source.buffer = buffer;
-      source.connect(out);
+      if (sound.fileVolume != null) {
+        const gain = ctx.createGain();
+        gain.gain.value = sound.fileVolume;
+        source.connect(gain).connect(out);
+      } else {
+        source.connect(out);
+      }
       source.start();
       return;
     }
