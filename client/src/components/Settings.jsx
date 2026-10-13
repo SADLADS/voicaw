@@ -63,9 +63,9 @@ function sub(id, key, extra) {
 //
 // The column goes into Layout's `settingsNavSlot` with a portal: on a computer beside the rail,
 // above the user panel; on a phone it's the list pane under the page, swiped between like the
-// channel list and a chat (useSwipePanes). /settings alone is the list there, and My Account
-// on a computer. The card with your picture, name and "Edit Profile" at the top of the column
-// opens your full profile (UserProfile), where your profile is edited; /settings/profile (the
+// channel list and a chat (useSwipePanes). /settings alone is My Account; a phone opens it on
+// the list, with My Account behind it (swiping left shows it). The card with your picture, name
+// and "Edit Profile" at the top of the column opens your full profile (UserProfile), where your profile is edited; /settings/profile (the
 // old Edit Profile page's address) opens it too, over /settings. Developer Portal and Log Out
 // are buttons at the end of the column, with no page of their own.
 export default function Settings({ onLogout }) {
@@ -211,10 +211,10 @@ export default function Settings({ onLogout }) {
   const available = (item) => item.available !== false;
   const listed = pages.filter(available);
 
-  // The page in the URL: /settings/<id>. /settings alone is the list on a phone, My Account on
-  // a computer.
+  // The page in the URL: /settings/<id>. /settings alone is My Account (behind the list, on a
+  // phone).
   const segment = location.pathname.split('/')[2] ?? '';
-  const page = pages.find((p) => p.id === segment) ?? (isMobile ? null : pages[0]);
+  const page = pages.find((p) => p.id === segment) ?? pages[0];
   const hash = decodeURIComponent(location.hash.slice(1));
 
   // Going to a page (and subsection): on a phone it slides over the list, the move replacing

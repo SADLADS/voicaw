@@ -86,7 +86,7 @@ export default function Layout({ user, onLogout }) {
   }, []);
 
   // Phone: the list and the chat (or Settings' column and page) are two panes, swiped between
-  // (hooks/useSwipePanes.js). /settings alone has no page: it opens on the list.
+  // (hooks/useSwipePanes.js). /settings alone opens on the list (My Account behind it).
   const slidey = isMobile && (isDmPage || Boolean(guildId) || settingsColumn);
   const wrapperRef = useRef(null);
   const listPaneRef = useRef(null);
