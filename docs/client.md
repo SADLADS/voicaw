@@ -320,7 +320,9 @@
     Familiar. Night-purple neutrals, pumpkin orange accent (white on it 5:1), candlelight
     yellow for attention and mention counts, orange unread markers, witch-purple links, slime
     green online, blood red errors; warnings are a pale amber so they don't read as the accent.
-    Colours only: no decorations.
+    The rail's bird logo goes the same pumpkin: it's drawn as a CSS mask of
+    `logo-no-border.svg` filled with `--vc-logo` (the bird yellow in every other theme), so a
+    theme can recolour it. Colours only: no decorations.
   - **Another colour scheme** later: a `:root[data-theme="<name>"]` block setting every colour
     token (copy the light one) and its `color-scheme`, the name in `THEMES` and `BASES`
     (`utils/theme.js`) and in `index.html`'s copy, and a preview in `ThemeSettings.jsx`

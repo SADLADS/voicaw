@@ -38,6 +38,8 @@
   /* The mention highlight. */
   --vc-action-soft: rgba(216, 185, 48, 0.12);
   --vc-on-action: #17151d;
+  /* The rail's bird logo: the bird yellow, except where a theme recolours it (Halloween). */
+  --vc-logo: #d8b930;
 
   --vc-bg-base: #17151d;
   --vc-bg-subtle: #201d28;
@@ -114,6 +116,7 @@
   --vc-action-text: #8a7114;
   --vc-action-soft: rgba(216, 185, 48, 0.18);
   --vc-on-action: #17151d;
+  --vc-logo: #d8b930;
 
   --vc-bg-base: #e4e2ea;
   --vc-bg-subtle: #ffffff;
@@ -169,6 +172,7 @@
   --vc-action-text: #f0b232;
   --vc-action-soft: rgba(240, 177, 50, 0.1);
   --vc-on-action: #000000;
+  --vc-logo: #d8b930;
 
   --vc-bg-base: #2c2d32;
   --vc-bg-subtle: #323339;
@@ -224,6 +228,8 @@
   --vc-action-text: #e8b830;
   --vc-action-soft: rgba(232, 184, 48, 0.12);
   --vc-on-action: #120d17;
+  /* The bird goes pumpkin, the buttons' orange. */
+  --vc-logo: #b8500d;
 
   --vc-bg-base: #120d17;
   --vc-bg-subtle: #1a1320;
@@ -438,6 +444,9 @@ body {
   cursor: pointer;
   user-select: none;
   -webkit-user-drag: none;
+  background-color: var(--vc-logo);
+  -webkit-mask: url('../images/logo-no-border.svg') center / contain no-repeat;
+  mask: url('../images/logo-no-border.svg') center / contain no-repeat;
 }
 .sidebar::-webkit-scrollbar {
   width: 0px;

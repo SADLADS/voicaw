@@ -51,7 +51,7 @@ try {
   const { page } = alice;
   await tapAudio(page);
   const url = page.url();
-  const logo = page.locator('img.rail-logo');
+  const logo = page.locator('.rail-logo');
 
   await logo.click();
   await page.waitForTimeout(1000);
