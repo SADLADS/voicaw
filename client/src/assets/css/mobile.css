@@ -518,5 +518,6 @@
 }
 
 .user-profile.sheet .user-profile-close {
-    top: calc(env(safe-area-inset-top) + 18px);
+    top: calc(env(safe-area-inset-top) + 8px);
+    margin-top: 4px;
 }

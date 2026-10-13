@@ -2856,11 +2856,19 @@ body.mobile-mode .dm-user-list-container .dm-user {
   box-shadow: 0 12px 32px var(--vc-popup-shadow);
 }
 
+/* Its parts keep their size: on a short window it scrolls rather than squashing them. */
+.user-profile > * {
+  flex-shrink: 0;
+}
+
+/* Stays at the top right while the profile scrolls (over the banner: the margin below takes its
+   place back). */
 .user-profile-close {
-  position: absolute;
+  position: sticky;
   top: 8px;
-  right: 10px;
   z-index: 2;
+  align-self: flex-end;
+  margin: 8px 10px -40px 0;
   width: 32px;
   height: 32px;
   border-radius: 50%;
