@@ -1,5 +1,5 @@
-// Full profiles and banners. Alice edits her own from her card (picture → profile): banner
-// picture through the 5:2 cropper, banner colour, custom status and about me, saved at once,
+// Full profiles and banners. Alice edits her own (the user menu's Edit Profile): display name,
+// banner picture through the 5:2 cropper, banner colour, custom status and about me, saved at once,
 // her card showing the banner. Bob (a picture, a banner colour, playing "Hades" through a
 // socket as the desktop app would) is opened from his card in a guild: banner, bigger picture
 // (opens the image viewer), tabs About me / Activity (Hades, playing now) / Mutual friends
@@ -72,13 +72,18 @@ try {
     };
   }));
 
-  // Alice: her own profile from her card in the member list.
+  // Alice: her own profile from the user menu's Edit Profile (her picture and name there too).
   await a.goto(`${BASE}/guild/${guild.id}/${general.id}`);
-  await a.locator(`.member-row:has-text("${alice.name}")`).click();
-  await a.locator('.member-card .profile-card-avatar').click();
+  await a.click('.user-panel-me');
+  await a.click('.user-menu-item:has-text("Edit Profile")');
   const own = a.locator('.user-profile');
   await own.waitFor();
-  check(await own.locator('button[aria-label="Change profile picture"]').count() === 1, 'her own profile has edit buttons');
+  check(await own.locator('button[aria-label="Change profile picture"]').count() === 1 && !(await a.$('.user-menu')), "the user menu's Edit Profile opens her own profile, with edit buttons");
+  await own.locator('button[aria-label="Edit display name"]').click();
+  await own.locator('input[aria-label="Display name"]').fill(`${alice.name} A`);
+  await a.keyboard.press('Enter');
+  await own.locator(`.user-profile-name:text-is("${alice.name} A")`).waitFor();
+  check(await a.locator(`.member-row:has-text("${alice.name} A")`).count() === 1, 'her display name, edited there, shows in the member list');
   await a.setInputFiles('input[aria-label="Choose a banner image"]', BANNER);
   await a.waitForSelector('.image-cropper-wide .image-cropper-frame img[style*="left"]');
   const frame = await a.locator('.image-cropper-frame').boundingBox();

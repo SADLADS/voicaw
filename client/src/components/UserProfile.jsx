@@ -44,8 +44,9 @@ function playTime(seconds) {
 // picture or names (utils/userProfile.js); a mutual friend opens theirs in its place
 // (`onOpenProfile`), a mutual guild goes there.
 // Yours (`me`) is edited in place, each part saved at once: picture and banner picture (through
-// the cropper), banner colour, custom status (and its emoji) and about me; Activity says when
-// it's hidden from others or off.
+// the cropper), banner colour, display name, custom status (and its emoji) and about me (what
+// Settings' Edit Profile page had: it's opened from there now, and from the user menu);
+// Activity says when it's hidden from others or off.
 // On a phone it's a full-screen sheet, as the emoji panel pulled up, with its handle: swiping
 // it down (from the top of what's scrolled) closes it (useSheetDismiss), as does the handle.
 export default function UserProfile({ userId, me, onClose, onOpenProfile }) {
@@ -124,7 +125,7 @@ export default function UserProfile({ userId, me, onClose, onOpenProfile }) {
           {own && <OwnPictureButtons userId={userId} />}
         </div>
         <div className="user-profile-names">
-          <h4 className="user-profile-name">{name}</h4>
+          {own ? <OwnName userId={userId} name={name} /> : <h4 className="user-profile-name">{name}</h4>}
           {profile.display_name && <div className="profile-card-username">{profile.username}</div>}
           <div className={`profile-card-presence ${presence.status}`}>
             {presence.status === 'offline' ? lastSeenText(presence.lastOnline) ?? statusLabel('offline') : statusLabel(presence.status)}
@@ -313,6 +314,66 @@ function OwnPictureButtons({ userId }) {
       {upload.error && <p className="error-msg user-profile-picture-error" role="alert">{upload.error}</p>}
       {upload.cropper}
     </>
+  );
+}
+
+// Your display name: shown with a pencil, or edited (empty: your username; Enter or Save,
+// Escape or Cancel).
+function OwnName({ userId, name }) {
+  const profile = getProfile(userId) ?? {};
+  const [editing, setEditing] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      mergeProfiles([await updateProfile({ displayName: editing.trim() })]);
+      setEditing(null);
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (editing == null) {
+    return (
+      <div className="user-profile-editable">
+        <h4 className="user-profile-name">{name}</h4>
+        <button
+          type="button"
+          className="user-profile-edit-inline"
+          aria-label={t('app.profile.editName')}
+          title={t('app.profile.editName')}
+          onClick={() => setEditing(profile.display_name ?? '')}
+        >
+          <FontAwesomeIcon icon={faPen} />
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="user-profile-name-edit">
+      <div className="user-profile-status-edit">
+        <input
+          className="form-control form-control-sm"
+          aria-label={t('settings.profile.displayName')}
+          placeholder={profile.username}
+          maxLength={PROFILE_LIMITS.display_name}
+          value={editing}
+          autoFocus
+          onChange={(e) => setEditing(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); save(); }
+            if (e.key === 'Escape') { e.preventDefault(); setEditing(null); }
+          }}
+        />
+        <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={save}>{busy ? t('app.profile.saving') : t('common.save')}</button>
+        <button type="button" className="btn btn-sm btn-secondary" disabled={busy} onClick={() => setEditing(null)}>{t('common.cancel')}</button>
+      </div>
+      <p className="vc-hint">{t('settings.profile.displayNameHint', { username: profile.username })}</p>
+      {error && <p className="error-msg" role="alert">{error}</p>}
+    </div>
   );
 }
 

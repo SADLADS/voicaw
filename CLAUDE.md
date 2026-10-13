@@ -396,7 +396,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   unencrypted like pictures) or a colour. Activity is the games played over the last 30 days:
   saved on the server (names and times only, 30 days; a month's history was asked for, and it
   has to reach other people's apps), the only activity data that is. Each tab can be hidden (Settings → Privacy, shown by default);
-  hiding Activity stops recording it and deletes it. Your own profile is edited in place.
+  hiding Activity stops recording it and deletes it. Your own profile is edited in place, and
+  replaced Settings' Edit Profile page (Settings, the user menu and `/settings/profile` open it).
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

@@ -12,6 +12,7 @@ vi.mock('./DeviceSettings', () => ({ default: () => null }));
 
 import api from '../utils/api';
 import Settings from './Settings';
+import { onOpenUserProfile } from '../utils/userProfile';
 import { AuthContext } from '../hooks/useAuth';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
@@ -144,12 +145,25 @@ describe('Settings search and date formats', () => {
     expect([...nav().querySelectorAll('.settings-nav-result-title')].map((e) => e.textContent)).toEqual(['Camera']);
   });
 
-  it('has your name and Edit Profile above the search, whatever is searched', () => {
+  it('has your name and Edit Profile above the search, whatever is searched, opening your full profile', () => {
+    const opened = vi.fn();
+    const stop = onOpenUserProfile(opened);
     renderSettings();
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: 'zzz' } });
     const link = screen.getByRole('button', { name: /me\s*Edit Profile/ });
     expect(link.compareDocumentPosition(screen.getByRole('searchbox')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(navItems()).not.toContain('Edit Profile');
+    fireEvent.click(link);
+    expect(opened).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it('opens your full profile for the old Edit Profile address, over Settings', () => {
+    const opened = vi.fn();
+    const stop = onOpenUserProfile(opened);
+    renderSettings({ at: '/settings/profile' });
+    expect(opened).toHaveBeenCalledTimes(1);
+    stop();
   });
 
   it('changes the date and time formats', () => {

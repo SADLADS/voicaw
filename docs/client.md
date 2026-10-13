@@ -68,7 +68,8 @@
   (`CustomStatus`, emoji and text) while connected, otherwise this device's connection state
   (`ws-client` `getConnectionState`/`onConnectionState`: online / connecting / offline; the dot
   on the picture always shows it), and the settings button. Clicking the picture and name opens `UserMenu` above it: your picture, name
-  and custom status (its emoji button and text change it there), Edit Profile, Copy User ID and Log out.
+  and custom status (its emoji button and text change it there), Edit Profile, Copy User ID and Log out;
+  its picture, names and Edit Profile open your full profile (see Full profiles).
   Neither the panel's picture and name nor the menu has a right-click menu (they call
   `preventDefault`, so PageMenus' Copy User ID doesn't open there either). It's shown under the DM list, a guild's channel list, and Settings' column
   (Layout adds an empty column, `settingsNavSlot` in `LayoutContext`, and `Settings` draws its
@@ -137,7 +138,9 @@
   column (beside the rail, above the user panel, on a computer) lists the open page's
   subsections under it (not a lone one), each scrolling to its part (`#<id>` in the URL); the
   search lists matching subsections from every page, with their page's name. Above it, a card
-  with your picture and name opens Edit Profile (`/settings/profile`, a page like the others).
+  with your picture, name and "Edit Profile" opens your full profile, where your profile is edited
+  (see Full profiles); `/settings/profile`, the old Edit Profile page's address, opens it over
+  `/settings`.
   On a phone the column is the list pane and a page slides over it (see Phone panes); the list
   shows only the pages, and `/settings` alone is the list (on a computer, My Account). The old
   one-page Settings' links (`/settings#devices`) go to the page holding that subsection, by id
@@ -484,12 +487,12 @@ stays the unique handle (logins, @username on the card).
   encrypted, like pictures. Client: `bannerUrl(id)`, drawn by `ProfileBanner`; deleting the
   account deletes both.
 - **Picture cropper** (`components/ImageCropper.jsx`, maths in `utils/imageCrop.js`): a picked
-  profile picture (Edit Profile), guild icon (Guild Settings), bot picture (Developer Portal) or
+  profile picture or banner (your full profile), guild icon (Guild Settings), bot picture (Developer Portal) or
   webhook picture (a channel's Webhooks tab) opens in a dialog first: the picture under a round hole, dragged into place and zoomed (slider,
   wheel, pinch, arrows and +/- on the frame; up to 5×, never leaving a gap). Apply gives the crop
   as fractions `{ x, y, width, height }` of the picture as shown (after EXIF rotation), which the
-  server cuts out (`avatarImage.js` `parseCrop`), so animated pictures stay animated. Edit Profile
-  and the Webhooks tab preview it (`croppedPreview`, a still canvas copy) until Save; bot and
+  server cuts out (`avatarImage.js` `parseCrop`), so animated pictures stay animated. Your profile
+  saves it at once; the Webhooks tab previews it (`croppedPreview`, a still canvas copy) until Save; bot and
   webhook pictures, sent as data URIs, are cut in the browser before shrinking
   (`croppedPictureData`; GIFs go whole with `avatarCrop`, which `PATCH /applications/:id` and our
   webhook routes take, Discord's don't have it). Escape closes only the cropper (caught before the
@@ -518,12 +521,11 @@ stays the unique handle (logins, @username on the card).
   clicks in it as inside. In `UserMenu` the emoji button is always beside the status text, so
   one click opens the picker and the pick saves at once; while the text is being edited, a pick
   goes with it instead (moving to the emoji button or picker doesn't end the edit; Enter or
-  clicking away saves both) and the emoji's own ✕ shows; ✕ on the status clears both. In Edit
-  Profile it's beside the text box, saved with the rest.
-- Settings → Edit Profile is its own page (`/settings/profile`, `EditProfile.jsx`): picture
-  (change or remove), banner (picture, colour), display name, custom status and its emoji, bio,
-  with a live preview; Save uploads the picture and banner (if picked) or removes them, and saves
-  the rest.
+  clicking away saves both) and the emoji's own ✕ shows; ✕ on the status clears both. In your
+  full profile it's beside the status's text box, saved with it.
+- Editing your profile happens in your full profile (Full profiles, below), which replaced
+  Settings' Edit Profile page (2026-10-13): Settings' card, the user menu's Edit Profile and its
+  picture and names open it.
 
 ### Full profiles
 
@@ -545,8 +547,10 @@ picture or names, or straight from a tap on a phone.
   saying which are, and no mutual tabs.
 - Your own is edited in place, each part saved at once: picture and banner picture (camera / image
   buttons, through the cropper), banner colour (a colour input, saved once it rests 0.6 s),
-  remove either, custom status (pencil; emoji button, Enter saves, Escape cancels) and about me
-  (pencil; a box with Save / Cancel).
+  remove either, display name (pencil; empty = your username), custom status (pencil; emoji
+  button, Enter saves, Escape cancels) and about me (pencil; a box with Save / Cancel). It's
+  where profiles are edited: Settings' card (and `/settings/profile`), the user menu's Edit
+  Profile, picture and names open it.
 - Phone: a full-screen sheet with the emoji panel's handle; a downward swipe (from the top of
   what's scrolled) follows the finger and closes it past a quarter of its height or with a flick,
   else springs back (`hooks/useSheetDismiss.js`); the handle closes it too. Mutual tabs are

@@ -93,6 +93,13 @@ describe('UserProfile', () => {
     await waitFor(() => expect(updateProfile).toHaveBeenCalledWith({ bio: 'New bio' }));
     await waitFor(() => expect(screen.getByText('New bio')).toBeInTheDocument());
 
+    fireEvent.click(screen.getByRole('button', { name: 'Edit display name' }));
+    const nameBox = screen.getByRole('textbox', { name: 'Display name' });
+    expect(nameBox).toHaveAttribute('placeholder', 'ann');
+    fireEvent.change(nameBox, { target: { value: '  Ann B ' } });
+    fireEvent.keyDown(nameBox, { key: 'Enter' });
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledWith({ displayName: 'Ann B' }));
+
     await waitFor(() => expect(tabs()).toEqual(['About me', 'Activity']));
     fireEvent.click(screen.getByRole('tab', { name: 'Activity' }));
     expect(screen.getByText(/Your activity history is off/)).toBeInTheDocument();

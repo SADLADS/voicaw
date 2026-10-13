@@ -1199,7 +1199,7 @@ pre code {
   padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 
-/* Your picture and name, to Edit Profile: above the search, apart from the sections. */
+/* Your picture and name, opening your profile to edit: above the search, apart from the sections. */
 .settings-profile-link {
   display: flex;
   align-items: center;
@@ -1587,6 +1587,23 @@ body.sidebar-resizing * {
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+/* Your picture and names open your full profile. */
+.user-menu-open {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.user-menu-name.user-menu-open:hover,
+.user-menu-username.user-menu-open:hover {
+  text-decoration: underline;
 }
 
 .user-menu-avatar {
