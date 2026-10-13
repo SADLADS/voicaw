@@ -1,22 +1,26 @@
-// The rail's bird logo: every click plays the Philly hit (Sounds' Logo), quick clicks each get
-// their own, it doesn't clip, the page doesn't move, and Settings → Sounds has its switch (off =
-// silent). Web Audio is tapped in the page: oscillators counted, the output's peak measured.
+// The rail's bird logo: every click plays the Philly hit (Sounds' Logo, /sounds/hit.mp3), quick
+// clicks each get their own, it doesn't clip, the page doesn't move, and Settings → Sounds has
+// its switch (off = silent). Web Audio is tapped in the page: sources counted, the output's peak
+// measured.
 //   node e2e/serve.mjs &   then   node e2e/logo.mjs [dir]
 import { launchChrome, signUp, BASE } from './helpers.mjs';
 
 const dir = process.argv[2];
 const browser = await launchChrome({ args: ['--autoplay-policy=no-user-gesture-required'] });
 
-// Counts oscillators and routes everything bound for the speakers through an analyser.
+// Counts what plays (files and oscillators) and routes everything bound for the speakers through an analyser.
 async function tapAudio(page) {
   await page.evaluate(() => {
-    window.__osc = 0;
+    window.__sources = 0;
     window.__peak = 0;
-    const createOscillator = BaseAudioContext.prototype.createOscillator;
-    BaseAudioContext.prototype.createOscillator = function () {
-      window.__osc += 1;
-      return createOscillator.call(this);
-    };
+    for (const method of ['createOscillator', 'createBufferSource']) {
+      const create = BaseAudioContext.prototype[method];
+      BaseAudioContext.prototype[method] = function () {
+        if (method === 'createBufferSource') window.__sources += 1;
+        else window.__osc = (window.__osc ?? 0) + 1;
+        return create.call(this);
+      };
+    }
     const connect = AudioNode.prototype.connect;
     const analysers = new WeakMap();
     AudioNode.prototype.connect = function (target, ...rest) {
@@ -40,7 +44,7 @@ async function tapAudio(page) {
   });
 }
 
-const audio = (page) => page.evaluate(() => ({ osc: window.__osc, peak: window.__peak }));
+const audio = (page) => page.evaluate(() => ({ sources: window.__sources, osc: window.__osc ?? 0, peak: window.__peak }));
 
 try {
   const alice = await signUp(browser, 'alice');
@@ -52,11 +56,11 @@ try {
   await logo.click();
   await page.waitForTimeout(1000);
   const one = await audio(page);
-  // 7 notes, two detuned oscillators each.
-  if (one.osc !== 14) throw new Error(`one click made ${one.osc} oscillators, not 14`);
+  // The file, not the synthesised fallback.
+  if (one.sources !== 1 || one.osc !== 0) throw new Error(`one click made ${one.sources} file sources and ${one.osc} oscillators, not the file once`);
   if (one.peak < 0.05) throw new Error(`the hit was silent (peak ${one.peak})`);
   if (one.peak > 1) throw new Error(`the hit clips (peak ${one.peak})`);
-  console.log(`one click: 14 oscillators, peak ${one.peak.toFixed(2)}`);
+  console.log(`one click: hit.mp3, peak ${one.peak.toFixed(2)}`);
   if (dir) await page.screenshot({ path: `${dir}/logo-rail.png` });
 
   // Quick clicks each play.
@@ -65,7 +69,7 @@ try {
   await logo.click();
   await page.waitForTimeout(1000);
   const quick = await audio(page);
-  if (quick.osc !== 14 * 4) throw new Error(`3 quick clicks made ${quick.osc - 14} oscillators, not 42`);
+  if (quick.sources !== 4) throw new Error(`3 quick clicks played ${quick.sources - 1} times, not 3`);
   if (quick.peak > 1) throw new Error(`overlapping hits clip (peak ${quick.peak})`);
   console.log(`three quick clicks: three hits, peak ${quick.peak.toFixed(2)}`);
   if (page.url() !== url) throw new Error(`the logo navigated to ${page.url()}`);
@@ -80,7 +84,8 @@ try {
   await tapAudio(page);
   await logo.click();
   await page.waitForTimeout(500);
-  if ((await audio(page)).osc !== 0) throw new Error('the logo played with Logo switched off');
+  const off = await audio(page);
+  if (off.sources + off.osc !== 0) throw new Error('the logo played with Logo switched off');
   console.log('Settings → Sounds has Logo; off = silent');
 
   console.log('logo: ok');

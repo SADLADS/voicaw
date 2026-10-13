@@ -55,17 +55,32 @@ describe('sounds', () => {
     expect(out.connect).toHaveBeenCalledWith(expect.objectContaining({ kind: 'destination' }));
   });
 
-  it('plays the logo\'s Philly hit as detuned pairs through a closing lowpass, on every click', async () => {
+  it('plays the logo\'s hit.mp3 turned down, on every click', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) })));
     sounds.playSound('logo');
     sounds.playSound('logo');
     await flush();
+    await flush();
+    expect(fetch).toHaveBeenCalledWith('/sounds/hit.mp3');
+    const sources = made.filter((n) => n.kind === 'buffer');
+    expect(sources).toHaveLength(2);
+    const level = sources[0].connect.mock.calls[0][0];
+    expect(level.gain.value).toBe(soundList.SOUNDS.logo.fileVolume);
+    expect(oscillators()).toEqual([]);
+  });
+
+  it('falls back to a Philly hit of detuned pairs through a closing lowpass without the file', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404 })));
+    sounds.playSound('logo');
+    await flush();
+    await flush();
     const { notes, detune } = soundList.SOUNDS.logo.tone;
-    expect(oscillators()).toHaveLength(notes.length * 2 * 2);
+    expect(oscillators()).toHaveLength(notes.length * 2);
     expect(oscillators().slice(0, 2).map((o) => o.detune.value)).toEqual([-detune, detune]);
     const filter = made.find((n) => n.kind === 'filter');
     expect(filter.type).toBe('lowpass');
     expect(filter.frequency.exponentialRampToValueAtTime).toHaveBeenCalled();
-    expect(made.find((n) => n.kind === 'gain').connect).toHaveBeenCalledWith(expect.objectContaining({ kind: 'destination' }));
     expect(filter.connect).toHaveBeenCalledWith(expect.objectContaining({ kind: 'gain' }));
   });
 
