@@ -719,26 +719,14 @@
     "profile": {
       "onlyImages": "Only image files are allowed.",
       "tooLarge": "That image is too large (max 8 MB).",
-      "formLabel": "Edit profile",
-      "picture": "Profile picture",
-      "yourPicture": "Your profile picture",
-      "changePicture": "Change picture",
       "choosePicture": "Choose a profile picture",
-      "pictureHint": "PNG, JPEG, GIF or WebP. up to 8 MB.",
-      "banner": "Banner",
-      "changeBanner": "Change banner image",
       "chooseBanner": "Choose a banner image",
-      "bannerColour": "Banner colour",
-      "noColour": "Default colour",
-      "bannerHint": "A picture across the top of your profile (cut to 5:2, PNG, JPEG, GIF or WebP, up to 8 MB), or just a colour. Shown to everyone logged in.",
       "displayName": "Display name",
       "displayNameHint": "Shown instead of your username ({{username}}). Leave it empty to use your username.",
       "customStatus": "Custom status",
       "customStatusPlaceholder": "What are you up to?",
       "aboutMe": "About me",
-      "aboutMePlaceholder": "A few words about you",
-      "saved": "Profile saved.",
-      "preview": "Preview"
+      "aboutMePlaceholder": "A few words about you"
     },
     "recoveryCode": {
       "title": "Recovery code",

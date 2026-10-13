@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 const updateProfile = vi.hoisted(() => vi.fn());
@@ -20,6 +20,7 @@ vi.mock('./EmojiPicker', () => ({
   default: ({ onSelect, onClose }) => <button type="button" onClick={() => { onSelect('🐇'); onClose(); }}>Pick a rabbit</button>,
 }));
 
+import { onOpenUserProfile } from '../utils/userProfile';
 import UserPanel from './UserPanel';
 import { ConfigContext } from '../contexts';
 import { clearProfiles, mergeProfiles, setAvatarBase } from '../utils/profiles';
@@ -32,7 +33,6 @@ function renderPanel(props = {}, path = '/dm/2') {
       <MemoryRouter initialEntries={[path]}>
         <UserPanel user={user} {...props} />
         <Routes>
-          <Route path="/settings/profile" element={<p>Edit Profile page</p>} />
           <Route path="*" element={null} />
         </Routes>
       </MemoryRouter>
@@ -123,13 +123,22 @@ describe('UserPanel', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    it('goes to Edit Profile and logs out', () => {
+    it('opens your full profile (Edit Profile, your picture, your name) and logs out', () => {
       const onLogout = vi.fn();
+      const opened = vi.fn();
+      const stop = onOpenUserProfile(opened);
       renderPanel({ onLogout });
       openMenu();
       fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
-      expect(screen.getByText('Edit Profile page')).toBeInTheDocument();
+      expect(opened).toHaveBeenLastCalledWith(7);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      openMenu();
+      fireEvent.click(screen.getByRole('button', { name: 'Open profile' }));
+      expect(opened).toHaveBeenCalledTimes(2);
+      openMenu();
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'alice' }));
+      expect(opened).toHaveBeenCalledTimes(3);
+      stop();
       openMenu();
       fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
       expect(onLogout).toHaveBeenCalled();

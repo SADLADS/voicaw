@@ -491,20 +491,13 @@
     "profile": {
       "onlyImages": "画像ファイルのみ使用できます。",
       "tooLarge": "画像が大きすぎます（最大 8 MB）。",
-      "formLabel": "プロフィールを編集",
-      "picture": "プロフィール画像",
-      "yourPicture": "あなたのプロフィール画像",
-      "changePicture": "画像を変更",
       "choosePicture": "プロフィール画像を選択",
-      "pictureHint": "PNG、JPEG、GIF、WebP（最大 8 MB）。正方形に切り抜かれます。誰でも見ることができます。",
       "displayName": "表示名",
       "displayNameHint": "ユーザー名（{{username}}）の代わりに表示されます。空欄にするとユーザー名が使われます。",
       "customStatus": "カスタムステータス",
       "customStatusPlaceholder": "今なにしてる？",
       "aboutMe": "自己紹介",
-      "aboutMePlaceholder": "あなたについてひとこと",
-      "saved": "プロフィールを保存しました。",
-      "preview": "プレビュー"
+      "aboutMePlaceholder": "あなたについてひとこと"
     },
     "recoveryCode": {
       "title": "リカバリーコード",

@@ -1,6 +1,6 @@
-// The picture cropper in a real browser: Settings → Edit Profile opens a picked picture in it
-// (round hole, slider), the wheel zooms, dragging moves it (never past an edge), Apply previews
-// the crop and Save stores that square (checked in the stored file); Guild Settings' icon: the
+// The picture cropper in a real browser: your full profile (opened by Settings → Edit Profile's
+// address) opens a picked picture in it (round hole, slider), the wheel zooms, dragging moves it
+// (never past an edge), Apply stores that square at once (checked in the stored file); Guild Settings' icon: the
 // cropper over the dialog, Escape closes only it, Apply stores the chosen square; a bot's
 // picture in the Developer Portal; a webhook's picture (over Channel settings, Escape closes only
 // the cropper, previewed until Save Changes, stored cropped); a phone pinches to zoom and the
@@ -59,8 +59,9 @@ try {
   const alice = await signUp(browser, 'alice');
   const a = alice.page;
 
-  // ---- Edit Profile ----
+  // ---- Your profile (Edit Profile) ----
   await a.goto(`${BASE}/settings/profile`);
+  await a.waitForSelector('.user-profile');
   await a.setInputFiles('input[aria-label="Choose a profile picture"]', PICTURE);
   await a.waitForSelector('.image-cropper .image-cropper-frame img[style*="left"]');
   const f = await frameBox(a);
@@ -86,12 +87,11 @@ try {
   await shot(a, 'profile-dragged');
   await a.click('.image-cropper button:has-text("Apply")');
   await a.waitForSelector('.image-cropper', { state: 'detached' });
-  const preview = await a.$eval('.edit-profile-picture img', (el) => el.src);
-  check(preview.startsWith('blob:'), 'Apply previews the cropped picture');
-  await shot(a, 'profile-preview');
-  await a.click('button:has-text("Save changes")');
-  await a.waitForSelector('text=Profile saved.');
-  const avatarUrl = await a.$eval('.edit-profile-picture img', (el) => el.src);
+  await a.waitForSelector('.user-profile-avatar img[src*="/profile-pics/"]', { timeout: 20000 });
+  check(true, 'Apply saves the picture, shown at once');
+  await shot(a, 'profile-saved');
+  const avatarUrl = await a.$eval('.user-profile-avatar img', (el) => el.src);
+  await a.keyboard.press('Escape');
   const middle = await colourAt(avatarUrl, 0.5, 0.5);
   const corner = await colourAt(avatarUrl, 0.75, 0.25);
   check(middle.colour === 'blue' && corner.colour === 'yellow' && middle.width === 200,
@@ -179,6 +179,7 @@ try {
   const phone = await signUp(browser, 'pinch', { ...devices['Pixel 7'] });
   const p = phone.page;
   await p.goto(`${BASE}/settings/profile`);
+  await p.waitForSelector('.user-profile.sheet');
   await p.setInputFiles('input[aria-label="Choose a profile picture"]', PICTURE);
   await p.waitForSelector('.image-cropper .image-cropper-frame img[style*="left"]');
   const dialog = await p.$eval('.image-cropper', (el) => el.getBoundingClientRect().toJSON());

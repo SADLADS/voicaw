@@ -4,7 +4,7 @@
 // /settings#<id> links land on the right page, admins get Admin and Reports, Log Out asks,
 // Developer Portal opens the portal. Phone: the column is the list pane, a page slides over it
 // (swipe or Back returns to the list, Back again leaves Settings), no subsections listed,
-// Edit Profile is a page too, /settings alone opens on the list, a page loaded on its own has
+// Edit Profile opens your full profile over it, /settings alone opens on the list, a page loaded on its own has
 // the list behind it, nothing wider than the screen. Light and dark screenshots.
 //   node e2e/serve.mjs &   then   node e2e/settings.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
@@ -76,7 +76,7 @@ try {
   const items = await navItems(page);
   check(JSON.stringify(items.slice(-3)) === JSON.stringify(['About', 'Developer Portal', 'Log Out']), `ends with About, Developer Portal, Log Out (${items.join(', ')})`);
   check(!(await page.getByText(/bot api docs/i).count()), 'no Bot API docs button');
-  check(JSON.stringify(await navSubs(page)) === JSON.stringify(['Password', 'Recovery code', 'Devices', 'Delete account']), 'My Account\'s subsections under it');
+  check(JSON.stringify(await navSubs(page)) === JSON.stringify(['Password', 'Recovery code', 'Two-factor authentication', 'Devices', 'Delete account']), 'My Account\'s subsections under it');
   const lines = await page.evaluate(() => [document.querySelector('.settings-header'), document.querySelector('.settings-page-header')]
     .map((e) => Math.round(e.getBoundingClientRect().bottom)));
   check(lines[0] === lines[1], `the column's header and the page's line up (${lines})`);
@@ -177,9 +177,13 @@ try {
   await swipeRight(p);
   check(await pane(p) === 'list', 'swiping right shows the list');
   await p.tap('.settings-profile-link');
-  await settle(p);
-  check(await pane(p) === 'content' && await p.isVisible('.edit-profile') && await title(p) === 'Edit Profile', 'Edit Profile is a page over the list');
+  await p.waitForSelector('.user-profile.sheet');
+  check(await pane(p) === 'list', 'Edit Profile opens your full profile over the list (no page)');
   await shot(p, '9-phone-profile');
+  await p.tap('.user-profile-handle');
+  await p.waitForSelector('.user-profile', { state: 'detached' });
+  await navButton(p, 'Notifications').tap();
+  await settle(p);
   await p.tap('.settings-page-header .pane-back-button');
   await p.waitForTimeout(300);
   await settle(p);

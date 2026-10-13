@@ -3123,6 +3123,16 @@ body.mobile-mode .dm-user-list-container .dm-user {
   margin-top: 10px;
 }
 
+/* Your name with its pencil sits where the name does. */
+.user-profile-names > .user-profile-editable:first-child {
+  align-items: center;
+  margin-top: 0;
+}
+
+.user-profile-name-edit .user-profile-status-edit {
+  margin-top: 0;
+}
+
 .user-profile-edit-inline {
   flex-shrink: 0;
   padding: 2px 6px;
@@ -3322,17 +3332,6 @@ body.mobile-mode .dm-user-list-container .dm-user {
   z-index: 110;
 }
 
-.edit-profile-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.edit-profile-status .form-control {
-  flex: 1;
-  min-width: 0;
-}
-
 .profile-card-bio {
   margin: 0;
   font-size: 14px;
@@ -3340,93 +3339,6 @@ body.mobile-mode .dm-user-list-container .dm-user {
   overflow-wrap: anywhere;
   user-select: text;
   -webkit-user-select: text;
-}
-
-/* Settings → Edit Profile: the form beside a preview of the card. */
-.edit-profile-body {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  padding: 0 1.5rem 1.5rem;
-}
-
-.edit-profile-form {
-  flex: 1 1 320px;
-  max-width: 460px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.edit-profile-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.edit-profile-label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--vc-fg-muted);
-}
-
-.edit-profile-count {
-  font-weight: normal;
-  text-transform: none;
-}
-
-.edit-profile-picture {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-}
-
-/* The banner's preview (ProfileBanner), at the profile card's shape. */
-.edit-profile-banner {
-  width: min(340px, 100%);
-  height: auto;
-  aspect-ratio: 5 / 2;
-  margin-bottom: 8px;
-}
-
-.edit-profile-colour {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.edit-profile-colour input {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-}
-
-.edit-profile-picture img {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.edit-profile-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.edit-profile-preview {
-  flex: 0 1 300px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 /* ---- PINNED MESSAGES ---- */

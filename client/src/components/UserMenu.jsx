@@ -1,6 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faIdCard, faPen, faRightFromBracket, faXmark } from '@fortawesome/free-solid-svg-icons';
 import Avatar from './Avatar';
@@ -9,6 +8,7 @@ import StatusEmojiButton from './StatusEmojiButton';
 import { usePresence } from '../hooks/usePresence';
 import { updateProfile } from '../services/profileService';
 import { apiId } from '../utils/copyId';
+import { openUserProfile } from '../utils/userProfile';
 import { PROFILE_LIMITS, getProfile, mergeProfiles, nameOf, useProfiles } from '../utils/profiles';
 import { t } from '../i18n';
 
@@ -17,13 +17,13 @@ const MARGIN = 8;
 // The menu the user panel's left side opens (above it): your picture, name and custom status
 // (its emoji button, always shown, opens the picker; click the text to change it: Enter or
 // clicking away saves it with the emoji, Escape cancels, ✕ clears both), Edit Profile, Copy User ID and
-// Log out. Right-clicking it opens nothing (neither PageMenus' menu nor the browser's).
+// Log out. Your picture, your names and Edit Profile open your full profile (UserProfile), where
+// it's all edited. Right-clicking it opens nothing (neither PageMenus' menu nor the browser's).
 // `anchor` is the clicked element's rect; `trigger` its element (clicking it again closes the
 // menu through the panel, not as an outside click).
 export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
   useProfiles();
   const presenceOf = usePresence();
-  const navigate = useNavigate();
   const ref = useRef(null);
   const [position, setPosition] = useState({ left: anchor.left, bottom: window.innerHeight - anchor.top + MARGIN, visibility: 'hidden' });
   const [editing, setEditing] = useState(false);
@@ -81,21 +81,21 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
     }
   }
 
-  const go = (path) => {
+  const openProfile = () => {
     onClose();
-    navigate(path);
+    openUserProfile(user.id);
   };
 
   return createPortal(
     <div className="user-menu" ref={ref} style={position} role="dialog" onContextMenu={(e) => e.preventDefault()} aria-label={t('app.userMenu.yourAccount')}>
       <div className="user-menu-top">
-        <span className="user-menu-avatar status-avatar">
+        <button type="button" className="user-menu-avatar status-avatar user-menu-open" aria-label={t('app.profile.open')} onClick={openProfile}>
           <Avatar userId={user.id} />
           <StatusIcon status={presenceOf(profile).status} />
-        </span>
+        </button>
         <div className="user-menu-names">
-          <div className="user-menu-name">{nameOf(profile)}</div>
-          {profile.display_name && <div className="user-menu-username">{profile.username}</div>}
+          <button type="button" className="user-menu-name user-menu-open" onClick={openProfile}>{nameOf(profile)}</button>
+          {profile.display_name && <button type="button" className="user-menu-username user-menu-open" onClick={openProfile}>{profile.username}</button>}
           <div className="user-menu-status-row" ref={editRef}>
             {/* Always there: picking saves at once, or goes with the text while it's edited. */}
             <StatusEmojiButton
@@ -157,7 +157,7 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
         </div>
       </div>
       <div className="user-menu-actions">
-        <button type="button" className="user-menu-item" onClick={() => go('/settings/profile')}>
+        <button type="button" className="user-menu-item" onClick={openProfile}>
           <FontAwesomeIcon icon={faPen} /> {t('app.userMenu.editProfile')}
         </button>
         <button

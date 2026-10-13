@@ -29,7 +29,6 @@ import { isDesktopApp } from '../utils/desktop';
 import AndroidAppSettings from './AndroidAppSettings';
 import { isAndroidApp } from '../utils/android';
 import { canShareScreen } from '../voice/voiceClient';
-import EditProfile from "./EditProfile";
 import Avatar from "./Avatar";
 import PaneBackButton from './PaneBackButton';
 import ConfirmDialog from './guild/ConfirmDialog';
@@ -37,6 +36,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { showContent, showList } from '../utils/mobilePanes';
 import { nameOf, useProfiles } from '../utils/profiles';
+import { openUserProfile } from '../utils/userProfile';
 import { Trans } from 'react-i18next';
 import { t } from '../i18n';
 
@@ -64,9 +64,10 @@ function sub(id, key, extra) {
 // The column goes into Layout's `settingsNavSlot` with a portal: on a computer beside the rail,
 // above the user panel; on a phone it's the list pane under the page, swiped between like the
 // channel list and a chat (useSwipePanes). /settings alone is the list there, and My Account
-// on a computer. Edit Profile (/settings/profile) is a page too, from the card with your
-// picture and name at the top of the column. Developer Portal and Log Out are buttons at the
-// end of the column, with no page of their own.
+// on a computer. The card with your picture, name and "Edit Profile" at the top of the column
+// opens your full profile (UserProfile), where your profile is edited; /settings/profile (the
+// old Edit Profile page's address) opens it too, over /settings. Developer Portal and Log Out
+// are buttons at the end of the column, with no page of their own.
 export default function Settings({ onLogout }) {
   useProfiles();
   const { user } = useAuth() ?? {};
@@ -210,11 +211,10 @@ export default function Settings({ onLogout }) {
   const available = (item) => item.available !== false;
   const listed = pages.filter(available);
 
-  // The page in the URL: /settings/<id>, or /settings/profile. /settings alone is the list on
-  // a phone, My Account on a computer.
+  // The page in the URL: /settings/<id>. /settings alone is the list on a phone, My Account on
+  // a computer.
   const segment = location.pathname.split('/')[2] ?? '';
-  const onProfilePage = segment === 'profile';
-  const page = pages.find((p) => p.id === segment) ?? (onProfilePage || isMobile ? null : pages[0]);
+  const page = pages.find((p) => p.id === segment) ?? (isMobile ? null : pages[0]);
   const hash = decodeURIComponent(location.hash.slice(1));
 
   // Going to a page (and subsection): on a phone it slides over the list, the move replacing
@@ -223,6 +223,14 @@ export default function Settings({ onLogout }) {
     if (isMobile) showContent();
     navigate(path, { replace: replace || isMobile });
   }
+
+  // The old Edit Profile page: your full profile, over Settings.
+  useEffect(() => {
+    if (segment !== 'profile' || !user) return;
+    openUserProfile(user.id);
+    navigate('/settings', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [segment]);
 
   // The old one-page Settings' links (/settings#devices): the page with that subsection.
   useEffect(() => {
@@ -291,9 +299,8 @@ export default function Settings({ onLogout }) {
         {user && (
           <button
             type="button"
-            className={`settings-profile-link${onProfilePage ? ' active' : ''}`}
-            aria-current={onProfilePage ? 'page' : undefined}
-            onClick={() => go('/settings/profile')}
+            className="settings-profile-link"
+            onClick={() => openUserProfile(user.id)}
           >
             <Avatar userId={user.id} className="settings-profile-avatar" />
             <span className="settings-profile-text">
@@ -361,7 +368,7 @@ export default function Settings({ onLogout }) {
       </nav>
   );
 
-  const title = onProfilePage ? t('settings.nav.editProfile') : page?.title;
+  const title = page?.title;
   return (
     <div className="settings-page">
       {navSlot ? createPortal(nav, navSlot) : nav}
@@ -373,16 +380,12 @@ export default function Settings({ onLogout }) {
             <span className="settings-page-title">{title}</span>
           </h4>
           <div ref={contentRef} className="settings-content">
-            {onProfilePage ? <EditProfile /> : (
-              <>
-                {page.content}
-                {page.subs.filter((s) => available(s) && s.content).map((s) => (
-                  <div key={s.id} id={`settings-${s.id}`} className="settings-section">
-                    {s.content}
-                  </div>
-                ))}
-              </>
-            )}
+            {page.content}
+            {page.subs.filter((s) => available(s) && s.content).map((s) => (
+              <div key={s.id} id={`settings-${s.id}`} className="settings-section">
+                {s.content}
+              </div>
+            ))}
           </div>
         </div>
       )}

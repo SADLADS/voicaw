@@ -1,7 +1,8 @@
 // Custom status emoji: in the user menu the emoji button shows without editing (one click opens
 // the picker, the pick saves at once), then Alice adds "Out for lunch" (the picker during the
-// edit doesn't end it), Bob sees both live in his DM list; Edit Profile removes the emoji
-// (preview, save, Bob sees text only); a status that is only an emoji, kept after a reload;
+// edit doesn't end it), Bob sees both live in his DM list; her full profile (opened by the old
+// Edit Profile address) removes the emoji (Bob sees text only); a status that is only an
+// emoji, kept after a reload;
 // phone (menu and picker fit).
 //   node e2e/serve.mjs &   then   node e2e/statusemoji.mjs [dir]
 import { mkdirSync } from 'node:fs';
@@ -118,27 +119,30 @@ try {
   check(sizes.img > 10 && sizes.img <= sizes.line + 1, `emoji sized to the line (${sizes.img.toFixed(1)}px in ${sizes.line.toFixed(1)}px)`);
   await shot(b, '4-bob-dm-list');
 
-  console.log('Edit Profile: remove the emoji');
+  console.log('Full profile: remove the emoji');
   await a.keyboard.press('Escape');
   await a.goto(`${BASE}/settings/profile`);
-  await a.waitForSelector(`.edit-profile-status .status-emoji-button img[alt="${rabbit}"]`);
-  check((await a.inputValue('#edit-profile-status')) === 'Out for lunch', 'the form starts from the saved status');
+  await a.waitForSelector('.user-profile');
+  check(new URL(a.url()).pathname === '/settings', 'the old Edit Profile address opens the profile over Settings');
+  await a.click('.user-profile button[aria-label="Edit status"]');
+  const statusEdit = '.user-profile-status-edit';
+  await a.waitForSelector(`${statusEdit} .status-emoji-button img[alt="${rabbit}"]`);
+  check((await a.inputValue(`${statusEdit} input[aria-label="Custom status"]`)) === 'Out for lunch', 'the edit starts from the saved status');
   await shot(a, '5-edit-profile');
-  await a.click('.edit-profile-status .status-emoji-remove');
-  await a.waitForSelector('.edit-profile-preview .profile-card-custom-status .custom-status-emoji', { state: 'detached' });
-  check(true, 'the preview drops the emoji');
-  await a.click('button:has-text("Save changes")');
-  await a.waitForSelector('text=Profile saved.');
+  await a.click(`${statusEdit} .status-emoji-remove`);
+  await a.click(`${statusEdit} button:has-text("Save")`);
+  await a.waitForSelector(statusEdit, { state: 'detached' });
   await waitForStatus(b, alice.id, { emoji: null, text: 'Out for lunch' });
   check(true, 'Bob sees the text alone');
 
-  console.log('Edit Profile: an emoji only');
-  await a.fill('#edit-profile-status', '');
-  await a.click('.edit-profile-status .status-emoji-button');
+  console.log('Full profile: an emoji only');
+  await a.click('.user-profile button[aria-label="Edit status"]');
+  await a.fill(`${statusEdit} input[aria-label="Custom status"]`, '');
+  await a.click(`${statusEdit} .status-emoji-button`);
   await pickEmoji(a, 'coffee');
-  const coffee = await a.getAttribute('.edit-profile-status .status-emoji-button img', 'alt');
-  await a.click('button:has-text("Save changes")');
-  await a.waitForSelector('text=Profile saved.');
+  const coffee = await a.getAttribute(`${statusEdit} .status-emoji-button img`, 'alt');
+  await a.click(`${statusEdit} button:has-text("Save")`);
+  await a.waitForSelector(statusEdit, { state: 'detached' });
   await waitForStatus(b, alice.id, { emoji: coffee, text: null });
   check(true, 'Bob sees only the emoji');
   await shot(b, '6-bob-emoji-only');
