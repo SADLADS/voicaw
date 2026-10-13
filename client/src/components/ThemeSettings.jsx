@@ -6,6 +6,7 @@ const OPTIONS = [
   { value: 'dark', labelKey: 'settings.theme.dark' },
   { value: 'light', labelKey: 'settings.theme.light' },
   { value: 'familiar', labelKey: 'settings.theme.familiar' },
+  { value: 'halloween', labelKey: 'settings.theme.halloween' },
   { value: 'system', labelKey: 'settings.theme.system' },
 ];
 
