@@ -8,7 +8,7 @@ const IDLE = { phase: 'idle', locked: false, seconds: 0, levels: [], take: null 
 // 'idle'; 'starting' (asking for the microphone); 'recording'; 'review' (stopped, `take` =
 // { file, duration, waveform, url } to play back before sending). `locked`: recording on its
 // own (a phone's hold slid up to the lock, or started from a computer's + menu), so letting
-// go doesn't send. `levels`: the loudness so far (0..1, for the live waveform), `seconds`: how
+// go doesn't send. `levels`: the loudness so far (RMS, for the live waveform), `seconds`: how
 // long.
 //
 // `onSend(take)` sends a take (it keeps `take.url`, the pending message shows it); `onError`

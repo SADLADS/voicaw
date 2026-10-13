@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  decodeWaveform, encodeWaveform, findDuration, levelOf, recordingType, voiceFileName, waveformBars, waveformFrom,
+  decodeWaveform, encodeWaveform, findDuration, recordingType, relativeLevels, voiceFileName, waveformBars, waveformFrom,
   WAVEFORM_LENGTH,
 } from './voiceMessage';
 import { buildAttachmentUrl, parseAttachmentUrl } from './attachmentCrypto';
@@ -22,24 +22,31 @@ describe('voice messages', () => {
     expect(voiceFileName('')).toBe('voice-message.webm');
   });
 
-  it('turns loudness into 0..1 and the levels into a fixed-length waveform', () => {
-    expect(levelOf(0)).toBe(0);
-    expect(levelOf(1)).toBe(1);
-    expect(levelOf(10 ** (-35 / 20))).toBeCloseTo(0.5);
+  it('scales loudness to the loudest, linearly, leaving near-silence flat', () => {
+    expect(relativeLevels([0.05, 0.2, 0.1, 0])).toEqual([0.25, 1, 0.5, 0]);
+    // Loud speech (the microphone's auto gain) isn't all full height.
+    expect(relativeLevels([0.3, 0.15, 0.6])).toEqual([0.5, 0.25, 1]);
+    // Quieter than -36 dB at its loudest: not stretched.
+    expect(relativeLevels([0.0015, 0.003])).toEqual([0.1, 0.2]);
+    expect(relativeLevels([])).toEqual([]);
+  });
 
-    // Longer than the waveform: each byte the loudest of its share.
-    const levels = Array.from({ length: 640 }, (_, i) => (i === 100 ? 1 : 0.2));
+  it('turns the loudness into a fixed-length waveform', () => {
+    // Longer than the waveform: each byte the average (RMS) of its share, so one loud moment in
+    // a quiet share doesn't fill it.
+    const levels = Array.from({ length: 640 }, (_, i) => (i >= 100 && i < 110 ? 0.4 : i === 115 ? 0.4 : 0.1));
     const wave = waveformFrom(levels);
     expect(wave).toHaveLength(WAVEFORM_LENGTH);
     expect(wave[10]).toBe(255);
-    expect(wave[11]).toBe(51);
+    expect(wave[11]).toBe(Math.round((Math.sqrt((9 * 0.01 + 0.16) / 10) / 0.4) * 255));
+    expect(wave[12]).toBe(Math.round(0.25 * 255));
     // Shorter: levels repeat.
-    expect([...waveformFrom([0, 1], 4)]).toEqual([0, 0, 255, 255]);
+    expect([...waveformFrom([0, 0.5], 4)]).toEqual([0, 0, 255, 255]);
     expect([...waveformFrom([], 3)]).toEqual([0, 0, 0]);
   });
 
   it('draws any number of bars from a waveform', () => {
-    expect(waveformBars(new Uint8Array([0, 255, 51, 0]), 2)).toEqual([1, 0.2]);
+    expect(waveformBars(new Uint8Array([0, 255, 51, 0]), 2)).toEqual([0.5, 0.1]);
     expect(waveformBars([0, 0.5], 4, 1)).toEqual([0, 0, 0.5, 0.5]);
     expect(waveformBars(null, 3)).toEqual([0.15, 0.15, 0.15]);
   });

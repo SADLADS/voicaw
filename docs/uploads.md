@@ -230,8 +230,11 @@ nothing is sent. Not in bot DMs nor while editing.
 - **Sending:** its own message (`Composer` `sendVoice`, replying if a reply is set up; what's
   typed stays), `voice-message.<ext>` as an ordinary `v=2` encrypted attachment (see DM
   attachments above; guilds, DMs and groups alike), its URL fragment adding `vm=1`, `d=` (the
-  length) and `wf=` (the waveform: 64 bytes, the loudest level of each 64th of the recording,
-  measured live by an analyser beside the recorder, so the file is never decoded for it). The
+  length) and `wf=` (the waveform: 64 bytes, the average loudness (RMS) of each 64th of the
+  recording, linear and relative to the loudest 64th, as WhatsApp's and Telegram's, measured
+  live by an analyser beside the recorder, so the file is never decoded for it; a decibel
+  scale with each 64th's loudest moment, before 2026-10-13, drew ordinary speech solid, since
+  the microphone's auto gain makes it loud, and those messages still look that way). The
   server sees one more upload, never what it is (in guilds, where it can read the message, it
   sees `vm=1`; guild pushes say "🎤 Voice message", `server/mentions.js`). Older clients show
   it as a file to download.

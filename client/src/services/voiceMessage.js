@@ -30,26 +30,43 @@ export function voiceFileName(type) {
   return `voice-message.${ext === 'mp4' ? 'm4a' : ext === 'mpeg' ? 'mp3' : ext ?? 'webm'}`;
 }
 
-// A slice's loudness (its RMS) as 0..1: -55 dB is silence, -15 dB and up is full.
-export function levelOf(rms) {
-  if (!(rms > 0)) return 0;
-  const db = 20 * Math.log10(rms);
-  return Math.min(1, Math.max(0, (db + 55) / 40));
+// A recording whose loudest moment is quieter than this (about -36 dB) isn't stretched to the
+// full height: near-silence stays a flat line rather than its noise drawn as speech.
+const QUIET_RMS = 0.015;
+
+// The loudest of `values`, but never under QUIET_RMS (a loop: 20 minutes is 12000 levels).
+function loudestOf(values) {
+  let loudest = QUIET_RMS;
+  for (const value of values) if (value > loudest) loudest = value;
+  return loudest;
 }
 
-// The levels measured (0..1, one per LEVEL_INTERVAL_MS) as `length` bytes: each the loudest
-// of its share of the recording (a short one repeats levels instead).
-export function waveformFrom(levels, length = WAVEFORM_LENGTH) {
+// Loudness measured (RMS, one per LEVEL_INTERVAL_MS) as heights 0..1, relative to the loudest
+// (as WhatsApp's and Telegram's waveforms are). Linear, not decibels: the microphone's auto
+// gain makes ordinary speech loud, and a decibel scale drew all of it full height.
+export function relativeLevels(rms) {
+  const loudest = loudestOf(rms);
+  return rms.map((value) => Math.min(1, Math.max(0, value) / loudest));
+}
+
+// The loudness measured (RMS, one per LEVEL_INTERVAL_MS) as `length` bytes: each the average
+// (RMS) of its share of the recording (a short one repeats levels instead), relative to the
+// loudest share. The average, not the loudest of each share, so pauses between words show.
+export function waveformFrom(rms, length = WAVEFORM_LENGTH) {
   const out = new Uint8Array(length);
-  const n = levels.length;
+  const n = rms.length;
   if (n === 0) return out;
+  const shares = [];
   for (let i = 0; i < length; i++) {
     const from = Math.floor((i * n) / length);
-    const to = Math.max(from + 1, Math.floor(((i + 1) * n) / length));
-    let peak = 0;
-    for (let j = from; j < to && j < n; j++) peak = Math.max(peak, levels[j]);
-    out[i] = Math.round(Math.min(1, Math.max(0, peak)) * 255);
+    const to = Math.min(n, Math.max(from + 1, Math.floor(((i + 1) * n) / length)));
+    let energy = 0;
+    for (let j = from; j < to; j++) energy += rms[j] ** 2;
+    shares.push(Math.sqrt(energy / (to - from)));
   }
+  relativeLevels(shares).forEach((level, i) => {
+    out[i] = Math.round(level * 255);
+  });
   return out;
 }
 
@@ -69,7 +86,7 @@ export function decodeWaveform(text) {
 }
 
 // `count` bars (0..1) to draw from a waveform (bytes, or levels 0..1 with `max` 1), each the
-// loudest of its share. No waveform: a flat line of quiet bars.
+// average of its share. No waveform: a flat line of quiet bars.
 export function waveformBars(waveform, count, max = 255) {
   const n = waveform?.length ?? 0;
   if (n === 0) return new Array(count).fill(0.15);
@@ -77,9 +94,10 @@ export function waveformBars(waveform, count, max = 255) {
   for (let i = 0; i < count; i++) {
     const from = Math.floor((i * n) / count);
     const to = Math.max(from + 1, Math.floor(((i + 1) * n) / count));
-    let peak = 0;
-    for (let j = from; j < to && j < n; j++) peak = Math.max(peak, waveform[j]);
-    bars.push(peak / max);
+    const end = Math.min(to, n);
+    let sum = 0;
+    for (let j = from; j < end; j++) sum += waveform[j];
+    bars.push(sum / (end - from) / max);
   }
   return bars;
 }
@@ -104,7 +122,8 @@ export function findDuration(audio) {
 
 // Starts recording from the microphone (Settings → Voice's, with the browser's echo
 // cancellation, noise suppression and gain: it's a message, not a call). `onLevel(levels,
-// seconds)` hears every LEVEL_INTERVAL_MS. Resolves (once recording) to { stop, cancel }:
+// seconds)` hears every LEVEL_INTERVAL_MS (`levels`: the loudness so far, RMS; see
+// relativeLevels). Resolves (once recording) to { stop, cancel }:
 // `stop()` resolves to { file, duration, waveform }; `cancel()` throws it away. Either lets
 // the microphone go. Rejects if the microphone can't be had.
 export async function startVoiceRecorder({ onLevel } = {}) {
@@ -166,7 +185,7 @@ export async function startVoiceRecorder({ onLevel } = {}) {
       analyser.getFloatTimeDomainData(samples);
       let sum = 0;
       for (const s of samples) sum += s * s;
-      level = levelOf(Math.sqrt(sum / samples.length));
+      level = Math.sqrt(sum / samples.length);
     }
     levels.push(level);
     onLevel?.(levels, seconds());

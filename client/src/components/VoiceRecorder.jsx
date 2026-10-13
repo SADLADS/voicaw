@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faChevronLeft, faChevronUp, faLock, faMicrophone, faPaperPlane, faStop, faTrash,
 } from '@fortawesome/free-solid-svg-icons';
-import { waveformBars } from '../services/voiceMessage';
+import { relativeLevels, waveformBars } from '../services/voiceMessage';
 import { formatDuration } from '../utils/videoPlayer';
 import VoiceMessage from './VoiceMessage';
 import { t } from '../i18n';
@@ -101,9 +101,10 @@ export function MicButton({ voice, onDrag }) {
   );
 }
 
-// The levels so far as the live waveform's bars, newest on the right.
+// The levels so far as the live waveform's bars, newest on the right, relative to the loudest
+// yet (as the sent waveform is).
 function liveBars(levels) {
-  const recent = levels.slice(-LIVE_BARS);
+  const recent = relativeLevels(levels).slice(-LIVE_BARS);
   return [...new Array(LIVE_BARS - recent.length).fill(0), ...recent];
 }
 
