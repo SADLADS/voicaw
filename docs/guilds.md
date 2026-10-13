@@ -528,7 +528,8 @@ Not end-to-end encrypted, like the rest of a guild.
   missing). `?event=<id>` on a
   guild URL opens it (links, notifications; `eventLink`, kept through the redirect to the last
   channel); an event link in a guild channel gets a card (`events/EventEmbed.jsx`; not in DMs and
-  group DMs, so an encrypted chat's link is never sent to the server).
+  group DMs, so an encrypted chat's link is never sent to the server), in place of the
+  server's page preview of the link (`utils/linkPreviews.js` `drawnByApp`, as for invites).
 - **Calendar** (`events/EventCalendar.jsx`, `utils/eventCalendar.js`): a month on six weeks from
   Monday, each event on the day it starts (on this device), with every occurrence of a
   repeating one: `occurrencesBetween` (`utils/eventRecurrence.js`) is a copy of the server's

@@ -22,5 +22,8 @@ describe('linkPreviews', () => {
   it('knows which links the app draws itself', () => {
     expect(drawnByApp('https://youtu.be/dQw4w9WgXcQ')).toBe(true);
     expect(drawnByApp('https://example.com/')).toBe(false);
+    // Event cards only show outside encrypted chats.
+    expect(drawnByApp('https://app.voicaw.com/guild/1?event=13')).toBe(true);
+    expect(drawnByApp('https://app.voicaw.com/guild/1?event=13', true)).toBe(false);
   });
 });
