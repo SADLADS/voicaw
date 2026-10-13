@@ -138,6 +138,12 @@ try {
   const tabs = () => profile.locator('[role="tab"]').allTextContents();
   await a.waitForFunction(() => document.querySelectorAll('.user-profile [role="tab"]').length === 4);
   check(JSON.stringify(await tabs()) === '["About me","Activity","Mutual friends (1)","Mutual guilds (1)"]', `tabs: ${(await tabs()).join(', ')}`);
+  const centres = await profile.locator('.user-profile-close').evaluate((button) => {
+    const outer = button.getBoundingClientRect();
+    const icon = button.querySelector('svg').getBoundingClientRect();
+    return { dx: (icon.left + icon.width / 2) - (outer.left + outer.width / 2), dy: (icon.top + icon.height / 2) - (outer.top + outer.height / 2) };
+  });
+  check(Math.abs(centres.dx) < 0.6 && Math.abs(centres.dy) < 0.6, `the close button's × is centred (${centres.dx.toFixed(2)}, ${centres.dy.toFixed(2)})`);
   const box = await profile.boundingBox();
   check(Math.round(box.width) === 600, `600 px wide (${Math.round(box.width)})`);
   await shot(a, 'bob-profile');
