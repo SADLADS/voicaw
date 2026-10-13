@@ -155,6 +155,31 @@ try {
   check(await profile.count() === 1, 'Escape closes only the viewer');
   await a.keyboard.press('Escape');
 
+  // A short window: the profile keeps its shape and scrolls instead of squashing.
+  await a.setViewportSize({ width: 1100, height: 420 });
+  await a.locator(`.member-row:has-text("${bob.name}")`).click();
+  await a.locator('.member-card .profile-card-avatar').click();
+  await profile.waitFor();
+  await a.waitForFunction(() => document.querySelectorAll('.user-profile [role="tab"]').length === 4);
+  const short = await profile.evaluate((el) => ({
+    top: el.getBoundingClientRect().top,
+    bottom: el.getBoundingClientRect().bottom,
+    scrolls: el.scrollHeight > el.clientHeight + 1,
+    head: el.querySelector('.user-profile-head').getBoundingClientRect().height,
+    banner: el.querySelector('.user-profile-banner').getBoundingClientRect().height,
+  }));
+  check(short.top >= 0 && short.bottom <= 420 && short.scrolls, `short window: it fits and scrolls (${Math.round(short.top)}-${Math.round(short.bottom)} of 420)`);
+  check(Math.round(short.head) === 64 && Math.round(short.banner) === 200, `nothing squashed (head ${Math.round(short.head)} px, banner ${Math.round(short.banner)} px)`);
+  await shot(a, 'short-window');
+  await profile.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  const panel = await a.locator('.user-profile-panel').boundingBox();
+  check(panel.y + panel.height <= 421, 'scrolled down, the tab content is in view');
+  const close = await profile.locator('.user-profile-close').boundingBox();
+  check(close && close.y >= short.top && close.y < short.top + 20, `the close button stays at the top (${Math.round(close?.y)})`);
+  await shot(a, 'short-window-scrolled');
+  await a.keyboard.press('Escape');
+  await a.setViewportSize({ width: 1100, height: 750 });
+
   // Bob hides mutual friends: the tab goes.
   await api(b, 'PUT', '/preferences', { showMutualFriends: false });
   await a.locator(`.member-row:has-text("${bob.name}")`).click();
