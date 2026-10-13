@@ -413,12 +413,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - **Known issues:**
   - Keycap emoji (1️⃣) and Unicode 15.1+ emoji (🙂‍↔️) show in the system font while typing
     (digits are kept out of the Twemoji font; 15.1 isn't in Twemoji 15).
-  - The Playwright WebKit build crashes opening the emoji picker (see `e2e/README.md`); not yet
-    checked on a real iPhone.
-  - nginx doesn't compress JS/CSS/SVG (`gzip_types` is commented out in
-    `/etc/nginx/nginx.conf`); first visits download the 1.7 MB main bundle uncompressed,
-    Strong noise suppression's 17 MB (10 MB compressed) WebAssembly whole, and spellcheck's
-    550 KB dictionary (about 200 KB compressed) the first time an editor opens.
+  - The Playwright WebKit build crashes opening the emoji picker (see `e2e/README.md`); real
+    iPhones are fine (the web app in Safari, tested by a friend of the user, 2026-10-13).
   - Spellcheck draws its own underlines only in the editors (message box, documents): plain
     text boxes (titles, bio, task fields) keep the browser's, which can disagree with our
     suggestions there. Our dictionaries are English only (UK, US); other languages fall back

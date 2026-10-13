@@ -209,6 +209,20 @@ One site per name, each with a certificate (`certbot --nginx -d <name>`):
 The API's `client_max_body_size 26M` is for webhooks (Discord's API): a post can carry up to
 25 MB of files, and nginx's default of 1 MB would refuse most of them.
 
+Turn on compression in `/etc/nginx/nginx.conf`'s `http` block. Debian's default compresses only
+HTML, which leaves the 1.7 MB main bundle, Strong noise suppression's 17 MB WebAssembly
+(10 MB gzipped) and spellcheck's 550 KB dictionary to be downloaded whole:
+
+```nginx
+gzip on;
+gzip_vary on;
+gzip_proxied any;
+gzip_comp_level 6;
+gzip_min_length 1024;
+gzip_types text/plain text/css application/json application/javascript text/javascript
+           text/xml application/xml image/svg+xml application/wasm;
+```
+
 LiveKit's signalling is a long-lived websocket:
 
 ```nginx
