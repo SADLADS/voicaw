@@ -215,7 +215,7 @@ One site per name, each with a certificate (`certbot --nginx -d <name>`):
 
 | Name | Serves |
 |---|---|
-| `app.voicaw.com` | the web app: static files, `root /opt/voicaw-client`, `try_files $uri $uri/ /index.html`; `location /api/` → `http://localhost:3002` with `client_max_body_size 26M` (config: `website/nginx/app.voicaw.com`) |
+| `app.voicaw.com` | the web app: static files, `root /opt/voicaw-client`, `try_files $uri $uri/ /index.html`; `location /api/` → `http://localhost:3002` with `client_max_body_size 26M`; `/invite/<code>` sent to `/api/invite-embed/<code>` for link previewers (a `map` on the user agent: Discord, Slack... get the guild's Open Graph tags) (config: `website/nginx/app.voicaw.com`) |
 | `voicaw.com` | the info and download site, `root /opt/voicaw-site`, its `/api/` like the app's, anything else redirected to app.voicaw.com (section 10; config: `website/nginx/voicaw.com`) |
 | `api.voicaw.com` | `http://localhost:3002` (REST, the app's websocket and the bot gateway at `/api/gateway`: pass `Upgrade`/`Connection` on every path), `client_max_body_size 26M` |
 | `media.voicaw.com` | the object store, `client_max_body_size 100M` (each request; bigger attachments come in parts, and MinIO's default `stale_uploads_expiry` of a day clears abandoned ones) |

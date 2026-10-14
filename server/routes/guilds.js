@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const db = require('../db');
+const config = require('../config');
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus } = require('../sockets');
 const { PERMISSIONS, DEFAULT_EVERYONE_PERMISSIONS, has } = require('../permissions');
@@ -467,6 +468,49 @@ router.get('/invites/:code', authenticateJWT, async (req, res) => {
   );
   if (!invite) return res.status(404).json({ error: 'This invite is invalid or has expired' });
   res.json({ ...invite, is_member: Boolean(invite.is_member) });
+});
+
+// The page link previewers (Discord, Slack, Telegram...) get for /invite/<code>: they don't run
+// the app, so nginx sends them here by user agent (README.md), and the Open Graph tags make
+// their card: the guild's name, picture and member count, which anyone with the link sees.
+// Never who made the invite (logged-out visitors don't learn usernames).
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+router.get('/invite-embed/:code', async (req, res) => {
+  const guildColumns = `g.id, g.name, g.icon_version,
+    (SELECT COUNT(*) FROM guild_members WHERE guild_id = g.id) AS member_count`;
+  const guild = await db.get(
+    `SELECT ${guildColumns} FROM guild_invites i JOIN guilds g ON g.id = i.guild_id
+     WHERE i.code = ? AND ${INVITE_VALID}`,
+    [req.params.code]
+  ) ?? await db.get(`SELECT ${guildColumns} FROM guilds g WHERE g.vanity_code = ?`, [req.params.code.toLowerCase()]);
+
+  const origin = `https://${req.get('host')}`;
+  const url = `${origin}/invite/${encodeURIComponent(req.params.code)}`;
+  const title = guild ? `Join ${guild.name} on Voicaw` : 'Voicaw';
+  const description = guild
+    ? `You've been invited to join ${guild.name}. ${guild.member_count} ${guild.member_count === 1 ? 'member' : 'members'}.`
+    : 'This invite is invalid or has expired.';
+  const image = guild?.icon_version > 0
+    ? `${config.s3Endpoint}/guild-icons/${guild.id}?v=${guild.icon_version}`
+    : `${origin}/logo512.png`;
+  const meta = {
+    'og:site_name': 'Voicaw',
+    'og:type': 'website',
+    'og:url': url,
+    'og:title': title,
+    'og:description': description,
+    'og:image': image,
+    'twitter:card': 'summary',
+    'theme-color': '#6a52c9',
+  };
+  const tags = Object.entries(meta)
+    .map(([key, value]) => `<meta ${key.startsWith('og:') ? 'property' : 'name'}="${key}" content="${escapeHtml(value)}">`)
+    .join('\n');
+  res.set('Cache-Control', 'public, max-age=300').type('html').status(guild ? 200 : 404).send(
+    `<!DOCTYPE html>\n<html lang="en-GB"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>\n${tags}\n</head>`
+    + `<body><a href="${escapeHtml(url)}">${escapeHtml(title)}</a></body></html>\n`
+  );
 });
 
 // Joins through an invite or a vanity code. Joining a guild you're already in is a no-op (uses
