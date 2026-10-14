@@ -1,9 +1,10 @@
 import React, { useContext } from 'react';
 import '../../assets/css/voice.css';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPhoneSlash, faSignal, faTriangleExclamation, faVolumeHigh, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faMessage, faPhoneSlash, faSignal, faTriangleExclamation, faVolumeHigh, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../../contexts';
+import { showContent } from '../../utils/mobilePanes';
 import { useVoice } from '../../hooks/useVoice';
 import { clearCameraError, clearStreamError, clearVoiceError, leaveVoice, resumeAudio } from '../../voice/voiceClient';
 import ScreenShareButton from './ScreenShareButton';
@@ -21,13 +22,15 @@ const STATUS_TEXT = {
 };
 
 // Above the user panel while you're in voice (like Discord): the connection state, which
-// channel or call (a link to it), camera, share screen and the disconnect button. Also where
-// voice errors show.
+// channel or call (a link to it), the voice channel's chat (opens or closes it; marked while it
+// has unread messages), camera, share screen and the disconnect button. Also where voice errors
+// show.
 export default function VoiceBar({ user }) {
   useProfiles();
   const voice = useVoice();
   const call = useCall();
   const { guildList, groupList } = useContext(LayoutContext);
+  const location = useLocation();
 
   if (voice.status === 'idle') {
     if (!voice.error) return null;
@@ -46,6 +49,11 @@ export default function VoiceBar({ user }) {
 
   const inCall = voice.callId != null;
   const title = voiceTitle({ voice, call, guildList, groupList, user });
+  const channelPath = `/guild/${voice.guildId}/${voice.channelId}`;
+  const chatOpen = !inCall && location.pathname === channelPath && new URLSearchParams(location.search).get('chat') === '1';
+  // As the channel list: a muted channel's chat is only marked for mentions.
+  const chatUnread = !inCall && !chatOpen && guildList.unread.some((u) => u.channel_id === voice.channelId
+    && (u.mentions > 0 || !guildList.isMuted(u.channel_id)));
 
   return (
     <div className="voice-bar" aria-label={t('voice.bar.label')}>
@@ -59,9 +67,20 @@ export default function VoiceBar({ user }) {
           ) : inCall ? (
             <Link to={`/dm/${call?.peerId ?? ''}`} className="voice-bar-channel">{title}</Link>
           ) : (
-            <Link to={`/guild/${voice.guildId}/${voice.channelId}`} className="voice-bar-channel">{title}</Link>
+            <Link to={channelPath} className="voice-bar-channel">{title}</Link>
           )}
         </div>
+        {!inCall && (
+          <Link
+            to={chatOpen ? channelPath : `${channelPath}?chat=1`}
+            onClick={showContent}
+            className={`user-panel-button voice-bar-chat${chatOpen ? ' active' : ''}${chatUnread ? ' unread' : ''}`}
+            aria-label={chatOpen ? t('voice.bar.closeChat') : t('voice.bar.openChat')}
+            title={chatOpen ? t('voice.bar.closeChat') : t('voice.bar.openChat')}
+          >
+            <FontAwesomeIcon icon={faMessage} />
+          </Link>
+        )}
         <CameraButton />
         <ScreenShareButton />
         <button

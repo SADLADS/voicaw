@@ -84,6 +84,27 @@ try {
   await b.waitForSelector(`.voice-tile:has-text("${alice.name}")`);
   await shot(b, 'outside-with-chat');
 
+  // The voice bar's chat button: lit while the chat is open, closes it.
+  const barChat = a.locator('.voice-bar .voice-bar-chat');
+  check((await barChat.getAttribute('class')).includes('active'), "the voice bar's chat button is lit while the chat is open");
+  await barChat.click();
+  await a.waitForSelector('.voice-chat-pane', { state: 'detached' });
+  check(true, 'clicking it closes the chat');
+  // Elsewhere in the app, a message in the lounge's chat marks it; it opens the chat, still connected.
+  await a.click('.guild-channel:has-text("general") .guild-channel-link');
+  await a.waitForSelector('#dm-input');
+  await a.waitForSelector('.voice-bar .voice-bar-status.connected');
+  await api(b, 'POST', `/channels/${lounge.id}/messages`, { content: 'Starting in five' });
+  await a.waitForSelector('.voice-bar .voice-bar-chat.unread');
+  check(true, "the voice bar's chat button gets a dot for the new message");
+  await shot(a, 'bar-unread');
+  await a.click('.voice-bar .voice-bar-chat');
+  await a.waitForSelector('.voice-chat-pane >> text=Starting in five');
+  check(new URL(a.url()).pathname === `/guild/${guild.id}/${lounge.id}`, 'it opens the lounge with its chat');
+  check(await a.locator('.voice-bar .voice-bar-status.connected').isVisible(), 'still connected');
+  await a.waitForSelector('.voice-bar .voice-bar-chat:not(.unread)');
+  check(true, 'and the dot goes');
+
   // Bob's choice is kept: the lounge reopens with its chat after a reload.
   await b.goto(`${BASE}/guild/${guild.id}/${lounge.id}`);
   await b.waitForSelector('.voice-chat-pane');

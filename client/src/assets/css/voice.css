@@ -106,6 +106,26 @@ button.user-panel-button {
   text-decoration: underline;
 }
 
+/* The voice channel's chat, with a dot while it has unread messages. */
+.user-panel-button.voice-bar-chat {
+  position: relative;
+}
+
+.user-panel-button.voice-bar-chat.unread {
+  color: var(--vc-fg);
+}
+
+.user-panel-button.voice-bar-chat.unread::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--vc-unread);
+}
+
 .user-panel-button.voice-bar-leave:hover {
   color: var(--vc-danger-text);
 }
