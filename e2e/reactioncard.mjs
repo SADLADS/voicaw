@@ -1,6 +1,7 @@
 // Who reacted: hovering a reaction shows ":+1: reacted by A, B, C and N others" over it;
 // clicking that opens the breakdown (a tab per emoji, who reacted with it, your own removable);
-// on a phone, holding a reaction opens it (not the message's actions); light theme.
+// on a phone, holding a reaction opens it (not the message's actions), and so does the
+// message's action sheet's View reactions; light theme.
 //   node e2e/serve.mjs &   then   node e2e/reactioncard.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
 import { BASE, launchChrome, signUp, send, devices } from './helpers.mjs';
@@ -168,6 +169,29 @@ try {
   await chip(f, '😂').tap();
   await f.waitForFunction(() => document.querySelector('.message-reactions [aria-pressed="true"][data-reaction="😂"]'));
   check(true, 'a tap still reacts');
+
+  // Holding the message itself: its action sheet offers View reactions (not on one without).
+  const holdMessage = async (text) => {
+    await f.waitForTimeout(500);
+    const mbox = await f.locator('.dm-message-content', { hasText: text }).boundingBox();
+    const at = { x: mbox.x + 20, y: mbox.y + mbox.height / 2 };
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
+    await f.waitForTimeout(700);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await f.waitForSelector('.action-sheet');
+  };
+  await holdMessage('no reactions here');
+  check(await f.locator('.action-sheet-items button:has-text("View reactions")').count() === 0, 'no View reactions in the sheet of a message without');
+  await f.keyboard.press('Escape');
+  await f.waitForSelector('.action-sheet', { state: 'detached' });
+  await holdMessage('react to this');
+  await shot(f, '05-phone-sheet');
+  await f.tap('.action-sheet-items button:has-text("View reactions")');
+  await f.waitForSelector('.action-sheet', { state: 'detached' });
+  await f.locator('.vc-dialog.reactions-dialog').waitFor({ timeout: 5000 });
+  const sheetTab = await f.locator('.reactions-dialog [role="tab"][aria-selected="true"]').getAttribute('aria-label');
+  check(sheetTab === ':+1:: 5 reactions', `the sheet's View reactions opens the breakdown (${sheetTab})`);
+  await shot(f, '06-phone-sheet-breakdown');
 
   console.log('reactioncard: ok');
 } catch (err) {

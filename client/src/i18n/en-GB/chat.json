@@ -182,6 +182,7 @@
       "copyText": "Copy Text",
       "removePreviews": "Remove Previews",
       "delete": "Delete Message",
+      "viewReactionsSheet": "View reactions",
       "pinSheet": "Pin message",
       "unpinSheet": "Unpin message",
       "createThreadSheet": "Create thread",

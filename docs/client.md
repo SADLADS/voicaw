@@ -87,7 +87,7 @@
   link, selected text, the inline editor or a picture still gets the browser's menu or the
   image menu instead. There's no hover menu on mobile: a long press on a message
   (`hooks/useLongPress.js`, 450ms, cancelled by scrolling) opens `MessageActionSheet` with the
-  same actions: quick reactions and `+` for the full picker, Reply, Edit, Pin / Unpin, Copy text
+  same actions: quick reactions and `+` for the full picker, View reactions, Reply, Edit, Pin / Unpin, Copy text
   and Delete (asks first). Both offer only Copy for a message still sending or failed. Quick
   reactions (`emoji/quickReactions.js`) are your most used emoji (custom ones too, while you're
   in their guild), topped up with 👍❤️😂😮😢🙏 only until you've used enough. Every reaction you

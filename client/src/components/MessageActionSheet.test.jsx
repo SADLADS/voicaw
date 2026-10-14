@@ -100,6 +100,20 @@ describe('MessageActionSheet', () => {
     expect(onDelete).not.toHaveBeenCalled();
   });
 
+  it('leaves out View reactions while the message has none', () => {
+    renderSheet({ onViewReactions: vi.fn() });
+    expect(screen.queryByRole('button', { name: 'View reactions' })).not.toBeInTheDocument();
+  });
+
+  it('opens who reacted from View reactions', () => {
+    const onViewReactions = vi.fn();
+    const msg = { id: 1, plaintext: 'hello', reactions: [{ user_id: 2, emoji: '👍' }] };
+    const { onClose } = renderSheet({ msg, onViewReactions });
+    tap(screen.getByRole('button', { name: 'View reactions' }));
+    expect(onViewReactions).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it("lists a guild bot's message commands under Apps", () => {
     const onRunApp = vi.fn();
     const apps = [{ id: 3, type: 3, name: 'Quote', bot: { id: 9, name: 'Quote Bot' } }];
