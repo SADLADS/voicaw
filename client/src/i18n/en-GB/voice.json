@@ -70,6 +70,8 @@
       "channelInGuild": "{{channel}} / {{guild}}",
       "hangUp": "Hang up",
       "disconnect": "Disconnect",
+      "openChat": "Open chat",
+      "closeChat": "Close chat",
       "dismiss": "Dismiss",
       "turnOnSound": "Click to turn on sound",
       "sharing": "You're sharing your screen.",

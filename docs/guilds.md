@@ -276,7 +276,9 @@ not; nothing about it depends on who's connected.
   only then is it marked read. Opened from the header's chat button (with the bell and pins
   buttons, which voice channels now have too), or the channel list's chat button on a computer
   (it opens the chat without joining, unlike clicking the channel; shown on hover, and always
-  while the chat is unread). The channel list shows a voice channel unread unless its chat is
+  while the chat is unread), or, while you're in the channel, the voice bar's chat button above
+  the user panel (`VoiceBar`, phones too: opens or closes it, with a dot while it's unread, muted
+  channels only for mentions). The channel list shows a voice channel unread unless its chat is
   open. On a computer the last choice is kept (`localStorage` `voiceChatOpen`): a voice channel
   then opens with its chat. A search result in one opens its chat.
 
