@@ -22,12 +22,13 @@ function waitAtMost(promise, ms) {
 }
 
 // The server's part of logging out, each step allowed to fail. Whatever hasn't finished after
-// LOGOUT_SERVER_MS carries on in the background with the token it started with.
+// LOGOUT_SERVER_MS carries on in the background with the token it started with (every request
+// names it: by then someone may have logged in again, and the saved token is theirs).
 async function endOnServer(token) {
   // Before the token goes: the server must forget this device, or it would keep
   // receiving this account's notifications after logout.
   try {
-    await disableNotificationsOnThisDevice({ timeout: LOGOUT_SERVER_MS });
+    await disableNotificationsOnThisDevice({ timeout: LOGOUT_SERVER_MS, token });
   } catch (err) {
     console.error('Failed to turn off notifications on logout', err);
   }

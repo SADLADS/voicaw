@@ -38,7 +38,7 @@ describe('logOut', () => {
   it('ends the session on the server, then forgets the login', async () => {
     api.post.mockResolvedValue({});
     await logOut();
-    expect(disableNotificationsOnThisDevice).toHaveBeenCalledWith({ timeout: LOGOUT_SERVER_MS });
+    expect(disableNotificationsOnThisDevice).toHaveBeenCalledWith({ timeout: LOGOUT_SERVER_MS, token: 'tok' });
     expect(api.post).toHaveBeenCalledWith('/logout', null, { headers: { Authorization: 'Bearer tok' } });
     expect(localStorage.getItem('token')).toBeNull();
     expect(clearUserKeys).toHaveBeenCalled();

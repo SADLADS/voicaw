@@ -4,9 +4,12 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
 });
 
+// The saved login, unless the request already says which one (logout's last requests carry
+// the token being logged out: sent late, after logging in again, they'd otherwise end the new
+// session).
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
-  if (token) {
+  if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

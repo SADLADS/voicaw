@@ -39,3 +39,27 @@ describe('api token renewal', () => {
     expect(localStorage.getItem('token')).toBe('second');
   });
 });
+
+describe('api login token', () => {
+  async function sentToken(config = {}) {
+    let sent;
+    await api.get('/x', {
+      ...config,
+      adapter: async (c) => {
+        sent = c.headers.Authorization;
+        return { data: {}, status: 200, statusText: 'OK', headers: {}, config: c };
+      },
+    });
+    return sent;
+  }
+
+  it('sends the saved token', async () => {
+    expect(await sentToken()).toBe('Bearer old');
+  });
+
+  // Logout's last requests, sent after logging in again, must not end the new session.
+  it('keeps a token the request names', async () => {
+    localStorage.setItem('token', 'second');
+    expect(await sentToken({ headers: { Authorization: 'Bearer old' } })).toBe('Bearer old');
+  });
+});
