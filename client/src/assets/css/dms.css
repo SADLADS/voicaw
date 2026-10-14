@@ -317,11 +317,13 @@ small {
 }
 
 
+/* Above its message, over the end of the one before, so it never covers the message's own
+   text; below it, or over its top right corner, where the list's top edge would cut it off
+   (messageMenuPlacement.js). */
 .message-menu {
   margin-right: 10px;
-  margin-top: -.5em;
   position: absolute;
-  top: 0;
+  bottom: 100%;
   right: 0;
   display: flex;
   gap: 8px;
@@ -334,6 +336,17 @@ small {
   box-shadow: 0 2px 4px var(--vc-shadow);
   transition: opacity 0.1s ease, box-shadow 0.2s ease;
   z-index: 10;
+}
+
+.message-menu.below {
+  bottom: auto;
+  top: 100%;
+}
+
+.message-menu.inside {
+  bottom: auto;
+  top: 0;
+  margin-top: -.5em;
 }
 
 .message-menu:hover {
@@ -881,8 +894,8 @@ small {
   position: relative;
 }
 
-/* Room above the first message (its avatar, and its hover menu, which sits half above it) and
-   below the last one's reactions, plus the typing line's height. */
+/* Room above the first message's avatar and below the last one's reactions, plus the typing
+   line's height. */
 .message-scroller-content {
   padding: 16px 0 calc(12px + var(--vc-typing-height));
 }

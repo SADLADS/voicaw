@@ -77,7 +77,10 @@
   Uploading a profile picture calls `announceProfilePictureChange()` so it refreshes.
 - Message actions: on desktop, a hover menu (your three most used emoji as one-click
   reactions, as Discord's, a line, then react, pin, edit, reply, delete; `HoverQuickReactions`
-  in `MessageList.jsx`, clicking one you've already added takes it back) and a
+  in `MessageList.jsx`, clicking one you've already added takes it back; it sits just above its
+  message, over the end of the one before, so it never covers the message's own text, even a
+  grouped one-line message's; where the list's top edge would cut it off it goes below the
+  message instead, `utils/messageMenuPlacement.js`) and a
   right-click menu (`MessageMenu.jsx`, on `ContextMenu`): a row of five quick reactions, then
   Add Reaction (the full picker, by the pointer), Reply, Edit Message (your own), Pin / Unpin
   Message (`canPin`), Copy Text and Delete Message (your own, or `canModerate`). Right-clicking a
@@ -95,7 +98,8 @@
   confirms), unless Shift is held while clicking. The hover menu follows `mouseenter`/`mouseleave`,
   which only fire when the mouse moves, so after the rows change or resize `MessageList` works out
   the hovered row again from where the pointer is (`rehover`): Shift+deleting from the hover menu
-  leaves it on the next message, now under the pointer, ready to delete that one too. The sheet ignores the click Chrome fires when
+  leaves it on the next message, the one that took the deleted one's place just below the
+  pointer (its menu shows in the same spot), ready to delete that one too. The sheet ignores the click Chrome fires when
   the holding finger lifts (it lands on the sheet); only clicks from a touch that started on
   it count. Messages aren't text-selectable on mobile, so the long press isn't taken by text
   selection. Rows highlight on hover only with a mouse (`@media (hover: hover)`): a touch

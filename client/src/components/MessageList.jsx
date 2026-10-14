@@ -37,6 +37,7 @@ import Timestamp from './Timestamp';
 import { rehypeHighlightShared } from '../utils/rehypeHighlightShared';
 import { isPlainText } from '../utils/plainText';
 import { cannotHover, flashRow } from '../utils/flashRow';
+import { placeMessageMenu } from '../utils/messageMenuPlacement';
 import { hideSpoilers, remarkDiscord, remarkDocument } from '../utils/remarkDiscord';
 import { continuesGroup, rowTime, startsNewDay } from '../utils/messageGroups';
 import { displayName, useProfiles } from '../utils/profiles';
@@ -482,7 +483,7 @@ export function MessageRow({
       )}
 
       {(focusedMsgId ?? hoveredMsgId) === msg.id && !isMobile && !ephemeral && (
-        <div className="message-menu">
+        <div className="message-menu" ref={placeMessageMenu}>
           {canReact && canAddReactions && (
             <HoverQuickReactions msg={msg} userId={user.id} onToggle={(emoji) => onToggleReaction(msg, emoji)} />
           )}
@@ -779,8 +780,8 @@ export default function MessageList({
   // difference is exactly how far to scroll to keep the row still.
   const anchor = useRef(null);
 
-  const latest = useRef({ hasMore, loadMoreMessages, messages, setHoveredMsgId, isMobile, onRemovePreviews });
-  latest.current = { hasMore, loadMoreMessages, messages, setHoveredMsgId, isMobile, onRemovePreviews };
+  const latest = useRef({ hasMore, loadMoreMessages, messages, hoveredMsgId, setHoveredMsgId, isMobile, onRemovePreviews });
+  latest.current = { hasMore, loadMoreMessages, messages, hoveredMsgId, setHoveredMsgId, isMobile, onRemovePreviews };
   // The previews' X by message id, the same function every render, so memoised EmbedParts stay drawn.
   const removePreviewsById = useCallback((id, event) => {
     const msg = latest.current.messages.find((m) => m.id === id);
@@ -790,7 +791,9 @@ export default function MessageList({
   // Where the mouse pointer is (null outside the window), for rehover.
   const pointer = useRef(null);
   useEffect(() => {
-    const onMove = (e) => { pointer.current = { x: e.clientX, y: e.clientY }; };
+    const onMove = (e) => {
+      pointer.current = { x: e.clientX, y: e.clientY, onMenu: Boolean(e.target.closest?.('.message-menu')) };
+    };
     const onOut = (e) => { if (!e.relatedTarget) pointer.current = null; };
     window.addEventListener('mousemove', onMove, { passive: true });
     document.addEventListener('mouseout', onOut);
@@ -803,12 +806,21 @@ export default function MessageList({
   // The hover menu follows mouseenter/mouseleave, which only fire when the mouse moves: a row
   // that moves under a still pointer (the next one, after the hovered message is deleted) gets
   // no mouseenter, and a deleted row never says the mouse left it. So whenever the rows change
-  // or shift, the hovered row is worked out again from where the pointer is.
+  // or shift, the hovered row is worked out again from where the pointer is. The menu sits
+  // above its row, so when the pointer was on the menu of a message that's gone (deleted from
+  // it), the menu goes to the message that took its place, just below the pointer: it shows
+  // in the same spot, its Delete under the pointer again.
   const rehover = useCallback(() => {
     const at = pointer.current;
-    const { messages: rows, setHoveredMsgId: setHovered, isMobile: phone } = latest.current;
+    const { messages: rows, hoveredMsgId: hovered, setHoveredMsgId: setHovered, isMobile: phone } = latest.current;
     if (!at || phone || !setHovered) return;
-    const row = document.elementFromPoint(at.x, at.y)?.closest('[data-msg-id]');
+    let row = document.elementFromPoint(at.x, at.y)?.closest('[data-msg-id]');
+    if (at.onMenu && hovered != null && !rows.some((each) => each.id === hovered)) {
+      row = [...(scrollerRef.current?.querySelectorAll('[data-msg-id]') ?? [])].find((each) => {
+        const { top } = each.getBoundingClientRect();
+        return top >= at.y && top - at.y <= 48;
+      }) ?? row;
+    }
     const msg = row && scrollerRef.current?.contains(row)
       ? rows.find((each) => String(each.id) === row.dataset.msgId)
       : null;
