@@ -148,6 +148,14 @@ export default defineConfig(({ mode }) => {
     // paths work there too.
     base: '/',
     resolve: { alias: DICTIONARY_ALIASES },
+    // The dev server pre-bundles dependencies it finds by scanning from index.html. It can't
+    // see the service worker's (its own entry) nor workbox-window (behind the virtual
+    // pwa-register module), so it found them only when a page asked, re-bundled and reloaded
+    // that page: the first browser check after a fresh install failed half way.
+    optimizeDeps: {
+      entries: ['index.html', 'src/service-worker.js'],
+      include: ['workbox-window'],
+    },
     plugins: [
       react(),
       twemojiAssets(),

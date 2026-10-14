@@ -179,6 +179,13 @@ Vite re-optimises its dependencies (and reloads the page) on its first start aft
 changes; if the first check fails that way, run it again.
 The message box is a contenteditable: `page.fill('#dm-input', …)` and `page.keyboard.type` work.
 Tips:
+- A script failing half way only on its first run after an install (Vite's log says "new
+  dependencies optimized: x" then "reloading") is Vite pre-bundling a dependency it found late
+  and reloading the page under the script. Add where it's imported from to `optimizeDeps` in
+  `client/vite.config.js` (the service worker and `workbox-window` are there already).
+- `serve.mjs` stopping with `ENOSPC` from Vite's watcher means the host is out of inotify
+  watches (other chats' dev servers): start it with `CHOKIDAR_USEPOLLING=1
+  CHOKIDAR_INTERVAL=3000` to poll instead.
 - Headless Chrome hides scrollbars in screenshots; launch with
   `ignoreDefaultArgs: ['--hide-scrollbars']` to see them.
 - After a tap, Playwright moves its mouse back, so hover-dependent UI vanishes; real phones keep
