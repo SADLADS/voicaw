@@ -1,0 +1,103 @@
+{
+  "levels": {
+    "defaults": {
+      "xp": "XP",
+      "level": "レベル",
+      "levelShort": "Lv"
+    },
+    "badge": "{{short}}{{level}}",
+    "card": {
+      "level": "{{name}} {{level}}",
+      "progress": "{{into}} / {{needed}} {{xp}}",
+      "rank": "#{{rank}}",
+      "change": "変更",
+      "set": "設定",
+      "add": "追加",
+      "editLabel": "{{name}} さんの{{what}}を変更",
+      "amount": "量",
+      "cancel": "キャンセル"
+    },
+    "settings": {
+      "enabled": {
+        "label": "レベル",
+        "hint": "メンバーはここでの活動で {{xp}} を獲得し、ときどきレベルが上がります。オフにすると誰も獲得せず、レベルは非表示になります。獲得済みの分は残ります。"
+      },
+      "names": "名前",
+      "xpName": "XP の呼び名",
+      "levelName": "レベルの呼び名",
+      "levelShort": "レベルの略称",
+      "levelShortHint": "メンバーリストの画像の横に表示されます（例:「{{short}}12」）。",
+      "default": "デフォルト: {{value}}",
+      "xpPerLevel": "1 レベルあたりの {{xp}}",
+      "xpPerLevelHint": "1 にすると、{{xp}} 1 つが 1 レベルになり、{{xp}} という言葉は表示されません。行動でレベルが直接上がります。",
+      "showInMemberList": {
+        "label": "メンバーリストにレベルを表示",
+        "hint": "各メンバーの画像の横に表示します。"
+      },
+      "sources": "{{xp}} がもらえる行動",
+      "sourcesHint": "ボットとウェブフックは獲得しません。オンにした項目ごとに、横の量がもらえます。",
+      "amount": "{{what}}でもらえる {{xp}}",
+      "cooldown": "{{xp}} がもらえるメッセージの間隔（秒）",
+      "cooldownHint": "獲得したメッセージからこの時間内に送られたメッセージでは何ももらえません。0 にするとすべてのメッセージが対象です。",
+      "save": "保存",
+      "saved": "保存しました",
+      "source": {
+        "message": {
+          "label": "メッセージを送る",
+          "hint": "クールダウンごとに最大 1 回。"
+        },
+        "replyReceived": {
+          "label": "返信をもらう",
+          "hint": "他の人があなたのメッセージに返信したとき。"
+        },
+        "reactionReceived": {
+          "label": "リアクションをもらう",
+          "hint": "1 人につき、メッセージごとに 1 回。"
+        },
+        "mentionReceived": {
+          "label": "メンションされる",
+          "hint": "他の人があなたの名前でメンションしたとき。"
+        },
+        "reactionGiven": {
+          "label": "リアクションする",
+          "hint": "他の人のメッセージに、メッセージごとに 1 回。"
+        },
+        "threadCreated": {
+          "label": "スレッドを作る",
+          "hint": "テキストチャンネルで。"
+        },
+        "documentCreated": {
+          "label": "ドキュメントを書く",
+          "hint": "ドキュメントチャンネルで。"
+        },
+        "taskCompleted": {
+          "label": "タスクを完了する",
+          "hint": "リストチャンネルで、タスクごとに 1 回。"
+        },
+        "voiceMinute": {
+          "label": "ボイスでの 1 分ごと",
+          "hint": "他に少なくとも 1 人いて、スピーカーミュートしていないとき。"
+        }
+      }
+    },
+    "leaderboard": {
+      "title": "ランキング",
+      "empty": "まだ誰も獲得していません。",
+      "loadMore": "さらに読み込む"
+    },
+    "audit": {
+      "fields": {
+        "enabled": "レベル有効",
+        "xpPerLevel": "1 レベルあたりの XP",
+        "xpName": "XP の呼び名",
+        "levelName": "レベルの呼び名",
+        "levelShort": "レベルの略称",
+        "showInMemberList": "メンバーリストに表示",
+        "messageCooldown": "メッセージのクールダウン（秒）",
+        "sourceEnabled": "{{source}}: オン",
+        "sourceXp": "{{source}}: 量"
+      },
+      "xp": "XP: {{before}} → {{after}}"
+    }
+  }
+}

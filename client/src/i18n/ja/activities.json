@@ -1,0 +1,23 @@
+{
+  "activities": {
+    "playing": "<b>{{name}}</b> をプレイ中",
+    "streaming": "<b>{{name}}</b> を配信中",
+    "listening": "<b>{{name}}</b> を再生中",
+    "watching": "<b>{{name}}</b> を視聴中",
+    "competing": "<b>{{name}}</b> で競技中",
+    "streamingIn": "<b>{{channel}}</b> で配信中",
+    "goToChannel": "チャンネルへ移動",
+    "unknownChannel": "ボイスチャンネル",
+    "playingNow": "再生中",
+    "paused": "一時停止中",
+    "headingPlaying": "ゲームをプレイ中",
+    "headingStreaming": "配信中",
+    "headingListening": "再生中",
+    "headingWatching": "視聴中",
+    "headingCompeting": "競技中",
+    "unknownGame": "ゲーム",
+    "elapsed": "{{time}} 経過",
+    "left": "残り {{time}}",
+    "party": "（{{size}}/{{max}}）"
+  }
+}

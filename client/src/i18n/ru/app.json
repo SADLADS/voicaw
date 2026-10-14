@@ -1,6 +1,16 @@
 {
   "app": {
     "unreachable": "Не удаётся подключиться к Voicaw. Пробуем снова…",
+    "unreachableLogOut": "Выйти на этом устройстве",
+    "offline": {
+      "title": "Вы не в сети",
+      "text": "Показаны сообщения, сохранённые на этом устройстве. Читать их можно, отправлять — нет.",
+      "backTitle": "Voicaw снова доступен",
+      "backText": "Подключитесь заново, чтобы увидеть новые сообщения и отправлять свои.",
+      "reconnect": "Подключиться",
+      "chatNotice": "Вы не в сети: эти сообщения сохранены на этом устройстве. Для отправки нужно подключение.",
+      "notSaved": "Этот разговор не сохранён на этом устройстве, поэтому без сети его не показать."
+    },
     "sidebar": {
       "logoAlt": "Логотип Voicaw",
       "directMessages": "Личные сообщения",
@@ -22,7 +32,11 @@
       }
     },
     "userPanel": {
-      "you": "Вы"
+      "you": "Вы",
+      "settingsWaiting_one": "Настройки ({{count}} ждёт вас)",
+      "settingsWaiting_few": "Настройки ({{count}} ждут вас)",
+      "settingsWaiting_many": "Настройки ({{count}} ждут вас)",
+      "settingsWaiting_other": "Настройки ({{count}} ждут вас)"
     },
     "connection": {
       "online": "В сети",
@@ -36,10 +50,20 @@
       "changeStatus": "Изменить свой статус",
       "setStatus": "Задать свой статус",
       "clearStatus": "Убрать свой статус",
+      "addEmoji": "Добавить эмодзи",
+      "changeEmoji": "Сменить эмодзи",
+      "removeEmoji": "Убрать эмодзи",
       "clear": "Убрать",
       "statusSaveFailed": "Не удалось сохранить статус.",
       "editProfile": "Изменить профиль",
       "logOut": "Выйти"
+    },
+    "personMenu": {
+      "message": "Написать",
+      "addFriend": "Добавить в друзья",
+      "acceptRequest": "Принять запрос в друзья",
+      "cancelRequest": "Отменить запрос в друзья",
+      "removeFriend": "Удалить из друзей"
     },
     "pageMenus": {
       "text": "Текст",
@@ -52,13 +76,49 @@
       "selectAll": "Выделить всё",
       "spellcheck": "Проверка орфографии",
       "copyLink": "Копировать ссылку",
-      "openLink": "Открыть ссылку"
+      "openLink": "Открыть ссылку",
+      "user": "Пользователь"
     },
     "profile": {
       "aboutMe": "Обо мне",
       "profileOf": "Профиль {{name}}",
       "invalidUploadUrl": "Недопустимый адрес загрузки",
-      "uploadFailed": "Не удалось загрузить"
+      "uploadFailed": "Не удалось загрузить",
+      "open": "Открыть профиль",
+      "viewPicture": "Посмотреть аватар",
+      "picture": "Аватар {{name}}",
+      "banner": "Баннер",
+      "memberSince": "В Voicaw с",
+      "tabs": "Разделы профиля",
+      "tabAbout": "Обо мне",
+      "tabActivity": "Активность",
+      "tabFriends": "Общие друзья",
+      "tabFriendsCount": "Общие друзья ({{count}})",
+      "tabFriendsShort": "Друзья ({{count}})",
+      "tabGuilds": "Общие гильдии",
+      "tabGuildsCount": "Общие гильдии ({{count}})",
+      "tabGuildsShort": "Гильдии ({{count}})",
+      "noBio": "Здесь пока ничего нет.",
+      "loading": "Загрузка…",
+      "loadFailed": "Не удалось загрузить этот профиль.",
+      "activityHint": "Игры за последние 30 дней.",
+      "noActivity": "Никаких игр за последние 30 дней.",
+      "activityOff": "История активности выключена, поэтому ничего не записывается. Включить её можно в Настройки → Конфиденциальность.",
+      "activityHiddenOwn": "Эту вкладку видите только вы.",
+      "playingNow": "Играет сейчас",
+      "lastPlayed": "Последний раз: {{when}}",
+      "playTimeMinutes": "{{minutes}} мин",
+      "playTimeHours": "{{hours}} ч {{minutes}} мин",
+      "hiddenOwn": "Скрыто от других (Настройки → Конфиденциальность).",
+      "noMutualFriends": "Общих друзей нет.",
+      "noMutualGuilds": "Общих гильдий нет.",
+      "changePicture": "Сменить аватар",
+      "removePicture": "Убрать аватар",
+      "changeBanner": "Сменить картинку баннера",
+      "removeBanner": "Убрать баннер",
+      "bannerColour": "Цвет баннера",
+      "setStatus": "Задать свой статус",
+      "addBio": "Расскажите о себе"
     },
     "presence": {
       "online": "В сети",
@@ -72,7 +132,29 @@
     "push": {
       "serviceUnavailable": "push-служба этого браузера недоступна. В Brave включите «Использовать сервисы Google для push-сообщений» (Настройки → Конфиденциальность и безопасность) и перезапустите Brave. Сборки Chromium без сервисов Google не могут получать веб-push; Chrome, Edge, Firefox и Safari могут.",
       "noServiceWorker": "Service worker недоступен",
-      "newMessage": "Новое сообщение"
+      "newMessage": "Новое сообщение",
+      "reacted": "Реакция {{emoji}} на ваше сообщение",
+      "reactedTo": "Реакция {{emoji}} на ваше сообщение: {{text}}",
+      "nameReacted": "{{name}}: реакция {{emoji}} на ваше сообщение",
+      "nameReactedTo": "{{name}}: реакция {{emoji}} на ваше сообщение: {{text}}",
+      "admin": {
+        "report": "Новая жалоба",
+        "signup": "Новая заявка на регистрацию",
+        "tester": "Новая заявка в тестировщики Android",
+        "reportsOpen_one": "{{count}} открытая жалоба",
+        "reportsOpen_few": "{{count}} открытые жалобы",
+        "reportsOpen_many": "{{count}} открытых жалоб",
+        "reportsOpen_other": "{{count}} открытой жалобы",
+        "signupFrom": "{{name}} просит учётную запись",
+        "signupsWaiting_one": "{{count}} учётная запись ждёт одобрения",
+        "signupsWaiting_few": "{{count}} учётные записи ждут одобрения",
+        "signupsWaiting_many": "{{count}} учётных записей ждут одобрения",
+        "signupsWaiting_other": "{{count}} учётной записи ждут одобрения",
+        "testersWaiting_one": "{{count}} заявка ждёт добавления",
+        "testersWaiting_few": "{{count}} заявки ждут добавления",
+        "testersWaiting_many": "{{count}} заявок ждут добавления",
+        "testersWaiting_other": "{{count}} заявки ждут добавления"
+      }
     }
   }
 }

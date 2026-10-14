@@ -39,6 +39,7 @@
       "removeFromGroup": "グループから削除",
       "addPeople": "メンバーを追加",
       "rename": "名前を変更",
+      "changePicture": "画像を変更",
       "leave": "グループから退出",
       "addTitle": "メンバーを追加",
       "adding": "追加中…",
@@ -47,6 +48,11 @@
       "namePlaceholder": "グループ名（空欄: メンバーの名前）",
       "nameLabel": "グループ名",
       "nameHint": "グループ名もメッセージと同様にエンドツーエンド暗号化されます。",
+      "pictureTitle": "グループ画像",
+      "uploadPicture": "画像をアップロード",
+      "choosePicture": "グループの画像を選ぶ",
+      "pictureHint": "グループの誰でも変更できます。グループ画像はグループ名と同じくエンドツーエンド暗号化されます。",
+      "pictureSaving": "保存中…",
       "removeMessage": "{{name}} さんは今後このグループに送信されたものを見られなくなります。",
       "leaveOwnerMessage": "このグループは表示されなくなり、オーナーがいなくなります（誰もメンバーを削除できなくなります）。",
       "leaveMessage": "誰かが再び追加しない限り、このグループは表示されなくなります。",
@@ -73,7 +79,11 @@
       "renamedUnchecked": "{{actor}} さんがグループ名を変更しました（新しい名前を検証できませんでした）。",
       "youRenamedUnchecked": "あなたがグループ名を変更しました（新しい名前を検証できませんでした）。",
       "removedName": "{{actor}} さんがグループ名を削除しました。",
-      "youRemovedName": "あなたがグループ名を削除しました。"
+      "youRemovedName": "あなたがグループ名を削除しました。",
+      "changedPicture": "{{actor}} さんがグループの画像を変更しました。",
+      "youChangedPicture": "あなたがグループの画像を変更しました。",
+      "removedPicture": "{{actor}} さんがグループの画像を削除しました。",
+      "youRemovedPicture": "あなたがグループの画像を削除しました。"
     },
     "errors": {
       "cantUseKey": "{{name}} さんの鍵を使用できません",

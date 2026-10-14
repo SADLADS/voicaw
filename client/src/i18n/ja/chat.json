@@ -21,24 +21,55 @@
       "unpinFailed": "メッセージのピン留めを外せませんでした。",
       "jumpFailed": "チャット内でそのメッセージが見つかりませんでした。"
     },
+    "newDivider": {
+      "pill": "新着",
+      "label": "新着メッセージ"
+    },
     "deleteMessage": {
       "title": "メッセージを削除",
       "confirm": "本当にこのメッセージを削除しますか？",
       "shiftTip": "ヒント: Shift を押しながら削除をクリックすると、この確認を省略できます。"
+    },
+    "removePreviews": {
+      "title": "プレビューを削除",
+      "confirm": "このメッセージのプレビューをすべて削除しますか？元には戻せません。",
+      "shiftTip": "ヒント: Shift を押しながら × をクリックすると、この確認を省略できます。"
     },
     "composer": {
       "tooLongWithLinks_other": "添付ファイルのリンクを加えると、メッセージが {{count}} 文字長すぎます。",
       "sendFailed": "メッセージを送信できませんでした: {{error}}",
       "gifFailed": "GIF を送信できませんでした: {{error}}",
       "replyingTo": "<b>{{name}}</b> さんに返信中",
+      "editingMessage": "メッセージを編集中",
+      "stopEditing": "編集をやめる",
+      "editFailed": "メッセージを保存できませんでした: {{error}}",
       "uploadFile": "ファイルをアップロード",
       "createPoll": "投票を作成",
+      "createThread": "スレッドを作成",
+      "timestamps": "タイムスタンプ",
       "fallbackName": "ユーザー",
       "messageLabel": "{{name}} へメッセージを送信",
       "messagePlaceholder": "{{name}} へメッセージを送信...",
       "showKeyboard": "キーボードを表示",
       "emoji": "絵文字",
       "send": "送信"
+    },
+    "attachPanel": {
+      "label": "メッセージに追加",
+      "expand": "全画面",
+      "shrink": "縮小",
+      "camera": "カメラ",
+      "photos": "写真",
+      "poll": "投票",
+      "thread": "スレッド",
+      "files": "ファイル",
+      "timestamps": "タイムスタンプ",
+      "askText": "ここから共有できるように、Voicaw に写真と動画へのアクセスを許可してください。送信するまで写真や動画はスマホから出ません。",
+      "allow": "アクセスを許可",
+      "refused": "Voicaw は写真にアクセスできません。Android の設定で許可できます。",
+      "openSettings": "設定を開く",
+      "chooseMore": "さらに選ぶ",
+      "readFailed": "{{name}} を追加できませんでした"
     },
     "dm": {
       "loadUsersError": "ユーザーの読み込みエラー: {{error}}",
@@ -47,6 +78,15 @@
       "alreadyInCall": "すでに通話中です",
       "startCall": "{{name}} さんと音声通話を開始",
       "accountDeleted": "このアカウントは削除されました。会話は引き続き読むことができます。"
+    },
+    "botDm": {
+      "notEncrypted": "暗号化されていません",
+      "notEncryptedHint": "ボットとのメッセージはエンドツーエンド暗号化されません。",
+      "notice": "{{name}} とのメッセージはエンドツーエンド暗号化されません。{{name}}、その運営者、Voicaw のサーバーが読むことができます。プライベートな内容は送らないでください。",
+      "empty": "{{name}} からはまだ何も届いていません。",
+      "delete": "会話を削除",
+      "deleteTitle": "{{name}} との会話を削除しますか？",
+      "deleteConfirm": "すべてのメッセージが {{name}} 側からも削除されます。ブロックするか、設定 → コンテンツでボットからのメッセージをオフにしない限り、後でまたメッセージが届くことがあります。"
     },
     "dmMenu": {
       "markRead": "既読にする",
@@ -87,6 +127,7 @@
       "botTitle": "Bot: 開発者ポータルで作られたアプリ",
       "botTag": "BOT",
       "edited": "編集済み",
+      "removePreviewsButton": "プレビューを削除",
       "editedInline": "（編集済み）",
       "unsigned": "署名なし",
       "unsignedTitle": "グループメッセージに署名が付く前に送信されたため、送信者を検証できません",
@@ -94,22 +135,43 @@
       "unverifiedTitle": "署名が送信者と一致しません。偽造されている可能性があります",
       "editLabel": "メッセージを編集",
       "editHint": "Escape で<cancel>キャンセル</cancel> • Enter で<save>保存</save>",
-      "hiddenSpoiler": "[ネタバレ]"
+      "hiddenSpoiler": "[ネタバレ]",
+      "showEdits": "編集履歴を表示"
+    },
+    "editHistory": {
+      "title": "編集履歴",
+      "original": "元のメッセージ",
+      "edit": "編集",
+      "current": "現在",
+      "unknownTime": "履歴の保存開始前に編集",
+      "none": "以前のバージョンは残っていません。Voicaw が編集履歴を保存する前に編集されました。",
+      "unreadable": "このバージョンは復号できません。",
+      "loadFailed": "編集履歴を読み込めませんでした。"
     },
     "reactions": {
       "add": "リアクションを追加",
       "you": "あなた",
       "someone": "誰か",
       "chipLabel": "{{emoji}} {{number}}、{{names}} がリアクション",
+      "card": "<names></names> が <emoji>{{emoji}}</emoji> でリアクション",
+      "cardOthers_other": "<names></names> と他 {{count}} 人が <emoji>{{emoji}}</emoji> でリアクション",
+      "separator": "、",
+      "lastSeparator": "、",
+      "dialogTitle": "リアクション",
+      "tabLabel_other": "{{emoji}}: リアクション {{count}} 件",
+      "reactedWith": "{{emoji}} でリアクション",
+      "remove": "自分のリアクションを外す",
       "updateFailed": "リアクションを更新できませんでした。もう一度お試しください。"
     },
     "noKeys": "この端末には暗号鍵がありません。ログアウトしてもう一度ログインしてください。",
     "messageMenu": {
+      "editHistory": "編集履歴",
       "label": "メッセージの操作",
       "react": "リアクション",
       "reactWith": "{{name}} でリアクション",
       "moreReactions": "その他のリアクション",
       "addReaction": "リアクションを追加",
+      "viewReactions": "リアクションを表示",
       "edit": "メッセージを編集",
       "pin": "メッセージをピン留め",
       "unpin": "メッセージのピン留めを外す",
@@ -123,6 +185,11 @@
       "copyTextSheet": "テキストをコピー",
       "removePreviewsSheet": "プレビューを削除",
       "confirmDelete": "このメッセージを削除しますか？この操作は取り消せません。"
+    },
+    "search": {
+      "placeholder": "{{name}} を検索",
+      "intro": "単語で検索するか、from:、mentions:、has: で絞り込めます。このチャットを読めるのはあなたのデバイスだけなので、検索はここで行われます。最初の検索では履歴全体を読み込みます。",
+      "reading_other": "履歴を読み込み中… これまでに {{count}} 件"
     },
     "pins": {
       "title": "ピン留めされたメッセージ",
@@ -203,6 +270,21 @@
       "backToVote": "投票に戻る",
       "vote": "投票",
       "voteFailed": "投票を保存できませんでした。もう一度お試しください。",
+      "openHint": "誰でも選択肢を追加できます",
+      "addedBy": "{{name}} さんが追加",
+      "addedByYou": "あなたが追加",
+      "addAnswer": "追加",
+      "addAnswerLabel": "選択肢を追加",
+      "addAnswerPlaceholder": "選択肢を追加…",
+      "addAnswerFailed": "選択肢を追加できませんでした。もう一度お試しください。",
+      "answerEmpty": "先に選択肢を入力してください。",
+      "answerTooLong": "選択肢は {{count}} 文字以内です。",
+      "answerDuplicate": "その選択肢はすでに投票にあります。",
+      "answersFull": "この投票にはすでに {{count}} 個の選択肢があります。",
+      "removeAnswer": "選択肢を削除",
+      "removeAnswerOf": "選択肢 {{answer}} を削除",
+      "removeAnswerConfirm": "「{{answer}}」を投票から削除しますか？",
+      "removeAnswerFailed": "その選択肢を削除できませんでした。もう一度お試しください。",
       "duration": {
         "hours_other": "{{count}} 時間",
         "days_other": "{{count}} 日",
@@ -213,6 +295,24 @@
         "hours_other": "残り {{count}} 時間",
         "minutes_other": "残り {{count}} 分",
         "lessThanMinute": "残り 1 分未満"
+      }
+    },
+    "timestampDialog": {
+      "title": "タイムスタンプ",
+      "intro": "この時刻は各自のタイムゾーンで表示され、相対時間は自動で進みます。",
+      "date": "日付",
+      "time": "時刻",
+      "format": "形式",
+      "code": "メッセージ内:",
+      "insert": "挿入",
+      "styles": {
+        "t": "短い時刻",
+        "T": "長い時刻",
+        "d": "短い日付",
+        "D": "長い日付",
+        "f": "日付と時刻",
+        "F": "曜日、日付と時刻",
+        "R": "相対時間"
       }
     },
     "pollDialog": {
@@ -239,7 +339,12 @@
       "noEnd": "終了なし",
       "multi": "複数回答を許可",
       "multiLocked": "投稿後は変更できません。",
-      "multiHint": "これと期間は、投票を投稿した後は変更できません。"
+      "multiHint": "これと期間は、投票を投稿した後は変更できません。",
+      "open": "オープン投票",
+      "openLocked": "投稿後は変更できません。",
+      "openHint": "誰でも選択肢を追加できます。投票を投稿した後は変更できません。",
+      "questionChangedOpen": "質問を変更すると、すべての票と追加された選択肢が削除されます。",
+      "questionChanged": "質問を変更すると、すべての票が削除されます。"
     },
     "pollEnd": {
       "closed": "<b>{{author}}</b> さんの投票「<b>{{question}}</b>」が終了しました。",
@@ -283,7 +388,10 @@
       "unblock": "ブロック解除",
       "youBlocked": "{{name}} さんをブロックしています。メッセージの送信や通話をするにはブロックを解除してください。",
       "confirmTitle": "{{name}} さんをブロックしますか？",
-      "confirm": "相手はあなたにメッセージを送ったり、通話したり、グループに追加したりできなくなり、あなたには相手のメッセージや通知が表示されなくなります。相手には通知されません。"
+      "confirm": "相手はあなたにメッセージを送ったり、通話したり、グループに追加したりできなくなり、あなたには相手のメッセージや通知が表示されなくなります。相手には通知されません。",
+      "blockWebhook": "ウェブフックをブロック",
+      "unblockWebhook": "ウェブフックのブロックを解除",
+      "confirmWebhook": "そのメッセージは表示されず、通知も届かなくなります。誰にも通知されません。"
     },
     "report": {
       "messageTitle": "メッセージを報告",

@@ -45,6 +45,19 @@
         "listHint": "タスクを編集できる人は、権限タブ（タスクを編集）で設定します。",
         "docHint": "ドキュメントを書ける人は、権限タブ（ドキュメントを作成）で設定します。",
         "whoCanSee": "閲覧できる人"
+      },
+      "voice": {
+        "bitrate": "ビットレート",
+        "kbps": "{{kbps}} kbps",
+        "bitrateHint": "各マイクが送る音声の量です。デフォルトは 64 kbps。高いほどクリアになり、データ通信量も増えます。",
+        "bitrateHighHint": "96 kbps を超えると声の違いはほとんど分かりません（マイクはモノラルです）。音楽向けです。チャンネルの全員の通信量が増えます。",
+        "userLimit": "ユーザー数の上限",
+        "noLimit": "上限なし",
+        "users_other": "{{count}} 人",
+        "userLimitHint": "満員になると、チャンネルを管理できる人以外は参加できません。",
+        "region": "地域",
+        "automatic": "自動",
+        "regionHint": "チャンネルの通話が経由する音声サーバーです。参加者の多くに近いほど音質が良くなります。変更すると、中にいる全員がそこへ移動します（一瞬無音になります）。"
       }
     },
     "channelPermissions": {
@@ -207,6 +220,10 @@
         "label": "イベントの管理",
         "description": "メンバーが誰のイベントでも編集、開始、終了、中止できるようにします。"
       },
+      "MANAGE_LEVELS": {
+        "label": "レベルの管理",
+        "description": "メンバーが誰の XP やレベルでも設定できるようにします。主に XP を配るボット向けです。"
+      },
       "ADMINISTRATOR": {
         "label": "管理者",
         "description": "チャンネルの設定に関係なく、すべてのチャンネルですべての権限を持ちます。取り扱いには注意してください。"
@@ -263,6 +280,7 @@
         "emoji": "絵文字",
         "webhooks": "ウェブフック",
         "events": "イベント",
+        "levels": "レベル",
         "guild": "ギルド設定"
       },
       "deletedChannel": "削除されたチャンネル",
@@ -313,6 +331,8 @@
         "categoryDelete": "{{actor}} さんがカテゴリー {{category}} を削除しました",
         "inviteCreate": "{{actor}} さんが招待 {{invite}} を作成しました",
         "inviteDelete": "{{actor}} さんが招待 {{invite}} を取り消しました",
+        "vanitySet": "{{actor}} さんがバニティ招待を {{invite}} に設定しました",
+        "vanityRemove": "{{actor}} さんがバニティ招待 {{invite}} を削除しました",
         "emojiCreate": "{{actor}} さんが絵文字 {{emoji}} を追加しました",
         "emojiUpdate": "{{actor}} さんが絵文字 {{emoji}} の名前を変更しました",
         "emojiDelete": "{{actor}} さんが絵文字 {{emoji}} を削除しました",
@@ -323,6 +343,8 @@
         "eventUpdate": "{{actor}} さんがイベント {{event}} を変更しました",
         "eventDelete": "{{actor}} さんがイベント {{event}} を中止しました",
         "guildUpdate": "{{actor}} さんがギルド設定を変更しました",
+        "levelsUpdate": "{{actor}} さんがレベルの設定を変更しました",
+        "memberXpUpdate": "{{actor}} さんが {{target}} さんの XP を変更しました",
         "auditLogClearOlder_other": "{{actor}} さんが {{age}}より前の記録を消去しました（{{count}} 件）",
         "auditLogClearAll_other": "{{actor}} さんが監査ログ全体を消去しました（{{count}} 件）",
         "unknown": "{{actor}} さんが操作を行いました（{{action}}）"
@@ -341,7 +363,11 @@
         "description": "説明",
         "location": "場所",
         "start_time": "開始",
-        "end_time": "終了"
+        "end_time": "終了",
+        "all_day": "終日",
+        "emoji": "絵文字",
+        "join_log": "参加ログ",
+        "join_log_leaves": "参加ログに退出も表示"
       },
       "values": {
         "none": "なし",
@@ -368,6 +394,7 @@
         "noUseLimit": "使用回数の制限なし",
         "expiresAfter": "{{age}}後に期限切れ",
         "neverExpires": "期限なし",
+        "vanityWas": "以前: {{code}}",
         "cover": {
           "added": "カバー画像を追加",
           "changed": "カバー画像を変更",
@@ -452,6 +479,8 @@
     },
     "guildMenu": {
       "invite": "メンバーを招待",
+      "mute": "ギルドをミュート",
+      "unmute": "ギルドのミュートを解除",
       "notifications": "通知設定",
       "settings": "ギルド設定",
       "copyLink": "リンクをコピー",
@@ -470,6 +499,24 @@
       "deleteHint": "すべてのチャンネルとメッセージが削除されます。この操作は取り消せません。確認のためギルド名を入力してください。",
       "deleteConfirmLabel": "確認用のギルド名",
       "noInvites": "有効な招待はありません。",
+      "activeInvites": "有効な招待",
+      "joinLog": {
+        "title": "参加ログ",
+        "hint": "誰かが参加するたびに、ギルドがそれを伝えるチャンネルです。そのチャンネルを見られる全員に表示されます。",
+        "channel": "参加ログのチャンネル",
+        "off": "オフ",
+        "leaves": "退出した人も伝える",
+        "leavesHint": "退出、キック、BAN はすべて「退出」と表示されます。誰が何をしたかは監査ログに残ります。"
+      },
+      "vanity": {
+        "title": "バニティ URL",
+        "hint": "自分で決める永続的な招待リンクです。期限切れにならず、何回でも使えます。設定できるのはギルドのオーナーだけです。",
+        "placeholder": "your-guild",
+        "none": "このギルドにはバニティ URL がありません。",
+        "uses_other": "{{count}} 回使用",
+        "remove": "削除",
+        "removed": "バニティ URL を削除しました。"
+      },
       "inviteUsage_other": "{{name}} さん · {{count}} 回使用",
       "inviteUsageLimited_other": "{{name}} さん · {{uses}}/{{count}} 回使用",
       "inviteExpires": "{{date}} に期限切れ",
@@ -479,6 +526,7 @@
       "tabs": {
         "roles": "ロール",
         "emoji": "絵文字",
+        "levels": "レベル",
         "invites": "招待",
         "bans": "BAN"
       },
@@ -494,7 +542,9 @@
       "linkLabel": "友達にギルドの招待リンクを送る",
       "expireAfter": "有効期限",
       "maxUses": "最大使用回数",
-      "generate": "新しいリンクを生成"
+      "generate": "新しいリンクを生成",
+      "vanityLabel": "またはギルドのバニティ URL を共有",
+      "vanityHint": "期限なし、回数制限なし。"
     },
     "notifyLevels": {
       "all": {

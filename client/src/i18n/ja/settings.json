@@ -1,5 +1,6 @@
 {
   "settings": {
+    "pageTitle": "設定",
     "pleaseWait": "お待ちください…",
     "yourPassword": "あなたのパスワード",
     "savingFailed": "保存に失敗しました",
@@ -7,16 +8,19 @@
     "savedOnDevice": "この端末に保存しました。",
     "dismiss": "閉じる",
     "groups": {
+      "user": "ユーザー設定",
       "app": "アプリの設定",
       "admin": "管理"
     },
     "pages": {
       "account": "マイアカウント",
+      "privacy": "プライバシーと安全",
+      "notifications": "通知",
       "appearance": "外観",
+      "language": "言語と地域",
       "voiceVideo": "音声とビデオ",
       "desktopApp": "デスクトップアプリ",
       "androidApp": "Android アプリ",
-      "notifications": "通知",
       "admin": "管理",
       "reports": "報告",
       "about": "情報"
@@ -28,9 +32,23 @@
       "clearSearch": "検索をクリア",
       "noMatch": "「{{query}}」に一致する設定はありません。",
       "developerPortal": "開発者ポータル",
-      "logOut": "ログアウト"
+      "logOut": "ログアウト",
+      "subsections": "{{page}} のセクション",
+      "waiting_other": "{{count}} 件待ち"
     },
     "sections": {
+      "password": {
+        "title": "パスワード",
+        "keywords": "パスワード 変更 セキュリティ リカバリーコード 忘れた password security recovery"
+      },
+      "recoveryCode": {
+        "title": "リカバリーコード",
+        "keywords": "パスワード 変更 セキュリティ リカバリーコード 忘れた password security recovery"
+      },
+      "twoFactor": {
+        "title": "二要素認証",
+        "keywords": "二要素認証 2段階認証 2fa mfa 認証アプリ totp コード バックアップコード セキュリティ ログイン two-factor"
+      },
       "devices": {
         "title": "端末",
         "keywords": "セッション ログイン 端末 デバイス ログアウト すべて 他の端末 スマホ 携帯 パソコン ブラウザ セキュリティ sessions devices"
@@ -38,6 +56,46 @@
       "deleteAccount": {
         "title": "アカウントを削除",
         "keywords": "削除 アカウント 退会 消去 delete account"
+      },
+      "privacy": {
+        "title": "プライバシー",
+        "keywords": "プライバシー 招待 埋め込み カード プレビュー 暗号化 DM グループ サーバー 入力中 YouTube 動画 GIF KLIPY リンク ウェブサイト 画像 写真 通知 ロック画面 privacy"
+      },
+      "storage": {
+        "title": "このデバイスのストレージ",
+        "keywords": "ストレージ 容量 ディスク オフライン コピー 検索 インデックス 履歴 キャッシュ 保存 消去 削除 サイズ 使用量 storage offline"
+      },
+      "profileVisibility": {
+        "title": "あなたのプロフィール",
+        "keywords": "プロフィール アクティビティ ゲーム プレイ 履歴 リッチプレゼンス 共通 フレンド ギルド 非表示 表示 profile"
+      },
+      "content": {
+        "title": "コンテンツ",
+        "keywords": "NSFW ぼかし ネタバレ メディア 画像 写真 動画 GIF 成人 アダルト 露骨 センシティブ 非表示 年齢 18 歳以上 確認 ボット メッセージ DM content"
+      },
+      "blocked": {
+        "title": "ブロック中のユーザー",
+        "keywords": "ブロック ブロック解除 無視 ユーザー 人 block blocked"
+      },
+      "authorisedApps": {
+        "title": "認可済みアプリ",
+        "keywords": "認可 アプリ ウェブサイト サイト ログイン Voicaw でログイン oauth アクセス 連携 apps"
+      },
+      "notifications": {
+        "title": "通知",
+        "keywords": "プッシュ 通知 アラート プレビュー スマホ ブラウザ デスクトップ テスト オン オフ push notifications"
+      },
+      "reactionNotifications": {
+        "title": "リアクション",
+        "keywords": "リアクション 絵文字 通知 reactions"
+      },
+      "sounds": {
+        "title": "サウンド",
+        "keywords": "効果音 サウンド 音声 音量 着信音 メッセージ ミュート ミュート解除 スピーカーミュート 参加 退出 切断 sounds"
+      },
+      "theme": {
+        "title": "テーマ",
+        "keywords": "テーマ ダークモード ライトモード 夜 色 システム キーボード theme dark light"
       },
       "language": {
         "title": "言語",
@@ -51,66 +109,101 @@
         "title": "スペルチェック",
         "keywords": "スペル スペルチェック 誤字 辞書 赤い下線 言語 自動修正 単語 spellcheck dictionary"
       },
-      "privacy": {
-        "title": "プライバシー",
-        "keywords": "プライバシー 招待 埋め込み カード プレビュー 暗号化 DM グループ サーバー 入力中 YouTube 動画 GIF KLIPY リンク ウェブサイト 画像 写真 privacy"
+      "voice": {
+        "title": "音声",
+        "keywords": "マイク 入力 出力 スピーカー ヘッドホン ヘッドセット デバイス 音声 音量 テスト エコー ノイズ抑制 ゲイン カメラ microphone voice video"
       },
-      "content": {
-        "title": "コンテンツ",
-        "keywords": "NSFW ぼかし ネタバレ メディア 画像 写真 動画 GIF 成人 アダルト 露骨 センシティブ 非表示 年齢 18 歳以上 確認 content"
+      "micTest": {
+        "title": "マイクテスト",
+        "keywords": "テスト マイク 自分の声 確認 レベル mic test"
       },
-      "notifications": {
-        "title": "通知",
-        "keywords": "プッシュ 通知 アラート プレビュー push notifications"
+      "noiseSuppression": {
+        "title": "ノイズ抑制",
+        "keywords": "ノイズ抑制 ノイズ 雑音 背景 rnnoise deepfilternet 強 標準 キーボード ファン noise"
       },
-      "sounds": {
-        "title": "サウンド",
-        "keywords": "効果音 サウンド 音声 音量 着信音 メッセージ ミュート ミュート解除 スピーカーミュート 参加 退出 切断 sounds"
+      "inputSensitivity": {
+        "title": "入力感度",
+        "keywords": "入力感度 ゲート しきい値 音声検出 自動 レベル sensitivity"
+      },
+      "voiceProcessing": {
+        "title": "音声処理",
+        "keywords": "エコーキャンセル 自動ゲイン調整 agc 処理 echo"
+      },
+      "camera": {
+        "title": "カメラ",
+        "keywords": "ビデオ カメラ ウェブカメラ デバイス プレビュー camera"
+      },
+      "screenShare": {
+        "title": "画面共有",
+        "keywords": "画面共有 配信 ストリーム 配信開始 解像度 フレームレート fps 画質 screen share"
       },
       "desktopApp": {
         "title": "デスクトップアプリ",
-        "keywords": "トレイ 閉じる 最小化 起動 ログイン スタートアップ キーボード ショートカット ホットキー キーバインド ミュート スピーカーミュート グローバル desktop tray"
+        "keywords": "トレイ 閉じる 最小化 起動 ログイン スタートアップ desktop tray"
+      },
+      "shortcuts": {
+        "title": "キーボードショートカット",
+        "keywords": "キーボード ショートカット ホットキー キーバインド ミュート スピーカーミュート グローバル shortcuts"
+      },
+      "activity": {
+        "title": "アクティビティ",
+        "keywords": "アクティビティ ゲーム プレイ中 リッチプレゼンス ステータス steam discord activity"
       },
       "androidApp": {
         "title": "Android アプリ",
-        "keywords": "Android スマホ 携帯 モバイル ロック画面 全画面 通話 着信 着信音 通知チャンネル サウンド android"
+        "keywords": "Android スマホ 携帯 モバイル android"
       },
-      "appVersion": {
-        "title": "アプリのバージョン",
-        "keywords": "アップデート 更新 ビルド バージョン 再読み込み update version"
+      "lockScreenCalls": {
+        "title": "ロック画面での通話",
+        "keywords": "ロック画面 全画面 通話 着信 lock screen"
       },
-      "blocked": {
-        "title": "ブロック中のユーザー",
-        "keywords": "ブロック ブロック解除 無視 ユーザー 人 block blocked"
+      "notificationChannels": {
+        "title": "通知音",
+        "keywords": "通知チャンネル サウンド 着信音 android"
+      },
+      "pushLog": {
+        "title": "最近の通知",
+        "keywords": "最近 通知 プッシュ ログ 届かない 配信済み"
+      },
+      "adminGeneral": {
+        "title": "一般",
+        "keywords": "グローバル 管理者 KLIPY GIF API キー 登録 サインアップ 招待 招待制 承認 申請 admin signup"
+      },
+      "adminSignups": {
+        "title": "登録",
+        "keywords": "登録 サインアップ 申請 招待 招待制 承認 テスター google play sign up signup"
+      },
+      "adminRegions": {
+        "title": "音声の地域",
+        "keywords": "音声 地域 リージョン livekit サーバー 国旗 voice regions"
+      },
+      "adminStorage": {
+        "title": "ストレージ",
+        "keywords": "ストレージ ディスク 容量 空き 満杯 minio s3 バケット storage"
+      },
+      "adminAdmins": {
+        "title": "管理者",
+        "keywords": "グローバル管理者 管理者 追加 削除 admins"
       },
       "reports": {
         "title": "報告",
         "keywords": "報告 通報 モデレーション 停止 BAN 迷惑行為 reports moderation"
       },
-      "theme": {
-        "title": "テーマ",
-        "keywords": "テーマ ダークモード ライトモード 夜 色 システム キーボード theme dark light"
+      "suspended": {
+        "title": "停止中のアカウント",
+        "keywords": "停止 アカウント停止 停止解除 BAN アカウント suspended"
+      },
+      "appVersion": {
+        "title": "アプリのバージョン",
+        "keywords": "アップデート 更新 ビルド バージョン 再読み込み update version"
       },
       "credits": {
+        "title": "クレジット",
         "keywords": "クレジット 帰属 ライセンス Twemoji 絵文字 フォント KLIPY credits license"
       },
-      "adminGeneral": {
-        "keywords": "グローバル 管理者 KLIPY GIF API キー 登録 サインアップ 招待 招待制 承認 申請 admin signup"
-      },
-      "voice": {
-        "title": "音声",
-        "keywords": "マイク 入力 出力 スピーカー ヘッドホン ヘッドセット デバイス 音声 音量 テスト エコー ノイズ抑制 ゲイン カメラ microphone voice video"
-      },
-      "password": {
-        "title": "パスワード",
-        "keywords": "パスワード 変更 セキュリティ リカバリーコード 忘れた password security recovery"
-      },
-      "recoveryCode": {
-        "title": "リカバリーコード",
-        "keywords": "パスワード 変更 セキュリティ リカバリーコード 忘れた password security recovery"
-      },
-      "suspended": {
-        "title": "停止中のアカウント"
+      "legal": {
+        "title": "プライバシーポリシーと利用規約",
+        "keywords": "プライバシーポリシー 利用規約 法的情報 アカウント削除 privacy policy terms"
       }
     },
     "about": {
@@ -136,6 +229,28 @@
       "newRecoveryCode": "新しいリカバリーコードを作成",
       "setUpRecoveryCode": "リカバリーコードを設定"
     },
+    "twoFactor": {
+      "title": "二要素認証",
+      "off": "オフです。オンにすると、ログイン時にパスワードに加えて認証アプリ（Google Authenticator、Aegis、1Password など）のコードを求められます。",
+      "on": "オンです。ログインにはパスワードに加えて認証アプリのコードが必要です。",
+      "backupCodesLeft_other": "バックアップコードは残り {{count}} 個です。",
+      "setUp": "二要素認証を設定",
+      "turnOn": "オンにする",
+      "turnOff": "二要素認証をオフにする",
+      "newBackupCodes": "新しいバックアップコード",
+      "showNewCodes": "新しいバックアップコードを表示",
+      "scan": "この QR コードを認証アプリでスキャンしてください。",
+      "qrLabel": "認証アプリ用の QR コード",
+      "orType": "または、このキーを入力してください:",
+      "key": "認証アプリ用のキー",
+      "enterCode": "次に、表示された 6 桁のコードとパスワードを入力してください。",
+      "codePlaceholder": "6 桁のコード",
+      "codeOrBackupPlaceholder": "6 桁のコードまたはバックアップコード",
+      "backupCodes": "バックアップコード",
+      "backupCodesIntro_other": "この {{count}} 個のバックアップコードを安全な場所に保管してください。認証アプリをなくしたとき、それぞれ 1 回ログインに使えます。二度と表示されません。",
+      "savedThem": "バックアップコードを保存しました",
+      "fileText": "{{username}} の Voicaw バックアップコード\n\nそれぞれ 1 回だけ、認証アプリのコードの代わりに使えます。\n\n{{codes}}\n"
+    },
     "admin": {
       "title": "管理",
       "source": {
@@ -160,10 +275,31 @@
       "makeAdmin": "管理者にする",
       "useDefault": "デフォルトを使用",
       "choices": {
+        "linkPreviews": {
+          "on": "オン",
+          "off": "オフ"
+        },
         "signupMode": {
           "open": "オープン: 誰でも登録できる",
           "invite": "招待制",
           "request": "申請制: 管理者が新しいアカウントを承認する"
+        },
+        "streamMaxResolution": {
+          "720": "720p",
+          "1080": "1080p",
+          "source": "ソース（制限なし）"
+        },
+        "streamMaxFramerate": {
+          "15": "15 fps",
+          "30": "30 fps",
+          "60": "60 fps（制限なし）"
+        },
+        "uploadLimit": {
+          "25": "25 MB",
+          "50": "50 MB",
+          "100": "100 MB",
+          "250": "250 MB",
+          "500": "500 MB"
         }
       },
       "requests": {
@@ -174,6 +310,17 @@
         "decline": "拒否",
         "confirmDecline": "この申請を拒否しますか？アカウントは削除されます。"
       },
+      "testers": {
+        "title": "Android テスター",
+        "help": "voicaw.com で Google Play の Android アプリのクローズドテストへの参加を申し込んだ人です。Play Console でテストのテスターリストにメールアドレスを追加してから、追加済みにしてください。対応が終わったら申請を削除してください。",
+        "none": "申請はまだありません。",
+        "copyWaiting": "未追加のメールアドレスをコピー",
+        "added": "{{date}} に追加",
+        "markAdded": "追加済みにする",
+        "markWaiting": "未追加に戻す",
+        "delete": "削除",
+        "confirmDelete": "{{email}} からの申請を削除しますか？"
+      },
       "invites": {
         "title": "招待",
         "help": "招待制のときに登録できるようにしたり、承認待ちを省略できるようにしたりするリンクです。新しいリンクはすぐにコピーされます。",
@@ -181,11 +328,60 @@
         "revoke": "取り消す",
         "used_other": "{{count}} 回使用",
         "usedOf_other": "{{max}} 回中 {{count}} 回使用"
+      },
+      "voiceRegions": {
+        "title": "音声の地域",
+        "help": "音声が経由できる LiveKit サーバーで、それぞれ国旗と名前があります。通話と「自動」のままのボイスチャンネルはデフォルトを使います。ギルドはボイスチャンネルをどれにでも置けます（チャンネルの設定から）。メンバーに近い場所を選べます。各サーバーはこの API の /api/livekit/webhook にウェブフックを送り、それぞれ専用の API キーが必要です。",
+        "default": "デフォルト",
+        "fromEnv": "server/.env で設定",
+        "notSetUp": "未設定（server/.env に LiveKit がありません）",
+        "keyAndSecret": "キー {{key}}、シークレット {{hint}}",
+        "makeDefault": "デフォルトにする",
+        "confirmRemove": "削除しますか？その地域のボイスチャンネルは「自動」に戻り、中にいる人は移動します。",
+        "addRegion": "地域を追加",
+        "add": "地域を追加",
+        "flag": "国旗",
+        "name": "名前",
+        "namePlaceholder": "東京",
+        "url": "LiveKit のアドレス（アプリ用）",
+        "apiUrl": "API のアドレス（任意）",
+        "apiUrlPlaceholder": "同じアドレスを https:// で",
+        "apiKey": "API キー",
+        "apiSecret": "API シークレット",
+        "keepSecret": "空欄のままにすると {{hint}} を維持します",
+        "builtinHelp": "このサーバー自身の LiveKit です。アドレスとキーは server/.env にあります。",
+        "chooseFlag": "国旗を選ぶ",
+        "changeFlag": "国旗を変更"
+      },
+      "storage": {
+        "title": "ストレージ",
+        "help": "添付ファイル、画像、絵文字が保存されるオブジェクトストレージ（MinIO）の使用状況です。空き容量はそのドライブのものなので、同じドライブ上の他のものも含まれます。",
+        "unavailable": "オブジェクトストレージが容量を報告しません。報告できるのは MinIO だけで、接続できないか MinIO ではありません。",
+        "free": "{{total}} 中 {{free}} の空き（{{percent}}%）",
+        "barLabel": "{{total}} 中 {{used}} 使用",
+        "voicaw": "Voicaw {{size}}",
+        "other": "その他 {{size}}",
+        "freeKey": "空き {{size}}",
+        "amount_other": "{{size}} · {{count}} ファイル",
+        "buckets": {
+          "uploads": "添付ファイル",
+          "profilePics": "プロフィール画像",
+          "guildIcons": "ギルドアイコン",
+          "emojis": "カスタム絵文字"
+        },
+        "otherBuckets": "ストレージ上の他のバケット",
+        "otherFiles": "ドライブ上のその他すべて",
+        "lag": "MinIO は各バケットを数分ごとに集計し、ドライブを約 1 分ごとに読み直すため、少し遅れることがあります。",
+        "checked": "{{date}} に確認",
+        "refresh": "更新",
+        "checking": "確認中…",
+        "couldntLoad": "ストレージの数値を読み込めませんでした"
       }
     },
     "appVersion": {
       "title": "アプリのバージョン",
       "ready": "新しいバージョンの準備ができました。",
+      "lastLook": "新しいバージョンを確認中…",
       "androidReady": "Voicaw {{version}} が公開されました（{{size}}）。アップデートするとダウンロードされ、その後 Android がインストールを確認します。",
       "downloadingPercent": "ダウンロード中… {{percent}}%",
       "installing": "Android に確認されたらインストールしてください。アップデート中は Voicaw が閉じます。",
@@ -209,7 +405,9 @@
       "blurNsfw": "NSFW チャンネルのメディアをぼかす",
       "blurNsfwHint": "NSFW に設定されたギルドチャンネルの画像、動画、GIF、埋め込みは、クリックするまでぼかされます。オフにするとすぐに表示されます。ネタバレとして送られたものはどちらの場合もぼかされたままです。アカウントに保存され、すべての端末に適用されます。",
       "adult": "18 歳以上です",
-      "adultHint": "NSFW チャンネルはこれにチェックを入れた後でのみ開けます。アカウントに保存されるのはあなたの回答だけで、生年月日は保存されません。"
+      "adultHint": "NSFW チャンネルはこれにチェックを入れた後でのみ開けます。アカウントに保存されるのはあなたの回答だけで、生年月日は保存されません。",
+      "botDms": "ボットからのメッセージを許可",
+      "botDmsHint": "参加しているギルドのボットがダイレクトメッセージ（リマインダー、ゲームの手番など）を送れるようになり、こちらからも送れます。これらはエンドツーエンド暗号化されず、ボットの作成者と Voicaw のサーバーが読めます。オフにすると、どのボットも会話を始めたり続けたりできません。"
     },
     "dateTime": {
       "title": "日付と時刻",
@@ -254,7 +452,10 @@
       "notSet": "未設定",
       "clear": "クリア",
       "shortcutTaken": "別のアプリがこのショートカットを使用しています。",
-      "recordingHint": "Ctrl、Alt、Shift のいずれかを押しながらキーを押してください。Esc でキャンセルします。"
+      "recordingHint": "Ctrl、Alt、Shift のいずれかを押しながらキーを押してください。Esc でキャンセルします。",
+      "activity": "アクティビティ",
+      "shareActivity": "プレイ中のゲームを共有",
+      "shareActivityHint": "Discord で何をしているか表示するゲームは、Discord が開いていない間、ここで全員に表示します。名前と画像は、このコンピューター上の Steam やゲーム自身のファイル、またはゲームが指定するウェブアドレス（音楽プレイヤーのアルバムアートなど）から取得し、このコンピューターがダウンロードします。画像の小さなコピーがサーバーに送られます。"
     },
     "androidApp": {
       "title": "Android アプリ",
@@ -312,14 +513,43 @@
       "turnOff": "オフにする",
       "sendTest": "テスト通知を送信"
     },
+    "reactionNotifications": {
+      "title": "あなたのメッセージへのリアクション",
+      "all": "すべての場所",
+      "dms": "DM とグループ DM のみ",
+      "off": "通知しない",
+      "hint": "アカウント全体の設定です。DM とグループ DM では、デスクトップアプリと Android アプリだけが通知します。これらはエンドツーエンド暗号化されているため、リアクションが投票かどうか（投票は通知されません）を判断できるのはあなたのデバイスだけで、ブラウザではリアクションごとに通知を表示しなければならないためです。"
+    },
     "notificationPrompt": {
       "failed": "通知をオンにできませんでした。設定からもう一度お試しください。",
       "needsInstall": "この端末で通知を受け取るには、共有 →「ホーム画面に追加」をタップし、ホーム画面から Voicaw を開いてください。",
       "offer": "メッセージを受信したときに通知を受け取りましょう。",
       "enable": "有効にする"
     },
+    "storage": {
+      "title": "このデバイスのストレージ",
+      "total": "Voicaw はこのデバイスで {{used}} を使用しています（あと {{free}} 使用できます）。",
+      "totalUnknown": "このブラウザは、Voicaw がこのデバイスでどれだけ使用しているかを教えてくれません。",
+      "clear": "消去",
+      "offlineCopy": {
+        "label": "オフライン用のコピーを保存",
+        "hint": "開いたダイレクトメッセージ、グループチャット、メモは、このデバイスから出ることのない鍵で保護してこのデバイスに保存され、Voicaw に接続できないときにも読めます（送信はできず、テキストのみで画像やファイルは含みません）。オフにするとコピーは削除されます。このデバイスに保存されます。",
+        "size_other": "{{size}} · {{count}} 件のメッセージ"
+      },
+      "searchCopy": {
+        "size_other": "{{size}} · {{count}} 件のチャット"
+      },
+      "persisted": "このブラウザは、空き容量が少なくなっても Voicaw のデータを保持します。",
+      "notPersisted": "このブラウザは空き容量が少なくなると Voicaw のデータを削除することがあります（Safari ではホーム画面に追加していない場合、Voicaw を 7 日間開かないと削除されます）。サーバー上のものは失われません。鍵はログインすると戻り、コピーも再び作られます。",
+      "persist": "保持を求める",
+      "logout": "ログアウトすると、両方のコピーと、Voicaw がこのアカウント用にここに保存しているその他すべてが削除されます。"
+    },
     "privacy": {
       "title": "プライバシー",
+      "notificationPreviews": {
+        "label": "通知にメッセージの本文を表示",
+        "hint": "新着メッセージの通知に内容が表示されます。便利ですが、画面やロック画面を見られる人なら誰でも読めてしまいます。オフにすると、誰から（どこで）届いたかだけが表示されます。DM とグループ DM の本文はこのデバイス上でのみ復号され、Voicaw のサーバーが見ることはありません。このデバイスに保存されます。"
+      },
       "inviteEmbeds": {
         "label": "DM とグループ DM でギルドの招待をすぐに表示する",
         "hint": "メッセージ内のギルドの招待リンクには、ギルドの名前と画像が入ったカードが表示されます。カードを表示するため、アプリは Voicaw サーバーに招待について問い合わせます。これにより、エンドツーエンド暗号化されたメッセージにどの招待が含まれていたかがサーバーに知られます。オフにすると、「表示」をタップするまでカードは表示されません。ギルドのチャンネルは暗号化されていないため、そこでの招待は常に表示されます。この端末に保存されます。"
@@ -331,6 +561,14 @@
       "youtube": {
         "label": "YouTube 動画をすぐに表示する",
         "hint": "メッセージ内の YouTube リンクにはプレーヤーが表示されます。プレーヤーを読み込むと、再生しなくても、あなたの IP アドレスと送られてきた動画が YouTube に知られます。オフにすると「再生」をタップするまでプレーヤーは読み込まれず、それまで YouTube からは何も読み込まれません。この端末に保存されます。"
+      },
+      "searchCopy": {
+        "label": "このデバイスに検索用のコピーを保存",
+        "hint": "ダイレクトメッセージ、グループチャット、メモを読めるのはあなたのデバイスだけなので、検索はここで行われます。チャットの最初の検索ではサーバーから履歴全体を読み込みます。この設定は読み込んだ内容を、このデバイスから出ることのない鍵で保護して保存するので、次からは新しい分だけを読み込みます。オフにするとコピーは削除され、検索のたびに履歴全体を読み込み直します。ログアウトしても削除されます。このデバイスに保存されます。"
+      },
+      "showLinkPreviews": {
+        "label": "リンクのプレビューを表示",
+        "hint": "メッセージ内の他サイトへのリンクの下にプレビューが表示されます。ギルドではページのタイトル、説明、画像のカード、YouTube ではプレーヤー、画像や動画への直接リンクではその画像や動画です。オフにするとリンクだけが表示され、そのサイトからは何も読み込まれません。ギルドの招待とイベントのカード、ボットの埋め込みは引き続き表示されます。このデバイスに保存されます。"
       },
       "linkPreviews": {
         "label": "リンクの画像や動画をすぐに表示する",
@@ -382,6 +620,10 @@
       "outgoingRing": {
         "label": "発信音",
         "description": "あなたの発信が呼び出し中のとき"
+      },
+      "logo": {
+        "label": "ロゴ",
+        "description": "Voicaw の鳥をクリックしたとき"
       }
     },
     "spellcheck": {
@@ -411,6 +653,7 @@
       "dark": "ダーク",
       "light": "ライト",
       "familiar": "Ol’ Familiar",
+      "halloween": "ハロウィン",
       "system": "システムに合わせる",
       "hint": "この端末にのみ保存されます。",
       "hintSystemDark": "システムは現在ダークモードです。この端末にのみ保存されます。",
@@ -461,7 +704,7 @@
       "namesHidden": "Voicaw がマイクを使えるようになるまで、ブラウザはデバイス名を隠しています。",
       "allowIt": "許可する",
       "micTest": "マイクテスト",
-      "micTestHint": "話すと、他の人に聞こえるとおりに自分の声が返ってきます。ヘッドホンの使用がおすすめです。",
+      "micTestHint": "話すと、他の人に聞こえるとおりに自分の声が返ってきます。ヘッドホンの使用がおすすめです。テスト中はミュートとスピーカーミュートになります。",
       "stopTesting": "テストを停止",
       "letsCheck": "チェックしよう",
       "micLevel": "マイクのレベル",
@@ -486,12 +729,15 @@
       "cameraBlocked": "カメラへのアクセスがブロックされています。テストするには許可してください。",
       "noCamera": "カメラが見つかりません。",
       "cameraFailed": "カメラを使用できませんでした。",
-      "cameraNamesHidden": "Voicaw がカメラを使えるようになるまで、ブラウザはカメラ名を隠しています。「カメラをテスト」で表示されます。"
+      "cameraNamesHidden": "Voicaw がカメラを使えるようになるまで、ブラウザはカメラ名を隠しています。「カメラをテスト」で表示されます。",
+      "screenShare": "画面共有",
+      "screenShareHint": "画面を共有するときの送信方法です（配信開始のたびに変更できます）。ソースは画面本来のサイズです。画質を上げるほど速いアップロード回線が必要で、サーバーは視聴者全員にストリーム全体を送ります。"
     },
     "profile": {
       "onlyImages": "画像ファイルのみ使用できます。",
       "tooLarge": "画像が大きすぎます（最大 8 MB）。",
       "choosePicture": "プロフィール画像を選択",
+      "chooseBanner": "バナー画像を選ぶ",
       "displayName": "表示名",
       "displayNameHint": "ユーザー名（{{username}}）の代わりに表示されます。空欄にするとユーザー名が使われます。",
       "customStatus": "カスタムステータス",
@@ -521,9 +767,19 @@
     },
     "blocked": {
       "title": "ブロック中のユーザー",
-      "hint": "ブロックした人は、あなたにメッセージを送ったり、通話したり、グループに追加したりできず、その人のメッセージはあなたには表示されません。相手には通知されません。",
+      "hint": "ブロックした人は、あなたにメッセージを送ったり、通話したり、グループに追加したりできず、その人のメッセージはあなたには表示されません。ブロックしたウェブフックは、メッセージが非表示になるだけです。誰にも通知されません。",
       "none": "誰もブロックしていません。",
-      "someone": "誰か"
+      "someone": "誰か",
+      "webhook": "ウェブフック",
+      "webhookIn": "{{guild}} のウェブフック"
+    },
+    "authorisedApps": {
+      "title": "認可済みアプリ",
+      "hint": "Voicaw でログインしたウェブサイトです。削除するまで、それぞれがあなたのユーザー名、表示名、プロフィール画像を見られます。",
+      "none": "Voicaw でログインしたウェブサイトはありません。",
+      "since": "{{date}} から",
+      "remove": "削除",
+      "loadFailed": "認可済みアプリを読み込めませんでした。"
     },
     "reports": {
       "title": "報告",
@@ -555,6 +811,21 @@
         "suspended": "停止"
       },
       "note": "「{{note}}」"
+    },
+    "logOut": {
+      "confirmTitle": "ログアウト",
+      "confirmMessage": "本当にログアウトしますか？",
+      "confirm": "ログアウト"
+    },
+    "profileVisibility": {
+      "title": "あなたのプロフィール",
+      "hint": "プロフィールのタブで他の人に見えるものです。画像、名前、バナー、ステータス、自己紹介は、ログインしている全員に常に表示されます。",
+      "showActivity": "アクティビティを表示",
+      "showActivityHint": "過去 30 日間にプレイしたゲームとプレイ時間です。デスクトップアプリが共有する内容（設定 → デスクトップアプリ）から作られます。保存されるのはゲームの名前と時間だけで、30 日間です。オフにすると何も記録されず、保存済みのものは削除されます。",
+      "showMutualFriends": "共通のフレンドを表示",
+      "showMutualFriendsHint": "プロフィールを開いた人とあなたの共通のフレンドです。",
+      "showMutualGuilds": "共通のギルドを表示",
+      "showMutualGuildsHint": "お互いが参加しているギルドです。"
     }
   }
 }

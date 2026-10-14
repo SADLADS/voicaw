@@ -7,7 +7,8 @@
       "waiting": "開始待ち",
       "inMinutes_other": "{{count}} 分後に開始",
       "inHours_other": "{{count}} 時間後に開始",
-      "inDays_other": "{{count}} 日後に開始"
+      "inDays_other": "{{count}} 日後に開始",
+      "allDayOn": "{{date}} · 終日"
     },
     "place": {
       "unknownChannel": "ボイスチャンネル",
@@ -71,7 +72,28 @@
       "create": "イベントを作成",
       "gone": "このイベントは終了したか中止されたか、表示する権限がありません。",
       "emptyTitle": "予定されているイベントはありません。",
-      "emptyHint": "どんなことでもイベントにできます。ボイスチャンネルでのゲームナイトや、どこか別の場所でのオフ会など。"
+      "emptyHint": "どんなことでもイベントにできます。ボイスチャンネルでのゲームナイトや、どこか別の場所でのオフ会など。",
+      "backToCalendar": "カレンダー",
+      "tab": {
+        "events": "イベント",
+        "calendar": "月",
+        "week": "週"
+      }
+    },
+    "calendar": {
+      "today": "今日",
+      "previous": "前の月",
+      "next": "次の月",
+      "dayLabel_other": "{{date}}、イベント {{count}} 件",
+      "createOn": "{{date}} にイベントを作成",
+      "more_other": "他 {{count}} 件",
+      "dayEvents": "この日のイベント",
+      "nothing": "この日には何もありません。",
+      "allDay": "終日"
+    },
+    "week": {
+      "previous": "前の週",
+      "next": "次の週"
     },
     "editor": {
       "createTitle": "イベントを作成",
@@ -95,7 +117,7 @@
       "external": "別の場所",
       "externalHint": "テキストチャンネル、外部リンク、または対面。",
       "channel": "チャンネル",
-      "location": "場所",
+      "locationOptional": "場所（任意）",
       "locationPlaceholder": "場所やリンクなどを追加",
       "name": "イベントのトピック",
       "namePlaceholder": "どんなイベントですか？",
@@ -114,15 +136,24 @@
       "addCover": "カバー画像を追加",
       "changeCover": "変更",
       "removeCover": "削除",
+      "allDay": "終日",
+      "emoji": "絵文字（任意、カレンダーに表示）",
+      "addEmoji": "絵文字を追加",
+      "changeEmoji": "変更",
+      "removeEmoji": "削除",
+      "colour": "カレンダーでの色",
+      "defaultColour": "デフォルトの色",
+      "customColour": "自分で選んだ色",
       "uploading": "アップロード中…",
       "coverFailed": "画像をアップロードできませんでした: {{error}}",
       "reviewHint": "イベントはこのように表示されます。表示できる人は全員「イベント」で見ることができ、興味ありにした人には開始時に通知が届きます。",
       "errors": {
         "channel": "ボイスチャンネルを選んでください。",
-        "location": "イベントの場所を入力してください。",
         "name": "イベントにトピックを付けてください。",
         "start": "開始日時を選んでください。",
         "past": "開始は未来の日時にしてください。",
+        "pastDay": "まだ過ぎていない日を選んでください。",
+        "endBeforeDay": "最終日を初日より前にはできません。",
         "endNeeded": "別の場所で行うイベントには終了日時が必要です。",
         "endBefore": "終了は開始より後にしてください。",
         "repeat": "この日付からはその繰り返しになりません。別のものを選んでください。"

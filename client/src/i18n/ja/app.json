@@ -1,6 +1,16 @@
 {
   "app": {
     "unreachable": "Voicaw に接続できません。再試行しています…",
+    "unreachableLogOut": "このデバイスでログアウト",
+    "offline": {
+      "title": "オフラインです",
+      "text": "このデバイスに保存されたメッセージを表示しています。読むことはできますが、送信はできません。",
+      "backTitle": "Voicaw に再び接続できます",
+      "backText": "再接続すると、新しいメッセージを見たり送信したりできます。",
+      "reconnect": "再接続",
+      "chatNotice": "オフラインです。これらのメッセージはこのデバイスに保存されたものです。送信するには接続が必要です。",
+      "notSaved": "この会話はこのデバイスに保存されていないため、オフラインでは表示できません。"
+    },
     "sidebar": {
       "logoAlt": "Voicaw のロゴ",
       "directMessages": "ダイレクトメッセージ",
@@ -19,7 +29,8 @@
       }
     },
     "userPanel": {
-      "you": "あなた"
+      "you": "あなた",
+      "settingsWaiting_other": "設定（{{count}} 件の対応待ち）"
     },
     "connection": {
       "online": "オンライン",
@@ -33,10 +44,20 @@
       "changeStatus": "カスタムステータスを変更",
       "setStatus": "カスタムステータスを設定",
       "clearStatus": "カスタムステータスをクリア",
+      "addEmoji": "絵文字を追加",
+      "changeEmoji": "絵文字を変更",
+      "removeEmoji": "絵文字を削除",
       "clear": "クリア",
       "statusSaveFailed": "ステータスを保存できませんでした。",
       "editProfile": "プロフィールを編集",
       "logOut": "ログアウト"
+    },
+    "personMenu": {
+      "message": "メッセージ",
+      "addFriend": "フレンドに追加",
+      "acceptRequest": "フレンドリクエストを承認",
+      "cancelRequest": "フレンドリクエストを取り消す",
+      "removeFriend": "フレンドから削除"
     },
     "pageMenus": {
       "text": "テキスト",
@@ -49,13 +70,49 @@
       "selectAll": "すべて選択",
       "spellcheck": "スペルチェック",
       "copyLink": "リンクをコピー",
-      "openLink": "リンクを開く"
+      "openLink": "リンクを開く",
+      "user": "ユーザー"
     },
     "profile": {
       "aboutMe": "自己紹介",
       "profileOf": "{{name}} さんのプロフィール",
       "invalidUploadUrl": "アップロード URL が無効です",
-      "uploadFailed": "アップロードに失敗しました"
+      "uploadFailed": "アップロードに失敗しました",
+      "open": "プロフィールを開く",
+      "viewPicture": "プロフィール画像を表示",
+      "picture": "{{name}} のプロフィール画像",
+      "banner": "バナー",
+      "memberSince": "Voicaw の利用開始日",
+      "tabs": "プロフィールのセクション",
+      "tabAbout": "自己紹介",
+      "tabActivity": "アクティビティ",
+      "tabFriends": "共通のフレンド",
+      "tabFriendsCount": "共通のフレンド（{{count}}）",
+      "tabFriendsShort": "フレンド（{{count}}）",
+      "tabGuilds": "共通のギルド",
+      "tabGuildsCount": "共通のギルド（{{count}}）",
+      "tabGuildsShort": "ギルド（{{count}}）",
+      "noBio": "まだ何もありません。",
+      "loading": "読み込み中…",
+      "loadFailed": "このプロフィールを読み込めませんでした。",
+      "activityHint": "過去 30 日間にプレイしたゲーム。",
+      "noActivity": "過去 30 日間にプレイしたゲームはありません。",
+      "activityOff": "アクティビティ履歴がオフのため、何も記録されません。設定 → プライバシーでオンにできます。",
+      "activityHiddenOwn": "このタブはあなただけに表示されています。",
+      "playingNow": "プレイ中",
+      "lastPlayed": "最終プレイ: {{when}}",
+      "playTimeMinutes": "{{minutes}} 分",
+      "playTimeHours": "{{hours}} 時間 {{minutes}} 分",
+      "hiddenOwn": "他の人には非表示です（設定 → プライバシー）。",
+      "noMutualFriends": "共通のフレンドはいません。",
+      "noMutualGuilds": "共通のギルドはありません。",
+      "changePicture": "プロフィール画像を変更",
+      "removePicture": "プロフィール画像を削除",
+      "changeBanner": "バナー画像を変更",
+      "removeBanner": "バナーを削除",
+      "bannerColour": "バナーの色",
+      "setStatus": "カスタムステータスを設定",
+      "addBio": "自己紹介を追加"
     },
     "presence": {
       "online": "オンライン",
@@ -69,7 +126,20 @@
     "push": {
       "serviceUnavailable": "このブラウザのプッシュサービスが利用できません。Brave の場合は「プッシュメッセージングに Google サービスを使用する」（設定 → プライバシーとセキュリティ）をオンにして Brave を再起動してください。Google サービスのない Chromium ビルドは Web プッシュを受信できません。Chrome、Edge、Firefox、Safari は受信できます。",
       "noServiceWorker": "Service Worker が利用できません",
-      "newMessage": "新しいメッセージ"
+      "newMessage": "新しいメッセージ",
+      "reacted": "あなたのメッセージに {{emoji}} でリアクションしました",
+      "reactedTo": "あなたのメッセージに {{emoji}} でリアクションしました: {{text}}",
+      "nameReacted": "{{name}} さんがあなたのメッセージに {{emoji}} でリアクションしました",
+      "nameReactedTo": "{{name}} さんがあなたのメッセージに {{emoji}} でリアクションしました: {{text}}",
+      "admin": {
+        "report": "新しい報告",
+        "signup": "新しい登録申請",
+        "tester": "新しい Android テスター申請",
+        "reportsOpen_other": "未対応の報告 {{count}} 件",
+        "signupFrom": "{{name}} さんがアカウントを申請しました",
+        "signupsWaiting_other": "承認待ちのアカウント {{count}} 件",
+        "testersWaiting_other": "追加待ちの申請 {{count}} 件"
+      }
     }
   }
 }

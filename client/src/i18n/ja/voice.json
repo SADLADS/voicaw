@@ -17,6 +17,18 @@
       "start": "画面を共有",
       "stop": "画面の共有を停止"
     },
+    "streamQuality": {
+      "resolution": "解像度",
+      "frameRate": "フレームレート",
+      "resolutions": {
+        "720": "720p",
+        "1080": "1080p",
+        "source": "ソース"
+      },
+      "fps": "{{fps}} fps",
+      "limited": "このサーバーでは、配信は {{resolution}}、{{fps}} fps までです。",
+      "browserAsks": "次にブラウザが共有する内容を尋ねます。15 fps は文字がくっきりし、30 と 60 はゲームや動画がなめらかです。"
+    },
     "stream": {
       "windowTitle": "{{name}} さんの画面 – Voicaw",
       "ownWindowTitle": "あなたの配信 – Voicaw",
@@ -28,8 +40,15 @@
       "yourStream": "あなたの配信",
       "bringBack": "元に戻す",
       "popOut": "ポップアウト",
+      "openChannel": "ボイスチャンネルへ移動",
+      "openCall": "通話へ移動",
       "fullScreen": "全画面表示",
-      "stopWatching": "視聴をやめる"
+      "stopWatching": "視聴をやめる",
+      "mute": "配信をミュート",
+      "unmute": "配信のミュートを解除",
+      "deafened": "スピーカーミュート中です",
+      "volume": "配信の音量（自分だけ）",
+      "percent": "{{percent}}%"
     },
     "userVolume": {
       "title": "ユーザー音量",
@@ -51,6 +70,8 @@
       "channelInGuild": "{{channel}} / {{guild}}",
       "hangUp": "通話を終了",
       "disconnect": "切断",
+      "openChat": "チャットを開く",
+      "closeChat": "チャットを閉じる",
       "dismiss": "閉じる",
       "turnOnSound": "クリックして音声をオンにする",
       "sharing": "画面を共有しています。",
@@ -58,7 +79,8 @@
     },
     "controls": {
       "deafen": "スピーカーミュート",
-      "undeafen": "スピーカーミュート解除"
+      "undeafen": "スピーカーミュート解除",
+      "micTesting": "マイクのテスト中はミュートとスピーカーミュートになります"
     },
     "errors": {
       "micBlocked": "マイクへのアクセスがブロックされています。話すにはブラウザで許可してください。",
@@ -82,6 +104,12 @@
       "playerTitle": "Watch Together プレーヤー",
       "openChannel": "ボイスチャンネルに移動",
       "closePlayer": "ここでの視聴をやめる",
+      "popOut": "別ウィンドウで開く",
+      "bringBack": "元に戻す",
+      "poppedOut": "別ウィンドウで再生中です。",
+      "popupBlocked": "ブラウザがウィンドウをブロックしました。Voicaw のポップアップを許可して、もう一度お試しください。",
+      "windowTitle": "Watch Together – Voicaw",
+      "windowTitleOf": "{{title}} – Watch Together",
       "closePanel": "Watch Together を閉じる",
       "clickToWatch": "クリックして視聴",
       "consent": "動画は YouTube から再生されるため、YouTube にはあなたの IP アドレスと視聴内容が知られます。",
@@ -97,11 +125,11 @@
       "volume": "動画の音量（あなただけ）",
       "fullscreen": "全画面表示",
       "exitFullscreen": "全画面表示を終了",
-      "linkPlaceholder": "YouTube のリンクを貼り付け",
+      "linkPlaceholder": "YouTube を検索、またはリンクを貼り付け",
       "addToQueue": "キューに追加",
       "notAVideo": "YouTube 動画のリンクではありません。",
       "failed": "問題が発生しました。もう一度お試しください。",
-      "emptyCanAdd": "YouTube のリンクを貼り付けると、チャンネルの全員と一緒に視聴できます。",
+      "emptyCanAdd": "YouTube を検索するかリンクを貼り付けると、チャンネルの全員と一緒に動画を視聴できます。",
       "emptyCantAdd": "何も再生されていません。ここに動画を追加する権限がありません。",
       "nowPlaying": "再生中",
       "upNext_other": "次に再生（{{count}}）",
@@ -111,6 +139,19 @@
       "watchingNow": "一緒に視聴中: {{title}}。参加して視聴しましょう。",
       "sidebarPlaying": "{{title}} を視聴中",
       "sidebarPaused": "一時停止中: {{title}}",
+      "search": {
+        "submit": "検索",
+        "resultsFor": "「{{query}}」の検索結果",
+        "close": "検索結果を閉じる",
+        "searching": "YouTube を検索中…",
+        "none": "動画が見つかりませんでした。",
+        "live": "ライブ",
+        "add": "追加",
+        "added": "追加済み",
+        "addLabel": "{{title}} をキューに追加",
+        "playLabel": "{{title}} を再生",
+        "addedLabel": "{{title}} を追加しました"
+      },
       "activity": {
         "title_other": "アクティビティ（{{count}}）",
         "add": "{{name}} さんが {{title}} を追加しました",

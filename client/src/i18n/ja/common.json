@@ -6,7 +6,19 @@
     "close": "閉じる",
     "copied": "コピーしました",
     "copy": "コピー",
+    "copyId": {
+      "user": "ユーザー ID をコピー",
+      "webhook": "ウェブフック ID をコピー",
+      "channel": "チャンネル ID をコピー",
+      "thread": "スレッド ID をコピー",
+      "category": "カテゴリー ID をコピー",
+      "guild": "ギルド ID をコピー"
+    },
     "create": "作成",
+    "relativeTime": {
+      "soon": "数秒後",
+      "justNow": "数秒前"
+    },
     "delete": "削除",
     "done": "完了",
     "edit": "編集",

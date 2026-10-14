@@ -4,7 +4,8 @@
       "bytes": "{{size}} B",
       "kilobytes": "{{size}} KB",
       "megabytes": "{{size}} MB",
-      "gigabytes": "{{size}} GB"
+      "gigabytes": "{{size}} GB",
+      "terabytes": "{{size}} TB"
     },
     "percent": "{{percent}}%",
     "cover": {
@@ -12,9 +13,15 @@
       "nsfw": "NSFW",
       "reveal": "{{label}}: {{name}}、選択すると表示されます"
     },
+    "save": {
+      "saved": "{{name}} をダウンロードに保存しました",
+      "failed": "ファイルを保存できませんでした",
+      "defaultName": "ファイル"
+    },
     "attachment": {
       "defaultName": "添付ファイル",
       "decrypting": "復号中…",
+      "downloading": "ダウンロード中… {{percent}}%",
       "downloadFailed": "ダウンロードに失敗しました",
       "download": "{{name}} をダウンロード",
       "loading": "{{name}} を読み込み中",
@@ -128,6 +135,37 @@
       "play": "YouTube 動画を再生",
       "hint": "再生すると YouTube から読み込まれます",
       "openOnYouTube": "YouTube で開く"
+    },
+    "cropper": {
+      "title": "画像を編集",
+      "frame": "画像の位置: ドラッグまたは矢印キーで移動、+ と - でズーム",
+      "hint": "ドラッグで移動。スクロール、ピンチ、スライダーでズームします。",
+      "zoom": "ズーム",
+      "zoomOut": "縮小",
+      "zoomIn": "拡大",
+      "apply": "適用",
+      "loadFailed": "その画像を開けませんでした。"
+    },
+    "voice": {
+      "menuItem": "ボイスメッセージ",
+      "summary": "ボイスメッセージ",
+      "record": "ボイスメッセージを録音",
+      "holdHint": "長押しで録音、離すと送信",
+      "recording": "ボイスメッセージを録音中",
+      "slideToCancel": "スライドしてキャンセル",
+      "delete": "録音を削除",
+      "stop": "録音を停止",
+      "send": "ボイスメッセージを送信",
+      "micBlocked": "Voicaw にマイクの使用が許可されていません。",
+      "micFailed": "マイクから録音を開始できませんでした。",
+      "tooLong": "このボイスメッセージは長すぎてここには送れません。",
+      "play": "ボイスメッセージを再生",
+      "pause": "ボイスメッセージを一時停止",
+      "seek": "ボイスメッセージの再生位置",
+      "failed": "再生できません",
+      "rate": "{{rate}}×",
+      "speed": "再生速度 {{rate}}×",
+      "speedTitle": "再生速度"
     }
   }
 }

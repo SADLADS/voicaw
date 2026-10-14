@@ -23,7 +23,30 @@
       "label": "アプリケーションの設定",
       "general": "一般情報",
       "bot": "Bot",
-      "installation": "インストール"
+      "installation": "インストール",
+      "oauth2": "OAuth2"
+    },
+    "oauth2": {
+      "intro": "あなたのウェブサイトに Voicaw アカウントでログインできるようにします（「Voicaw でログイン」）。Discord の OAuth2 と同じ仕組みです。ユーザーを認可リンクに送り、返ってきたコードをクライアントシークレットでトークンと交換します。スコープは identify のみで、ID、ユーザー名、表示名、プロフィール画像が取得できます。",
+      "clientIdLabel": "クライアント ID",
+      "secretHeading": "クライアントシークレット",
+      "secretHint": "ウェブサイトのサーバーがコードをトークンと交換するときに使います。秘密にし、ウェブページやアプリには絶対に入れないでください。Voicaw が表示するのは一度だけです。",
+      "secretNone": "クライアントシークレットはまだありません。",
+      "secretNew": "クライアントシークレットです。今すぐコピーしてください。二度と表示されません。",
+      "secretLastReset": "最終リセット: {{date}}",
+      "makeSecret": "シークレットを作成",
+      "resetSecret": "シークレットをリセット",
+      "confirmResetTitle": "クライアントシークレットをリセットしますか？",
+      "confirmReset": "古いシークレットはすぐに使えなくなり、新しいものを使うまでウェブサイトで誰もログインできなくなります。すでにログインしている人はログインしたままです。",
+      "redirectsHeading": "リダイレクト",
+      "redirectsHint": "ログイン後に戻してよい正確なアドレス（https、またはテスト用の http://localhost）。最大 {{count}} 個。",
+      "redirectPlaceholder": "https://example.com/callback",
+      "addRedirect": "リダイレクトを追加",
+      "removeRedirect": "{{uri}} を削除",
+      "noRedirects": "リダイレクトはまだありません。追加するまで、誰もあなたのウェブサイトにログインできません。",
+      "linkLabel": "認可リンク",
+      "linkHint": "独自の state パラメーターを付け、ユーザーが戻ってきたときに確認してください。",
+      "saved": "保存しました"
     },
     "general": {
       "picture": "画像",
@@ -100,7 +123,8 @@
       "VOICAW_CREATE_DOCUMENTS": "ドキュメントを作成",
       "VOICAW_QUEUE_VIDEOS": "動画をキューに追加",
       "VOICAW_MANAGE_QUEUE": "キューの管理",
-      "VOICAW_CONTROL_PLAYBACK": "再生の操作"
+      "VOICAW_CONTROL_PLAYBACK": "再生の操作",
+      "VOICAW_MANAGE_LEVELS": "レベルの管理"
     },
     "authorize": {
       "title": "Bot を追加",
@@ -120,6 +144,22 @@
       "done": "{{bot}} を {{guild}} に追加しました。",
       "openGuild": "{{guild}} を開く",
       "cancel": "キャンセル"
+    },
+    "login": {
+      "title": "Voicaw でログイン",
+      "wantsAccess": "{{app}} があなたの Voicaw アカウントの使用を求めています",
+      "loggedInAs": "{{name}} としてログインしています。",
+      "scopesHeading": "許可される内容:",
+      "scopes": {
+        "identify": "ユーザー名、表示名、プロフィール画像を知る"
+      },
+      "cannot": "メッセージを読んだり、ギルドを見たり、あなたとして操作したりすることはできません。",
+      "redirect": "認可すると {{host}} に移動します。",
+      "privacy": "{{app}} がこの情報をどう扱うかは、Voicaw ではなくその作成者が決めます。設定 → 認可済みアプリでアクセスを取り消せます。",
+      "submit": "認可",
+      "cancel": "キャンセル",
+      "redirecting": "{{host}} に戻っています…",
+      "badLink": "このログインリンクは使えません: {{error}}"
     }
   }
 }

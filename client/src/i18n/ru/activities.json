@@ -1,0 +1,23 @@
+{
+  "activities": {
+    "playing": "Играет в <b>{{name}}</b>",
+    "streaming": "Стримит <b>{{name}}</b>",
+    "listening": "Слушает <b>{{name}}</b>",
+    "watching": "Смотрит <b>{{name}}</b>",
+    "competing": "Соревнуется в <b>{{name}}</b>",
+    "streamingIn": "Стримит в <b>{{channel}}</b>",
+    "goToChannel": "Перейти в канал",
+    "unknownChannel": "голосовом канале",
+    "playingNow": "Играет",
+    "paused": "На паузе",
+    "headingPlaying": "Играет в игру",
+    "headingStreaming": "Стримит",
+    "headingListening": "Слушает",
+    "headingWatching": "Смотрит",
+    "headingCompeting": "Соревнуется",
+    "unknownGame": "игру",
+    "elapsed": "прошло {{time}}",
+    "left": "осталось {{time}}",
+    "party": "({{size}} из {{max}})"
+  }
+}

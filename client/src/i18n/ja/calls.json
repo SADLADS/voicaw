@@ -28,6 +28,15 @@
       "leave": "通話から退出",
       "join": "通話に参加"
     },
+    "stream": {
+      "live": "ライブ",
+      "sharing": "{{name}} さんが画面を共有しています。",
+      "watch": "配信を視聴",
+      "poppedOut": "{{name}} さんの配信は別ウィンドウで表示中です。",
+      "ownPoppedOut": "あなたの配信は別ウィンドウで表示中です。",
+      "bringBack": "元に戻す",
+      "stopWatching": "視聴をやめる"
+    },
     "notices": {
       "declined": "{{name}} さんが通話を拒否しました。",
       "noAnswer": "{{name}} さんは応答しませんでした。",
