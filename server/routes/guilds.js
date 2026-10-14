@@ -489,7 +489,7 @@ router.get('/invite-embed/:code', async (req, res) => {
   const url = `${origin}/invite/${encodeURIComponent(req.params.code)}`;
   const title = guild ? `Join ${guild.name} on Voicaw` : 'Voicaw';
   const description = guild
-    ? `You've been invited to join ${guild.name}. ${guild.member_count} ${guild.member_count === 1 ? 'member' : 'members'}.`
+    ? `You've been invited to join ${guild.name} · ${guild.member_count} ${guild.member_count === 1 ? 'member' : 'members'}`
     : 'This invite is invalid or has expired.';
   const image = guild?.icon_version > 0
     ? `${config.s3Endpoint}/guild-icons/${guild.id}?v=${guild.icon_version}`
