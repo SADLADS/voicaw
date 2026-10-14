@@ -80,6 +80,15 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   straight away" is turned off (per device, on by default; `utils/privacy.js`, applies live):
   then it waits for a tap on Show, since asking tells the server which invite an encrypted
   message held.
+- **Invite links on other sites** (Discord, Slack, Telegram...): their link previewers don't
+  run the app, so nginx sends them (by user agent, a `map` in `website/nginx/app.voicaw.com`) on
+  `/invite/<code>` to `GET /api/invite-embed/:code` (no login): a bare page whose Open Graph tags
+  make the card, "Join <guild> on Voicaw", "You've been invited to join <guild>. N members.",
+  the guild's icon (or the app's logo) and the app's purple. Anyone with a link sees those
+  three things; never who made the invite. Unknown or used-up codes get a 404 saying so, no
+  guild. People's browsers get the app as before; voicaw.com's invite links redirect here
+  first (previewers follow it). Discord caches a link's card for a while, so a renamed guild
+  can show its old name in links already posted.
 - Messages have the DM row shape (`sender_*`, `parent_*`, `reactions`, `edited`) so
   `MessageList` can show both; content is plain text up to `maxPlaintextLength` characters.
   Authors edit; authors or Manage Messages delete. Reactions are plain emoji, one of each per
