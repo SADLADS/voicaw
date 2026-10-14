@@ -1866,6 +1866,36 @@ body.sidebar-resizing * {
   transition: transform 0.3s ease;
 }
 
+/* Admins: what's waiting for them (reports, sign-up and tester requests), on the gear until
+   it's dealt with. */
+.user-panel-settings {
+  position: relative;
+}
+
+.user-panel-alerts {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  box-shadow: 0 0 0 2px var(--vc-bg-base);
+  background-color: var(--vc-mention-badge);
+  color: var(--vc-on-mention-badge);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* The same count beside Settings' Admin and Reports pages (and their subsections). */
+.settings-nav-alerts {
+  float: right;
+  margin-left: 6px;
+}
+
 
 /* SCROLLBARS
    Two looks, set here for the whole app:

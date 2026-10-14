@@ -29,6 +29,7 @@ import { useBotDmList } from '../hooks/useBotDmList';
 import { useConversationSettings } from '../hooks/useConversationSettings';
 import { usePreferencesSync } from '../hooks/usePreferencesSync';
 import { useBlocksSync } from '../hooks/useBlocksSync';
+import { useAdminAlertsSync } from '../hooks/useAdminAlerts';
 import { useFriendsSync } from '../hooks/useFriendsSync';
 import { useFriends } from '../utils/friends';
 import { useDictionarySync } from '../hooks/useDictionarySync';
@@ -138,6 +139,8 @@ export default function Layout({ user, onLogout }) {
   // Your account preferences (utils/preferences), e.g. whether NSFW channels' media is blurred.
   usePreferencesSync(user?.id);
   useBlocksSync(user?.id);
+  // Admins: what's waiting for them, on the Settings gear.
+  useAdminAlertsSync(user?.id);
   useFriendsSync(user?.id);
   // Friend requests waiting for your answer light the rail's DM button too.
   const hasFriendRequests = useFriends().incoming.length > 0;

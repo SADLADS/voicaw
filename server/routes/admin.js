@@ -11,6 +11,7 @@ const voiceRegions = require('../voiceRegions');
 const voice = require('../voice');
 const { ActionError } = require('../actionError');
 const storageStats = require('../storageStats');
+const adminAlerts = require('../adminAlerts');
 
 const router = express.Router();
 
@@ -94,6 +95,12 @@ router.put('/admin/settings/:key', admin, async (req, res) => {
   res.json({ settings: await describeSettings() });
 });
 
+// What's waiting for admins (adminAlerts.js): { reports, signups, testers }, for the Settings
+// gear's count; kept up to date by `admin_alerts`.
+router.get('/admin/alerts', admin, async (req, res) => {
+  res.json(await adminAlerts.counts());
+});
+
 router.post('/admin/admins', admin, async (req, res) => {
   const { username } = req.body ?? {};
   if (typeof username !== 'string' || !username.trim()) return res.status(400).json({ error: 'Missing username' });
@@ -101,6 +108,7 @@ router.post('/admin/admins', admin, async (req, res) => {
   if (!user) return res.status(404).json({ error: 'No user with that name' });
   if (user.pending) return res.status(400).json({ error: 'Approve their account first' });
   await db.run('UPDATE users SET is_admin = 1 WHERE id = ?', [user.id]);
+  await adminAlerts.announce();
   res.json({ admins: await listAdmins() });
 });
 
@@ -109,6 +117,7 @@ router.delete('/admin/admins/:id', admin, async (req, res) => {
   const id = Number(req.params.id);
   if (id === req.user.id) return res.status(400).json({ error: "You can't remove yourself" });
   await db.run('UPDATE users SET is_admin = 0 WHERE id = ?', [id]);
+  await adminAlerts.announce({ alsoTo: id });
   res.json({ admins: await listAdmins() });
 });
 

@@ -8,6 +8,7 @@ const { getChannelAccess } = require('../guilds');
 const { PERMISSIONS, has } = require('../permissions');
 const { sendToUserSockets } = require('../sockets');
 const { admin } = require('./admin');
+const adminAlerts = require('../adminAlerts');
 
 // Reporting (reports.js) and what admins do about it (Settings → Admin → Reports).
 const router = express.Router();
@@ -18,6 +19,7 @@ async function announceToAdmins() {
   for (const { id } of await db.all('SELECT id FROM users WHERE is_admin = 1')) {
     sendToUserSockets(id, { type: 'reports_changed', open });
   }
+  await adminAlerts.announce();
 }
 
 // The message reported, checked to be one the reporter can see: -> the report's fields.
@@ -76,6 +78,7 @@ router.post('/reports', authenticateJWT, async (req, res) => {
     if (await reports.tooMany(req.user.id)) throw new reports.ReportError(429, "You've sent a lot of reports: try again later");
     const id = await reports.addReport({ ...fields, reporterId: req.user.id, kind: body.kind, category: body.category, note });
     await announceToAdmins();
+    adminAlerts.notify('report', { exceptId: req.user.id });
     res.status(201).json({ id });
   } catch (err) {
     if (err instanceof reports.ReportError) return res.status(err.status).json({ error: err.message });

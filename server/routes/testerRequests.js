@@ -9,6 +9,7 @@ const { rateLimitsEnabled } = require('../config');
 const { createLimiter, tooManyAttempts } = require('../rateLimit');
 const { sendToUserSockets } = require('../sockets');
 const { admin } = require('./admin');
+const adminAlerts = require('../adminAlerts');
 
 const router = express.Router();
 
@@ -38,6 +39,7 @@ const listRequests = () => db.all(
 async function announce() {
   const rows = await db.all('SELECT id FROM users WHERE is_admin = 1 AND deleted_at IS NULL');
   for (const { id } of rows) sendToUserSockets(id, { type: 'tester_requests' });
+  await adminAlerts.announce();
 }
 
 // { email, name?, note?, website? } from voicaw.com. `website` is a field people don't see:
@@ -64,6 +66,7 @@ router.post('/tester-requests', async (req, res) => {
     const { n } = await db.get('SELECT COUNT(*) AS n FROM tester_requests WHERE added_at IS NULL');
     if (n >= MAX_WAITING) return res.status(503).json({ error: "We aren't taking more requests right now. Try again later." });
     await db.run('INSERT INTO tester_requests (email, name, note, created_at) VALUES (?, ?, ?, ?)', [email, name, note, now()]);
+    adminAlerts.notify('tester');
   }
   await announce();
   res.status(201).json({ ok: true });

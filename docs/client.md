@@ -623,6 +623,21 @@ server refuses anything else. Add new app-wide keys to `SETTINGS` and read them 
 `getSetting` rather than from `config.js`. The panel also lists sign-up requests and app invites
 (see Sign-ups in `docs/auth-and-encryption.md`).
 
+**Admin alerts** (`server/adminAlerts.js`, built 2026-10-14): what's waiting for the admins, open
+reports, accounts waiting for approval and Android tester requests not yet added, is counted on
+the Settings gear (`UserPanel`, a red count, "Settings (3 waiting for you)") and beside Settings'
+Admin and Reports pages and their Sign-ups and Reports subsections, until each is dealt with
+(resolved, approved or declined, marked added or deleted). `GET /admin/alerts` → `{ reports,
+signups, testers }` (403 for everyone else), loaded at login and after a reconnect, and the
+`admin_alerts` event with the same counts after anything changes them (also to an admin just
+added, and zeros to one just removed); `hooks/useAdminAlerts.js` (in Layout) keeps
+`utils/adminAlerts.js`. Something new is also pushed to every admin's devices (`type: 'admin'`,
+`kind` `report` | `signup` | `tester`, how many are waiting, opening the page; one notification
+per kind, each replacing the last), except to the admin who reported it. The push holds no report
+details or tester emails, only a sign-up's username; `notificationFromPush` words it in the
+device's language (the server's English `title`/`body` are for apps from before). On Android it's
+in the Messages channel.
+
 **Storage** (`StorageAdmin.jsx`, `GET /admin/storage[?fresh=1]`, built 2026-10-08): how full the
 object store is: free of total (red under 10%), a bar and a list of Voicaw's four buckets (size
 and file count), other buckets on the same store, and everything else on the drive (total − free

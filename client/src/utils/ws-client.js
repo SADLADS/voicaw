@@ -29,6 +29,7 @@ const preferencesListeners = new Set();
 const blocksListeners = new Set();
 const friendsListeners = new Set();
 const reportsListeners = new Set();
+const adminAlertsListeners = new Set();
 const dictionaryListeners = new Set();
 const emojiUsageListeners = new Set();
 let reconnectTimeout = null;
@@ -267,6 +268,9 @@ export function connectWebSocket() {
       else if (data.type === 'reports_changed') {
         reportsListeners.forEach((cb) => cb(data.open));
       }
+      else if (data.type === 'admin_alerts') {
+        adminAlertsListeners.forEach((cb) => cb({ reports: data.reports, signups: data.signups, testers: data.testers }));
+      }
       else if (data.type === 'user_profile') {
         mergeProfiles([data.user]);
       }
@@ -446,6 +450,12 @@ export function onFriends(callback) {
 export function onReportsChanged(callback) {
   reportsListeners.add(callback);
   return () => reportsListeners.delete(callback);
+}
+
+// Admins: what's waiting for them changed ({ reports, signups, testers }, server/adminAlerts.js).
+export function onAdminAlerts(callback) {
+  adminAlertsListeners.add(callback);
+  return () => adminAlertsListeners.delete(callback);
 }
 
 // Set (sessionStorage) when this account was just suspended: { reason }, for the login page.

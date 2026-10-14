@@ -10,6 +10,8 @@ import Avatar from './Avatar';
 import CustomStatus from './CustomStatus';
 import UserMenu from './UserMenu';
 import { t } from '../i18n';
+import { useAdminAlerts } from '../hooks/useAdminAlerts';
+import { adminAlertsTotal } from '../utils/adminAlerts';
 
 const STATUS_LABELS = {
   online: 'app.connection.online',
@@ -20,13 +22,15 @@ const STATUS_LABELS = {
 // You, at the bottom of the sidebar (like Discord): profile picture, name, and under it your
 // custom status (emoji and text) while connected, otherwise whether this device is connected, with mute, deafen (voice) and the settings button. Clicking the picture
 // and name opens UserMenu (custom status, Edit Profile, Copy User ID, Log out); right-clicking
-// them opens nothing.
+// them opens nothing. Admins' gear has a count of what's waiting for them (reports, sign-up and
+// tester requests) until it's dealt with.
 export default function UserPanel({ user, onLogout }) {
   useProfiles();
   const meRef = useRef(null);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const { voiceEnabled } = useContext(ConfigContext);
   const status = useSyncExternalStore(onConnectionState, getConnectionState);
+  const waiting = adminAlertsTotal(useAdminAlerts());
   if (!user) return null;
   const profile = { ...user, ...getProfile(user.id) };
   const showStatus = status === 'online' && Boolean(profile.custom_status || profile.custom_status_emoji);
@@ -58,8 +62,14 @@ export default function UserPanel({ user, onLogout }) {
         <UserMenu user={user} anchor={menuAnchor} trigger={meRef.current} onLogout={onLogout} onClose={() => setMenuAnchor(null)} />
       )}
       {voiceEnabled && <VoiceControls />}
-      <NavLink to="/settings" className="user-panel-button user-panel-settings" aria-label={t('common.settings')} title={t('common.settings')}>
+      <NavLink
+        to="/settings"
+        className="user-panel-button user-panel-settings"
+        aria-label={waiting ? t('app.userPanel.settingsWaiting', { count: waiting }) : t('common.settings')}
+        title={waiting ? t('app.userPanel.settingsWaiting', { count: waiting }) : t('common.settings')}
+      >
         <FontAwesomeIcon icon={faGear} />
+        {waiting > 0 && <span className="user-panel-alerts" aria-hidden="true">{waiting > 99 ? '99+' : waiting}</span>}
       </NavLink>
     </div>
   );
