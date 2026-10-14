@@ -13,7 +13,10 @@ const IDLE = { phase: 'idle', locked: false, seconds: 0, levels: [], take: null 
 //
 // `onSend(take)` sends a take (it keeps `take.url`, the pending message shows it); `onError`
 // says what went wrong. `resetKey` changing (another conversation) throws away what's going.
-export function useVoiceRecording({ onSend, onError, resetKey }) {
+// `stopWhenHidden` (phones): leaving the app or locking the screen stops the recording, to be
+// listened to, sent or deleted on coming back. A phone takes the microphone from a page out
+// of sight, so the rest would have been silence (computers' browsers keep recording).
+export function useVoiceRecording({ onSend, onError, resetKey, stopWhenHidden = false }) {
   const [state, setState] = useState(IDLE);
   const recorder = useRef(null);
   // Each start gets a number, so a start still waiting for the microphone can tell it was
@@ -103,6 +106,18 @@ export function useVoiceRecording({ onSend, onError, resetKey }) {
 
   // Another conversation, or the box going away: nothing goes anywhere.
   useEffect(() => reset, [resetKey, reset]);
+
+  useEffect(() => {
+    if (!stopWhenHidden) return undefined;
+    const onHidden = () => {
+      if (!document.hidden) return;
+      const { phase, seconds } = stateRef.current;
+      if (phase === 'starting' || (phase === 'recording' && seconds < MIN_VOICE_SECONDS)) reset();
+      else if (phase === 'recording') stop();
+    };
+    document.addEventListener('visibilitychange', onHidden);
+    return () => document.removeEventListener('visibilitychange', onHidden);
+  }, [stopWhenHidden, reset, stop]);
 
   return { ...state, active: state.phase !== 'idle', start, stop, lock, send, release, cancel: reset };
 }

@@ -226,7 +226,15 @@ back before sending) and Send; Escape deletes it. `hooks/useVoiceRecording.js` h
 echo cancellation, noise suppression and gain (not the call chain), MediaRecorder at 48 kbps in
 the first type the browser has (Opus in WebM on Chrome and Android, Ogg on Firefox, AAC in MP4
 on Safari), at most 20 minutes (then it stops and waits), under half a second is a tap and
-nothing is sent. Not in bot DMs nor while editing.
+nothing is sent. Not in bot DMs nor while editing. On a phone, leaving the app or locking the
+screen stops it (2026-10-14; `stopWhenHidden`), to be played, sent or deleted on coming back:
+Android gives a page out of sight silence instead of the microphone, so the rest of a message
+recorded past that was silent (the user chose stopping over carrying on with a foreground
+service, as calls do). A hold whose touch the phone cancels (it does on leaving the app,
+before the page is hidden) is locked rather than deleted. Computers' browsers keep recording
+in a background tab. The waveform's
+levels are kept one per 100 ms of recording however late the timer runs (a hidden page's are
+slowed), so it stays in time with the audio.
 - **Sending:** its own message (`Composer` `sendVoice`, replying if a reply is set up; what's
   typed stays), `voice-message.<ext>` as an ordinary `v=2` encrypted attachment (see DM
   attachments above; guilds, DMs and groups alike), its URL fragment adding `vm=1`, `d=` (the

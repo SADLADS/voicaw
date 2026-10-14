@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
-  decodeWaveform, encodeWaveform, findDuration, recordingType, relativeLevels, voiceFileName, waveformBars, waveformFrom,
+  decodeWaveform, encodeWaveform, findDuration, recordingType, relativeLevels, startVoiceRecorder, voiceFileName, waveformBars, waveformFrom,
   WAVEFORM_LENGTH,
 } from './voiceMessage';
 import { buildAttachmentUrl, parseAttachmentUrl } from './attachmentCrypto';
@@ -43,6 +43,40 @@ describe('voice messages', () => {
     // Shorter: levels repeat.
     expect([...waveformFrom([0, 0.5], 4)]).toEqual([0, 0, 255, 255]);
     expect([...waveformFrom([], 3)]).toEqual([0, 0, 0]);
+  });
+
+  it('keeps one level per 100 ms of recording when the timer runs late', async () => {
+    vi.useFakeTimers();
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    const track = { stop: vi.fn() };
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [track] }) } });
+    vi.stubGlobal('MediaRecorder', class {
+      static isTypeSupported = () => true;
+      start() { setTimeout(() => this.onstart()); }
+    });
+    vi.stubGlobal('AudioContext', class {
+      createAnalyser = () => ({ getFloatTimeDomainData: (s) => s.fill(0.5) });
+      createMediaStreamSource = () => ({ connect() {} });
+      close = async () => {};
+    });
+    const heard = [];
+    try {
+      const started = startVoiceRecorder({ onLevel: (levels) => heard.push(levels.length) });
+      await vi.advanceTimersByTimeAsync(0);
+      await started;
+      now = 100;
+      await vi.advanceTimersByTimeAsync(100);
+      // Out of sight: the next tick comes 2 s late, standing in for the 20 levels missed.
+      now = 2200;
+      await vi.advanceTimersByTimeAsync(100);
+      expect(heard).toEqual([1, 22]);
+      (await started).cancel();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    }
   });
 
   it('draws any number of bars from a waveform', () => {

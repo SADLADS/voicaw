@@ -187,7 +187,11 @@ export async function startVoiceRecorder({ onLevel } = {}) {
       for (const s of samples) sum += s * s;
       level = Math.sqrt(sum / samples.length);
     }
-    levels.push(level);
+    // One level per LEVEL_INTERVAL_MS of recording, however late the timer ran (a page out
+    // of sight gets fewer ticks): the gap takes this level, so the waveform keeps time with
+    // the audio.
+    const due = Math.max(levels.length + 1, Math.floor((seconds() * 1000) / LEVEL_INTERVAL_MS));
+    while (levels.length < due) levels.push(level);
     onLevel?.(levels, seconds());
   }, LEVEL_INTERVAL_MS);
 

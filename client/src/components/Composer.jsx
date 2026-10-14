@@ -168,7 +168,7 @@ export default function Composer({
   });
 
   // Voice messages: what's being recorded, and (a phone's hold) how far the finger slid left.
-  const voice = useVoiceRecording({ onSend: sendVoice, onError: setError, resetKey: chatId });
+  const voice = useVoiceRecording({ onSend: sendVoice, onError: setError, resetKey: chatId, stopWhenHidden: isMobile });
   const [voiceDragX, setVoiceDragX] = useState(0);
   const canRecord = !textOnly && !editing && !!chatName
     && typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;

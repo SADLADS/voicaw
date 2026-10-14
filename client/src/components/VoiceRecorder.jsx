@@ -65,10 +65,12 @@ export function MicButton({ voice, onDrag }) {
     end();
     if (!voice.release()) setHint(true);
   };
+  // The finger taken away by the phone (leaving the app does this, before the page is hidden):
+  // locked, so the recording is kept (and stopped if the app was left), never sent.
   const onPointerCancel = () => {
     if (!origin.current) return;
     end();
-    voice.cancel();
+    voice.lock();
   };
 
   return (

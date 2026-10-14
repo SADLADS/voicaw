@@ -139,6 +139,28 @@ try {
   await a.waitForFunction(() => document.querySelectorAll('.each-dm-message-wrapper .voice-message').length === 3, null, { timeout: 20000 });
   check(true, 'Send sends the locked recording');
 
+  // Leaving the app mid-hold (made up: the page told it's hidden): stopped, kept to listen to,
+  // nothing sent.
+  const setHidden = (hidden) => b.evaluate((value) => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => value });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (value ? 'hidden' : 'visible') });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, hidden);
+  await b.waitForTimeout(500);
+  await touch('touchStart', at);
+  await b.waitForTimeout(1500);
+  // Android takes the finger away first (a cancelled touch), then hides the page.
+  await touch('touchCancel');
+  await setHidden(true);
+  await b.waitForTimeout(500);
+  await setHidden(false);
+  await b.waitForSelector('.voice-recorder .voice-message', { timeout: 5000 });
+  await b.waitForTimeout(1000);
+  check(await b.isHidden('.voice-recording-dot.live') && await voiceCount(a) === 3, 'leaving the app stops the recording, kept to listen to, not sent');
+  await shot(b, 'phone-left-app');
+  await b.tap('button[aria-label="Delete recording"]');
+  await b.waitForSelector('#dm-input', { state: 'visible' });
+
   // Fits the phone: nothing wider than the screen.
   const overflow = await b.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   check(overflow <= 0, 'nothing wider than the phone');
