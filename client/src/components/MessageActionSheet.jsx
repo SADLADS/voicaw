@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faComments, faCopy, faEdit, faLinkSlash, faReply, faRobot, faThumbtack, faTrash, faFlag, faClockRotateLeft } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faCopy, faEdit, faLinkSlash, faReply, faRobot, faThumbtack, faTrash, faFlag, faClockRotateLeft, faUserGroup } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { useCustomEmoji } from '../emoji/customEmojiContext';
 import { quickReactions } from '../emoji/quickReactions';
+import { groupReactions } from '../utils/reactions';
 import { displayName } from '../utils/profiles';
 import { t } from '../i18n';
 
 // Mobile: what a long press on a message opens (in place of the desktop hover menu). A row of
-// quick reactions (plus the full picker), then Reply / Edit / Pin (or Unpin) / Create thread / Copy text /
+// quick reactions (plus the full picker), then View reactions (`onViewReactions`, once it has
+// some, as the desktop menu) / Reply / Edit / Pin (or Unpin) / Create thread / Copy text /
 // Edit history (`onShowEdits`, for an edited message) / Remove previews (`onRemovePreviews`, when you may) / Delete. Actions the
 // message doesn't allow are left out: nothing but copying for one still sending or failed,
 // and editing only your own (deleting: your own, or `canDelete`, e.g. a guild's owner; pinning:
@@ -23,6 +25,7 @@ export default function MessageActionSheet({
   myReactions,
   onReact,
   onMoreReactions,
+  onViewReactions,
   onReply,
   onEdit,
   onTogglePin,
@@ -112,6 +115,11 @@ export default function MessageActionSheet({
           </div>
         ) : (
           <div className="action-sheet-items">
+            {sent && onViewReactions && groupReactions(msg.reactions).length > 0 && (
+              <button type="button" className="action-sheet-item" onClick={act(onViewReactions)}>
+                <FontAwesomeIcon icon={faUserGroup} /> {t('chat.messageMenu.viewReactionsSheet')}
+              </button>
+            )}
             {sent && onReply && (
               <button type="button" className="action-sheet-item" onClick={act(onReply)}>
                 <FontAwesomeIcon icon={faReply} /> {t('common.reply')}

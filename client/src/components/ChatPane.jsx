@@ -587,6 +587,7 @@ export default function ChatPane({
           myReactions={new Set((actionsFor.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
           onReact={(emoji) => toggleReaction(actionsFor, emoji)}
           onMoreReactions={() => openReactionPicker(actionsFor, null)}
+          onViewReactions={() => setReactionsForId(actionsFor.id)}
           onReply={textOnly || readOnly ? undefined : () => handleReply(actionsFor)}
           onEdit={isClosedPoll(actionsFor) || isVoiceMessage(actionsFor.plaintext) ? undefined : () => handleEdit(actionsFor)}
           onTogglePin={canPin ? () => togglePin(actionsFor) : undefined}
