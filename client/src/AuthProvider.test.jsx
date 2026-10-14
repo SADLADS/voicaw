@@ -5,10 +5,12 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 vi.mock('./utils/api', () => ({
   default: { get: vi.fn() },
 }));
+vi.mock('./services/logout', () => ({ forgetLogin: vi.fn(async () => {}) }));
 
 import api from './utils/api';
 import { AuthProvider } from './AuthProvider';
 import { useAuth } from './hooks/useAuth';
+import { isOfflineMode, setOfflineMode, useOfflineMode } from './utils/offlineMode';
 
 function Consumer() {
   const { user, loading } = useAuth();
@@ -53,7 +55,7 @@ describe('AuthProvider', () => {
     await waitFor(() =>
       expect(screen.getByText(/logged in as alice \(id 7, token jwt-abc\)/)).toBeInTheDocument()
     );
-    expect(api.get).toHaveBeenCalledWith('/profile', { timeout: expect.any(Number) });
+    expect(api.get).toHaveBeenCalledWith('/profile', { timeout: expect.any(Number), offlineCopy: 'fallback' });
   });
 
   it('sets user to null when the response has no id', async () => {
@@ -104,6 +106,38 @@ describe('AuthProvider', () => {
       expect(localStorage.getItem('token')).toBe('saved-jwt');
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  // The server out of reach, the offline copy answering: offline mode, until it's back.
+  it('opens offline from the offline copy, then says when the server is back', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setOfflineMode(false);
+    try {
+      api.get
+        .mockResolvedValueOnce({ data: { id: 7, username: 'alice', token: 't' }, fromOfflineCopy: true })
+        .mockRejectedValueOnce(Object.assign(new Error('Network Error'), { response: undefined }))
+        .mockResolvedValueOnce({ data: { id: 7, username: 'alice' } });
+      function Reachable() {
+        const { reachable } = useOfflineMode();
+        return <div>{reachable ? 'reachable' : 'waiting'}</div>;
+      }
+      render(
+        <AuthProvider>
+          <Consumer />
+          <Reachable />
+        </AuthProvider>
+      );
+      await waitFor(() => expect(screen.getByText(/logged in as alice/)).toBeInTheDocument());
+      expect(isOfflineMode()).toBe(true);
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+      expect(screen.getByText('waiting')).toBeInTheDocument();
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+      await waitFor(() => expect(screen.getByText('reachable')).toBeInTheDocument());
+      expect(api.get).toHaveBeenLastCalledWith('/profile', { timeout: expect.any(Number), offlineCopy: 'never' });
+    } finally {
+      vi.useRealTimers();
+      setOfflineMode(false);
     }
   });
 

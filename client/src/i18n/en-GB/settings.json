@@ -60,7 +60,11 @@
       },
       "privacy": {
         "title": "Privacy",
-        "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy link links website websites image images picture pictures notification notifications lock screen search copy index history"
+        "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy link links website websites image images picture pictures notification notifications lock screen"
+      },
+      "storage": {
+        "title": "Storage on this device",
+        "keywords": "storage space disk offline copy search index history cache cached saved clear delete size usage persistent"
       },
       "profileVisibility": {
         "title": "Your profile",
@@ -533,6 +537,26 @@
       "needsInstall": "To get notifications on this device, tap Share → \"Add to Home Screen\", then open Voicaw from your Home Screen.",
       "offer": "Get notified when you receive a message.",
       "enable": "Enable"
+    },
+    "storage": {
+      "title": "Storage on this device",
+      "total": "Voicaw uses {{used}} on this device ({{free}} more available).",
+      "totalUnknown": "This browser doesn't say how much Voicaw uses on this device.",
+      "clear": "Clear",
+      "offlineCopy": {
+        "label": "Keep an offline copy",
+        "hint": "Direct messages, group chats and your notes you've opened are kept on this device, locked with a key that never leaves it, so you can read them when Voicaw can't be reached (without sending, and text only: no pictures or files). Turn this off and the copy is deleted. Saved on this device.",
+        "size_one": "{{size}} · {{count}} message",
+        "size_other": "{{size}} · {{count}} messages"
+      },
+      "searchCopy": {
+        "size_one": "{{size}} · {{count}} chat",
+        "size_other": "{{size}} · {{count}} chats"
+      },
+      "persisted": "This browser keeps Voicaw's storage even when space runs low.",
+      "notPersisted": "This browser may delete Voicaw's storage when space runs low (and Safari after 7 days without opening Voicaw, unless it's on your Home Screen). Nothing is lost on the server: your keys come back when you log in, and the copies fill again.",
+      "persist": "Ask to keep it",
+      "logout": "Logging out deletes both copies, and everything else Voicaw keeps here for your account."
     },
     "privacy": {
       "title": "Privacy",

@@ -25,11 +25,14 @@ import { useSyncExternalStore } from 'react';
 // device, so the next search doesn't read the whole history from the server again (on by
 // default; services/searchIndex.js). Turned off, the copy is deleted and every search reads it
 // all again.
+// `offlineCopy`: DMs, group DMs and your notes, as this device has shown them, are kept on it
+// (encrypted) so they can be read without a connection (on by default;
+// services/offlineCopy.js). Turned off, the copy is deleted and nothing is kept.
 // Notification previews are Settings → Privacy too, but kept in services/settingsStore (the
 // service worker reads them).
 
 const STORAGE_KEY = 'privacy';
-const DEFAULTS = { inviteEmbedsInEncrypted: true, sendTyping: true, youtubeEmbeds: true, gifs: true, linkPreviews: true, showLinkPreviews: true, searchCopy: true };
+const DEFAULTS = { inviteEmbedsInEncrypted: true, sendTyping: true, youtubeEmbeds: true, gifs: true, linkPreviews: true, showLinkPreviews: true, searchCopy: true, offlineCopy: true };
 const listeners = new Set();
 
 function load() {

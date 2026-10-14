@@ -26,6 +26,7 @@ import { onLoggedOutElsewhere } from './utils/ws-client';
 import { forgetLogin, logOut } from './services/logout';
 import EmojiProvider from './emoji/EmojiProvider';
 import UpdateBanner from './components/UpdateBanner';
+import OfflineBanner from './components/OfflineBanner';
 import ImageViewerProvider from './components/ImageViewerProvider';
 import PageMenus from './components/PageMenus';
 import SafetyDialogs from './components/SafetyDialogs';
@@ -189,6 +190,7 @@ export default function App() {
           <PageMenus />
           <SafetyDialogs />
           <UpdateBanner />
+          <OfflineBanner />
           {/* Waiting for an admin's approval (server/signups.js): only that, whatever the address. */}
           {user?.pending ? (
             <PendingApproval user={user} onApproved={() => setUser({ ...user, pending: false })} onLogout={handleLogout} />

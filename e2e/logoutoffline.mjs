@@ -1,8 +1,10 @@
 // Logging out while the API can't be reached (MODE=abort: connection refused; MODE=502: nginx's
 // Bad Gateway; MODE=hang: no answer, so logout gives up on it after 5 s): the login form comes
 // and the token is gone; when the API comes back, logging in again works. Then a saved login
-// while the API doesn't answer: "Can't reach Voicaw" has Log out on this device, which ends at
-// the login form (no cookie to clear: the login is in localStorage).
+// while the API doesn't answer: with the offline copy, offline mode (its banner), where
+// logging out still ends at the login form and deletes the copy; without one (Storage's switch
+// off), "Can't reach Voicaw" has Log out on this device, which ends at the login form (no
+// cookie to clear: the login is in localStorage).
 //   node e2e/serve.mjs &   then   node e2e/logoutoffline.mjs [screenshot dir]
 import { launchChrome, signUp, BASE } from './helpers.mjs';
 
@@ -53,8 +55,37 @@ for (const mode of modes) {
     if (shots) await page.screenshot({ path: `${shots}/${mode}-relogin.png` });
     failed = true;
   }
-  // A saved login, the API not answering: the unreachable screen's way out.
+  // A saved login, the API not answering: offline mode, and logging out from it.
   if (mode === 'hang' && inApp) {
+    await page.waitForTimeout(1000); // the DM list's answer saved
+    await page.route('**/api/**', handler);
+    await page.reload();
+    const offline = await page.waitForSelector('.offline-banner', { timeout: 20000 }).then(() => true, () => false);
+    console.log(`[${mode}] offline mode with the copy: ${offline}`);
+    if (!offline) failed = true;
+    if (shots) await page.screenshot({ path: `${shots}/offline-mode.png` });
+    await page.goto(`${BASE}/settings`);
+    await page.waitForSelector('.settings-nav-item.danger', { timeout: 20000 });
+    await page.click('.settings-nav-item.danger');
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Enter');
+    const outOffline = await page.waitForSelector('input[placeholder="Username"]', { timeout: 15000 }).then(() => true, () => false);
+    const after = await page.evaluate(async () => ({
+      token: localStorage.getItem('token'),
+      copy: (await indexedDB.databases()).some((d) => d.name === 'voicaw-offline'),
+    }));
+    console.log(`[${mode}] log out in offline mode: login form ${outOffline}, ${JSON.stringify(after)}`);
+    if (!outOffline || after.token || after.copy) failed = true;
+
+    // Again without a copy: the unreachable screen's way out.
+    await page.unroute('**/api/**', handler);
+    await page.reload();
+    await page.waitForSelector('input[placeholder="Username"]', { timeout: 20000 });
+    await page.evaluate(() => localStorage.setItem('privacy', JSON.stringify({ offlineCopy: false })));
+    await page.fill('input[placeholder="Username"]', u.name);
+    await page.fill('input[placeholder="Password"]', u.password);
+    await page.click('button[type="submit"]');
+    await page.waitForSelector('#dm-main', { timeout: 20000 });
     await page.route('**/api/**', handler);
     await page.reload();
     await page.waitForSelector('.auth-unreachable button', { timeout: 20000 });

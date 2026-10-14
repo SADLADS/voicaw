@@ -15,6 +15,7 @@ import AdminSettings from "./AdminSettings";
 import DateTimeSettings from "./DateTimeSettings";
 import SpellcheckSettings from "./SpellcheckSettings";
 import PrivacySettings from "./PrivacySettings";
+import StorageSettings from "./StorageSettings";
 import BlockedUsers from './BlockedUsers';
 import AuthorisedApps from './AuthorisedApps';
 import AdminReports from './AdminReports';
@@ -97,6 +98,7 @@ export default function Settings({ onLogout }) {
       id: 'privacy', group: 'user', title: t('settings.pages.privacy'),
       subs: [
         sub('privacy', 'privacy', { content: <PrivacySettings /> }),
+        sub('storage', 'storage', { content: <StorageSettings /> }),
         sub('profile-visibility', 'profileVisibility', { content: <ProfileVisibilitySettings /> }),
         sub('content', 'content', { content: <ContentSettings /> }),
         sub('blocked', 'blocked', { content: <BlockedUsers /> }),
