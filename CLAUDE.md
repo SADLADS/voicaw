@@ -299,6 +299,11 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   hours, events made by clicking one. All-day events, an emoji and a colour (2026-10-06) are the
   app's own, not in the bot API. Guilded's calendar channels and RSVPs
   are planned next, on the same tables.
+- **TURN on 443** (built 2026-10-14, see TURN in `docs/voice-and-calls.md`): for networks that
+  allow only the web (no UDP 7882, no TCP 7881; Discord's voice fails there too), LiveKit's own
+  TURN over TLS on 443, sharing the port with nginx's sites by TLS name (nginx `stream` +
+  `ssl_preread`, `server/scripts/turn-443.sh`; the sites moved to 127.0.0.1:8443 with the PROXY
+  protocol). Chosen over a second IP. A fallback only: browsers use it when nothing direct works.
 - **Watch Together** (built 2026-10-04, see `docs/voice-and-calls.md`): YouTube watch parties in
   guild voice channels, the server keeping the queue and the clock in memory, clients following
   it. YouTube's iframe API script is deliberately not loaded (it would run YouTube's code next to

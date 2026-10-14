@@ -411,13 +411,42 @@ LiveKit carries the audio.
   native keyboard hook), noise suppression and the gate on the other side (for people whose
   app doesn't, like Discord's "suppress others' noise"), switching between a phone's front and back camera in a call,
   background blur, a camera spotlight (one camera big, like a watched stream), viewers picking
-  a stream's quality (its simulcast copy; see Stream quality), and a TURN server for
-  networks that block UDP 7882 and
-  TCP 7881; Watch Together: a party surviving an API restart, other sites than YouTube,
+  a stream's quality (its simulcast copy; see Stream quality); Watch Together: a party surviving an API restart, other sites than YouTube,
   playlists, start times from links (`t=`). Phones: a PWA's audio stops when it's in the background (iOS also when locked; it
   rejoins when the app is back, see Lost connections). Staying in while locked needs a native
   app: background audio, and voice through LiveKit's native SDK (iOS also pauses microphone
   capture in a Capacitor WebView).
+
+## TURN (networks that only allow the web)
+
+Built 2026-10-14. Media normally goes straight to LiveKit on UDP 7882, or TCP 7881 when UDP is
+blocked. Some work and school networks allow neither, only web traffic (TCP 443); Discord
+can't be used there either (its voice is UDP only). For them LiveKit's own TURN server relays
+the call over TLS on port 443, as Zoom or Teams do. Only a fallback: TCP adds delay when packets
+are lost, so browsers use it only when nothing direct works.
+- **How:** `turn:` in `~/livekit/livekit.yaml` (`domain: turn.voicaw.com`, `tls_port: 7883`,
+  `external_tls: true`, `udp_port: 0`; setup in `README.md` section 5). LiveKit then gives every
+  client `turns:turn.voicaw.com:443?transport=tcp` with short-lived credentials in its join
+  response, so the client needed no change (DM calls and bots' LiveKit SDKs get it too). The
+  relayed audio is the same as direct: DM calls stay end-to-end encrypted, guild voice isn't;
+  nothing new is stored and no third party is involved.
+- **Sharing 443 with nginx** (`server/scripts/turn-443.sh`, README section 7): nginx's stream
+  module takes 443 and reads each connection's TLS name without decrypting it (`ssl_preread`):
+  `turn.voicaw.com` goes to a TLS end on 127.0.0.1:8444 (the `*.voicaw.com` certificate),
+  which passes plain TCP to LiveKit; everything else to the sites, which listen on
+  127.0.0.1:8443 with `proxy_protocol` and take the visitor's address from it
+  (`real_ip_header proxy_protocol`), so logs, rate limits and `X-Forwarded-For` still see real
+  addresses. A site added later with `certbot --nginx` gets `listen 443 ssl`, which can't share
+  443 with the stream block: run the script again (it moves new sites, keeps the rest).
+- **Relaying to the SFU:** LiveKit's TURN refuses to relay to private addresses unless
+  `allow_restricted_peer_cidrs` lists them, so relayed calls reach LiveKit through its public
+  address (the router loops it back). Allowing the LAN address (`192.168.50.135/32`) would also
+  work without the router, but lets anyone with call credentials send UDP to every service on
+  the host (rpcbind, mDNS, the other coturn...), so it's only the fallback if the loop back fails.
+- **Checked by** `e2e/turn.mjs` (the same setup on loopback, Chrome allowed relayed paths only).
+- **Not done:** TURN over UDP (on 443 it would help networks that allow QUIC; LiveKit can't run
+  as root and nginx can't pass UDP by name), and TURN for the other voice regions (each region's
+  server needs its own `turn:` block and 443).
 
 ## Channel settings (bitrate, user limit)
 

@@ -136,6 +136,12 @@ webhook:                    # tells the API who joins and leaves (it shows who's
     - http://127.0.0.1:3002/api/livekit/webhook
 logging:
   level: info
+turn:                       # TURN over TLS on 443, for networks that only allow the web
+  enabled: true             # (section 7 shares 443 with nginx; leave the block out without it)
+  domain: turn.voicaw.com   # a DNS name for this host, covered by a certificate nginx has
+  tls_port: 7883            # plain TCP from nginx, which ends the TLS (only on 127.0.0.1 there)
+  external_tls: true
+  udp_port: 0               # no TURN over UDP
 ```
 
 Without the `webhook:` block people can connect and talk, but nobody shows as being in the
@@ -262,18 +268,36 @@ server {
 Then `certbot --nginx -d rtc.voicaw.com` adds HTTPS. `curl https://rtc.voicaw.com` should answer
 `OK`.
 
+**TURN on 443** (for people on networks that block LiveKit's ports; see TURN in
+`docs/voice-and-calls.md`). nginx's stream module takes port 443 and sends `turn.voicaw.com`
+(by its TLS name) to LiveKit's TURN, everything else to the sites, which move to
+`127.0.0.1:8443` with the PROXY protocol so they still see visitors' addresses. As root, once
+LiveKit runs with its `turn:` block (section 5), with the certificate covering the TURN name:
+
+```sh
+sudo server/scripts/turn-443.sh turn.voicaw.com /etc/letsencrypt/live/voicaw.com 7883
+```
+
+It copies `/etc/nginx` to `/etc/nginx.bak-<time>` first, rewrites every enabled site's `listen
+443 ssl` (IPv6 ones are dropped: the stream block listens on `[::]:443`), writes
+`/etc/nginx/stream-443.conf` and `conf.d/proxy-protocol-real-ip.conf`, and puts the copy back
+if `nginx -t` fails. Sites added later with `certbot --nginx` get `listen 443 ssl` again, which
+can't share 443 with the stream block: run the script again after each one. To undo it, put the
+backup back (`rm -rf /etc/nginx && cp -a /etc/nginx.bak-<time> /etc/nginx`, then `systemctl
+reload nginx`). `openssl s_client -connect turn.voicaw.com:443 -servername turn.voicaw.com`
+should then show the certificate, and `e2e/turn.mjs` checks the whole path on loopback.
+
 ### 8. Ports to open and forward to the host
 
 | Port | Protocol | For |
 |---|---|---|
-| 80, 443 | TCP | nginx (every site, including LiveKit's signalling) |
+| 80, 443 | TCP | nginx (every site, including LiveKit's signalling and, on 443, its TURN) |
 | 7881 | TCP | LiveKit media over TCP (fallback when UDP is blocked) |
 | 7882 | UDP | LiveKit media (voice) |
 
 The media ports can't go through nginx. Forward them straight to the host, on the same port
-numbers. There's no TURN server yet, so people on networks that allow neither UDP 7882 nor TCP
-7881 (some corporate and school networks) can't join voice until one is added. That would be
-TURN over TLS on 443, which needs its own IP or an nginx `stream` SNI split.
+numbers. People on networks that allow neither UDP 7882 nor TCP 7881 (some corporate and school
+networks) get through TURN over TLS on 443 (section 7), which needs nothing more forwarded.
 
 ### 9. Desktop app (optional)
 
