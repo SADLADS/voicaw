@@ -327,7 +327,7 @@ describe('invite embeds for link previewers', () => {
     expect(res.status).toBe(200);
     expect(res.type).toBe('text/html');
     expect(res.text).toContain('<meta property="og:title" content="Join Sad &#60;Lads&#62; &#38; &#34;co&#34; on Voicaw">');
-    expect(res.text).toContain('2 members.');
+    expect(res.text).toContain('You&#39;ve been invited to join Sad &#60;Lads&#62; &#38; &#34;co&#34; · 2 members"');
     expect(res.text).toContain(`<meta property="og:url" content="https://app.example.com/invite/${invite.body.code}">`);
     expect(res.text).toContain('<meta property="og:image" content="https://app.example.com/logo512.png">');
     expect(res.text).not.toContain(owner.username);

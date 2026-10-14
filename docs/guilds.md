@@ -83,7 +83,7 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - **Invite links on other sites** (Discord, Slack, Telegram...): their link previewers don't
   run the app, so nginx sends them (by user agent, a `map` in `website/nginx/app.voicaw.com`) on
   `/invite/<code>` to `GET /api/invite-embed/:code` (no login): a bare page whose Open Graph tags
-  make the card, "Join <guild> on Voicaw", "You've been invited to join <guild>. N members.",
+  make the card, "Join <guild> on Voicaw", "You've been invited to join <guild> · N members",
   the guild's icon (or the app's logo) and the app's purple. Anyone with a link sees those
   three things; never who made the invite. Unknown or used-up codes get a 404 saying so, no
   guild. People's browsers get the app as before; voicaw.com's invite links redirect here
