@@ -12,7 +12,11 @@ vi.mock('../services/voiceMessage', async (importOriginal) => ({
   },
 }));
 
+const letScreenGo = vi.fn();
+vi.mock('../utils/keepScreenOn', () => ({ keepScreenOn: vi.fn(() => letScreenGo) }));
+
 import { useVoiceRecording } from './useVoiceRecording';
+import { keepScreenOn } from '../utils/keepScreenOn';
 
 let hidden = false;
 Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
@@ -44,6 +48,15 @@ describe('useVoiceRecording', () => {
     expect(recorder.stop).toHaveBeenCalled();
     expect(result.current.take.duration).toBe(3);
     expect(result.current.locked).toBe(true); // a hold let go later doesn't send it
+  });
+
+  it('keeps the screen on while recording, and lets it go once stopped', async () => {
+    const { result } = await recording({});
+    expect(keepScreenOn).toHaveBeenCalledTimes(1);
+    expect(letScreenGo).not.toHaveBeenCalled();
+    await act(() => result.current.stop());
+    expect(result.current.phase).toBe('review');
+    expect(letScreenGo).toHaveBeenCalledTimes(1);
   });
 
   it('on a computer, recording carries on out of sight', async () => {

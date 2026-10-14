@@ -8,6 +8,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
 import android.util.Base64;
+import android.view.WindowManager;
 import android.widget.Toast;
 
 import androidx.core.app.NotificationManagerCompat;
@@ -183,6 +184,21 @@ public class VoicawPlugin extends Plugin {
     }
 
     /** The page's background behind the status and navigation bars (`color`, #rrggbb), and whether it's `light`. */
+    /**
+     * Keeps the screen on (`on`) while the page needs it, e.g. recording a voice message: a
+     * screen that times out hides the page, and Android then gives it silence instead of the
+     * microphone. The WebView has no Screen Wake Lock API.
+     */
+    @PluginMethod
+    public void keepScreenOn(PluginCall call) {
+        boolean on = Boolean.TRUE.equals(call.getBoolean("on", false));
+        getBridge().executeOnMainThread(() -> {
+            if (on) getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            else getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            call.resolve();
+        });
+    }
+
     @PluginMethod
     public void setSystemBars(PluginCall call) {
         int color;

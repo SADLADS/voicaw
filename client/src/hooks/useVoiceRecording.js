@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MAX_VOICE_SECONDS, MIN_VOICE_SECONDS, startVoiceRecorder } from '../services/voiceMessage';
+import { keepScreenOn } from '../utils/keepScreenOn';
 import { t } from '../i18n';
 
 const IDLE = { phase: 'idle', locked: false, seconds: 0, levels: [], take: null };
@@ -106,6 +107,11 @@ export function useVoiceRecording({ onSend, onError, resetKey, stopWhenHidden = 
 
   // Another conversation, or the box going away: nothing goes anywhere.
   useEffect(() => reset, [resetKey, reset]);
+
+  // The screen kept on while recording: a phone's screen timing out (someone talking into a
+  // locked recording touches nothing) hides the page, which stops it below.
+  const recording = state.phase === 'starting' || state.phase === 'recording';
+  useEffect(() => (recording ? keepScreenOn() : undefined), [recording]);
 
   useEffect(() => {
     if (!stopWhenHidden) return undefined;

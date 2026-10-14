@@ -246,7 +246,8 @@ native bridge. Check real behaviour on a phone.
   permission; whether calls may ring full screen, which Android 14 lets people turn off; whether
   the build has Firebase), `getPushToken`, `setOngoing` / `clearOngoing`, `stopRinging`,
   `openSettings`, `checkForUpdate` / `installUpdate` (Updating itself), `setSystemBars`
-  (System bars), `saveFileStart` / `saveFileAppend` / `saveFileFinish` / `saveFileCancel`
+  (System bars), `keepScreenOn` (while recording a voice message, see Voice messages in
+  `docs/uploads.md`), `saveFileStart` / `saveFileAppend` / `saveFileFinish` / `saveFileCancel`
   (Saving files), `showToast`, `mediaAccess` / `requestMediaAccess` / `listMedia` /
   `mediaThumbnail` (the + panel's photos, `Media.java`, see The + panel in `docs/uploads.md`;
   `openSettings({ which: 'app' })` when photos were refused), `fetchPage` (a linked page for an
