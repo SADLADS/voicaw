@@ -315,6 +315,47 @@ describe('vanity invites', () => {
   });
 });
 
+describe('invite embeds for link previewers', () => {
+  const embed = (code) => request(app).get(`/api/invite-embed/${code}`).set('Host', 'app.example.com');
+
+  it('gives the guild name, member count and picture in Open Graph tags, without logging in', async () => {
+    const { owner, guild } = await guildWithMember();
+    await api.patch(owner, `/guilds/${guild.id}`, { name: 'Sad <Lads> & "co"' });
+    const invite = await api.post(owner, `/guilds/${guild.id}/invites`);
+
+    const res = await embed(invite.body.code);
+    expect(res.status).toBe(200);
+    expect(res.type).toBe('text/html');
+    expect(res.text).toContain('<meta property="og:title" content="Join Sad &#60;Lads&#62; &#38; &#34;co&#34; on Voicaw">');
+    expect(res.text).toContain('You&#39;ve been invited to join Sad &#60;Lads&#62; &#38; &#34;co&#34; · 2 members"');
+    expect(res.text).toContain(`<meta property="og:url" content="https://app.example.com/invite/${invite.body.code}">`);
+    expect(res.text).toContain('<meta property="og:image" content="https://app.example.com/logo512.png">');
+    expect(res.text).not.toContain(owner.username);
+
+    // Vanity codes in any case, and the guild's icon once it has one.
+    await api.put(owner, `/guilds/${guild.id}/vanity-url`, { code: 'embed-me' });
+    await putMockObject('guild-icons', String(guild.id), await sharp({
+      create: { width: 8, height: 8, channels: 3, background: '#f00' },
+    }).png().toBuffer(), 'image/png');
+    await api.patch(owner, `/guilds/${guild.id}`, { iconUploaded: true });
+    const vanity = await embed('Embed-Me');
+    expect(vanity.text).toContain(`/guild-icons/${guild.id}?v=1"`);
+  });
+
+  it('says an unknown or used-up invite is invalid', async () => {
+    const owner = await makeUser();
+    const guild = await createGuild(owner, 'Secret Guild');
+    const invite = await api.post(owner, `/guilds/${guild.id}/invites`, { maxUses: 1 });
+    await api.post(await makeUser(), `/invites/${invite.body.code}`);
+    for (const code of [invite.body.code, 'nope1234']) {
+      const res = await embed(code);
+      expect(res.status).toBe(404);
+      expect(res.text).toContain('invalid or has expired');
+      expect(res.text).not.toContain('Secret Guild');
+    }
+  });
+});
+
 describe('guild channels and categories', () => {
   it('creates channels (Discord-style names) and categories, owner only', async () => {
     const { owner, member, guild } = await guildWithMember();

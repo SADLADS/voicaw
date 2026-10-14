@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const db = require('./db');
 const { getSetting } = require('./appSettings');
 const { sendToUserSockets, approvePendingSockets, closePendingSockets } = require('./sockets');
+const adminAlerts = require('./adminAlerts');
 
 // Who can make an account (Settings → Admin, the `signupMode` setting):
 // - 'open': anyone;
@@ -100,6 +101,7 @@ async function adminIds() {
 async function announceRequests() {
   const count = (await db.get('SELECT COUNT(*) AS n FROM users WHERE pending = 1 AND deleted_at IS NULL')).n;
   for (const id of await adminIds()) sendToUserSockets(id, { type: 'signup_requests', count });
+  await adminAlerts.announce();
 }
 
 // Resolves to false if `userId` isn't waiting.

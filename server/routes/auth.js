@@ -11,6 +11,7 @@ const { sendToAllSockets } = require('../sockets');
 const { normalizeUsername, findUserByName, opaqueIdOf, newOpaqueId } = require('../usernames');
 const accounts = require('../accounts');
 const signups = require('../signups');
+const adminAlerts = require('../adminAlerts');
 const terms = require('../terms');
 const twoFactor = require('../twoFactor');
 
@@ -277,7 +278,10 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
     throw err;
   }
   const user = { id: lastID, username };
-  if (signup.pending) await signups.announceRequests();
+  if (signup.pending) {
+    await signups.announceRequests();
+    adminAlerts.notify('signup', { name: username });
+  }
   res.status(201).json({
     token: await startSession(user, req), id: user.id, username, display_name: displayName, hasRecoveryCode: Boolean(recovery),
     pending: signup.pending,

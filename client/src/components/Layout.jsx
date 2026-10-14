@@ -17,6 +17,7 @@ import UserProfileHost from './UserProfileHost';
 import BotModal from './BotModal';
 import { initCalls } from '../voice/callClient';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
+import { isOfflineMode } from '../utils/offlineMode';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';
 import 'highlight.js/styles/atom-one-dark.css';
@@ -29,6 +30,7 @@ import { useBotDmList } from '../hooks/useBotDmList';
 import { useConversationSettings } from '../hooks/useConversationSettings';
 import { usePreferencesSync } from '../hooks/usePreferencesSync';
 import { useBlocksSync } from '../hooks/useBlocksSync';
+import { useAdminAlertsSync } from '../hooks/useAdminAlerts';
 import { useFriendsSync } from '../hooks/useFriendsSync';
 import { useFriends } from '../utils/friends';
 import { useDictionarySync } from '../hooks/useDictionarySync';
@@ -138,6 +140,8 @@ export default function Layout({ user, onLogout }) {
   // Your account preferences (utils/preferences), e.g. whether NSFW channels' media is blurred.
   usePreferencesSync(user?.id);
   useBlocksSync(user?.id);
+  // Admins: what's waiting for them, on the Settings gear.
+  useAdminAlertsSync(user?.id);
   useFriendsSync(user?.id);
   // Friend requests waiting for your answer light the rail's DM button too.
   const hasFriendRequests = useFriends().incoming.length > 0;
@@ -258,7 +262,9 @@ export default function Layout({ user, onLogout }) {
 
 
   useEffect(() => {
-    if (user?.id) {
+    // Offline mode (the offline copy, read-only): nothing to connect to; the app reloads once
+    // the server is back (OfflineBanner).
+    if (user?.id && !isOfflineMode()) {
       connectWebSocket(user.id);
 
       // Notifications come from web push (service-worker.js); here just refresh the badge, and

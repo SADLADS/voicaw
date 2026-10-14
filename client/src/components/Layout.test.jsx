@@ -21,6 +21,7 @@ vi.mock('../utils/ws-client', () => ({
   onConversationSettings: () => () => {},
   onPreferences: () => () => {},
   onBlocks: () => () => {},
+  onAdminAlerts: () => () => {},
   onFriends: () => () => {},
   onDictionary: () => () => {},
   onEmojiUsage: () => () => {},

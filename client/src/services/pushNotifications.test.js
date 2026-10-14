@@ -289,4 +289,17 @@ describe('reaction notifications', () => {
       expect(await notificationFromPush(await groupReactionPush('🧗'))).toBeNull();
     });
   });
+
+  it("words admins' notifications on the device, with how many are waiting", async () => {
+    const admin = (extra) => notificationFromPush({ type: 'admin', title: 'New report', body: '2 waiting', url: '/settings/reports#reports', tag: 'admin-report', ...extra });
+    let n = await admin({ kind: 'report', count: 2 });
+    expect(n.title).toBe('New report');
+    expect(n.options).toMatchObject({ body: '2 open reports', tag: 'admin-report', data: { url: '/settings/reports#reports' } });
+    n = await admin({ kind: 'signup', count: 1, name: 'newcomer' });
+    expect([n.title, n.options.body]).toEqual(['New sign-up request', 'newcomer asked for an account']);
+    n = await admin({ kind: 'tester', count: 1 });
+    expect([n.title, n.options.body]).toEqual(['New Android tester request', '1 request waiting to be added']);
+    n = await admin({ kind: 'something-new', count: 1 });
+    expect([n.title, n.options.body]).toEqual(['New report', '2 waiting']);
+  });
 });

@@ -2,6 +2,15 @@
   "app": {
     "unreachable": "Can't reach Voicaw. Trying again…",
     "unreachableLogOut": "Log out on this device",
+    "offline": {
+      "title": "You're offline",
+      "text": "Showing messages saved on this device. You can read them, but not send.",
+      "backTitle": "Voicaw is reachable again",
+      "backText": "Reconnect to see new messages and send.",
+      "reconnect": "Reconnect",
+      "chatNotice": "You're offline: these messages were saved on this device. Sending needs a connection.",
+      "notSaved": "This conversation isn't saved on this device, so it can't be shown offline."
+    },
     "sidebar": {
       "logoAlt": "Voicaw Logo",
       "directMessages": "Direct Messages",
@@ -21,7 +30,9 @@
       }
     },
     "userPanel": {
-      "you": "You"
+      "you": "You",
+      "settingsWaiting_one": "Settings ({{count}} waiting for you)",
+      "settingsWaiting_other": "Settings ({{count}} waiting for you)"
     },
     "connection": {
       "online": "Online",
@@ -121,7 +132,19 @@
       "reacted": "Reacted {{emoji}} to your message",
       "reactedTo": "Reacted {{emoji}} to your message: {{text}}",
       "nameReacted": "{{name}} reacted {{emoji}} to your message",
-      "nameReactedTo": "{{name}} reacted {{emoji}} to your message: {{text}}"
+      "nameReactedTo": "{{name}} reacted {{emoji}} to your message: {{text}}",
+      "admin": {
+        "report": "New report",
+        "signup": "New sign-up request",
+        "tester": "New Android tester request",
+        "reportsOpen_one": "{{count}} open report",
+        "reportsOpen_other": "{{count}} open reports",
+        "signupFrom": "{{name}} asked for an account",
+        "signupsWaiting_one": "{{count}} account waiting for approval",
+        "signupsWaiting_other": "{{count}} accounts waiting for approval",
+        "testersWaiting_one": "{{count}} request waiting to be added",
+        "testersWaiting_other": "{{count}} requests waiting to be added"
+      }
     }
   }
 }

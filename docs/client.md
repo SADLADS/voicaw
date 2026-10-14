@@ -275,7 +275,7 @@
   channel topic. So dragging things (channels, guilds) doesn't highlight text. On mobile a long
   press on a message opens its actions instead.
 - **Themes** (`utils/theme.js`, Settings → Appearance, `ThemeSettings.jsx`): Dark (default),
-  Light, Ol' Familiar or Match system (follows `prefers-color-scheme` live, light or dark),
+  Light, Ol' Familiar, Halloween or Match system (follows `prefers-color-scheme` live, light or dark),
   **per device only**
   (`localStorage theme`; never sent to the server). It's `<html data-theme>` (and Bootstrap's
   `data-bs-theme`); a copy of the logic inline in `index.html` sets it before the CSS loads, so a
@@ -316,6 +316,13 @@
     dark underneath (`BASES` in `utils/theme.js`): Bootstrap's `data-bs-theme="dark"`, dark
     form controls and code highlighting. Nothing is loaded from Discord; only the colour
     values are copied.
+  - **Halloween** (`data-theme="halloween"`, added 2026-10-13): dark underneath like Ol'
+    Familiar. Night-purple neutrals, pumpkin orange accent (white on it 5:1), candlelight
+    yellow for attention and mention counts, orange unread markers, witch-purple links, slime
+    green online, blood red errors; warnings are a pale amber so they don't read as the accent.
+    The rail's bird logo goes the same pumpkin: it's drawn as a CSS mask of
+    `logo-no-border.svg` filled with `--vc-logo` (the bird yellow in every other theme), so a
+    theme can recolour it. Colours only: no decorations.
   - **Another colour scheme** later: a `:root[data-theme="<name>"]` block setting every colour
     token (copy the light one) and its `color-scheme`, the name in `THEMES` and `BASES`
     (`utils/theme.js`) and in `index.html`'s copy, and a preview in `ThemeSettings.jsx`
@@ -565,10 +572,14 @@ picture or names, or straight from a tap on a phone.
 
 Discord's sound effects, for what Voicaw has (`client/src/sounds/`). `soundList.js` lists them
 (`SOUNDS`): Message, Mute, Unmute, Deafen, Undeafen, User join, User leave, Voice disconnected,
-Incoming ring, Outgoing ring. Each is a `tone` drawn with Web Audio oscillators (notes, volume,
-wave, `bell` or `flat` shape); **a sound with a `file`** (e.g. `/sounds/message.ogg` in
+Incoming ring, Outgoing ring, and Logo (not Discord's: a Philly hit, the 80s orchestra stab,
+`/sounds/hit.mp3`, on every click of the bird at the top of the guild rail, until the logo gets a
+real use; its fallback tone is a synthesised one). Each is a `tone` drawn with Web Audio
+oscillators (notes, volume, wave, `bell` or `flat` shape, optional `detune` and a closing lowpass
+`filter`); **a sound with a `file`** (e.g. `/sounds/message.ogg` in
 `client/public/sounds/`) plays that instead, falling back to its tone if it can't load, so real
-recordings can replace tones one at a time. `every` makes it a loop (rings), `minGap` stops
+recordings can replace tones one at a time; `fileVolume` turns a file down to the tones' level
+(Logo's, which peaks near full scale, plays at 0.3). `every` makes it a loop (rings), `minGap` stops
 repeats (a burst of messages dings once).
 - `sounds.js`: one shared `AudioContext`, started on the first click or key press (browsers
   refuse sound before one; until then sounds are skipped); `playSound(name, { preview })`,
@@ -611,6 +622,21 @@ them: the panel shows a menu (`ChoiceRow`, labels `settings.admin.choices.<key>.
 server refuses anything else. Add new app-wide keys to `SETTINGS` and read them with
 `getSetting` rather than from `config.js`. The panel also lists sign-up requests and app invites
 (see Sign-ups in `docs/auth-and-encryption.md`).
+
+**Admin alerts** (`server/adminAlerts.js`, built 2026-10-14): what's waiting for the admins, open
+reports, accounts waiting for approval and Android tester requests not yet added, is counted on
+the Settings gear (`UserPanel`, a red count, "Settings (3 waiting for you)") and beside Settings'
+Admin and Reports pages and their Sign-ups and Reports subsections, until each is dealt with
+(resolved, approved or declined, marked added or deleted). `GET /admin/alerts` → `{ reports,
+signups, testers }` (403 for everyone else), loaded at login and after a reconnect, and the
+`admin_alerts` event with the same counts after anything changes them (also to an admin just
+added, and zeros to one just removed); `hooks/useAdminAlerts.js` (in Layout) keeps
+`utils/adminAlerts.js`. Something new is also pushed to every admin's devices (`type: 'admin'`,
+`kind` `report` | `signup` | `tester`, how many are waiting, opening the page; one notification
+per kind, each replacing the last), except to the admin who reported it. The push holds no report
+details or tester emails, only a sign-up's username; `notificationFromPush` words it in the
+device's language (the server's English `title`/`body` are for apps from before). On Android it's
+in the Messages channel.
 
 **Storage** (`StorageAdmin.jsx`, `GET /admin/storage[?fresh=1]`, built 2026-10-08): how full the
 object store is: free of total (red under 10%), a bar and a list of Voicaw's four buckets (size

@@ -38,6 +38,8 @@
   /* The mention highlight. */
   --vc-action-soft: rgba(216, 185, 48, 0.12);
   --vc-on-action: #17151d;
+  /* The rail's bird logo: the bird yellow, except where a theme recolours it (Halloween). */
+  --vc-logo: #d8b930;
 
   --vc-bg-base: #17151d;
   --vc-bg-subtle: #201d28;
@@ -114,6 +116,7 @@
   --vc-action-text: #8a7114;
   --vc-action-soft: rgba(216, 185, 48, 0.18);
   --vc-on-action: #17151d;
+  --vc-logo: #d8b930;
 
   --vc-bg-base: #e4e2ea;
   --vc-bg-subtle: #ffffff;
@@ -169,6 +172,7 @@
   --vc-action-text: #f0b232;
   --vc-action-soft: rgba(240, 177, 50, 0.1);
   --vc-on-action: #000000;
+  --vc-logo: #d8b930;
 
   --vc-bg-base: #2c2d32;
   --vc-bg-subtle: #323339;
@@ -203,6 +207,63 @@
   --vc-unread: #ffffff;
   --vc-mention-badge: #d22d39;
   --vc-on-mention-badge: #ffffff;
+
+  color-scheme: dark;
+}
+
+/* Halloween (added 2026-10-13): night-purple neutrals, pumpkin orange for what you can do,
+   candlelight yellow for attention, witch-purple links, slime green online, blood red errors.
+   Warnings are a pale amber so they don't read as the orange accent. */
+:root[data-theme="halloween"] {
+  /* White on the pumpkin is 5:1. */
+  --vc-accent: #b8500d;
+  --vc-accent-hover: #a8480b;
+  --vc-accent-strong: #9a430b;
+  --vc-accent-text: #ffa04d;
+  --vc-accent-soft: rgba(232, 112, 30, 0.2);
+  --vc-on-accent: #ffffff;
+
+  --vc-action: #e8b830;
+  --vc-action-hover: #cfa128;
+  --vc-action-text: #e8b830;
+  --vc-action-soft: rgba(232, 184, 48, 0.12);
+  --vc-on-action: #120d17;
+  /* The bird goes pumpkin, the buttons' orange. */
+  --vc-logo: #b8500d;
+
+  --vc-bg-base: #120d17;
+  --vc-bg-subtle: #1a1320;
+  --vc-bg-elevated: #241a2c;
+  --vc-bg-elevated-hover: #2e2238;
+  --vc-bg-hover: #2a1f33;
+  --vc-border-dark: #2c2135;
+  --vc-border-light: #4a3a55;
+
+  --vc-fg: #f3ece6;
+  --vc-fg-muted: #b0a2b5;
+  --vc-placeholder: #7c6d84;
+
+  --vc-popup: #0c0810;
+  --vc-spoiler: #120d17;
+  --vc-spoiler-hover: #0c0810;
+  --vc-shadow: rgba(0, 0, 0, 0.3);
+  --vc-popup-shadow: rgba(0, 0, 0, 0.5);
+
+  --vc-online: #6fcf3a;
+  --vc-success: #2d7d2a;
+  --vc-success-hover: #256823;
+  --vc-idle: #e8b830;
+  --vc-warning: #ffb347;
+  --vc-warning-hover: #e89e38;
+  --vc-on-warning: #120d17;
+  --vc-danger: #c8243a;
+  --vc-danger-hover: #a91d30;
+  --vc-danger-text: #ff7a85;
+
+  --vc-link: #c39bf7;
+  --vc-unread: #ff8a2a;
+  --vc-mention-badge: #e8b830;
+  --vc-on-mention-badge: #120d17;
 
   color-scheme: dark;
 }
@@ -383,6 +444,9 @@ body {
   cursor: pointer;
   user-select: none;
   -webkit-user-drag: none;
+  background-color: var(--vc-logo);
+  -webkit-mask: url('../images/logo-no-border.svg') center / contain no-repeat;
+  mask: url('../images/logo-no-border.svg') center / contain no-repeat;
 }
 .sidebar::-webkit-scrollbar {
   width: 0px;
@@ -674,6 +738,13 @@ pre code {
   --box: #393a41;
 }
 
+.theme-preview-halloween {
+  --side: #120d17;
+  --chat: #1a1320;
+  --line: #4a3a55;
+  --box: #b8500d;
+}
+
 /* Match system: half of each. */
 .theme-preview-system {
   background: linear-gradient(135deg, #201d28 50%, #ffffff 50%);
@@ -741,6 +812,17 @@ pre code {
 .settings-card h5 {
   margin-bottom: 0.5rem;
   margin-top: 0.5rem;
+}
+
+/* Settings → Privacy → Storage on this device: a copy's size and its Clear button. */
+.storage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -0.25rem 0 1rem;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
 }
 
 /* Settings → Sounds */
@@ -1793,6 +1875,36 @@ body.sidebar-resizing * {
 /* Only the settings gear spins: turned, an X reads as a + and a phone as a different icon. */
 .user-panel-settings svg {
   transition: transform 0.3s ease;
+}
+
+/* Admins: what's waiting for them (reports, sign-up and tester requests), on the gear until
+   it's dealt with. */
+.user-panel-settings {
+  position: relative;
+}
+
+.user-panel-alerts {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  box-shadow: 0 0 0 2px var(--vc-bg-base);
+  background-color: var(--vc-mention-badge);
+  color: var(--vc-on-mention-badge);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* The same count beside Settings' Admin and Reports pages (and their subsections). */
+.settings-nav-alerts {
+  float: right;
+  margin-left: 6px;
 }
 
 

@@ -59,4 +59,9 @@ describe('the Android app set-up', () => {
     expect(manifest).toContain('android:allowBackup="false"');
     expect(manifest).toContain('android:dataExtractionRules="@xml/data_extraction_rules"');
   });
+
+  it("can see the camera app, so the + panel's camera tile opens it rather than the photo picker", () => {
+    const manifest = read('android/app/src/main/AndroidManifest.xml');
+    expect(manifest).toMatch(/<queries>[\s\S]*android\.media\.action\.IMAGE_CAPTURE[\s\S]*<\/queries>/);
+  });
 });

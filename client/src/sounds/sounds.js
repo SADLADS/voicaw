@@ -111,13 +111,26 @@ function loadFile(ctx, file) {
   return buffers.get(file);
 }
 
-function playTone(ctx, out, { notes, volume, wave = 'sine', shape = 'bell' }) {
+function playTone(ctx, out, { notes, volume, wave = 'sine', shape = 'bell', detune = 0, filter = null }) {
   const start = ctx.currentTime + 0.02;
-  for (const [at, frequency, length] of notes) {
+  // A lowpass closing from `filter.from` to `filter.to` Hz over `filter.length` s (a brassy stab).
+  if (filter) {
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.Q.value = filter.q ?? 1;
+    lowpass.frequency.setValueAtTime(filter.from, start);
+    lowpass.frequency.exponentialRampToValueAtTime(filter.to, start + filter.length);
+    lowpass.connect(out);
+    out = lowpass;
+  }
+  // `detune` (cents): each note is two oscillators pulled apart by that much, for a thicker sound.
+  const voices = detune ? [-detune, detune] : [0];
+  for (const [at, frequency, length, cents] of notes.flatMap((note) => voices.map((cents) => [...note, cents]))) {
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     oscillator.type = wave;
     oscillator.frequency.value = frequency;
+    if (cents) oscillator.detune.value = cents;
     const from = start + at;
     const to = from + length;
     gain.gain.setValueAtTime(0, from);
@@ -142,7 +155,13 @@ async function playInto(ctx, out, sound) {
     if (buffer) {
       const source = ctx.createBufferSource();
       source.buffer = buffer;
-      source.connect(out);
+      if (sound.fileVolume != null) {
+        const gain = ctx.createGain();
+        gain.gain.value = sound.fileVolume;
+        source.connect(gain).connect(out);
+      } else {
+        source.connect(out);
+      }
       source.start();
       return;
     }

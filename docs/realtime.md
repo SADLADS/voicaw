@@ -225,6 +225,8 @@ one user at a time).
     pinned key; the group's saved keys, the reaction only if signed by its reactor) and returns
     null, i.e. nothing shown, for a vote, an added answer or anything that won't open. Browsers
     therefore never hear about reactions in encrypted chats.
+- **Admin alerts** (`adminAlerts.js`): a new report, sign-up request or Android tester request
+  pushes `type: 'admin'` to every global admin (see Admin alerts in `docs/client.md`).
 - Message pushes (`dm`, `group`, `guild`) also send `message_sound` to every socket of the user
   (see Sounds). Before showing one, the service worker asks the open pages
   (`handles-message-sound`, answered within 500 ms) whether one plays the Message sound itself;

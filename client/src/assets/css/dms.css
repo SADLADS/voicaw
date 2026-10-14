@@ -232,6 +232,18 @@ small {
   background: none;
   border: none;
   padding: 8px;
+  /* Grey like the + beside the message box. */
+  color: var(--vc-fg-muted);
+  font-size: 24px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease;
+}
+
+.emoji-button:hover,
+.emoji-button[aria-expanded="true"] {
+  color: var(--vc-fg);
 }
 
 .chat-buttons {

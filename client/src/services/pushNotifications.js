@@ -185,6 +185,20 @@ async function reactionNotification(data) {
 // so their body is swapped for a generic one here.
 const PLAIN_MESSAGE_PUSHES = new Set(['guild', 'bot_dm']);
 
+// Admins: a new report, sign-up request or tester request (server/adminAlerts.js), with how many
+// are waiting; worded here so it's in the device's language.
+const ADMIN_COUNTS = { report: 'reportsOpen', signup: 'signupsWaiting', tester: 'testersWaiting' };
+
+function adminNotification(data) {
+  if (!ADMIN_COUNTS[data.kind]) return { title: data.title, body: data.body };
+  return {
+    title: t(`app.push.admin.${data.kind}`),
+    body: data.kind === 'signup' && data.name
+      ? t('app.push.admin.signupFrom', { name: data.name })
+      : t(`app.push.admin.${ADMIN_COUNTS[data.kind]}`, { count: data.count }),
+  };
+}
+
 // -> { title, options }, or null for a push to drop unshown (only reactions, see above).
 export async function notificationFromPush(data) {
   let title = data.title || 'Voicaw';
@@ -194,6 +208,7 @@ export async function notificationFromPush(data) {
     if (!reaction) return null;
     ({ title, body } = reaction);
   }
+  if (data.type === 'admin') ({ title, body } = adminNotification(data));
   if (PLAIN_MESSAGE_PUSHES.has(data.type) && !(await getSetting('notificationPreviews'))) body = t('app.push.newMessage');
   if ((data.type === 'group' || data.type === 'call') && data.groupId) {
     try {

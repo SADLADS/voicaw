@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 vi.mock('../utils/api', () => ({
   default: { get: vi.fn() },
@@ -12,6 +12,7 @@ vi.mock('./DeviceSettings', () => ({ default: () => null }));
 
 import api from '../utils/api';
 import Settings from './Settings';
+import { applyAdminAlerts } from '../utils/adminAlerts';
 import { onOpenUserProfile } from '../utils/userProfile';
 import { AuthContext } from '../hooks/useAuth';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -121,6 +122,19 @@ describe('Settings pages', () => {
     renderSettings();
     await waitFor(() => expect(navItems()).toContain('Admin'));
     expect(navItems()).toContain('Reports');
+  });
+
+  it("counts what's waiting beside Admin and Reports, and their subsections", async () => {
+    api.get.mockResolvedValue({ data: { settings: [] } });
+    act(() => applyAdminAlerts({ reports: 2, signups: 1, testers: 3 }));
+    renderSettings({ at: '/settings/admin' });
+    await waitFor(() => expect(navItems()).toContain('Admin4'));
+    expect(navItems()).toContain('Reports2');
+    expect(screen.getByRole('button', { name: 'Sign-ups4' })).toBeInTheDocument();
+    act(() => applyAdminAlerts({ reports: 0, signups: 0, testers: 0 }));
+    expect(navItems()).toContain('Admin');
+    expect(navItems()).toContain('Reports');
+    act(() => applyAdminAlerts(null));
   });
 });
 

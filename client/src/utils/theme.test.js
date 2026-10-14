@@ -56,6 +56,16 @@ describe('theme', () => {
     expect((await loadTheme()).getThemeChoice()).toBe('familiar');
   });
 
+  it('has Halloween: its own colours, dark underneath for Bootstrap', async () => {
+    const { setThemeChoice, resolveTheme } = await loadTheme();
+    setThemeChoice('halloween');
+    expect(resolveTheme()).toBe('halloween');
+    expect(document.documentElement.dataset.theme).toBe('halloween');
+    expect(document.documentElement.dataset.bsTheme).toBe('dark');
+    expect(localStorage.getItem('theme')).toBe('halloween');
+    expect((await loadTheme()).getThemeChoice()).toBe('halloween');
+  });
+
   it('reads the saved choice on start, ignoring anything unknown', async () => {
     localStorage.setItem('theme', 'light');
     expect((await loadTheme()).getThemeChoice()).toBe('light');

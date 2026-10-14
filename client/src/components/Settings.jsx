@@ -15,6 +15,7 @@ import AdminSettings from "./AdminSettings";
 import DateTimeSettings from "./DateTimeSettings";
 import SpellcheckSettings from "./SpellcheckSettings";
 import PrivacySettings from "./PrivacySettings";
+import StorageSettings from "./StorageSettings";
 import BlockedUsers from './BlockedUsers';
 import AuthorisedApps from './AuthorisedApps';
 import AdminReports from './AdminReports';
@@ -34,6 +35,7 @@ import PaneBackButton from './PaneBackButton';
 import ConfirmDialog from './guild/ConfirmDialog';
 import { useAuth } from '../hooks/useAuth';
 import { useIsAdmin } from '../hooks/useIsAdmin';
+import { useAdminAlerts } from '../hooks/useAdminAlerts';
 import { showContent, showList } from '../utils/mobilePanes';
 import { nameOf, useProfiles } from '../utils/profiles';
 import { openUserProfile } from '../utils/userProfile';
@@ -74,6 +76,7 @@ export default function Settings({ onLogout }) {
   const [query, setQuery] = useState('');
   const [confirmLogout, setConfirmLogout] = useState(false);
   const isAdmin = useIsAdmin();
+  const alerts = useAdminAlerts();
   const location = useLocation();
   const navigate = useNavigate();
   const navSlot = useContext(LayoutContext)?.settingsNavSlot ?? null;
@@ -95,6 +98,7 @@ export default function Settings({ onLogout }) {
       id: 'privacy', group: 'user', title: t('settings.pages.privacy'),
       subs: [
         sub('privacy', 'privacy', { content: <PrivacySettings /> }),
+        sub('storage', 'storage', { content: <StorageSettings /> }),
         sub('profile-visibility', 'profileVisibility', { content: <ProfileVisibilitySettings /> }),
         sub('content', 'content', { content: <ContentSettings /> }),
         sub('blocked', 'blocked', { content: <BlockedUsers /> }),
@@ -154,9 +158,11 @@ export default function Settings({ onLogout }) {
       // Listed once the server says you're an admin; AdminSettings shows nothing to others.
       id: 'admin', group: 'admin', title: t('settings.pages.admin'), available: isAdmin,
       content: <AdminSettings />,
+      // Sign-up and tester requests waiting (utils/adminAlerts), a count beside it until dealt with.
+      alerts: alerts.signups + alerts.testers,
       subs: [
         sub('admin-general', 'adminGeneral'),
-        sub('admin-signups', 'adminSignups'),
+        sub('admin-signups', 'adminSignups', { alerts: alerts.signups + alerts.testers }),
         sub('admin-regions', 'adminRegions'),
         sub('admin-storage', 'adminStorage'),
         sub('admin-admins', 'adminAdmins'),
@@ -166,7 +172,8 @@ export default function Settings({ onLogout }) {
       // Reports and suspended accounts (AdminReports.jsx), for admins only like the one above.
       id: 'reports', group: 'admin', title: t('settings.pages.reports'), available: isAdmin,
       content: isAdmin ? <AdminReports /> : null,
-      subs: [sub('reports', 'reports'), sub('suspended', 'suspended')],
+      alerts: alerts.reports,
+      subs: [sub('reports', 'reports', { alerts: alerts.reports }), sub('suspended', 'suspended')],
     },
     {
       id: 'about', title: t('settings.pages.about'),
@@ -261,6 +268,11 @@ export default function Settings({ onLogout }) {
     ? listed.flatMap((p) => p.subs.filter((s) => available(s) && matches(p, s, words)).map((s) => ({ page: p, sub: s })))
     : null;
 
+  // Admins: how many are waiting on a page or subsection.
+  const alertsBadge = (count) => (count > 0 ? (
+    <span className="mention-badge settings-nav-alerts" title={t('settings.nav.waiting', { count })}>{count > 99 ? '99+' : count}</span>
+  ) : null);
+
   const pageButton = (p) => {
     const active = page?.id === p.id;
     const subs = p.subs.filter(available);
@@ -273,6 +285,7 @@ export default function Settings({ onLogout }) {
           onClick={() => go(`/settings/${p.id}`)}
         >
           {p.title}
+          {alertsBadge(p.alerts)}
         </button>
         {/* The open page's subsections (a computer's, and not a lone one). */}
         {active && !isMobile && subs.length > 1 && (
@@ -285,6 +298,7 @@ export default function Settings({ onLogout }) {
                 onClick={() => go(`/settings/${p.id}#${s.id}`)}
               >
                 {s.title}
+                {alertsBadge(s.alerts)}
               </button>
             ))}
           </div>

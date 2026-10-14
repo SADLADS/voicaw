@@ -63,6 +63,8 @@ import { groupReactions } from '../utils/reactions';
 // `listHead` is drawn above the first message, scrolling with them (a thread's start); with
 // one, an empty chat shows it instead of `emptyText`. `conversation.firstUnread` places the
 // "New" divider (useNewDivider).
+const noHover = () => {};
+
 export default function ChatPane({
   chatId,
   chatName,
@@ -97,6 +99,15 @@ export default function ChatPane({
   listHead = null,
 }) {
   const { s3Endpoint, maxPlaintextLength } = useContext(ConfigContext);
+  // Shown from the offline copy (services/offlineCopy.js): read-only, only Copy is left.
+  const readOnly = Boolean(conversation.offlineCopy);
+  if (readOnly) {
+    canSend = false;
+    cantSendText = t('app.offline.chatNotice');
+    canAddReactions = false;
+    canPin = false;
+    canModerate = false;
+  }
   const { isMobile } = useContext(InteractionContext);
   const mentionChannels = useContext(ChannelMentionContext)?.channels;
   // In a guild text channel you may start threads in: Create Thread on messages that have none.
@@ -421,7 +432,7 @@ export default function ChatPane({
             loadMoreMessages={conversation.loadMoreMessages}
             s3Endpoint={s3Endpoint}
             hoveredMsgId={hoveredMsgId}
-            setHoveredMsgId={setHoveredMsgId}
+            setHoveredMsgId={readOnly ? noHover : setHoveredMsgId}
             handleEdit={handleEdit}
             handleDelete={requestDelete}
             handleReply={handleReply}
@@ -570,23 +581,23 @@ export default function ChatPane({
       {actionsFor && (
         <MessageActionSheet
           msg={actionsFor}
-          isOwn={actionsFor.sender_id === user.id}
+          isOwn={!readOnly && actionsFor.sender_id === user.id}
           canDelete={actionsFor.sender_id === user.id || canModerate}
           canReact={canAddReactions}
           myReactions={new Set((actionsFor.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
           onReact={(emoji) => toggleReaction(actionsFor, emoji)}
           onMoreReactions={() => openReactionPicker(actionsFor, null)}
-          onReply={textOnly ? undefined : () => handleReply(actionsFor)}
+          onReply={textOnly || readOnly ? undefined : () => handleReply(actionsFor)}
           onEdit={isClosedPoll(actionsFor) || isVoiceMessage(actionsFor.plaintext) ? undefined : () => handleEdit(actionsFor)}
           onTogglePin={canPin ? () => togglePin(actionsFor) : undefined}
-          onCreateThread={threadFrom(actionsFor)}
+          onCreateThread={readOnly ? undefined : threadFrom(actionsFor)}
           onCopy={() => copyMessage(actionsFor)}
-          onShowEdits={showEditsFor(actionsFor)}
-          onRemovePreviews={removePreviewsFor(actionsFor)}
+          onShowEdits={readOnly ? undefined : showEditsFor(actionsFor)}
+          onRemovePreviews={readOnly ? undefined : removePreviewsFor(actionsFor)}
           apps={appsFor(actionsFor)}
           onRunApp={(command) => runMessageApp(command, actionsFor)}
           onDelete={() => handleDelete(actionsFor)}
-          onReport={reportable(actionsFor) ? () => setReporting(actionsFor) : undefined}
+          onReport={!readOnly && reportable(actionsFor) ? () => setReporting(actionsFor) : undefined}
           onClose={closeActions}
         />
       )}
@@ -595,24 +606,24 @@ export default function ChatPane({
         <MessageMenu
           msg={menuMsg}
           anchor={menuFor.anchor}
-          isOwn={menuMsg.sender_id === user.id}
+          isOwn={!readOnly && menuMsg.sender_id === user.id}
           canDelete={menuMsg.sender_id === user.id || canModerate}
           canReact={canAddReactions}
           myReactions={new Set((menuMsg.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
           onReact={(emoji) => toggleReaction(menuMsg, emoji)}
           onMoreReactions={(rect) => openReactionPicker(menuMsg, { getBoundingClientRect: () => rect })}
           onViewReactions={() => setReactionsForId(menuMsg.id)}
-          onReply={textOnly ? undefined : () => handleReply(menuMsg)}
+          onReply={textOnly || readOnly ? undefined : () => handleReply(menuMsg)}
           onEdit={isClosedPoll(menuMsg) || isVoiceMessage(menuMsg.plaintext) ? undefined : () => handleEdit(menuMsg)}
           onTogglePin={canPin ? () => togglePin(menuMsg) : undefined}
-          onCreateThread={threadFrom(menuMsg)}
+          onCreateThread={readOnly ? undefined : threadFrom(menuMsg)}
           onCopy={() => copyText(menuMsg)}
-          onShowEdits={showEditsFor(menuMsg)}
-          onRemovePreviews={removePreviewsFor(menuMsg)}
+          onShowEdits={readOnly ? undefined : showEditsFor(menuMsg)}
+          onRemovePreviews={readOnly ? undefined : removePreviewsFor(menuMsg)}
           apps={appsFor(menuMsg)}
           onRunApp={(command) => runMessageApp(command, menuMsg)}
           onDelete={(event) => requestDelete(menuMsg, event)}
-          onReport={reportable(menuMsg) ? () => setReporting(menuMsg) : undefined}
+          onReport={!readOnly && reportable(menuMsg) ? () => setReporting(menuMsg) : undefined}
           onClose={closeMenu}
         />
       )}

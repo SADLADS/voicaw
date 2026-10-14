@@ -144,6 +144,21 @@ channel. After changing the file, `pm2 restart voicaw-livekit`.
 On start it logs `found external IP via STUN` with the public IP. `could not validate external
 IP` means UDP 7882 isn't forwarded yet, or the router can't loop back to its own public IP.
 
+LiveKit only looks the public IP up at startup. If the host's IP is dynamic (the ISP changes it
+now and then), LiveKit keeps handing out the old one, and people outside the ISP's network get
+"Could not connect to voice" until it restarts. `server/scripts/livekit-ip-watch.sh` restarts
+it when the IP changes (two IP services must agree; it remembers the IP in
+`~/livekit/public-ip`, and its first run restarts LiveKit once). Copy it next to LiveKit so it
+doesn't depend on which branch the checkout is on, and run it from `crontab -e`:
+
+```sh
+cp server/scripts/livekit-ip-watch.sh ~/livekit/ip-watch.sh
+```
+
+```
+*/5 * * * * /home/<you>/livekit/ip-watch.sh >> /home/<you>/livekit/ip-watch.log 2>&1
+```
+
 Optional, as root: LiveKit warns that the UDP receive buffer is small. That only matters with
 many streams (video). To raise it:
 
@@ -200,7 +215,7 @@ One site per name, each with a certificate (`certbot --nginx -d <name>`):
 
 | Name | Serves |
 |---|---|
-| `app.voicaw.com` | the web app: static files, `root /opt/voicaw-client`, `try_files $uri $uri/ /index.html`; `location /api/` → `http://localhost:3002` with `client_max_body_size 26M` (config: `website/nginx/app.voicaw.com`) |
+| `app.voicaw.com` | the web app: static files, `root /opt/voicaw-client`, `try_files $uri $uri/ /index.html`; `location /api/` → `http://localhost:3002` with `client_max_body_size 26M`; `/invite/<code>` sent to `/api/invite-embed/<code>` for link previewers (a `map` on the user agent: Discord, Slack... get the guild's Open Graph tags) (config: `website/nginx/app.voicaw.com`) |
 | `voicaw.com` | the info and download site, `root /opt/voicaw-site`, its `/api/` like the app's, anything else redirected to app.voicaw.com (section 10; config: `website/nginx/voicaw.com`) |
 | `api.voicaw.com` | `http://localhost:3002` (REST, the app's websocket and the bot gateway at `/api/gateway`: pass `Upgrade`/`Connection` on every path), `client_max_body_size 26M` |
 | `media.voicaw.com` | the object store, `client_max_body_size 100M` (each request; bigger attachments come in parts, and MinIO's default `stale_uploads_expiry` of a day clears abandoned ones) |

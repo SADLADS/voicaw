@@ -5,6 +5,8 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { createUpdater } = require('../updater.js');
 const { splashView } = require('../splash.js');
+const { keepAppImageName } = require('../appImageInstall.js');
+const { inGamingMode } = require('../gamingMode.js');
 
 // A stand-in for electron-updater's autoUpdater: `latest` is what the feed says, `cached` the
 // version already downloaded. Downloads finish when the test says (`finishDownload`).
@@ -108,6 +110,18 @@ describe('desktop updates (updater.js)', () => {
         expect(await installing).toBe(true);
     });
 
+    it("in Gaming Mode, doesn't announce updates and installs without restarting", async () => {
+        const deckUpdater = fakeAutoUpdater();
+        const gaming = createUpdater({ app: { isPackaged: true }, onReady, autoUpdater: deckUpdater, gamingMode: true });
+        deckUpdater.latest = '1.1.0';
+        await gaming.check();
+        deckUpdater.finishDownload();
+        expect(onReady).not.toHaveBeenCalled();
+        expect(gaming.readyVersion()).toBe('1.1.0');
+        expect(await gaming.install()).toBe(true);
+        expect(deckUpdater.quitAndInstall).toHaveBeenCalledWith(true, false);
+    });
+
     it('reports a failed download instead of quitting', async () => {
         autoUpdater.latest = '1.1.0';
         await updater.check();
@@ -178,6 +192,53 @@ describe('desktop updates (updater.js)', () => {
             expect(onReady).toHaveBeenCalledWith('1.1.0');
             expect(updater.readyVersion()).toBe('1.1.0');
         });
+    });
+});
+
+describe("the Steam Deck's Gaming Mode (gamingMode.js)", () => {
+    it('is a gamescope session on Linux', () => {
+        expect(inGamingMode({ XDG_CURRENT_DESKTOP: 'gamescope' }, 'linux')).toBe(true);
+        expect(inGamingMode({ GAMESCOPE_WAYLAND_DISPLAY: 'gamescope-0' }, 'linux')).toBe(true);
+        expect(inGamingMode({ XDG_CURRENT_DESKTOP: 'KDE' }, 'linux')).toBe(false); // Desktop Mode
+        expect(inGamingMode({}, 'linux')).toBe(false);
+        expect(inGamingMode({ XDG_CURRENT_DESKTOP: 'gamescope' }, 'win32')).toBe(false);
+    });
+});
+
+describe('AppImage updates keep the file name (appImageInstall.js)', () => {
+    function fakeAppImageUpdater() {
+        class AppImageUpdater {}
+        const updater = new AppImageUpdater();
+        updater.installerPath = '/home/deck/.cache/voicaw-updater/pending/Voicaw-1.0.1.AppImage';
+        updater.spawnLog = vi.fn(async () => true);
+        updater.dispatchError = vi.fn();
+        return updater;
+    }
+    const env = { APPIMAGE: '/home/deck/Applications/Voicaw-0.1.9.AppImage' };
+
+    it('writes the update over the file the app started from, then restarts it', () => {
+        const updater = fakeAppImageUpdater();
+        const fsApi = { unlinkSync: vi.fn() };
+        const run = vi.fn();
+        expect(keepAppImageName(updater, { env, fsApi, run })).toBe(true);
+        expect(updater.doInstall({ isForceRunAfter: true })).toBe(true);
+        expect(fsApi.unlinkSync).toHaveBeenCalledWith(env.APPIMAGE);
+        expect(run).toHaveBeenCalledWith('mv', ['-f', updater.installerPath, env.APPIMAGE]);
+        expect(updater.spawnLog).toHaveBeenCalledWith(env.APPIMAGE, [], expect.objectContaining({ APPIMAGE_SILENT_INSTALL: 'true' }));
+    });
+
+    it("doesn't restart when told not to", () => {
+        const updater = fakeAppImageUpdater();
+        const run = vi.fn();
+        keepAppImageName(updater, { env, fsApi: { unlinkSync: vi.fn() }, run });
+        updater.doInstall({ isForceRunAfter: false });
+        expect(updater.spawnLog).not.toHaveBeenCalled();
+        expect(run).toHaveBeenLastCalledWith(env.APPIMAGE, [], { env: expect.objectContaining({ APPIMAGE_EXIT_AFTER_INSTALL: 'true' }) });
+    });
+
+    it('leaves other updaters alone', () => {
+        expect(keepAppImageName({ doInstall: 1 })).toBe(false);
+        expect(keepAppImageName(null)).toBe(false);
     });
 });
 

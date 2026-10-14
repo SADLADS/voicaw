@@ -6,6 +6,7 @@
 
 import { formatDate } from './dateFormat';
 import { t } from '../i18n';
+import { isOfflineMode } from './offlineMode';
 
 let haveSnapshot = false;
 const statuses = new Map(); // user id (string) -> status, for everyone not offline
@@ -53,7 +54,8 @@ export function getPresenceVersion() {
 // `user`: { id, status?, last_online? } -> { status, lastOnline } (lastOnline: unix s or null).
 export function presenceOf(user) {
   const id = String(user.id);
-  const status = haveSnapshot ? statuses.get(id) ?? 'offline' : user.status ?? 'offline';
+  // Offline mode: the saved lists' statuses are old news, so nobody shows as online.
+  const status = isOfflineMode() ? 'offline' : haveSnapshot ? statuses.get(id) ?? 'offline' : user.status ?? 'offline';
   return { status, lastOnline: lastOnlineById.get(id) ?? user.last_online ?? null };
 }
 

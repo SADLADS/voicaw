@@ -22,6 +22,7 @@ vi.mock('./EmojiPicker', () => ({
 
 import { onOpenUserProfile } from '../utils/userProfile';
 import UserPanel from './UserPanel';
+import { applyAdminAlerts } from '../utils/adminAlerts';
 import { ConfigContext } from '../contexts';
 import { clearProfiles, mergeProfiles, setAvatarBase } from '../utils/profiles';
 
@@ -49,6 +50,17 @@ describe('UserPanel', () => {
     expect(screen.getByText('Online')).toBeInTheDocument();
     expect(container.querySelector('.user-panel-avatar img')).toHaveAttribute('src', 'https://s3.test/profile-pics/7/abc.webp');
     expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings');
+  });
+
+  it("counts what's waiting for an admin on the gear, until it's dealt with", () => {
+    renderPanel();
+    expect(document.querySelector('.user-panel-alerts')).toBeNull();
+    act(() => applyAdminAlerts({ reports: 1, signups: 2, testers: 0 }));
+    expect(screen.getByRole('link', { name: 'Settings (3 waiting for you)' })).toHaveAttribute('href', '/settings');
+    expect(document.querySelector('.user-panel-alerts')).toHaveTextContent('3');
+    act(() => applyAdminAlerts({ reports: 0, signups: 0, testers: 0 }));
+    expect(document.querySelector('.user-panel-alerts')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument();
   });
 
   it('follows the connection state', () => {

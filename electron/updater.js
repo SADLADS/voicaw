@@ -12,16 +12,23 @@
 // it and restarts onto it before the app opens, as Discord does.
 //
 // A development run, or a package it can't update in place, reports 'unsupported'.
+//
+// In the Steam Deck's Gaming Mode (`gamingMode`, gamingMode.js) a restart would leave Steam
+// thinking the game had closed, so the page isn't told about updates there: one that's ready
+// installs when the app is quit (and "Update now" in Settings quits without restarting).
+// AppImages keep their file name across updates (appImageInstall.js).
 const CHECK_EVERY_MS = 4 * 60 * 60 * 1000;
 // How long "Update now" waits for its last look before installing what it has.
 const LAST_LOOK_MS = 5000;
 // How long the launch waits for its look (offline or a slow server: open the app anyway).
 const LAUNCH_LOOK_MS = 5000;
 
+const { keepAppImageName } = require('./appImageInstall');
+
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // `autoUpdater` is for tests (electron-updater's otherwise).
-function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater }) {
+function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater, gamingMode = false }) {
     let updater = null;
     let state = 'idle'; // 'idle' | 'checking' | 'downloading' | 'current' | 'error'
     let readyVersion = null; // downloaded and installable
@@ -34,6 +41,7 @@ function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater }) {
     if (app.isPackaged) {
         try {
             updater = autoUpdater ?? require('electron-updater').autoUpdater;
+            keepAppImageName(updater);
             updater.autoDownload = true;
             updater.autoInstallOnAppQuit = true;
             updater.on('checking-for-update', () => { state = 'checking'; });
@@ -51,7 +59,7 @@ function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater }) {
                 state = 'idle';
                 readyVersion = info.version;
                 finishDownload();
-                if (announced !== info.version) {
+                if (announced !== info.version && !gamingMode) {
                     announced = info.version;
                     onReady(info.version);
                 }
@@ -108,7 +116,8 @@ function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater }) {
             while (download) await download;
             if (!readyVersion) return false;
             beforeQuit();
-            updater.quitAndInstall();
+            if (gamingMode) updater.quitAndInstall(true, false);
+            else updater.quitAndInstall();
             return true;
         } finally {
             installing = false;

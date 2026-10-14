@@ -16,7 +16,10 @@ vi.mock('../services/guildService', () => ({
 let myVoice = { status: 'idle', guildId: null };
 vi.mock('../hooks/useVoice', () => ({ useVoice: () => myVoice }));
 
+vi.mock('../sounds/sounds', () => ({ playSound: vi.fn() }));
+
 import Sidebar from './Sidebar';
+import { playSound } from '../sounds/sounds';
 import { ConfigContext, InteractionContext, LayoutContext } from '../contexts';
 import { leaveGuild, markChannelReadToLatest, muteGuild, setGuildNotifications, unmuteGuild } from '../services/guildService';
 import { mergeProfiles } from '../utils/profiles';
@@ -67,6 +70,18 @@ beforeEach(() => {
   myVoice = { status: 'idle', guildId: null };
 });
 
+describe('the rail\'s logo', () => {
+  it('plays a Philly hit on every click, and goes nowhere', () => {
+    renderRail({ path: '/dm/7' });
+    const logo = screen.getByRole('img', { name: 'Voicaw Logo' });
+    fireEvent.click(logo);
+    fireEvent.click(logo);
+    expect(playSound).toHaveBeenCalledTimes(2);
+    expect(playSound).toHaveBeenCalledWith('logo');
+    expect(screen.getByTestId('path').textContent).toBe('/dm/7');
+  });
+});
+
 describe('the rail\'s DM button', () => {
   it('shows its icon while nothing is unread', () => {
     renderRail();
@@ -109,7 +124,7 @@ describe('clicking where you already are', () => {
 describe('the rail\'s logo', () => {
   it('goes nowhere when clicked, and pops on every click', () => {
     renderRail({ path: '/dm/7' });
-    const logo = screen.getByAltText('Voicaw Logo');
+    const logo = screen.getByRole('img', { name: 'Voicaw Logo' });
     expect(logo.closest('a')).toBeNull();
     logo.animate = vi.fn();
     fireEvent.click(logo);

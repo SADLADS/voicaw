@@ -19,7 +19,8 @@ class FakeAudioContext {
   }
   resume() { return Promise.resolve(); }
   createGain() { return node('gain', { gain: param() }); }
-  createOscillator() { return node('oscillator', { frequency: param(), start: vi.fn(), stop: vi.fn() }); }
+  createOscillator() { return node('oscillator', { frequency: param(), detune: param(), start: vi.fn(), stop: vi.fn() }); }
+  createBiquadFilter() { return node('filter', { frequency: param(), Q: param() }); }
   createBufferSource() { return node('buffer', { start: vi.fn() }); }
   decodeAudioData() { return Promise.resolve({ decoded: true }); }
 }
@@ -52,6 +53,35 @@ describe('sounds', () => {
     const out = made.find((n) => n.kind === 'gain');
     expect(out.gain.value).toBe(0.5);
     expect(out.connect).toHaveBeenCalledWith(expect.objectContaining({ kind: 'destination' }));
+  });
+
+  it('plays the logo\'s hit.mp3 turned down, on every click', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) })));
+    sounds.playSound('logo');
+    sounds.playSound('logo');
+    await flush();
+    await flush();
+    expect(fetch).toHaveBeenCalledWith('/sounds/hit.mp3');
+    const sources = made.filter((n) => n.kind === 'buffer');
+    expect(sources).toHaveLength(2);
+    const level = sources[0].connect.mock.calls[0][0];
+    expect(level.gain.value).toBe(soundList.SOUNDS.logo.fileVolume);
+    expect(oscillators()).toEqual([]);
+  });
+
+  it('falls back to a Philly hit of detuned pairs through a closing lowpass without the file', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404 })));
+    sounds.playSound('logo');
+    await flush();
+    await flush();
+    const { notes, detune } = soundList.SOUNDS.logo.tone;
+    expect(oscillators()).toHaveLength(notes.length * 2);
+    expect(oscillators().slice(0, 2).map((o) => o.detune.value)).toEqual([-detune, detune]);
+    const filter = made.find((n) => n.kind === 'filter');
+    expect(filter.type).toBe('lowpass');
+    expect(filter.frequency.exponentialRampToValueAtTime).toHaveBeenCalled();
+    expect(filter.connect).toHaveBeenCalledWith(expect.objectContaining({ kind: 'gain' }));
   });
 
   it('skips sounds turned off (and everything at volume 0), but previews them', async () => {

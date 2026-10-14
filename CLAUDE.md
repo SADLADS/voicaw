@@ -148,7 +148,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   group calls.
 - `docs/group-dms.md`: group DMs (membership log, epochs, signing).
 - `docs/messages.md`: emoji, message markdown, GIFs, YouTube links, link previews, polls, mentions, timestamps, pinned messages, drafts,
-  search in encrypted chats (on the device), the message list and history loading.
+  search in encrypted chats (on the device), the offline copy, the message list and history
+  loading.
 - `docs/uploads.md`: the object store, encrypted attachments, video streaming, voice messages, spoilers, image
   viewer.
 - `docs/client.md`: client structure (contexts, translations, Layout, settings, dates, themes, sidebar, phone
@@ -376,6 +377,15 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   segments at a time; edits and deletes found by asking the server for per-range counts (never
   which messages matched). Settings → Privacy can keep no copy (each search then reads the
   whole history again); logging out deletes it.
+- **Offline copy** (built 2026-10-14, see Offline copy in `docs/messages.md`): DMs, group DMs
+  and notes the device has shown are kept on it (decrypted text and reactions, re-encrypted under
+  a non-extractable device key, as the search copy), plus the lists the app needs (profile, DM
+  list, groups...), so they can be read without a connection. The user chose: on by default,
+  only the encrypted chats (no guild channels or bot DMs), text only, read-only (nothing queued
+  to send). Online nothing changes but the saving; the copy is only read when the server can't be
+  reached (offline mode when the app starts that way). Settings → Privacy → Storage on this
+  device shows sizes, turns it off, clears it; logging out deletes it with everything else the
+  account kept here (not contact pins, which warn of changed keys).
 - **Rich Presence** (built 2026-10-09, see Rich Presence in `docs/desktop-and-site.md` and
   Activities in `docs/realtime.md`): the desktop app listens on Discord's local `discord-ipc-N`
   socket, so games' "Playing X" reaches Voicaw unchanged (a Discord started first keeps them).
