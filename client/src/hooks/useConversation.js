@@ -14,6 +14,9 @@ import {
   fetchMessageRanges,
 } from '../services/dmService';
 import { searchConversation } from '../services/searchIndex';
+import { loadChat } from '../services/offlineCopy';
+import { isOfflineMode, isUnreachable } from '../utils/offlineMode';
+import { useOfflineChat } from './useOfflineChat';
 import {
   encryptMessage,
   decryptMessage,
@@ -58,6 +61,10 @@ const decryptRows = async (rows, key) => Promise.all((await decryptMessagesBatch
 // `notes`: your notes, a DM to yourself (`chatUser` is you). Encrypted with a key only your
 // own key pair derives (deriveNotesKey), from this device's copy of your public key; never
 // unread.
+//
+// Without the server (offline mode, or it can't be reached when the chat opens), the chat comes
+// from the offline copy (services/offlineCopy.js, useOfflineChat keeps it): `offlineCopy` is
+// then true and the chat is read-only.
 export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   const [messages, setMessages] = useState([]);
   const [hasMore, setHasMore] = useState(true);
@@ -72,6 +79,11 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   // Bumped whenever a message here is pinned or unpinned (the pins list reloads).
   const [pinsVersion, setPinsVersion] = useState(0);
   const [firstUnread, setFirstUnread] = useState(null);
+  // Whose messages `messages` are (the offline copy's key, `chatKey`), and whether they came
+  // from the offline copy rather than the server.
+  const [loadedFor, setLoadedFor] = useState(null);
+  const [fromCopy, setFromCopy] = useState(false);
+  const chatKey = id && user?.id ? `${user.id}/${notes ? 'notes' : `dm/${id}`}` : null;
 
   // Always the current render's messages, for handlers that run later.
   const messagesRef = useRef(messages);
@@ -96,7 +108,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   // `opening`: the read on opening the chat, which says where its unread messages started.
   const markRead = async ({ opening = false } = {}) => {
     try {
-      if (!chatUser || notes) return;
+      if (!chatUser || notes || isOfflineMode()) return;
       const chatId = id;
       const first = await markMessagesRead(chatUser.id);
       if (opening && first != null && activeChatId.current === chatId) setFirstUnread({ id: first });
@@ -123,6 +135,8 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     setError(null);
     setSharedKey(null);
     setKeyStatus(null);
+    setLoadedFor(null);
+    setFromCopy(false);
 
     if (!id || !chatUser || !user?.id) {
       setIsLoading(false);
@@ -154,13 +168,30 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
           key = await deriveConversationKey(myKey, check.encryptionKey);
         }
 
-        const page = await fetchMessagesForUser(id, { limit: PAGE_SIZE });
+        let page = null;
+        try {
+          if (!isOfflineMode()) page = await fetchMessagesForUser(id, { limit: PAGE_SIZE });
+        } catch (e) {
+          if (!isUnreachable(e)) throw e;
+        }
+        if (!page) {
+          const saved = await loadChat(chatKey, { limit: PAGE_SIZE });
+          if (cancelled) return;
+          if (!saved) throw new Error(t('app.offline.notSaved'));
+          setSharedKey(key);
+          setMessages(saved.messages);
+          setHasMore(saved.hasMore);
+          setFromCopy(true);
+          setLoadedFor(chatKey);
+          return;
+        }
         const decrypted = await decryptRows(page, key);
         if (cancelled) return;
 
         setSharedKey(key);
         setMessages(decrypted);
         setHasMore(page.length > 0);
+        setLoadedFor(chatKey);
       } catch (e) {
         if (cancelled) return;
         console.error('Failed to load chat data:', e);
@@ -198,6 +229,13 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     loadingOlder.current = true;
     const chatId = id;
     try {
+      if (fromCopy) {
+        const saved = await loadChat(chatKey, { before: oldest.id, limit: PAGE_SIZE });
+        if (activeChatId.current !== chatId) return;
+        if (saved?.messages.length) setMessages((prev) => [...saved.messages, ...prev]);
+        setHasMore(Boolean(saved?.hasMore));
+        return;
+      }
       const page = await fetchMessagesForUser(chatId, { before: oldest.id, limit: PAGE_SIZE });
       const decrypted = await decryptRows(page, sharedKey);
       if (activeChatId.current !== chatId) return;
@@ -347,13 +385,22 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     applyPin(await setMessagePinned(msg.id, pinned));
   }
 
+  useOfflineChat({
+    chat: chatKey,
+    messages,
+    hasMore,
+    live: loadedFor === chatKey && !fromCopy,
+    fetchRanges: (ranges) => fetchMessageRanges(id, ranges),
+  });
+
   // Searches the conversation on this device (services/searchIndex.js): `params` from the
   // search box (utils/searchQuery.js), `options` searchConversation's. -> { total, messages }.
+  // Offline, only what the search copy already holds (it can't be brought up to date).
   function searchMessages(params, options) {
     const key = sharedKey;
     const otherId = id;
     return searchConversation({
-      key: `${user.id}/${notes ? 'notes' : `dm/${otherId}`}`,
+      key: chatKey,
       fetchPage: (before, limit) => fetchMessagesForUser(otherId, before == null ? { limit } : { before, limit }),
       // Only the text: no replies, reactions or previews. Calls and poll ends have none.
       toEntries: async (rows) => (await Promise.all(rows.filter((r) => !r.system).map(async (r) => {
@@ -364,7 +411,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
         }
       }))).filter(Boolean),
       fetchRanges: (ranges) => fetchMessageRanges(otherId, ranges),
-    }, params, options);
+    }, params, fromCopy ? { ...options, sync: false } : options);
   }
 
   // Live changes from the websocket.
@@ -454,5 +501,6 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     loadEdits,
     firstUnread,
     searchMessages,
+    offlineCopy: fromCopy,
   };
 }

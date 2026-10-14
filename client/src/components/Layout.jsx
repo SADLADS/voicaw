@@ -17,6 +17,7 @@ import UserProfileHost from './UserProfileHost';
 import BotModal from './BotModal';
 import { initCalls } from '../voice/callClient';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
+import { isOfflineMode } from '../utils/offlineMode';
 import api from '../utils/api';
 import { fetchUsersList } from '../services/dmService';
 import 'highlight.js/styles/atom-one-dark.css';
@@ -258,7 +259,9 @@ export default function Layout({ user, onLogout }) {
 
 
   useEffect(() => {
-    if (user?.id) {
+    // Offline mode (the offline copy, read-only): nothing to connect to; the app reloads once
+    // the server is back (OfflineBanner).
+    if (user?.id && !isOfflineMode()) {
       connectWebSocket(user.id);
 
       // Notifications come from web push (service-worker.js); here just refresh the badge, and

@@ -814,6 +814,17 @@ pre code {
   margin-top: 0.5rem;
 }
 
+/* Settings → Privacy → Storage on this device: a copy's size and its Clear button. */
+.storage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -0.25rem 0 1rem;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+}
+
 /* Settings → Sounds */
 .sound-volume {
   display: flex;

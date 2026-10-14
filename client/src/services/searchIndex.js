@@ -297,6 +297,24 @@ export async function searchConversation(source, params, { sort = 'desc', limit 
   return { total, messages: messages.map(toMessage) };
 }
 
+// How much the copy takes (Settings → Privacy → Storage): { bytes (the stored ciphertext),
+// chats }.
+export async function searchIndexSize() {
+  // Measuring mustn't make the database again (opening one creates it).
+  if (indexedDB.databases && !(await indexedDB.databases()).some((d) => d.name === DB_NAME)) return { bytes: 0, chats: 0 };
+  return withStores([SEGMENTS, META], 'readonly', (s) => {
+    const out = { bytes: 0, chats: 0 };
+    s[SEGMENTS].openCursor().onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (!cursor) return;
+      out.bytes += cursor.value?.data?.byteLength ?? 0;
+      cursor.continue();
+    };
+    s[META].count().onsuccess = (event) => { out.chats = event.target.result; };
+    return { result: out };
+  });
+}
+
 // Forgets every conversation's copy (logging out, or Settings → Privacy turning it off).
 export async function clearSearchIndex() {
   keyPromise = null;

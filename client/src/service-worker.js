@@ -1,4 +1,4 @@
-import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
+import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from 'workbox-precaching';
 import { version as twemojiVersion } from '@twemoji/svg/package.json';
 import { version as dataVersion } from '@emoji-mart/data/package.json';
 import { CATEGORY_SHEETS, sheetKey, sheetPath } from './emoji/emojiSheets';
@@ -16,6 +16,15 @@ self.addEventListener('message', (event) => {
   // The page checks this worker can stream encrypted videos (an older one can't), and save
   // files (since 2026-10-08; older ones answered `true`).
   if (event.data?.type === MEDIA_PING) event.ports[0]?.postMessage({ stream: true, download: true });
+});
+
+// Opening the app without a connection (the offline copy, services/offlineCopy.js): a page
+// load still asks the network first, as without this worker, and only when that fails gets the
+// app's page from the precache, which then opens in offline mode.
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.mode !== 'navigate' || new URL(request.url).origin !== self.location.origin) return;
+  event.respondWith(fetch(request).catch(async () => (await matchPrecache('index.html')) ?? Response.error()));
 });
 
 // Encrypted videos, streamed and seeked a piece at a time, and files saved without the page

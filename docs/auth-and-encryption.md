@@ -82,13 +82,22 @@ the session exists, and only shown to the account itself.
   answer (given up on after 10 s: a stuck or restarting API takes connections and never
   answers) or a server error (no network yet after boot, an API restart) it keeps the token and
   asks again every 3 s, while `App` shows "Can't reach Voicaw. Trying again…" with "Log out on
-  this device", which forgets the login here without the server (`forgetLogin`; the login is
+  this device" (unless the offline copy has the account's profile: then the app opens in
+  offline mode, see Offline copy in `docs/messages.md`), which forgets the login here without the server (`forgetLogin`; the login is
   in `localStorage`, so clearing cookies doesn't). The session itself then stays on the server
   (Settings → Devices on another device ends it, or it expires).
 - **Logging out** (`services/logout.js`, 2026-10-13) gives the server 5 s
   (`LOGOUT_SERVER_MS`) to turn off this device's notifications, hang up and end the session,
-  then forgets the token, keys, group keys, search copy and drafts whether it answered or not
-  (unanswered requests go on with the old token). A web push subscription is dropped in the
+  then forgets the token, keys, group keys, the search and offline copies, drafts, sessionStorage
+  and the account's own localStorage entries (`ACCOUNT_KEYS`: last channel per guild, collapsed
+  categories and tasks; this device's settings stay) whether it answered or not (unanswered
+  requests go on with the old token; every one of them names it, and `utils/api.js` keeps a
+  token a request names, since by then the saved one may be a new login's). Contact pins
+  (`voicaw-contacts`) stay: they're what warns of a changed key when the same account logs in
+  here again. Only one logout runs at a time (ending the session tells this device's own socket
+  `session_revoked`, which logs out too), and one finishing after a new login leaves it alone:
+  before (2026-10-14), a second logout running late ended and forgot the new login (403s, then
+  logged out on reload). A web push subscription is dropped in the
   browser either way, so a logged-out browser gets no more of the account's notifications even
   when the server never heard. Before, a server that didn't answer left logout waiting
   forever, still logged in.

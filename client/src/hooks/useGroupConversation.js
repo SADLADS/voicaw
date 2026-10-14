@@ -15,6 +15,9 @@ import {
   fetchGroupMessageRanges,
 } from '../services/groupService';
 import { searchConversation } from '../services/searchIndex';
+import { loadChat } from '../services/offlineCopy';
+import { isOfflineMode, isUnreachable } from '../utils/offlineMode';
+import { useOfflineChat } from './useOfflineChat';
 import {
   decryptGroupMessage,
   decryptGroupReaction,
@@ -62,6 +65,11 @@ export function useGroupConversation({ groupId, user, onRead }) {
   const [pinsVersion, setPinsVersion] = useState(0);
   // Where the unread messages started when the group opened ({ id }; useConversation's).
   const [firstUnread, setFirstUnread] = useState(null);
+  // As useConversation's: whose messages these are, and whether from the offline copy (then
+  // read-only; the group itself comes from the copy's saved /group-dms/:id in offline mode).
+  const [loadedFor, setLoadedFor] = useState(null);
+  const [fromCopy, setFromCopy] = useState(false);
+  const chatKey = groupId && user?.id ? `${user.id}/group/${groupId}` : null;
 
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -225,6 +233,8 @@ export function useGroupConversation({ groupId, user, onRead }) {
     setGroup(null);
     setHasMore(true);
     setError(null);
+    setLoadedFor(null);
+    setFromCopy(false);
     if (!groupId || !user?.id) {
       setIsLoading(false);
       return undefined;
@@ -237,15 +247,31 @@ export function useGroupConversation({ groupId, user, onRead }) {
         if (cancelled) return;
         groupRef.current = opened;
         setGroup(opened);
-        if (opened.name?.legacy && !opened.problems.length) {
+        if (opened.name?.legacy && !opened.problems.length && !isOfflineMode()) {
           renameGroup(user, groupId, opened.name.name, { initial: true, opened })
             .catch((err) => console.warn("Failed to encrypt the group's name", err));
         }
-        const page = await fetchGroupMessages(groupId, { limit: GROUP_PAGE_SIZE });
+        let page = null;
+        try {
+          if (!isOfflineMode()) page = await fetchGroupMessages(groupId, { limit: GROUP_PAGE_SIZE });
+        } catch (e) {
+          if (!isUnreachable(e)) throw e;
+        }
+        if (!page) {
+          const saved = await loadChat(chatKey, { limit: GROUP_PAGE_SIZE });
+          if (cancelled) return;
+          if (!saved) throw new Error(t('app.offline.notSaved'));
+          setMessages(saved.messages);
+          setHasMore(saved.hasMore);
+          setFromCopy(true);
+          setLoadedFor(chatKey);
+          return;
+        }
         const rows = await Promise.all(page.map(decryptRow));
         if (cancelled) return;
         setMessages(rows);
         setHasMore(page.length >= GROUP_PAGE_SIZE);
+        setLoadedFor(chatKey);
         markRead(rows.at(-1)?.id ?? 0, { opening: true });
       } catch (e) {
         if (cancelled) return;
@@ -268,6 +294,13 @@ export function useGroupConversation({ groupId, user, onRead }) {
     loadingOlder.current = true;
     const requestedFor = groupId;
     try {
+      if (fromCopy) {
+        const saved = await loadChat(chatKey, { before: oldest.id, limit: GROUP_PAGE_SIZE });
+        if (activeGroupId.current !== requestedFor) return;
+        if (saved?.messages.length) setMessages((prev) => [...saved.messages, ...prev]);
+        setHasMore(Boolean(saved?.hasMore));
+        return;
+      }
       const page = await fetchGroupMessages(requestedFor, { before: oldest.id, limit: GROUP_PAGE_SIZE });
       const rows = await Promise.all(page.map(decryptRow));
       if (activeGroupId.current !== requestedFor) return;
@@ -394,11 +427,19 @@ export function useGroupConversation({ groupId, user, onRead }) {
     return Promise.all((await fetchGroupPins(groupId)).map(decryptRow));
   }
 
+  useOfflineChat({
+    chat: chatKey,
+    messages,
+    hasMore,
+    live: loadedFor === chatKey && !fromCopy,
+    fetchRanges: (ranges) => fetchGroupMessageRanges(groupId, ranges),
+  });
+
   // Searches the group on this device (services/searchIndex.js), as useConversation's. Only
   // messages that open and whose signature checks out are kept (unsigned old ones too, marked).
   function searchMessages(params, options) {
     return searchConversation({
-      key: `${user.id}/group/${groupId}`,
+      key: chatKey,
       fetchPage: (before, limit) => fetchGroupMessages(groupId, before == null ? { limit } : { before, limit }),
       toEntries: async (rows) => (await Promise.all(rows.filter((r) => !r.system).map(async (r) => {
         const text = await decryptText(r.content, r.epoch, r.sender_id, signatureContextOf(r));
@@ -406,7 +447,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
         return { i: r.id, s: r.sender_id, t: r.timestamp, p: text.plaintext, ...(text.unsigned ? { u: 1 } : {}) };
       }))).filter(Boolean),
       fetchRanges: (ranges) => fetchGroupMessageRanges(groupId, ranges),
-    }, params, options);
+    }, params, fromCopy ? { ...options, sync: false } : options);
   }
 
   // A message's earlier versions (EditHistoryDialog), decrypted and checked like the message:
@@ -557,5 +598,6 @@ export function useGroupConversation({ groupId, user, onRead }) {
     setPinned,
     loadEdits,
     searchMessages,
+    offlineCopy: fromCopy,
   };
 }

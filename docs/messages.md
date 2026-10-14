@@ -610,6 +610,58 @@ stays small and the history is downloaded once:
 
 `e2e/dmsearch.mjs` checks it in the browser.
 
+## Offline copy
+
+Built 2026-10-14. DMs, group DMs and notes this device has shown can be read without a
+connection: text only (no attachments, pictures or link previews' pictures; guild channels and bot
+DMs aren't kept), read-only, on by default (Settings → Privacy → Storage on this device, "Keep an
+offline copy", `utils/privacy.js` `offlineCopy`). The user chose: only the encrypted chats, no
+sending queued while offline. Online, the app reads everything from the server as before; the copy
+only follows.
+
+- **The store** (`services/offlineCopy.js`, IndexedDB `voicaw-offline`): each message as its chat
+  hook showed it (decrypted, reactions too, without the ciphertext fields), AES-GCM-encrypted one
+  by one under a non-extractable key made on the device (as the search copy's), bound to its chat
+  and id; per chat, the id ranges ("runs") it holds without gaps. Ids, edit times and who a chat
+  is with are in the clear (the server knows them). About 1 KB per message.
+- **Following a chat** (`hooks/useOfflineChat.js`, used by `useConversation` and
+  `useGroupConversation`): while a chat's messages came from the server, what it shows (from the
+  oldest loaded to now, so edits, deletes, reactions and pins seen live are in it) is saved at
+  once when it opens, then 0.5 s after each change (only changed messages are re-encrypted);
+  anything saved from the oldest shown on that isn't shown any more was deleted. The first save
+  after opening also checks the older saved parts with the search copy's per-range counts
+  (`checkChat`, ranges of 200) and drops ranges where something was deleted or edited since
+  (reactions added there meanwhile aren't noticed). Runs that overlap join; ones that don't stay
+  apart (ids are shared by every conversation, so there may be messages between), and offline a
+  chat shows only its newest run, never passing a gap.
+- **The lists** (`utils/api.js` `OFFLINE_GETS`): `/profile`, `/config`, `/dms-list`,
+  `/dm-get-unread`, `/group-dms`, `/group-dms/:id` (members, log and wrapped epoch keys, so
+  `openGroup` works offline), `/conversation-settings`, `/preferences`, `/blocks`, `/friends`.
+  Each answer is saved (sealed the same way) for the account the request was sent as (the token's
+  `id`), never after a logout or another login; and given back only when the server can't be
+  reached (no answer, a timeout, or the proxy's 502/503/504; never for a refusal) and either in
+  offline mode or when the request asks (`offlineCopy: 'fallback'`).
+- **Offline mode** (`utils/offlineMode.js`): `AuthProvider`'s first `/profile` asks with
+  `'fallback'`; answered from the copy, the app opens in offline mode instead of "Can't reach
+  Voicaw": `OfflineBanner` ("You're offline", dismissible), no websocket, everyone shown offline,
+  chats from the copy (`offlineCopy: true` from the hooks; ChatPane then locks the composer with a
+  notice, no hover tools, and menus keep only what needs no server: Copy). A chat never saved says
+  so. Search reads only what the search copy already holds. `/profile` is asked again every 5 s
+  (`'never'`): once the server answers, the banner says so and Reconnect reloads the app; a
+  refusal (logged out elsewhere meanwhile) forgets the login. Online, a chat whose history can't
+  be fetched (the server gone mid-session) opens from the copy too, read-only.
+- **The web app** needs its page without a network: the service worker answers a failed page
+  load with the precached `index.html` (network first, so nothing changes online). The desktop
+  and Android apps ship their pages.
+- **Storage on this device** (`StorageSettings.jsx`, a subsection of Privacy): what the browser
+  says Voicaw uses (`navigator.storage.estimate`), the offline and search copies' sizes with their
+  switches (off deletes) and Clear, and on the web whether the browser keeps the storage when
+  space runs low (`navigator.storage.persisted`, "Ask to keep it" = `persist()`; Chrome decides by
+  itself, Firefox asks, Safari deletes a site's storage after 7 days without a visit unless it's
+  on the Home Screen). Measuring never makes a deleted database again.
+- **Logging out** deletes it (see Logging out in `docs/auth-and-encryption.md`).
+- Checks: `e2e/offline.mjs`, `e2e/offlinepwa.mjs` (a production build, no network at all).
+
 ## DM message list and history loading
 
 `MessageList` is deliberately **not virtualized**: every loaded message is rendered in a plain

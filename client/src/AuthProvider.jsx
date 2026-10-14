@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import api from './utils/api';
 import { AuthContext } from './hooks/useAuth';
+import { setOfflineMode, setReachable } from './utils/offlineMode';
+import { forgetLogin } from './services/logout';
 
 // How long to wait before asking again when the server can't be reached.
 const RETRY_MS = 3000;
 // How long the profile may take: a server that takes connections but never answers (stuck,
 // restarting) counts as unreachable, rather than leaving a blank page.
 const PROFILE_TIMEOUT_MS = 10000;
+// In offline mode, how often to look for the server again.
+const OFFLINE_RETRY_MS = 5000;
 
 // Only the server saying the login is no good ends the session. Anything else (no network
 // yet after the computer starts, the API restarting) is retried, so a saved login isn't
@@ -32,8 +36,14 @@ export function AuthProvider({ children }) {
         return;
       }
       try {
-        const res = await api.get('/profile', { timeout: PROFILE_TIMEOUT_MS });
+        // Without the server, the offline copy's (services/offlineCopy.js): the app opens in
+        // offline mode, showing what this device saved, read-only.
+        const res = await api.get('/profile', { timeout: PROFILE_TIMEOUT_MS, offlineCopy: 'fallback' });
         if (cancelled) return;
+        if (res.fromOfflineCopy) {
+          setOfflineMode(true);
+          retryTimer = setTimeout(lookForServer, OFFLINE_RETRY_MS);
+        }
 
         if (res.data && res.data.id) {
           setUser({
@@ -60,6 +70,23 @@ export function AuthProvider({ children }) {
           setUnreachable(true);
           retryTimer = setTimeout(fetchProfile, RETRY_MS);
         }
+      }
+    }
+
+    // Offline mode: once the server answers, OfflineBanner offers to reconnect. If it says the
+    // login is no good any more (logged out elsewhere meanwhile), this device forgets it.
+    async function lookForServer() {
+      try {
+        await api.get('/profile', { timeout: PROFILE_TIMEOUT_MS, offlineCopy: 'never' });
+        if (!cancelled) setReachable();
+      } catch (err) {
+        if (cancelled) return;
+        if (isRejected(err)) {
+          await forgetLogin();
+          window.location.reload();
+          return;
+        }
+        retryTimer = setTimeout(lookForServer, OFFLINE_RETRY_MS);
       }
     }
 
