@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFile } from '@fortawesome/free-solid-svg-icons';
 import VideoPlayer from './VideoPlayer';
@@ -6,6 +6,8 @@ import MediaCover from './MediaCover';
 import { saveUrlAs } from '../utils/saveFile';
 import { mediaBoxStyle } from '../utils/mediaBox';
 import { useMediaCover } from '../hooks/useMediaCover';
+import { ImageViewerContext } from '../contexts';
+import { galleryAround, galleryItemRef } from '../utils/imageGallery';
 import { t } from '../i18n';
 
 function fileSize(bytes) {
@@ -18,8 +20,11 @@ function fileSize(bytes) {
 // not encrypted, like the rest of a guild): images, videos and sounds inline, anything else a
 // download box. Files whose URL is in `shownElsewhere` (an embed's image) are left out. Images
 // and videos are covered in an NSFW channel (MediaCover); a covered video isn't loaded.
+// Images open in the image viewer with the message's other images, like people's; they stay
+// links, so a middle or Ctrl click still opens one in a new tab.
 export default function MessageFiles({ attachments, shownElsewhere = [] }) {
   const cover = useMediaCover();
+  const viewer = useContext(ImageViewerContext);
   const files = (attachments ?? []).filter((file) => !shownElsewhere.includes(file.url));
   if (!files.length) return null;
   return (
@@ -29,7 +34,21 @@ export default function MessageFiles({ attachments, shownElsewhere = [] }) {
         if (type.startsWith('image/')) {
           return (
             <MediaCover key={file.id} label={cover} name={file.filename}>
-              <a href={file.url} target="_blank" rel="noopener noreferrer" className="message-file-image">
+              <a
+                href={file.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="message-file-image"
+                {...(viewer ? {
+                  ref: galleryItemRef({ src: file.url, name: file.filename, size: file.size, width: file.width, height: file.height }),
+                  'data-gallery-item': '',
+                  onClick: (e) => {
+                    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+                    e.preventDefault();
+                    viewer.openImage(galleryAround(e.currentTarget));
+                  },
+                } : {})}
+              >
                 <img src={file.url} alt={file.description ?? file.filename} width={file.width} height={file.height} loading="lazy" />
               </a>
             </MediaCover>

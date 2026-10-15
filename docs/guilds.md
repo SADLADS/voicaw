@@ -702,7 +702,9 @@ like the rest of a guild.
 - **Drawing** (`MessageList`): the webhook's picture and name with an APP tag, no profile card;
   `MessageEmbeds` (colour bar, provider, author, title link, markdown description and fields,
   inline fields three across, image, thumbnail, footer and time) and `MessageFiles` (images,
-  video, audio inline, else a download box; a file an embed already shows isn't repeated).
+  video, audio inline, else a download box; a file an embed already shows isn't repeated;
+  images open in the image viewer with the message's other images, and stay links, so a
+  Ctrl or middle click opens a new tab).
   Links open without a referrer; images in embeds and an `avatar_url` override come **straight
   from other sites** (no referrer), so those sites see readers' IP addresses, as with other
   sites' images in messages. A webhook's messages group only with the same webhook under the
