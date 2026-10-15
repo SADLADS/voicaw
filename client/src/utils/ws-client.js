@@ -3,6 +3,7 @@ import { applyActivitiesSnapshot, applyUserActivities, resetActivities } from '.
 import { resetVoiceStreams } from './voiceStreams';
 import { mergeProfiles } from './profiles';
 import { applyTyping, resetTyping } from './typing';
+import { sameLogin } from './loginToken';
 import { desktopNotificationsOn } from '../services/pushService';
 import { playMessageSound } from '../sounds/sounds';
 
@@ -21,6 +22,7 @@ const groupListeners = new Set();
 const botDmListeners = new Set();
 const notificationListeners = new Set();
 const loggedOutListeners = new Set();
+const loginReplacedListeners = new Set();
 const approvedListeners = new Set();
 const signupRequestListeners = new Set();
 const testerRequestListeners = new Set();
@@ -173,6 +175,8 @@ export function connectWebSocket() {
   const url = import.meta.env.VITE_WS_URL;
   console.log("Connecting to WebSocket:", url);
   const socket = new WebSocket(url);
+  // The login it's for: the one saved may change under it (another tab logs in).
+  socket.token = token;
   ws = socket;
   setConnectionState(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'connecting');
 
@@ -480,6 +484,13 @@ export function onLoggedOutElsewhere(callback) {
   return () => loggedOutListeners.delete(callback);
 }
 
+// The login this page started with has ended and another tab has saved a new one (see
+// loggedOutElsewhere): time to reload onto it.
+export function onLoginReplaced(callback) {
+  loginReplacedListeners.add(callback);
+  return () => loginReplacedListeners.delete(callback);
+}
+
 // An admin approved this account, which was waiting (server/signups.js): this socket carries on
 // as a logged-in one.
 export function onAccountApproved(callback) {
@@ -503,6 +514,14 @@ export function onTesterRequests(callback) {
 function loggedOutElsewhere(socket) {
   if (socket.loggedOut) return;
   socket.loggedOut = true;
+  // The socket's login ended, but another one is saved now: this page slept (a background tab,
+  // a laptop's lid) while another tab logged out and in again. Logging out would end that new
+  // login (logout ends the saved one): the page picks it up instead.
+  const saved = localStorage.getItem('token');
+  if (saved && !sameLogin(saved, socket.token)) {
+    loginReplacedListeners.forEach((cb) => cb());
+    return;
+  }
   loggedOutListeners.forEach((cb) => cb());
 }
 

@@ -18,6 +18,7 @@ vi.mock('./utils/ws-client', () => ({
     loggedOut.listener = cb;
     return () => {};
   }),
+  onLoginReplaced: vi.fn(() => () => {}),
 }));
 
 vi.mock('./services/keyStore', () => ({

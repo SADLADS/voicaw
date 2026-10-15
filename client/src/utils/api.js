@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { loadDoc, saveDoc } from '../services/offlineCopy';
 import { isOfflineMode, isUnreachable } from './offlineMode';
+import { tokenClaims } from './loginToken';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -45,16 +46,8 @@ const offlineName = (config) => {
   return OFFLINE_GETS.some((pattern) => pattern.test(url)) ? url : null;
 };
 
-// The account id in a login token ("Bearer <JWT>"; only read, the server checks it).
-function accountOf(authorization) {
-  try {
-    const payload = authorization?.split(' ')[1]?.split('.')[1];
-    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(json).id ?? null;
-  } catch {
-    return null;
-  }
-}
+// The account id in a login token ("Bearer <JWT>").
+const accountOf = (authorization) => tokenClaims(authorization?.split(' ')[1])?.id ?? null;
 
 api.interceptors.response.use((res) => {
   const name = offlineName(res.config);

@@ -7,6 +7,7 @@ import {
   onEditDm,
   setActiveChat,
   onLoggedOutElsewhere,
+  onLoginReplaced,
 } from './ws-client';
 import { presenceOf } from './presence';
 
@@ -247,6 +248,48 @@ describe('reconnect behavior', () => {
     connectWebSocket();
     MockWebSocket.instances[0].close(1008, 'Invalid token');
     expect(loggedOut).toHaveBeenCalledTimes(1);
+  });
+
+  // A login token whose payload says `claims` (only read by the client).
+  const tokenFor = (claims, signature = 'sig') => `h.${btoa(JSON.stringify(claims)).replace(/=+$/, '')}.${signature}`;
+
+  // This page slept while another tab logged out and in again: ending its socket's login must
+  // not log out the new one (logout ends the saved token).
+  it('reloads onto a new login saved meanwhile instead of logging out', () => {
+    globalThis.localStorage.setItem('token', tokenFor({ id: 1, sid: 'old' }));
+    const loggedOut = vi.fn();
+    const replaced = vi.fn();
+    const stopOut = onLoggedOutElsewhere(loggedOut);
+    const stopReplaced = onLoginReplaced(replaced);
+    connectWebSocket();
+    const socket = MockWebSocket.instances[0];
+    socket._open();
+    globalThis.localStorage.setItem('token', tokenFor({ id: 1, sid: 'new' }));
+
+    socket._receive({ type: 'session_revoked' });
+    socket.close(1008, 'Logged out');
+    expect(loggedOut).not.toHaveBeenCalled();
+    expect(replaced).toHaveBeenCalledTimes(1);
+    stopOut();
+    stopReplaced();
+  });
+
+  it('still logs out when the saved token is the same login renewed', () => {
+    globalThis.localStorage.setItem('token', tokenFor({ id: 1, sid: 's1' }, 'first'));
+    const loggedOut = vi.fn();
+    const replaced = vi.fn();
+    const stopOut = onLoggedOutElsewhere(loggedOut);
+    const stopReplaced = onLoginReplaced(replaced);
+    connectWebSocket();
+    const socket = MockWebSocket.instances[0];
+    socket._open();
+    globalThis.localStorage.setItem('token', tokenFor({ id: 1, sid: 's1' }, 'renewed'));
+
+    socket._receive({ type: 'session_revoked' });
+    expect(loggedOut).toHaveBeenCalledTimes(1);
+    expect(replaced).not.toHaveBeenCalled();
+    stopOut();
+    stopReplaced();
   });
 });
 

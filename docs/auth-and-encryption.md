@@ -70,7 +70,12 @@ the session exists, and only shown to the account itself.
   one, or every other one after a confirmation, out. `ws-client` calls `onLoggedOutElsewhere`
   listeners (App logs out) on `session_revoked`, `account_deleted`, or a socket closed with 1008
   (the token refused at identify, e.g. a device that was asleep when it was logged out); it
-  doesn't reconnect then.
+  doesn't reconnect then. Each socket keeps the token it was opened with: if the saved one is by
+  then another session (`utils/loginToken.js` `sameLogin` compares `sid`s, so a renewed token
+  is the same login), the page slept while another tab logged out and in again, and it calls
+  `onLoginReplaced` instead (App reloads onto the new login). Before (2026-10-15) it logged out,
+  and logout ends the *saved* token: the other tab's new login got 403s ("Invalid token") a few
+  minutes after logging in (`e2e/stalelogout.mjs`).
 - **Tokens from before sessions** (no `sid`) still work: on first use they become a session
   named after the token's hash (so the requests a device sends at once share one row) and are
   renewed with a `sid` straight away. Ending any session from Settings sets

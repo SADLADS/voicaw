@@ -22,7 +22,7 @@ import api from './utils/api';
 import './assets/css/mobile.css';
 import './assets/css/desktop.css';
 
-import { onLoggedOutElsewhere } from './utils/ws-client';
+import { onLoggedOutElsewhere, onLoginReplaced } from './utils/ws-client';
 import { forgetLogin, logOut } from './services/logout';
 import EmojiProvider from './emoji/EmojiProvider';
 import UpdateBanner from './components/UpdateBanner';
@@ -90,6 +90,8 @@ export default function App() {
   // Logged out from another device (Settings → Devices), or the account was deleted there:
   // this one logs out too.
   useEffect(() => onLoggedOutElsewhere(() => logoutRef.current?.()), []);
+  // This page's login ended while another tab logged in again: it reloads onto the new one.
+  useEffect(() => onLoginReplaced(() => window.location.reload()), []);
 
   // The server's config, at start. Without it there are no profile pictures, guild icons or
   // custom emoji (their addresses start with s3Endpoint), so it's asked again until it comes:
