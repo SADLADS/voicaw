@@ -264,7 +264,9 @@ async function storeFiles(files, meta = []) {
     const body = Buffer.from(await file.arrayBuffer());
     const declared = INLINE_TYPES.test(file.type);
     let contentType = declared ? file.type : (EXTENSION_TYPES[filename.split('.').pop().toLowerCase()] ?? 'application/octet-stream');
-    const id = crypto.randomUUID();
+    // A number, as Discord's ids are: libraries read them as one (discord.py does int(id)).
+    // 63 random bits, since it also names the file's folder.
+    const id = (crypto.randomBytes(8).readBigUInt64BE() >> 1n).toString();
     const key = `webhooks/${id}/${filename}`;
     let size = {};
     if (contentType.startsWith('image/')) {

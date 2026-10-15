@@ -210,7 +210,10 @@ describe('executing a webhook (Discord API)', () => {
     expect(res.status).toBe(200);
     const [chart, page] = res.body.attachments;
     expect(chart).toMatchObject({ filename: 'chart.png', size: image.length, content_type: 'image/png', width: 64, height: 32, description: 'the chart' });
-    expect(chart.url).toMatch(/\/uploads\/webhooks\/[0-9a-f-]+\/chart\.png$/);
+    expect(chart.url).toMatch(/\/uploads\/webhooks\/\d+\/chart\.png$/);
+    // Ids are numbers, as Discord's (discord.py reads them with int()).
+    expect(res.body.attachments.map((a) => a.id)).toEqual([expect.stringMatching(/^\d+$/), expect.stringMatching(/^\d+$/)]);
+    expect(chart.id).not.toBe(page.id);
     expect(page).toMatchObject({ filename: 'page_one.html', content_type: 'application/octet-stream' });
     expect(objects.get(page.url.slice(page.url.indexOf('uploads/'))).contentType).toBe('application/octet-stream');
     expect(res.body.embeds[0].image).toEqual({ url: chart.url, width: 64, height: 32 });
@@ -323,4 +326,25 @@ describe('webhooks and pins', () => {
     expect(pinned).toMatchObject({ id: Number(sent.id), webhook_name: 'Captain Hook', sender_username: 'Captain Hook', embeds: [{ title: 'Pin me' }], pinned_by: owner.id });
   });
 });
+});
+
+describe('migration 16', () => {
+  it("gives files stored with a UUID id that UUID's number, which edits then keep by", async () => {
+    const db = require('../db');
+    const { hook } = await setUp();
+    const sent = await request(app).post(`${hookPath(hook)}?wait=true`)
+      .attach('files[0]', Buffer.from('one'), { filename: 'one.txt', contentType: 'text/plain' })
+      .attach('files[1]', Buffer.from('two'), { filename: 'two.txt', contentType: 'text/plain' });
+    const [one, two] = sent.body.attachments;
+    const uuid = '57f4516d-daa1-4a14-8033-5d78f27df12a';
+    await db.run('UPDATE guild_messages SET attachments = ? WHERE id = ?',
+      [JSON.stringify([{ ...one, id: uuid }, two]), sent.body.id]);
+    db.numberAttachmentIds();
+    const number = BigInt(`0x${uuid.replace(/-/g, '')}`).toString();
+    const got = await request(app).get(hookPath(hook, `/messages/${sent.body.id}`));
+    expect(got.body.attachments.map((a) => a.id)).toEqual([number, two.id]);
+    expect(got.body.attachments[0].url).toBe(one.url);
+    const edited = await request(app).patch(hookPath(hook, `/messages/${sent.body.id}`)).send({ attachments: [{ id: number }] });
+    expect(edited.body.attachments.map((a) => a.filename)).toEqual(['one.txt']);
+  });
 });

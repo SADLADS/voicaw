@@ -60,7 +60,10 @@ Unknown paths get Discord's 404.
   `deleteThread`, `setThreadMembership` (routes/threads.js), `createEvent`, `updateEvent`,
   `startEvent`, `endEvent`, `cancelEvent`, `setInterest` (guildEvents.js). Message bodies (content, embeds,
   files, `allowed_mentions`, flags) are checked by the webhook code (`routes/webhooks.js`
-  exports its helpers), so bots' messages can have embeds and files like webhooks'.
+  exports its helpers), so bots' messages can have embeds and files like webhooks'. Files' attachment
+  ids are random 63-bit numbers (`storeFiles`), as Discord's libraries read ids as numbers
+  (discord.py's `int(id)`); before 2026-10-15 they were UUIDs, and migration 16 turned stored
+  ones into the UUID's number.
 - **Endpoints**: gateway (`/gateway`, `/gateway/bot`), users (`@me` get/patch, guilds, leave,
   `/users/:id`), applications (`@me`, `oauth2/applications/@me`, commands: see Commands and
   interactions), guilds (get, channels, create channel, roles

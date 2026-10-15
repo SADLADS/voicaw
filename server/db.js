@@ -992,6 +992,29 @@ function befriendEveryone() {
         WHERE (ub.blocker_id = a.id AND ub.blocked_id = b.id) OR (ub.blocker_id = b.id AND ub.blocked_id = a.id))`);
 }
 
+// Migration 16: stored attachments (guild messages' and bot DMs', JSON) with a UUID id get the
+// UUID's 128 bits as a decimal id. Their files keep their keys: only the id changes.
+function numberAttachmentIds() {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  for (const table of ['guild_messages', 'bot_dm_messages']) {
+    // bot_dm_messages is made after the migrations: a new database has none to change.
+    if (!sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(table)) continue;
+    const rows = sqlite.prepare(`SELECT id, attachments FROM ${table} WHERE attachments IS NOT NULL`).all();
+    for (const row of rows) {
+      let list;
+      try {
+        list = JSON.parse(row.attachments);
+      } catch {
+        continue;
+      }
+      if (!Array.isArray(list) || !list.some((a) => uuid.test(String(a?.id)))) continue;
+      const attachments = JSON.stringify(list.map((a) => (uuid.test(String(a?.id))
+        ? { ...a, id: BigInt(`0x${a.id.replace(/-/g, '')}`).toString() } : a)));
+      sqlite.prepare(`UPDATE ${table} SET attachments = ? WHERE id = ?`).run(attachments, row.id);
+    }
+  }
+}
+
 // Changes to existing data that must happen once, numbered in SQLite's user_version (add the
 // next one at the end; each runs in its own transaction with its version bump):
 const MIGRATIONS = [
@@ -1057,6 +1080,9 @@ const MIGRATIONS = [
   // 15. Voice regions: the server's own LiveKit (.env) is the first, and the default.
   () => sqlite.prepare("INSERT INTO voice_regions (name, flag, builtin, is_default, created_at) VALUES ('Main', '', 1, 1, ?)")
     .run(Math.floor(Date.now() / 1000)),
+  // 16. Bots' and webhooks' files had UUIDs for ids, which Discord's libraries can't read
+  // (discord.py does int(id)): each becomes its UUID's number, as new ones are numbers.
+  () => numberAttachmentIds(),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');
@@ -1433,4 +1459,4 @@ async function indexGuildMessage(id) {
   await uploads.linkUploads('guild', row.id, uploads.guildMessageKeys(row));
 }
 
-module.exports = { db: sqlite, get, all, run, transaction, indexGuildMessage, lowercaseUsernames, befriendEveryone };
+module.exports = { db: sqlite, get, all, run, transaction, indexGuildMessage, lowercaseUsernames, befriendEveryone, numberAttachmentIds };
