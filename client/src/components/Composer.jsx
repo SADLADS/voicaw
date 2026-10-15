@@ -24,6 +24,7 @@ import { seedAttachmentCache } from '../services/attachmentCache';
 import { useAttachmentDrafts } from '../hooks/useAttachmentDrafts';
 import { useWindowFileDrop } from '../hooks/useFileDrop';
 import { useVoiceRecording } from '../hooks/useVoiceRecording';
+import { useBackClosesWhile } from '../hooks/useBackCloses';
 import MessageEditor from '../editor/MessageEditor';
 import {
   customEmojiByName,
@@ -557,6 +558,12 @@ export default function Composer({
   const visibleDrafts = attachments.drafts.filter((d) => referencedDraftIds.has(d.id));
   const pickedSources = visibleDrafts.filter((d) => d.source != null).map((d) => d.source);
   const attachPanelOpen = showAttachPanel && isMobile && !textOnly && !editing;
+  // Phone: the panels in the keyboard's place are an entry in history, so Back (and swiping to
+  // the list, which goes back past it) closes them rather than leaving the chat.
+  useBackClosesWhile(isMobile && (attachPanelOpen || showEmojiPicker), () => {
+    setShowAttachPanel(false);
+    setShowEmojiPicker(false);
+  }, 'voicawComposerPanel');
   // A phone's mic button takes Send's place while there's nothing to send (as in Discord).
   const showMic = isMobile && canRecord && (voice.active ? !voice.locked : !inputValue.trim());
 
@@ -670,8 +677,10 @@ export default function Composer({
               aria-label={t('common.add')}
               aria-haspopup={isMobile ? 'dialog' : 'menu'}
               aria-expanded={isMobile ? attachPanelOpen : addMenuOpen}
-              // Mobile: the box keeps the keyboard's state until toggleAdd decides.
-              onMouseDown={isMobile ? (e) => e.preventDefault() : undefined}
+              // Mobile: the box keeps the keyboard's state until toggleAdd decides, and the emoji
+              // panel's outside-click handler doesn't close it first (the button would drop
+              // away from under the finger before the click).
+              onMouseDown={isMobile ? (e) => { e.preventDefault(); e.stopPropagation(); } : undefined}
               onClick={toggleAdd}
             >
               <FontAwesomeIcon icon={faPlus} />

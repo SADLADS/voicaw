@@ -1,13 +1,23 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { act, render } from '@testing-library/react';
 import { BrowserRouter, unstable_HistoryRouter as HistoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { useSwipePanes } from './useSwipePanes';
+import { useBackClosesWhile } from './useBackCloses';
 import { showContent, showList } from '../utils/mobilePanes';
 import { createPhoneHistory, isPanesPage } from '../utils/phoneHistory';
 
 let navigate;
+let setPanel;
+
+// A panel over the chat with an entry of its own, as the message box's emoji and + panels.
+function Panel() {
+  const [open, setOpen] = useState(false);
+  setPanel = setOpen;
+  useBackClosesWhile(open, () => setOpen(false), 'testPanel');
+  return open ? <div data-testid="panel" /> : null;
+}
 
 // Layout's use of the panes: on for the chats (/dm..., /guild...) and Settings (its column and
 // page; /settings alone opens on the list), off elsewhere (/developers).
@@ -25,10 +35,12 @@ function Panes() {
     <div ref={wrapperRef} data-testid="wrapper">
       <div ref={listRef} />
       <div ref={scrimRef} />
-      <div ref={contentRef} />
+      <div ref={contentRef}><Panel /></div>
     </div>
   );
 }
+
+let panelOpen;
 
 // `phone`: with the phone's history (App.jsx), as on a phone.
 function start(path, { phone = false } = {}) {
@@ -36,8 +48,9 @@ function start(path, { phone = false } = {}) {
   const router = phone
     ? <HistoryRouter history={createPhoneHistory()}><Panes /></HistoryRouter>
     : <BrowserRouter><Panes /></BrowserRouter>;
-  const { getByTestId } = render(router);
+  const { getByTestId, queryByTestId } = render(router);
   const wrapper = getByTestId('wrapper');
+  panelOpen = () => Boolean(queryByTestId('panel'));
   return () => (wrapper.classList.contains('pane-content') ? 'content' : wrapper.classList.contains('pane-list') ? 'list' : 'off');
 }
 
@@ -161,5 +174,70 @@ describe('useSwipePanes', () => {
     await back();
     expect(pane()).toBe('list');
     expect(window.location.pathname).toBe('/settings/voice-video');
+  });
+
+  it('closes a panel over the chat with Back, staying in the chat', async () => {
+    const pane = start('/dm/1', { phone: true });
+    const entries = window.history.length;
+    await act(async () => setPanel(true));
+    expect(window.history.length).toBe(entries + 1);
+
+    await back();
+    expect(panelOpen()).toBe(false);
+    expect(pane()).toBe('content');
+    await back();
+    expect(pane()).toBe('list');
+  });
+
+  it('takes the entry back out when the panel closes some other way', async () => {
+    start('/dm/1', { phone: true });
+    await act(async () => setPanel(true));
+    const popped = new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
+    await act(async () => setPanel(false)); // its effect goes back once the update is done
+    await act(async () => popped);
+    expect(window.history.state.testPanel).toBeUndefined();
+    expect(window.history.state.voicawPane).toBe('pushed');
+  });
+
+  it('closes a panel when going to the list, landing on the list', async () => {
+    const pane = start('/dm/1', { phone: true });
+    await act(async () => setPanel(true));
+    await act(async () => {
+      const popped = new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
+      showList();
+      await popped;
+    });
+    expect(pane()).toBe('list');
+    expect(panelOpen()).toBe(false);
+    expect(window.history.state?.voicawPane).toBeUndefined();
+  });
+
+  it('does the same from a thread, whose entry was marked in place', async () => {
+    const pane = start('/guild/5/6', { phone: true });
+    await act(async () => navigate('/guild/5/6?thread=7'));
+    expect(window.history.state.voicawPane).toBe('replaced');
+    await act(async () => setPanel(true));
+    await act(async () => {
+      const popped = new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
+      showList();
+      await popped;
+    });
+    expect(pane()).toBe('list');
+    expect(panelOpen()).toBe(false);
+    expect(window.location.search).toBe('?thread=7');
+    expect(window.history.state?.voicawPane).toBeUndefined();
+  });
+
+  it('goes to the list from a panel that closed a moment before (a tap outside it on the arrow)', async () => {
+    const pane = start('/dm/1', { phone: true });
+    await act(async () => setPanel(true));
+    await act(async () => setPanel(false)); // the panel's outside-click handler, on mousedown
+    const popped = new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
+    await act(async () => showList()); // the arrow's click
+    await act(async () => popped);
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 600))); // past its entry's delay
+    expect(pane()).toBe('list');
+    expect(window.history.state?.voicawPane).toBeUndefined();
+    expect(window.history.state?.testPanel).toBeUndefined();
   });
 });

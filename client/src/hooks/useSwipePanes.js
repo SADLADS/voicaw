@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { onPaneRequest, takePendingContent } from '../utils/mobilePanes';
 import { isPanesPage } from '../utils/phoneHistory';
 import { isTouchDragging } from './usePointerDrag';
+import { OVERLAYS } from './useBackCloses';
 
 // The phone layout's two panes, Discord style: the list (rail + conversations or channels)
 // underneath, and the content (the chat) on top, which slides in from the right. A horizontal
@@ -16,7 +17,9 @@ import { isTouchDragging } from './usePointerDrag';
 // 'replaced' when a navigation made while the chat showed was marked in place. On phones, going
 // from one chat to another replaces the entry (utils/phoneHistory.js), so the list's entry
 // keeps the page it last showed: going back to it shows the list of the chat just left (the
-// guild's channels, or the DMs), as Discord does, not the one before.
+// guild's channels, or the DMs), as Discord does, not the one before. Panels over the chat with
+// entries of their own (useBackCloses: the message box's emoji and + panels) are gone past in
+// the same step, which closes them.
 //
 // The panes only have a transform while moving: at rest the one on screen has none, since a
 // transform would become the containing block of everything `position: fixed` inside it.
@@ -40,6 +43,7 @@ const NO_SWIPE = '.emoji-picker, .action-sheet-backdrop, .action-sheet, .member-
   + '[role="dialog"], input[type="range"], [data-no-pane-swipe]';
 
 const markOf = () => window.history.state?.[MARK];
+const overlaysOf = () => window.history.state?.[OVERLAYS] ?? 0;
 
 function setMark(kind, push) {
   const state = { ...window.history.state, [MARK]: kind };
@@ -85,6 +89,7 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
   const lastMark = useRef(null);
   const contentPath = useRef(null); // the page the chat last showed
   const leavingContent = useRef(false); // slideTo went back from the chat's entry
+  const clearingMark = useRef(false); // slideTo went back past panels to a 'replaced' entry
   const wasEnabled = useRef(null);
 
   const width = useCallback(() => wrapperRef.current?.clientWidth || window.innerWidth, [wrapperRef]);
@@ -156,7 +161,11 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
         });
       } else if (markOf() === 'pushed') {
         leavingContent.current = true;
-        window.history.back(); // popstate lands here again, already on its way
+        window.history.go(-1 - overlaysOf()); // popstate lands here again, already on its way
+      } else if (markOf() && overlaysOf()) {
+        leavingContent.current = true;
+        clearingMark.current = true;
+        window.history.go(-overlaysOf()); // to the chat's entry, whose mark popstate then clears
       } else if (markOf()) {
         clearMark();
       }
@@ -227,6 +236,8 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
   useEffect(() => {
     if (!enabled) return undefined;
     const onPopState = () => {
+      if (clearingMark.current && markOf() && !overlaysOf()) clearMark();
+      clearingMark.current = false;
       const next = markOf() ? 'content' : 'list';
       const fromContent = paneRef.current === 'content' || leavingContent.current;
       leavingContent.current = false;

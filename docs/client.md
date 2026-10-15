@@ -379,7 +379,13 @@
   the voice bar); a thread or a voice channel's chat (same page, other search params), Settings
   and the developer portal keep an entry of their own, so Back closes them. Going back to the
   list's entry shows the list of the chat just left (a channel link from a DM: that guild's
-  channels), since the useSwipePanes popstate handler replaces it with the chat's page (noted whenever the chat is shown, not only when the URL changes: a guild opened on the rail shows its channels, and swiping to its chat and back must keep that guild, not bring back the DM shown before; `e2e/guildswipe.mjs`). Every chat's header (DM, group DM, bot DM, notes, guild channel) starts with a back arrow
+  channels), since the useSwipePanes popstate handler replaces it with the chat's page (noted whenever the chat is shown, not only when the URL changes: a guild opened on the rail shows its channels, and swiping to its chat and back must keep that guild, not bring back the DM shown before; `e2e/guildswipe.mjs`). The message box's panels in the
+  keyboard's place (the + panel, the emoji/GIF panel) are an entry too while open
+  (`useBackClosesWhile`), so Back closes them and stays in the chat; entries like it count
+  themselves in `history.state.voicawOverlays`, and going to the list (a swipe, the arrow) goes
+  back past them in one step, closing them. A panel closed some other way takes its entry out
+  after 400 ms, so a tap outside the emoji panel (which closes it on mousedown) that lands on +
+  or the arrow still finds history as it was (`e2e/composerback.mjs`). Every chat's header (DM, group DM, bot DM, notes, guild channel) starts with a back arrow
   on phones (`PaneBackButton`, like Discord's): it shows the chat can be swiped away, and
   pressing it slides to the list the same way (`showList()`); threads and voice channels' chat
   have their own, back to their channel. Open the chat from elsewhere with `showContent()`
