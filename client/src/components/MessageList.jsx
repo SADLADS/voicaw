@@ -681,7 +681,9 @@ export function MessageRow({
 // How close to the top (in viewport heights) to start fetching older history, so it's
 // usually in place before the user gets there.
 const LOAD_OLDER_WITHIN_VIEWPORTS = 1.5;
-// Within this many px of the bottom counts as "at the bottom" (keep following new messages).
+// Within this many px of the bottom counts as "at the bottom" (keep following new messages),
+// on top of the blank space under the newest message (the list's bottom padding): a finger
+// scroll that stops anywhere in that space shows the newest message whole, so it's the bottom.
 const PINNED_TOLERANCE_PX = 4;
 
 const rowKey = (msg) => String(msg.clientKey ?? msg.id);
@@ -904,6 +906,14 @@ export default function MessageList({
   }, []);
   useLayoutEffect(() => follow(pinnedToBottom.current), [follow]);
 
+  // How far from the very bottom still counts as at the bottom (PINNED_TOLERANCE_PX).
+  const bottomSlack = useRef(PINNED_TOLERANCE_PX);
+  const measureBottomSlack = useCallback(() => {
+    const padding = contentRef.current ? parseFloat(getComputedStyle(contentRef.current).paddingBottom) : 0;
+    bottomSlack.current = PINNED_TOLERANCE_PX + (Number.isFinite(padding) ? padding : 0);
+  }, []);
+  useLayoutEffect(measureBottomSlack, [measureBottomSlack]);
+
   const rememberAnchor = useCallback(() => {
     if (NATIVE_SCROLL_ANCHORING) return;
     const scroller = scrollerRef.current;
@@ -957,7 +967,7 @@ export default function MessageList({
     // in a frame, so the one from our own scroll to the bottom can find rows already taller
     // (embed pictures loading as a webhook posts) and a gap below: that's not leaving the bottom.
     const top = scroller.scrollTop;
-    const atBottom = scroller.scrollHeight - top - scroller.clientHeight <= PINNED_TOLERANCE_PX;
+    const atBottom = scroller.scrollHeight - top - scroller.clientHeight <= bottomSlack.current;
     const movedUp = lastScrollTop.current !== null && top < lastScrollTop.current - 1;
     lastScrollTop.current = top;
     follow(atBottom || (pinnedToBottom.current && !movedUp));
@@ -996,6 +1006,7 @@ export default function MessageList({
   // after layout but before paint, so the correction is never seen.
   useEffect(() => {
     const observer = new ResizeObserver(() => {
+      measureBottomSlack();
       keepAnchorInPlace();
       rememberAnchor();
       lastListHeight.current = scrollerRef.current?.clientHeight ?? null;
@@ -1004,7 +1015,7 @@ export default function MessageList({
     observer.observe(contentRef.current);
     observer.observe(scrollerRef.current);
     return () => observer.disconnect();
-  }, [keepAnchorInPlace, rememberAnchor, rehover]);
+  }, [measureBottomSlack, keepAnchorInPlace, rememberAnchor, rehover]);
 
   // The "New" divider goes above the first message from `newFrom` on (useNewDivider).
   const newIndex = useMemo(

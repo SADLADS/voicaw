@@ -681,6 +681,11 @@ off (`overflow-anchor: none` on the scroller), since it could pull the view up a
 its anchor changed. Before, a burst of webhook embeds whose pictures load at random moments
 could leave the chat a little above the bottom, and then no longer following.
 `e2e/scrollpin.mjs` checks that.
+"At the bottom" includes the blank space under the newest message (the list's bottom padding,
+room for the typing line, plus 4px; 2026-10-16): a finger scroll on a phone that stops in it shows
+the newest message whole, but used to count as scrolled away, so the message box growing while
+typing (or a new message) didn't move the chat up. `e2e/composergrow.mjs` checks the box growing
+on a phone, with the keyboard up or not.
 
 Messages are grouped like Discord's (`utils/messageGroups.js` `continuesGroup`): one from the
 same person within 7 minutes of the row above, on the same day and not a reply, drops its
