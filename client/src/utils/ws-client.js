@@ -6,6 +6,7 @@ import { applyTyping, resetTyping } from './typing';
 import { sameLogin } from './loginToken';
 import { desktopNotificationsOn } from '../services/pushService';
 import { playMessageSound } from '../sounds/sounds';
+import { catchUp } from './catchUp';
 
 let ws;
 let token;
@@ -286,6 +287,9 @@ export function connectWebSocket() {
         applyActivitiesSnapshot(data.activities);
         identified = true;
         if (ownActivities.length) sendActivities();
+        // Identified: from now on chats' events come this way. Nothing sent before did, so
+        // open chats fetch what they missed (utils/catchUp.js).
+        catchUp();
       }
       else if (data.type === 'user_activities') {
         applyUserActivities(data);

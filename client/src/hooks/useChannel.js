@@ -12,6 +12,8 @@ import {
   setChannelMessageEmbedsSuppressed,
   fetchMessageEditHistory,
 } from '../services/guildService';
+import { useCatchUp } from './useCatchUp';
+import { mergeNewestPage } from '../utils/catchUp';
 
 // Older history is fetched in pages this size as you scroll up.
 export const CHANNEL_PAGE_SIZE = 50;
@@ -243,6 +245,17 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
     const { flags } = await setChannelMessageEmbedsSuppressed(msg.id, true);
     updateMessage(msg.id, () => ({ flags }));
   }
+
+  // Whatever the websocket missed (the phone asleep, a reconnect): the newest page again.
+  useCatchUp(async () => {
+    const requestedFor = chatKey;
+    const page = (await fetchChannelMessages(channelId, pageParams({ limit: CHANNEL_PAGE_SIZE }))).map(toChatMessage);
+    if (activeChannelId.current !== requestedFor) return;
+    const { gap, added } = mergeNewestPage(messagesRef.current, page, CHANNEL_PAGE_SIZE);
+    setMessages((prev) => mergeNewestPage(prev, page, CHANNEL_PAGE_SIZE).messages);
+    if (gap) setHasMore(true);
+    if (added.length) markRead(page[page.length - 1].id);
+  }, loadedChannelId != null && String(loadedChannelId) === String(channelId));
 
   // The server doesn't push messages here while this device is looking at the channel.
   useEffect(() => {

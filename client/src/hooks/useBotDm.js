@@ -3,6 +3,8 @@ import { onBotDmEvent, setActiveChat } from '../utils/ws-client';
 import {
   deleteBotDmMessage, editBotDmMessage, fetchBotDmMessages, markBotDmRead, sendBotDmMessage,
 } from '../services/botDmService';
+import { useCatchUp } from './useCatchUp';
+import { mergeNewestPage } from '../utils/catchUp';
 
 export const BOT_DM_PAGE_SIZE = 50;
 
@@ -133,6 +135,17 @@ export function useBotDm({ dmId, user, onRead }) {
     await deleteBotDmMessage(dmId, messageId);
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
   }
+
+  // Whatever the websocket missed (the phone asleep, a reconnect): the newest page again.
+  useCatchUp(async () => {
+    const requestedFor = dmId;
+    const page = await fetchBotDmMessages(requestedFor, { limit: BOT_DM_PAGE_SIZE });
+    if (activeDm.current !== requestedFor) return;
+    const { gap, added } = mergeNewestPage(messagesRef.current, page, BOT_DM_PAGE_SIZE);
+    setMessages((prev) => mergeNewestPage(prev, page, BOT_DM_PAGE_SIZE).messages);
+    if (gap) setHasMore(true);
+    if (added.length) markRead(page[page.length - 1].id);
+  }, loadedChannelId === dmId && dmId != null);
 
   // The server doesn't push for this conversation while it's on screen.
   useEffect(() => {

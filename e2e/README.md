@@ -10,6 +10,7 @@ Windows, without voice unless `LIVEKIT_BIN` points at a LiveKit):
 node e2e/serve.mjs &     # web :5199, API :3099, object store :3100, LiveKit :3101-3103;
                          # E2E_WEB/API/S3/LIVEKIT_PORT
 node e2e/smoke.mjs       # two users, one message delivered live; an example to copy
+node e2e/catchup.mjs     # an open DM gets what its websocket missed: dropped, then a reconnect; dropped, then the app hidden 5 s+ and shown (a notification tap); once each, live ones still once
 node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots into dir
 node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permissions
 node e2e/auditlog.mjs [dir] # audit log: mod deletes a message, role change, details, filters, no access, phone

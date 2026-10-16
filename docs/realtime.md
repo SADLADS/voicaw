@@ -51,7 +51,8 @@ with the new count; see Events in `docs/guilds.md`),
 Client side, `client/src/utils/ws-client.js` wraps this with `connectWebSocket`/`closeWebSocket`
 and a pub/sub listener API (`onNewDm`, `onDeleteDm`, `onEditDm`, `onReactionAdd`, `onReactionRemove`, `onDmPin`, `onGuildEvent`,
 `onCallEvent`, `onGroupEvent`), auto-reconnecting
-every 3s on close. All non-realtime DM operations (fetch history, send, mark read) go through the
+every 3s on close. Events sent while a socket was closed are lost, so open chats catch up by
+fetching instead (Catching up in `docs/messages.md`). All non-realtime DM operations (fetch history, send, mark read) go through the
 plain REST API in `client/src/services/dmService.js` / `client/src/utils/api.js` instead.
 
 Bots connect to `/api/gateway` instead (the same HTTP server; `attachWebSocketServer` sends

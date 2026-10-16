@@ -17,6 +17,8 @@ import { searchConversation } from '../services/searchIndex';
 import { loadChat } from '../services/offlineCopy';
 import { isOfflineMode, isUnreachable } from '../utils/offlineMode';
 import { useOfflineChat } from './useOfflineChat';
+import { useCatchUp } from './useCatchUp';
+import { mergeNewestPage } from '../utils/catchUp';
 import {
   encryptMessage,
   decryptMessage,
@@ -384,6 +386,18 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   async function setPinned(msg, pinned) {
     applyPin(await setMessagePinned(msg.id, pinned));
   }
+
+  // Whatever the websocket missed (the phone asleep, a reconnect): the newest page again.
+  useCatchUp(async () => {
+    const chatId = id;
+    const key = sharedKey;
+    const rows = await decryptRows(await fetchMessagesForUser(chatId, { limit: PAGE_SIZE }), key);
+    if (activeChatId.current !== chatId) return;
+    const { gap, added } = mergeNewestPage(messagesRef.current, rows, PAGE_SIZE);
+    setMessages((prev) => mergeNewestPage(prev, rows, PAGE_SIZE).messages);
+    if (gap) setHasMore(true);
+    if (added.some((m) => String(m.sender_id) === String(chatUser.id) && !notes)) markRead();
+  }, Boolean(sharedKey) && loadedFor === chatKey && !fromCopy);
 
   useOfflineChat({
     chat: chatKey,
