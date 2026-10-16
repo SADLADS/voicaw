@@ -352,7 +352,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   by part as an S3 multipart upload (each request under nginx's 100M), and big ones are saved
   as they're decrypted (service worker download, the desktop app's Save dialog, Android's
   Downloads). The user chose: no resuming after a reload (failed parts retry while open), no
-  per-account storage quota for now. Bots keep Discord's 25 MB. No re-encoding of videos.
+  per-account storage quota for now. Bots keep Discord's 25 MB by default (Settings → Admin's Bot
+  file size limit raises it, 2026-10-16). No re-encoding of videos.
 - **Voice messages** (built 2026-10-09, see Voice messages in `docs/uploads.md`): as Discord's.
   Phones hold the mic in Send's place (empty box only; slide left cancels, up locks), computers
   start one from the + menu (Discord's desktop can't record; ours can, with Stop to listen first).

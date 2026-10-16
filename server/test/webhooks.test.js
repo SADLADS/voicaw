@@ -240,6 +240,26 @@ describe('executing a webhook (Discord API)', () => {
     expect(song.content_type).toBe('audio/mpeg');
   });
 
+  it("takes files up to Settings → Admin's Bot file size limit (25 MB unless raised)", async () => {
+    const { owner, hook } = await setUp();
+    await require('../db.js').run('UPDATE users SET is_admin = 1 WHERE id = ?', [owner.id]);
+    const setLimit = (value) => api.put(owner, '/admin/settings/botUploadLimit', { value });
+    const MB = 1024 * 1024;
+    const big = Buffer.alloc(25 * MB + 1);
+    const post = () => request(app).post(`${hookPath(hook)}?wait=true`).attach('files[0]', big, { filename: 'clip.mp4', contentType: 'video/mp4' });
+
+    expect((await post()).status).toBe(413);
+    expect((await setLimit('50')).status).toBe(200);
+    try {
+      const res = await post();
+      expect(res.status).toBe(200);
+      expect(res.body.attachments[0]).toMatchObject({ filename: 'clip.mp4', size: 25 * MB + 1, content_type: 'video/mp4' });
+    } finally {
+      await setLimit(null);
+    }
+    expect((await post()).status).toBe(413);
+  });
+
   it('pings like Discord: everything by default, narrowed by allowed_mentions', async () => {
     const { member, general, hook } = await setUp();
     const mentions = async () => (await api.get(member, '/guild-unread')).body.find((u) => u.channel_id === general.id)?.mentions ?? 0;

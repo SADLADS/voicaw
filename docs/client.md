@@ -628,7 +628,8 @@ characters. `GET /admin`, `PUT /admin/settings/:key { value | null }`, `POST /ad
 { username }`, `DELETE /admin/admins/:id` (not yourself). Settings so far: the Klipy key,
 who can sign up (`signupMode`), link previews (`linkPreviews`) and the screen share limits
 (`streamMaxResolution`, `streamMaxFramerate`; see Stream quality in `docs/voice-and-calls.md`) and
-the File size limit (`uploadLimit`, 500 MB by default; see Big files in `docs/uploads.md`). A setting with `choices` (and its `fallback`) takes only one of
+the File size limit (`uploadLimit`, 500 MB by default; see Big files in `docs/uploads.md`) and the Bot file size limit
+(`botUploadLimit`, 25 MB by default; see Webhooks in `docs/guilds.md`). A setting with `choices` (and its `fallback`) takes only one of
 them: the panel shows a menu (`ChoiceRow`, labels `settings.admin.choices.<key>.<value>`) and the
 server refuses anything else. Add new app-wide keys to `SETTINGS` and read them with
 `getSetting` rather than from `config.js`. The panel also lists sign-up requests and app invites

@@ -682,7 +682,9 @@ like the rest of a guild.
   SUPPRESS_EMBEDS and SUPPRESS_NOTIFICATIONS (no pushes). Rate limit 5 per 2 s per webhook
   (429 `{ retry_after }` and `X-RateLimit-*` headers). Like Discord, a webhook may ping
   @everyone, @here and any role (`mentions.js` `allowed`).
-- **Files** (up to 10, 25 MB together) go to `uploads/webhooks/<uuid>/<name>`, unencrypted;
+- **Files** (up to 10, together up to Settings → Admin's Bot file size limit: `appSettings.js`
+  `botUploadLimit`, 25 MB like Discord by default, up to 500; also bots' messages and interaction
+  answers, and `attachment_size_limit` in interactions) go to `uploads/webhooks/<uuid>/<name>`, unencrypted;
   images, videos and sounds are served as themselves, anything else as
   `application/octet-stream` (never HTML or SVG). A file sent as `application/octet-stream` (as
   discord.py sends every file) gets its type from its extension, a picture only if sharp reads it

@@ -44,14 +44,23 @@ const SETTINGS = {
   // routes/uploads.js, in MB (uploadLimitBytes).
   uploadLimit: {
     label: 'File size limit',
-    description: "The biggest file anyone may attach, anywhere (DMs, group DMs, notes, guilds, documents, events). Files are kept until what shows them is deleted, so this is mostly about the object store's disk. Bots' files have their own limit (25 MB, as in Discord).",
+    description: "The biggest file anyone may attach, anywhere (DMs, group DMs, notes, guilds, documents, events). Files are kept until what shows them is deleted, so this is mostly about the object store's disk. Bots' and webhooks' files have their own limit, below.",
     choices: ['500', '250', '100', '50', '25'],
     fallback: '500',
+  },
+  // routes/webhooks.js readBody, in MB (botUploadLimitBytes): what one bot or webhook message
+  // (or interaction answer) may carry, all its files together.
+  botUploadLimit: {
+    label: 'Bot file size limit',
+    description: "The most files one bot or webhook message may carry, all together (25 MB is Discord's, which bots expect). These come through the API server whole, so nginx's client_max_body_size on the API must be at least this (plus a little).",
+    choices: ['500', '250', '100', '50', '25'],
+    fallback: '25',
   },
 };
 
 const MB = 1024 * 1024;
 const uploadLimitBytes = async () => Number(await getSetting('uploadLimit')) * MB;
+const botUploadLimitBytes = async () => Number(await getSetting('botUploadLimit')) * MB;
 
 const MAX_VALUE_LENGTH = 2000;
 
@@ -126,4 +135,4 @@ async function describeSettings() {
   return out;
 }
 
-module.exports = { SETTINGS, MAX_VALUE_LENGTH, getSetting, setSetting, isValidValue, describeSettings, uploadLimitBytes };
+module.exports = { SETTINGS, MAX_VALUE_LENGTH, getSetting, setSetting, isValidValue, describeSettings, uploadLimitBytes, botUploadLimitBytes };

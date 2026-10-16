@@ -7,6 +7,7 @@ const { ActionError } = require('./actionError');
 const D = require('./discord');
 const C = require('./components');
 const commands = require('./commands');
+const { botUploadLimitBytes } = require('./appSettings');
 
 // Interactions (docs/bots.md), Discord's
 // (https://discord.com/developers/docs/interactions/receiving-and-responding): someone uses a
@@ -39,7 +40,6 @@ const TOKEN_MS = 15 * 60 * 1000;
 const TOKEN_PREFIX = 'aW50ZXJhY3Rpb246'; // base64 of "interaction:", as Discord's tokens start
 const EPHEMERAL_ID_BASE = 2 ** 52;
 const LOADING = 1 << 7;
-const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
 const now = () => Math.floor(Date.now() / 1000);
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -88,7 +88,7 @@ async function interactionPayload({ row, token, member, permissions, channel, da
     entitlements: [],
     authorizing_integration_owners: { 0: String(channel.guild_id) },
     context: 0,
-    attachment_size_limit: MAX_ATTACHMENT_BYTES,
+    attachment_size_limit: await botUploadLimitBytes(),
   };
 }
 

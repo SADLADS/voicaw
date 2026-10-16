@@ -9,6 +9,7 @@ const { getChannelAccess, getMember, sendToChannel } = require('../guilds');
 const { saveMentions, notifyNewMessage } = require('../mentions');
 const { putObject } = require('../s3');
 const { registerUpload, releaseUploads } = require('../uploads');
+const { botUploadLimitBytes } = require('../appSettings');
 const { processAvatar, parseCrop, AvatarImageError, MAX_AVATAR_UPLOAD_BYTES } = require('../avatarImage');
 const { createLimiter } = require('../rateLimit');
 const { MESSAGE_SELECT, withReactions, logMessageDelete } = require('./guildMessages');
@@ -35,7 +36,6 @@ const MAX_WEBHOOKS_PER_CHANNEL = 15;
 const WEBHOOK_TYPES = ['text', 'voice'];
 const MAX_URL_LENGTH = 2048;
 const MAX_FILES = 10;
-const MAX_FILES_BYTES = 25 * 1024 * 1024;
 const EMBED_LIMITS = { embeds: 10, total: 6000, title: 256, description: 4096, fields: 25, fieldName: 256, fieldValue: 1024, footer: 2048, author: 256 };
 const FLAGS = { SUPPRESS_EMBEDS: 1 << 2, SUPPRESS_NOTIFICATIONS: 1 << 12 };
 const AVATAR_BUCKET = 'profile-pics';
@@ -316,7 +316,7 @@ async function readBody(req) {
     }
   }
   if (files.length > MAX_FILES) throw new FormError(['files'], `Must be ${MAX_FILES} or fewer in length.`, 'BASE_TYPE_MAX_LENGTH');
-  if (files.reduce((sum, f) => sum + f.file.size, 0) > MAX_FILES_BYTES) throw Object.assign(new Error('too large'), { tooLarge: true });
+  if (files.reduce((sum, f) => sum + f.file.size, 0) > await botUploadLimitBytes()) throw Object.assign(new Error('too large'), { tooLarge: true });
   return { body, files };
 }
 
@@ -407,11 +407,17 @@ async function manageableChannel(req, res, next) {
 }
 
 // Body parsers for these routes only (the app's own JSON parser skips webhook paths, see
-// index.js): JSON up to an avatar's size, forms, and multipart kept raw for readBody.
+// index.js): JSON up to an avatar's size, forms, and multipart kept raw for readBody, up to
+// Settings → Admin's Bot file size limit (and a little for the rest of the form).
+const rawParsers = new Map(); // limit in bytes -> parser
 const parseBody = [
   express.json({ limit: '12mb' }),
   express.urlencoded({ extended: false, limit: '1mb' }),
-  express.raw({ type: 'multipart/form-data', limit: MAX_FILES_BYTES + 1024 * 1024 }),
+  async (req, res, next) => {
+    const limit = (await botUploadLimitBytes()) + 1024 * 1024;
+    if (!rawParsers.has(limit)) rawParsers.set(limit, express.raw({ type: 'multipart/form-data', limit }));
+    rawParsers.get(limit)(req, res, next);
+  },
 ];
 
 // Runs a handler, answering FormErrors (and oversized uploads) Discord's way.

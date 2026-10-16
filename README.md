@@ -227,8 +227,9 @@ One site per name, each with a certificate (`certbot --nginx -d <name>`):
 | `media.voicaw.com` | the object store, `client_max_body_size 100M` (each request; bigger attachments come in parts, and MinIO's default `stale_uploads_expiry` of a day clears abandoned ones) |
 | `rtc.voicaw.com` | LiveKit signalling, `http://127.0.0.1:7880` |
 
-The API's `client_max_body_size 26M` is for webhooks (Discord's API): a post can carry up to
-25 MB of files, and nginx's default of 1 MB would refuse most of them.
+The API's `client_max_body_size 26M` is for webhooks and bots (Discord's API): a post can carry up
+to 25 MB of files, and nginx's default of 1 MB would refuse most of them. Raising Settings →
+Admin's Bot file size limit needs this raised to match (the limit plus 1 MB), on both sites.
 
 Turn on compression in `/etc/nginx/nginx.conf`'s `http` block. Debian's default compresses only
 HTML, which leaves the 1.7 MB main bundle, Strong noise suppression's 17 MB WebAssembly

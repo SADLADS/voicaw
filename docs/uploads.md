@@ -15,7 +15,8 @@ Limits: attachments up to Settings → Admin's File size limit (`appSettings.js`
 request at most 100MB (nginx's cap on media.voicaw.com, so a bigger file comes in parts, see Big
 files); 8MB for profile picture originals, which must be `image/*`. Profile pictures are
 unencrypted. Webhooks' files are the exception to client-direct uploads: they arrive in the
-webhook request and the server stores them (see Webhooks); bots' own limit is Discord's 25 MB.
+webhook request and the server stores them (see Webhooks); bots' and webhooks' own limit is Settings → Admin's Bot file size limit
+(`botUploadLimit`, the same choices, 25 MB like Discord by default).
 
 ### Big files
 
