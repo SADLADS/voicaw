@@ -18,6 +18,8 @@ import { searchConversation } from '../services/searchIndex';
 import { loadChat } from '../services/offlineCopy';
 import { isOfflineMode, isUnreachable } from '../utils/offlineMode';
 import { useOfflineChat } from './useOfflineChat';
+import { useCatchUp } from './useCatchUp';
+import { mergeNewestPage } from '../utils/catchUp';
 import {
   decryptGroupMessage,
   decryptGroupReaction,
@@ -314,6 +316,18 @@ export function useGroupConversation({ groupId, user, onRead }) {
       if (activeGroupId.current === requestedFor) loadingOlder.current = false;
     }
   };
+
+  // Whatever the websocket missed (the phone asleep, a reconnect): the newest page again.
+  useCatchUp(async () => {
+    const requestedFor = groupId;
+    const page = await fetchGroupMessages(requestedFor, { limit: GROUP_PAGE_SIZE });
+    const rows = await Promise.all(page.map(decryptRow));
+    if (activeGroupId.current !== requestedFor) return;
+    const { gap, added } = mergeNewestPage(messagesRef.current, rows, GROUP_PAGE_SIZE);
+    setMessages((prev) => mergeNewestPage(prev, rows, GROUP_PAGE_SIZE).messages);
+    if (gap) setHasMore(true);
+    if (added.some((m) => m.sender_id !== user.id)) markRead(rows[rows.length - 1].id);
+  }, loadedFor === chatKey && chatKey != null && !fromCopy);
 
   function addIncoming(message) {
     setMessages((prev) => {

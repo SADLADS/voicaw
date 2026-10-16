@@ -735,6 +735,20 @@ overlapping loads and drops ids already present. Rows are keyed by `clientKey ??
 object, or attachments remount on every render. Image/video attachments carry their dimensions so
 their box is reserved before they load.
 
+**Catching up** (2026-10-16): the chat hooks (`useConversation`, `useGroupConversation`,
+`useChannel`, `useBotDm`) load history once and then follow the websocket, which misses whatever
+is sent while it isn't listening. Mostly a phone: asleep in the background, the server's 30 s
+heartbeat closes its socket and the phone only notices once it's awake again, so tapping a
+notification opened the chat without the message it was for (until you left and came back).
+So the open chat fetches its newest page again (`hooks/useCatchUp.js`) whenever
+`utils/catchUp.js` says so: on every socket identify (the `presence_snapshot`; also closes the
+gap between a chat's first fetch and the socket opening) and when the app becomes visible after
+at least 5 s hidden. `mergeNewestPage` lays the page over what's shown: new rows added (and
+marked read), edited ones replaced, deleted ones within the page dropped, unchanged ones kept as
+the same objects (no redraw); messages being sent and ephemeral replies stay at the end. A full
+page that doesn't reach anything shown replaces the list (`hasMore` again). Not while showing
+the offline copy.
+
 Drawing markdown is what makes rows expensive (a webhook embed is a dozen bits of it), and rows
 redraw on every hover, page load and name change, so: `MessageMarkdown` and `WebhookParts` are
 `memo`ed and take only what they draw (keep their props stable); react-markdown re-runs every

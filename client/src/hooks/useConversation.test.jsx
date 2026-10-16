@@ -41,7 +41,8 @@ vi.mock('../services/encryptionService', () => ({
   reactionContext: vi.fn(),
 }));
 
-const { fetchMessagesForUser } = await import('../services/dmService');
+const { fetchMessagesForUser, markMessagesRead } = await import('../services/dmService');
+const { catchUp } = await import('../utils/catchUp');
 const { useConversation } = await import('./useConversation');
 const copy = await import('../services/offlineCopy');
 
@@ -90,5 +91,32 @@ describe('useConversation and the offline copy', () => {
     const { result } = open();
     await waitFor(() => expect(result.current.error).toBe('Forbidden'));
     expect(result.current.messages).toHaveLength(0);
+  });
+});
+
+describe('useConversation catching up', () => {
+  it('fetches what the websocket missed when told to (a notification opening the chat)', async () => {
+    fetchMessagesForUser.mockResolvedValue(rows(1, 5));
+    const { result } = open();
+    await waitFor(() => expect(result.current.messages).toHaveLength(5));
+    markMessagesRead.mockClear();
+
+    // Sent while the phone slept: only a fetch finds it.
+    fetchMessagesForUser.mockResolvedValue(rows(1, 6));
+    catchUp();
+    await waitFor(() => expect(result.current.messages.map((m) => m.id)).toEqual([1, 2, 3, 4, 5, 6]));
+    expect(result.current.messages[5].plaintext).toBe('text 6');
+    expect(markMessagesRead).toHaveBeenCalledWith(2);
+  });
+
+  it("doesn't fetch from the server while showing the offline copy", async () => {
+    await copy.saveChat('1/dm/2', rows(1, 3).map((r) => ({ ...r, plaintext: 'old' })));
+    fetchMessagesForUser.mockRejectedValue(unreachable());
+    const { result } = open();
+    await waitFor(() => expect(result.current.offlineCopy).toBe(true));
+    fetchMessagesForUser.mockClear();
+    catchUp();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(fetchMessagesForUser).not.toHaveBeenCalled();
   });
 });
