@@ -335,7 +335,15 @@ README "voicaw.com and app.voicaw.com"). `website/build.mjs` fills `website/src/
 a small inline one offers the visitor's own system first, tells a home screen icon from
 before the move that the app has moved, and sends the Android test's form.
 
-**Android: Google Play's closed test** (2026-10-06). The Android card, and the button phone
+**Look** (2026-10-16): plain and editorial rather than a template's centred hero and grid of
+icon cards: a big left-aligned headline, real pictures of the app (`screenshot-desktop.png`
+with `screenshot-phone.png` over its corner; phones see only the phone's), then sections
+with their title on the left under a rule. Its type is Schibsted Grotesk (OFL), served from
+voicaw.com itself (`schibsted-grotesk.woff2`), so no font service sees visitors; the docs and
+policies share it through `style.css`. The pictures are taken by `e2e/sitescreenshot.mjs`
+(a made-up guild in the throwaway app): run it again when the app's look changes.
+
+**Android: Google Play's closed test** (2026-10-06). The Android row, and the button phone
 visitors get first, lead to the page's `#android-test` section: how to join, links to the test's
 opt-in page and the Play listing (`PLAY_TEST_URL`, `PLAY_URL` in `build.mjs`), and a form (Google
 account email, optional name and note, a hidden field that catches bots) posting to

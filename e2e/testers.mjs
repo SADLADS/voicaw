@@ -27,7 +27,7 @@ const SITE = `http://localhost:${SITE_PORT}`;
 const siteDir = fs.mkdtempSync(path.join(os.tmpdir(), 'voicaw-site-'));
 await buildSite({ siteDir, releases: {} });
 
-const TYPES = { '.html': 'text/html', '.css': 'text/css', '.png': 'image/png', '.ico': 'image/x-icon', '.js': 'text/javascript' };
+const TYPES = { '.html': 'text/html', '.css': 'text/css', '.png': 'image/png', '.ico': 'image/x-icon', '.js': 'text/javascript', '.woff2': 'font/woff2' };
 const site = http.createServer(async (req, res) => {
   if (req.url.startsWith('/api/')) {
     const body = await new Promise((resolve) => {
@@ -58,7 +58,7 @@ const browser = await launchChrome();
 try {
   // An admin with Settings open, to see the request arrive.
   const admin = await signUp(browser, 'admin');
-  await admin.page.goto(`${BASE}/settings`);
+  await admin.page.goto(`${BASE}/settings/admin`);
   await admin.page.waitForSelector('text=Android testers');
 
   // A phone visitor.
@@ -88,11 +88,11 @@ try {
   check((await page.textContent('.tester-done')).includes(EMAIL.replace('pal', 'Pal')), 'thanked, naming the email');
   if (dir) await page.screenshot({ path: `${dir}/form-sent-phone-dark.png` });
 
-  // Desktop, light: the Android card leads to the form too.
+  // Desktop, light: the Android row leads to the form too.
   const desk = await browser.newContext({ viewport: { width: 1200, height: 900 }, colorScheme: 'light' });
   const deskPage = await desk.newPage();
   await deskPage.goto(`${SITE}/#android-test`);
-  check(await deskPage.locator('a.store[href="#android-test"]').count() === 1, 'the Android card leads to the form');
+  check(await deskPage.locator('.stores a[href="#android-test"]').count() === 1, 'the Android row leads to the form');
   if (dir) await deskPage.locator('#android-test').screenshot({ path: `${dir}/form-desktop-light.png` });
 
   // The admin sees it at once, marks it added and deletes it.
