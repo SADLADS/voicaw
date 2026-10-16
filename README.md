@@ -3,6 +3,85 @@
 A Discord-style chat app: end-to-end encrypted direct messages, and guilds (Discord-style servers) with
 text and voice channels. See `CLAUDE.md` and `docs/` for how it works and how to develop on it.
 
+## Building the apps yourself
+
+You don't need to: the desktop app is on [voicaw.com](https://voicaw.com) and the Android app on
+Google Play. But if you'd rather run a copy built from this code (to check that it's the code
+you've read, for example), here's how. Your build talks to the real Voicaw (app.voicaw.com), and
+you log in with your usual account.
+
+### What you need
+
+- [git](https://git-scm.com/) and [Node.js](https://nodejs.org/) 24 (it comes with npm 11).
+- For Android: [Docker](https://docs.docker.com/get-docker/) (the Android SDK runs inside it,
+  so nothing else is installed). On Windows, use WSL 2.
+- For the Windows desktop installer built on Linux: Docker too.
+- About 5 GB of disk for Android (the build image and Gradle's downloads), 1 GB for desktop.
+
+### 1. Get the code
+
+```sh
+git clone https://github.com/SADLADS/voicaw.git && cd voicaw
+git checkout dev     # the branch the live app runs
+npm install
+```
+
+### 2. Point it at Voicaw
+
+The build needs to know where the server is. Create `client/.env.production` with:
+
+```ini
+VITE_API_BASE_URL=https://app.voicaw.com/api/
+VITE_WS_URL=wss://api.voicaw.com
+```
+
+(The slash at the end of the first line matters. To use your own server instead, see Initial
+setup below.)
+
+### 3a. Desktop (Linux, Windows, macOS)
+
+```sh
+npm run dist:electron
+```
+
+The installers land in `dist-desktop/`, for the system you built on:
+
+- **Linux:** an AppImage (make it executable and run it) and a `.deb`
+  (`sudo apt install ./dist-desktop/voicaw-desktop_*.deb`).
+- **Windows:** the installer `.exe`. It isn't signed, so SmartScreen warns the first time
+  ("More info" → "Run anyway"). On Linux you can build it with `npm run dist:electron:win`
+  (in Docker).
+- **macOS:** a `.dmg`. It isn't signed either: the first time, right-click the app →
+  Open. Building for macOS needs a Mac.
+
+The desktop app updates itself from updates.voicaw.com, so at its first start your copy is
+replaced by the official release. To keep running your own build, build it with an update
+address that has nothing on it, then update by building again:
+
+```sh
+VOICAW_UPDATE_URL=https://localhost/ npm run dist:electron
+```
+
+### 3b. Android
+
+```sh
+npm run dist:android
+```
+
+The first run builds the Docker image and downloads Gradle's packages, which takes a while.
+The app ends up in `dist-android/voicaw-debug.apk`. Copy it to the phone and open it
+(Android asks once to allow installs from wherever you opened it), or with the phone plugged
+in and USB debugging on: `adb install dist-android/voicaw-debug.apk`.
+
+Two differences from the Play Store app:
+
+- **It's signed with your own key**, so Android won't install it over the Play Store copy, or
+  the other way round. Uninstall one first. That logs you out of that copy, and logging in again
+  brings your messages back as usual.
+- **There are no notifications while the app is closed.** Those go through Voicaw's Firebase
+  project, which only the official app is part of. While it's open, notifications and calls work
+  as usual.
+
 ## Initial setup
 
 How a fresh host is set up, in order. The live host is set up like this: the API and the test
@@ -93,9 +172,12 @@ them for other domains.
 set where the client finds the API:
 
 ```ini
-VITE_API_BASE_URL=https://api.voicaw.com
+VITE_API_BASE_URL=https://app.voicaw.com/api/
 VITE_WS_URL=wss://api.voicaw.com
 ```
+
+Both files are git-ignored, so a fresh clone has neither. The API address ends in `/` (paths
+are appended to it).
 
 ### 5. Voice (LiveKit)
 
