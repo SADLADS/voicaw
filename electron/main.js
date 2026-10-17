@@ -270,6 +270,7 @@ function setUpIpc() {
         const next = settings.update(changes);
         if (next.startAtLogin !== before.startAtLogin) setStartAtLogin(app, next.startAtLogin);
         if (next.richPresence !== before.richPresence) applyRichPresence();
+        if (next.autoUpdate && !before.autoUpdate) updater.check();
         return { settings: next, failedShortcuts: applyDesktopShortcuts() };
     });
     ipcMain.handle('desktop:activities', (event) => (fromApp(event) ? gameActivities.current() : []));
@@ -328,6 +329,7 @@ function start() {
     updater = createUpdater({
         app,
         gamingMode,
+        autoUpdate: () => settings.get().autoUpdate,
         onReady: (version) => win?.webContents.send('desktop:update-ready', version),
         onProgress: (fraction) => {
             splash?.progress(fraction);

@@ -17,6 +17,10 @@
 // thinking the game had closed, so the page isn't told about updates there: one that's ready
 // installs when the app is quit (and "Update now" in Settings quits without restarting).
 // AppImages keep their file name across updates (appImageInstall.js).
+//
+// With automatic updates off (`autoUpdate()` false, Settings → Desktop App) it never looks by
+// itself, at launch or later: only `check` (Settings' "Check for updates") does, and an update
+// that finds is downloaded and offered as usual.
 const CHECK_EVERY_MS = 4 * 60 * 60 * 1000;
 // How long "Update now" waits for its last look before installing what it has.
 const LAST_LOOK_MS = 5000;
@@ -28,7 +32,7 @@ const { keepAppImageName } = require('./appImageInstall');
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // `autoUpdater` is for tests (electron-updater's otherwise).
-function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater, gamingMode = false }) {
+function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater, gamingMode = false, autoUpdate = () => true }) {
     let updater = null;
     let state = 'idle'; // 'idle' | 'checking' | 'downloading' | 'current' | 'error'
     let readyVersion = null; // downloaded and installable
@@ -99,8 +103,8 @@ function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater, gamin
     // `lookNow` false: the launch has just looked.
     function start({ lookNow = true } = {}) {
         if (!updater) return;
-        if (lookNow) check();
-        setInterval(() => { if (!installing) check(); }, CHECK_EVERY_MS);
+        if (lookNow && autoUpdate()) check();
+        setInterval(() => { if (!installing && autoUpdate()) check(); }, CHECK_EVERY_MS);
     }
 
     // Restarts onto the latest version: looks once more, waits for any download that starts,
@@ -133,7 +137,7 @@ function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater, gamin
         let startAnyway = () => {};
         const skipped = new Promise((resolve) => { startAnyway = () => resolve('start'); });
         async function run() {
-            if (!updater) return 'start';
+            if (!updater || !autoUpdate()) return 'start';
             onStatus({ state: 'checking' });
             await Promise.race([look(), wait(LAUNCH_LOOK_MS)]);
             while (download) await download;

@@ -140,7 +140,7 @@
       },
       "desktopApp": {
         "title": "Desktop App",
-        "keywords": "tray close minimise minimize start login startup boot"
+        "keywords": "tray close minimise minimize start login startup boot update automatic"
       },
       "shortcuts": {
         "title": "Keyboard shortcuts",
@@ -458,6 +458,8 @@
       "closeToTrayHint": "So notifications and calls still reach you. Quit from the tray icon's menu.",
       "startAtLogin": "Start Voicaw when you log in to your computer",
       "startAtLoginHint": "It starts in the tray.",
+      "autoUpdate": "Update automatically",
+      "autoUpdateHint": "Looks for a new version when the app starts and every few hours, and installs it before opening. Off, the app only asks updates.voicaw.com when you press Check for updates under App Version, so a copy you built yourself stays the one you built.",
       "shortcuts": "Keyboard shortcuts",
       "shortcutsHint": "These work even when another app is in front.",
       "toggleMute": "Toggle mute",

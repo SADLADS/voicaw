@@ -132,6 +132,24 @@ describe('desktop updates (updater.js)', () => {
         expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
     });
 
+    it('never looks by itself with automatic updates off, but still checks when asked', async () => {
+        let auto = false;
+        const manual = createUpdater({ app: { isPackaged: true }, onReady, autoUpdater, autoUpdate: () => auto });
+        autoUpdater.latest = '1.1.0';
+        expect(await manual.launch().result).toBe('start');
+        manual.start();
+        await vi.advanceTimersByTimeAsync(8 * 60 * 60 * 1000);
+        expect(autoUpdater.checkForUpdates).not.toHaveBeenCalled();
+
+        expect(await manual.check()).toBe('downloading'); // "Check for updates"
+        autoUpdater.finishDownload();
+        expect(onReady).toHaveBeenLastCalledWith('1.1.0');
+
+        auto = true; // turned back on: the next round looks again
+        await vi.advanceTimersByTimeAsync(4 * 60 * 60 * 1000);
+        expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(2);
+    });
+
     describe('at launch (the splash)', () => {
         it('opens the app when there is nothing new', async () => {
             const onStatus = vi.fn();
