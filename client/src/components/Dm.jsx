@@ -22,11 +22,8 @@ import { usePresence } from '../hooks/usePresence';
 import { lastSeenText, statusLabel } from '../utils/presence';
 import { isDeleted, nameOf, useProfiles } from '../utils/profiles';
 import { unblockUser, useBlocked } from '../utils/blocks';
+import { usePrivacyPrefs } from '../utils/privacy';
 import { t } from '../i18n';
-
-// The "Verified / Not verified" badge and safety number dialog. Hidden for now: too confusing
-// for most people. The keys are still pinned and a changed key still blocks the chat.
-const SHOW_SAFETY_NUMBERS = false;
 
 // A DM conversation: header (with the contact's status and the call button), the call with
 // them if there is one (CallPanel), then the chat itself (ChatPane).
@@ -44,6 +41,7 @@ export default function Dm({ user }) {
   const conversation = useConversation({ id, user, chatUser, onRead: fetchUnreadMessages });
   const { keyStatus, sharedKey } = conversation;
   const [showSafetyNumber, setShowSafetyNumber] = useState(false);
+  const { safetyNumbers: safetyNumbersOn } = usePrivacyPrefs();
 
   // The pinned messages list, under its header button (null: closed).
   const [pinsAnchor, setPinsAnchor] = useState(null);
@@ -144,7 +142,9 @@ export default function Dm({ user }) {
                 reactionNames={reactionNames}
               />
             )}
-            {SHOW_SAFETY_NUMBERS && (keyStatus === 'trusted' || keyStatus === 'verified') && (
+            {/* The "Verified / Not verified" badge, opening the safety number: only with Settings →
+                Privacy's Show safety numbers (off by default; the keys are pinned either way). */}
+            {safetyNumbersOn && (keyStatus === 'trusted' || keyStatus === 'verified') && (
               <button
                 type="button"
                 className={`key-status-badge ${keyStatus}`}
@@ -157,7 +157,7 @@ export default function Dm({ user }) {
           </h4>
           {prompts}
 
-          {showSafetyNumber && (
+          {safetyNumbersOn && showSafetyNumber && (
             <SafetyNumberDialog
               me={user}
               contact={chatUser}
