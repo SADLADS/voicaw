@@ -7,6 +7,7 @@ import { sameLogin } from './loginToken';
 import { desktopNotificationsOn } from '../services/pushService';
 import { playMessageSound } from '../sounds/sounds';
 import { catchUp } from './catchUp';
+import { websocketUrl } from './server';
 
 let ws;
 let token;
@@ -173,7 +174,7 @@ export function connectWebSocket() {
     return;
   }
 
-  const url = import.meta.env.VITE_WS_URL;
+  const url = websocketUrl();
   console.log("Connecting to WebSocket:", url);
   const socket = new WebSocket(url);
   // The login it's for: the one saved may change under it (another tab logs in).

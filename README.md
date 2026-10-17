@@ -170,10 +170,23 @@ KLIPY_API_KEY=...
 # The Android app's notifications (step 10): a Firebase service account's JSON key. Optional:
 # without it the app only notifies while it's open.
 # FCM_SERVICE_ACCOUNT=/path/to/fcm-service-account.json
+
+# For a server other than voicaw.com's, which people pick on the login screen (Server → Change).
+# Your own web app's address, if you serve one (comma-separated; app.voicaw.com and the desktop
+# and Android apps are always allowed):
+# ALLOWED_ORIGINS=https://chat.example.com
+# The app's websocket, if it isn't /api/socket on the API's host (nginx must pass websocket
+# upgrades under /api/ for that default):
+# PUBLIC_WEBSOCKET_URL=wss://api.example.com
+# Your terms of use and privacy policy (default voicaw.com's):
+# TERMS_URL=https://example.com/terms/
+# PRIVACY_URL=https://example.com/privacy/
 ```
 
-The web origins the API accepts are listed in `server/config.js` (`allowedOrigins`). Change
-them for other domains.
+The web origins the API accepts are listed in `server/config.js` (`allowedOrigins`), plus
+`ALLOWED_ORIGINS`. voicaw.com's own server doesn't need any of the four above: its websocket
+is the built-in one, and someone picking it on another build's login screen would also need
+`PUBLIC_WEBSOCKET_URL=wss://api.voicaw.com` (app.voicaw.com's nginx doesn't pass websockets).
 
 ### 4. Client settings
 

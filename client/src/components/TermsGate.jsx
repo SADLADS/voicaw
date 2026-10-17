@@ -8,7 +8,7 @@ import { t } from '../i18n';
 // before there were any, or since they changed; server/terms.js): read them, agree, or log out.
 // Google Play wants people to accept the rules before they post.
 export default function TermsGate({ onAccepted, onLogout }) {
-  const { termsVersion } = useContext(ConfigContext);
+  const { termsVersion, termsUrl = 'https://voicaw.com/terms/', privacyUrl = 'https://voicaw.com/privacy/' } = useContext(ConfigContext);
   const [agreed, setAgreed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -31,8 +31,8 @@ export default function TermsGate({ onAccepted, onLogout }) {
         <h3 id="terms-gate-title" className="login-header text-center mb-3">{t('auth.terms.title')}</h3>
         <p>{t('auth.terms.text')}</p>
         <p className="terms-gate-links">
-          <a href="https://voicaw.com/terms/" target="_blank" rel="noreferrer">{t('auth.terms.read')}</a>
-          <a href="https://voicaw.com/privacy/" target="_blank" rel="noreferrer">{t('auth.terms.privacy')}</a>
+          <a href={termsUrl} target="_blank" rel="noreferrer">{t('auth.terms.read')}</a>
+          <a href={privacyUrl} target="_blank" rel="noreferrer">{t('auth.terms.privacy')}</a>
         </p>
         <label className="register-terms">
           <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} disabled={saving} />

@@ -48,6 +48,10 @@ app.get('/api/config', async (req, res) => {
     maxUploadBytes: await uploadLimitBytes(),
     // The terms of use registering accepts (terms.js).
     termsVersion: require('./terms').TERMS_VERSION,
+    // For apps that chose this server on the login screen (config.js).
+    ...(config.publicWebsocketUrl && { websocketUrl: config.publicWebsocketUrl }),
+    termsUrl: config.termsUrl,
+    privacyUrl: config.privacyUrl,
   });
 });
 

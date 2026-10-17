@@ -14,6 +14,21 @@ describe('GET /api/config', () => {
     expect(res.body.maxPlaintextLength).toBe(parseInt(process.env.MAX_MESSAGE_LENGTH, 10));
     expect(res.body.s3Endpoint).toBe(process.env.S3_ENDPOINT);
   });
+
+  // What an app that chose this server on the login screen needs (client/src/utils/server.js).
+  it('names the terms and privacy policy, and the websocket only when set', async () => {
+    const res = await request(app).get('/api/config');
+    expect(res.body.termsUrl).toBe('https://voicaw.com/terms/');
+    expect(res.body.privacyUrl).toBe('https://voicaw.com/privacy/');
+    expect(res.body).not.toHaveProperty('websocketUrl');
+  });
+
+  it('lets the apps and the web app log in from elsewhere (CORS)', async () => {
+    const res = await request(app).get('/api/config').set('Origin', 'voicaw://app');
+    expect(res.headers['access-control-allow-origin']).toBe('voicaw://app');
+    const other = await request(app).get('/api/config').set('Origin', 'https://evil.example.com');
+    expect(other.headers['access-control-allow-origin']).toBeUndefined();
+  });
 });
 
 describe('error handler', () => {

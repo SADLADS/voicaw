@@ -1,9 +1,13 @@
 // Voicaw invite and event links in message text (for invite and event embeds).
 
+import { isBuiltInServer } from './server';
+
 // Where invite links come from: this app's own address, and voicaw.com's (the live site and
-// test.voicaw.com share one API, so their invites work on each other).
+// test.voicaw.com share one API, so their invites work on each other), unless this app uses
+// another server (utils/server.js), where voicaw.com's codes mean nothing.
 function isVoicawHost(host) {
-  return host === globalThis.location?.host || host === 'voicaw.com' || host.endsWith('.voicaw.com');
+  if (host === globalThis.location?.host) return true;
+  return isBuiltInServer() && (host === 'voicaw.com' || host.endsWith('.voicaw.com'));
 }
 
 // The invite code of an invite link ("https://voicaw.com/invite/Ab3dEf7h"), or null.
