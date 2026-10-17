@@ -152,6 +152,7 @@ server/*.db-shm
 /build/
 /build-web/
 /dist-desktop/
+/dist-release/
 /build-android/
 /dist-android/
 mobile/android/app/google-services.json

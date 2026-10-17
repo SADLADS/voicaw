@@ -63,6 +63,14 @@ asks updates.voicaw.com when you press Check for updates), then update by buildi
 VOICAW_AUTO_UPDATE=off npm run dist:electron
 ```
 
+Official desktop releases are built by GitHub from the tagged commit, not on Voicaw's server
+(`.github/workflows/desktop-release.yml`), and every file is attested. To check that an
+installer you downloaded came from that workflow, and which commit it was built from:
+
+```sh
+gh attestation verify Voicaw-1.2.3.AppImage --repo SADLADS/voicaw
+```
+
 ### 3b. Android
 
 ```sh
@@ -419,12 +427,36 @@ Desktop App → Update automatically starts off). That's its own static site, wi
    sudo certbot --nginx -d updates.voicaw.com
    ```
 
-For each release: raise `version` in `electron/package.json`, build, and publish:
+**Releases are built by GitHub** (`.github/workflows/desktop-release.yml`, on GitHub's own
+machines, from the tagged commit), not on the host, and every file gets a Sigstore attestation
+(which workflow built it, from which commit). The host only downloads, checks and publishes them.
+It needs the GitHub CLI, logged in as someone who can push to the repository, once:
 
 ```bash
-npm run dist:electron
-node updates/publish.mjs            # dist-desktop/ into /opt/voicaw-updates (or: <buildDir> <siteDir>)
+sudo apt install gh
+gh auth login
 ```
+
+Then, from a checkout whose commit is pushed to GitHub (usually `dev`, with nothing uncommitted):
+
+```bash
+./release_all.sh                  # patch; or minor, major, X.Y.Z; -y skips the question
+./release_all.sh --no-publish     # stop after downloading and checking (dist-release/X.Y.Z/)
+./release_all.sh --android        # then the Android app too (./build-android.sh, its own versions)
+```
+
+It picks the next version (above what updates.voicaw.com has and every `desktop-vX.Y.Z` tag),
+tags the commit `desktop-vX.Y.Z` and pushes the tag, which starts the workflow (Linux and
+Windows; follow it on GitHub's Actions tab), waits for it, downloads the GitHub Release into
+`dist-release/X.Y.Z/`, runs `gh attestation verify` on every file (built by that workflow, from
+that commit, on GitHub's machines; anything else stops it), then publishes with
+`node updates/publish.mjs dist-release/X.Y.Z` and checks the site serves the new version.
+GitHub never gets a key to the host. A failed build can be retried from the Actions tab
+("Re-run jobs"), and `./release_all.sh X.Y.Z` with the same version picks the tag up again.
+
+Building and publishing on the host still works (try-outs, or without GitHub): build, then
+`node updates/publish.mjs` (`dist-desktop/` into `/opt/voicaw-updates`, or `<buildDir> <siteDir>`),
+with `VOICAW_VERSION=X.Y.Z` stamping the version into the build.
 
 The script copies the installers first and the `latest*.yml` feeds last (so an app never sees a
 feed naming a file that isn't there yet), updates the page's list (`desktop/releases.json`), and

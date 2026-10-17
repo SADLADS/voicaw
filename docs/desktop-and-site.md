@@ -181,6 +181,16 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   keeps its file name across updates, and in the Steam Deck's Gaming Mode nothing restarts (both
   above). Releases are
   only as trustworthy as that server (no signature of our own on the feed yet).
+- **Releases built by GitHub** (`.github/workflows/desktop-release.yml`, run by `release_all.sh`;
+  README "Desktop app"): a pushed `desktop-vX.Y.Z` tag builds the Linux and Windows installers
+  on GitHub's machines from that commit (the version stamped in by `VOICAW_VERSION` in
+  `builder.config.js`, `electron/package.json` untouched), attests each file and feed
+  (`actions/attest-build-provenance`: Sigstore, in its public log) and makes a GitHub Release.
+  The host downloads it, refuses anything whose attestation doesn't name that workflow, tag and
+  commit (`gh attestation verify`), then publishes as before. So anyone can check an installer
+  against the public source, and nothing built on the host is shipped. The app itself doesn't
+  check attestations before installing an update yet: until it does, updates.voicaw.com is
+  still trusted for automatic updates.
 - **Turning updates off** (Settings → Desktop App → Update automatically, `autoUpdate` in
   `desktopSettings.js`, on by default): off, the app never looks by itself, not at launch (the
   splash just opens it) nor every 4 hours; only Settings → App version's "Check for updates"
