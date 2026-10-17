@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { generateUserKeys } from './encryptionService';
 import { checkContactKeys, acceptContactKeys, setContactVerified, getPinnedContact } from './contactKeys';
+import { setSetting } from './settingsStore';
 
 const ME = 1;
 const asContact = (id, keys) => ({
@@ -15,6 +16,7 @@ let bob;
 
 beforeEach(async () => {
   await new Promise((r) => { const req = indexedDB.deleteDatabase('voicaw-contacts'); req.onsuccess = r; req.onerror = r; });
+  await setSetting('server', null);
   bob = await generateUserKeys();
 });
 
@@ -65,5 +67,18 @@ describe('contact keys (trust on first use)', () => {
     await checkContactKeys(ME, asContact(2, bob));
     await setContactVerified(ME, 2, true);
     expect((await checkContactKeys(99, asContact(2, bob))).status).toBe('trusted');
+  });
+
+  // User ids are only unique on one server (utils/server.js; the service worker reads the
+  // choice from settingsStore, as this test's environment does).
+  it('keeps separate trust per server', async () => {
+    await checkContactKeys(ME, asContact(2, bob));
+    await setContactVerified(ME, 2, true);
+    await setSetting('server', { api: 'https://chat.example.com/api/', ws: 'wss://chat.example.com/api/socket' });
+    expect(await getPinnedContact(ME, 2)).toBeNull();
+    const mallory = await generateUserKeys();
+    expect((await checkContactKeys(ME, asContact(2, mallory))).status).toBe('trusted');
+    await setSetting('server', null);
+    expect((await checkContactKeys(ME, asContact(2, bob))).status).toBe('verified');
   });
 });

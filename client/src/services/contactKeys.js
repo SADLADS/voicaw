@@ -1,11 +1,13 @@
 import { verifyEncryptionKey } from './encryptionService';
+import { serverSuffixAnywhere } from '../utils/server';
 
 // What this device knows about other users' keys ("trust on first use"). The server hands
 // out everyone's public keys, so without this a malicious server could swap in its own key
 // and read (and re-encrypt) a conversation unnoticed. The first identity key seen for a
 // contact is remembered; if the server later presents a different one, the conversation is
 // blocked until the user accepts it. Users can also mark a contact "verified" after
-// comparing safety numbers. Stored per logged-in account, readable by the service worker.
+// comparing safety numbers. Stored per logged-in account and server (ids are only unique on
+// one: utils/server.js), readable by the service worker.
 
 const DB_NAME = 'voicaw-contacts';
 const STORE = 'contacts';
@@ -34,7 +36,7 @@ async function withStore(mode, fn) {
   }
 }
 
-const pinId = (myUserId, contactId) => `${myUserId}:${contactId}`;
+const pinId = async (myUserId, contactId) => `${myUserId}${await serverSuffixAnywhere()}:${contactId}`;
 
 // The contact's keys as published by the server (a row from /api/dms-list).
 function publishedKeys(contact) {
@@ -47,11 +49,13 @@ function publishedKeys(contact) {
 
 // { identityKey, encryptionKey, verified } remembered for this contact, or null.
 export async function getPinnedContact(myUserId, contactId) {
-  return (await withStore('readonly', (store) => store.get(pinId(myUserId, contactId)))) ?? null;
+  const id = await pinId(myUserId, contactId);
+  return (await withStore('readonly', (store) => store.get(id))) ?? null;
 }
 
 async function savePin(myUserId, contactId, pin) {
-  await withStore('readwrite', (store) => store.put(pin, pinId(myUserId, contactId)));
+  const id = await pinId(myUserId, contactId);
+  await withStore('readwrite', (store) => store.put(pin, id));
 }
 
 // Checks the keys the server gave us for `contact`. Returns { status, encryptionKey }:

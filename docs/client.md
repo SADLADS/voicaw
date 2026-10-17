@@ -468,6 +468,41 @@
   elsewhere) with `rsync --delay-updates --delete-after`: the new files go in together at the
   end, and only then do the old build's go. A failed build or check changes nothing there.
 
+## Other servers
+
+The login screen says which server it logs in to ("Server: app.voicaw.com · Change",
+`ServerChoice.jsx`), and anyone can point the app at another Voicaw server someone runs
+(built 2026-10-17, the first step towards federation; servers don't talk to each other yet, so
+people only reach others on the same server). The web app, the desktop app and the Android app
+all have it.
+
+- **The choice** (`utils/server.js`): the address typed ("chat.example.com", a URL, or one with
+  a path where the server's `/api/` lives; no scheme means https) is checked by asking its
+  `/api/config` (it must have `signupMode` and `termsVersion`). The websocket is the config's
+  `websocketUrl` (`PUBLIC_WEBSOCKET_URL`), else `/api/socket` on the API's host (the server
+  takes the app's websocket on any path but `/api/gateway`). Saved as `localStorage server`
+  `{ api, ws }`, and in `settingsStore` for the service worker; nothing saved means the built-in
+  server (`VITE_API_BASE_URL`, `VITE_WS_URL`), and typing that one in again clears the choice.
+  Changing it forgets this device's login data first (`forgetLogin`) and reloads, so every
+  module reads the server once (`apiBaseUrl()`, `websocketUrl()`), never mid-session. Logging
+  out keeps it; "Use app.voicaw.com" goes back.
+- **Kept apart per server:** user ids are only unique on one server, so what the device keeps
+  across logins is keyed by it too: contact key pins (`contactKeys.js`, `<me>@host:<contact>`,
+  readable by the service worker) and per-person volumes (`userVolumes@host`). The built-in
+  server's keys have no suffix, so what was stored before stays valid. Everything else about an
+  account is deleted at logout anyway (and when changing server).
+- **The server's side:** CORS already allows app.voicaw.com, `voicaw://app` and
+  `https://localhost` (the desktop and Android apps), so they can log in anywhere; a host adds
+  its own web app's origin with `ALLOWED_ORIGINS`. Its config also names its terms of use and
+  privacy policy (`TERMS_URL`, `PRIVACY_URL`; registering and the terms gate link to them).
+- **Limits:** invite links on voicaw.com's hosts only count as invites on the built-in server;
+  links the app makes (invites, channels, events) still use this site's address, which only
+  works for someone on the same server. Android notifications while the app is closed need the
+  server to have voicaw's Firebase key (`FCM_SERVICE_ACCOUNT`), so other servers only notify
+  while the app is open (web push works anywhere: each server has its own VAPID keys). The web
+  app at app.voicaw.com still delivers the code that holds keys for every server's accounts
+  (the same gap as for ours); the desktop and Android apps don't have it. One account at a time.
+
 ## Profiles
 
 Everyone has an optional display name (32 characters), custom status (a line of text, 128;

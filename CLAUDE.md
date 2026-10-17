@@ -154,6 +154,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   viewer.
 - `docs/client.md`: client structure (contexts, translations, Layout, settings, dates, themes, sidebar, phone
   panes, PWA updates, spellcheck, right-click menus, pinned and muted conversations, account preferences),
+  other servers (the login screen's Server),
   profiles and pictures, sounds, admin settings, blocking, reports and suspensions.
 - `docs/desktop-and-site.md`: the Electron app, the Android app (FCM, ringing, ongoing call),
   voicaw.com.
@@ -418,6 +419,13 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   has to reach other people's apps), the only activity data that is. Each tab can be hidden (Settings → Privacy, shown by default);
   hiding Activity stops recording it and deletes it. Your own profile is edited in place, and
   replaced Settings' Edit Profile page (Settings, the user menu and `/settings/profile` open it).
+- **Other servers** (built 2026-10-17, see Other servers in `docs/client.md`): the login screen
+  can point the app at another Voicaw server (checked through its `/api/config`), the first step
+  towards federation. No server-to-server traffic yet: people only reach others on their own
+  server. Data the device keeps across logins (contact pins, volumes) is keyed per server, since
+  user ids repeat between servers; changing server forgets the login and reloads. Federation
+  plan when it comes: `user@host` addresses, signed server-to-server requests, 1:1 DMs between
+  allow-listed servers first, group DMs later.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

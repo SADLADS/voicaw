@@ -48,3 +48,23 @@ body {
   color: var(--vc-danger-text);
   margin-bottom: 1rem;
 }
+
+/* Which server the login screen logs in to (ServerChoice.jsx). */
+.login-server {
+  font-size: 13px;
+  text-align: center;
+  color: var(--vc-fg-muted);
+  margin: -0.5rem 0 1rem;
+  overflow-wrap: anywhere;
+}
+
+.login-server .link-button {
+  font-size: inherit;
+}
+
+.login-server-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

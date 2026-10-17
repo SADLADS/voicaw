@@ -7,6 +7,7 @@
 
 import { faGamepad, faMusic, faTowerBroadcast, faTrophy, faTv } from '@fortawesome/free-solid-svg-icons';
 import { t } from '../i18n';
+import { apiBaseUrl } from './server';
 
 const EMPTY = [];
 const byUser = new Map(); // user id (string) -> activities
@@ -53,7 +54,7 @@ export function activitiesOf(userId) {
 }
 
 // The picture's address (served by the API, no login needed).
-export function activityImageUrl(id, apiBase = import.meta.env.VITE_API_BASE_URL) {
+export function activityImageUrl(id, apiBase = apiBaseUrl()) {
   if (!id) return null;
   const base = new URL(apiBase.endsWith('/') ? apiBase : `${apiBase}/`, window.location.href);
   return new URL(`activity-images/${id}`, base).href;

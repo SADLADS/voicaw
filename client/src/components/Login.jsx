@@ -20,8 +20,12 @@ function takeSuspendedNotice() {
   }
 }
 import RecoveryCodeDisplay from './RecoveryCodeDisplay';
+import ServerChoice from './ServerChoice';
 import { ConfigContext } from '../contexts';
 import { t } from '../i18n';
+
+// The terms of use a server's config doesn't name others (server/index.js `termsUrl`).
+const DEFAULT_TERMS_URL = 'https://voicaw.com/terms/';
 
 // The server's refusals of an invite, in the app's language.
 const INVITE_ERRORS = {
@@ -33,7 +37,7 @@ const INVITE_ERRORS = {
 // mode (server/signups.js): an invite field when it needs one (or when one skips the wait for
 // approval). `invite`: the code from an app invite link (/join/<code>), filled in.
 export default function Login({ onLoginSuccess, invite = '' }) {
-  const { signupMode = 'open', termsVersion } = useContext(ConfigContext) ?? {};
+  const { signupMode = 'open', termsVersion, termsUrl = DEFAULT_TERMS_URL } = useContext(ConfigContext) ?? {};
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [registerData, setRegisterData] = useState({ username: '', password: '', invite });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -284,6 +288,7 @@ export default function Login({ onLoginSuccess, invite = '' }) {
     <div className="login-page">
       <div className="form-container">
         <h3 className="login-header text-center mb-3">{t('auth.login.title')}</h3>
+        <ServerChoice />
 
         {error && <div className="login-error" role="alert">{error}</div>}
 
@@ -354,13 +359,13 @@ export default function Login({ onLoginSuccess, invite = '' }) {
               </p>
             </>
           )}
-          {/* The terms of use (voicaw.com/terms/): the server refuses a sign-up without them. */}
+          {/* The server's terms of use (voicaw.com/terms/ unless it says): it refuses a sign-up without them. */}
           <label className="register-terms">
             <input type="checkbox" required checked={agreedToTerms} onChange={(e) => setAgreedToTerms(e.target.checked)} />
             {' '}
             <Trans
               i18nKey="auth.register.agree"
-              components={{ terms: <a href="https://voicaw.com/terms/" target="_blank" rel="noreferrer" /> }}
+              components={{ terms: <a href={termsUrl} target="_blank" rel="noreferrer" /> }}
             />
           </label>
           <button className="btn btn-secondary w-100" type="submit" disabled={loading}>

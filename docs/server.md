@@ -114,6 +114,8 @@ Settings → Admin, see Admin settings), and `SIGNUP_MODE` who can sign up (`ope
 `request`; also in Settings → Admin, see Sign-ups in `docs/auth-and-encryption.md`), and
 `LINK_PREVIEWS=off` stops the server fetching links for previews (also in Settings → Admin).
 `LINK_PREVIEWS_ALLOW_PRIVATE=1` lets it fetch private addresses and other ports: tests and the
-e2e harness only, never on a real server. `README.md` "Initial setup" has the whole list. VAPID keys are generated
+e2e harness only, never on a real server. For servers people pick on the login screen (see Other
+servers in `docs/client.md`): `ALLOWED_ORIGINS` (more web origins for CORS),
+`PUBLIC_WEBSOCKET_URL`, `TERMS_URL` and `PRIVACY_URL` (all in `/api/config`). `README.md` "Initial setup" has the whole list. VAPID keys are generated
 via `webpush.generateVAPIDKeys()` (see root `README.md`). `S3_*` vars point at an S3-compatible
 object store (e.g. MinIO) used for uploads and profile pics.

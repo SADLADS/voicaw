@@ -74,7 +74,18 @@ module.exports = {
   fcm: loadFcmAccount(process.env.FCM_SERVICE_ACCOUNT),
   // voicaw://app: the desktop app's own pages (electron/protocol.js); https://localhost: the
   // Android app's (Capacitor serves its bundled page there, mobile/capacitor.config.json).
-  allowedOrigins: ['https://app.voicaw.com', 'https://test.voicaw.com', 'https://voicaw.com', 'http://test.voicaw.com', 'http://voicaw.com', 'voicaw://app', 'https://localhost'],
+  // app.voicaw.com and both apps can log in to any server (the login screen's Server), so
+  // another host keeps them and adds its own web app's address in ALLOWED_ORIGINS.
+  allowedOrigins: [
+    'https://app.voicaw.com', 'https://test.voicaw.com', 'https://voicaw.com', 'http://test.voicaw.com', 'http://voicaw.com', 'voicaw://app', 'https://localhost',
+    ...(process.env.ALLOWED_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean),
+  ],
+  // For apps logging in from elsewhere (client/src/utils/server.js), in /api/config: the app's
+  // websocket, when it isn't /api/socket on the API's own host (voicaw.com's is on api.voicaw.com),
+  // and this server's terms of use and privacy policy.
+  publicWebsocketUrl: process.env.PUBLIC_WEBSOCKET_URL || null,
+  termsUrl: process.env.TERMS_URL || 'https://voicaw.com/terms/',
+  privacyUrl: process.env.PRIVACY_URL || 'https://voicaw.com/privacy/',
   maxPlaintextLength,
   livekit,
   // Login/registration attempt limits (see routes/auth.js). Tests turn them off, since they

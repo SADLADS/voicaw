@@ -1,10 +1,12 @@
 import { useSyncExternalStore } from 'react';
 import { canChooseOutput } from './audioSettings';
+import { serverSuffix } from '../utils/server';
 
 // How loud each person is on this device (like Discord's User Volume and Stream Volume): 0–200%
 // of their voice, and separately of their screen share's sound, on top of the output volume
 // (audioSettings.js). Per device, `localStorage userVolumes` and `streamVolumes`
-// ({ userId: volume }, only those not at 100%), for voice channels and calls alike;
+// ({ userId: volume }, only those not at 100%; "userVolumes@host" on a server other than the
+// built-in one, utils/server.js), for voice channels and calls alike;
 // voiceClient.js applies them as they change.
 
 export const MAX_USER_VOLUME = 2;
@@ -73,8 +75,8 @@ function createVolumeStore(key) {
   return { get, set, onChange, use: (userId) => useSyncExternalStore(onChange, () => get(userId)) };
 }
 
-const userVolumes = createVolumeStore('userVolumes');
-const streamVolumes = createVolumeStore('streamVolumes');
+const userVolumes = createVolumeStore(`userVolumes${serverSuffix()}`);
+const streamVolumes = createVolumeStore(`streamVolumes${serverSuffix()}`);
 
 export const getUserVolume = userVolumes.get;
 export const setUserVolume = userVolumes.set;

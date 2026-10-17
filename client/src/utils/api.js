@@ -2,9 +2,10 @@ import axios from 'axios';
 import { loadDoc, saveDoc } from '../services/offlineCopy';
 import { isOfflineMode, isUnreachable } from './offlineMode';
 import { tokenClaims } from './loginToken';
+import { apiBaseUrl } from './server';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: apiBaseUrl(),
 });
 
 // The saved login, unless the request already says which one (logout's last requests carry
@@ -68,6 +69,6 @@ api.interceptors.response.use((res) => {
   throw err;
 });
 
-console.log('API Base URL:', import.meta.env.VITE_API_BASE_URL);
+console.log('API Base URL:', apiBaseUrl());
 
 export default api;
