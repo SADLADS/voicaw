@@ -1,0 +1,105 @@
+# Desktop releases, built by GitHub from the tagged commit (release_all.sh pushes the tag).
+# Every file is attested (Sigstore, actions/attest-build-provenance): anyone can check that an
+# installer or update feed was built here, by this workflow, from which commit:
+#   gh attestation verify Voicaw-1.2.3.AppImage --repo SADLADS/voicaw
+# The files go to a GitHub Release; the host downloads, verifies and publishes them to
+# updates.voicaw.com itself (release_all.sh), so GitHub holds no keys to our servers.
+name: Desktop release
+
+on:
+  push:
+    tags: ['desktop-v*']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: --linux
+            name: linux
+          - os: windows-2022
+            target: --win
+            name: windows
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write # Sigstore's certificate for this run
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Version from the tag
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#desktop-v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag $GITHUB_REF_NAME isn't desktop-vX.Y.Z" >&2
+            exit 1
+          fi
+          echo "VOICAW_VERSION=$version" >> "$GITHUB_ENV"
+      - run: npm ci
+      # The live API's public addresses (the host's client/.env.production, which isn't in git).
+      - name: Client build settings
+        shell: bash
+        run: |
+          printf '%s\n' 'VITE_API_BASE_URL=https://app.voicaw.com/api/' 'VITE_WS_URL=wss://api.voicaw.com' > client/.env.production
+      - run: npm run build:electron --workspace=client
+      - name: Installers
+        working-directory: electron
+        run: npx electron-builder ${{ matrix.target }} --config builder.config.js --publish never
+      - name: Check the feed's version
+        shell: bash
+        run: |
+          for feed in dist-desktop/latest*.yml; do
+            built="$(sed -n 's/^version: *//p' "$feed")"
+            if [ "$built" != "$VOICAW_VERSION" ]; then echo "$feed says $built, not $VOICAW_VERSION" >&2; exit 1; fi
+          done
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist-desktop/*.AppImage
+            dist-desktop/*.deb
+            dist-desktop/*.exe
+            dist-desktop/*.blockmap
+            dist-desktop/latest*.yml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.name }}
+          if-no-files-found: error
+          path: |
+            dist-desktop/*.AppImage
+            dist-desktop/*.deb
+            dist-desktop/*.exe
+            dist-desktop/*.blockmap
+            dist-desktop/latest*.yml
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: desktop-*
+          merge-multiple: true
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "Voicaw desktop ${GITHUB_REF_NAME#desktop-v}" \
+            --notes "Built by GitHub Actions from commit $GITHUB_SHA. Check any file with: gh attestation verify <file> --repo $GITHUB_REPOSITORY"

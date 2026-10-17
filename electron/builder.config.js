@@ -8,6 +8,10 @@ const UPDATE_URL = process.env.VOICAW_UPDATE_URL || 'https://updates.voicaw.com/
 // VOICAW_AUTO_UPDATE=off: the build starts with automatic updates off (desktopSettings.js), for
 // people who build the app themselves and don't want it replaced by the published one.
 const AUTO_UPDATE = !/^(off|false|0|no)$/i.test(process.env.VOICAW_AUTO_UPDATE ?? '');
+// VOICAW_VERSION=X.Y.Z: the release's version, stamped into the build (release_all.sh's GitHub
+// workflow, .github/workflows/desktop-release.yml), so electron/package.json never changes.
+const VERSION = process.env.VOICAW_VERSION;
+if (VERSION && !/^\d+\.\d+\.\d+$/.test(VERSION)) throw new Error(`VOICAW_VERSION must be X.Y.Z, not ${VERSION}`);
 // npm workspaces install electron in the repo root's node_modules, where electron-builder doesn't
 // look, and package.json only gives a range: so tell it the installed version.
 const { version: electronVersion } = require('electron/package.json');
@@ -17,7 +21,7 @@ module.exports = {
     appId: 'com.voicaw.app',
     productName: 'Voicaw',
     electronVersion,
-    extraMetadata: { voicawAutoUpdate: AUTO_UPDATE },
+    extraMetadata: { voicawAutoUpdate: AUTO_UPDATE, ...(VERSION && { version: VERSION }) },
     directories: { output: '../dist-desktop' },
     files: ['*.js', 'assets/**', '!builder.config.js', '!vitest.config.js', '!test/**'],
     extraResources: [{ from: '../build', to: 'app' }],
