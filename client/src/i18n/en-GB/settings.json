@@ -60,7 +60,7 @@
       },
       "privacy": {
         "title": "Privacy",
-        "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy link links website websites image images picture pictures notification notifications lock screen"
+        "keywords": "privacy invite invites embed embeds cards preview encrypted dm dms group server typing youtube video videos gif gifs klipy link links website websites image images picture pictures notification notifications lock screen safety number numbers verify verified encryption key keys"
       },
       "storage": {
         "title": "Storage on this device",
@@ -598,6 +598,10 @@
       "gifs": {
         "label": "Show GIFs straight away",
         "hint": "GIFs in messages, and the previews in the GIF picker, load from KLIPY, which sees your IP address and which GIFs you see (not the chat or its messages). Turn this off and each GIF waits until you tap Show, and the GIF picker asks before showing previews. Saved on this device."
+      },
+      "safetyNumbers": {
+        "label": "Show safety numbers in DMs",
+        "hint": "Each DM gets a Verified / Not verified button at the top that opens a 60-digit safety number. Compare it with the other person, in person or on a call: if both of you see the same number, nobody (not even the Voicaw server) has swapped in their own key to read your messages, and you can mark them verified. Your app checks keys either way and warns you if someone's key changes; this just lets you check for yourself. Saved on this device."
       }
     },
     "sounds": {

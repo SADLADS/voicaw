@@ -102,6 +102,17 @@ export default function PrivacySettings() {
       <p className="vc-hint">
         {t('settings.privacy.gifs.hint')}
       </p>
+      <label className="settings-toggle">
+        <input
+          type="checkbox"
+          checked={prefs.safetyNumbers}
+          onChange={(e) => setPrivacyPref('safetyNumbers', e.target.checked)}
+        />
+        {' '}{t('settings.privacy.safetyNumbers.label')}
+      </label>
+      <p className="vc-hint">
+        {t('settings.privacy.safetyNumbers.hint')}
+      </p>
     </div>
   );
 }

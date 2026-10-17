@@ -152,6 +152,7 @@ import { deriveConversationKey, encryptMessage, decryptMessage, encryptReaction 
 import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
 import { uploadAttachment } from '../services/attachmentUpload';
 import { readMediaDimensions } from '../utils/mediaDimensions';
+import { setPrivacyPref } from '../utils/privacy';
 
 const currentUser = { id: 1, username: 'me' };
 const chatUserFull = {
@@ -728,12 +729,24 @@ describe('Dm contact keys', () => {
     expect(decryptMessage).toHaveBeenCalledWith('ENC-IN', 'shared-key', 'ctx:2->1');
   });
 
-  it('does not show the safety number badge (hidden for now)', async () => {
+  it("doesn't show the safety number badge unless Settings → Privacy turns it on", async () => {
     checkContactKeys.mockResolvedValueOnce({ status: 'verified', encryptionKey: 'bob-enc' });
     renderDm({ path: '/dm/2', users: [chatUserFull] });
 
     await screen.findByText('No messages yet. Start the conversation!');
     expect(screen.queryByRole('button', { name: /verified/i })).toBeNull();
+  });
+
+  it('with Show safety numbers on, the badge opens the safety number', async () => {
+    setPrivacyPref('safetyNumbers', true);
+    try {
+      renderDm({ path: '/dm/2', users: [chatUserFull] });
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Not verified' }));
+      expect(screen.getByRole('dialog')).toHaveTextContent(`Safety number with ${chatUserFull.username}`);
+    } finally {
+      setPrivacyPref('safetyNumbers', false);
+    }
   });
 
   it('blocks the chat when the key changed, until the user accepts it', async () => {

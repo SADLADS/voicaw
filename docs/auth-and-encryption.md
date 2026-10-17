@@ -273,9 +273,12 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   use a contact key straight from the server. `checkContactKeys` verifies the signature, pins the
   identity key, and returns `'changed'` (the conversation is blocked until the user accepts,
   `ContactKeyWarning`) or `'invalid'`. Users compare 60-digit safety numbers (`safetyNumber.js`,
-  `SafetyNumberDialog`) and can mark contacts verified. That badge and dialog are
-  hidden for now (`SHOW_SAFETY_NUMBERS` in `Dm.jsx`: too confusing for non-technical users); the
-  pinning and the key-changed block still apply.
+  `SafetyNumberDialog`) and can mark contacts verified. That badge and dialog show only with
+  Settings → Privacy's "Show safety numbers in DMs" (`safetyNumbers` in `utils/privacy.js`, per
+  device, off by default since 2026-10-17: too confusing for non-technical users; it was hidden
+  for everyone before); the pinning and the key-changed block apply either way. Safety numbers
+  come from public keys, so they aren't secret: comparing them catches a swapped key, not
+  changed app code (the server delivering the web app's code stays the gap).
 - **DMs:** `deriveConversationKey` (ECDH → HKDF → AES-GCM) uses the *pinned* contact key.
   `encryptMessage`/`decryptMessage` take `dmContext(senderId, recipientId)` as AES-GCM additional
   data, so the server can't re-attribute or move messages. Replies and edits use the original
