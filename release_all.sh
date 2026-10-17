@@ -6,7 +6,9 @@
 #    desktop-v* tag if that's higher) and asks (unless -y).
 # 2. Tags the commit as desktop-vX.Y.Z and pushes the tag. That starts
 #    .github/workflows/desktop-release.yml, which builds the installers on GitHub's machines,
-#    attests every file (Sigstore) and puts them in a GitHub Release.
+#    attests every file (Sigstore) and puts them in a GitHub Release. Given the version of a tag
+#    already pushed but never published (its build failed and was re-run, or the publish
+#    stopped), it finishes that release from the tag's commit, whatever is checked out.
 # 3. Waits for it, downloads the release into dist-release/X.Y.Z/, and checks every file's
 #    attestation with the GitHub CLI: built by that workflow, from this commit, on GitHub's own
 #    machines. Nothing unverified is published.
@@ -105,23 +107,27 @@ VERSION="$(node -e '
 ' "$BUMP" "$SITE/desktop/releases.json" "$(git ls-remote --tags origin 'desktop-v*' | sed 's|.*refs/tags/||; s|\^{}$||' | sort -u)")"
 TAG="desktop-v$VERSION"
 
-echo "Desktop $VERSION from $(git rev-parse --abbrev-ref HEAD) $(git rev-parse --short HEAD), built by GitHub ($REPO)."
+# A tag that's already there (pushed but not published: the version check let it through) is a
+# release to finish, from its own commit, whatever is checked out now.
+git fetch -q origin "refs/tags/$TAG:refs/tags/$TAG" 2>/dev/null || true
+if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+  COMMIT="$(git rev-parse "$TAG^{commit}")"
+  NEW_TAG=
+  echo "Desktop $VERSION: finishing $TAG, on $(git rev-parse --short "$COMMIT"), built by GitHub ($REPO)."
+else
+  NEW_TAG=1
+  echo "Desktop $VERSION from $(git rev-parse --abbrev-ref HEAD) $(git rev-parse --short HEAD), built by GitHub ($REPO)."
+fi
 [ -n "$PUBLISH" ] && echo "Then published to $SITE."
 if [ -z "$YES" ]; then
-  printf "Tag %s, push the tag and release? [y/N] " "$TAG"
+  if [ -n "$NEW_TAG" ]; then printf "Tag %s, push the tag and release? [y/N] " "$TAG"
+  else printf "Finish releasing %s? [y/N] " "$TAG"; fi
   read -r answer
   case "$answer" in y|Y|yes) ;; *) echo "Cancelled."; exit 1 ;; esac
 fi
 
 # 2. The tag starts the build.
-if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-  if [ "$(git rev-parse "$TAG^{commit}")" != "$COMMIT" ]; then
-    echo "$TAG already exists, on another commit." >&2
-    exit 1
-  fi
-else
-  git tag -a "$TAG" "$COMMIT" -m "Desktop app $VERSION"
-fi
+[ -n "$NEW_TAG" ] && git tag -a "$TAG" "$COMMIT" -m "Desktop app $VERSION"
 git push -q origin "refs/tags/$TAG"
 echo "Pushed $TAG. Waiting for GitHub's build…"
 
