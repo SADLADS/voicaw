@@ -43,6 +43,15 @@ describe('DesktopAppSettings', () => {
     expect(screen.getByLabelText(/Start Voicaw when you log in/).checked).toBe(true);
   });
 
+  it('turns automatic updates off', async () => {
+    render(<DesktopAppSettings />);
+    const auto = await screen.findByLabelText('Update automatically');
+    expect(auto.checked).toBe(true);
+    fireEvent.click(auto);
+    await waitFor(() => expect(bridge.updateSettings).toHaveBeenCalledWith({ autoUpdate: false }));
+    expect(screen.getByLabelText('Update automatically').checked).toBe(false);
+  });
+
   it('records a shortcut from the next key press with a modifier', async () => {
     render(<DesktopAppSettings />);
     fireEvent.click(await screen.findByRole('button', { name: 'Toggle mute shortcut' }));

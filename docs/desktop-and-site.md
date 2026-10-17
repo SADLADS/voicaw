@@ -181,6 +181,14 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   keeps its file name across updates, and in the Steam Deck's Gaming Mode nothing restarts (both
   above). Releases are
   only as trustworthy as that server (no signature of our own on the feed yet).
+- **Turning updates off** (Settings → Desktop App → Update automatically, `autoUpdate` in
+  `desktopSettings.js`, on by default): off, the app never looks by itself, not at launch (the
+  splash just opens it) nor every 4 hours; only Settings → App version's "Check for updates"
+  asks the feed, and what it finds is downloaded and offered as usual. Turning it back on looks
+  at once. For people who build the app themselves to know what runs (the server would otherwise
+  replace their build with the published one): `VOICAW_AUTO_UPDATE=off` at build time
+  (`builder.config.js` writes `voicawAutoUpdate` into the packaged `package.json`) makes it off
+  from the first launch.
 - **Not done yet:** push-to-talk (held key), screen share sound on macOS and
   Linux (Electron's loopback is Windows only), streaming videos (no
   service worker: they download whole on Play; `protocol.js` could serve them instead), code

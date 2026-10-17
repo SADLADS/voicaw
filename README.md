@@ -54,12 +54,13 @@ The installers land in `dist-desktop/`, for the system you built on:
 - **macOS:** a `.dmg`. It isn't signed either: the first time, right-click the app →
   Open. Building for macOS needs a Mac.
 
-The desktop app updates itself from updates.voicaw.com, so at its first start your copy is
-replaced by the official release. To keep running your own build, build it with an update
-address that has nothing on it, then update by building again:
+The desktop app updates itself from updates.voicaw.com, so at its first start your copy would
+be replaced by the official release. To keep running your own build, build it with automatic
+updates off (Settings → Desktop App → Update automatically starts unticked, and the app only
+asks updates.voicaw.com when you press Check for updates), then update by building again:
 
 ```sh
-VOICAW_UPDATE_URL=https://localhost/ npm run dist:electron
+VOICAW_AUTO_UPDATE=off npm run dist:electron
 ```
 
 ### 3b. Android
@@ -400,7 +401,8 @@ own `VITE_API_BASE_URL` / `VITE_WS_URL`.
 
 Installed copies update themselves (`electron/updater.js`) from
 `https://updates.voicaw.com/desktop/` (set `VOICAW_UPDATE_URL` when building to use another
-address). That's its own static site, with a download page at `https://updates.voicaw.com/`
+address, or `VOICAW_AUTO_UPDATE=off` for a build that never looks unless asked: Settings →
+Desktop App → Update automatically starts off). That's its own static site, with a download page at `https://updates.voicaw.com/`
 (`updates/site/`) listing the newest installer for each system. Set it up once:
 
 1. DNS: an `A` record for `updates.voicaw.com` pointing at the host.

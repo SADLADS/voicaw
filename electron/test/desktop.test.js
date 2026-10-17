@@ -59,6 +59,17 @@ describe('desktop settings (desktopSettings.js)', () => {
             .toEqual({ shortcuts: { toggleMute: 'Control+Shift+M' } });
         expect(cleanChanges({ shortcuts: { toggleMute: null } })).toEqual({ shortcuts: { toggleMute: null } });
         expect(cleanChanges(null)).toEqual({});
+        expect(cleanChanges({ autoUpdate: false })).toEqual({ autoUpdate: false });
+        expect(cleanChanges({ autoUpdate: 'off' })).toEqual({});
+    });
+
+    it('updates automatically by default, and keeps it turned off', () => {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'voicaw-settings-'));
+        const store = createSettingsStore(dir);
+        expect(store.get().autoUpdate).toBe(true);
+        store.update({ autoUpdate: false });
+        expect(createSettingsStore(dir).get().autoUpdate).toBe(false);
+        fs.rmSync(dir, { recursive: true, force: true });
     });
 
     it('starts at login by default, even where an older version saved false, until chosen', () => {

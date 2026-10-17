@@ -20,7 +20,7 @@ function check(ok, what) {
 function fakeBridge() {
   const record = { notifications: [], unread: [], settingsChanges: [] };
   const listeners = {};
-  let settings = { closeToTray: true, startAtLogin: false, shortcuts: { toggleMute: null, toggleDeafen: null } };
+  let settings = { closeToTray: true, startAtLogin: false, autoUpdate: true, shortcuts: { toggleMute: null, toggleDeafen: null } };
   let finishInstall = () => {};
   window.__desktop = {
     record,
@@ -86,6 +86,11 @@ try {
   await page.keyboard.press('Control+Shift+M');
   await page.waitForSelector('button[aria-label="Toggle mute shortcut"]:text-is("Ctrl + Shift + M")');
   check(true, 'a shortcut is recorded from a key press');
+  const autoUpdate = card.getByLabel('Update automatically');
+  check(await autoUpdate.isChecked(), 'updates automatically by default');
+  await autoUpdate.click();
+  await page.waitForFunction(() => window.__desktop.record.settingsChanges.some((c) => c.autoUpdate === false));
+  check(!(await autoUpdate.isChecked()), 'Update automatically turns off');
   if (dir) await card.screenshot({ path: `${dir}/desktop-settings.png` });
   await page.waitForTimeout(500); // presence reaches the server
 

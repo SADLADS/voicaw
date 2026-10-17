@@ -3,6 +3,11 @@
 const fs = require('fs');
 const path = require('path');
 
+// A build made with VOICAW_AUTO_UPDATE=off (builder.config.js writes it into the packaged
+// package.json) starts with automatic updates off, so it never asks the update site, not even
+// at its first launch.
+const AUTO_UPDATE_DEFAULT = require('./package.json').voicawAutoUpdate !== false;
+
 const DEFAULTS = {
     // Closing the window leaves the app running in the tray (so notifications keep coming).
     closeToTray: true,
@@ -14,6 +19,9 @@ const DEFAULTS = {
     // Rich Presence (richPresence.js): games' "Playing X" shared with everyone. Off: not even
     // listening for games.
     richPresence: true,
+    // Updates (updater.js): looking for, downloading and installing new versions by itself. Off:
+    // only Settings → App Version's "Check for updates" looks.
+    autoUpdate: AUTO_UPDATE_DEFAULT,
     // Global keyboard shortcuts (Electron accelerators, e.g. "CommandOrControl+Shift+M"), or null.
     shortcuts: { toggleMute: null, toggleDeafen: null },
     // Where the window was, restored on the next start.
@@ -29,6 +37,7 @@ function cleanChanges(changes) {
     if (typeof changes?.closeToTray === 'boolean') clean.closeToTray = changes.closeToTray;
     if (typeof changes?.startAtLogin === 'boolean') clean.startAtLogin = changes.startAtLogin;
     if (typeof changes?.richPresence === 'boolean') clean.richPresence = changes.richPresence;
+    if (typeof changes?.autoUpdate === 'boolean') clean.autoUpdate = changes.autoUpdate;
     if (changes?.shortcuts && typeof changes.shortcuts === 'object') {
         clean.shortcuts = {};
         for (const action of SHORTCUT_ACTIONS) {
