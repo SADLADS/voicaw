@@ -149,7 +149,7 @@ function textInput(raw, path, label) {
 // are unique in the message. Returns the cleaned list. `flags` with IS_COMPONENTS_V2 is refused.
 function cleanMessageComponents(raw, flags = 0) {
   if (raw == null) return [];
-  if (Number(flags) & IS_COMPONENTS_V2) throw formError(['flags'], "Discord's layout components (IS_COMPONENTS_V2) aren't supported on Voicaw.", 'BASE_TYPE_INVALID');
+  if (Number(flags) & IS_COMPONENTS_V2) throw formError(['flags'], "Layout components (IS_COMPONENTS_V2) aren't supported on Voicaw.", 'BASE_TYPE_INVALID');
   if (!Array.isArray(raw)) throw formError(['components'], 'Must be an array.', 'BASE_TYPE_ARRAY');
   if (raw.length > MAX_ROWS) throw formError(['components'], `Must be ${MAX_ROWS} or fewer in length.`, 'BASE_TYPE_MAX_LENGTH');
   const ids = new Set();

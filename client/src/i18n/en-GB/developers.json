@@ -7,7 +7,7 @@
     "copyFailed": "Couldn't copy. Select it and copy it yourself.",
     "list": {
       "heading": "Applications",
-      "intro": "An application is a bot: a program that joins guilds and talks in them through Voicaw's bot API, which works like Discord's.",
+      "intro": "An application is a bot: a program that joins guilds and talks in them through Voicaw's bot API.",
       "empty": "You haven't made any applications yet.",
       "new": "New Application",
       "open": "Open {{name}}"
@@ -27,7 +27,7 @@
       "oauth2": "OAuth2"
     },
     "oauth2": {
-      "intro": "Let people log in to your website with their Voicaw account (\"Login with Voicaw\"). It works like Discord's OAuth2: send them to the authorise link, then trade the code for a token with your client secret. The only scope is identify: their id, username, display name and picture.",
+      "intro": "Let people log in to your website with their Voicaw account (\"Login with Voicaw\"). It uses OAuth2: send them to the authorise link, then trade the code for a token with your client secret. The only scope is identify: their id, username, display name and picture.",
       "clientIdLabel": "Client ID",
       "secretHeading": "Client secret",
       "secretHint": "Your website's server uses it to trade codes for tokens. Keep it secret, and never put it in a web page or an app. Voicaw only shows it once.",

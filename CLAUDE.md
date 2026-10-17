@@ -165,6 +165,10 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 ## Rules that apply everywhere
 
 - **Guilds** are always "guilds" in the app and its code; "server" means the app's own server.
+- **Never mention Discord in text people see** (the app, Settings → Admin, the site, the privacy
+  policy; decided 2026-10-17): say what a feature does, not that it's like Discord's. Code
+  comments and these docs may still compare. The developer docs (`website/src/developers/`)
+  still name Discord for API compatibility and its libraries.
 - **Encrypted chats** (DMs, notes, group DMs): the server stores and relays only ciphertext and
   is untrusted. Never use a contact's key straight from the server (`contactKeys.js`
   `checkContactKeys`); every format is versioned (`v1.`, `{v:1}`, `voicaw/<purpose>/v1`). Anything

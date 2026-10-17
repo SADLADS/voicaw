@@ -24,7 +24,7 @@ const SETTINGS = {
   linkPreviews: {
     env: 'LINK_PREVIEWS',
     label: 'Link previews',
-    description: 'Whether the server fetches links posted in guilds to show a preview of the page, picture or video under the message, as Discord does (the sites see this server asking). Never in DMs or group DMs.',
+    description: 'Whether the server fetches links posted in guilds to show a preview of the page, picture or video under the message (the sites see this server asking). Never in DMs or group DMs.',
     choices: ['on', 'off'],
     fallback: 'on',
   },
@@ -52,7 +52,7 @@ const SETTINGS = {
   // (or interaction answer) may carry, all its files together.
   botUploadLimit: {
     label: 'Bot file size limit',
-    description: "The most files one bot or webhook message may carry, all together (25 MB is Discord's, which bots expect). These come through the API server whole, so nginx's client_max_body_size on the API must be at least this (plus a little).",
+    description: "The most files one bot or webhook message may carry, all together (25 MB is what bots usually expect). These come through the API server whole, so nginx's client_max_body_size on the API must be at least this (plus a little).",
     choices: ['500', '250', '100', '50', '25'],
     fallback: '25',
   },

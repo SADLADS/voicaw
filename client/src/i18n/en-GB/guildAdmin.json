@@ -456,7 +456,7 @@
       "delete": "Delete Webhook",
       "saveChanges": "Save Changes",
       "defaultName": "Captain Hook",
-      "intro": "Webhooks let other apps and services post messages into #{{name}}. Each has its own name and picture, and a secret URL: anything that works with Discord webhooks works with it. Anyone with the URL can post here, so keep it private.",
+      "intro": "Webhooks let other apps and services post messages into #{{name}}. Each has its own name and picture, and a secret URL the app posts to. Anyone with the URL can post here, so keep it private.",
       "new": "New Webhook",
       "none": "No webhooks yet."
     },
