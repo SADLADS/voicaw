@@ -60,6 +60,11 @@ if ! command -v gh >/dev/null 2>&1 || ! gh auth status >/dev/null 2>&1; then
   echo "The GitHub CLI isn't installed or logged in (gh auth login): it checks the builds' attestations." >&2
   exit 1
 fi
+if ! gh attestation verify --help >/dev/null 2>&1; then
+  echo "This GitHub CLI ($(gh --version | head -1)) can't check attestations: it needs 2.49 or later." >&2
+  echo "Debian's package is older; install GitHub's own (README \"Desktop app\")." >&2
+  exit 1
+fi
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   echo "This checkout has uncommitted changes: commit them (and push) first, GitHub builds the commit." >&2
   exit 1
