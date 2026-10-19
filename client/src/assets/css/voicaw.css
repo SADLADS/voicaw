@@ -919,6 +919,19 @@ pre code {
   margin: 0;
 }
 
+/* Under its row. */
+.desktop-shortcut-hint {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.desktop-overlay-position {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.5rem;
+}
+
 /* Settings → Android App: recent notifications */
 .android-push-log {
   list-style: none;

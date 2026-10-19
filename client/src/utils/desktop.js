@@ -55,7 +55,7 @@ export function describeAccelerator(accelerator, platform = desktop?.platform) {
   if (!accelerator) return '';
   const mac = platform === 'darwin';
   const names = mac
-    ? { Command: '⌘', Control: '⌃', Alt: '⌥', Shift: '⇧', Super: '⌘' }
-    : { Command: 'Ctrl', Control: 'Ctrl', Alt: 'Alt', Shift: 'Shift', Super: 'Super' };
+    ? { Command: '⌘', CommandOrControl: '⌘', Control: '⌃', Alt: '⌥', Shift: '⇧', Super: '⌘' }
+    : { Command: 'Ctrl', CommandOrControl: 'Ctrl', Control: 'Ctrl', Alt: 'Alt', Shift: 'Shift', Super: 'Super' };
   return accelerator.split('+').map((part) => names[part] ?? part).join(mac ? ' ' : ' + ');
 }

@@ -5,11 +5,18 @@ import { t } from '../i18n';
 const SHORTCUTS = [
   { action: 'toggleMute', labelKey: 'settings.desktopApp.toggleMute', shortcutKey: 'settings.desktopApp.toggleMuteShortcut' },
   { action: 'toggleDeafen', labelKey: 'settings.desktopApp.toggleDeafen', shortcutKey: 'settings.desktopApp.toggleDeafenShortcut' },
+  {
+    action: 'toggleOverlay',
+    labelKey: 'settings.desktopApp.toggleOverlay',
+    shortcutKey: 'settings.desktopApp.toggleOverlayShortcut',
+    hintKey: 'settings.desktopApp.toggleOverlayHint',
+  },
 ];
+const OVERLAY_POSITIONS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
 // Settings → Desktop App (only in the desktop app): closing to the tray, starting at login,
-// updating automatically (electron/updater.js), sharing what you're playing (Rich Presence, electron/richPresence.js) and global mute/deafen
-// shortcuts. Kept by the app itself (electron/desktopSettings.js).
+// updating automatically (electron/updater.js), sharing what you're playing (Rich Presence, electron/richPresence.js), the in-game overlay
+// (electron/overlay.js: on/off and its corner) and global shortcuts (mute, deafen, the overlay's). Kept by the app itself (electron/desktopSettings.js).
 export default function DesktopAppSettings() {
   const [settings, setSettings] = useState(null);
   const [recording, setRecording] = useState(null); // the action whose key is being set
@@ -78,10 +85,29 @@ export default function DesktopAppSettings() {
       </label>
       <p className="vc-hint">{t('settings.desktopApp.shareActivityHint')}</p>
 
+      {'overlay' in settings && (
+        <>
+          <h6 id="settings-overlay" className="desktop-shortcuts-title">{t('settings.desktopApp.overlay')}</h6>
+          <label className="settings-toggle">
+            <input type="checkbox" checked={settings.overlay !== false} onChange={(e) => save({ overlay: e.target.checked })} />
+            {' '}{t('settings.desktopApp.overlayOn')}
+          </label>
+          <p className="vc-hint">{t('settings.desktopApp.overlayHint')}</p>
+          {settings.overlay !== false && (
+            <label className="desktop-overlay-position">
+              <span>{t('settings.desktopApp.overlayPosition')}</span>
+              <select value={settings.overlayPosition ?? 'top-left'} onChange={(e) => save({ overlayPosition: e.target.value })}>
+                {OVERLAY_POSITIONS.map((p) => <option key={p} value={p}>{t(`settings.desktopApp.overlayPositions.${p}`)}</option>)}
+              </select>
+            </label>
+          )}
+        </>
+      )}
+
       <h6 id="settings-shortcuts" className="desktop-shortcuts-title">{t('settings.desktopApp.shortcuts')}</h6>
       <p className="vc-hint">{t('settings.desktopApp.shortcutsHint')}</p>
       <div className="desktop-shortcuts">
-        {SHORTCUTS.map(({ action, labelKey, shortcutKey }) => {
+        {SHORTCUTS.filter(({ action }) => action in settings.shortcuts).map(({ action, labelKey, shortcutKey, hintKey }) => {
           const accelerator = settings.shortcuts[action];
           const isRecording = recording === action;
           return (
@@ -103,6 +129,7 @@ export default function DesktopAppSettings() {
               {failed.includes(action) && (
                 <span className="error-msg desktop-shortcut-error" role="alert">{t('settings.desktopApp.shortcutTaken')}</span>
               )}
+              {hintKey && <p className="vc-hint desktop-shortcut-hint">{t(hintKey)}</p>}
             </div>
           );
         })}

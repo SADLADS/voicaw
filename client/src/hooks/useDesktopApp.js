@@ -2,14 +2,15 @@ import { useEffect } from 'react';
 import { desktop, unreadSummary } from '../utils/desktop';
 import { onNotification, setOwnActivities } from '../utils/ws-client';
 import { notificationFromPush } from '../services/pushNotifications';
-import { getVoiceSnapshot, setSelfDeaf, setSelfMute } from '../voice/voiceClient';
+import { getVoiceSnapshot, leaveVoice, setSelfDeaf, setSelfMute } from '../voice/voiceClient';
+import { hangUp } from '../voice/callClient';
 
 // The desktop app's side of the logged-in page (from Layout); does nothing in a browser:
 // - notifications: the server sends it what would be a web push; the text is worked out
 //   exactly as the service worker does (DM previews decrypted here, on the device), and the
 //   app shows it. Clicking one opens its chat (`navigate`).
 // - the unread count on the tray icon and taskbar/dock
-// - the global mute / deafen shortcuts
+// - the global mute / deafen shortcuts, and the in-game overlay's mute, deafen and disconnect
 // - Rich Presence: what this computer's games say you're doing, shared (utils/ws-client.js)
 export function useDesktopApp({ navigate, unreadDms, groups, guildUnread }) {
   useEffect(() => {
@@ -35,6 +36,10 @@ export function useDesktopApp({ navigate, unreadDms, groups, guildUnread }) {
       const { selfMute, selfDeaf } = getVoiceSnapshot();
       if (action === 'toggleMute') setSelfMute(!(selfMute || selfDeaf));
       else if (action === 'toggleDeafen') setSelfDeaf(!selfDeaf);
+      else if (action === 'disconnect') {
+        if (getVoiceSnapshot().callId != null) hangUp();
+        else leaveVoice();
+      }
     });
     // (Older copies of the app have no Rich Presence.)
     const stopActivities = desktop.onActivities?.(setOwnActivities) ?? (() => {});

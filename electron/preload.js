@@ -50,6 +50,9 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
     // Rich Presence: what the games on this computer say you're doing (electron/gameActivities.js),
     // now and whenever it changes.
     getActivities: () => ipcRenderer.invoke('desktop:activities'),
+    // The in-game overlay (electron/overlay.js): what it shows of the voice channel or call
+    // you're in (client utils/overlay.js), or null when you're not.
+    setOverlayVoice: (state) => ipcRenderer.send('desktop:overlay-voice', state),
     onActivities: listen('desktop:activities'),
     onNavigate: listen('desktop:navigate'),
     onShortcut: listen('desktop:shortcut'),

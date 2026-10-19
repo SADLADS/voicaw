@@ -1,0 +1,24 @@
+{
+  "overlay": {
+    "voice": "Voice",
+    "muted": "Muted",
+    "deafened": "Deafened",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "deafen": "Deafen",
+    "undeafen": "Undeafen",
+    "disconnect": "Disconnect",
+    "unlockHint": "Press {{key}} to use the overlay",
+    "settings": "Overlay",
+    "position": "Position",
+    "positions": {
+      "top-left": "Top left",
+      "top-right": "Top right",
+      "bottom-left": "Bottom left",
+      "bottom-right": "Bottom right"
+    },
+    "openApp": "Open Voicaw",
+    "lock": "Close",
+    "lockShortcutHint": "{{key}} or Esc goes back to the game."
+  }
+}

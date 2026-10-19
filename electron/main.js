@@ -1,10 +1,11 @@
 // The desktop app: one window showing the client build that ships inside the app (see
 // protocol.js), plus what a browser tab can't do: notifications without web push, a tray
 // icon with the unread count, closing to the tray, starting at login, global mute/deafen
-// shortcuts, a screen picker for screen sharing, games' Rich Presence and updating itself. The page reaches these through preload.js.
+// shortcuts, a screen picker for screen sharing, games' Rich Presence, the in-game overlay and updating itself. The page reaches these through preload.js.
 // It starts with a splash window (splash.js) that installs any update before the app opens.
 // The Steam Deck's Gaming Mode changes a few of these (gamingMode.js).
-// (Its only other window is a popped-out screen share, which the page draws itself; windowOpen.js.)
+// (Its other windows are a popped-out screen share, which the page draws itself, windowOpen.js,
+// and the in-game overlay, overlay.js.)
 const path = require('path');
 const { app, BrowserWindow, Menu, desktopCapturer, dialog, globalShortcut, ipcMain, nativeImage, net, protocol, screen, session, shell } = require('electron');
 const fs = require('fs');
@@ -15,7 +16,7 @@ const { setUpSpellcheck, syncSpellingWords } = require('./spellcheck');
 const { ORIGIN, isAppOrigin, registerScheme, handleScheme } = require('./protocol');
 const { createSettingsStore } = require('./desktopSettings');
 const { createTray } = require('./tray');
-const { createNotifier } = require('./notifications');
+const { createNotifier, cleanNotification } = require('./notifications');
 const { applyShortcuts } = require('./shortcuts');
 const { createUpdater } = require('./updater');
 const { createSplash } = require('./splash');
@@ -29,6 +30,8 @@ const { createRichPresenceServer } = require('./richPresence');
 const { createGameActivities, pictureFrom } = require('./gameActivities');
 const { identifyGame, steamApps, steamRoots } = require('./gameLookup');
 const { inGamingMode } = require('./gamingMode');
+const { createOverlay, OVERLAY_PRELOAD } = require('./overlay');
+const { runningSteamGame } = require('./runningGames');
 
 const APP_ID = 'com.voicaw.app';
 const ICON = path.join(__dirname, 'assets', 'icon.png');
@@ -56,6 +59,8 @@ let screenShare;
 let fileSaver;
 let richPresence;
 let gameActivities;
+let overlay;
+let lookForGames;
 
 // One app at a time: starting it again brings the running one forward.
 if (!app.requestSingleInstanceLock()) {
@@ -66,7 +71,8 @@ if (!app.requestSingleInstanceLock()) {
     app.whenReady().then(start);
 }
 
-const fromApp = (event) => (event.senderFrame?.url ?? '').startsWith(`${ORIGIN}/`);
+// The app's own page (not the overlay's, which shares its origin but only gets overlay.js's calls).
+const fromApp = (event) => (event.senderFrame?.url ?? '').startsWith(`${ORIGIN}/`) && !overlay?.isOverlay(event.sender);
 
 function showWindow() {
     if (!win) {
@@ -194,9 +200,14 @@ function setUpPermissions() {
             : isAppOrigin(requestingOrigin) && ALLOWED_PERMISSIONS.has(permission)));
 }
 
-// Returns the actions whose key couldn't be registered.
+// Returns the actions whose key couldn't be registered. The overlay's is only held while
+// it's up (other apps may use it the rest of the time), and only checked otherwise.
 function applyDesktopShortcuts() {
-    return applyShortcuts(settings.get().shortcuts, (action) => win?.webContents.send('desktop:shortcut', action));
+    const onAction = (action) => {
+        if (action === 'toggleOverlay') overlay.toggleLock();
+        else win?.webContents.send('desktop:shortcut', action);
+    };
+    return applyShortcuts(settings.get().shortcuts, onAction, { checkOnly: overlay.isShown() ? [] : ['toggleOverlay'] });
 }
 
 // Runs a program, resolving to what it printed (for gameLookup.js: PowerShell, ps, reg).
@@ -244,7 +255,10 @@ function setUpRichPresence() {
             if (bytes.length > MAX_PICTURE_BYTES) return null;
             return pictureFrom(nativeImage.createFromBuffer(bytes), { photo: true });
         },
-        onChange: (activities) => win?.webContents.send('desktop:activities', activities),
+        onChange: (activities) => {
+            win?.webContents.send('desktop:activities', activities);
+            overlay.setGames({ presence: activities.some(playing) });
+        },
     });
     richPresence = createRichPresenceServer({ net: nodeNet, fs, onChange: (games) => gameActivities.update(games) });
     applyRichPresence();
@@ -254,11 +268,73 @@ function setUpRichPresence() {
 function applyRichPresence() {
     if (!settings.get().richPresence) {
         richPresence.stop();
+        overlay.setGames({ presence: false });
         return;
     }
     richPresence.start().then((file) => {
         if (!file) console.error('Rich Presence: every discord-ipc socket is taken');
     }).catch((err) => console.error('Rich Presence failed to start', err.message));
+}
+
+// For the overlay, a game is something played or competed in (not music or a video).
+const playing = (activity) => activity.type === 0 || activity.type === 5;
+
+// Steam's installed apps, listed again now and then (games get installed).
+const STEAM_APPS_TTL_MS = 10 * 60 * 1000;
+let steamAppsCache = null;
+async function installedSteamApps() {
+    if (!steamAppsCache || Date.now() - steamAppsCache.at > STEAM_APPS_TTL_MS) {
+        const platform = process.platform;
+        const roots = steamRoots({ platform, home: os.homedir(), registrySteamPath: platform === 'win32' ? await windowsSteamPath() : null });
+        steamAppsCache = { at: Date.now(), apps: steamApps(fs, roots) };
+    }
+    return steamAppsCache.apps;
+}
+
+// The in-game overlay (overlay.js): shown while in voice and playing. Games that don't use
+// Rich Presence are looked for among the running programs (runningGames.js), every 15
+// seconds, only while it could be shown.
+const GAME_POLL_MS = 15 * 1000;
+
+function setUpOverlay() {
+    overlay = createOverlay({
+        createWindow: (options) => new BrowserWindow({ icon: ICON, ...options }),
+        screen,
+        url: `${ORIGIN}/overlay.html`,
+        preload: OVERLAY_PRELOAD,
+        getSettings: () => settings.get(),
+        disabled: gamingMode,
+        onAction: (action) => win?.webContents.send('desktop:shortcut', action),
+        onOpen(url) {
+            showWindow();
+            if (url) win?.webContents.send('desktop:navigate', url);
+        },
+        onPosition: (position) => {
+            settings.update({ overlayPosition: position });
+            overlay.settingsChanged();
+        },
+        onShownChange: () => applyDesktopShortcuts(),
+    });
+    let polling = false;
+    async function look() {
+        if (polling) return;
+        if (!overlay.lookingForGames()) {
+            overlay.setGames({ running: false });
+            return;
+        }
+        polling = true;
+        try {
+            const game = await runningSteamGame({ platform: process.platform, fs, run, apps: await installedSteamApps() });
+            overlay.setGames({ running: Boolean(game) });
+        } catch (err) {
+            console.error('Looking for running games failed', err.message);
+        } finally {
+            polling = false;
+        }
+    }
+    const timer = setInterval(look, GAME_POLL_MS);
+    app.on('will-quit', () => clearInterval(timer));
+    return look;
 }
 
 function setUpIpc() {
@@ -270,11 +346,29 @@ function setUpIpc() {
         const next = settings.update(changes);
         if (next.startAtLogin !== before.startAtLogin) setStartAtLogin(app, next.startAtLogin);
         if (next.richPresence !== before.richPresence) applyRichPresence();
+        if (next.overlay !== before.overlay || next.overlayPosition !== before.overlayPosition) {
+            overlay.settingsChanged();
+            if (next.overlay) lookForGames();
+        }
         if (next.autoUpdate && !before.autoUpdate) updater.check();
         return { settings: next, failedShortcuts: applyDesktopShortcuts() };
     });
     ipcMain.handle('desktop:activities', (event) => (fromApp(event) ? gameActivities.current() : []));
-    ipcMain.on('desktop:notify', (event, notification) => { if (fromApp(event)) notifier.show(notification); });
+    ipcMain.on('desktop:notify', (event, notification) => {
+        if (!fromApp(event)) return;
+        // Over a game, the overlay shows it instead.
+        if (!overlay.toast(cleanNotification(notification))) notifier.show(notification);
+    });
+    // The voice state the overlay shows (null: not in voice), whenever it changes.
+    ipcMain.on('desktop:overlay-voice', (event, state) => {
+        if (!fromApp(event)) return;
+        const wasInVoice = overlay.lookingForGames();
+        overlay.setVoice(state);
+        if (!wasInVoice && overlay.lookingForGames()) lookForGames();
+    });
+    ipcMain.on('overlay:message', (event, message) => {
+        if (overlay.isOverlay(event.sender)) overlay.handle(message);
+    });
     ipcMain.on('desktop:unread', (event, unread) => { if (fromApp(event)) tray.setUnread(win, unread); });
     ipcMain.handle('desktop:screen-sources', (event) => (fromApp(event) ? screenShare.listSources() : null));
     ipcMain.handle('desktop:choose-screen-source', (event, id, audio) =>
@@ -336,6 +430,7 @@ function start() {
             win?.webContents.send('desktop:update-progress', fraction);
         },
     });
+    lookForGames = setUpOverlay();
     setUpIpc();
     setUpRichPresence();
     // Keeps the login item current (e.g. after the AppImage moved).

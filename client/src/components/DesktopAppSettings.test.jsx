@@ -78,4 +78,29 @@ describe('DesktopAppSettings', () => {
     });
     expect(await screen.findByRole('alert')).toHaveTextContent('Another app is using this shortcut.');
   });
+
+  it('turns the in-game overlay on and off, picks its corner and shows its shortcut', async () => {
+    bridge.state.settings = {
+      ...bridge.state.settings,
+      overlay: true,
+      overlayPosition: 'top-left',
+      shortcuts: { ...bridge.state.settings.shortcuts, toggleOverlay: 'CommandOrControl+Shift+O' },
+    };
+    render(<DesktopAppSettings />);
+    const toggle = await screen.findByLabelText('Show the overlay in games');
+    expect(toggle.checked).toBe(true);
+    expect(screen.getByRole('button', { name: 'Overlay shortcut' }).textContent).toBe('Ctrl + Shift + O');
+    fireEvent.change(screen.getByLabelText('Position'), { target: { value: 'bottom-right' } });
+    await waitFor(() => expect(bridge.updateSettings).toHaveBeenCalledWith({ overlayPosition: 'bottom-right' }));
+    fireEvent.click(toggle);
+    await waitFor(() => expect(bridge.updateSettings).toHaveBeenLastCalledWith({ overlay: false }));
+    expect(screen.queryByLabelText('Position')).toBeNull();
+  });
+
+  it('has no overlay settings in a copy of the app without one', async () => {
+    render(<DesktopAppSettings />);
+    await screen.findByLabelText(/Keep running in the tray/);
+    expect(screen.queryByLabelText('Show the overlay in games')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Overlay shortcut' })).toBeNull();
+  });
 });
