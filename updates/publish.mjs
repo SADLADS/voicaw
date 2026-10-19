@@ -24,7 +24,8 @@ import { buildSite } from '../website/build.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const buildDir = path.resolve(process.argv[2] || path.join(root, 'dist-desktop'));
-const siteDir = path.resolve(process.argv[3] || process.env.VOICAW_UPDATES_DIR || '/opt/voicaw-updates');
+const DEFAULT_SITE_DIR = '/opt/voicaw-updates';
+const siteDir = path.resolve(process.argv[3] || process.env.VOICAW_UPDATES_DIR || DEFAULT_SITE_DIR);
 const desktopDir = path.join(siteDir, 'desktop');
 
 // Which system an installer is for, and how the page describes it. Update-only files (macOS's
@@ -133,7 +134,8 @@ console.log(`Published to ${siteDir}.`);
 
 // 4. voicaw.com's version and download links. The release is out either way; a failure here
 // only means the page shows the previous one until `npm run build:site`.
-const tryOut = (process.argv[3] || process.env.VOICAW_UPDATES_DIR) && !process.env.VOICAW_SITE_DIR;
+// Going by the folder, not by whether one was named: release_all.sh always names it.
+const tryOut = siteDir !== path.resolve(DEFAULT_SITE_DIR) && !process.env.VOICAW_SITE_DIR;
 if (tryOut) {
     console.log('Not the real update site: voicaw.com left alone (set VOICAW_SITE_DIR to build one).');
 } else {
