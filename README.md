@@ -513,8 +513,9 @@ The first run builds the `voicaw-android-build` image (JDK 21 and the Android SD
 scripts, it never changes tracked files: the version (one higher than the one published; the
 first is `mobile/package.json`'s) is stamped into the build, and versionCode is X·10000 + Y·100 +
 Z, so Y and Z stay under 100. A published release tags the commit it was built from as
-`android-vX.Y.Z` (annotated, local: `git push origin android-vX.Y.Z` to share it); desktop
-releases are tagged `desktop-vX.Y.Z`.
+`android-vX.Y.Z` (annotated, local: `git push origin android-vX.Y.Z` to share it; `--push-tag`
+pushes it, as `./release_all.sh --android` does, so both tags reach GitHub); desktop releases
+are tagged `desktop-vX.Y.Z`.
 
 **The release key**, made once (not once per machine):
 

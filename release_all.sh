@@ -15,7 +15,8 @@
 # 4. Publishes them to the update site (updates/publish.mjs: /opt/voicaw-updates, and voicaw.com's
 #    download links), then checks the site serves the new version. --no-publish stops after 3.
 # --android then releases the Android app the usual way (./build-android.sh, same bump; its
-# versions are its own).
+# versions are its own), from this checkout, and pushes its android-vX.Y.Z tag beside the
+# desktop one.
 #
 # Needs: the commit pushed to GitHub, no uncommitted changes, and the GitHub CLI logged in
 # (`gh auth login`; installing it: README "Desktop app"). VOICAW_UPDATES_DIR publishes somewhere
@@ -197,5 +198,5 @@ if [ -n "$ANDROID" ]; then
   case "$BUMP" in patch|minor|major) ANDROID_BUMP="$BUMP" ;; *) ANDROID_BUMP=patch ;; esac
   NO_PUBLISH=
   [ -z "$PUBLISH" ] && NO_PUBLISH=--no-publish
-  ./build-android.sh "$ANDROID_BUMP" ${YES:+-y} $NO_PUBLISH
+  ./build-android.sh "$ANDROID_BUMP" ${YES:+-y} $NO_PUBLISH --push-tag
 fi

@@ -5,7 +5,7 @@
 # APK published on the update site (updates.voicaw.com/android/). Nobody is offered that APK any
 # more (voicaw.com links to Google Play): it's only for the copies already installed from there,
 # which update themselves from it.
-#   ./build-android.sh [patch|minor|major|X.Y.Z] [-y] [--no-publish] [--no-push]
+#   ./build-android.sh [patch|minor|major|X.Y.Z] [-y] [--no-publish] [--no-push] [--push-tag]
 #   ./build-android.sh --debug [--no-push]
 # Default: patch (or, before the first release, mobile/package.json's version). Asks before
 # building unless -y. --no-publish only builds dist-android/voicaw-<version>.apk. --debug builds
@@ -17,13 +17,13 @@
 # console; README "Android app"): without it this stops, unless --no-push asks for an APK
 # without them. Tracked files aren't touched: the version is stamped into the build.
 # A published release tags the commit it was built from as android-vX.Y.Z (annotated, local:
-# git push origin android-vX.Y.Z to share it). --no-publish builds aren't tagged: the next run
-# gets the same version.
+# git push origin android-vX.Y.Z to share it; --push-tag pushes it, as ./release_all.sh --android
+# does). --no-publish builds aren't tagged: the next run gets the same version.
 set -e
 cd "$(dirname "$0")"
 
-# tag_release X.Y.Z: tags $COMMIT as android-vX.Y.Z. The release is out by then, so problems
-# here are warnings, not failures.
+# tag_release X.Y.Z: tags $COMMIT as android-vX.Y.Z (and pushes it with --push-tag). The release
+# is out by then, so problems here are warnings, not failures.
 tag_release() {
   tag="android-v$1"
   if [ -n "$DIRTY" ]; then
@@ -32,25 +32,30 @@ tag_release() {
   existing="$(git rev-parse -q --verify "refs/tags/$tag^{commit}" || true)"
   if [ -n "$existing" ]; then
     if [ "$existing" = "$COMMIT" ]; then echo "Tag $tag already there."
-    else echo "Not tagged: $tag already exists, on $(git rev-parse --short "$existing")." >&2; fi
-    return
-  fi
-  if git tag -a "$tag" "$COMMIT" -m "Android app $1"; then
-    echo "Tagged $(git rev-parse --short "$COMMIT") as $tag (push it with: git push origin $tag)."
+    else echo "Not tagged: $tag already exists, on $(git rev-parse --short "$existing")." >&2; return; fi
+  elif git tag -a "$tag" "$COMMIT" -m "Android app $1"; then
+    echo "Tagged $(git rev-parse --short "$COMMIT") as $tag$([ -z "$PUSH_TAG" ] && echo " (push it with: git push origin $tag)")."
   else
     echo "Not tagged: git tag failed." >&2
+    return
+  fi
+  if [ -n "$PUSH_TAG" ]; then
+    if git push -q origin "refs/tags/$tag"; then echo "Pushed $tag."
+    else echo "Not pushed: git push origin $tag failed." >&2; fi
   fi
 }
 BUMP=patch
 YES=
 PUBLISH=1
 PUSH=1
+PUSH_TAG=
 DEBUG=
 for arg in "$@"; do
   case "$arg" in
     -y|--yes) YES=1 ;;
     --no-publish) PUBLISH= ;;
     --no-push) PUSH= ;;
+    --push-tag) PUSH_TAG=1 ;;
     --debug) DEBUG=1 ;;
     -*) echo "Unknown option $arg" >&2; exit 1 ;;
     *) BUMP="$arg" ;;
