@@ -150,6 +150,10 @@
         "title": "Activity",
         "keywords": "activity game games playing rich presence status steam"
       },
+      "overlay": {
+        "title": "In-game overlay",
+        "keywords": "overlay in-game game games voice notifications shortcut keybind"
+      },
       "androidApp": {
         "title": "Android App",
         "keywords": "android phone mobile"
@@ -473,7 +477,20 @@
       "recordingHint": "Hold Ctrl, Alt or Shift and press a key. Esc cancels.",
       "activity": "Activity",
       "shareActivity": "Share what I'm playing",
-      "shareActivityHint": "Shows everyone here the game you're playing and what you're doing in it, for games that report it. Names and pictures come from Steam and the games' own files on this computer, or from a web address the game gives (a music player's album cover), which this computer downloads; a small copy of the picture goes to the server."
+      "shareActivityHint": "Shows everyone here the game you're playing and what you're doing in it, for games that report it. Names and pictures come from Steam and the games' own files on this computer, or from a web address the game gives (a music player's album cover), which this computer downloads; a small copy of the picture goes to the server.",
+      "overlay": "In-game overlay",
+      "overlayOn": "Show the overlay in games",
+      "overlayHint": "While you're in a voice channel or call and playing a game, shows who's there and who's talking over the game, and your notifications. Games are the ones that report what you're playing, and Steam games. It shows over games in a window or borderless window; some games in exclusive full screen hide it.",
+      "overlayPosition": "Position",
+      "overlayPositions": {
+        "top-left": "Top left",
+        "top-right": "Top right",
+        "bottom-left": "Bottom left",
+        "bottom-right": "Bottom right"
+      },
+      "toggleOverlay": "Use the overlay",
+      "toggleOverlayShortcut": "Overlay shortcut",
+      "toggleOverlayHint": "Lets you click the overlay: mute, deafen, disconnect, move it or open Voicaw. Only taken while the overlay is showing."
     },
     "androidApp": {
       "title": "Android App",

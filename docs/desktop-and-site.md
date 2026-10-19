@@ -23,7 +23,8 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `docs/voice-and-calls.md`) and Watch Together's player (`voicaw-watch-together`, only on
   `voicaw://app/popout.html`, which YouTube's player needs for its Referer; see Watch Together),
   both drawn into by the page itself: the app's icon, no menu, never navigate, open nothing,
-  and may only go full screen. They stay open while the main window is in the tray.
+  and may only go full screen. They stay open while the main window is in the tray. The app's
+  own other window is the in-game overlay (below).
 - **YouTube players** (`youtube.js`): YouTube refuses to play an embed without a Referer
   ("Error 153: Video player configuration error"), and Chromium sends none from `voicaw://`
   pages, so requests for youtube(-nocookie).com `/embed/` pages get `https://app.voicaw.com/`,
@@ -43,9 +44,10 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   preview, `pageFetch.js`; see Link previews in `docs/messages.md`), `saveFile` (start / append /
   finish / cancel: a big attachment written to where the Save dialog says as it's decrypted,
   `fileSave.js`; see Big files in `docs/uploads.md`), `getActivities` / `onActivities` (Rich
-  Presence, below), `onNavigate`, `onShortcut`, `onUpdateReady`. The main
-  process only answers the app's own frames and checks what it's given (`cleanNotification`,
-  `cleanChanges`).
+  Presence, below), `setOverlayVoice` (the in-game overlay, below), `onNavigate`, `onShortcut`,
+  `onUpdateReady`. The main process only answers the app's own frames (`fromApp`: the main
+  page's, never the overlay's, which shares its origin) and checks what it's given
+  (`cleanNotification`, `cleanChanges`, `cleanVoiceState`).
 - **Notifications** (`notifications.js`): the server sends what would be a web push over the
   websocket (see Push notifications); `hooks/useDesktopApp.js` (in `Layout`) turns it into
   text with the service worker's `notificationFromPush` (DM previews decrypted on the device,
@@ -77,9 +79,10 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   the tray when closed (default on; macOS always), start at login (default on, as Discord's, since 2026-10-12; installs from before that got it
   turned on once, `startAtLoginChosen` marking a choice made in the box; `autoStart.js`: login
   items, or `~/.config/autostart/voicaw.desktop` on Linux; starts in the tray with `--hidden`), and
-  global shortcuts for toggle mute / toggle deafen (`shortcuts.js`, `globalShortcut`; recorded
-  from a key press with a modifier, `acceleratorFromEvent`; a key another app holds is
-  reported), and Activity's "Share what I'm playing" (Rich Presence, default on).
+  global shortcuts for toggle mute / toggle deafen and the overlay's (`shortcuts.js`,
+  `globalShortcut`; recorded from a key press with a modifier, `acceleratorFromEvent`; a key
+  another app holds is reported), Activity's "Share what I'm playing" (Rich Presence, default
+  on), and In-game overlay's "Show the overlay in games" (default on) and its corner.
 - **Rich Presence** (`richPresence.js`, `gameLookup.js`, `gameActivities.js`; built 2026-10-09):
   games that show what you're doing in Discord tell the app instead, unchanged, and everyone
   sees it (see Activities in `docs/realtime.md`). Games talk to a local socket,
@@ -127,6 +130,53 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   pause badge on the picture's corner with `smallText` as the hover text. Games' asset-key
   pictures (only Discord can resolve them), other small pictures and buttons aren't shown; games that don't use Rich Presence aren't
   detected. Turning it off closes the socket. Checked for real in `e2e/richpresence.mjs`.
+- **In-game overlay** (`overlay.js`, `overlayPreload.js`, `runningGames.js`; client
+  `overlay.html`, `src/overlay/`, `hooks/useGameOverlay.js`, `utils/overlay.js`; built
+  2026-10-19, as Discord's): while you're in a voice channel or call **and** a game is running,
+  a small window over the game lists who's there (you first, then in the order they joined;
+  the green ring while they talk, mute and deafen icons; the others dimmed while locked) and
+  shows the app's notifications as toasts (6 s, three at most) instead of the system's.
+  - **A game** is a Rich Presence activity that's Playing or Competing (not music or videos),
+    or a Steam game among the running programs (`runningGames.js`, so games without Rich
+    Presence count): on Linux any of our processes with Steam's `SteamAppId`/`SteamGameId` in
+    its environment (Proton games too) or a `steamapps/common` path among its arguments; on
+    Windows WMI's paths under `steamapps\common` (one PowerShell call); on macOS `ps`. Steam's
+    tools (Proton, the runtime) and app id 0 don't count; the installed apps are listed again
+    every 10 minutes. Looked for every 15 s, and at once on joining voice or turning it on, only
+    while it could show (in voice, overlay on); nothing about it leaves the computer. With
+    "Share what I'm playing" off, Steam games are still found, but other games aren't (they
+    can only say so through Rich Presence's socket, which is then closed).
+  - **The window**: transparent, frameless, `focusable: false`, out of the taskbar, always on
+    top at the `screen-saver` level (macOS: on every Space, over full-screen apps), the mouse
+    going through it (`setIgnoreMouseEvents`). It goes on the screen the pointer is on when it
+    appears, 16 px from the chosen corner (Settings or the overlay itself; default top left),
+    exactly the size of its content (the page reports it, `size`; 360×720 at most), so a
+    Linux desktop without a compositor (no transparency) only gets a small dark box. Made when
+    it's needed and destroyed when it isn't (a renderer costs memory). Never in Gaming Mode
+    (gamescope shows one app at a time). It draws over windowed and borderless games; a
+    Windows game in exclusive full screen keeps it out (Discord gets in by injecting into the
+    game's drawing, which we don't), and so may a Wayland session's own windows.
+  - **Unlocking**: the overlay's shortcut (Settings → Desktop App → Keyboard shortcuts, "Use
+    the overlay", default **Ctrl+Shift+O**, ⌘⇧O on macOS; Discord's is Shift+\`) is only taken
+    while the overlay is up, so other apps have it the rest of the time (otherwise it's only
+    checked, `applyShortcuts`' `checkOnly`, so a key another app holds is still reported). It
+    unlocks it: the window covers the screen, takes the mouse and focus and dims the game; the
+    panel adds the channel's name, mute, deafen and disconnect (sent to the main page as
+    shortcuts, `onShortcut`: 'toggleMute' / 'toggleDeafen' / 'disconnect'), the corner, Open
+    Voicaw (the main window) and Close. The shortcut again, Escape, Close or a click on the
+    dimmed part locks it; clicking a toast opens its chat in the main window. "Press Ctrl +
+    Shift + O to use the overlay" shows for 6 s when it appears.
+  - **What it knows**: only what the main page sends it, through the main process: the voice
+    state (`useGameOverlay` in `Layout`, made by `overlayVoiceState`: the voice bar's title,
+    each person's display name, picture address (`avatarUrl`), talking, muted, deafened (from
+    the guild channel's voice states; calls have none)) whenever it changes, and the
+    notifications as the app would show them (previews decrypted by the main page, or "New
+    message"). It has no login, keys or API access; its bridge (`window.voicawOverlay`) only
+    receives `overlay:state` / `overlay:toast` and sends `overlay:message`, which the main
+    process checks (`handle`: only those message types, a corner from the list, a chat path).
+    The voice snapshot's `participants` (`voiceClient.js`) is who's in the room.
+  - Checked for real in `e2e/overlay.mjs` (the app under Xvfb, a stand-in Steam game, the
+    shortcut pressed through XTest).
 - **Splash window** (`splash.js`, `assets/splash.html`, `splashPreload.js`; built 2026-10-08, as
   Discord's): a small frameless window (square on Linux, which has no transparent windows without
   a compositor) with the bird in a ring, shown while the app starts. It looks for an update

@@ -80,7 +80,8 @@ function loadPrefs() {
 // `micError` why the microphone can't be used (you stay in, listening). `audioBlocked`: the
 // browser wants a click before it plays sound. `micTesting`: the mic test is running, which
 // mutes and deafens you (setMicTesting).
-// In a voice channel: `guildId`, `channelId`; in a call: `callId`. `muted` holds the others
+// In a voice channel: `guildId`, `channelId`; in a call: `callId`. `participants`: the user
+// ids (strings) in the room, you first, then in the order they joined. `muted` holds the others
 // whose microphone is off (in a call, where the API doesn't track it).
 // `identity`: our own user id (a string) in the room.
 // Screen sharing: `canStream` (Video), `streaming` (yours is live), `streams` (the user ids,
@@ -95,6 +96,7 @@ const NOT_IN_VOICE = {
   channelId: null,
   callId: null,
   speaking: [],
+  participants: [],
   muted: [],
   identity: null,
   streaming: false,
@@ -522,13 +524,18 @@ function updateSpeaking(current) {
   if (speaking.join() !== snapshot.speaking.join()) update({ speaking });
 }
 
+// Who's in the room (`participants`): you, then the others in the order they joined.
+const roomParticipants = (r) => [r.localParticipant.identity, ...[...r.remoteParticipants.values()].map((p) => p.identity)];
+
 function watch(newRoom, current) {
   const { RoomEvent, Track } = livekit;
   const stale = () => current !== attempt;
   const updateMuted = () => {
     if (stale()) return;
-    const muted = [...newRoom.remoteParticipants.values()].filter((p) => !p.isMicrophoneEnabled).map((p) => p.identity);
-    update({ muted });
+    const remote = [...newRoom.remoteParticipants.values()];
+    const muted = remote.filter((p) => !p.isMicrophoneEnabled).map((p) => p.identity);
+    const participants = roomParticipants(newRoom);
+    update({ muted, ...(participants.join() !== snapshot.participants.join() ? { participants } : {}) });
   };
   const updateTracks = () => {
     if (stale()) return;
@@ -690,6 +697,7 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
       status: 'connected',
       streamLimit,
       identity: newRoom.localParticipant.identity,
+      participants: roomParticipants(newRoom),
       ...publishRights(newRoom.localParticipant),
       audioBlocked: !newRoom.canPlaybackAudio,
     });

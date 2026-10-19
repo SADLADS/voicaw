@@ -415,6 +415,13 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   playing" in Settings → Desktop App, on by default. Bots' own activities show too. Sharing a
   screen in a guild voice channel shows "Streaming in #channel" (before games) to those who can
   see that channel only, from voice states, never for calls (2026-10-09).
+- **In-game overlay** (built 2026-10-19, see In-game overlay in `docs/desktop-and-site.md`): as
+  Discord's, in the desktop app, on by default (Settings → Desktop App): while in voice and a
+  game runs (a Rich Presence game, or a Steam game found among the running programs), a
+  click-through always-on-top window over the game shows who's there and talking, and
+  notifications; its shortcut (default Ctrl+Shift+O, not Discord's Shift+\`; only taken while
+  it's up) unlocks it for mute, deafen, disconnect, its corner and Open Voicaw. No injection
+  into games, so exclusive full screen hides it; no text chat in it.
 - **Full profiles and banners** (built 2026-10-13, see Full profiles and Banners in
   `docs/client.md`): Discord's. A card's picture or names open a full profile (a phone skips
   the card: a full-screen sheet, swiped down to close) with tabs About me, Activity, Mutual

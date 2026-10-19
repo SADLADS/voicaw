@@ -22,8 +22,14 @@ const DEFAULTS = {
     // Updates (updater.js): looking for, downloading and installing new versions by itself. Off:
     // only Settings → App Version's "Check for updates" looks.
     autoUpdate: AUTO_UPDATE_DEFAULT,
+    // The in-game overlay (overlay.js): who's talking in your voice channel or call, over the
+    // game you're playing. Off: never shown, and running games aren't looked for.
+    overlay: true,
+    // Its corner of the screen.
+    overlayPosition: 'top-left',
     // Global keyboard shortcuts (Electron accelerators, e.g. "CommandOrControl+Shift+M"), or null.
-    shortcuts: { toggleMute: null, toggleDeafen: null },
+    // toggleOverlay (unlocking the overlay to click it) is only taken while the overlay is up.
+    shortcuts: { toggleMute: null, toggleDeafen: null, toggleOverlay: 'CommandOrControl+Shift+O' },
     // Where the window was, restored on the next start.
     window: null,
 };
@@ -31,6 +37,7 @@ const DEFAULTS = {
 // Only these can be changed from the page.
 const SHORTCUT_ACTIONS = Object.keys(DEFAULTS.shortcuts);
 const ACCELERATOR = /^[A-Za-z0-9+ ]{1,60}$/;
+const OVERLAY_POSITIONS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
 function cleanChanges(changes) {
     const clean = {};
@@ -38,6 +45,8 @@ function cleanChanges(changes) {
     if (typeof changes?.startAtLogin === 'boolean') clean.startAtLogin = changes.startAtLogin;
     if (typeof changes?.richPresence === 'boolean') clean.richPresence = changes.richPresence;
     if (typeof changes?.autoUpdate === 'boolean') clean.autoUpdate = changes.autoUpdate;
+    if (typeof changes?.overlay === 'boolean') clean.overlay = changes.overlay;
+    if (OVERLAY_POSITIONS.includes(changes?.overlayPosition)) clean.overlayPosition = changes.overlayPosition;
     if (changes?.shortcuts && typeof changes.shortcuts === 'object') {
         clean.shortcuts = {};
         for (const action of SHORTCUT_ACTIONS) {
@@ -85,4 +94,4 @@ function createSettingsStore(dir) {
     };
 }
 
-module.exports = { createSettingsStore, cleanChanges, DEFAULTS, SHORTCUT_ACTIONS };
+module.exports = { createSettingsStore, cleanChanges, DEFAULTS, SHORTCUT_ACTIONS, OVERLAY_POSITIONS };

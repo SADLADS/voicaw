@@ -412,4 +412,27 @@ describe('voiceClient screen share quality', () => {
       setStreamSettings({ resolution: '1080', frameRate: 15 });
     }
   });
+
+  it("lists who's in the room, you first, as people come and go", async () => {
+    lk.state.capture = lk.deferred();
+    lk.state.capture.resolve();
+    await voice.joinVoice(1, 2);
+    const room = lk.state.room;
+    expect(voice.getVoiceSnapshot().participants).toEqual(['1']);
+    const participant = {
+      identity: '9',
+      isMicrophoneEnabled: false,
+      trackPublications: new Map(),
+      audioTrackPublications: new Map(),
+      getTrackPublication: () => undefined,
+    };
+    room.remoteParticipants.set('9', participant);
+    room.emit('ParticipantConnected', participant);
+    expect(voice.getVoiceSnapshot()).toMatchObject({ participants: ['1', '9'], muted: ['9'] });
+    room.remoteParticipants.delete('9');
+    room.emit('ParticipantDisconnected', participant);
+    expect(voice.getVoiceSnapshot().participants).toEqual(['1']);
+    await voice.leaveVoice();
+    expect(voice.getVoiceSnapshot().participants).toEqual([]);
+  });
 });

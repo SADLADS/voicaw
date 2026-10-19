@@ -198,10 +198,13 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       rollupOptions: {
         // notify.html: the Android app's hidden page that words its notifications
-        // (src/android/notifyPage.js).
+        // (src/android/notifyPage.js); overlay.html: the desktop app's in-game overlay
+        // (src/overlay/).
         input: isAndroid
           ? { main: path.resolve(__dirname, 'index.html'), notify: path.resolve(__dirname, 'notify.html') }
-          : undefined,
+          : isElectron
+            ? { main: path.resolve(__dirname, 'index.html'), overlay: path.resolve(__dirname, 'overlay.html') }
+            : undefined,
         output: { manualChunks: vendorChunk },
       },
     },

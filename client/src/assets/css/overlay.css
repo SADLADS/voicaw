@@ -1,0 +1,284 @@
+/* The desktop app's in-game overlay (src/overlay/Overlay.jsx, electron/overlay.js): a
+   transparent window over a game. Locked, the window is exactly the content's size, at the
+   chosen corner 16px from the edges; unlocked, it covers the screen and the content stays where
+   it was, over a dimmed game. Always the dark colours: it sits over games, not the app. */
+html,
+body.overlay-body {
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+}
+
+body.overlay-body {
+  margin: 0;
+  color: var(--vc-fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+}
+
+.overlay button {
+  font: inherit;
+}
+
+.overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--vc-bg-base) 55%, transparent);
+}
+
+.overlay-content {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 280px;
+}
+
+.overlay.locked .overlay-content { top: 0; left: 0; }
+.overlay.locked.overlay-bottom-left .overlay-content,
+.overlay.locked.overlay-bottom-right .overlay-content { top: auto; bottom: 0; }
+.overlay.unlocked.overlay-top-left .overlay-content { top: 16px; left: 16px; }
+.overlay.unlocked.overlay-top-right .overlay-content { top: 16px; right: 16px; }
+.overlay.unlocked.overlay-bottom-left .overlay-content { bottom: 16px; left: 16px; }
+.overlay.unlocked.overlay-bottom-right .overlay-content { bottom: 16px; right: 16px; }
+/* At the bottom, notifications stack above the people. */
+.overlay-bottom-left .overlay-content,
+.overlay-bottom-right .overlay-content { flex-direction: column-reverse; }
+
+.overlay-voice,
+.overlay-toast,
+.overlay-hint,
+.overlay-panel {
+  background: color-mix(in srgb, var(--vc-bg-base) 82%, transparent);
+  border-radius: 8px;
+}
+
+.overlay-voice {
+  padding: 6px;
+}
+
+.overlay.unlocked .overlay-voice,
+.overlay.unlocked .overlay-panel {
+  background: var(--vc-bg-elevated);
+  box-shadow: var(--vc-popup-shadow);
+}
+
+.overlay-voice-title {
+  padding: 2px 4px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vc-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overlay-members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.overlay-member {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 2px 4px;
+}
+
+/* Locked, only who's talking stands out. */
+.overlay.locked .overlay-member:not(.speaking) { opacity: 0.7; }
+
+.overlay-member-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.overlay-member.speaking .overlay-member-avatar {
+  box-shadow: 0 0 0 2px var(--vc-online);
+}
+
+.overlay-member-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.overlay-member-icons {
+  display: flex;
+  gap: 2px;
+  color: var(--vc-danger-text);
+  font-size: 12px;
+}
+
+.overlay-controls {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+.overlay-button {
+  flex: 1;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 0;
+  background: var(--vc-bg-hover);
+  color: var(--vc-fg);
+  cursor: pointer;
+}
+
+.overlay-button:hover { background: var(--vc-bg-elevated-hover); }
+.overlay-button.active { color: var(--vc-danger-text); }
+.overlay-button.overlay-leave { background: var(--vc-danger); color: var(--vc-fg); }
+.overlay-button.overlay-leave:hover { background: var(--vc-danger-hover); }
+
+.overlay-hint {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}
+
+.overlay-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  text-align: left;
+  color: var(--vc-fg);
+  animation: overlay-toast-in 0.18s ease-out;
+}
+
+.overlay.unlocked .overlay-toast { cursor: pointer; }
+.overlay.unlocked .overlay-toast:hover { background: var(--vc-bg-elevated-hover); }
+
+@keyframes overlay-toast-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-toast { animation: none; }
+}
+
+.overlay-toast-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.overlay-toast-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.overlay-toast-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overlay-toast-body {
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.overlay-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+.overlay-panel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.overlay-corners {
+  display: grid;
+  grid-template-columns: repeat(2, 22px);
+  gap: 4px;
+}
+
+/* A little screen with a dot in its corner. */
+.overlay-corner {
+  position: relative;
+  width: 22px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--vc-border-light);
+  border-radius: 3px;
+  background: var(--vc-bg-hover);
+  cursor: pointer;
+}
+
+.overlay-corner::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 5px;
+  border-radius: 1px;
+  background: var(--vc-fg-muted);
+}
+
+.overlay-corner-top-left::after { top: 2px; left: 2px; }
+.overlay-corner-top-right::after { top: 2px; right: 2px; }
+.overlay-corner-bottom-left::after { bottom: 2px; left: 2px; }
+.overlay-corner-bottom-right::after { bottom: 2px; right: 2px; }
+.overlay-corner.active { border-color: var(--vc-accent); }
+.overlay-corner.active::after { background: var(--vc-accent-text); }
+
+.overlay-text-button {
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: var(--vc-bg-hover);
+  color: var(--vc-fg);
+  cursor: pointer;
+}
+
+.overlay-text-button:hover { background: var(--vc-bg-elevated-hover); }
+
+.overlay-button:focus-visible,
+.overlay-text-button:focus-visible,
+.overlay-corner:focus-visible,
+.overlay-toast:focus-visible {
+  outline: 2px solid var(--vc-accent);
+  outline-offset: 1px;
+}
+
+.overlay-panel-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+}

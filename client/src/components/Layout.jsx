@@ -37,6 +37,7 @@ import { useDictionarySync } from '../hooks/useDictionarySync';
 import { useEmojiUsageSync } from '../hooks/useEmojiUsageSync';
 import { useSwipePanes } from '../hooks/useSwipePanes';
 import { useDesktopApp } from '../hooks/useDesktopApp';
+import { useGameOverlay } from '../hooks/useGameOverlay';
 import { useAndroidApp } from '../hooks/useAndroidApp';
 import { useFaviconDot } from '../hooks/useFaviconDot';
 import { useRouteTitle } from '../hooks/usePageTitle';
@@ -302,6 +303,7 @@ export default function Layout({ user, onLogout }) {
   useRouteTitle(location.pathname, { guilds: guildList.guilds, layouts: guildList.layouts, groups: groupList.groups, botDms: botDmList.botDms, me: user });
   // The Android app: its notifications, call buttons and ongoing-call notification.
   useAndroidApp({ navigate, user, guildList, groupList });
+  useGameOverlay({ user, guildList, groupList });
 
   // DM calls: ringing, from any page.
   useEffect(() => {
