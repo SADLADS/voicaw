@@ -194,7 +194,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   `getSetting`.
 - **Client:** component files export only components (contexts in `contexts.js`, logic in
   `hooks/` and `services/`). Draw names with `displayName(id, fallback)` / `nameOf(user)` and
-  pictures with `Avatar`, never `user.username` or a hand-built URL. Dates and times through
+  pictures with `Avatar`, never `user.username` or a hand-built URL. Icons are `Icon`
+  (`components/Icon.jsx`), not Font Awesome's `FontAwesomeIcon` (slow on phones). Dates and times through
   `utils/dateFormat.js`, never `toLocaleString`. CSS uses the `--vc-*` colour tokens (both
   themes), not literal colours; scrollbars are styled only in `voicaw.css`; desktop and phone
   layouts are `desktop.css` / `mobile.css`; new sidebar/header UI uses `--vc-sidebar-width` and

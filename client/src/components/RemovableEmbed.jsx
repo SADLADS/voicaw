@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faXmark } from '@fortawesome/free-solid-svg-icons';
 import { t } from '../i18n';
 
@@ -18,7 +18,7 @@ export default function RemovableEmbed({ onRemove, children }) {
         aria-label={t('chat.message.removePreviewsButton')}
         title={t('chat.message.removePreviewsButton')}
       >
-        <FontAwesomeIcon icon={faXmark} />
+        <Icon icon={faXmark} />
       </button>
     </div>
   );

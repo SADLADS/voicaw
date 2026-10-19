@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trans } from 'react-i18next';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faSquarePollHorizontal, faTrophy } from '@fortawesome/free-solid-svg-icons';
 import { ReactionEmoji } from './MessageReactions';
 import { parsePoll, pollEndFits, pollEndsAt, pollResult, pollWithAnswers } from '../utils/pollMarkup';
@@ -57,13 +57,13 @@ export default function PollEndNotice({ msg, onJump }) {
 
   return (
     <div className="poll-end" data-msg-id={msg.id} title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>
-      <FontAwesomeIcon icon={faSquarePollHorizontal} className="poll-end-icon" />
+      <Icon icon={faSquarePollHorizontal} className="poll-end-icon" />
       <div className="poll-end-body">
         <div>
           <Trans i18nKey="chat.pollEnd.closed" values={{ author, question: poll.question }} components={{ b: <strong /> }} />
         </div>
         <div className="poll-end-result">
-          {winners.length === 1 && <FontAwesomeIcon icon={faTrophy} className="poll-end-trophy" />}
+          {winners.length === 1 && <Icon icon={faTrophy} className="poll-end-trophy" />}
           <span>{result}</span>
         </div>
         {onJump && (

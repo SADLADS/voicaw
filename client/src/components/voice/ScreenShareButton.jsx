@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faDisplay } from '@fortawesome/free-solid-svg-icons';
 import { useVoice } from '../../hooks/useVoice';
 import { canShareScreen, stopScreenShare } from '../../voice/voiceClient';
@@ -32,7 +32,7 @@ export default function ScreenShareButton({ className = 'user-panel-button' }) {
         title={label}
         onClick={onClick}
       >
-        <FontAwesomeIcon icon={faDisplay} fixedWidth />
+        <Icon icon={faDisplay} fixedWidth />
       </button>
       {picking && available && (isDesktopApp()
         ? <ScreenPicker onClose={() => setPicking(false)} />

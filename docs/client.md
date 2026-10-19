@@ -2,6 +2,10 @@
 
 ## Client structure
 
+- Icons are Font Awesome's solid set drawn by `components/Icon.jsx` (`<Icon icon={faX} />`, the
+  same props and markup as their `FontAwesomeIcon`, checked by `Icon.test.jsx`; their CSS is
+  loaded first in `main.jsx`). Their own component built each icon through the library's whole
+  pipeline on every render, which phones felt in lists (2026-10-19).
 - Component files export only components (Vite hot reload needs that; lint enforces it).
   Contexts live in `contexts.js` (`ConfigContext`, `InteractionContext`, `LayoutContext`) and
   `hooks/useAuth.js`; logic lives in `hooks/` and `services/`.

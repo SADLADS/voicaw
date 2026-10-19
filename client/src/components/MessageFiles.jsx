@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faFile } from '@fortawesome/free-solid-svg-icons';
 import VideoPlayer from './VideoPlayer';
 import MediaCover from './MediaCover';
@@ -83,7 +83,7 @@ export default function MessageFiles({ attachments, shownElsewhere = [] }) {
         }
         return (
           <a key={file.id} className="message-file-box" href={file.url} download={file.filename} target="_blank" rel="noopener noreferrer">
-            <FontAwesomeIcon icon={faFile} className="message-file-icon" />
+            <Icon icon={faFile} className="message-file-icon" />
             <span className="message-file-name">{file.filename}</span>
             <span className="vc-hint">{fileSize(file.size)}</span>
           </a>

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faHashtag } from '@fortawesome/free-solid-svg-icons';
 import MessageSearch from '../MessageSearch';
 import { NsfwChannelContext } from '../../contexts';
@@ -38,7 +38,7 @@ export default function GuildSearch({ guild, members, user, isMobile, onJump, re
       runSearch={runSearch}
       resultTop={(msg) => (
         <div className="search-result-channel">
-          <FontAwesomeIcon icon={faHashtag} /> {channelName(msg.channel_id)}
+          <Icon icon={faHashtag} /> {channelName(msg.channel_id)}
         </div>
       )}
       resultHidden={(msg) => !adultConfirmed && isNsfw(msg.channel_id)}

@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faBell, faBellSlash } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../../contexts';
 import { muteChannel, unmuteChannel } from '../../services/guildService';
@@ -61,13 +61,13 @@ export default function ChannelMuteMenu({ channel, anchor, align = 'start', onCl
       {mute ? (
         <>
           <button type="button" role="menuitem" className="guild-menu-item" onClick={() => save(() => unmuteChannel(channel.id))}>
-            {t('guildAdmin.channelMenu.unmute')} <FontAwesomeIcon icon={faBell} />
+            {t('guildAdmin.channelMenu.unmute')} <Icon icon={faBell} />
           </button>
           <p className="channel-mute-until">{mutedUntilText(mute.until)}</p>
         </>
       ) : (
         <>
-          <p className="channel-mute-title"><FontAwesomeIcon icon={faBellSlash} /> {t('guildAdmin.channelMenu.mute')}</p>
+          <p className="channel-mute-title"><Icon icon={faBellSlash} /> {t('guildAdmin.channelMenu.mute')}</p>
           {MUTE_DURATIONS.map(([label, duration]) => (
             <button
               key={label}

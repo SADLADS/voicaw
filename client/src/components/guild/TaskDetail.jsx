@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faChevronLeft, faPen, faPlus, faTrash, faXmark } from '@fortawesome/free-solid-svg-icons';
 import Avatar from '../Avatar';
 import ConfirmDialog from './ConfirmDialog';
@@ -128,12 +128,12 @@ function TaskComments({ task, user, canComment, canModerate, nameColors, richPro
                     <span className="task-comment-actions">
                       {mine && editing?.id !== c.id && (
                         <button type="button" aria-label={t('guilds.tasks.comments.edit')} title={t('common.edit')} onClick={() => setEditing({ id: c.id, text: c.content })}>
-                          <FontAwesomeIcon icon={faPen} />
+                          <Icon icon={faPen} />
                         </button>
                       )}
                       {(mine || canModerate) && (
                         <button type="button" aria-label={t('guilds.tasks.comments.delete')} title={t('common.delete')} onClick={() => remove(c)}>
-                          <FontAwesomeIcon icon={faTrash} />
+                          <Icon icon={faTrash} />
                         </button>
                       )}
                     </span>
@@ -348,7 +348,7 @@ export default function TaskDetail({
     <aside className="task-detail" aria-label={t('guilds.tasks.detail.label', { title: task.title })}>
       <header className="task-detail-header">
         <button type="button" className="task-detail-back" aria-label={t('guilds.tasks.detail.close')} title={t('common.close')} onClick={onClose}>
-          <FontAwesomeIcon icon={isMobile ? faChevronLeft : faXmark} />
+          <Icon icon={isMobile ? faChevronLeft : faXmark} />
         </button>
         {parent ? (
           <button type="button" className="task-breadcrumb" onClick={() => onSelect(parent.id)} title={t('guilds.tasks.detail.openParent')}>
@@ -359,7 +359,7 @@ export default function TaskDetail({
         )}
         {canEdit && (
           <button type="button" className="task-detail-delete" aria-label={t('guilds.tasks.detail.delete')} title={t('guilds.tasks.detail.delete')} onClick={() => setConfirmDelete(true)}>
-            <FontAwesomeIcon icon={faTrash} />
+            <Icon icon={faTrash} />
           </button>
         )}
       </header>
@@ -410,7 +410,7 @@ export default function TaskDetail({
                     aria-label={t('guilds.tasks.detail.unassign', { name: nameFor(id) })}
                     onClick={() => save({ assigneeIds: assignees.filter((a) => a !== id) })}
                   >
-                    <FontAwesomeIcon icon={faXmark} />
+                    <Icon icon={faXmark} />
                   </button>
                 )}
               </span>
@@ -424,7 +424,7 @@ export default function TaskDetail({
                   </button>
                 )}
                 <button type="button" className="task-link-button" aria-expanded={picking} onClick={() => setPicking((p) => !p)}>
-                  <FontAwesomeIcon icon={faPlus} /> {t('guilds.tasks.detail.assign')}
+                  <Icon icon={faPlus} /> {t('guilds.tasks.detail.assign')}
                 </button>
                 {picking && (
                   <AssigneePicker

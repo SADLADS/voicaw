@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import {
   faArrowLeft, faBoxArchive, faBoxOpen, faComments, faDownLeftAndUpRightToCenter, faEdit, faEllipsis, faLink,
   faRightFromBracket, faTrash, faUpRightAndDownLeftFromCenter, faUserPlus, faXmark,
@@ -120,10 +120,10 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
       <header className="thread-pane-header">
         {isMobile && (
           <button type="button" className="icon-button" aria-label={t('guilds.threads.pane.back', { name: parent.name })} onClick={onClose}>
-            <FontAwesomeIcon icon={faArrowLeft} />
+            <Icon icon={faArrowLeft} />
           </button>
         )}
-        <FontAwesomeIcon icon={faComments} className="thread-pane-icon" />
+        <Icon icon={faComments} className="thread-pane-icon" />
         <div className="thread-pane-title">
           <h5>{thread?.name ?? ''}</h5>
           {full ? (
@@ -148,7 +148,7 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
             aria-haspopup="menu"
             onClick={(e) => setMenuAnchor(e.currentTarget.getBoundingClientRect())}
           >
-            <FontAwesomeIcon icon={faEllipsis} />
+            <Icon icon={faEllipsis} />
           </button>
         )}
         {!isMobile && onSetFull && (
@@ -159,12 +159,12 @@ export default function ThreadPane({ guild, parent, threadId, user, isMobile, ch
             title={full ? t('guilds.threads.pane.sideView') : t('guilds.threads.pane.fullView')}
             onClick={() => onSetFull(!full)}
           >
-            <FontAwesomeIcon icon={full ? faDownLeftAndUpRightToCenter : faUpRightAndDownLeftFromCenter} />
+            <Icon icon={full ? faDownLeftAndUpRightToCenter : faUpRightAndDownLeftFromCenter} />
           </button>
         )}
         {!isMobile && (
           <button type="button" className="icon-button" aria-label={t('guilds.threads.pane.close')} title={t('common.close')} onClick={onClose}>
-            <FontAwesomeIcon icon={faXmark} />
+            <Icon icon={faXmark} />
           </button>
         )}
       </header>
@@ -233,7 +233,7 @@ function ThreadStart({ thread, starter, empty, user, s3Endpoint, chatProps }) {
   const owner = displayName(thread.owner_id, '');
   return (
     <div className="thread-start">
-      <div className="thread-start-icon" aria-hidden="true"><FontAwesomeIcon icon={faComments} /></div>
+      <div className="thread-start-icon" aria-hidden="true"><Icon icon={faComments} /></div>
       <h3 className="thread-start-name">{thread.name}</h3>
       {owner && (
         <p className="thread-start-by">

@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useMemo, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faNoteSticky, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import '../assets/css/dms.css';
 import '../assets/css/voice.css';
@@ -50,7 +50,7 @@ export default function Notes({ user }) {
     <div id="dm-main" className="notes-main" data-current-user-id={user?.id}>
       <h4 className="chat-recipient-header">
         <PaneBackButton />
-        <FontAwesomeIcon icon={faNoteSticky} className="notes-header-icon" />
+        <Icon icon={faNoteSticky} className="notes-header-icon" />
         {t('chat.notes.title')}
         <span className="chat-recipient-status">{t('chat.notes.onlyYou')}</span>
         {sharedKey && (
@@ -62,7 +62,7 @@ export default function Notes({ user }) {
             title={t('chat.pins.title')}
             onClick={togglePins}
           >
-            <FontAwesomeIcon icon={faThumbtack} />
+            <Icon icon={faThumbtack} />
           </button>
         )}
         {sharedKey && (

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faPuzzlePiece } from '@fortawesome/free-solid-svg-icons';
 import { setPrivacyPref, usePrivacyPrefs } from '../utils/privacy';
 import { getSetting, setSetting } from '../services/settingsStore';
@@ -22,7 +22,7 @@ export default function PrivacySettings() {
   };
   return (
     <div className="settings-card">
-      <h5><FontAwesomeIcon icon={faPuzzlePiece} className="settings-card-icon" />{t('settings.privacy.title')}</h5>
+      <h5><Icon icon={faPuzzlePiece} className="settings-card-icon" />{t('settings.privacy.title')}</h5>
       <label className="settings-toggle">
         <input
           type="checkbox"

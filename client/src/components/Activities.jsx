@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faPause, faPlay, faTowerBroadcast } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../contexts';
 import { useActivities } from '../hooks/useActivities';
@@ -45,7 +45,7 @@ export default function Activities({ userId }) {
             <span className="activity-image-wrap">
               {image
                 ? <img className="activity-image" src={image} alt="" title={activity.imageText ?? undefined} loading="lazy" />
-                : <span className="activity-image activity-image-none" aria-hidden="true"><FontAwesomeIcon icon={activityIcon(activity)} /></span>}
+                : <span className="activity-image activity-image-none" aria-hidden="true"><Icon icon={activityIcon(activity)} /></span>}
               {activity.smallIcon && <SmallIcon activity={activity} />}
             </span>
             <div className="activity-text">
@@ -66,7 +66,7 @@ function SmallIcon({ activity }) {
   const label = activity.smallText ?? t(activity.smallIcon === 'paused' ? 'activities.paused' : 'activities.playingNow');
   return (
     <span className={`activity-small-icon ${activity.smallIcon}`} title={label} role="img" aria-label={label}>
-      <FontAwesomeIcon icon={activity.smallIcon === 'paused' ? faPause : faPlay} />
+      <Icon icon={activity.smallIcon === 'paused' ? faPause : faPlay} />
     </span>
   );
 }
@@ -79,7 +79,7 @@ function StreamSection({ stream }) {
     <div className="profile-card-section activity activity-stream">
       <div className="member-card-label">{t('activities.headingStreaming')}</div>
       <div className="activity-body">
-        <span className="activity-image activity-image-none activity-image-live" aria-hidden="true"><FontAwesomeIcon icon={faTowerBroadcast} /></span>
+        <span className="activity-image activity-image-none activity-image-live" aria-hidden="true"><Icon icon={faTowerBroadcast} /></span>
         <div className="activity-text">
           <div className="activity-name">{stream.channelName ?? t('activities.unknownChannel')}</div>
           {guildName && <div>{guildName}</div>}

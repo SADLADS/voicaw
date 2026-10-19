@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faComments } from '@fortawesome/free-solid-svg-icons';
 import { Trans } from 'react-i18next';
 import { ThreadContext } from '../../contexts';
@@ -20,7 +20,7 @@ export function ThreadSummary({ thread }) {
       onClick={() => threads?.openThread(thread.id)}
       disabled={!threads}
     >
-      <FontAwesomeIcon icon={faComments} className="thread-summary-icon" />
+      <Icon icon={faComments} className="thread-summary-icon" />
       <span className="thread-summary-name">{thread.name}</span>
       <span className="thread-summary-count">{count === 0 ? t('guilds.threads.summary.noMessages') : t('guilds.threads.summary.messages', { count })}</span>
       <span className="thread-summary-when">
@@ -39,7 +39,7 @@ export function ThreadStartNotice({ msg }) {
   return (
     <div className="message-system thread-start-notice" data-msg-id={msg.id}>
       <p>
-        <FontAwesomeIcon icon={faComments} />{' '}
+        <Icon icon={faComments} />{' '}
         <Trans
           i18nKey="guilds.threads.summary.started"
           values={{ name: displayName(msg.sender_id, msg.sender_username), thread: name }}

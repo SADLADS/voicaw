@@ -16,12 +16,16 @@ export function useLongPress(onLongPress, { enabled = true } = {}) {
   const callback = useRef(onLongPress);
   callback.current = onLongPress;
 
-  const cancel = () => {
+  // Stable, so the scroll listener added by one render is removed by any later one.
+  const cancelRef = useRef(null);
+  cancelRef.current ??= () => {
     clearTimeout(timer.current);
     timer.current = null;
+    window.removeEventListener('scroll', cancelRef.current, true);
   };
+  const cancel = cancelRef.current;
 
-  useEffect(() => cancel, []);
+  useEffect(() => cancel, [cancel]);
 
   if (!enabled) return {};
 
@@ -38,6 +42,9 @@ export function useLongPress(onLongPress, { enabled = true } = {}) {
         navigator.vibrate?.(10);
         callback.current(target.current);
       }, HOLD_MS);
+      // Once the browser takes the touch over for scrolling it may hold back touchmoves (more
+      // so on a busy phone), so any scroll cancels too (scroll events don't bubble: capture).
+      window.addEventListener('scroll', cancel, { capture: true, passive: true });
     },
     onTouchMove(e) {
       if (!timer.current || !start.current) return;

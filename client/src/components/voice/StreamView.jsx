@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useRef } from 'react';
 import '../../assets/css/voice.css';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import {
   faArrowRight, faDownLeftAndUpRightToCenter, faExpand, faUpRightFromSquare, faVolumeHigh, faVolumeXmark, faXmark,
 } from '@fortawesome/free-solid-svg-icons';
@@ -53,25 +53,25 @@ export default function StreamView({ userId, name, own, popout = false, corner =
         {!own && <StreamVolume userId={userId} deafened={selfDeaf} />}
         {corner && onOpen && (
           <button type="button" className="stream-button" aria-label={openLabel} title={openLabel} onClick={onOpen}>
-            <FontAwesomeIcon icon={faArrowRight} fixedWidth />
+            <Icon icon={faArrowRight} fixedWidth />
           </button>
         )}
         {popout ? (
           <button type="button" className="stream-button" aria-label={t('voice.stream.bringBack')} title={t('voice.stream.bringBack')} onClick={closeStreamWindow}>
-            <FontAwesomeIcon icon={faDownLeftAndUpRightToCenter} fixedWidth />
+            <Icon icon={faDownLeftAndUpRightToCenter} fixedWidth />
           </button>
         ) : !isMobile && (
           <button type="button" className="stream-button" aria-label={t('voice.stream.popOut')} title={t('voice.stream.popOut')} onClick={popOut}>
-            <FontAwesomeIcon icon={faUpRightFromSquare} fixedWidth />
+            <Icon icon={faUpRightFromSquare} fixedWidth />
           </button>
         )}
         {!corner && (
           <button type="button" className="stream-button" aria-label={t('voice.stream.fullScreen')} title={t('voice.stream.fullScreen')} onClick={fullScreen}>
-            <FontAwesomeIcon icon={faExpand} fixedWidth />
+            <Icon icon={faExpand} fixedWidth />
           </button>
         )}
         <button type="button" className="stream-button" aria-label={t('voice.stream.stopWatching')} title={t('voice.stream.stopWatching')} onClick={() => watchStream(null)}>
-          <FontAwesomeIcon icon={faXmark} fixedWidth />
+          <Icon icon={faXmark} fixedWidth />
         </button>
       </div>
     </div>
@@ -98,7 +98,7 @@ function StreamVolume({ userId, deafened }) {
         disabled={deafened}
         onClick={() => setStreamVolume(userId, volume === 0 ? unmutedRef.current : 0)}
       >
-        <FontAwesomeIcon icon={muted ? faVolumeXmark : faVolumeHigh} fixedWidth />
+        <Icon icon={muted ? faVolumeXmark : faVolumeHigh} fixedWidth />
       </button>
       <input
         type="range"

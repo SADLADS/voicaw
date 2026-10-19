@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faFaceSmile, faXmark } from '@fortawesome/free-solid-svg-icons';
 import EmojiPicker from './EmojiPicker';
 import { ReactionEmoji } from './MessageReactions';
@@ -39,11 +39,11 @@ export default function StatusEmojiButton({ emoji, onChange, onPickerClosed, dis
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => toggle(e.currentTarget)}
       >
-        {emoji ? <ReactionEmoji native={emoji} /> : <FontAwesomeIcon icon={faFaceSmile} />}
+        {emoji ? <ReactionEmoji native={emoji} /> : <Icon icon={faFaceSmile} />}
       </button>
       {emoji && removable && (
         <button type="button" className="status-emoji-remove" aria-label={t('app.userMenu.removeEmoji')} title={t('app.userMenu.removeEmoji')} disabled={disabled} onClick={() => onChange(null)}>
-          <FontAwesomeIcon icon={faXmark} />
+          <Icon icon={faXmark} />
         </button>
       )}
       {picker && (

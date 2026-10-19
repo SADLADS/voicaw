@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Trans } from 'react-i18next';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faClock, faComments, faFaceSmile, faKeyboard, faMicrophone, faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
 import AttachPanel from './AttachPanel';
 import EmojiPicker from './EmojiPicker';
@@ -683,7 +683,7 @@ export default function Composer({
               onMouseDown={isMobile ? (e) => { e.preventDefault(); e.stopPropagation(); } : undefined}
               onClick={toggleAdd}
             >
-              <FontAwesomeIcon icon={faPlus} />
+              <Icon icon={faPlus} />
             </button>
             {addMenuOpen && (
               <div className="composer-add-menu" role="menu">
@@ -693,7 +693,7 @@ export default function Composer({
                   className="composer-add-item"
                   onClick={() => { setAddMenuOpen(false); attachments.pickFiles(); }}
                 >
-                  <FontAwesomeIcon icon={faUpload} fixedWidth /> {t('chat.composer.uploadFile')}
+                  <Icon icon={faUpload} fixedWidth /> {t('chat.composer.uploadFile')}
                 </button>
                 <button
                   type="button"
@@ -702,7 +702,7 @@ export default function Composer({
                   disabled={!chatName}
                   onClick={() => { setAddMenuOpen(false); setCreatingPoll(true); }}
                 >
-                  <FontAwesomeIcon icon={faSquarePollHorizontal} fixedWidth /> {t('chat.composer.createPoll')}
+                  <Icon icon={faSquarePollHorizontal} fixedWidth /> {t('chat.composer.createPoll')}
                 </button>
                 {onStartThread && (
                   <button
@@ -711,7 +711,7 @@ export default function Composer({
                     className="composer-add-item"
                     onClick={() => { setAddMenuOpen(false); onStartThread(); }}
                   >
-                    <FontAwesomeIcon icon={faComments} fixedWidth /> {t('chat.composer.createThread')}
+                    <Icon icon={faComments} fixedWidth /> {t('chat.composer.createThread')}
                   </button>
                 )}
                 {canRecord && (
@@ -721,7 +721,7 @@ export default function Composer({
                     className="composer-add-item"
                     onClick={() => { setAddMenuOpen(false); voice.start({ locked: true }); }}
                   >
-                    <FontAwesomeIcon icon={faMicrophone} fixedWidth /> {t('media.voice.menuItem')}
+                    <Icon icon={faMicrophone} fixedWidth /> {t('media.voice.menuItem')}
                   </button>
                 )}
                 <button
@@ -730,7 +730,7 @@ export default function Composer({
                   className="composer-add-item"
                   onClick={() => { setAddMenuOpen(false); setAddingTimestamp(true); }}
                 >
-                  <FontAwesomeIcon icon={faClock} fixedWidth /> {t('chat.composer.timestamps')}
+                  <Icon icon={faClock} fixedWidth /> {t('chat.composer.timestamps')}
                 </button>
               </div>
             )}
@@ -770,7 +770,7 @@ export default function Composer({
               onMouseDown={(e) => e.stopPropagation()}
               onClick={toggleEmojiPicker}
             >
-              <FontAwesomeIcon icon={isMobile && showEmojiPicker ? faKeyboard : faFaceSmile} />
+              <Icon icon={isMobile && showEmojiPicker ? faKeyboard : faFaceSmile} />
             </button>}
             {showMic ? <MicButton voice={voice} onDrag={setVoiceDragX} /> : (
               <button

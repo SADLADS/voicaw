@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faPhone, faPhoneSlash } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/voice.css';
 import { useCall } from '../../hooks/useCall';
@@ -33,14 +33,14 @@ export default function IncomingCall({ user }) {
         <span>{answering ? t('calls.panel.connecting') : subtitle}</span>
       </div>
       <button type="button" className="call-button decline" aria-label={t('calls.incoming.decline')} title={t('calls.incoming.decline')} onClick={declineCall} disabled={answering}>
-        <FontAwesomeIcon icon={faPhoneSlash} />
+        <Icon icon={faPhoneSlash} />
       </button>
       <button type="button" className="call-button accept" aria-label={t('calls.incoming.accept')} title={t('calls.incoming.accept')} onClick={() => {
         acceptCall();
         navigate(call.groupId ? `/dm/g/${call.groupId}` : `/dm/${call.peerId}`);
         showContent();
       }} disabled={answering}>
-        <FontAwesomeIcon icon={faPhone} />
+        <Icon icon={faPhone} />
       </button>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faLock, faPhoneSlash } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/voice.css';
 import { useCall } from '../../hooks/useCall';
@@ -85,7 +85,7 @@ export default function CallPanel({ user, peer }) {
       <div className="call-panel-status">
         <span>{status}</span>
         <span className="call-panel-e2ee" title={t('calls.panel.e2eeHint')}>
-          <FontAwesomeIcon icon={faLock} /> {t('calls.panel.e2ee')}
+          <Icon icon={faLock} /> {t('calls.panel.e2ee')}
         </span>
       </div>
       {connected && <CallStream nameOf={(id) => nameOf(String(id) === String(user.id) ? user : peer)} />}
@@ -98,7 +98,7 @@ export default function CallPanel({ user, peer }) {
           <CameraButton className="voice-view-button" />
           <ScreenShareButton className="voice-view-button" />
           <button type="button" className="voice-view-button leave" aria-label={t('calls.panel.hangUp')} title={t('calls.panel.hangUp')} onClick={hangUp}>
-            <FontAwesomeIcon icon={faPhoneSlash} fixedWidth />
+            <Icon icon={faPhoneSlash} fixedWidth />
           </button>
         </div>
       ) : null}

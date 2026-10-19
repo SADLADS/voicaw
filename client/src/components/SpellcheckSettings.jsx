@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faXmark } from '@fortawesome/free-solid-svg-icons';
 import {
   SPELLCHECK_LANGUAGES, setSpellcheckEnabled, setSpellcheckLanguage, useSpellcheckSettings,
@@ -38,7 +38,7 @@ export default function SpellcheckSettings() {
             <li key={word}>
               <span>{word}</span>
               <button type="button" className="btn btn-sm btn-link" aria-label={t('settings.spellcheck.removeWord', { word })} title={t('common.remove')} onClick={() => removeWord(word)}>
-                <FontAwesomeIcon icon={faXmark} />
+                <Icon icon={faXmark} />
               </button>
             </li>
           ))}

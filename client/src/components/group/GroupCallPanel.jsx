@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faLock, faPhone, faPhoneSlash } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/voice.css';
 import { useCall, useGroupCall } from '../../hooks/useCall';
@@ -65,7 +65,7 @@ export default function GroupCallPanel({ groupId, names, user }) {
       <div className="call-panel-status">
         <span>{status}</span>
         <span className="call-panel-e2ee" title={t('calls.group.e2eeHint')}>
-          <FontAwesomeIcon icon={faLock} /> {t('calls.panel.e2ee')}
+          <Icon icon={faLock} /> {t('calls.panel.e2ee')}
         </span>
       </div>
       {connected && <CallStream nameOf={nameOf} />}
@@ -78,12 +78,12 @@ export default function GroupCallPanel({ groupId, names, user }) {
           <CameraButton className="voice-view-button" />
           <ScreenShareButton className="voice-view-button" />
           <button type="button" className="voice-view-button leave" aria-label={t('calls.group.leave')} title={t('calls.group.leave')} onClick={hangUp}>
-            <FontAwesomeIcon icon={faPhoneSlash} fixedWidth />
+            <Icon icon={faPhoneSlash} fixedWidth />
           </button>
         </div>
       ) : !mine && (
         <button type="button" className="voice-view-join" onClick={() => joinGroupCallById(groupId)} disabled={Boolean(call)}>
-          <FontAwesomeIcon icon={faPhone} /> {t('calls.group.join')}
+          <Icon icon={faPhone} /> {t('calls.group.join')}
         </button>
       )}
     </div>

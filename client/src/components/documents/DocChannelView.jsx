@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useCallback, useContext, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faChevronLeft, faComment, faFaceSmile, faPen, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/documents.css';
 import ChatPane from '../ChatPane';
@@ -80,7 +80,7 @@ function DocumentCard({ document, user, reactionNames, canReact, isMobile, nameC
             />
             {document.reply_count > 0 && (
               <span className="document-card-replies">
-                <FontAwesomeIcon icon={faComment} /> {t('documents.card.replies', { count: document.reply_count })}
+                <Icon icon={faComment} /> {t('documents.card.replies', { count: document.reply_count })}
               </span>
             )}
           </div>
@@ -105,7 +105,7 @@ function DocumentFeed({ channel, feed, user, reactionNames, isMobile, canCreate,
           </div>
           {canCreate && (
             <button type="button" className="btn btn-primary btn-sm vc-button" onClick={onNew}>
-              <FontAwesomeIcon icon={faPlus} /> {t('documents.feed.newDocument')}
+              <Icon icon={faPlus} /> {t('documents.feed.newDocument')}
             </button>
           )}
         </div>
@@ -165,7 +165,7 @@ function DocumentReactions({ document, user, reactionNames, canReact, isMobile, 
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => open(e.currentTarget)}
         >
-          <FontAwesomeIcon icon={faFaceSmile} />{!compact && ` ${t('documents.reactions.react')}`}
+          <Icon icon={faFaceSmile} />{!compact && ` ${t('documents.reactions.react')}`}
         </button>
       )}
       {pickerRect && !isMobile && (() => {
@@ -275,7 +275,7 @@ function DocumentPage({ guild, channel, user, documentId, editing, setEditing, o
     <div className="document-page">
       <header className="document-page-header">
         <button type="button" className="document-back" onClick={onBack} aria-label={t('documents.page.allDocuments')} title={t('documents.page.allDocuments')}>
-          <FontAwesomeIcon icon={faChevronLeft} />{!isMobile && ` ${t('documents.page.allDocuments')}`}
+          <Icon icon={faChevronLeft} />{!isMobile && ` ${t('documents.page.allDocuments')}`}
         </button>
         {isMobile && (
           <div className="document-tabs" role="tablist">
@@ -292,12 +292,12 @@ function DocumentPage({ guild, channel, user, documentId, editing, setEditing, o
         <span className="document-page-actions">
           {canEdit && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}>
-              <FontAwesomeIcon icon={faPen} />{!isMobile && ` ${t('common.edit')}`}
+              <Icon icon={faPen} />{!isMobile && ` ${t('common.edit')}`}
             </button>
           )}
           {canEdit && (
             <button type="button" className="btn btn-outline-danger btn-sm" aria-label={t('documents.page.deleteDocument')} title={t('documents.page.deleteDocument')} onClick={() => setConfirmDelete(true)}>
-              <FontAwesomeIcon icon={faTrash} />
+              <Icon icon={faTrash} />
             </button>
           )}
         </span>

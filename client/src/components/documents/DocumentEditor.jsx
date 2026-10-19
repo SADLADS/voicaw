@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { EditorView } from 'prosemirror-view';
 import { addColumnAfter, addRowAfter, deleteColumn, deleteRow, deleteTable, isInTable } from 'prosemirror-tables';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import {
   faArrowRotateLeft, faArrowRotateRight, faBold, faCode, faEyeSlash, faImage, faItalic, faLink,
   faListCheck, faListOl, faListUl, faMinus, faQuoteLeft, faStrikethrough, faTable, faUnderline,
@@ -68,7 +68,7 @@ function ToolButton({ icon, label, keys, active = false, disabled = false, onRun
       onMouseDown={(e) => e.preventDefault()}
       onClick={onRun}
     >
-      {icon ? <FontAwesomeIcon icon={icon} /> : children}
+      {icon ? <Icon icon={icon} /> : children}
     </button>
   );
 }
@@ -390,7 +390,7 @@ export default function DocumentEditor({ channel, document, onSaved, onCancel })
                 pickCover(file);
               }}
             >
-              <FontAwesomeIcon icon={faImage} /> {t('documents.editor.addCover')}
+              <Icon icon={faImage} /> {t('documents.editor.addCover')}
             </button>
           )}
           <textarea

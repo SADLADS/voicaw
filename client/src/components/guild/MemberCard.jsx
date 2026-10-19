@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faPlus, faRobot, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { setMemberRoles } from '../../services/guildService';
 import { PERMISSIONS, colorToHex, has, memberColor, memberRank, memberRoles } from '../../utils/permissions';
@@ -64,7 +64,7 @@ export default function MemberCard({ guild, member, members, user, userApps = []
                     aria-label={t('guilds.memberList.removeRole', { name: role.name })}
                     onClick={() => changeRoles(member.role_ids.filter((id) => id !== role.id))}
                   >
-                    <FontAwesomeIcon icon={faXmark} />
+                    <Icon icon={faXmark} />
                   </button>
                 )}
               </li>
@@ -81,7 +81,7 @@ export default function MemberCard({ guild, member, members, user, userApps = []
                     setAddingRole((open) => !open);
                   }}
                 >
-                  <FontAwesomeIcon icon={faPlus} />
+                  <Icon icon={faPlus} />
                 </button>
               </li>
             )}
@@ -147,7 +147,7 @@ export default function MemberCard({ guild, member, members, user, userApps = []
                 }
               }}
             >
-              <FontAwesomeIcon icon={faRobot} /> {command.name}
+              <Icon icon={faRobot} /> {command.name}
             </button>
           ))}
         </div>

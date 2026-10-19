@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faComments, faPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { fetchChannelThreads } from '../../services/guildService';
 import { onGuildEvent } from '../../utils/ws-client';
@@ -87,15 +87,15 @@ export default function ThreadList({ channel, anchor, isMobile, canCreate, onOpe
   return createPortal(
     <div className={`pins-panel threads-panel${isMobile ? ' mobile' : ''}`} style={style} role="dialog" aria-label={t('guilds.threads.list.title')}>
       <div className="pins-panel-header">
-        <FontAwesomeIcon icon={faComments} />
+        <Icon icon={faComments} />
         <h5>{t('guilds.threads.list.title')}</h5>
         {canCreate && (
           <button type="button" className="btn btn-primary btn-sm vc-button threads-panel-create" onClick={onCreate}>
-            <FontAwesomeIcon icon={faPlus} /> {t('common.create')}
+            <Icon icon={faPlus} /> {t('common.create')}
           </button>
         )}
         <button type="button" className="icon-button pins-panel-close" aria-label={t('common.close')} onClick={onClose}>
-          <FontAwesomeIcon icon={faXmark} />
+          <Icon icon={faXmark} />
         </button>
       </div>
       <div className="pins-panel-list">

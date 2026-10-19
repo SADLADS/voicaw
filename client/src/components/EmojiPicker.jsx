@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { emojiImageUrl } from '../emoji/emojiIndex';
 import { spritePosition } from '../emoji/emojiSheets';
@@ -8,7 +8,7 @@ import { useCustomEmoji } from '../emoji/customEmojiContext';
 import { ConfigContext } from '../contexts';
 import GuildIcon from './guild/GuildIcon';
 import GifPicker from './GifPicker';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faClock } from '@fortawesome/free-solid-svg-icons';
 import { useVisualViewport } from '../utils/useVisualViewport';
 import { hasVirtualKeyboardApi, setKeyboardOverlaysContent, watchKeyboardRect } from '../utils/virtualKeyboard';
@@ -102,7 +102,9 @@ function EmojiImage({ src, alt }) {
   );
 }
 
-function EmojiButton({ emoji, tone, onPick, onHover, keepFocus }) {
+// Memoised (as CustomEmojiButton), so drawing more of the grid, or hovering, doesn't redraw
+// every button already there.
+const EmojiButton = memo(function EmojiButton({ emoji, tone, onPick, onHover, keepFocus }) {
   const skin = skinFor(emoji, tone);
   return (
     <button
@@ -120,10 +122,10 @@ function EmojiButton({ emoji, tone, onPick, onHover, keepFocus }) {
       <SheetEmoji unified={skin.unified} alt={skin.native} />
     </button>
   );
-}
+});
 
 // A custom (guild) emoji in the grid.
-function CustomEmojiButton({ emoji, s3Endpoint, onPick, onHover, keepFocus }) {
+const CustomEmojiButton = memo(function CustomEmojiButton({ emoji, s3Endpoint, onPick, onHover, keepFocus }) {
   return (
     <button
       type="button"
@@ -138,7 +140,7 @@ function CustomEmojiButton({ emoji, s3Endpoint, onPick, onHover, keepFocus }) {
       <EmojiImage src={customEmojiUrl(emoji.id, s3Endpoint)} alt={`:${emoji.name}:`} />
     </button>
   );
-}
+});
 
 // Discord-style picker: search, categories, frequently used, skin tone. `onSelect(text)` gets
 // the Unicode emoji, or `<:name:id>` for a custom one; shift+click picks without closing.
@@ -160,6 +162,9 @@ function CustomEmojiButton({ emoji, s3Endpoint, onPick, onHover, keepFocus }) {
 //
 // `category` (e.g. 'flags', a voice region's flag): only that category's emoji, searched
 // within it; no custom emoji, Frequently Used, GIFs, category bar or skin tones.
+const FIRST_DRAWN = 120;
+const DRAWN_PER_FRAME = 150;
+
 export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true, docked = false, height, category = null }) {
   const index = useEmojiIndex();
   const custom = useCustomEmoji();
@@ -232,6 +237,20 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
       ...index.categories,
     ];
   }, [index, custom, category]);
+
+  // Opening draws the first FIRST_DRAWN emoji, then DRAWN_PER_FRAME more after each frame:
+  // all ~1,900 at once held a phone up for half a second before the picker showed.
+  const [drawn, setDrawn] = useState(FIRST_DRAWN);
+  const total = useMemo(() => sections.reduce((n, section) => n + section.emojis.length, 0), [sections]);
+  useEffect(() => {
+    if (drawn >= total) return undefined;
+    let timer;
+    const frame = requestAnimationFrame(() => { timer = setTimeout(() => setDrawn((n) => n + DRAWN_PER_FRAME)); });
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [drawn, total]);
 
   // Custom emoji first (their names are what people search for), then the standard ones.
   const results = useMemo(() => {
@@ -323,6 +342,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
 
   const jumpTo = (sectionId) => {
     setQuery('');
+    setDrawn(Infinity);
     requestAnimationFrame(() => {
       const target = scrollRef.current?.querySelector(`[data-section="${sectionId}"]`);
       if (target) scrollRef.current.scrollTop = target.offsetTop - scrollRef.current.offsetTop;
@@ -344,9 +364,13 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
 
   const toneSample = index?.byShortcode.get(TONE_SAMPLE);
   const preview = hovered && !hovered.guild && skinFor(hovered, tone);
+  // The buttons get one function for good (they're memoised), which calls the current `pick`.
+  const pickRef = useRef(pick);
+  pickRef.current = pick;
+  const onPick = useCallback((...args) => pickRef.current(...args), []);
   const renderItem = (emoji) => (emoji.guild
-    ? <CustomEmojiButton key={`c${emoji.id}`} emoji={emoji} s3Endpoint={s3Endpoint} onPick={pick} onHover={setHovered} keepFocus={docked && searching} />
-    : <EmojiButton key={emoji.id} emoji={emoji} tone={tone} onPick={pick} onHover={setHovered} keepFocus={docked && searching} />);
+    ? <CustomEmojiButton key={`c${emoji.id}`} emoji={emoji} s3Endpoint={s3Endpoint} onPick={onPick} onHover={setHovered} keepFocus={docked && searching} />
+    : <EmojiButton key={emoji.id} emoji={emoji} tone={tone} onPick={onPick} onHover={setHovered} keepFocus={docked && searching} />);
 
   return (
     <>
@@ -454,7 +478,7 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
                     {section.guild ? (
                       <GuildIcon guild={section.guild} className="emoji-picker-guild-icon" />
                     ) : section.id === 'frequent' ? (
-                      <FontAwesomeIcon icon={faClock} className="emoji-picker-frequent-icon" />
+                      <Icon icon={faClock} className="emoji-picker-frequent-icon" />
                     ) : (
                       <SheetEmoji unified={section.emojis[0].skins[0].unified} />
                     )}
@@ -473,14 +497,18 @@ export default function EmojiPicker({ onSelect, onGif, onClose, autoFocus = true
                     <div className="emoji-picker-empty">{t('chat.emojiPicker.noMatch', { query })}</div>
                   )
                 ) : (
-                  sections.map((section) => (
-                    <section key={section.id} data-section={section.id}>
-                      <h6 className="emoji-picker-section-title">{section.name}</h6>
-                      <div className="emoji-picker-grid">
-                        {section.emojis.map(renderItem)}
-                      </div>
-                    </section>
-                  ))
+                  sections.map((section, i) => {
+                    const before = sections.slice(0, i).reduce((n, { emojis }) => n + emojis.length, 0);
+                    if (before >= drawn) return null;
+                    return (
+                      <section key={section.id} data-section={section.id}>
+                        <h6 className="emoji-picker-section-title">{section.name}</h6>
+                        <div className="emoji-picker-grid">
+                          {section.emojis.slice(0, drawn - before).map(renderItem)}
+                        </div>
+                      </section>
+                    );
+                  })
                 )}
               </NearbyContext.Provider>
             </div>

@@ -147,6 +147,9 @@ export function splitEmoji(text, index) {
 // Discord shows messages made only of emoji (up to 27, custom ones included) larger.
 export function isEmojiOnly(text, index) {
   if (!text || !index) return false;
+  // Quick answer for most messages: a letter, which no emoji is but ℹ (the custom emoji's names
+  // aside, taken out first).
+  if (/(?!\u2139)\p{L}/u.test(text.replace(/<:[A-Za-z0-9_]{2,32}:\d+>/g, ''))) return false;
   const customCount = (text.match(/<:[A-Za-z0-9_]{2,32}:\d+>/g) ?? []).length;
   const rest = text.replace(/<:[A-Za-z0-9_]{2,32}:\d+>/g, ' ').trim();
   const parts = rest ? splitEmoji(rest, index) : [];

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faPlay } from '@fortawesome/free-solid-svg-icons';
 import { SOUNDS, SOUND_NAMES } from '../sounds/soundList';
 import { playSound, setSoundEnabled, setSoundVolume, useSoundPrefs } from '../sounds/sounds';
@@ -46,7 +46,7 @@ export default function SoundSettings() {
                 aria-label={t('settings.sounds.playSound', { sound: label })} title={t('settings.sounds.play')}
                 onClick={() => playSound(name, { preview: true })}
               >
-                <FontAwesomeIcon icon={faPlay} />
+                <Icon icon={faPlay} />
               </button>
             </li>
           );

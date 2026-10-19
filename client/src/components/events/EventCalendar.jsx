@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faChevronLeft, faChevronRight, faLocationDot, faPlus, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import EventEmoji from './EventEmoji';
 import { addMonths, allDayDates, dayKey, eventsByDay, fromKey, isPastDay, monthGrid, monthKey, startOnDay } from '../../utils/eventCalendar';
@@ -35,7 +35,7 @@ function DayEvent({ item, guild, onOpen }) {
         <span className="event-calendar-day-name"><EventEmoji emoji={item.event.emoji} />{item.event.name}</span>
         {place.label && (
           <span className="event-calendar-day-place">
-            <FontAwesomeIcon icon={place.voice ? faVolumeHigh : faLocationDot} aria-hidden="true" /> {place.label}
+            <Icon icon={place.voice ? faVolumeHigh : faLocationDot} aria-hidden="true" /> {place.label}
           </span>
         )}
       </button>
@@ -70,10 +70,10 @@ export default function EventCalendar({ guild, events, month, day, onMonth, onDa
             {t('events.calendar.today')}
           </button>
           <button type="button" className="event-calendar-nav" aria-label={t('events.calendar.previous')} title={t('events.calendar.previous')} onClick={() => onMonth(addMonths(month, -1))}>
-            <FontAwesomeIcon icon={faChevronLeft} />
+            <Icon icon={faChevronLeft} />
           </button>
           <button type="button" className="event-calendar-nav" aria-label={t('events.calendar.next')} title={t('events.calendar.next')} onClick={() => onMonth(addMonths(month, 1))}>
-            <FontAwesomeIcon icon={faChevronRight} />
+            <Icon icon={faChevronRight} />
           </button>
         </div>
         <div className="event-calendar-grid" role="grid" aria-label={formatMonthYear(shown)}>
@@ -123,7 +123,7 @@ export default function EventCalendar({ guild, events, month, day, onMonth, onDa
                           title={t('events.calendar.createOn', { date: formatLongDate(date) })}
                           onClick={(e) => { e.preventDefault(); onDay(key); onCreate(startOnDay(key)); }}
                         >
-                          <FontAwesomeIcon icon={faPlus} />
+                          <Icon icon={faPlus} />
                         </button>
                       )}
                     </div>
@@ -183,7 +183,7 @@ export default function EventCalendar({ guild, events, month, day, onMonth, onDa
         )}
         {canCreateOn(day) && (
           <button type="button" className="btn btn-primary btn-sm vc-button event-calendar-create" onClick={() => onCreate(startOnDay(day))}>
-            <FontAwesomeIcon icon={faPlus} /> {t('events.dialog.create')}
+            <Icon icon={faPlus} /> {t('events.dialog.create')}
           </button>
         )}
       </section>

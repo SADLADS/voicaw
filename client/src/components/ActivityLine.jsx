@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trans } from 'react-i18next';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faTowerBroadcast } from '@fortawesome/free-solid-svg-icons';
 import { useActivities } from '../hooks/useActivities';
 import { useVoiceStreams } from '../hooks/useVoiceStreams';
@@ -21,7 +21,7 @@ export default function ActivityLine({ userId, className = '' }) {
   if (stream) {
     return (
       <span className={`activity-line activity-line-live ${className}`.trim()}>
-        <FontAwesomeIcon icon={faTowerBroadcast} className="activity-line-icon" aria-hidden="true" />
+        <Icon icon={faTowerBroadcast} className="activity-line-icon" aria-hidden="true" />
         <Trans i18nKey="activities.streamingIn" values={{ channel: stream.channelName ?? t('activities.unknownChannel') }} components={BOLD} />
       </span>
     );
@@ -31,7 +31,7 @@ export default function ActivityLine({ userId, className = '' }) {
   const icon = activityIcon(activity);
   return (
     <span className={`activity-line ${className}`.trim()}>
-      {icon && <FontAwesomeIcon icon={icon} className="activity-line-icon" aria-hidden="true" />}
+      {icon && <Icon icon={icon} className="activity-line-icon" aria-hidden="true" />}
       {key ? <Trans i18nKey={key} values={{ name: activityName(activity) }} components={BOLD} /> : activity.state}
     </span>
   );

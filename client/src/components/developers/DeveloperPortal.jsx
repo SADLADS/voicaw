@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import DeveloperPage from './DeveloperPage';
 import ApplicationPage from './ApplicationPage';
@@ -45,7 +45,7 @@ function ApplicationList() {
       <div className="dev-section-head">
         <h2>{t('developers.list.heading')}</h2>
         <button type="button" className="btn btn-primary vc-button" onClick={() => setCreating(true)}>
-          <FontAwesomeIcon icon={faPlus} /> {t('developers.list.new')}
+          <Icon icon={faPlus} /> {t('developers.list.new')}
         </button>
       </div>
       <p className="vc-hint">{t('developers.list.intro')}</p>

@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import {
   faArrowRight, faCompress, faDownLeftAndUpRightToCenter, faExpand, faForwardStep, faPause, faPlay, faUpRightFromSquare, faVolumeHigh,
   faVolumeXmark, faXmark,
@@ -225,15 +225,15 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
         <div className="watch-party-mini-bar">
           <span className="watch-party-mini-title" title={title}>{title}</span>
           <button type="button" className="watch-party-icon-button" title={t('voice.watchParty.openChannel')} aria-label={t('voice.watchParty.openChannel')} onClick={() => navigate(`/guild/${guildId}/${channelId}`)}>
-            <FontAwesomeIcon icon={faArrowRight} fixedWidth />
+            <Icon icon={faArrowRight} fixedWidth />
           </button>
           {canPopOut && (
             <button type="button" className="watch-party-icon-button" title={t('voice.watchParty.popOut')} aria-label={t('voice.watchParty.popOut')} onClick={popOut}>
-              <FontAwesomeIcon icon={faUpRightFromSquare} fixedWidth />
+              <Icon icon={faUpRightFromSquare} fixedWidth />
             </button>
           )}
           <button type="button" className="watch-party-icon-button" title={t('voice.watchParty.closePlayer')} aria-label={t('voice.watchParty.closePlayer')} onClick={onClose}>
-            <FontAwesomeIcon icon={faXmark} fixedWidth />
+            <Icon icon={faXmark} fixedWidth />
           </button>
         </div>
       )}
@@ -252,7 +252,7 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
             {popupBlocked && <p className="watch-party-popup-blocked" role="alert">{t('voice.watchParty.popupBlocked')}</p>}
             {blocked && (
               <button type="button" className="watch-party-blocked" onClick={retry}>
-                <FontAwesomeIcon icon={faPlay} /> {t('voice.watchParty.clickToWatch')}
+                <Icon icon={faPlay} /> {t('voice.watchParty.clickToWatch')}
               </button>
             )}
           </>
@@ -281,7 +281,7 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
             title={party.playing ? t('voice.watchParty.pause') : t('voice.watchParty.play')}
             onClick={() => send({ playing: !party.playing })}
           >
-            <FontAwesomeIcon icon={party.playing ? faPause : faPlay} fixedWidth />
+            <Icon icon={party.playing ? faPause : faPlay} fixedWidth />
           </button>
         )}
         {canSkip && (
@@ -292,7 +292,7 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
             title={t('voice.watchParty.skip')}
             onClick={() => skipVideo(guildId, channelId, itemId).catch(() => {})}
           >
-            <FontAwesomeIcon icon={faForwardStep} fixedWidth />
+            <Icon icon={faForwardStep} fixedWidth />
           </button>
         )}
         <span className="watch-party-time">
@@ -323,7 +323,7 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
           disabled={deafened}
           onClick={() => changeVolume(volume === 0 ? 100 : 0)}
         >
-          <FontAwesomeIcon icon={muted ? faVolumeXmark : faVolumeHigh} fixedWidth />
+          <Icon icon={muted ? faVolumeXmark : faVolumeHigh} fixedWidth />
         </button>
         {docked && (
           <input
@@ -339,12 +339,12 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
         )}
         {docked && canPopOut && (
           <button type="button" className="watch-party-icon-button" aria-label={t('voice.watchParty.popOut')} title={t('voice.watchParty.popOut')} onClick={popOut}>
-            <FontAwesomeIcon icon={faUpRightFromSquare} fixedWidth />
+            <Icon icon={faUpRightFromSquare} fixedWidth />
           </button>
         )}
         {popout && (
           <button type="button" className="watch-party-icon-button" aria-label={t('voice.watchParty.bringBack')} title={t('voice.watchParty.bringBack')} onClick={closeWatchPartyWindow}>
-            <FontAwesomeIcon icon={faDownLeftAndUpRightToCenter} fixedWidth />
+            <Icon icon={faDownLeftAndUpRightToCenter} fixedWidth />
           </button>
         )}
         {docked && (
@@ -355,7 +355,7 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
             title={fullscreen ? t('voice.watchParty.exitFullscreen') : t('voice.watchParty.fullscreen')}
             onClick={toggleFullscreen}
           >
-            <FontAwesomeIcon icon={fullscreen ? faCompress : faExpand} fixedWidth />
+            <Icon icon={fullscreen ? faCompress : faExpand} fixedWidth />
           </button>
         )}
       </div>

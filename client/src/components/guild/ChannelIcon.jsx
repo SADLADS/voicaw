@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faFileLines, faHashtag, faListCheck, faLock, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import { t } from '../../i18n';
 
@@ -10,8 +10,8 @@ const ICONS = { voice: faVolumeHigh, list: faListCheck, doc: faFileLines };
 export default function ChannelIcon({ channel, className = '' }) {
   return (
     <span className={`channel-icon ${className}`} title={channel?.private ? t('guilds.channelIcon.privateChannel') : undefined}>
-      <FontAwesomeIcon icon={ICONS[channel?.type] ?? faHashtag} />
-      {channel?.private && <FontAwesomeIcon icon={faLock} className="channel-icon-lock" aria-label={t('guilds.channelIcon.private')} />}
+      <Icon icon={ICONS[channel?.type] ?? faHashtag} />
+      {channel?.private && <Icon icon={faLock} className="channel-icon-lock" aria-label={t('guilds.channelIcon.private')} />}
     </span>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faFlag } from '@fortawesome/free-solid-svg-icons';
 import api from '../utils/api';
 import EmojiPicker from './EmojiPicker';
@@ -45,7 +45,7 @@ function FlagField({ value, onChange }) {
             setPicking({ top, bottom, left, right });
           }}
         >
-          {value ? <RegionFlag flag={value} /> : <FontAwesomeIcon icon={faFlag} />}
+          {value ? <RegionFlag flag={value} /> : <Icon icon={faFlag} />}
         </button>
         {value && (
           <button type="button" className="btn btn-sm btn-link voice-region-flag-remove" onClick={() => onChange('')}>

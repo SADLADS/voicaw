@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faMobileScreenButton } from '@fortawesome/free-solid-svg-icons';
 import { statusLabel } from '../utils/presence';
 
@@ -11,7 +11,7 @@ export default function StatusIcon({ status, title }) {
   const label = title ?? statusLabel(status);
   return (
     <span className={`status-icon ${status}`} title={label} role="img" aria-label={label}>
-      {status === 'mobile' && <FontAwesomeIcon icon={faMobileScreenButton} />}
+      {status === 'mobile' && <Icon icon={faMobileScreenButton} />}
     </span>
   );
 }

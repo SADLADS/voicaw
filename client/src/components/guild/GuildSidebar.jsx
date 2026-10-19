@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import {
   faBell,
   faBellSlash,
@@ -284,7 +284,7 @@ export default function GuildSidebar({ guild, user }) {
               {String(channel.voice?.length ?? 0).padStart(2, '0')}/{String(channel.user_limit).padStart(2, '0')}
             </span>
           )}
-          {muted && <FontAwesomeIcon icon={faBellSlash} className="guild-channel-muted" title={t('guilds.sidebar.muted')} aria-label={t('guilds.sidebar.muted')} />}
+          {muted && <Icon icon={faBellSlash} className="guild-channel-muted" title={t('guilds.sidebar.muted')} aria-label={t('guilds.sidebar.muted')} />}
           {mentions > 0 && ' '}
           {mentions > 0 && (
             <span className="mention-badge" aria-label={t('guilds.sidebar.mentionCount', { count: mentions })}>{mentions > 99 ? '99+' : mentions}</span>
@@ -300,7 +300,7 @@ export default function GuildSidebar({ guild, user }) {
             aria-label={t('guilds.sidebar.openChatNamed', { name: channel.name })}
             title={t('guilds.sidebar.openChat')}
           >
-            <FontAwesomeIcon icon={faMessage} />
+            <Icon icon={faMessage} />
           </Link>
         )}
         {!isMobile && (managesChannels || (['text', 'voice'].includes(channel.type) && has(channel.my_permissions, PERMISSIONS.MANAGE_WEBHOOKS))) && (
@@ -311,13 +311,13 @@ export default function GuildSidebar({ guild, user }) {
             title={t('guilds.sidebar.editChannel')}
             onClick={() => openDialog({ type: 'channel', channel })}
           >
-            <FontAwesomeIcon icon={faGear} />
+            <Icon icon={faGear} />
           </button>
         )}
       </li>
       {channel.watch_party && (
         <li className="guild-channel-watch" title={channel.watch_party.title ?? undefined}>
-          <FontAwesomeIcon icon={faClapperboard} className="guild-channel-watch-icon" aria-hidden="true" />
+          <Icon icon={faClapperboard} className="guild-channel-watch-icon" aria-hidden="true" />
           <span className="guild-channel-watch-title">
             {channel.watch_party.playing
               ? t('voice.watchParty.sidebarPlaying', { title: channel.watch_party.title ?? t('voice.watchParty.untitled') })
@@ -328,7 +328,7 @@ export default function GuildSidebar({ guild, user }) {
       {liveEvents.filter((e) => e.channel_id === channel.id).map((event) => (
         <li key={`event-${event.id}`} className="guild-channel-event">
           <button type="button" className="guild-channel-event-link" onClick={() => openEvents(event.id)}>
-            <FontAwesomeIcon icon={faCalendarDays} className="guild-channel-event-icon" aria-hidden="true" />
+            <Icon icon={faCalendarDays} className="guild-channel-event-icon" aria-hidden="true" />
             <span className="guild-channel-event-name">{t('guilds.sidebar.liveEvent', { name: event.name })}</span>
           </button>
         </li>
@@ -354,54 +354,54 @@ export default function GuildSidebar({ guild, user }) {
           onClick={() => setMenuOpen((open) => !open)}
         >
           <span className="guild-header-name">{guild.name}</span>
-          <FontAwesomeIcon icon={menuOpen ? faXmark : faChevronDown} />
+          <Icon icon={menuOpen ? faXmark : faChevronDown} />
         </button>
 
         {menuOpen && (
           <div className="guild-menu" role="menu">
             {can(PERMISSIONS.CREATE_INVITE) && (
               <button type="button" role="menuitem" className="guild-menu-item accent" onClick={() => openDialog({ type: 'invite' })}>
-                {t('guilds.sidebar.invitePeople')} <FontAwesomeIcon icon={faUserPlus} />
+                {t('guilds.sidebar.invitePeople')} <Icon icon={faUserPlus} />
               </button>
             )}
             {opensSettings && (
               <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'settings' })}>
-                {t('guilds.sidebar.guildSettings')} <FontAwesomeIcon icon={faGear} />
+                {t('guilds.sidebar.guildSettings')} <Icon icon={faGear} />
               </button>
             )}
             {levelsOn(guild) && (
               <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'leaderboard' })}>
-                {t('levels.leaderboard.title')} <FontAwesomeIcon icon={faTrophy} />
+                {t('levels.leaderboard.title')} <Icon icon={faTrophy} />
               </button>
             )}
             {can(PERMISSIONS.VIEW_AUDIT_LOG) && (
               <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'audit' })}>
-                {t('guilds.sidebar.auditLog')} <FontAwesomeIcon icon={faClipboardList} />
+                {t('guilds.sidebar.auditLog')} <Icon icon={faClipboardList} />
               </button>
             )}
             {canCreateEvents(guild) && (
               <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'eventEditor' })}>
-                {t('guilds.sidebar.createEvent')} <FontAwesomeIcon icon={faCalendarPlus} />
+                {t('guilds.sidebar.createEvent')} <Icon icon={faCalendarPlus} />
               </button>
             )}
             {managesChannels && (
               <>
                 <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'channel' })}>
-                  {t('guilds.sidebar.createChannel')} <FontAwesomeIcon icon={faPlus} />
+                  {t('guilds.sidebar.createChannel')} <Icon icon={faPlus} />
                 </button>
                 <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'category' })}>
-                  {t('guilds.sidebar.createCategory')} <FontAwesomeIcon icon={faFolderPlus} />
+                  {t('guilds.sidebar.createCategory')} <Icon icon={faFolderPlus} />
                 </button>
               </>
             )}
             <button type="button" role="menuitem" className="guild-menu-item" onClick={() => openDialog({ type: 'notifications' })}>
-              {t('guilds.sidebar.notificationSettings')} <FontAwesomeIcon icon={faBell} />
+              {t('guilds.sidebar.notificationSettings')} <Icon icon={faBell} />
             </button>
             {!isOwner && (
               <>
                 <div className="guild-menu-separator" />
                 <button type="button" role="menuitem" className="guild-menu-item danger" onClick={() => openDialog({ type: 'leave' })}>
-                  {t('guilds.sidebar.leaveGuild')} <FontAwesomeIcon icon={faRightFromBracket} />
+                  {t('guilds.sidebar.leaveGuild')} <Icon icon={faRightFromBracket} />
                 </button>
               </>
             )}
@@ -425,7 +425,7 @@ export default function GuildSidebar({ guild, user }) {
       >
         {drag?.lineTop != null && <div className="channel-drop-line" style={{ top: drag.lineTop }} aria-hidden="true" />}
         <button type="button" className="guild-events-button" onClick={() => openEvents()}>
-          <FontAwesomeIcon icon={faCalendarDays} className="guild-channel-icon" aria-hidden="true" />
+          <Icon icon={faCalendarDays} className="guild-channel-icon" aria-hidden="true" />
           <span className="guild-channel-name">
             {t('guilds.sidebar.calendar')}
           </span>
@@ -474,7 +474,7 @@ export default function GuildSidebar({ guild, user }) {
                   aria-expanded={!isCollapsed}
                   onClick={() => toggleCategory(category.id)}
                 >
-                  <FontAwesomeIcon icon={isCollapsed ? faChevronRight : faChevronDown} className="guild-category-chevron" />
+                  <Icon icon={isCollapsed ? faChevronRight : faChevronDown} className="guild-category-chevron" />
                   <span>{category.name}</span>
                 </button>
                 {managesChannels && !isMobile && (
@@ -486,7 +486,7 @@ export default function GuildSidebar({ guild, user }) {
                       title={t('guilds.sidebar.editCategory')}
                       onClick={() => openDialog({ type: 'category', category })}
                     >
-                      <FontAwesomeIcon icon={faGear} />
+                      <Icon icon={faGear} />
                     </button>
                     <button
                       type="button"
@@ -495,7 +495,7 @@ export default function GuildSidebar({ guild, user }) {
                       title={t('guilds.sidebar.createChannelShort')}
                       onClick={() => openDialog({ type: 'channel', categoryId: category.id })}
                     >
-                      <FontAwesomeIcon icon={faPlus} />
+                      <Icon icon={faPlus} />
                     </button>
                   </>
                 )}

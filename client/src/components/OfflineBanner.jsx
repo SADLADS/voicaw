@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faCloudArrowDown, faWifi } from '@fortawesome/free-solid-svg-icons';
 import { useOfflineMode } from '../utils/offlineMode';
 import { t } from '../i18n';
@@ -16,7 +16,7 @@ export default function OfflineBanner() {
   return (
     <div className="update-banner offline-banner" role="status">
       <span className="update-banner-icon" aria-hidden="true">
-        <FontAwesomeIcon icon={reachable ? faWifi : faCloudArrowDown} />
+        <Icon icon={reachable ? faWifi : faCloudArrowDown} />
       </span>
       <span className="update-banner-text">
         <strong>{t(reachable ? 'app.offline.backTitle' : 'app.offline.title')}</strong>

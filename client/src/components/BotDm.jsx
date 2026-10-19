@@ -1,6 +1,6 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faLockOpen, faTrash } from '@fortawesome/free-solid-svg-icons';
 import '../assets/css/dms.css';
 import { LayoutContext } from '../contexts';
@@ -45,7 +45,7 @@ export default function BotDm({ user }) {
           {botId != null && <span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span>}
         </span>
         <span className="bot-dm-plain" title={t('chat.botDm.notEncryptedHint')}>
-          <FontAwesomeIcon icon={faLockOpen} /> {t('chat.botDm.notEncrypted')}
+          <Icon icon={faLockOpen} /> {t('chat.botDm.notEncrypted')}
         </span>
         {summary && (
           <button
@@ -55,7 +55,7 @@ export default function BotDm({ user }) {
             title={t('chat.botDm.delete')}
             onClick={() => setConfirmingDelete(true)}
           >
-            <FontAwesomeIcon icon={faTrash} />
+            <Icon icon={faTrash} />
           </button>
         )}
       </h4>

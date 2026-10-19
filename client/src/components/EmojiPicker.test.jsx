@@ -33,10 +33,10 @@ function renderPicker(props = {}) {
 }
 
 describe('EmojiPicker', () => {
-  it('shows emoji by category from the Twemoji sprite sheets', () => {
+  it('shows emoji by category from the Twemoji sprite sheets', async () => {
     renderPicker();
     expect(screen.getByRole('heading', { name: 'Smileys & People' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Flags' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Flags' }, { timeout: 10000 })).toBeInTheDocument();
     const grinning = within(screen.getByRole('button', { name: 'Grinning Face' })).getByRole('img', { name: '😀' });
     expect(grinning).toHaveClass('emoji-sheet-people');
     expect(document.querySelector('.emoji-picker style').textContent).toMatch(/\.emoji-sheet-people\{background-image:url\("\/emoji\/sheets\/[^/]+\/people\.webp"\)/);
@@ -44,7 +44,7 @@ describe('EmojiPicker', () => {
     expect(pizza).toHaveClass('emoji-sheet-foods');
   });
 
-  it('with a category (a voice region\'s flag), shows and searches only that one', () => {
+  it('with a category (a voice region\'s flag), shows and searches only that one', async () => {
     use('grinning', 5);
     const { onSelect } = renderPicker({ category: 'flags' });
     expect(screen.getByRole('heading', { name: 'Flags' })).toBeInTheDocument();
@@ -53,7 +53,7 @@ describe('EmojiPicker', () => {
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Skin tone' })).not.toBeInTheDocument();
     // Not only countries.
-    expect(screen.getByRole('button', { name: 'Pirate Flag' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Pirate Flag' }, { timeout: 10000 })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Chequered Flag' })).toBeInTheDocument();
     const search = screen.getByRole('searchbox', { name: 'Search emoji' });
     fireEvent.change(search, { target: { value: 'rainbow' } });
@@ -66,10 +66,21 @@ describe('EmojiPicker', () => {
     expect(screen.getByText('No emoji match "pizza"')).toBeInTheDocument();
   });
 
-  it('uses the skin tone sheet for the chosen tone', () => {
+  it('draws the first emoji at once and the rest over the next frames; a category jumped to at once', async () => {
+    renderPicker();
+    expect(screen.getByRole('button', { name: 'Grinning Face' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Flags' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Flags' }, { timeout: 10000 })).toBeInTheDocument();
+
+    renderPicker();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Food & Drink' }).at(-1));
+    expect(screen.getAllByRole('button', { name: 'Pizza' })).toHaveLength(2);
+  });
+
+  it('uses the skin tone sheet for the chosen tone', async () => {
     setSkinTone(3);
     renderPicker();
-    const thumbs = within(screen.getByRole('button', { name: 'Thumbs Up' })).getByRole('img');
+    const thumbs = within(await screen.findByRole('button', { name: 'Thumbs Up' }, { timeout: 10000 })).getByRole('img');
     expect(thumbs).toHaveClass('emoji-sheet-tone3');
   });
 
@@ -93,23 +104,23 @@ describe('EmojiPicker', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('applies and remembers the skin tone', () => {
+  it('applies and remembers the skin tone', async () => {
     const { onSelect, unmount } = renderPicker();
     fireEvent.click(screen.getByRole('button', { name: 'Skin tone' }));
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Skin tone 3' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Thumbs Up' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Thumbs Up' }, { timeout: 10000 }));
     expect(onSelect).toHaveBeenLastCalledWith('👍🏽');
     unmount();
 
     // (Now also under Frequently Used.)
     const second = renderPicker();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Thumbs Up' })[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Thumbs Up' }, { timeout: 10000 }))[0]);
     expect(second.onSelect).toHaveBeenLastCalledWith('👍🏽');
   });
 
-  it('shows frequently used emoji first', () => {
+  it('shows frequently used emoji first', async () => {
     const first = renderPicker();
-    fireEvent.click(screen.getByRole('button', { name: 'Pizza' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Pizza' }, { timeout: 10000 }));
     first.unmount();
 
     renderPicker();
@@ -117,9 +128,9 @@ describe('EmojiPicker', () => {
     expect(within(frequent).getByRole('button', { name: 'Pizza' })).toBeInTheDocument();
   });
 
-  it("shows the hovered emoji's :shortcode: (not its full name)", () => {
+  it("shows the hovered emoji's :shortcode: (not its full name)", async () => {
     const { container } = renderPicker();
-    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Thumbs Up' }));
+    fireEvent.mouseEnter(await screen.findByRole('button', { name: 'Thumbs Up' }, { timeout: 10000 }));
     const preview = container.querySelector('.emoji-picker-preview');
     expect(preview).toHaveTextContent(':+1:');
     expect(preview).not.toHaveTextContent('Thumbs Up');

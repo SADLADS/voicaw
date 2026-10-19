@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faPlay } from '@fortawesome/free-solid-svg-icons';
 import { youtubeVideoId } from '../utils/youtube';
 import { eventFromUrl, inviteCodeFromUrl } from '../utils/inviteLinks';
@@ -39,7 +39,7 @@ function YouTubeEmbed({ id, link }) {
           <button type="button" className="youtube-wrapper youtube-preview" onClick={showViewer} aria-label={t('media.youtube.play')}>
             <img src={`https://i.ytimg.com/vi/${id}/hqdefault.jpg`} alt="" loading="lazy" draggable={false} />
             <span className="youtube-preview-play" aria-hidden="true">
-              <FontAwesomeIcon icon={faPlay} />
+              <Icon icon={faPlay} />
             </span>
           </button>
         </MediaCover>
@@ -74,7 +74,7 @@ function YouTubeEmbed({ id, link }) {
       <MediaCover label={cover} name={t('media.youtube.video')}>
         <div className="youtube-wrapper youtube-placeholder">
           <button type="button" className="youtube-placeholder-play" onClick={play} aria-label={t('media.youtube.play')}>
-            <FontAwesomeIcon icon={faPlay} />
+            <Icon icon={faPlay} />
           </button>
           <div className="youtube-placeholder-text">
             <div className="youtube-placeholder-title">{t('media.youtube.video')}</div>

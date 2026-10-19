@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faPhone, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import { useParams } from 'react-router-dom';
 import '../assets/css/dms.css';
@@ -115,7 +115,7 @@ export default function Dm({ user }) {
                 disabled={Boolean(call)}
                 onClick={() => startCall(chatUser)}
               >
-                <FontAwesomeIcon icon={faPhone} />
+                <Icon icon={faPhone} />
               </button>
             )}
             {chatUser && sharedKey && !keyBlocked && (
@@ -127,7 +127,7 @@ export default function Dm({ user }) {
               title={t('chat.pins.title')}
               onClick={togglePins}
             >
-              <FontAwesomeIcon icon={faThumbtack} />
+              <Icon icon={faThumbtack} />
             </button>
             )}
             {chatUser && sharedKey && !keyBlocked && (

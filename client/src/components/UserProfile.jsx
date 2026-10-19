@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faCamera, faImage, faTrash, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { ImageViewerContext, InteractionContext } from '../contexts';
 import Avatar from './Avatar';
@@ -112,7 +112,7 @@ export default function UserProfile({ userId, me, onClose, onOpenProfile }) {
       >
         {isMobile && <button type="button" className="user-profile-handle" aria-label={t('common.close')} onClick={onClose} />}
         <button type="button" className="vc-dialog-close user-profile-close" aria-label={t('common.close')} onClick={onClose}>
-          <FontAwesomeIcon icon={faXmark} />
+          <Icon icon={faXmark} />
         </button>
         {own ? <OwnBanner userId={userId} /> : <ProfileBanner userId={userId} className="user-profile-banner" />}
         <div className="user-profile-head">
@@ -282,14 +282,14 @@ function OwnBanner({ userId }) {
     <ProfileBanner userId={userId} color={colour ?? undefined} className="user-profile-banner">
       <div className="user-profile-banner-edit">
         <button type="button" className="user-profile-edit-button" title={t('app.profile.changeBanner')} aria-label={t('app.profile.changeBanner')} disabled={upload.busy} onClick={upload.choose}>
-          <FontAwesomeIcon icon={faImage} />
+          <Icon icon={faImage} />
         </button>
         <label className="user-profile-edit-button user-profile-colour" title={t('app.profile.bannerColour')}>
           <input type="color" aria-label={t('app.profile.bannerColour')} value={colorToHex(shown ?? DEFAULT_PICKER_COLOUR)} onChange={(e) => pickColour(e.target.value)} />
         </label>
         {profile?.banner && (
           <button type="button" className="user-profile-edit-button" title={t('app.profile.removeBanner')} aria-label={t('app.profile.removeBanner')} disabled={upload.busy} onClick={() => upload.run(removeBanner)}>
-            <FontAwesomeIcon icon={faTrash} />
+            <Icon icon={faTrash} />
           </button>
         )}
         {upload.fileInput(t('settings.profile.chooseBanner'))}
@@ -306,11 +306,11 @@ function OwnPictureButtons({ userId }) {
   return (
     <>
       <button type="button" className="user-profile-edit-button user-profile-picture-change" title={t('app.profile.changePicture')} aria-label={t('app.profile.changePicture')} disabled={upload.busy} onClick={upload.choose}>
-        <FontAwesomeIcon icon={faCamera} />
+        <Icon icon={faCamera} />
       </button>
       {getProfile(userId)?.avatar && (
         <button type="button" className="user-profile-edit-button user-profile-picture-remove" title={t('app.profile.removePicture')} aria-label={t('app.profile.removePicture')} disabled={upload.busy} onClick={() => upload.run(removeProfilePicture)}>
-          <FontAwesomeIcon icon={faTrash} />
+          <Icon icon={faTrash} />
         </button>
       )}
       {upload.fileInput(t('settings.profile.choosePicture'))}

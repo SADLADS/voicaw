@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faArrowLeft, faBook, faCode } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/guilds.css';
 import '../../assets/css/developers.css';
@@ -16,16 +16,16 @@ export default function DeveloperPage({ title = t('developers.title'), titleLink
     <div className="dev-page">
       <header className="dev-header">
         <Link to={titleLink} className="dev-header-title">
-          <FontAwesomeIcon icon={faCode} className="dev-header-icon" />
+          <Icon icon={faCode} className="dev-header-icon" />
           <span>{title}</span>
         </Link>
         <nav className="dev-header-links">
           <a href={DOCS_URL} target="_blank" rel="noreferrer" className="dev-header-link">
-            <FontAwesomeIcon icon={faBook} />
+            <Icon icon={faBook} />
             <span>{t('developers.docs')}</span>
           </a>
           <Link to="/dm" className="dev-header-link">
-            <FontAwesomeIcon icon={faArrowLeft} />
+            <Icon icon={faArrowLeft} />
             <span>{t('developers.back')}</span>
           </Link>
         </nav>

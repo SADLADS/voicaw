@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faPhone } from '@fortawesome/free-solid-svg-icons';
 import { callLogText, parseCallLog } from '../utils/callLog';
 import { displayName, useProfiles } from '../utils/profiles';
@@ -21,7 +21,7 @@ export default function CallLogNotice({ msg, meId }) {
   });
   return (
     <div className={`call-log${missed ? ' missed' : ''}`} data-msg-id={msg.id} title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>
-      <FontAwesomeIcon icon={faPhone} className="call-log-icon" />
+      <Icon icon={faPhone} className="call-log-icon" />
       <span>{text}</span>
     </div>
   );

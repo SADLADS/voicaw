@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faCheck, faMessage, faUserGroup, faUserMinus, faUserPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../contexts';
 import PaneBackButton from './PaneBackButton';
@@ -74,7 +74,7 @@ export default function Friends() {
       title={label}
       onClick={(e) => { e.stopPropagation(); onClick(); }}
     >
-      <FontAwesomeIcon icon={icon} />
+      <Icon icon={icon} />
     </button>
   );
 
@@ -115,7 +115,7 @@ export default function Friends() {
     <div id="dm-main" className="friends-main">
       <h4 className="chat-recipient-header friends-header">
         <PaneBackButton />
-        <FontAwesomeIcon icon={faUserGroup} className="notes-header-icon" />
+        <Icon icon={faUserGroup} className="notes-header-icon" />
         <span className="friends-title">{t('friends.title')}</span>
         <span className="friends-tabs" role="tablist">
           {tabs.map((name) => (

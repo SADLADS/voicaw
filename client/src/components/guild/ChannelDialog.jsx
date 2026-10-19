@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faFileLines, faHashtag, faListCheck, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import Modal from './Modal';
 import ChannelPermissions from './ChannelPermissions';
@@ -146,19 +146,19 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
             <legend>{t('guildAdmin.channelDialog.type.legend')}</legend>
             <label className={type === 'text' ? 'selected' : ''}>
               <input type="radio" name="channel-type" value="text" checked={type === 'text'} onChange={() => setType('text')} />
-              <FontAwesomeIcon icon={faHashtag} /> {t('guildAdmin.channelDialog.type.text')}
+              <Icon icon={faHashtag} /> {t('guildAdmin.channelDialog.type.text')}
             </label>
             <label className={type === 'voice' ? 'selected' : ''}>
               <input type="radio" name="channel-type" value="voice" checked={type === 'voice'} onChange={() => setType('voice')} />
-              <FontAwesomeIcon icon={faVolumeHigh} /> {t('guildAdmin.channelDialog.type.voice')}
+              <Icon icon={faVolumeHigh} /> {t('guildAdmin.channelDialog.type.voice')}
             </label>
             <label className={type === 'list' ? 'selected' : ''}>
               <input type="radio" name="channel-type" value="list" checked={type === 'list'} onChange={() => setType('list')} />
-              <FontAwesomeIcon icon={faListCheck} /> {t('guildAdmin.channelDialog.type.list')}
+              <Icon icon={faListCheck} /> {t('guildAdmin.channelDialog.type.list')}
             </label>
             <label className={type === 'doc' ? 'selected' : ''}>
               <input type="radio" name="channel-type" value="doc" checked={type === 'doc'} onChange={() => setType('doc')} />
-              <FontAwesomeIcon icon={faFileLines} /> {t('guildAdmin.channelDialog.type.doc')}
+              <Icon icon={faFileLines} /> {t('guildAdmin.channelDialog.type.doc')}
             </label>
           </fieldset>
         )}

@@ -30,6 +30,11 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   standard ones not on a sheet, the preview) are `LoadingImage`s: transparent (`emoji-loading`)
   until they load, and for good if they fail, so a cell is blank rather than a broken-image
   icon and the emoji's name.
+- **The picker opens at once** (2026-10-19): it draws its first 120 emoji (a screenful) as it
+  opens, then 150 more after each frame until all ~1,900 are there; drawing them all at once held
+  a phone up for about half a second (`e2e/mobileperf.mjs`). Jumping to a category draws the rest
+  at once. Its buttons are memoised with one `onPick` for good, so drawing more, or hovering,
+  doesn't redraw the ones already there.
 - Everywhere else (the message box while typing, names, previews, buttons) emoji are Twemoji
   too, via a colour font: `assets/css/twemoji-font.css` is first in the body font stack, limited
   by `unicode-range` to its emoji (not the digits, `#`, `*`, ©, ® it also has). A text box can't
@@ -686,6 +691,27 @@ room for the typing line, plus 4px; 2026-10-16): a finger scroll on a phone that
 the newest message whole, but used to count as scrolled away, so the message box growing while
 typing (or a new message) didn't move the chat up. `e2e/composergrow.mjs` checks the box growing
 on a phone, with the keyboard up or not.
+
+**Speed on phones** (2026-10-19, measured with `e2e/mobileperf.mjs`: a Pixel 7 with a 4× slower
+CPU taps through a DM and a guild):
+- Rows (`MessageRow`) are memoised. `MessageList` gives each only what concerns it (`menuOpen`,
+  `focused`, `replying`, `editing`, not the list-wide ids) and the same functions every render
+  (wrappers calling the ones passed in; one not passed stays missing, since rows check for
+  some), so a hover, a picker, a reply or a new message redraws only the rows it changes, not
+  every loaded one.
+- Drawn markdown is kept in memory by text (`drawMarkdown`, the 2,000 most recent, per plugin
+  list; `messageRehypePlugins` gives every row the same list for an emoji index), so going back
+  to a channel or chat doesn't parse its messages again. The elements depend only on the text:
+  names, mentions and uploading attachments are read from context when they're drawn.
+- Icons are drawn by `Icon` (`components/Icon.jsx`), not Font Awesome's component, whose
+  per-icon pipeline took ~80 ms opening a guild on such a phone.
+- Smaller: `isEmojiOnly` answers at once for text with a letter, `userLocale` is kept per
+  browser language, day dividers use the kept date formatters.
+Measured together (production build, medians of 3): switching guild channels went from ~250 ms
+of blocked main thread to ~80 ms, the emoji picker from ~385 ms between tap and paint to ~90 ms,
+opening a message's sheet, closing the picker and Direct Messages from the rail from 60–160 ms
+to no long task. Not yet: opening a guild for the first time since the app started (~270 ms,
+unchanged) draws its last channel's messages in the hidden pane, most of it first-time markdown.
 
 Messages are grouped like Discord's (`utils/messageGroups.js` `continuesGroup`): one from the
 same person within 7 minutes of the row above, on the same day and not a reply, drops its

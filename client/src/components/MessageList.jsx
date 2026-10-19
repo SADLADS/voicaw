@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Trans } from 'react-i18next';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faEdit, faTrash, faReply, faFaceSmile, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import Attachment from './Attachment';
 import MessageReactions from './MessageReactions';
@@ -193,15 +193,45 @@ function urlTransform(url) {
   return placeholderIdFromUrl(url) !== null ? url : defaultUrlTransform(url);
 }
 
+// The rehype plugins for an emoji index and object store: one list for every message, so the
+// drawn markdown below can be kept per list.
+const pluginLists = new WeakMap();
+const noIndex = {};
+function messageRehypePlugins(emojiIndex, s3Endpoint) {
+  const key = emojiIndex ?? noIndex;
+  if (!pluginLists.has(key)) pluginLists.set(key, new Map());
+  const lists = pluginLists.get(key);
+  if (!lists.has(s3Endpoint)) lists.set(s3Endpoint, [rehypeHighlightShared, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)]);
+  return lists.get(s3Endpoint);
+}
+
+// Drawn markdown (React elements, which can be drawn again anywhere) by text, per plugin list.
+// Parsing is the costliest part of drawing a message, and memo only helps while a list stays
+// open: switching channels or chats used to parse every message again (a phone felt it).
+// What differs between readers or over time (names, mentions, attachments being uploaded) is
+// read from context when the elements are drawn, so the same text always gives the same elements.
+// (react-markdown's component is a plain function, without hooks, so it can be called here.)
+const MARKDOWN_CACHE_SIZE = 2000;
+const drawnMarkdown = new WeakMap();
+function drawMarkdown(text, rehypePlugins) {
+  if (!drawnMarkdown.has(rehypePlugins)) drawnMarkdown.set(rehypePlugins, new Map());
+  const cache = drawnMarkdown.get(rehypePlugins);
+  let drawn = cache.get(text);
+  if (drawn) {
+    cache.delete(text); // most recently used last
+  } else {
+    drawn = ReactMarkdown({ children: text, remarkPlugins, rehypePlugins, urlTransform, components: markdownComponents });
+    if (cache.size >= MARKDOWN_CACHE_SIZE) cache.delete(cache.keys().next().value);
+  }
+  cache.set(text, drawn);
+  return drawn;
+}
+
 // Markdown with Discord's flavour and our plugins. Text with nothing for markdown to do (most
 // embed fields) skips the parser: it would draw the same paragraph (isPlainText).
 function MarkdownBody({ text, rehypePlugins }) {
   if (isPlainText(text)) return <p>{text}</p>;
-  return (
-    <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} urlTransform={urlTransform} components={markdownComponents}>
-      {text}
-    </ReactMarkdown>
-  );
+  return drawMarkdown(text, rehypePlugins);
 }
 
 // A message's text as markdown (attachments, emoji, mentions, spoilers). `rehypePlugins` and
@@ -250,10 +280,7 @@ const documentRemarkPlugins = [remarkGfm, remarkDocument, remarkEmoji];
 
 export const DocumentMarkdown = memo(function DocumentMarkdown({ text, user, s3Endpoint, reactionNames, mentionRoles, myRoleIds }) {
   const emojiIndex = useEmojiIndex();
-  const rehypePlugins = useMemo(
-    () => [rehypeHighlightShared, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)],
-    [emojiIndex, s3Endpoint]
-  );
+  const rehypePlugins = messageRehypePlugins(emojiIndex, s3Endpoint);
   const mentions = useMemo(
     () => ({ names: reactionNames, roles: mentionRoles, meId: user.id, myRoleIds, everyone: false }),
     [reactionNames, mentionRoles, user.id, myRoleIds]
@@ -277,10 +304,7 @@ const embedProps = (msg) => ({ embeds: msg.embeds, linkEmbeds: msg.link_embeds, 
 // without the menu, editor or reactions.
 export function MessageContent({ msg, user, s3Endpoint, reactionNames, mentionRoles, myRoleIds }) {
   const emojiIndex = useEmojiIndex();
-  const rehypePlugins = useMemo(
-    () => [rehypeHighlightShared, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)],
-    [emojiIndex, s3Endpoint]
-  );
+  const rehypePlugins = messageRehypePlugins(emojiIndex, s3Endpoint);
   const mentions = useMemo(
     () => ({ names: reactionNames, roles: mentionRoles, meId: user.id, myRoleIds, everyone: Boolean(msg.mention_everyone) }),
     [reactionNames, mentionRoles, user.id, myRoleIds, msg.mention_everyone]
@@ -327,18 +351,23 @@ function HoverQuickReactions({ msg, userId, onToggle }) {
   );
 }
 
-export function MessageRow({
+// Memoised: MessageList gives each row only what concerns it (whether its menu shows, it's
+// focused, edited or replied to) and the same functions every render, so a row redraws only
+// when its message or what it shows changes, not on every hover, picker, reply or new message.
+const MessageRow = memo(function MessageRow({
   msg,
   grouped = false,
   onOpenProfile,
   user,
   s3Endpoint,
-  hoveredMsgId,
+  // The hover menu shows (desktop): it's hovered, or focused.
+  menuOpen = false,
   setHoveredMsgId,
   handleEdit,
   handleDelete,
   handleReply,
-  editingMessageId,
+  // Being edited in place, starting from `editingMessageContent`.
+  editing = false,
   editingMessageContent,
   setEditingMessageContent,
   setEditingMessageId,
@@ -356,8 +385,10 @@ export function MessageRow({
   reactionNames,
   onOpenActions,
   onOpenMenu,
-  focusedMsgId,
-  replyingToId,
+  // A picker or menu is open for it: it stays highlighted with its menu showing.
+  focused = false,
+  // It's being replied to (the composer's "Replying to"): marked until that's sent.
+  replying = false,
   canModerate = false,
   canAddReactions = true,
   canPin = false,
@@ -391,10 +422,6 @@ export function MessageRow({
   } : {});
   // A webhook's name or picture: its right-click menu blocks it (PageMenus).
   const webhookProps = webhook ? { 'data-webhook-id': msg.webhook_id, 'data-webhook-name': senderName } : {};
-  // A picker or menu is open for this message: it stays highlighted with its menu showing.
-  const focused = focusedMsgId === msg.id;
-  // The message being replied to (the composer's "Replying to"): marked until it's sent.
-  const replying = replyingToId != null && replyingToId === msg.id;
   // A bot's ephemeral reply (only you see it, until you reload): nothing to do to it but
   // dismiss it, so no menus, reactions or replies. A deferred reply shows "thinking…".
   const ephemeral = isEphemeral(msg);
@@ -415,10 +442,7 @@ export function MessageRow({
     onOpenMenu(msg, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY });
   } : undefined;
   // Stable per emoji index (a new plugin list every render would re-run markdown needlessly).
-  const rehypePlugins = useMemo(
-    () => [rehypeHighlightShared, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)],
-    [emojiIndex, s3Endpoint]
-  );
+  const rehypePlugins = messageRehypePlugins(emojiIndex, s3Endpoint);
 
   const mentions = useMemo(
     () => ({ names: reactionNames, roles: mentionRoles, meId: user.id, myRoleIds, everyone: Boolean(msg.mention_everyone) }),
@@ -435,7 +459,7 @@ export function MessageRow({
   const pinned = Boolean(msg.pinned_at);
   // Pinned: a pin by the time (or after the text, without a header).
   const pinMark = pinned ? (
-    <FontAwesomeIcon icon={faThumbtack} className="message-pinned" title={t('chat.message.pinned')} aria-label={t('chat.message.pinned')} />
+    <Icon icon={faThumbtack} className="message-pinned" title={t('chat.message.pinned')} aria-label={t('chat.message.pinned')} />
   ) : null;
 
   // "edited", as a button opening the earlier versions (computers only: phones open them from
@@ -482,7 +506,7 @@ export function MessageRow({
         </div>
       )}
 
-      {(focusedMsgId ?? hoveredMsgId) === msg.id && !isMobile && !ephemeral && (
+      {menuOpen && !isMobile && !ephemeral && (
         <div className="message-menu" ref={placeMessageMenu}>
           {canReact && canAddReactions && (
             <HoverQuickReactions msg={msg} userId={user.id} onToggle={(emoji) => onToggleReaction(msg, emoji)} />
@@ -495,22 +519,22 @@ export function MessageRow({
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => onOpenReactionPicker(msg, e.currentTarget)}
             >
-              <FontAwesomeIcon icon={faFaceSmile} title={t('chat.reactions.add')} />
+              <Icon icon={faFaceSmile} title={t('chat.reactions.add')} />
             </button>
           )}
           {canPin && sent && onTogglePin && (
             <button className={`icon-button pin-button${pinned ? ' active' : ''}`} onClick={() => onTogglePin(msg)}>
-              <FontAwesomeIcon icon={faThumbtack} title={pinned ? t('common.unpin') : t('common.pin')} />
+              <Icon icon={faThumbtack} title={pinned ? t('common.unpin') : t('common.pin')} />
             </button>
           )}
           {/* A closed poll and a voice message can't be edited. */}
           {msg.sender_id === user.id && !(poll && pollEnded(poll, msg.timestamp)) && !isVoiceMessage(msg.plaintext) && (
             <button className="icon-button" onClick={() => handleEdit(msg)}>
-              <FontAwesomeIcon icon={faEdit} title={t('common.edit')} />
+              <Icon icon={faEdit} title={t('common.edit')} />
             </button>
           )}
           <button className="icon-button" onClick={() => handleReply(msg)}>
-            <FontAwesomeIcon icon={faReply} title={t('common.reply')} />
+            <Icon icon={faReply} title={t('common.reply')} />
           </button>
           {(msg.sender_id === user.id || canModerate) && (
             <button
@@ -518,7 +542,7 @@ export function MessageRow({
               // Shift+click deletes without asking (ChatPane).
               onClick={(e) => handleDelete(msg, e)}
             >
-              <FontAwesomeIcon icon={faTrash} title={t('common.delete')} />
+              <Icon icon={faTrash} title={t('common.delete')} />
             </button>
           )}
         </div>
@@ -582,7 +606,7 @@ export function MessageRow({
           className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}${grouped && (msg.edited || pinned) ? ' edited-inline' : ''}`}
           data-image-gallery=""
         >
-          {editingMessageId === msg.id ? (
+          {editing ? (
             <div className="inline-edit-wrapper">
               <MessageEditor
                 ref={editRef}
@@ -638,8 +662,8 @@ export function MessageRow({
             <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
           )}
           {/* Without a header to carry it, "edited" goes after the text. */}
-          {grouped && msg.edited && editingMessageId !== msg.id ? <small className="message-edited">{editedLabel(t('chat.message.editedInline'))}</small> : null}
-          {grouped && editingMessageId !== msg.id ? pinMark : null}
+          {grouped && msg.edited && !editing ? <small className="message-edited">{editedLabel(t('chat.message.editedInline'))}</small> : null}
+          {grouped && !editing ? pinMark : null}
 
           <EmbedParts
             {...embedProps(msg)}
@@ -671,12 +695,12 @@ export function MessageRow({
       {/* Mobile: shows from the right as the message is swiped left (useSwipeToReply). */}
       {isMobile && sent && !ephemeral && (
         <span className="swipe-reply-icon" aria-hidden="true">
-          <FontAwesomeIcon icon={faReply} />
+          <Icon icon={faReply} />
         </span>
       )}
     </div>
   );
-}
+});
 
 // How close to the top (in viewport heights) to start fetching older history, so it's
 // usually in place before the user gets there.
@@ -852,48 +876,51 @@ export default function MessageList({
     },
   });
 
+  // The rows are memoised, so they get the same functions every render, which call the ones
+  // given now; one not given stays missing (rows check for some).
+  const handlers = {
+    setHoveredMsgId, handleEdit, handleDelete, handleReply, setEditingMessageContent, setEditingMessageId,
+    handleSaveEdit, onToggleReaction, onOpenReactionPicker, onVote, onAddPollAnswer, onRemovePollAnswer,
+    onEndPoll, onJumpToMessage, onOpenActions, onOpenMenu, onTogglePin, onShowEdits, canRemovePreviews,
+    onRemovePreviews,
+  };
+  const latestHandlers = useRef(handlers);
+  latestHandlers.current = handlers;
+  const [stableHandlers] = useState(() => Object.fromEntries(Object.keys(handlers).map((name) => (
+    [name, (...args) => latestHandlers.current[name](...args)]
+  ))));
+  const rowHandlers = Object.fromEntries(Object.keys(handlers).map((name) => [name, handlers[name] ? stableHandlers[name] : undefined]));
+
   const rowProps = {
+    ...rowHandlers,
     onOpenProfile: openProfile,
     user,
     s3Endpoint,
-    hoveredMsgId,
-    setHoveredMsgId,
-    handleEdit,
-    handleDelete,
-    handleReply,
-    editingMessageId,
-    editingMessageContent,
-    setEditingMessageContent,
-    setEditingMessageId,
-    handleSaveEdit,
     isMobile,
     editRef,
     maxPlaintextLength,
-    onToggleReaction,
-    onOpenReactionPicker,
-    onVote,
-    onAddPollAnswer,
-    onRemovePollAnswer,
-    onEndPoll,
-    onJumpToMessage,
     reactionNames,
-    onOpenActions,
-    onOpenMenu,
-    focusedMsgId,
-    replyingToId,
     canModerate,
     canAddReactions,
     canPin,
-    onTogglePin,
-    onShowEdits,
-    canRemovePreviews,
     removePreviewsById,
-    onRemovePreviews,
     nameColors,
     mentionRoles,
     myRoleIds,
     encrypted,
     canReply,
+  };
+
+  // What concerns one row of the list's state (MessageRow).
+  const rowState = (msg) => {
+    const editing = editingMessageId === msg.id;
+    return {
+      menuOpen: (focusedMsgId ?? hoveredMsgId) === msg.id,
+      focused: focusedMsgId === msg.id,
+      replying: replyingToId != null && replyingToId === msg.id,
+      editing,
+      editingMessageContent: editing ? editingMessageContent : null,
+    };
   };
 
   // Start or stop following the newest message. While following, the browser's scroll
@@ -1049,8 +1076,8 @@ export default function MessageList({
               : msg.system
               ? <p className="message-system">{msg.text}</p>
               : (msg.webhook_id ? blockedWebhooks.has(Number(msg.webhook_id)) : blocked.has(Number(msg.sender_id)))
-              ? <BlockedMessage><MessageRow msg={msg} grouped={false} {...rowProps} /></BlockedMessage>
-              : <MessageRow msg={msg} grouped={i !== newIndex && continuesGroup(messages[i - 1], msg)} {...rowProps} />}
+              ? <BlockedMessage><MessageRow msg={msg} grouped={false} {...rowProps} {...rowState(msg)} /></BlockedMessage>
+              : <MessageRow msg={msg} grouped={i !== newIndex && continuesGroup(messages[i - 1], msg)} {...rowProps} {...rowState(msg)} />}
           </div>
         ))}
       </div>

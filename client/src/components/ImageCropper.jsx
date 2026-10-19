@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faMinus, faPlus } from '@fortawesome/free-solid-svg-icons';
 import Modal from './guild/Modal';
 import { MAX_ZOOM, clampView, cropOf, initialView, layout, panView, zoomView } from '../utils/imageCrop';
@@ -175,7 +175,7 @@ export default function ImageCropper({ file, onApply, onCancel, aspect = 1 }) {
             <div className="image-cropper-mask" />
           </div>
           <div className="image-cropper-zoom">
-            <button type="button" className="image-cropper-zoom-step" aria-label={t('media.cropper.zoomOut')} disabled={!view} onClick={() => update((v, w, h) => zoomView(v, w, h, v.zoom / 1.25))}><FontAwesomeIcon icon={faMinus} /></button>
+            <button type="button" className="image-cropper-zoom-step" aria-label={t('media.cropper.zoomOut')} disabled={!view} onClick={() => update((v, w, h) => zoomView(v, w, h, v.zoom / 1.25))}><Icon icon={faMinus} /></button>
             <input
               type="range" min="1" max={MAX_ZOOM} step="0.01"
               aria-label={t('media.cropper.zoom')}
@@ -183,7 +183,7 @@ export default function ImageCropper({ file, onApply, onCancel, aspect = 1 }) {
               value={view?.zoom ?? 1}
               onChange={(e) => zoomTo(Number(e.target.value))}
             />
-            <button type="button" className="image-cropper-zoom-step" aria-label={t('media.cropper.zoomIn')} disabled={!view} onClick={() => update((v, w, h) => zoomView(v, w, h, v.zoom * 1.25))}><FontAwesomeIcon icon={faPlus} /></button>
+            <button type="button" className="image-cropper-zoom-step" aria-label={t('media.cropper.zoomIn')} disabled={!view} onClick={() => update((v, w, h) => zoomView(v, w, h, v.zoom * 1.25))}><Icon icon={faPlus} /></button>
           </div>
           <p className="vc-hint image-cropper-hint">{t('media.cropper.hint')}</p>
         </>

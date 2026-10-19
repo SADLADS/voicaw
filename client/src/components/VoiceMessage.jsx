@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faDownload, faPause, faPlay, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { findDuration, waveformBars } from '../services/voiceMessage';
 import { formatDuration } from '../utils/videoPlayer';
@@ -152,7 +152,7 @@ export default function VoiceMessage({ src: givenSrc = null, load, duration: giv
         aria-label={paused ? t('media.voice.play') : t('media.voice.pause')}
         title={paused ? t('media.voice.play') : t('media.voice.pause')}
       >
-        <FontAwesomeIcon icon={loading ? faSpinner : paused ? faPlay : faPause} spin={loading} fixedWidth />
+        <Icon icon={loading ? faSpinner : paused ? faPlay : faPause} spin={loading} fixedWidth />
       </button>
       <span
         className="voice-message-wave"
@@ -197,7 +197,7 @@ export default function VoiceMessage({ src: givenSrc = null, load, duration: giv
           aria-label={t('media.attachment.download', { name })}
           title={t('media.attachment.download', { name })}
         >
-          <FontAwesomeIcon icon={faDownload} />
+          <Icon icon={faDownload} />
         </button>
       )}
       <audio
