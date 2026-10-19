@@ -462,10 +462,12 @@ Then, from a checkout whose commit is pushed to GitHub (usually `dev`, with noth
 ```bash
 ./release_all.sh                  # patch; or minor, major, X.Y.Z; doesn't ask first
 ./release_all.sh --no-publish     # stop after downloading and checking (dist-release/X.Y.Z/)
-./release_all.sh --android        # then the Android app too (./build-android.sh, its own versions)
+./release_all.sh --android        # then the Android app too, with the same version
 ```
 
-It picks the next version (above what updates.voicaw.com has and every `desktop-vX.Y.Z` tag),
+It picks the next version (above what updates.voicaw.com has, desktop and Android, and every
+`desktop-vX.Y.Z` tag: the two apps share version numbers, and `--android` releases the Android
+app as the same X.Y.Z),
 tags the commit `desktop-vX.Y.Z` and pushes the tag, which starts the workflow (Linux and
 Windows; follow it on GitHub's Actions tab), waits for it, downloads the GitHub Release into
 `dist-release/X.Y.Z/`, runs `gh attestation verify` on every file (built by that workflow, from

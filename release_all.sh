@@ -2,8 +2,8 @@
 # Release the desktop app (Linux and Windows), built by GitHub from this checkout's commit:
 #   ./release_all.sh [patch|minor|major|X.Y.Z] [--no-publish] [--android]
 #
-# 1. Picks the next version (default: patch above what updates.voicaw.com has, or the newest
-#    desktop-v* tag if that's higher). It doesn't ask: running it is the go-ahead (-y is
+# 1. Picks the next version (default: patch above what updates.voicaw.com has for desktop or
+#    Android, or the newest desktop-v* tag if that's higher). It doesn't ask: running it is the go-ahead (-y is
 #    still accepted, and does nothing).
 # 2. Tags the commit as desktop-vX.Y.Z and pushes the tag. That starts
 #    .github/workflows/desktop-release.yml, which builds the installers on GitHub's machines,
@@ -15,9 +15,10 @@
 #    machines. Nothing unverified is published.
 # 4. Publishes them to the update site (updates/publish.mjs: /opt/voicaw-updates, and voicaw.com's
 #    download links), then checks the site serves the new version. --no-publish stops after 3.
-# --android then releases the Android app the usual way (./build-android.sh, same bump; its
-# versions are its own), from this checkout, and pushes its android-vX.Y.Z tag beside the
-# desktop one.
+# --android then releases the Android app with the same version (./build-android.sh X.Y.Z;
+# skipped if Android already has it), from this checkout, and pushes its android-vX.Y.Z tag
+# beside the desktop one. The version is above both apps' published ones either way, so a
+# release without --android leaves Android a gap, never a clash.
 #
 # Needs: the commit pushed to GitHub, no uncommitted changes, and the GitHub CLI logged in
 # (`gh auth login`; installing it: README "Desktop app"). VOICAW_UPDATES_DIR publishes somewhere
@@ -79,9 +80,10 @@ if [ -z "$(git branch -r --contains "$COMMIT" | grep '^ *origin/')" ]; then
   exit 1
 fi
 
-# The version: above both what's published and every desktop-v* tag.
+# The version: above what's published (desktop and Android: they share version numbers) and
+# every desktop-v* tag.
 VERSION="$(node -e '
-  const [want, releasesFile, tags] = process.argv.slice(1);
+  const [want, releasesFile, androidFile, tags, android] = process.argv.slice(1);
   const n = (s) => s.split(".").map(Number);
   const cmp = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
   let current = [0, 0, 0];
@@ -89,6 +91,11 @@ VERSION="$(node -e '
     for (const p of Object.values(require(releasesFile).platforms || {})) {
       if (p.version && cmp(n(p.version), current) > 0) current = n(p.version);
     }
+  } catch {}
+  // Android may already have the version asked for (finishing a desktop release after it).
+  try {
+    const v = require(androidFile).android?.version;
+    if (v && v !== want && cmp(n(v), current) > 0) current = n(v);
   } catch {}
   // An explicit version may be an unpublished tag already pushed (a release whose build failed
   // and was re-run): the tag must then be on this commit (checked below).
@@ -104,8 +111,10 @@ VERSION="$(node -e '
   else if (/^\d+\.\d+\.\d+$/.test(want)) next = n(want);
   else { console.error(`Not a version: ${want} (patch, minor, major or X.Y.Z)`); process.exit(1); }
   if (cmp(next, current) <= 0) { console.error(`${next.join(".")} is not higher than ${current.join(".")}`); process.exit(1); }
+  // The Android versionCode is X·10000 + Y·100 + Z (updates/publish-android.mjs).
+  if (android && (next[1] > 99 || next[2] > 99)) { console.error(`${next.join(".")}: minor and patch must stay under 100 for Android`); process.exit(1); }
   console.log(next.join("."));
-' "$BUMP" "$SITE/desktop/releases.json" "$(git ls-remote --tags origin 'desktop-v*' | sed 's|.*refs/tags/||; s|\^{}$||' | sort -u)")"
+' "$BUMP" "$SITE/desktop/releases.json" "$SITE/android/releases.json" "$(git ls-remote --tags origin 'desktop-v*' | sed 's|.*refs/tags/||; s|\^{}$||' | sort -u)" "$ANDROID")"
 TAG="desktop-v$VERSION"
 
 # A tag that's already there (pushed but not published: the version check let it through) is a
@@ -199,10 +208,14 @@ else
 fi
 
 if [ -n "$ANDROID" ]; then
-  echo "== Android"
-  # Its versions are its own: an explicit desktop version means its next patch.
-  case "$BUMP" in patch|minor|major) ANDROID_BUMP="$BUMP" ;; *) ANDROID_BUMP=patch ;; esac
-  NO_PUBLISH=
-  [ -z "$PUBLISH" ] && NO_PUBLISH=--no-publish
-  ./build-android.sh "$ANDROID_BUMP" $NO_PUBLISH --push-tag
+  echo "== Android $VERSION"
+  # The same version as the desktop app's.
+  published="$(node -e 'try { console.log(require(process.argv[1]).android?.version ?? "") } catch {}' "$SITE/android/releases.json")"
+  if [ "$published" = "$VERSION" ]; then
+    echo "Android $VERSION is already published."
+  else
+    NO_PUBLISH=
+    [ -z "$PUBLISH" ] && NO_PUBLISH=--no-publish
+    ./build-android.sh "$VERSION" $NO_PUBLISH --push-tag
+  fi
 fi

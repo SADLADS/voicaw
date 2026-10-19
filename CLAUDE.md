@@ -71,8 +71,8 @@ Run from the repo root unless noted.
 - `./release_all.sh [patch|minor|major|X.Y.Z]` — a desktop release built by GitHub: tags the
   commit `desktop-vX.Y.Z` and pushes the tag (`.github/workflows/desktop-release.yml` builds and
   attests the installers), then downloads them, checks the attestations (`gh`) and publishes to
-  updates.voicaw.com; `--no-publish`, `--android` (the Android app too, pushing its
-  `android-vX.Y.Z` tag beside the desktop one); never asks first. Publishing touches the live
+  updates.voicaw.com; `--no-publish`, `--android` (the Android app too, the same version, pushing
+  its `android-vX.Y.Z` tag beside the desktop one); never asks first. Publishing touches the live
   sites: only when the user asks
 - `npm run dist:android` — the client's Android build, `cap sync`, then the APK (and the native
   JUnit tests) in Docker (`mobile/dist-android.sh`) into `dist-android/voicaw-debug.apk`;
