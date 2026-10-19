@@ -157,6 +157,18 @@ github "releases/tags/$TAG" | json 'd.assets.map((a) => a.name + " " + a.browser
     done
 COUNT="$(ls "$OUT" | wc -l)"
 if [ "$COUNT" -eq 0 ]; then echo "The release has no files." >&2; exit 1; fi
+# GitHub turns spaces in a release's file names into dots ("Voicaw Setup 1.2.3.exe" comes back
+# as "Voicaw.Setup.1.2.3.exe"), but the update feeds name the originals: give the files those
+# names back, and their blockmaps (which the apps fetch next to them). Attestations go by
+# content, so they still check out.
+for feed in "$OUT"/latest*.yml; do
+  sed -n "s/^ *- url: *//p; s/^path: *//p" "$feed" | tr -d "'\"" | sort -u
+done | while IFS= read -r name; do
+  for file in "$name" "$name.blockmap"; do
+    github_name="$(printf '%s' "$file" | tr ' ' '.')"
+    if [ ! -e "$OUT/$file" ] && [ -e "$OUT/$github_name" ]; then mv "$OUT/$github_name" "$OUT/$file"; fi
+  done
+done
 
 echo "Checking $COUNT files' attestations…"
 for file in "$OUT"/*; do
