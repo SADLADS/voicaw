@@ -3,6 +3,9 @@
 // the Google Play Developer API: a new edit, the bundle, the track's release, then commit.
 //
 //   node updates/publish-play.mjs <signed-play.aab> <version>
+//   node updates/publish-play.mjs check
+//       logs in and opens an edit, lists the app's tracks, then deletes the edit: checks the key
+//       and its access without changing anything on Play
 //
 // Needs a Google Cloud service account's JSON key with access to the app in the Play Console
 // (README "Android app": set up once), at VOICAW_PLAY_KEY, default
@@ -41,25 +44,52 @@ async function accessToken(key) {
   return (await res.json()).access_token;
 }
 
-export async function publishPlay(aab, version, { track = process.env.VOICAW_PLAY_TRACK || 'alpha', key = JSON.parse(fs.readFileSync(keyPath(), 'utf8')) } = {}) {
+const readKey = () => JSON.parse(fs.readFileSync(keyPath(), 'utf8'));
+const app = `applications/${PACKAGE}`;
+
+// call(method, url, body, type): the API with the service account's token.
+async function api(key) {
   const token = await accessToken(key);
-  const call = async (method, url, body, type = 'application/json') => {
+  return async (method, url, body, type = 'application/json') => {
     const res = await fetch(url, {
       method,
       headers: { Authorization: `Bearer ${token}`, ...(body && { 'Content-Type': type }) },
       body: body && (type === 'application/json' ? JSON.stringify(body) : body),
     });
     if (!res.ok) throw new Error(`Google Play: ${method} ${new URL(url).pathname} failed (${res.status}): ${await res.text()}`);
-    return res.json();
+    const text = await res.text();
+    return text ? JSON.parse(text) : {};
   };
-  const app = `applications/${PACKAGE}`;
+}
+
+// Checks the key and its access to the app, changing nothing: the edit is deleted, not committed.
+export async function checkPlay({ key = readKey() } = {}) {
+  const call = await api(key);
+  console.log(`Google Play: logged in as ${key.client_email}.`);
+  const edit = await call('POST', `${API}/androidpublisher/v3/${app}/edits`, {});
+  const editUrl = `${API}/androidpublisher/v3/${app}/edits/${edit.id}`;
+  try {
+    const { tracks = [] } = await call('GET', `${editUrl}/tracks`);
+    for (const t of tracks) {
+      const latest = (t.releases || []).map((r) => `${r.name ?? '?'} (${r.status})`).join(', ') || 'no releases';
+      console.log(`  ${t.track}: ${latest}`);
+    }
+  } finally {
+    await call('DELETE', editUrl);
+  }
+  console.log(`Google Play: ${PACKAGE} can be reached; nothing was changed.`);
+}
+
+export async function publishPlay(aab, version, { track = process.env.VOICAW_PLAY_TRACK || 'alpha', key = readKey() } = {}) {
+  const call = await api(key);
   const edit = await call('POST', `${API}/androidpublisher/v3/${app}/edits`, {});
   const editUrl = `${API}/androidpublisher/v3/${app}/edits/${edit.id}`;
   const bundle = await call('POST', `${API}/upload/androidpublisher/v3/${app}/edits/${edit.id}/bundles?uploadType=media`,
     fs.readFileSync(aab), 'application/octet-stream');
   await call('PUT', `${editUrl}/tracks/${track}`, {
     track,
-    releases: [{ name: version, versionCodes: [String(bundle.versionCode)], status: 'completed' }],
+    // Named as the Play Console names releases: "10203 (1.2.3)".
+    releases: [{ name: `${bundle.versionCode} (${version})`, versionCodes: [String(bundle.versionCode)], status: 'completed' }],
   });
   await call('POST', `${editUrl}:commit`);
   console.log(`Google Play: ${version} (versionCode ${bundle.versionCode}) released on ${track}.`);
@@ -67,11 +97,11 @@ export async function publishPlay(aab, version, { track = process.env.VOICAW_PLA
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [aab, version] = process.argv.slice(2);
-  if (!aab || !version) {
-    console.error('usage: publish-play.mjs <signed-play.aab> <version>');
+  if (aab !== 'check' && (!aab || !version)) {
+    console.error('usage: publish-play.mjs <signed-play.aab> <version> | check');
     process.exit(1);
   }
-  publishPlay(path.resolve(aab), version).catch((err) => {
+  (aab === 'check' ? checkPlay() : publishPlay(path.resolve(aab), version)).catch((err) => {
     console.error(err.message);
     process.exit(1);
   });

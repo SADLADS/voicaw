@@ -586,7 +586,8 @@ the Google Play Developer API (`updates/publish-play.mjs`), once it has a key fo
    (`chmod 600`; or point `VOICAW_PLAY_KEY` at it) and back it up with the release key.
 2. In the Play Console, Users and permissions → Invite new users: the service account's email,
    with access to Voicaw and the permission to release to testing tracks (and to production,
-   later). Google can take a while (up to a day) before it's allowed.
+   later). Google can take a while (up to a day) before it's allowed. `node
+   updates/publish-play.mjs check` logs in and lists the tracks without changing anything.
 
 Without the key, `release_all.sh` says so and leaves the bundle in `dist-android/` to upload by
 hand in the Play Console; `--no-play` does the same on purpose. Play needs each upload's version
