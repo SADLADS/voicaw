@@ -460,7 +460,7 @@ gh auth login
 Then, from a checkout whose commit is pushed to GitHub (usually `dev`, with nothing uncommitted):
 
 ```bash
-./release_all.sh                  # patch; or minor, major, X.Y.Z; -y skips the question
+./release_all.sh                  # patch; or minor, major, X.Y.Z; doesn't ask first
 ./release_all.sh --no-publish     # stop after downloading and checking (dist-release/X.Y.Z/)
 ./release_all.sh --android        # then the Android app too (./build-android.sh, its own versions)
 ```
@@ -502,7 +502,7 @@ The Android app (`mobile/`, Capacitor) ships its own copy of the client like the
 allow it too, which MinIO does by default). It builds in Docker, so the host needs nothing else:
 
 ```bash
-./build-android.sh [patch|minor|major|X.Y.Z] [-y]   # release: next version, signed APK, published
+./build-android.sh [patch|minor|major|X.Y.Z]   # release: next version, signed APK, published
 ./build-android.sh --no-publish                     # the same, only built (dist-android/)
 ./build-android.sh --debug                          # dist-android/voicaw-debug.apk, never published
 ```

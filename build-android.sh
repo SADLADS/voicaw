@@ -5,10 +5,10 @@
 # APK published on the update site (updates.voicaw.com/android/). Nobody is offered that APK any
 # more (voicaw.com links to Google Play): it's only for the copies already installed from there,
 # which update themselves from it.
-#   ./build-android.sh [patch|minor|major|X.Y.Z] [-y] [--no-publish] [--no-push] [--push-tag]
+#   ./build-android.sh [patch|minor|major|X.Y.Z] [--no-publish] [--no-push] [--push-tag]
 #   ./build-android.sh --debug [--no-push]
-# Default: patch (or, before the first release, mobile/package.json's version). Asks before
-# building unless -y. --no-publish only builds dist-android/voicaw-<version>.apk. --debug builds
+# Default: patch (or, before the first release, mobile/package.json's version). Doesn't ask
+# before building (-y is still accepted, and does nothing). --no-publish only builds dist-android/voicaw-<version>.apk. --debug builds
 # dist-android/voicaw-debug.apk (debug key, no version, never published).
 #
 # Needs only Docker on the host (the first run builds the build image and downloads Gradle's
@@ -45,14 +45,13 @@ tag_release() {
   fi
 }
 BUMP=patch
-YES=
 PUBLISH=1
 PUSH=1
 PUSH_TAG=
 DEBUG=
 for arg in "$@"; do
   case "$arg" in
-    -y|--yes) YES=1 ;;
+    -y|--yes) ;;
     --no-publish) PUBLISH= ;;
     --no-push) PUSH= ;;
     --push-tag) PUSH_TAG=1 ;;
@@ -89,11 +88,6 @@ DIRTY="$(git status --porcelain --untracked-files=no)"
 echo "Android app $VERSION, from $(git rev-parse --abbrev-ref HEAD) $(git rev-parse --short HEAD)$([ -n "$PUBLISH" ] && echo ", published to the update site")."
 if [ -n "$DIRTY" ]; then
   echo "Note: this checkout has uncommitted changes; they'll be in the build."
-fi
-if [ -z "$YES" ]; then
-  printf "Build%s %s? [y/N] " "$([ -n "$PUBLISH" ] && echo " and publish")" "$VERSION"
-  read -r answer
-  case "$answer" in y|Y|yes) ;; *) echo "Cancelled."; exit 1 ;; esac
 fi
 
 npm install

@@ -1,9 +1,10 @@
 #!/bin/sh
 # Release the desktop app (Linux and Windows), built by GitHub from this checkout's commit:
-#   ./release_all.sh [patch|minor|major|X.Y.Z] [-y] [--no-publish] [--android]
+#   ./release_all.sh [patch|minor|major|X.Y.Z] [--no-publish] [--android]
 #
 # 1. Picks the next version (default: patch above what updates.voicaw.com has, or the newest
-#    desktop-v* tag if that's higher) and asks (unless -y).
+#    desktop-v* tag if that's higher). It doesn't ask: running it is the go-ahead (-y is
+#    still accepted, and does nothing).
 # 2. Tags the commit as desktop-vX.Y.Z and pushes the tag. That starts
 #    .github/workflows/desktop-release.yml, which builds the installers on GitHub's machines,
 #    attests every file (Sigstore) and puts them in a GitHub Release. Given the version of a tag
@@ -31,12 +32,11 @@ PUBLIC_URL="https://updates.voicaw.com/desktop"
 API="https://api.github.com/repos/$REPO"
 
 BUMP=patch
-YES=
 PUBLISH=1
 ANDROID=
 for arg in "$@"; do
   case "$arg" in
-    -y|--yes) YES=1 ;;
+    -y|--yes) ;;
     --no-publish) PUBLISH= ;;
     --android) ANDROID=1 ;;
     -*) echo "Unknown option $arg" >&2; exit 1 ;;
@@ -120,12 +120,6 @@ else
   echo "Desktop $VERSION from $(git rev-parse --abbrev-ref HEAD) $(git rev-parse --short HEAD), built by GitHub ($REPO)."
 fi
 [ -n "$PUBLISH" ] && echo "Then published to $SITE."
-if [ -z "$YES" ]; then
-  if [ -n "$NEW_TAG" ]; then printf "Tag %s, push the tag and release? [y/N] " "$TAG"
-  else printf "Finish releasing %s? [y/N] " "$TAG"; fi
-  read -r answer
-  case "$answer" in y|Y|yes) ;; *) echo "Cancelled."; exit 1 ;; esac
-fi
 
 # 2. The tag starts the build.
 [ -n "$NEW_TAG" ] && git tag -a "$TAG" "$COMMIT" -m "Desktop app $VERSION"
@@ -198,5 +192,5 @@ if [ -n "$ANDROID" ]; then
   case "$BUMP" in patch|minor|major) ANDROID_BUMP="$BUMP" ;; *) ANDROID_BUMP=patch ;; esac
   NO_PUBLISH=
   [ -z "$PUBLISH" ] && NO_PUBLISH=--no-publish
-  ./build-android.sh "$ANDROID_BUMP" ${YES:+-y} $NO_PUBLISH --push-tag
+  ./build-android.sh "$ANDROID_BUMP" $NO_PUBLISH --push-tag
 fi
