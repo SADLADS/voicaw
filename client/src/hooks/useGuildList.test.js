@@ -3,12 +3,16 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 
 let emit;
+let setConnection;
 vi.mock('../utils/ws-client', () => ({
   onGuildEvent: (callback) => {
     emit = callback;
     return () => {};
   },
-  onConnectionState: () => () => {},
+  onConnectionState: (callback) => {
+    setConnection = callback;
+    return () => {};
+  },
 }));
 vi.mock('../services/guildService', () => ({
   fetchGuilds: vi.fn(async () => [
@@ -25,7 +29,7 @@ vi.mock('../services/guildService', () => ({
 }));
 
 import { useGuildList } from './useGuildList';
-import { fetchAllEmojis, fetchGuildMutes, fetchGuildUnread } from '../services/guildService';
+import { fetchAllEmojis, fetchGuild, fetchGuildMutes, fetchGuildUnread } from '../services/guildService';
 
 const voiceState = (guildId, channelId, userId, joined = true) => ({
   type: 'guild_voice_state', guildId, channelId, userId, state: joined ? { user_id: userId } : null,
@@ -54,6 +58,27 @@ describe('useGuildList guildVoice', () => {
       guild: { id: 6, name: 'Beta', owner: 2, icon_version: 0, categories: [], channels: [{ id: 61, type: 'voice', voice: [{ user_id: 3 }] }] },
     }));
     expect(result.current.guildVoice).toEqual({ 6: 'others' });
+  });
+});
+
+describe('useGuildList reconnecting', () => {
+  it("fetches the opened guilds' layouts again, so voice leaves missed while offline go", async () => {
+    const layout = (voice) => ({ id: 5, name: 'Alpha', owner: 1, icon_version: 0, categories: [], channels: [{ id: 50, type: 'voice', voice }] });
+    fetchGuild.mockResolvedValueOnce(layout([{ user_id: 2 }, { user_id: 3 }]));
+    const { result } = renderHook(() => useGuildList({ userId: 1, activeChannelId: null }));
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    await act(() => result.current.loadGuild(5));
+    expect(result.current.layouts[5].channels[0].voice).toHaveLength(2);
+
+    // Offline (a phone's app in the background) while both leave: no event reaches it.
+    act(() => setConnection('connecting'));
+    fetchGuild.mockClear();
+    fetchGuild.mockResolvedValueOnce(layout([]));
+    act(() => setConnection('online'));
+    await waitFor(() => expect(result.current.layouts[5].channels[0].voice).toEqual([]));
+    expect(fetchGuild).toHaveBeenCalledTimes(1);
+    expect(fetchGuild).toHaveBeenCalledWith('5');
+    expect(result.current.guildVoice).toEqual({});
   });
 });
 

@@ -52,7 +52,14 @@ Client side, `client/src/utils/ws-client.js` wraps this with `connectWebSocket`/
 and a pub/sub listener API (`onNewDm`, `onDeleteDm`, `onEditDm`, `onReactionAdd`, `onReactionRemove`, `onDmPin`, `onGuildEvent`,
 `onCallEvent`, `onGroupEvent`), auto-reconnecting
 every 3s on close. Events sent while a socket was closed are lost, so open chats catch up by
-fetching instead (Catching up in `docs/messages.md`). All non-realtime DM operations (fetch history, send, mark read) go through the
+fetching instead (Catching up in `docs/messages.md`), and back online `useGuildList` fetches the
+guild list and every guild layout opened so far again (layouts are otherwise only patched by
+events: a phone's app back from the background showed people in voice channels they had left
+until restarted). Browsers can't see the heartbeat's pings, and a phone back from sleep or on
+another network can keep a socket that looks open but is dead for minutes, so coming back on
+screen or online the client sends `{ type: 'ping' }`; no `pong` within 5 s and it drops that
+socket and connects again (`checkConnection`; only once the server has answered the ping sent on
+opening, so an older server isn't reconnected to every time). All non-realtime DM operations (fetch history, send, mark read) go through the
 plain REST API in `client/src/services/dmService.js` / `client/src/utils/api.js` instead.
 
 Bots connect to `/api/gateway` instead (the same HTTP server; `attachWebSocketServer` sends
