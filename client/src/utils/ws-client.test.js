@@ -8,6 +8,8 @@ import {
   setActiveChat,
   onLoggedOutElsewhere,
   onLoginReplaced,
+  onConnectionState,
+  checkConnection,
 } from './ws-client';
 import { presenceOf } from './presence';
 
@@ -290,6 +292,55 @@ describe('reconnect behavior', () => {
     expect(replaced).not.toHaveBeenCalled();
     stopOut();
     stopReplaced();
+  });
+});
+
+describe('checkConnection', () => {
+  const pings = (socket) => socket.sent.filter((m) => JSON.parse(m).type === 'ping').length;
+
+  function connected() {
+    vi.useFakeTimers();
+    globalThis.localStorage.setItem('token', 'jwt-abc');
+    connectWebSocket();
+    const socket = MockWebSocket.instances[0];
+    socket._open();
+    return socket;
+  }
+
+  it('does nothing until the server has answered a ping (an older server does not)', () => {
+    const socket = connected();
+    expect(pings(socket)).toBe(1); // sent on open, to find out
+    checkConnection();
+    expect(pings(socket)).toBe(1);
+    vi.advanceTimersByTime(10000);
+    expect(MockWebSocket.instances.length).toBe(1);
+  });
+
+  it('keeps a socket that answers', () => {
+    const socket = connected();
+    socket._receive({ type: 'pong' });
+    checkConnection();
+    expect(pings(socket)).toBe(2);
+    socket._receive({ type: 'pong' });
+    vi.advanceTimersByTime(10000);
+    expect(MockWebSocket.instances.length).toBe(1);
+  });
+
+  it("gives up a socket that doesn't answer and connects again, coming back online", () => {
+    const socket = connected();
+    socket._receive({ type: 'pong' });
+    const states = [];
+    const stop = onConnectionState((state) => states.push(state));
+    checkConnection();
+    vi.advanceTimersByTime(5000);
+    expect(socket.readyState).toBe(MockWebSocket.CLOSED);
+    expect(MockWebSocket.instances.length).toBe(2);
+    MockWebSocket.instances[1]._open();
+    expect(states).toEqual(['connecting', 'online']);
+    // The dead socket's close doesn't start another reconnect.
+    vi.advanceTimersByTime(3000);
+    expect(MockWebSocket.instances.length).toBe(2);
+    stop();
   });
 });
 

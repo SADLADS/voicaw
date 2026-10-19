@@ -50,6 +50,15 @@ async function connect() {
 const presence = (fields) => JSON.stringify({ type: 'presence', visible: true, chatId: null, ...fields });
 const isStatus = (userId, status) => (e) => e.type === 'user_status' && e.userId === String(userId) && e.status === status;
 
+describe('connection check', () => {
+  it('answers a ping with a pong, identified or not', async () => {
+    const { ws, next } = await connect();
+    ws.send(JSON.stringify({ type: 'ping' }));
+    expect(await next((e) => e.type === 'pong')).toEqual({ type: 'pong' });
+    ws.close();
+  });
+});
+
 describe('online status over the websocket', () => {
   it('reports a new connection with its presence, and sends a snapshot on identify', async () => {
     const alice = await makeUser();

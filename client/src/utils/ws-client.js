@@ -143,13 +143,40 @@ export function setOwnActivities(list) {
   activityTimer = setTimeout(sendActivities, Math.max(0, activitiesSentAt + ACTIVITY_SEND_MS - Date.now()));
 }
 
+// A phone that slept or changed network can keep a socket that looks open but is dead (the
+// server dropped it long ago), and the browser may not notice for minutes, meanwhile getting no
+// events at all. Back on screen or online, the server is asked for a pong; none within
+// PONG_TIMEOUT_MS: the socket is given up and a new one made (whose 'online' makes everything
+// catch up). Only once the server has answered one on this socket (an older server doesn't).
+const PONG_TIMEOUT_MS = 5000;
+let pongTimeout = null;
+
+export function checkConnection() {
+  const socket = ws;
+  if (!socket?.answersPings || socket.readyState !== WebSocket.OPEN || pongTimeout) return;
+  socket.send(JSON.stringify({ type: 'ping' }));
+  pongTimeout = setTimeout(() => {
+    pongTimeout = null;
+    if (socket !== ws) return;
+    console.warn('[WS] No pong, reconnecting');
+    ws = null; // its close event, whenever it comes, is ignored
+    clearInterval(presenceInterval);
+    socket.close();
+    connectWebSocket();
+  }, PONG_TIMEOUT_MS);
+}
+
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   window.addEventListener('offline', () => { if (ws) setConnectionState('offline'); });
   window.addEventListener('online', () => {
     if (ws) setConnectionState(ws.readyState === WebSocket.OPEN ? 'online' : 'connecting');
+    checkConnection();
   });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') lastActivity = Date.now();
+    if (document.visibilityState === 'visible') {
+      lastActivity = Date.now();
+      checkConnection();
+    }
     sendPresence();
   });
   window.addEventListener('focus', () => {
@@ -190,6 +217,8 @@ export function connectWebSocket() {
     // Presence first, so the server already knows this device's status when it identifies.
     sendPresence();
     ws.send(JSON.stringify({ type: 'identify', token }));
+    // Whether this server answers checkConnection's pings.
+    ws.send(JSON.stringify({ type: 'ping' }));
     clearInterval(presenceInterval);
     presenceInterval = setInterval(sendPresence, PRESENCE_REFRESH_MS);
   };
@@ -197,6 +226,15 @@ export function connectWebSocket() {
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
+      // Anything arriving shows the socket works.
+      if (socket === ws) {
+        clearTimeout(pongTimeout);
+        pongTimeout = null;
+      }
+      if (data.type === 'pong') {
+        socket.answersPings = true;
+        return;
+      }
       if (data.type === 'new_dm') {
         newDmlisteners.forEach((cb) => cb(data.message));
       }
@@ -307,6 +345,8 @@ export function connectWebSocket() {
     // A socket closed on purpose (logout) or already replaced: nothing to do.
     if (socket !== ws) return;
     clearInterval(presenceInterval);
+    clearTimeout(pongTimeout);
+    pongTimeout = null;
     // The server refused this login (logged out from another device, the account deleted,
     // or the token no longer valid): no point reconnecting with it.
     if (event.code === 1008) {
@@ -337,6 +377,8 @@ export function closeWebSocket() {
     clearTimeout(reconnectTimeout);
     reconnectTimeout = null;
   }
+  clearTimeout(pongTimeout);
+  pongTimeout = null;
   if (ws) {
     const socket = ws;
     ws = null;

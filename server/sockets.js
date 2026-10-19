@@ -208,7 +208,11 @@ function attachWebSocketServer(server) {
         console.error('Invalid websocket message', err);
         return;
       }
-      if (data.type === 'identify') {
+      // A client checking its connection still works (a phone back from sleep: browsers can't
+      // see the heartbeat's pings).
+      if (data.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong' }));
+      } else if (data.type === 'identify') {
         if (ws.userId || ws.pendingUserId || ws.identifying) return;
         ws.identifying = true;
         const user = await auth.verifyToken(data.token);

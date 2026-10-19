@@ -194,7 +194,9 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
   }, []);
 
   // Mutes changed on another device, voice joins and leaves, and emoji added or removed, while
-  // this one was offline are caught up on.
+  // this one was offline are caught up on. The guilds opened so far are fetched again too: their
+  // layouts are only kept current by events, so one missed (a phone's app in the background loses
+  // its connection) would otherwise stay, such as people still shown in a voice channel they left.
   useEffect(() => {
     if (!userId) return undefined;
     let wasOnline = true;
@@ -203,10 +205,13 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
         loadMutes();
         loadEmojis();
         loadList().catch((err) => console.warn('Failed to load guilds', err));
+        for (const guildId of Object.keys(layoutsRef.current)) {
+          fetchGuild(guildId).then(upsertGuild, (err) => console.warn('Failed to load guild', err));
+        }
       }
       wasOnline = state === 'online';
     });
-  }, [userId, loadMutes, loadEmojis, loadList]);
+  }, [userId, loadMutes, loadEmojis, loadList, upsertGuild]);
 
   // A mute that runs out is dropped then (channels' and guilds').
   useEffect(() => {
