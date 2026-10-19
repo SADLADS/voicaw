@@ -22,7 +22,7 @@ you log in with your usual account.
 
 ```sh
 git clone https://github.com/SADLADS/voicaw.git && cd voicaw
-git checkout dev     # the branch the live app runs
+git checkout master  # the branch the live app runs
 npm install
 ```
 
@@ -94,7 +94,7 @@ Two differences from the Play Store app:
 ## Initial setup
 
 How a fresh host is set up, in order. The live host is set up like this: the API and the test
-site run from a checkout of `dev` under pm2, the web app at app.voicaw.com is a static build in
+site run from a checkout of `master` under pm2, the web app at app.voicaw.com is a static build in
 `/opt/voicaw-client`, voicaw.com is an info and download site (`website/`, section 10), and nginx
 handles TLS for all of them.
 
@@ -112,7 +112,7 @@ handles TLS for all of them.
 
 ```sh
 git clone <repo> voicaw && cd voicaw
-git checkout dev
+git checkout master
 npm install
 ```
 
@@ -457,7 +457,7 @@ sudo apt update && sudo apt install gh
 gh auth login
 ```
 
-Then, from a checkout whose commit is pushed to GitHub (usually `dev`, with nothing uncommitted):
+Then, from a checkout whose commit is pushed to GitHub (usually `master`, with nothing uncommitted):
 
 ```bash
 ./release_all.sh                  # desktop, web app and Android; patch, or minor, major, X.Y.Z

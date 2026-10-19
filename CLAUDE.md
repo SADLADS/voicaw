@@ -19,8 +19,9 @@ see `docs/desktop-and-site.md`.
 
 Each feature is worked on in its own chat, on its own branch, in its own worktree. The rules:
 
-- **`dev` is the deploy branch, deployed by hand.** The live API (pm2 `voicaw-api`, :3002, with
-  the real database) runs from `/home/otto/git/voicaw`, checked out on `dev`. Nothing deploys a
+- **`master` is the deploy branch, deployed by hand** (it replaced `dev` on 2026-10-19; `dev`
+  is no longer used). The live API (pm2 `voicaw-api`, :3002, with
+  the real database) runs from `/home/otto/git/voicaw`, checked out on `master`. Nothing deploys a
   push any more: the GitHub webhook and the test.voicaw.com dev server (pm2 `voicaw-test`) were
   removed on 2026-10-02. After a merge, the API is updated with `git pull` there (`npm install`
   if the lockfile changed) and `pm2 restart voicaw-api`, only when the user asks. The web app at
@@ -28,12 +29,12 @@ Each feature is worked on in its own chat, on its own branch, in its own worktre
   build` by hand (`release_all.sh` runs it too); voicaw.com is the info and download site (`website/`, `/opt/voicaw-site`, see
   `docs/desktop-and-site.md`). Voice runs on a self-hosted LiveKit server, pm2 `voicaw-livekit` (`~/livekit`, not
   in git).
-- **Never commit to, merge into, push, reset or otherwise move `dev`.** Branch off it
+- **Never commit to, merge into, push, reset or otherwise move `master`.** Branch off it
   (`feature-name`), commit there; the user reviews and merges. Don't push branches unless asked.
 - **Never work in `/home/otto/git/voicaw`.** It's the live checkout: the API runs from it, so
   switching its branch changes what the next restart serves. Use a worktree per feature:
   ```
-  git -C ~/git/voicaw worktree add ~/git/voicaw-<feature> -b <feature> dev
+  git -C ~/git/voicaw worktree add ~/git/voicaw-<feature> -b <feature> master
   cd ~/git/voicaw-<feature> && npm install
   ```
   Chats running at the same time each need their own worktree (and their own e2e ports, see
