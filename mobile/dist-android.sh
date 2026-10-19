@@ -12,6 +12,11 @@
 #                                     ~/.voicaw-android-keys): the direct APK,
 #                                     dist-android/voicaw-<version>.apk, and the play App Bundle
 #                                     to upload to the Play Console, dist-android/voicaw-<version>-play.aab
+#   mobile/dist-android.sh unsigned   the same two, unsigned (no key needed):
+#                                     dist-android/voicaw-<version>-unsigned.apk and
+#                                     voicaw-<version>-play-unsigned.aab. GitHub's release build
+#                                     (.github/workflows/desktop-release.yml); release_all.sh
+#                                     signs them on the host (mobile/sign-android.sh).
 set -e
 root="$(cd "$(dirname "$0")/.." && pwd)"
 mode="${1:-debug}"
@@ -26,7 +31,11 @@ case "$mode" in
       exit 1
     fi
     ;;
-  *) echo "usage: $0 [debug|release]" >&2; exit 1 ;;
+  unsigned)
+    task="assembleDirectRelease bundlePlayRelease"
+    if [ -z "$VOICAW_VERSION" ]; then echo "VOICAW_VERSION isn't set." >&2; exit 1; fi
+    ;;
+  *) echo "usage: $0 [debug|release|unsigned]" >&2; exit 1 ;;
 esac
 version="${VOICAW_VERSION:-$(node -p "require('$root/mobile/package.json').version")}"
 
@@ -50,6 +59,7 @@ set -- \
     -e GRADLE_USER_HOME=/cache/gradle \
     -e ANDROID_USER_HOME=/cache/android \
     -e VOICAW_VERSION="$version" \
+    -e VOICAW_UNSIGNED="$([ "$mode" = unsigned ] && echo 1)" \
     -v "$root":/project \
     -v "$HOME/.gradle":/cache/gradle \
     -v "$HOME/.android":/cache/android
@@ -68,6 +78,11 @@ if [ "$mode" = release ]; then
   cp "$root/mobile/android/app/build/outputs/apk/direct/release/app-direct-release.apk" "$apk"
   cp "$root/mobile/android/app/build/outputs/bundle/playRelease/app-play-release.aab" "$root/dist-android/voicaw-$version-play.aab"
   echo "Built $root/dist-android/voicaw-$version-play.aab"
+elif [ "$mode" = unsigned ]; then
+  apk="$root/dist-android/voicaw-$version-unsigned.apk"
+  cp "$root/mobile/android/app/build/outputs/apk/direct/release/app-direct-release-unsigned.apk" "$apk"
+  cp "$root/mobile/android/app/build/outputs/bundle/playRelease/app-play-release.aab" "$root/dist-android/voicaw-$version-play-unsigned.aab"
+  echo "Built $root/dist-android/voicaw-$version-play-unsigned.aab"
 else
   apk="$root/dist-android/voicaw-debug.apk"
   cp "$root/mobile/android/app/build/outputs/apk/direct/debug/app-direct-debug.apk" "$apk"

@@ -46,7 +46,8 @@ android {
     }
     // The release key (mobile/make-release-key.sh), from VOICAW_KEYSTORE and its password in
     // VOICAW_KEYSTORE_PASSWORD (mobile/dist-android.sh mounts and reads them). Without them a
-    // release build fails rather than ship unsigned.
+    // release build fails rather than ship unsigned, unless VOICAW_UNSIGNED=1 asks for unsigned
+    // files on purpose (GitHub's release build: release_all.sh signs them on the host).
     signingConfigs {
         release {
             if (System.getenv('VOICAW_KEYSTORE')) {
@@ -60,7 +61,7 @@ android {
     }
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            if (System.getenv('VOICAW_UNSIGNED') != '1') signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

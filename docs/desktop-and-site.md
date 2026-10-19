@@ -278,10 +278,15 @@ native bridge. Check real behaviour on a phone.
   copies already installed from there use them, to update themselves. New people get the app from
   Google Play's closed test (see Info site). Each release also builds the same version as the
   `play` flavour's App Bundle (`dist-android/voicaw-<version>-play.aab`, `bundlePlayRelease`,
-  same key), uploaded to the Play Console by hand (README "Android app": choose to use our own
-  signing key, so the two builds can replace each other). A published release tags the commit
-  it was built from as `android-vX.Y.Z` (pushed when `release_all.sh` runs it, which every release does, as the desktop version; else local;
-  desktop releases are `desktop-vX.Y.Z`).
+  same key; README "Android app": Play uses our own signing key, so the two builds can replace
+  each other). `release_all.sh` releases Android with the desktop app, as the same version:
+  GitHub's release workflow builds both files unsigned and attests them, the host signs them
+  (`mobile/sign-android.sh`, so the key never goes to GitHub), publishes the APK, adds it to the
+  GitHub Release (anyone can check it's the attested build plus a signature, `apksigcopier
+  compare`), uploads the bundle to Google Play's closed-testing track
+  (`updates/publish-play.mjs`, the Play Developer API with a service account; by hand while
+  there's no key) and pushes the `android-vX.Y.Z` tag. `build-android.sh` alone builds and
+  publishes on the host and tags locally; desktop releases are `desktop-vX.Y.Z`.
 - **Two builds** (Gradle flavours): `direct`, the APK above, which updates itself, and `play`,
   for Google Play, which mustn't (Play's rules: an app from Play updates only through Play, and
   the permission to install packages is restricted). The updater and that permission live only in

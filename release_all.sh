@@ -1,14 +1,15 @@
 #!/bin/sh
-# Release everything from this checkout's commit: the desktop app (Linux and Windows, built by
-# GitHub), the web app (app.voicaw.com) and the Android app, all as one version:
-#   ./release_all.sh [patch|minor|major|X.Y.Z] [--no-publish] [--no-web] [--no-android]
+# Release everything from this checkout's commit: the desktop app (Linux and Windows) and the
+# Android app, built by GitHub, and the web app (app.voicaw.com), all as one version:
+#   ./release_all.sh [patch|minor|major|X.Y.Z] [--no-publish] [--no-web] [--no-android] [--no-play]
 #
 # 1. Picks the next version (default: patch above what updates.voicaw.com has for desktop or
 #    Android, or the newest desktop-v* tag if that's higher). It doesn't ask: running it is the
 #    go-ahead (-y and the old --android are still accepted, and do nothing).
 # 2. Tags the commit as desktop-vX.Y.Z and pushes the tag. That starts
-#    .github/workflows/desktop-release.yml, which builds the installers on GitHub's machines,
-#    attests every file (Sigstore) and puts them in a GitHub Release. Given the version of a tag
+#    .github/workflows/desktop-release.yml, which builds the installers and the Android app
+#    (unsigned) on GitHub's machines, attests every file (Sigstore) and puts them in a GitHub
+#    Release. Given the version of a tag
 #    already pushed but never published (its build failed and was re-run, or the publish
 #    stopped), it finishes that release from the tag's commit, whatever is checked out.
 # 3. Waits for it, downloads the release into dist-release/X.Y.Z/, and checks every file's
@@ -18,15 +19,20 @@
 #    download links), then checks the site serves the new version. --no-publish stops after 3.
 # 5. The web app: `npm run build` (built here, put live at /opt/voicaw-client only if the build
 #    succeeded). Not with --no-publish or --no-web.
-# 6. The Android app with the same version (./build-android.sh X.Y.Z, built here in Docker;
-#    skipped if Android already has it): the APK published for copies installed from the update
-#    site, the App Bundle in dist-android/ for the Play Console (uploaded by hand), and its
-#    android-vX.Y.Z tag pushed beside the desktop one. --no-publish only builds them;
-#    --no-android skips it (Android then has a gap in its versions, never a clash).
+# 6. The Android app, the same version: GitHub's unsigned APK and App Bundle (checked in 3) are
+#    signed here with the release key (mobile/sign-android.sh, into dist-android/; the key never
+#    goes to GitHub). Then the APK is published for copies installed from the update site
+#    (unless it already is) and added to the GitHub Release, the bundle goes to Google Play
+#    (updates/publish-play.mjs: the closed-testing track, VOICAW_PLAY_TRACK for another; skipped
+#    with a note while there's no Play key, or with --no-play), and the android-vX.Y.Z tag is
+#    pushed beside the desktop one. --no-publish only signs them; --no-android skips it all
+#    (Android then has a gap in its versions, never a clash). A release tagged before GitHub
+#    built Android has no Android files: it's built here instead (./build-android.sh X.Y.Z).
 #
 # Needs: the commit pushed to GitHub, no uncommitted changes, the GitHub CLI logged in
-# (`gh auth login`; installing it: README "Desktop app"), and for Android its release key and
-# mobile/android/app/google-services.json (README "Android app"), checked before anything starts.
+# (`gh auth login`; installing it: README "Desktop app"), and for Android the release key, the
+# repository secret GOOGLE_SERVICES_JSON and, for Play, its service account key (README
+# "Android app"), checked before anything starts.
 # VOICAW_UPDATES_DIR publishes somewhere else (a try-out: the web app isn't deployed then, unless
 # VOICAW_WEB_ROOT says where), VOICAW_REPO names another GitHub repository (default
 # SADLADS/voicaw).
@@ -43,12 +49,14 @@ BUMP=patch
 PUBLISH=1
 WEB=1
 ANDROID=1
+PLAY=1
 for arg in "$@"; do
   case "$arg" in
     -y|--yes|--android) ;;
     --no-publish) PUBLISH= ;;
     --no-web) WEB= ;;
     --no-android) ANDROID= ;;
+    --no-play) PLAY= ;;
     -*) echo "Unknown option $arg" >&2; exit 1 ;;
     *) BUMP="$arg" ;;
   esac
@@ -82,15 +90,22 @@ if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   echo "This checkout has uncommitted changes: commit them (and push) first, GitHub builds the commit." >&2
   exit 1
 fi
-# What the Android build needs (build-android.sh checks too, but only after desktop and web are out).
+# What Android needs, checked now rather than after desktop and web are out.
 if [ -n "$ANDROID" ]; then
-  if [ ! -f mobile/android/app/google-services.json ]; then
-    echo "No mobile/android/app/google-services.json (README \"Android app\"): Android can't be built. --no-android skips it." >&2
-    exit 1
-  fi
   if [ ! -f "${VOICAW_ANDROID_KEYS:-$HOME/.voicaw-android-keys}/voicaw-release.jks" ]; then
     echo "No Android release key (mobile/make-release-key.sh, README \"Android app\"). --no-android skips it." >&2
     exit 1
+  fi
+  # Only an admin can list secrets: if this login can't, GitHub's build says so instead.
+  if secrets="$(gh secret list --repo "$REPO" 2>/dev/null)" && ! printf '%s\n' "$secrets" | grep -q '^GOOGLE_SERVICES_JSON\b'; then
+    echo "GitHub has no GOOGLE_SERVICES_JSON secret, which its Android build needs:" >&2
+    echo "  gh secret set GOOGLE_SERVICES_JSON --repo $REPO < mobile/android/app/google-services.json" >&2
+    echo "(README \"Android app\"). --no-android skips Android." >&2
+    exit 1
+  fi
+  if [ -n "$PLAY" ] && [ ! -f "$(node -e 'import("./updates/publish-play.mjs").then((m) => console.log(m.keyPath()))')" ]; then
+    echo "Note: no Google Play service account key (README \"Android app\"), so the App Bundle won't be uploaded to Play."
+    PLAY=
   fi
 fi
 COMMIT="$(git rev-parse HEAD)"
@@ -106,19 +121,19 @@ VERSION="$(node -e '
   const [want, releasesFile, androidFile, tags, android] = process.argv.slice(1);
   const n = (s) => s.split(".").map(Number);
   const cmp = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+  // The version of a tag already pushed may be asked for again, published or not: finishing a
+  // release that stopped, or retrying a step that failed (every step is safe to repeat).
+  const tagged = tags.split(/\s+/).includes(`desktop-v${want}`);
   let current = [0, 0, 0];
   try {
     for (const p of Object.values(require(releasesFile).platforms || {})) {
-      if (p.version && cmp(n(p.version), current) > 0) current = n(p.version);
+      if (p.version && !(tagged && p.version === want) && cmp(n(p.version), current) > 0) current = n(p.version);
     }
   } catch {}
-  // Android may already have the version asked for (finishing a desktop release after it).
   try {
     const v = require(androidFile).android?.version;
-    if (v && v !== want && cmp(n(v), current) > 0) current = n(v);
+    if (v && !(tagged && v === want) && cmp(n(v), current) > 0) current = n(v);
   } catch {}
-  // An explicit version may be an unpublished tag already pushed (a release whose build failed
-  // and was re-run): the tag must then be on this commit (checked below).
   for (const tag of tags.split(/\s+/)) {
     const m = /^desktop-v(\d+\.\d+\.\d+)$/.exec(tag);
     if (m && m[1] !== want && cmp(n(m[1]), current) > 0) current = n(m[1]);
@@ -214,6 +229,15 @@ for feed in "$OUT"/latest*.yml; do
   if [ "$built" != "$VERSION" ]; then echo "$feed says $built, not $VERSION" >&2; exit 1; fi
 done
 echo "Every file was built by $WORKFLOW from $(git rev-parse --short "$COMMIT")."
+# The Android files apart (updates/publish.mjs publishes whatever else is in $OUT).
+ANDROID_OUT="$OUT/android"
+mkdir -p "$ANDROID_OUT"
+for file in "$OUT"/*.apk "$OUT"/*.aab; do
+  [ -e "$file" ] && mv "$file" "$ANDROID_OUT/"
+done
+if [ -n "$ANDROID" ] && [ -f "$ANDROID_OUT/voicaw-$VERSION-unsigned.apk" ]; then
+  mobile/sign-android.sh "$ANDROID_OUT/voicaw-$VERSION-unsigned.apk" "$ANDROID_OUT/voicaw-$VERSION-play-unsigned.aab" "$VERSION"
+fi
 
 # 4. Publish.
 if [ -z "$PUBLISH" ]; then
@@ -239,15 +263,48 @@ if [ -n "$WEB" ]; then
   fi
 fi
 
+FAILED=
 if [ -n "$ANDROID" ]; then
   echo "== Android $VERSION"
-  # The same version as the desktop app's.
+  APK="dist-android/voicaw-$VERSION.apk"
+  AAB="dist-android/voicaw-$VERSION-play.aab"
   published="$(node -e 'try { console.log(require(process.argv[1]).android?.version ?? "") } catch {}' "$SITE/android/releases.json")"
-  if [ "$published" = "$VERSION" ]; then
-    echo "Android $VERSION is already published."
+  if [ ! -f "$ANDROID_OUT/voicaw-$VERSION-unsigned.apk" ]; then
+    # Tagged before GitHub built Android: built here, the old way (not added to GitHub's release,
+    # since GitHub didn't build it).
+    echo "GitHub's release has no Android build (tagged before it made one): building it here."
+    if [ "$published" = "$VERSION" ]; then
+      echo "Android $VERSION is already published."
+    else
+      NO_PUBLISH=
+      [ -z "$PUBLISH" ] && NO_PUBLISH=--no-publish
+      ./build-android.sh "$VERSION" $NO_PUBLISH --push-tag
+    fi
+    if [ -n "$PUBLISH" ] && [ -n "$PLAY" ] && [ -f "$AAB" ]; then
+      node updates/publish-play.mjs "$AAB" "$VERSION" || FAILED=", the Google Play upload"
+    fi
+  elif [ -z "$PUBLISH" ]; then
+    echo "Signed, not published (--no-publish): $APK, $AAB"
   else
-    NO_PUBLISH=
-    [ -z "$PUBLISH" ] && NO_PUBLISH=--no-publish
-    ./build-android.sh "$VERSION" $NO_PUBLISH --push-tag
+    if [ "$published" = "$VERSION" ]; then echo "Android $VERSION is already on the update site."
+    else node updates/publish-android.mjs publish "$APK" "$VERSION"; fi
+    if gh release upload "$TAG" "$APK" --repo "$REPO" --clobber; then echo "Added $(basename "$APK") to GitHub's release."
+    else FAILED="$FAILED, adding the APK to GitHub's release"; fi
+    if [ -n "$PLAY" ]; then
+      node updates/publish-play.mjs "$AAB" "$VERSION" || FAILED="$FAILED, the Google Play upload"
+    else
+      echo "For Google Play: upload $(pwd)/$AAB in the Play Console."
+    fi
+    ANDROID_TAG="android-v$VERSION"
+    if ! git rev-parse -q --verify "refs/tags/$ANDROID_TAG" >/dev/null; then
+      git tag -a "$ANDROID_TAG" "$COMMIT" -m "Android app $VERSION"
+    fi
+    if git push -q origin "refs/tags/$ANDROID_TAG"; then echo "Pushed $ANDROID_TAG."
+    else FAILED="$FAILED, pushing $ANDROID_TAG"; fi
   fi
+fi
+
+if [ -n "$FAILED" ]; then
+  echo "Everything else is out, but these failed (above): ${FAILED#, }. ./release_all.sh $VERSION runs the release again, retrying them." >&2
+  exit 1
 fi

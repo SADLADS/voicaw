@@ -461,23 +461,28 @@ Then, from a checkout whose commit is pushed to GitHub (usually `dev`, with noth
 
 ```bash
 ./release_all.sh                  # desktop, web app and Android; patch, or minor, major, X.Y.Z
-./release_all.sh --no-publish     # desktop downloaded and checked (dist-release/X.Y.Z/), Android
-                                  # built, nothing published or deployed
+./release_all.sh --no-publish     # downloaded, checked and signed (dist-release/X.Y.Z/,
+                                  # dist-android/), nothing published or deployed
 ./release_all.sh --no-web --no-android   # the desktop app alone
+./release_all.sh --no-play        # all but the Google Play upload
 ```
 
 It doesn't ask first. It picks the next version (above what updates.voicaw.com has, desktop
-and Android, and every `desktop-vX.Y.Z` tag: the apps share version numbers), tags the commit `desktop-vX.Y.Z` and pushes the tag, which starts the workflow (Linux and
-Windows; follow it on GitHub's Actions tab), waits for it, downloads the GitHub Release into
+and Android, and every `desktop-vX.Y.Z` tag: the apps share version numbers), tags the commit
+`desktop-vX.Y.Z` and pushes the tag, which starts the workflow (Linux, Windows and Android;
+follow it on GitHub's Actions tab), waits for it, downloads the GitHub Release into
 `dist-release/X.Y.Z/`, runs `gh attestation verify` on every file (built by that workflow, from
 that commit, on GitHub's machines; anything else stops it), then publishes with
 `node updates/publish.mjs dist-release/X.Y.Z` (which rebuilds voicaw.com's download links too)
 and checks the site serves the new version. Then it deploys the web app (`npm run build`) and
-releases the Android app as the same X.Y.Z (`./build-android.sh X.Y.Z`, below: the APK published,
-the App Bundle left in `dist-android/` for the Play Console, the `android-vX.Y.Z` tag pushed).
-Android's release key and `google-services.json` are checked before anything starts.
-GitHub never gets a key to the host. A failed build can be retried from the Actions tab
-("Re-run jobs"), and `./release_all.sh X.Y.Z` with the same version picks the tag up again.
+releases the Android app as the same X.Y.Z (section 10, "Releases built by GitHub": signed here,
+the APK published and added to the GitHub Release, the bundle uploaded to Google Play, the
+`android-vX.Y.Z` tag pushed). What Android needs (the release key, GitHub's
+`GOOGLE_SERVICES_JSON` secret, Play's key) is checked before anything starts.
+GitHub never gets a key to the host or the app. A failed build can be retried from the Actions
+tab ("Re-run jobs"), and `./release_all.sh X.Y.Z` with a version already tagged runs that
+release again, published or not: every step is safe to repeat, so it also retries one that
+failed (a Play upload, say). Releases tagged before GitHub built Android are built here instead.
 
 Building and publishing on the host still works (try-outs, or without GitHub): build, then
 `node updates/publish.mjs` (`dist-desktop/` into `/opt/voicaw-updates`, or `<buildDir> <siteDir>`),
@@ -547,12 +552,45 @@ the person taps Update,
 downloads the APK and asks Android to install it (Android asks once to allow installs from
 Voicaw). `VOICAW_UPDATE_URL` at build time points a try-out build at another update folder.
 
+**Releases built by GitHub.** `./release_all.sh` (section 9) doesn't build Android here: GitHub's
+release workflow builds the APK and the App Bundle unsigned (`mobile/dist-android.sh unsigned`,
+in the same Docker image) and attests them; `release_all.sh` checks the attestations, signs both
+here (`mobile/sign-android.sh`: the key never goes to GitHub), publishes the APK as below, adds
+it to the GitHub Release next to the unsigned one, uploads the bundle to Google Play and pushes
+`android-vX.Y.Z`. Anyone can check that the signed APK is GitHub's build plus our signature and
+nothing else (with `pip install apksigcopier` and the Android SDK's `apksigner`):
+
+```bash
+gh attestation verify voicaw-X.Y.Z-unsigned.apk --repo SADLADS/voicaw
+apksigcopier compare voicaw-X.Y.Z.apk --unsigned voicaw-X.Y.Z-unsigned.apk   # no output: the same
+apksigner verify --print-certs voicaw-X.Y.Z.apk                              # who signed it
+```
+
+The release key's certificate SHA-256 is
+`5f7934c212fbb5667c26e2d5eec7c92eda269515d1eb80d25d414b08c62693ea`.
+
+GitHub's build needs `google-services.json` (below) as a repository secret, set once:
+`gh secret set GOOGLE_SERVICES_JSON --repo SADLADS/voicaw < mobile/android/app/google-services.json`
+(again whenever the file changes). `./build-android.sh` still builds and publishes on the host.
+
 **Google Play.** Every release also builds the same version as an App Bundle of the `play` flavour
 (`dist-android/voicaw-<version>-play.aab`, signed with the release key), which never updates
-itself (Play's rules forbid it) and lacks the permission to install packages. Upload it by hand in
-the Play Console (a closed-testing track first: new personal accounts need 12 testers for 14 days
-before production). Play needs each upload's version higher than the last, so upload the bundle
-of each new release, never a rebuild of an old one. The first time, Play asks how the app is
+itself (Play's rules forbid it) and lacks the permission to install packages. `release_all.sh`
+uploads it and releases it on Play's closed-testing track (`alpha`; new personal accounts need 12
+testers for 14 days before production; `VOICAW_PLAY_TRACK=production` once out of it) through
+the Google Play Developer API (`updates/publish-play.mjs`), once it has a key for it, set up once:
+
+1. In the Google Cloud console (the Firebase project will do), enable the **Google Play Android
+   Developer API**, then IAM & Admin → Service accounts → Create service account (no roles), and
+   on it Keys → Add key → JSON. Save it as `~/.voicaw-android-keys/play-service-account.json`
+   (`chmod 600`; or point `VOICAW_PLAY_KEY` at it) and back it up with the release key.
+2. In the Play Console, Users and permissions → Invite new users: the service account's email,
+   with access to Voicaw and the permission to release to testing tracks (and to production,
+   later). Google can take a while (up to a day) before it's allowed.
+
+Without the key, `release_all.sh` says so and leaves the bundle in `dist-android/` to upload by
+hand in the Play Console; `--no-play` does the same on purpose. Play needs each upload's version
+higher than the last, so upload the bundle of each new release, never a rebuild of an old one. The first time, Play asks how the app is
 signed: choose to **use your own key** ("Use a different app signing key" / "Export and upload a
 key from Java keystore"), download the PEPK tool and encryption key it offers, and run the
 command it shows with `--keystore=$HOME/.voicaw-android-keys/voicaw-release.jks --alias=voicaw`
@@ -568,7 +606,7 @@ says so). Set it up once:
 1. In the Firebase console (console.firebase.google.com), create a project (Analytics not
    needed), then add an Android app with the package name `com.voicaw.app`.
 2. Download its `google-services.json` into `mobile/android/app/` (git-ignored) and rebuild the
-   APK.
+   APK, and give GitHub's release build a copy (the `GOOGLE_SERVICES_JSON` secret, above).
 3. Project settings → Service accounts → Generate new private key: save the JSON on the host
    where only the API's user can read it (e.g. `server/fcm-service-account.json`, `chmod 600`;
    it's git-ignored) and point the API at it in `server/.env`:

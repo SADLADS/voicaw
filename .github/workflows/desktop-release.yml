@@ -1,10 +1,13 @@
-# Desktop releases, built by GitHub from the tagged commit (release_all.sh pushes the tag).
-# Every file is attested (Sigstore, actions/attest-build-provenance): anyone can check that an
-# installer or update feed was built here, by this workflow, from which commit:
+# Releases, built by GitHub from the tagged commit (release_all.sh pushes the tag): the desktop
+# app and the Android app (unsigned). Every file is attested (Sigstore,
+# actions/attest-build-provenance): anyone can check that an installer, APK or update feed was
+# built here, by this workflow, from which commit:
 #   gh attestation verify Voicaw-1.2.3.AppImage --repo SADLADS/voicaw
 # The files go to a GitHub Release; the host downloads, verifies and publishes them to
-# updates.voicaw.com itself (release_all.sh), so GitHub holds no keys to our servers.
-name: Desktop release
+# updates.voicaw.com itself (release_all.sh), so GitHub holds no keys to our servers. The host
+# also signs the Android app and adds the signed APK to the release (apksigcopier compare shows
+# it's the attested unsigned one plus a signature).
+name: Release
 
 on:
   push:
@@ -83,8 +86,68 @@ jobs:
             dist-desktop/*.blockmap
             dist-desktop/latest*.yml
 
+  # The Android app, unsigned: release_all.sh checks these files' attestations, then signs them on
+  # the host (mobile/sign-android.sh), so the release key never comes here. Built in the same
+  # image as on the host (mobile/Dockerfile, mobile/dist-android.sh), with the Java unit tests.
+  android:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Version from the tag
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#desktop-v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag $GITHUB_REF_NAME isn't desktop-vX.Y.Z" >&2
+            exit 1
+          fi
+          echo "VOICAW_VERSION=$version" >> "$GITHUB_ENV"
+      - run: npm ci
+      - name: Client build settings
+        shell: bash
+        run: |
+          printf '%s\n' 'VITE_API_BASE_URL=https://app.voicaw.com/api/' 'VITE_WS_URL=wss://api.voicaw.com' > client/.env.production
+      # Firebase's settings for notifications (README "Android app"): kept out of git, so a
+      # repository secret. Without it the app would never get notifications or ring.
+      - name: google-services.json
+        shell: bash
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "The repository secret GOOGLE_SERVICES_JSON isn't set (README \"Android app\")." >&2
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON" > mobile/android/app/google-services.json
+      - run: npm run build:android --workspace=client
+      - run: npx cap sync android
+        working-directory: mobile
+      - run: sh mobile/dist-android.sh unsigned
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist-android/*-unsigned.apk
+            dist-android/*-unsigned.aab
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          if-no-files-found: error
+          path: |
+            dist-android/*-unsigned.apk
+            dist-android/*-unsigned.aab
+
   release:
-    needs: build
+    needs: [build, android]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -92,7 +155,6 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
-          pattern: desktop-*
           merge-multiple: true
       - name: GitHub Release
         env:
@@ -101,5 +163,10 @@ jobs:
           gh release create "$GITHUB_REF_NAME" dist/* \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
-            --title "Voicaw desktop ${GITHUB_REF_NAME#desktop-v}" \
-            --notes "Built by GitHub Actions from commit $GITHUB_SHA. Check any file with: gh attestation verify <file> --repo $GITHUB_REPOSITORY"
+            --title "Voicaw ${GITHUB_REF_NAME#desktop-v}" \
+            --notes-file - <<EOF
+          Built by GitHub Actions from commit $GITHUB_SHA. Check any file built here with:
+          \`gh attestation verify <file> --repo $GITHUB_REPOSITORY\`
+
+          The Android app is built here unsigned (voicaw-*-unsigned.apk) and signed by Voicaw, whose key never comes to GitHub: the signed voicaw-${GITHUB_REF_NAME#desktop-v}.apk is added to this release once it is. To check it is exactly the attested build plus a signature: \`apksigcopier compare voicaw-${GITHUB_REF_NAME#desktop-v}.apk --unsigned voicaw-${GITHUB_REF_NAME#desktop-v}-unsigned.apk\` (no output means it is), and \`apksigner verify --print-certs\` shows the signing certificate.
+          EOF

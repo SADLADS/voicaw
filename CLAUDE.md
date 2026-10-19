@@ -69,12 +69,14 @@ Run from the repo root unless noted.
 - `npm run dist:electron:win` — the same build, then the Windows installer in Docker with wine
   (`electron/dist-win.sh`, electron-builder's image; unsigned)
 - `./release_all.sh [patch|minor|major|X.Y.Z]` — releases everything as one version, never
-  asking first: the desktop app built by GitHub (tags the commit `desktop-vX.Y.Z` and pushes the
-  tag; `.github/workflows/desktop-release.yml` builds and attests the installers), downloaded,
-  checked (`gh`) and published to updates.voicaw.com; then the web app (`npm run build`); then
-  the Android app as the same X.Y.Z (`./build-android.sh`, pushing its `android-vX.Y.Z` tag).
-  `--no-publish` (Android only built), `--no-web`, `--no-android`. Publishing touches the live
-  sites: only when the user asks
+  asking first: the desktop and Android apps built by GitHub (tags the commit `desktop-vX.Y.Z`
+  and pushes the tag; `.github/workflows/desktop-release.yml` builds and attests the installers
+  and the unsigned APK and App Bundle), downloaded, checked (`gh`), Android signed on the host
+  (`mobile/sign-android.sh`) and published to updates.voicaw.com, the signed APK added to the
+  GitHub Release, the bundle uploaded to Google Play (`updates/publish-play.mjs`); and the web
+  app (`npm run build`). `--no-publish` (only checked and signed), `--no-web`, `--no-android`,
+  `--no-play`; the same X.Y.Z again re-runs a tagged release. Publishing touches the live sites:
+  only when the user asks
 - `npm run dist:android` — the client's Android build, `cap sync`, then the APK (and the native
   JUnit tests) in Docker (`mobile/dist-android.sh`) into `dist-android/voicaw-debug.apk`;
   `./build-android.sh [patch|minor|major|X.Y.Z]` releases: next version, APK signed with the
@@ -82,7 +84,8 @@ Run from the repo root unless noted.
   updates.voicaw.com/android/ only for copies already installed from there
   (`updates/publish-android.mjs`); `--no-publish`,
   `--debug`; stops without `google-services.json` (`--no-push` builds without). Each release
-  also builds `dist-android/voicaw-<version>-play.aab` for the Play Console (uploaded by hand).
+  also builds `dist-android/voicaw-<version>-play.aab` for the Play Console (uploaded by hand;
+  `release_all.sh` uploads its own).
   Publishing touches the live sites: only when the user asks
 
 Client-only (run inside `client/`):
