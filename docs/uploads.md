@@ -158,6 +158,10 @@ own additional data, so it can't pass for a chunk). Old `v=1` videos still play.
   (seek bar showing what's buffered, time, volume and mute remembered per device in
   `localStorage videoPrefs`, download with progress, full screen; keys k/space, ←/→, m, f; they
   fade while playing; a tap on a phone shows them first). One video plays at a time.
+- **Videos without a poster of ours** (bots' and webhooks' files, sites' videos) show their first
+  frame through the browser (`preload="metadata"`). Android's WebView gives such a video its own
+  poster (grey, with a play sign) and, like any poster, keeps it until the video plays or seeks,
+  so the player seeks to the first instant once the metadata is in (e2e `webviewposter.mjs`).
 - **Streaming** (`services/videoStream.js` page side, `services/mediaStreamWorker.js` in the
   service worker): the `<video>` plays `/__voicaw-media/<random id>`; the worker asks the page
   for that id's file, key and size (over a `MessageChannel`, never in a URL), answers the

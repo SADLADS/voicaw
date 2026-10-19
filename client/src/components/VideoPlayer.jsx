@@ -371,6 +371,10 @@ export default function VideoPlayer({
             const el = e.currentTarget;
             if (Number.isFinite(el.duration)) setMediaDuration(el.duration);
             if (el.videoWidth && el.videoHeight) setNatural({ width: el.videoWidth, height: el.videoHeight });
+            // Android's WebView gives a video without a poster its own (grey, with a play sign)
+            // and keeps it up, like any poster, until the video plays or seeks: a seek to the
+            // first instant shows the first frame instead.
+            if (!poster && !started && el.currentTime === 0) el.currentTime = 0.001;
           }}
           onDurationChange={(e) => { if (Number.isFinite(e.currentTarget.duration)) setMediaDuration(e.currentTarget.duration); }}
           onError={onVideoError}
