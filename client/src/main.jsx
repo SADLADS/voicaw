@@ -1,3 +1,5 @@
+// Font Awesome's icon CSS (components/Icon.jsx), first so the app's own CSS can override it.
+import '@fortawesome/fontawesome-svg-core/styles.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { AuthProvider } from './AuthProvider.jsx';

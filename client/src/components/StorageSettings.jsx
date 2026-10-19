@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faHardDrive } from '@fortawesome/free-solid-svg-icons';
 import { setPrivacyPref, usePrivacyPrefs } from '../utils/privacy';
 import { clearOfflineCopy, offlineCopySize } from '../services/offlineCopy';
@@ -76,7 +76,7 @@ export default function StorageSettings() {
   const search = sizes?.search;
   return (
     <div className="settings-card">
-      <h5><FontAwesomeIcon icon={faHardDrive} className="settings-card-icon" />{t('settings.storage.title')}</h5>
+      <h5><Icon icon={faHardDrive} className="settings-card-icon" />{t('settings.storage.title')}</h5>
       <p className="vc-hint">
         {sizes?.total
           ? t('settings.storage.total', { used: formatBytes(sizes.total.usage), free: formatBytes(Math.max(0, sizes.total.quota - sizes.total.usage)) })

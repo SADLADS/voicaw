@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faArrowUpRightFromSquare, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { openInNewTab } from '../utils/saveFile';
 import { t } from '../i18n';
@@ -40,10 +40,10 @@ export default function YouTubeViewer({ id, link, onClose }) {
         </div>
         <div className="image-viewer-actions">
           <button type="button" onClick={() => openInNewTab(link)} title={t('media.youtube.openOnYouTube')} aria-label={t('media.youtube.openOnYouTube')}>
-            <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
+            <Icon icon={faArrowUpRightFromSquare} />
           </button>
           <button type="button" ref={closeRef} onClick={onClose} title={t('media.viewer.closeTitle')} aria-label={t('common.close')}>
-            <FontAwesomeIcon icon={faXmark} />
+            <Icon icon={faXmark} />
           </button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import '../../assets/css/voice.css';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faClapperboard, faPhoneSlash, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import { ConfigContext, InteractionContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
@@ -86,10 +86,10 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
           disabled={Boolean(party?.current) && !streamShown}
           onClick={() => (streamShown ? watchStream(null) : setWatchOpen((open) => !open))}
         >
-          <FontAwesomeIcon icon={faClapperboard} fixedWidth />
+          <Icon icon={faClapperboard} fixedWidth />
         </button>
         <button type="button" className="voice-view-button leave" aria-label={t('guilds.voice.disconnect')} title={t('guilds.voice.disconnect')} onClick={leaveVoice}>
-          <FontAwesomeIcon icon={faPhoneSlash} fixedWidth />
+          <Icon icon={faPhoneSlash} fixedWidth />
         </button>
       </div>
     );
@@ -124,7 +124,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
       )}
       {!here && party?.current && (
         <p className="watch-party-banner">
-          <FontAwesomeIcon icon={faClapperboard} /> {t('voice.watchParty.watchingNow', { title: party.current.title ?? t('voice.watchParty.untitled') })}
+          <Icon icon={faClapperboard} /> {t('voice.watchParty.watchingNow', { title: party.current.title ?? t('voice.watchParty.untitled') })}
         </p>
       )}
       {watched && !poppedOut && (
@@ -147,7 +147,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
       )}
       {members.length === 0 ? (
         <div className="voice-view-empty">
-          <FontAwesomeIcon icon={faVolumeHigh} size="2x" />
+          <Icon icon={faVolumeHigh} size="2x" />
           <p>{t('guilds.voice.empty')}</p>
         </div>
       ) : (

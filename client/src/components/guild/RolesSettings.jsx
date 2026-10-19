@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faArrowDown, faArrowUp, faGripVertical, faLock } from '@fortawesome/free-solid-svg-icons';
 import { createRole, deleteRole, reorderRoles, updateRole } from '../../services/guildService';
 import { COLOR_SWATCHES, PERMISSIONS, PERMISSION_GROUPS, colorToHex, has, hexToColor, memberRank } from '../../utils/permissions';
@@ -109,18 +109,18 @@ export default function RolesSettings({ guild, user }) {
                 }}
               >
                 <button type="button" className="roles-list-select" onClick={() => setSelectedId(role.id)}>
-                  {movable ? <FontAwesomeIcon icon={faGripVertical} className="roles-grip" /> : <span className="roles-grip" />}
+                  {movable ? <Icon icon={faGripVertical} className="roles-grip" /> : <span className="roles-grip" />}
                   <span className="role-dot" style={{ backgroundColor: role.color != null ? colorToHex(role.color) : undefined }} />
                   <span className="roles-list-name">{role.name}</span>
-                  {locked && !role.is_everyone && <FontAwesomeIcon icon={faLock} className="roles-lock" title={t('guildAdmin.roles.aboveYours')} />}
+                  {locked && !role.is_everyone && <Icon icon={faLock} className="roles-lock" title={t('guildAdmin.roles.aboveYours')} />}
                 </button>
                 {movable && role.id === selected?.id && (
                   <span className="roles-move">
                     <button type="button" aria-label={t('guildAdmin.roles.moveUp', { name: role.name })} disabled={index === 0 || others[index - 1].position >= myRank} onClick={() => move(role.id, index - 1)}>
-                      <FontAwesomeIcon icon={faArrowUp} />
+                      <Icon icon={faArrowUp} />
                     </button>
                     <button type="button" aria-label={t('guildAdmin.roles.moveDown', { name: role.name })} disabled={index === others.length - 1} onClick={() => move(role.id, index + 1)}>
-                      <FontAwesomeIcon icon={faArrowDown} />
+                      <Icon icon={faArrowDown} />
                     </button>
                   </span>
                 )}

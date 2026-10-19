@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { InteractionContext } from '../../contexts';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faArrowLeft, faCrown } from '@fortawesome/free-solid-svg-icons';
 import { memberColor } from '../../utils/permissions';
 import { groupMembers } from '../../utils/guildDisplay';
@@ -81,7 +81,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
               </span>
             )}
           </span>
-          {member.id === guild.owner && <FontAwesomeIcon icon={faCrown} className="member-owner" title={t('guilds.memberList.owner')} />}
+          {member.id === guild.owner && <Icon icon={faCrown} className="member-owner" title={t('guilds.memberList.owner')} />}
         </button>
       </li>
     );
@@ -92,7 +92,7 @@ export default function MemberList({ guild, members: memberList, user, onClose, 
       {onClose && (
         <div className="member-list-top">
           <button type="button" className="member-list-back" aria-label={t('guilds.memberList.close')} title={t('guilds.memberList.close')} onClick={onClose}>
-            <FontAwesomeIcon icon={faArrowLeft} />
+            <Icon icon={faArrowLeft} />
           </button>
           <span>{t('common.members')}</span>
         </div>

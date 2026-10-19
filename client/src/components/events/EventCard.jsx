@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faCalendarDays, faLocationDot, faRepeat, faUserGroup, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import DocumentCover from '../documents/DocumentCover';
 import EventEmoji from './EventEmoji';
@@ -21,7 +21,7 @@ export default function EventCard({ event, guild, onOpen = null, children = null
       {event.image && <DocumentCover cover={event.image} className="event-card-cover" />}
       <div className="event-card-body">
         <div className="event-card-when">
-          <FontAwesomeIcon icon={faCalendarDays} aria-hidden="true" />
+          <Icon icon={faCalendarDays} aria-hidden="true" />
           <span>{formatEventWhen(event)}</span>
           {status && <span className={`event-card-status${event.status === 'active' ? ' live' : ''}`}>{status}</span>}
         </div>
@@ -32,19 +32,19 @@ export default function EventCard({ event, guild, onOpen = null, children = null
         )}
         {event.recurrence && (
           <div className="event-card-line">
-            <FontAwesomeIcon icon={faRepeat} aria-hidden="true" />
+            <Icon icon={faRepeat} aria-hidden="true" />
             <span>{describeRepeat(event.recurrence, start)}</span>
           </div>
         )}
         {place.label && (
           <div className="event-card-line">
-            <FontAwesomeIcon icon={place.voice ? faVolumeHigh : faLocationDot} aria-hidden="true" />
+            <Icon icon={place.voice ? faVolumeHigh : faLocationDot} aria-hidden="true" />
             <span>{place.label}</span>
           </div>
         )}
         <div className="event-card-footer">
           <span className="event-card-count">
-            <FontAwesomeIcon icon={faUserGroup} aria-hidden="true" /> {t('events.interestedCount', { count: event.user_count })}
+            <Icon icon={faUserGroup} aria-hidden="true" /> {t('events.interestedCount', { count: event.user_count })}
           </span>
           {children && <span className="event-card-buttons">{children}</span>}
         </div>

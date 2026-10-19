@@ -1255,7 +1255,8 @@ describe('Dm reactions', () => {
     fireEvent.click(screen.getByTestId('react-10'));
     const picker = screen.getByRole('dialog', { name: 'Emoji picker' });
     expect(picker).toHaveClass('docked');
-    fireEvent.click(within(picker).getAllByRole('button', { name: 'Party Popper' })[0]);
+    // (The picker draws its grid over a few frames.)
+    fireEvent.click((await within(picker).findAllByRole('button', { name: 'Party Popper' }, { timeout: 10000 }))[0]);
 
     await waitFor(() => expect(screen.getByTestId('reactions-10')).toHaveTextContent('🎉:1'));
     expect(screen.queryByRole('dialog', { name: 'Emoji picker' })).not.toBeInTheDocument();

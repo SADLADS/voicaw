@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faIdCard, faPen, faRightFromBracket, faXmark } from '@fortawesome/free-solid-svg-icons';
 import Avatar from './Avatar';
 import StatusIcon from './StatusIcon';
@@ -147,7 +147,7 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
                 </button>
                 {hasStatus && (
                   <button type="button" className="user-menu-status-clear" aria-label={t('app.userMenu.clearStatus')} title={t('app.userMenu.clear')} disabled={saving} onClick={() => saveStatus('', null)}>
-                    <FontAwesomeIcon icon={faXmark} />
+                    <Icon icon={faXmark} />
                   </button>
                 )}
               </>
@@ -158,7 +158,7 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
       </div>
       <div className="user-menu-actions">
         <button type="button" className="user-menu-item" onClick={openProfile}>
-          <FontAwesomeIcon icon={faPen} /> {t('app.userMenu.editProfile')}
+          <Icon icon={faPen} /> {t('app.userMenu.editProfile')}
         </button>
         <button
           type="button"
@@ -168,10 +168,10 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
             navigator.clipboard.writeText(apiId('user', user.id));
           }}
         >
-          <FontAwesomeIcon icon={faIdCard} /> {t('common.copyId.user')}
+          <Icon icon={faIdCard} /> {t('common.copyId.user')}
         </button>
         <button type="button" className="user-menu-item danger" onClick={() => { onClose(); onLogout?.(); }}>
-          <FontAwesomeIcon icon={faRightFromBracket} /> {t('app.userMenu.logOut')}
+          <Icon icon={faRightFromBracket} /> {t('app.userMenu.logOut')}
         </button>
       </div>
     </div>,

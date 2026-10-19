@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faEye, faEyeSlash, faFile, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { formatBytes } from '../utils/formatBytes';
 import { t } from '../i18n';
@@ -19,7 +19,7 @@ export default function AttachmentTray({ drafts, onRemove, onToggleSpoiler }) {
             <video src={draft.previewUrl} muted preload="metadata" />
           ) : (
             <div className="attachment-draft-file">
-              <FontAwesomeIcon icon={faFile} />
+              <Icon icon={faFile} />
               <span className="attachment-draft-name">{draft.name}</span>
               <span className="attachment-draft-size">{formatBytes(draft.size)}</span>
             </div>
@@ -36,7 +36,7 @@ export default function AttachmentTray({ drafts, onRemove, onToggleSpoiler }) {
                 : t('media.tray.markNameSpoiler', { name: draft.name })}
               aria-pressed={!!draft.spoiler}
             >
-              <FontAwesomeIcon icon={draft.spoiler ? faEyeSlash : faEye} />
+              <Icon icon={draft.spoiler ? faEyeSlash : faEye} />
             </button>
           )}
           <button
@@ -46,7 +46,7 @@ export default function AttachmentTray({ drafts, onRemove, onToggleSpoiler }) {
             title={t('media.tray.remove', { name: draft.name })}
             aria-label={t('media.tray.remove', { name: draft.name })}
           >
-            <FontAwesomeIcon icon={faXmark} />
+            <Icon icon={faXmark} />
           </button>
         </div>
       ))}

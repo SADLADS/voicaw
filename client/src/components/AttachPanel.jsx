@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faCamera, faClock, faComments, faFile, faImages, faPlus, faSquarePollHorizontal } from '@fortawesome/free-solid-svg-icons';
 import { useDeviceMedia, useMediaThumbnail } from '../hooks/useDeviceMedia';
 import { useSheetDrag } from '../hooks/useSheetDrag';
@@ -106,12 +106,12 @@ export default function AttachPanel({ height, picked, onAddFiles, onRemove, onPi
         />
         <div className="attach-panel-grid" onScroll={onScroll}>
           <button type="button" className="attach-tile attach-action" onClick={camera}>
-            <FontAwesomeIcon icon={faCamera} />
+            <Icon icon={faCamera} />
             <span>{t('chat.attachPanel.camera')}</span>
           </button>
           {media.access === 'unsupported' && (
             <button type="button" className="attach-tile attach-action" onClick={photos}>
-              <FontAwesomeIcon icon={faImages} />
+              <Icon icon={faImages} />
               <span>{t('chat.attachPanel.photos')}</span>
             </button>
           )}
@@ -128,32 +128,32 @@ export default function AttachPanel({ height, picked, onAddFiles, onRemove, onPi
           ))}
           {media.access === 'some' && media.done && (
             <button type="button" className="attach-tile attach-action" onClick={media.request}>
-              <FontAwesomeIcon icon={faPlus} />
+              <Icon icon={faPlus} />
               <span>{t('chat.attachPanel.chooseMore')}</span>
             </button>
           )}
         </div>
         <div className="attach-panel-bar">
           <button type="button" onClick={photos}>
-            <FontAwesomeIcon icon={faImages} />
+            <Icon icon={faImages} />
             <span>{t('chat.attachPanel.photos')}</span>
           </button>
           <button type="button" onClick={onPoll} disabled={!onPoll}>
-            <FontAwesomeIcon icon={faSquarePollHorizontal} />
+            <Icon icon={faSquarePollHorizontal} />
             <span>{t('chat.attachPanel.poll')}</span>
           </button>
           {onThread && (
             <button type="button" onClick={onThread}>
-              <FontAwesomeIcon icon={faComments} />
+              <Icon icon={faComments} />
               <span>{t('chat.attachPanel.thread')}</span>
             </button>
           )}
           <button type="button" onClick={() => onPickFiles()}>
-            <FontAwesomeIcon icon={faFile} />
+            <Icon icon={faFile} />
             <span>{t('chat.attachPanel.files')}</span>
           </button>
           <button type="button" onClick={onTimestamp}>
-            <FontAwesomeIcon icon={faClock} />
+            <Icon icon={faClock} />
             <span>{t('chat.attachPanel.timestamps')}</span>
           </button>
         </div>

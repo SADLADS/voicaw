@@ -1,6 +1,6 @@
 import React, { useContext, useRef, useState, useSyncExternalStore } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faGear } from '@fortawesome/free-solid-svg-icons';
 import { ConfigContext } from '../contexts';
 import { getConnectionState, onConnectionState } from '../utils/ws-client';
@@ -68,7 +68,7 @@ export default function UserPanel({ user, onLogout }) {
         aria-label={waiting ? t('app.userPanel.settingsWaiting', { count: waiting }) : t('common.settings')}
         title={waiting ? t('app.userPanel.settingsWaiting', { count: waiting }) : t('common.settings')}
       >
-        <FontAwesomeIcon icon={faGear} />
+        <Icon icon={faGear} />
         {waiting > 0 && <span className="user-panel-alerts" aria-hidden="true">{waiting > 99 ? '99+' : waiting}</span>}
       </NavLink>
     </div>

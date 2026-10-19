@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faCheck, faSlash, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { fetchChannelOverrides, fetchMembers, setChannelOverride } from '../../services/guildService';
 import { PERMISSIONS, channelPermissionItems, colorToHex, has, memberRank } from '../../utils/permissions';
@@ -152,7 +152,7 @@ export default function ChannelPermissions({ guild, channel, user }) {
                       disabled={disabled}
                       onClick={() => state !== value && setState(current.type, current.id, bit, value)}
                     >
-                      <FontAwesomeIcon icon={icon} />
+                      <Icon icon={icon} />
                     </button>
                   ))}
                 </div>

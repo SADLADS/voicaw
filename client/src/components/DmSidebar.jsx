@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faBellSlash, faNoteSticky, faThumbtack, faUserGroup, faUserFriends } from '@fortawesome/free-solid-svg-icons';
 import { showContent } from '../utils/mobilePanes';
 import { InteractionContext, LayoutContext } from '../contexts';
@@ -91,8 +91,8 @@ export default function DmSidebar({ user, users, groups = [], botDms = [], unrea
   };
   const marks = (setting) => (
     <>
-      {setting.muted && <FontAwesomeIcon icon={faBellSlash} className="dm-row-mark" title={t('chat.dmList.muted')} aria-label={t('chat.dmList.muted')} />}
-      {setting.pinned_at != null && <FontAwesomeIcon icon={faThumbtack} className="dm-row-mark" title={t('chat.dmList.pinned')} aria-label={t('chat.dmList.pinned')} />}
+      {setting.muted && <Icon icon={faBellSlash} className="dm-row-mark" title={t('chat.dmList.muted')} aria-label={t('chat.dmList.muted')} />}
+      {setting.pinned_at != null && <Icon icon={faThumbtack} className="dm-row-mark" title={t('chat.dmList.pinned')} aria-label={t('chat.dmList.pinned')} />}
     </>
   );
 
@@ -103,20 +103,20 @@ export default function DmSidebar({ user, users, groups = [], botDms = [], unrea
       <h4 className="direct-messages-header">
         {t('chat.dmList.title')}
         <button type="button" className="new-group-button" aria-label={t('chat.dmList.newGroup')} title={t('chat.dmList.newGroup')} onClick={() => setNewGroup(true)}>
-          <FontAwesomeIcon icon={faUserGroup} />
+          <Icon icon={faUserGroup} />
           <span className="new-group-plus">+</span>
         </button>
       </h4>
       <div className="dm-notes-link-wrap">
         <Link to="/dm/friends" replace={isMobile} onClick={showContent} className={`dm-user dm-friends-link ${friendsActive ? 'active' : ''}`}>
-          <span className="dm-notes-icon"><FontAwesomeIcon icon={faUserFriends} /></span>
+          <span className="dm-notes-icon"><Icon icon={faUserFriends} /></span>
           <span className="dm-user-name">{t('friends.title')}</span>
           {friends.incoming.length > 0 && (
             <span className="friends-badge" title={t('friends.tabs.pending')}>{friends.incoming.length}</span>
           )}
         </Link>
         <Link to="/dm/notes" replace={isMobile} onClick={showContent} className={`dm-user dm-notes-link ${notesActive ? 'active' : ''}`}>
-          <span className="dm-notes-icon"><FontAwesomeIcon icon={faNoteSticky} /></span>
+          <span className="dm-notes-icon"><Icon icon={faNoteSticky} /></span>
           <span className="dm-user-name">{t('chat.notes.title')}</span>
         </Link>
       </div>

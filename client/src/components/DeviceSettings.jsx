@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faDesktop, faMobileScreenButton, faLaptop } from '@fortawesome/free-solid-svg-icons';
 import api from '../utils/api';
 import { describeDevice } from '../utils/deviceName';
@@ -21,7 +21,7 @@ function DeviceRow({ session, onLogOut, busy }) {
   else seen = t('settings.devices.lastActive', { time: formatDateTime(session.last_used_at * 1000) });
   return (
     <li className="device-row" data-current={session.current || undefined}>
-      <FontAwesomeIcon icon={ICONS[kind]} className="device-icon" fixedWidth />
+      <Icon icon={ICONS[kind]} className="device-icon" fixedWidth />
       <div className="device-info">
         <div className="device-name">{name}</div>
         <div className="device-details">

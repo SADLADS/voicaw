@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faCheck, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { errorMessage } from '../utils/guildDisplay';
 import { placeMenu as place } from '../utils/menuPlacement';
@@ -180,11 +180,11 @@ function MenuPanel({ label, items, header = null, anchor, beside = false, openKe
               {item.label}
               {item.hint && <small>{item.hint}</small>}
             </span>
-            {item.submenu && <FontAwesomeIcon icon={faChevronRight} />}
+            {item.submenu && <Icon icon={faChevronRight} />}
             {!item.submenu && item.checked !== undefined && (
-              <span className={`context-menu-check${item.checked ? ' on' : ''}`}>{item.checked && <FontAwesomeIcon icon={faCheck} />}</span>
+              <span className={`context-menu-check${item.checked ? ' on' : ''}`}>{item.checked && <Icon icon={faCheck} />}</span>
             )}
-            {!item.submenu && item.checked === undefined && item.icon && <FontAwesomeIcon icon={item.icon} />}
+            {!item.submenu && item.checked === undefined && item.icon && <Icon icon={item.icon} />}
           </button>
         )))}
       {error && <p className="error-msg" role="alert">{error}</p>}
@@ -214,7 +214,7 @@ function SheetMenu({ title, label, items, onBack, onPick, error, onClose, overVi
         <div className="context-sheet-title">
           {onBack && (
             <button type="button" className="context-sheet-back" aria-label={t('common.back')} onClick={onBack}>
-              <FontAwesomeIcon icon={faChevronLeft} />
+              <Icon icon={faChevronLeft} />
             </button>
           )}
           <span>{title}</span>
@@ -233,13 +233,13 @@ function SheetMenu({ title, label, items, onBack, onPick, error, onClose, overVi
                 className={`action-sheet-item${item.danger ? ' danger' : ''}`}
                 onClick={(e) => onPick(item, e.currentTarget, false, e)}
               >
-                {item.icon && <FontAwesomeIcon icon={item.icon} fixedWidth />}
+                {item.icon && <Icon icon={item.icon} fixedWidth />}
                 <span className="context-menu-label">
                   {item.label}
                   {item.hint && <small>{item.hint}</small>}
                 </span>
-                {item.submenu && <FontAwesomeIcon icon={faChevronRight} className="context-sheet-end" />}
-                {item.checked && <FontAwesomeIcon icon={faCheck} className="context-sheet-end" />}
+                {item.submenu && <Icon icon={faChevronRight} className="context-sheet-end" />}
+                {item.checked && <Icon icon={faCheck} className="context-sheet-end" />}
               </button>
             )))}
         </div>

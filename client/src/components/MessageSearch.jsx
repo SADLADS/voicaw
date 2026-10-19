@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faArrowLeft, faHashtag, faMagnifyingGlass, faXmark } from '@fortawesome/free-solid-svg-icons';
 import Avatar from './Avatar';
 import defaultAvatar from '../assets/images/default.png';
@@ -242,10 +242,10 @@ export default function MessageSearch({
       />
       {text ? (
         <button type="button" className="guild-search-icon clear" aria-label={t('guilds.search.clear')} onMouseDown={(e) => e.preventDefault()} onClick={clear}>
-          <FontAwesomeIcon icon={faXmark} />
+          <Icon icon={faXmark} />
         </button>
       ) : (
-        <span className="guild-search-icon" aria-hidden="true"><FontAwesomeIcon icon={faMagnifyingGlass} /></span>
+        <span className="guild-search-icon" aria-hidden="true"><Icon icon={faMagnifyingGlass} /></span>
       )}
       {suggestions.length > 0 && (
         <div className="emoji-suggestions guild-search-suggestions" role="listbox" aria-label={t('guilds.search.options')}>
@@ -263,7 +263,7 @@ export default function MessageSearch({
             >
               {item.kind === 'key' && (<><strong>{item.key}:</strong><span className="mention-suggestion-note">{keyHint(item.key, hasValues)}</span></>)}
               {item.kind === 'has' && <span>{item.label}</span>}
-              {item.kind === 'channel' && (<><FontAwesomeIcon icon={faHashtag} className="guild-search-hash" /><span>{item.label}</span></>)}
+              {item.kind === 'channel' && (<><Icon icon={faHashtag} className="guild-search-hash" /><span>{item.label}</span></>)}
               {item.kind === 'member' && (
                 <>
                   <Avatar userId={item.id} className="mention-suggestion-avatar" />
@@ -289,7 +289,7 @@ export default function MessageSearch({
         {isMobile ? (
           <>
             <button type="button" className="icon-button" aria-label={t('guilds.search.close')} onClick={closeResults}>
-              <FontAwesomeIcon icon={faArrowLeft} />
+              <Icon icon={faArrowLeft} />
             </button>
             {input}
           </>
@@ -297,7 +297,7 @@ export default function MessageSearch({
           <>
             <h5>{results ? t('guilds.search.resultCount', { count: results.total }) : t('common.search')}</h5>
             <button type="button" className="icon-button" aria-label={t('common.close')} onClick={closeResults}>
-              <FontAwesomeIcon icon={faXmark} />
+              <Icon icon={faXmark} />
             </button>
           </>
         )}
@@ -396,7 +396,7 @@ export default function MessageSearch({
             requestAnimationFrame(() => inputRef.current?.focus());
           }}
         >
-          <FontAwesomeIcon icon={faMagnifyingGlass} />
+          <Icon icon={faMagnifyingGlass} />
         </button>
         {panel}
       </>

@@ -87,6 +87,9 @@ describe('splitting text into emoji', () => {
     expect(isEmojiOnly('😄', index)).toBe(true);
     expect(isEmojiOnly(' 😄 👍🏽  ', index)).toBe(true);
     expect(isEmojiOnly('😄 hi', index)).toBe(false);
+    expect(isEmojiOnly('😄 привет', index)).toBe(false);
+    expect(isEmojiOnly('ℹ️', index)).toBe(true); // a letter to Unicode, but an emoji
+    expect(isEmojiOnly('ℹ️ i', index)).toBe(false);
     expect(isEmojiOnly('😄'.repeat(28), index)).toBe(false);
     expect(isEmojiOnly('', index)).toBe(false);
   });

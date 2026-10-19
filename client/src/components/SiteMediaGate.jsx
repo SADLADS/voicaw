@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faImage } from '@fortawesome/free-solid-svg-icons';
 import { usePrivacyPrefs } from '../utils/privacy';
 import { siteOf } from '../utils/linkPreviews';
@@ -25,7 +25,7 @@ export default function SiteMediaGate({ url, style, compact = false, children })
   if (compact) {
     return (
       <button type="button" className="embed-thumbnail link-media-show" onClick={show} aria-label={t('media.links.showPicture', { site: siteOf(url) })} title={label}>
-        <FontAwesomeIcon icon={faImage} />
+        <Icon icon={faImage} />
       </button>
     );
   }

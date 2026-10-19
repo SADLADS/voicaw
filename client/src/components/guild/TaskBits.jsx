@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faCalendar, faCheck } from '@fortawesome/free-solid-svg-icons';
 import { formatDate, useDateFormat } from '../../utils/dateFormat';
 import { dueDateValue, dueStatus } from '../../utils/taskTree';
@@ -17,7 +17,7 @@ export function DueChip({ task }) {
     : status === 'today' ? t('guilds.tasks.due.todayOn', { date }) : t('guilds.tasks.due.dueOn', { date });
   return (
     <span className={`task-due${status ? ` ${status}` : ''}`} title={title}>
-      <FontAwesomeIcon icon={faCalendar} />
+      <Icon icon={faCalendar} />
       {status === 'today' ? t('guilds.tasks.due.today') : date}
     </span>
   );
@@ -48,7 +48,7 @@ export function TaskCheck({ task, disabled, onToggle }) {
       }}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      {done && <FontAwesomeIcon icon={faCheck} />}
+      {done && <Icon icon={faCheck} />}
     </button>
   );
 }

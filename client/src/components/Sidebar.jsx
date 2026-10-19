@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faComments, faPlus, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import GuildIcon from './guild/GuildIcon';
 import Avatar from './Avatar';
@@ -94,7 +94,7 @@ export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guild
           </NavLink>
         ) : (
           <NavLink to="/dm" className="nav-icon" onClick={stayIfIn(isActivePath('/dm'))} aria-label={t('app.sidebar.directMessages')} title={t('app.sidebar.directMessages')}>
-            <FontAwesomeIcon icon={faComments} />
+            <Icon icon={faComments} />
           </NavLink>
         )}
       </div>
@@ -128,7 +128,7 @@ export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guild
                   className={`rail-voice-badge${inVoice === 'self' ? ' self' : ''}${guildMentions[guild.id] > 0 ? ' above' : ''}`}
                   aria-label={t(inVoice === 'self' ? 'app.sidebar.inVoice' : 'app.sidebar.othersInVoice')}
                 >
-                  <FontAwesomeIcon icon={faVolumeHigh} />
+                  <Icon icon={faVolumeHigh} />
                 </span>
               )}
               {guildMentions[guild.id] > 0 && (
@@ -143,7 +143,7 @@ export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guild
 
       <div className="nav-item">
         <button type="button" className="nav-icon rail-add" aria-label={t('app.sidebar.addGuild')} title={t('app.sidebar.addGuild')} onClick={() => setAdding(true)}>
-          <FontAwesomeIcon icon={faPlus} />
+          <Icon icon={faPlus} />
         </button>
       </div>
 

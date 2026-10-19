@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faClapperboard, faGripVertical, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { useDragReorder } from '../../hooks/useDragReorder';
 import {
@@ -132,7 +132,7 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
           <div className="watch-party-slot" ref={setPlayerSlot} />
         ) : (
           <div className="watch-party-empty">
-            <FontAwesomeIcon icon={faClapperboard} size="2x" />
+            <Icon icon={faClapperboard} size="2x" />
             <p>{canQueue ? t('voice.watchParty.emptyCanAdd') : t('voice.watchParty.emptyCantAdd')}</p>
           </div>
         )}
@@ -141,7 +141,7 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
             <h2>{t('voice.watchParty.title')}</h2>
             {!party?.current && onClose && (
               <button type="button" className="watch-party-icon-button" aria-label={t('voice.watchParty.closePanel')} title={t('voice.watchParty.closePanel')} onClick={onClose}>
-                <FontAwesomeIcon icon={faXmark} fixedWidth />
+                <Icon icon={faXmark} fixedWidth />
               </button>
             )}
           </div>
@@ -197,7 +197,7 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
                         style={dragged ? { transform: `translateY(${drag.dy}px)` } : undefined}
                         {...(canManage ? itemProps(item.id) : {})}
                       >
-                        {canManage && <FontAwesomeIcon icon={faGripVertical} className="watch-party-grip" aria-hidden="true" />}
+                        {canManage && <Icon icon={faGripVertical} className="watch-party-grip" aria-hidden="true" />}
                         <span className="watch-party-item-text">
                           <span className="watch-party-item-title">{item.title ?? t('voice.watchParty.untitled')}</span>
                           <span className="watch-party-item-meta">
@@ -213,7 +213,7 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={() => remove(item)}
                           >
-                            <FontAwesomeIcon icon={faXmark} fixedWidth />
+                            <Icon icon={faXmark} fixedWidth />
                           </button>
                         )}
                       </li>

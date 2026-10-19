@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faCrown, faImage, faPen, faRightFromBracket, faUserMinus, faUserPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/guilds.css';
 import '../../assets/css/groups.css';
@@ -124,7 +124,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
         <span>{t('groups.members.header', { count: memberIds.length })}</span>
         {onClose && (
           <button type="button" className="guild-sidebar-icon-button" aria-label={t('common.close')} onClick={onClose}>
-            <FontAwesomeIcon icon={faXmark} />
+            <Icon icon={faXmark} />
           </button>
         )}
       </div>
@@ -139,7 +139,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
                   <StatusIcon status={status} title={status === 'offline' ? lastSeenText(lastOnline) ?? statusLabel(status) : undefined} />
                 </span>
                 <span className="group-member-name">{id === user.id ? t('groups.members.you', { name: names.get(id) ?? t('groups.members.someone') }) : (names.get(id) ?? t('groups.members.someone'))}</span>
-                {id === log.ownerId && <FontAwesomeIcon icon={faCrown} className="group-owner-crown" title={t('groups.members.owner')} aria-label={t('groups.members.owner')} />}
+                {id === log.ownerId && <Icon icon={faCrown} className="group-owner-crown" title={t('groups.members.owner')} aria-label={t('groups.members.owner')} />}
               </button>
               {isOwner && id !== user.id && (
                 <button
@@ -149,7 +149,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
                   title={t('groups.members.removeFromGroup')}
                   onClick={() => setDialog({ type: 'remove', id })}
                 >
-                  <FontAwesomeIcon icon={faUserMinus} />
+                  <Icon icon={faUserMinus} />
                 </button>
               )}
             </li>
@@ -164,16 +164,16 @@ export default function GroupMembers({ group, user, users, onClose }) {
       )}
       <div className="group-members-actions">
         <button type="button" className="group-action" onClick={() => setDialog({ type: 'add' })} disabled={room <= 0}>
-          <FontAwesomeIcon icon={faUserPlus} /> {t('groups.members.addPeople')}
+          <Icon icon={faUserPlus} /> {t('groups.members.addPeople')}
         </button>
         <button type="button" className="group-action" onClick={() => { setName(group.name?.name ?? ''); setDialog({ type: 'rename' }); }}>
-          <FontAwesomeIcon icon={faPen} /> {t('groups.members.rename')}
+          <Icon icon={faPen} /> {t('groups.members.rename')}
         </button>
         <button type="button" className="group-action" onClick={() => setDialog({ type: 'picture' })}>
-          <FontAwesomeIcon icon={faImage} /> {t('groups.members.changePicture')}
+          <Icon icon={faImage} /> {t('groups.members.changePicture')}
         </button>
         <button type="button" className="group-action danger" onClick={() => setDialog({ type: 'leave' })}>
-          <FontAwesomeIcon icon={faRightFromBracket} /> {t('groups.members.leave')}
+          <Icon icon={faRightFromBracket} /> {t('groups.members.leave')}
         </button>
       </div>
 
@@ -237,7 +237,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
           <div className="group-picture-edit">
             {shownPicture
               ? <img src={shownPicture} alt="" className="group-picture-preview" />
-              : <span className="group-picture-preview group-picture-empty"><FontAwesomeIcon icon={faImage} /></span>}
+              : <span className="group-picture-preview group-picture-empty"><Icon icon={faImage} /></span>}
             <div className="group-picture-buttons">
               <button type="button" className="btn btn-sm btn-secondary" onClick={() => fileInput.current?.click()} disabled={busy}>
                 {t('groups.members.uploadPicture')}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faRobot } from '@fortawesome/free-solid-svg-icons';
 import Avatar from './Avatar';
 import { unblockUser, unblockWebhook, useBlocked, useBlockedWebhooks } from '../utils/blocks';
@@ -31,7 +31,7 @@ export default function BlockedUsers() {
           ))}
           {webhooks.map((hook) => (
             <li key={`webhook-${hook.id}`}>
-              <span className="blocked-user-avatar blocked-webhook-icon"><FontAwesomeIcon icon={faRobot} /></span>
+              <span className="blocked-user-avatar blocked-webhook-icon"><Icon icon={faRobot} /></span>
               <span className="blocked-user-name">
                 {hook.name}
                 <span className="blocked-webhook-place vc-hint">

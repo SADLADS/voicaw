@@ -1,5 +1,5 @@
 import React, { memo, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faArrowUpRightFromSquare, faCheck, faChevronDown, faHashtag, faVolumeHigh, faAt, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { ReactionEmoji } from './MessageReactions';
 import Avatar from './Avatar';
@@ -27,8 +27,8 @@ function ComponentEmoji({ emoji }) {
 
 function ChoiceIcon({ choice }) {
   if (choice.kind === 'user') return <Avatar userId={Number(choice.value)} alt="" className="bot-select-avatar" />;
-  if (choice.kind === 'role') return <FontAwesomeIcon icon={faAt} className="bot-select-icon" style={choice.color ? { color: choice.color } : undefined} />;
-  if (choice.kind === 'channel') return <FontAwesomeIcon icon={choice.channelType === 'voice' ? faVolumeHigh : faHashtag} className="bot-select-icon" />;
+  if (choice.kind === 'role') return <Icon icon={faAt} className="bot-select-icon" style={choice.color ? { color: choice.color } : undefined} />;
+  if (choice.kind === 'channel') return <Icon icon={choice.channelType === 'voice' ? faVolumeHigh : faHashtag} className="bot-select-icon" />;
   if (choice.emoji) return <ComponentEmoji emoji={choice.emoji} />;
   return null;
 }
@@ -37,9 +37,9 @@ function BotButton({ component, busy, disabled, onClick }) {
   const style = buttonClass(component.style);
   const content = (
     <>
-      {busy ? <FontAwesomeIcon icon={faSpinner} spin className="bot-component-emoji" /> : <ComponentEmoji emoji={component.emoji} />}
+      {busy ? <Icon icon={faSpinner} spin className="bot-component-emoji" /> : <ComponentEmoji emoji={component.emoji} />}
       {component.label && <span className="bot-button-label">{component.label}</span>}
-      {component.style === LINK_STYLE && <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="bot-button-link-icon" />}
+      {component.style === LINK_STYLE && <Icon icon={faArrowUpRightFromSquare} className="bot-button-link-icon" />}
     </>
   );
   if (component.style === LINK_STYLE) {
@@ -111,7 +111,7 @@ function BotSelect({ component, choices, busy, disabled, onChoose }) {
         onClick={() => setOpen((o) => !o)}
       >
         <span className="bot-select-summary">{summary}</span>
-        {busy ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faChevronDown} />}
+        {busy ? <Icon icon={faSpinner} spin /> : <Icon icon={faChevronDown} />}
       </button>
       {open && (
         <div className="bot-select-menu">
@@ -127,7 +127,7 @@ function BotSelect({ component, choices, busy, disabled, onChoose }) {
                       <span className="bot-select-label">{choice.label}</span>
                       {choice.description && <span className="bot-select-description">{choice.description}</span>}
                     </span>
-                    {selected && <FontAwesomeIcon icon={faCheck} className="bot-select-check" />}
+                    {selected && <Icon icon={faCheck} className="bot-select-check" />}
                   </button>
                 </li>
               );

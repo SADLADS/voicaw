@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { InteractionContext } from '../contexts';
 import { showList } from '../utils/mobilePanes';
@@ -13,7 +13,7 @@ export default function PaneBackButton() {
   if (!isMobile) return null;
   return (
     <button type="button" className="pane-back-button" aria-label={t('common.back')} title={t('common.back')} onClick={showList}>
-      <FontAwesomeIcon icon={faArrowLeft} />
+      <Icon icon={faArrowLeft} />
     </button>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faThumbtack, faXmark } from '@fortawesome/free-solid-svg-icons';
 import Avatar from './Avatar';
 import defaultAvatar from '../assets/images/default.png';
@@ -82,10 +82,10 @@ export default function PinnedMessages({
   return createPortal(
     <div className={`pins-panel${isMobile ? ' mobile' : ''}`} style={style} role="dialog" aria-label={t('chat.pins.title')}>
       <div className="pins-panel-header">
-        <FontAwesomeIcon icon={faThumbtack} />
+        <Icon icon={faThumbtack} />
         <h5>{t('chat.pins.heading')}</h5>
         <button type="button" className="icon-button pins-panel-close" aria-label={t('common.close')} onClick={onClose}>
-          <FontAwesomeIcon icon={faXmark} />
+          <Icon icon={faXmark} />
         </button>
       </div>
       <div className="pins-panel-list">
@@ -114,7 +114,7 @@ export default function PinnedMessages({
                   <button type="button" className="btn btn-sm pinned-message-jump" onClick={() => onJump(msg)}>{t('chat.pins.jump')}</button>
                   {canPin && (
                     <button type="button" className="icon-button" aria-label={t('common.unpin')} title={t('common.unpin')} onClick={() => unpin(msg)}>
-                      <FontAwesomeIcon icon={faXmark} />
+                      <Icon icon={faXmark} />
                     </button>
                   )}
                 </span>

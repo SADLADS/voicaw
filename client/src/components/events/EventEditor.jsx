@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faFaceSmile, faImage, faLocationDot, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/events.css';
 import Modal from '../guild/Modal';
@@ -322,7 +322,7 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
             <legend className="event-visually-hidden">{t('events.editor.whereQuestion')}</legend>
             <label className={`event-place-option${entityType === 'voice' ? ' selected' : ''}${voiceChannels.length ? '' : ' disabled'}`}>
               <input type="radio" name="event-place" value="voice" checked={entityType === 'voice'} disabled={!voiceChannels.length} onChange={() => setEntityType('voice')} />
-              <FontAwesomeIcon icon={faVolumeHigh} />
+              <Icon icon={faVolumeHigh} />
               <span>
                 <strong>{t('events.editor.voice')}</strong>
                 <span className="vc-hint">{voiceChannels.length ? t('events.editor.voiceHint') : t('events.editor.noVoiceChannels')}</span>
@@ -330,7 +330,7 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
             </label>
             <label className={`event-place-option${entityType === 'external' ? ' selected' : ''}${canExternal ? '' : ' disabled'}`}>
               <input type="radio" name="event-place" value="external" checked={entityType === 'external'} disabled={!canExternal} onChange={() => setEntityType('external')} />
-              <FontAwesomeIcon icon={faLocationDot} />
+              <Icon icon={faLocationDot} />
               <span>
                 <strong>{t('events.editor.external')}</strong>
                 <span className="vc-hint">{t('events.editor.externalHint')}</span>
@@ -424,7 +424,7 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
             </div>
           ) : (
             <button type="button" className="btn btn-secondary btn-sm event-editor-add-cover" onClick={() => fileRef.current?.click()} disabled={uploading > 0}>
-              <FontAwesomeIcon icon={faImage} /> {uploading ? t('events.editor.uploading') : t('events.editor.addCover')}
+              <Icon icon={faImage} /> {uploading ? t('events.editor.uploading') : t('events.editor.addCover')}
             </button>
           )}
           <span className="event-editor-label">{t('events.editor.emoji')}</span>
@@ -437,7 +437,7 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => togglePicker(e.currentTarget)}
             >
-              {emoji ? <EventEmoji emoji={emoji} /> : <FontAwesomeIcon icon={faFaceSmile} />}
+              {emoji ? <EventEmoji emoji={emoji} /> : <Icon icon={faFaceSmile} />}
               {' '}{emoji ? t('events.editor.changeEmoji') : t('events.editor.addEmoji')}
             </button>
             {emoji && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEmoji(null)}>{t('events.editor.removeEmoji')}</button>}

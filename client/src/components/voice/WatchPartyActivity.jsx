@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faChevronDown, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { formatClock, useWatchPartyLog } from '../../voice/watchParty';
 import { formatTime, useDateFormat } from '../../utils/dateFormat';
@@ -32,7 +32,7 @@ export default function WatchPartyActivity({ channelId }) {
   return (
     <div className={`watch-party-activity${open ? ' open' : ''}`}>
       <button type="button" className="watch-party-activity-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <FontAwesomeIcon icon={open ? faChevronDown : faChevronRight} fixedWidth />
+        <Icon icon={open ? faChevronDown : faChevronRight} fixedWidth />
         <span className="watch-party-label">{t('voice.watchParty.activity.title', { count: entries.length })}</span>
         {!open && <span className="watch-party-activity-latest">{describe(newest[0])}</span>}
       </button>

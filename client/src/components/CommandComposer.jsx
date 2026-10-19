@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faXmark } from '@fortawesome/free-solid-svg-icons';
 import Avatar from './Avatar';
 import { runCommand, handleInteractionResult } from '../services/interactionService';
@@ -195,7 +195,7 @@ export default function CommandComposer({ entry, channelId, people, roleInfo, ch
         <strong className="command-composer-name">/{entry.name}</strong>
         <span className="command-composer-bot">{displayName(entry.command.bot?.id, entry.command.bot?.name)}</span>
         <button type="button" className="reply-close command-composer-close" aria-label={t('commands.mode.leave')} onClick={onClose}>
-          <FontAwesomeIcon icon={faXmark} />
+          <Icon icon={faXmark} />
         </button>
       </div>
       {entry.description && <div className="command-composer-description">{entry.description}</div>}

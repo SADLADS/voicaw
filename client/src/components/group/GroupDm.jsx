@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faPhone, faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/dms.css';
 import '../../assets/css/voice.css';
@@ -96,7 +96,7 @@ export default function GroupDm({ user }) {
             disabled={Boolean(call) || problems.length > 0}
             onClick={() => startGroupCall(groupId)}
           >
-            <FontAwesomeIcon icon={faPhone} />
+            <Icon icon={faPhone} />
           </button>
         )}
         {group && (
@@ -108,7 +108,7 @@ export default function GroupDm({ user }) {
             title={t('groups.dm.pinnedMessages')}
             onClick={togglePins}
           >
-            <FontAwesomeIcon icon={faThumbtack} />
+            <Icon icon={faThumbtack} />
           </button>
         )}
         <button
@@ -118,7 +118,7 @@ export default function GroupDm({ user }) {
           aria-pressed={showMembers}
           onClick={toggleMembers}
         >
-          <FontAwesomeIcon icon={faUsers} />
+          <Icon icon={faUsers} />
         </button>
         {group && (
           <ChatSearch

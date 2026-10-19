@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faChevronDown, faChevronRight, faCopy, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { createWebhook, deleteWebhook, fetchChannelWebhooks, updateWebhook } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
@@ -105,7 +105,7 @@ function WebhookRow({ hook, open, onToggle, onChanged, onDeleted }) {
               : t('guildAdmin.webhooks.created', { date: formatDate(hook.created_at * 1000) })}
           </span>
         </span>
-        <FontAwesomeIcon icon={open ? faChevronDown : faChevronRight} className="webhook-chevron" />
+        <Icon icon={open ? faChevronDown : faChevronRight} className="webhook-chevron" />
       </button>
       {open && (
         <div className="webhook-editor">
@@ -142,7 +142,7 @@ function WebhookRow({ hook, open, onToggle, onChanged, onDeleted }) {
           {error && <p className="error-msg" role="alert">{error}</p>}
           <div className="webhook-actions">
             <button type="button" className="btn btn-secondary btn-sm" onClick={copy}>
-              <FontAwesomeIcon icon={faCopy} /> {copied ? t('guildAdmin.webhooks.copied') : t('guildAdmin.webhooks.copyUrl')}
+              <Icon icon={faCopy} /> {copied ? t('guildAdmin.webhooks.copied') : t('guildAdmin.webhooks.copyUrl')}
             </button>
             {confirmingDelete ? (
               <>
@@ -207,7 +207,7 @@ export default function ChannelWebhooks({ channel }) {
       <p className="vc-hint">{t('guildAdmin.webhooks.intro', { name: channel.name })}</p>
       <div className="vc-form-row">
         <button type="button" className="btn btn-primary btn-sm vc-button" disabled={busy} onClick={create}>
-          <FontAwesomeIcon icon={faPlus} /> {t('guildAdmin.webhooks.new')}
+          <Icon icon={faPlus} /> {t('guildAdmin.webhooks.new')}
         </button>
       </div>
       {error && <p className="error-msg" role="alert">{error}</p>}

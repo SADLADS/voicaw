@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import {
   faBan, faBell, faCalendarXmark, faCheck, faChevronLeft, faEllipsis, faLink, faPen, faPlay, faStop, faClock,
 } from '@fortawesome/free-solid-svg-icons';
@@ -38,12 +38,12 @@ function EventButtons({ event, manages, busy, onInterest, onStart, onEnd, onMore
     <>
       {manages && event.status === 'scheduled' && (
         <button type="button" className="btn btn-success btn-sm" onClick={onStart} disabled={busy}>
-          <FontAwesomeIcon icon={faPlay} /> {t('events.actions.start')}
+          <Icon icon={faPlay} /> {t('events.actions.start')}
         </button>
       )}
       {manages && event.status === 'active' && (
         <button type="button" className="btn btn-danger btn-sm" onClick={onEnd} disabled={busy}>
-          <FontAwesomeIcon icon={faStop} /> {t('events.actions.end')}
+          <Icon icon={faStop} /> {t('events.actions.end')}
         </button>
       )}
       <button
@@ -52,10 +52,10 @@ function EventButtons({ event, manages, busy, onInterest, onStart, onEnd, onMore
         aria-pressed={Boolean(event.interested)}
         onClick={onInterest}
       >
-        <FontAwesomeIcon icon={event.interested ? faCheck : faBell} /> {t('events.actions.interested')}
+        <Icon icon={event.interested ? faCheck : faBell} /> {t('events.actions.interested')}
       </button>
       <button type="button" className="btn btn-secondary btn-sm event-more" aria-label={t('events.actions.more')} title={t('events.actions.more')} onClick={onMore}>
-        <FontAwesomeIcon icon={faEllipsis} />
+        <Icon icon={faEllipsis} />
       </button>
     </>
   );
@@ -255,7 +255,7 @@ export default function EventsDialog({
         <>
           {eventId != null && (
             <button type="button" className="btn btn-secondary btn-sm events-back" onClick={() => onOpenEvent(null)}>
-              <FontAwesomeIcon icon={faChevronLeft} /> {view.tab !== 'events' ? t('events.dialog.backToCalendar') : t('events.dialog.allEvents')}
+              <Icon icon={faChevronLeft} /> {view.tab !== 'events' ? t('events.dialog.backToCalendar') : t('events.dialog.allEvents')}
             </button>
           )}
           {eventId == null && view.tab === 'events' && mayCreate && (

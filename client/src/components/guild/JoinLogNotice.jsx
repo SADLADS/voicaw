@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faArrowRight, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { Trans } from 'react-i18next';
 import { displayName, useProfiles } from '../../utils/profiles';
@@ -14,7 +14,7 @@ export default function JoinLogNotice({ msg, onOpenProfile }) {
   const open = (e) => onOpenProfile?.({ id: msg.sender_id, username: msg.sender_username }, e.currentTarget.getBoundingClientRect());
   return (
     <div className={`join-log${joined ? '' : ' left'}`} data-msg-id={msg.id}>
-      <FontAwesomeIcon icon={joined ? faArrowRight : faArrowLeft} className="join-log-icon" />
+      <Icon icon={joined ? faArrowRight : faArrowLeft} className="join-log-icon" />
       <span>
         <Trans
           i18nKey={joined ? 'guilds.joinLog.joined' : 'guilds.joinLog.left'}

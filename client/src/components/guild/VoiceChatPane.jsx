@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faArrowLeft, faMessage, faXmark } from '@fortawesome/free-solid-svg-icons';
 import ChatPane from '../ChatPane';
 import { ThreadContext } from '../../contexts';
@@ -18,17 +18,17 @@ export default function VoiceChatPane({ channel, conversation, isMobile, chatPro
       <header className="thread-pane-header">
         {isMobile && (
           <button type="button" className="icon-button" aria-label={t('guilds.voiceChat.back', { name: channel.name })} onClick={onClose}>
-            <FontAwesomeIcon icon={faArrowLeft} />
+            <Icon icon={faArrowLeft} />
           </button>
         )}
-        <FontAwesomeIcon icon={faMessage} className="thread-pane-icon" />
+        <Icon icon={faMessage} className="thread-pane-icon" />
         <div className="thread-pane-title">
           <h5>{channel.name}</h5>
           <small>{t('guilds.voiceChat.subtitle')}</small>
         </div>
         {!isMobile && (
           <button type="button" className="icon-button" aria-label={t('guilds.voiceChat.close')} title={t('common.close')} onClick={onClose}>
-            <FontAwesomeIcon icon={faXmark} />
+            <Icon icon={faXmark} />
           </button>
         )}
       </header>

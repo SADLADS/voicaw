@@ -54,6 +54,23 @@ describe('useLongPress', () => {
     expect(onLongPress).toHaveBeenCalledTimes(1);
   });
 
+  it('is cancelled by the page scrolling, even without touchmoves (the browser holds them back)', () => {
+    const onLongPress = vi.fn();
+    render(<Target onLongPress={onLongPress} />);
+    const el = screen.getByText('hold me');
+
+    fireEvent.touchStart(el, touch());
+    act(() => vi.advanceTimersByTime(200));
+    fireEvent.scroll(document.body);
+    act(() => vi.advanceTimersByTime(1000));
+    expect(onLongPress).not.toHaveBeenCalled();
+
+    // Scrolling after it was cancelled doesn't stop the next hold.
+    fireEvent.touchStart(el, touch());
+    act(() => vi.advanceTimersByTime(500));
+    expect(onLongPress).toHaveBeenCalledTimes(1);
+  });
+
   it('suppresses the browser menu, and does nothing when disabled', () => {
     const onLongPress = vi.fn();
     const { rerender } = render(<Target onLongPress={onLongPress} />);

@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faBell, faBellSlash, faComments, faMessage, faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/dms.css';
 import '../../assets/css/guilds.css';
@@ -399,7 +399,7 @@ export default function GuildView({ user }) {
               title={voiceChatOpen ? t('guilds.voiceChat.hide') : t('guilds.voiceChat.show')}
               onClick={() => setVoiceChat(!voiceChatOpen)}
             >
-              <FontAwesomeIcon icon={faMessage} />
+              <Icon icon={faMessage} />
             </button>
           )}
           {channel && (
@@ -418,7 +418,7 @@ export default function GuildView({ user }) {
                 setMuteAnchor((open) => (open ? null : rect));
               }}
             >
-              <FontAwesomeIcon icon={muted ? faBellSlash : faBell} />
+              <Icon icon={muted ? faBellSlash : faBell} />
             </button>
           )}
           {muteAnchor && channel && <ChannelMuteMenu channel={channel} anchor={muteAnchor} align="end" onClose={closeMute} />}
@@ -431,7 +431,7 @@ export default function GuildView({ user }) {
               title={t('guilds.view.pinnedMessages')}
               onClick={togglePins}
             >
-              <FontAwesomeIcon icon={faThumbtack} />
+              <Icon icon={faThumbtack} />
             </button>
           )}
           {textChannelId && (
@@ -446,7 +446,7 @@ export default function GuildView({ user }) {
                 setThreadsAnchor((open) => (open ? null : rect));
               }}
             >
-              <FontAwesomeIcon icon={faComments} />
+              <Icon icon={faComments} />
             </button>
           )}
           {!isList && (
@@ -458,7 +458,7 @@ export default function GuildView({ user }) {
             title={membersVisible ? t('guilds.view.hideMembers') : t('guilds.view.showMembers')}
             onClick={toggleMembers}
           >
-            <FontAwesomeIcon icon={faUsers} />
+            <Icon icon={faUsers} />
           </button>
           )}
           <GuildSearch

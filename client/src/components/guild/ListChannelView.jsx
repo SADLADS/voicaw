@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import {
   faChevronDown, faChevronRight, faGripVertical, faListCheck, faMessage, faPlus,
 } from '@fortawesome/free-solid-svg-icons';
@@ -246,7 +246,7 @@ export default function ListChannelView({ guild, channel, user, people, reaction
               }
             }}
           >
-            {canEdit && !isMobile && <FontAwesomeIcon icon={faGripVertical} className="task-grip" aria-hidden="true" />}
+            {canEdit && !isMobile && <Icon icon={faGripVertical} className="task-grip" aria-hidden="true" />}
             {hasChildren ? (
               <button
                 type="button"
@@ -258,7 +258,7 @@ export default function ListChannelView({ guild, channel, user, people, reaction
                   toggleCollapsed(node.id);
                 }}
               >
-                <FontAwesomeIcon icon={expanded ? faChevronDown : faChevronRight} />
+                <Icon icon={expanded ? faChevronDown : faChevronRight} />
               </button>
             ) : <span className="task-caret-space" />}
             <TaskCheck task={node} disabled={!canEdit} onToggle={() => toggleDone(node)} />
@@ -266,12 +266,12 @@ export default function ListChannelView({ guild, channel, user, people, reaction
             <span className="task-meta">
               {progress.total > 0 && (
                 <span className={`task-progress${progress.done === progress.total ? ' complete' : ''}`} title={t('guilds.tasks.subtasksDone')}>
-                  <FontAwesomeIcon icon={faListCheck} /> {progress.done}/{progress.total}
+                  <Icon icon={faListCheck} /> {progress.done}/{progress.total}
                 </span>
               )}
               {node.comment_count > 0 && (
                 <span className="task-comment-count" title={t('guilds.tasks.commentCount', { count: node.comment_count })}>
-                  <FontAwesomeIcon icon={faMessage} /> {node.comment_count}
+                  <Icon icon={faMessage} /> {node.comment_count}
                 </span>
               )}
               <DueChip task={node} />
@@ -289,7 +289,7 @@ export default function ListChannelView({ guild, channel, user, people, reaction
                   setAddingUnder(node.id);
                 }}
               >
-                <FontAwesomeIcon icon={faPlus} />
+                <Icon icon={faPlus} />
               </button>
             )}
           </div>
@@ -346,7 +346,7 @@ export default function ListChannelView({ guild, channel, user, people, reaction
         </div>
         {canEdit && (
           <form className="task-add" onSubmit={addTop}>
-            <FontAwesomeIcon icon={faPlus} className="task-add-icon" />
+            <Icon icon={faPlus} className="task-add-icon" />
             <input
               className="form-control"
               placeholder={t('guilds.tasks.addTask')}

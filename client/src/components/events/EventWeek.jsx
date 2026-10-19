@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import EventEmoji from './EventEmoji';
 import { addDays, dayKey, isPastDay, startAtHour, weekAllDay, weekBlocks, weekDays } from '../../utils/eventCalendar';
@@ -77,10 +77,10 @@ export default function EventWeek({ guild, events, day, onDay, onOpenEvent, onCr
           {t('events.calendar.today')}
         </button>
         <button type="button" className="event-calendar-nav" aria-label={t('events.week.previous')} title={t('events.week.previous')} onClick={() => onDay(addDays(day, -7))}>
-          <FontAwesomeIcon icon={faChevronLeft} />
+          <Icon icon={faChevronLeft} />
         </button>
         <button type="button" className="event-calendar-nav" aria-label={t('events.week.next')} title={t('events.week.next')} onClick={() => onDay(addDays(day, 7))}>
-          <FontAwesomeIcon icon={faChevronRight} />
+          <Icon icon={faChevronRight} />
         </button>
       </div>
 

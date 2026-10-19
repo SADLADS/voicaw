@@ -1,6 +1,6 @@
 import React, { forwardRef, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import {
   faMagnifyingGlassMinus,
   faMagnifyingGlassPlus,
@@ -398,7 +398,7 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
             title={t('media.viewer.zoomOutTitle')}
             aria-label={t('media.viewer.zoomOut')}
           >
-            <FontAwesomeIcon icon={faMagnifyingGlassMinus} />
+            <Icon icon={faMagnifyingGlassMinus} />
           </button>
           <button
             type="button"
@@ -416,7 +416,7 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
             title={t('media.viewer.zoomInTitle')}
             aria-label={t('media.viewer.zoomIn')}
           >
-            <FontAwesomeIcon icon={faMagnifyingGlassPlus} />
+            <Icon icon={faMagnifyingGlassPlus} />
           </button>
           <button
             type="button"
@@ -425,7 +425,7 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
             title={t('common.save')}
             aria-label={t('common.save')}
           >
-            <FontAwesomeIcon icon={faDownload} />
+            <Icon icon={faDownload} />
           </button>
           <button
             type="button"
@@ -434,7 +434,7 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
             title={t('media.viewer.openInNewTab')}
             aria-label={t('media.viewer.openInNewTab')}
           >
-            <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
+            <Icon icon={faArrowUpRightFromSquare} />
           </button>
           <button
             type="button"
@@ -443,7 +443,7 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
             title={t('media.viewer.closeTitle')}
             aria-label={t('common.close')}
           >
-            <FontAwesomeIcon icon={faXmark} />
+            <Icon icon={faXmark} />
           </button>
         </div>
       </div>
@@ -468,7 +468,7 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
               title={t('media.viewer.previousTitle')}
               aria-label={t('media.viewer.previous')}
             >
-              <FontAwesomeIcon icon={faChevronLeft} />
+              <Icon icon={faChevronLeft} />
             </button>
             <button
               type="button"
@@ -478,7 +478,7 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
               title={t('media.viewer.nextTitle')}
               aria-label={t('media.viewer.next')}
             >
-              <FontAwesomeIcon icon={faChevronRight} />
+              <Icon icon={faChevronRight} />
             </button>
           </>
         )}

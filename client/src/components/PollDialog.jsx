@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faFaceSmile } from '@fortawesome/free-solid-svg-icons';
 import Modal from './guild/Modal';
 import EmojiPicker from './EmojiPicker';
@@ -140,7 +140,7 @@ export default function PollDialog({ poll, addedAnswers = 0, onSubmit, onClose }
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => togglePicker(o.key, e.currentTarget)}
                 >
-                  {o.emoji ? <ReactionEmoji native={o.emoji} /> : <FontAwesomeIcon icon={faFaceSmile} />}
+                  {o.emoji ? <ReactionEmoji native={o.emoji} /> : <Icon icon={faFaceSmile} />}
                 </button>
                 {o.emoji && (
                   <button

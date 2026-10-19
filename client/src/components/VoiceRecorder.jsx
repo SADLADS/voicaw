@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import {
   faChevronLeft, faChevronUp, faLock, faMicrophone, faPaperPlane, faStop, faTrash,
 } from '@fortawesome/free-solid-svg-icons';
@@ -77,8 +77,8 @@ export function MicButton({ voice, onDrag }) {
     <span className="voice-mic-wrapper">
       {holding && (
         <span className="voice-lock" style={{ transform: `translateY(${Math.round(dy / 2)}px)` }} aria-hidden="true">
-          <FontAwesomeIcon icon={faLock} />
-          <FontAwesomeIcon icon={faChevronUp} className="voice-lock-arrow" />
+          <Icon icon={faLock} />
+          <Icon icon={faChevronUp} className="voice-lock-arrow" />
         </span>
       )}
       {hint && <span className="voice-hint" role="status">{t('media.voice.holdHint')}</span>}
@@ -97,7 +97,7 @@ export function MicButton({ voice, onDrag }) {
           if (e.detail === 0 && !voice.active) voice.start({ locked: true });
         }}
       >
-        <FontAwesomeIcon icon={faMicrophone} />
+        <Icon icon={faMicrophone} />
       </button>
     </span>
   );
@@ -150,7 +150,7 @@ export default function VoiceRecorderBar({ voice, dragX = 0 }) {
           className="voice-slide-cancel"
           style={{ transform: `translateX(${Math.round(dragX)}px)`, opacity: Math.max(0.2, 1 + dragX / CANCEL_PX) }}
         >
-          <FontAwesomeIcon icon={faChevronLeft} /> {t('media.voice.slideToCancel')}
+          <Icon icon={faChevronLeft} /> {t('media.voice.slideToCancel')}
         </span>
       </div>
     );
@@ -165,7 +165,7 @@ export default function VoiceRecorderBar({ voice, dragX = 0 }) {
         aria-label={t('media.voice.delete')}
         title={t('media.voice.delete')}
       >
-        <FontAwesomeIcon icon={faTrash} />
+        <Icon icon={faTrash} />
       </button>
       {phase === 'review' && take ? (
         <VoiceMessage src={take.url} duration={take.duration} waveform={take.waveform} name={take.file.name} />
@@ -185,7 +185,7 @@ export default function VoiceRecorderBar({ voice, dragX = 0 }) {
             aria-label={t('media.voice.stop')}
             title={t('media.voice.stop')}
           >
-            <FontAwesomeIcon icon={faStop} />
+            <Icon icon={faStop} />
           </button>
         </>
       )}
@@ -198,7 +198,7 @@ export default function VoiceRecorderBar({ voice, dragX = 0 }) {
         aria-label={t('media.voice.send')}
         title={t('media.voice.send')}
       >
-        <FontAwesomeIcon icon={faPaperPlane} />
+        <Icon icon={faPaperPlane} />
       </button>
     </div>
   );

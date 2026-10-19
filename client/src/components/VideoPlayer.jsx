@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import {
   faPlay, faPause, faVolumeHigh, faVolumeLow, faVolumeXmark, faExpand, faCompress, faDownload,
   faFilm, faRotateRight, faTriangleExclamation,
@@ -137,7 +137,7 @@ function DownloadButton({ name, onDownload, className = '' }) {
       {busy ? (
         <span className="video-download-progress" style={{ '--progress': `${Math.round(progress * 100)}%` }} />
       ) : (
-        <FontAwesomeIcon icon={failed ? faTriangleExclamation : faDownload} />
+        <Icon icon={failed ? faTriangleExclamation : faDownload} />
       )}
     </button>
   );
@@ -379,7 +379,7 @@ export default function VideoPlayer({
       {showPoster && (
         poster
           ? <img className="video-poster" src={poster} alt="" draggable={false} />
-          : !src && <span className="video-placeholder"><FontAwesomeIcon icon={faFilm} /></span>
+          : !src && <span className="video-placeholder"><Icon icon={faFilm} /></span>
       )}
 
       <span className="video-surface" onClick={onSurfaceClick} onDoubleClick={(e) => { if (lastPointer.current === 'mouse' && started) { e.preventDefault(); toggleFullscreen(); } }} />
@@ -387,7 +387,7 @@ export default function VideoPlayer({
       {!started && !loading && !error && (
         <>
           <button type="button" className="video-big-play" onClick={() => play()} aria-label={t('media.video.playName', { name })}>
-            <FontAwesomeIcon icon={faPlay} />
+            <Icon icon={faPlay} />
           </button>
           <span className="video-badge">
             {duration > 0 && <span>{formatDuration(duration)}</span>}
@@ -408,12 +408,12 @@ export default function VideoPlayer({
 
       {error && (
         <span className="video-error" role="alert">
-          <FontAwesomeIcon icon={faTriangleExclamation} className="video-error-icon" />
+          <Icon icon={faTriangleExclamation} className="video-error-icon" />
           <span>{error === 'load' ? t('media.video.loadFailed') : t('media.video.cantPlay')}</span>
           <span className="video-error-actions">
             {error === 'load' && (
               <button type="button" className="video-error-button" onClick={() => play(true)}>
-                <FontAwesomeIcon icon={faRotateRight} /> {t('media.video.retry')}
+                <Icon icon={faRotateRight} /> {t('media.video.retry')}
               </button>
             )}
             {onDownload && (
@@ -434,7 +434,7 @@ export default function VideoPlayer({
               aria-label={paused ? t('media.video.play') : t('media.video.pause')}
               title={paused ? t('media.video.playTitle') : t('media.video.pauseTitle')}
             >
-              <FontAwesomeIcon icon={paused ? faPlay : faPause} />
+              <Icon icon={paused ? faPlay : faPause} />
             </button>
             <span className="video-volume">
               <button
@@ -444,7 +444,7 @@ export default function VideoPlayer({
                 aria-label={prefs.muted ? t('common.unmute') : t('common.mute')}
                 title={prefs.muted ? t('media.video.unmuteTitle') : t('media.video.muteTitle')}
               >
-                <FontAwesomeIcon icon={volumeIcon} />
+                <Icon icon={volumeIcon} />
               </button>
               <input
                 type="range"
@@ -470,7 +470,7 @@ export default function VideoPlayer({
               aria-label={fullscreen ? t('media.video.exitFullScreen') : t('media.video.fullScreen')}
               title={fullscreen ? t('media.video.exitFullScreenTitle') : t('media.video.fullScreenTitle')}
             >
-              <FontAwesomeIcon icon={fullscreen ? faCompress : faExpand} />
+              <Icon icon={fullscreen ? faCompress : faExpand} />
             </button>
           </span>
         </span>

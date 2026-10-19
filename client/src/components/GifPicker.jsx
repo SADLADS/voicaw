@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faStar } from '@fortawesome/free-solid-svg-icons';
 import {
   addGifFavorite,
@@ -120,7 +120,7 @@ function GifTile({ gif, favorite, onPick, onToggleFavorite, keepFocus }) {
         aria-label={favorite ? t('media.gifs.removeFavourite') : t('media.gifs.addFavourite')}
         aria-pressed={favorite}
       >
-        <FontAwesomeIcon icon={faStar} />
+        <Icon icon={faStar} />
       </button>
     </div>
   );

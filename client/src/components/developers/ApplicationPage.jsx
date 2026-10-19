@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faChevronLeft, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import Avatar from '../Avatar';
 import ImageCropper from '../ImageCropper';
@@ -60,7 +60,7 @@ export default function ApplicationPage({ appId }) {
   if (error) {
     return (
       <section className="dev-section">
-        <Link to="/developers" className="dev-back"><FontAwesomeIcon icon={faChevronLeft} /> {t('developers.list.heading')}</Link>
+        <Link to="/developers" className="dev-back"><Icon icon={faChevronLeft} /> {t('developers.list.heading')}</Link>
         <p className="error-msg" role="alert">{error}</p>
       </section>
     );
@@ -69,7 +69,7 @@ export default function ApplicationPage({ appId }) {
 
   return (
     <section className="dev-section">
-      <Link to="/developers" className="dev-back"><FontAwesomeIcon icon={faChevronLeft} /> {t('developers.list.heading')}</Link>
+      <Link to="/developers" className="dev-back"><Icon icon={faChevronLeft} /> {t('developers.list.heading')}</Link>
       <div className="dev-app-header">
         <Avatar userId={app.bot.id} className="dev-app-header-avatar" />
         <h2>{displayName(app.bot.id, app.name)}</h2>
@@ -257,7 +257,7 @@ function BotTab({ app, token, onToken, onChanged }) {
       <h5 className="dev-subheading">{t('developers.bot.tokenHeading')}</h5>
       {token ? (
         <div className="dev-token-box" role="status">
-          <p><FontAwesomeIcon icon={faTriangleExclamation} /> {t('developers.bot.tokenNew')}</p>
+          <p><Icon icon={faTriangleExclamation} /> {t('developers.bot.tokenNew')}</p>
           <CopyField id="dev-bot-token" value={token} secret />
           <p className="vc-hint">{t('developers.bot.tokenWarning')}</p>
         </div>
@@ -409,7 +409,7 @@ function OAuth2Tab({ app, onChanged }) {
       <h5 className="dev-subheading">{t('developers.oauth2.secretHeading')}</h5>
       {secret ? (
         <div className="dev-token-box" role="status">
-          <p><FontAwesomeIcon icon={faTriangleExclamation} /> {t('developers.oauth2.secretNew')}</p>
+          <p><Icon icon={faTriangleExclamation} /> {t('developers.oauth2.secretNew')}</p>
           <CopyField id="dev-oauth-secret" value={secret} secret />
         </div>
       ) : (

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faArrowsRotate } from '@fortawesome/free-solid-svg-icons';
 import { applyUpdate, updateProgressText, useAppUpdate } from '../utils/appUpdate';
 import { formatBytes } from '../utils/formatBytes';
@@ -34,7 +34,7 @@ export default function UpdateBanner() {
   return (
     <div className="update-banner" role="status">
       <span className="update-banner-icon" aria-hidden="true">
-        <FontAwesomeIcon icon={faArrowsRotate} spin={updating} />
+        <Icon icon={faArrowsRotate} spin={updating} />
       </span>
       <span className="update-banner-text">
         <strong>{t('settings.updateBanner.title')}</strong>

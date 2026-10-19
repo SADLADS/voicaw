@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faComments, faCopy, faEdit, faLinkSlash, faReply, faRobot, faThumbtack, faTrash, faFlag, faClockRotateLeft, faUserGroup } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { useCustomEmoji } from '../emoji/customEmojiContext';
@@ -107,7 +107,7 @@ export default function MessageActionSheet({
           <div className="action-sheet-confirm">
             <p>{t('chat.messageMenu.confirmDelete')}</p>
             <button type="button" className="action-sheet-item danger" onClick={act(onDelete)}>
-              <FontAwesomeIcon icon={faTrash} /> {t('common.delete')}
+              <Icon icon={faTrash} /> {t('common.delete')}
             </button>
             <button type="button" className="action-sheet-item" onClick={() => setConfirmingDelete(false)}>
               {t('common.cancel')}
@@ -117,42 +117,42 @@ export default function MessageActionSheet({
           <div className="action-sheet-items">
             {sent && onViewReactions && groupReactions(msg.reactions).length > 0 && (
               <button type="button" className="action-sheet-item" onClick={act(onViewReactions)}>
-                <FontAwesomeIcon icon={faUserGroup} /> {t('chat.messageMenu.viewReactionsSheet')}
+                <Icon icon={faUserGroup} /> {t('chat.messageMenu.viewReactionsSheet')}
               </button>
             )}
             {sent && onReply && (
               <button type="button" className="action-sheet-item" onClick={act(onReply)}>
-                <FontAwesomeIcon icon={faReply} /> {t('common.reply')}
+                <Icon icon={faReply} /> {t('common.reply')}
               </button>
             )}
             {sent && isOwn && onEdit && (
               <button type="button" className="action-sheet-item" onClick={act(onEdit)}>
-                <FontAwesomeIcon icon={faEdit} /> {t('common.edit')}
+                <Icon icon={faEdit} /> {t('common.edit')}
               </button>
             )}
             {sent && onTogglePin && (
               <button type="button" className="action-sheet-item" onClick={act(onTogglePin)}>
-                <FontAwesomeIcon icon={faThumbtack} /> {msg.pinned_at ? t('chat.messageMenu.unpinSheet') : t('chat.messageMenu.pinSheet')}
+                <Icon icon={faThumbtack} /> {msg.pinned_at ? t('chat.messageMenu.unpinSheet') : t('chat.messageMenu.pinSheet')}
               </button>
             )}
             {sent && onCreateThread && (
               <button type="button" className="action-sheet-item" onClick={act(onCreateThread)}>
-                <FontAwesomeIcon icon={faComments} /> {t('chat.messageMenu.createThreadSheet')}
+                <Icon icon={faComments} /> {t('chat.messageMenu.createThreadSheet')}
               </button>
             )}
             {msg.plaintext && (
               <button type="button" className="action-sheet-item" onClick={act(onCopy)}>
-                <FontAwesomeIcon icon={faCopy} /> {t('chat.messageMenu.copyTextSheet')}
+                <Icon icon={faCopy} /> {t('chat.messageMenu.copyTextSheet')}
               </button>
             )}
             {onShowEdits && (
               <button type="button" className="action-sheet-item" onClick={act(onShowEdits)}>
-                <FontAwesomeIcon icon={faClockRotateLeft} /> {t('chat.messageMenu.editHistory')}
+                <Icon icon={faClockRotateLeft} /> {t('chat.messageMenu.editHistory')}
               </button>
             )}
             {sent && onRemovePreviews && (
               <button type="button" className="action-sheet-item" onClick={act(onRemovePreviews)}>
-                <FontAwesomeIcon icon={faLinkSlash} /> {t('chat.messageMenu.removePreviewsSheet')}
+                <Icon icon={faLinkSlash} /> {t('chat.messageMenu.removePreviewsSheet')}
               </button>
             )}
             {sent && apps.length > 0 && (
@@ -160,7 +160,7 @@ export default function MessageActionSheet({
                 <div className="action-sheet-heading">{t('commands.apps.label')}</div>
                 {apps.map((command) => (
                   <button key={command.id} type="button" className="action-sheet-item" onClick={act(() => onRunApp(command))}>
-                    <FontAwesomeIcon icon={faRobot} /> {command.name}
+                    <Icon icon={faRobot} /> {command.name}
                     <span className="action-sheet-hint">{displayName(command.bot?.id, command.bot?.name)}</span>
                   </button>
                 ))}
@@ -168,12 +168,12 @@ export default function MessageActionSheet({
             )}
             {sent && !isOwn && onReport && (
               <button type="button" className="action-sheet-item danger" onClick={act(onReport)}>
-                <FontAwesomeIcon icon={faFlag} /> {t('chat.report.menuMessage')}
+                <Icon icon={faFlag} /> {t('chat.report.menuMessage')}
               </button>
             )}
             {sent && canDelete && (
               <button type="button" className="action-sheet-item danger" onClick={() => setConfirmingDelete(true)}>
-                <FontAwesomeIcon icon={faTrash} /> {t('common.delete')}
+                <Icon icon={faTrash} /> {t('common.delete')}
               </button>
             )}
           </div>

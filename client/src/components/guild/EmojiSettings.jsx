@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faXmark } from '@fortawesome/free-solid-svg-icons';
 import { ConfigContext, LayoutContext } from '../../contexts';
 import { addGuildEmoji, deleteGuildEmoji, fetchGuildEmojis, renameGuildEmoji } from '../../services/guildService';
@@ -62,7 +62,7 @@ function EmojiRow({ guild, emoji, s3Endpoint, onError }) {
           }
         }}
       >
-        <FontAwesomeIcon icon={faXmark} />
+        <Icon icon={faXmark} />
       </button>
     </li>
   );

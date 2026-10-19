@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import '../../assets/css/voice.css';
 import { Link, useLocation } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faMessage, faPhoneSlash, faSignal, faTriangleExclamation, faVolumeHigh, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { LayoutContext } from '../../contexts';
 import { showContent } from '../../utils/mobilePanes';
@@ -37,10 +37,10 @@ export default function VoiceBar({ user }) {
     return (
       <div className="voice-bar" role="status">
         <div className="voice-bar-row">
-          <FontAwesomeIcon icon={faTriangleExclamation} className="voice-bar-warning" />
+          <Icon icon={faTriangleExclamation} className="voice-bar-warning" />
           <span className="voice-bar-message">{voice.error}</span>
           <button type="button" className="user-panel-button" aria-label={t('voice.bar.dismiss')} title={t('voice.bar.dismiss')} onClick={clearVoiceError}>
-            <FontAwesomeIcon icon={faXmark} />
+            <Icon icon={faXmark} />
           </button>
         </div>
       </div>
@@ -60,7 +60,7 @@ export default function VoiceBar({ user }) {
       <div className="voice-bar-row">
         <div className="voice-bar-text">
           <span className={`voice-bar-status ${voice.status}`}>
-            <FontAwesomeIcon icon={faSignal} /> {inCall && voice.status === 'connected' ? t('voice.bar.callConnected') : t(STATUS_TEXT[voice.status])}
+            <Icon icon={faSignal} /> {inCall && voice.status === 'connected' ? t('voice.bar.callConnected') : t(STATUS_TEXT[voice.status])}
           </span>
           {inCall && call?.groupId ? (
             <Link to={`/dm/g/${call.groupId}`} className="voice-bar-channel">{title}</Link>
@@ -78,7 +78,7 @@ export default function VoiceBar({ user }) {
             aria-label={chatOpen ? t('voice.bar.closeChat') : t('voice.bar.openChat')}
             title={chatOpen ? t('voice.bar.closeChat') : t('voice.bar.openChat')}
           >
-            <FontAwesomeIcon icon={faMessage} />
+            <Icon icon={faMessage} />
           </Link>
         )}
         <CameraButton />
@@ -90,12 +90,12 @@ export default function VoiceBar({ user }) {
           title={inCall ? t('voice.bar.hangUp') : t('voice.bar.disconnect')}
           onClick={inCall ? hangUp : leaveVoice}
         >
-          <FontAwesomeIcon icon={faPhoneSlash} />
+          <Icon icon={faPhoneSlash} />
         </button>
       </div>
       {voice.audioBlocked && (
         <button type="button" className="voice-bar-audio" onClick={resumeAudio}>
-          <FontAwesomeIcon icon={faVolumeHigh} /> {t('voice.bar.turnOnSound')}
+          <Icon icon={faVolumeHigh} /> {t('voice.bar.turnOnSound')}
         </button>
       )}
       {voice.micError && <p className="voice-bar-message voice-bar-mic-error">{voice.micError}</p>}
@@ -104,7 +104,7 @@ export default function VoiceBar({ user }) {
         <div className="voice-bar-row">
           <p className="voice-bar-message voice-bar-mic-error">{voice.streamError}</p>
           <button type="button" className="user-panel-button" aria-label={t('voice.bar.dismiss')} title={t('voice.bar.dismiss')} onClick={clearStreamError}>
-            <FontAwesomeIcon icon={faXmark} />
+            <Icon icon={faXmark} />
           </button>
         </div>
       )}
@@ -112,7 +112,7 @@ export default function VoiceBar({ user }) {
         <div className="voice-bar-row">
           <p className="voice-bar-message voice-bar-mic-error">{voice.cameraError}</p>
           <button type="button" className="user-panel-button" aria-label={t('voice.bar.dismiss')} title={t('voice.bar.dismiss')} onClick={clearCameraError}>
-            <FontAwesomeIcon icon={faXmark} />
+            <Icon icon={faXmark} />
           </button>
         </div>
       )}

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faFile, faDownload } from '@fortawesome/free-solid-svg-icons';
 import { parseAttachmentUrl } from '../services/attachmentCrypto';
 import {
@@ -41,7 +41,7 @@ function FileBox({ name, size, onDownload, status, progress = null }) {
   } else if (status === 'error') detail = t('media.attachment.downloadFailed');
   return (
     <span className="attachment-file">
-      <FontAwesomeIcon icon={faFile} className="attachment-file-icon" />
+      <Icon icon={faFile} className="attachment-file-icon" />
       <span className="attachment-file-info">
         <span className="attachment-file-name" title={name}>{name}</span>
         <span className="attachment-file-size">{detail}</span>
@@ -54,7 +54,7 @@ function FileBox({ name, size, onDownload, status, progress = null }) {
         title={t('media.attachment.download', { name })}
         aria-label={t('media.attachment.download', { name })}
       >
-        <FontAwesomeIcon icon={faDownload} />
+        <Icon icon={faDownload} />
       </button>
     </span>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from '../Icon';
 import { faCheck, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { formatClock } from '../../voice/watchParty';
 import { usePrivacyPrefs } from '../../utils/privacy';
@@ -18,7 +18,7 @@ export default function WatchPartySearchResults({ search, added, adding, playsNo
       <div className="watch-party-results-header">
         <span className="watch-party-label">{t('voice.watchParty.search.resultsFor', { query })}</span>
         <button type="button" className="watch-party-icon-button" aria-label={t('voice.watchParty.search.close')} title={t('voice.watchParty.search.close')} onClick={onClose}>
-          <FontAwesomeIcon icon={faXmark} fixedWidth />
+          <Icon icon={faXmark} fixedWidth />
         </button>
       </div>
       {results === null && <p className="watch-party-note">{t('voice.watchParty.search.searching')}</p>}
@@ -55,7 +55,7 @@ export default function WatchPartySearchResults({ search, added, adding, playsNo
                   aria-label={label}
                   onClick={() => onAdd(video)}
                 >
-                  {isAdded ? <><FontAwesomeIcon icon={faCheck} /> {t('voice.watchParty.search.added')}</> : t(playsNow ? 'voice.watchParty.play' : 'voice.watchParty.search.add')}
+                  {isAdded ? <><Icon icon={faCheck} /> {t('voice.watchParty.search.added')}</> : t(playsNow ? 'voice.watchParty.play' : 'voice.watchParty.search.add')}
                 </button>
               </li>
             );

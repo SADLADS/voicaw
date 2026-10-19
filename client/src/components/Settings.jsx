@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Icon } from './Icon';
 import { faCode, faMagnifyingGlass, faSignOutAlt, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { InteractionContext, LayoutContext } from '../contexts';
 import NotificationSettings from "./NotificationSettings";
@@ -324,7 +324,7 @@ export default function Settings({ onLogout }) {
           </button>
         )}
         <div className="settings-search">
-          <FontAwesomeIcon icon={faMagnifyingGlass} className="settings-search-icon" />
+          <Icon icon={faMagnifyingGlass} className="settings-search-icon" />
           <input
             type="search"
             placeholder={t('settings.nav.search')}
@@ -335,7 +335,7 @@ export default function Settings({ onLogout }) {
           />
           {query && (
             <button type="button" className="settings-search-clear" aria-label={t('settings.nav.clearSearch')} onClick={() => setQuery('')}>
-              <FontAwesomeIcon icon={faXmark} />
+              <Icon icon={faXmark} />
             </button>
           )}
         </div>
@@ -369,11 +369,11 @@ export default function Settings({ onLogout }) {
             <div className="settings-nav-group settings-nav-end">
               {listed.filter((p) => !p.group).map(pageButton)}
               <button type="button" className="settings-nav-item" onClick={() => navigate('/developers')}>
-                <FontAwesomeIcon icon={faCode} className="settings-nav-icon" />
+                <Icon icon={faCode} className="settings-nav-icon" />
                 {t('settings.nav.developerPortal')}
               </button>
               <button type="button" className="settings-nav-item danger" onClick={() => setConfirmLogout(true)}>
-                <FontAwesomeIcon icon={faSignOutAlt} className="settings-nav-icon" />
+                <Icon icon={faSignOutAlt} className="settings-nav-icon" />
                 {t('settings.nav.logOut')}
               </button>
             </div>

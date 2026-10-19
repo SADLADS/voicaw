@@ -80,12 +80,12 @@ export function formatDate(value, { date = settings.date } = {}) {
 // for month first (the browser's way when automatic; 2026-09-11 when that's chosen).
 export function formatLongDate(value, { date = settings.date } = {}) {
   const d = toDate(value);
-  const month = d.toLocaleDateString(userLocale(), { month: 'long' });
+  const month = formatter({ month: 'long' }).format(d);
   switch (date) {
     case 'dmy': return `${d.getDate()} ${month} ${d.getFullYear()}`;
     case 'mdy': return `${month} ${d.getDate()}, ${d.getFullYear()}`;
     case 'ymd': return formatDate(d, { date });
-    default: return d.toLocaleDateString(userLocale(), { day: 'numeric', month: 'long', year: 'numeric' });
+    default: return formatter({ day: 'numeric', month: 'long', year: 'numeric' }).format(d);
   }
 }
 
