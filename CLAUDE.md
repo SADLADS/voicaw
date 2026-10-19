@@ -25,7 +25,7 @@ Each feature is worked on in its own chat, on its own branch, in its own worktre
   removed on 2026-10-02. After a merge, the API is updated with `git pull` there (`npm install`
   if the lockfile changed) and `pm2 restart voicaw-api`, only when the user asks. The web app at
   app.voicaw.com is a static build in `/opt/voicaw-client`, only updated by running `npm run
-  build` by hand; voicaw.com is the info and download site (`website/`, `/opt/voicaw-site`, see
+  build` by hand (`release_all.sh` runs it too); voicaw.com is the info and download site (`website/`, `/opt/voicaw-site`, see
   `docs/desktop-and-site.md`). Voice runs on a self-hosted LiveKit server, pm2 `voicaw-livekit` (`~/livekit`, not
   in git).
 - **Never commit to, merge into, push, reset or otherwise move `dev`.** Branch off it
@@ -68,11 +68,12 @@ Run from the repo root unless noted.
 - `npm run dist:electron` — the same build, then installers in `dist-desktop/` (electron-builder)
 - `npm run dist:electron:win` — the same build, then the Windows installer in Docker with wine
   (`electron/dist-win.sh`, electron-builder's image; unsigned)
-- `./release_all.sh [patch|minor|major|X.Y.Z]` — a desktop release built by GitHub: tags the
-  commit `desktop-vX.Y.Z` and pushes the tag (`.github/workflows/desktop-release.yml` builds and
-  attests the installers), then downloads them, checks the attestations (`gh`) and publishes to
-  updates.voicaw.com; `--no-publish`, `--android` (the Android app too, the same version, pushing
-  its `android-vX.Y.Z` tag beside the desktop one); never asks first. Publishing touches the live
+- `./release_all.sh [patch|minor|major|X.Y.Z]` — releases everything as one version, never
+  asking first: the desktop app built by GitHub (tags the commit `desktop-vX.Y.Z` and pushes the
+  tag; `.github/workflows/desktop-release.yml` builds and attests the installers), downloaded,
+  checked (`gh`) and published to updates.voicaw.com; then the web app (`npm run build`); then
+  the Android app as the same X.Y.Z (`./build-android.sh`, pushing its `android-vX.Y.Z` tag).
+  `--no-publish` (Android only built), `--no-web`, `--no-android`. Publishing touches the live
   sites: only when the user asks
 - `npm run dist:android` — the client's Android build, `cap sync`, then the APK (and the native
   JUnit tests) in Docker (`mobile/dist-android.sh`) into `dist-android/voicaw-debug.apk`;

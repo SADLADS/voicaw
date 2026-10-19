@@ -280,7 +280,7 @@ native bridge. Check real behaviour on a phone.
   `play` flavour's App Bundle (`dist-android/voicaw-<version>-play.aab`, `bundlePlayRelease`,
   same key), uploaded to the Play Console by hand (README "Android app": choose to use our own
   signing key, so the two builds can replace each other). A published release tags the commit
-  it was built from as `android-vX.Y.Z` (pushed when `release_all.sh --android` runs it, else local;
+  it was built from as `android-vX.Y.Z` (pushed when `release_all.sh` runs it, which every release does, as the desktop version; else local;
   desktop releases are `desktop-vX.Y.Z`).
 - **Two builds** (Gradle flavours): `direct`, the APK above, which updates itself, and `play`,
   for Google Play, which mustn't (Play's rules: an app from Play updates only through Play, and

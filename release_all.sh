@@ -1,10 +1,11 @@
 #!/bin/sh
-# Release the desktop app (Linux and Windows), built by GitHub from this checkout's commit:
-#   ./release_all.sh [patch|minor|major|X.Y.Z] [--no-publish] [--android]
+# Release everything from this checkout's commit: the desktop app (Linux and Windows, built by
+# GitHub), the web app (app.voicaw.com) and the Android app, all as one version:
+#   ./release_all.sh [patch|minor|major|X.Y.Z] [--no-publish] [--no-web] [--no-android]
 #
 # 1. Picks the next version (default: patch above what updates.voicaw.com has for desktop or
-#    Android, or the newest desktop-v* tag if that's higher). It doesn't ask: running it is the go-ahead (-y is
-#    still accepted, and does nothing).
+#    Android, or the newest desktop-v* tag if that's higher). It doesn't ask: running it is the
+#    go-ahead (-y and the old --android are still accepted, and do nothing).
 # 2. Tags the commit as desktop-vX.Y.Z and pushes the tag. That starts
 #    .github/workflows/desktop-release.yml, which builds the installers on GitHub's machines,
 #    attests every file (Sigstore) and puts them in a GitHub Release. Given the version of a tag
@@ -15,14 +16,20 @@
 #    machines. Nothing unverified is published.
 # 4. Publishes them to the update site (updates/publish.mjs: /opt/voicaw-updates, and voicaw.com's
 #    download links), then checks the site serves the new version. --no-publish stops after 3.
-# --android then releases the Android app with the same version (./build-android.sh X.Y.Z;
-# skipped if Android already has it), from this checkout, and pushes its android-vX.Y.Z tag
-# beside the desktop one. The version is above both apps' published ones either way, so a
-# release without --android leaves Android a gap, never a clash.
+# 5. The web app: `npm run build` (built here, put live at /opt/voicaw-client only if the build
+#    succeeded). Not with --no-publish or --no-web.
+# 6. The Android app with the same version (./build-android.sh X.Y.Z, built here in Docker;
+#    skipped if Android already has it): the APK published for copies installed from the update
+#    site, the App Bundle in dist-android/ for the Play Console (uploaded by hand), and its
+#    android-vX.Y.Z tag pushed beside the desktop one. --no-publish only builds them;
+#    --no-android skips it (Android then has a gap in its versions, never a clash).
 #
-# Needs: the commit pushed to GitHub, no uncommitted changes, and the GitHub CLI logged in
-# (`gh auth login`; installing it: README "Desktop app"). VOICAW_UPDATES_DIR publishes somewhere
-# else (a try-out), VOICAW_REPO names another GitHub repository (default SADLADS/voicaw).
+# Needs: the commit pushed to GitHub, no uncommitted changes, the GitHub CLI logged in
+# (`gh auth login`; installing it: README "Desktop app"), and for Android its release key and
+# mobile/android/app/google-services.json (README "Android app"), checked before anything starts.
+# VOICAW_UPDATES_DIR publishes somewhere else (a try-out: the web app isn't deployed then, unless
+# VOICAW_WEB_ROOT says where), VOICAW_REPO names another GitHub repository (default
+# SADLADS/voicaw).
 set -e
 cd "$(dirname "$0")"
 
@@ -34,12 +41,14 @@ API="https://api.github.com/repos/$REPO"
 
 BUMP=patch
 PUBLISH=1
-ANDROID=
+WEB=1
+ANDROID=1
 for arg in "$@"; do
   case "$arg" in
-    -y|--yes) ;;
+    -y|--yes|--android) ;;
     --no-publish) PUBLISH= ;;
-    --android) ANDROID=1 ;;
+    --no-web) WEB= ;;
+    --no-android) ANDROID= ;;
     -*) echo "Unknown option $arg" >&2; exit 1 ;;
     *) BUMP="$arg" ;;
   esac
@@ -72,6 +81,17 @@ fi
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   echo "This checkout has uncommitted changes: commit them (and push) first, GitHub builds the commit." >&2
   exit 1
+fi
+# What the Android build needs (build-android.sh checks too, but only after desktop and web are out).
+if [ -n "$ANDROID" ]; then
+  if [ ! -f mobile/android/app/google-services.json ]; then
+    echo "No mobile/android/app/google-services.json (README \"Android app\"): Android can't be built. --no-android skips it." >&2
+    exit 1
+  fi
+  if [ ! -f "${VOICAW_ANDROID_KEYS:-$HOME/.voicaw-android-keys}/voicaw-release.jks" ]; then
+    echo "No Android release key (mobile/make-release-key.sh, README \"Android app\"). --no-android skips it." >&2
+    exit 1
+  fi
 fi
 COMMIT="$(git rev-parse HEAD)"
 git fetch -q origin
@@ -204,6 +224,18 @@ else
     served="$(curl -fsSL "$PUBLIC_URL/latest-linux.yml?$(date +%s)" | sed -n 's/^version: *//p')" || served=
     if [ "$served" = "$VERSION" ]; then echo "updates.voicaw.com serves $VERSION."
     else echo "Warning: updates.voicaw.com serves ${served:-nothing} for Linux, not $VERSION." >&2; fi
+  fi
+fi
+
+if [ -n "$WEB" ]; then
+  echo "== Web app"
+  if [ -z "$PUBLISH" ]; then
+    echo "Not deployed (--no-publish)."
+  elif [ -n "$VOICAW_UPDATES_DIR" ] && [ -z "$VOICAW_WEB_ROOT" ]; then
+    echo "Not deployed (a try-out: set VOICAW_WEB_ROOT to deploy it somewhere)."
+  else
+    npm install
+    npm run build
   fi
 fi
 

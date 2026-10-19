@@ -460,19 +460,22 @@ gh auth login
 Then, from a checkout whose commit is pushed to GitHub (usually `dev`, with nothing uncommitted):
 
 ```bash
-./release_all.sh                  # patch; or minor, major, X.Y.Z; doesn't ask first
-./release_all.sh --no-publish     # stop after downloading and checking (dist-release/X.Y.Z/)
-./release_all.sh --android        # then the Android app too, with the same version
+./release_all.sh                  # desktop, web app and Android; patch, or minor, major, X.Y.Z
+./release_all.sh --no-publish     # desktop downloaded and checked (dist-release/X.Y.Z/), Android
+                                  # built, nothing published or deployed
+./release_all.sh --no-web --no-android   # the desktop app alone
 ```
 
-It picks the next version (above what updates.voicaw.com has, desktop and Android, and every
-`desktop-vX.Y.Z` tag: the two apps share version numbers, and `--android` releases the Android
-app as the same X.Y.Z),
-tags the commit `desktop-vX.Y.Z` and pushes the tag, which starts the workflow (Linux and
+It doesn't ask first. It picks the next version (above what updates.voicaw.com has, desktop
+and Android, and every `desktop-vX.Y.Z` tag: the apps share version numbers), tags the commit `desktop-vX.Y.Z` and pushes the tag, which starts the workflow (Linux and
 Windows; follow it on GitHub's Actions tab), waits for it, downloads the GitHub Release into
 `dist-release/X.Y.Z/`, runs `gh attestation verify` on every file (built by that workflow, from
 that commit, on GitHub's machines; anything else stops it), then publishes with
-`node updates/publish.mjs dist-release/X.Y.Z` and checks the site serves the new version.
+`node updates/publish.mjs dist-release/X.Y.Z` (which rebuilds voicaw.com's download links too)
+and checks the site serves the new version. Then it deploys the web app (`npm run build`) and
+releases the Android app as the same X.Y.Z (`./build-android.sh X.Y.Z`, below: the APK published,
+the App Bundle left in `dist-android/` for the Play Console, the `android-vX.Y.Z` tag pushed).
+Android's release key and `google-services.json` are checked before anything starts.
 GitHub never gets a key to the host. A failed build can be retried from the Actions tab
 ("Re-run jobs"), and `./release_all.sh X.Y.Z` with the same version picks the tag up again.
 
@@ -516,7 +519,7 @@ scripts, it never changes tracked files: the version (one higher than the one pu
 first is `mobile/package.json`'s) is stamped into the build, and versionCode is X·10000 + Y·100 +
 Z, so Y and Z stay under 100. A published release tags the commit it was built from as
 `android-vX.Y.Z` (annotated, local: `git push origin android-vX.Y.Z` to share it; `--push-tag`
-pushes it, as `./release_all.sh --android` does, so both tags reach GitHub); desktop releases
+pushes it, as `./release_all.sh` does, so both tags reach GitHub); desktop releases
 are tagged `desktop-vX.Y.Z`.
 
 **The release key**, made once (not once per machine):
