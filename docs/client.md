@@ -374,6 +374,10 @@
   Layout's lists have loaded (left or deleted while the app was closed), it goes to `/dm` instead.
   Forgotten on logout (account data, `services/logout.js`). A deep link (a notification, an
   invite) opens where it points as before. A phone opens on the chat pane, the list behind it.
+  The DM side has its own (localStorage `lastDm`, any `/dm/...` page, Friends included): the
+  rail's Direct Messages button goes back to it from a guild instead of the newest conversation
+  (unless an unread DM shows there instead), with the same `restoredChat` check; `/dm` itself
+  still opens the newest conversation when nothing is remembered.
 - Phone panes (`hooks/useSwipePanes.js`, in `Layout`, DM, guild and Settings pages): the list
   (rail + conversations or channels, or Settings' column) underneath, the chat (or a Settings
   page) on top, Discord style. In Settings a page goes over the list with `replace` (Settings'

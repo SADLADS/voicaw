@@ -20,6 +20,7 @@ import { t } from '../i18n';
 import { displayName } from '../utils/profiles';
 import { showContent } from '../utils/mobilePanes';
 import { playSound } from '../sounds/sounds';
+import { lastDm } from '../utils/lastChat';
 
 // The guild rail down the left (like Discord's): home, DMs, then each guild (a pill on the
 // left marks unread messages, a taller one the open guild), then "+" to create or join one.
@@ -93,7 +94,8 @@ export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guild
             <Avatar userId={newestUnread.userId} />
           </NavLink>
         ) : (
-          <NavLink to="/dm" className="nav-icon" onClick={stayIfIn(isActivePath('/dm'))} aria-label={t('app.sidebar.directMessages')} title={t('app.sidebar.directMessages')}>
+          // Back to the DM page last open (utils/lastChat.js), checked as a reopened chat is.
+          <NavLink to={lastDm() ?? '/dm'} state={{ restoredChat: true }} className="nav-icon" onClick={stayIfIn(isActivePath('/dm'))} aria-label={t('app.sidebar.directMessages')} title={t('app.sidebar.directMessages')}>
             <Icon icon={faComments} />
           </NavLink>
         )}

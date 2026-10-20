@@ -122,8 +122,9 @@ export default function Layout({ user, onLogout }) {
   }, [botDmId, navigate]);
   const botDmList = useBotDmList({ userId: user?.id, activeDmId: botDmId, onRemoved: onBotDmRemoved });
 
-  // The chat the app reopens on (utils/lastChat.js). One reopened that's gone since (a guild or
-  // group left, a conversation with a bot deleted, while the app was closed) goes to the DMs.
+  // The chat the app reopens on, and the DM page the rail goes back to (utils/lastChat.js). One
+  // reopened that's gone since (a guild or group left, a conversation with a bot deleted, while
+  // the app was closed or on another device) goes to the DMs.
   useEffect(() => rememberChat(location.pathname), [location.pathname]);
   const restoredChat = Boolean(location.state?.restoredChat);
   const restoredGone = restoredChat && (
@@ -132,9 +133,9 @@ export default function Layout({ user, onLogout }) {
     || (botDmId && botDmList.loaded && !botDmList.botDms.some((d) => d.id === botDmId)));
   useEffect(() => {
     if (!restoredGone) return;
-    forgetChat();
+    forgetChat(location.pathname);
     navigate('/dm', { replace: true });
-  }, [restoredGone, navigate]);
+  }, [restoredGone, location.pathname, navigate]);
   // A person's menu's Message (utils/personMenu.js); a bot's conversation is its own kind.
   const upsertBotDm = useRef(botDmList.upsert);
   upsertBotDm.current = botDmList.upsert;
