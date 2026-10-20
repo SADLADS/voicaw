@@ -84,3 +84,32 @@ export function formatEventWhen(event, { start = event.start_time, end = event.e
 
 // The event's colour as CSS (#rrggbb), or null for the default.
 export const eventColor = (event) => (event.color != null ? colorToHex(event.color) : null);
+
+// What Interested offers on a repeating event: this occurrence, and all of them, each added or
+// taken away as fits how interested you are (`interested`: this occurrence, `interested_all`:
+// the series). { key (its label, events.interest.<key>), interested, occurrence }.
+export const interestChoices = (event) => [
+  { key: event.interested ? 'thisRemove' : 'thisAdd', interested: !event.interested, occurrence: true },
+  { key: event.interested_all ? 'allRemove' : 'allAdd', interested: !event.interested_all, occurrence: false },
+];
+
+// { interested, interested_all } after a choice (as interestChoices'; a plain toggle has
+// `occurrence` false), as the server's setInterest works it out.
+export function interestAfter(event, { interested, occurrence }) {
+  if (occurrence && event.recurrence) return { interested, interested_all: Boolean(event.interested_all) };
+  return { interested, interested_all: interested };
+}
+
+// Your { interested, interested_all } in `event` when it's sent again changed, from what you
+// had (`before`, null for a new one: its creator, `userId`, is interested in all of it). Once a
+// repeating event moves to another occurrence, interest in the last one alone (or in all but
+// it) is gone, as on the server.
+export function interestKept(before, event, userId = null) {
+  if (!before) {
+    const mine = event.creator_id === userId;
+    return { interested: mine, interested_all: mine };
+  }
+  const all = Boolean(before.interested_all ?? before.interested);
+  if (before.occurrence_start !== event.occurrence_start) return { interested: all, interested_all: all };
+  return { interested: Boolean(before.interested), interested_all: all };
+}

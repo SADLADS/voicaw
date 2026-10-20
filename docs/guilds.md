@@ -483,7 +483,8 @@ Not end-to-end encrypted, like the rest of a guild.
   occurrence whose end went by before it could start (the server was down) just ends. Only
   scheduled and active events are kept: one that ends
   or is cancelled is deleted (people are sent it with status `completed` / `canceled` first), a
-  repeating one moves on to its next occurrence still to come, keeping who's interested.
+  repeating one moves on to its next occurrence still to come, keeping who's interested in the
+  series (see Interested).
 - **Repeating** (`server/eventRecurrence.js`, `client/src/utils/eventRecurrence.js`): Discord's
   recurrence rules and only its shapes: daily (optionally on some weekdays), weekly or every
   other week on one day, monthly on the nth weekday, yearly on a date. Occurrences fall on the
@@ -512,13 +513,26 @@ Not end-to-end encrypted, like the rest of a guild.
   'event'`, the event's name, "Starting now · place (Guild)", url `/guild/<g>/<voice channel>?event=<id>`,
   tag `event-<id>`), unless their notification level for the guild is 'none', and never the one
   who started it. Leaving the guild (or deleting your account) drops your interest.
+  On a repeating event (built 2026-10-20, as Discord's), Interested opens a menu
+  (`events/InterestButton.jsx`, `interestChoices`): this event (the current occurrence, the one
+  shown) or all of them, each added or taken away, so you can be interested in all, in this one
+  alone, or in all but this one. `guild_event_users` keeps one row per person: the series, or
+  with `only_occurrence` (this one alone) or `skip_occurrence` (all but it) set to the
+  occurrence's `occurrence_start`. `interested` (yours) and `user_count`, the Interested tab, the
+  start push and bots' user list are all for the current occurrence (`INTERESTED_NOW`), and
+  `interested_all` says whether you're in the series. When the series moves on (an occurrence
+  ends or is cancelled, or editing the series re-anchors it), `dropOccurrenceInterest` drops
+  "this one alone" and "all but this one" (the client mirrors it, `interestKept`); moving only
+  this occurrence's time keeps them.
 - **Server** (`guildEvents.js` has the actions, shared with the bot API, throwing `ActionError`;
   `routes/guildEvents.js`; tables `guild_events`, `guild_event_users`): `GET/POST
-  /guilds/:id/events` (each with `interested`, yours, and `user_count`), `GET/PATCH/DELETE
+  /guilds/:id/events` (each with `interested` and `interested_all`, yours, and `user_count`), `GET/PATCH/DELETE
   /guild-events/:id` (DELETE cancels every occurrence), `POST /guild-events/:id/start`, `/end`,
   `/skip`, `PUT /guild-events/:id/occurrence { startTime, endTime? }`, `PUT/DELETE
-  /guild-events/:id/interest`, `GET /guild-events/:id/users` (user ids). Events go to whoever can
-  see the event (`guild_event_create` / `_update` / `_delete`, `guild_event_interest`); moving one
+  /guild-events/:id/interest` (`?occurrence=1`: only the current occurrence; answers
+  `{ interested, interested_all }`), `GET /guild-events/:id/users` (user ids). Events go to whoever can
+  see the event (`guild_event_create` / `_update` / `_delete`, `guild_event_interest` with
+  `interested`, `interestedAll`, `changed` and `userCount`); moving one
   to a channel someone can't see is a delete for them. Audit log: `event_create`,
   `event_update` (changes, the channel by name, cover and repeat notes), `event_delete`.
   Deleting a voice channel deletes its events (a delete is sent), deleting the guild all of
@@ -572,7 +586,8 @@ Not end-to-end encrypted, like the rest of a guild.
   emoji and the start of the name, no times.
 - **Not done yet**: a day view, events spanning days drawn as one bar across them (they're a bar on each day), calendar channels, RSVP
   beyond Interested (Going / Maybe / Can't, limits), reminders before an event, editing an
-  occurrence other than the next one, per-occurrence interest, event invite links that also
+  occurrence other than the next one, interest in an occurrence other than the next one (the
+  calendar opens the event at its current occurrence), event invite links that also
   invite into the guild, and stage channels.
 
 ## Levels

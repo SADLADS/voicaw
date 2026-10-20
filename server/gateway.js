@@ -339,7 +339,9 @@ class Session {
       case 'guild_event_delete':
         return this.scheduledEventEvent(event);
       case 'guild_event_interest':
-        if (this.wants(INTENTS.GUILD_SCHEDULED_EVENTS)) {
+        // Only when who's interested in the current occurrence changed (bots see no
+        // per-occurrence interest).
+        if (this.wants(INTENTS.GUILD_SCHEDULED_EVENTS) && event.changed !== false) {
           this.dispatch(event.interested ? 'GUILD_SCHEDULED_EVENT_USER_ADD' : 'GUILD_SCHEDULED_EVENT_USER_REMOVE', {
             guild_scheduled_event_id: String(event.eventId), user_id: String(event.userId), guild_id: g,
           });

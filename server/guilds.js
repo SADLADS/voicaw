@@ -344,7 +344,7 @@ async function removeMember(guildId, userId) {
   await sendToGuild(guildId, { type: 'guild_member_remove', guildId, userId });
   const joinLog = require('./joinLog');
   await joinLog.logMembership(guildId, userId, joinLog.LEAVE);
-  for (const event of events) await require('./guildEvents').broadcastInterest(event, userId, false);
+  for (const event of events) await require('./guildEvents').broadcastInterest(event, userId);
   if (botRoleRemoved) await announceGuildUpdate(guildId);
   await require('./voice').enforceGuild(guildId);
 }

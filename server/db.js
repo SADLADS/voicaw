@@ -1305,6 +1305,11 @@ CREATE INDEX IF NOT EXISTS guild_event_users_user ON guild_event_users (user_id)
 addColumn('ALTER TABLE guild_events ADD COLUMN all_day INTEGER NOT NULL DEFAULT 0');
 addColumn('ALTER TABLE guild_events ADD COLUMN emoji TEXT');
 addColumn('ALTER TABLE guild_events ADD COLUMN color INTEGER');
+// Interest in one occurrence of a repeating event (its `occurrence_start`): `only_occurrence`
+// means interested in that one alone, not the series; `skip_occurrence` interested in the
+// series but not that one. Both are dropped when the series moves to another occurrence.
+addColumn('ALTER TABLE guild_event_users ADD COLUMN only_occurrence INTEGER');
+addColumn('ALTER TABLE guild_event_users ADD COLUMN skip_occurrence INTEGER');
 // LEVELS (guildLevels.js, routes/guildLevels.js): Guilded's XP. `guilds.levels` is the guild's
 // settings (JSON, null = the defaults). guild_member_xp is each person's XP there, kept when
 // they leave (rejoining picks it up again; deleted with the guild or the account);

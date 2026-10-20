@@ -41,6 +41,12 @@
       "end": "End event",
       "more": "More"
     },
+    "interest": {
+      "thisAdd": "Interested in this event",
+      "allAdd": "Interested in all events",
+      "thisRemove": "Not interested in this event",
+      "allRemove": "Not interested in any of them"
+    },
     "menu": {
       "edit": "Edit event",
       "editAll": "Edit all events",

@@ -526,12 +526,14 @@ export async function moveOccurrence(eventId, times) {
   return (await api.put(`/guild-events/${eventId}/occurrence`, times)).data;
 }
 
-export async function setEventInterest(eventId, interested) {
-  if (interested) await api.put(`/guild-events/${eventId}/interest`);
-  else await api.delete(`/guild-events/${eventId}/interest`);
+// Interested or not in every occurrence of the event, or with `occurrence` only the current one.
+// Resolves to { interested, interested_all }.
+export async function setEventInterest(eventId, interested, { occurrence = false } = {}) {
+  const url = `/guild-events/${eventId}/interest${occurrence ? '?occurrence=1' : ''}`;
+  return (await (interested ? api.put(url) : api.delete(url))).data;
 }
 
-// Who's interested: user ids.
+// Who's interested in the current occurrence: user ids.
 export async function fetchEventUsers(eventId) {
   return (await api.get(`/guild-events/${eventId}/users`)).data;
 }

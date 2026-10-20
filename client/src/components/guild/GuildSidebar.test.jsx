@@ -463,7 +463,7 @@ describe('GuildSidebar', () => {
       expect(within(dialog).queryByRole('button', { name: /Start/ })).not.toBeInTheDocument();
       const interest = within(within(dialog).getByRole('article', { name: 'Picnic' })).getByRole('button', { name: /Interested/ });
       fireEvent.click(interest);
-      expect(setEventInterest).toHaveBeenCalledWith(70, true);
+      expect(setEventInterest).toHaveBeenCalledWith(70, true, { occurrence: false });
       expect(interest).toHaveAttribute('aria-pressed', 'true');
       expect(within(dialog).getByRole('article', { name: 'Picnic' })).toHaveTextContent('2 interested');
     });

@@ -72,7 +72,8 @@ Unknown paths get Discord's 404.
   messages (list with before/after/around, get, send with replies and files, edit own, delete,
   bulk delete), reactions, pins (old and new paths), threads (from a message or on their own,
   join/leave, members, archived), scheduled events (list, get, create, modify incl. `status`
-  2/3/4, delete, interested users; see Events in `docs/guilds.md`; covers sent as image data are
+  2/3/4, delete, interested users: those interested in the current occurrence, and
+  `GUILD_SCHEDULED_EVENT_USER_ADD`/`_REMOVE` only when that changes; see Events in `docs/guilds.md`; covers sent as image data are
   stored as a WebP upload, `guildEvents.storeImageData`; stage events refused; the app's all-day,
   emoji and colour aren't in Discord's API, so bots don't see them). Rate limits: 50 requests a second per bot, and per route and
   channel or guild, with Discord's `X-RateLimit-*` headers and 429 bodies (off with

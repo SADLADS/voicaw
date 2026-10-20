@@ -12,13 +12,16 @@ import EventCard from './EventCard';
 import EventCalendar from './EventCalendar';
 import EventWeek from './EventWeek';
 import EventEmoji from './EventEmoji';
+import InterestButton from './InterestButton';
 import DocumentCover from '../documents/DocumentCover';
 import { MessageContent } from '../MessageList';
 import { ConfigContext, InteractionContext } from '../../contexts';
 import {
   cancelEvent, endEvent, fetchEventUsers, setEventInterest, skipOccurrence, startEvent,
 } from '../../services/guildService';
-import { canCreateEvents, canManageEvent, eventPlace, eventStatusText, formatEventWhen } from '../../utils/eventDisplay';
+import {
+  canCreateEvents, canManageEvent, eventPlace, eventStatusText, formatEventWhen, interestAfter,
+} from '../../utils/eventDisplay';
 import { describeRepeat } from '../../utils/eventRecurrence';
 import { errorMessage, eventLink } from '../../utils/guildDisplay';
 import { displayName, useProfiles } from '../../utils/profiles';
@@ -32,7 +35,7 @@ function Description({ text, user }) {
   return <MessageContent msg={msg} user={user} s3Endpoint={s3Endpoint} />;
 }
 
-// Interested (toggle), Start or End for those who may, and the "more" button.
+// Interested (InterestButton), Start or End for those who may, and the "more" button.
 function EventButtons({ event, manages, busy, onInterest, onStart, onEnd, onMore }) {
   return (
     <>
@@ -46,14 +49,13 @@ function EventButtons({ event, manages, busy, onInterest, onStart, onEnd, onMore
           <Icon icon={faStop} /> {t('events.actions.end')}
         </button>
       )}
-      <button
-        type="button"
+      <InterestButton
+        event={event}
         className={`btn btn-sm event-interest${event.interested ? ' btn-primary active' : ' btn-secondary'}`}
-        aria-pressed={Boolean(event.interested)}
-        onClick={onInterest}
+        onChoose={onInterest}
       >
         <Icon icon={event.interested ? faCheck : faBell} /> {t('events.actions.interested')}
-      </button>
+      </InterestButton>
       <button type="button" className="btn btn-secondary btn-sm event-more" aria-label={t('events.actions.more')} title={t('events.actions.more')} onClick={onMore}>
         <Icon icon={faEllipsis} />
       </button>
@@ -172,11 +174,12 @@ export default function EventsDialog({
     }
   }
 
-  function toggleInterest(event) {
-    const next = !event.interested;
-    setInterested(event.id, next);
-    setEventInterest(event.id, next).catch((err) => {
-      setInterested(event.id, !next);
+  // `choice`: { interested, occurrence } (InterestButton).
+  function chooseInterest(event, choice) {
+    const before = { interested: Boolean(event.interested), interested_all: Boolean(event.interested_all) };
+    setInterested(event.id, interestAfter(event, choice));
+    setEventInterest(event.id, choice.interested, { occurrence: choice.occurrence }).catch((err) => {
+      setInterested(event.id, before);
       setError(errorMessage(err));
     });
   }
@@ -187,7 +190,7 @@ export default function EventsDialog({
         event={event}
         manages={canManageEvent(event, guild, user.id)}
         busy={busy}
-        onInterest={() => toggleInterest(event)}
+        onInterest={(choice) => chooseInterest(event, choice)}
         onStart={() => run(() => startEvent(event.id))}
         onEnd={() => run(() => endEvent(event.id))}
         onMore={(e) => setMenu({ event, anchor: e.currentTarget.getBoundingClientRect() })}
