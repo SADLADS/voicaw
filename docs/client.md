@@ -364,6 +364,16 @@
   touch screens keep the system's overlay bar, which shows while swiping and can't be tapped or
   dragged (a styled bar becomes a classic, grabbable one on Android browsers that don't know
   `scrollbar-color`). Hiding a bar (`scrollbar-width: none`) still applies everywhere.
+- Reopening on the last chat (`utils/lastChat.js`): opening the app at `/` (a browser tab, the
+  PWA's `start_url`, the desktop app's window and the Android app all start there) goes to the
+  last chat viewed on this device instead of `/dm`: a DM, group DM, conversation with a bot,
+  Notes or a guild. Layout saves it on every navigation to a chat (localStorage `lastChat`);
+  Settings, Friends and other pages leave it as it was. A guild is kept without its channel, so
+  it opens on its own remembered text, list or document channel (`defaultChannel`), never a voice
+  one. The `/` redirect carries `state.restoredChat`: if the guild, group or bot DM is gone once
+  Layout's lists have loaded (left or deleted while the app was closed), it goes to `/dm` instead.
+  Forgotten on logout (account data, `services/logout.js`). A deep link (a notification, an
+  invite) opens where it points as before. A phone opens on the chat pane, the list behind it.
 - Phone panes (`hooks/useSwipePanes.js`, in `Layout`, DM, guild and Settings pages): the list
   (rail + conversations or channels, or Settings' column) underneath, the chat (or a Settings
   page) on top, Discord style. In Settings a page goes over the list with `replace` (Settings'

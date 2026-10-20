@@ -9,6 +9,8 @@ import { mergeProfiles } from '../utils/profiles';
 // (its new messages aren't unread). `onRemoved(dmId)` runs when one is deleted.
 export function useBotDmList({ userId, activeDmId, onRemoved }) {
   const [botDms, setBotDms] = useState([]);
+  // The list has come from the server at least once.
+  const [loaded, setLoaded] = useState(false);
   const active = useRef(activeDmId);
   active.current = activeDmId;
   const onRemovedRef = useRef(onRemoved);
@@ -22,6 +24,7 @@ export function useBotDmList({ userId, activeDmId, onRemoved }) {
       // The bots' names and pictures, which the app may not have from a guild.
       mergeProfiles(list.map((d) => d.bot).filter(Boolean));
       setBotDms(list);
+      setLoaded(true);
     } catch (err) {
       console.warn('Failed to load bot DMs', err);
     }
@@ -76,5 +79,5 @@ export function useBotDmList({ userId, activeDmId, onRemoved }) {
     setBotDms((prev) => prev.map((d) => (d.id === dmId && d.unread ? { ...d, unread: 0 } : d)));
   }, []);
 
-  return { botDms, refresh, upsert, clearUnread };
+  return { botDms, loaded, refresh, upsert, clearUnread };
 }

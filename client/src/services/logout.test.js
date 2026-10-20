@@ -117,6 +117,7 @@ describe('forgetLogin', () => {
   it("forgets everything stored for the account, but keeps this device's settings", async () => {
     localStorage.setItem('theme', 'dark');
     localStorage.setItem('guildChannel:5', '12');
+    localStorage.setItem('lastChat', '/dm/7');
     localStorage.setItem('taskCollapsed:3', '[]');
     localStorage.setItem('recoveryPromptDismissed', '1');
     sessionStorage.setItem('something', 'x');
@@ -126,6 +127,7 @@ describe('forgetLogin', () => {
     expect(clearOfflineCopy).toHaveBeenCalled();
     expect(localStorage.getItem('theme')).toBe('dark');
     expect(localStorage.getItem('guildChannel:5')).toBeNull();
+    expect(localStorage.getItem('lastChat')).toBeNull();
     expect(localStorage.getItem('taskCollapsed:3')).toBeNull();
     expect(localStorage.getItem('recoveryPromptDismissed')).toBeNull();
     expect(sessionStorage.getItem('something')).toBeNull();
