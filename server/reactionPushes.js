@@ -4,7 +4,7 @@ const { isConversationMuted } = require('./conversationSettings');
 const { getPreferences } = require('./preferences');
 const { displayNameOf } = require('./profiles');
 const { PERMISSIONS, has } = require('./permissions');
-const { MAX_PUSH_CIPHERTEXT_LENGTH, sendPushToUser, sendToReactionApps, groupNameForPush, getUserImageUrl } = require('./push');
+const { MAX_PUSH_CIPHERTEXT_LENGTH, sendPushToUser, sendToReactionApps, noteReactionShown, groupNameForPush, getUserImageUrl } = require('./push');
 
 // Notifications when someone reacts to your message, as in Discord. Only the message's author
 // is told, never about their own reactions, a reactor they blocked, a conversation they're
@@ -76,7 +76,8 @@ async function notifyDmReaction(message, reaction) {
   };
   // The message itself for a preview, when it fits (decrypted like a DM push's).
   if (row.content.length <= MAX_PUSH_CIPHERTEXT_LENGTH - reaction.content.length) payload.ciphertext = row.content;
-  await sendToReactionApps(authorId, payload, { topic: `reaction${message.id}` });
+  const { delivered } = await sendToReactionApps(authorId, payload, { topic: `reaction${message.id}` });
+  if (delivered) noteReactionShown(authorId, reactorId, payload.tag);
 }
 
 // `message`: the group message (routes/groupDms.js messageFor); `reaction`: the row just added.
@@ -114,7 +115,8 @@ async function notifyGroupReaction(message, reaction) {
     reaction: reaction.content,
   };
   if (message.content && message.content.length <= MAX_GROUP_MESSAGE_LENGTH) payload.ciphertext = message.content;
-  await sendToReactionApps(authorId, payload, { topic: `reaction${message.id}` });
+  const { delivered } = await sendToReactionApps(authorId, payload, { topic: `reaction${message.id}` });
+  if (delivered) noteReactionShown(authorId, `group-${groupId}`, payload.tag);
 }
 
 // `message` ({ id, sender_id, webhook_id }) in `channel` (guilds.js getChannelAccess); `emoji`
@@ -155,7 +157,7 @@ async function notifyGuildReaction(message, channel, reaction) {
   const where = thread ? `${channel.name}, #${channel.parent_name}` : `#${channel.name}`;
   // `<:name:id>` (a custom emoji) as :name: for text; apps draw it the same way.
   const emojiText = String(reaction.emoji).replace(/^<:([A-Za-z0-9_]+):\d+>$/, ':$1:');
-  await sendPushToUser(authorId, {
+  const { delivered } = await sendPushToUser(authorId, {
     type: 'reaction',
     chat: 'guild',
     title: `${reactorName} (${where}, ${row.guild_name})`,
@@ -170,6 +172,8 @@ async function notifyGuildReaction(message, channel, reaction) {
     image: await getUserImageUrl(reactorId),
     timestamp: reaction.timestamp,
   }, { topic: `reaction${message.id}` });
+  // Taken down once the channel is on one of their screens (push.js clearChatReactions).
+  if (delivered) noteReactionShown(authorId, `channel-${channel.id}`, `reaction-guild-${message.id}`);
 }
 
 // Never fails what caused it: a reaction is saved whether or not anyone hears about it.

@@ -179,8 +179,8 @@ export async function disableNotificationsOnThisDevice({ remember = false, timeo
   }
 }
 
-// The user has read the chat whose notifications are tagged `tag` (`notification_clear` from
-// server/push.js): its notification goes from this device, the browser's (service-worker.js)
+// The notification tagged `tag` is done with (`notification_clear` from server/push.js: its
+// chat was read, or a reaction's chat shown): it goes from this device, the browser's (service-worker.js)
 // or the desktop app's. The Android app takes its own down when the same clear reaches it by push.
 export async function closeNotifications(tag) {
   desktop?.closeNotification?.(tag); // (older copies of the app can't)

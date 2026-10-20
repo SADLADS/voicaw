@@ -284,7 +284,7 @@ export function connectWebSocket() {
         playMessageSound();
       }
       else if (data.type === 'notification_clear') {
-        closeNotifications(data.tag);
+        for (const tag of data.tags ?? []) closeNotifications(tag);
       }
       else if (data.type === 'conversation_settings') {
         conversationSettingsListeners.forEach((cb) => cb(data.setting));

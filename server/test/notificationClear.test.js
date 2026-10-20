@@ -5,11 +5,14 @@ import request from 'supertest';
 import { registerUser, loginUser } from './helpers/authFlow.js';
 
 const app = require('../index.js');
+const { clearChatReactions } = require('../push.js');
 const clients = app.locals.clients;
 
 // Reading a chat takes its notification down on the reader's devices (push.js
-// clearNotifications): `notification_clear { tag }` to their open pages (and to Android apps,
-// fcm.test.js), only when a notification for it went out since they last read it.
+// clearNotifications): `notification_clear { tags }` to their open pages (and to Android apps,
+// fcm.test.js), only when a notification for it went out since they last read it. Reaction
+// notifications go when their chat is on one of the user's screens (clearChatReactions, called
+// from a socket's presence, which tests can't send).
 
 let userCount = 0;
 async function makeUser(prefix = 'clear-user') {
@@ -23,9 +26,9 @@ async function makeUser(prefix = 'clear-user') {
 const authed = (user) => ({ Authorization: `Bearer ${user.token}` });
 const post = (user, url, body = {}) => request(app).post(`/api${url}`).set(authed(user)).send(body);
 
-function connect(user) {
+function connect(user, presence = {}) {
   const events = [];
-  const ws = { readyState: 1, send: (m) => events.push(JSON.parse(m)), presence: { at: Date.now() } };
+  const ws = { readyState: 1, send: (m) => events.push(JSON.parse(m)), presence: { at: Date.now(), ...presence } };
   clients.set(String(user.id), [...(clients.get(String(user.id)) || []), ws]);
   return events;
 }
@@ -41,7 +44,7 @@ describe('clearing notifications when a chat is read', () => {
     await expect.poll(() => events.some((e) => e.type === 'message_sound')).toBe(true);
 
     expect((await post(bob, `/dm-mark-read/${alice.id}`)).status).toBe(200);
-    expect(clears(events)).toEqual([{ type: 'notification_clear', tag: `dm-${alice.id}` }]);
+    expect(clears(events)).toEqual([{ type: 'notification_clear', tags: [`dm-${alice.id}`] }]);
     // Nothing new was notified: reading again sends nothing.
     await post(bob, `/dm-mark-read/${alice.id}`);
     await pause();
@@ -75,6 +78,22 @@ describe('clearing notifications when a chat is read', () => {
     expect(clears(events)).toEqual([]);
 
     await post(bob, `/channels/${general.id}/read`, { latest: true });
-    expect(clears(events)).toEqual([{ type: 'notification_clear', tag: `channel-${general.id}` }]);
+    expect(clears(events)).toEqual([{ type: 'notification_clear', tags: [`channel-${general.id}`] }]);
+  });
+
+  it("clears a chat's reaction notifications once it's on screen, and only those that went out", async () => {
+    const [ann, bob, carol] = [await makeUser(), await makeUser(), await makeUser()];
+    // Ann's desktop app, which takes reactions in encrypted chats.
+    const events = connect(ann, { desktopNotifications: true, reactionPushes: true });
+    const message = (await post(ann, '/dm-send', { recipient_id: bob.id, content: 'v1.hello' })).body;
+    const reaction = `v1.${'A'.repeat(require('../config.js').getMaxEncryptedLength(256) - 3)}`;
+    expect((await post(bob, '/dm-reactions', { messageId: message.id, content: reaction })).status).toBe(201);
+    await expect.poll(() => events.some((e) => e.type === 'notification' && e.payload.type === 'reaction')).toBe(true);
+
+    clearChatReactions(ann.id, String(carol.id)); // another chat: nothing
+    clearChatReactions(ann.id, String(bob.id));
+    expect(clears(events)).toEqual([{ type: 'notification_clear', tags: [`reaction-dm-${message.id}`] }]);
+    clearChatReactions(ann.id, String(bob.id)); // already gone
+    expect(clears(events)).toHaveLength(1);
   });
 });

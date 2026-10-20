@@ -3,7 +3,7 @@
 // notifies the desktop app; Bob opening it in the browser makes the desktop app close it
 // (`closeNotification`), and the browser closes its own notification for that chat too (the
 // service worker's, made up here: headless Chrome gets no real web push). Reading again
-// closes nothing; a chat that was never notified closes nothing.
+// closes nothing. A reaction to Bob's message notifies the app; opening the chat closes it.
 //   node e2e/serve.mjs &   then   node e2e/notificationclear.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
 import { launchChrome, signUp, openChat, send, BASE } from './helpers.mjs';
@@ -114,6 +114,23 @@ try {
   check(await waitFor(async () => (await record()).notifications.filter((n) => n.tag === tag).length === 2), 'the second message notifies');
   await openChat(desktop, alice.id);
   check(await waitFor(async () => (await record()).closed.filter((t) => t === tag).length >= 2), 'reading it on the desktop app closes it there');
+
+  // Alice reacts to Bob's message while neither of his devices shows the chat: the desktop app
+  // is told; opening the chat in the browser closes that too.
+  await send(desktop, 'react to this');
+  await desktop.goto(`${BASE}/settings`);
+  await web.goto(`${BASE}/settings`);
+  await desktop.waitForTimeout(1000);
+  const content = alice.page.locator('.dm-message-content', { hasText: /^react to this$/ });
+  await content.click({ button: 'right' });
+  await alice.page.click('.context-menu-reaction[aria-label="React with Thumbs Up"]');
+  let reactionTag = null;
+  check(await waitFor(async () => {
+    reactionTag = (await record()).notifications.find((n) => n.tag?.startsWith('reaction-dm-'))?.tag;
+    return Boolean(reactionTag);
+  }), `the desktop app shows Alice's reaction (${reactionTag})`);
+  await openChat(web, alice.id);
+  check(await waitFor(async () => (await record()).closed.includes(reactionTag)), 'opening the chat in the browser closes the reaction notification');
 } finally {
   await browser.close();
 }

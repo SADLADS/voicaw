@@ -218,13 +218,19 @@ one user at a time).
   sends when a message push with that tag (`dm-<sender>`, `group-<id>`, `channel-<id>`,
   `bot-dm-<id>`) went out since the last clear, remembered in memory (`shownTags`; after a
   restart, earlier notifications stay up), so reading a busy channel doesn't send one per
-  message. It sends `notification_clear { tag }` to the user's sockets (`ws-client` →
+  message. It sends `notification_clear { tags }` to the user's sockets (`ws-client` →
   `pushService.closeNotifications`: the service worker's notifications with that tag and the
   desktop app's) and to Android apps (`sendToAndroidApps`, normal FCM priority so a dozing
   phone isn't woken, kept for a day), which cancel it even while closed. A browser that isn't
   open can't be reached (web push must show something for every push), so a page also closes
   its own notifications for whichever chat it puts on screen (`setActiveChat` / `setSideChat`).
-  Reaction notifications aren't cleared.
+  Reaction notifications (tagged per message) go when their chat is on one of the user's
+  screens instead, since a reaction doesn't make a chat unread: `reactionPushes.js` notes each
+  one that reached a device under its chat as presence names it (`noteReactionShown`: the
+  reactor's id for a DM, `group-<id>`, `channel-<id>`), and a socket whose presence is visible
+  with that `chatId` or `sideChatId` (on each presence, and when it identifies, since a loading
+  page's presence comes first) clears them all in one `notification_clear`
+  (`clearChatReactions`). The chat being open is enough, even with the message scrolled away.
 - **Reaction notifications** (`reactionPushes.js`, as Discord's): a `reaction` push to a message's
   author when someone else reacts, never for poll votes or added answers, a reactor they
   blocked, a conversation they're looking at or have muted (in guilds: their level for the

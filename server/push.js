@@ -146,11 +146,14 @@ async function sendToAndroidApps(userId, payload, options = { TTL: 60 }) {
   }));
 }
 
-// Message notifications' tags (a chat: `dm-5`, `group-3`, `channel-12`, `bot-dm-7`) each user
-// may still have up since they last read that chat, so reading one only sends a clear when
-// there's something to take down (a busy guild channel being read would otherwise send one per
-// message). In memory: after a restart, notifications from before stay up.
+// Notifications each user may still have up, so a clear is only sent when there's something
+// to take down (a busy guild channel being read would otherwise send one per message). In
+// memory: after a restart, notifications from before stay up.
+// Messages' tags, one per chat (`dm-5`, `group-3`, `channel-12`, `bot-dm-7`), by user.
 const shownTags = new Map();
+// Reactions' tags, one per message (`reaction-dm-40`...), by user, then by the chat they're in
+// as presence names it (`5` for a DM with user 5, `group-3`, `channel-12`).
+const reactionTags = new Map();
 
 function noteShown(userId, tag) {
   const key = String(userId);
@@ -158,17 +161,43 @@ function noteShown(userId, tag) {
   shownTags.get(key).add(tag);
 }
 
+// A reaction notification tagged `tag` went to `userId` about a message in `chatId`.
+function noteReactionShown(userId, chatId, tag) {
+  const key = String(userId);
+  if (!reactionTags.has(key)) reactionTags.set(key, new Map());
+  const chats = reactionTags.get(key);
+  if (!chats.has(String(chatId))) chats.set(String(chatId), new Set());
+  chats.get(String(chatId)).add(tag);
+}
+
+// Takes the notifications tagged `tags` down on `userId`'s Android apps (even closed), desktop
+// apps and open pages (which close their browser's own; a closed browser can't be reached: web
+// push must show something).
+function sendClear(userId, tags) {
+  require('./sockets').sendToUserSockets(userId, { type: 'notification_clear', tags });
+  // Normal priority: nothing to show, so no need to wake a dozing phone (it's done when it
+  // next wakes, within the day).
+  sendToAndroidApps(userId, { type: 'notification_clear', tags }, { TTL: 24 * 60 * 60, priority: 'normal' }).catch(() => {});
+}
+
 // `userId` has read everything in the chat whose notifications are tagged `tag`: its
-// notification goes from their Android apps (even closed), desktop apps and open pages (which
-// close their browser's own; a closed browser can't be reached: web push must show something).
+// notification goes from their devices.
 function clearNotifications(userId, tag) {
   const tags = shownTags.get(String(userId));
   if (!tags?.delete(tag)) return;
   if (!tags.size) shownTags.delete(String(userId));
-  require('./sockets').sendToUserSockets(userId, { type: 'notification_clear', tag });
-  // Normal priority: nothing to show, so no need to wake a dozing phone (it's done when it
-  // next wakes, within the day).
-  sendToAndroidApps(userId, { type: 'notification_clear', tag }, { TTL: 24 * 60 * 60, priority: 'normal' }).catch(() => {});
+  sendClear(userId, [tag]);
+}
+
+// One of `userId`'s devices shows chat `chatId` (its presence, sockets.js): the reaction
+// notifications about messages there go from all their devices (the reactions are on screen).
+function clearChatReactions(userId, chatId) {
+  const chats = reactionTags.get(String(userId));
+  const tags = chats?.get(String(chatId));
+  if (!tags) return;
+  chats.delete(String(chatId));
+  if (!chats.size) reactionTags.delete(String(userId));
+  sendClear(userId, [...tags]);
 }
 
 // The sender's profile picture for the notification (the default one if they have none).
@@ -177,4 +206,4 @@ async function getUserImageUrl(userId) {
   return require('./avatars').avatarUrl(userId, user?.avatar) ?? '/default.png';
 }
 
-module.exports = { MAX_PUSH_CIPHERTEXT_LENGTH, buildDmPushPayload, buildGroupPushPayload, groupNameForPush, sendPushToUser, sendToReactionApps, sendToAndroidApps, clearNotifications, getUserImageUrl };
+module.exports = { MAX_PUSH_CIPHERTEXT_LENGTH, buildDmPushPayload, buildGroupPushPayload, groupNameForPush, sendPushToUser, sendToReactionApps, sendToAndroidApps, noteReactionShown, clearNotifications, clearChatReactions, getUserImageUrl };

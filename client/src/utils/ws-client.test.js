@@ -379,9 +379,9 @@ describe('presence', () => {
 
     setActiveChat(42);
     setActiveChat('group-3');
-    socket._receive({ type: 'notification_clear', tag: 'channel-9' });
+    socket._receive({ type: 'notification_clear', tags: ['channel-9', 'reaction-guild-4'] });
 
-    expect(closeNotifications.mock.calls).toEqual([['dm-42'], ['group-3'], ['channel-9']]);
+    expect(closeNotifications.mock.calls).toEqual([['dm-42'], ['group-3'], ['channel-9'], ['reaction-guild-4']]);
   });
 
   it('re-sends presence periodically so the server knows it is still current', () => {
