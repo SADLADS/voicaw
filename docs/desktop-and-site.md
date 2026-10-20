@@ -51,7 +51,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
 - **Notifications** (`notifications.js`): the server sends what would be a web push over the
   websocket (see Push notifications); `hooks/useDesktopApp.js` (in `Layout`) turns it into
   text with the service worker's `notificationFromPush` (DM previews decrypted on the device,
-  same previews setting) and a data-URL picture, and the app shows it, one per tag. A click
+  same previews setting) and a data-URL picture, and the app shows it, one per tag (taken down
+  by `closeNotification(tag)` when the chat is read anywhere; see Clearing read chats in
+  `docs/realtime.md`). A click
   shows the window and navigates to its `url`. They're `silent`: the page plays the app's own
   sounds (see Sounds). On/off is Settings → Notifications
   (`pushService` treats the app as always permitted).
@@ -370,7 +372,9 @@ native bridge. Check real behaviour on a phone.
   (and whenever the page answers `skip`: a poll vote; see Reaction notifications in
   `docs/realtime.md`). Channels (each with its own sound in Android's
   settings): Messages, Mentions, Incoming calls, Missed calls, Ongoing call. One notification per
-  conversation (its tag); silent while the app is in front (the page plays its sounds). A token
+  conversation (its tag), cancelled by a `notification_clear` push once that chat is read on any
+  device (see Clearing read chats in `docs/realtime.md`); silent while the app is in front (the
+  page plays its sounds). A token
   Firebase drops is forgotten (`UNREGISTERED`); a new token is registered the next time the app
   opens.
 - **Calls ringing**: a call's push carries `callId` and `ringing`. The phone rings with a

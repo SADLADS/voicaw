@@ -1,5 +1,5 @@
 import api from '../utils/api';
-import { isDesktopApp } from '../utils/desktop';
+import { desktop, isDesktopApp } from '../utils/desktop';
 import { androidNotificationState, androidSubscription, isAndroidApp, requestAndroidNotifications } from '../utils/android';
 import { refreshPresence } from '../utils/ws-client';
 import { t } from '../i18n';
@@ -176,6 +176,20 @@ export async function disableNotificationsOnThisDevice({ remember = false, timeo
     await api.post('/delete-subscription', { endpoint: subscription.endpoint }, ...options);
   } finally {
     await subscription.unsubscribe();
+  }
+}
+
+// The user has read the chat whose notifications are tagged `tag` (`notification_clear` from
+// server/push.js): its notification goes from this device, the browser's (service-worker.js)
+// or the desktop app's. The Android app takes its own down when the same clear reaches it by push.
+export async function closeNotifications(tag) {
+  desktop?.closeNotification?.(tag); // (older copies of the app can't)
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    for (const notification of await registration?.getNotifications({ tag }) ?? []) notification.close();
+  } catch {
+    // No service worker here (or no notifications): nothing to close.
   }
 }
 

@@ -4,7 +4,7 @@ import { resetVoiceStreams } from './voiceStreams';
 import { mergeProfiles } from './profiles';
 import { applyTyping, resetTyping } from './typing';
 import { sameLogin } from './loginToken';
-import { desktopNotificationsOn } from '../services/pushService';
+import { closeNotifications, desktopNotificationsOn } from '../services/pushService';
 import { playMessageSound } from '../sounds/sounds';
 import { catchUp } from './catchUp';
 import { websocketUrl } from './server';
@@ -99,8 +99,16 @@ function noteActivity() {
   if (wasIdle) sendPresence();
 }
 
+// A chat on screen also takes its notifications on this device down (what the server's
+// `notification_clear` can't reach: a browser that wasn't open when the chat was read
+// elsewhere). Chat ids are notification tags, but a DM's, which is the other person's id.
+function closeChatNotifications(chatId) {
+  if (chatId != null) closeNotifications(/^\d+$/.test(chatId) ? `dm-${chatId}` : chatId);
+}
+
 export function setActiveChat(chatId) {
   activeChatId = chatId != null ? String(chatId) : null;
+  closeChatNotifications(activeChatId);
   sendPresence();
 }
 
@@ -108,6 +116,7 @@ export function setActiveChat(chatId) {
 // for it either.
 export function setSideChat(chatId) {
   sideChatId = chatId != null ? String(chatId) : null;
+  closeChatNotifications(sideChatId);
   sendPresence();
 }
 
@@ -273,6 +282,9 @@ export function connectWebSocket() {
       }
       else if (data.type === 'message_sound') {
         playMessageSound();
+      }
+      else if (data.type === 'notification_clear') {
+        closeNotifications(data.tag);
       }
       else if (data.type === 'conversation_settings') {
         conversationSettingsListeners.forEach((cb) => cb(data.setting));

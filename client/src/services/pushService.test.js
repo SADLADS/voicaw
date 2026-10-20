@@ -9,6 +9,7 @@ import {
   ensureSubscription,
   enableNotifications,
   disableNotificationsOnThisDevice,
+  closeNotifications,
 } from './pushService';
 
 // A VAPID public key (base64url) and its bytes.
@@ -201,5 +202,22 @@ describe('disableNotificationsOnThisDevice', () => {
     await disableNotificationsOnThisDevice({ remember: true });
 
     expect(getPushStatus()).toBe('off');
+  });
+});
+
+describe('closeNotifications', () => {
+  it("closes the browser's notifications for the chat that was read", async () => {
+    installPushSupport({ permission: 'granted' });
+    const shown = [{ tag: 'dm-5', close: vi.fn() }, { tag: 'dm-6', close: vi.fn() }];
+    registration.getNotifications = vi.fn(async ({ tag }) => shown.filter((n) => n.tag === tag));
+
+    await closeNotifications('dm-5');
+
+    expect(shown[0].close).toHaveBeenCalled();
+    expect(shown[1].close).not.toHaveBeenCalled();
+  });
+
+  it('does nothing without a service worker', async () => {
+    await expect(closeNotifications('dm-5')).resolves.toBeUndefined();
   });
 });

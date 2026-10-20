@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
     platform: process.platform,
     getInfo: () => ipcRenderer.invoke('desktop:info'),
     notify: (notification) => ipcRenderer.send('desktop:notify', notification),
+    // Takes down the notification tagged `tag` (its chat was read).
+    closeNotification: (tag) => ipcRenderer.send('desktop:close-notification', tag),
     setUnread: (unread) => ipcRenderer.send('desktop:unread', unread),
     getSettings: () => ipcRenderer.invoke('desktop:settings'),
     // Resolves to { settings, failedShortcuts }.

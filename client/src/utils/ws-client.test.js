@@ -12,6 +12,9 @@ import {
   checkConnection,
 } from './ws-client';
 import { presenceOf } from './presence';
+import { closeNotifications } from '../services/pushService';
+
+vi.mock('../services/pushService', async (importOriginal) => ({ ...(await importOriginal()), closeNotifications: vi.fn() }));
 
 class MockWebSocket {
   constructor(url) {
@@ -365,6 +368,20 @@ describe('presence', () => {
       expect.objectContaining({ type: 'presence', visible: true, chatId: '42' }),
       expect.objectContaining({ type: 'presence', visible: true, chatId: null }),
     ]);
+  });
+
+  it("closes the open chat's notifications, here and when it was read elsewhere", () => {
+    globalThis.localStorage.setItem('token', 'jwt-abc');
+    connectWebSocket();
+    const socket = MockWebSocket.instances[0];
+    socket._open();
+    closeNotifications.mockClear();
+
+    setActiveChat(42);
+    setActiveChat('group-3');
+    socket._receive({ type: 'notification_clear', tag: 'channel-9' });
+
+    expect(closeNotifications.mock.calls).toEqual([['dm-42'], ['group-3'], ['channel-9']]);
   });
 
   it('re-sends presence periodically so the server knows it is still current', () => {
