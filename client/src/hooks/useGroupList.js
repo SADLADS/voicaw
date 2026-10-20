@@ -18,6 +18,8 @@ import { parseCallLog } from '../utils/callLog';
 // Read.
 export function useGroupList({ userId, activeGroupId, onRemoved }) {
   const [groups, setGroups] = useState([]);
+  // The list has come from the server at least once.
+  const [loaded, setLoaded] = useState(false);
   const active = useRef(activeGroupId);
   active.current = activeGroupId;
   const onRemovedRef = useRef(onRemoved);
@@ -57,6 +59,7 @@ export function useGroupList({ userId, activeGroupId, onRemoved }) {
         const shown = g.name_version ? prev.find((p) => p.id === g.id) : undefined;
         return shown?.name == null ? withoutName(g) : { ...withoutName(g), name: shown.name, picture: shown.picture };
       }));
+      setLoaded(true);
       // One at a time: a group not seen on this device yet is opened (fetched and checked).
       for (const g of list) await decryptName(g);
     } catch (err) {
@@ -117,5 +120,5 @@ export function useGroupList({ userId, activeGroupId, onRemoved }) {
     setGroups((prev) => prev.map((g) => (g.id === groupId && g.unread ? { ...g, unread: 0 } : g)));
   }, []);
 
-  return { groups, refresh, upsert, clearUnread };
+  return { groups, loaded, refresh, upsert, clearUnread };
 }

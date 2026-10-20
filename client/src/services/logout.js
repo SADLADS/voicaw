@@ -48,8 +48,9 @@ async function endOnServer(token) {
 }
 
 // localStorage keys that are about the account rather than this device: which channel each
-// guild was last on, collapsed categories and tasks, the old emoji usage, the recovery prompt.
-const ACCOUNT_KEYS = [/^guildChannel:/, /^taskCollapsed:/, /^collapsedCategories$/, /^emojiFrequent$/, /^recoveryPromptDismissed$/];
+// guild was last on, the chat the app reopens on, collapsed categories and tasks, the old emoji
+// usage, the recovery prompt.
+const ACCOUNT_KEYS = [/^guildChannel:/, /^lastChat$/, /^taskCollapsed:/, /^collapsedCategories$/, /^emojiFrequent$/, /^recoveryPromptDismissed$/];
 
 function forgetAccountStorage() {
   try {

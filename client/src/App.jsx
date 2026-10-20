@@ -4,6 +4,7 @@ import { useAuth } from './hooks/useAuth';
 import { ConfigContext, InteractionContext } from './contexts';
 import { showContent } from './utils/mobilePanes';
 import { createPhoneHistory } from './utils/phoneHistory';
+import { lastChat } from './utils/lastChat';
 
 import Login from './components/Login.jsx';
 import PendingApproval from './components/PendingApproval.jsx';
@@ -200,8 +201,11 @@ export default function App() {
           <Routes>
             <Route
               path="/"
-              // TODO at some point, change this to the previously viewed page?
-              element={user ? <Navigate to="/dm" replace /> : <Login onLoginSuccess={setUser} />}
+              // Opening the app reopens the last chat viewed on this device (utils/lastChat.js);
+              // Layout goes back to /dm if it's gone since.
+              element={user
+                ? <Navigate to={lastChat() ?? '/dm'} replace state={{ restoredChat: true }} />
+                : <Login onLoginSuccess={setUser} />}
             />
 
             {user && (

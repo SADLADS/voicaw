@@ -46,6 +46,7 @@ import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { clearProfiles, isBot, mergeProfiles } from '../utils/profiles';
 import { setPersonMessenger } from '../utils/personMenu';
 import { startBotDm } from '../services/botDmService';
+import { forgetChat, rememberChat } from '../utils/lastChat';
 import { loadSidebarWidth, onSidebarWidthStorage, saveSidebarWidth } from '../utils/sidebarWidth';
 
 // The router's path as the address bar has it now (hash URLs for a page opened from a file,
@@ -120,6 +121,20 @@ export default function Layout({ user, onLogout }) {
     if (removedId === botDmId) navigate('/dm', { replace: true });
   }, [botDmId, navigate]);
   const botDmList = useBotDmList({ userId: user?.id, activeDmId: botDmId, onRemoved: onBotDmRemoved });
+
+  // The chat the app reopens on (utils/lastChat.js). One reopened that's gone since (a guild or
+  // group left, a conversation with a bot deleted, while the app was closed) goes to the DMs.
+  useEffect(() => rememberChat(location.pathname), [location.pathname]);
+  const restoredChat = Boolean(location.state?.restoredChat);
+  const restoredGone = restoredChat && (
+    (guildId && guildList.loaded && !guildList.guilds.some((g) => String(g.id) === guildId))
+    || (groupId && groupList.loaded && !groupList.groups.some((g) => g.id === groupId))
+    || (botDmId && botDmList.loaded && !botDmList.botDms.some((d) => d.id === botDmId)));
+  useEffect(() => {
+    if (!restoredGone) return;
+    forgetChat();
+    navigate('/dm', { replace: true });
+  }, [restoredGone, navigate]);
   // A person's menu's Message (utils/personMenu.js); a bot's conversation is its own kind.
   const upsertBotDm = useRef(botDmList.upsert);
   upsertBotDm.current = botDmList.upsert;
