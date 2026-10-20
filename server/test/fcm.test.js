@@ -187,7 +187,7 @@ describe('Android app notifications (FCM)', () => {
     await waitForSent(1, since);
     await post(bob, `/dm-mark-read/${alice.id}`);
     const [, clear] = await waitForSent(2, since);
-    expect(open(clear.message, phone.key)).toEqual({ type: 'notification_clear', tag: `dm-${alice.id}` });
+    expect(open(clear.message, phone.key)).toEqual({ type: 'notification_clear', tags: [`dm-${alice.id}`] });
     expect(clear.message.android).toEqual({ priority: 'normal', ttl: '86400s' });
   });
 });

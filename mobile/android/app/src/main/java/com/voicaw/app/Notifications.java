@@ -19,6 +19,7 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.core.app.Person;
 import androidx.core.graphics.drawable.IconCompat;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.InputStream;
@@ -95,10 +96,11 @@ final class Notifications {
                 return;
             }
             if ("notification_clear".equals(type)) {
-                // Its chat was read (here or on another device): its notification goes.
-                String tag = payload.optString("tag");
-                if (!tag.isEmpty()) NotificationManagerCompat.from(context).cancel(tag, 0);
-                PushLog.add(context, type, "took down " + tag);
+                // Their chat was read or shown (here or on another device): these notifications go.
+                JSONArray tags = payload.optJSONArray("tags");
+                int count = tags == null ? 0 : tags.length();
+                for (int i = 0; i < count; i++) NotificationManagerCompat.from(context).cancel(tags.optString(i), 0);
+                PushLog.add(context, type, "took down " + count);
                 return;
             }
             boolean ringing = "call".equals(type) && payload.optBoolean("ringing") && callId != null;

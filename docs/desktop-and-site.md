@@ -373,7 +373,7 @@ native bridge. Check real behaviour on a phone.
   `docs/realtime.md`). Channels (each with its own sound in Android's
   settings): Messages, Mentions, Incoming calls, Missed calls, Ongoing call. One notification per
   conversation (its tag), cancelled by a `notification_clear` push once that chat is read on any
-  device (see Clearing read chats in `docs/realtime.md`); silent while the app is in front (the
+  device (reaction notifications once it's on screen) (see Clearing read chats in `docs/realtime.md`); silent while the app is in front (the
   page plays its sounds). A token
   Firebase drops is forgotten (`UNREGISTERED`); a new token is registered the next time the app
   opens.

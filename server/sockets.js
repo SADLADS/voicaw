@@ -69,9 +69,17 @@ function addClient(ws, userId) {
   if (!clients.has(ws.userId)) clients.set(ws.userId, []);
   clients.get(ws.userId).push(ws);
   refreshStatus(ws.userId);
+  clearShownReactions(ws); // its presence can come first, as a page loads
   // Everyone not offline (and what they're playing), so a client that was disconnected for a
   // while catches up.
   ws.send(JSON.stringify({ type: 'presence_snapshot', statuses: Object.fromEntries(statuses), activities: activities.snapshot() }));
+}
+
+// The chats `ws` has on screen: reaction notifications about them go (push.js clearChatReactions).
+function clearShownReactions(ws) {
+  if (!ws.presence?.visible) return;
+  const { clearChatReactions } = require('./push');
+  for (const chatId of [ws.presence.chatId, ws.presence.sideChatId]) if (chatId) clearChatReactions(ws.userId, chatId);
 }
 
 function removeFrom(map, key, ws) {
@@ -249,7 +257,10 @@ function attachWebSocketServer(server) {
           activeUntil: now + idleIn,
           at: now,
         };
-        if (ws.userId) refreshStatus(ws.userId);
+        if (ws.userId) {
+          refreshStatus(ws.userId);
+          clearShownReactions(ws);
+        }
       } else if (data.type === 'activity') {
         // What this device's games say you're doing (the desktop app's Rich Presence), or [].
         if (!ws.userId) return;
