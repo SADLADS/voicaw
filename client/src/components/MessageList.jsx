@@ -1,6 +1,6 @@
 import React, { createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
-import { useNavigate } from 'react-router-dom';
+import { useInRouterContext, useNavigate } from 'react-router-dom';
 import { Trans } from 'react-i18next';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
@@ -51,7 +51,7 @@ import { UNKNOWN_CHANNEL, mentionName, mentionsMe as isForMe, mentionsToText, ro
 import { ChannelMentionContext } from '../contexts';
 import ChannelIcon from './guild/ChannelIcon';
 import { showContent } from '../utils/mobilePanes';
-import { parseChannelLink } from '../utils/guildDisplay';
+import { appPathOf, parseChannelLink } from '../utils/guildDisplay';
 import { pageMenuTarget } from '../utils/pageMenuTarget';
 import { useBlocked, useBlockedWebhookIds } from '../utils/blocks';
 import BlockedMessage from './BlockedMessage';
@@ -172,15 +172,34 @@ function MarkdownImage({ src, alt, className, title, ...rest }) {
 
 // A link. A bare link to a guild channel (channelLink, as Copy Link gives it) is drawn as that
 // channel's mention for those who can see the channel, and stays a link for everyone else.
-// Links always open in a new tab (the desktop app: the browser): following one in the app's own
-// page would unload it, and LiveKit leaves voice on unload, even when Electron then cancels the
-// navigation.
+// Other links always open in a new tab (the desktop app: the browser): following one in the
+// app's own page would unload it, and LiveKit leaves voice on unload, even when Electron then
+// cancels the navigation. A link to one of the app's own pages (appPathOf: a guild, channel,
+// event, invite...) opens in place instead, in every app, unless clicked with Ctrl, Shift or
+// the middle button.
 function MarkdownLink({ node, href, children, ...rest }) {
-  const link = <a href={href} {...rest} target="_blank" rel="noopener noreferrer">{children}</a>;
+  const link = <AppAwareLink href={href} {...rest}>{children}</AppAwareLink>;
   const target = parseChannelLink(href);
   const text = node?.children?.length === 1 ? node.children[0].value : null;
   if (!target || text !== href) return link;
   return <ChannelMention id={target.channelId} guildId={target.guildId} unknown={link} />;
+}
+
+function AppAwareLink({ href, children, ...rest }) {
+  const path = appPathOf(href);
+  const inRouter = useInRouterContext();
+  if (path && inRouter) return <InAppLink href={href} path={path} {...rest}>{children}</InAppLink>;
+  return <a href={href} {...rest} target="_blank" rel="noopener noreferrer">{children}</a>;
+}
+
+function InAppLink({ href, path, children, ...rest }) {
+  const navigate = useNavigate();
+  const onClick = (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    navigate(path);
+  };
+  return <a href={href} {...rest} target="_blank" rel="noopener noreferrer" onClick={onClick}>{children}</a>;
 }
 
 const markdownComponents = { a: MarkdownLink, img: MarkdownImage, span: MarkdownSpan };
@@ -254,8 +273,7 @@ const MessageMarkdown = memo(function MessageMarkdown({ text, localAttachments, 
 // bot asked). Markdown in embeds is drawn like the message's own text.
 // Memoised like MessageMarkdown: an embed can hold a dozen bits of markdown.
 // `onRemove(messageId, event)`: the X beside each link preview (the sender's own embeds have none).
-// `encrypted`: a DM, group DM or notes, where event links get no card, so their preview stays.
-const EmbedParts = memo(function EmbedParts({ embeds: sent, linkEmbeds, attachments, flags, rehypePlugins, mentions, messageId, onRemove, encrypted = false }) {
+const EmbedParts = memo(function EmbedParts({ embeds: sent, linkEmbeds, attachments, flags, rehypePlugins, mentions, messageId, onRemove }) {
   if (!sent?.length && !attachments?.length && !linkEmbeds?.length) return null;
   const renderMarkdown = (text) => (
     <MentionContext.Provider value={mentions}>
@@ -263,7 +281,7 @@ const EmbedParts = memo(function EmbedParts({ embeds: sent, linkEmbeds, attachme
     </MentionContext.Provider>
   );
   const embeds = flags & SUPPRESS_EMBEDS ? [] : sent ?? [];
-  const previews = flags & SUPPRESS_EMBEDS ? [] : (linkEmbeds ?? []).filter((e) => !drawnByApp(e.url, encrypted));
+  const previews = flags & SUPPRESS_EMBEDS ? [] : (linkEmbeds ?? []).filter((e) => !drawnByApp(e.url));
   return (
     <>
       <MessageEmbeds embeds={embeds} renderMarkdown={renderMarkdown} ownUrls={attachments?.map((a) => a.url)} />
@@ -671,7 +689,6 @@ const MessageRow = memo(function MessageRow({
             mentions={mentions}
             messageId={msg.id}
             onRemove={removable ? removePreviewsById : undefined}
-            encrypted={encrypted}
           />
           <MessageComponents messageId={msg.id} channelId={msg.channel_id} components={msg.components} names={reactionNames} roles={mentionRoles} />
 

@@ -3,9 +3,9 @@ import { useSyncExternalStore } from 'react';
 // Settings → Privacy, per device (localStorage `privacy`, JSON; never sent to the server).
 // Each choice trades a little privacy for convenience, and **defaults to the convenient one**;
 // the more private one is there for whoever wants it.
-// `inviteEmbedsInEncrypted`: invite cards in DMs and group DMs load by themselves (on by
-// default). Asking the server about an invite tells it which invite an encrypted message held;
-// turned off, the card waits for a tap on Show (guild channels always load them).
+// `inviteEmbedsInEncrypted`: invite and event cards in DMs and group DMs load by themselves (on
+// by default). Asking the server about an invite or event tells it which one an encrypted
+// message held; turned off, the card waits for a tap on Show (guild channels always load them).
 // `sendTyping`: the others in a chat see "… is typing" while you write (on by default). In DMs
 // and group DMs that tells the server when you're typing to whom (never what).
 // `youtubeEmbeds`: YouTube links get a player at once (on by default). Even before it's

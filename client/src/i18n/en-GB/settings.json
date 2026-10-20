@@ -591,8 +591,8 @@
         "hint": "Notifications for new messages show what was said. That's handy, but anyone who can see your screen, or your lock screen, can read it too. Turn this off and they only say who it's from (and where). The text of DMs and group DMs is only ever decrypted on this device; the Voicaw server never sees it. Saved on this device."
       },
       "inviteEmbeds": {
-        "label": "Show guild invites in DMs and group DMs straight away",
-        "hint": "A guild invite link in a message gets a card with the guild's name and picture. To fill it in, the app asks the Voicaw server about the invite, which tells the server which invite was in your end-to-end encrypted message. Turn this off and the card waits until you tap Show. Guild channels aren't encrypted, so their invites always show. Saved on this device."
+        "label": "Show guild invites and events in DMs and group DMs straight away",
+        "hint": "A guild invite or event link in a message gets a card: the guild's name and picture, or the event's time and place. To fill it in, the app asks the Voicaw server about the invite or event, which tells the server which one was in your end-to-end encrypted message. Turn this off and the card waits until you tap Show. Guild channels aren't encrypted, so their cards always show. Saved on this device."
       },
       "typing": {
         "label": "Let others see when I'm typing",

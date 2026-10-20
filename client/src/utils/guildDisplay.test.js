@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { channelLink, defaultChannel, groupChannels, guildInitials, parseChannelLink, parseInviteCode, rememberChannel } from './guildDisplay';
+import { appPathOf, channelLink, defaultChannel, eventLink, groupChannels, guildInitials, parseChannelLink, parseInviteCode, rememberChannel } from './guildDisplay';
+import { apiBaseUrl } from './server';
 
 const storage = new Map();
 globalThis.localStorage = {
@@ -65,6 +66,36 @@ describe('guildDisplay', () => {
       expect(parseChannelLink('http://localhost:5199/guild/7')).toBeNull();
       expect(parseChannelLink('http://localhost:5199/guild/7/12?x=1')).toBeNull();
       expect(parseChannelLink(undefined)).toBeNull();
+    } finally {
+      delete globalThis.window;
+    }
+  });
+
+  it("shares the server's address from an app whose own address only opens inside it", () => {
+    globalThis.window = { location: { protocol: 'voicaw:', origin: 'null', href: 'voicaw://app/' } };
+    try {
+      const api = new URL(apiBaseUrl()).origin;
+      expect(api).toMatch(/^https?:\/\/[^/]+$/);
+      expect(channelLink(7, 12)).toBe(`${api}/guild/7/12`);
+      expect(eventLink(7, 34)).toBe(`${api}/guild/7?event=34`);
+    } finally {
+      delete globalThis.window;
+    }
+  });
+
+  it("opens links to the app's own pages in place", () => {
+    globalThis.window = { location: { protocol: 'http:', origin: 'http://localhost:5199', href: 'http://localhost:5199/' } };
+    try {
+      expect(appPathOf('http://localhost:5199/guild/7?event=34')).toBe('/guild/7?event=34');
+      expect(appPathOf('https://app.voicaw.com/guild/7/12')).toBe('/guild/7/12');
+      expect(appPathOf('https://app.voicaw.com/invite/cool-guild')).toBe('/invite/cool-guild');
+      expect(appPathOf('https://app.voicaw.com/dm/g/5')).toBe('/dm/g/5');
+      expect(appPathOf('https://app.voicaw.com/settings/privacy')).toBe('/settings/privacy');
+      expect(appPathOf('https://app.voicaw.com/privacy')).toBeNull();
+      expect(appPathOf('https://app.voicaw.com/api/guilds')).toBeNull();
+      expect(appPathOf('https://voicaw.com/guild/7')).toBeNull();
+      expect(appPathOf('https://example.com/guild/7')).toBeNull();
+      expect(appPathOf('not a link')).toBeNull();
     } finally {
       delete globalThis.window;
     }

@@ -160,8 +160,8 @@
   the server (or another site) a little more for convenience, per device (`utils/privacy.js`,
   `localStorage privacy`, JSON; never sent to the server). **Each defaults to the convenient
   (less private) option**; turning it off is for whoever wants the private one. So far:
-  `inviteEmbedsInEncrypted`, invite cards in DMs and group DMs load without Show (see
-  docs/guilds.md, Invite embeds); `sendTyping`; `youtubeEmbeds`, YouTube players load without
+  `inviteEmbedsInEncrypted`, invite and event cards in DMs and group DMs load without Show (see
+  docs/guilds.md, Invite embeds and Events); `sendTyping`; `youtubeEmbeds`, YouTube players load without
   Play (see docs/messages.md, YouTube links); `gifs`, GIFs load without Show and the GIF picker
   doesn't warn first (see docs/messages.md, GIFs); `linkPreviews`, other sites' pictures and
   videos in link previews and embeds load without Show / Play (see docs/messages.md, Link

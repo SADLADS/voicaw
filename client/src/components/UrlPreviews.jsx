@@ -92,8 +92,8 @@ function YouTubeEmbed({ id, link }) {
 // finds): Voicaw guild invites and YouTube videos and, in an end-to-end encrypted chat
 // (`encrypted`), links straight to a picture or a video, shown from that site (LinkMedia; page
 // previews come from the server in a guild and from the sender's app in an encrypted chat,
-// drawn by MessageEmbeds). Invites in encrypted
-// chats only load when tapped (see InviteEmbed); event links only show in guild channels.
+// drawn by MessageEmbeds), and Voicaw guild events. Invites and events in encrypted chats load
+// by themselves only as Settings → Privacy allows (see InviteEmbed and EventEmbed).
 // With Settings → Privacy's "Show link previews" off, only invites and events (Voicaw's own) show.
 // `onRemove(event)`: an X beside each (RemovableEmbed), removing the message's previews.
 export default function UrlPreviews({ text, encrypted = false, onRemove }) {
@@ -107,16 +107,14 @@ export default function UrlPreviews({ text, encrypted = false, onRemove }) {
   }
   const media = encrypted && sitePreviews ? links.filter((link) => !inviteCodeFromUrl(link) && !youtubeVideoId(link) && mediaLinkKind(link)) : [];
   const events = new Map();
-  if (!encrypted) {
-    for (const link of links) {
-      const found = eventFromUrl(link);
-      if (found && !events.has(found.eventId)) events.set(found.eventId, found);
-    }
+  for (const link of links) {
+    const found = eventFromUrl(link);
+    if (found && !events.has(found.eventId)) events.set(found.eventId, found);
   }
   return (
     <>
       {inviteCodes.map((code) => <RemovableEmbed key={code} onRemove={onRemove}><InviteEmbed code={code} autoLoad={!encrypted} /></RemovableEmbed>)}
-      {[...events.values()].map((e) => <RemovableEmbed key={e.eventId} onRemove={onRemove}><EventEmbed guildId={e.guildId} eventId={e.eventId} /></RemovableEmbed>)}
+      {[...events.values()].map((e) => <RemovableEmbed key={e.eventId} onRemove={onRemove}><EventEmbed guildId={e.guildId} eventId={e.eventId} autoLoad={!encrypted} /></RemovableEmbed>)}
       {[...videos].map(([id, link]) => <RemovableEmbed key={id} onRemove={onRemove}><YouTubeEmbed id={id} link={link} /></RemovableEmbed>)}
       {media.length > 0 && (
         <div className="message-files">

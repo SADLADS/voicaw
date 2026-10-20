@@ -277,6 +277,29 @@ describe('MessageList', () => {
     expect(screen.getByTestId('where')).toHaveTextContent('/guild/9/5');
   });
 
+  it("opens links to the app's own pages in place, and others in a new tab", () => {
+    const event = 'https://app.voicaw.com/guild/9?event=4';
+    const other = 'https://example.com/guild/9';
+    const messages = [{ id: 1, sender_id: 2, sender_username: 'bob', timestamp: 1000, plaintext: `see <${event}> and <${other}>` }];
+    function Where() {
+      const location = useLocation();
+      return <span data-testid="where">{location.pathname + location.search}</span>;
+    }
+    render(
+      <MemoryRouter initialEntries={['/dm/2']}>
+        <Routes><Route path="*" element={<><MessageList {...baseProps({ messages })} /><Where /></>} /></Routes>
+      </MemoryRouter>
+    );
+    // Ctrl-click leaves it to the browser (a new tab).
+    fireEvent.click(screen.getByText(event), { ctrlKey: true });
+    expect(screen.getByTestId('where')).toHaveTextContent('/dm/2');
+    fireEvent.click(screen.getByText(other));
+    expect(screen.getByTestId('where')).toHaveTextContent('/dm/2');
+    fireEvent.click(screen.getByText(event));
+    expect(screen.getByTestId('where')).toHaveTextContent('/guild/9?event=4');
+    expect(screen.getByText(event)).toHaveAttribute('href', event);
+  });
+
   it('marks messages from the current user as sent and others as received', () => {
     const messages = [
       { id: 1, sender_id: 1, sender_username: 'alice', plaintext: 'hi there', timestamp: 1000 },
@@ -825,13 +848,13 @@ describe('MessageList reactions', () => {
       expect(container.querySelectorAll('.embed')).toHaveLength(2);
     });
 
-    it("drops the page preview of an event link in a guild (the event's card stands in), not in an encrypted chat", () => {
+    it("drops the page preview of an event link (the event's card stands in), in guilds and encrypted chats", () => {
       const preview = { type: 'link', url: 'https://app.voicaw.com/guild/1?event=13', title: 'Voicaw', description: 'Chat' };
       const msg = hookMessage({ embeds: [], link_embeds: [preview] });
       const { container, rerender } = render(<MessageList {...baseProps({ messages: [msg], encrypted: false })} />);
       expect(container.querySelector('.embed')).toBeNull();
       rerender(<MessageList {...baseProps({ messages: [msg], encrypted: true })} />);
-      expect(container.querySelector('.embed')).toHaveTextContent('Voicaw');
+      expect(container.querySelector('.embed')).toBeNull();
     });
 
     it("doesn't show a file twice when an embed shows it", () => {

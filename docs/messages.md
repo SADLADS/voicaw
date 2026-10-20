@@ -139,7 +139,12 @@ switched off: indented code, `---` rules, `===` headings, tables, task lists, fo
 italic, strikethrough, code, code blocks, `#`–`###` headings, `>` quotes, lists, links.
 Links always open in a new tab (`MarkdownLink`; the desktop app sends them to the browser):
 following one in the app's own page would unload it, and LiveKit leaves voice on unload, even
-when the desktop app then cancels the navigation.
+when the desktop app then cancels the navigation. Links to the app's own pages are the
+exception (`AppAwareLink`, `guildDisplay.js` `appPathOf`: the address it shares links from,
+or app.voicaw.com on the built-in server, and a path the app has: a guild, channel, event,
+invite, DM, settings or the developer portal): a plain click opens them in place, with the
+router, in every app (browser, desktop, Android); Ctrl, Shift or a middle click still opens a
+new tab.
 Plain-text places hide spoilers as `[spoiler]` (`hideSpoilers`: reply previews, DM push
 previews; `server/mentions.js` does the same for guild pushes). Copying a message keeps its
 markdown. Styles are at the end of `dms.css` (MESSAGE MARKDOWN); only the text inside blocks

@@ -76,8 +76,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   or Go to Guild; membership comes from `guildList`, so it flips as soon as you join. Data is
   `GET /invites/:code`, asked once per code per session (`fetchInvitePreview`). In guild
   channels it loads at once; in DMs and group DMs (`ChatPane` `encrypted`, default true) it
-  loads at once too, unless Settings → Privacy's "Show guild invites in DMs and group DMs
-  straight away" is turned off (per device, on by default; `utils/privacy.js`, applies live):
+  loads at once too, unless Settings → Privacy's "Show guild invites and events in DMs and
+  group DMs straight away" is turned off (per device, on by default; `utils/privacy.js`, applies live):
   then it waits for a tap on Show, since asking tells the server which invite an encrypted
   message held.
 - **Invite links on other sites** (Discord, Slack, Telegram...): their link previewers don't
@@ -182,7 +182,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   computer (hover, click or arrow keys), a bottom sheet on a phone (a submenu replaces it, with
   Back). `ChannelMenu`: Mark As Read (`POST /channels/:id/read { latest: true }`), Mute Channel
   ▸ / Unmute, Notification Settings ▸ (see Mentions), Copy Link (`channelLink`: this site's
-  address, app.voicaw.com from the desktop app), Copy Channel ID, and with Manage Channels Edit, Duplicate
+  address in a browser; from the desktop and Android apps, whose own addresses only open inside
+  them, the address of the server's API, app.voicaw.com for the built-in one: `shareOrigin`), Copy Channel ID, and with Manage Channels Edit, Duplicate
   (`CloneChannelDialog`) and Delete (voice channels too: their chat, see Voice channels' chat).
   A voice channel's Edit also has its bitrate, user limit and voice region (see Channel settings
   and Voice regions in `docs/voice-and-calls.md`).
@@ -538,9 +539,11 @@ Not end-to-end encrypted, like the rest of a guild.
   top are buttons, going to that step like Next (stopping at an earlier one with something
   missing). `?event=<id>` on a
   guild URL opens it (links, notifications; `eventLink`, kept through the redirect to the last
-  channel); an event link in a guild channel gets a card (`events/EventEmbed.jsx`; not in DMs and
-  group DMs, so an encrypted chat's link is never sent to the server), in place of the
-  server's page preview of the link (`utils/linkPreviews.js` `drawnByApp`, as for invites).
+  channel); an event link gets a card (`events/EventEmbed.jsx`), in place of the page preview of the
+  link (`utils/linkPreviews.js` `drawnByApp`, as for invites). In DMs and group DMs it loads
+  like invite cards (see Invite embeds): at once unless Settings → Privacy's "Show guild
+  invites and events in DMs and group DMs straight away" is off, then after a tap on Show,
+  since asking (`GET /guild-events/:id`) tells the server which event an encrypted message held.
 - **Calendar** (`events/EventCalendar.jsx`, `utils/eventCalendar.js`): a month on six weeks from
   Monday, each event on the day it starts (on this device), with every occurrence of a
   repeating one: `occurrencesBetween` (`utils/eventRecurrence.js`) is a copy of the server's

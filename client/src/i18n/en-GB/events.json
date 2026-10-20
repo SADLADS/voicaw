@@ -169,6 +169,8 @@
     },
     "embed": {
       "view": "View",
+      "hidden": "A guild event. Tap Show to see which",
+      "show": "Show",
       "gone": "This event has ended, been cancelled, or isn't one you can see."
     }
   }

@@ -1115,3 +1115,11 @@ button.event-card-name:hover {
   color: var(--vc-fg-muted);
   font-size: 0.85rem;
 }
+
+/* An encrypted chat's event link, waiting for Show. */
+.event-embed-hidden {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}

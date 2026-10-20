@@ -1,4 +1,6 @@
 import { nameOf } from './profiles';
+import { isAndroidApp } from './android';
+import { apiBaseUrl, isBuiltInServer } from './server';
 import { t } from '../i18n';
 
 // "Test Guild" -> "TG", "voicaw" -> "v": what a guild without an icon shows (like Discord).
@@ -52,10 +54,43 @@ export function rememberChannel(guildId, channelId) {
   }
 }
 
-// Where links to share point: this site, or app.voicaw.com from the desktop app (whose own
-// voicaw://app address only opens inside it).
+// Whether this is the web app in a browser, whose own address can be shared (not the desktop
+// app's voicaw://app or the Android app's https://localhost, which only open inside them).
+const pageLocation = () => globalThis.window?.location;
+const inBrowser = () => /^https?:$/.test(pageLocation()?.protocol ?? '') && !isAndroidApp();
+
+// Where links to share point: this site in a browser, else the web app of the server the app
+// uses, which is where its API lives (app.voicaw.com for the built-in one).
 export function shareOrigin() {
-  return /^https?:$/.test(window.location.protocol) ? window.location.origin : 'https://app.voicaw.com';
+  if (inBrowser()) return pageLocation().origin;
+  try {
+    return new URL(apiBaseUrl(), pageLocation()?.href).origin;
+  } catch {
+    return 'https://app.voicaw.com';
+  }
+}
+
+// Whether a link's origin is this app's: the one it shares links from, and app.voicaw.com
+// while on the built-in server (its links still open from a test copy or the dev server).
+function isAppOrigin(origin) {
+  return origin === shareOrigin() || (isBuiltInServer() && origin === 'https://app.voicaw.com');
+}
+
+// The app's pages a link can open in place (App.jsx's routes for someone logged in).
+const APP_PATH = /^\/(?:guild\/\d+(?:\/\d+)?|invite\/[A-Za-z0-9-]+|dm(?:\/[^/]+){0,2}|settings(?:\/[^/]+)*|developers(?:\/applications\/\d+)?)\/?$/;
+
+// The path, query and fragment of a link to one of this app's own pages ("https://app.voicaw.com/
+// guild/12?event=34" -> "/guild/12?event=34"), which the app opens in place rather than in a
+// browser, else null.
+export function appPathOf(href) {
+  let url;
+  try {
+    url = new URL(href);
+  } catch {
+    return null;
+  }
+  if (!isAppOrigin(url.origin) || !APP_PATH.test(url.pathname)) return null;
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 // The link to share for an invite code.
@@ -82,7 +117,7 @@ export function eventLink(guildId, eventId) {
 // null.
 export function parseChannelLink(href) {
   const match = /^(https?:\/\/[^/]+)\/guild\/(\d+)\/(\d+)\/?$/.exec(href ?? '');
-  if (!match || ![shareOrigin(), 'https://app.voicaw.com'].includes(match[1])) return null;
+  if (!match || !isAppOrigin(match[1])) return null;
   return { guildId: match[2], channelId: match[3] };
 }
 

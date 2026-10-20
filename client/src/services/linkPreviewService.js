@@ -42,6 +42,6 @@ async function previewFor(link) {
 // -> the embeds for the links in `text` that get one (maybe none).
 export async function previewsFor(text) {
   if (!canMakePreviews() || !getPrivacyPrefs().showLinkPreviews) return [];
-  const links = linksIn(text).filter((link) => !drawnByApp(link, true) && !mediaLinkKind(link));
+  const links = linksIn(text).filter((link) => !drawnByApp(link) && !mediaLinkKind(link));
   return (await Promise.all(links.map(previewFor))).filter(Boolean);
 }
