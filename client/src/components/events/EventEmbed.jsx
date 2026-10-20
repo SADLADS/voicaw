@@ -2,8 +2,10 @@ import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../assets/css/events.css';
 import EventCard from './EventCard';
+import InterestButton from './InterestButton';
 import { LayoutContext } from '../../contexts';
 import { fetchEvent, setEventInterest } from '../../services/guildService';
+import { interestAfter, interestKept } from '../../utils/eventDisplay';
 import { onGuildEvent } from '../../utils/ws-client';
 import { errorMessage } from '../../utils/guildDisplay';
 import { usePrivacyPrefs } from '../../utils/privacy';
@@ -33,7 +35,7 @@ export default function EventEmbed({ guildId, eventId, autoLoad = true }) {
       .then((data) => { if (!cancelled) setEvent(data); })
       .catch((err) => { if (!cancelled) setError(err); });
     const off = onGuildEvent((e) => {
-      if (e.type === 'guild_event_update' && e.event.id === eventId) setEvent((before) => (before ? { ...e.event, interested: before.interested } : before));
+      if (e.type === 'guild_event_update' && e.event.id === eventId) setEvent((before) => (before ? { ...e.event, ...interestKept(before, e.event) } : before));
       else if (e.type === 'guild_event_delete' && e.event.id === eventId) setEvent(null);
       else if (e.type === 'guild_event_interest' && e.eventId === eventId) setEvent((before) => (before ? { ...before, user_count: e.userCount } : before));
     });
@@ -65,18 +67,19 @@ export default function EventEmbed({ guildId, eventId, autoLoad = true }) {
     );
   }
 
-  function toggleInterest() {
-    const next = !event.interested;
-    setEvent((e) => ({ ...e, interested: next }));
-    setEventInterest(event.id, next).catch(() => setEvent((e) => ({ ...e, interested: !next })));
+  // `choice`: { interested, occurrence } (InterestButton).
+  function chooseInterest(choice) {
+    const before = { interested: Boolean(event.interested), interested_all: Boolean(event.interested_all) };
+    setEvent((e) => ({ ...e, ...interestAfter(e, choice) }));
+    setEventInterest(event.id, choice.interested, { occurrence: choice.occurrence }).catch(() => setEvent((e) => ({ ...e, ...before })));
   }
 
   return (
     <div className="event-embed">
       <EventCard event={event} guild={guild} onOpen={() => navigate(`/guild/${guildId}?event=${eventId}`)}>
-        <button type="button" className={`btn btn-sm${event.interested ? ' btn-primary' : ' btn-secondary'}`} aria-pressed={Boolean(event.interested)} onClick={toggleInterest}>
+        <InterestButton event={event} className={`btn btn-sm${event.interested ? ' btn-primary' : ' btn-secondary'}`} onChoose={chooseInterest}>
           {t('events.actions.interested')}
-        </button>
+        </InterestButton>
         <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(`/guild/${guildId}?event=${eventId}`)}>
           {t('events.embed.view')}
         </button>

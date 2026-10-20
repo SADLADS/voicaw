@@ -26,6 +26,10 @@ const { cleanRule, cleanTimeZone, startsOnRule, nextOccurrence, addDays } = requ
 //   cancelled events are deleted; a repeating one moves on to its next occurrence instead
 //   (eventRecurrence.js). Whoever's interested is told when one starts (not an all-day one's
 //   midnight).
+// - Interest: in the whole series, or (a repeating event) in its current occurrence alone,
+//   or in the series but not the current occurrence (guild_event_users' only_occurrence and
+//   skip_occurrence). `user_count`, who's listed and who's notified are for the current
+//   occurrence; moving on to the next one (or retiming the series) drops the exceptions.
 
 const MAX_NAME = 100;
 const MAX_DESCRIPTION = 1000;
@@ -84,10 +88,26 @@ function publicEvent(row, userCount = 0) {
   };
 }
 
+// SQL: guild_event_users row `u` is interested in the current occurrence of event `e`.
+const INTERESTED_NOW = `(u.only_occurrence IS NULL OR u.only_occurrence = e.occurrence_start)
+  AND (u.skip_occurrence IS NULL OR u.skip_occurrence IS NOT e.occurrence_start)`;
+const INTEREST_JOIN = 'guild_event_users u JOIN guild_events e ON e.id = u.event_id';
+
+// How interested someone is in `event` (a row), from their guild_event_users row (or none):
+// `interested` in its current occurrence, `interested_all` in the series.
+function interestState(event, row) {
+  if (!row) return { interested: false, interested_all: false };
+  const all = row.only_occurrence == null;
+  if (event.occurrence_start == null) return { interested: true, interested_all: all };
+  const interested = all ? row.skip_occurrence !== event.occurrence_start : row.only_occurrence === event.occurrence_start;
+  return { interested, interested_all: all };
+}
+
 async function userCounts(ids) {
   if (!ids.length) return new Map();
   const rows = await db.all(
-    `SELECT event_id, COUNT(*) AS count FROM guild_event_users WHERE event_id IN (${ids.map(() => '?').join(',')}) GROUP BY event_id`,
+    `SELECT u.event_id, COUNT(*) AS count FROM ${INTEREST_JOIN}
+     WHERE u.event_id IN (${ids.map(() => '?').join(',')}) AND ${INTERESTED_NOW} GROUP BY u.event_id`,
     ids
   );
   return new Map(rows.map((r) => [r.event_id, r.count]));
@@ -128,7 +148,7 @@ function canManage(member, event, permissions) {
     (event.creator_id === member.userId && has(permissions, PERMISSIONS.CREATE_EVENTS));
 }
 
-// The events of the guild `member` can see, soonest first, each with `interested` (theirs).
+// The events of the guild `member` can see, soonest first, each with their interestState.
 async function listEvents(member) {
   const { getOverrides } = require('./guilds');
   const rows = await db.all(`SELECT ${EVENT_COLUMNS} FROM guild_events WHERE guild_id = ? ORDER BY start_time, id`, [member.guild.id]);
@@ -139,32 +159,37 @@ async function listEvents(member) {
     has(channelPermissions(member, member.userId, overrides.get(e.channel_id) ?? []), PERMISSIONS.VIEW_CHANNEL)));
   const ids = visible.map((e) => e.id);
   const counts = await userCounts(ids);
-  const mine = new Set(ids.length ? (await db.all(
-    `SELECT event_id FROM guild_event_users WHERE user_id = ? AND event_id IN (${ids.map(() => '?').join(',')})`,
+  const mine = new Map(ids.length ? (await db.all(
+    `SELECT event_id, only_occurrence, skip_occurrence FROM guild_event_users WHERE user_id = ? AND event_id IN (${ids.map(() => '?').join(',')})`,
     [member.userId, ...ids]
-  )).map((r) => r.event_id) : []);
-  return visible.map((e) => ({ ...publicEvent(e, counts.get(e.id) ?? 0), interested: mine.has(e.id) }));
+  )).map((r) => [r.event_id, r]) : []);
+  return visible.map((e) => ({ ...publicEvent(e, counts.get(e.id) ?? 0), ...interestState(e, mine.get(e.id)) }));
 }
 
-const isInterested = async (eventId, userId) => Boolean(
-  await db.get('SELECT 1 FROM guild_event_users WHERE event_id = ? AND user_id = ?', [eventId, userId])
-);
+// `userId`'s interestState for `event` (a row).
+async function interestOf(event, userId) {
+  return interestState(event, await db.get(
+    'SELECT only_occurrence, skip_occurrence FROM guild_event_users WHERE event_id = ? AND user_id = ?', [event.id, userId]
+  ));
+}
 
-// Who's interested in `eventId` ({ user_id, created_at }, by user id), `limit` after user id `after` or
-// before user id `before` (the bot API pages by user id, as Discord does).
+// Who's interested in the current occurrence of `eventId` ({ user_id, created_at }, by user
+// id), `limit` after user id `after` or before user id `before` (the bot API pages by user id,
+// as Discord does).
 async function interestedUsers(eventId, { limit = 100, after = null, before = null } = {}) {
-  const where = ['event_id = ?'];
+  const where = ['u.event_id = ?', INTERESTED_NOW];
   const params = [eventId];
   if (after != null) {
-    where.push('user_id > ?');
+    where.push('u.user_id > ?');
     params.push(after);
   }
   if (before != null) {
-    where.push('user_id < ?');
+    where.push('u.user_id < ?');
     params.push(before);
   }
   const rows = await db.all(
-    `SELECT user_id, created_at FROM guild_event_users WHERE ${where.join(' AND ')} ORDER BY user_id ${before != null && after == null ? 'DESC' : ''} LIMIT ?`,
+    `SELECT u.user_id, u.created_at FROM ${INTEREST_JOIN} WHERE ${where.map((w) => `(${w})`).join(' AND ')}
+     ORDER BY u.user_id ${before != null && after == null ? 'DESC' : ''} LIMIT ?`,
     [...params, limit]
   );
   return rows.sort((a, b) => a.user_id - b.user_id);
@@ -194,12 +219,15 @@ async function broadcast(kind, event, before = null) {
   }
 }
 
-// Tells whoever sees `event` that `userId` is or isn't interested any more.
-async function broadcastInterest(event, userId, interested) {
+// Tells whoever sees `event` how interested `userId` is now (interestState; not at all by
+// default). `changed`: whether that changed who's interested in the current occurrence (bots
+// are only told then).
+async function broadcastInterest(event, userId, state = interestState(event, null), changed = true) {
   const count = (await userCounts([event.id])).get(event.id) ?? 0;
   for (const viewer of await viewersOf(event)) {
     sendToUserSockets(viewer, {
-      type: 'guild_event_interest', guildId: event.guild_id, eventId: event.id, userId, interested, userCount: count,
+      type: 'guild_event_interest', guildId: event.guild_id, eventId: event.id, userId,
+      interested: state.interested, interestedAll: state.interested_all, changed, userCount: count,
     });
   }
 }
@@ -214,7 +242,8 @@ async function placeOf(event) {
 // Tells those interested in `event` (who can still see it) that it started: a push (unless
 // their notification level for the guild is 'none'), never to whoever started it.
 async function notifyStarted(event, actorId = null) {
-  const interested = (await db.all('SELECT user_id FROM guild_event_users WHERE event_id = ?', [event.id])).map((r) => r.user_id);
+  const interested = (await db.all(`SELECT u.user_id FROM ${INTEREST_JOIN} WHERE u.event_id = ? AND ${INTERESTED_NOW}`, [event.id]))
+    .map((r) => r.user_id);
   if (!interested.length) return;
   const viewers = new Set(await viewersOf(event));
   const recipients = interested.filter((id) => id !== actorId && viewers.has(id));
@@ -449,6 +478,7 @@ async function updateEvent(member, eventId, input) {
         after.end_time ?? null, after.image ?? null, after.recurrence ?? null, repeating || after.all_day ? after.timezone : null,
         occurrenceStart, duration, after.all_day ? 1 : 0, after.emoji ?? null, after.color ?? null, now(), before.id]
     );
+    if (occurrenceStart !== before.occurrence_start) await dropOccurrenceInterest(before.id);
     await linkImage(before.id, after.image);
     if (Object.keys(changes).length || Object.keys(notes).length) {
       await logAudit({
@@ -514,14 +544,38 @@ async function moveOccurrence(member, eventId, { startTime, endTime }) {
   return updated;
 }
 
-// `member` is (or isn't) interested in the event.
-async function setInterest(member, eventId, interested) {
+// `member` is (or isn't) interested in the event: the whole series, or with `occurrence` only
+// its current occurrence (the same thing for one that doesn't repeat). Resolves to their
+// interestState.
+async function setInterest(member, eventId, interested, { occurrence = false } = {}) {
   const access = await eventAccess(eventId, member.userId);
   if (!access) throw notFound();
-  const { changes } = interested
-    ? await db.run('INSERT OR IGNORE INTO guild_event_users (event_id, user_id, created_at) VALUES (?, ?, ?)', [eventId, member.userId, now()])
-    : await db.run('DELETE FROM guild_event_users WHERE event_id = ? AND user_id = ?', [eventId, member.userId]);
-  if (changes) await broadcastInterest(access.event, member.userId, interested);
+  const { event } = access;
+  const { userId } = member;
+  const before = await interestOf(event, userId);
+  const current = event.occurrence_start;
+  const after = occurrence && current != null
+    ? { interested, interested_all: before.interested_all }
+    : { interested, interested_all: interested };
+  if (after.interested === before.interested && after.interested_all === before.interested_all) return before;
+  if (!after.interested && !after.interested_all) {
+    await db.run('DELETE FROM guild_event_users WHERE event_id = ? AND user_id = ?', [event.id, userId]);
+  } else {
+    await db.run(
+      `INSERT INTO guild_event_users (event_id, user_id, created_at, only_occurrence, skip_occurrence) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (event_id, user_id) DO UPDATE SET only_occurrence = excluded.only_occurrence, skip_occurrence = excluded.skip_occurrence`,
+      [event.id, userId, now(), after.interested_all ? null : current, after.interested_all && !after.interested ? current : null]
+    );
+  }
+  await broadcastInterest(event, userId, after, after.interested !== before.interested);
+  return after;
+}
+
+// The series has moved to another occurrence: interest in the last one alone goes, and
+// skipping it no longer applies. Inside the transaction.
+async function dropOccurrenceInterest(eventId) {
+  await db.run('DELETE FROM guild_event_users WHERE event_id = ? AND only_occurrence IS NOT NULL', [eventId]);
+  await db.run('UPDATE guild_event_users SET skip_occurrence = NULL WHERE event_id = ? AND skip_occurrence IS NOT NULL', [eventId]);
 }
 
 // ---- Moving through the lifecycle ----
@@ -559,7 +613,7 @@ async function remove(event, status, kind) {
 }
 
 // A repeating event moves on to its next occurrence still to come (scheduled again, the same
-// people interested); one that has none left (or doesn't repeat) is deleted.
+// people interested in the series); one that has none left (or doesn't repeat) is deleted.
 async function advance(event) {
   const rule = JSON.parse(event.recurrence);
   let next = nextOccurrence(rule, event.timezone, event.occurrence_start);
@@ -567,11 +621,14 @@ async function advance(event) {
   const over = (at) => (event.all_day ? occurrenceEnd(event, at) ?? at : at) <= now();
   while (next != null && over(next)) next = nextOccurrence(rule, event.timezone, next);
   if (next == null) return remove(event, 'completed', 'update');
-  await db.run(
-    `UPDATE guild_events SET status = 'scheduled', started_at = NULL, start_time = ?, end_time = ?, occurrence_start = ?, updated_at = ?
-     WHERE id = ?`,
-    [next, occurrenceEnd(event, next), next, now(), event.id]
-  );
+  await db.transaction(async () => {
+    await db.run(
+      `UPDATE guild_events SET status = 'scheduled', started_at = NULL, start_time = ?, end_time = ?, occurrence_start = ?, updated_at = ?
+       WHERE id = ?`,
+      [next, occurrenceEnd(event, next), next, now(), event.id]
+    );
+    await dropOccurrenceInterest(event.id);
+  });
   forgetPresence(event.id);
   const updated = await loadPublic(event.id);
   await broadcast('update', updated);
@@ -726,7 +783,7 @@ module.exports = {
   canManage,
   listEvents,
   interestedUsers,
-  isInterested,
+  interestOf,
   broadcastInterest,
   createEvent,
   updateEvent,

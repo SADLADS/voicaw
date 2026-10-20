@@ -309,7 +309,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   (Discord has no calendar), in a voice channel or somewhere else, with covers, Interested and
   Discord's repeat rules laid on the creator's time zone's wall clock. Every event starts on its own
   at its time (2026-10-06; Discord's voice events wait for Start), and what's on is listed under
-  Calendar in the channel list; ended and cancelled ones are deleted, repeating ones move on. Bots get
+  Calendar in the channel list; ended and cancelled ones are deleted, repeating ones move on.
+  Interested on a repeating one (2026-10-20) is for this occurrence or all of them, as Discord's
+  (only the next occurrence can be picked alone, like editing or cancelling one). Bots get
   Discord's scheduled-event API and gateway events. A month calendar (2026-10-06) opens from Calendar in
   the channel list, its first tab (Week the second, the list the third), made from the same events (repeats laid out by a client copy of the
   server's stepping); events can be made on a day of it. A Week tab (2026-10-09, as Guilded's) shows the chosen day's week as

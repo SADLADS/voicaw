@@ -6,7 +6,8 @@ const events = require('../guildEvents');
 
 // Scheduled events (guildEvents.js has the rules; the bot API shares its actions). Events are
 // sent to whoever can see them: guild_event_create / _update / _delete { guildId, event } and
-// guild_event_interest { guildId, eventId, userId, interested, userCount }.
+// guild_event_interest { guildId, eventId, userId, interested (the current occurrence),
+// interestedAll (the series), changed (who's interested in the current occurrence), userCount }.
 const router = express.Router();
 
 const notFound = (res) => res.status(404).json({ error: 'Event not found' });
@@ -46,7 +47,8 @@ const fieldsOf = (body = {}) => ({
   color: body.color,
 });
 
-// The guild's events the caller can see, soonest first (with `interested`: theirs).
+// The guild's events the caller can see, soonest first (with `interested` and `interested_all`:
+// theirs).
 router.get('/guilds/:guildId/events', authenticateJWT, requireMember, async (req, res) => {
   res.json(await events.listEvents(req.member));
 });
@@ -56,13 +58,13 @@ router.get('/guilds/:guildId/events', authenticateJWT, requireMember, async (req
 // timezone?, allDay?, emoji?, color? }
 router.post('/guilds/:guildId/events', authenticateJWT, requireMember, withActionErrors(async (req, res) => {
   const event = await events.createEvent(req.member, fieldsOf(req.body));
-  res.status(201).json({ ...event, interested: true });
+  res.status(201).json({ ...event, interested: true, interested_all: true });
 }));
 
-// One event (event links open it), with `interested`.
+// One event (event links open it), with `interested` and `interested_all`.
 router.get('/guild-events/:eventId', authenticateJWT, requireEvent, async (req, res) => {
-  const event = await events.loadPublic(req.eventId);
-  res.json({ ...event, interested: await events.isInterested(req.eventId, req.user.id) });
+  const row = await events.getEvent(req.eventId);
+  res.json({ ...(await events.loadPublic(row.id)), ...(await events.interestOf(row, req.user.id)) });
 });
 
 // Any of the fields above: every occurrence of a repeating event.
@@ -93,17 +95,16 @@ router.delete('/guild-events/:eventId', authenticateJWT, requireEvent, withActio
   res.json({ success: true });
 }));
 
-router.put('/guild-events/:eventId/interest', authenticateJWT, requireEvent, withActionErrors(async (req, res) => {
-  await events.setInterest(req.member, req.eventId, true);
-  res.json({ success: true });
-}));
+// Interested (PUT) or not (DELETE): in every occurrence, or with ?occurrence=1 only the
+// current one. Answers { interested, interested_all }.
+const interestRoute = (interested) => withActionErrors(async (req, res) => {
+  const occurrence = ['1', 'true'].includes(String(req.query.occurrence));
+  res.json(await events.setInterest(req.member, req.eventId, interested, { occurrence }));
+});
+router.put('/guild-events/:eventId/interest', authenticateJWT, requireEvent, interestRoute(true));
+router.delete('/guild-events/:eventId/interest', authenticateJWT, requireEvent, interestRoute(false));
 
-router.delete('/guild-events/:eventId/interest', authenticateJWT, requireEvent, withActionErrors(async (req, res) => {
-  await events.setInterest(req.member, req.eventId, false);
-  res.json({ success: true });
-}));
-
-// Who's interested: user ids.
+// Who's interested in the current occurrence: user ids.
 router.get('/guild-events/:eventId/users', authenticateJWT, requireEvent, async (req, res) => {
   const rows = await events.interestedUsers(req.eventId, { limit: 1000 });
   res.json(rows.map((r) => r.user_id));

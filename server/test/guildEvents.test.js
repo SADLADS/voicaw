@@ -178,7 +178,10 @@ describe('scheduled events', () => {
     expect((await api.put(alice, `/guild-events/${event.id}/interest`)).status).toBe(200);
     await api.put(alice, `/guild-events/${event.id}/interest`); // twice is once
     expect(heard.filter((e) => e.type === 'guild_event_interest')).toEqual([
-      { type: 'guild_event_interest', guildId: guild.id, eventId: event.id, userId: alice.id, interested: true, userCount: 2 },
+      {
+        type: 'guild_event_interest', guildId: guild.id, eventId: event.id, userId: alice.id,
+        interested: true, interestedAll: true, changed: true, userCount: 2,
+      },
     ]);
     expect((await api.get(alice, `/guild-events/${event.id}`)).body).toMatchObject({ interested: true, user_count: 2 });
     expect((await api.get(bob, `/guild-events/${event.id}/users`)).body.sort()).toEqual([owner.id, alice.id].sort());
@@ -394,6 +397,60 @@ describe('scheduled events', () => {
       const expected = nextOccurrence(cleanRule(weekly), zone, monday);
       expect(next).toMatchObject({ status: 'scheduled', start_time: expected, end_time: expected + 2 * HOUR, occurrence_start: expected, user_count: 2 });
       expect(wallClock(expected * 1000, zone).hour).toBe(20);
+    });
+
+    it('takes interest in just the current occurrence, or all but it, until the series moves on', async () => {
+      const { owner, members: [alice, bob, carol], guild } = await setUp(3);
+      const monday = nextMonday();
+      const event = (await create(owner, guild, external({ startTime: monday, endTime: monday + HOUR, recurrence: weekly, timezone: zone }))).body;
+      const url = `/guild-events/${event.id}/interest`;
+      const heard = listen(carol);
+
+      // Alice: only this one. Bob: all of them, then not this one. Owner: none of them.
+      expect((await api.put(alice, `${url}?occurrence=1`)).body).toEqual({ interested: true, interested_all: false });
+      await api.put(bob, url);
+      expect((await api.delete(bob, `${url}?occurrence=1`)).body).toEqual({ interested: false, interested_all: true });
+      await api.delete(owner, url);
+      expect((await api.get(alice, `/guild-events/${event.id}`)).body).toMatchObject({ interested: true, interested_all: false, user_count: 1 });
+      expect((await api.get(bob, `/guild-events/${event.id}`)).body).toMatchObject({ interested: false, interested_all: true });
+      expect((await api.get(carol, `/guild-events/${event.id}/users`)).body).toEqual([alice.id]);
+      expect(heard.filter((e) => e.type === 'guild_event_interest').map((e) => [e.userId, e.interested, e.interestedAll, e.changed, e.userCount])).toEqual([
+        [alice.id, true, false, true, 2], [bob.id, true, true, true, 3], [bob.id, false, true, true, 2], [owner.id, false, false, true, 1],
+      ]);
+      // Bob wants this one back after all; the owner takes all of them and drops all again.
+      expect((await api.put(bob, `${url}?occurrence=1`)).body).toEqual({ interested: true, interested_all: true });
+      await api.delete(bob, `${url}?occurrence=1`);
+      await api.delete(alice, `${url}?occurrence=1`);
+      await api.put(alice, `${url}?occurrence=1`);
+
+      // Skipping the occurrence: Alice's interest went with it, Bob's series is back.
+      const second = nextOccurrence(cleanRule(weekly), zone, monday);
+      expect((await api.post(owner, `/guild-events/${event.id}/skip`)).body).toMatchObject({ occurrence_start: second, user_count: 1 });
+      expect((await api.get(alice, `/guild-events/${event.id}`)).body).toMatchObject({ interested: false, interested_all: false });
+      expect((await api.get(bob, `/guild-events/${event.id}`)).body).toMatchObject({ interested: true, interested_all: true });
+
+      // One that doesn't repeat: just this one is all of it.
+      const plain = (await create(owner, guild, external())).body;
+      expect((await api.put(alice, `/guild-events/${plain.id}/interest?occurrence=1`)).body).toEqual({ interested: true, interested_all: true });
+      expect((await api.delete(alice, `/guild-events/${plain.id}/interest?occurrence=1`)).body).toEqual({ interested: false, interested_all: false });
+    });
+
+    it('notifies only those interested in the occurrence that starts', async () => {
+      const { owner, members: [alice, bob], guild } = await setUp(2);
+      const monday = nextMonday();
+      const event = (await create(owner, guild, external({ startTime: monday, endTime: monday + HOUR, recurrence: weekly, timezone: zone }))).body;
+      await api.delete(owner, `/guild-events/${event.id}/interest`);
+      const aliceEndpoint = await subscribe(alice);
+      const bobEndpoint = await subscribe(bob);
+      await api.put(alice, `/guild-events/${event.id}/interest`);
+      await api.delete(alice, `/guild-events/${event.id}/interest?occurrence=1`);
+      await api.put(bob, `/guild-events/${event.id}/interest?occurrence=1`);
+      const before = sentPushes.length;
+      await guildEvents.sweepEvents(monday);
+      await waitForPushes(1, before);
+      const pushes = sentPushes.filter((p) => p.payload.tag === `event-${event.id}`).map((p) => p.endpoint);
+      expect(pushes).toEqual([bobEndpoint]);
+      expect(pushes).not.toContain(aliceEndpoint);
     });
 
     it('skips or moves just the next occurrence', async () => {

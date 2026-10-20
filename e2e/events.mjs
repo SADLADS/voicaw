@@ -92,7 +92,12 @@ try {
   await openList(b);
   await b.waitForSelector('.events-dialog .event-card');
   await shot(b, 'list');
+  // A weekly event: Interested asks whether it's this one or all of them.
   await b.click('.events-dialog .event-card .event-interest');
+  await b.waitForSelector('[role="menuitem"]:has-text("Interested in all events")');
+  await shot(b, 'interest-menu');
+  await b.click('[role="menuitem"]:has-text("Interested in this event")');
+  check(await b.getAttribute('.events-dialog .event-card .event-interest', 'aria-pressed') === 'true', 'bob interested in this one');
   await openList(a);
   await a.waitForFunction(() => document.querySelector('.events-dialog .event-card-count')?.textContent.includes('2 interested'));
   console.log('ok: bob interested, alice sees 2 live');
@@ -147,6 +152,31 @@ try {
   await b.waitForFunction(() => !document.querySelector('.guild-channel-event'));
   console.log('ok: ended, moved on to', await a.textContent('.events-dialog .event-card:has-text("Game night") .event-card-when'));
 
+  // Bob was interested in that one alone: not in next week's. Then all of them, then all but this one.
+  const night = '.events-dialog .event-card:has-text("Game night")';
+  await a.waitForFunction(() => [...document.querySelectorAll('.events-dialog .event-card')]
+    .find((c) => c.textContent.includes('Game night'))?.querySelector('.event-card-count').textContent.includes('1 interested'));
+  if (await b.$('.events-dialog .events-back')) await b.click('.events-dialog .events-back');
+  if (await b.$('.events-dialog')) await b.click('.events-dialog [role="tab"]:has-text("Events")');
+  else await openList(b);
+  await b.waitForSelector(night);
+  check(await b.getAttribute(`${night} .event-interest`, 'aria-pressed') === 'false', 'interest in one occurrence gone once it moved on');
+  await b.click(`${night} .event-interest`);
+  await b.click('[role="menuitem"]:has-text("Interested in all events")');
+  await a.waitForFunction(() => [...document.querySelectorAll('.events-dialog .event-card')]
+    .find((c) => c.textContent.includes('Game night'))?.querySelector('.event-card-count').textContent.includes('2 interested'));
+  await b.click(`${night} .event-interest`);
+  const offered = await b.$$eval('[role="menuitem"]', (items) => items.map((i) => i.textContent.trim()));
+  check(offered.join('|') === 'Not interested in this event|Not interested in any of them', `in all: offers ${offered.join(', ')}`);
+  await b.click('[role="menuitem"]:has-text("Not interested in this event")');
+  await a.waitForFunction(() => [...document.querySelectorAll('.events-dialog .event-card')]
+    .find((c) => c.textContent.includes('Game night'))?.querySelector('.event-card-count').textContent.includes('1 interested'));
+  await b.click(`${night} .event-interest`);
+  const offeredNow = await b.$$eval('[role="menuitem"]', (items) => items.map((i) => i.textContent.trim()));
+  check(offeredNow.join('|') === 'Interested in this event|Not interested in any of them', `all but this one: offers ${offeredNow.join(', ')}`);
+  await b.keyboard.press('Escape');
+  await b.keyboard.press('Escape');
+
   // Cancel the picnic.
   await a.click('.events-dialog .event-card:has-text("Picnic") .event-more');
   await a.click('[role="menuitem"]:has-text("Cancel event"), button:has-text("Cancel event")');
@@ -172,6 +202,16 @@ try {
   const width = c.viewportSize().width;
   check(box.x >= 0 && box.x + box.width <= width + 1, 'dialog fits the phone');
   await shot(c, 'phone-list');
+  // Interested on a phone: the same choice as a sheet.
+  await c.click('.events-dialog .event-card .event-interest');
+  await c.click('[role="menuitem"]:has-text("Interested in all events")');
+  check(await c.getAttribute('.events-dialog .event-card .event-interest', 'aria-pressed') === 'true', 'phone: interested in all');
+  await c.click('.events-dialog .event-card .event-interest');
+  await c.waitForSelector('[role="menuitem"]:has-text("Not interested in this event")');
+  await c.waitForTimeout(500); // the sheet rising
+  await shot(c, 'phone-interest-sheet');
+  await c.click('[role="menuitem"]:has-text("Not interested in any of them")');
+  check(await c.getAttribute('.events-dialog .event-card .event-interest', 'aria-pressed') === 'false', 'phone: not interested');
   await c.click('.events-dialog .event-card-name');
   await c.waitForSelector('.events-dialog .event-detail');
   await shot(c, 'phone-detail');

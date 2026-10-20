@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { onConnectionState, onGuildEvent } from '../utils/ws-client';
 import { fetchEvents } from '../services/guildService';
+import { interestKept } from '../utils/eventDisplay';
 
 const byStart = (a, b) => a.start_time - b.start_time || a.id - b.id;
 // Gone from the list: ended or cancelled (the server deletes them).
@@ -54,9 +55,7 @@ export function useGuildEvents(guildId, userId) {
             const rest = list.filter((e) => e.id !== event.event.id);
             if (isOver(event.event)) return rest;
             const before = list.find((e) => e.id === event.event.id);
-            // A new event's creator is interested in it.
-            const interested = before ? before.interested : event.event.creator_id === userId;
-            return [...rest, { ...event.event, interested }].sort(byStart);
+            return [...rest, { ...event.event, ...interestKept(before, event.event, userId) }].sort(byStart);
           });
           break;
         case 'guild_event_delete':
@@ -64,7 +63,11 @@ export function useGuildEvents(guildId, userId) {
           break;
         case 'guild_event_interest':
           setEvents((list) => list.map((e) => (e.id === event.eventId
-            ? { ...e, user_count: event.userCount, interested: event.userId === userId ? event.interested : e.interested }
+            ? {
+              ...e,
+              user_count: event.userCount,
+              ...(event.userId === userId ? { interested: event.interested, interested_all: event.interestedAll ?? event.interested } : {}),
+            }
             : e)));
           break;
         case 'guild_update':
@@ -75,20 +78,23 @@ export function useGuildEvents(guildId, userId) {
     });
   }, [guildId, userId, load]);
 
-  const setInterested = useCallback((eventId, interested) => {
-    setEvents((list) => list.map((e) => (e.id === eventId && e.interested !== interested
-      ? { ...e, interested, user_count: Math.max(0, e.user_count + (interested ? 1 : -1)) }
-      : e)));
+  // `state`: { interested, interested_all } (utils/eventDisplay interestAfter).
+  const setInterested = useCallback((eventId, state) => {
+    setEvents((list) => list.map((e) => {
+      if (e.id !== eventId) return e;
+      const change = state.interested === Boolean(e.interested) ? 0 : state.interested ? 1 : -1;
+      return { ...e, ...state, user_count: Math.max(0, e.user_count + change) };
+    }));
   }, []);
 
   // An event you just saved (its socket event may come later).
   const upsert = useCallback((saved) => {
     setEvents((list) => {
       const before = list.find((e) => e.id === saved.id);
-      const merged = { ...saved, interested: saved.interested ?? before?.interested ?? false };
+      const merged = { ...saved, ...(saved.interested != null ? {} : interestKept(before, saved, userId)) };
       return [...list.filter((e) => e.id !== saved.id), merged].sort(byStart);
     });
-  }, []);
+  }, [userId]);
 
   return { events, loaded, reload: load, setInterested, upsert };
 }

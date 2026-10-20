@@ -10,6 +10,7 @@ vi.mock('../../services/guildService', () => ({
 vi.mock('../MessageList', () => ({ MessageContent: ({ msg }) => <p>{msg.plaintext}</p> }));
 
 import EventsDialog from './EventsDialog';
+import { setEventInterest } from '../../services/guildService';
 import { ConfigContext, InteractionContext } from '../../contexts';
 import { addDays, dayKey, monthKey, startAtHour, startOnDay, weekDays } from '../../utils/eventCalendar';
 
@@ -32,7 +33,7 @@ function eventIn(days) {
 }
 
 // The dialog with its view kept, as GuildSidebar does.
-function Harness({ events, onCreate, onOpenEvent = vi.fn(), myGuild = guild }) {
+function Harness({ events, onCreate, onOpenEvent = vi.fn(), setInterested = vi.fn(), myGuild = guild }) {
   const now = new Date();
   const [view, setView] = useState({ tab: 'calendar', month: monthKey(now), day: dayKey(now) });
   return (
@@ -43,7 +44,7 @@ function Harness({ events, onCreate, onOpenEvent = vi.fn(), myGuild = guild }) {
           user={user}
           events={events}
           loaded
-          setInterested={vi.fn()}
+          setInterested={setInterested}
           eventId={null}
           view={view}
           onView={(changes) => setView((v) => ({ ...v, ...changes }))}
@@ -124,5 +125,25 @@ describe('EventsDialog', () => {
     expect(screen.queryByRole('button', { name: /Create an event/ })).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     expect(screen.queryByRole('button', { name: 'Create Event' })).toBeNull();
+  });
+
+  it('asks whether interest in a repeating event is for this one or all of them', async () => {
+    const setInterested = vi.fn();
+    const only = { ...eventIn(2), interested: true, interested_all: false };
+    const { rerender } = render(<Harness events={[only]} setInterested={setInterested} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
+    fireEvent.click(screen.getByRole('button', { name: /Interested/ }));
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Not interested in this event', 'Interested in all events']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Interested in all events' }));
+    expect(setInterested).toHaveBeenCalledWith(7, { interested: true, interested_all: true });
+    expect(setEventInterest).toHaveBeenCalledWith(7, true, { occurrence: false });
+
+    // In all of them but this one: add this one back, or drop all.
+    rerender(<Harness events={[{ ...only, interested: false, interested_all: true }]} setInterested={setInterested} />);
+    fireEvent.click(screen.getByRole('button', { name: /Interested/ }));
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Interested in this event', 'Not interested in any of them']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Interested in this event' }));
+    expect(setInterested).toHaveBeenLastCalledWith(7, { interested: true, interested_all: true });
+    expect(setEventInterest).toHaveBeenLastCalledWith(7, true, { occurrence: true });
   });
 });
