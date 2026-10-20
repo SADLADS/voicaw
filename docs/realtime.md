@@ -211,6 +211,20 @@ one user at a time).
   endpoint, with the phone's own key), and `sendPushToUser` sends it the same payload through
   FCM, encrypted for that phone (`fcm.js`). Calls also get `call_stop` there
   (`sendToAndroidApps`) to stop the phone ringing. See Android app in `docs/desktop-and-site.md`.
+- **Clearing read chats** (`clearNotifications` in `push.js`): reading a chat anywhere takes its
+  notification down on the reader's other devices. The four read routes (`/dm-mark-read`,
+  `/group-dms/:id/read`, `/channels/:id/read`, `/bot-dms/:id/read`) call it once nothing is left
+  unread there (reading up to an older message leaves a newer one's notification up). It only
+  sends when a message push with that tag (`dm-<sender>`, `group-<id>`, `channel-<id>`,
+  `bot-dm-<id>`) went out since the last clear, remembered in memory (`shownTags`; after a
+  restart, earlier notifications stay up), so reading a busy channel doesn't send one per
+  message. It sends `notification_clear { tag }` to the user's sockets (`ws-client` →
+  `pushService.closeNotifications`: the service worker's notifications with that tag and the
+  desktop app's) and to Android apps (`sendToAndroidApps`, normal FCM priority so a dozing
+  phone isn't woken, kept for a day), which cancel it even while closed. A browser that isn't
+  open can't be reached (web push must show something for every push), so a page also closes
+  its own notifications for whichever chat it puts on screen (`setActiveChat` / `setSideChat`).
+  Reaction notifications aren't cleared.
 - **Reaction notifications** (`reactionPushes.js`, as Discord's): a `reaction` push to a message's
   author when someone else reacts, never for poll votes or added answers, a reactor they
   blocked, a conversation they're looking at or have muted (in guilds: their level for the

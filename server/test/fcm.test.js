@@ -178,4 +178,16 @@ describe('Android app notifications (FCM)', () => {
     const [, missedPush] = await waitForSent(2, since);
     expect(open(missedPush.message, phone.key)).toMatchObject({ type: 'call', callId: missed, ringing: false, body: 'Missed call' });
   });
+
+  it('takes a chat\'s notification down when it is read elsewhere, without waking the phone', async () => {
+    const [alice, bob] = [await makeUser(), await makeUser()];
+    const phone = await registerPhone(bob);
+    const since = sent.length;
+    await post(alice, '/dm-send', { recipient_id: bob.id, content: 'E2EE' });
+    await waitForSent(1, since);
+    await post(bob, `/dm-mark-read/${alice.id}`);
+    const [, clear] = await waitForSent(2, since);
+    expect(open(clear.message, phone.key)).toEqual({ type: 'notification_clear', tag: `dm-${alice.id}` });
+    expect(clear.message.android).toEqual({ priority: 'normal', ttl: '86400s' });
+  });
 });

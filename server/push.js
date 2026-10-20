@@ -80,6 +80,7 @@ const MESSAGE_PUSHES = new Set(['dm', 'group', 'guild', 'bot_dm']);
 // sendToReactionApps), never a browser.
 async function sendPushToUser(userId, payload, options = {}, { appsOnly = false } = {}) {
   const sockets = require('./sockets');
+  if (MESSAGE_PUSHES.has(payload.type) && payload.tag) noteShown(userId, payload.tag);
   const desktop = sockets.sendToDesktopSockets(userId, payload, { reactionPushes: appsOnly });
   if (MESSAGE_PUSHES.has(payload.type)) sockets.sendToUserSockets(userId, { type: 'message_sound' });
   let rows;
@@ -123,8 +124,9 @@ function sendToReactionApps(userId, payload, options) {
 }
 
 // Something only the Android app acts on, and shows nothing for (web push must show a
-// notification for every push): `call_stop` stops a call ringing on the phone.
-async function sendToAndroidApps(userId, payload) {
+// notification for every push): `call_stop` stops a call ringing on the phone,
+// `notification_clear` takes a chat's notification down. `options`: sendFcm's.
+async function sendToAndroidApps(userId, payload, options = { TTL: 60 }) {
   let rows;
   try {
     rows = await db.all('SELECT id, subscription FROM push_subscriptions WHERE user_id = ?', [userId]);
@@ -135,7 +137,7 @@ async function sendToAndroidApps(userId, payload) {
     const { fcm } = JSON.parse(row.subscription);
     if (!fcm) return;
     try {
-      if (await sendFcm(fcm, payload, { TTL: 60 }) === 'gone') {
+      if (await sendFcm(fcm, payload, options) === 'gone') {
         db.run('DELETE FROM push_subscriptions WHERE id = ?', [row.id]).catch(() => {});
       }
     } catch (error) {
@@ -144,10 +146,35 @@ async function sendToAndroidApps(userId, payload) {
   }));
 }
 
+// Message notifications' tags (a chat: `dm-5`, `group-3`, `channel-12`, `bot-dm-7`) each user
+// may still have up since they last read that chat, so reading one only sends a clear when
+// there's something to take down (a busy guild channel being read would otherwise send one per
+// message). In memory: after a restart, notifications from before stay up.
+const shownTags = new Map();
+
+function noteShown(userId, tag) {
+  const key = String(userId);
+  if (!shownTags.has(key)) shownTags.set(key, new Set());
+  shownTags.get(key).add(tag);
+}
+
+// `userId` has read everything in the chat whose notifications are tagged `tag`: its
+// notification goes from their Android apps (even closed), desktop apps and open pages (which
+// close their browser's own; a closed browser can't be reached: web push must show something).
+function clearNotifications(userId, tag) {
+  const tags = shownTags.get(String(userId));
+  if (!tags?.delete(tag)) return;
+  if (!tags.size) shownTags.delete(String(userId));
+  require('./sockets').sendToUserSockets(userId, { type: 'notification_clear', tag });
+  // Normal priority: nothing to show, so no need to wake a dozing phone (it's done when it
+  // next wakes, within the day).
+  sendToAndroidApps(userId, { type: 'notification_clear', tag }, { TTL: 24 * 60 * 60, priority: 'normal' }).catch(() => {});
+}
+
 // The sender's profile picture for the notification (the default one if they have none).
 async function getUserImageUrl(userId) {
   const user = await db.get('SELECT avatar FROM users WHERE id = ?', [userId]);
   return require('./avatars').avatarUrl(userId, user?.avatar) ?? '/default.png';
 }
 
-module.exports = { MAX_PUSH_CIPHERTEXT_LENGTH, buildDmPushPayload, buildGroupPushPayload, groupNameForPush, sendPushToUser, sendToReactionApps, sendToAndroidApps, getUserImageUrl };
+module.exports = { MAX_PUSH_CIPHERTEXT_LENGTH, buildDmPushPayload, buildGroupPushPayload, groupNameForPush, sendPushToUser, sendToReactionApps, sendToAndroidApps, clearNotifications, getUserImageUrl };

@@ -4,7 +4,7 @@ const { sendToUserSockets, isViewingConversation } = require('./sockets');
 const { blockedBetween } = require('./blocks');
 const { getPreferences } = require('./preferences');
 const { isConversationMuted } = require('./conversationSettings');
-const { sendPushToUser, getUserImageUrl } = require('./push');
+const { sendPushToUser, clearNotifications, getUserImageUrl } = require('./push');
 const { parseJsonList } = require('./routes/guildMessages');
 
 // Bot DMs (docs/bots.md): a direct conversation between a bot and one person, as Discord's DM
@@ -261,22 +261,24 @@ async function deleteMessage(dm, id) {
 }
 
 // The person has read `dm` up to message `messageId` (never backwards), or with none (the DM
-// list's Mark As Read) up to its newest. Returns the bot's oldest message that was unread until
-// now (null if none).
+// list's Mark As Read) up to its newest; with nothing left unread, its notification goes from
+// their devices. Returns the bot's oldest message that was unread until now (null if none).
 async function markRead(dm, messageId) {
-  const firstUnreadId = await db.transaction(async () => {
+  const firstUnread = async () => (await db.get(
+    `SELECT MIN(m.id) AS id FROM bot_dm_messages m JOIN bot_dms d ON d.id = m.dm_id
+     WHERE m.dm_id = ? AND m.id > d.read_id AND m.sender_id != d.user_id`,
+    [dm.id]
+  )).id ?? null;
+  const { firstUnreadId, allRead } = await db.transaction(async () => {
     const upTo = messageId == null
       ? (await db.get('SELECT COALESCE(MAX(id), 0) AS id FROM bot_dm_messages WHERE dm_id = ?', [dm.id])).id
       : Number(messageId) || 0;
-    const { id } = await db.get(
-      `SELECT MIN(m.id) AS id FROM bot_dm_messages m JOIN bot_dms d ON d.id = m.dm_id
-       WHERE m.dm_id = ? AND m.id > d.read_id AND m.sender_id != d.user_id`,
-      [dm.id]
-    );
+    const first = await firstUnread();
     await db.run('UPDATE bot_dms SET read_id = MAX(read_id, ?) WHERE id = ?', [upTo, dm.id]);
-    return id ?? null;
+    return { firstUnreadId: first, allRead: await firstUnread() == null };
   });
   sendToUserSockets(dm.user_id, { type: 'bot_dm_read', dmId: dm.id });
+  if (allRead) clearNotifications(dm.user_id, `bot-dm-${dm.id}`);
   return firstUnreadId;
 }
 

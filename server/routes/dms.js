@@ -6,7 +6,7 @@ const { maxPlaintextLength, maxMessageLength, getMaxEncryptedLength, MAX_LINK_PR
 const maxPreviewsLength = getMaxEncryptedLength(MAX_LINK_PREVIEWS_BYTES);
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
-const { buildDmPushPayload, sendPushToUser, getUserImageUrl } = require('../push');
+const { buildDmPushPayload, sendPushToUser, clearNotifications, getUserImageUrl } = require('../push');
 const { isConversationMuted } = require('../conversationSettings');
 const blocks = require('../blocks');
 const { setPinned } = require('../pins');
@@ -192,8 +192,9 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
   res.status(201).json(message);
 });
 
-// Marks the conversation read. `first_unread_id`: its oldest message that was unread until
-// now (null if none), where the chat's "New" divider goes.
+// Marks the conversation read (its notification goes from the user's devices).
+// `first_unread_id`: its oldest message that was unread until now (null if none), where the
+// chat's "New" divider goes.
 router.post('/dm-mark-read/:fromUserId', authenticateJWT, async (req, res) => {
   const fromUserId = parseInt(req.params.fromUserId, 10);
   if (Number.isNaN(fromUserId)) return res.status(400).json({ error: 'Invalid fromUserId' });
@@ -202,6 +203,7 @@ router.post('/dm-mark-read/:fromUserId', authenticateJWT, async (req, res) => {
     await db.run('DELETE FROM dm_unread WHERE user_id = ? AND from_user_id = ?', [req.user.id, fromUserId]);
     return row?.first_unread_id ?? null;
   });
+  clearNotifications(req.user.id, `dm-${fromUserId}`);
   res.json({ success: true, first_unread_id: firstUnreadId });
 });
 

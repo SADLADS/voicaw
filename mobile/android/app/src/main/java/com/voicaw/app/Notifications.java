@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * What the app shows for a push (server/push.js payloads, opened by PushService): messages,
- * calls ringing with Answer and Decline, missed calls. The words come from the hidden page
+ * calls ringing with Answer and Decline, missed calls; and takes a chat's down once it's read. The words come from the hidden page
  * (NotifyRenderer: previews decrypted there); the push's own title and body if it can't.
  */
 final class Notifications {
@@ -92,6 +92,13 @@ final class Notifications {
             if ("call_stop".equals(type)) {
                 if (callId != null) stopRinging(context, callId);
                 PushLog.add(context, type, "stopped ringing");
+                return;
+            }
+            if ("notification_clear".equals(type)) {
+                // Its chat was read (here or on another device): its notification goes.
+                String tag = payload.optString("tag");
+                if (!tag.isEmpty()) NotificationManagerCompat.from(context).cancel(tag, 0);
+                PushLog.add(context, type, "took down " + tag);
                 return;
             }
             boolean ringing = "call".equals(type) && payload.optBoolean("ringing") && callId != null;

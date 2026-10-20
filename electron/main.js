@@ -359,6 +359,7 @@ function setUpIpc() {
         // Over a game, the overlay shows it instead.
         if (!overlay.toast(cleanNotification(notification))) notifier.show(notification);
     });
+    ipcMain.on('desktop:close-notification', (event, tag) => { if (fromApp(event)) notifier.close(tag); });
     // The voice state the overlay shows (null: not in voice), whenever it changes.
     ipcMain.on('desktop:overlay-voice', (event, state) => {
         if (!fromApp(event)) return;

@@ -5,7 +5,7 @@ const { CALL_LOG } = require('../callLog');
 const { maxPlaintextLength, getMaxEncryptedLength, MAX_LINK_PREVIEWS_BYTES } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
-const { sendPushToUser, buildGroupPushPayload } = require('../push');
+const { sendPushToUser, buildGroupPushPayload, clearNotifications } = require('../push');
 const { isConversationMuted } = require('../conversationSettings');
 const groups = require('../groupDms');
 const { notifyGroupReaction } = require('../reactionPushes');
@@ -455,7 +455,20 @@ router.delete('/group-dm-reactions/:reactionId', authenticateJWT, async (req, re
   res.json({ success: true });
 });
 
-// Read up to `messageId`, or with `latest: true` up to the newest message (Mark As Read).
+// The oldest message (that `userId` can read) by someone else that's unread for them (null if none).
+async function firstUnread(userId, groupId) {
+  const { id } = await db.get(
+    `SELECT MIN(m.id) AS id FROM group_dm_messages m
+     JOIN group_dm_epoch_keys k ON k.group_id = m.group_id AND k.epoch = m.epoch AND k.user_id = ?
+     WHERE m.group_id = ? AND m.sender_id != ?
+       AND m.id > COALESCE((SELECT last_read_id FROM group_dm_reads WHERE user_id = ? AND group_id = ?), 0)`,
+    [userId, groupId, userId, userId, groupId]
+  );
+  return id ?? null;
+}
+
+// Read up to `messageId`, or with `latest: true` up to the newest message (Mark As Read); with
+// nothing left unread, the group's notification goes from the user's devices.
 // `first_unread_id`: the oldest message (that you can read) by someone else that was unread
 // until now (null if none), where the chat's "New" divider goes.
 router.post('/group-dms/:groupId/read', member, async (req, res) => {
@@ -464,21 +477,16 @@ router.post('/group-dms/:groupId/read', member, async (req, res) => {
     : Number(req.body?.messageId);
   if (!Number.isInteger(messageId) || messageId < 0) return res.status(400).json({ error: 'Invalid message' });
   const groupId = req.state.group.id;
-  const firstUnreadId = await db.transaction(async () => {
-    const { id } = await db.get(
-      `SELECT MIN(m.id) AS id FROM group_dm_messages m
-       JOIN group_dm_epoch_keys k ON k.group_id = m.group_id AND k.epoch = m.epoch AND k.user_id = ?
-       WHERE m.group_id = ? AND m.sender_id != ?
-         AND m.id > COALESCE((SELECT last_read_id FROM group_dm_reads WHERE user_id = ? AND group_id = ?), 0)`,
-      [req.user.id, groupId, req.user.id, req.user.id, groupId]
-    );
+  const { firstUnreadId, allRead } = await db.transaction(async () => {
+    const first = await firstUnread(req.user.id, groupId);
     await db.run(
       `INSERT INTO group_dm_reads (user_id, group_id, last_read_id) VALUES (?, ?, ?)
        ON CONFLICT(user_id, group_id) DO UPDATE SET last_read_id = MAX(last_read_id, excluded.last_read_id)`,
       [req.user.id, groupId, messageId]
     );
-    return id ?? null;
+    return { firstUnreadId: first, allRead: await firstUnread(req.user.id, groupId) == null };
   });
+  if (allRead) clearNotifications(req.user.id, `group-${groupId}`);
   res.json({ success: true, first_unread_id: firstUnreadId });
 });
 

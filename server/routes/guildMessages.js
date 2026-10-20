@@ -16,6 +16,7 @@ const { releaseUploads } = require('../uploads');
 const { logAudit } = require('../auditLog');
 const { parseDuration, listMutes, setMute, CHANNEL_NOTIFY_LEVELS, listChannelLevels, setChannelLevel } = require('../channelMutes');
 const { sendToUserSockets } = require('../sockets');
+const { clearNotifications } = require('../push');
 const { ActionError, withActionErrors } = require('../actionError');
 const { refreshLinkPreviews } = require('../linkPreviews');
 const levels = require('../guildLevels');
@@ -601,6 +602,7 @@ router.get('/channels/:channelId/members', authenticateJWT, async (req, res) => 
 
 // Marks the channel read up to `messageId` (never moves backwards), or with `latest: true` up
 // to its newest message (document replies included; the channel list's Mark As Read).
+// With nothing left unread, the channel's notification goes from the user's devices.
 // `first_unread_id`: the oldest message by someone else that was unread until now (null if
 // none), where the chat's "New" divider goes.
 router.post('/channels/:channelId/read', authenticateJWT, requireReadableChannel, async (req, res) => {
@@ -608,11 +610,12 @@ router.post('/channels/:channelId/read', authenticateJWT, requireReadableChannel
     ? (await db.get('SELECT MAX(id) AS id FROM guild_messages WHERE channel_id = ?', [req.channel.id])).id ?? 0
     : Number(req.body?.messageId);
   if (!Number.isInteger(messageId) || messageId < 0) return res.status(400).json({ error: 'Invalid messageId' });
-  const firstUnreadId = await db.transaction(async () => {
+  const { firstUnreadId, allRead } = await db.transaction(async () => {
     const first = await firstUnread(req.user.id, req.channel.id);
     await markRead(req.user.id, req.channel.id, messageId);
-    return first;
+    return { firstUnreadId: first, allRead: await firstUnread(req.user.id, req.channel.id) == null };
   });
+  if (allRead) clearNotifications(req.user.id, `channel-${req.channel.id}`);
   res.json({ success: true, first_unread_id: firstUnreadId });
 });
 

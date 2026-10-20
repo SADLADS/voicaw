@@ -64,7 +64,8 @@ function fcmData(payload, key) {
   return { v: '1', p: sealed };
 }
 
-// Sends `payload` to one phone. `options`: web push's { TTL (seconds), urgency }. Resolves
+// Sends `payload` to one phone. `options`: web push's { TTL (seconds), urgency }, and
+// `priority: 'normal'` for one that needn't wake a phone in Doze. Resolves
 // to true, or 'gone' when the token no longer exists (the subscription should be dropped).
 async function sendFcm(fcm, payload, options = {}) {
   const account = config.fcm;
@@ -74,7 +75,7 @@ async function sendFcm(fcm, payload, options = {}) {
     data: fcmData(payload, fcm.key),
     android: {
       // Wakes a phone in Doze at once: a message, a call ringing, or one to stop ringing.
-      priority: 'high',
+      priority: options.priority ?? 'high',
       ttl: `${options.TTL ?? 24 * 60 * 60}s`,
     },
   };
