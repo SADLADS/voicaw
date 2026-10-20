@@ -1,12 +1,14 @@
-import React, { useContext, useEffect, useRef } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import '../../assets/css/voice.css';
 import { Icon } from '../Icon';
 import {
-  faArrowRight, faDownLeftAndUpRightToCenter, faExpand, faUpRightFromSquare, faVolumeHigh, faVolumeXmark, faXmark,
+  faArrowRight, faDownLeftAndUpRightToCenter, faExpand, faEye, faUpRightFromSquare, faVolumeHigh, faVolumeXmark, faXmark,
 } from '@fortawesome/free-solid-svg-icons';
+import UserAvatar from './UserAvatar';
 import { InteractionContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
 import { useShowsStreamOnPage } from '../../hooks/useStreamOnPage';
+import { displayName, useProfiles } from '../../utils/profiles';
 import { attachStream, setStreamError, watchStream } from '../../voice/voiceClient';
 import { closeStreamWindow, openStreamWindow } from '../../voice/streamWindow';
 import { DEFAULT_USER_VOLUME, maxUserVolume, setStreamVolume, useStreamVolume } from '../../voice/userVolumes';
@@ -14,12 +16,13 @@ import { t } from '../../i18n';
 
 // The screen share being watched, big (the voice channel view's stage, or its own window when
 // popped out) or small in a corner (`corner`, StreamCorner, while no page shows it; `onOpen`
-// goes to its channel or call, `openLabel` saying which): the video, whose it is, its volume, pop out (or bring back),
+// goes to its channel or call, `openLabel` saying which): the video, whose it is, who else is
+// watching it (like Discord's viewers; never you), its volume, pop out (or bring back),
 // full screen and stop watching. Its sound plays with the rest of voice (deafen mutes it), at the stream's own volume
 // on this device (like Discord's Stream Volume, userVolumes.js); not for our own, which we don't
 // hear.
 export default function StreamView({ userId, name, own, popout = false, corner = false, onOpen, openLabel }) {
-  const { watchingReady, selfDeaf } = useVoice();
+  const { watchingReady, selfDeaf, watchers } = useVoice();
   const { isMobile } = useContext(InteractionContext);
   const videoRef = useRef(null);
   const stageRef = useRef(null);
@@ -50,6 +53,7 @@ export default function StreamView({ userId, name, own, popout = false, corner =
       <div className="stream-bar">
         {!corner && <span className="voice-live-badge">{t('voice.stream.live')}</span>}
         <span className="stream-name" title={corner ? name : undefined}>{own ? t('voice.stream.yourStream') : name}</span>
+        <StreamWatchers watchers={watchers?.[userId] ?? []} compact={corner || isMobile} />
         {!own && <StreamVolume userId={userId} deafened={selfDeaf} />}
         {corner && onOpen && (
           <button type="button" className="stream-button" aria-label={openLabel} title={openLabel} onClick={onOpen}>
@@ -75,6 +79,52 @@ export default function StreamView({ userId, name, own, popout = false, corner =
         </button>
       </div>
     </div>
+  );
+}
+
+// How many others watch (`watchers`: [{ id, username }], voiceClient), with their pictures
+// (not in the corner or on a phone: no room); a click lists their names.
+const SHOWN_PICTURES = 3;
+
+function StreamWatchers({ watchers, compact }) {
+  useProfiles();
+  const [open, setOpen] = useState(false);
+  if (watchers.length === 0) return null;
+  const ids = watchers.map((w) => w.id);
+  const names = watchers.map((w) => displayName(w.id, w.username));
+  const label = t('voice.stream.watchers', { count: ids.length, names: names.join(', ') });
+  return (
+    <span className="stream-watchers">
+      <button
+        type="button"
+        className="stream-watchers-button"
+        aria-label={label}
+        aria-expanded={open}
+        title={label}
+        onClick={() => setOpen((was) => !was)}
+        onBlur={() => setOpen(false)}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
+        <Icon icon={faEye} />
+        <span>{ids.length}</span>
+        {!compact && (
+          <span className="stream-watchers-pictures">
+            {ids.slice(0, SHOWN_PICTURES).map((id) => <UserAvatar key={id} userId={id} />)}
+          </span>
+        )}
+      </button>
+      {open && (
+        <ul className="stream-watchers-list" aria-label={t('voice.stream.watchersTitle')}>
+          <li className="stream-watchers-heading">{t('voice.stream.watchersTitle')}</li>
+          {ids.map((id, i) => (
+            <li key={id}>
+              <UserAvatar userId={id} />
+              <span>{names[i]}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </span>
   );
 }
 

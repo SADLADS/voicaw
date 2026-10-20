@@ -253,6 +253,21 @@ describe('voice channels', () => {
     expect((await api.put(alice, '/voice/state', { selfMute: 'yes', selfDeaf: false })).status).toBe(400);
   });
 
+  it("says whose stream you're watching in the room's attributes", async () => {
+    const { members: [alice, bob], guild, lounge } = await setUp(2);
+    // Before her "joined" webhook: applied when it arrives.
+    expect((await api.put(alice, '/voice/watching', { watching: bob.id })).body).toEqual({ success: true, in_voice: false });
+    await join(alice, guild, lounge);
+    await webhook('participant_joined', lounge, alice);
+    expect(calls).toContainEqual(['update', `channel-${lounge.id}`, String(alice.id), { attributes: { watching: String(bob.id) } }]);
+
+    calls.length = 0;
+    expect((await api.put(alice, '/voice/watching', { watching: null })).body).toEqual({ success: true, in_voice: true });
+    expect(calls).toEqual([['update', `channel-${lounge.id}`, String(alice.id), { attributes: { watching: '' } }]]);
+    expect((await api.put(alice, '/voice/watching', { watching: 'everyone' })).status).toBe(400);
+    expect((await api.put(alice, '/voice/watching', {})).status).toBe(400);
+  });
+
   it('moves you out of your old channel when you join another', async () => {
     const { owner, members: [alice], guild, lounge, gaming } = await setUp();
     await join(alice, guild, lounge);

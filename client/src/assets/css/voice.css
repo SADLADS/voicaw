@@ -476,6 +476,96 @@ button.user-panel-button {
   opacity: 0.5;
 }
 
+/* Who else is watching: an eye, the count and a few pictures; a click lists them above. */
+.stream-watchers {
+  position: relative;
+  display: flex;
+}
+
+.stream-watchers-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 16px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.stream-watchers-button:hover {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.stream-watchers-pictures {
+  display: flex;
+}
+
+.stream-watchers-pictures .user-avatar {
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
+}
+
+.stream-watchers-pictures .user-avatar + .user-avatar {
+  margin-left: -6px;
+}
+
+.stream-watchers-list {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 1;
+  min-width: 180px;
+  max-width: 260px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: 8px;
+  background-color: var(--vc-popup);
+  color: var(--vc-fg);
+  box-shadow: 0 8px 24px var(--vc-popup-shadow);
+}
+
+.stream-watchers-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stream-watchers-list li > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stream-watchers-list .user-avatar {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+.stream-watchers-heading {
+  color: var(--vc-fg-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.stream-view.corner .stream-watchers-button {
+  height: 28px;
+  padding: 0 8px;
+  gap: 4px;
+}
+
 /* The stream's volume: the slider shows while the pointer is over it (always on a phone). */
 .stream-volume {
   display: flex;

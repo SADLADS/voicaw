@@ -335,6 +335,19 @@ async function handleWebhookEvent(event, regionId) {
   }
 }
 
+// Whose stream `userId` watches in their call ('' for none), as their `watching` attribute in
+// its room (see voice.js setWatching). LiveKit knows who downloads which stream anyway, so
+// this tells its server nothing new, though the call is end-to-end encrypted. Returns false
+// when they're in no call.
+function setWatching(userId, watching) {
+  const call = callOf(userId);
+  if (!call) return false;
+  voice.serviceFor(call.regionId)?.updateParticipant(roomName(call.id), String(userId), {
+    attributes: { watching },
+  }).catch((err) => voice.logLiveKitError('saving who is watching', err));
+  return true;
+}
+
 async function userById(id) {
   if (!Number.isInteger(id)) return null;
   return db.get('SELECT id, username FROM users WHERE id = ? AND deleted_at IS NULL AND bot = 0 AND pending = 0', [id]);
@@ -356,5 +369,6 @@ module.exports = {
   leaveGroupCall,
   tokenFor,
   handleWebhookEvent,
+  setWatching,
   userById,
 };

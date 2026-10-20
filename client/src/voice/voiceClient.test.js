@@ -149,6 +149,7 @@ vi.mock('livekit-client', () => lk.module);
 vi.mock('../services/voiceService', () => ({
   fetchVoiceToken: vi.fn(async () => ({ url: 'wss://lk', token: 'token' })),
   saveVoiceState: vi.fn(async () => {}),
+  saveWatching: vi.fn(async () => {}),
   leaveVoiceChannel: vi.fn(async () => {}),
 }));
 vi.mock('../sounds/sounds', () => ({ playSound: vi.fn() }));
@@ -434,5 +435,42 @@ describe('voiceClient screen share quality', () => {
     expect(voice.getVoiceSnapshot().participants).toEqual(['1']);
     await voice.leaveVoice();
     expect(voice.getVoiceSnapshot().participants).toEqual([]);
+  });
+
+  it('says whose stream you watch, and lists the others watching each stream', async () => {
+    const { saveWatching } = await import('../services/voiceService');
+    saveWatching.mockClear();
+    lk.state.capture = lk.deferred();
+    lk.state.capture.resolve();
+    await voice.joinVoice(1, 2);
+    const room = lk.state.room;
+    const person = (identity, attributes, sharing = false) => ({
+      identity,
+      name: `user${identity}`,
+      attributes,
+      isMicrophoneEnabled: true,
+      trackPublications: new Map(),
+      audioTrackPublications: new Map(),
+      getTrackPublication: (source) => (sharing && source === 'screen_share' ? { source, setSubscribed() {} } : undefined),
+    });
+    room.remoteParticipants.set('7', person('7', {}, true));
+    room.remoteParticipants.set('8', person('8', { watching: '7' }));
+    // Watching someone who isn't live, or themselves: not counted.
+    room.remoteParticipants.set('9', person('9', { watching: '5' }));
+    room.emit('ParticipantConnected', room.remoteParticipants.get('9'));
+    expect(voice.getVoiceSnapshot().watchers).toEqual({ 7: [{ id: '8', username: 'user8' }] });
+    expect(saveWatching).not.toHaveBeenCalled();
+
+    voice.watchStream('7');
+    expect(saveWatching).toHaveBeenLastCalledWith(7);
+    room.remoteParticipants.get('9').attributes = { watching: '7' };
+    room.emit('ParticipantAttributesChanged', {}, room.remoteParticipants.get('9'));
+    expect(voice.getVoiceSnapshot().watchers[7].map((w) => w.id)).toEqual(['8', '9']);
+
+    voice.watchStream(null);
+    expect(saveWatching).toHaveBeenLastCalledWith(null);
+    expect(saveWatching).toHaveBeenCalledTimes(2);
+    await voice.leaveVoice();
+    expect(voice.getVoiceSnapshot().watchers).toEqual({});
   });
 });

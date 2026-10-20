@@ -5,6 +5,7 @@ const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has } = require('../permissions');
 const { getChannelAccess } = require('../guilds');
 const voice = require('../voice');
+const calls = require('../calls');
 
 // Voice channels (see voice.js): getting a token to join one, the client's own mute/deafen,
 // leaving, and LiveKit's webhooks (how we learn who actually joined or left).
@@ -62,6 +63,18 @@ router.put('/voice/state', authenticateJWT, async (req, res) => {
   }
   const state = await voice.setSelfState(req.user.id, { selfMute, selfDeaf });
   res.json(state && { guild_id: state.guildId, channel_id: state.channelId, self_mute: state.selfMute, self_deaf: state.selfDeaf });
+});
+
+// Whose screen share you're watching, in your voice channel or call: { watching: user id or
+// null }. Everyone in the room sees it (the participant's `watching` attribute).
+router.put('/voice/watching', authenticateJWT, (req, res) => {
+  const { watching } = req.body ?? {};
+  if (watching !== null && !(Number.isInteger(watching) && watching > 0)) {
+    return res.status(400).json({ error: 'watching must be a user id or null' });
+  }
+  const value = watching === null ? '' : String(watching);
+  const done = calls.setWatching(req.user.id, value) || voice.setWatching(req.user.id, value);
+  res.json({ success: true, in_voice: done });
 });
 
 // Leave voice (also disconnects you in LiveKit, e.g. a tab that lost its connection).

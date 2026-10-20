@@ -59,3 +59,23 @@ describe('StreamView volume', () => {
     expect(screen.queryByRole('slider')).toBeNull();
   });
 });
+
+describe('StreamView watchers', () => {
+  it('shows how many others watch, and lists them on a click', async () => {
+    const { mergeProfiles } = await import('../../utils/profiles');
+    mergeProfiles([{ id: 9, username: 'carol9', display_name: 'Carol' }]);
+    voice.state = { watchingReady: true, selfDeaf: false, watchers: { 7: [{ id: '8', username: 'bob' }, { id: '9', username: 'carol9' }] } };
+    render(<StreamView userId={7} name="alice" own />);
+    const button = screen.getByRole('button', { name: '2 watching: bob, Carol' });
+    expect(screen.queryByRole('list')).toBeNull();
+    fireEvent.click(button);
+    const list = screen.getByRole('list', { name: 'Watching' });
+    expect(list.textContent).toContain('Carol');
+  });
+
+  it('shows nothing when nobody else watches', () => {
+    voice.state = { watchingReady: true, selfDeaf: false, watchers: { 8: [{ id: '9', username: 'carol' }] } };
+    render(<StreamView userId={7} name="alice" />);
+    expect(screen.queryByRole('button', { name: /\d watching/ })).toBeNull();
+  });
+});

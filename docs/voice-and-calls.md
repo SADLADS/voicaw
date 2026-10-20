@@ -121,7 +121,19 @@ LiveKit carries the audio.
   with `autoSubscribe: false` and `syncSubscriptions` subscribes every microphone, and a screen
   share (and its sound) only for the one person `watching` (`watchStream(id)`; `attachStream`
   plays it in a `<video>`). The stream's sound plays like the others' (deafen mutes it), at its
-  own volume (Stream volume, above). UI: a
+  own volume (Stream volume, above). **Who's watching** (2026-10-20, like Discord's viewers): LiveKit
+  never tells anyone who subscribed, so each client says whose stream it watches (`PUT
+  /voice/watching { watching: user id | null }`, from `voiceClient` `reportWatching` once per
+  change and LiveKit session; never for your own preview) and the server sets it as the
+  participant's `watching` attribute (`voice.js` / `calls.js` `setWatching`, through LiveKit's
+  RoomService like mute and deafen; a channel's before its "joined" webhook is applied then).
+  The server keeps nothing itself: the attribute lives in LiveKit and goes with the session
+  (the token still can't set attributes). Clients read everyone else's into `watchers`
+  (`{ streamer: [{ id, username }] }`, live streams only, never you), and `StreamView` shows an
+  eye, the count and up to three pictures in the stream bar (only the count in the corner and on
+  phones), a click listing their names; the sharer's own preview shows it too. Calls the same
+  (the attribute isn't encrypted, but LiveKit knows who downloads each stream anyway; said in
+  the privacy policy). `e2e/streamwatchers.mjs` checks it. UI: a
   Live badge in the channel list and on tiles, Watch Stream on a live tile once you're in, the
   stream big above the tiles (`voice/StreamView.jsx`: full screen, stop watching; the people
   become a row; pop out and the corner, below), and the share button (`voice/ScreenShareButton.jsx`) in the voice bar and the

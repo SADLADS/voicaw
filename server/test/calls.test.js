@@ -16,7 +16,7 @@ const clients = app.locals.clients;
 const liveKitCalls = [];
 const fakeRoomService = {
   removeParticipant: async (room, identity) => { liveKitCalls.push(['remove', room, identity]); },
-  updateParticipant: async () => {},
+  updateParticipant: async (room, identity, options) => { liveKitCalls.push(['update', room, identity, options]); },
   deleteRoom: async (room) => { liveKitCalls.push(['deleteRoom', room]); },
   listParticipants: async () => [],
 };
@@ -159,6 +159,15 @@ describe('DM calls', () => {
     await api.delete(bob, `/dm-calls/${callId}`);
     expect(ofType(aliceEvents, 'call_end').at(-1)).toMatchObject({ id: callId, reason: 'ended' });
     expect((await api.get(alice, '/dm-calls/current')).body).toBeNull();
+  });
+
+  it("says whose stream you're watching in the call room's attributes", async () => {
+    const [alice, bob] = [await makeUser(), await makeUser()];
+    const callId = (await ring(alice, bob)).body.call.id;
+    await api.post(bob, `/dm-calls/${callId}/accept`);
+    liveKitCalls.length = 0;
+    expect((await api.put(bob, '/voice/watching', { watching: alice.id })).body).toEqual({ success: true, in_voice: true });
+    expect(liveKitCalls).toEqual([['update', `call-${callId}`, String(bob.id), { attributes: { watching: String(alice.id) } }]]);
   });
 
   it('keeps outsiders out and checks what it is given', async () => {

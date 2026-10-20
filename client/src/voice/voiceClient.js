@@ -1,4 +1,4 @@
-import { fetchVoiceToken, leaveVoiceChannel, saveVoiceState } from '../services/voiceService';
+import { fetchVoiceToken, leaveVoiceChannel, saveVoiceState, saveWatching } from '../services/voiceService';
 import { onGuildEvent } from '../utils/ws-client';
 import { createVoiceChain } from './voiceChain';
 import { VOICE_SAMPLE_RATE, voiceProcessingStage } from './noise/noiseStages';
@@ -46,7 +46,9 @@ import { t } from '../i18n';
 // Screen sharing (voice channels, with Video): your screen (and its sound, where the browser
 // shares it) goes out as LiveKit screen-share tracks. Others only receive a stream while they
 // watch it (subscriptions are ours to decide, not automatic), so a stream nobody watches
-// costs nobody's download.
+// costs nobody's download. Whose stream each device watches goes to the server
+// (saveWatching), which sets it as the participant's `watching` attribute, so everyone in the
+// room sees who watches a stream (`watchers`): LiveKit never tells anyone who subscribed.
 //
 // Cameras (voice channels with Video, and every call; end-to-end encrypted in calls like the
 // audio): yours goes out as LiveKit's camera track, in three sizes (simulcast). Someone's
@@ -86,7 +88,9 @@ function loadPrefs() {
 // `identity`: our own user id (a string) in the room.
 // Screen sharing: `canStream` (Video), `streaming` (yours is live), `streams` (the user ids,
 // strings, sharing in this room, you included), `watching` (whose stream this device shows,
-// or null), `watchingReady` (its video has arrived), `streamError`, `streamLimit` (the
+// or null), `watchingReady` (its video has arrived), `watchers` (identity of someone sharing
+// -> the others watching their stream, never you, in the order they joined: { id, username },
+// the username from their token), `streamError`, `streamLimit` (the
 // server's cap on screen share quality, { resolution, frameRate }; null: none, see streamSettings.js).
 // Cameras: `canCamera` (Video in a channel; always in a call), `cameraOn` (yours), `cameras`
 // (the user ids, strings, whose camera is on in this room, you included), `cameraError`.
@@ -103,6 +107,7 @@ const NOT_IN_VOICE = {
   streams: [],
   watching: null,
   watchingReady: false,
+  watchers: {},
   streamError: null,
   streamLimit: null,
   cameraOn: false,
@@ -125,6 +130,7 @@ const listeners = new Set();
 function update(changes) {
   snapshot = { ...snapshot, ...changes };
   for (const listener of listeners) listener();
+  reportWatching();
 }
 
 export const getVoiceSnapshot = () => snapshot;
@@ -302,6 +308,41 @@ function screenTrack(identity) {
   return participant?.getTrackPublication(livekit.Track.Source.ScreenShare)?.track ?? null;
 }
 
+// Who watches each live stream in `streams`, from the others' `watching` attributes (set by
+// the server, see reportWatching). The same object when nothing changed.
+function watchersIn(streams) {
+  const watchers = {};
+  for (const participant of room.remoteParticipants.values()) {
+    const watching = participant.attributes?.watching;
+    if (!watching || watching === participant.identity || !streams.includes(watching)) continue;
+    (watchers[watching] ??= []).push({ id: participant.identity, username: participant.name ?? '' });
+  }
+  return JSON.stringify(watchers) === JSON.stringify(snapshot.watchers) ? snapshot.watchers : watchers;
+}
+
+function updateWatchers() {
+  if (!room) return;
+  const watchers = watchersIn(snapshot.streams);
+  if (watchers !== snapshot.watchers) update({ watchers });
+}
+
+// What we last told the server we watch, for which LiveKit session (a rejoin is a new one,
+// without the attribute).
+let reported = { sid: null, watching: null };
+
+// Tells the server whose stream this device watches (not our own preview), once per change.
+function reportWatching() {
+  if (!room || snapshot.status !== 'connected') return;
+  const { sid, identity } = room.localParticipant;
+  const watching = snapshot.watching != null && snapshot.watching !== identity ? snapshot.watching : null;
+  if (reported.sid === sid && reported.watching === watching) return;
+  const fresh = reported.sid !== sid;
+  reported = { sid, watching };
+  // A new session starts watching nobody.
+  if (fresh && watching === null) return;
+  saveWatching(watching === null ? null : Number(watching)).catch((err) => console.warn('Could not say who you watch', err));
+}
+
 // Who's sharing, and whether the one we watch has arrived; stops watching a stream that ended.
 function updateStreams() {
   if (!room) return;
@@ -316,6 +357,7 @@ function updateStreams() {
     streaming: room.localParticipant.isScreenShareEnabled,
     watching,
     watchingReady: Boolean(screenTrack(watching)),
+    watchers: watchersIn(streams),
   });
   updateCameras();
   syncSubscriptions();
@@ -581,6 +623,10 @@ function watch(newRoom, current) {
         audioElementsByTrack.delete(track);
       }
       updateTracks();
+    })
+    // Someone started or stopped watching a stream (their `watching`).
+    .on(RoomEvent.ParticipantAttributesChanged, () => {
+      if (!stale()) updateWatchers();
     })
     .on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
       if (stale()) return;

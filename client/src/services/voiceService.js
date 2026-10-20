@@ -11,6 +11,12 @@ export async function saveVoiceState({ selfMute, selfDeaf }) {
   await api.put('/voice/state', { selfMute, selfDeaf });
 }
 
+// Whose screen share this device watches in its voice channel or call (a user id, or null),
+// which everyone in the room sees.
+export async function saveWatching(watching) {
+  await api.put('/voice/watching', { watching });
+}
+
 export async function leaveVoiceChannel() {
   await api.delete('/voice');
 }

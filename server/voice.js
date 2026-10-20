@@ -61,6 +61,10 @@ const forgetRegion = (regionId) => clients.delete(regionId);
 const states = new Map();
 // userId -> { selfMute, selfDeaf }: what the client last said, applied when it joins.
 const preferences = new Map();
+// userId -> { watching, at }: whose stream the client said it watches before its "joined"
+// webhook arrived, applied then (for a minute).
+const pendingWatching = new Map();
+const PENDING_WATCHING_MS = 60 * 1000;
 // Participant sessions that already left: a late "joined" webhook for them is ignored.
 const leftSids = new Set();
 function rememberLeft(sid) {
@@ -262,6 +266,27 @@ async function setSelfState(userId, { selfMute, selfDeaf }) {
   return state;
 }
 
+// Whose stream the client watches (a user id as a string, '' for none), as the participant's
+// `watching` attribute, so everyone in the room sees who watches (LiveKit itself never tells
+// a sharer who subscribed). LiveKit merges attributes, so mute and deafen stay. Returns false
+// when the user isn't in a voice channel (a call, then: calls.js).
+function setWatching(userId, watching) {
+  const state = states.get(userId);
+  if (!state) {
+    pendingWatching.set(userId, { watching, at: Date.now() });
+    return false;
+  }
+  pendingWatching.delete(userId);
+  syncWatching(state, watching);
+  return true;
+}
+
+function syncWatching(state, watching) {
+  serviceFor(state.regionId)?.updateParticipant(roomName(state.channelId), String(state.userId), {
+    attributes: { watching },
+  }).catch((err) => logLiveKitError('saving who is watching', err));
+}
+
 // May `userId` be in this voice channel? Returns the access (with `permissions`) or null.
 async function voiceAccess(channelId, userId) {
   const access = await getChannelAccess(channelId, userId);
@@ -313,6 +338,9 @@ async function participantJoined(channelId, participant, regionId) {
   };
   states.set(userId, state);
   if (state.selfMute || state.selfDeaf) syncAttributes(state);
+  const pending = pendingWatching.get(userId);
+  pendingWatching.delete(userId);
+  if (pending?.watching && Date.now() - pending.at < PENDING_WATCHING_MS) syncWatching(state, pending.watching);
   await announce(state.guildId, channelId, userId, state);
 }
 
@@ -520,6 +548,7 @@ module.exports = {
   streamLimit,
   logLiveKitError,
   setSelfState,
+  setWatching,
   voiceAccess,
   disconnect,
   verifyWebhook,
