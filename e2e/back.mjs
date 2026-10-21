@@ -88,7 +88,7 @@ try {
   check(!(await canGoBack(page)), 'and nothing before it');
 
   // The DMs, a DM, a channel link in it: Back shows the linked guild's channels, not the DM.
-  await page.tap('.nav-icon[href="/dm"]');
+  await page.tap('.nav-icon[aria-label="Direct Messages"]');
   await page.waitForURL('**/dm**');
   await settle(page);
   check(!(await canGoBack(page)), 'the DMs button adds nothing either');
@@ -107,7 +107,7 @@ try {
   check(!(await canGoBack(page)), 'and Back again would leave the app, not go back to the DM');
 
   // The header's back arrow rather than Back: the same.
-  await page.tap('.nav-icon[href="/dm"]');
+  await page.tap('.nav-icon[aria-label="Direct Messages"]');
   await settle(page);
   await page.tap(`.dm-user[href="/dm/${alice.id}"]`);
   await settle(page);

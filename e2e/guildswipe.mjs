@@ -116,7 +116,7 @@ try {
   check(await pane(page) === 'list' && path(page) === channelPath && await showsChannels(), 'swipe back after a reload: the guild\'s channels');
 
   // The same from the DM side still goes back to the DMs.
-  await page.click('a[href="/dm"]');
+  await page.click('a[aria-label="Direct Messages"]');
   await page.waitForSelector('#dm-sidebar');
   await settle(page);
   await page.click(`#dm-sidebar a[href="/dm/${alice.id}"]`);

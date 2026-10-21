@@ -26,7 +26,7 @@ const check = (ok, what) => {
 
 // Whose picture the DM button shows (its label names them), or null for the plain icon (which
 // links to /dm; the picture links to its chat).
-const BUTTON = '.sidebar a.rail-dm-unread, .sidebar a[href="/dm"]';
+const BUTTON = '.sidebar a.rail-dm-unread, .sidebar a[aria-label="Direct Messages"]';
 const button = (page) => page.locator(BUTTON);
 const waitForButton = (page, name) => page.waitForFunction(([sel, want]) => {
   const a = document.querySelector(sel);

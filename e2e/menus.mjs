@@ -135,9 +135,9 @@ try {
   await a.waitForSelector('#dm-input');
   await dm(bob, alice, 'are you there?');
   await a.waitForTimeout(1500);
-  check(!(await a.locator('.nav-item:has(a[href="/dm"]) .dot').evaluate((el) => el.classList.contains('visible'))), "a muted DM doesn't light the DMs icon");
+  check(!(await a.locator('.nav-item:has(a[aria-label="Direct Messages"]) .dot').evaluate((el) => el.classList.contains('visible'))), "a muted DM doesn't light the DMs icon");
   await dm(carol, alice, 'ping');
-  await a.waitForSelector('.nav-item:has(a[href="/dm"]) .dot.visible', { timeout: 10000 });
+  await a.waitForSelector('.nav-item:has(a[aria-label="Direct Messages"]) .dot.visible', { timeout: 10000 });
   check(true, 'an unmuted one does');
 
   // Phone: touch and hold.

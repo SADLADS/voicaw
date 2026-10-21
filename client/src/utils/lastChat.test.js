@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { chatPath, forgetChat, lastChat, rememberChat } from './lastChat';
+import { chatPath, forgetChat, lastChat, lastDm, rememberChat } from './lastChat';
 
 describe('last chat', () => {
   beforeEach(() => localStorage.clear());
@@ -33,8 +33,35 @@ describe('last chat', () => {
     expect(lastChat()).toBeNull();
   });
 
+  it('remembers the last DM page apart, Friends included', () => {
+    expect(lastDm()).toBeNull();
+    rememberChat('/dm/12');
+    rememberChat('/guild/3/40');
+    rememberChat('/settings/profile');
+    expect(lastDm()).toBe('/dm/12');
+    expect(lastChat()).toBe('/guild/3');
+    rememberChat('/dm/friends');
+    expect(lastDm()).toBe('/dm/friends');
+    rememberChat('/dm');
+    expect(lastDm()).toBe('/dm/friends');
+  });
+
+  it('forgets a gone chat only where it is remembered', () => {
+    rememberChat('/dm/g/0b5e-41aa');
+    rememberChat('/guild/3');
+    forgetChat('/guild/3');
+    expect(lastChat()).toBeNull();
+    expect(lastDm()).toBe('/dm/g/0b5e-41aa');
+    rememberChat('/dm/g/0b5e-41aa');
+    forgetChat('/dm/g/0b5e-41aa');
+    expect(lastChat()).toBeNull();
+    expect(lastDm()).toBeNull();
+  });
+
   it('ignores a stored value that is not a chat', () => {
     localStorage.setItem('lastChat', 'https://example.com/');
+    localStorage.setItem('lastDm', '/guild/3');
     expect(lastChat()).toBeNull();
+    expect(lastDm()).toBeNull();
   });
 });
