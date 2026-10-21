@@ -3,7 +3,7 @@ import {
   addDays, addMonths, allDayInputs, allDayTimes, dayKey, defaultStart, eventsByDay, fromKey, isPastDay, monthGrid, startAtHour, startOnDay,
   weekBlocks, weekDays,
 } from './eventCalendar';
-import { occurrencesBetween } from './eventRecurrence';
+import { dateKeyIn, occurrencesBetween, occurrenceView, upcomingOccurrences } from './eventRecurrence';
 import { formatEventWhen } from './eventDisplay';
 
 const at = (iso) => Math.floor(Date.parse(iso) / 1000);
@@ -24,10 +24,54 @@ describe('occurrences of repeating events', () => {
   it('keeps the wall-clock time across a clock change', () => {
     const list = occurrencesBetween(series(weekly, start, { end: start + 7200 }), at('2026-10-01T00:00:00Z'), at('2026-11-08T00:00:00Z'));
     expect(list).toEqual([
-      { start, end: start + 7200 },
-      { start: at('2026-10-27T20:00:00Z'), end: at('2026-10-27T22:00:00Z') },
-      { start: at('2026-11-03T20:00:00Z'), end: at('2026-11-03T22:00:00Z') },
+      { start, end: start + 7200, original: start },
+      { start: at('2026-10-27T20:00:00Z'), end: at('2026-10-27T22:00:00Z'), original: at('2026-10-27T20:00:00Z') },
+      { start: at('2026-11-03T20:00:00Z'), end: at('2026-11-03T22:00:00Z'), original: at('2026-11-03T20:00:00Z') },
     ]);
+  });
+
+  it('moves, renames and leaves out single occurrences, and stops at until', () => {
+    const second = at('2026-10-27T20:00:00Z');
+    const third = at('2026-11-03T20:00:00Z');
+    const fourth = at('2026-11-10T20:00:00Z');
+    const event = series(weekly, start, {
+      end: start + 7200,
+      until: at('2026-11-17T20:00:00Z'),
+      interested: true,
+      interested_all: true,
+      my_occurrences: { [third]: false },
+      user_count: 4,
+      occurrences: [
+        { original_start: second, status: 'canceled' },
+        { original_start: third, start_time: third + 86400, end_time: third + 86400 + 3600, status: 'scheduled', name: 'Late one' },
+      ],
+    });
+    const list = occurrencesBetween(event, at('2026-10-01T00:00:00Z'), at('2026-12-31T00:00:00Z'));
+    expect(list).toEqual([
+      { start, end: start + 7200, original: start },
+      { start: third + 86400, end: third + 86400 + 3600, original: third },
+      { start: fourth, end: fourth + 7200, original: fourth },
+    ]);
+    expect(upcomingOccurrences(event, 10).map((o) => o.original)).toEqual([start, third, fourth]);
+    expect(occurrenceView(event, third)).toMatchObject({
+      start_time: third + 86400, name: 'Late one', original_start: third, current: false, interested: false, user_count: null, status: 'scheduled',
+    });
+    expect(occurrenceView(event, fourth)).toMatchObject({ name: 'Game night', interested: true, end_time: fourth + 7200 });
+    expect(occurrenceView(event)).toMatchObject({ original_start: start, current: true, user_count: 4 });
+    expect(dateKeyIn(third, 'Europe/London')).toBe('2026-11-03');
+  });
+
+  it('lays what took place on the calendar, greyed, without doubling one that is still on', () => {
+    const days = monthGrid('2026-10');
+    const event = series(weekly, start, { end: start + 7200, status: 'active' });
+    const record = { ...series(weekly, start - 7 * 86400, { end: start - 7 * 86400 + 7200 }), status: 'completed', original_start: start - 7 * 86400 };
+    const stillOn = { ...record, start_time: start, end_time: start + 7200, original_start: start };
+    const byDay = eventsByDay([event], days, [record, stillOn]);
+    expect(byDay.get('2026-10-13')).toEqual([expect.objectContaining({ past: true, original: start - 7 * 86400 })]);
+    expect(byDay.get('2026-10-13')[0].event).toMatchObject({ past: true, status: 'completed' });
+    expect(byDay.get('2026-10-20')).toEqual([expect.objectContaining({ past: false, original: start })]);
+    // A record isn't stepped through its rule again.
+    expect([...byDay.values()].flat().filter((item) => item.past)).toHaveLength(1);
   });
 
   it('follows every other week, the nth weekday and yearly dates', () => {

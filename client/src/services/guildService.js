@@ -490,8 +490,19 @@ export async function fetchEvents(guildId) {
   return (await api.get(`/guilds/${guildId}/events`)).data;
 }
 
-export async function fetchEvent(eventId) {
-  return (await api.get(`/guild-events/${eventId}`)).data;
+// One event, with your interest. A repeating one's `occurrence` (an original start) or `on` (a
+// link's date, 'YYYY-MM-DD') adds that `occurrence` (still to come, cancelled, taken place, or
+// null when it isn't one of its dates). An event "this and following" continued may come back
+// as the event that did (another id).
+export async function fetchEvent(eventId, { occurrence = null, on = null } = {}) {
+  const params = occurrence != null ? { occurrence } : on != null ? { on } : undefined;
+  return (await api.get(`/guild-events/${eventId}`, params ? { params } : undefined)).data;
+}
+
+// What took place between unix s `from` and `to` (at most 100 days apart): past occurrences,
+// like events (`id` is the event's) with `status` 'completed' and `original_start`.
+export async function fetchEventHistory(guildId, from, to) {
+  return (await api.get(`/guilds/${guildId}/event-history`, { params: { from, to } })).data;
 }
 
 // { name, description, entityType: 'voice' | 'external', channelId | location, startTime,
@@ -500,8 +511,10 @@ export async function createEvent(guildId, fields) {
   return (await api.post(`/guilds/${guildId}/events`, fields)).data;
 }
 
-export async function updateEvent(eventId, fields) {
-  return (await api.patch(`/guild-events/${eventId}`, fields)).data;
+// Every occurrence of a repeating event, or with `from` (an original start) that one and those
+// after it: then it resolves to the new event that takes over from there.
+export async function updateEvent(eventId, fields, { from = null } = {}) {
+  return (await api.patch(`/guild-events/${eventId}`, fields, from != null ? { params: { from } } : undefined)).data;
 }
 
 export async function startEvent(eventId) {
@@ -512,30 +525,33 @@ export async function endEvent(eventId) {
   return (await api.post(`/guild-events/${eventId}/end`)).data;
 }
 
-// Cancels the event (every occurrence of a repeating one).
-export async function cancelEvent(eventId) {
-  await api.delete(`/guild-events/${eventId}`);
+// Cancels the event (every occurrence of a repeating one), or with `from` (an original start)
+// that occurrence and every one after it.
+export async function cancelEvent(eventId, { from = null } = {}) {
+  await api.delete(`/guild-events/${eventId}`, from != null ? { params: { from } } : undefined);
 }
 
-// A repeating event's next occurrence: skipped, or moved to { startTime, endTime }.
-export async function skipOccurrence(eventId) {
-  return (await api.post(`/guild-events/${eventId}/skip`)).data;
+// One occurrence of a repeating event (`occurrence`: its original start; the current one by
+// default): cancelled, or changed ({ occurrence, startTime, endTime, name, description,
+// location }). Both resolve to the event.
+export async function skipOccurrence(eventId, { occurrence = null } = {}) {
+  return (await api.post(`/guild-events/${eventId}/skip`, occurrence != null ? { occurrence } : {})).data;
 }
 
-export async function moveOccurrence(eventId, times) {
-  return (await api.put(`/guild-events/${eventId}/occurrence`, times)).data;
+export async function moveOccurrence(eventId, changes) {
+  return (await api.put(`/guild-events/${eventId}/occurrence`, changes)).data;
 }
 
-// Interested or not in every occurrence of the event, or with `occurrence` only the current one.
-// Resolves to { interested, interested_all }.
-export async function setEventInterest(eventId, interested, { occurrence = false } = {}) {
-  const url = `/guild-events/${eventId}/interest${occurrence ? '?occurrence=1' : ''}`;
+// Interested or not in every occurrence of the event, or with `occurrence` (an original start)
+// only that one. Resolves to { interested (in that one), interested_all, my_occurrences }.
+export async function setEventInterest(eventId, interested, { occurrence = null } = {}) {
+  const url = `/guild-events/${eventId}/interest${occurrence != null ? `?occurrence=${occurrence}` : ''}`;
   return (await (interested ? api.put(url) : api.delete(url))).data;
 }
 
-// Who's interested in the current occurrence: user ids.
-export async function fetchEventUsers(eventId) {
-  return (await api.get(`/guild-events/${eventId}/users`)).data;
+// Who's interested in the current occurrence (or `occurrence`, an original start): user ids.
+export async function fetchEventUsers(eventId, { occurrence = null } = {}) {
+  return (await api.get(`/guild-events/${eventId}/users`, occurrence != null ? { params: { occurrence } } : undefined)).data;
 }
 
 // ---- Levels (server/guildLevels.js) ----

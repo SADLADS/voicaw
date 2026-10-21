@@ -25,6 +25,8 @@ vi.mock('../../services/guildService', () => ({
   endEvent: vi.fn(async () => {}),
   cancelEvent: vi.fn(async () => {}),
   skipOccurrence: vi.fn(async () => {}),
+  fetchEvent: vi.fn(async (id) => ({ id })),
+  fetchEventHistory: vi.fn(async () => []),
 }));
 const events = vi.hoisted(() => ({ list: [] }));
 
@@ -463,7 +465,7 @@ describe('GuildSidebar', () => {
       expect(within(dialog).queryByRole('button', { name: /Start/ })).not.toBeInTheDocument();
       const interest = within(within(dialog).getByRole('article', { name: 'Picnic' })).getByRole('button', { name: /Interested/ });
       fireEvent.click(interest);
-      expect(setEventInterest).toHaveBeenCalledWith(70, true, { occurrence: false });
+      expect(setEventInterest).toHaveBeenCalledWith(70, true, { occurrence: null });
       expect(interest).toHaveAttribute('aria-pressed', 'true');
       expect(within(dialog).getByRole('article', { name: 'Picnic' })).toHaveTextContent('2 interested');
     });

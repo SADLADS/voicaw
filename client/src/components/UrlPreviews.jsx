@@ -109,12 +109,13 @@ export default function UrlPreviews({ text, encrypted = false, onRemove }) {
   const events = new Map();
   for (const link of links) {
     const found = eventFromUrl(link);
-    if (found && !events.has(found.eventId)) events.set(found.eventId, found);
+    const key = `${found?.eventId}-${found?.on ?? ''}`;
+    if (found && !events.has(key)) events.set(key, found);
   }
   return (
     <>
       {inviteCodes.map((code) => <RemovableEmbed key={code} onRemove={onRemove}><InviteEmbed code={code} autoLoad={!encrypted} /></RemovableEmbed>)}
-      {[...events.values()].map((e) => <RemovableEmbed key={e.eventId} onRemove={onRemove}><EventEmbed guildId={e.guildId} eventId={e.eventId} autoLoad={!encrypted} /></RemovableEmbed>)}
+      {[...events].map(([key, e]) => <RemovableEmbed key={key} onRemove={onRemove}><EventEmbed guildId={e.guildId} eventId={e.eventId} on={e.on ?? null} autoLoad={!encrypted} /></RemovableEmbed>)}
       {[...videos].map(([id, link]) => <RemovableEmbed key={id} onRemove={onRemove}><YouTubeEmbed id={id} link={link} /></RemovableEmbed>)}
       {media.length > 0 && (
         <div className="message-files">

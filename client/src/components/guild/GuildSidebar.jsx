@@ -45,6 +45,9 @@ import EventsDialog from '../events/EventsDialog';
 import EventEditor from '../events/EventEditor';
 import EventEmoji from '../events/EventEmoji';
 import { useGuildEvents } from '../../hooks/useGuildEvents';
+import { useEventHistory } from '../../hooks/useEventHistory';
+import { occurrenceView } from '../../utils/eventRecurrence';
+import { isEventDate } from '../../utils/inviteLinks';
 import { canCreateEvents, eventColor } from '../../utils/eventDisplay';
 import { dayKey, monthKey } from '../../utils/eventCalendar';
 import { useVoice } from '../../hooks/useVoice';
@@ -97,6 +100,8 @@ export default function GuildSidebar({ guild, user }) {
   const [dialog, setDialog] = useState(null);
   // The guild's scheduled events (Calendar, above the channels).
   const guildEvents = useGuildEvents(guild?.id ?? null, user.id);
+  // What took place, for the calendar's past days (loaded as it shows them).
+  const eventHistory = useEventHistory(guild?.id ?? null);
   // The Events dialog's { tab, month, day }: back to the calendar on today each time it opens.
   const [eventsView, setEventsView] = useState(freshEventsView);
   const [collapsed, setCollapsed] = useState(loadCollapsed);
@@ -128,17 +133,20 @@ export default function GuildSidebar({ guild, user }) {
     ? { className: ' dragging', style: { transform: `translateY(${drag.dy}px)` } }
     : { className: '', style: undefined });
 
-  // An event link opens the event (and the link's ?event= goes, so closing it stays closed).
+  // An event link opens the event, a repeating one's on its date (&on=) if it has one (and the
+  // link's ?event= goes, so closing it stays closed).
   const hasGuild = Boolean(guild);
+  const onParam = searchParams.get('on');
   useEffect(() => {
     if (!hasGuild || !/^\d+$/.test(eventParam ?? '')) return;
-    setDialog({ type: 'events', eventId: Number(eventParam) });
+    setDialog({ type: 'events', eventId: Number(eventParam), on: isEventDate(onParam) ? onParam : null });
     setSearchParams((params) => {
       const next = new URLSearchParams(params);
       next.delete('event');
+      next.delete('on');
       return next;
     }, { replace: true });
-  }, [hasGuild, eventParam, setSearchParams]);
+  }, [hasGuild, eventParam, onParam, setSearchParams]);
 
   // The menu closes on any click outside it.
   useEffect(() => {
@@ -182,7 +190,9 @@ export default function GuildSidebar({ guild, user }) {
   ];
   const inVoice = voice.status !== 'idle' && voice.guildId === guild.id ? voice.channelId : null;
   // Events on now, soonest started first: listed under Calendar (and a voice one under its channel).
-  const liveEvents = guildEvents.events.filter((e) => e.status === 'active').sort((a, b) => a.start_time - b.start_time || a.id - b.id);
+  // (As their current occurrence: its own name, if it has one.)
+  const liveEvents = guildEvents.events.filter((e) => e.status === 'active').sort((a, b) => a.start_time - b.start_time || a.id - b.id)
+    .map((e) => occurrenceView(e));
   const speaking = new Set(voice.status === 'connected' ? voice.speaking : []);
 
   function toggleCategory(id) {
@@ -554,12 +564,17 @@ export default function GuildSidebar({ guild, user }) {
           events={guildEvents.events}
           loaded={guildEvents.loaded}
           setInterested={guildEvents.setInterested}
+          history={eventHistory.history}
+          loadHistory={eventHistory.loadRange}
           eventId={dialog.eventId ?? null}
+          occurrence={dialog.occurrence ?? null}
+          on={dialog.on ?? null}
+          past={dialog.past ?? null}
           view={eventsView}
           onView={(changes) => setEventsView((view) => ({ ...view, ...changes }))}
-          onOpenEvent={(id) => setDialog({ type: 'events', eventId: id })}
+          onOpenEvent={(id, occurrence = null, past = null) => setDialog({ type: 'events', eventId: id, occurrence, past })}
           onCreate={(start = null) => setDialog({ type: 'eventEditor', start, back: true })}
-          onEdit={(event, occurrence) => setDialog({ type: 'eventEditor', event, occurrence, back: true })}
+          onEdit={(event, scope, occurrence = null) => setDialog({ type: 'eventEditor', event, scope, occurrence, back: true })}
           onClose={closeDialog}
         />
       )}
@@ -567,13 +582,15 @@ export default function GuildSidebar({ guild, user }) {
         <EventEditor
           guild={guild}
           event={dialog.event}
-          occurrence={dialog.occurrence}
+          scope={dialog.scope ?? 'all'}
+          occurrence={dialog.occurrence ?? null}
           start={dialog.start ?? null}
           onSaved={(saved) => {
             guildEvents.upsert(saved);
-            setDialog({ type: 'events', eventId: saved.id });
+            // Back to the date edited ("this event"), or the event (a new one after "this and following").
+            setDialog({ type: 'events', eventId: saved.id, occurrence: dialog.scope === 'this' ? dialog.occurrence : null });
           }}
-          onClose={() => (dialog.back ? setDialog({ type: 'events', eventId: dialog.event?.id ?? null }) : closeDialog())}
+          onClose={() => (dialog.back ? setDialog({ type: 'events', eventId: dialog.event?.id ?? null, occurrence: dialog.occurrence ?? null }) : closeDialog())}
         />
       )}
       {dialog?.type === 'invite' && <InviteDialog guild={guild} onClose={closeDialog} />}

@@ -368,7 +368,7 @@ function scheduledEventObject(event, creator = null) {
     image: eventImageHash(event),
     recurrence_rule: rule ? {
       start: iso(event.occurrence_start),
-      end: null,
+      end: iso(event.until), // "this and following" ended it there
       frequency: rule.frequency,
       interval: rule.interval,
       by_weekday: rule.by_weekday,

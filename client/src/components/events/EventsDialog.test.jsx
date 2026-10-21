@@ -1,18 +1,23 @@
 // @vitest-environment jsdom
 import React, { useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 vi.mock('../../services/guildService', () => ({
-  cancelEvent: vi.fn(), endEvent: vi.fn(), fetchEventUsers: vi.fn(async () => []), setEventInterest: vi.fn(async () => {}),
-  skipOccurrence: vi.fn(), startEvent: vi.fn(),
+  cancelEvent: vi.fn(async () => {}), endEvent: vi.fn(), fetchEventUsers: vi.fn(async () => []), setEventInterest: vi.fn(async () => {}),
+  skipOccurrence: vi.fn(async () => {}), startEvent: vi.fn(),
+  fetchEvent: vi.fn(async (id) => ({ id, occurrence: { user_count: 3 } })), fetchEventHistory: vi.fn(async () => []),
 }));
 vi.mock('../MessageList', () => ({ MessageContent: ({ msg }) => <p>{msg.plaintext}</p> }));
 
 import EventsDialog from './EventsDialog';
-import { setEventInterest } from '../../services/guildService';
+import { cancelEvent, fetchEvent, setEventInterest, skipOccurrence } from '../../services/guildService';
 import { ConfigContext, InteractionContext } from '../../contexts';
 import { addDays, dayKey, monthKey, startAtHour, startOnDay, weekDays } from '../../utils/eventCalendar';
+import { dateKeyIn, occurrencesBetween } from '../../utils/eventRecurrence';
+
+// The weekly event's second date (a week on by the wall clock, across any clock change).
+const secondOf = (event) => occurrencesBetween(event, event.start_time, event.start_time + 8 * 86400)[1].start;
 
 const CREATE_EVENTS = 1 << 27;
 const guild = { id: 5, my_permissions: 1 | CREATE_EVENTS, channels: [] };
@@ -33,7 +38,10 @@ function eventIn(days) {
 }
 
 // The dialog with its view kept, as GuildSidebar does.
-function Harness({ events, onCreate, onOpenEvent = vi.fn(), setInterested = vi.fn(), myGuild = guild }) {
+function Harness({
+  events, onCreate, onOpenEvent = vi.fn(), setInterested = vi.fn(), myGuild = guild, eventId = null, occurrence = null, past = null,
+  history = [], onEdit = vi.fn(),
+}) {
   const now = new Date();
   const [view, setView] = useState({ tab: 'calendar', month: monthKey(now), day: dayKey(now) });
   return (
@@ -45,12 +53,15 @@ function Harness({ events, onCreate, onOpenEvent = vi.fn(), setInterested = vi.f
           events={events}
           loaded
           setInterested={setInterested}
-          eventId={null}
+          history={history}
+          eventId={eventId}
+          occurrence={occurrence}
+          past={past}
           view={view}
           onView={(changes) => setView((v) => ({ ...v, ...changes }))}
           onOpenEvent={onOpenEvent}
           onCreate={onCreate}
-          onEdit={vi.fn()}
+          onEdit={onEdit}
           onClose={vi.fn()}
         />
       </InteractionContext.Provider>
@@ -63,7 +74,8 @@ beforeEach(() => vi.clearAllMocks());
 describe('EventsDialog', () => {
   it('has the list and the calendar in tabs', () => {
     const onOpenEvent = vi.fn();
-    render(<Harness events={[eventIn(2)]} onCreate={vi.fn()} onOpenEvent={onOpenEvent} />);
+    const event = eventIn(2);
+    render(<Harness events={[event]} onCreate={vi.fn()} onOpenEvent={onOpenEvent} />);
     // Calendar first, and open.
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Month', 'Week', 'Events']);
     expect(screen.getByRole('tab', { name: 'Month' })).toHaveAttribute('aria-selected', 'true');
@@ -71,8 +83,11 @@ describe('EventsDialog', () => {
     // Weekly: on its day and a week later (both are within this page's six weeks).
     const chips = screen.getAllByRole('button', { name: /Board games/ }).filter((b) => b.classList.contains('event-calendar-chip'));
     expect(chips.length).toBeGreaterThanOrEqual(2);
+    // Each opens its own date.
     fireEvent.click(chips[0]);
-    expect(onOpenEvent).toHaveBeenCalledWith(7);
+    expect(onOpenEvent).toHaveBeenCalledWith(7, event.start_time, null);
+    fireEvent.click(chips[1]);
+    expect(onOpenEvent).toHaveBeenLastCalledWith(7, secondOf(event), null);
     fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     expect(screen.getByText('The pub')).toBeTruthy();
   });
@@ -97,7 +112,8 @@ describe('EventsDialog', () => {
   it('shows a week of hours, and makes events on them', () => {
     const onCreate = vi.fn();
     const onOpenEvent = vi.fn();
-    render(<Harness events={[eventIn(0)]} onCreate={onCreate} onOpenEvent={onOpenEvent} />);
+    const event = eventIn(0);
+    render(<Harness events={[event]} onCreate={onCreate} onOpenEvent={onOpenEvent} />);
     fireEvent.click(screen.getByRole('tab', { name: 'Week' }));
     const today = dayKey(new Date());
     expect(screen.getAllByRole('columnheader')).toHaveLength(7);
@@ -105,7 +121,7 @@ describe('EventsDialog', () => {
     const block = screen.getByRole('button', { name: /Board games/ });
     expect(block).toHaveStyle({ top: `${18 * 44}px` });
     fireEvent.click(block);
-    expect(onOpenEvent).toHaveBeenCalledWith(7);
+    expect(onOpenEvent).toHaveBeenCalledWith(7, event.start_time, null);
     expect(onCreate).not.toHaveBeenCalled();
     // Next week: the weekly event again, and a click on an hour (here its first) makes one then.
     fireEvent.click(screen.getByRole('button', { name: 'Next week' }));
@@ -135,15 +151,87 @@ describe('EventsDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: /Interested/ }));
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Not interested in this event', 'Interested in all events']);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Interested in all events' }));
-    expect(setInterested).toHaveBeenCalledWith(7, { interested: true, interested_all: true });
-    expect(setEventInterest).toHaveBeenCalledWith(7, true, { occurrence: false });
+    expect(setInterested).toHaveBeenCalledWith(7, { interested: true, interested_all: true, my_occurrences: {} });
+    expect(setEventInterest).toHaveBeenCalledWith(7, true, { occurrence: null });
 
     // In all of them but this one: add this one back, or drop all.
     rerender(<Harness events={[{ ...only, interested: false, interested_all: true }]} setInterested={setInterested} />);
     fireEvent.click(screen.getByRole('button', { name: /Interested/ }));
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Interested in this event', 'Not interested in any of them']);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Interested in this event' }));
-    expect(setInterested).toHaveBeenLastCalledWith(7, { interested: true, interested_all: true });
-    expect(setEventInterest).toHaveBeenLastCalledWith(7, true, { occurrence: true });
+    expect(setInterested).toHaveBeenLastCalledWith(7, { interested: true, interested_all: true, my_occurrences: {} });
+    expect(setEventInterest).toHaveBeenLastCalledWith(7, true, { occurrence: only.start_time });
+  });
+
+  it('shows one date of a repeating event, its next dates, and links to it or the series', async () => {
+    const onOpenEvent = vi.fn();
+    const event = eventIn(2);
+    const second = secondOf(event);
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(<Harness events={[event]} eventId={7} occurrence={second} onOpenEvent={onOpenEvent} />);
+    const dates = screen.getAllByRole('button').filter((b) => b.classList.contains('event-detail-date'));
+    expect(dates).toHaveLength(5);
+    expect(dates[1]).toHaveAttribute('aria-current', 'date');
+    fireEvent.click(dates[0]);
+    expect(onOpenEvent).toHaveBeenCalledWith(7, event.start_time);
+    // Its count is the server's.
+    expect(await screen.findByRole('tab', { name: '3 interested' })).toBeInTheDocument();
+    expect(fetchEvent).toHaveBeenCalledWith(7, { occurrence: second });
+
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Edit event', 'Copy link to this date', 'Copy link to the series', 'Cancel event']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy link to this date' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringMatching(new RegExp(`/guild/5\\?event=7&on=${dateKeyIn(second, event.timezone)}$`))));
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy link to the series' }));
+    await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(expect.stringMatching(/\/guild\/5\?event=7$/)));
+  });
+
+  it('asks which dates an edit or a cancel is for', async () => {
+    const onEdit = vi.fn();
+    const onOpenEvent = vi.fn();
+    const event = eventIn(2);
+    const second = secondOf(event);
+    render(<Harness events={[event]} eventId={7} occurrence={second} onEdit={onEdit} onOpenEvent={onOpenEvent} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit event' }));
+    const edit = screen.getByRole('dialog', { name: 'Edit a repeating event' });
+    expect(within(edit).getAllByRole('radio').map((r) => r.parentElement.textContent)[1]).toBe('This and following events');
+    fireEvent.click(within(edit).getByLabelText('This and following events'));
+    fireEvent.click(within(edit).getByRole('button', { name: 'Continue' }));
+    expect(onEdit).toHaveBeenCalledWith(event, 'following', second);
+
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Cancel event' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Cancel a repeating event' })).getByRole('button', { name: 'Cancel events' }));
+    await waitFor(() => expect(skipOccurrence).toHaveBeenCalledWith(7, { occurrence: second }));
+    expect(onOpenEvent).toHaveBeenLastCalledWith(7);
+
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Cancel event' }));
+    fireEvent.click(screen.getByLabelText('This and following events'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel events' }));
+    await waitFor(() => expect(cancelEvent).toHaveBeenCalledWith(7, { from: second }));
+  });
+
+  it('greys what took place on the calendar, and shows it ended', () => {
+    const onOpenEvent = vi.fn();
+    const yesterday = eventIn(-1);
+    const record = { ...yesterday, status: 'completed', original_start: yesterday.start_time, user_count: 2 };
+    const { unmount } = render(<Harness events={[]} history={[record]} onOpenEvent={onOpenEvent} />);
+    const chip = screen.getAllByRole('button', { name: /Board games/ }).find((b) => b.classList.contains('event-calendar-chip'));
+    expect(chip).toHaveClass('past');
+    fireEvent.click(chip);
+    expect(onOpenEvent).toHaveBeenCalledWith(7, record.start_time, expect.objectContaining({ status: 'completed' }));
+    unmount();
+
+    render(<Harness events={[eventIn(6)]} eventId={7} occurrence={record.original_start} past={record} onOpenEvent={onOpenEvent} />);
+    expect(screen.getByText('Ended')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Interested/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^Next:/ }));
+    expect(onOpenEvent).toHaveBeenLastCalledWith(7, null);
+    fireEvent.click(screen.getByRole('tab', { name: '2 interested' }));
+    expect(screen.getByText('2 were interested')).toBeInTheDocument();
   });
 });

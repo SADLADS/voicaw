@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Icon } from '../Icon';
 import {
-  faBan, faBell, faCalendarXmark, faCheck, faChevronLeft, faEllipsis, faLink, faPen, faPlay, faStop, faClock,
+  faBan, faBell, faCheck, faChevronLeft, faEllipsis, faLink, faPen, faPlay, faStop,
 } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/events.css';
 import Modal from '../guild/Modal';
@@ -13,20 +13,28 @@ import EventCalendar from './EventCalendar';
 import EventWeek from './EventWeek';
 import EventEmoji from './EventEmoji';
 import InterestButton from './InterestButton';
+import ScopeDialog from './ScopeDialog';
 import DocumentCover from '../documents/DocumentCover';
 import { MessageContent } from '../MessageList';
 import { ConfigContext, InteractionContext } from '../../contexts';
 import {
-  cancelEvent, endEvent, fetchEventUsers, setEventInterest, skipOccurrence, startEvent,
+  cancelEvent, endEvent, fetchEvent, fetchEventHistory, fetchEventUsers, setEventInterest, skipOccurrence, startEvent,
 } from '../../services/guildService';
 import {
   canCreateEvents, canManageEvent, eventPlace, eventStatusText, formatEventWhen, interestAfter,
 } from '../../utils/eventDisplay';
-import { describeRepeat } from '../../utils/eventRecurrence';
+import { dateKeyIn, describeRepeat, occurrenceView, pastView, upcomingOccurrences } from '../../utils/eventRecurrence';
+import { fromKey } from '../../utils/eventCalendar';
 import { errorMessage, eventLink } from '../../utils/guildDisplay';
 import { displayName, useProfiles } from '../../utils/profiles';
 import { useDateFormat } from '../../utils/dateFormat';
 import { t } from '../../i18n';
+
+// How many of a repeating event's next dates its page lists.
+const NEXT_DATES = 5;
+
+// The date of an occurrence in links ('YYYY-MM-DD' in the event's time zone).
+const linkDate = (view) => dateKeyIn(view.original_start ?? view.start_time, view.timezone);
 
 // The event's description drawn like a message (markdown, mentions, emoji).
 function Description({ text, user }) {
@@ -35,27 +43,30 @@ function Description({ text, user }) {
   return <MessageContent msg={msg} user={user} s3Endpoint={s3Endpoint} />;
 }
 
-// Interested (InterestButton), Start or End for those who may, and the "more" button.
+// Interested (InterestButton), Start or End for those who may, and the "more" button. An
+// occurrence that took place has only the "more" button (its link).
 function EventButtons({ event, manages, busy, onInterest, onStart, onEnd, onMore }) {
   return (
     <>
-      {manages && event.status === 'scheduled' && (
+      {!event.past && manages && event.current && event.status === 'scheduled' && (
         <button type="button" className="btn btn-success btn-sm" onClick={onStart} disabled={busy}>
           <Icon icon={faPlay} /> {t('events.actions.start')}
         </button>
       )}
-      {manages && event.status === 'active' && (
+      {!event.past && manages && event.status === 'active' && (
         <button type="button" className="btn btn-danger btn-sm" onClick={onEnd} disabled={busy}>
           <Icon icon={faStop} /> {t('events.actions.end')}
         </button>
       )}
-      <InterestButton
-        event={event}
-        className={`btn btn-sm event-interest${event.interested ? ' btn-primary active' : ' btn-secondary'}`}
-        onChoose={onInterest}
-      >
-        <Icon icon={event.interested ? faCheck : faBell} /> {t('events.actions.interested')}
-      </InterestButton>
+      {!event.past && (
+        <InterestButton
+          event={event}
+          className={`btn btn-sm event-interest${event.interested ? ' btn-primary active' : ' btn-secondary'}`}
+          onChoose={onInterest}
+        >
+          <Icon icon={event.interested ? faCheck : faBell} /> {t('events.actions.interested')}
+        </InterestButton>
+      )}
       <button type="button" className="btn btn-secondary btn-sm event-more" aria-label={t('events.actions.more')} title={t('events.actions.more')} onClick={onMore}>
         <Icon icon={faEllipsis} />
       </button>
@@ -63,20 +74,24 @@ function EventButtons({ event, manages, busy, onInterest, onStart, onEnd, onMore
   );
 }
 
-// Who's interested in the event.
+// Who's interested in the occurrence shown (occurrenceView's); for one that took place, how
+// many were.
 function InterestedList({ event }) {
   useProfiles();
   const [ids, setIds] = useState(null);
   const [error, setError] = useState(null);
+  const occurrence = event.current ? null : event.original_start;
   useEffect(() => {
+    if (event.past) return undefined;
     let cancelled = false;
-    fetchEventUsers(event.id)
+    fetchEventUsers(event.id, { occurrence })
       .then((list) => { if (!cancelled) setIds(list); })
       .catch((err) => { if (!cancelled) setError(errorMessage(err)); });
     return () => {
       cancelled = true;
     };
-  }, [event.id, event.user_count]);
+  }, [event.id, event.past, occurrence, event.user_count]);
+  if (event.past) return <p className="vc-hint">{t('events.detail.pastCount', { count: event.user_count ?? 0 })}</p>;
   if (error) return <p className="error-msg" role="alert">{error}</p>;
   if (!ids) return <p className="vc-hint">{t('events.detail.loading')}</p>;
   if (!ids.length) return <p className="vc-hint">{t('events.detail.nobodyInterested')}</p>;
@@ -92,9 +107,36 @@ function InterestedList({ event }) {
   );
 }
 
-// One event in full: cover, when, how it repeats, who made it, where, the description, and
-// who's interested (a tab).
-function EventDetail({ event, guild, user, buttons }) {
+// A repeating event's next dates (from its current occurrence), the one shown marked; each
+// opens that date.
+function NextDates({ series, shown, onOpen }) {
+  const dates = useMemo(() => upcomingOccurrences(series, NEXT_DATES), [series]);
+  if (dates.length < 2) return null;
+  return (
+    <div className="event-detail-dates">
+      <span className="event-editor-label">{t('events.detail.nextDates')}</span>
+      <ul>
+        {dates.map((o) => (
+          <li key={o.original}>
+            <button
+              type="button"
+              className={`event-detail-date${o.original === shown ? ' shown' : ''}`}
+              aria-current={o.original === shown ? 'date' : undefined}
+              onClick={() => onOpen(o.original)}
+            >
+              {formatEventWhen(series, { start: o.start, end: o.end })}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// One occurrence in full (`event`: occurrenceView's, or pastView's for one that took place):
+// cover, when, how it repeats and its next dates (`series`, the event as listed, if it's still
+// on), who made it, where, the description, and who's interested (a tab).
+function EventDetail({ event, series, guild, user, buttons, onOpenOccurrence }) {
   useDateFormat();
   useProfiles();
   const [tab, setTab] = useState('info');
@@ -102,14 +144,14 @@ function EventDetail({ event, guild, user, buttons }) {
   const status = eventStatusText(event);
   const start = new Date(event.start_time * 1000);
   return (
-    <div className="event-detail">
+    <div className={`event-detail${event.past ? ' past' : ''}`}>
       {event.image && <DocumentCover cover={event.image} className="event-detail-cover" />}
       <div className="settings-tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'info'} className={`settings-tab${tab === 'info' ? ' active' : ''}`} onClick={() => setTab('info')}>
           {t('events.detail.info')}
         </button>
         <button type="button" role="tab" aria-selected={tab === 'interested'} className={`settings-tab${tab === 'interested' ? ' active' : ''}`} onClick={() => setTab('interested')}>
-          {t('events.detail.interestedTab', { count: event.user_count })}
+          {event.user_count != null ? t('events.detail.interestedTab', { count: event.user_count }) : t('events.actions.interested')}
         </button>
       </div>
       {tab === 'info' ? (
@@ -130,6 +172,12 @@ function EventDetail({ event, guild, user, buttons }) {
             {t('events.detail.createdBy', { name: displayName(event.creator_id, t('events.unknownUser')) })}
           </p>
           {event.description && <div className="event-detail-description"><Description text={event.description} user={user} /></div>}
+          {series?.recurrence && !event.past && <NextDates series={series} shown={event.original_start} onOpen={onOpenOccurrence} />}
+          {series && event.past && (
+            <button type="button" className="btn btn-secondary btn-sm event-detail-next" onClick={() => onOpenOccurrence(null)}>
+              {t('events.detail.showNext', { date: formatEventWhen(series) })}
+            </button>
+          )}
         </div>
       ) : (
         <InterestedList event={event} />
@@ -139,28 +187,121 @@ function EventDetail({ event, guild, user, buttons }) {
   );
 }
 
-// The guild's events (Calendar in the channel list), in two tabs of one dialog that keeps its
-// size: the month (EventCalendar, first, where it opens), the week (EventWeek) and the list, soonest first; or one event (`eventId`,
-// from either, a link or a notification). `view` ({ tab: 'calendar' | 'week' | 'events', month, day; the week is the day's })
-// is kept by the caller, so it's still there after the editor, and changed with `onView`.
-// `onCreate(start?)` opens the editor (start: unix s, from a calendar day). Interested,
-// Start/End and the menu (edit, edit or cancel this occurrence, cancel, copy link) follow your
-// permissions (utils/eventDisplay).
+// The guild's events (Calendar in the channel list), in three tabs of one dialog that keeps its
+// size: the month (EventCalendar, first, where it opens), the week (EventWeek) and the list,
+// soonest first; or one event (`eventId`, from any of them, a link or a notification). A
+// repeating one shows one occurrence: `occurrence` (its original start; the current one by
+// default), or `on`, a link's date, which the server turns into one (or into what took place
+// then, or says it was cancelled); `past` is an occurrence that took place (the history's).
+// `history` (and `loadHistory(from, to)`, as the calendar shows days) is what took place, drawn
+// greyed. `view` ({ tab: 'calendar' | 'week' | 'events', month, day; the week is the day's }) is
+// kept by the caller, so it's still there after the editor, and changed with `onView`.
+// `onOpenEvent(id, occurrence?, past?)` opens one; `onCreate(start?)` opens the editor (start:
+// unix s, from a calendar day), `onEdit(event, scope, occurrence)` with 'this', 'following' or
+// 'all'. Interested, Start/End and the menu (edit, copy links, cancel; a repeating event asks
+// which dates) follow your permissions (utils/eventDisplay).
 export default function EventsDialog({
-  guild, user, events, loaded, setInterested, eventId, view, onView, onOpenEvent, onCreate, onEdit, onClose,
+  guild, user, events, loaded, setInterested, history = [], loadHistory = () => Promise.resolve(), eventId, occurrence = null,
+  on = null, past = null, view, onView, onOpenEvent, onCreate, onEdit, onClose,
 }) {
   const { isMobile } = useContext(InteractionContext);
-  const [menu, setMenu] = useState(null); // { event, anchor }
-  const [confirm, setConfirm] = useState(null); // { kind: 'cancel' | 'skip', event }
+  const [menu, setMenu] = useState(null); // { event (a view), anchor }
+  const [confirm, setConfirm] = useState(null); // { event }: cancelling one that doesn't repeat
+  const [scope, setScope] = useState(null); // { kind: 'edit' | 'cancel', event }: which dates
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
-  const open = eventId != null ? events.find((e) => e.id === eventId) : null;
+  // Why a link's date isn't the one shown ({ eventId, text }).
+  const [note, setNote] = useState(null);
+  // How many are interested in occurrences other than the current one (`${id}-${original}`).
+  const [counts, setCounts] = useState({});
+  const [missing, setMissing] = useState(false);
+  const series = eventId != null ? events.find((e) => e.id === eventId) ?? null : null;
+
+  // What's shown: the occurrence asked for, what took place then once the series has moved
+  // past it, or its current one (a cancelled date's next).
+  const shown = useMemo(() => {
+    if (past) return pastView(past);
+    if (!series) return null;
+    if (occurrence == null || !series.recurrence || occurrence === series.occurrence_start) return occurrenceView(series);
+    if (occurrence < series.occurrence_start) {
+      const record = history.find((r) => r.id === series.id && r.original_start === occurrence);
+      return record ? pastView(record) : occurrenceView(series);
+    }
+    if (series.occurrences?.some((o) => o.original_start === occurrence && o.status === 'canceled')) return occurrenceView(series);
+    return occurrenceView(series, occurrence);
+  }, [past, series, occurrence, history]);
+  const countKey = shown && !shown.past && !shown.current ? `${shown.id}-${shown.original_start}` : null;
+  const open = shown && countKey ? { ...shown, user_count: counts[countKey] ?? null } : shown;
 
   useEffect(() => {
     setError(null);
     setCopied(false);
-  }, [eventId]);
+    setMissing(false);
+    setNote((before) => (before?.eventId === eventId ? before : null));
+  }, [eventId, occurrence]);
+
+  // A link's date: which occurrence it is (or what took place then, even when the event is gone).
+  useEffect(() => {
+    if (eventId == null || on == null) return undefined;
+    let cancelled = false;
+    fetchEvent(eventId, { on })
+      .then((found) => {
+        if (cancelled) return;
+        const occ = found.occurrence;
+        if (occ?.status === 'completed') return onOpenEvent(found.id, occ.original_start, occ);
+        if (!occ || occ.status === 'canceled') setNote({ eventId: found.id, text: t(occ ? 'events.detail.cancelledDate' : 'events.detail.notADate') });
+        onOpenEvent(found.id, occ && occ.status !== 'canceled' ? occ.original_start : null);
+      })
+      .catch(async (err) => {
+        if (cancelled) return;
+        if (err?.response?.status !== 404) return setError(errorMessage(err));
+        const day = Math.floor(fromKey(on).getTime() / 1000);
+        const list = await fetchEventHistory(guild.id, day - 2 * 86400, day + 3 * 86400).catch(() => []);
+        if (cancelled) return;
+        const record = list.find((r) => r.id === eventId && linkDate(r) === on);
+        if (record) onOpenEvent(eventId, record.original_start, record);
+        else onOpenEvent(eventId);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Only for a new link, not when the callbacks change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId, on]);
+
+  // An event that isn't listed may have been continued by another ("this and following"): the
+  // server answers with that one.
+  useEffect(() => {
+    if (eventId == null || on != null || past || !loaded || series) return undefined;
+    let cancelled = false;
+    fetchEvent(eventId)
+      .then((found) => {
+        if (cancelled) return;
+        if (found.id !== eventId && events.some((e) => e.id === found.id)) onOpenEvent(found.id);
+        else setMissing(true);
+      })
+      .catch(() => { if (!cancelled) setMissing(true); });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId, on, past, loaded, Boolean(series)]);
+
+  // A later occurrence's count is only the server's.
+  const countFor = shown && countKey ? shown.original_start : null;
+  useEffect(() => {
+    if (countFor == null) return undefined;
+    let cancelled = false;
+    fetchEvent(eventId, { occurrence: countFor })
+      .then((found) => {
+        if (!cancelled && found.occurrence?.user_count != null) setCounts((c) => ({ ...c, [`${eventId}-${countFor}`]: found.occurrence.user_count }));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId, countFor, shown?.interested, series?.user_count]);
 
   async function run(action) {
     setBusy(true);
@@ -174,77 +315,113 @@ export default function EventsDialog({
     }
   }
 
-  // `choice`: { interested, occurrence } (InterestButton).
-  function chooseInterest(event, choice) {
-    const before = { interested: Boolean(event.interested), interested_all: Boolean(event.interested_all) };
-    setInterested(event.id, interestAfter(event, choice));
-    setEventInterest(event.id, choice.interested, { occurrence: choice.occurrence }).catch((err) => {
-      setInterested(event.id, before);
+  // `choice`: { interested, occurrence } (InterestButton) on an occurrence of `listed`.
+  function chooseInterest(listed, choice) {
+    const before = { interested: Boolean(listed.interested), interested_all: Boolean(listed.interested_all), my_occurrences: listed.my_occurrences ?? {} };
+    setInterested(listed.id, interestAfter(listed, choice));
+    setEventInterest(listed.id, choice.interested, { occurrence: choice.occurrence }).catch((err) => {
+      setInterested(listed.id, before);
       setError(errorMessage(err));
     });
   }
 
-  function buttonsFor(event) {
+  // The buttons of occurrence `shownEvent` (a view) of `listed` (the event as listed; none for
+  // one that took place and is gone).
+  function buttonsFor(shownEvent, listed) {
     return (
       <EventButtons
-        event={event}
-        manages={canManageEvent(event, guild, user.id)}
+        event={shownEvent}
+        manages={Boolean(listed) && canManageEvent(listed, guild, user.id)}
         busy={busy}
-        onInterest={(choice) => chooseInterest(event, choice)}
-        onStart={() => run(() => startEvent(event.id))}
-        onEnd={() => run(() => endEvent(event.id))}
-        onMore={(e) => setMenu({ event, anchor: e.currentTarget.getBoundingClientRect() })}
+        onInterest={(choice) => chooseInterest(listed, choice)}
+        onStart={() => run(() => startEvent(shownEvent.id))}
+        onEnd={() => run(() => endEvent(shownEvent.id))}
+        onMore={(e) => setMenu({ event: shownEvent, anchor: e.currentTarget.getBoundingClientRect() })}
       />
     );
   }
 
-  function menuItems(event) {
-    const manages = canManageEvent(event, guild, user.id);
-    const repeating = Boolean(event.recurrence) && event.status === 'scheduled';
+  async function copy(link) {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+    } catch {
+      setError(t('events.menu.copyFailed'));
+    }
+  }
+
+  function menuItems(shownEvent) {
+    const listed = events.find((e) => e.id === shownEvent.id);
+    const manages = Boolean(listed) && !shownEvent.past && canManageEvent(listed, guild, user.id);
+    // Only a date still to come is asked about; a started one is changed as a whole.
+    const asks = Boolean(shownEvent.recurrence) && shownEvent.status === 'scheduled';
+    const links = shownEvent.recurrence || shownEvent.past
+      ? [
+        { key: 'link', label: t('events.menu.copyOccurrenceLink'), icon: faLink, onSelect: () => copy(eventLink(guild.id, shownEvent.id, linkDate(shownEvent))) },
+        ...(listed?.recurrence ? [{ key: 'seriesLink', label: t('events.menu.copySeriesLink'), icon: faLink, onSelect: () => copy(eventLink(guild.id, shownEvent.id)) }] : []),
+      ]
+      : [{ key: 'link', label: t('events.menu.copyLink'), icon: faLink, onSelect: () => copy(eventLink(guild.id, shownEvent.id)) }];
     return [
-      ...(manages ? [{ key: 'edit', label: t(event.recurrence ? 'events.menu.editAll' : 'events.menu.edit'), icon: faPen, onSelect: () => onEdit(event, false) }] : []),
-      ...(manages && repeating ? [
-        { key: 'occurrence', label: t('events.menu.editOccurrence'), icon: faClock, onSelect: () => onEdit(event, true) },
-        { key: 'skip', label: t('events.menu.skipOccurrence'), icon: faCalendarXmark, onSelect: () => setConfirm({ kind: 'skip', event }) },
-      ] : []),
-      {
-        key: 'link',
-        label: t('events.menu.copyLink'),
-        icon: faLink,
-        onSelect: async () => {
-          try {
-            await navigator.clipboard.writeText(eventLink(guild.id, event.id));
-            setCopied(true);
-          } catch {
-            setError(t('events.menu.copyFailed'));
-          }
-        },
-      },
-      ...(manages ? [{ key: 'cancel', label: t('events.menu.cancel'), icon: faBan, danger: true, onSelect: () => setConfirm({ kind: 'cancel', event }) }] : []),
+      ...(manages ? [{
+        key: 'edit',
+        label: t('events.menu.edit'),
+        icon: faPen,
+        onSelect: () => (asks ? setScope({ kind: 'edit', event: shownEvent }) : onEdit(listed, 'all')),
+      }] : []),
+      ...links,
+      ...(manages ? [{
+        key: 'cancel',
+        label: t('events.menu.cancel'),
+        icon: faBan,
+        danger: true,
+        onSelect: () => (asks ? setScope({ kind: 'cancel', event: shownEvent }) : setConfirm({ event: shownEvent })),
+      }] : []),
     ];
   }
 
+  if (scope) {
+    const { kind, event } = scope;
+    const listed = events.find((e) => e.id === event.id);
+    return (
+      <ScopeDialog
+        kind={kind}
+        view={event}
+        onChoose={async (chosen) => {
+          if (kind === 'edit') {
+            setScope(null);
+            onEdit(listed, chosen, event.original_start);
+            return;
+          }
+          if (chosen === 'this') await skipOccurrence(event.id, { occurrence: event.original_start });
+          else if (chosen === 'following') await cancelEvent(event.id, { from: event.original_start });
+          else await cancelEvent(event.id);
+          setScope(null);
+          const gone = chosen === 'all' || (chosen === 'following' && event.current);
+          onOpenEvent(gone ? null : event.id);
+        }}
+        onClose={() => setScope(null)}
+      />
+    );
+  }
+
   if (confirm) {
-    const { kind, event } = confirm;
+    const { event } = confirm;
     return (
       <ConfirmDialog
-        title={t(`events.confirm.${kind}.title`, { name: event.name })}
-        message={t(`events.confirm.${kind}.message`, { name: event.name, date: formatEventWhen(event) })}
-        confirmLabel={t(`events.confirm.${kind}.confirm`)}
+        title={t('events.confirm.cancel.title', { name: event.name })}
+        message={t('events.confirm.cancel.message', { name: event.name, date: formatEventWhen(event) })}
+        confirmLabel={t('events.confirm.cancel.confirm')}
         onConfirm={async () => {
-          if (kind === 'cancel') {
-            await cancelEvent(event.id);
-            onOpenEvent(null);
-          } else {
-            await skipOccurrence(event.id);
-          }
+          await cancelEvent(event.id);
+          onOpenEvent(null);
         }}
         onClose={() => setConfirm(null)}
       />
     );
   }
 
-  const missing = eventId != null && !open && loaded;
+  const resolving = eventId != null && on != null;
+  const gone = eventId != null && !open && !resolving && missing;
   const title = open ? open.name : t('events.dialog.title', { count: events.length });
   const mayCreate = canCreateEvents(guild);
   const tabs = ['calendar', 'week', 'events'];
@@ -267,8 +444,20 @@ export default function EventsDialog({
         </>
       )}
     >
-      {open && <EventDetail event={open} guild={guild} user={user} buttons={buttonsFor(open)} />}
-      {missing && <p className="vc-hint">{t('events.dialog.gone')}</p>}
+      {note && note.eventId === eventId && open && <p className="vc-hint" role="status">{note.text}</p>}
+      {open && (
+        <EventDetail
+          key={`${open.id}-${open.original_start ?? ''}-${open.past ? 'past' : ''}`}
+          event={open}
+          series={series}
+          guild={guild}
+          user={user}
+          buttons={buttonsFor(open, series)}
+          onOpenOccurrence={(original) => onOpenEvent(eventId, original)}
+        />
+      )}
+      {resolving && <p className="vc-hint">{t('events.detail.loading')}</p>}
+      {gone && <p className="vc-hint">{t('events.dialog.gone')}</p>}
       {eventId == null && (
         <div className="settings-tabs events-tabs" role="tablist">
           {tabs.map((tab) => (
@@ -289,6 +478,8 @@ export default function EventsDialog({
         <EventCalendar
           guild={guild}
           events={events}
+          history={history}
+          loadHistory={loadHistory}
           month={view.month}
           day={view.day}
           onMonth={(month) => onView({ month })}
@@ -301,6 +492,8 @@ export default function EventsDialog({
         <EventWeek
           guild={guild}
           events={events}
+          history={history}
+          loadHistory={loadHistory}
           day={view.day}
           onDay={(day) => onView({ day, month: day.slice(0, 7) })}
           onOpenEvent={onOpenEvent}
@@ -310,11 +503,14 @@ export default function EventsDialog({
       {eventId == null && view.tab === 'events' && (
         events.length ? (
           <div className="event-list">
-            {events.map((event) => (
-              <EventCard key={event.id} event={event} guild={guild} onOpen={() => onOpenEvent(event.id)}>
-                {buttonsFor(event)}
-              </EventCard>
-            ))}
+            {events.map((event) => {
+              const current = occurrenceView(event);
+              return (
+                <EventCard key={event.id} event={current} guild={guild} onOpen={() => onOpenEvent(event.id)}>
+                  {buttonsFor(current, event)}
+                </EventCard>
+              );
+            })}
           </div>
         ) : (
           <div className="events-empty">

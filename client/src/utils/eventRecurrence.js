@@ -81,11 +81,16 @@ export function ruleFor(key, date) {
 
 // ---- Occurrences, for the calendar ----
 // The server's stepping (server/eventRecurrence.js), on the event's time zone's wall clock, so
-// the calendar puts each occurrence where the server will.
+// the calendar puts each occurrence where the server will. An occurrence is named by its
+// original start (when the rule puts it), even once moved; `event.occurrences` are the ones
+// still to come that differ (moved, their own name..., or cancelled), `event.until` where
+// "this and following" ended the series.
 
 const DAY_MS = 86400000;
-// The longest a calendar asks about at once (a month's six weeks, and a margin).
-const MAX_DAYS = 62;
+// The longest a calendar asks about at once (a month's six weeks, and a margin), and how far
+// either side we look for occurrences moved into it.
+const MAX_DAYS = 80;
+const MOVED_MARGIN_DAYS = 8;
 
 const zoneFormatters = new Map();
 function zoneFormatter(zone) {
@@ -165,28 +170,49 @@ function matches(rule, date, anchor) {
   }
 }
 
+// The date unix s `seconds` falls on in `zone`: 'YYYY-MM-DD' (an occurrence's in links, as the
+// server's dateKeyIn).
+export function dateKeyIn(seconds, zone) {
+  const pad = (n) => String(n).padStart(2, '0');
+  try {
+    const w = wallClock(seconds * 1000, zone || 'UTC');
+    return `${w.year}-${pad(w.month)}-${pad(w.day)}`;
+  } catch {
+    const d = new Date(seconds * 1000);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+}
+
+// When an occurrence of `event` starting at unix s `start` ends (null without an end): whole
+// days on for an all-day one (midnight stays midnight across a clock change), else its length on.
+export function occurrenceEnd(event, start) {
+  const duration = event.duration ?? (event.end_time != null ? event.end_time - event.start_time : null);
+  if (duration == null) return null;
+  if (!event.all_day) return start + duration;
+  return addDays(start, Math.max(1, Math.round(duration / 86400)), event.timezone || 'UTC');
+}
+
 // When `event` happens, for the starts in [from, to) (unix s, at most MAX_DAYS apart; callers
 // wanting all-day events that began before `from` ask from earlier):
-// [{ start, end }] (end null without one): the current occurrence at its own, perhaps moved,
-// time, then the rule's later ones.
+// [{ start, end, original }] (end null without one; original null for an event that doesn't
+// repeat): the current occurrence at its own, perhaps moved, time, then the rule's later ones
+// before `until`, moved where they were, without cancelled ones.
 export function occurrencesBetween(event, from, to) {
   const found = [];
-  if (event.start_time >= from && event.start_time < to) found.push({ start: event.start_time, end: event.end_time ?? null });
   const rule = event.recurrence;
+  const current = event.occurrence_start ?? event.start_time;
+  if (event.start_time >= from && event.start_time < to) found.push({ start: event.start_time, end: event.end_time ?? null, original: rule ? current : null });
   if (!rule) return found;
   const zone = event.timezone || 'UTC';
-  const current = event.occurrence_start ?? event.start_time;
-  const duration = event.duration ?? (event.end_time != null ? event.end_time - event.start_time : null);
-  // An all-day one lasts whole days (midnight stays midnight across a clock change).
-  const days = event.all_day && duration != null ? Math.max(1, Math.round(duration / 86400)) : null;
+  const changed = new Map((event.occurrences ?? []).map((o) => [o.original_start, o]));
   let anchor;
   let time;
   let first;
   let last;
   try {
     ({ date: anchor, time } = localDate(current, zone));
-    first = Math.max(anchor.getTime() + DAY_MS, localDate(from, zone).date.getTime() - DAY_MS);
-    last = Math.min(localDate(to, zone).date.getTime() + DAY_MS, first + MAX_DAYS * DAY_MS);
+    first = Math.max(anchor.getTime() + DAY_MS, localDate(from, zone).date.getTime() - (1 + MOVED_MARGIN_DAYS) * DAY_MS);
+    last = Math.min(localDate(to, zone).date.getTime() + (1 + MOVED_MARGIN_DAYS) * DAY_MS, first + MAX_DAYS * DAY_MS);
   } catch {
     return found; // a time zone this browser doesn't know
   }
@@ -194,9 +220,64 @@ export function occurrencesBetween(event, from, to) {
     const date = new Date(ms);
     if (!matches(rule, date, anchor)) continue;
     const at = { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate(), ...time };
-    const start = Math.floor(fromWallClock(at, zone) / 1000);
-    if (start <= event.start_time || start < from || start >= to) continue;
-    found.push({ start, end: days != null ? addDays(start, days, zone) : duration != null ? start + duration : null });
+    const original = Math.floor(fromWallClock(at, zone) / 1000);
+    if (original <= current || (event.until != null && original >= event.until)) continue;
+    const exception = changed.get(original);
+    if (exception?.status === 'canceled') continue;
+    const moved = exception?.start_time != null;
+    const start = moved ? exception.start_time : original;
+    if (start < from || start >= to) continue;
+    found.push({ start, end: moved ? exception.end_time ?? null : occurrenceEnd(event, original), original });
   }
-  return found;
+  return found.sort((a, b) => a.start - b.start);
 }
+
+// The next `count` occurrences of `event` from its current one (occurrencesBetween's), looking
+// at most `years` ahead.
+export function upcomingOccurrences(event, count, years = 5) {
+  const found = [];
+  const step = 60 * 86400;
+  for (let from = event.start_time; found.length < count && from < event.start_time + years * 366 * 86400; from += step) {
+    found.push(...occurrencesBetween(event, from, from + step));
+  }
+  return found.slice(0, count);
+}
+
+// Whether you're interested in occurrence `original` of `event` (your `my_occurrences` where
+// one differs from the series, else `interested_all`; the current one's is `interested`).
+export function interestedIn(event, original) {
+  if (!event.recurrence || original == null) return Boolean(event.interested);
+  const mine = event.my_occurrences ?? {};
+  if (original in mine) return Boolean(mine[original]);
+  if (original === event.occurrence_start) return Boolean(event.interested);
+  return Boolean(event.interested_all);
+}
+
+// One occurrence of `event` (its original start; the current one by default) as an event of
+// its own, for cards and the event's page: its own times, name, description and place,
+// `original_start`, `current` (the series' current occurrence), its status (later ones are
+// scheduled), whether you're `interested` in it, and `user_count` (null when only the server
+// knows: ask for that occurrence).
+export function occurrenceView(event, original = event.occurrence_start ?? null) {
+  if (!event.recurrence || original == null) return { ...event, original_start: null, current: true };
+  const current = original === event.occurrence_start;
+  const own = (event.occurrences ?? []).find((o) => o.original_start === original) ?? null;
+  const moved = own?.start_time != null;
+  return {
+    ...event,
+    start_time: current ? event.start_time : moved ? own.start_time : original,
+    end_time: current ? event.end_time : moved ? own.end_time : occurrenceEnd(event, original),
+    name: own?.name ?? event.name,
+    description: own?.description ?? event.description,
+    location: own?.location ?? event.location,
+    status: current ? event.status : 'scheduled',
+    original_start: original,
+    current,
+    interested: interestedIn(event, original),
+    user_count: current ? event.user_count : null,
+  };
+}
+
+// An occurrence that took place (the server's history: like an event, status 'completed') as
+// occurrenceView's: not current, nobody's interest.
+export const pastView = (record) => ({ ...record, current: false, past: true, interested: false, occurrences: [] });

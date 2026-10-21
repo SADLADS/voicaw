@@ -1,8 +1,9 @@
-import { dateIn, occurrencesBetween } from './eventRecurrence';
+import { dateIn, occurrencesBetween, occurrenceView, pastView } from './eventRecurrence';
 
 // The events calendar (events/EventCalendar.jsx): a month's weeks, the guild's events laid on
-// its days (every occurrence of a repeating one), and when an event made on a day starts. Days
-// are this device's, weeks start on Monday (as Discord's days do).
+// its days (every occurrence of a repeating one, and what took place: the history), and when
+// an event made on a day starts. Days are this device's, weeks start on Monday (as Discord's
+// days do).
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -42,10 +43,29 @@ export function allDayDates(event, start, end) {
 // Longest all-day event drawn across days, and how far back to look for one still going.
 const MAX_SPAN_DAYS = 42;
 
-// The events on those days: Map of day key -> [{ event, start, end, allDay }], all-day ones
-// first, then soonest first. A timed event shows on the day it starts, an all-day one on each
-// of its dates.
-export function eventsByDay(events, days) {
+// An event's occurrences starting in [from, to) as the calendar's items: { event (that
+// occurrence: occurrenceView, or pastView for one that took place), start, end, original,
+// past }.
+function itemsOf(source, from, to) {
+  if (source.past) {
+    return source.start_time >= from && source.start_time < to
+      ? [{ event: source, start: source.start_time, end: source.end_time, original: source.original_start ?? null, past: true }]
+      : [];
+  }
+  return occurrencesBetween(source, from, to).map((o) => ({ ...o, event: occurrenceView(source, o.original), past: false }));
+}
+
+// The events still to come, then what took place (history: the server's records), without an
+// occurrence twice.
+function sourcesOf(events, history) {
+  return [...events, ...history.map(pastView)];
+}
+const itemKey = (item) => `${item.event.id}-${item.original ?? item.start}`;
+
+// The events on those days: Map of day key -> [{ event, start, end, allDay, original, past }],
+// all-day ones first, then soonest first. A timed event shows on the day it starts, an all-day
+// one on each of its dates. `history`: occurrences that took place (shown greyed).
+export function eventsByDay(events, days, history = []) {
   const lastDay = days[days.length - 1];
   const from = Math.floor(days[0].getTime() / 1000);
   const to = Math.floor(new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate() + 1).getTime() / 1000);
@@ -56,18 +76,21 @@ export function eventsByDay(events, days) {
     if (!byDay.has(key)) byDay.set(key, []);
     byDay.get(key).push(item);
   };
-  for (const event of events) {
-    if (!event.all_day) {
-      for (const { start, end } of occurrencesBetween(event, from, to)) add(dayKey(new Date(start * 1000)), { event, start, end, allDay: false });
+  const seen = new Set();
+  const fresh = (item) => !seen.has(itemKey(item)) && seen.add(itemKey(item));
+  for (const source of sourcesOf(events, history)) {
+    if (!source.all_day) {
+      for (const item of itemsOf(source, from, to)) if (fresh(item)) add(dayKey(new Date(item.start * 1000)), { ...item, allDay: false });
       continue;
     }
     // A day either side: its dates are its maker's, a time zone away from this device's.
     const earlier = from - (MAX_SPAN_DAYS + 1) * 86400;
     const later = to + 86400;
-    for (const { start, end } of occurrencesBetween(event, earlier, from - 86400).concat(occurrencesBetween(event, from - 86400, later))) {
-      const { first, last } = allDayDates(event, start, end);
+    for (const item of itemsOf(source, earlier, from - 86400).concat(itemsOf(source, from - 86400, later))) {
+      if (!fresh(item)) continue;
+      const { first, last } = allDayDates(source, item.start, item.end);
       for (let d = first, n = 0; d <= last && n < MAX_SPAN_DAYS; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1), n++) {
-        add(dayKey(d), { event, start, end, allDay: true });
+        add(dayKey(d), { ...item, allDay: true });
       }
     }
   }
@@ -76,6 +99,10 @@ export function eventsByDay(events, days) {
   }
   return byDay;
 }
+
+// Opens a calendar item's occurrence with `onOpenEvent(id, original, past)`: its event, its
+// original start, and the record if it took place.
+export const openItem = (onOpenEvent, item) => onOpenEvent(item.event.id, item.original ?? null, item.past ? item.event : null);
 
 // The next whole hour, an hour from now at the earliest: where a new event starts.
 export function defaultStart(now = Date.now()) {
@@ -135,19 +162,24 @@ const MIN_BLOCK_MINUTES = 30;
 // Minutes since this device's midnight (a clock change's day still runs 0 to 1440).
 const minuteOfDay = (date) => date.getHours() * 60 + date.getMinutes();
 
-// The timed events of a week, as blocks on its days' hours: Map of day key -> [{ event, start,
-// end, top, bottom, lane, lanes }], top and bottom in minutes of that day (0–1440). One running
-// past midnight is a block on each day it covers. Blocks that overlap sit side by side: each
-// gets a lane of the `lanes` its group of overlapping ones needs.
-export function weekBlocks(events, days) {
+// The timed events of a week (and what took place, `history`), as blocks on its days' hours:
+// Map of day key -> [{ event, start, end, original, past, top, bottom, lane, lanes }], top and
+// bottom in minutes of that day (0–1440). One running past midnight is a block on each day it
+// covers. Blocks that overlap sit side by side: each gets a lane of the `lanes` its group of
+// overlapping ones needs.
+export function weekBlocks(events, days, history = []) {
   const lastDay = days[days.length - 1];
   const from = Math.floor(days[0].getTime() / 1000);
   const to = Math.floor(new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate() + 1).getTime() / 1000);
   const byDay = new Map(days.map((date) => [dayKey(date), []]));
-  for (const event of events) {
-    if (event.all_day) continue;
+  const seen = new Set();
+  for (const source of sourcesOf(events, history)) {
+    if (source.all_day) continue;
     // From earlier too, for one that began before the week and is still going.
-    for (const { start, end } of occurrencesBetween(event, from - MAX_SPAN_DAYS * 86400, to)) {
+    for (const item of itemsOf(source, from - MAX_SPAN_DAYS * 86400, to)) {
+      if (seen.has(itemKey(item))) continue;
+      seen.add(itemKey(item));
+      const { start, end } = item;
       const until = end != null && end > start ? end : start + NO_END_MINUTES * 60;
       if (until <= from) continue;
       for (let i = 0; i < days.length; i++) {
@@ -157,7 +189,7 @@ export function weekBlocks(events, days) {
         if (start >= dayEnd || until <= dayStart) continue;
         const top = start <= dayStart ? 0 : minuteOfDay(new Date(start * 1000));
         const bottom = until >= dayEnd ? 1440 : minuteOfDay(new Date(until * 1000));
-        byDay.get(dayKey(days[i])).push({ event, start, end, top, bottom: Math.min(1440, Math.max(bottom, top + MIN_BLOCK_MINUTES)) });
+        byDay.get(dayKey(days[i])).push({ ...item, top, bottom: Math.min(1440, Math.max(bottom, top + MIN_BLOCK_MINUTES)) });
       }
     }
   }
@@ -187,8 +219,8 @@ export function weekBlocks(events, days) {
 }
 
 // The all-day events of a week, by day (eventsByDay's, without the timed ones).
-export function weekAllDay(events, days) {
-  return eventsByDay(events.filter((event) => event.all_day), days);
+export function weekAllDay(events, days, history = []) {
+  return eventsByDay(events.filter((event) => event.all_day), days, history.filter((record) => record.all_day));
 }
 
 // Where an event made on an hour of the week starts: that hour, or defaultStart if that's

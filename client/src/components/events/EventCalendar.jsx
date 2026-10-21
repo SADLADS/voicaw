@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Icon } from '../Icon';
 import { faChevronLeft, faChevronRight, faLocationDot, faPlus, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import EventEmoji from './EventEmoji';
-import { addMonths, allDayDates, dayKey, eventsByDay, fromKey, isPastDay, monthGrid, monthKey, startOnDay } from '../../utils/eventCalendar';
+import { addMonths, allDayDates, dayKey, eventsByDay, fromKey, isPastDay, monthGrid, monthKey, openItem, startOnDay } from '../../utils/eventCalendar';
 import { eventColor, eventPlace, formatEventWhen } from '../../utils/eventDisplay';
 import { formatLongDate, formatMonthYear, formatTime, formatWeekday, useDateFormat } from '../../utils/dateFormat';
 import { t } from '../../i18n';
@@ -27,10 +27,10 @@ function dayTime(item) {
 // One occurrence in the chosen day's list: time, name, place.
 function DayEvent({ item, guild, onOpen }) {
   const place = eventPlace(item.event, guild);
-  const live = item.event.status === 'active' && item.start === item.event.start_time;
+  const live = item.event.status === 'active';
   return (
     <li>
-      <button type="button" className={`event-calendar-day-event${live ? ' live' : ''}`} style={colorStyle(item.event)} onClick={onOpen}>
+      <button type="button" className={`event-calendar-day-event${live ? ' live' : ''}${item.past ? ' past' : ''}`} style={colorStyle(item.event)} onClick={onOpen}>
         <span className="event-calendar-day-time">{dayTime(item)}</span>
         <span className="event-calendar-day-name"><EventEmoji emoji={item.event.emoji} />{item.event.name}</span>
         {place.label && (
@@ -44,13 +44,18 @@ function DayEvent({ item, guild, onOpen }) {
 }
 
 // The Calendar tab of Events: a month of the guild's events (every occurrence of repeating
-// ones), and the chosen day's list beside it (under it on a phone). `onCreate(startSeconds)`,
+// ones, and greyed what took place: `history`, loaded with `loadHistory(from, to)` for the days
+// shown), and the chosen day's list beside it (under it on a phone). `onCreate(startSeconds)`,
 // when you may make events, makes one on a day: the + on a day still to come, or the day's
 // Create Event.
-export default function EventCalendar({ guild, events, month, day, onMonth, onDay, onOpenEvent, onCreate }) {
+export default function EventCalendar({ guild, events, history = [], loadHistory, month, day, onMonth, onDay, onOpenEvent, onCreate }) {
   useDateFormat();
   const days = useMemo(() => monthGrid(month), [month]);
-  const byDay = useMemo(() => eventsByDay(events, days), [events, days]);
+  const byDay = useMemo(() => eventsByDay(events, days, history), [events, days, history]);
+  useEffect(() => {
+    const last = days[days.length - 1];
+    loadHistory?.(Math.floor(days[0].getTime() / 1000), Math.floor(new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1).getTime() / 1000));
+  }, [days, loadHistory]);
   const today = dayKey(new Date());
   const shown = fromKey(month);
   const chosen = byDay.get(day) ?? [];
@@ -134,13 +139,14 @@ export default function EventCalendar({ guild, events, month, day, onMonth, onDa
                           type="button"
                           className={[
                             'event-calendar-chip',
-                            item.event.status === 'active' && item.start === item.event.start_time && 'live',
+                            item.event.status === 'active' && 'live',
+                            item.past && 'past',
                             item.event.color != null && 'coloured',
                             item.allDay && 'all-day',
                           ].filter(Boolean).join(' ')}
                           style={colorStyle(item.event)}
                           title={item.allDay ? `${item.event.name} (${t('events.calendar.allDay')})` : `${formatTime(item.start * 1000)} ${item.event.name}`}
-                          onClick={(e) => { e.preventDefault(); onDay(key); onOpenEvent(item.event.id); }}
+                          onClick={(e) => { e.preventDefault(); onDay(key); openItem(onOpenEvent, item); }}
                         >
                           <EventEmoji emoji={item.event.emoji} />
                           <span className="event-calendar-chip-name">{item.event.name}</span>
@@ -175,7 +181,7 @@ export default function EventCalendar({ guild, events, month, day, onMonth, onDa
         {chosen.length ? (
           <ul className="event-calendar-day-list">
             {chosen.map((item) => (
-              <DayEvent key={`${item.event.id}-${item.start}`} item={item} guild={guild} onOpen={() => onOpenEvent(item.event.id)} />
+              <DayEvent key={`${item.event.id}-${item.start}`} item={item} guild={guild} onOpen={() => openItem(onOpenEvent, item)} />
             ))}
           </ul>
         ) : (

@@ -12,7 +12,8 @@
       "inHours_other": "Starts in {{count}} hours",
       "inDays_one": "Starts tomorrow",
       "inDays_other": "Starts in {{count}} days",
-      "allDayOn": "{{date}} · All day"
+      "allDayOn": "{{date}} · All day",
+      "ended": "Ended"
     },
     "place": {
       "unknownChannel": "a voice channel",
@@ -49,10 +50,9 @@
     },
     "menu": {
       "edit": "Edit event",
-      "editAll": "Edit all events",
-      "editOccurrence": "Change this event's time",
-      "skipOccurrence": "Cancel this event",
       "copyLink": "Copy Link",
+      "copyOccurrenceLink": "Copy link to this date",
+      "copySeriesLink": "Copy link to the series",
       "copied": "Link copied.",
       "copyFailed": "Couldn't copy the link.",
       "cancel": "Cancel event"
@@ -63,10 +63,16 @@
         "message": "The event is cancelled for everyone (every time, if it repeats). This can't be undone.",
         "confirm": "Cancel event"
       },
-      "skip": {
-        "title": "Cancel this event?",
-        "message": "Only {{date}} is cancelled; {{name}} carries on after it.",
-        "confirm": "Cancel this event"
+      "scope": {
+        "editTitle": "Edit a repeating event",
+        "cancelTitle": "Cancel a repeating event",
+        "question": "{{name}} repeats. Which dates?",
+        "this": "This event ({{date}})",
+        "following": "This and following events",
+        "all": "All events",
+        "cancelHint": "Cancelled dates are gone for everyone. This can't be undone.",
+        "continue": "Continue",
+        "cancelConfirm": "Cancel events"
       }
     },
     "detail": {
@@ -75,7 +81,13 @@
       "interestedTab_other": "{{count}} interested",
       "createdBy": "Created by {{name}}",
       "loading": "Loading…",
-      "nobodyInterested": "Nobody is interested yet."
+      "nobodyInterested": "Nobody is interested yet.",
+      "pastCount_one": "{{count}} was interested",
+      "pastCount_other": "{{count}} were interested",
+      "nextDates": "Next dates",
+      "showNext": "Next: {{date}}",
+      "cancelledDate": "That date was cancelled. Here's the next one.",
+      "notADate": "That date isn't one of this event's. Here's the next one."
     },
     "dialog": {
       "title_one": "{{count}} Event",
@@ -112,8 +124,11 @@
     "editor": {
       "createTitle": "Create Event",
       "editTitle": "Edit Event",
-      "occurrenceTitle": "Change this event's time",
-      "occurrenceHint": "Only this time moves; the others stay as they are.",
+      "occurrenceTitle": "Edit this event",
+      "occurrenceHint": "Only {{date}} changes; the other dates stay as they are.",
+      "followingTitle": "Edit this and following events",
+      "followingHint": "{{date}} and every date after it change; earlier ones stay as they are.",
+      "allHint": "Changing the time or how it repeats undoes changes made to single dates.",
       "steps": "Steps",
       "step": {
         "where": "Location",
@@ -177,7 +192,8 @@
       "view": "View",
       "hidden": "A guild event. Tap Show to see which",
       "show": "Show",
-      "gone": "This event has ended, been cancelled, or isn't one you can see."
+      "gone": "This event has ended, been cancelled, or isn't one you can see.",
+      "cancelled": "This date of {{name}} was cancelled."
     }
   }
 }

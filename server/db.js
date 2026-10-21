@@ -1015,6 +1015,57 @@ function numberAttachmentIds() {
   }
 }
 
+// Repeating events' single occurrences (guildEvents.js; docs/guilds.md, Repeating). An
+// occurrence is named by its event and `original_start`, when the rule puts it (unix s), even
+// once moved. guild_event_occurrences holds only those still to come that differ: moved
+// (`start_time`, `end_time`), given their own `name` / `description` / `location`, or `status`
+// 'canceled'. guild_event_occurrence_users is interest in one occurrence that differs from the
+// series' (guild_event_users): `interested` 1 in it alone, 0 in all but it. Both go once their
+// occurrence is over. Defined here for migration 17, which runs before the tables below.
+const EVENT_OCCURRENCE_TABLES = `
+CREATE TABLE IF NOT EXISTS guild_event_occurrences (
+  event_id INTEGER NOT NULL,
+  original_start INTEGER NOT NULL,
+  start_time INTEGER,
+  end_time INTEGER,
+  status TEXT NOT NULL DEFAULT 'scheduled',
+  name TEXT,
+  description TEXT,
+  location TEXT,
+  PRIMARY KEY (event_id, original_start)
+);
+CREATE TABLE IF NOT EXISTS guild_event_occurrence_users (
+  event_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  original_start INTEGER NOT NULL,
+  interested INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (event_id, user_id, original_start)
+);
+CREATE INDEX IF NOT EXISTS guild_event_occurrence_users_user ON guild_event_occurrence_users (user_id);
+`;
+
+// 17: a repeating event's interest in its current occurrence alone, or in all but it, was
+// guild_event_users' only_occurrence / skip_occurrence, and a moved current occurrence only
+// the event's start_time: they become guild_event_occurrence_users and guild_event_occurrences
+// rows. Nothing to do on a new database (its tables come later).
+function eventOccurrenceRows() {
+  const columns = sqlite.prepare("SELECT name FROM pragma_table_info('guild_event_users')").all().map((c) => c.name);
+  if (!columns.includes('only_occurrence')) return;
+  sqlite.exec(EVENT_OCCURRENCE_TABLES);
+  sqlite.exec(`
+    INSERT OR IGNORE INTO guild_event_occurrence_users (event_id, user_id, original_start, interested, created_at)
+      SELECT event_id, user_id, only_occurrence, 1, created_at FROM guild_event_users WHERE only_occurrence IS NOT NULL;
+    INSERT OR IGNORE INTO guild_event_occurrence_users (event_id, user_id, original_start, interested, created_at)
+      SELECT event_id, user_id, skip_occurrence, 0, created_at FROM guild_event_users WHERE skip_occurrence IS NOT NULL;
+    DELETE FROM guild_event_users WHERE only_occurrence IS NOT NULL;
+    UPDATE guild_event_users SET skip_occurrence = NULL WHERE skip_occurrence IS NOT NULL;
+    INSERT OR IGNORE INTO guild_event_occurrences (event_id, original_start, start_time, end_time)
+      SELECT id, occurrence_start, start_time, end_time FROM guild_events
+      WHERE recurrence IS NOT NULL AND occurrence_start IS NOT NULL AND start_time != occurrence_start;
+  `);
+}
+
 // Changes to existing data that must happen once, numbered in SQLite's user_version (add the
 // next one at the end; each runs in its own transaction with its version bump):
 const MIGRATIONS = [
@@ -1083,6 +1134,8 @@ const MIGRATIONS = [
   // 16. Bots' and webhooks' files had UUIDs for ids, which Discord's libraries can't read
   // (discord.py does int(id)): each becomes its UUID's number, as new ones are numbers.
   () => numberAttachmentIds(),
+  // 17. Single occurrences of repeating events get rows of their own (eventOccurrenceRows).
+  () => eventOccurrenceRows(),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');
@@ -1305,11 +1358,51 @@ CREATE INDEX IF NOT EXISTS guild_event_users_user ON guild_event_users (user_id)
 addColumn('ALTER TABLE guild_events ADD COLUMN all_day INTEGER NOT NULL DEFAULT 0');
 addColumn('ALTER TABLE guild_events ADD COLUMN emoji TEXT');
 addColumn('ALTER TABLE guild_events ADD COLUMN color INTEGER');
-// Interest in one occurrence of a repeating event (its `occurrence_start`): `only_occurrence`
-// means interested in that one alone, not the series; `skip_occurrence` interested in the
-// series but not that one. Both are dropped when the series moves to another occurrence.
+// Before 2026-10-21, interest in a repeating event's current occurrence alone (or in all but
+// it); migration 17 moved them to guild_event_occurrence_users, and nothing uses them now.
 addColumn('ALTER TABLE guild_event_users ADD COLUMN only_occurrence INTEGER');
 addColumn('ALTER TABLE guild_event_users ADD COLUMN skip_occurrence INTEGER');
+// A repeating series has no occurrences from `until` on (unix s, an original start: "this and
+// following" ended it there), and `continued_as` is the series that took over from then on.
+// `revision` goes up whenever editing the whole series drops its single occurrences' changes
+// and interest (clients then forget theirs).
+addColumn('ALTER TABLE guild_events ADD COLUMN until INTEGER');
+addColumn('ALTER TABLE guild_events ADD COLUMN continued_as INTEGER');
+addColumn('ALTER TABLE guild_events ADD COLUMN revision INTEGER NOT NULL DEFAULT 0');
+sqlite.exec(EVENT_OCCURRENCE_TABLES);
+// Occurrences that happened (guildEvents.js recordHistory): what an event was when it ended,
+// kept a year for the calendar's past days (shown greyed), whatever becomes of the event since
+// (deleted with its channel or guild). `event_id` and `original_start` name the occurrence in
+// links. guild_event_redirects: an event that ended after "this and following" split it, to the
+// series that continued it (so old links still open).
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_event_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id INTEGER NOT NULL,
+  event_id INTEGER NOT NULL,
+  original_start INTEGER,
+  channel_id INTEGER,
+  creator_id INTEGER,
+  name TEXT NOT NULL,
+  description TEXT,
+  entity_type TEXT NOT NULL,
+  location TEXT,
+  start_time INTEGER NOT NULL,
+  end_time INTEGER NOT NULL,
+  all_day INTEGER NOT NULL DEFAULT 0,
+  timezone TEXT,
+  recurrence TEXT,
+  emoji TEXT,
+  color INTEGER,
+  user_count INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS guild_event_history_guild ON guild_event_history (guild_id, start_time);
+CREATE INDEX IF NOT EXISTS guild_event_history_event ON guild_event_history (event_id);
+CREATE TABLE IF NOT EXISTS guild_event_redirects (
+  old_id INTEGER PRIMARY KEY,
+  new_id INTEGER NOT NULL
+);
+`);
 // LEVELS (guildLevels.js, routes/guildLevels.js): Guilded's XP. `guilds.levels` is the guild's
 // settings (JSON, null = the defaults). guild_member_xp is each person's XP there, kept when
 // they leave (rejoining picks it up again; deleted with the guild or the account);

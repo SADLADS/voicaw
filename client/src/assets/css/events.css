@@ -1123,3 +1123,73 @@ button.event-card-name:hover {
   justify-content: space-between;
   gap: 12px;
 }
+
+/* What took place (the history): greyed wherever it's drawn. */
+.event-calendar-chip.past,
+.event-calendar-day-event.past,
+.event-week-block.past,
+.event-card.past,
+.event-detail.past .event-detail-info {
+  opacity: 0.55;
+}
+
+.event-calendar-chip.past .event-calendar-chip-name,
+.event-week-block.past .event-week-block-name {
+  font-weight: normal;
+}
+
+/* A repeating event's next dates, the one shown marked. */
+.event-detail-dates {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+.event-detail-dates ul {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.event-detail-date {
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--vc-fg);
+  text-align: left;
+}
+
+.event-detail-date:hover {
+  background: var(--vc-bg-hover);
+}
+
+.event-detail-date.shown {
+  background: var(--vc-accent-soft);
+  color: var(--vc-accent-text);
+  font-weight: 600;
+}
+
+.event-detail-next {
+  align-self: flex-start;
+  margin-top: 10px;
+}
+
+/* Which dates of a repeating event: this one, this and following, all. */
+.event-scope-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+}
+
+.event-scope-choice legend {
+  margin-bottom: 4px;
+  font-size: 1rem;
+}

@@ -307,9 +307,10 @@ export default function GuildView({ user }) {
 
   if (!channelId || (missingChannel && checkedMissing === channelId)) {
     const target = defaultChannel(guild);
-    // An event link (?event=) keeps its event for the sidebar to open.
+    // An event link (?event=, and a repeating one's &on=) keeps its event for the sidebar to open.
     const event = searchParams.get('event');
-    if (target) return <Navigate to={`/guild/${guild.id}/${target.id}${event ? `?event=${event}` : ''}`} replace />;
+    const on = searchParams.get('on');
+    if (target) return <Navigate to={`/guild/${guild.id}/${target.id}${event ? `?event=${event}${on ? `&on=${encodeURIComponent(on)}` : ''}` : ''}`} replace />;
     return (
       <div id="guild-main" className="guild-main">
         <p className="guild-placeholder">{t('guilds.view.noChannels')}</p>

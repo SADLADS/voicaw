@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { onConnectionState, onGuildEvent } from '../utils/ws-client';
 import { fetchEvents } from '../services/guildService';
-import { interestKept } from '../utils/eventDisplay';
+import { interestContinued, interestKept } from '../utils/eventDisplay';
 
 const byStart = (a, b) => a.start_time - b.start_time || a.id - b.id;
 // Gone from the list: ended or cancelled (the server deletes them).
@@ -55,7 +55,10 @@ export function useGuildEvents(guildId, userId) {
             const rest = list.filter((e) => e.id !== event.event.id);
             if (isOver(event.event)) return rest;
             const before = list.find((e) => e.id === event.event.id);
-            return [...rest, { ...event.event, ...interestKept(before, event.event, userId) }].sort(byStart);
+            // "This and following" made it: your interest in the series it continues carries over.
+            const old = !before && list.find((e) => e.continued_as === event.event.id);
+            const interest = old ? interestContinued(old, event.event) : interestKept(before, event.event, userId);
+            return [...rest, { ...event.event, ...interest }].sort(byStart);
           });
           break;
         case 'guild_event_delete':
@@ -66,7 +69,11 @@ export function useGuildEvents(guildId, userId) {
             ? {
               ...e,
               user_count: event.userCount,
-              ...(event.userId === userId ? { interested: event.interested, interested_all: event.interestedAll ?? event.interested } : {}),
+              ...(event.userId === userId ? {
+                interested: event.interested,
+                interested_all: event.interestedAll ?? event.interested,
+                my_occurrences: event.occurrences ?? {},
+              } : {}),
             }
             : e)));
           break;
@@ -78,7 +85,8 @@ export function useGuildEvents(guildId, userId) {
     });
   }, [guildId, userId, load]);
 
-  // `state`: { interested, interested_all } (utils/eventDisplay interestAfter).
+  // `state`: { interested (the current occurrence), interested_all, my_occurrences }
+  // (utils/eventDisplay interestAfter).
   const setInterested = useCallback((eventId, state) => {
     setEvents((list) => list.map((e) => {
       if (e.id !== eventId) return e;

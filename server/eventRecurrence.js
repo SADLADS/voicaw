@@ -151,6 +151,35 @@ function nextOccurrence(rule, zone, current, anchor = current) {
   return null;
 }
 
+// Whether unix s `at` is an occurrence of `rule` in a series anchored at unix s `anchor` (one
+// of its occurrences): on one of its days, at the series' wall-clock time.
+function isOccurrence(rule, zone, anchor, at) {
+  if (!Number.isInteger(at)) return false;
+  const { date: anchorDate, time } = localDate(anchor, zone);
+  const { date } = localDate(at, zone);
+  if (!matches(rule, date, anchorDate)) return false;
+  return Math.floor(fromWallClock({ year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate(), ...time }, zone) / 1000) === at;
+}
+
+// The calendar date of unix s `seconds` in `zone`: 'YYYY-MM-DD' (an occurrence's in links).
+function dateKeyIn(seconds, zone) {
+  const w = wallClock(seconds * 1000, zone);
+  return `${w.year}-${String(w.month).padStart(2, '0')}-${String(w.day).padStart(2, '0')}`;
+}
+
+// The occurrence on date `key` ('YYYY-MM-DD' in `zone`) of a series anchored at `anchor`, by the
+// rule (at most one a day: daily is the finest): unix s, or null if that day has none.
+function occurrenceOnDate(rule, zone, anchor, key) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key ?? ''));
+  if (!match) return null;
+  const [year, month, day] = match.slice(1).map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  const { date: anchorDate, time } = localDate(anchor, zone);
+  if (!matches(rule, date, anchorDate)) return null;
+  return Math.floor(fromWallClock({ year, month, day, ...time }, zone) / 1000);
+}
+
 // Unix s `seconds` moved `days` calendar days on in `zone`, at the same wall-clock time (an
 // all-day event's end: midnight stays midnight across a clock change).
 function addDays(seconds, days, zone) {
@@ -159,4 +188,6 @@ function addDays(seconds, days, zone) {
   return Math.floor(fromWallClock({ year: to.getUTCFullYear(), month: to.getUTCMonth() + 1, day: to.getUTCDate(), ...time }, zone) / 1000);
 }
 
-module.exports = { FREQUENCY, cleanRule, cleanTimeZone, startsOnRule, nextOccurrence, addDays, wallClock, fromWallClock };
+module.exports = {
+  FREQUENCY, cleanRule, cleanTimeZone, startsOnRule, nextOccurrence, isOccurrence, occurrenceOnDate, dateKeyIn, addDays, wallClock, fromWallClock,
+};

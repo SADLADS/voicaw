@@ -8,7 +8,8 @@ const app = require('../index.js');
 const db = require('../db.js');
 const { PERMISSIONS: P, DEFAULT_EVERYONE_PERMISSIONS } = require('../permissions.js');
 const guildEvents = require('../guildEvents.js');
-const { nextOccurrence, cleanRule, startsOnRule, fromWallClock, wallClock, addDays } = require('../eventRecurrence.js');
+const { nextOccurrence, cleanRule, startsOnRule, fromWallClock, wallClock, addDays, dateKeyIn, occurrenceOnDate, isOccurrence } = require('../eventRecurrence.js');
+const { scheduledEventObject } = require('../discord.js');
 const clients = app.locals.clients;
 
 let userCount = 0;
@@ -180,7 +181,7 @@ describe('scheduled events', () => {
     expect(heard.filter((e) => e.type === 'guild_event_interest')).toEqual([
       {
         type: 'guild_event_interest', guildId: guild.id, eventId: event.id, userId: alice.id,
-        interested: true, interestedAll: true, changed: true, userCount: 2,
+        interested: true, interestedAll: true, occurrences: {}, changed: true, userCount: 2,
       },
     ]);
     expect((await api.get(alice, `/guild-events/${event.id}`)).body).toMatchObject({ interested: true, user_count: 2 });
@@ -407,9 +408,9 @@ describe('scheduled events', () => {
       const heard = listen(carol);
 
       // Alice: only this one. Bob: all of them, then not this one. Owner: none of them.
-      expect((await api.put(alice, `${url}?occurrence=1`)).body).toEqual({ interested: true, interested_all: false });
+      expect((await api.put(alice, `${url}?occurrence=1`)).body).toMatchObject({ interested: true, interested_all: false });
       await api.put(bob, url);
-      expect((await api.delete(bob, `${url}?occurrence=1`)).body).toEqual({ interested: false, interested_all: true });
+      expect((await api.delete(bob, `${url}?occurrence=1`)).body).toMatchObject({ interested: false, interested_all: true });
       await api.delete(owner, url);
       expect((await api.get(alice, `/guild-events/${event.id}`)).body).toMatchObject({ interested: true, interested_all: false, user_count: 1 });
       expect((await api.get(bob, `/guild-events/${event.id}`)).body).toMatchObject({ interested: false, interested_all: true });
@@ -418,7 +419,7 @@ describe('scheduled events', () => {
         [alice.id, true, false, true, 2], [bob.id, true, true, true, 3], [bob.id, false, true, true, 2], [owner.id, false, false, true, 1],
       ]);
       // Bob wants this one back after all; the owner takes all of them and drops all again.
-      expect((await api.put(bob, `${url}?occurrence=1`)).body).toEqual({ interested: true, interested_all: true });
+      expect((await api.put(bob, `${url}?occurrence=1`)).body).toMatchObject({ interested: true, interested_all: true });
       await api.delete(bob, `${url}?occurrence=1`);
       await api.delete(alice, `${url}?occurrence=1`);
       await api.put(alice, `${url}?occurrence=1`);
@@ -431,8 +432,8 @@ describe('scheduled events', () => {
 
       // One that doesn't repeat: just this one is all of it.
       const plain = (await create(owner, guild, external())).body;
-      expect((await api.put(alice, `/guild-events/${plain.id}/interest?occurrence=1`)).body).toEqual({ interested: true, interested_all: true });
-      expect((await api.delete(alice, `/guild-events/${plain.id}/interest?occurrence=1`)).body).toEqual({ interested: false, interested_all: false });
+      expect((await api.put(alice, `/guild-events/${plain.id}/interest?occurrence=1`)).body).toMatchObject({ interested: true, interested_all: true });
+      expect((await api.delete(alice, `/guild-events/${plain.id}/interest?occurrence=1`)).body).toMatchObject({ interested: false, interested_all: false });
     });
 
     it('notifies only those interested in the occurrence that starts', async () => {
@@ -448,9 +449,11 @@ describe('scheduled events', () => {
       const before = sentPushes.length;
       await guildEvents.sweepEvents(monday);
       await waitForPushes(1, before);
-      const pushes = sentPushes.filter((p) => p.payload.tag === `event-${event.id}`).map((p) => p.endpoint);
-      expect(pushes).toEqual([bobEndpoint]);
-      expect(pushes).not.toContain(aliceEndpoint);
+      const pushes = sentPushes.filter((p) => p.payload.tag === `event-${event.id}`);
+      expect(pushes.map((p) => p.endpoint)).toEqual([bobEndpoint]);
+      expect(pushes.map((p) => p.endpoint)).not.toContain(aliceEndpoint);
+      // The link is to this occurrence: its date.
+      expect(pushes[0].payload.url).toBe(`/guild/${guild.id}?event=${event.id}&on=${dateKeyIn(monday, zone)}`);
     });
 
     it('skips or moves just the next occurrence', async () => {
@@ -486,6 +489,198 @@ describe('scheduled events', () => {
       expect(after.status).toBe('scheduled');
       expect(after.start_time).toBeGreaterThan(monday + guildEvents.UNATTENDED_SECONDS);
       expect(after.start_time - monday).toBeLessThanOrEqual(86400 + HOUR);
+    });
+  });
+
+  describe('single occurrences', () => {
+    const zone = 'Europe/London';
+    function nextMonday() {
+      let t = now() + 86400;
+      while (wallClock(t * 1000, zone).hour !== 12 || new Date(t * 1000).getUTCDay() !== 1) t += 3600;
+      const w = wallClock(t * 1000, zone);
+      return Math.floor(fromWallClock({ ...w, hour: 20, minute: 0, second: 0 }, zone) / 1000);
+    }
+    const weekly = { frequency: 2, interval: 1, by_weekday: [0] };
+    // The weekly series' first `count` occurrences from `monday`.
+    const dates = (monday, count) => {
+      const list = [monday];
+      while (list.length < count) list.push(nextOccurrence(cleanRule(weekly), zone, list[list.length - 1]));
+      return list;
+    };
+    const series = (owner, guild, monday, overrides = {}) => create(owner, guild, external({
+      startTime: monday, endTime: monday + HOUR, recurrence: weekly, timezone: zone, ...overrides,
+    }));
+    // Sweeps at `at` with the clock there too.
+    async function sweepAt(at) {
+      const realNow = Date.now;
+      Date.now = () => at * 1000;
+      try {
+        await guildEvents.sweepEvents(at);
+      } finally {
+        Date.now = realNow;
+      }
+    }
+
+    it('knows which dates are occurrences', () => {
+      const monday = nextMonday();
+      const [, second] = dates(monday, 2);
+      expect(isOccurrence(cleanRule(weekly), zone, monday, second)).toBe(true);
+      expect(isOccurrence(cleanRule(weekly), zone, monday, second + 60)).toBe(false);
+      expect(isOccurrence(cleanRule(weekly), zone, monday, second + 86400)).toBe(false);
+      expect(occurrenceOnDate(cleanRule(weekly), zone, monday, dateKeyIn(second, zone))).toBe(second);
+      expect(occurrenceOnDate(cleanRule(weekly), zone, monday, dateKeyIn(second + 86400, zone))).toBeNull();
+      expect(occurrenceOnDate(cleanRule(weekly), zone, monday, '2026-02-30')).toBeNull();
+    });
+
+    it('changes or cancels any occurrence still to come, and moves on past cancelled ones', async () => {
+      const { owner, guild } = await setUp(0);
+      const monday = nextMonday();
+      const [, second, third, fourth] = dates(monday, 4);
+      const { id } = (await series(owner, guild, monday)).body;
+      const url = `/guild-events/${id}/occurrence`;
+
+      const changed = await api.put(owner, url, { occurrence: third, startTime: third + 86400, name: 'Late picnic' });
+      expect(changed.body).toMatchObject({ start_time: monday, occurrence_start: monday, name: 'Picnic' });
+      expect(changed.body.occurrences).toEqual([{
+        original_start: third, start_time: third + 86400, end_time: third + 86400 + HOUR, status: 'scheduled',
+        name: 'Late picnic', description: null, location: null,
+      }]);
+      expect((await api.put(owner, url, { occurrence: third, startTime: fourth })).body.error).toMatch(/before the next/);
+      expect((await api.put(owner, url, { occurrence: third, startTime: second })).body.error).toMatch(/after the one before/);
+      expect((await api.put(owner, url, { occurrence: third + 60, startTime: third + HOUR })).body.error).toMatch(/isn't one of/);
+      // The series' own name again is no change of its own.
+      expect((await api.put(owner, url, { occurrence: fourth, name: 'Picnic' })).body.occurrences).toHaveLength(1);
+
+      const skipped = await api.post(owner, `/guild-events/${id}/skip`, { occurrence: second });
+      expect(skipped.body.occurrences.map((o) => [o.original_start, o.status])).toEqual([[second, 'canceled'], [third, 'scheduled']]);
+      expect((await api.get(owner, `/guild-events/${id}?occurrence=${second}`)).body.occurrence).toEqual({ original_start: second, status: 'canceled' });
+      expect((await api.get(owner, `/guild-events/${id}?on=${dateKeyIn(third, zone)}`)).body.occurrence).toMatchObject({
+        original_start: third, start_time: third + 86400, name: 'Late picnic', status: 'scheduled', user_count: 1,
+      });
+      expect((await api.get(owner, `/guild-events/${id}?on=${dateKeyIn(monday + 86400, zone)}`)).body.occurrence).toBeNull();
+
+      // The first takes place: it's kept, and the series moves on to the third (the second was
+      // cancelled), at its own time, with its own name.
+      await sweepAt(monday);
+      await sweepAt(monday + HOUR);
+      const next = await guildEvents.loadPublic(id);
+      expect(next).toMatchObject({ occurrence_start: third, start_time: third + 86400, end_time: third + 86400 + HOUR, status: 'scheduled' });
+      expect(next.occurrences.map((o) => o.original_start)).toEqual([third]);
+      const history = (await api.get(owner, `/guilds/${guild.id}/event-history?from=${monday - 86400}&to=${monday + 86400}`)).body;
+      expect(history).toEqual([expect.objectContaining({ id, original_start: monday, name: 'Picnic', status: 'completed', start_time: monday, end_time: monday + HOUR, user_count: 1 })]);
+      expect((await api.get(owner, `/guild-events/${id}?on=${dateKeyIn(monday, zone)}`)).body.occurrence).toMatchObject({ status: 'completed', original_start: monday });
+      expect((await api.get(owner, `/guilds/${guild.id}/event-history?from=0&to=${now()}`)).status).toBe(400);
+    });
+
+    it('takes interest in any occurrence to come, apart from the series', async () => {
+      const { owner, members: [alice, bob], guild } = await setUp(2);
+      const monday = nextMonday();
+      const [, second, third] = dates(monday, 3);
+      const { id } = (await series(owner, guild, monday)).body;
+      const url = `/guild-events/${id}/interest`;
+      const heard = listen(owner);
+
+      // Alice: only the third. Bob: all but the second.
+      expect((await api.put(alice, `${url}?occurrence=${third}`)).body).toEqual({ interested: true, interested_all: false, my_occurrences: { [third]: true } });
+      await api.put(bob, url);
+      expect((await api.delete(bob, `${url}?occurrence=${second}`)).body).toEqual({ interested: false, interested_all: true, my_occurrences: { [second]: false } });
+      expect(heard.filter((e) => e.type === 'guild_event_interest').map((e) => [e.userId, e.interested, e.changed, e.userCount])).toEqual([
+        [alice.id, false, false, 1], [bob.id, true, true, 2], [bob.id, true, false, 2],
+      ]);
+      const countOf = async (original) => (await api.get(owner, `/guild-events/${id}?occurrence=${original}`)).body.occurrence.user_count;
+      expect([await countOf(monday), await countOf(second), await countOf(third)]).toEqual([2, 1, 3]);
+      expect((await api.get(owner, `/guild-events/${id}/users?occurrence=${third}`)).body.sort()).toEqual([owner.id, alice.id, bob.id].sort());
+      expect((await api.get(alice, `/guild-events/${id}`)).body).toMatchObject({ interested: false, interested_all: false, my_occurrences: { [third]: true }, user_count: 2 });
+
+      // A cancelled one takes none; all of them replaces single ones.
+      await api.post(owner, `/guild-events/${id}/skip`, { occurrence: second });
+      expect((await api.get(bob, `/guild-events/${id}`)).body.my_occurrences).toEqual({});
+      expect((await api.put(alice, `${url}?occurrence=${second}`)).body.error).toMatch(/cancelled/);
+      expect((await api.put(alice, url)).body).toEqual({ interested: true, interested_all: true, my_occurrences: {} });
+    });
+
+    it('changes this and following as a new series, which old links follow once the old one ends', async () => {
+      const { owner, members: [alice], guild } = await setUp(1);
+      const monday = nextMonday();
+      const [, second, third, fourth] = dates(monday, 4);
+      const { id } = (await series(owner, guild, monday)).body;
+      await api.put(alice, `/guild-events/${id}/interest`);
+      await api.put(alice, `/guild-events/${id}/interest?occurrence=${fourth}`); // no change
+      await api.delete(owner, `/guild-events/${id}/interest?occurrence=${fourth}`);
+      await api.put(owner, `/guild-events/${id}/occurrence`, { occurrence: fourth, name: 'Fourth picnic' });
+
+      const split = await api.patch(owner, `/guild-events/${id}?from=${third}`, { name: 'Bigger picnic', location: 'The beach' });
+      expect(split.status).toBe(200);
+      expect(split.body).toMatchObject({
+        name: 'Bigger picnic', location: 'The beach', start_time: third, end_time: third + HOUR, occurrence_start: third,
+        user_count: 2, interested: true, interested_all: true, my_occurrences: { [fourth]: false }, creator_id: owner.id,
+      });
+      expect(split.body.id).not.toBe(id);
+      expect(split.body.occurrences.map((o) => [o.original_start, o.name])).toEqual([[fourth, 'Fourth picnic']]);
+      const old = (await api.get(owner, `/guild-events/${id}`)).body;
+      expect(old).toMatchObject({ name: 'Picnic', until: third, continued_as: split.body.id, occurrences: [] });
+      expect(scheduledEventObject(old).recurrence_rule.end).toBe(new Date(third * 1000).toISOString());
+      expect((await api.get(owner, `/guild-events/${id}?occurrence=${third}`)).body.occurrence).toBeNull();
+      const log = (await api.get(owner, `/guilds/${guild.id}/audit-log?actions=event_update`)).body;
+      expect(log.entries[0].details).toMatchObject({ repeat: 'split' });
+
+      // The old one's two dates go by: it's gone, and its link opens the new one.
+      await sweepAt(monday);
+      await sweepAt(monday + HOUR);
+      await sweepAt(second);
+      await sweepAt(second + HOUR);
+      expect(await guildEvents.getEvent(id)).toBeFalsy();
+      expect((await api.get(alice, `/guild-events/${id}`)).body).toMatchObject({ id: split.body.id, name: 'Bigger picnic' });
+      // Both took place under the old one's name.
+      const history = (await api.get(owner, `/guilds/${guild.id}/event-history?from=${monday - 86400}&to=${second + 86400}`)).body;
+      expect(history.map((h) => [h.id, h.original_start, h.name])).toEqual([[id, monday, 'Picnic'], [id, second, 'Picnic']]);
+
+      // New times for the following ones drop their own changes.
+      const retimed = await api.patch(owner, `/guild-events/${split.body.id}?from=${fourth}`, { startTime: fourth + HOUR, endTime: fourth + 2 * HOUR });
+      expect(retimed.body).toMatchObject({ start_time: fourth + HOUR, name: 'Fourth picnic', occurrences: [], my_occurrences: {} });
+    });
+
+    it('cancels this and following', async () => {
+      const { owner, guild } = await setUp(0);
+      const monday = nextMonday();
+      const [, , third] = dates(monday, 3);
+      const { id } = (await series(owner, guild, monday)).body;
+      const res = await api.delete(owner, `/guild-events/${id}?from=${third}`);
+      expect(res.body).toMatchObject({ id, until: third });
+      expect((await api.put(owner, `/guild-events/${id}/interest?occurrence=${third}`)).body.error).toMatch(/isn't one of/);
+      // From the current one, that's all of it.
+      expect((await api.delete(owner, `/guild-events/${id}?from=${monday}`)).body).toEqual({ success: true });
+      expect((await api.get(owner, `/guild-events/${id}`)).status).toBe(404);
+    });
+
+    it('editing every occurrence anew drops single ones, a rename keeps them', async () => {
+      const { owner, members: [alice], guild } = await setUp(1);
+      const monday = nextMonday();
+      const [, second] = dates(monday, 2);
+      const { id } = (await series(owner, guild, monday)).body;
+      await api.put(owner, `/guild-events/${id}/occurrence`, { occurrence: second, name: 'Second' });
+      await api.put(alice, `/guild-events/${id}/interest?occurrence=${second}`);
+      const renamed = await api.patch(owner, `/guild-events/${id}`, { name: 'Picnic!' });
+      expect(renamed.body).toMatchObject({ revision: 0, occurrences: [expect.objectContaining({ original_start: second })] });
+      const later = await api.patch(owner, `/guild-events/${id}`, { startTime: monday + HOUR, endTime: monday + 2 * HOUR });
+      expect(later.body).toMatchObject({ revision: 1, occurrences: [], occurrence_start: monday + HOUR });
+      expect((await api.get(alice, `/guild-events/${id}`)).body.my_occurrences).toEqual({});
+    });
+
+    it('keeps what took place where only those who can see it do', async () => {
+      const { owner, members: [alice], guild, voice, everyone } = await setUp(1);
+      const start = now() + HOUR;
+      const { id } = (await create(owner, guild, inVoice(voice, { startTime: start }))).body;
+      await sweepAt(start);
+      await api.post(owner, `/guild-events/${id}/end`);
+      const range = `from=${start - 86400}&to=${start + 86400}`;
+      expect((await api.get(alice, `/guilds/${guild.id}/event-history?${range}`)).body).toEqual([
+        expect.objectContaining({ id, channel_id: voice.id, original_start: null, status: 'completed', start_time: start }),
+      ]);
+      await api.put(owner, `/guilds/${guild.id}/channels/${voice.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.VIEW_CHANNEL });
+      expect((await api.get(alice, `/guilds/${guild.id}/event-history?${range}`)).body).toEqual([]);
+      await api.delete(owner, `/guilds/${guild.id}/channels/${voice.id}`);
+      expect((await api.get(owner, `/guilds/${guild.id}/event-history?${range}`)).body).toEqual([]);
     });
   });
 });

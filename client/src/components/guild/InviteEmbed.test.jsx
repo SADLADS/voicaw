@@ -113,7 +113,7 @@ describe('event embeds', () => {
   it('shows the event in encrypted chats too, and View opens it', async () => {
     renderPreviews({ text: EVENT_LINK, encrypted: true });
     expect(await screen.findByText('Movie night')).toBeInTheDocument();
-    expect(fetchEvent).toHaveBeenCalledWith(34);
+    expect(fetchEvent).toHaveBeenCalledWith(34, { on: null });
     fireEvent.click(screen.getByRole('button', { name: 'View' }));
     expect(await screen.findByText('guild page')).toBeInTheDocument();
   });
@@ -125,7 +125,7 @@ describe('event embeds', () => {
       expect(fetchEvent).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole('button', { name: 'Show' }));
       expect(await screen.findByText('Movie night')).toBeInTheDocument();
-      expect(fetchEvent).toHaveBeenCalledWith(34);
+      expect(fetchEvent).toHaveBeenCalledWith(34, { on: null });
     } finally {
       setPrivacyPref('inviteEmbedsInEncrypted', true);
     }

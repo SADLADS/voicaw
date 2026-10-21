@@ -485,15 +485,41 @@ Not end-to-end encrypted, like the rest of a guild.
   or is cancelled is deleted (people are sent it with status `completed` / `canceled` first), a
   repeating one moves on to its next occurrence still to come, keeping who's interested in the
   series (see Interested).
+- **History** (built 2026-10-21): an occurrence that took place (it was on: started by its time
+  or by hand, then ended) is kept in `guild_event_history` as it was (name, description, place,
+  times, emoji, colour, how many were interested; `recordHistory`), a year, whatever becomes of
+  the event, for the calendar's past days, where it's greyed. Cancelled ones and ones that never
+  started aren't. `GET /guilds/:id/event-history?from&to` (at most 100 days) lists those the
+  member can see (a voice channel's follow View Channel there); they go with their channel or
+  guild. Who was interested isn't kept, only how many.
 - **Repeating** (`server/eventRecurrence.js`, `client/src/utils/eventRecurrence.js`): Discord's
   recurrence rules and only its shapes: daily (optionally on some weekdays), weekly or every
   other week on one day, monthly on the nth weekday, yearly on a date. Occurrences fall on the
   event's time zone's wall clock (`timezone`, the creator's device's; bots' are UTC), so a weekly
   20:00 stays 20:00 across clock changes (a time skipped by one comes an hour later, a repeated
-  one the first time). The start must be one of its days. `occurrence_start` is when the current
-  occurrence is due by the rule; "Change this event's time" moves only it (`start_time`, before
-  the next one), "Cancel this event" skips to the next. Editing the event edits the series, and a
-  new start or rule re-anchors it. Only the next occurrence can be changed on its own.
+  one the first time). The start must be one of its days.
+- **Occurrences** (reworked 2026-10-21, as iCalendar's, Google's and Outlook's): a repeating
+  event is one row, the series, whose `start_time` / `end_time` are its current occurrence's.
+  Every occurrence is named by its **original start**, when the rule puts it, even once moved
+  (`occurrence_start` is the current one's); links name it by that date in the event's time zone
+  (`?event=13&on=2026-10-27`: at most one a day, daily being the finest; `occurrenceOnDate`). A
+  link without a date is the series: it opens on its next occurrence. Occurrences still to come
+  that differ are `guild_event_occurrences` rows (sent as the event's `occurrences`): moved
+  (`start_time`, `end_time`; between the occurrences either side, so they stay in order), with
+  their own `name`, `description` or `location` (null: the series'), or `status` 'canceled'; at
+  most 50 a series (`MAX_EXCEPTIONS`), dropped once their date has gone by. Editing or
+  cancelling a date asks which ones, as calendars do: **this event** (`PUT
+  /guild-events/:id/occurrence { occurrence, ... }`, `POST .../skip { occurrence }`), **this and
+  following** (`PATCH /guild-events/:id?from=<original start>`, `DELETE ...?from=`), or **all
+  events** (as before). "This and following" from a later date ends the series there (`until`,
+  sent to bots as the rule's `end`) and makes a new event from then on (`splitEvent`, the same
+  creator; `continued_as` on the old one): the series' interested people carry over, and so do
+  later dates' own changes and interest unless its times or rule changed. Once the old one has no
+  dates left it's deleted, and `guild_event_redirects` sends its id to the new one (old links
+  still open). From the current date, "this and following" is all of it. Editing every date with
+  a new start, rule or time zone re-anchors the series and drops single dates' changes and
+  interest (`revision` goes up, so apps forget theirs too; the editor says so); other edits keep
+  them. A started occurrence is only edited or cancelled as a whole.
 - **All day, emoji, colour** (the app's own; Discord has none, so bots neither see nor set
   them, and theirs have the defaults): `all_day` events cover whole dates on their maker's
   calendar: `start_time` and `end_time` are midnights of `timezone` (always set for them; the
@@ -510,31 +536,39 @@ Not end-to-end encrypted, like the rest of a guild.
   calendar (`--event-color`). The editor has All day under the topic (dates only), and Emoji
   (the emoji picker) and Colour after the cover; the audit log shows changes to all three.
 - **Interested**: its creator is, at once. Interested people get a push when it starts (`type:
-  'event'`, the event's name, "Starting now · place (Guild)", url `/guild/<g>/<voice channel>?event=<id>`,
-  tag `event-<id>`), unless their notification level for the guild is 'none', and never the one
-  who started it. Leaving the guild (or deleting your account) drops your interest.
-  On a repeating event (built 2026-10-20, as Discord's), Interested opens a menu
-  (`events/InterestButton.jsx`, `interestChoices`): this event (the current occurrence, the one
-  shown) or all of them, each added or taken away, so you can be interested in all, in this one
-  alone, or in all but this one. `guild_event_users` keeps one row per person: the series, or
-  with `only_occurrence` (this one alone) or `skip_occurrence` (all but it) set to the
-  occurrence's `occurrence_start`. `interested` (yours) and `user_count`, the Interested tab, the
-  start push and bots' user list are all for the current occurrence (`INTERESTED_NOW`), and
-  `interested_all` says whether you're in the series. When the series moves on (an occurrence
-  ends or is cancelled, or editing the series re-anchors it), `dropOccurrenceInterest` drops
-  "this one alone" and "all but this one" (the client mirrors it, `interestKept`); moving only
-  this occurrence's time keeps them.
+  'event'`, the occurrence's name, "Starting now · place (Guild)", url `/guild/<g>/<voice
+  channel>?event=<id>` (and `&on=<date>` for a repeating one), tag `event-<id>`), unless their
+  notification level for the guild is 'none', and never the one who started it. Leaving the
+  guild (or deleting your account) drops your interest.
+  On a repeating event (built 2026-10-20, as Discord's; any date since 2026-10-21), Interested
+  opens a menu (`events/InterestButton.jsx`, `interestChoices`): this event (the occurrence
+  shown) or all of them, each added or taken away. `guild_event_users` is interest in the
+  series; `guild_event_occurrence_users` is a date where yours differs (`interested` 1: that one
+  alone, 0: all but it). Interest in all of them replaces any single ones; single ones go once
+  their date has (and when the series is edited anew). Events carry `interested` (yours, the
+  current occurrence), `interested_all` and `my_occurrences` ({ original start: interested });
+  `user_count`, the start push and bots' user list are for the current occurrence (`whoQuery`),
+  and `GET /guild-events/:id?occurrence=<original start>` and `.../users?occurrence=` give
+  another's. The client mirrors the server (`interestAfter`, `interestKept`, and
+  `interestContinued` for an event "this and following" made).
 - **Server** (`guildEvents.js` has the actions, shared with the bot API, throwing `ActionError`;
-  `routes/guildEvents.js`; tables `guild_events`, `guild_event_users`): `GET/POST
-  /guilds/:id/events` (each with `interested` and `interested_all`, yours, and `user_count`), `GET/PATCH/DELETE
-  /guild-events/:id` (DELETE cancels every occurrence), `POST /guild-events/:id/start`, `/end`,
-  `/skip`, `PUT /guild-events/:id/occurrence { startTime, endTime? }`, `PUT/DELETE
-  /guild-events/:id/interest` (`?occurrence=1`: only the current occurrence; answers
-  `{ interested, interested_all }`), `GET /guild-events/:id/users` (user ids). Events go to whoever can
-  see the event (`guild_event_create` / `_update` / `_delete`, `guild_event_interest` with
-  `interested`, `interestedAll`, `changed` and `userCount`); moving one
-  to a channel someone can't see is a delete for them. Audit log: `event_create`,
-  `event_update` (changes, the channel by name, cover and repeat notes), `event_delete`.
+  `routes/guildEvents.js`; tables `guild_events`, `guild_event_users`, `guild_event_occurrences`,
+  `guild_event_occurrence_users`, `guild_event_history`, `guild_event_redirects`; migration 17
+  moved the old per-occurrence interest columns into them): `GET/POST /guilds/:id/events` (each
+  with `interested`, `interested_all`, `my_occurrences`, `user_count` and `occurrences`), `GET
+  /guilds/:id/event-history`, `GET/PATCH/DELETE /guild-events/:id` (GET with `?occurrence=` or
+  `?on=` adds that `occurrence`: still to come with its own values and count, `{ status:
+  'canceled' }`, the history's record if it took place, or null; PATCH and DELETE take `?from=`),
+  `POST /guild-events/:id/start`, `/end`, `/skip { occurrence? }`, `PUT
+  /guild-events/:id/occurrence { occurrence?, startTime, endTime?, name?, description?,
+  location? }`, `PUT/DELETE /guild-events/:id/interest` (`?occurrence=<original start>`, or `1`
+  for the current one; answers `{ interested, interested_all, my_occurrences }`), `GET
+  /guild-events/:id/users` (user ids). Events go to whoever can see the event
+  (`guild_event_create` / `_update` / `_delete`, `guild_event_interest` with `interested`,
+  `interestedAll`, `occurrences`, `changed` and `userCount`); moving one to a channel someone
+  can't see is a delete for them. Audit log: `event_create`, `event_update` (changes, the
+  channel by name, cover and repeat notes: `split` for "this and following", `shortened` for
+  cancelling them), `event_delete`.
   Deleting a voice channel deletes its events (a delete is sent), deleting the guild all of
   them. Covers are uploads (like a document's: encrypted like a guild attachment, its URL with
   the key), linked as upload kind `event`, so the file goes with the event.
@@ -546,14 +580,22 @@ Not end-to-end encrypted, like the rest of a guild.
   (900 × 700 at most), with three tabs, Month (first), Week and Events (the tab, month and day are kept in `GuildSidebar`
   while the editor is open; it always opens on the calendar, on today), and the list (`EventCard`: cover, when and "Starts
   in 3 hours" / "Happening now", repeat, place, interested count, Interested, Start/End, the
-  menu: edit, change or cancel this occurrence, copy link, cancel) and one event (info and an
-  Interested tab with who). `events/EventEditor.jsx`: Discord's three steps (where: a voice
+  menu: edit, copy link, cancel) and one occurrence (`occurrenceView`: its own date, name and
+  place; info, a repeating one's next five dates to switch between (`NextDates`), and an
+  Interested tab with who; one that took place (`pastView`) is greyed, "Ended", with how many
+  were interested and a button to the next date). On a repeating event Edit and Cancel ask
+  which dates (`events/ScopeDialog.jsx`: this event, this and following, all), and Copy Link is
+  two: to this date, to the series. `events/EventEditor.jsx` (`scope`): this event alone is a
+  short form (`OccurrenceEditor`: times, topic, place somewhere else, description); this and
+  following is the whole editor starting from that date's values. Its three steps are Discord's (where: a voice
   channel you may hold one in, or somewhere else; info: topic, start, end, repeats from
   `repeatChoices` of the start day, description, cover; review: the card); the steps along the
   top are buttons, going to that step like Next (stopping at an earlier one with something
-  missing). `?event=<id>` on a
+  missing). `?event=<id>` (and `&on=<date>`) on a
   guild URL opens it (links, notifications; `eventLink`, kept through the redirect to the last
-  channel); an event link gets a card (`events/EventEmbed.jsx`), in place of the page preview of the
+  channel): the dialog asks the server which occurrence the date is (a cancelled date or one that
+  isn't its own opens the next, saying so; one that took place, even of an event gone since,
+  opens that record); an event link gets a card (`events/EventEmbed.jsx`, that date's), in place of the page preview of the
   link (`utils/linkPreviews.js` `drawnByApp`, as for invites). In DMs and group DMs it loads
   like invite cards (see Invite embeds): at once unless Settings → Privacy's "Show guild
   invites and events in DMs and group DMs straight away" is off, then after a tap on Show,
@@ -562,9 +604,11 @@ Not end-to-end encrypted, like the rest of a guild.
   Monday, each event on the day it starts (on this device), with every occurrence of a
   repeating one: `occurrencesBetween` (`utils/eventRecurrence.js`) is a copy of the server's
   stepping on the event's time zone's wall clock (keep the two alike), the current occurrence
-  at its own, perhaps moved, time and the rule's after it, with the series' `duration`. A day
+  at its own, perhaps moved, time and the rule's after it (before `until`), with the series'
+  `duration`, moved, renamed or left out as `occurrences` say; past days add what took place
+  (`hooks/useEventHistory.js`, a month at a time as they're shown), greyed. A day
   shows up to three events (emoji, always shown, and name; the time is in its title and the
-  day's list; a click opens the event), then "+N more"; clicking
+  day's list; a click opens that occurrence), then "+N more"; clicking
   a day picks it and lists its events beside the month (under it when the dialog is narrower
   than 620 px, where the squares show each event's emoji, or a dot, instead of names: a container query). Making an
   event on the calendar: the + on a day under the pointer (or the chosen one), or Create Event
@@ -585,10 +629,10 @@ Not end-to-end encrypted, like the rest of a guild.
   red line marks now on today. On a phone the columns are about 43 px: the blocks show the
   emoji and the start of the name, no times.
 - **Not done yet**: a day view, events spanning days drawn as one bar across them (they're a bar on each day), calendar channels, RSVP
-  beyond Interested (Going / Maybe / Can't, limits), reminders before an event, editing an
-  occurrence other than the next one, interest in an occurrence other than the next one (the
-  calendar opens the event at its current occurrence), event invite links that also
-  invite into the guild, and stage channels.
+  beyond Interested (Going / Maybe / Can't, limits), reminders before an event, a single date's
+  own cover, channel, emoji or colour (only its times, topic, description and place), bots
+  seeing single dates (Discord's exceptions API), event invite links that also invite into the
+  guild, and stage channels.
 
 ## Levels
 

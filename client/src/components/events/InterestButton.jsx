@@ -5,16 +5,17 @@ import { InteractionContext } from '../../contexts';
 import { interestChoices } from '../../utils/eventDisplay';
 import { t } from '../../i18n';
 
-// Interested on an event (pressed: you are, in the occurrence shown). A toggle, or on a
-// repeating event a menu: this event or all of them (utils/eventDisplay interestChoices).
-// `onChoose({ interested, occurrence })`; `children` is its label.
+// Interested on an event (pressed: you are, in the occurrence shown: occurrenceView's). A
+// toggle, or on a repeating event a menu: this event or all of them (utils/eventDisplay
+// interestChoices). `onChoose({ interested, occurrence })` (occurrence: an original start, or
+// null for all of it); `children` is its label.
 export default function InterestButton({ event, className, onChoose, children }) {
   const { isMobile } = useContext(InteractionContext);
   const [anchor, setAnchor] = useState(null);
   const repeating = Boolean(event.recurrence);
   function onClick(e) {
     if (repeating) setAnchor(e.currentTarget.getBoundingClientRect());
-    else onChoose({ interested: !event.interested, occurrence: false });
+    else onChoose({ interested: !event.interested, occurrence: null });
   }
   return (
     <>

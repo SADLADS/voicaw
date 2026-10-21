@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../Icon';
 import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import EventEmoji from './EventEmoji';
-import { addDays, dayKey, isPastDay, startAtHour, weekAllDay, weekBlocks, weekDays } from '../../utils/eventCalendar';
+import { addDays, dayKey, isPastDay, openItem, startAtHour, weekAllDay, weekBlocks, weekDays } from '../../utils/eventCalendar';
 import { eventColor, eventPlace } from '../../utils/eventDisplay';
 import { formatDayMonth, formatLongDate, formatTime, formatWeekday, useDateFormat } from '../../utils/dateFormat';
 import { t } from '../../i18n';
@@ -20,7 +20,7 @@ const colorStyle = (event) => {
   return color ? { '--event-color': color } : {};
 };
 
-const isLive = (item) => item.event.status === 'active' && item.start === item.event.start_time;
+const isLive = (item) => item.event.status === 'active';
 
 // The minute of the day now, kept up to date (the line across today).
 function useMinuteNow() {
@@ -34,14 +34,18 @@ function useMinuteNow() {
 
 // The Week tab of Events (as Guilded's calendar had): the week of the chosen day, Monday first,
 // all-day events along the top and the others as blocks on their hours (side by side where they
-// overlap, split at midnight). `onCreate(startSeconds)`, when you may make events, makes one on
-// an hour still to come (a click on it).
-export default function EventWeek({ guild, events, day, onDay, onOpenEvent, onCreate }) {
+// overlap, split at midnight), and greyed what took place (`history`, loaded with
+// `loadHistory(from, to)` for the week shown). `onCreate(startSeconds)`, when you may make
+// events, makes one on an hour still to come (a click on it).
+export default function EventWeek({ guild, events, history = [], loadHistory, day, onDay, onOpenEvent, onCreate }) {
   useDateFormat();
   const now = useMinuteNow();
   const days = useMemo(() => weekDays(day), [day]);
-  const blocks = useMemo(() => weekBlocks(events, days), [events, days]);
-  const allDay = useMemo(() => weekAllDay(events, days), [events, days]);
+  const blocks = useMemo(() => weekBlocks(events, days, history), [events, days, history]);
+  const allDay = useMemo(() => weekAllDay(events, days, history), [events, days, history]);
+  useEffect(() => {
+    loadHistory?.(Math.floor(days[0].getTime() / 1000), Math.floor(days[6].getTime() / 1000) + 2 * 86400);
+  }, [days, loadHistory]);
   const today = dayKey(new Date(now));
   const hasAllDay = days.some((date) => allDay.get(dayKey(date))?.length);
   const scroller = useRef(null);
@@ -115,10 +119,10 @@ export default function EventWeek({ guild, events, day, onDay, onOpenEvent, onCr
                   <button
                     key={`${item.event.id}-${item.start}`}
                     type="button"
-                    className={['event-calendar-chip', 'all-day', item.event.color != null && 'coloured', isLive(item) && 'live'].filter(Boolean).join(' ')}
+                    className={['event-calendar-chip', 'all-day', item.event.color != null && 'coloured', isLive(item) && 'live', item.past && 'past'].filter(Boolean).join(' ')}
                     style={colorStyle(item.event)}
                     title={`${item.event.name} (${t('events.calendar.allDay')})`}
-                    onClick={() => onOpenEvent(item.event.id)}
+                    onClick={() => openItem(onOpenEvent, item)}
                   >
                     <EventEmoji emoji={item.event.emoji} />
                     <span className="event-calendar-chip-name">{item.event.name}</span>
@@ -156,7 +160,7 @@ export default function EventWeek({ guild, events, day, onDay, onOpenEvent, onCr
                       <button
                         key={`${block.event.id}-${block.start}`}
                         type="button"
-                        className={['event-week-block', isLive(block) && 'live', block.event.color != null && 'coloured', short && 'short'].filter(Boolean).join(' ')}
+                        className={['event-week-block', isLive(block) && 'live', block.past && 'past', block.event.color != null && 'coloured', short && 'short'].filter(Boolean).join(' ')}
                         style={{
                           ...colorStyle(block.event),
                           top: `${(block.top / 60) * HOUR_PX}px`,
@@ -166,7 +170,7 @@ export default function EventWeek({ guild, events, day, onDay, onOpenEvent, onCr
                           width: `calc((100% - ${FREE_STRIP_PX}px) / ${block.lanes} - 2px)`,
                         }}
                         title={[when, block.event.name, place.label].filter(Boolean).join('\n')}
-                        onClick={(e) => { e.stopPropagation(); onDay(key); onOpenEvent(block.event.id); }}
+                        onClick={(e) => { e.stopPropagation(); onDay(key); openItem(onOpenEvent, block); }}
                       >
                         <span className="event-week-block-name"><EventEmoji emoji={block.event.emoji} />{block.event.name}</span>
                         {!short && <span className="event-week-block-time">{when}</span>}

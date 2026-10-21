@@ -108,9 +108,10 @@ export function channelLink(guildId, channelId) {
   return `${shareOrigin()}/guild/${guildId}/${channelId}`;
 }
 
-// The link to a scheduled event (Copy Link on it; opens it over its guild).
-export function eventLink(guildId, eventId) {
-  return `${shareOrigin()}/guild/${guildId}?event=${eventId}`;
+// The link to a scheduled event (Copy Link on it; opens it over its guild), with `on` (a date,
+// 'YYYY-MM-DD') one occurrence of a repeating one; without, the series (its next occurrence).
+export function eventLink(guildId, eventId, on = null) {
+  return `${shareOrigin()}/guild/${guildId}?event=${eventId}${on ? `&on=${on}` : ''}`;
 }
 
 // The guild and channel in a channel link (channelLink: this site's or app.voicaw.com's), else

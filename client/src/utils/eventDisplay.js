@@ -45,6 +45,7 @@ export function eventPlace(event, guild) {
 // voice event past its time), or null when it's more than a week away.
 export function eventStatusText(event, nowSeconds = Math.floor(Date.now() / 1000)) {
   if (event.status === 'active') return t('events.when.live');
+  if (event.status === 'completed') return t('events.when.ended');
   const seconds = event.start_time - nowSeconds;
   if (seconds <= 0) return t('events.when.waiting');
   if (event.all_day && seconds < 86400) return t('events.when.inDays', { count: 1 });
@@ -85,31 +86,63 @@ export function formatEventWhen(event, { start = event.start_time, end = event.e
 // The event's colour as CSS (#rrggbb), or null for the default.
 export const eventColor = (event) => (event.color != null ? colorToHex(event.color) : null);
 
-// What Interested offers on a repeating event: this occurrence, and all of them, each added or
-// taken away as fits how interested you are (`interested`: this occurrence, `interested_all`:
-// the series). { key (its label, events.interest.<key>), interested, occurrence }.
-export const interestChoices = (event) => [
-  { key: event.interested ? 'thisRemove' : 'thisAdd', interested: !event.interested, occurrence: true },
-  { key: event.interested_all ? 'allRemove' : 'allAdd', interested: !event.interested_all, occurrence: false },
+// What Interested offers on an occurrence of a repeating event (occurrenceView's): this one,
+// and all of them, each added or taken away as fits how interested you are (`interested`:
+// this one, `interested_all`: the series). { key (its label, events.interest.<key>),
+// interested, occurrence (its original start, or null for all of them) }.
+export const interestChoices = (view) => [
+  { key: view.interested ? 'thisRemove' : 'thisAdd', interested: !view.interested, occurrence: view.original_start ?? null },
+  { key: view.interested_all ? 'allRemove' : 'allAdd', interested: !view.interested_all, occurrence: null },
 ];
 
-// { interested, interested_all } after a choice (as interestChoices'; a plain toggle has
-// `occurrence` false), as the server's setInterest works it out.
-export function interestAfter(event, { interested, occurrence }) {
-  if (occurrence && event.recurrence) return { interested, interested_all: Boolean(event.interested_all) };
-  return { interested, interested_all: interested };
+// Where you are interested in occurrences of the series apart from it (`mine`, original start
+// -> interested), the current one's `interested` follows.
+function withCurrent(event, all, mine) {
+  const current = event.occurrence_start;
+  return { interested: current != null && current in mine ? mine[current] : all, interested_all: all, my_occurrences: mine };
 }
 
-// Your { interested, interested_all } in `event` when it's sent again changed, from what you
-// had (`before`, null for a new one: its creator, `userId`, is interested in all of it). Once a
-// repeating event moves to another occurrence, interest in the last one alone (or in all but
-// it) is gone, as on the server.
+// { interested (the current occurrence), interested_all, my_occurrences } after a choice (as
+// interestChoices'; a plain toggle has `occurrence` null), as the server's setInterest works
+// it out: all of them replaces any single ones.
+export function interestAfter(event, { interested, occurrence = null }) {
+  if (!event.recurrence || occurrence == null) return { interested, interested_all: interested, my_occurrences: {} };
+  const all = Boolean(event.interested_all);
+  const mine = { ...(event.my_occurrences ?? {}) };
+  if (interested === all) delete mine[occurrence];
+  else mine[occurrence] = interested;
+  return withCurrent(event, all, mine);
+}
+
+// Your interest (interestAfter's shape) in `event` when it's sent again changed, from what you
+// had (`before`, null for a new one: its creator, `userId`, is interested in all of it). As on
+// the server: occurrences gone by take their single interest with them, and a new `revision`
+// (the series edited anew) all of it.
 export function interestKept(before, event, userId = null) {
   if (!before) {
     const mine = event.creator_id === userId;
-    return { interested: mine, interested_all: mine };
+    return { interested: mine, interested_all: mine, my_occurrences: {} };
   }
   const all = Boolean(before.interested_all ?? before.interested);
-  if (before.occurrence_start !== event.occurrence_start) return { interested: all, interested_all: all };
-  return { interested: Boolean(before.interested), interested_all: all };
+  const kept = {};
+  if ((before.revision ?? 0) === (event.revision ?? 0) && event.recurrence) {
+    for (const [original, value] of Object.entries(before.my_occurrences ?? {})) {
+      if (Number(original) >= event.occurrence_start) kept[original] = value;
+    }
+  }
+  return withCurrent(event, all, kept);
+}
+
+// Your interest in an event "this and following" just made from `old` (the series it
+// continues): the series' carries over, and single ones from its first occurrence on when its
+// times stayed (the server moves them then).
+export function interestContinued(old, event) {
+  const all = Boolean(old.interested_all);
+  const kept = {};
+  if (event.recurrence && old.until === event.occurrence_start) {
+    for (const [original, value] of Object.entries(old.my_occurrences ?? {})) {
+      if (Number(original) >= event.occurrence_start) kept[original] = value;
+    }
+  }
+  return withCurrent(event, all, kept);
 }

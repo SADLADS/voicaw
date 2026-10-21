@@ -39,9 +39,6 @@
     },
     "menu": {
       "edit": "イベントを編集",
-      "editAll": "すべてのイベントを編集",
-      "editOccurrence": "このイベントの日時を変更",
-      "skipOccurrence": "このイベントを中止",
       "copyLink": "リンクをコピー",
       "copied": "リンクをコピーしました。",
       "copyFailed": "リンクをコピーできませんでした。",
@@ -52,11 +49,6 @@
         "title": "{{name}} を中止しますか？",
         "message": "イベントは全員に対して中止されます（繰り返しの場合はすべての回が中止されます）。この操作は取り消せません。",
         "confirm": "イベントを中止"
-      },
-      "skip": {
-        "title": "このイベントを中止しますか？",
-        "message": "中止されるのは {{date}} の回だけで、{{name}} はその後も続きます。",
-        "confirm": "このイベントを中止"
       }
     },
     "detail": {
@@ -98,8 +90,6 @@
     "editor": {
       "createTitle": "イベントを作成",
       "editTitle": "イベントを編集",
-      "occurrenceTitle": "このイベントの日時を変更",
-      "occurrenceHint": "この回だけが移動し、他の回はそのままです。",
       "steps": "ステップ",
       "step": {
         "where": "場所",

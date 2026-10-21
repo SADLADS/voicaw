@@ -12,8 +12,8 @@ import { createEvent, moveOccurrence, updateEvent } from '../../services/guildSe
 import { uploadAttachment } from '../../services/attachmentUpload';
 import { seedAttachmentCache } from '../../services/attachmentCache';
 import { readMediaDimensions } from '../../utils/mediaDimensions';
-import { eventVoiceChannels, fromInputs, toInputs } from '../../utils/eventDisplay';
-import { deviceTimeZone, repeatChoices, repeatKey, ruleFor } from '../../utils/eventRecurrence';
+import { eventVoiceChannels, formatEventWhen, fromInputs, toInputs } from '../../utils/eventDisplay';
+import { deviceTimeZone, occurrenceView, repeatChoices, repeatKey, ruleFor } from '../../utils/eventRecurrence';
 import { allDayInputs, allDayTimes, defaultStart } from '../../utils/eventCalendar';
 import { errorMessage } from '../../utils/guildDisplay';
 import { COLOR_SWATCHES, PERMISSIONS, colorToHex, has, hexToColor } from '../../utils/permissions';
@@ -34,18 +34,23 @@ async function uploadCover(file) {
   return url;
 }
 
-// Moving only the next occurrence of a repeating event: its start and end (its dates, all day).
-function OccurrenceEditor({ event, onSaved, onClose }) {
-  const allDay = Boolean(event.all_day);
-  const days = allDay ? allDayInputs(event) : null;
-  const start = toInputs(event.start_time);
-  const end = toInputs(event.end_time);
+// One occurrence of a repeating event alone (`view`, occurrenceView's): its start and end (its
+// dates, all day), and its own topic, description and place (somewhere else).
+function OccurrenceEditor({ view, onSaved, onClose }) {
+  const allDay = Boolean(view.all_day);
+  const days = allDay ? allDayInputs(view) : null;
+  const start = toInputs(view.start_time);
+  const end = toInputs(view.end_time);
   const [startDate, setStartDate] = useState(days?.start ?? start.date);
   const [startTime, setStartTime] = useState(start.time);
   const [endDate, setEndDate] = useState(days?.end ?? end.date);
   const [endTime, setEndTime] = useState(end.time);
+  const [name, setName] = useState(view.name ?? '');
+  const [description, setDescription] = useState(view.description ?? '');
+  const [location, setLocation] = useState(view.location ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const external = view.entity_type === 'external';
 
   async function save(e) {
     e.preventDefault();
@@ -53,10 +58,18 @@ function OccurrenceEditor({ event, onSaved, onClose }) {
     const startAt = allDay ? whole.startTime : fromInputs(startDate, startTime);
     const endAt = allDay ? whole.endTime : fromInputs(endDate, endTime);
     if (startAt == null) return setError(t('events.editor.errors.start'));
+    if (!name.trim()) return setError(t('events.editor.errors.name'));
     setBusy(true);
     setError(null);
     try {
-      onSaved(await moveOccurrence(event.id, { startTime: startAt, ...(endAt != null ? { endTime: endAt } : {}) }));
+      onSaved(await moveOccurrence(view.id, {
+        occurrence: view.original_start,
+        startTime: startAt,
+        ...(endAt != null ? { endTime: endAt } : {}),
+        name: name.trim(),
+        description: description.trim() ? description : null,
+        ...(external ? { location: location.trim() || null } : {}),
+      }));
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
@@ -76,7 +89,9 @@ function OccurrenceEditor({ event, onSaved, onClose }) {
       )}
     >
       <form id="event-occurrence-form" className="vc-form" onSubmit={save}>
-        <p className="vc-hint">{t('events.editor.occurrenceHint')}</p>
+        <p className="vc-hint">{t('events.editor.occurrenceHint', { date: formatEventWhen(view) })}</p>
+        <label htmlFor="occurrence-name">{t('events.editor.name')}</label>
+        <input id="occurrence-name" className="form-control" maxLength={MAX_NAME} value={name} onChange={(e) => setName(e.target.value)} />
         <TimeInputs
           label={t('events.editor.start')}
           idPrefix="occurrence-start"
@@ -86,7 +101,7 @@ function OccurrenceEditor({ event, onSaved, onClose }) {
           onTime={setStartTime}
           dateOnly={allDay}
         />
-        {event.end_time != null && (
+        {view.end_time != null && (
           <TimeInputs
             label={t('events.editor.end')}
             idPrefix="occurrence-end"
@@ -97,6 +112,29 @@ function OccurrenceEditor({ event, onSaved, onClose }) {
             dateOnly={allDay}
           />
         )}
+        {external && (
+          <>
+            <label htmlFor="occurrence-location">{t('events.editor.locationOptional')}</label>
+            <input
+              id="occurrence-location"
+              className="form-control"
+              maxLength={MAX_LOCATION}
+              placeholder={t('events.editor.locationPlaceholder')}
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
+          </>
+        )}
+        <label htmlFor="occurrence-description">{t('events.editor.description')}</label>
+        <textarea
+          id="occurrence-description"
+          className="form-control"
+          rows={3}
+          maxLength={MAX_DESCRIPTION}
+          placeholder={t('events.editor.descriptionPlaceholder')}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
       </form>
       {error && <p className="error-msg" role="alert">{error}</p>}
     </Modal>
@@ -123,11 +161,18 @@ function TimeInputs({ label, idPrefix, date, time, onDate, onTime, hint = null, 
 // one in, or somewhere else, where saying where is optional), what and when (name, all day or
 // not, start, end, how it repeats, description, cover, and the emoji and colour it has on the
 // calendar), then a look at the card before saving. The steps along the top go to that step, as
-// Next does: not past one with something missing. With `occurrence`, only the next occurrence of
-// a repeating event moves (OccurrenceEditor). A new event starts at `start` (unix s; a day
-// picked on the calendar) or the next whole hour.
-export default function EventEditor({ guild, event = null, occurrence = false, start = null, onSaved, onClose }) {
-  const editing = Boolean(event);
+// Next does: not past one with something missing. A repeating event (`event`) is edited as a
+// whole (`scope` 'all'), from its occurrence `occurrence` (an original start) on ('following':
+// the form starts from that date's, and the server makes the new event that takes over then),
+// or that occurrence alone ('this': OccurrenceEditor). A new event starts at `start` (unix s; a
+// day picked on the calendar) or the next whole hour.
+export default function EventEditor({ guild, event: series = null, scope = 'all', occurrence = null, start = null, onSaved, onClose }) {
+  const editing = Boolean(series);
+  // What the form starts from: the series, or the occurrence edited.
+  const event = useMemo(
+    () => (series && scope !== 'all' && occurrence != null ? occurrenceView(series, occurrence) : series),
+    [series, scope, occurrence],
+  );
   const voiceChannels = useMemo(() => eventVoiceChannels(guild), [guild]);
   const canExternal = has(guild.my_permissions, PERMISSIONS.CREATE_EVENTS) || (editing && event.entity_type === 'external');
   const initialStart = toInputs(event?.start_time ?? start ?? defaultStart());
@@ -167,7 +212,10 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
   const rule = repeat === 'custom' ? event?.recurrence : startDay ? ruleFor(repeat, startDay) : null;
   const started = event?.status === 'active';
 
-  if (occurrence && event) return <OccurrenceEditor event={event} onSaved={onSaved} onClose={onClose} />;
+  if (scope === 'this' && event?.recurrence) return <OccurrenceEditor view={event} onSaved={onSaved} onClose={onClose} />;
+  const following = scope === 'following' && Boolean(event?.recurrence) && occurrence != null;
+  // Editing every date anew drops what single ones changed (the server does): say so.
+  const changedDates = scope === 'all' && (series?.occurrences ?? []).length > 0;
 
   // What's wrong with the step, if anything.
   function problem(at) {
@@ -275,7 +323,7 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
     setBusy(true);
     setError(null);
     try {
-      onSaved(editing ? await updateEvent(event.id, fields) : await createEvent(guild.id, fields));
+      onSaved(editing ? await updateEvent(series.id, fields, following ? { from: occurrence } : {}) : await createEvent(guild.id, fields));
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
@@ -286,7 +334,7 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
   const picker = picking && reactionPickerPosition(picking);
   return (
     <Modal
-      title={editing ? t('events.editor.editTitle') : t('events.editor.createTitle')}
+      title={following ? t('events.editor.followingTitle') : editing ? t('events.editor.editTitle') : t('events.editor.createTitle')}
       className="event-editor"
       // A click outside while picking an emoji only closes the picker (so does Escape, see Modal).
       onClose={picking ? closePicker : onClose}
@@ -363,6 +411,8 @@ export default function EventEditor({ guild, event = null, occurrence = false, s
 
       {step === 'info' && (
         <div className="vc-form">
+          {following && <p className="vc-hint">{t('events.editor.followingHint', { date: formatEventWhen(event) })}</p>}
+          {changedDates && <p className="vc-hint">{t('events.editor.allHint')}</p>}
           <label htmlFor="event-name">{t('events.editor.name')}</label>
           <input
             id="event-name"

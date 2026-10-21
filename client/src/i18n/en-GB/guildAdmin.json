@@ -406,7 +406,9 @@
         },
         "repeat": {
           "changed": "How it repeats changed",
-          "removed": "No longer repeats"
+          "removed": "No longer repeats",
+          "split": "Later dates changed: they're now a separate event",
+          "shortened": "Later dates cancelled"
         }
       },
       "age": {

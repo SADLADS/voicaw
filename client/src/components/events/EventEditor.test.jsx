@@ -5,13 +5,14 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 vi.mock('../../services/guildService', () => ({
   createEvent: vi.fn(async (guildId, fields) => ({ id: 80, guild_id: guildId, ...fields, status: 'scheduled', user_count: 1, interested: true })),
   updateEvent: vi.fn(async (id, fields) => ({ id, ...fields })),
-  moveOccurrence: vi.fn(async (id, times) => ({ id, ...times })),
+  moveOccurrence: vi.fn(async (id, changes) => ({ id, ...changes })),
 }));
 vi.mock('../../services/attachmentUpload', () => ({ uploadAttachment: vi.fn() }));
 
 import EventEditor from './EventEditor';
-import { createEvent, moveOccurrence } from '../../services/guildService';
+import { createEvent, moveOccurrence, updateEvent } from '../../services/guildService';
 import { ConfigContext } from '../../contexts';
+import { occurrencesBetween } from '../../utils/eventRecurrence';
 
 const CREATE_EVENTS = 1 << 27;
 const CONNECT = 1 << 12;
@@ -136,15 +137,58 @@ describe('EventEditor', () => {
     expect(screen.getByLabelText('Event topic')).toHaveValue('Game night');
   });
 
-  it('moves just one occurrence', async () => {
+  // A weekly event somewhere else from tomorrow, and its second date.
+  function weekly() {
+    const start = Math.floor(Date.now() / 60000) * 60 + 86400;
+    const day = new Date(start * 1000);
+    const base = {
+      id: 9, name: 'Weekly', entity_type: 'external', location: 'x', start_time: start, end_time: start + 3600, duration: 3600,
+      occurrence_start: start, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, status: 'scheduled',
+      recurrence: { frequency: 2, interval: 1, by_weekday: [(day.getDay() + 6) % 7], by_n_weekday: null, by_month: null, by_month_day: null },
+    };
+    // A week on by the wall clock (the clocks may change in between).
+    const second = occurrencesBetween(base, start, start + 8 * 86400)[1].start;
+    const occurrences = [{ original_start: second, start_time: null, end_time: null, status: 'scheduled', name: 'Second week', description: null, location: null }];
+    return { event: { ...base, occurrences }, second };
+  }
+
+  it('changes just one occurrence', async () => {
     const onSaved = vi.fn();
-    const start = Math.floor(Date.now() / 1000) + 86400;
-    const event = { id: 9, name: 'Weekly', entity_type: 'external', location: 'x', start_time: start, end_time: start + 3600, recurrence: { frequency: 2, interval: 1, by_weekday: [0] } };
-    renderEditor({ event, occurrence: true, onSaved });
-    expect(screen.getByRole('dialog', { name: "Change this event's time" })).toBeInTheDocument();
+    const { event, second } = weekly();
+    renderEditor({ event, scope: 'this', occurrence: second, onSaved });
+    expect(screen.getByRole('dialog', { name: 'Edit this event' })).toBeInTheDocument();
+    // It starts from that date's own name.
+    expect(screen.getByLabelText('Event topic')).toHaveValue('Second week');
     fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '08:30' } });
+    fireEvent.change(screen.getByLabelText('Location (optional)'), { target: { value: 'The park' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    expect(new Date(moveOccurrence.mock.calls[0][1].startTime * 1000).getHours()).toBe(8);
+    const [id, changes] = moveOccurrence.mock.calls[0];
+    expect(id).toBe(9);
+    expect(changes).toMatchObject({ occurrence: second, name: 'Second week', location: 'The park', description: null });
+    expect(new Date(changes.startTime * 1000).getHours()).toBe(8);
+  });
+
+  it('changes this and following from the date picked', async () => {
+    const onSaved = vi.fn();
+    const { event, second } = weekly();
+    renderEditor({ event, scope: 'following', occurrence: second, onSaved });
+    expect(screen.getByRole('dialog', { name: 'Edit this and following events' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText(/and every date after it change/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Event topic')).toHaveValue('Second week');
+    fireEvent.change(screen.getByLabelText('Event topic'), { target: { value: 'Weekly, later' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    const [id, fields, options] = updateEvent.mock.calls[0];
+    expect([id, options]).toEqual([9, { from: second }]);
+    expect(fields).toMatchObject({ name: 'Weekly, later', startTime: second, recurrence: event.recurrence });
+  });
+
+  it('says editing every date drops single dates\' changes', () => {
+    renderEditor({ event: weekly().event, scope: 'all' });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText(/undoes changes made to single dates/)).toBeInTheDocument();
   });
 });
