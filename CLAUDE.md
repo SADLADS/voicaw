@@ -70,12 +70,13 @@ Run from the repo root unless noted.
 - `npm run dist:electron:win` — the same build, then the Windows installer in Docker with wine
   (`electron/dist-win.sh`, electron-builder's image; unsigned)
 - `./release_all.sh [patch|minor|major|X.Y.Z]` — releases everything as one version, never
-  asking first: the desktop and Android apps built by GitHub (tags the commit `desktop-vX.Y.Z`
+  asking first (gitignored: it's only in the live checkout, not in worktrees or on GitHub): the desktop and Android apps built by GitHub (tags the commit `desktop-vX.Y.Z`
   and pushes the tag; `.github/workflows/desktop-release.yml` builds and attests the installers
   and the unsigned APK and App Bundle), downloaded, checked (`gh`), Android signed on the host
   (`mobile/sign-android.sh`) and published to updates.voicaw.com, the signed APK added to the
-  GitHub Release, the bundle uploaded to Google Play (`updates/publish-play.mjs`); and the web
-  app (`npm run build`). `--no-publish` (only checked and signed), `--no-web`, `--no-android`,
+  GitHub Release, the bundle uploaded to Google Play (`updates/publish-play.mjs`); the web
+  app (`npm run build`); and the API (`pm2 restart voicaw-api`, only when pm2 runs it from that
+  checkout). `--no-publish` (only checked and signed), `--no-web`, `--no-api`, `--no-android`,
   `--no-play`; the same X.Y.Z again re-runs a tagged release. Publishing touches the live sites:
   only when the user asks
 - `npm run dist:android` — the client's Android build, `cap sync`, then the APK (and the native

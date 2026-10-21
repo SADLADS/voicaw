@@ -457,7 +457,9 @@ sudo apt update && sudo apt install gh
 gh auth login
 ```
 
-Then, from a checkout whose commit is pushed to GitHub (usually `master`, with nothing uncommitted):
+Then, from a checkout whose commit is pushed to GitHub (usually `master`, with nothing uncommitted).
+`release_all.sh` isn't in git (it's in `.gitignore`): it's kept only in the live checkout, so a
+new host needs a copy from the old one.
 
 ```bash
 ./release_all.sh                  # desktop, web app and Android; patch, or minor, major, X.Y.Z
@@ -465,6 +467,7 @@ Then, from a checkout whose commit is pushed to GitHub (usually `master`, with n
                                   # dist-android/), nothing published or deployed
 ./release_all.sh --no-web --no-android   # the desktop app alone
 ./release_all.sh --no-play        # all but the Google Play upload
+./release_all.sh --no-api         # all but restarting the API
 ```
 
 It doesn't ask first. It picks the next version (above what updates.voicaw.com has, desktop
@@ -474,7 +477,8 @@ follow it on GitHub's Actions tab), waits for it, downloads the GitHub Release i
 `dist-release/X.Y.Z/`, runs `gh attestation verify` on every file (built by that workflow, from
 that commit, on GitHub's machines; anything else stops it), then publishes with
 `node updates/publish.mjs dist-release/X.Y.Z` (which rebuilds voicaw.com's download links too)
-and checks the site serves the new version. Then it deploys the web app (`npm run build`) and
+and checks the site serves the new version. Then it deploys the web app (`npm run build`),
+restarts the API (`pm2 restart voicaw-api`, only when pm2 runs it from this checkout), and
 releases the Android app as the same X.Y.Z (section 10, "Releases built by GitHub": signed here,
 the APK published and added to the GitHub Release, the bundle uploaded to Google Play, the
 `android-vX.Y.Z` tag pushed). What Android needs (the release key, GitHub's
