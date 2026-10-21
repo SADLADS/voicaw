@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useRef, useState } from 'react';
 import { act, render } from '@testing-library/react';
 import { BrowserRouter, unstable_HistoryRouter as HistoryRouter, useLocation, useNavigate } from 'react-router-dom';
-import { useSwipePanes } from './useSwipePanes';
+import { springAt, useSwipePanes } from './useSwipePanes';
 import { useBackClosesWhile } from './useBackCloses';
 import { showContent, showList } from '../utils/mobilePanes';
 import { createPhoneHistory, isPanesPage } from '../utils/phoneHistory';
@@ -239,5 +239,26 @@ describe('useSwipePanes', () => {
     expect(pane()).toBe('list');
     expect(window.history.state?.voicawPane).toBeUndefined();
     expect(window.history.state?.testPanel).toBeUndefined();
+  });
+});
+
+describe('springAt', () => {
+  it('starts where it was let go and comes to rest at the target', () => {
+    expect(springAt(390, 0, 0, 0)).toEqual({ x: 390, v: 0 });
+    const end = springAt(390, 0, 0, 1);
+    expect(Math.abs(end.x)).toBeLessThan(0.5);
+    expect(Math.abs(end.v)).toBeLessThan(30);
+  });
+
+  // Stepping the spring per frame made the pane shake back and forth on slow frames.
+  it('never turns back, however slow the frames', () => {
+    for (const fps of [120, 60, 30, 10]) {
+      let last = 390;
+      for (let frame = 1; frame <= fps; frame++) {
+        const { x } = springAt(390, 0, 0, frame / fps);
+        expect(x).toBeLessThanOrEqual(last);
+        last = x;
+      }
+    }
   });
 });

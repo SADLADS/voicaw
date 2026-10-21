@@ -385,7 +385,9 @@
   `/settings` alone opens on the list (`opensOnList`), My Account behind it. A sideways swipe
   (decided after 8px, so scrolling never moves them; not in pickers, sheets, member panels or
   anything that scrolls sideways itself) drags the chat with the finger, and letting go
-  finishes or undoes it by position and speed (a critically damped spring); the list moves a
+  finishes or undoes it by position and speed (a critically damped spring, computed exactly
+  from the time since letting go, not stepped per frame: stepping made it shake back and forth
+  under ~45 fps, as on an iPhone opening a channel, 2026-10-21; `e2e/paneshake.mjs`); the list moves a
   little and dims behind it. A guild's member list (the header's button) covers the whole
   guild page on a phone, header included, with a back arrow; Back (`useBackCloses`) or a swipe
   to the right closes it (`hooks/useSwipeToClose.js`: it follows the finger and settles closed

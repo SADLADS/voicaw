@@ -37,7 +37,7 @@ const FLING_PX_PER_MS = 0.35; // a flick at least this fast goes its way, wherev
 const PARALLAX = 0.3; // how far the list moves behind the content, as a share of the width
 const SCRIM_OPACITY = 0.5;
 const STIFFNESS = 520; // spring, critically damped (no bounce)
-const DAMPING = 2 * Math.sqrt(STIFFNESS);
+const OMEGA = Math.sqrt(STIFFNESS);
 // Touches that start in these don't move the panes (their own gestures, or panels over the chat).
 const NO_SWIPE = '.emoji-picker, .action-sheet-backdrop, .action-sheet, .member-list, .group-members, '
   + '[role="dialog"], input[type="range"], [data-no-pane-swipe]';
@@ -59,6 +59,17 @@ function clearMark() {
 function hide(el, hidden) {
   if (hidden) el?.setAttribute('aria-hidden', 'true');
   else el?.removeAttribute('aria-hidden');
+}
+
+// Where the spring has the panes `t` seconds after leaving `from` at `v` (px/s) for `target`,
+// and how fast they're moving: the exact solution, not steps per frame. Stepping it (Euler)
+// went unstable on slow frames (under ~45 fps, as while a phone draws the chat it slides in,
+// or an iPhone in Low Power Mode): the pane shook back and forth for most of a second.
+export function springAt(from, v, target, t) {
+  const a = from - target;
+  const b = v + OMEGA * a;
+  const decay = Math.exp(-OMEGA * t);
+  return { x: target + (a + b * t) * decay, v: (b - OMEGA * (a + b * t)) * decay };
 }
 
 // Can `el` (or anything between it and `stop`) scroll sideways in the direction a finger
@@ -182,12 +193,11 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
     m.x = x0;
     m.v = v;
     m.target = target;
-    let last = performance.now();
+    const start = performance.now();
     const step = (now) => {
-      const dt = Math.min((now - last) / 1000, 1 / 30);
-      last = now;
-      m.v += (-STIFFNESS * (m.x - target) - DAMPING * m.v) * dt;
-      m.x = Math.min(Math.max(m.x + m.v * dt, 0), w);
+      const at = springAt(x0, v, target, Math.max(0, now - start) / 1000);
+      m.x = Math.min(Math.max(at.x, 0), w);
+      m.v = at.v;
       if (Math.abs(m.x - target) < 0.5 && Math.abs(m.v) < 30) {
         rest();
         return;
