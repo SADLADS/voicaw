@@ -26,7 +26,7 @@ Each feature is worked on in its own chat, on its own branch, in its own worktre
   removed on 2026-10-02. After a merge, the API is updated with `git pull` there (`npm install`
   if the lockfile changed) and `pm2 restart voicaw-api`, only when the user asks. The web app at
   app.voicaw.com is a static build in `/opt/voicaw-client`, only updated by running `npm run
-  build` by hand (`release_all.sh` runs it too); voicaw.com is the info and download site (`website/`, `/opt/voicaw-site`, see
+  build` by hand; voicaw.com is the info and download site (`website/`, `/opt/voicaw-site`, see
   `docs/desktop-and-site.md`). Voice runs on a self-hosted LiveKit server, pm2 `voicaw-livekit` (`~/livekit`, not
   in git).
 - **Never commit to, merge into, push, reset or otherwise move `master`.** Branch off it
@@ -69,26 +69,12 @@ Run from the repo root unless noted.
 - `npm run dist:electron` — the same build, then installers in `dist-desktop/` (electron-builder)
 - `npm run dist:electron:win` — the same build, then the Windows installer in Docker with wine
   (`electron/dist-win.sh`, electron-builder's image; unsigned)
-- `./release_all.sh [patch|minor|major|X.Y.Z]` — releases everything as one version, never
-  asking first (gitignored: it's only in the live checkout, not in worktrees or on GitHub): the desktop and Android apps built by GitHub (tags the commit `desktop-vX.Y.Z`
-  and pushes the tag; `.github/workflows/desktop-release.yml` builds and attests the installers
-  and the unsigned APK and App Bundle), downloaded, checked (`gh`), Android signed on the host
-  (`mobile/sign-android.sh`) and published to updates.voicaw.com, the signed APK added to the
-  GitHub Release, the bundle uploaded to Google Play (`updates/publish-play.mjs`); the web
-  app (`npm run build`); and the API (`pm2 restart voicaw-api`, only when pm2 runs it from that
-  checkout). `--no-publish` (only checked and signed), `--no-web`, `--no-api`, `--no-android`,
-  `--no-play`; the same X.Y.Z again re-runs a tagged release. Publishing touches the live sites:
-  only when the user asks
+- Releases (desktop and Android as one version: GitHub builds them from a pushed
+  `desktop-vX.Y.Z` tag, the host checks the attestations, signs Android and publishes; then the
+  web app and an API restart): by hand, README "Desktop app" and "Android app". Publishing
+  touches the live sites: only when the user asks
 - `npm run dist:android` — the client's Android build, `cap sync`, then the APK (and the native
-  JUnit tests) in Docker (`mobile/dist-android.sh`) into `dist-android/voicaw-debug.apk`;
-  `./build-android.sh [patch|minor|major|X.Y.Z]` releases: next version, APK signed with the
-  release key (`~/.voicaw-android-keys`, `mobile/make-release-key.sh`), published to
-  updates.voicaw.com/android/ only for copies already installed from there
-  (`updates/publish-android.mjs`); `--no-publish`,
-  `--debug`; stops without `google-services.json` (`--no-push` builds without). Each release
-  also builds `dist-android/voicaw-<version>-play.aab` for the Play Console (uploaded by hand;
-  `release_all.sh` uploads its own).
-  Publishing touches the live sites: only when the user asks
+  JUnit tests) in Docker (`mobile/dist-android.sh`) into `dist-android/voicaw-debug.apk`
 
 Client-only (run inside `client/`):
 - `npm run lint` — ESLint over `client/src`

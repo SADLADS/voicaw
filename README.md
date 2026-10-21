@@ -457,42 +457,53 @@ sudo apt update && sudo apt install gh
 gh auth login
 ```
 
-Then, from a checkout whose commit is pushed to GitHub (usually `master`, with nothing uncommitted).
-`release_all.sh` isn't in git (it's in `.gitignore`): it's kept only in the live checkout, so a
-new host needs a copy from the old one.
+A release, desktop and Android together as one version X.Y.Z (they share version numbers), from
+a commit that's on GitHub (usually `master`). Below, `X.Y.Z` is the new version and `R` is
+`SADLADS/voicaw`.
 
-```bash
-./release_all.sh                  # desktop, web app and Android; patch, or minor, major, X.Y.Z
-./release_all.sh --no-publish     # downloaded, checked and signed (dist-release/X.Y.Z/,
-                                  # dist-android/), nothing published or deployed
-./release_all.sh --no-web --no-android   # the desktop app alone
-./release_all.sh --no-play        # all but the Google Play upload
-./release_all.sh --no-api         # all but restarting the API
-```
+1. **The version:** higher than what updates.voicaw.com has (`/opt/voicaw-updates/desktop/releases.json`
+   and `android/releases.json`) and than every `desktop-v*` tag (`git ls-remote --tags origin
+   'desktop-v*'`). Y and Z stay under 100 (Android's versionCode is X·10000 + Y·100 + Z).
+2. **Tag it and push the tag**, which starts the workflow (Linux, Windows and Android; follow it
+   on GitHub's Actions tab, or `gh run watch`):
+   ```bash
+   git tag -a desktop-vX.Y.Z -m "Desktop app X.Y.Z" && git push origin desktop-vX.Y.Z
+   ```
+3. **Download the GitHub Release** once it's built, and put the Windows installer's original
+   name back: GitHub turns spaces into dots, but the update feeds name `Voicaw Setup X.Y.Z.exe`:
+   ```bash
+   gh release download desktop-vX.Y.Z --repo R --dir dist-release/X.Y.Z
+   cd dist-release/X.Y.Z
+   mv Voicaw.Setup.X.Y.Z.exe "Voicaw Setup X.Y.Z.exe"
+   mv Voicaw.Setup.X.Y.Z.exe.blockmap "Voicaw Setup X.Y.Z.exe.blockmap"
+   ```
+4. **Check every file was built by the workflow, from that tag and commit, on GitHub's machines**
+   (attestations go by content, so renamed files still check out). Publish nothing that fails:
+   ```bash
+   for f in *; do gh attestation verify "$f" --repo R \
+     --signer-workflow R/.github/workflows/desktop-release.yml \
+     --source-ref refs/tags/desktop-vX.Y.Z --source-digest "$(git rev-parse 'desktop-vX.Y.Z^{commit}')" \
+     --deny-self-hosted-runners > /dev/null || echo "FAILED: $f"; done
+   grep '^version' latest*.yml        # each says X.Y.Z
+   mkdir android && mv *.apk *.aab android/ && cd ../..   # Android's files apart
+   ```
+5. **Publish the desktop app:** `node updates/publish.mjs dist-release/X.Y.Z` (it rebuilds
+   voicaw.com's download links too), then check `https://updates.voicaw.com/desktop/latest-linux.yml`
+   says X.Y.Z.
+6. **Android**, the same version: section 10, "Releases built by GitHub".
+7. **The web app:** `npm install && npm run build` (put live only if the build succeeds).
+8. **The API**, in the live checkout: `git pull`, `npm install` if the lockfile changed, then
+   `pm2 restart voicaw-api`, so the server runs the code the apps just got.
 
-It doesn't ask first. It picks the next version (above what updates.voicaw.com has, desktop
-and Android, and every `desktop-vX.Y.Z` tag: the apps share version numbers), tags the commit
-`desktop-vX.Y.Z` and pushes the tag, which starts the workflow (Linux, Windows and Android;
-follow it on GitHub's Actions tab), waits for it, downloads the GitHub Release into
-`dist-release/X.Y.Z/`, runs `gh attestation verify` on every file (built by that workflow, from
-that commit, on GitHub's machines; anything else stops it), then publishes with
-`node updates/publish.mjs dist-release/X.Y.Z` (which rebuilds voicaw.com's download links too)
-and checks the site serves the new version. Then it deploys the web app (`npm run build`),
-restarts the API (`pm2 restart voicaw-api`, only when pm2 runs it from this checkout), and
-releases the Android app as the same X.Y.Z (section 10, "Releases built by GitHub": signed here,
-the APK published and added to the GitHub Release, the bundle uploaded to Google Play, the
-`android-vX.Y.Z` tag pushed). What Android needs (the release key, GitHub's
-`GOOGLE_SERVICES_JSON` secret, Play's key) is checked before anything starts.
 GitHub never gets a key to the host or the app. A failed build can be retried from the Actions
-tab ("Re-run jobs"), and `./release_all.sh X.Y.Z` with a version already tagged runs that
-release again, published or not: every step is safe to repeat, so it also retries one that
-failed (a Play upload, say). Releases tagged before GitHub built Android are built here instead.
+tab ("Re-run jobs"). Every step is safe to repeat, so one that failed (a Play upload, say) can
+just be run again.
 
 Building and publishing on the host still works (try-outs, or without GitHub): build, then
 `node updates/publish.mjs` (`dist-desktop/` into `/opt/voicaw-updates`, or `<buildDir> <siteDir>`),
 with `VOICAW_VERSION=X.Y.Z` stamping the version into the build.
 
-The script copies the installers first and the `latest*.yml` feeds last (so an app never sees a
+`publish.mjs` copies the installers first and the `latest*.yml` feeds last (so an app never sees a
 feed naming a file that isn't there yet), updates the page's list (`desktop/releases.json`), and
 keeps older installers. Installers built on other machines (Windows, macOS) are published the
 same way from their own folder: each run only replaces the systems it brings. The feeds and the
@@ -516,20 +527,27 @@ The Android app (`mobile/`, Capacitor) ships its own copy of the client like the
 allow it too, which MinIO does by default). It builds in Docker, so the host needs nothing else:
 
 ```bash
-./build-android.sh [patch|minor|major|X.Y.Z]   # release: next version, signed APK, published
-./build-android.sh --no-publish                     # the same, only built (dist-android/)
-./build-android.sh --debug                          # dist-android/voicaw-debug.apk, never published
+npm run dist:android   # dist-android/voicaw-debug.apk (debug key, mobile/package.json's version)
 ```
 
 The first run builds the `voicaw-android-build` image (JDK 21 and the Android SDK,
 `mobile/Dockerfile`, a few GB) and Gradle's downloads (kept in `~/.gradle`). The client build uses
-`client/.env.production`, unless there's a `client/.env.android`. Like the desktop release
-scripts, it never changes tracked files: the version (one higher than the one published; the
-first is `mobile/package.json`'s) is stamped into the build, and versionCode is X·10000 + Y·100 +
-Z, so Y and Z stay under 100. A published release tags the commit it was built from as
-`android-vX.Y.Z` (annotated, local: `git push origin android-vX.Y.Z` to share it; `--push-tag`
-pushes it, as `./release_all.sh` does, so both tags reach GitHub); desktop releases
-are tagged `desktop-vX.Y.Z`.
+`client/.env.production`, unless there's a `client/.env.android`. Releases are built by GitHub
+with the desktop app (below). A release built on the host instead, never changing tracked files
+(the version is stamped into the build: `node updates/publish-android.mjs next patch` prints the
+next one, higher than the one published; the first is `mobile/package.json`'s):
+
+```bash
+npm install
+npm run build:android --workspace=client
+(cd mobile && npx cap sync android)
+VOICAW_VERSION=X.Y.Z sh mobile/dist-android.sh release   # dist-android/voicaw-X.Y.Z.apk and -play.aab
+```
+
+versionCode is X·10000 + Y·100 + Z, so Y and Z stay under 100. Each release is tagged
+`android-vX.Y.Z` on the commit it was built from (`git tag -a android-vX.Y.Z <commit> -m
+"Android app X.Y.Z" && git push origin android-vX.Y.Z`); desktop releases are tagged
+`desktop-vX.Y.Z`.
 
 **The release key**, made once (not once per machine):
 
@@ -543,7 +561,7 @@ uninstalls and installs again (logging in again). If the app goes on Google Play
 as its app signing key, so the website's APK and Play's update each other (it is: closed test,
 2026-10-06).
 
-**Publishing** (`updates/publish-android.mjs`, run by `build-android.sh`) puts
+**Publishing** (`node updates/publish-android.mjs publish dist-android/voicaw-X.Y.Z.apk X.Y.Z`) puts
 `voicaw-<version>.apk`, `releases.json` and `voicaw.apk` (always the newest) in
 `/opt/voicaw-updates/android/`. Since the app went to Google Play (2026-10-06) nothing offers
 them: they're only for the copies already installed from there, which keep updating themselves.
@@ -556,13 +574,25 @@ the person taps Update,
 downloads the APK and asks Android to install it (Android asks once to allow installs from
 Voicaw). `VOICAW_UPDATE_URL` at build time points a try-out build at another update folder.
 
-**Releases built by GitHub.** `./release_all.sh` (section 9) doesn't build Android here: GitHub's
-release workflow builds the APK and the App Bundle unsigned (`mobile/dist-android.sh unsigned`,
-in the same Docker image) and attests them; `release_all.sh` checks the attestations, signs both
-here (`mobile/sign-android.sh`: the key never goes to GitHub), publishes the APK as below, adds
-it to the GitHub Release next to the unsigned one, uploads the bundle to Google Play and pushes
-`android-vX.Y.Z`. Anyone can check that the signed APK is GitHub's build plus our signature and
-nothing else (with `pip install apksigcopier` and the Android SDK's `apksigner`):
+**Releases built by GitHub.** Android isn't built here for a release: GitHub's release workflow
+(section 9) builds the APK and the App Bundle unsigned (`mobile/dist-android.sh unsigned`, in the
+same Docker image) and attests them. After section 9's step 4 (attestations checked, the files in
+`dist-release/X.Y.Z/android/`), from the checkout:
+
+```bash
+# Sign both here: the key never goes to GitHub (into dist-android/)
+mobile/sign-android.sh dist-release/X.Y.Z/android/voicaw-X.Y.Z-unsigned.apk \
+  dist-release/X.Y.Z/android/voicaw-X.Y.Z-play-unsigned.aab X.Y.Z
+node updates/publish-android.mjs publish dist-android/voicaw-X.Y.Z.apk X.Y.Z   # update site
+gh release upload desktop-vX.Y.Z dist-android/voicaw-X.Y.Z.apk --repo SADLADS/voicaw --clobber
+node updates/publish-play.mjs dist-android/voicaw-X.Y.Z-play.aab X.Y.Z         # Google Play
+git tag -a android-vX.Y.Z "$(git rev-parse 'desktop-vX.Y.Z^{commit}')" -m "Android app X.Y.Z"
+git push origin android-vX.Y.Z
+```
+
+The signed APK sits in the GitHub Release next to the unsigned one. Anyone can check it's
+GitHub's build plus our signature and nothing else (with `pip install apksigcopier` and the
+Android SDK's `apksigner`):
 
 ```bash
 gh attestation verify voicaw-X.Y.Z-unsigned.apk --repo SADLADS/voicaw
@@ -575,14 +605,14 @@ The release key's certificate SHA-256 is
 
 GitHub's build needs `google-services.json` (below) as a repository secret, set once:
 `gh secret set GOOGLE_SERVICES_JSON --repo SADLADS/voicaw < mobile/android/app/google-services.json`
-(again whenever the file changes). `./build-android.sh` still builds and publishes on the host.
+(again whenever the file changes).
 
 **Google Play.** Every release also builds the same version as an App Bundle of the `play` flavour
 (`dist-android/voicaw-<version>-play.aab`, signed with the release key), which never updates
-itself (Play's rules forbid it) and lacks the permission to install packages. `release_all.sh`
+itself (Play's rules forbid it) and lacks the permission to install packages. `updates/publish-play.mjs`
 uploads it and releases it on Play's closed-testing track (`alpha`; new personal accounts need 12
 testers for 14 days before production; `VOICAW_PLAY_TRACK=production` once out of it) through
-the Google Play Developer API (`updates/publish-play.mjs`), once it has a key for it, set up once:
+the Google Play Developer API, once it has a key for it, set up once:
 
 1. In the Google Cloud console (the Firebase project will do), enable the **Google Play Android
    Developer API**, then IAM & Admin → Service accounts → Create service account (no roles), and
@@ -593,8 +623,7 @@ the Google Play Developer API (`updates/publish-play.mjs`), once it has a key fo
    later). Google can take a while (up to a day) before it's allowed. `node
    updates/publish-play.mjs check` logs in and lists the tracks without changing anything.
 
-Without the key, `release_all.sh` says so and leaves the bundle in `dist-android/` to upload by
-hand in the Play Console; `--no-play` does the same on purpose. Play needs each upload's version
+Without the key, upload the bundle from `dist-android/` by hand in the Play Console. Play needs each upload's version
 higher than the last, so upload the bundle of each new release, never a rebuild of an old one. The first time, Play asks how the app is
 signed: choose to **use your own key** ("Use a different app signing key" / "Export and upload a
 key from Java keystore"), download the PEPK tool and encryption key it offers, and run the

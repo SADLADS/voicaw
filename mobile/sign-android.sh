@@ -1,7 +1,7 @@
 #!/bin/sh
 # Signs an unsigned Android release (GitHub's build, `mobile/dist-android.sh unsigned`) with the
-# release key, on this machine: the key never goes to GitHub. release_all.sh runs it after
-# checking the files' attestations.
+# release key, on this machine: the key never goes to GitHub. Run it after checking the files'
+# attestations (README "Android app").
 #   mobile/sign-android.sh <unsigned.apk> <unsigned-play.aab> <version>
 # Makes dist-android/voicaw-<version>.apk (apksigner, v2/v3 signatures only, as minSdk is 26, and
 # the entries kept exactly as built, so anyone can check the signed APK is GitHub's build plus

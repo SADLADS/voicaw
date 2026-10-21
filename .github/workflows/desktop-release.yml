@@ -1,10 +1,10 @@
-# Releases, built by GitHub from the tagged commit (release_all.sh pushes the tag): the desktop
+# Releases, built by GitHub from the tagged commit (pushing a desktop-vX.Y.Z tag): the desktop
 # app and the Android app (unsigned). Every file is attested (Sigstore,
 # actions/attest-build-provenance): anyone can check that an installer, APK or update feed was
 # built here, by this workflow, from which commit:
 #   gh attestation verify Voicaw-1.2.3.AppImage --repo SADLADS/voicaw
 # The files go to a GitHub Release; the host downloads, verifies and publishes them to
-# updates.voicaw.com itself (release_all.sh), so GitHub holds no keys to our servers. The host
+# updates.voicaw.com itself (README "Desktop app"), so GitHub holds no keys to our servers. The host
 # also signs the Android app and adds the signed APK to the release (apksigcopier compare shows
 # it's the attested unsigned one plus a signature).
 name: Release
@@ -86,7 +86,7 @@ jobs:
             dist-desktop/*.blockmap
             dist-desktop/latest*.yml
 
-  # The Android app, unsigned: release_all.sh checks these files' attestations, then signs them on
+  # The Android app, unsigned: the host checks these files' attestations, then signs them on
   # the host (mobile/sign-android.sh), so the release key never comes here. Built in the same
   # image as on the host (mobile/Dockerfile, mobile/dist-android.sh), with the Java unit tests.
   android:

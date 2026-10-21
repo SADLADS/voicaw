@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
 
-// The version: VOICAW_VERSION (X.Y.Z, set by build-android.sh from the update site's latest),
+// The version: VOICAW_VERSION (X.Y.Z, the release's: GitHub's release workflow, or a host build),
 // else this package's own for a local build. versionCode, which Android compares for updates,
 // is X*10000 + Y*100 + Z, so Y and Z stay under 100.
 def voicawVersion = System.getenv('VOICAW_VERSION') ?: new groovy.json.JsonSlurper().parse(file('../../package.json')).version
@@ -47,7 +47,7 @@ android {
     // The release key (mobile/make-release-key.sh), from VOICAW_KEYSTORE and its password in
     // VOICAW_KEYSTORE_PASSWORD (mobile/dist-android.sh mounts and reads them). Without them a
     // release build fails rather than ship unsigned, unless VOICAW_UNSIGNED=1 asks for unsigned
-    // files on purpose (GitHub's release build: release_all.sh signs them on the host).
+    // files on purpose (GitHub's release build: the host signs them, mobile/sign-android.sh).
     signingConfigs {
         release {
             if (System.getenv('VOICAW_KEYSTORE')) {

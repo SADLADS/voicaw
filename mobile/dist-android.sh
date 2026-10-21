@@ -1,6 +1,6 @@
 #!/bin/sh
-# Builds the Android app (after the client build and `cap sync`; build-android.sh at the root
-# does it all): Gradle in the voicaw-android-build image (mobile/Dockerfile, built here the first
+# Builds the Android app (after the client build and `cap sync`; `npm run dist:android` does
+# all three for a debug build): Gradle in the voicaw-android-build image (mobile/Dockerfile, built here the first
 # time), so the host needs only Docker. Runs as you, so nothing is left owned by root; Gradle's
 # downloads are kept in ~/.gradle. Two flavours: `direct` (the APK we host, which updates itself)
 # and `play` (for Google Play, without the updater; compiled even in a debug build, to keep it
@@ -15,8 +15,8 @@
 #   mobile/dist-android.sh unsigned   the same two, unsigned (no key needed):
 #                                     dist-android/voicaw-<version>-unsigned.apk and
 #                                     voicaw-<version>-play-unsigned.aab. GitHub's release build
-#                                     (.github/workflows/desktop-release.yml); release_all.sh
-#                                     signs them on the host (mobile/sign-android.sh).
+#                                     (.github/workflows/desktop-release.yml); the host signs
+#                                     them (mobile/sign-android.sh).
 set -e
 root="$(cd "$(dirname "$0")/.." && pwd)"
 mode="${1:-debug}"

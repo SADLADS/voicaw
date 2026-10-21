@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Uploads an App Bundle to Google Play and releases it on a track (release_all.sh runs it), with
+// Uploads an App Bundle to Google Play and releases it on a track (README "Android app"), with
 // the Google Play Developer API: a new edit, the bundle, the track's release, then commit.
 //
 //   node updates/publish-play.mjs <signed-play.aab> <version>

@@ -134,7 +134,7 @@ console.log(`Published to ${siteDir}.`);
 
 // 4. voicaw.com's version and download links. The release is out either way; a failure here
 // only means the page shows the previous one until `npm run build:site`.
-// Going by the folder, not by whether one was named: release_all.sh always names it.
+// Going by the folder, not by whether one was named: a release always names it.
 const tryOut = siteDir !== path.resolve(DEFAULT_SITE_DIR) && !process.env.VOICAW_SITE_DIR;
 if (tryOut) {
     console.log('Not the real update site: voicaw.com left alone (set VOICAW_SITE_DIR to build one).');

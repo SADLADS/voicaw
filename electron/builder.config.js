@@ -8,7 +8,7 @@ const UPDATE_URL = process.env.VOICAW_UPDATE_URL || 'https://updates.voicaw.com/
 // VOICAW_AUTO_UPDATE=off: the build starts with automatic updates off (desktopSettings.js), for
 // people who build the app themselves and don't want it replaced by the published one.
 const AUTO_UPDATE = !/^(off|false|0|no)$/i.test(process.env.VOICAW_AUTO_UPDATE ?? '');
-// VOICAW_VERSION=X.Y.Z: the release's version, stamped into the build (release_all.sh's GitHub
+// VOICAW_VERSION=X.Y.Z: the release's version, stamped into the build (GitHub's release
 // workflow, .github/workflows/desktop-release.yml), so electron/package.json never changes.
 const VERSION = process.env.VOICAW_VERSION;
 if (VERSION && !/^\d+\.\d+\.\d+$/.test(VERSION)) throw new Error(`VOICAW_VERSION must be X.Y.Z, not ${VERSION}`);

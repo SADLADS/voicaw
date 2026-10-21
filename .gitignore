@@ -155,7 +155,5 @@ server/*.db-shm
 /dist-release/
 /build-android/
 /dist-android/
-# The release script lives only in the live checkout (README "Releases built by GitHub")
-/release_all.sh
 mobile/android/app/google-services.json
 server/fcm-service-account.json

@@ -233,8 +233,7 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   keeps its file name across updates, and in the Steam Deck's Gaming Mode nothing restarts (both
   above). Releases are
   only as trustworthy as that server (no signature of our own on the feed yet).
-- **Releases built by GitHub** (`.github/workflows/desktop-release.yml`, run by `release_all.sh`;
-  README "Desktop app"): a pushed `desktop-vX.Y.Z` tag builds the Linux and Windows installers
+- **Releases built by GitHub** (`.github/workflows/desktop-release.yml`; README "Desktop app"): a pushed `desktop-vX.Y.Z` tag builds the Linux and Windows installers
   on GitHub's machines from that commit (the version stamped in by `VOICAW_VERSION` in
   `builder.config.js`, `electron/package.json` untouched), attests each file and feed
   (`actions/attest-build-provenance`: Sigstore, in its public log) and makes a GitHub Release.
@@ -269,7 +268,7 @@ native bridge. Check real behaviour on a phone.
   (`ANDROID=true vite build --mode android` into `build-android/`, with `notify.html` as a second
   page), `cap sync` copies it into the APK, Gradle runs in Docker (`mobile/dist-android.sh`,
   image from `mobile/Dockerfile`). Min Android 8.0.
-- **Releases** (`./build-android.sh`, README "Android app"): versions follow the update site
+- **Releases** (README "Android app"): versions follow the update site
   (`updates/publish-android.mjs next`: one higher than published), stamped into the build
   (`VOICAW_VERSION` → Gradle's versionName / versionCode X·10000 + Y·100 + Z, and the user agent
   in the config `cap sync` generated), never into tracked files. Signed with the release key
@@ -281,14 +280,14 @@ native bridge. Check real behaviour on a phone.
   Google Play's closed test (see Info site). Each release also builds the same version as the
   `play` flavour's App Bundle (`dist-android/voicaw-<version>-play.aab`, `bundlePlayRelease`,
   same key; README "Android app": Play uses our own signing key, so the two builds can replace
-  each other). `release_all.sh` releases Android with the desktop app, as the same version:
+  each other). Android is released with the desktop app, as the same version:
   GitHub's release workflow builds both files unsigned and attests them, the host signs them
   (`mobile/sign-android.sh`, so the key never goes to GitHub), publishes the APK, adds it to the
   GitHub Release (anyone can check it's the attested build plus a signature, `apksigcopier
   compare`), uploads the bundle to Google Play's closed-testing track
   (`updates/publish-play.mjs`, the Play Developer API with a service account; by hand while
-  there's no key) and pushes the `android-vX.Y.Z` tag. `build-android.sh` alone builds and
-  publishes on the host and tags locally; desktop releases are `desktop-vX.Y.Z`.
+  there's no key) and pushes the `android-vX.Y.Z` tag. A release can also be built on the host
+  (`mobile/dist-android.sh release`); desktop releases are `desktop-vX.Y.Z`.
 - **Two builds** (Gradle flavours): `direct`, the APK above, which updates itself, and `play`,
   for Google Play, which mustn't (Play's rules: an app from Play updates only through Play, and
   the permission to install packages is restricted). The updater and that permission live only in

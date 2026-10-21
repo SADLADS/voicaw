@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The Android app's releases on the update site (updates.voicaw.com/android/, see README
-// "Android app"). build-android.sh uses both commands:
+// "Android app"):
 //
 //   node updates/publish-android.mjs next <patch|minor|major|X.Y.Z> [siteDir]
 //       prints the version this release gets: higher than the one published (or, before the
