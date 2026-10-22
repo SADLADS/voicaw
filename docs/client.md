@@ -66,7 +66,7 @@
   faces left (as the logo does) in the end-to-end encrypted chats (DMs, group DMs, notes) and
   Friends, and turns round to face right everywhere else, guilds, bot DMs (not encrypted) and
   Settings included. Moving between them, it turns over about its upright axis (CSS
-  `rotateY`, 0.46 s; none with reduced motion), while a click's pop is on the link around it,
+  `rotateY`, 0.28 s; none with reduced motion), while a click's pop is on the link around it,
   so the two don't cut each other short. No sound (the old logo's click played a Philly hit:
   the Logo sound went with it). The DM button (`Sidebar`
   `newestUnread`) shows the picture of whoever sent the newest unread DM, group or bot DM

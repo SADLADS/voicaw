@@ -62,7 +62,7 @@ const watched = async (page) => {
 };
 
 // The turn from `from` to `to` (±1): every frame between the two, no step bigger than a
-// smooth turn makes, taking about the transition's 0.46 s.
+// smooth turn makes, taking about the transition's 0.28 s.
 function checkTurn(frames, from, to, label) {
   const cos = frames.map((f) => f[1]);
   check(Math.abs(cos[0] - from) < 0.02 && Math.abs(cos[cos.length - 1] - to) < 0.02,
@@ -72,7 +72,7 @@ function checkTurn(frames, from, to, label) {
   const sign = Math.sign(to - from);
   const monotonic = cos.slice(1).every((c, i) => Math.sign(c - cos[i]) !== -sign || Math.abs(c - cos[i]) < 0.005);
   const span = moving.length ? moving[moving.length - 1][0] - moving[0][0] : 0;
-  check(moving.length >= 8 && Math.max(...steps) < 0.45 && monotonic && span > 300 && span < 700,
+  check(moving.length >= 6 && Math.max(...steps) < 0.45 && monotonic && span > 150 && span < 450,
     `${label}: turns smoothly (${moving.length} frames over ${Math.round(span)} ms, biggest step ${Math.max(...steps).toFixed(2)})`);
 }
 const peakScale = (frames) => Math.max(...frames.map((f) => f[2]));
