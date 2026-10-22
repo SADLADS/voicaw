@@ -667,10 +667,6 @@
       "outgoingRing": {
         "label": "Исходящий звонок",
         "description": "Идёт вызов"
-      },
-      "logo": {
-        "label": "Логотип",
-        "description": "Вы нажимаете на птицу Voicaw"
       }
     },
     "spellcheck": {

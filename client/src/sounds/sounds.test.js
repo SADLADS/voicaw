@@ -55,27 +55,40 @@ describe('sounds', () => {
     expect(out.connect).toHaveBeenCalledWith(expect.objectContaining({ kind: 'destination' }));
   });
 
-  it('plays the logo\'s hit.mp3 turned down, on every click', async () => {
+  // No sound uses a file, detune or a filter today: a stand-in one tries them.
+  const recorded = () => {
+    soundList.SOUNDS.recorded = {
+      labelKey: 'settings.sounds.message.label',
+      file: '/sounds/recorded.mp3',
+      fileVolume: 0.3,
+      tone: { notes: [[0, 130.81, 0.9], [0, 261.63, 0.9]], volume: 0.035, wave: 'sawtooth', detune: 10, filter: { from: 7000, to: 700, length: 0.5, q: 2 } },
+      minGap: 0,
+    };
+  };
+
+  it('plays a sound\'s file turned down, every time', async () => {
+    recorded();
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) })));
-    sounds.playSound('logo');
-    sounds.playSound('logo');
+    sounds.playSound('recorded');
+    sounds.playSound('recorded');
     await flush();
     await flush();
-    expect(fetch).toHaveBeenCalledWith('/sounds/hit.mp3');
+    expect(fetch).toHaveBeenCalledWith('/sounds/recorded.mp3');
     const sources = made.filter((n) => n.kind === 'buffer');
     expect(sources).toHaveLength(2);
     const level = sources[0].connect.mock.calls[0][0];
-    expect(level.gain.value).toBe(soundList.SOUNDS.logo.fileVolume);
+    expect(level.gain.value).toBe(0.3);
     expect(oscillators()).toEqual([]);
   });
 
-  it('falls back to a Philly hit of detuned pairs through a closing lowpass without the file', async () => {
+  it('falls back to its tone without the file: detuned pairs through a closing lowpass', async () => {
+    recorded();
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404 })));
-    sounds.playSound('logo');
+    sounds.playSound('recorded');
     await flush();
     await flush();
-    const { notes, detune } = soundList.SOUNDS.logo.tone;
+    const { notes, detune } = soundList.SOUNDS.recorded.tone;
     expect(oscillators()).toHaveLength(notes.length * 2);
     expect(oscillators().slice(0, 2).map((o) => o.detune.value)).toEqual([-detune, detune]);
     const filter = made.find((n) => n.kind === 'filter');

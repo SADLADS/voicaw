@@ -64,24 +64,6 @@ export const SOUNDS = {
     tone: { notes: [[0, 440, 1.5], [0, 480, 1.5]], volume: 0.05, shape: 'flat' },
     every: 4000,
   },
-  logo: {
-    labelKey: 'settings.sounds.logo.label',
-    descriptionKey: 'settings.sounds.logo.description',
-    // A Philly hit (the 80s orchestra stab). The file peaks near full scale, so it's turned down
-    // to the tones' level. If it can't load: a big C major chord of detuned saws, struck all at
-    // once, through a lowpass closing fast. Every click on the bird while on the DM side plays,
-    // however quick.
-    file: '/sounds/hit.mp3',
-    fileVolume: 0.3,
-    tone: {
-      notes: [65.41, 130.81, 196, 261.63, 329.63, 392, 523.25].map((frequency) => [0, frequency, 0.9]),
-      volume: 0.035,
-      wave: 'sawtooth',
-      detune: 10,
-      filter: { from: 7000, to: 700, length: 0.5, q: 2 },
-    },
-    minGap: 0,
-  },
 };
 
 export const SOUND_NAMES = Object.keys(SOUNDS);

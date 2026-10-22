@@ -16,10 +16,7 @@ vi.mock('../services/guildService', () => ({
 let myVoice = { status: 'idle', guildId: null };
 vi.mock('../hooks/useVoice', () => ({ useVoice: () => myVoice }));
 
-vi.mock('../sounds/sounds', () => ({ playSound: vi.fn() }));
-
 import Sidebar from './Sidebar';
-import { playSound } from '../sounds/sounds';
 import { ConfigContext, InteractionContext, LayoutContext } from '../contexts';
 import { leaveGuild, markChannelReadToLatest, muteGuild, setGuildNotifications, unmuteGuild } from '../services/guildService';
 import { mergeProfiles } from '../utils/profiles';
@@ -113,16 +110,15 @@ describe('the rail\'s DM button', () => {
     expect(bird()).toHaveClass('turned');
   });
 
-  it('pops on every click, and plays the Philly hit only when already on the DM side', () => {
+  it('pops on every click, and goes nowhere once on the DM side', () => {
     renderRail({ path: '/guild/5/12' });
     const link = icon('Direct Messages');
     link.animate = vi.fn();
     fireEvent.click(link);
-    expect(playSound).not.toHaveBeenCalled();
+    expect(screen.getByTestId('path').textContent).toBe('/dm');
     fireEvent.click(link);
     fireEvent.click(link);
-    expect(playSound).toHaveBeenCalledTimes(2);
-    expect(playSound).toHaveBeenCalledWith('logo');
+    expect(screen.getByTestId('path').textContent).toBe('/dm');
     expect(link.animate).toHaveBeenCalledTimes(3);
   });
 });

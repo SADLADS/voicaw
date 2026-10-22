@@ -625,10 +625,6 @@
       "outgoingRing": {
         "label": "発信音",
         "description": "あなたの発信が呼び出し中のとき"
-      },
-      "logo": {
-        "label": "ロゴ",
-        "description": "Voicaw の鳥をクリックしたとき"
       }
     },
     "spellcheck": {

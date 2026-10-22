@@ -19,7 +19,6 @@ import { useVoice } from '../hooks/useVoice';
 import { t } from '../i18n';
 import { displayName } from '../utils/profiles';
 import { showContent } from '../utils/mobilePanes';
-import { playSound } from '../sounds/sounds';
 import { lastDm } from '../utils/lastChat';
 
 // The guild rail down the left (like Discord's): the bird (DMs), then each guild (a pill on the
@@ -64,8 +63,8 @@ export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guild
   // The bird logo is the DM button. It faces left in the encrypted chats (DMs, group DMs, notes)
   // and Friends, and turns round to face right everywhere else, bot DMs included (they aren't
   // encrypted). A click makes it pop, restarting on every click so quick clicks each get their
-  // own; one while already on the DM side goes nowhere and plays the Philly hit instead. The
-  // pop is on the link and the turn on the bird inside it, so one never cuts the other short.
+  // own; one while already on the DM side goes nowhere (as stayIfIn). The pop is on the link and
+  // the turn on the bird inside it, so one never cuts the other short.
   const inDms = isActivePath('/dm');
   const encrypted = inDms && !isActivePath('/dm/b/');
   const clickBird = (e) => {
@@ -73,10 +72,7 @@ export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guild
       [{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }],
       { duration: 160, easing: 'ease-out' },
     );
-    if (inDms) {
-      e.preventDefault();
-      playSound('logo');
-    }
+    if (inDms) e.preventDefault();
   };
 
   return (
