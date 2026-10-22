@@ -2674,6 +2674,14 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   padding-top: 0;
 }
 
+/* The last line of a group (no follow-up from the same person after it) gets the space below
+   it that its name has above (.dm-message's padding-top), so a highlighted message (a mention,
+   a reply) doesn't end tight under its text. Lines inside a group stay on their 24px rhythm,
+   and the reactions row brings its own space when there is one. */
+[data-key]:not(:has(+ [data-key] > .each-dm-message-wrapper.grouped)) > .each-dm-message-wrapper > .dm-message:not(:has(.message-reactions)) {
+  padding-bottom: 4px;
+}
+
 .message-hover-time {
   position: absolute;
   left: 10px;
