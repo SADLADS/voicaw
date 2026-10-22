@@ -288,19 +288,28 @@ small {
   height: auto;
 }
 
+/* Send: an icon like the emoji button beside it, grey while there's nothing to send and the
+   accent once there is (Composer adds .ready). The word is there for screen readers. */
 .send-button {
-  background-color: var(--vc-accent);
+  display: flex;
+  align-items: center;
+  padding: 8px;
   border: none;
-  color: var(--vc-on-accent);
   border-radius: var(--vc-radius-md);
-  font-weight: 500;
-  transition: background-color var(--vc-duration-fast) var(--vc-ease-out), transform var(--vc-duration-fast) var(--vc-ease-out);
-  padding: 8px 12px;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-size: 22px;
+  line-height: 1;
+  transition: color var(--vc-duration-fast) var(--vc-ease-out), transform var(--vc-duration-fast) var(--vc-ease-out);
 }
 
 .send-button:hover {
-  background-color: var(--vc-accent-hover);
-  color: var(--vc-on-accent);
+  color: var(--vc-fg);
+}
+
+.send-button.ready,
+.send-button.ready:hover {
+  color: var(--vc-accent-text);
 }
 
 

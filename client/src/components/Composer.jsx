@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { Icon } from './Icon';
-import { faClock, faComments, faFaceSmile, faKeyboard, faMicrophone, faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faCheck, faClock, faComments, faFaceSmile, faKeyboard, faMicrophone, faPaperPlane, faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
 import AttachPanel from './AttachPanel';
 import EmojiPicker from './EmojiPicker';
 import EmojiSuggestions from './EmojiSuggestions';
@@ -773,14 +773,17 @@ export default function Composer({
               <Icon icon={isMobile && showEmojiPicker ? faKeyboard : faFaceSmile} />
             </button>}
             {showMic ? <MicButton voice={voice} onDrag={setVoiceDragX} /> : (
+              // An icon like the emoji button beside it (the word stays, for screen readers), in
+              // the accent once there's something to send.
               <button
-                className="send-button"
+                className={`send-button${inputValue.trim() ? ' ready' : ''}`}
                 type="submit"
                 // The message box keeps focus, so a phone's keyboard stays up for the next message
                 // (and doesn't come up if it was down).
                 onMouseDown={(e) => e.preventDefault()}
               >
-                {editing ? t('common.save') : t('chat.composer.send')}
+                <Icon icon={editing ? faCheck : faPaperPlane} />
+                <span className="visually-hidden">{editing ? t('common.save') : t('chat.composer.send')}</span>
               </button>
             )}
           </div>
