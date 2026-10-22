@@ -1815,6 +1815,13 @@ body:not(.mobile-mode) .sidebar-wrapper {
   background: linear-gradient(to right, var(--vc-bg-rail) 72px, var(--vc-bg-base) 72px);
 }
 
+/* The user panel and the voice bar take the columns' width, never their text's: the wrapper
+   sizes to its widest child, so a long custom status would widen the whole side instead of
+   ending in "…". */
+.sidebar-wrapper > :not(.sidebar-columns, .sidebar-resizer) {
+  contain: inline-size;
+}
+
 .main-wrapper > :not(.sidebar-wrapper) {
   min-width: 0;
 }
