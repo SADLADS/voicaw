@@ -1615,8 +1615,8 @@ button.audit-log-row:focus-visible {
   max-width: 432px;
   margin: 6px 0;
   padding: 12px 16px 16px;
-  border-radius: 8px;
-  background-color: var(--vc-bg-subtle);
+  border-radius: var(--vc-radius-lg);
+  background-color: var(--vc-bg-card);
   border: 1px solid var(--vc-border-dark);
 }
 
@@ -1679,6 +1679,13 @@ button.audit-log-row:focus-visible {
 .invite-embed .btn {
   flex: none;
   white-space: nowrap;
+}
+
+/* Go to Guild and Show: a step up from the card, so they read as buttons on it. */
+.invite-embed .btn-secondary {
+  --bs-btn-bg: var(--vc-bg-elevated-hover);
+  --bs-btn-hover-bg: var(--vc-bg-hover);
+  --bs-btn-border-color: var(--vc-border-light);
 }
 
 .invite-embed-join,

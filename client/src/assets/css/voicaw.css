@@ -52,6 +52,8 @@
   --vc-bg-subtle: #1d1a24;
   --vc-bg-elevated: #27232f;
   --vc-bg-elevated-hover: #312c3b;
+  /* Cards inside messages (invites, polls, events, bot embeds): a step off the chat. */
+  --vc-bg-card: #24202b;
   --vc-bg-hover: #2a2633;
   --vc-border-dark: #2a2632;
   --vc-border-light: #3e3949;
@@ -167,6 +169,8 @@
   --vc-bg-elevated: #f4f3f7;
   /* Hover and the open row stay visible on the grey sidebar (#eceaf1). */
   --vc-bg-elevated-hover: #dfdbe7;
+  /* Cards inside messages (invites, polls, events, bot embeds): a step off the chat. */
+  --vc-bg-card: #f7f6fa;
   --vc-bg-hover: #e3e0ea;
   --vc-border-dark: #e4e1ea;
   --vc-border-light: #d0ccd8;
@@ -226,6 +230,9 @@
   --vc-bg-subtle: #323339;
   --vc-bg-elevated: #393a41;
   --vc-bg-elevated-hover: #3f4048;
+  /* Cards inside messages (invites, polls, events, bot embeds): a step off the chat. */
+  --vc-bg-card: #2b2c31;
+  /* (darker than the chat, as Discord draws its embeds) */
   --vc-bg-hover: #3e3e45;
   --vc-border-dark: #393a3f;
   --vc-border-light: #4e4f56;
@@ -286,6 +293,8 @@
   --vc-bg-subtle: #1a1320;
   --vc-bg-elevated: #241a2c;
   --vc-bg-elevated-hover: #2e2238;
+  /* Cards inside messages (invites, polls, events, bot embeds): a step off the chat. */
+  --vc-bg-card: #221a29;
   --vc-bg-hover: #2a1f33;
   --vc-border-dark: #2c2135;
   --vc-border-light: #4a3a55;

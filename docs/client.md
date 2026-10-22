@@ -313,7 +313,10 @@
     the sidebar beside it (`--vc-bg-base`) and the chat (`--vc-bg-subtle`); columns are told
     apart by these steps, so borders between them are quiet (`--vc-border-dark`). Every theme
     has all three as distinct steps (Ol' Familiar's and Halloween's rails are a step darker
-    than their sidebars). The open DM and channel get the
+    than their sidebars). Cards inside messages (invites, polls, event cards, bot embeds) are
+    `--vc-bg-card`, a step off the chat (lighter, or darker in Ol' Familiar, as Discord's
+    embeds), never the chat's own colour; what's set into a card (poll options) is the chat's
+    colour again. The open DM and channel get the
     selection tint (`--vc-accent-soft`). Placeholders are at least 4.5:1 on a field.
   - **Type, shape and motion tokens** (theme-independent, on `:root`, 2026-10-22): the typeface is
     Figtree (`@fontsource-variable/figtree`, imported in `main.jsx` so the desktop and Android

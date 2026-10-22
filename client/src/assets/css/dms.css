@@ -3786,7 +3786,7 @@ body.mobile-mode .dm-user-list-container .dm-user {
   padding: 8px 16px 12px 12px;
   border-left: 4px solid var(--embed-color, var(--vc-border-light));
   border-radius: 4px;
-  background-color: var(--vc-bg-elevated);
+  background-color: var(--vc-bg-card);
   white-space: normal;
 }
 
@@ -3998,8 +3998,8 @@ body.mobile-mode .dm-user-list-container .dm-user {
   margin: 4px 0;
   padding: 12px;
   border: 1px solid var(--vc-border-dark);
-  border-radius: 8px;
-  background-color: var(--vc-bg-subtle);
+  border-radius: var(--vc-radius-lg);
+  background-color: var(--vc-bg-card);
 }
 
 .poll-question {
@@ -4031,7 +4031,8 @@ body.mobile-mode .dm-user-list-container .dm-user {
   overflow: hidden;
   border: 1px solid var(--vc-border-dark);
   border-radius: 6px;
-  background-color: var(--vc-bg-elevated);
+  /* The chat's colour, set into the card (--vc-bg-card) around it. */
+  background-color: var(--vc-bg-subtle);
   color: var(--vc-fg);
   font-size: 14px;
   text-align: left;
@@ -4052,7 +4053,7 @@ body.mobile-mode .dm-user-list-container .dm-user {
 }
 
 .poll-option.selected {
-  background-color: color-mix(in srgb, var(--vc-accent) 18%, var(--vc-bg-elevated));
+  background-color: color-mix(in srgb, var(--vc-accent) 18%, var(--vc-bg-subtle));
 }
 
 /* Its share of the votes, behind the text. */
