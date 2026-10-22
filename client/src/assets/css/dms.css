@@ -1711,16 +1711,16 @@ img.emoji,
   padding-bottom: 4px;
 }
 
-/* A pill per emoji: the count in the muted colour, yours in the selection tint with a purple
+/* A chip per emoji: the count in the muted colour, yours in the selection tint with a purple
    edge and count. */
 .reaction-chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   min-height: 26px;
-  padding: 2px 9px 2px 7px;
+  padding: 2px 8px;
   border: 1px solid transparent;
-  border-radius: var(--vc-radius-full);
+  border-radius: var(--vc-radius-md);
   background: var(--vc-bg-elevated);
   color: var(--vc-fg-muted);
   font-size: var(--vc-text-sm);
