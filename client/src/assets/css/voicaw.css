@@ -13,7 +13,10 @@
    A colour comes in a few forms: the fill (--vc-accent), its -hover (and -strong, pressed),
    -text (the colour as text on the background: fills are too dark or too light to read),
    -soft (a tinted background) and --vc-on-* (text on the fill). */
-:root {
+/* Each theme block also applies to [data-theme-preview="<name>"], so Settings → Appearance
+   draws each theme's picture in its real colours whatever the current theme is (no copies). */
+:root,
+[data-theme-preview="dark"] {
   /* The app's height: the screen, or on a phone with the keyboard open the part above it
      (set by utils/keyboardViewport.js). Use it for anything screen-high, never 100vh/svh. */
   --vc-app-height: 100svh;
@@ -41,26 +44,31 @@
   /* The rail's bird logo: the bird yellow, except where a theme recolours it (Halloween). */
   --vc-logo: #d8b930;
 
-  --vc-bg-base: #17151d;
-  --vc-bg-subtle: #201d28;
-  --vc-bg-elevated: #2a2633;
-  --vc-bg-elevated-hover: #342f3f;
-  --vc-bg-hover: #2f2a39;
-  --vc-border-dark: #302b3a;
-  --vc-border-light: #4d4759;
-
-  --vc-fg: #efedf5;
-  --vc-fg-muted: #a7a2b3;
-  /* Placeholder text in form fields. */
-  --vc-placeholder: #7d7889;
+  /* Three surface tiers, darkest at the back: the rail, the sidebar beside it (--vc-bg-base),
+     the chat (--vc-bg-subtle). Raised things (fields, the composer, chips) are --vc-bg-elevated.
+     Columns are told apart by these steps more than by lines, so borders are quiet. */
+  --vc-bg-rail: #121016;
+  --vc-bg-base: #18161e;
+  --vc-bg-subtle: #1d1a24;
+  --vc-bg-elevated: #27232f;
+  --vc-bg-elevated-hover: #312c3b;
+  /* Cards inside messages (invites, polls, events, bot embeds): a step off the chat. */
+  --vc-bg-card: #24202b;
+  --vc-bg-hover: #2a2633;
+  --vc-border-dark: #2a2632;
+  --vc-border-light: #3e3949;
+  --vc-fg: #ecebf3;
+  --vc-fg-muted: #a6a1b4;
+  /* Placeholder text in form fields: 4.5:1 on --vc-bg-elevated. */
+  --vc-placeholder: #8e899c;
 
   /* Menus that pop up over everything (guild menu, composer +). */
-  --vc-popup: #100e14;
+  --vc-popup: #110f15;
   /* A spoiler before it's revealed. */
-  --vc-spoiler: #17151d;
-  --vc-spoiler-hover: #100e14;
+  --vc-spoiler: #18161e;
+  --vc-spoiler-hover: #110f15;
   --vc-shadow: rgba(0, 0, 0, 0.25);
-  --vc-popup-shadow: rgba(0, 0, 0, 0.4);
+  --vc-popup-shadow: rgba(0, 0, 0, 0.45);
 
   /* Status. --vc-online is the indicator green (online dots, meters, drop lines, done ticks),
      never a fill with text on it; --vc-success is the green button (white text, 5:1).
@@ -93,7 +101,43 @@
      (utils/sidebarWidth.js). */
   --vc-header-height: 50px;
   --vc-sidebar-width: 260px;
+  /* The cards docked along the bottom on a computer (the user panel and the composer): one
+     height and one inset from the window's edge, so their tops and bottoms line up. */
+  --vc-dock-height: 58px;
+  --vc-dock-inset: 12px;
 
+  /* TYPE: Figtree (self-hosted, @fontsource-variable/figtree in main.jsx; the stack is in
+     twemoji-font.css), on one scale. Chat text is --vc-text-body; names and list rows
+     --vc-text-md; secondary lines --vc-text-sm; times and counts --vc-text-xs. */
+  --vc-text-xs: 11px;
+  --vc-text-sm: 12px;
+  --vc-text-md: 14px;
+  --vc-text-body: 15px;
+  --vc-text-lg: 16px;
+  --vc-text-xl: 20px;
+  /* 24px lines at --vc-text-body: the message avatar spans the name and the first line. */
+  --vc-leading-body: 1.6;
+
+  /* SHAPE: four corner sizes. Small controls and chips, rows and fields, panels and menus,
+     round. */
+  --vc-radius-sm: 4px;
+  --vc-radius-md: 8px;
+  --vc-radius-lg: 12px;
+  --vc-radius-full: 999px;
+
+  /* Floating things (menus, popovers, the hover toolbar): a close shadow for the edge and a
+     soft one for the lift, in the theme's shadow colours. */
+  --vc-elevation-1: 0 1px 2px var(--vc-shadow), 0 2px 8px var(--vc-shadow);
+  --vc-elevation-2: 0 1px 3px var(--vc-shadow), 0 12px 32px var(--vc-popup-shadow);
+
+  /* MOTION: a strong ease-out for things appearing and responding, three durations. Nothing
+     that happens many times a minute (typing, keyboard navigation, switching chats) animates;
+     reduced motion drops movement (MOTION below). */
+  --vc-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --vc-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --vc-duration-fast: 120ms;
+  --vc-duration-base: 180ms;
+  --vc-duration-slow: 240ms;
   color-scheme: dark;
 }
 
@@ -102,7 +146,8 @@
    form controls and scrollbars (not the on-screen keyboard: see utils/theme.js). Use the tokens
    for colours, not literal ones, so every theme works. A theme sets every colour token, even
    the ones that match dark, so a new colour scheme starts as a copy of this block. */
-:root[data-theme="light"] {
+:root[data-theme="light"],
+[data-theme-preview="light"] {
   --vc-accent: #6a52c9;
   --vc-accent-hover: #5b44b0;
   --vc-accent-strong: #4c3896;
@@ -118,23 +163,27 @@
   --vc-on-action: #17151d;
   --vc-logo: #d8b930;
 
-  --vc-bg-base: #e4e2ea;
+  --vc-bg-rail: #e2dfe8;
+  --vc-bg-base: #eceaf1;
   --vc-bg-subtle: #ffffff;
   --vc-bg-elevated: #f4f3f7;
-  --vc-bg-elevated-hover: #e9e7ef;
-  --vc-bg-hover: #ebe9f0;
-  --vc-border-dark: #e2dfe8;
-  --vc-border-light: #c6c2cf;
+  /* Hover and the open row stay visible on the grey sidebar (#eceaf1). */
+  --vc-bg-elevated-hover: #dfdbe7;
+  /* Cards inside messages (invites, polls, events, bot embeds): a step off the chat. */
+  --vc-bg-card: #f7f6fa;
+  --vc-bg-hover: #e3e0ea;
+  --vc-border-dark: #e4e1ea;
+  --vc-border-light: #d0ccd8;
 
-  --vc-fg: #2b2833;
+  --vc-fg: #25222d;
   --vc-fg-muted: #5d5867;
-  --vc-placeholder: #8f8a99;
+  --vc-placeholder: #6f6a7e;
 
   --vc-popup: #ffffff;
   --vc-spoiler: #c6c2cf;
   --vc-spoiler-hover: #b5b0bf;
-  --vc-shadow: rgba(30, 20, 60, 0.10);
-  --vc-popup-shadow: rgba(30, 20, 60, 0.16);
+  --vc-shadow: rgba(30, 20, 60, 0.08);
+  --vc-popup-shadow: rgba(30, 20, 60, 0.14);
 
   --vc-online: #1f8a4f;
   --vc-success: #1d7f48;
@@ -159,7 +208,8 @@
    .theme-dark in Discord's CSS), values read from discord.com's own CSS on 2026-10-02. Translucent ones (hover, borders) are
    flattened onto the surface they sit on. Blurple for what you can do, Discord's yellow for
    mentions, white unread markers, red mention counts, blue links. */
-:root[data-theme="familiar"] {
+:root[data-theme="familiar"],
+[data-theme-preview="familiar"] {
   --vc-accent: #5865f2;
   --vc-accent-hover: #4452bb;
   --vc-accent-strong: #3a48a3;
@@ -174,10 +224,15 @@
   --vc-on-action: #000000;
   --vc-logo: #d8b930;
 
+  /* Rail, sidebar, chat: three steps, like Discord's own (its server list a step darker). */
+  --vc-bg-rail: #25262b;
   --vc-bg-base: #2c2d32;
   --vc-bg-subtle: #323339;
   --vc-bg-elevated: #393a41;
   --vc-bg-elevated-hover: #3f4048;
+  /* Cards inside messages (invites, polls, events, bot embeds): a step off the chat. */
+  --vc-bg-card: #2b2c31;
+  /* (darker than the chat, as Discord draws its embeds) */
   --vc-bg-hover: #3e3e45;
   --vc-border-dark: #393a3f;
   --vc-border-light: #4e4f56;
@@ -214,7 +269,8 @@
 /* Halloween (added 2026-10-13): night-purple neutrals, pumpkin orange for what you can do,
    candlelight yellow for attention, witch-purple links, slime green online, blood red errors.
    Warnings are a pale amber so they don't read as the orange accent. */
-:root[data-theme="halloween"] {
+:root[data-theme="halloween"],
+[data-theme-preview="halloween"] {
   /* White on the pumpkin is 5:1. */
   --vc-accent: #b8500d;
   --vc-accent-hover: #a8480b;
@@ -231,10 +287,14 @@
   /* The bird goes pumpkin, the buttons' orange. */
   --vc-logo: #b8500d;
 
+  /* Rail, sidebar, chat: three steps of the night purple. */
+  --vc-bg-rail: #0b0810;
   --vc-bg-base: #120d17;
   --vc-bg-subtle: #1a1320;
   --vc-bg-elevated: #241a2c;
   --vc-bg-elevated-hover: #2e2238;
+  /* Cards inside messages (invites, polls, events, bot embeds): a step off the chat. */
+  --vc-bg-card: #221a29;
   --vc-bg-hover: #2a1f33;
   --vc-border-dark: #2c2135;
   --vc-border-light: #4a3a55;
@@ -310,7 +370,66 @@ body {
 
 body {
   background-color: var(--vc-bg-subtle);
-  color: var(--vc-fg)
+  color: var(--vc-fg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Keyboard focus: one purple ring on anything you can tab to, unless a rule of its own draws
+   focus (:where keeps this the weakest rule). Never on a mouse click. */
+:where(a, button, [role="button"], [role="menuitem"], [role="tab"], summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--vc-accent-text);
+  outline-offset: 2px;
+}
+
+/* The browser's own parts in the theme: selected text, the caret. */
+::selection {
+  background-color: var(--vc-accent-soft);
+  color: inherit;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  caret-color: var(--vc-accent-text);
+}
+
+/* MOTION: things you press give way a little under the pointer (only with a mouse: a touch
+   scrolling a list would press every row it starts on). */
+@media (hover: hover) and (pointer: fine) {
+  .btn,
+  .send-button,
+  .reaction-chip,
+  .nav-icon,
+  .user-panel-button {
+    transition-property: transform, background-color, border-color, color, border-radius;
+    transition-duration: var(--vc-duration-fast);
+    transition-timing-function: var(--vc-ease-out);
+  }
+
+  .btn:active:not(:disabled),
+  .send-button:active:not(:disabled),
+  .reaction-chip:active:not(.locked),
+  .user-panel-button:active {
+    transform: scale(0.97);
+  }
+
+  .nav-icon:active {
+    transform: scale(0.95);
+  }
+}
+
+/* Reduced motion: transitions don't move or scale anything; fades and colour changes stay,
+   since they help you see what changed. (Spinners and other keyframe animations handle it
+   themselves where they move things.) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-property: opacity, color, background-color, border-color, box-shadow !important;
+  }
 }
 
 /* Keep the app clear of a landscape phone's notch and rounded corners (0 everywhere else).
@@ -389,8 +508,20 @@ body {
   width: 48px;
   height: 48px;
   background-color: var(--vc-bg-elevated);
-  border-radius: 25%;
-  transition: border-radius 0.1s ease;
+  border-radius: 16px;
+}
+
+/* An icon on the rail tightens its corners when pointed at or open, the way the pip beside it
+   grows. */
+@media (hover: hover) {
+  .nav-item:hover .nav-icon {
+    border-radius: var(--vc-radius-lg);
+    background-color: var(--vc-bg-elevated-hover);
+  }
+}
+
+.nav-item.active .nav-icon {
+  border-radius: var(--vc-radius-lg);
 }
 
 .nav-icon svg {
@@ -409,7 +540,7 @@ body {
   width: 8px;
   height: 8px;
   opacity: 0;
-  transition: all 0.2s ease;
+  transition: opacity var(--vc-duration-base) var(--vc-ease-out), height var(--vc-duration-base) var(--vc-ease-out);
   margin-left:-4px
 }
 
@@ -434,13 +565,22 @@ body {
 .sidebar{
   overflow-y: auto;
   scrollbar-width: none;
-  background-color: var(--vc-bg-base);
-  border-right: 1px solid var(--vc-border-light);
+  /* The back tier: set apart from the sidebar by its shade, not a line. */
+  background-color: var(--vc-bg-rail);
 }
+/* The logo's cell is as tall as the headers beside it, with their bottom line, so one line
+   runs across the top of the window. */
+.nav-item:has(> .rail-logo) {
+  height: var(--vc-header-height);
+  margin: 0;
+  align-items: center;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
 .rail-logo {
   display: block;
-  width: 50px;
-  height: 50px;
+  width: 34px;
+  height: 34px;
   cursor: pointer;
   user-select: none;
   -webkit-user-drag: none;
@@ -457,10 +597,10 @@ body {
   background-color: var(--vc-bg-elevated);
   color: var(--vc-fg);
   border: 1px solid var(--vc-bg-elevated);
-  border-radius: 8px;
+  border-radius: var(--vc-radius-md);
   outline: none;
   box-shadow: none;
-  transition: border 0.2s ease;
+  transition: border-color var(--vc-duration-base) var(--vc-ease-out);
 }
 
 .form-control:focus {
@@ -586,6 +726,12 @@ input {
   outline-offset: 2px;
 }
 
+/* Bootstrap's buttons on the app's corners and weight. */
+.btn {
+  --bs-btn-border-radius: var(--vc-radius-md);
+  --bs-btn-font-weight: 500;
+}
+
 .form-select:focus {
   border-color: var(--vc-accent);
   box-shadow: none;
@@ -660,19 +806,52 @@ pre code {
   align-items: center;
   cursor: pointer;
   font-size: 16px;
+  transition: background-color var(--vc-duration-fast) var(--vc-ease-out), transform var(--vc-duration-fast) var(--vc-ease-out);
+}
+
+/* Like the emoji and Send buttons beside it: brighter under the pointer and while its menu is
+   open; open, the + turns into a × (clicking it again closes the menu). */
+.attach-button svg {
+  transition: rotate var(--vc-duration-base) var(--vc-ease-out);
+}
+
+@media (hover: hover) {
+  .attach-button:hover {
+    background-color: var(--vc-fg);
+  }
+}
+
+.attach-button[aria-expanded="true"] {
+  background-color: var(--vc-fg);
+}
+
+.attach-button[aria-expanded="true"] svg {
+  rotate: 45deg;
+}
+
+.attach-button:active {
+  transform: scale(0.92);
 }
 
 .full-height {
   height: var(--vc-app-height);
 }
 
+/* A settings section: a full-width rule above it, then its title and its rows in one column
+   on one left edge, at a reading width (a description runs to about 65 characters). */
 .settings-card {
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
-  padding-bottom: 1.5rem;
-  margin-bottom: 1rem;
+  padding: 28px 40px 32px;
   width: 100%;
   border-top: 1px solid var(--vc-border-dark);
+}
+
+.settings-card > * {
+  max-width: 680px;
+}
+
+.settings-card .vc-hint {
+  max-width: 62ch;
+  line-height: 1.5;
 }
 
 /* Settings → Appearance (ThemeSettings): a tile per theme with a little picture of it. The
@@ -688,14 +867,15 @@ pre code {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 6px 6px 8px;
+  gap: 8px;
+  padding: 6px 6px 10px;
   border: 2px solid var(--vc-border-dark);
-  border-radius: 8px;
+  border-radius: var(--vc-radius-lg);
   background: var(--vc-bg-elevated);
   color: var(--vc-fg-muted);
-  font-size: 14px;
+  font-size: var(--vc-text-md);
   font-weight: 500;
+  transition: border-color var(--vc-duration-fast) var(--vc-ease-out), color var(--vc-duration-fast) var(--vc-ease-out);
 }
 
 .theme-option:hover {
@@ -708,60 +888,75 @@ pre code {
   color: var(--vc-fg);
 }
 
-/* Each theme drawn in its own colours whatever the current one is, so literal: they copy the
-   THEMES blocks above (keep them in step). */
-.theme-preview {
-  --side: #17151d;
-  --chat: #201d28;
-  --line: #4d4759;
-  --box: #2a2633;
-  display: flex;
-  width: 104px;
-  height: 64px;
+/* A theme's picture (ThemeSettings ThemeScene): drawn from its own tokens, which
+   [data-theme-preview] gives it (the THEMES blocks above), so it can't drift from the theme.
+   Rail, sidebar and chat are the three surface tiers; the open row is the selection tint; the
+   logo, the unread pip and Send carry the theme's colours. */
+.theme-preview-frame {
+  position: relative;
+  display: block;
+  width: 136px;
+  height: 84px;
   overflow: hidden;
-  border-radius: 5px;
-  background: var(--chat);
+  border-radius: var(--vc-radius-md);
 }
 
-.theme-preview-light {
-  --side: #e4e2ea;
-  --chat: #ffffff;
-  --line: #c6c2cf;
-  --box: #f4f3f7;
-  box-shadow: inset 0 0 0 1px #e2dfe8;
+.theme-preview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  background: var(--vc-bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--vc-border-dark);
+  border-radius: inherit;
+  overflow: hidden;
 }
 
-.theme-preview-familiar {
-  --side: #2c2d32;
-  --chat: #323339;
-  --line: #4e4f56;
-  --box: #393a41;
+.theme-preview-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 20px;
+  padding-top: 7px;
+  background: var(--vc-bg-rail);
 }
 
-.theme-preview-halloween {
-  --side: #120d17;
-  --chat: #1a1320;
-  --line: #4a3a55;
-  --box: #b8500d;
+.theme-preview-logo {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--vc-logo);
 }
 
-/* Match system: half of each. */
-.theme-preview-system {
-  background: linear-gradient(135deg, #201d28 50%, #ffffff 50%);
-}
-
-.theme-preview-system .theme-preview-side {
-  background: linear-gradient(135deg, #17151d 70%, #e4e2ea 70%);
-}
-
-.theme-preview-system .theme-preview-line,
-.theme-preview-system .theme-preview-box {
-  background: #8f8a99;
+.theme-preview-icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--vc-bg-elevated);
 }
 
 .theme-preview-side {
-  width: 26px;
-  background: var(--side);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 36px;
+  padding: 8px 4px;
+  background: var(--vc-bg-base);
+}
+
+.theme-preview-row {
+  height: 7px;
+  border-radius: 3px;
+  background: var(--vc-bg-hover);
+}
+
+.theme-preview-row.active {
+  background: var(--vc-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--vc-accent-soft);
+}
+
+.theme-preview-row.short {
+  width: 70%;
 }
 
 .theme-preview-chat {
@@ -769,25 +964,45 @@ pre code {
   flex: 1;
   flex-direction: column;
   gap: 6px;
-  padding: 10px 8px 8px;
+  padding: 12px 8px 8px;
 }
 
 .theme-preview-line {
   width: 80%;
-  height: 6px;
+  height: 5px;
   border-radius: 3px;
-  background: var(--line);
+  background: var(--vc-fg-muted);
+  opacity: 0.55;
 }
 
 .theme-preview-line.short {
   width: 50%;
 }
 
+/* The message box, Send at its end in the accent. */
 .theme-preview-box {
-  height: 12px;
+  position: relative;
+  height: 14px;
   margin-top: auto;
-  border-radius: 3px;
-  background: var(--box);
+  border-radius: 4px;
+  background: var(--vc-bg-elevated);
+  box-shadow: inset 0 0 0 1px var(--vc-border-dark);
+}
+
+.theme-preview-box::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 14px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--vc-accent);
+}
+
+/* Match system: Dark under Light, Light cut off corner to corner. */
+.theme-preview-system .theme-preview + .theme-preview {
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
 
 /* Settings' title, atop its column: a header like the other pages' (the nav's padding is
@@ -798,8 +1013,7 @@ pre code {
   height: var(--vc-header-height);
   margin: 0 -12px 12px;
   padding: 0 16px;
-  border-top: 1px solid var(--vc-border-light);
-  border-bottom: 1px solid var(--vc-border-light);
+  border-bottom: 1px solid var(--vc-border-dark);
   font-size: 16px;
   font-weight: 600;
 }
@@ -810,8 +1024,79 @@ pre code {
 }
 
 .settings-card h5 {
-  margin-bottom: 0.5rem;
-  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* An on/off setting: its name on the left, a switch on the right, its description under it. */
+.settings-card > .settings-toggle:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0 2px;
+  font-size: var(--vc-text-body);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.settings-card > h5 + .settings-toggle:has(> input[type="checkbox"]) {
+  margin-top: 0;
+}
+
+.settings-card > .settings-toggle:has(> input[type="checkbox"]) > input {
+  order: 2;
+  margin-left: auto;
+}
+
+/* Checkboxes in Settings are switches. Purple when on (purple marks toggles). */
+.settings-content input[type="checkbox"]:not(.form-check-input) {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border-radius: var(--vc-radius-full);
+  background-color: var(--vc-border-light);
+  vertical-align: middle;
+  cursor: pointer;
+  transition: background-color var(--vc-duration-base) var(--vc-ease-out);
+}
+
+.settings-content input[type="checkbox"]:not(.form-check-input)::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: translate var(--vc-duration-base) var(--vc-ease-out);
+}
+
+.settings-content input[type="checkbox"]:not(.form-check-input):checked {
+  background-color: var(--vc-accent);
+}
+
+.settings-content input[type="checkbox"]:not(.form-check-input):checked::before {
+  translate: 16px 0;
+}
+
+.settings-content input[type="checkbox"]:not(.form-check-input):focus-visible {
+  outline: 2px solid var(--vc-accent-text);
+  outline-offset: 2px;
+}
+
+.settings-content input[type="checkbox"]:not(.form-check-input):disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* Settings → Privacy → Storage on this device: a copy's size and its Clear button. */
@@ -1276,11 +1561,13 @@ pre code {
   min-height: 0;
 }
 
+/* The page is the front tier, like the chat. */
 .settings-main {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  background-color: var(--vc-bg-subtle);
 }
 
 .settings-page-title {
@@ -1404,32 +1691,39 @@ pre code {
   margin-bottom: 12px;
 }
 
+/* Group names: sentence case, small and grey, with air above. */
 .settings-nav-category {
-  padding: 4px 8px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
+  padding: 16px 10px 6px;
+  font-size: var(--vc-text-sm);
+  font-weight: 500;
   color: var(--vc-fg-muted);
 }
 
 .settings-nav-item {
   display: block;
   width: 100%;
-  padding: 5px 8px;
+  min-height: 34px;
+  padding: 6px 10px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--vc-radius-md);
   background: none;
-  color: var(--vc-fg);
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-md);
+  font-weight: 500;
   text-align: left;
+  transition: background-color var(--vc-duration-fast) var(--vc-ease-out), color var(--vc-duration-fast) var(--vc-ease-out);
 }
 
 .settings-nav-item:hover {
   background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
 }
 
+/* The open page: a neutral pill and the full ink (no colour: it's where you are, not an
+   action). */
 .settings-nav-item.active {
   background-color: var(--vc-bg-elevated-hover);
-  font-weight: 600;
+  color: var(--vc-fg);
 }
 
 .settings-nav-item.danger {
@@ -1437,10 +1731,26 @@ pre code {
 }
 
 /* The open page's subsections, under it in the column. */
+/* They unfold as the page opens: the list's one row grows from 0fr to 1fr (a height that
+   animates to its content's, in every browser), its line drawing down with it; then each
+   subsection fades and slides in, a beat after the one above (--i, Settings.jsx). Only the
+   entrance is delayed: hover and the active row change at once. Opening a page is a click,
+   not something done many times a minute, so it gets a moment; switching subsections inside
+   an open page doesn't re-run it. */
 .settings-nav-subs {
+  display: grid;
+  grid-template-rows: 1fr;
   margin: 2px 0 6px 12px;
   padding-left: 8px;
   border-left: 1px solid var(--vc-border-dark);
+  transition:
+    grid-template-rows var(--vc-duration-slow) var(--vc-ease-out),
+    margin var(--vc-duration-slow) var(--vc-ease-out);
+}
+
+.settings-nav-subs-inner {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .settings-nav-sub {
@@ -1448,11 +1758,29 @@ pre code {
   width: 100%;
   padding: 3px 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--vc-radius-sm);
   background: none;
   color: var(--vc-fg-muted);
-  font-size: 14px;
+  font-size: var(--vc-text-md);
   text-align: left;
+  transition:
+    opacity var(--vc-duration-base) var(--vc-ease-out) calc(60ms + var(--i, 0) * 35ms),
+    translate var(--vc-duration-base) var(--vc-ease-out) calc(60ms + var(--i, 0) * 35ms),
+    color var(--vc-duration-fast) var(--vc-ease-out),
+    background-color var(--vc-duration-fast) var(--vc-ease-out);
+}
+
+@starting-style {
+  .settings-nav-subs {
+    grid-template-rows: 0fr;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .settings-nav-sub {
+    opacity: 0;
+    translate: -4px 0;
+  }
 }
 
 .settings-nav-sub:hover,
@@ -1545,12 +1873,34 @@ pre code {
 
 /* The left side: the icon column and (on DM pages) the conversation list side by side, with
    the user panel across the bottom. */
+/* Never squeezed by the page beside it: its columns are fixed at --vc-sidebar-width, so a
+   narrower wrapper would leave them drawn over the page, with the resizer and user panel cut
+   short. The page gives way instead (min-width: 0), and Layout fits the width to the window. */
 .sidebar-wrapper {
   position: relative;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   height: var(--vc-app-height);
   background-color: var(--vc-bg-base);
+}
+
+/* On a computer the rail runs the full height of the window, down behind the docked user panel:
+   the wrapper's first 72px (the rail's width, Sidebar.jsx) are the rail's colour, two flat
+   fields with a hard edge. */
+body:not(.mobile-mode) .sidebar-wrapper {
+  background: linear-gradient(to right, var(--vc-bg-rail) 72px, var(--vc-bg-base) 72px);
+}
+
+/* The user panel and the voice bar take the columns' width, never their text's: the wrapper
+   sizes to its widest child, so a long custom status would widen the whole side instead of
+   ending in "…". */
+.sidebar-wrapper > :not(.sidebar-columns, .sidebar-resizer) {
+  contain: inline-size;
+}
+
+.main-wrapper > :not(.sidebar-wrapper) {
+  min-width: 0;
 }
 
 /* SidebarResizer: the column's right edge (computer only). A strip a few pixels wide over the
@@ -1613,6 +1963,18 @@ body.sidebar-resizing * {
   color: var(--vc-fg);
 }
 
+/* On a computer it's a card docked in the corner, like the composer on the other side: inset
+   from the edges, one step up from the columns it sits under. */
+body:not(.mobile-mode) .user-panel {
+  box-sizing: border-box;
+  min-height: var(--vc-dock-height);
+  margin: 0 var(--vc-dock-inset) var(--vc-dock-inset);
+  padding: 6px 8px 6px 10px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: var(--vc-radius-lg);
+  background-color: var(--vc-bg-subtle);
+}
+
 .user-panel-avatar {
   position: relative;
   flex-shrink: 0;
@@ -1644,10 +2006,11 @@ body.sidebar-resizing * {
   margin: -4px 0 -4px -6px;
   padding: 4px 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--vc-radius-md);
   background: none;
   color: inherit;
   text-align: left;
+  transition: background-color var(--vc-duration-fast) var(--vc-ease-out);
 }
 
 .user-panel-me:hover,
@@ -1687,10 +2050,19 @@ body.sidebar-resizing * {
   max-width: calc(100vw - 16px);
   padding: 12px;
   border: 1px solid var(--vc-border-dark);
-  border-radius: 8px;
+  border-radius: var(--vc-radius-lg);
   background-color: var(--vc-bg-elevated);
   color: var(--vc-fg);
-  box-shadow: 0 8px 24px var(--vc-popup-shadow);
+  box-shadow: var(--vc-elevation-2);
+  transition: opacity var(--vc-duration-base) var(--vc-ease-out), translate var(--vc-duration-base) var(--vc-ease-out);
+}
+
+/* Rises out of the user panel under it (placed by script: it moves, it doesn't scale). */
+@starting-style {
+  .user-menu {
+    opacity: 0;
+    translate: 0 4px;
+  }
 }
 
 .user-menu-top {
@@ -2009,8 +2381,12 @@ body.sidebar-resizing * {
   min-height: 0;
 }
 
+/* A real width, like the DM and channel lists, not only a flex basis: Firefox sizes the column
+   beside the rail from its content's width otherwise, so the page wouldn't follow a drag (a
+   gap when narrower, the column over the page when wider). */
 .settings-nav-slot .settings-nav {
   flex: 0 0 var(--vc-sidebar-width);
+  width: var(--vc-sidebar-width);
   background-color: var(--vc-bg-base);
 }
 
@@ -2116,7 +2492,6 @@ body.sidebar-resizing * {
 .voice-settings-field > span:first-child {
   font-size: 0.8rem;
   font-weight: 600;
-  text-transform: uppercase;
   color: var(--vc-fg-muted);
 }
 

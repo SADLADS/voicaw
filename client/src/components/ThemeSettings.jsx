@@ -10,6 +10,42 @@ const OPTIONS = [
   { value: 'system', labelKey: 'settings.theme.system' },
 ];
 
+// A little picture of a theme in its own colours: data-theme-preview gives it that theme's
+// tokens (voicaw.css), so it's drawn from the real values. The rail with the logo, the
+// sidebar with the open row, the chat with two lines and the message box with Send.
+function ThemeScene({ theme }) {
+  return (
+    <span className="theme-preview" data-theme-preview={theme}>
+      <span className="theme-preview-rail">
+        <span className="theme-preview-logo" />
+        <span className="theme-preview-icon" />
+        <span className="theme-preview-icon" />
+      </span>
+      <span className="theme-preview-side">
+        <span className="theme-preview-row active" />
+        <span className="theme-preview-row" />
+        <span className="theme-preview-row short" />
+      </span>
+      <span className="theme-preview-chat">
+        <span className="theme-preview-line" />
+        <span className="theme-preview-line short" />
+        <span className="theme-preview-box" />
+      </span>
+    </span>
+  );
+}
+
+// Match system: Dark and Light, split corner to corner.
+function ThemePreview({ value }) {
+  if (value !== 'system') return <ThemeScene theme={value} />;
+  return (
+    <span className="theme-preview-system">
+      <ThemeScene theme="dark" />
+      <ThemeScene theme="light" />
+    </span>
+  );
+}
+
 // Settings → Appearance: the theme, on this device only (utils/theme).
 export default function ThemeSettings() {
   const { choice, theme } = useTheme();
@@ -40,13 +76,8 @@ export default function ThemeSettings() {
             className={`theme-option${choice === option.value ? ' selected' : ''}`}
             onClick={() => setThemeChoice(option.value)}
           >
-            <span className={`theme-preview theme-preview-${option.value}`} aria-hidden="true">
-              <span className="theme-preview-side" />
-              <span className="theme-preview-chat">
-                <span className="theme-preview-line" />
-                <span className="theme-preview-line short" />
-                <span className="theme-preview-box" />
-              </span>
+            <span className="theme-preview-frame" aria-hidden="true">
+              <ThemePreview value={option.value} />
             </span>
             {t(option.labelKey)}
           </button>

@@ -290,17 +290,21 @@ export default function Settings({ onLogout }) {
         {/* The open page's subsections (a computer's, and not a lone one). */}
         {active && !isMobile && subs.length > 1 && (
           <div className="settings-nav-subs" role="group" aria-label={t('settings.nav.subsections', { page: p.title })}>
-            {subs.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className={`settings-nav-sub${hash === s.id ? ' active' : ''}`}
-                onClick={() => go(`/settings/${p.id}#${s.id}`)}
-              >
-                {s.title}
-                {alertsBadge(s.alerts)}
-              </button>
-            ))}
+            {/* Unfolds as the page opens; --i staggers each row's fade (voicaw.css). */}
+            <div className="settings-nav-subs-inner">
+              {subs.map((s, i) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`settings-nav-sub${hash === s.id ? ' active' : ''}`}
+                  style={{ '--i': i }}
+                  onClick={() => go(`/settings/${p.id}#${s.id}`)}
+                >
+                  {s.title}
+                  {alertsBadge(s.alerts)}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </React.Fragment>

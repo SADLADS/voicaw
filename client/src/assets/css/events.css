@@ -1036,8 +1036,6 @@ button.event-card-name:hover {
   color: var(--vc-fg-muted);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
 }
 
 .event-editor-time {
@@ -1102,16 +1100,20 @@ button.event-card-name:hover {
   margin-top: 4px;
 }
 
-/* Under a message with an event link. */
+/* Under a message with an event link: on the message cards' colour. */
 .event-embed {
   max-width: 432px;
   margin-top: 6px;
 }
 
+.event-embed .event-card {
+  background: var(--vc-bg-card);
+}
+
 .event-embed-gone {
   padding: 8px 12px;
   border-radius: 8px;
-  background: var(--vc-bg-subtle);
+  background: var(--vc-bg-card);
   color: var(--vc-fg-muted);
   font-size: 0.85rem;
 }

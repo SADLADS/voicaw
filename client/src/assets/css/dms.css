@@ -56,6 +56,7 @@ body {
   border: 1px solid var(--vc-bg-base);
   margin-left: 10px;
   margin-right: 10px;
+  transition: background-color var(--vc-duration-fast) var(--vc-ease-out);
 }
 
 /* Not the link colour every a:hover gets (voicaw.css). */
@@ -63,16 +64,19 @@ body {
   color: var(--vc-fg);
 }
 
-.dm-user.active {
-  background-color: var(--vc-bg-elevated);
-}
-
 /* Only with a mouse: on a touch screen a finger starting to scroll the list would set :hover
    on the row under it, and it stays. */
 @media (hover: hover) {
   .dm-user:hover {
-    background-color: var(--vc-bg-subtle);
+    background-color: var(--vc-bg-hover);
   }
+}
+
+/* The open conversation: the selection tint (purple marks selection). After :hover, so it
+   stays put under the pointer. */
+.dm-user.active,
+.dm-user.active:hover {
+  background-color: var(--vc-accent-soft);
 }
 
 .dm-message {
@@ -104,8 +108,9 @@ body {
 }
 
 small {
-  font-size: 10px;
+  font-size: var(--vc-text-xs);
   padding-left: 5px;
+  font-variant-numeric: tabular-nums;
 }
 
 
@@ -113,12 +118,24 @@ small {
   margin: 0.5rem;
 }
 
+/* The composer: a raised field. Its edge comes up when you're typing in it. */
 .dm-chat-wrapper {
-  border-radius: 8px;
-  margin: 0.75rem;
+  box-sizing: border-box;
+  /* Never squeezed by a long chat above it: a min-height replaces a flex item's own floor (its
+     content's height), so without this a full channel crushed it, the attachment tray and the
+     message box spilling out below. */
+  flex-shrink: 0;
+  min-height: var(--vc-dock-height);
+  border-radius: var(--vc-radius-lg);
+  margin: var(--vc-dock-inset);
   margin-top: 0;
-  border: 1px solid var(--vc-border-light);
+  border: 1px solid var(--vc-border-dark);
   background-color: var(--vc-bg-elevated);
+  transition: border-color var(--vc-duration-base) var(--vc-ease-out);
+}
+
+.dm-chat-wrapper:focus-within {
+  border-color: var(--vc-border-light);
 }
 
 #dm-input {
@@ -128,7 +145,6 @@ small {
   border-radius: 0;
   outline: none;
   box-shadow: none;
-  transition: border 0.2s ease;
 }
 
 
@@ -143,10 +159,10 @@ small {
   height: var(--vc-header-height);
   margin: 0;
   padding: 0 12px 0 16px;
-  border-top: 1px solid var(--vc-border-light);
-  border-bottom: 1px solid var(--vc-border-light);
-  font-size: 16px;
+  border-bottom: 1px solid var(--vc-border-dark);
+  font-size: var(--vc-text-lg);
   font-weight: 600;
+  letter-spacing: -0.005em;
   white-space: nowrap;
 }
 
@@ -279,7 +295,7 @@ small {
   line-height: 1;
   display: flex;
   align-items: center;
-  transition: color 0.15s ease;
+  transition: color var(--vc-duration-fast) var(--vc-ease-out);
 }
 
 .emoji-button:hover,
@@ -295,18 +311,28 @@ small {
   height: auto;
 }
 
+/* Send: an icon like the emoji button beside it, grey while there's nothing to send and the
+   accent once there is (Composer adds .ready). The word is there for screen readers. */
 .send-button {
-  background-color: var(--vc-accent);
-  border: none;
-  color: var(--vc-on-accent);
-  border-radius: 8px;
-  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
   padding: 8px;
+  border: none;
+  border-radius: var(--vc-radius-md);
+  background: none;
+  color: var(--vc-fg-muted);
+  font-size: 22px;
+  line-height: 1;
+  transition: color var(--vc-duration-fast) var(--vc-ease-out), transform var(--vc-duration-fast) var(--vc-ease-out);
 }
 
 .send-button:hover {
-  background-color: var(--vc-accent-hover);
-  color: var(--vc-on-accent);
+  color: var(--vc-fg);
+}
+
+.send-button.ready,
+.send-button.ready:hover {
+  color: var(--vc-accent-text);
 }
 
 
@@ -367,16 +393,22 @@ small {
   bottom: 100%;
   right: 0;
   display: flex;
-  gap: 8px;
+  gap: 2px;
   background: var(--vc-bg-elevated);
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: .15s ease;
-  z-index: 10;
+  padding: 3px;
+  border-radius: var(--vc-radius-md);
   border: 1px solid var(--vc-border-dark);
-  box-shadow: 0 2px 4px var(--vc-shadow);
-  transition: opacity 0.1s ease, box-shadow 0.2s ease;
+  box-shadow: var(--vc-elevation-1);
+  /* Fades in, without moving: messageMenuPlacement.js measures it as it appears, and you see
+     it dozens of times a session. */
+  transition: opacity var(--vc-duration-fast) var(--vc-ease-out), box-shadow var(--vc-duration-base) var(--vc-ease-out);
   z-index: 10;
+}
+
+@starting-style {
+  .message-menu {
+    opacity: 0;
+  }
 }
 
 .message-menu.below {
@@ -391,22 +423,26 @@ small {
 }
 
 .message-menu:hover {
-  box-shadow: 0 4px 8px var(--vc-shadow);
+  box-shadow: var(--vc-elevation-2);
 }
 
 
 .message-menu button {
   background: none;
   border: none;
-  color: var(--vc-fg-subtle);
+  border-radius: var(--vc-radius-sm);
+  color: var(--vc-fg-muted);
   cursor: pointer;
-  font-size: 14px;
-  padding: 2px 4px;
+  font-size: var(--vc-text-md);
+  min-width: 28px;
+  min-height: 28px;
+  padding: 2px 6px;
+  transition: background-color var(--vc-duration-fast) var(--vc-ease-out), color var(--vc-duration-fast) var(--vc-ease-out);
 }
 
 .message-menu button:hover {
   background: var(--vc-bg-elevated-hover);
-  border-radius: 3px;
+  color: var(--vc-fg);
 }
 
 /* Your most used emoji, one click to react (HoverQuickReactions), then a line before the
@@ -414,7 +450,7 @@ small {
 .message-menu .quick-reaction-button {
   display: flex;
   align-items: center;
-  border-radius: 3px;
+  justify-content: center;
 }
 
 .message-menu .quick-reaction-button.mine {
@@ -567,6 +603,8 @@ small {
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: break-word;
+  font-size: var(--vc-text-body);
+  line-height: var(--vc-leading-body);
 }
 
 .edit-message-form {
@@ -781,9 +819,9 @@ small {
   color: #fff;
   font-size: 10px;
   font-weight: 700;
+  pointer-events: none;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  pointer-events: none;
 }
 
 /* Max size must match MAX_MEDIA_WIDTH/HEIGHT in Attachment.jsx. */
@@ -835,9 +873,9 @@ small {
   color: #fff;
   font-size: 15px;
   font-weight: 700;
+  cursor: pointer;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  cursor: pointer;
 }
 
 .attachment-spoiler:hover .attachment-spoiler-reveal {
@@ -1036,11 +1074,11 @@ small {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px 12px;
-  background-color: var(--vc-bg-elevated);
+  padding: 8px 12px 8px 16px;
+  background-color: var(--vc-bg-base);
   border-bottom: 1px solid var(--vc-border-dark);
-  color: var(--vc-fg);
-  font-size: 14px;
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-md);
 }
 
 .notification-prompt-actions {
@@ -1052,8 +1090,9 @@ small {
 
 .notification-prompt-enable {
   border: none;
-  border-radius: 6px;
-  padding: 3px 12px;
+  border-radius: var(--vc-radius-md);
+  padding: 5px 14px;
+  font-weight: 500;
   background-color: var(--vc-accent);
   color: var(--vc-on-accent);
 }
@@ -1199,11 +1238,22 @@ img.emoji,
   max-height: 60vh;
   display: flex;
   flex-direction: column;
-  border-radius: 8px;
+  border-radius: var(--vc-radius-lg);
   border: 1px solid var(--vc-border-dark);
   background-color: var(--vc-bg-elevated);
-  box-shadow: 0 8px 24px var(--vc-shadow);
+  box-shadow: var(--vc-elevation-2);
   color: var(--vc-fg);
+  /* Grows up out of the emoji button under its right corner. */
+  transform-origin: bottom right;
+  transition: opacity var(--vc-duration-base) var(--vc-ease-out), scale var(--vc-duration-base) var(--vc-ease-out);
+}
+
+/* Not the phone's docked panel: it's dragged by the finger (pickerswipe). */
+@starting-style {
+  .emoji-picker:not(.docked) {
+    opacity: 0;
+    scale: 0.96;
+  }
 }
 
 .emoji-picker-header {
@@ -1320,7 +1370,6 @@ img.emoji,
   padding: 6px 0 4px;
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
   color: var(--vc-fg-muted);
   background-color: var(--vc-bg-elevated);
 }
@@ -1529,10 +1578,27 @@ img.emoji,
   border-bottom: 1px solid var(--vc-border-dark);
 }
 
+/* In the message box the lists (emoji, @ and # suggestions, / commands) float over the chat
+   just above it, as wide as it, instead of growing the box and pushing the conversation up. */
+.dm-chat-wrapper > .emoji-suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 45;
+  max-height: min(360px, calc(var(--vc-app-height) * 0.45));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: var(--vc-radius-lg);
+  background-color: var(--vc-bg-elevated);
+  box-shadow: var(--vc-elevation-2);
+}
+
 .emoji-suggestions-title {
   padding: 2px 6px 4px;
   font-size: 11px;
-  text-transform: uppercase;
   color: var(--vc-fg-muted);
 }
 
@@ -1695,30 +1761,35 @@ img.emoji,
   padding-bottom: 4px;
 }
 
+/* A chip per emoji: the count in the muted colour, yours in the selection tint with a purple
+   edge and count. */
 .reaction-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   min-height: 26px;
   padding: 2px 8px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--vc-radius-md);
   background: var(--vc-bg-elevated);
-  color: var(--vc-fg-subtle);
-  font-size: 13px;
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-sm);
+  font-weight: 600;
   line-height: 1;
   cursor: pointer;
 }
 
 .reaction-chip:hover {
-  border-color: var(--vc-border-dark);
+  border-color: var(--vc-border-light);
   background: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
 }
 
-.reaction-chip.mine {
+.reaction-chip.mine,
+.reaction-chip.mine:hover {
   border-color: var(--vc-accent);
   background: var(--vc-accent-soft);
-  color: var(--vc-fg);
+  color: var(--vc-accent-text);
 }
 
 .reaction-chip img.emoji {
@@ -1987,6 +2058,13 @@ body.mobile-mode .reaction-chip.reaction-add {
 /* The name starts where the text below does (.dm-message-content's margin). */
 .dm-message > .message-author {
   margin-left: var(--message-gutter);
+  font-size: var(--vc-text-body);
+  font-weight: 600;
+}
+
+/* The time beside the name: quieter than the name, on its baseline. */
+.dm-message > .message-author + small {
+  color: var(--vc-fg-muted);
 }
 
 /* Mobile message actions (MessageActionSheet): a sheet from the bottom over a dimmed page. */
@@ -2628,14 +2706,23 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   padding-top: 0;
 }
 
+/* The last line of a group (no follow-up from the same person after it) gets the space below
+   it that its name has above (.dm-message's padding-top), so a highlighted message (a mention,
+   a reply) doesn't end tight under its text. Lines inside a group stay on their 24px rhythm,
+   and the reactions row brings its own space when there is one. */
+[data-key]:not(:has(+ [data-key] > .each-dm-message-wrapper.grouped)) > .each-dm-message-wrapper > .dm-message:not(:has(.message-reactions)) {
+  padding-bottom: 4px;
+}
+
 .message-hover-time {
   position: absolute;
   left: 10px;
-  top: 3px;
+  top: 0;
   width: 50px;
   text-align: center;
-  font-size: 10px;
-  line-height: 18px;
+  font-size: var(--vc-text-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 24px;
   color: var(--vc-fg-muted);
   white-space: nowrap;
   visibility: hidden;
@@ -2791,9 +2878,18 @@ body.mobile-mode .dm-user-list-container .dm-user {
   overflow-y: auto;
   padding: 14px 16px;
   border: 1px solid var(--vc-border-dark);
-  border-radius: 8px;
+  border-radius: var(--vc-radius-lg);
   background-color: var(--vc-bg-elevated);
-  box-shadow: 0 8px 24px var(--vc-shadow);
+  box-shadow: var(--vc-elevation-2);
+  transition: opacity var(--vc-duration-base) var(--vc-ease-out), translate var(--vc-duration-base) var(--vc-ease-out);
+}
+
+/* Placed by script beside what opened it: it fades and rises, it doesn't scale. */
+@starting-style {
+  .profile-popover {
+    opacity: 0;
+    translate: 0 4px;
+  }
 }
 
 /* ProfileCard: banner, picture over its bottom edge, names under it, status, custom status, bio. */
@@ -3713,7 +3809,7 @@ body.mobile-mode .dm-user-list-container .dm-user {
   padding: 8px 16px 12px 12px;
   border-left: 4px solid var(--embed-color, var(--vc-border-light));
   border-radius: 4px;
-  background-color: var(--vc-bg-elevated);
+  background-color: var(--vc-bg-card);
   white-space: normal;
 }
 
@@ -3877,9 +3973,20 @@ body.mobile-mode .dm-user-list-container .dm-user {
   z-index: 40;
   min-width: 190px;
   padding: 6px;
-  border-radius: 6px;
+  border-radius: var(--vc-radius-lg);
+  border: 1px solid var(--vc-border-dark);
   background-color: var(--vc-popup);
-  box-shadow: 0 8px 16px var(--vc-popup-shadow);
+  box-shadow: var(--vc-elevation-2);
+  /* Grows up out of the + under it. */
+  transform-origin: bottom left;
+  transition: opacity var(--vc-duration-base) var(--vc-ease-out), scale var(--vc-duration-base) var(--vc-ease-out);
+}
+
+@starting-style {
+  .composer-add-menu {
+    opacity: 0;
+    scale: 0.96;
+  }
 }
 
 .composer-add-item {
@@ -3914,8 +4021,8 @@ body.mobile-mode .dm-user-list-container .dm-user {
   margin: 4px 0;
   padding: 12px;
   border: 1px solid var(--vc-border-dark);
-  border-radius: 8px;
-  background-color: var(--vc-bg-subtle);
+  border-radius: var(--vc-radius-lg);
+  background-color: var(--vc-bg-card);
 }
 
 .poll-question {
@@ -3947,7 +4054,8 @@ body.mobile-mode .dm-user-list-container .dm-user {
   overflow: hidden;
   border: 1px solid var(--vc-border-dark);
   border-radius: 6px;
-  background-color: var(--vc-bg-elevated);
+  /* The chat's colour, set into the card (--vc-bg-card) around it. */
+  background-color: var(--vc-bg-subtle);
   color: var(--vc-fg);
   font-size: 14px;
   text-align: left;
@@ -3968,7 +4076,7 @@ body.mobile-mode .dm-user-list-container .dm-user {
 }
 
 .poll-option.selected {
-  background-color: color-mix(in srgb, var(--vc-accent) 18%, var(--vc-bg-elevated));
+  background-color: color-mix(in srgb, var(--vc-accent) 18%, var(--vc-bg-subtle));
 }
 
 /* Its share of the votes, behind the text. */
@@ -4809,8 +4917,6 @@ body.mobile-mode .poll-voters-list {
   color: var(--vc-fg-muted);
   font-size: 12px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
 
 .friends-empty {
