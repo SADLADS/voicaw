@@ -91,6 +91,22 @@ Two differences from the Play Store app:
   project, which only the official app is part of. While it's open, notifications and calls work
   as usual.
 
+### 3c. The web app, to work on it
+
+To change the web app and see it as you go, against the real Voicaw: create
+`client/.env.development` with
+
+```ini
+VITE_API_BASE_URL=/api/
+VITE_WS_URL=wss://api.voicaw.com
+```
+
+then run `npm run dev` and open http://localhost:5173. The dev server forwards `/api` to
+api.voicaw.com (`client/vite.config.js`) and reloads the page as you save. You log in with your
+usual account, and everything you do is real: real people see your messages. Only the web app
+is yours, so a change that needs something new on the server won't work until the server has
+it. Before sending changes, run `npm run lint` and `npm test` in `client/`.
+
 ## Initial setup
 
 How a fresh host is set up, in order. The live host is set up like this: the API and the test

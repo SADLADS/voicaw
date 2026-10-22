@@ -215,6 +215,10 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: 'https://api.voicaw.com',
           changeOrigin: true,
+          // The API's CORS check only allows its own sites (server/config.js allowedOrigins)
+          // and rejects http://localhost:5173. Requests without an Origin pass, so the dev
+          // server drops it: a local copy of the web app can use the real server.
+          configure: (proxy) => proxy.on('proxyReq', (req) => req.removeHeader('origin')),
         },
       },
       allowedHosts: true,
