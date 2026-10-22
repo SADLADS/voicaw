@@ -1036,8 +1036,6 @@ button.event-card-name:hover {
   color: var(--vc-fg-muted);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
 }
 
 .event-editor-time {

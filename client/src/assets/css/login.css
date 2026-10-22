@@ -2,14 +2,50 @@ body {
     background-color: var(--vc-bg-base);
   }
 
-  /* Login Page */
+/* Login Page: one card in the middle of the screen (or from the top, scrolling, when it's
+   taller than the screen), the bird above the title. */
+.login-page {
+  display: flex;
+  flex-direction: column;
+  padding-top: 32px;
+  padding-bottom: calc(32px + env(safe-area-inset-bottom));
+}
+
 .form-container {
-    max-width: 400px;
-    margin: 10vh auto;
-    background: var(--vc-bg-subtle);
-    padding: 2rem;
-    border-radius: 8px;
-  }
+  width: 100%;
+  max-width: 380px;
+  margin: auto;
+  padding: 32px 28px 28px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 16px;
+  background: var(--vc-bg-subtle);
+}
+
+.form-container::before {
+  content: '';
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 16px;
+  background-color: var(--vc-logo);
+  -webkit-mask: url('../images/logo-no-border.svg') center / contain no-repeat;
+  mask: url('../images/logo-no-border.svg') center / contain no-repeat;
+}
+
+.login-page .form-control {
+  min-height: 42px;
+  padding: 8px 14px;
+}
+
+.login-page .btn {
+  min-height: 42px;
+}
+
+.login-page hr {
+  margin: 24px 0;
+  border-color: var(--vc-border-light);
+  opacity: 1;
+}
   
   .btn-vc {
     background-color: var(--vc-accent);
@@ -23,12 +59,16 @@ body {
 
   .login-header{
     color: var(--vc-fg);
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
   }
 
 .register-password-hint {
-  font-size: 12px;
-  opacity: 0.75;
-  margin: -0.25rem 0 0.5rem;
+  font-size: var(--vc-text-sm);
+  line-height: 1.5;
+  color: var(--vc-fg-muted);
+  margin: -0.25rem 0 0.75rem;
 }
 
 /* Why they want to join, while sign-ups need approval: taller, not wider. */

@@ -115,7 +115,7 @@ function createWindow(hidden, onShown = () => {}) {
         minHeight: 400,
         ...savedBounds(),
         show: false,
-        backgroundColor: '#17151d',
+        backgroundColor: '#18161e',
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,

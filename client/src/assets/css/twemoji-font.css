@@ -37,8 +37,9 @@
 }
 
 :root {
-  /* Bootstrap's font stack, with Twemoji in front (only used for emoji, see above). */
-  --bs-body-font-family: "Voicaw Twemoji", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+  /* Bootstrap's font stack, with Twemoji in front (only used for emoji, see above), then
+     Figtree (main.jsx). */
+  --bs-body-font-family: "Voicaw Twemoji", "Figtree Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
     "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
     "Segoe UI Symbol", "Noto Color Emoji";
 }

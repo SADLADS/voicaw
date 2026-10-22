@@ -309,6 +309,47 @@
   - Neutrals have a slight purple tint (hue about 260°). Hover: a coloured fill goes one shade
     darker (its `-hover` token, never `filter: brightness`), a neutral surface one step towards
     the foreground.
+  - Surfaces come in three tiers, darkest at the back (2026-10-22): the rail (`--vc-bg-rail`),
+    the sidebar beside it (`--vc-bg-base`) and the chat (`--vc-bg-subtle`); columns are told
+    apart by these steps, so borders between them are quiet (`--vc-border-dark`). Ol' Familiar
+    and Halloween set the rail to their sidebar colour. The open DM and channel get the
+    selection tint (`--vc-accent-soft`). Placeholders are at least 4.5:1 on a field.
+  - **Type, shape and motion tokens** (theme-independent, on `:root`, 2026-10-22): the typeface is
+    Figtree (`@fontsource-variable/figtree`, imported in `main.jsx` so the desktop and Android
+    apps have it offline; first after Twemoji in `twemoji-font.css`'s stack). Sizes
+    `--vc-text-xs/sm/md/body/lg/xl` (11, 12, 14, 15, 16, 20px); message text is 15px on 24px
+    lines (`--vc-leading-body`), which the 44px message avatar spans with the name. Corners
+    `--vc-radius-sm/md/lg/full` (4, 8, 12, round). Shadows `--vc-elevation-1` (the hover
+    toolbar) and `-2` (menus). Motion: `--vc-ease-out` and `--vc-duration-fast/base/slow`
+    (120, 180, 240ms). Pressing a button, reaction or rail icon scales it to 97% (mouse only).
+    Menus fade in with `@starting-style`: the guild menu and the composer's + grow from their
+    trigger, while ContextMenu and ChannelMuteMenu (placed by script from their measured box)
+    only drop 4px; the message hover toolbar only fades (`messageMenuPlacement.js` measures
+    it). Settings' subsections unfold under the page you open (`grid-template-rows` 0fr to
+    1fr, which animates to the content's height in every browser) and their rows fade in one
+    after another (`--i`, set in `Settings.jsx`); hover is never delayed. Nothing that
+    happens many times a minute animates. Under `prefers-reduced-motion`,
+    transitions keep fades and colour changes but not movement (MOTION in `voicaw.css`).
+  - **Shell and pages** (2026-10-22): labels over groups (Settings' groups, member groups,
+    channel categories, form labels, panel headings) are sentence case, 12px, grey, never
+    tracked capitals; capitals are kept for tags only (NEW, LIVE, SPOILER, weekday headers).
+    On a computer the user panel is a card docked in the bottom corner, like the composer.
+    Dialogs: 16px corners, an edge, `--vc-elevation-2`, fields a step darker than the dialog,
+    and they settle in from 97%. The login screen is one card with the bird above the title.
+    Anything you can tab to gets a purple focus ring by default (a `:where` rule, so a
+    component's own focus style wins). Settings: each section is a full-width rule, then its
+    title and rows on one left edge at a reading width (680px, descriptions about 62
+    characters); checkboxes in Settings are drawn as switches (purple when on), with the name
+    on the left and the switch on the right; the open page is a neutral pill. The page is the
+    front tier (`--vc-bg-subtle`), like the chat.
+  - **The column's width** (`utils/sidebarWidth.js`) is fitted to the window as shown
+    (`clampSidebarWidth(saved, window.innerWidth)` in Layout, kept up to date on resize): a
+    width saved on a wide window never leaves a narrow one's page under its minimum, and the
+    saved width comes back when the window is wide again. `.sidebar-wrapper` never shrinks
+    (the page beside it does, `min-width: 0`): if it did, its fixed-width columns would be
+    drawn over the page with the resizer and user panel cut short. Every column there sets a
+    real `width: var(--vc-sidebar-width)`, not only a flex basis: Firefox sizes the left side
+    from a column's content otherwise, so the page wouldn't follow a drag (Settings did this).
   - Each colour comes as a fill (`--vc-accent`), `-hover` (and `-strong`, pressed), `-text` (as
     text on the background: the fills don't read as text), `-soft` (a tinted background) and
     `--vc-on-*` (text on the fill: white on purple, red and green, dark on yellow and dark's
@@ -340,8 +381,9 @@
     (`e2e/colours.mjs` with `THEMES=<name>` shoots it). Since
     nothing outside the token blocks has a theme colour of its own, a user-made scheme could
     be applied by setting the tokens inline on `<html>`. Keep `manifest.json`'s and
-    `index.html`'s `theme-color`, `electron/main.js`'s `backgroundColor` and `website/` in step
-    with the default scheme. Each theme sets CSS
+    `index.html`'s `theme-color`, `electron/main.js`'s `backgroundColor`, the desktop splash
+    (`electron/assets/splash.html`), the Appearance previews and `website/` in step with the
+    default scheme. Each theme sets CSS
   `color-scheme`, which makes the browser's own controls and scrollbars match. **Not the
   on-screen keyboard:** on iPhones and iPads it follows the system's light/dark mode whatever
   the page says (WebKit gives every field `UIKeyboardAppearanceDefault`; checked in its source

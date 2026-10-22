@@ -47,7 +47,7 @@ import { clearProfiles, isBot, mergeProfiles } from '../utils/profiles';
 import { setPersonMessenger } from '../utils/personMenu';
 import { startBotDm } from '../services/botDmService';
 import { forgetChat, rememberChat } from '../utils/lastChat';
-import { loadSidebarWidth, onSidebarWidthStorage, saveSidebarWidth } from '../utils/sidebarWidth';
+import { clampSidebarWidth, loadSidebarWidth, onSidebarWidthStorage, saveSidebarWidth } from '../utils/sidebarWidth';
 
 // The router's path as the address bar has it now (hash URLs for a page opened from a file,
 // see App.jsx), which can be ahead of the rendered `location`.
@@ -82,12 +82,22 @@ export default function Layout({ user, onLogout }) {
   // On a computer the column beside the rail (DM list, channel list, Settings) is one width,
   // dragged by its edge and remembered per device (utils/sidebarWidth.js). Phones: full width.
   const hasColumn = isDmPage || Boolean(guildId) || settingsColumn;
-  const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
+  const [savedSidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
   useEffect(() => onSidebarWidthStorage(setSidebarWidth), []);
   const changeSidebarWidth = useCallback((width) => {
     setSidebarWidth(width);
     saveSidebarWidth(width);
   }, []);
+  // The width saved on a wide window can be too much for a narrow one: what's shown is fitted
+  // to the window (the page keeps its minimum), and the saved width comes back when it's wide
+  // again.
+  const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const onResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const sidebarWidth = clampSidebarWidth(savedSidebarWidth, windowWidth);
 
   // Phone: the list and the chat (or Settings' column and page) are two panes, swiped between
   // (hooks/useSwipePanes.js). /settings alone opens on the list (My Account behind it).
