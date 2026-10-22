@@ -31,6 +31,12 @@ body {
   margin: -0.25rem 0 0.5rem;
 }
 
+/* Why they want to join, while sign-ups need approval: taller, not wider. */
+.register-reason {
+  resize: vertical;
+  min-height: 4.5rem;
+}
+
 /* Agreeing to the terms of use: registering, and TermsGate.jsx. */
 .register-terms {
   display: block;

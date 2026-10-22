@@ -428,7 +428,10 @@ account email, optional name and note, a hidden field that catches bots) posting
 account, 5 an hour per IP, at most 1000 waiting; the same email again replaces the name and note).
 Admins see the requests in Settings → Admin → Android testers (live, over the websocket),
 copy the waiting emails, add them to the test's tester list in the Play Console by hand, then
-mark them added and delete them when done. Nothing tells the person: Play lets them in once
+mark them added and remove them when done: Remove sets `removed_at`, moving the request to the
+list's Show history (2026-10-22; `GET /admin/tester-requests/history`, last removed first, 50 a
+page, each deletable for good with `DELETE /admin/tester-requests/history/:id`), forgotten a year
+after removal. The same email asking again reopens its request as new. Nothing tells the person: Play lets them in once
 they're on the list. When the app is open to everyone, link the card to Play and drop the form. `updates/publish.mjs` rebuilds it after publishing (not
 for a try-out folder, unless `VOICAW_SITE_DIR` is set), so `desktop-release/release.sh` keeps it
 current. nginx (`website/nginx/voicaw.com`) keeps voicaw.com's `/api/` (installed desktop apps,

@@ -158,6 +158,26 @@ in `server/.env` as the fallback, `open` when neither is set), handled by `serve
 - **`request`**: anyone, but the account is made with `users.pending = 1` until an admin approves
   it. A working invite skips the wait.
 
+**Why they want to join** (2026-10-22): while sign-ups are `request`, the form has a box "Tell
+us why you want to join Voicaw" (`Login.jsx`, up to 1000 characters). The app-wide setting
+`signupReason` (Settings → Admin, listed under Sign-ups only while they need approval; no `.env`
+fallback) makes it `optional` (the default) or `required`; `/api/config` says which. Both
+`/initiateregister` (before any keys are made) and `/finaliseregister` take `reason` and refuse
+with 400 `code: 'reason_required'` / `'reason_too_long'` (`checkSignup`). A working invite skips
+the question as it skips the wait (nothing is kept). The answer goes in the request's row,
+`signup_requests` (`addRequest`, in the transaction that makes the account), and admins see it
+under the name in Sign-up requests.
+
+**History of requests** (2026-10-22): `signup_requests` outlives the decision: approving or
+declining sets `status` ('approved' / 'declined'), `decided_at` and `decided_by` (the admin), and
+a declined row loses its `user_id` (the account is gone) but keeps the name and answer. Settings →
+Admin's Show history (`RequestHistory` in `AdminSettings.jsx`; `GET /admin/requests/history`,
+newest decision first, 50 a page, `?before=<decided_at>:<id>`) lists them, each deletable
+(`DELETE /admin/requests/history/:id`). Decisions over a year old are forgotten (`pruneHistory`,
+daily and on every listing). A withdrawn request leaves nothing (the person asked for it all to
+go), and deleting an account later takes its row with it (`accounts.js`). Migration 18 gave
+accounts already waiting a row. The privacy policy says all this.
+
 App invites (`app_invites`) are made by admins only (Settings → Admin → Invites; `POST
 /admin/invites { maxAge, maxUses }`, `DELETE /admin/invites/:code`), shared as
 `<origin>/join/<code>` (App.jsx's `/join/:code` opens sign-up with the code filled in; the form
@@ -176,10 +196,11 @@ approved, when `account_approved` is sent and the same socket joins `clients`. T
 only `PendingApproval.jsx` while `user.pending` (whatever the address): it opens the app on
 `account_approved`, or when a check of `/profile` every minute says so.
 
-Admins see the requests in Settings → Admin (`GET /admin` `requests`), and get `signup_requests
+Admins see the requests in Settings → Admin (`GET /admin` `requests`, with each one's `reason`), and get `signup_requests
 { count }` on their sockets when one comes or is dealt with (the panel reloads). Approving is
 `POST /admin/requests/:id/approve`; declining (`DELETE /admin/requests/:id`) removes the account
-altogether, not as a "Deleted User" tombstone (it can't have written anything): the row, its
+altogether, not as a "Deleted User" tombstone (it can't have written anything; the request stays
+in the history, above): the row, its
 sessions, push subscriptions and login state; its sockets get `account_deleted` and are closed,
 so the app logs out, and the name is free again. Withdrawing a request (the waiting page, a
 password proof through `DELETE /account`) does the same.

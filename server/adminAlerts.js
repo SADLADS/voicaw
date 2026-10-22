@@ -19,7 +19,7 @@ async function counts() {
   return {
     reports: await n('SELECT COUNT(*) AS n FROM reports WHERE resolved_at IS NULL'),
     signups: await n('SELECT COUNT(*) AS n FROM users WHERE pending = 1 AND deleted_at IS NULL'),
-    testers: await n('SELECT COUNT(*) AS n FROM tester_requests WHERE added_at IS NULL'),
+    testers: await n('SELECT COUNT(*) AS n FROM tester_requests WHERE added_at IS NULL AND removed_at IS NULL'),
   };
 }
 

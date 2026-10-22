@@ -1,5 +1,5 @@
 // Global admin panel (the client's Settings → Admin): app-wide settings (appSettings.js), who
-// else is an admin, how full the object store is, and sign-ups (signups.js): accounts waiting for approval and app invites. Admins are users with users.is_admin = 1; the first one is made with
+// else is an admin, how full the object store is, and sign-ups (signups.js): accounts waiting for approval, decided requests (history) and app invites. Admins are users with users.is_admin = 1; the first one is made with
 // `npm run admin -- <username>` in server/ (scripts/admin.js).
 const express = require('express');
 const db = require('../db');
@@ -121,15 +121,34 @@ router.delete('/admin/admins/:id', admin, async (req, res) => {
   res.json({ admins: await listAdmins() });
 });
 
-// Sign-ups waiting for approval: approve, or decline (the account is removed).
+// Sign-ups waiting for approval: approve, or decline (the account is removed; the request
+// stays in the history).
 router.post('/admin/requests/:id/approve', admin, async (req, res) => {
-  if (!(await signups.approve(Number(req.params.id)))) return res.status(404).json({ error: 'No such request' });
+  if (!(await signups.approve(Number(req.params.id), req.user.id))) return res.status(404).json({ error: 'No such request' });
   res.json({ requests: await signups.listRequests() });
 });
 
 router.delete('/admin/requests/:id', admin, async (req, res) => {
-  if (!(await signups.removePending(Number(req.params.id)))) return res.status(404).json({ error: 'No such request' });
+  if (!(await signups.removePending(Number(req.params.id), req.user.id))) return res.status(404).json({ error: 'No such request' });
   res.json({ requests: await signups.listRequests() });
+});
+
+// Requests decided over the last year, newest first: { history, more }. The next page:
+// `?before=<decided_at>:<id>` of the last row.
+router.get('/admin/requests/history', admin, async (req, res) => {
+  let before = null;
+  if (req.query.before != null) {
+    const [decidedAt, id] = String(req.query.before).split(':').map(Number);
+    if (!Number.isInteger(decidedAt) || !Number.isInteger(id)) return res.status(400).json({ error: 'Invalid before' });
+    before = { decided_at: decidedAt, id };
+  }
+  res.json(await signups.listHistory(before));
+});
+
+// Forgets one decided request now.
+router.delete('/admin/requests/history/:id', admin, async (req, res) => {
+  if (!(await signups.deleteHistoryEntry(Number(req.params.id)))) return res.status(404).json({ error: 'No such request' });
+  res.json({ ok: true });
 });
 
 // App invites: { maxAge, maxUses } (seconds and uses; 0 or missing = no limit).

@@ -324,9 +324,7 @@
         "copyWaiting": "未追加のメールアドレスをコピー",
         "added": "{{date}} に追加",
         "markAdded": "追加済みにする",
-        "markWaiting": "未追加に戻す",
-        "delete": "削除",
-        "confirmDelete": "{{email}} からの申請を削除しますか？"
+        "markWaiting": "未追加に戻す"
       },
       "invites": {
         "title": "招待",

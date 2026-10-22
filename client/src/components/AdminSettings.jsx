@@ -34,6 +34,9 @@ const USE_OPTIONS = [
   ...[1, 5, 10, 25, 100].map((count) => [count, t('guildAdmin.invite.uses', { count })]),
 ];
 
+// Settings shown with the sign-up requests rather than with the other app settings.
+const SIGNUP_SETTINGS = ['signupMode', 'signupReason'];
+
 // The link to share for an app invite (App.jsx's /join/ route).
 const joinLink = (code) => `${shareOrigin()}/join/${code}`;
 
@@ -251,10 +254,13 @@ function RequestList({ requests, onChange }) {
         <ul className="admin-list">
           {requests.map((r) => (
             <li key={r.id}>
-              <span>
-                {displayName(r.id, r.display_name || r.username)}
-                {r.display_name && r.display_name !== r.username && <span className="admin-list-detail"> {r.username}</span>}
-                <span className="admin-list-detail"> · {formatDateTime(r.account_created * 1000)}</span>
+              <span className="admin-invite">
+                <span>
+                  {displayName(r.id, r.display_name || r.username)}
+                  {r.display_name && r.display_name !== r.username && <span className="admin-list-detail"> {r.username}</span>}
+                  <span className="admin-list-detail"> · {formatDateTime(r.account_created * 1000)}</span>
+                </span>
+                {r.reason && <span className="admin-list-detail admin-tester-note">{r.reason}</span>}
               </span>
               <span className="admin-list-actions">
                 <button type="button" className="btn btn-sm uploadbutton" disabled={busy === r.id} onClick={() => act(r.id, true)}>
@@ -267,6 +273,112 @@ function RequestList({ requests, onChange }) {
             </li>
           ))}
         </ul>
+      )}
+      {error && <p className="error-msg">{error}</p>}
+      <RequestHistory
+        url="/admin/requests/history"
+        cursor={(r) => `${r.decided_at}:${r.id}`}
+        reloadOn={requests}
+        renderEntry={(r) => (
+          <>
+            <span>
+              {r.display_name || r.username}
+              {r.display_name && r.display_name !== r.username && <span className="admin-list-detail"> {r.username}</span>}
+            </span>
+            <span className="admin-list-detail">
+              {[
+                r.status === 'approved'
+                  ? t('settings.admin.history.approved', { name: decidedBy(r), date: formatDateTime(r.decided_at * 1000) })
+                  : t('settings.admin.history.declined', { name: decidedBy(r), date: formatDateTime(r.decided_at * 1000) }),
+                t('settings.admin.history.asked', { date: formatDateTime(r.requested_at * 1000) }),
+              ].join(' · ')}
+            </span>
+            {r.reason && <span className="admin-list-detail admin-tester-note">{r.reason}</span>}
+          </>
+        )}
+      />
+    </div>
+  );
+}
+
+// The admin who decided a sign-up request (gone from the server: "an admin").
+const decidedBy = (r) => r.decided_by_username ?? t('settings.admin.history.someone');
+
+// Requests already dealt with (sign-ups approved or declined, Android testers removed), kept a
+// year on the server: shown on asking, newest first, a page at a time, each one deletable.
+// `cursor(row)` is the server's `before` for the page after `row`; `reloadOn` changing (the list
+// of waiting requests) reloads it while open, since something may have just moved into it.
+function RequestHistory({ url, cursor, reloadOn, renderEntry }) {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState(null);
+  const [more, setMore] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    let live = true;
+    api.get(url).then(
+      ({ data }) => {
+        if (!live) return;
+        setRows(data.history);
+        setMore(data.more);
+      },
+      (err) => { if (live) setError(errorText(err, t('settings.admin.history.couldntLoad'))); }
+    );
+    return () => { live = false; };
+  }, [open, url, reloadOn]);
+
+  const loadMore = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { data } = await api.get(url, { params: { before: cursor(rows[rows.length - 1]) } });
+      setRows((old) => [...old, ...data.history.filter((r) => !old.some((o) => o.id === r.id))]);
+      setMore(data.more);
+    } catch (err) {
+      setError(errorText(err, t('settings.admin.history.couldntLoad')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const forget = async (id) => {
+    if (!window.confirm(t('settings.admin.history.confirmDelete'))) return;
+    setError(null);
+    try {
+      await api.delete(`${url}/${id}`);
+      setRows((old) => old.filter((r) => r.id !== id));
+    } catch (err) {
+      setError(errorText(err, t('settings.admin.couldntSave')));
+    }
+  };
+
+  return (
+    <div className="admin-history">
+      <button type="button" className="link-button" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        {open ? t('settings.admin.history.hide') : t('settings.admin.history.show')}
+      </button>
+      {open && rows && (rows.length === 0 ? (
+        <p className="admin-setting-state">{t('settings.admin.history.none')}</p>
+      ) : (
+        <ul className="admin-list">
+          {rows.map((r) => (
+            <li key={r.id}>
+              <span className="admin-invite">{renderEntry(r)}</span>
+              <span className="admin-list-actions">
+                <button type="button" className="btn btn-sm btn-secondary" onClick={() => forget(r.id)}>
+                  {t('settings.admin.history.delete')}
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ))}
+      {open && more && (
+        <button type="button" className="btn btn-sm btn-secondary" disabled={busy} onClick={loadMore}>
+          {t('settings.admin.history.loadMore')}
+        </button>
       )}
       {error && <p className="error-msg">{error}</p>}
     </div>
@@ -368,7 +480,7 @@ function InviteList({ invites, onChange }) {
 
 // People asking on voicaw.com to join the Android app's closed test on Google Play
 // (server/routes/testerRequests.js): an admin adds the emails to Play's tester list by hand,
-// then marks them added. Waiting ones first.
+// then marks them added, and removes them when done (into the history). Waiting ones first.
 function TesterList() {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState(null);
@@ -390,7 +502,7 @@ function TesterList() {
   }, []);
 
   const act = async (request, change) => {
-    if (change === 'delete' && !window.confirm(t('settings.admin.testers.confirmDelete', { email: request.email }))) return;
+    if (change === 'delete' && !window.confirm(t('settings.admin.testers.confirmRemove', { email: request.email }))) return;
     setError(null);
     setBusy(request.id);
     try {
@@ -447,7 +559,7 @@ function TesterList() {
                   {r.added_at ? t('settings.admin.testers.markWaiting') : t('settings.admin.testers.markAdded')}
                 </button>
                 <button type="button" className="btn btn-sm btn-secondary" disabled={busy === r.id} onClick={() => act(r, 'delete')}>
-                  {t('settings.admin.testers.delete')}
+                  {t('settings.admin.testers.remove')}
                 </button>
               </span>
             </li>
@@ -460,6 +572,23 @@ function TesterList() {
         </button>
       )}
       {error && <p className="error-msg">{error}</p>}
+      <RequestHistory
+        url="/admin/tester-requests/history"
+        cursor={(r) => `${r.removed_at}:${r.id}`}
+        reloadOn={requests}
+        renderEntry={(r) => (
+          <>
+            <code>{r.email}</code>
+            <span className="admin-list-detail">
+              {[r.name, t('settings.admin.history.asked', { date: formatDateTime(r.created_at * 1000) }),
+                r.added_at ? t('settings.admin.testers.added', { date: formatDateTime(r.added_at * 1000) }) : t('settings.admin.testers.neverAdded'),
+                t('settings.admin.testers.removed', { date: formatDateTime(r.removed_at * 1000) })]
+                .filter(Boolean).join(' · ')}
+            </span>
+            {r.note && <span className="admin-list-detail admin-tester-note">{r.note}</span>}
+          </>
+        )}
+      />
     </div>
   );
 }
@@ -503,14 +632,17 @@ export default function AdminSettings({ onAvailable }) {
       />
     );
   };
-  // Settings → Admin's subsections (Settings.jsx) scroll to these ids: the sign-up mode goes
+  // Settings → Admin's subsections (Settings.jsx) scroll to these ids: the sign-up settings go
   // with the requests, testers and invites, the other app settings first.
   return (
     <div className="settings-card admin-settings">
       <h5 id="settings-admin-general">{t('settings.admin.title')}</h5>
-      {data.settings.filter((s) => s.key !== 'signupMode').map(row)}
+      {data.settings.filter((s) => !SIGNUP_SETTINGS.includes(s.key)).map(row)}
       <div id="settings-admin-signups" className="settings-anchor">
         {data.settings.filter((s) => s.key === 'signupMode').map(row)}
+        {/* Asking why they want to join only matters while sign-ups need approval. */}
+        {data.settings.some((s) => s.key === 'signupMode' && s.value === 'request')
+          && data.settings.filter((s) => s.key === 'signupReason').map(row)}
         <RequestList requests={data.requests ?? []} onChange={(requests) => setData((d) => ({ ...d, requests }))} />
         <TesterList />
         <InviteList invites={data.invites ?? []} onChange={(invites) => setData((d) => ({ ...d, invites }))} />

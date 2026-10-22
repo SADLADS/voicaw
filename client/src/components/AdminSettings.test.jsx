@@ -140,7 +140,7 @@ describe('AdminSettings', () => {
     expect(api.delete).toHaveBeenCalledWith('/admin/invites/Code123');
   });
 
-  it('lists Android tester requests, waiting first, to mark added, copy or delete', async () => {
+  it('lists Android tester requests, waiting first, to mark added, copy or remove', async () => {
     const testers = [
       { id: 7, email: 'pal@gmail.com', name: 'Pal', note: 'Pixel 7', created_at: 1_790_000_000, added_at: null },
       { id: 8, email: 'old@gmail.com', name: null, note: null, created_at: 1_789_000_000, added_at: 1_789_500_000 },
@@ -165,7 +165,7 @@ describe('AdminSettings', () => {
 
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     api.delete.mockResolvedValue({ data: { testers: [testers[0]] } });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[1]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[1]);
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/admin/tester-requests/8'));
     await waitFor(() => expect(screen.queryByText('old@gmail.com')).not.toBeInTheDocument());
 
@@ -173,5 +173,66 @@ describe('AdminSettings', () => {
     api.get.mockClear();
     testerListeners.forEach((cb) => cb());
     expect(api.get).toHaveBeenCalledWith('/admin/tester-requests');
+  });
+
+  it('shows why someone wants to join, and the reason setting only while sign-ups need approval', async () => {
+    const reason = { key: 'signupReason', label: 'Sign-up reason', description: 'Ask why.', secret: false, env: null, source: 'unset', value: 'optional', choices: ['optional', 'required'] };
+    const waiting = [{ id: 7, username: 'newbie', display_name: null, account_created: 1700000000, reason: 'My friends are here' }];
+    api.get.mockResolvedValue({ data: { settings: [signupMode(), reason], admins: [], requests: waiting, invites: [] } });
+    const { unmount } = renderAdmin();
+    expect(await screen.findByText('My friends are here')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Sign-up reason')).not.toBeInTheDocument();
+    unmount();
+
+    api.get.mockResolvedValue({ data: { settings: [signupMode({ value: 'request' }), reason], admins: [], requests: [], invites: [] } });
+    renderAdmin();
+    const menu = await screen.findByLabelText('Sign-up reason');
+    expect(screen.getByRole('option', { name: 'Required' })).toBeInTheDocument();
+    api.put.mockResolvedValue({ data: { settings: [signupMode({ value: 'request' }), { ...reason, value: 'required', source: 'admin' }] } });
+    fireEvent.change(menu, { target: { value: 'required' } });
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/admin/settings/signupReason', { value: 'required' }));
+  });
+
+  it('shows the history of sign-up and tester requests on asking, pages it and deletes from it', async () => {
+    const decided = [
+      { id: 3, username: 'yes', display_name: null, reason: 'Hi', requested_at: 1_790_000_000, status: 'approved', decided_at: 1_790_000_500, decided_by_username: 'boss' },
+      { id: 2, username: 'no', display_name: null, reason: null, requested_at: 1_789_000_000, status: 'declined', decided_at: 1_789_000_500, decided_by_username: null },
+    ];
+    const older = { id: 1, username: 'early', display_name: null, reason: null, requested_at: 1_780_000_000, status: 'approved', decided_at: 1_780_000_500, decided_by_username: 'boss' };
+    const removed = [{ id: 9, email: 'gone@gmail.com', name: null, note: 'Bye', created_at: 1_790_000_000, added_at: 1_790_000_100, removed_at: 1_790_000_200 }];
+    api.get.mockImplementation(async (url, options) => {
+      if (url === '/admin/requests/history') {
+        return { data: options?.params?.before ? { history: [older], more: false } : { history: decided, more: true } };
+      }
+      if (url === '/admin/tester-requests/history') return { data: { history: removed, more: false } };
+      if (url === '/admin/tester-requests') return { data: { testers: [] } };
+      return { data: { settings: [], admins: [], requests: [], invites: [] } };
+    });
+    renderAdmin();
+    await screen.findByText('Nobody has asked.');
+    expect(api.get).not.toHaveBeenCalledWith('/admin/requests/history');
+
+    const [signups, testers] = screen.getAllByRole('button', { name: 'Show history' });
+    fireEvent.click(signups);
+    expect(await screen.findByText('yes')).toBeInTheDocument();
+    expect(screen.getByText(/Approved by boss/)).toBeInTheDocument();
+    expect(screen.getByText(/Declined by an admin/)).toBeInTheDocument();
+    expect(screen.getByText('Hi')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(await screen.findByText('early')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/admin/requests/history', { params: { before: '1789000500:2' } });
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    api.delete.mockResolvedValue({ data: { ok: true } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+    await waitFor(() => expect(screen.queryByText('yes')).not.toBeInTheDocument());
+    expect(api.delete).toHaveBeenCalledWith('/admin/requests/history/3');
+
+    fireEvent.click(testers);
+    expect(await screen.findByText('gone@gmail.com')).toBeInTheDocument();
+    expect(screen.getByText(/Removed/)).toBeInTheDocument();
+    expect(screen.getByText('Bye')).toBeInTheDocument();
   });
 });

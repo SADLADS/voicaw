@@ -1122,6 +1122,11 @@ pre code {
   overflow-wrap: anywhere;
 }
 
+/* Requests already dealt with, under the waiting ones (AdminSettings RequestHistory). */
+.admin-history {
+  margin: 0.25rem 0 0.5rem;
+}
+
 .admin-setting-row select {
   flex: 1;
   min-width: 0;

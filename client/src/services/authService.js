@@ -118,12 +118,13 @@ function checkNewPassword(password) {
 }
 
 // OPAQUE registration for `password`: { registrationRecord, exportKey }. `signup` (a new
-// account: { invite }) lets the server refuse a sign-up that needs an invite straight away.
+// account: { invite, reason }) lets the server refuse a sign-up that needs an invite (or a
+// reason) straight away.
 async function registerPassword(username, password, signup = null) {
   const opaque = await loadOpaque();
   const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
   const started = await post('/initiateregister', {
-    userIdentifier: username, registrationRequest, ...(signup && { signup: true, invite: signup.invite }),
+    userIdentifier: username, registrationRequest, ...(signup && { signup: true, invite: signup.invite, reason: signup.reason }),
   });
   if (started.error) throw new Error(started.error);
   return opaque.client.finishRegistration({
@@ -155,13 +156,15 @@ async function recoveryFields(code, keys) {
 // username, hasRecoveryCode, pending }, or null if the server registered it without logging in;
 // `pending` while it waits for an admin's approval). The code is shown once and never stored.
 // A refusal for the invite has `code` 'invite_required' or 'invalid_invite'. `acceptedTerms`:
-// the version of the terms of use the person ticked (/api/config termsVersion).
-export async function register(username, password, invite = '', acceptedTerms = undefined) {
+// the version of the terms of use the person ticked (/api/config termsVersion). `reason`: why
+// they want to join, when sign-ups need approval (refusals 'reason_required', 'reason_too_long').
+export async function register(username, password, invite = '', acceptedTerms = undefined, reason = '') {
   if (!username) throw new Error(t('auth.errors.usernameAndPasswordRequired'));
   checkNewPassword(password);
   invite = inviteCode(invite) || undefined;
+  reason = reason.trim() || undefined;
 
-  const { registrationRecord, exportKey } = await registerPassword(username, password, { invite });
+  const { registrationRecord, exportKey } = await registerPassword(username, password, { invite, reason });
 
   // New keys, backed up on the server encrypted with the OPAQUE exportKey and the code.
   const keys = await generateUserKeys();
@@ -175,6 +178,7 @@ export async function register(username, password, invite = '', acceptedTerms = 
     keyBackup,
     ...(await recoveryFields(recoveryCode, keys)),
     invite,
+    reason,
     acceptedTerms,
   });
   if (!data.token) return { user: null, recoveryCode };

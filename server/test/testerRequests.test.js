@@ -61,7 +61,7 @@ describe('Android tester requests', () => {
     expect(await db.get("SELECT id FROM tester_requests WHERE email = 'bot@spam.example'")).toBeUndefined();
   });
 
-  it('lets admins mark a request added (listed after the waiting ones) and delete it', async () => {
+  it('lets admins mark a request added (listed after the waiting ones) and remove it', async () => {
     await apply({ email: 'second@gmail.com' });
     const { id } = await db.get("SELECT id FROM tester_requests WHERE email = 'pal.one@gmail.com'");
 
@@ -75,5 +75,47 @@ describe('Android tester requests', () => {
     const removed = await request(app).delete(`/api/admin/tester-requests/${id}`).set(authed(mod));
     expect(removed.body.testers.map((r) => r.email)).toEqual(['second@gmail.com']);
     expect((await request(app).delete(`/api/admin/tester-requests/${id}`).set(authed(mod))).status).toBe(404);
+    // Removed ones can't be marked any more.
+    expect((await request(app).put(`/api/admin/tester-requests/${id}`).set(authed(mod)).send({ added: false })).status).toBe(404);
+  });
+
+  it('keeps removed requests in a history, which admins can page through and delete from', async () => {
+    const history = (query = '', user = mod) => request(app).get(`/api/admin/tester-requests/history${query}`).set(authed(user));
+    expect((await history('', ann)).status).toBe(403);
+    const { body } = await history();
+    expect(body.more).toBe(false);
+    expect(body.history).toEqual([
+      expect.objectContaining({ email: 'pal.one@gmail.com', added_at: expect.any(Number), removed_at: expect.any(Number) }),
+    ]);
+
+    const { id } = await db.get("SELECT id FROM tester_requests WHERE email = 'second@gmail.com'");
+    await request(app).delete(`/api/admin/tester-requests/${id}`).set(authed(mod));
+    const both = (await history()).body.history;
+    expect(both).toHaveLength(2);
+    const rest = (await history(`?before=${both[0].removed_at}:${both[0].id}`)).body.history;
+    expect(rest.map((r) => r.id)).toEqual([both[1].id]);
+    expect((await history('?before=x')).status).toBe(400);
+
+    expect((await request(app).delete(`/api/admin/tester-requests/history/${id}`).set(authed(ann))).status).toBe(403);
+    expect((await request(app).delete(`/api/admin/tester-requests/history/${id}`).set(authed(mod))).status).toBe(200);
+    expect(await db.get('SELECT id FROM tester_requests WHERE id = ?', [id])).toBeUndefined();
+    expect((await request(app).delete(`/api/admin/tester-requests/history/${id}`).set(authed(mod))).status).toBe(404);
+  });
+
+  it('asks again as new when a removed email asks again', async () => {
+    expect((await apply({ email: 'pal.one@gmail.com', note: 'Again' })).status).toBe(201);
+    const list = (await request(app).get('/api/admin/tester-requests').set(authed(mod))).body.testers;
+    expect(list).toEqual([expect.objectContaining({ email: 'pal.one@gmail.com', note: 'Again', added_at: null })]);
+    expect((await request(app).get('/api/admin/tester-requests/history').set(authed(mod))).body.history).toEqual([]);
+    expect((await request(app).get('/api/admin/alerts').set(authed(mod))).body.testers).toBe(1);
+  });
+
+  it('forgets removed requests after a year', async () => {
+    const { id } = await db.get("SELECT id FROM tester_requests WHERE email = 'pal.one@gmail.com'");
+    await request(app).delete(`/api/admin/tester-requests/${id}`).set(authed(mod));
+    expect((await request(app).get('/api/admin/alerts').set(authed(mod))).body.testers).toBe(0);
+    await db.run('UPDATE tester_requests SET removed_at = ? WHERE id = ?', [Math.floor(Date.now() / 1000) - 366 * 24 * 60 * 60, id]);
+    expect((await request(app).get('/api/admin/tester-requests/history').set(authed(mod))).body.history).toEqual([]);
+    expect(await db.get('SELECT id FROM tester_requests WHERE id = ?', [id])).toBeUndefined();
   });
 });

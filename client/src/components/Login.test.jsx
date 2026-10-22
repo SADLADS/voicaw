@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 vi.mock('@serenity-kit/opaque', () => ({
   client: {
@@ -274,10 +274,10 @@ describe('Login - register form', () => {
     });
   }
 
-  function renderWithMode(signupMode, props = {}) {
+  function renderWithMode(signupMode, props = {}, signupReason = undefined) {
     const onLoginSuccess = vi.fn();
     const utils = render(
-      <ConfigContext.Provider value={{ signupMode }}>
+      <ConfigContext.Provider value={{ signupMode, signupReason }}>
         <Login onLoginSuccess={onLoginSuccess} {...props} />
       </ConfigContext.Provider>
     );
@@ -309,6 +309,41 @@ describe('Login - register form', () => {
     expect(field).toHaveValue('FromLink1');
     expect(field).not.toBeRequired();
     expect(screen.getByText(/wait for an admin to approve/)).toBeInTheDocument();
+  });
+
+  it('asks why they want to join only while sign-ups need approval, and sends it', async () => {
+    expect(renderWithMode('open').container.querySelector('textarea[name="reason"]')).toBeNull();
+    cleanup();
+    expect(renderWithMode('invite').container.querySelector('textarea[name="reason"]')).toBeNull();
+    cleanup();
+
+    mockRegistration({ token: 'reg-jwt', id: 9, username: 'newuser', pending: true });
+    const { container, registerForm } = renderWithMode('request');
+    const field = screen.getByPlaceholderText('Tell us why you want to join Voicaw (optional)');
+    expect(field).not.toBeRequired();
+    fillRegister(container, 'newuser', 'long enough password');
+    fireEvent.change(field, { target: { value: '  My friends are here ' } });
+    fireEvent.submit(registerForm);
+    await screen.findByLabelText('Recovery code');
+    expect(api.post.mock.calls.find(([url]) => url === '/initiateregister')[1].reason).toBe('My friends are here');
+    expect(api.post.mock.calls.find(([url]) => url === '/finaliseregister')[1].reason).toBe('My friends are here');
+  });
+
+  it('needs a reason when admins say so, unless an invite skips the wait', () => {
+    const { container } = renderWithMode('request', {}, 'required');
+    const field = screen.getByPlaceholderText('Tell us why you want to join Voicaw');
+    expect(field).toBeRequired();
+    fireEvent.change(container.querySelector('input[name="invite"]'), { target: { value: 'Code123' } });
+    expect(field).not.toBeRequired();
+  });
+
+  it("says when the server wants a reason", async () => {
+    opaque.client.startRegistration.mockReturnValue({ clientRegistrationState: 'CRS', registrationRequest: 'RR' });
+    api.post.mockRejectedValue({ response: { status: 400, data: { error: 'nope', code: 'reason_required' } } });
+    const { container, registerForm } = renderWithMode('request');
+    fillRegister(container, 'newuser', 'long enough password');
+    fireEvent.submit(registerForm);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Tell us why you want to join Voicaw.');
   });
 
   it("says when an invite doesn't work", async () => {

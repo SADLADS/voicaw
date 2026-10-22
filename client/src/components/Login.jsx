@@ -27,19 +27,27 @@ import { t } from '../i18n';
 // The terms of use a server's config doesn't name others (server/index.js `termsUrl`).
 const DEFAULT_TERMS_URL = 'https://voicaw.com/terms/';
 
-// The server's refusals of an invite, in the app's language.
-const INVITE_ERRORS = {
+// The server's refusals of an invite or a reason, in the app's language.
+const SIGNUP_ERRORS = {
   invite_required: 'auth.errors.inviteRequired',
   invalid_invite: 'auth.errors.invalidInvite',
+  reason_required: 'auth.errors.reasonRequired',
+  reason_too_long: 'auth.errors.reasonTooLong',
 };
+
+// The longest answer to "why do you want to join" the server takes (server/signups.js).
+const MAX_REASON = 1000;
 
 // Logging in, signing up and recovering an account. Signing up follows the server's sign-up
 // mode (server/signups.js): an invite field when it needs one (or when one skips the wait for
-// approval). `invite`: the code from an app invite link (/join/<code>), filled in.
+// approval), and why they want to join when it needs approval (required if the server says, unless
+// there's an invite). `invite`: the code from an app invite link (/join/<code>), filled in.
 export default function Login({ onLoginSuccess, invite = '' }) {
-  const { signupMode = 'open', termsVersion, termsUrl = DEFAULT_TERMS_URL } = useContext(ConfigContext) ?? {};
+  const {
+    signupMode = 'open', signupReason = 'optional', termsVersion, termsUrl = DEFAULT_TERMS_URL,
+  } = useContext(ConfigContext) ?? {};
   const [loginData, setLoginData] = useState({ username: '', password: '' });
-  const [registerData, setRegisterData] = useState({ username: '', password: '', invite });
+  const [registerData, setRegisterData] = useState({ username: '', password: '', invite, reason: '' });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [recoverData, setRecoverData] = useState({ username: '', code: '', password: '', confirm: '', twoFactorCode: '' });
   // The recovered account has two-factor on: the form asks for a code too.
@@ -116,11 +124,12 @@ export default function Login({ onLoginSuccess, invite = '' }) {
     setLoading(true);
     try {
       const { user, recoveryCode } = await register(
-        registerData.username, registerData.password, signupMode === 'open' ? '' : registerData.invite, termsVersion
+        registerData.username, registerData.password, signupMode === 'open' ? '' : registerData.invite, termsVersion,
+        signupMode === 'request' ? registerData.reason : ''
       );
       setMode({ user, recoveryCode });
     } catch (err) {
-      setError(INVITE_ERRORS[err.code] ? t(INVITE_ERRORS[err.code]) : err.message);
+      setError(SIGNUP_ERRORS[err.code] ? t(SIGNUP_ERRORS[err.code], { count: MAX_REASON }) : err.message);
     } finally {
       setLoading(false);
     }
@@ -358,6 +367,19 @@ export default function Login({ onLoginSuccess, invite = '' }) {
                 {signupMode === 'invite' ? t('auth.register.inviteHint') : t('auth.register.requestHint')}
               </p>
             </>
+          )}
+          {signupMode === 'request' && (
+            <textarea
+              name="reason"
+              className="form-control mb-2 register-reason"
+              rows={3}
+              maxLength={MAX_REASON}
+              placeholder={signupReason === 'required' ? t('auth.register.reasonPlaceholder') : t('auth.register.reasonOptionalPlaceholder')}
+              aria-label={t('auth.register.reasonPlaceholder')}
+              required={signupReason === 'required' && !registerData.invite.trim()}
+              value={registerData.reason}
+              onChange={e => setRegisterData({ ...registerData, reason: e.target.value })}
+            />
           )}
           {/* The server's terms of use (voicaw.com/terms/ unless it says): it refuses a sign-up without them. */}
           <label className="register-terms">

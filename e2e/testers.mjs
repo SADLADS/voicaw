@@ -2,7 +2,8 @@
 // served by this script on E2E_SITE_PORT, 3106, with its /api/ going to the throwaway API, as
 // nginx does) offers no APK; a phone visitor's first button leads to the form; an empty email is
 // refused in the page; a request is thanked, and shows up live in an admin's Settings → Admin →
-// Android testers, which marks it added (waiting ones first) and deletes it. Light and dark.
+// Android testers, which marks it added (waiting ones first) and removes it: it's then in Show
+// history, from which it's deleted. Light and dark.
 //   node e2e/serve.mjs &   then   node e2e/testers.mjs [screenshot dir]
 import http from 'node:http';
 import fs from 'node:fs';
@@ -95,7 +96,7 @@ try {
   check(await deskPage.locator('.stores a[href="#android-test"]').count() === 1, 'the Android row leads to the form');
   if (dir) await deskPage.locator('#android-test').screenshot({ path: `${dir}/form-desktop-light.png` });
 
-  // The admin sees it at once, marks it added and deletes it.
+  // The admin sees it at once, marks it added and removes it (into the history).
   const row = admin.page.locator(`.admin-list li:has-text("${EMAIL}")`);
   await row.waitFor();
   check((await row.textContent()).includes('Pixel 7, Android 15'), 'the admin sees the request live, in lower case, with its note');
@@ -103,9 +104,19 @@ try {
   await row.locator('button:has-text("Mark added")').click();
   await row.locator('button:has-text("Not added")').waitFor();
   check((await row.textContent()).includes('Added '), 'marked added');
-  await row.locator('button:has-text("Delete")').click();
+  await row.locator('button:has-text("Remove")').click();
   await row.waitFor({ state: 'detached' });
-  check(true, 'and deleted');
+  check(true, 'and removed');
+  const testersPart = admin.page.locator('.admin-setting:has-text("Android testers")');
+  await testersPart.locator('button:has-text("Show history")').click();
+  const past = testersPart.locator(`.admin-history li:has-text("${EMAIL}")`);
+  await past.waitFor();
+  const pastText = await past.textContent();
+  check(pastText.includes('Added ') && pastText.includes('Removed ') && pastText.includes('Pixel 7, Android 15'), 'the history keeps it, added and removed, with its note');
+  if (dir) await testersPart.screenshot({ path: `${dir}/admin-history.png` });
+  await past.locator('button:has-text("Delete")').click();
+  await past.waitFor({ state: 'detached' });
+  check(await testersPart.locator('text=Nothing in the last year.').count() === 1, 'and deleting it there forgets it');
 
   console.log(failures ? `testers: ${failures} FAILED` : 'testers: ok');
   if (failures) process.exitCode = 1;

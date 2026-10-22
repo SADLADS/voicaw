@@ -24,8 +24,10 @@ beforeAll(async () => {
 });
 
 const setMode = (value) => request(app).put('/api/admin/settings/signupMode').set(auth(admin.token)).send({ value });
+const setReason = (value) => request(app).put('/api/admin/settings/signupReason').set(auth(admin.token)).send({ value });
 afterEach(async () => {
   await setMode(null);
+  await setReason(null);
   delete process.env.SIGNUP_MODE;
 });
 
@@ -182,6 +184,92 @@ describe('sign-ups that need approval', () => {
   });
 });
 
+describe('why they want to join', () => {
+  it('is optional by default, kept with the request and shown to admins', async () => {
+    await setMode('request');
+    expect((await request(app).get('/api/config')).body).toMatchObject({ signupMode: 'request', signupReason: 'optional' });
+    const quiet = (await registerUser(app, request, name(), PASSWORD)).response;
+    expect(quiet.status).toBe(201);
+    const chatty = (await registerUser(app, request, name(), PASSWORD, { reason: '  My friends are here  ' })).response;
+    expect(chatty.status).toBe(201);
+    const { body } = await request(app).get('/api/admin').set(auth(admin.token));
+    expect(body.requests.find((r) => r.id === chatty.body.id).reason).toBe('My friends are here');
+    expect(body.requests.find((r) => r.id === quiet.body.id).reason).toBeNull();
+  });
+
+  it('can be required, refused without one before any keys are made', async () => {
+    await setMode('request');
+    expect((await setReason('sometimes')).status).toBe(400);
+    expect((await setReason('required')).status).toBe(200);
+    expect((await request(app).get('/api/config')).body.signupReason).toBe('required');
+    const refused = await registerUser(app, request, name(), PASSWORD, { reason: '   ' });
+    expect(refused.failedAt).toBe('initiate');
+    expect(refused.response.status).toBe(400);
+    expect(refused.response.body.code).toBe('reason_required');
+    expect((await registerUser(app, request, name(), PASSWORD, { reason: 'x'.repeat(1001) })).response.body.code).toBe('reason_too_long');
+    expect((await registerUser(app, request, name(), PASSWORD, { reason: 'Hello' })).response.status).toBe(201);
+    // An invite skips the wait, and so the question.
+    const { response } = await registerUser(app, request, name(), PASSWORD, { invite: await makeInvite() });
+    expect(response.body.pending).toBe(false);
+  });
+
+  it("isn't asked or kept while sign-ups are open", async () => {
+    await setReason('required');
+    const { response } = await registerUser(app, request, name(), PASSWORD, { reason: 'Ignored' });
+    expect(response.status).toBe(201);
+    expect(await db.get('SELECT id FROM signup_requests WHERE user_id = ?', [response.body.id])).toBeUndefined();
+  });
+});
+
+describe('the history of requests', () => {
+  const history = (token = admin.token, query = '') => request(app).get(`/api/admin/requests/history${query}`).set(auth(token));
+
+  it('keeps approved and declined requests, with who decided, newest first', async () => {
+    await setMode('request');
+    const yes = (await registerUser(app, request, name(), PASSWORD, { reason: 'Approve me' })).response.body;
+    const no = (await registerUser(app, request, name(), PASSWORD, { reason: 'Decline me' })).response.body;
+    await request(app).post(`/api/admin/requests/${yes.id}/approve`).set(auth(admin.token));
+    await request(app).delete(`/api/admin/requests/${no.id}`).set(auth(admin.token));
+
+    expect((await history(member.token)).status).toBe(403);
+    const { body } = await history();
+    const declined = body.history.find((r) => r.username === no.username);
+    const approved = body.history.find((r) => r.username === yes.username);
+    expect(declined).toMatchObject({ status: 'declined', reason: 'Decline me', user_id: null, decided_by: admin.id, decided_by_username: 'signup-admin' });
+    expect(approved).toMatchObject({ status: 'approved', reason: 'Approve me', user_id: yes.id, decided_by: admin.id });
+    expect(body.history.indexOf(declined)).toBeLessThanOrEqual(body.history.indexOf(approved));
+    expect(body.history.some((r) => r.status === 'waiting')).toBe(false);
+  });
+
+  it('pages, and forgets an entry an admin deletes', async () => {
+    await setMode('request');
+    for (let i = 0; i < 3; i++) {
+      const waiting = (await registerUser(app, request, name(), PASSWORD)).response.body;
+      await request(app).post(`/api/admin/requests/${waiting.id}/approve`).set(auth(admin.token));
+    }
+    const all = (await history()).body.history;
+    const first = all[0];
+    const rest = (await history(admin.token, `?before=${first.decided_at}:${first.id}`)).body.history;
+    expect(rest.map((r) => r.id)).toEqual(all.slice(1).map((r) => r.id));
+    expect((await history(admin.token, '?before=nope')).status).toBe(400);
+
+    expect((await request(app).delete(`/api/admin/requests/history/${first.id}`).set(auth(member.token))).status).toBe(403);
+    expect((await request(app).delete(`/api/admin/requests/history/${first.id}`).set(auth(admin.token))).status).toBe(200);
+    expect((await history()).body.history.some((r) => r.id === first.id)).toBe(false);
+    expect((await request(app).delete(`/api/admin/requests/history/${first.id}`).set(auth(admin.token))).status).toBe(404);
+  });
+
+  it('forgets decisions after a year', async () => {
+    await setMode('request');
+    const waiting = (await registerUser(app, request, name(), PASSWORD)).response.body;
+    await request(app).post(`/api/admin/requests/${waiting.id}/approve`).set(auth(admin.token));
+    const yearAgo = Math.floor(Date.now() / 1000) - 366 * 24 * 60 * 60;
+    await db.run('UPDATE signup_requests SET decided_at = ? WHERE user_id = ?', [yearAgo, waiting.id]);
+    expect((await history()).body.history.some((r) => r.user_id === waiting.id)).toBe(false);
+    expect(await db.get('SELECT id FROM signup_requests WHERE user_id = ?', [waiting.id])).toBeUndefined();
+  });
+});
+
 describe('withdrawing a request', () => {
   it('deletes the account altogether', async () => {
     await setMode('request');
@@ -195,6 +283,8 @@ describe('withdrawing a request', () => {
       .send({ finishLoginRequest: result.finishLoginRequest, clientSessionKey: result.sessionKey, groupLeaves: {} });
     expect(res.status).toBe(200);
     expect(await db.get('SELECT id FROM users WHERE id = ?', [waiting.id])).toBeUndefined();
+    // Not even in the history.
+    expect(await db.get('SELECT id FROM signup_requests WHERE username = ?', [username])).toBeUndefined();
   });
 });
 

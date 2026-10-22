@@ -202,12 +202,12 @@ router.post('/login/two-factor', async (req, res) => {
 router.post('/initiateregister', limit([limits.registerStartPerIp, byIp]), async (req, res) => {
   const { userIdentifier, registrationRequest } = req.body;
   if (!userIdentifier || !registrationRequest || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing username or registrationRequest' });
-  // Sign-ups that need an invite are refused before the client makes its keys (checked again,
-  // and the invite used up, by /finaliseregister). A password change sends no `invite` and
-  // isn't refused (it's this route too).
+  // Sign-ups that need an invite (or a reason they didn't give) are refused before the client
+  // makes its keys (checked again, and the invite used up, by /finaliseregister). A password
+  // change sends no `invite` and isn't refused (it's this route too).
   if (req.body.signup === true) {
     try {
-      await signups.checkSignup(req.body.invite);
+      await signups.checkSignup(req.body.invite, req.body.reason);
     } catch (err) {
       if (err instanceof signups.SignupError) return res.status(err.status).json({ error: err.message, code: err.code });
       throw err;
@@ -249,10 +249,10 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
   if (username.includes('#')) return res.status(400).json({ error: "Usernames can't contain #" });
   if (await findUserByName(username, 'id')) return res.status(409).json({ error: 'Username already exists' });
   // Sign-ups (signups.js): refused without an invite when they need one; waiting for an admin
-  // when they need approval.
+  // when they need approval, with why they want to join (`reason`).
   let signup;
   try {
-    signup = await signups.checkSignup(req.body.invite);
+    signup = await signups.checkSignup(req.body.invite, req.body.reason);
   } catch (err) {
     if (err instanceof signups.SignupError) return res.status(err.status).json({ error: err.message, code: err.code });
     throw err;
@@ -269,6 +269,7 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
           recovery?.verifier ?? null, recovery?.backup ?? null, recovery ? now() : null, signup.pending ? 1 : 0,
           terms.TERMS_VERSION, now()]
       ));
+      if (signup.pending) await signups.addRequest({ id: lastID, username, display_name: displayName }, signup.reason);
     });
   } catch (err) {
     if (err instanceof signups.SignupError) return res.status(err.status).json({ error: err.message, code: err.code });

@@ -1066,6 +1066,27 @@ function eventOccurrenceRows() {
   `);
 }
 
+// Sign-up requests (signups.js), while sign-ups need an admin's approval: the account waiting
+// (`user_id`, users.pending) and why they want to join, then, once decided, the history:
+// `status` 'approved' or 'declined', by whom and when. A declined account is deleted, so its
+// row keeps only the name. Kept a year after the decision; a withdrawn request, or the account
+// deleted later, takes its row with it. Before the migrations: 18 fills it.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS signup_requests (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  username TEXT NOT NULL,
+  display_name TEXT,
+  reason TEXT,
+  requested_at INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'waiting',
+  decided_at INTEGER,
+  decided_by INTEGER
+);
+CREATE INDEX IF NOT EXISTS signup_requests_user ON signup_requests (user_id);
+CREATE INDEX IF NOT EXISTS signup_requests_decided ON signup_requests (decided_at);
+`);
+
 // Changes to existing data that must happen once, numbered in SQLite's user_version (add the
 // next one at the end; each runs in its own transaction with its version bump):
 const MIGRATIONS = [
@@ -1136,6 +1157,10 @@ const MIGRATIONS = [
   () => numberAttachmentIds(),
   // 17. Single occurrences of repeating events get rows of their own (eventOccurrenceRows).
   () => eventOccurrenceRows(),
+  // 18. Sign-up requests have rows of their own (signup_requests): the accounts already waiting.
+  () => sqlite.exec(`INSERT INTO signup_requests (user_id, username, display_name, requested_at)
+    SELECT id, username, display_name, COALESCE(account_created, strftime('%s','now')) FROM users
+    WHERE pending = 1 AND deleted_at IS NULL`),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');
@@ -1430,7 +1455,8 @@ CREATE INDEX IF NOT EXISTS guild_xp_awards_age ON guild_xp_awards (created_at);
 `);
 // People asking to join the Android app's closed test on Google Play (voicaw.com's form,
 // routes/testerRequests.js): the Google account's email, to add to Play's tester list by hand.
-// Kept until an admin deletes it; `added_at` once an admin has added it to the list.
+// `added_at` once an admin has added it to the list; `removed_at` once an admin is done with
+// it (the history; forgotten a year later, or when an admin deletes it from there).
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS tester_requests (
   id INTEGER PRIMARY KEY,
@@ -1441,6 +1467,7 @@ CREATE TABLE IF NOT EXISTS tester_requests (
   added_at INTEGER
 );
 `);
+addColumn('ALTER TABLE tester_requests ADD COLUMN removed_at INTEGER');
 // JOIN LOG (joinLog.js): the text channel where the guild posts "X joined the guild." rows
 // (guild_messages with `system` 'member_join'; 'member_leave' too when `join_log_leaves`).
 // Null = no join log.

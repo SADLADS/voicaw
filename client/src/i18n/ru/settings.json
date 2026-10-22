@@ -336,9 +336,7 @@
         "copyWaiting": "Копировать ожидающие адреса",
         "added": "Добавлен(а) {{date}}",
         "markAdded": "Отметить как добавленного",
-        "markWaiting": "Не добавлен(а)",
-        "delete": "Удалить",
-        "confirmDelete": "Удалить заявку от {{email}}?"
+        "markWaiting": "Не добавлен(а)"
       },
       "invites": {
         "title": "Приглашения",

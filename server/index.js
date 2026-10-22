@@ -42,8 +42,10 @@ app.get('/api/config', async (req, res) => {
     voiceEnabled: require('./voiceRegions').available(),
     // The emoji picker's GIFs tab (a Klipy key, from .env or Settings → Admin).
     gifsEnabled: Boolean(await getSetting('klipyApiKey')),
-    // Who can sign up (signups.js): 'open', 'invite' or 'request'. The sign-up form follows it.
+    // Who can sign up (signups.js): 'open', 'invite' or 'request'. The sign-up form follows it,
+    // asking why they want to join while it's 'request' ('optional' or 'required').
     signupMode: await getSetting('signupMode'),
+    signupReason: await getSetting('signupReason'),
     // The biggest attachment anyone may send (Settings → Admin's File size limit).
     maxUploadBytes: await uploadLimitBytes(),
     // The terms of use registering accepts (terms.js).
@@ -144,4 +146,8 @@ if (require.main === module) {
   require('./auth').startSessionCleanup();
   // Moves open game sessions' ends on, and forgets those over 30 days old (activityHistory.js).
   require('./activityHistory').startActivityHistory();
+  // Forgets sign-up and Android tester requests decided over a year ago (signups.js,
+  // routes/testerRequests.js).
+  require('./signups').startHistoryPrune();
+  require('./routes/testerRequests').startHistoryPrune();
 }

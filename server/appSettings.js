@@ -20,6 +20,12 @@ const SETTINGS = {
     choices: ['open', 'invite', 'request'],
     fallback: 'open',
   },
+  signupReason: {
+    label: 'Sign-up reason',
+    description: 'While sign-ups need approval, the sign-up form asks why they want to join, shown with their request. Optional, or they must answer (not with an invite, which skips the wait).',
+    choices: ['optional', 'required'],
+    fallback: 'optional',
+  },
   // linkPreviews.js
   linkPreviews: {
     env: 'LINK_PREVIEWS',

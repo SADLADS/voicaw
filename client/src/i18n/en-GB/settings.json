@@ -315,11 +315,15 @@
           "100": "100 MB",
           "50": "50 MB",
           "25": "25 MB"
+        },
+        "signupReason": {
+          "optional": "Optional",
+          "required": "Required"
         }
       },
       "requests": {
         "title": "Sign-up requests",
-        "help": "Accounts waiting for approval. They can log in, but can't see or do anything else until approved. Declining deletes the account.",
+        "help": "Accounts waiting for approval, with why they want to join if they said. They can log in, but can't see or do anything else until approved. Declining deletes the account; the request stays in the history.",
         "none": "Nobody is waiting.",
         "approve": "Approve",
         "decline": "Decline",
@@ -327,14 +331,29 @@
       },
       "testers": {
         "title": "Android testers",
-        "help": "People asking on voicaw.com to join the Android app's closed test on Google Play. Add their emails to the test's tester list in the Play Console, then mark them added. Delete a request once you're done with it.",
+        "help": "People asking on voicaw.com to join the Android app's closed test on Google Play. Add their emails to the test's tester list in the Play Console, then mark them added. Remove a request once you're done with it: it moves to the history.",
         "none": "Nobody has asked.",
         "copyWaiting": "Copy waiting emails",
         "added": "Added {{date}}",
         "markAdded": "Mark added",
         "markWaiting": "Not added",
+        "remove": "Remove",
+        "confirmRemove": "Remove the request from {{email}}? It moves to the history.",
+        "removed": "Removed {{date}}",
+        "neverAdded": "Never added"
+      },
+      "history": {
+        "show": "Show history",
+        "hide": "Hide history",
+        "none": "Nothing in the last year.",
+        "approved": "Approved by {{name}} {{date}}",
+        "declined": "Declined by {{name}} {{date}}",
+        "someone": "an admin",
+        "asked": "Asked {{date}}",
+        "loadMore": "Load more",
         "delete": "Delete",
-        "confirmDelete": "Delete the request from {{email}}?"
+        "confirmDelete": "Delete this from the history? It can't be undone.",
+        "couldntLoad": "Couldn't load the history."
       },
       "invites": {
         "title": "Invites",

@@ -689,7 +689,7 @@ the File size limit (`uploadLimit`, 500 MB by default; see Big files in `docs/up
 (`botUploadLimit`, 25 MB by default; see Webhooks in `docs/guilds.md`). A setting with `choices` (and its `fallback`) takes only one of
 them: the panel shows a menu (`ChoiceRow`, labels `settings.admin.choices.<key>.<value>`) and the
 server refuses anything else. Add new app-wide keys to `SETTINGS` and read them with
-`getSetting` rather than from `config.js`. The panel also lists sign-up requests and app invites
+`getSetting` rather than from `config.js`. The panel also lists sign-up requests (with why they want to join, and the history of decided ones) and app invites
 (see Sign-ups in `docs/auth-and-encryption.md`).
 
 **Admin alerts** (`server/adminAlerts.js`, built 2026-10-14): what's waiting for the admins, open

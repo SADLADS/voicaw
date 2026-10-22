@@ -189,7 +189,7 @@ export function renderDocs(values) {
 // src/legal/template.html, written as <slug>/index.html. `updated` is when its wording last
 // changed in substance: change it with the text.
 export const LEGAL = [
-  { slug: 'privacy', file: 'privacy.html', title: 'Privacy policy', updated: '2026-10-21', description: 'What Voicaw stores, what is end-to-end encrypted, and who else sees anything.' },
+  { slug: 'privacy', file: 'privacy.html', title: 'Privacy policy', updated: '2026-10-22', description: 'What Voicaw stores, what is end-to-end encrypted, and who else sees anything.' },
   { slug: 'terms', file: 'terms.html', title: 'Terms of use', updated: '2026-10-05', description: "Voicaw's rules: what you may not post or do, and what happens if you do." },
   { slug: 'delete-account', file: 'delete-account.html', title: 'Deleting your account', updated: '2026-10-13', description: 'How to delete your Voicaw account and what that removes.' },
 ];

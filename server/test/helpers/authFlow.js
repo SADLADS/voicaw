@@ -13,16 +13,17 @@ const require = createRequire(import.meta.url);
 const currentTerms = () => require('../../terms.js').TERMS_VERSION;
 
 // With `recoveryCode`, the account is registered with that recovery code; with `invite`, with
-// that app invite (server/signups.js). `acceptedTerms`: what the sign-up's terms tick sends (the
+// that app invite (server/signups.js); `reason`: why they want to join (sign-ups that need
+// approval). `acceptedTerms`: what the sign-up's terms tick sends (the
 // current terms by default; null for none).
-export async function registerUser(app, request, username, password, { recoveryCode, invite, acceptedTerms = currentTerms() } = {}) {
+export async function registerUser(app, request, username, password, { recoveryCode, invite, reason, acceptedTerms = currentTerms() } = {}) {
   await opaque.ready;
 
   const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
 
   const initiateRes = await request(app)
     .post('/api/initiateregister')
-    .send({ userIdentifier: username, registrationRequest, signup: true, invite });
+    .send({ userIdentifier: username, registrationRequest, signup: true, invite, reason });
   if (initiateRes.body.error) {
     return { response: initiateRes, failedAt: 'initiate' };
   }
@@ -40,7 +41,7 @@ export async function registerUser(app, request, username, password, { recoveryC
 
   const finaliseRes = await request(app)
     .post('/api/finaliseregister')
-    .send({ registrationRecord, userIdentifier: username, ...keys.public, keyBackup, ...recovery, invite, ...(acceptedTerms ? { acceptedTerms } : {}) });
+    .send({ registrationRecord, userIdentifier: username, ...keys.public, keyBackup, ...recovery, invite, reason, ...(acceptedTerms ? { acceptedTerms } : {}) });
 
   return { response: finaliseRes, keys, exportKey };
 }
