@@ -6,6 +6,7 @@ import { ConfigContext } from '../contexts';
 import { formatBytes } from '../utils/formatBytes';
 import { readMediaDimensions } from '../utils/mediaDimensions';
 import { t } from '../i18n';
+import { draftGeneration, keepAttachments, newDraftId, takeAttachments } from '../services/draftStore';
 
 // Files attached to the message being composed. They stay on the device, referenced from the
 // text as `![name](attachment:ID)` placeholders, until the message is sent (see
@@ -14,27 +15,40 @@ import { t } from '../i18n';
 // - `insertAttachments(drafts)` puts new drafts into the message at the cursor (the editor
 //   shows them as chips; in the text they're placeholders).
 // - `onError(message | null)` reports (or clears) a problem, e.g. a file that's too big.
-// - `onDiscard(drafts)` runs when the conversation (`chatId`) changes: unsent attachments
-//   belong to the conversation they were added in, so their placeholders should go too.
-export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onError, onDiscard }) {
+//
+// Attachments belong to the conversation (`chatId`) they were added in: leaving it (another
+// chat, or the composer going away) keeps them in draftStore with its text, and opening it
+// again brings them back (`keptIds()` says which, for the text's placeholders).
+export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onError }) {
   const [drafts, setDrafts] = useState([]);
   const draftsRef = useRef(drafts);
   draftsRef.current = drafts;
-  const nextDraftId = useRef(1);
   const mediaInfo = useRef(new Map()); // draft id -> Promise of readMediaDimensions
   const [progress, setProgress] = useState(0);
-  const onDiscardRef = useRef(onDiscard);
-  onDiscardRef.current = onDiscard;
   // Settings → Admin's File size limit, less room for the encryption.
   const limit = useContext(ConfigContext)?.maxUploadBytes || DEFAULT_MAX_UPLOAD_BYTES;
   const maxBytes = maxAttachmentBytes(limit);
 
-  useEffect(() => () => {
-    const dropped = draftsRef.current;
-    dropped.forEach((d) => URL.revokeObjectURL(d.previewUrl));
-    setDrafts([]);
-    onDiscardRef.current?.(dropped);
+  useEffect(() => {
+    const since = draftGeneration();
+    const kept = takeAttachments(chatId);
+    draftsRef.current = kept?.drafts ?? [];
+    mediaInfo.current = new Map(kept?.mediaInfo ?? []);
+    setDrafts(draftsRef.current);
+    return () => {
+      const leaving = draftsRef.current;
+      keepAttachments(chatId, {
+        drafts: leaving,
+        mediaInfo: [...mediaInfo.current].filter(([id]) => leaving.some((d) => d.id === id)),
+      }, since);
+      draftsRef.current = [];
+      mediaInfo.current = new Map();
+      setDrafts([]);
+    };
   }, [chatId]);
+
+  // The ids of the drafts now attached (right after `chatId` changed, those brought back).
+  const keptIds = () => new Set(draftsRef.current.map((d) => d.id));
 
   // `source`: what the files were picked from (the + panel's gallery item), kept on their drafts
   // so the panel can show them as picked. Returns the new drafts.
@@ -55,7 +69,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     if (accepted.length === 0) return [];
 
     const newDrafts = accepted.map((file) => ({
-      id: nextDraftId.current++,
+      id: newDraftId(),
       file,
       name: file.name || t('media.drafts.defaultName'),
       type: file.type || 'application/octet-stream',
@@ -85,7 +99,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
   // recording's URL (the recorder made it); `duration` and `waveform` go in its URL.
   function voiceDraft(file, { duration, waveform, previewUrl }) {
     return {
-      id: nextDraftId.current++,
+      id: newDraftId(),
       file,
       name: file.name,
       type: file.type || 'application/octet-stream',
@@ -202,6 +216,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
     toggleSpoiler,
     voiceDraft,
     takeDrafts,
+    keptIds,
     projectedUrl,
     upload,
   };

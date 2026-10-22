@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { clearDrafts, getDraft, saveDraft } from './draftStore';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { clearDrafts, getDraft, keepAttachments, saveDraft, takeAttachments } from './draftStore';
 
 beforeEach(clearDrafts);
 
@@ -20,16 +20,30 @@ describe('draftStore', () => {
     expect(getDraft(2)).toBe('');
   });
 
-  it("drops unsent attachments' placeholders but keeps sent ones and the text", () => {
-    saveDraft(2, 'look ![cat.png](attachment:1) ![old.png](https://s3.test/uploads/x.bin#k=1)');
+  it("keeps the placeholders of attachments still there, drops the others' and keeps links", () => {
+    saveDraft(2, 'look ![cat.png](attachment:1) ![dog.png](attachment:2) ![old.png](https://s3.test/uploads/x.bin#k=1)');
 
-    expect(getDraft(2)).toBe('look  ![old.png](https://s3.test/uploads/x.bin#k=1)');
+    expect(getDraft(2, new Set([2]))).toBe('look  ![dog.png](attachment:2) ![old.png](https://s3.test/uploads/x.bin#k=1)');
+    expect(getDraft(2)).toBe('look   ![old.png](https://s3.test/uploads/x.bin#k=1)');
   });
 
-  it('forgets everything on clearDrafts (logging out)', () => {
+  it('keeps attachments per conversation until they are taken back', () => {
+    const drafts = [{ id: 1, previewUrl: 'blob:1' }];
+    keepAttachments(2, { drafts, mediaInfo: [] });
+    expect(takeAttachments('group-1')).toBeNull();
+    expect(takeAttachments('2')).toEqual({ drafts, mediaInfo: [] });
+    expect(takeAttachments(2)).toBeNull();
+  });
+
+  it('forgets everything on clearDrafts (logging out), freeing the files', () => {
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
     saveDraft(2, 'hi');
+    keepAttachments(2, { drafts: [{ id: 1, previewUrl: 'blob:1' }], mediaInfo: [] });
     clearDrafts();
 
     expect(getDraft(2)).toBe('');
+    expect(takeAttachments(2)).toBeNull();
+    expect(revoke).toHaveBeenCalledWith('blob:1');
+    revoke.mockRestore();
   });
 });

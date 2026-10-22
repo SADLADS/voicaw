@@ -1,10 +1,12 @@
-// Unsent messages: what's typed in a DM or channel is still there after going elsewhere in the
+// Unsent messages: what's typed in a DM or channel (an attachment too) is still there after going elsewhere in the
 // app (another DM, Settings, a guild) and back, without telling anyone you're typing; a
 // reload (like closing the tab) forgets it. Desktop + phone.
 //   node e2e/serve.mjs &   then   node e2e/drafts.mjs [screenshot dir]
 import { launchChrome, signUp, openChat, devices, makeFriends } from './helpers.mjs';
 
 const shots = process.argv[2];
+// A 1×1 PNG.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
 let failed = false;
 const check = (ok, what) => {
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`);
@@ -51,6 +53,25 @@ try {
   check(await boxText(a) === 'half a thought for bob', 'after Settings: the draft is back');
   if (shots) await a.screenshot({ path: `${shots}/drafts-dm.png` });
 
+  // An attachment comes back with the text (after Settings and another DM), and sends.
+  const [chooser] = await Promise.all([
+    a.waitForEvent('filechooser'),
+    a.click('.attach-button').then(() => a.click('text=Upload a file')),
+  ]);
+  await chooser.setFiles({ name: 'kept.png', mimeType: 'image/png', buffer: PNG });
+  await a.waitForSelector('.attachment-draft');
+  await a.click('a[aria-label="Settings"]');
+  await a.waitForSelector('#dm-input', { state: 'detached' });
+  await a.click('a[aria-label="Direct Messages"]');
+  await clickDm(a, carol.name);
+  check(!(await a.$('.attachment-draft')), "Carol's chat has no attachment");
+  await clickDm(a, bob.name);
+  await a.waitForSelector('.attachment-draft', { timeout: 5000 });
+  check(await a.$eval('#dm-input', (el) => el.querySelector('.editor-attachment')?.textContent ?? '') === '📎 kept.png'
+    && (await boxText(a)).startsWith('half a thought for bob'), 'back with Bob: the text and the attachment are in the box');
+  check(await a.$eval('.attachment-draft', (el) => el.title) === 'kept.png', 'and in the tray, with its preview');
+  if (shots) await a.screenshot({ path: `${shots}/drafts-attachment.png` });
+
   // Coming back doesn't count as typing: let Alice's real typing time out on Bob's side first.
   await b.waitForSelector('.typing-indicator .typing-dots', { state: 'detached', timeout: 15000 });
   await clickDm(a, carol.name);
@@ -62,6 +83,8 @@ try {
   await a.click('#dm-input');
   await a.keyboard.press('Enter');
   await b.waitForSelector('text=half a thought for bob', { timeout: 10000 });
+  await b.waitForSelector('.dm-message-content img[alt="kept.png"]', { timeout: 15000 });
+  check(true, 'Bob gets the message with the attachment');
   await clickDm(a, carol.name);
   await clickDm(a, bob.name);
   check(await boxText(a) === '', 'once sent, the draft is gone');

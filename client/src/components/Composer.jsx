@@ -162,10 +162,6 @@ export default function Composer({
     // Mobile: not focused (as emoji), so the + panel stays open for more and the keyboard down.
     insertAttachments: (drafts) => inputRef.current?.insertAttachments(drafts, { focus: !isMobile }),
     onError: setError,
-    onDiscard: (dropped) => {
-      dropped.forEach((d) => inputRef.current?.removeAttachment(d.id));
-      setError(null);
-    },
   });
 
   // Voice messages: what's being recorded, and (a phone's hold) how far the finger slid left.
@@ -485,12 +481,12 @@ export default function Composer({
     onCancelReply();
   }
 
-  // Opening a conversation puts back what was left typed in it (after the previous one's
-  // attachments have gone, see useAttachmentDrafts).
+  // Opening a conversation puts back what was left typed in it, with its attachments (brought
+  // back by useAttachmentDrafts just before: its effect runs first).
   useEffect(() => {
     draftChatId.current = chatId;
     const editor = inputRef.current;
-    const draft = getDraft(chatId);
+    const draft = getDraft(chatId, attachments.keptIds());
     if (!editor || editor.getText() === draft) return;
     restoringDraft.current = true;
     try {
@@ -498,6 +494,8 @@ export default function Composer({
     } finally {
       restoringDraft.current = false;
     }
+    // Only when the conversation changes (`attachments` is new every render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, inputRef]);
 
   // Ready to type in a conversation just opened, unless another text box has the focus (a

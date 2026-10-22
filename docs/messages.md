@@ -572,9 +572,14 @@ or emptying the box, forgets it.
 Drafts are **only in memory**, never in `localStorage`, `sessionStorage` or IndexedDB: the text
 of encrypted chats stays off the disk, as with messages (the device stores no message
 plaintext; search's copy is encrypted, see Search in encrypted chats). So closing the tab, window or app forgets them, and so does a reload. Logging out
-clears them all (`App.jsx`), so the next account on that tab doesn't see them. Attachments
-aren't kept: they're dropped on leaving the conversation (`useAttachmentDrafts`), so their
-placeholders are taken out of the saved text. A reply being set up isn't kept either.
+clears them all (`services/logout.js`), so the next account on that tab doesn't see them.
+Attachments come back too (2026-10-22; they used to be dropped): leaving a conversation, or the
+composer going away, keeps its attachment drafts (the files, previews and size readings) in
+`draftStore` beside the text, whose placeholders stay; opening it again gives them back to
+`useAttachmentDrafts`, and the editor redraws their chips from the placeholders. Draft ids come
+from `draftStore` so kept and new ones never clash. A composer only going away after the logout
+(its cleanup runs after `clearDrafts`) doesn't keep them: `clearDrafts` moves a generation on,
+and older ones are dropped, their files let go. A reply being set up isn't kept.
 `e2e/drafts.mjs` checks it in the browser.
 
 ## Messages that couldn't be sent

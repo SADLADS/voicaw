@@ -508,18 +508,36 @@ describe('Dm drafts', () => {
     expect(boxText()).toBe('');
   });
 
-  it("leaves out unsent attachments, which don't come along", async () => {
+  it('brings back attachments with the text, in their own conversation only', async () => {
     renderDm({ path: '/dm/2', users: [chatUserFull, carol] });
     await emptyChat();
     setBoxText('look: ');
     fireEvent.paste(box(), { clipboardData: { files: [new File(['x'], 'cat.png', { type: 'image/png' })], getData: () => '' } });
     await waitFor(() => expect(boxText()).toBe('look: ![cat.png](attachment:1)'));
+    expect(screen.getByRole('img', { name: 'cat.png' })).toBeInTheDocument();
 
     act(() => navigateTo('/dm/4'));
     await waitFor(() => expect(box()).toHaveAttribute('aria-label', 'Message carol'));
+    expect(boxText()).toBe('');
+    expect(screen.queryByRole('img', { name: 'cat.png' })).not.toBeInTheDocument();
     act(() => navigateTo('/dm/2'));
 
-    await waitFor(() => expect(boxText()).toBe('look: '));
+    await waitFor(() => expect(boxText()).toBe('look: ![cat.png](attachment:1)'));
+    expect(screen.getByRole('img', { name: 'cat.png' })).toBeInTheDocument();
+  });
+
+  it("doesn't keep attachments past a logout", async () => {
+    const view = renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await emptyChat();
+    fireEvent.paste(box(), { clipboardData: { files: [new File(['x'], 'cat.png', { type: 'image/png' })], getData: () => '' } });
+    await waitFor(() => expect(boxText()).toBe('![cat.png](attachment:1)'));
+    // Logging out clears the drafts before the chat goes away.
+    clearDrafts();
+    view.unmount();
+
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await emptyChat();
+    expect(boxText()).toBe('');
     expect(screen.queryByRole('img', { name: 'cat.png' })).not.toBeInTheDocument();
   });
 
