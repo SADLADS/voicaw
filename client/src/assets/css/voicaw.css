@@ -797,6 +797,31 @@ pre code {
   align-items: center;
   cursor: pointer;
   font-size: 16px;
+  transition: background-color var(--vc-duration-fast) var(--vc-ease-out), transform var(--vc-duration-fast) var(--vc-ease-out);
+}
+
+/* Like the emoji and Send buttons beside it: brighter under the pointer and while its menu is
+   open; open, the + turns into a × (clicking it again closes the menu). */
+.attach-button svg {
+  transition: rotate var(--vc-duration-base) var(--vc-ease-out);
+}
+
+@media (hover: hover) {
+  .attach-button:hover {
+    background-color: var(--vc-fg);
+  }
+}
+
+.attach-button[aria-expanded="true"] {
+  background-color: var(--vc-fg);
+}
+
+.attach-button[aria-expanded="true"] svg {
+  rotate: 45deg;
+}
+
+.attach-button:active {
+  transform: scale(0.92);
 }
 
 .full-height {
