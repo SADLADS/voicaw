@@ -15,6 +15,9 @@ import { blockNativeContextMenu } from './utils/nativeContextMenu';
 // Import Bootstrap CSS
 import 'bootstrap/dist/css/bootstrap.min.css';
 
+// The app's typeface, bundled so the desktop and Android apps have it offline (twemoji-font.css).
+import '@fontsource-variable/figtree';
+
 // Global css
 import './assets/css/voicaw.css';
 import './assets/css/twemoji-font.css';

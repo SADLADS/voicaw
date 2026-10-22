@@ -61,7 +61,8 @@
 - `Layout.jsx` — the logged-in shell: sidebars, users list and unread counts (`LayoutContext`),
   and the favicon dot (`useFaviconDot`, see Favicon dot).
   `DmSidebar` draws the unread dots from those counts. The rail's DM button is the bird logo
-  (built 2026-10-22, replacing a speech-bubble icon below it), and it shows where you are: it
+  (built 2026-10-22, replacing a speech-bubble icon below it), the size of the guild icons
+  (48 px, as in Discord), and it shows where you are: it
   faces left (as the logo does) in the end-to-end encrypted chats (DMs, group DMs, notes) and
   Friends, and turns round to face right everywhere else, guilds, bot DMs (not encrypted) and
   Settings included. Moving between them, it turns over about its upright axis (CSS
@@ -300,7 +301,7 @@
   light page never starts dark. Colours are the `--vc-*` tokens on `:root` in `voicaw.css`
   (COLOURS there), set again in full under `:root[data-theme="light"]` (THEMES): **use tokens,
   not literal colours**, in new CSS (literal black/white is only for scrims and controls over
-  images and video; the Appearance previews copy each theme's values on purpose). The scheme
+  images and video). The scheme
   (2026-10-02) has two brand colours and fixed meanings:
   - **Purple (`--vc-accent`) marks what you can do:** primary buttons, selection, focus rings,
     toggles and checkboxes, links (one link colour, `--vc-accent-text`, everywhere), your own
@@ -316,6 +317,51 @@
   - Neutrals have a slight purple tint (hue about 260°). Hover: a coloured fill goes one shade
     darker (its `-hover` token, never `filter: brightness`), a neutral surface one step towards
     the foreground.
+  - Surfaces come in three tiers, darkest at the back (2026-10-22): the rail (`--vc-bg-rail`),
+    the sidebar beside it (`--vc-bg-base`) and the chat (`--vc-bg-subtle`); columns are told
+    apart by these steps, so borders between them are quiet (`--vc-border-dark`). Every theme
+    has all three as distinct steps (Ol' Familiar's and Halloween's rails are a step darker
+    than their sidebars). Cards inside messages (invites, polls, event cards, bot embeds) are
+    `--vc-bg-card`, a step off the chat (lighter, or darker in Ol' Familiar, as Discord's
+    embeds), never the chat's own colour; what's set into a card (poll options) is the chat's
+    colour again. The open DM and channel get the
+    selection tint (`--vc-accent-soft`). Placeholders are at least 4.5:1 on a field.
+  - **Type, shape and motion tokens** (theme-independent, on `:root`, 2026-10-22): the typeface is
+    Figtree (`@fontsource-variable/figtree`, imported in `main.jsx` so the desktop and Android
+    apps have it offline; first after Twemoji in `twemoji-font.css`'s stack). Sizes
+    `--vc-text-xs/sm/md/body/lg/xl` (11, 12, 14, 15, 16, 20px); message text is 15px on 24px
+    lines (`--vc-leading-body`), which the 44px message avatar spans with the name. Corners
+    `--vc-radius-sm/md/lg/full` (4, 8, 12, round). Shadows `--vc-elevation-1` (the hover
+    toolbar) and `-2` (menus). Motion: `--vc-ease-out` and `--vc-duration-fast/base/slow`
+    (120, 180, 240ms). Pressing a button, reaction or rail icon scales it to 97% (mouse only).
+    Menus fade in with `@starting-style`: the guild menu and the composer's + grow from their
+    trigger, while ContextMenu and ChannelMuteMenu (placed by script from their measured box)
+    only drop 4px; the message hover toolbar only fades (`messageMenuPlacement.js` measures
+    it). Settings' subsections unfold under the page you open (`grid-template-rows` 0fr to
+    1fr, which animates to the content's height in every browser) and their rows fade in one
+    after another (`--i`, set in `Settings.jsx`); hover is never delayed. Nothing that
+    happens many times a minute animates. Under `prefers-reduced-motion`,
+    transitions keep fades and colour changes but not movement (MOTION in `voicaw.css`).
+  - **Shell and pages** (2026-10-22): labels over groups (Settings' groups, member groups,
+    channel categories, form labels, panel headings) are sentence case, 12px, grey, never
+    tracked capitals; capitals are kept for tags only (NEW, LIVE, SPOILER, weekday headers).
+    On a computer the user panel is a card docked in the bottom corner, like the composer.
+    Dialogs: 16px corners, an edge, `--vc-elevation-2`, fields a step darker than the dialog,
+    and they settle in from 97%. The login screen is one card with the bird above the title.
+    Anything you can tab to gets a purple focus ring by default (a `:where` rule, so a
+    component's own focus style wins). Settings: each section is a full-width rule, then its
+    title and rows on one left edge at a reading width (680px, descriptions about 62
+    characters); checkboxes in Settings are drawn as switches (purple when on), with the name
+    on the left and the switch on the right; the open page is a neutral pill. The page is the
+    front tier (`--vc-bg-subtle`), like the chat.
+  - **The column's width** (`utils/sidebarWidth.js`) is fitted to the window as shown
+    (`clampSidebarWidth(saved, window.innerWidth)` in Layout, kept up to date on resize): a
+    width saved on a wide window never leaves a narrow one's page under its minimum, and the
+    saved width comes back when the window is wide again. `.sidebar-wrapper` never shrinks
+    (the page beside it does, `min-width: 0`): if it did, its fixed-width columns would be
+    drawn over the page with the resizer and user panel cut short. Every column there sets a
+    real `width: var(--vc-sidebar-width)`, not only a flex basis: Firefox sizes the left side
+    from a column's content otherwise, so the page wouldn't follow a drag (Settings did this).
   - Each colour comes as a fill (`--vc-accent`), `-hover` (and `-strong`, pressed), `-text` (as
     text on the background: the fills don't read as text), `-soft` (a tinted background) and
     `--vc-on-*` (text on the fill: white on purple, red and green, dark on yellow and dark's
@@ -341,14 +387,22 @@
     The rail's bird logo goes the same pumpkin: it's drawn as a CSS mask of
     `logo-no-border.svg` filled with `--vc-logo` (the bird yellow in every other theme), so a
     theme can recolour it. Colours only: no decorations.
-  - **Another colour scheme** later: a `:root[data-theme="<name>"]` block setting every colour
-    token (copy the light one) and its `color-scheme`, the name in `THEMES` and `BASES`
-    (`utils/theme.js`) and in `index.html`'s copy, and a preview in `ThemeSettings.jsx`
-    (`e2e/colours.mjs` with `THEMES=<name>` shoots it). Since
+  - **Appearance's pictures** (`ThemeSettings.jsx` ThemeScene, 2026-10-22) are drawn from each
+    theme's real tokens: every theme block's selector also matches
+    `[data-theme-preview="<name>"]`, so a picture gets its theme's colours whatever the current
+    one is, and can't drift from it. Each shows the three tiers (rail with the logo, sidebar
+    with the open row, chat with the message box and Send in the accent); Match system is Dark
+    and Light split corner to corner.
+  - **Another colour scheme** later: a `:root[data-theme="<name>"], [data-theme-preview="<name>"]`
+    block setting every colour token (copy the light one; all three surface tiers distinct)
+    and its `color-scheme`, the name in `THEMES` and `BASES` (`utils/theme.js`) and in
+    `index.html`'s copy, and an option in `ThemeSettings.jsx` (its picture follows by itself;
+    `e2e/colours.mjs` with `THEMES=<name>` shoots it). Since
     nothing outside the token blocks has a theme colour of its own, a user-made scheme could
     be applied by setting the tokens inline on `<html>`. Keep `manifest.json`'s and
-    `index.html`'s `theme-color`, `electron/main.js`'s `backgroundColor` and `website/` in step
-    with the default scheme. Each theme sets CSS
+    `index.html`'s `theme-color`, `electron/main.js`'s `backgroundColor`, the desktop splash
+    (`electron/assets/splash.html`) and `website/` in step with the
+    default scheme. Each theme sets CSS
   `color-scheme`, which makes the browser's own controls and scrollbars match. **Not the
   on-screen keyboard:** on iPhones and iPads it follows the system's light/dark mode whatever
   the page says (WebKit gives every field `UIKeyboardAppearanceDefault`; checked in its source
@@ -442,12 +496,19 @@
   lays the keyboard over the page and slides the page up to the focused box, which a box
   focused from code, like swipe to reply's, sometimes missed, and a drag could slide back).
   iOS ignores that, so while the keyboard is open `--vc-app-height` is set to the visible
-  height (`visualViewport`) and any slide of the page is scrolled back (only then: no page
-  scrolls the document). iOS 26 Safari (installed or not; Brave, a WKWebView, doesn't) won't
-  always scroll back: the visible part stays pushed down by about the keyboard's height, which
-  left a keyboard-high gap under the message box (reported 2026-10-13). So while the keyboard is
-  open `--vc-app-top` (the visual viewport's `pageTop` after scrolling back) pads `#root` down to
-  meet it, 0 when the scroll back worked. Everything screen-high uses `var(--vc-app-height)` (100svh
+  height (`visualViewport`) and `--vc-app-top` (the visual viewport's `pageTop`) pads `#root`
+  down to wherever the visible part starts: the app fills exactly what's visible, however far
+  iOS slid the page. The slide is followed, never scrolled back (2026-10-22). Scrolling it back
+  (as before) set off a tug of war: iOS slid the page down again to keep the caret in view, every
+  frame while typing, and friends on iPhones saw the screen shaking up and down in every chat;
+  `e2e/keyboard.mjs` models that (a stand-in viewport that slides again a frame after any scroll
+  back) and checks the app doesn't move while typing. iOS 26 Safari often wouldn't scroll back at
+  all anyway (a keyboard-high gap under the message box, reported 2026-10-13, which is when the
+  following began). Following can't loop: the caret stays where it is in what's visible, and the
+  page can't be dragged further, since the app ends where the visible part does. Anything
+  `position: fixed` is placed against the whole screen, not the visible part, so while the
+  keyboard is up only what follows `visualViewport` itself (the emoji picker's search) lines up
+  with it; the suggestions over the message box are in its flow and move with the app. Everything screen-high uses `var(--vc-app-height)` (100svh
   otherwise), never 100vh/svh. The keyboard's height is the visible height's shortfall from
   the keyboard-free height (the tallest seen at that width, capped at `screen.height`), not
   from `innerHeight`, which shrinks with it on Android; `utils/keyboardHeight.js` (the docked

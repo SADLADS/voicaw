@@ -132,7 +132,18 @@ try {
     const scrollTo = window.scrollTo.bind(window);
     window.__scrolledBack = 0;
     // iOS 26 Safari (`__stuck`): scrolling back leaves the visible part pushed down.
-    window.scrollTo = (...args) => { window.__scrolledBack++; if (!window.__stuck) state.offsetTop = 0; scrollTo(...args); };
+    // `__repush`: scrolling back works for a moment, then iOS pushes the visible part down again
+    // to keep the caret in view (a frame later), as it does while typing.
+    window.scrollTo = (...args) => {
+      window.__scrolledBack++;
+      const pushed = state.offsetTop;
+      if (!window.__stuck) state.offsetTop = 0;
+      scrollTo(...args);
+      if (window.__repush && pushed > 0) {
+        listeners.forEach((fn) => fn());
+        requestAnimationFrame(() => { state.offsetTop = pushed; listeners.forEach((fn) => fn()); });
+      }
+    };
     // The keyboard opening (height) with the page slid up by `offsetTop`.
     window.__keyboard = (height, offsetTop = 0) => {
       state.height = height;
@@ -148,22 +159,27 @@ try {
   await page.evaluate(([h, k]) => window.__keyboard(h, k), [visible, KEYBOARD]); // iOS slides the page to the box
   await page.waitForTimeout(200);
   await settled(page);
-  l = await layout(page, visible);
+  // The visible part is the page's KEYBOARD..bottom: the app follows the slide there, never
+  // scrolling it back (which set iOS sliding again, the screen shaking while typing).
+  const appTop = () => page.evaluate(() => Math.round(document.querySelector('.slidey .main-content-wrapper').getBoundingClientRect().top));
+  l = await layout(page, viewport.height);
   check(l.appHeight === `${visible}px`, `iOS: the app is sized to the part above the keyboard (${l.appHeight})`);
-  check(l.boxBottom <= visible && l.boxTop > 0, `iOS: the box is above the keyboard (bottom ${l.boxBottom} of ${visible})`);
-  check(await page.evaluate(() => window.__scrolledBack > 0 && window.visualViewport.offsetTop === 0), 'iOS: the slide is undone');
-  check(l.lastBottom <= l.boxTop + 1, 'iOS: the newest message is in view above it');
+  check(await appTop() >= KEYBOARD - 1, `iOS: the app follows the slide to the visible part (${await appTop()}, visible from ${KEYBOARD})`);
+  check(l.boxBottom <= viewport.height && l.boxBottom >= viewport.height - 80,
+    `iOS: the box sits on the keyboard (bottom ${l.boxBottom}, keyboard at ${viewport.height})`);
+  check(await page.evaluate(() => window.__scrolledBack === 0), 'iOS: the page is never scrolled back');
+  check(l.lastBottom <= l.boxTop + 1 && l.lastBottom > KEYBOARD, 'iOS: the newest message is in view above it');
   await shot(page, '2-ios-keyboard');
-  // The user drags the page down under the keyboard: put back.
-  const before = await page.evaluate(() => window.__scrolledBack);
+  // The user drags the page part of the way back: the app follows it there too.
   await page.evaluate(([h]) => window.__keyboard(h, 120), [visible]);
-  check(await page.evaluate((n) => window.__scrolledBack > n && window.visualViewport.offsetTop === 0, before), 'iOS: dragging the page is undone too');
+  await settled(page);
+  check(Math.abs(await appTop() - 120) <= 1 && await page.evaluate(() => window.__scrolledBack === 0), 'iOS: and follows the page dragged');
   await page.evaluate(([h]) => window.__keyboard(h, 0), [viewport.height]);
   await settled(page);
   check((await layout(page)).appHeight === '', 'iOS: full height again once the keyboard closes');
 
-  // iOS 26: the slide can't be undone, so the app moves down to the visible part (no gap
-  // between the box and the keyboard, nothing above it cut off).
+  // iOS 26, where scrolling back wouldn't work anyway: the same (no gap between the box and the
+  // keyboard, nothing above it cut off).
   await page.evaluate(() => { window.__stuck = true; });
   await page.locator('#dm-input').focus();
   await page.evaluate(([h, k]) => window.__keyboard(h, k), [visible, KEYBOARD]);
@@ -181,6 +197,35 @@ try {
   l = await layout(page);
   check(l.appHeight === '' && await page.evaluate(() => getComputedStyle(document.getElementById('root')).paddingTop) === '0px',
     'iOS 26: back in place once the keyboard closes');
+
+  // iOS pushing the visible part back down after each scroll back (to keep the caret in view):
+  // typing must not set off a tug of war, the app jumping up and down (reported 2026-10-22).
+  await page.evaluate(() => { window.__stuck = false; window.__repush = true; });
+  await page.locator('#dm-input').focus();
+  await page.evaluate(([h, k]) => window.__keyboard(h, k), [visible, KEYBOARD]);
+  await settled(page);
+  const moves = await page.evaluate(async () => {
+    const root = document.getElementById('root');
+    let last = getComputedStyle(root).paddingTop;
+    let changes = 0;
+    const watch = () => {
+      const now = getComputedStyle(root).paddingTop;
+      if (now !== last) changes++;
+      last = now;
+      if (performance.now() < end) requestAnimationFrame(watch);
+    };
+    const end = performance.now() + 1000;
+    const scrolledBefore = window.__scrolledBack;
+    requestAnimationFrame(watch);
+    await new Promise((r) => setTimeout(r, 1100));
+    return { changes, scrolledBack: window.__scrolledBack - scrolledBefore };
+  });
+  await page.keyboard.type('typing along', { delay: 30 });
+  check(moves.changes <= 1 && moves.scrolledBack <= 1,
+    `iOS: typing doesn't make the app jump up and down (${moves.changes} moves, ${moves.scrolledBack} scrolls back in a second)`);
+  l = await layout(page, viewport.height);
+  check(l.boxBottom <= viewport.height && l.boxBottom >= viewport.height - 80, `iOS: the box still sits on the keyboard (bottom ${l.boxBottom})`);
+  await page.evaluate(([h]) => window.__keyboard(h, 0), [viewport.height]);
 } finally {
   await browser.close();
 }

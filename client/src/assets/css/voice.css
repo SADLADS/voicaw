@@ -557,7 +557,6 @@ button.user-panel-button {
   color: var(--vc-fg-muted);
   font-size: 0.75rem;
   font-weight: 700;
-  text-transform: uppercase;
 }
 
 .stream-view.corner .stream-watchers-button {
@@ -1030,7 +1029,6 @@ body.popout-window {
   margin-bottom: 6px;
   font-size: 0.8rem;
   font-weight: 600;
-  text-transform: uppercase;
   color: var(--vc-fg-muted);
 }
 
@@ -1090,7 +1088,6 @@ body.popout-window {
   font-size: 12px;
   font-weight: 600;
   color: var(--vc-fg-muted);
-  text-transform: uppercase;
 }
 
 .user-volume-value {
@@ -1342,8 +1339,8 @@ body.popout-window {
 .watch-party-label {
   font-size: 0.75rem;
   font-weight: 700;
-  text-transform: uppercase;
   color: var(--vc-fg-muted);
+  text-transform: uppercase;
 }
 
 .watch-party-note {
@@ -1656,8 +1653,8 @@ body.popout-window {
   flex-shrink: 0;
   font-size: 0.75rem;
   font-weight: 700;
-  text-transform: uppercase;
   opacity: 0.8;
+  text-transform: uppercase;
 }
 
 .watch-party-volume {
