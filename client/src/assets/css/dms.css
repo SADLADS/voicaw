@@ -121,6 +121,10 @@ small {
 /* The composer: a raised field. Its edge comes up when you're typing in it. */
 .dm-chat-wrapper {
   box-sizing: border-box;
+  /* Never squeezed by a long chat above it: a min-height replaces a flex item's own floor (its
+     content's height), so without this a full channel crushed it, the attachment tray and the
+     message box spilling out below. */
+  flex-shrink: 0;
   min-height: var(--vc-dock-height);
   border-radius: var(--vc-radius-lg);
   margin: var(--vc-dock-inset);
