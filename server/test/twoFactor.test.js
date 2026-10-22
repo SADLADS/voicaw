@@ -1,7 +1,7 @@
 import './helpers/mockS3.js';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import request from 'supertest';
-import { registerUser, loginUser, passwordProof, newPasswordFields } from './helpers/authFlow.js';
+import { registerUser, loginUser, passwordProof, newPasswordFields, recoveryFields } from './helpers/authFlow.js';
 import { generateRecoveryCode, recoveryAuth, unwrapKeyBackup } from '../../client/src/services/encryptionService.js';
 
 const app = require('../index.js');
@@ -136,12 +136,14 @@ describe('two-factor', () => {
     const start = await request(app).post('/api/recover/start').send({ userIdentifier: 'tf-recover', recoveryAuth: recoveryAuthValue });
     expect(start.body.twoFactor).toBe(true);
 
-    const fields = await newPasswordFields(app, request, 'tf-recover', 'new password 1', keys);
+    const newCode = generateRecoveryCode();
+    const fields = { ...(await newPasswordFields(app, request, 'tf-recover', 'new password 1', keys)), ...(await recoveryFields(newCode, keys)) };
     const send = (extra) => request(app).post('/api/recover/finish').send({ userIdentifier: 'tf-recover', recoveryAuth: recoveryAuthValue, ...fields, ...extra });
     expect((await send({})).body.code).toBe('two_factor_required');
     expect((await send({ twoFactorCode: '000000' })).body.code).toBe('two_factor_invalid');
-    // The old password still works: nothing was changed.
+    // The old password and recovery code still work: nothing was changed.
     expect((await loginUser(app, request, 'tf-recover', 'password1234')).response.body.twoFactor).toBe(true);
+    expect((await request(app).post('/api/recover/start').send({ userIdentifier: 'tf-recover', recoveryAuth: recoveryAuthValue })).status).toBe(200);
 
     nextStep();
     const ok = await send({ twoFactorCode: codeNow(secret) });

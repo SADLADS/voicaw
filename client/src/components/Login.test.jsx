@@ -38,7 +38,9 @@ vi.mock('../services/keyStore', () => ({
 
 import * as opaque from '@serenity-kit/opaque';
 import api from '../utils/api';
-import { generateUserKeys, wrapKeyBackup, unwrapKeyBackup, unwrapRecoveryBackup } from '../services/encryptionService';
+import {
+  generateUserKeys, wrapKeyBackup, unwrapKeyBackup, unwrapRecoveryBackup, generateRecoveryCode, wrapRecoveryBackup,
+} from '../services/encryptionService';
 import { connectWebSocket } from '../utils/ws-client';
 import { storeUserKeys } from '../services/keyStore';
 import Login from './Login';
@@ -462,58 +464,100 @@ describe('Login - forgot password', () => {
     return utils;
   }
 
-  it('resets the password with the recovery code, re-encrypting the keys on the device', async () => {
+  const NEW_CODE = 'FFFFF-GGGGG-HHHHH-JJJJJ-KKKKK';
+
+  function mockRecovery({ twoFactor = false } = {}) {
     opaque.client.startRegistration.mockReturnValue({ clientRegistrationState: 'CRS', registrationRequest: 'RR' });
     opaque.client.finishRegistration.mockReturnValue({ registrationRecord: 'NEW-REC', exportKey: 'NEW-EXPORT' });
     unwrapRecoveryBackup.mockResolvedValue(KEYS);
     unwrapKeyBackup.mockResolvedValue(KEYS);
     wrapKeyBackup.mockResolvedValue('NEW-BACKUP');
+    generateRecoveryCode.mockReturnValueOnce(NEW_CODE);
     api.post.mockImplementation(async (url) => {
-      if (url === '/recover/start') return { data: { recoveryBackup: 'REC-BACKUP', ...PUBLIC } };
+      if (url === '/recover/start') return { data: { recoveryBackup: 'REC-BACKUP', ...(twoFactor && { twoFactor: true }), ...PUBLIC } };
       if (url === '/initiateregister') return { data: { registrationResponse: 'RRESP' } };
       if (url === '/recover/finish') return { data: { token: 'rec-jwt', id: 5, username: 'alice' } };
       throw new Error(`unexpected url ${url}`);
     });
+  }
 
+  const finishCalls = () => api.post.mock.calls.filter(([url]) => url === '/recover/finish');
+
+  it('resets the password with the recovery code, re-encrypting the keys on the device and replacing the code', async () => {
+    mockRecovery();
     const { container, onLoginSuccess } = openRecover();
     fillRecover(container);
-    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'rec-jwt', id: 5, username: 'alice', hasRecoveryCode: true, pending: false, termsAccepted: true }));
 
+    // The new code first: nothing is changed until the user says they've kept it.
+    expect(await screen.findByText(/You've used your recovery code/)).toBeInTheDocument();
+    expect(container.querySelector('.recovery-code').textContent).toBe(NEW_CODE);
     expect(api.post).toHaveBeenCalledWith('/recover/start', { userIdentifier: 'alice', recoveryAuth: 'REC-AUTH' });
     expect(unwrapRecoveryBackup).toHaveBeenCalledWith('AAAAA-BBBBB-CCCCC-DDDDD-EEEEE', 'REC-BACKUP');
+    expect(finishCalls()).toHaveLength(0);
+
+    fireEvent.click(screen.getByLabelText("I've saved my recovery code"));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'rec-jwt', id: 5, username: 'alice', hasRecoveryCode: true, pending: false, termsAccepted: true }));
+
     expect(wrapKeyBackup).toHaveBeenCalledWith('NEW-EXPORT', KEYS);
+    expect(wrapRecoveryBackup).toHaveBeenCalledWith(NEW_CODE, KEYS);
     expect(api.post).toHaveBeenCalledWith('/recover/finish', {
       userIdentifier: 'alice', recoveryAuth: 'REC-AUTH', registrationRecord: 'NEW-REC', keyBackup: 'NEW-BACKUP',
+      recoveryVerifier: 'REC-VERIFIER', recoveryBackup: 'REC-BACKUP',
     });
     for (const [, body] of api.post.mock.calls) {
-      expect(JSON.stringify(body)).not.toMatch(/PRIV|brand new password|AAAAA/);
+      expect(JSON.stringify(body)).not.toMatch(/PRIV|brand new password|AAAAA|FFFFF/);
     }
     expect(storeUserKeys).toHaveBeenCalledWith(5, KEYS);
     expect(localStorage.getItem('token')).toBe('rec-jwt');
   });
 
-  it('asks for a two-factor code when the account has one, before changing anything', async () => {
-    opaque.client.startRegistration.mockReturnValue({ clientRegistrationState: 'CRS', registrationRequest: 'RR' });
-    opaque.client.finishRegistration.mockReturnValue({ registrationRecord: 'NEW-REC', exportKey: 'NEW-EXPORT' });
-    unwrapRecoveryBackup.mockResolvedValue(KEYS);
-    unwrapKeyBackup.mockResolvedValue(KEYS);
-    wrapKeyBackup.mockResolvedValue('NEW-BACKUP');
-    api.post.mockImplementation(async (url) => {
-      if (url === '/recover/start') return { data: { recoveryBackup: 'REC-BACKUP', twoFactor: true, ...PUBLIC } };
-      if (url === '/initiateregister') return { data: { registrationResponse: 'RRESP' } };
-      if (url === '/recover/finish') return { data: { token: 'rec-jwt', id: 5, username: 'alice' } };
-      throw new Error(`unexpected url ${url}`);
-    });
-
+  it('asks for a two-factor code last, after the new code is kept', async () => {
+    mockRecovery({ twoFactor: true });
     const { container, onLoginSuccess } = openRecover();
     fillRecover(container);
-    expect(await screen.findByText(/This account has two-factor authentication/)).toBeInTheDocument();
-    expect(api.post).not.toHaveBeenCalledWith('/initiateregister', expect.anything());
 
-    fireEvent.change(container.querySelector('input[name="two-factor-code"]'), { target: { value: 'abcd-efgh' } });
+    fireEvent.click(await screen.findByLabelText("I've saved my recovery code"));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    const field = await waitFor(() => {
+      const input = container.querySelector('input[name="two-factor-code"]');
+      expect(input).toBeTruthy();
+      return input;
+    });
+    expect(finishCalls()).toHaveLength(0);
+
+    fireEvent.change(field, { target: { value: 'abcd-efgh' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Reset password and log in' }));
+    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalled());
+    expect(api.post).toHaveBeenCalledWith('/recover/finish', expect.objectContaining({ twoFactorCode: 'abcd-efgh', recoveryVerifier: 'REC-VERIFIER' }));
+  });
+
+  it('keeps the same new code when the two-factor code is refused', async () => {
+    mockRecovery({ twoFactor: true });
+    let refused = false;
+    const ok = api.post.getMockImplementation();
+    api.post.mockImplementation(async (url, body) => {
+      if (url === '/recover/finish' && !refused) {
+        refused = true;
+        throw Object.assign(new Error('401'), { response: { status: 401, data: { error: 'Wrong two-factor code' } } });
+      }
+      return ok(url, body);
+    });
+    const { container, onLoginSuccess } = openRecover();
+    fillRecover(container);
+    fireEvent.click(await screen.findByLabelText("I've saved my recovery code"));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(container.querySelector('input[name="two-factor-code"]')).toBeTruthy());
+
+    fireEvent.change(container.querySelector('input[name="two-factor-code"]'), { target: { value: '000000' } });
+    fireEvent.submit(container.querySelector('form'));
+    expect(await screen.findByText('Wrong two-factor code')).toBeInTheDocument();
+    fireEvent.change(container.querySelector('input[name="two-factor-code"]'), { target: { value: '123456' } });
     fireEvent.submit(container.querySelector('form'));
     await waitFor(() => expect(onLoginSuccess).toHaveBeenCalled());
-    expect(api.post).toHaveBeenCalledWith('/recover/finish', expect.objectContaining({ twoFactorCode: 'abcd-efgh' }));
+
+    expect(generateRecoveryCode).toHaveBeenCalledTimes(1);
+    expect(wrapRecoveryBackup.mock.calls.every(([code]) => code === NEW_CODE)).toBe(true);
   });
 
   it('shows the server refusing a wrong code', async () => {

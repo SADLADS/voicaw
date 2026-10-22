@@ -4,7 +4,7 @@ import '../assets/css/login.css';
 import '../assets/css/recovery.css';
 import { connectWebSocket } from '../utils/ws-client';
 import {
-  MIN_PASSWORD_LENGTH, logIn, register, recoverAccount, generateRecoveryCode, saveRecoveryCode, suspendedText,
+  MIN_PASSWORD_LENGTH, logIn, register, startRecovery, generateRecoveryCode, saveRecoveryCode, suspendedText,
 } from '../services/authService';
 import { SUSPENDED_NOTICE } from '../utils/ws-client';
 
@@ -49,14 +49,14 @@ export default function Login({ onLoginSuccess, invite = '' }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [registerData, setRegisterData] = useState({ username: '', password: '', invite, reason: '' });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [recoverData, setRecoverData] = useState({ username: '', code: '', password: '', confirm: '', twoFactorCode: '' });
-  // The recovered account has two-factor on: the form asks for a code too.
-  const [recoverNeedsTwoFactor, setRecoverNeedsTwoFactor] = useState(false);
+  const [recoverData, setRecoverData] = useState({ username: '', code: '', password: '', confirm: '' });
   const [twoFactorCode, setTwoFactorCode] = useState('');
   // 'login' (log in or register), 'recover' (forgot password), or { user, recoveryCode,
   // password? } while a new code is shown: after registering (already stored), or after
   // logging in to an account without one (`password` set: stored once the user continues),
-  // or { twoFactor: { finish } } while asking for a two-factor code (authService logIn).
+  // or after using one (`recovery`, authService startRecovery: stored with the new password
+  // once the user continues), or { twoFactor: { finish } } while asking for a two-factor code
+  // (authService logIn, or `recovery.finish` last when recovering an account that has it on).
   const [mode, setMode] = useState('login');
   const [error, setError] = useState(takeSuspendedNotice);
   const [loading, setLoading] = useState(false);
@@ -144,9 +144,9 @@ export default function Login({ onLoginSuccess, invite = '' }) {
     }
     setLoading(true);
     try {
-      enterApp(await recoverAccount(recoverData.username, recoverData.code, recoverData.password, recoverData.twoFactorCode));
+      const recovery = await startRecovery(recoverData.username, recoverData.code, recoverData.password);
+      setMode({ recovery, recoveryCode: recovery.newCode });
     } catch (err) {
-      if (err.code === 'two_factor_required') setRecoverNeedsTwoFactor(true);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -154,7 +154,12 @@ export default function Login({ onLoginSuccess, invite = '' }) {
   }
 
   async function finishRecoveryCode() {
-    if (mode.password) {
+    if (mode.recovery?.twoFactor) {
+      setTwoFactorCode('');
+      setError('');
+      setMode({ twoFactor: { finish: mode.recovery.finish }, recovering: true });
+    } else if (mode.recovery) enterApp(await mode.recovery.finish());
+    else if (mode.password) {
       await saveRecoveryCode(mode.user.username, mode.password, mode.recoveryCode);
       enterApp({ ...mode.user, hasRecoveryCode: true });
     } else if (mode.user) onLoginSuccess(mode.user);
@@ -171,8 +176,8 @@ export default function Login({ onLoginSuccess, invite = '' }) {
           <h3 className="login-header text-center mb-3">{t('auth.recoveryCode.title')}</h3>
           <RecoveryCodeDisplay
             code={mode.recoveryCode}
-            username={mode.user?.username ?? registerData.username}
-            intro={mode.password && t('auth.recoveryCode.introNoCode')}
+            username={mode.user?.username ?? (mode.recovery ? recoverData.username : registerData.username)}
+            intro={mode.recovery ? t('auth.recoveryCode.introReplaced') : mode.password && t('auth.recoveryCode.introNoCode')}
             onDone={finishRecoveryCode}
             onSkip={mode.password ? () => enterApp(mode.user) : undefined}
           />
@@ -204,7 +209,7 @@ export default function Login({ onLoginSuccess, invite = '' }) {
               onChange={e => setTwoFactorCode(e.target.value)}
             />
             <button className="btn btn-vc w-100" type="submit" disabled={loading}>
-              {loading ? t('auth.pleaseWait') : t('auth.twoFactor.submit')}
+              {loading ? t('auth.pleaseWait') : mode.recovering ? t('auth.recover.submit') : t('auth.twoFactor.submit')}
             </button>
           </form>
           <button type="button" className="link-button" onClick={() => switchTo('login')}>
@@ -267,20 +272,6 @@ export default function Login({ onLoginSuccess, invite = '' }) {
               value={recoverData.confirm}
               onChange={e => setRecoverData({ ...recoverData, confirm: e.target.value })}
             />
-            {recoverNeedsTwoFactor && (
-              <input
-                name="two-factor-code"
-                className="form-control mb-2"
-                placeholder={t('auth.twoFactor.recoverCodePlaceholder')}
-                autoComplete="one-time-code"
-                autoCapitalize="none"
-                spellCheck={false}
-                required
-                autoFocus
-                value={recoverData.twoFactorCode}
-                onChange={e => setRecoverData({ ...recoverData, twoFactorCode: e.target.value })}
-              />
-            )}
             <button className="btn btn-vc w-100" type="submit" disabled={loading}>
               {loading ? t('auth.pleaseWait') : t('auth.recover.submit')}
             </button>

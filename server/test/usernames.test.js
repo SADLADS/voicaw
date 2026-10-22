@@ -105,7 +105,7 @@ describe('migrating existing accounts', () => {
     const start = await request(app).post('/api/recover/start').send({ userIdentifier: 'OldTimer', recoveryAuth: auth1 });
     expect(start.status).toBe(200);
     const keys = await unwrapRecoveryBackup(code, start.body.recoveryBackup);
-    const newFields = await newPasswordFields(app, request, 'OldTimer', 'newer password', keys);
+    const newFields = { ...(await newPasswordFields(app, request, 'OldTimer', 'newer password', keys)), ...(await recoveryFields(generateRecoveryCode(), keys)) };
     const finish = await request(app).post('/api/recover/finish').send({ userIdentifier: 'OldTimer', recoveryAuth: auth1, ...newFields });
     expect(finish.status).toBe(200);
     expect(finish.body.username).toBe('oldtimer');

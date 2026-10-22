@@ -475,9 +475,11 @@ router.post('/recover/start', recoverLimits, async (req, res) => {
   });
 });
 
-// Step 2: the new password (registration record, and the keys encrypted for it). Logs in.
-// The recovery code stays the same. With two-factor on, `twoFactorCode` too (the recovery code
-// alone would otherwise get round it): 401 `code: 'two_factor_required'` without one.
+// Step 2: the new password (registration record, and the keys encrypted for it) and a new
+// recovery code (`recoveryVerifier`, `recoveryBackup`, as PUT /recovery-code): a used code may
+// have been seen while it was typed, so it stops working. Logs in. With two-factor on,
+// `twoFactorCode` too (the recovery code alone would otherwise get round it): 401
+// `code: 'two_factor_required'` without one.
 router.post('/recover/finish', recoverLimits, async (req, res) => {
   const user = await checkRecoveryAuth(req.body.userIdentifier, req.body.recoveryAuth);
   if (!user) return res.status(401).json({ error: WRONG_RECOVERY });
@@ -485,6 +487,11 @@ router.post('/recover/finish', recoverLimits, async (req, res) => {
   if (suspended?.suspended_at) return res.status(403).json(suspendedError(suspended));
   const password = newPassword(req.body);
   if (password.error) return res.status(400).json({ error: password.error });
+  // Apps from before codes were replaced send none: refused before anything changes.
+  if (!req.body.recoveryVerifier) return res.status(400).json({ error: 'Update the app to reset your password', code: 'new_recovery_code_required' });
+  const recovery = parseRecovery(req.body);
+  if (recovery.error) return res.status(400).json({ error: recovery.error });
+  if (recovery.verifier === user.recovery_verifier) return res.status(400).json({ error: 'The new recovery code must be a new one' });
   if (await twoFactor.isEnabled(user.id)) {
     if (!req.body.twoFactorCode) return res.status(401).json({ error: 'Enter a two-factor code', code: 'two_factor_required' });
     if (!twoFactorAttemptAllowed(res, user.id)) return;
@@ -495,6 +502,10 @@ router.post('/recover/finish', recoverLimits, async (req, res) => {
     await db.run(
       'UPDATE users SET password = ?, key_backup = ?, opaque_id = ? WHERE id = ?',
       [password.record, password.backup, newOpaqueId(user.username), user.id]
+    );
+    await db.run(
+      'UPDATE users SET recovery_verifier = ?, recovery_backup = ?, recovery_created = ? WHERE id = ?',
+      [recovery.verifier, recovery.backup, now(), user.id]
     );
     await db.run('DELETE FROM login_states WHERE username = ?', [user.username]);
   });

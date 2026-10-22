@@ -49,21 +49,24 @@ describe('recovery code at registration', () => {
 });
 
 describe('recovering an account', () => {
-  async function recover(username, code, newPassword, keysFromBackup = true) {
+  // `newCode`: the code replacing it (a fresh one by default; null sends none).
+  async function recover(username, code, newPassword, { newCode = generateRecoveryCode() } = {}) {
     const recoveryAuthValue = await recoveryAuth(code);
     const start = await request(app).post('/api/recover/start').send({ userIdentifier: username, recoveryAuth: recoveryAuthValue });
     if (start.status !== 200) return { start };
-    const keys = keysFromBackup ? await unwrapRecoveryBackup(code, start.body.recoveryBackup) : null;
+    const keys = await unwrapRecoveryBackup(code, start.body.recoveryBackup);
     const fields = await newPasswordFields(app, request, username, newPassword, keys);
-    const finish = await request(app).post('/api/recover/finish').send({ userIdentifier: username, recoveryAuth: recoveryAuthValue, ...fields });
-    return { start, keys, finish };
+    const finish = await request(app).post('/api/recover/finish').send({
+      userIdentifier: username, recoveryAuth: recoveryAuthValue, ...fields, ...(newCode && (await recoveryFields(newCode, keys))),
+    });
+    return { start, keys, finish, newCode };
   }
 
-  it('sets a new password with the code, keeping the keys', async () => {
+  it('sets a new password with the code, keeping the keys, and replaces the code', async () => {
     const code = generateRecoveryCode();
     const { keys } = await registerUser(app, request, 'rec-user', 'old password 1', { recoveryCode: code });
 
-    const { start, keys: recovered, finish } = await recover('rec-user', code, 'new password 1');
+    const { start, keys: recovered, finish, newCode } = await recover('rec-user', code, 'new password 1');
     expect(start.status).toBe(200);
     expect(start.body.identityKey).toBe(keys.public.identityKey);
     expect(recovered).toEqual({ public: keys.public, private: keys.private });
@@ -75,8 +78,27 @@ describe('recovering an account', () => {
     expect(login.response.status).toBe(200);
     expect(login.keys.private).toEqual(keys.private);
 
-    // The code still works afterwards.
-    expect((await recover('rec-user', code, 'newer password')).finish.status).toBe(200);
+    expect(finish.body.hasRecoveryCode).toBe(true);
+
+    // The used code stops working; the new one opens the same keys.
+    expect((await recover('rec-user', code, 'newer password')).start.status).toBe(401);
+    const again = await recover('rec-user', newCode, 'newer password');
+    expect(again.keys).toEqual({ public: keys.public, private: keys.private });
+    expect(again.finish.status).toBe(200);
+  });
+
+  it('refuses to finish without a new code, or with the same one, changing nothing', async () => {
+    const code = generateRecoveryCode();
+    await registerUser(app, request, 'rec-same', 'password1234', { recoveryCode: code });
+
+    const none = await recover('rec-same', code, 'new password 1', { newCode: null });
+    expect(none.finish.status).toBe(400);
+    expect(none.finish.body.code).toBe('new_recovery_code_required');
+    const same = await recover('rec-same', code, 'new password 1', { newCode: code });
+    expect(same.finish.status).toBe(400);
+
+    expect((await loginUser(app, request, 'rec-same', 'password1234')).response.status).toBe(200);
+    expect((await recover('rec-same', code, 'new password 1')).finish.status).toBe(200);
   });
 
   it('refuses a wrong code, an unknown user and a user without a code alike', async () => {

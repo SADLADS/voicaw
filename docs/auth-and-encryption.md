@@ -134,8 +134,8 @@ Optional, off until someone turns it on (Settings → My Account → Two-factor 
   login's exportKey in `logIn`'s closure meanwhile (`Login.jsx` asks for the code).
 - **Recovery code:** resetting a forgotten password would otherwise get round it, so
   `/recover/start` says `twoFactor: true` and `/recover/finish` then needs `twoFactorCode` (401
-  `two_factor_required` without one, before anything changes). The recovery form shows a code
-  field once asked.
+  `two_factor_required` without one, before anything changes). The app asks for it last, after
+  the new recovery code has been kept (the login's two-factor screen), so it's still fresh.
 - **Turning off / new backup codes:** `POST /api/two-factor/disable` and `/two-factor/backup-codes`,
   each with a password proof and a code (or backup code). `GET /api/two-factor` says `{ enabled,
   backupCodesLeft }`. Changing the password, the recovery code and deleting the account still
@@ -278,10 +278,15 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   the code gives a key for a second backup (`users.recovery_backup`, `wrapRecoveryBackup`) and an
   auth value; the server stores only its SHA-256 (`recovery_verifier`). "Forgot password?" on the
   login page: `POST /api/recover/start {userIdentifier, recoveryAuth}` returns the recovery backup
-  (unknown user, no code and wrong code all get the same 401), the client opens it, checks the
-  published public keys, registers the new password and sends `POST /api/recover/finish` (auth
-  again, new record + backup), which logs in. The code keeps working. Rate limited per IP and
-  username. The code is generated on the device. `hasRecoveryCode` comes with login/profile.
+  (unknown user, no code and wrong code all get the same 401), the client opens it and checks the
+  published public keys (`startRecovery`, changing nothing). A used code is replaced (it may have
+  been seen while typed): the app makes a new one and shows it (`RecoveryCodeDisplay`), and only
+  once the user says they've kept it registers the new password and sends `POST
+  /api/recover/finish` (auth again, new record + backup, and the new code's `recoveryVerifier` +
+  `recoveryBackup`, written in one transaction), which logs in. Closing the page before then
+  changes nothing: the old password and code keep working. The server refuses a finish without a
+  new code (400 `new_recovery_code_required`, apps from before this) or with the same one. Rate
+  limited per IP and username. The code is generated on the device. `hasRecoveryCode` comes with login/profile.
   Logging in to an account without one (made before codes existed) shows a new code first and
   stores it (`saveRecoveryCode`, a second login proof with the password just typed) only once the
   user confirms they've kept it; closing the page stores nothing, so the next login asks again.

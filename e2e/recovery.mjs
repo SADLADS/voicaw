@@ -1,5 +1,6 @@
 // Password change and recovery codes: sign up (code shown), change the password in
-// Settings, reset it with the recovery code while logged out (old messages still readable),
+// Settings, reset it with the recovery code while logged out (old messages still readable; the
+// used code is replaced by a new one, shown first, and leaving at that screen changes nothing),
 // make a new code (the old one stops working); an account from before recovery codes gets
 // one when it logs in.
 //   node e2e/serve.mjs &   then   node e2e/recovery.mjs [screenshot dir]
@@ -29,7 +30,9 @@ async function logIn(browser, username, password) {
   return page;
 }
 
-async function recover(browser, username, code, password, options) {
+// Resolves to the page, with `newCode` set when the code was taken (shown before anything
+// changes; `leave`: stop there, as if the tab were closed).
+async function recover(browser, username, code, password, options, { leave = false } = {}) {
   const page = await freshPage(browser, options);
   await page.click('button:has-text("Forgot password?")');
   await page.fill('input[name="username"]', username);
@@ -39,9 +42,16 @@ async function recover(browser, username, code, password, options) {
   await shot(page, `recover-${options ? 'phone' : 'desktop'}`);
   await page.click('button:has-text("Reset password and log in")');
   await Promise.race([
-    page.waitForSelector('#dm-main', { timeout: 20000 }),
+    page.waitForSelector('[aria-label="Recovery code"]', { timeout: 20000 }),
     page.waitForSelector('.login-error', { timeout: 20000 }),
   ]);
+  if (await page.isVisible('.login-error')) return page;
+  page.newCode = (await page.textContent('[aria-label="Recovery code"]')).trim();
+  await shot(page, `recover-new-code-${options ? 'phone' : 'desktop'}`);
+  if (leave) return page;
+  await page.check("text=I've saved my recovery code");
+  await page.click('button:has-text("Continue")');
+  await page.waitForSelector('#dm-main', { timeout: 20000 });
   return page;
 }
 
@@ -79,10 +89,17 @@ try {
   check(await (await logIn(browser, alice.name, alice.password)).isVisible('.login-error'), 'old password refused');
   check(await (await logIn(browser, alice.name, 'second password 1')).isVisible('#dm-main'), 'new password works');
 
-  // Forgot it: the recovery code, typed sloppily (lower case, spaces).
+  // Forgot it: the recovery code, typed sloppily (lower case, spaces). Leaving at the new
+  // code's screen changes nothing.
   const sloppy = alice.recoveryCode.toLowerCase().replace(/-/g, ' ');
+  const left = await recover(browser, alice.name, sloppy, 'abandoned password', undefined, { leave: true });
+  check(await left.isVisible("text=You've used your recovery code"), 'recovery shows a new code first');
+  check(await (await logIn(browser, alice.name, 'second password 1')).isVisible('#dm-main'), 'leaving there keeps the password');
   const recovered = await recover(browser, alice.name, sloppy, 'third password 1');
   check(await recovered.isVisible('#dm-main'), 'recovery code resets the password and logs in');
+  check(recovered.newCode !== left.newCode && recovered.newCode !== alice.recoveryCode, 'with a new code each time');
+  const used = await recover(browser, alice.name, alice.recoveryCode, 'fourth password 1');
+  check((await used.textContent('.login-error')) === 'Wrong username or recovery code', 'the used code is refused');
   await openChat(recovered, bob.id);
   await recovered.waitForSelector('text=secret before the reset', { timeout: 20000 });
   check(true, 'old messages still readable after the reset');
@@ -95,14 +112,19 @@ try {
   await recovered.click('button:has-text("Show my new code")');
   const newCode = (await recovered.textContent('[aria-label="Recovery code"]', { timeout: 20000 })).trim();
   await shot(recovered, 'settings-new-code');
-  check(newCode !== alice.recoveryCode, 'Settings makes a new code');
-  const stale = await recover(browser, alice.name, alice.recoveryCode, 'fourth password 1');
+  check(newCode !== recovered.newCode, 'Settings makes a new code');
+  const stale = await recover(browser, alice.name, recovered.newCode, 'fourth password 1');
   check((await stale.textContent('.login-error')) === 'Wrong username or recovery code', 'old code refused');
   const again = await recover(browser, alice.name, newCode, 'fourth password 1', devices['Pixel 7']);
   check(await again.isVisible('#dm-main'), 'new code works (phone)');
   // An account from before recovery codes (registered without one, through the API).
   const oldName = `old${String(Date.now()).slice(-5)}`;
-  await registerUser(BASE, request, oldName, 'old account password');
+  // Nothing above is needed again: closing it keeps a busy host from timing out below.
+  for (const context of browser.contexts()) await context.close();
+  // The terms version from the server (registerUser's default loads the server's config, which
+  // needs its environment).
+  const { termsVersion } = await (await fetch(`${BASE}/api/config`)).json();
+  await registerUser(BASE, request, oldName, 'old account password', { acceptedTerms: termsVersion });
   const first = await freshPage(browser);
   await first.fill('input[placeholder="Username"]', oldName);
   await first.fill('input[placeholder="Password"]', 'old account password');

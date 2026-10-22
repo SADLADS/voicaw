@@ -113,7 +113,8 @@ try {
   await submitCode(again, backupCodes[0]);
   check(await again.isVisible('.login-error'), 'the same backup code is refused the second time');
 
-  // Forgot the password: the recovery code asks for a two-factor code too.
+  // Forgot the password: the recovery code asks for a two-factor code too, last (after the
+  // new recovery code is kept, so it's still fresh).
   const recover = await freshPage(browser);
   await recover.click('button:has-text("Forgot password?")');
   await recover.fill('input[name="username"]', alice.name);
@@ -121,8 +122,11 @@ try {
   await recover.fill('input[name="new-password"]', 'reset password 12');
   await recover.fill('input[name="confirm-password"]', 'reset password 12');
   await recover.click('button:has-text("Reset password and log in")');
+  await recover.waitForSelector('[aria-label="Recovery code"]', { timeout: 20000 });
+  await recover.check("text=I've saved my recovery code");
+  await recover.click('button:has-text("Continue")');
   await recover.waitForSelector('input[name="two-factor-code"]', { timeout: 20000 });
-  check(await recover.isVisible('text=This account has two-factor authentication'), 'recovery asks for a two-factor code');
+  check(await recover.isVisible('text=Enter the six-digit code'), 'recovery asks for a two-factor code after the new recovery code');
   await shot(recover, 'recover-code');
   await recover.fill('input[name="two-factor-code"]', backupCodes[1]);
   await recover.click('button:has-text("Reset password and log in")');

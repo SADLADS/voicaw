@@ -312,11 +312,13 @@ export async function deleteAccount(user, password, { deleteOwnedGuilds = false 
 // none, it's shown first and only saved once the user says they've kept it.
 export { generateRecoveryCode };
 
-// Logged out, password forgotten: sets a new password with the recovery code and logs in.
-// Resolves to the user, like logIn. The recovery code keeps working. An account with two-factor
-// on needs `twoFactorCode` too: without one, this throws with `code` 'two_factor_required'
-// before changing anything.
-export async function recoverAccount(username, code, newPassword, twoFactorCode = '') {
+// Logged out, password forgotten, step 1: checks the recovery code and opens the keys with it,
+// changing nothing. Resolves to { newCode, twoFactor, finish(twoFactorCode?) }: a used code is
+// replaced, so `newCode` is shown (and kept by the user) before `finish` sets the new password
+// and code together and logs in, resolving to the user like logIn. `twoFactor`: the account has
+// it on, so `finish` needs a code (asked for last, so it's still fresh). Until `finish`
+// succeeds, the old password and code keep working.
+export async function startRecovery(username, code, newPassword) {
   if (!username) throw new Error(t('auth.errors.usernameRequired'));
   if (!normalizeRecoveryCode(code)) throw new Error(t('auth.errors.notARecoveryCode'));
   checkNewPassword(newPassword);
@@ -333,15 +335,14 @@ export async function recoverAccount(username, code, newPassword, twoFactorCode 
     throw new Error(t('auth.errors.publicKeysMismatch'));
   }
 
-  twoFactorCode = String(twoFactorCode ?? '').trim();
-  if (data.twoFactor && !twoFactorCode) {
-    throw Object.assign(new Error(t('auth.twoFactor.recoverNeedsCode')), { code: 'two_factor_required' });
-  }
-
-  const fields = await newPasswordFields(username, newPassword, keys);
-  const done = await post('/recover/finish', { userIdentifier: username, recoveryAuth: auth, ...fields, ...(twoFactorCode && { twoFactorCode }) });
-
-  await storeUserKeys(done.id, keys);
-  localStorage.setItem('token', done.token);
-  return { token: done.token, id: done.id, username: done.username, hasRecoveryCode: true, pending: Boolean(done.pending), termsAccepted: done.termsAccepted !== false };
+  const newCode = generateRecoveryCode();
+  const finish = async (twoFactorCode = '') => {
+    twoFactorCode = String(twoFactorCode ?? '').trim();
+    const fields = { ...(await newPasswordFields(username, newPassword, keys)), ...(await recoveryFields(newCode, keys)) };
+    const done = await post('/recover/finish', { userIdentifier: username, recoveryAuth: auth, ...fields, ...(twoFactorCode && { twoFactorCode }) });
+    await storeUserKeys(done.id, keys);
+    localStorage.setItem('token', done.token);
+    return { token: done.token, id: done.id, username: done.username, hasRecoveryCode: true, pending: Boolean(done.pending), termsAccepted: done.termsAccepted !== false };
+  };
+  return { newCode, twoFactor: Boolean(data.twoFactor), finish };
 }
