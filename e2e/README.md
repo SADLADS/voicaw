@@ -120,6 +120,7 @@ node e2e/signups.mjs [dir] # sign-ups: Settings → Admin → Sign-ups to approv
 node e2e/account.mjs [dir] # delete account: owned guild blocks until ticked, logged out, "Deleted User" for contacts, phone
 node e2e/dmrail.mjs [dir] # rail's DM button: icon, newest unread sender's picture (live, after reload), clicking it opens their chat, the one before once read, icon when all read, phone
 node e2e/favicon.mjs [dir] # favicon dot: DM on, read = off, guild message without a mention = none, mention on (Discord's rule); dir gets the dotted icon
+node e2e/dmheader.mjs [dir] # DM header: the other person's 24 px picture before their name with the status diamond on it (online, offline once they leave), desktop and phone
 node e2e/pagetitles.mjs # web tab titles as Discord's: Voicaw | Friends, a DM = Voicaw | @name, Notes, Voicaw | #general | Guild (also after a reload), Settings, Developer Portal, logged out = Voicaw (desktop's plain ones: usePageTitle.test.js)
 node e2e/adminalerts.mjs [dir] # admin alerts: a tester request and a report light the admin's Settings gear live (count, label), kept over a reload, counts beside Admin / Sign-ups / Reports, Mark added and Dismiss clear them, never on a non-admin's gear, phone
 node e2e/moderation.mjs [dir] # block from a profile (collapsed messages, Show, DMs refused both ways, DM closed, Unblock), Report Message (guild; DM sharing its text), admin's Reports, suspend (phone logged out and told why, login refused with the reason), lift

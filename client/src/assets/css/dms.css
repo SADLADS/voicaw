@@ -200,6 +200,24 @@ small {
   flex-shrink: 0;
 }
 
+/* The DM header's picture, before the name, with the status icon on its corner. */
+.chat-recipient-avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-right: 8px;
+  --status-size: 7px;
+  --status-center: 4px;
+  --status-phone-width: 8px;
+  --status-phone-height: 11px;
+}
+
+.chat-recipient-avatar-img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 /* Pending messages */
 .dm-message.pending {
   opacity: 0.5;

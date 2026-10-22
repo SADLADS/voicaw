@@ -11,6 +11,8 @@ import PaneBackButton from './PaneBackButton';
 import CallPanel from './call/CallPanel';
 import { useCall } from '../hooks/useCall';
 import { startCall } from '../voice/callClient';
+import Avatar from './Avatar';
+import StatusIcon from './StatusIcon';
 import ContactKeyWarning from './ContactKeyWarning';
 import SafetyNumberDialog from './SafetyNumberDialog';
 import ChatPane from './ChatPane';
@@ -95,6 +97,12 @@ export default function Dm({ user }) {
         <>
           <h4 className="chat-recipient-header">
             <PaneBackButton />
+            {chatUser && (
+              <span className="chat-recipient-avatar status-avatar">
+                <Avatar userId={chatUser.id} alt="" className="chat-recipient-avatar-img" />
+                {presence && <StatusIcon status={presence.status} />}
+              </span>
+            )}
             {chatName || t('chat.composer.fallbackName')}
             {presence?.status === 'offline' && (
               <span className="chat-recipient-status">
