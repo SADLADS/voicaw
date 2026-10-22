@@ -435,12 +435,19 @@
   lays the keyboard over the page and slides the page up to the focused box, which a box
   focused from code, like swipe to reply's, sometimes missed, and a drag could slide back).
   iOS ignores that, so while the keyboard is open `--vc-app-height` is set to the visible
-  height (`visualViewport`) and any slide of the page is scrolled back (only then: no page
-  scrolls the document). iOS 26 Safari (installed or not; Brave, a WKWebView, doesn't) won't
-  always scroll back: the visible part stays pushed down by about the keyboard's height, which
-  left a keyboard-high gap under the message box (reported 2026-10-13). So while the keyboard is
-  open `--vc-app-top` (the visual viewport's `pageTop` after scrolling back) pads `#root` down to
-  meet it, 0 when the scroll back worked. Everything screen-high uses `var(--vc-app-height)` (100svh
+  height (`visualViewport`) and `--vc-app-top` (the visual viewport's `pageTop`) pads `#root`
+  down to wherever the visible part starts: the app fills exactly what's visible, however far
+  iOS slid the page. The slide is followed, never scrolled back (2026-10-22). Scrolling it back
+  (as before) set off a tug of war: iOS slid the page down again to keep the caret in view, every
+  frame while typing, and friends on iPhones saw the screen shaking up and down in every chat;
+  `e2e/keyboard.mjs` models that (a stand-in viewport that slides again a frame after any scroll
+  back) and checks the app doesn't move while typing. iOS 26 Safari often wouldn't scroll back at
+  all anyway (a keyboard-high gap under the message box, reported 2026-10-13, which is when the
+  following began). Following can't loop: the caret stays where it is in what's visible, and the
+  page can't be dragged further, since the app ends where the visible part does. Anything
+  `position: fixed` is placed against the whole screen, not the visible part, so while the
+  keyboard is up only what follows `visualViewport` itself (the emoji picker's search) lines up
+  with it; the suggestions over the message box are in its flow and move with the app. Everything screen-high uses `var(--vc-app-height)` (100svh
   otherwise), never 100vh/svh. The keyboard's height is the visible height's shortfall from
   the keyboard-free height (the tallest seen at that width, capped at `screen.height`), not
   from `innerHeight`, which shrinks with it on Android; `utils/keyboardHeight.js` (the docked

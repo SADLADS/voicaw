@@ -43,43 +43,55 @@ describe('keyboardViewport', () => {
     expect(listeners).toHaveLength(0);
   });
 
-  it('iOS: undoes the page sliding while the keyboard is open, not otherwise', () => {
+  it('iOS: follows the page sliding while the keyboard is open, never scrolling it back', () => {
     watchKeyboardViewport();
     Object.defineProperty(window, 'scrollY', { configurable: true, value: 40 });
     fire();
-    expect(window.scrollTo).not.toHaveBeenCalled(); // no keyboard: not ours to undo
+    expect(appTop()).toBe(''); // no keyboard: not ours
     window.visualViewport.height = 470;
     window.visualViewport.offsetTop = 330; // slid up to show the message box
-    fire();
-    expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
-  });
-
-  it('iOS: undone slides leave the app where it is', () => {
-    watchKeyboardViewport();
-    window.scrollTo = vi.fn(() => { window.visualViewport.offsetTop = 0; window.visualViewport.pageTop = 0; });
-    window.visualViewport.height = 470;
-    window.visualViewport.offsetTop = 330;
-    window.visualViewport.pageTop = 330;
-    fire();
-    expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
-    expect(appTop()).toBe('');
-  });
-
-  it("iOS 26: moves the app down to the visible part when the slide won't undo", () => {
-    const stop = watchKeyboardViewport();
-    window.visualViewport.height = 470;
-    window.visualViewport.offsetTop = 330; // scrollTo does nothing: still pushed down
     window.visualViewport.pageTop = 330;
     fire();
     expect(appHeight()).toBe('470px');
     expect(appTop()).toBe('330px');
+    // Scrolling back made iOS slide again to keep the caret in view, every frame (the screen
+    // shaking while typing): the page is left where the browser put it.
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    window.visualViewport.offsetTop = 120; // the user drags it back up a little
+    window.visualViewport.pageTop = 120;
+    fire();
+    expect(appTop()).toBe('120px');
+    expect(window.scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('iOS: without pageTop, follows the scroll plus the offset', () => {
+    watchKeyboardViewport();
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 30 });
+    window.visualViewport.height = 470;
+    window.visualViewport.offsetTop = 300;
+    fire();
+    expect(appTop()).toBe('330px');
+  });
+
+  it('iOS: the app goes back to the top once the keyboard closes, and when stopped', () => {
+    const stop = watchKeyboardViewport();
+    window.visualViewport.height = 470;
+    window.visualViewport.offsetTop = 330;
+    window.visualViewport.pageTop = 330;
+    fire();
+    expect(appTop()).toBe('330px');
     window.visualViewport.height = 800; // keyboard closed
+    window.visualViewport.offsetTop = 0;
+    window.visualViewport.pageTop = 0;
     fire();
     expect(appTop()).toBe('');
     window.visualViewport.height = 470;
+    window.visualViewport.offsetTop = 330;
+    window.visualViewport.pageTop = 330;
     fire();
     stop();
     expect(appTop()).toBe('');
+    expect(appHeight()).toBe('');
   });
 
   it('Android (resizes-content): sees the keyboard though the window shrinks with it', () => {
