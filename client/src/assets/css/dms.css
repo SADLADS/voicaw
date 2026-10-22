@@ -1546,6 +1546,24 @@ img.emoji,
   border-bottom: 1px solid var(--vc-border-dark);
 }
 
+/* In the message box the lists (emoji, @ and # suggestions, / commands) float over the chat
+   just above it, as wide as it, instead of growing the box and pushing the conversation up. */
+.dm-chat-wrapper > .emoji-suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 45;
+  max-height: min(360px, calc(var(--vc-app-height) * 0.45));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: var(--vc-radius-lg);
+  background-color: var(--vc-bg-elevated);
+  box-shadow: var(--vc-elevation-2);
+}
+
 .emoji-suggestions-title {
   padding: 2px 6px 4px;
   font-size: 11px;
