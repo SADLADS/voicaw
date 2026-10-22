@@ -69,7 +69,8 @@ export const SOUNDS = {
     descriptionKey: 'settings.sounds.logo.description',
     // A Philly hit (the 80s orchestra stab). The file peaks near full scale, so it's turned down
     // to the tones' level. If it can't load: a big C major chord of detuned saws, struck all at
-    // once, through a lowpass closing fast. Every click plays, however quick.
+    // once, through a lowpass closing fast. Every click on the bird while on the DM side plays,
+    // however quick.
     file: '/sounds/hit.mp3',
     fileVolume: 0.3,
     tone: {

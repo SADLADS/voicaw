@@ -108,7 +108,8 @@ try {
   r = await result(b, '.main-content-wrapper > *');
   check(r.navs.length === 0 && r.same && (await path(b)) === phonePath && await pane(b) === 'list',
     `phone: guild icon in that guild stays on its list (${JSON.stringify(r.navs)})`);
-  await b.tap('.nav-icon[aria-label="Direct Messages"]');
+  // The DM button: the bird, or Alice's picture while her "hello" is unread.
+  await b.tap('.sidebar > .nav-item:first-child > a');
   await b.waitForURL('**/dm**');
   await settle(b);
   check((await path(b)).startsWith('/dm'), 'phone: DMs button from a guild opens the DMs');

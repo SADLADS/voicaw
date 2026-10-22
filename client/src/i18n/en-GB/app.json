@@ -12,7 +12,6 @@
       "notSaved": "This conversation isn't saved on this device, so it can't be shown offline."
     },
     "sidebar": {
-      "logoAlt": "Voicaw Logo",
       "directMessages": "Direct Messages",
       "unreadFrom": "Direct Messages: new message from {{name}}",
       "guilds": "Guilds",

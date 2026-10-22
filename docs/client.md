@@ -60,13 +60,19 @@
   from the user agent; not a setting, since the wrong one is unusable, removed 2026-10-01)
 - `Layout.jsx` — the logged-in shell: sidebars, users list and unread counts (`LayoutContext`),
   and the favicon dot (`useFaviconDot`, see Favicon dot).
-  `DmSidebar` draws the unread dots from those counts. The rail's DM button (`Sidebar`
+  `DmSidebar` draws the unread dots from those counts. The rail's DM button is the bird logo
+  (built 2026-10-22, replacing a speech-bubble icon below it), and it shows where you are: it
+  faces left (as the logo does) in the end-to-end encrypted chats (DMs, group DMs, notes) and
+  Friends, and turns round to face right everywhere else, guilds, bot DMs (not encrypted) and
+  Settings included. Moving between them, it turns over about its upright axis (CSS
+  `rotateY`, 0.46 s; none with reduced motion), while a click's pop is on the link around it,
+  so the two don't cut each other short. The DM button (`Sidebar`
   `newestUnread`) shows the picture of whoever sent the newest unread DM, group or bot DM
   message (`utils/latestUnread.js`: `/dm-get-unread`'s `last_timestamp`, a group's or bot DM's
   `last_unread_sender_id` / `last_unread_timestamp`; muted ones and the open chat left out),
-  and clicking it then opens that chat (the content pane on a phone); it shows its usual icon
-  when nothing's unread. Clicking the plain DM button while on a DM page, or the
-  open guild's icon, does nothing (as in Discord): following the link went to bare `/dm` or
+  and clicking it then opens that chat (the content pane on a phone), the bird coming back;
+  it's the bird when nothing's unread. Clicking the bird while on a DM page (it only pops and
+  plays the Logo sound, see Sounds), or the open guild's icon, goes nowhere (as in Discord): following the link went to bare `/dm` or
   `/guild/:id`, which showed an empty page for a moment before redirecting (`e2e/samepage.mjs`).
   `SidebarWrapper` puts the sidebars in a
   row with `UserPanel` across the bottom: your picture, name, under it your custom status
@@ -641,8 +647,8 @@ picture or names, or straight from a tap on a phone.
 Discord's sound effects, for what Voicaw has (`client/src/sounds/`). `soundList.js` lists them
 (`SOUNDS`): Message, Mute, Unmute, Deafen, Undeafen, User join, User leave, Voice disconnected,
 Incoming ring, Outgoing ring, and Logo (not Discord's: a Philly hit, the 80s orchestra stab,
-`/sounds/hit.mp3`, on every click of the bird at the top of the guild rail, until the logo gets a
-real use; its fallback tone is a synthesised one). Each is a `tone` drawn with Web Audio
+`/sounds/hit.mp3`, on every click of the bird at the top of the guild rail while already on the
+DM side, where the click goes nowhere; its fallback tone is a synthesised one). Each is a `tone` drawn with Web Audio
 oscillators (notes, volume, wave, `bell` or `flat` shape, optional `detune` and a closing lowpass
 `filter`); **a sound with a `file`** (e.g. `/sounds/message.ogg` in
 `client/public/sounds/`) plays that instead, falling back to its tone if it can't load, so real

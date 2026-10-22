@@ -70,32 +70,60 @@ beforeEach(() => {
   myVoice = { status: 'idle', guildId: null };
 });
 
-describe('the rail\'s logo', () => {
-  it('plays a Philly hit on every click, and goes nowhere', () => {
-    renderRail({ path: '/dm/7' });
-    const logo = screen.getByRole('img', { name: 'Voicaw Logo' });
-    fireEvent.click(logo);
-    fireEvent.click(logo);
-    expect(playSound).toHaveBeenCalledTimes(2);
-    expect(playSound).toHaveBeenCalledWith('logo');
-    expect(screen.getByTestId('path').textContent).toBe('/dm/7');
-  });
-});
-
 describe('the rail\'s DM button', () => {
-  it('shows its icon while nothing is unread', () => {
+  const bird = () => icon('Direct Messages').querySelector('.rail-logo');
+
+  it('is the bird while nothing is unread', () => {
     renderRail();
+    expect(bird()).not.toBeNull();
     expect(icon('Direct Messages').querySelector('img')).toBeNull();
   });
 
-  it('shows the picture of whoever sent the newest unread message, and opens that chat', () => {
+  it('shows the picture of whoever sent the newest unread message instead, and opens that chat', () => {
     mergeProfiles([{ id: 9, username: 'zed', display_name: 'Zed' }]);
     renderRail({ newestUnread: { userId: 9, path: '/dm/g/4' }, path: '/dm/7' });
     const button = icon('Direct Messages: new message from Zed');
     expect(button).toHaveAttribute('href', '/dm/g/4');
     expect(button.querySelector('img')).not.toBeNull();
+    expect(button.querySelector('.rail-logo')).toBeNull();
     fireEvent.click(button);
     expect(screen.getByTestId('path').textContent).toBe('/dm/g/4');
+  });
+
+  it('faces left in encrypted chats and Friends, and turns round everywhere else', () => {
+    for (const path of ['/dm', '/dm/7', '/dm/g/4', '/dm/notes', '/dm/friends']) {
+      renderRail({ path });
+      expect(bird(), path).not.toHaveClass('turned');
+      cleanup();
+    }
+    for (const path of ['/dm/b/3', '/guild/5/12', '/settings/profile']) {
+      renderRail({ path });
+      expect(bird(), path).toHaveClass('turned');
+      cleanup();
+    }
+  });
+
+  it('turns round as you go between a guild and DMs', () => {
+    renderRail({ path: '/guild/5/12' });
+    expect(bird()).toHaveClass('turned');
+    fireEvent.click(icon('Direct Messages'));
+    expect(screen.getByTestId('path').textContent).toBe('/dm');
+    expect(bird()).not.toHaveClass('turned');
+    fireEvent.click(icon('Alpha'));
+    expect(bird()).toHaveClass('turned');
+  });
+
+  it('pops on every click, and plays the Philly hit only when already on the DM side', () => {
+    renderRail({ path: '/guild/5/12' });
+    const link = icon('Direct Messages');
+    link.animate = vi.fn();
+    fireEvent.click(link);
+    expect(playSound).not.toHaveBeenCalled();
+    fireEvent.click(link);
+    fireEvent.click(link);
+    expect(playSound).toHaveBeenCalledTimes(2);
+    expect(playSound).toHaveBeenCalledWith('logo');
+    expect(link.animate).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -118,19 +146,6 @@ describe('clicking where you already are', () => {
     expect(path()).toBe('/guild/6');
     fireEvent.click(icon('Direct Messages'));
     expect(path()).toBe('/dm');
-  });
-});
-
-describe('the rail\'s logo', () => {
-  it('goes nowhere when clicked, and pops on every click', () => {
-    renderRail({ path: '/dm/7' });
-    const logo = screen.getByRole('img', { name: 'Voicaw Logo' });
-    expect(logo.closest('a')).toBeNull();
-    logo.animate = vi.fn();
-    fireEvent.click(logo);
-    fireEvent.click(logo);
-    expect(screen.getByTestId('path').textContent).toBe('/dm/7');
-    expect(logo.animate).toHaveBeenCalledTimes(2);
   });
 });
 

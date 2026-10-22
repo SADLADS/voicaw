@@ -12,7 +12,6 @@
       "notSaved": "この会話はこのデバイスに保存されていないため、オフラインでは表示できません。"
     },
     "sidebar": {
-      "logoAlt": "Voicaw のロゴ",
       "directMessages": "ダイレクトメッセージ",
       "unreadFrom": "ダイレクトメッセージ: {{name}} さんから新しいメッセージ",
       "guilds": "ギルド",

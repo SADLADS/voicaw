@@ -437,16 +437,34 @@ body {
   background-color: var(--vc-bg-base);
   border-right: 1px solid var(--vc-border-light);
 }
-.rail-logo {
+/* The DM button: the bird, facing left in encrypted chats and turning round (a flip about its
+   upright axis) to face right everywhere else (Sidebar.jsx). */
+.rail-bird {
   display: block;
   width: 50px;
   height: 50px;
-  cursor: pointer;
+  border-radius: 25%;
+  -webkit-tap-highlight-color: transparent;
+}
+.rail-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
   user-select: none;
   -webkit-user-drag: none;
   background-color: var(--vc-logo);
   -webkit-mask: url('../images/logo-no-border.svg') center / contain no-repeat;
   mask: url('../images/logo-no-border.svg') center / contain no-repeat;
+  transform: perspective(200px) rotateY(0deg);
+  transition: transform 0.46s cubic-bezier(0.45, 0.05, 0.55, 0.95);
+}
+.rail-logo.turned {
+  transform: perspective(200px) rotateY(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail-logo {
+    transition: none;
+  }
 }
 .sidebar::-webkit-scrollbar {
   width: 0px;

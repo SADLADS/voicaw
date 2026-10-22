@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Icon } from './Icon';
-import { faComments, faPlus, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import GuildIcon from './guild/GuildIcon';
 import Avatar from './Avatar';
 import '../assets/css/guilds.css';
@@ -22,7 +22,7 @@ import { showContent } from '../utils/mobilePanes';
 import { playSound } from '../sounds/sounds';
 import { lastDm } from '../utils/lastChat';
 
-// The guild rail down the left (like Discord's): home, DMs, then each guild (a pill on the
+// The guild rail down the left (like Discord's): the bird (DMs), then each guild (a pill on the
 // left marks unread messages, a taller one the open guild), then "+" to create or join one.
 // `unreadGuildIds` is a Set of guild ids with unread messages, `guildMentions` ({ guildId:
 // count }) how many of them mention you (a red badge on the icon). `guildVoice` ({ guildId:
@@ -31,7 +31,7 @@ import { lastDm } from '../utils/lastChat';
 // new order (hold, then drag, on touch screens); `onReorderGuilds(ids)` saves it. Right-clicking
 // a guild (touch, hold and lift on a phone) opens its menu (GuildMenu), whose dialogs live here.
 // `newestUnread` ({ userId, path }) is the newest unread DM, group or bot DM message: the DM button
-// shows its sender's picture instead of its icon until that's read (as in Discord), and opens
+// shows its sender's picture instead of the bird until that's read (as in Discord), and opens
 // that chat.
 export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guilds = [], unreadGuildIds = new Set(), guildMentions = {}, guildVoice = {}, onReorderGuilds }) {
   const location = useLocation();
@@ -61,14 +61,22 @@ export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guild
     if (active) e.preventDefault();
   };
 
-  // The logo doesn't go anywhere for now: a click only makes it pop, with a Philly hit,
-  // restarting on every click so quick clicks each get their own.
-  const popLogo = (e) => {
-    playSound('logo');
+  // The bird logo is the DM button. It faces left in the encrypted chats (DMs, group DMs, notes)
+  // and Friends, and turns round to face right everywhere else, bot DMs included (they aren't
+  // encrypted). A click makes it pop, restarting on every click so quick clicks each get their
+  // own; one while already on the DM side goes nowhere and plays the Philly hit instead. The
+  // pop is on the link and the turn on the bird inside it, so one never cuts the other short.
+  const inDms = isActivePath('/dm');
+  const encrypted = inDms && !isActivePath('/dm/b/');
+  const clickBird = (e) => {
     e.currentTarget.animate?.(
       [{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }],
       { duration: 160, easing: 'ease-out' },
     );
+    if (inDms) {
+      e.preventDefault();
+      playSound('logo');
+    }
   };
 
   return (
@@ -76,12 +84,7 @@ export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guild
       className="sidebar d-flex flex-column align-items-center"
       style={{ width: '72px' }}
     >
-      <div className="nav-item">
-        {/* The bird drawn as a mask in the theme's --vc-logo colour (voicaw.css). */}
-        <span role="img" aria-label={t('app.sidebar.logoAlt')} className="rail-logo" onClick={popLogo} />
-      </div>
-
-      <div className={`nav-item ${isActivePath('/dm') ? 'active' : ''}`}>
+      <div className={`nav-item ${inDms ? 'active' : ''}`}>
       <span className={`dot${hasUnreadDms ? ' visible' : ''}`}></span>
         {newestUnread != null ? (
           <NavLink
@@ -95,8 +98,9 @@ export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guild
           </NavLink>
         ) : (
           // Back to the DM page last open (utils/lastChat.js), checked as a reopened chat is.
-          <NavLink to={lastDm() ?? '/dm'} state={{ restoredChat: true }} className="nav-icon" onClick={stayIfIn(isActivePath('/dm'))} aria-label={t('app.sidebar.directMessages')} title={t('app.sidebar.directMessages')}>
-            <Icon icon={faComments} />
+          <NavLink to={lastDm() ?? '/dm'} state={{ restoredChat: true }} className="rail-bird" onClick={clickBird} aria-label={t('app.sidebar.directMessages')} title={t('app.sidebar.directMessages')}>
+            {/* The bird drawn as a mask in the theme's --vc-logo colour (voicaw.css). */}
+            <span className={`rail-logo${encrypted ? '' : ' turned'}`} />
           </NavLink>
         )}
       </div>
