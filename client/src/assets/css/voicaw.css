@@ -13,7 +13,10 @@
    A colour comes in a few forms: the fill (--vc-accent), its -hover (and -strong, pressed),
    -text (the colour as text on the background: fills are too dark or too light to read),
    -soft (a tinted background) and --vc-on-* (text on the fill). */
-:root {
+/* Each theme block also applies to [data-theme-preview="<name>"], so Settings → Appearance
+   draws each theme's picture in its real colours whatever the current theme is (no copies). */
+:root,
+[data-theme-preview="dark"] {
   /* The app's height: the screen, or on a phone with the keyboard open the part above it
      (set by utils/keyboardViewport.js). Use it for anything screen-high, never 100vh/svh. */
   --vc-app-height: 100svh;
@@ -141,7 +144,8 @@
    form controls and scrollbars (not the on-screen keyboard: see utils/theme.js). Use the tokens
    for colours, not literal ones, so every theme works. A theme sets every colour token, even
    the ones that match dark, so a new colour scheme starts as a copy of this block. */
-:root[data-theme="light"] {
+:root[data-theme="light"],
+[data-theme-preview="light"] {
   --vc-accent: #6a52c9;
   --vc-accent-hover: #5b44b0;
   --vc-accent-strong: #4c3896;
@@ -200,7 +204,8 @@
    .theme-dark in Discord's CSS), values read from discord.com's own CSS on 2026-10-02. Translucent ones (hover, borders) are
    flattened onto the surface they sit on. Blurple for what you can do, Discord's yellow for
    mentions, white unread markers, red mention counts, blue links. */
-:root[data-theme="familiar"] {
+:root[data-theme="familiar"],
+[data-theme-preview="familiar"] {
   --vc-accent: #5865f2;
   --vc-accent-hover: #4452bb;
   --vc-accent-strong: #3a48a3;
@@ -215,7 +220,8 @@
   --vc-on-action: #000000;
   --vc-logo: #d8b930;
 
-  --vc-bg-rail: #2c2d32;
+  /* Rail, sidebar, chat: three steps, like Discord's own (its server list a step darker). */
+  --vc-bg-rail: #25262b;
   --vc-bg-base: #2c2d32;
   --vc-bg-subtle: #323339;
   --vc-bg-elevated: #393a41;
@@ -256,7 +262,8 @@
 /* Halloween (added 2026-10-13): night-purple neutrals, pumpkin orange for what you can do,
    candlelight yellow for attention, witch-purple links, slime green online, blood red errors.
    Warnings are a pale amber so they don't read as the orange accent. */
-:root[data-theme="halloween"] {
+:root[data-theme="halloween"],
+[data-theme-preview="halloween"] {
   /* White on the pumpkin is 5:1. */
   --vc-accent: #b8500d;
   --vc-accent-hover: #a8480b;
@@ -273,7 +280,8 @@
   /* The bird goes pumpkin, the buttons' orange. */
   --vc-logo: #b8500d;
 
-  --vc-bg-rail: #120d17;
+  /* Rail, sidebar, chat: three steps of the night purple. */
+  --vc-bg-rail: #0b0810;
   --vc-bg-base: #120d17;
   --vc-bg-subtle: #1a1320;
   --vc-bg-elevated: #241a2c;
@@ -846,86 +854,121 @@ pre code {
   color: var(--vc-fg);
 }
 
-/* Each theme drawn in its own colours whatever the current one is, so literal: they copy the
-   THEMES blocks above (keep them in step). */
-.theme-preview {
-  --side: #18161e;
-  --chat: #1d1a24;
-  --line: #3e3949;
-  --box: #27232f;
-  display: flex;
+/* A theme's picture (ThemeSettings ThemeScene): drawn from its own tokens, which
+   [data-theme-preview] gives it (the THEMES blocks above), so it can't drift from the theme.
+   Rail, sidebar and chat are the three surface tiers; the open row is the selection tint; the
+   logo, the unread pip and Send carry the theme's colours. */
+.theme-preview-frame {
+  position: relative;
+  display: block;
   width: 136px;
   height: 84px;
   overflow: hidden;
   border-radius: var(--vc-radius-md);
-  background: var(--chat);
 }
 
-.theme-preview-light {
-  --side: #eceaf1;
-  --chat: #ffffff;
-  --line: #d0ccd8;
-  --box: #f4f3f7;
-  box-shadow: inset 0 0 0 1px #e4e1ea;
+.theme-preview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  background: var(--vc-bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--vc-border-dark);
+  border-radius: inherit;
+  overflow: hidden;
 }
 
-.theme-preview-familiar {
-  --side: #2c2d32;
-  --chat: #323339;
-  --line: #4e4f56;
-  --box: #393a41;
+.theme-preview-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 20px;
+  padding-top: 7px;
+  background: var(--vc-bg-rail);
 }
 
-.theme-preview-halloween {
-  --side: #120d17;
-  --chat: #1a1320;
-  --line: #4a3a55;
-  --box: #b8500d;
+.theme-preview-logo {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--vc-logo);
 }
 
-/* Match system: half of each. */
-.theme-preview-system {
-  background: linear-gradient(135deg, #1d1a24 50%, #ffffff 50%);
-}
-
-.theme-preview-system .theme-preview-side {
-  background: linear-gradient(135deg, #18161e 70%, #eceaf1 70%);
-}
-
-.theme-preview-system .theme-preview-line,
-.theme-preview-system .theme-preview-box {
-  background: #8f8a99;
+.theme-preview-icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--vc-bg-elevated);
 }
 
 .theme-preview-side {
-  width: 34px;
-  background: var(--side);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 36px;
+  padding: 8px 4px;
+  background: var(--vc-bg-base);
+}
+
+.theme-preview-row {
+  height: 7px;
+  border-radius: 3px;
+  background: var(--vc-bg-hover);
+}
+
+.theme-preview-row.active {
+  background: var(--vc-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--vc-accent-soft);
+}
+
+.theme-preview-row.short {
+  width: 70%;
 }
 
 .theme-preview-chat {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px 10px 10px;
+  gap: 6px;
+  padding: 12px 8px 8px;
 }
 
 .theme-preview-line {
   width: 80%;
-  height: 6px;
+  height: 5px;
   border-radius: 3px;
-  background: var(--line);
+  background: var(--vc-fg-muted);
+  opacity: 0.55;
 }
 
 .theme-preview-line.short {
   width: 50%;
 }
 
+/* The message box, Send at its end in the accent. */
 .theme-preview-box {
-  height: 16px;
+  position: relative;
+  height: 14px;
   margin-top: auto;
   border-radius: 4px;
-  background: var(--box);
+  background: var(--vc-bg-elevated);
+  box-shadow: inset 0 0 0 1px var(--vc-border-dark);
+}
+
+.theme-preview-box::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 14px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--vc-accent);
+}
+
+/* Match system: Dark under Light, Light cut off corner to corner. */
+.theme-preview-system .theme-preview + .theme-preview {
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
 
 /* Settings' title, atop its column: a header like the other pages' (the nav's padding is

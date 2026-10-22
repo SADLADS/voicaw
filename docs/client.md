@@ -293,7 +293,7 @@
   light page never starts dark. Colours are the `--vc-*` tokens on `:root` in `voicaw.css`
   (COLOURS there), set again in full under `:root[data-theme="light"]` (THEMES): **use tokens,
   not literal colours**, in new CSS (literal black/white is only for scrims and controls over
-  images and video; the Appearance previews copy each theme's values on purpose). The scheme
+  images and video). The scheme
   (2026-10-02) has two brand colours and fixed meanings:
   - **Purple (`--vc-accent`) marks what you can do:** primary buttons, selection, focus rings,
     toggles and checkboxes, links (one link colour, `--vc-accent-text`, everywhere), your own
@@ -311,8 +311,9 @@
     the foreground.
   - Surfaces come in three tiers, darkest at the back (2026-10-22): the rail (`--vc-bg-rail`),
     the sidebar beside it (`--vc-bg-base`) and the chat (`--vc-bg-subtle`); columns are told
-    apart by these steps, so borders between them are quiet (`--vc-border-dark`). Ol' Familiar
-    and Halloween set the rail to their sidebar colour. The open DM and channel get the
+    apart by these steps, so borders between them are quiet (`--vc-border-dark`). Every theme
+    has all three as distinct steps (Ol' Familiar's and Halloween's rails are a step darker
+    than their sidebars). The open DM and channel get the
     selection tint (`--vc-accent-soft`). Placeholders are at least 4.5:1 on a field.
   - **Type, shape and motion tokens** (theme-independent, on `:root`, 2026-10-22): the typeface is
     Figtree (`@fontsource-variable/figtree`, imported in `main.jsx` so the desktop and Android
@@ -375,14 +376,21 @@
     The rail's bird logo goes the same pumpkin: it's drawn as a CSS mask of
     `logo-no-border.svg` filled with `--vc-logo` (the bird yellow in every other theme), so a
     theme can recolour it. Colours only: no decorations.
-  - **Another colour scheme** later: a `:root[data-theme="<name>"]` block setting every colour
-    token (copy the light one) and its `color-scheme`, the name in `THEMES` and `BASES`
-    (`utils/theme.js`) and in `index.html`'s copy, and a preview in `ThemeSettings.jsx`
-    (`e2e/colours.mjs` with `THEMES=<name>` shoots it). Since
+  - **Appearance's pictures** (`ThemeSettings.jsx` ThemeScene, 2026-10-22) are drawn from each
+    theme's real tokens: every theme block's selector also matches
+    `[data-theme-preview="<name>"]`, so a picture gets its theme's colours whatever the current
+    one is, and can't drift from it. Each shows the three tiers (rail with the logo, sidebar
+    with the open row, chat with the message box and Send in the accent); Match system is Dark
+    and Light split corner to corner.
+  - **Another colour scheme** later: a `:root[data-theme="<name>"], [data-theme-preview="<name>"]`
+    block setting every colour token (copy the light one; all three surface tiers distinct)
+    and its `color-scheme`, the name in `THEMES` and `BASES` (`utils/theme.js`) and in
+    `index.html`'s copy, and an option in `ThemeSettings.jsx` (its picture follows by itself;
+    `e2e/colours.mjs` with `THEMES=<name>` shoots it). Since
     nothing outside the token blocks has a theme colour of its own, a user-made scheme could
     be applied by setting the tokens inline on `<html>`. Keep `manifest.json`'s and
     `index.html`'s `theme-color`, `electron/main.js`'s `backgroundColor`, the desktop splash
-    (`electron/assets/splash.html`), the Appearance previews and `website/` in step with the
+    (`electron/assets/splash.html`) and `website/` in step with the
     default scheme. Each theme sets CSS
   `color-scheme`, which makes the browser's own controls and scrollbars match. **Not the
   on-screen keyboard:** on iPhones and iPads it follows the system's light/dark mode whatever
