@@ -6,6 +6,7 @@ import { clearUserKeys } from './keyStore';
 import { forgetGroups } from './groupCache';
 import { disableNotificationsOnThisDevice } from './pushService';
 import { clearDrafts } from './draftStore';
+import { clearUnsent } from './unsentStore';
 import { clearSearchIndex } from './searchIndex';
 import { clearOfflineCopy } from './offlineCopy';
 
@@ -77,6 +78,7 @@ export async function forgetLogin() {
   await Promise.all(clears.map((clear) => clear().catch((err) => console.error('Failed to clear stored data on logout', err))));
   forgetAccountStorage();
   clearDrafts();
+  clearUnsent();
   closeWebSocket();
 }
 

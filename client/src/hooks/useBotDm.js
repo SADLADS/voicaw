@@ -100,8 +100,8 @@ export function useBotDm({ dmId, user, onRead }) {
   };
 
   // Same contract as useConversation's sendMessage. Plain text only (no files, polls or replies).
-  async function sendMessage({ text, resolveText }) {
-    const tempId = `temp-${Date.now()}`;
+  async function sendMessage({ text, resolveText, nonce }) {
+    const tempId = `temp-${nonce ?? Date.now()}`;
     setMessages((prev) => [...prev, {
       id: tempId,
       dm_id: dmId,
@@ -114,14 +114,14 @@ export function useBotDm({ dmId, user, onRead }) {
     }]);
     try {
       const finalText = resolveText ? await resolveText() : text;
-      const saved = await sendBotDmMessage(dmId, finalText);
+      const saved = await sendBotDmMessage(dmId, finalText, nonce);
       setMessages((prev) => {
         if (prev.some((m) => m.id === saved.id)) return prev.filter((m) => m.id !== tempId);
         return prev.map((m) => (m.id === tempId ? { ...saved, clientKey: tempId, status: 'sent' } : m));
       });
       return saved;
     } catch (err) {
-      updateMessage(tempId, () => ({ status: 'failed' }));
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       throw err;
     }
   }

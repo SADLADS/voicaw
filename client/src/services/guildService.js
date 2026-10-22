@@ -151,8 +151,8 @@ export async function fetchChannelMessages(channelId, params = {}) {
 }
 
 // `documentId`: in a document channel, the document this replies to.
-export async function sendChannelMessage(channelId, content, replyTo = null, documentId = null) {
-  return (await api.post(`/channels/${channelId}/messages`, { content, replyTo, ...(documentId ? { documentId } : {}) })).data;
+export async function sendChannelMessage(channelId, content, replyTo = null, documentId = null, nonce = undefined) {
+  return (await api.post(`/channels/${channelId}/messages`, { content, replyTo, ...(documentId ? { documentId } : {}), nonce })).data;
 }
 
 export async function editChannelMessage(messageId, content) {

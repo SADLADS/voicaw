@@ -21,6 +21,7 @@ const { ActionError, withActionErrors } = require('../actionError');
 const { refreshLinkPreviews } = require('../linkPreviews');
 const levels = require('../guildLevels');
 const { notifyGuildReaction } = require('../reactionPushes');
+const { deduplicated } = require('../sendNonces');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
 // same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
@@ -221,7 +222,8 @@ router.get('/channels/:channelId/messages', authenticateJWT, requireChatChannel,
 // In a document channel, `documentId` says which document it replies to. In a thread (where
 // Send Messages means Send Messages in Threads), posting unarchives it, and the sender and
 // anyone mentioned by name join it.
-router.post('/channels/:channelId/messages', authenticateJWT, requireChatChannel, async (req, res) => {
+// A retry with the same nonce gets the message already saved (sendNonces.js).
+router.post('/channels/:channelId/messages', authenticateJWT, requireChatChannel, deduplicated('guild', findSent, async (req, res) => {
   if (!has(req.permissions, PERMISSIONS.SEND_MESSAGES)) return forbidden(res);
   const content = cleanContent(req.body?.content);
   if (!content) {
@@ -248,7 +250,13 @@ router.post('/channels/:channelId/messages', authenticateJWT, requireChatChannel
     documentId: req.documentId,
   });
   res.status(201).json(message);
-});
+  return message.id;
+}));
+
+async function findSent(req, id) {
+  const row = await db.get(`${MESSAGE_SELECT} WHERE m.id = ?`, [id]);
+  return row ? (await withReactions([row]))[0] : null;
+}
 
 // Saves and announces a message by `senderId` (who has `permissions` in `channel`; checked by
 // the caller, as are the content and the reply) and sends its pushes. A bot's (routes/botApi.js)

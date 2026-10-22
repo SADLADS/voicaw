@@ -145,7 +145,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   chain, noise suppression, voice settings, playback and per-user volume, Watch Together), DM and
   group calls.
 - `docs/group-dms.md`: group DMs (membership log, epochs, signing).
-- `docs/messages.md`: emoji, message markdown, GIFs, YouTube links, link previews, polls, mentions, timestamps, pinned messages, drafts,
+- `docs/messages.md`: emoji, message markdown, GIFs, YouTube links, link previews, polls, mentions, timestamps, pinned messages, drafts, messages that couldn't be sent,
   search in encrypted chats (on the device), the offline copy, the message list and history
   loading.
 - `docs/uploads.md`: the object store, encrypted attachments, video streaming, voice messages, spoilers, image

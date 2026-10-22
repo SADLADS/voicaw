@@ -56,7 +56,7 @@ const decryptRows = async (rows, key) => Promise.all((await decryptMessagesBatch
 // Messages are the server's rows plus `plaintext`, `parent_plaintext` and decrypted
 // `reactions` ([{ id, user_id, emoji }]); `pinned_at` / `pinned_by` when it's pinned
 // (`loadPins`, `setPinned`, `pinsVersion`: bumped on every pin change here). A message being sent has a temporary id and
-// `status: 'pending'` (then 'sent' or 'failed'); `clientKey` keeps its list key stable once
+// `status: 'pending'` (then 'sent', or taken out if it fails); `clientKey` keeps its list key stable once
 // the real id arrives. `firstUnread` ({ id }, or null) is the oldest message that was unread
 // when the chat opened (from marking it read), where the "New" divider goes (useNewDivider).
 //
@@ -291,9 +291,11 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   // Sends `text` (replying to `replyTo`, a message, if given). It shows at once as pending;
   // `resolveText` (async) can turn it into the final text first, e.g. by uploading the
   // attachments it references, whose local copies `localAttachments` shows meanwhile.
-  // Resolves to the saved message; throws if sending failed (the message stays, marked failed).
-  async function sendMessage({ text, replyTo = null, localAttachments = {}, resolveText }) {
-    const tempId = `temp-${Date.now()}`;
+  // Resolves to the saved message; throws if sending failed (the pending message is taken out:
+  // ChatPane keeps it as unsent, see useUnsentMessages). `nonce` is the same on every retry, so
+  // the server saves it once.
+  async function sendMessage({ text, replyTo = null, localAttachments = {}, resolveText, nonce }) {
+    const tempId = `temp-${nonce ?? Date.now()}`;
     const tempMessage = {
       id: tempId,
       sender_id: user.id,
@@ -317,22 +319,28 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
       }
 
       const encrypted = await encryptMessage(finalText, sharedKey, dmContext(user.id, chatUser.id));
-      const saved = await sendMessageToUser(chatUser.id, encrypted, replyTo?.id ?? null, uploadNamesIn(finalText));
+      const saved = await sendMessageToUser(chatUser.id, encrypted, replyTo?.id ?? null, uploadNamesIn(finalText), nonce);
 
-      updateMessage(tempId, () => ({
-        ...saved,
-        clientKey: tempId,
-        plaintext: finalText,
-        status: 'sent',
-        timestamp: saved.timestamp || tempMessage.timestamp,
-        parent_plaintext: tempMessage.parent_plaintext,
-      }));
+      // The websocket echo may already have replaced it, or (a retry of one that did arrive) a
+      // reload brought it.
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === saved.id)) return prev.filter((m) => m.id !== tempId);
+        return prev.map((m) => (m.id === tempId ? {
+          ...m,
+          ...saved,
+          clientKey: tempId,
+          plaintext: finalText,
+          status: 'sent',
+          timestamp: saved.timestamp || tempMessage.timestamp,
+          parent_plaintext: tempMessage.parent_plaintext,
+        } : m));
+      });
       setError(null);
       attachLinkPreviews(saved.id, saved.content, finalText);
       return saved;
     } catch (err) {
       console.error('Error sending message:', err);
-      updateMessage(tempId, () => ({ status: 'failed' }));
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       throw err;
     }
   }

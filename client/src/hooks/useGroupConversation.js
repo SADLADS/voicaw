@@ -345,7 +345,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
 
   // Encrypts with the current epoch (making the next one first if the members changed) and
   // sends. A 409 means the members changed meanwhile: once more with a fresh epoch.
-  async function encryptAndSend(text, replyToId) {
+  async function encryptAndSend(text, replyToId, nonce) {
     for (let attempt = 0; attempt < 2; attempt++) {
       const { epoch, key, group: opened } = await currentEpoch(user, groupId, groupRef.current);
       groupRef.current = opened;
@@ -355,7 +355,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
         messageSignatureContext({ groupId, epoch, senderId: user.id, replyTo: replyToId })
       );
       try {
-        return await sendGroupMessage(groupId, epoch, content, replyToId, uploadNamesIn(text));
+        return await sendGroupMessage(groupId, epoch, content, replyToId, uploadNamesIn(text), nonce);
       } catch (err) {
         if (err.response?.status !== 409 || attempt === 1) throw err;
         groupRef.current = await reload();
@@ -364,8 +364,9 @@ export function useGroupConversation({ groupId, user, onRead }) {
     return null;
   }
 
-  async function sendMessage({ text, replyTo = null, localAttachments = {}, resolveText }) {
-    const tempId = `temp-${Date.now()}`;
+  // Same contract as useConversation's sendMessage.
+  async function sendMessage({ text, replyTo = null, localAttachments = {}, resolveText, nonce }) {
+    const tempId = `temp-${nonce ?? Date.now()}`;
     setMessages((prev) => [...prev, {
       id: tempId,
       group_id: groupId,
@@ -384,7 +385,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
     try {
       const finalText = resolveText ? await resolveText() : text;
       if (finalText !== text) updateMessage(tempId, () => ({ plaintext: finalText }));
-      const saved = { ...(await encryptAndSend(finalText, replyTo?.id ?? null)), plaintext: finalText, reactions: [] };
+      const saved = { ...(await encryptAndSend(finalText, replyTo?.id ?? null, nonce)), plaintext: finalText, reactions: [] };
       saved.parent_plaintext = replyTo?.plaintext ?? null;
       setMessages((prev) => {
         if (prev.some((m) => m.id === saved.id)) return prev.filter((m) => m.id !== tempId);
@@ -394,7 +395,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
       return saved;
     } catch (err) {
       console.error('Error sending message:', err);
-      updateMessage(tempId, () => ({ status: 'failed' }));
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       throw err;
     }
   }

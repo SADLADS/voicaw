@@ -224,11 +224,34 @@ small {
   pointer-events: none;
 }
 
-/* Failed messages */
-.dm-message.failed {
-  opacity: 0.6;
+/* Messages that couldn't be sent: the text in red, then "Not sent. Retry Delete". */
+.dm-message.failed .dm-message-content {
   color: var(--vc-danger-text);
-  font-style: italic;
+}
+
+.message-unsent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 2px;
+  /* Under the text, as the reactions are. */
+  margin-left: var(--message-gutter);
+  font-size: 0.8rem;
+  color: var(--vc-danger-text);
+}
+
+.message-unsent button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--vc-link);
+  font: inherit;
+  cursor: pointer;
+}
+
+.message-unsent button:hover {
+  text-decoration: underline;
 }
 
 .dm-message {

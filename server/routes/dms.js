@@ -15,6 +15,7 @@ const { removePollRows } = require('../pollTimers');
 const { CALL_LOG } = require('../callLog');
 const { listedKeys, linkListed, releaseUploads } = require('../uploads');
 const { parseRanges, countRanges } = require('../messageRanges');
+const { deduplicated } = require('../sendNonces');
 
 // Direct messages. Contents are end-to-end encrypted: the server stores and relays
 // ciphertext only (and checks its length against the encrypted size of the plaintext limit).
@@ -116,7 +117,8 @@ router.post('/dm-messages/:otherUserId/ranges', authenticateJWT, async (req, res
   res.json({ ranges: countRanges(rows, ranges) });
 });
 
-router.post('/dm-send', authenticateJWT, async (req, res) => {
+// A retry with the same nonce gets the message already saved (sendNonces.js).
+router.post('/dm-send', authenticateJWT, deduplicated('dm', (req, id) => db.get(`${DM_SELECT} WHERE dm.id = ?`, [id]), async (req, res) => {
   const senderId = req.user.id;
   const { recipient_id: rawRecipientId, content, replyTo } = req.body;
   // The uploads the message shows (the server can't read it): see uploads.js.
@@ -190,7 +192,8 @@ router.post('/dm-send', authenticateJWT, async (req, res) => {
   }
 
   res.status(201).json(message);
-});
+  return lastID;
+}));
 
 // Marks the conversation read (its notification goes from the user's devices).
 // `first_unread_id`: its oldest message that was unread until now (null if none), where the

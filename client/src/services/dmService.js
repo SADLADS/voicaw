@@ -18,13 +18,14 @@ export async function fetchMessageRanges(userId, ranges) {
 
 
 // `uploads`: the names of the files it shows (uploadNamesIn), so the server knows when
-// they're no longer used.
-export async function sendMessageToUser(recipientId, content, replyTo = null, uploads = []) {
+// they're no longer used. `nonce`: the same on a retry, so it's saved once (useUnsentMessages).
+export async function sendMessageToUser(recipientId, content, replyTo = null, uploads = [], nonce = undefined) {
   const res = await api.post('/dm-send', {
     recipient_id: recipientId,
     content,
     replyTo,
     uploads,
+    nonce,
   });
   return res.data;
 }

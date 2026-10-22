@@ -483,6 +483,22 @@ describe('guild messages', () => {
     expect((await api.post(member, `/channels/${other.id}/messages`, { content: 'x', replyTo: parent.body.id })).status).toBe(400);
   });
 
+  it('saves a message once when it is sent again with the same nonce', async () => {
+    const { owner, member, general } = await guildWithMember();
+    const events = listen(owner);
+    const first = await api.post(member, `/channels/${general.id}/messages`, { content: 'once', nonce: 'nonce-guild-1' });
+    const again = await api.post(member, `/channels/${general.id}/messages`, { content: 'once', nonce: 'nonce-guild-1' });
+    events.stop();
+    expect(first.status).toBe(201);
+    expect(again.status).toBe(201);
+    expect(again.body.id).toBe(first.body.id);
+    expect(events.filter((e) => e.type === 'guild_message_new')).toHaveLength(1);
+    // Someone else's nonce is theirs.
+    const other = await api.post(owner, `/channels/${general.id}/messages`, { content: 'once', nonce: 'nonce-guild-1' });
+    expect(other.body.id).not.toBe(first.body.id);
+    expect((await api.get(owner, `/channels/${general.id}/messages`)).body.filter((m) => m.content === 'once')).toHaveLength(2);
+  });
+
   it('lets authors edit, and authors or the owner delete', async () => {
     const { owner, member, general } = await guildWithMember();
     const msg = (await api.post(member, `/channels/${general.id}/messages`, { content: 'typo' })).body;

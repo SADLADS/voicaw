@@ -102,7 +102,7 @@ vi.mock('./MessageList', () => ({
   MessageContent: ({ msg }) => <div>{msg.plaintext}</div>,
   default: ({
     messages, loadMoreMessages, hasMore, onToggleReaction, onOpenReactionPicker, onOpenActions, focusedMsgId,
-    handleEdit, handleDelete, editingMessageId, setEditingMessageContent, handleSaveEdit, onTogglePin,
+    handleEdit, handleDelete, editingMessageId, setEditingMessageContent, handleSaveEdit, onTogglePin, onRetrySend,
   }) => (
     <div data-testid="message-list" data-has-more={String(hasMore)} data-focused={focusedMsgId ?? ''}>
       <span data-testid="editing">{editingMessageId ?? ''}</span>
@@ -121,6 +121,8 @@ vi.mock('./MessageList', () => ({
           <button data-testid={`edit-${m.id}`} onClick={() => handleEdit(m)} />
           <button data-testid={`delete-${m.id}`} onClick={(e) => handleDelete(m, e)} />
           <button data-testid={`pin-${m.id}`} onClick={() => onTogglePin(m)} />
+          {m.status === 'failed' && <button data-testid="retry" onClick={() => onRetrySend(m)} />}
+          {m.status === 'failed' && <button data-testid="discard" onClick={(e) => handleDelete(m, e)} />}
         </div>
       ))}
     </div>
@@ -130,6 +132,7 @@ vi.mock('./MessageList', () => ({
 import Dm from './Dm';
 import { editorFor } from '../editor/editorRegistry';
 import { clearDrafts, saveDraft } from '../services/draftStore';
+import { clearUnsent } from '../services/unsentStore';
 import api from '../utils/api';
 
 // The message box is an editor (contenteditable), which jsdom can't type into: tests drive
@@ -206,6 +209,7 @@ beforeEach(() => {
   localStorage.clear();
   resetEmojiUsage();
   clearDrafts();
+  clearUnsent();
   fetchPins.mockResolvedValue([]);
   fetchMessagesForUser.mockResolvedValue([]);
   deriveConversationKey.mockResolvedValue('shared-key');
@@ -268,6 +272,66 @@ describe('Dm', () => {
 
     expect(await screen.findByText('hello bob [sent]')).toBeInTheDocument();
     expect(screen.queryByText('hello bob [pending]')).not.toBeInTheDocument();
+  });
+
+  it('keeps a message that could not be sent, also after leaving the chat, and retries it with the same nonce', async () => {
+    sendMessageToUser.mockRejectedValueOnce(new Error('Network Error'));
+    const first = renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText('No messages yet. Start the conversation!');
+    setBoxText('lost one');
+    fireEvent.submit(document.getElementById('dm-chat-form'));
+    expect(await screen.findByText('lost one [failed]')).toBeInTheDocument();
+    expect(screen.getByText(/Network Error/)).toBeInTheDocument();
+
+    // Somewhere else in the app, then back.
+    first.unmount();
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    expect(await screen.findByText('lost one [failed]')).toBeInTheDocument();
+
+    sendMessageToUser.mockResolvedValueOnce({ id: 77, sender_id: 1, recipient_id: 2, content: 'ENC', timestamp: 2000 });
+    fireEvent.click(screen.getByTestId('retry'));
+    expect(await screen.findByText('lost one [sent]')).toBeInTheDocument();
+    expect(screen.queryByText('lost one [failed]')).not.toBeInTheDocument();
+    const nonces = sendMessageToUser.mock.calls.map((call) => call[4]);
+    expect(nonces).toHaveLength(2);
+    expect(nonces[0]).toMatch(/^[\w-]{8,64}$/);
+    expect(nonces[1]).toBe(nonces[0]);
+  });
+
+  it('stops showing a message as unsent once it turns up after all (the answer was lost)', async () => {
+    fetchMessagesForUser.mockResolvedValue([{ id: 40, sender_id: 1, recipient_id: 2, content: 'ENC-OLD', timestamp: 1 }]);
+    sendMessageToUser.mockRejectedValueOnce(new Error('Network Error'));
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText('dec:ENC-OLD [sent]');
+    await waitFor(() => expect(dmListeners.newDm.length).toBeGreaterThan(0));
+    // The mocked decryption reads "ENC-LOST" as this.
+    setBoxText('dec(ENC-LOST)');
+    fireEvent.submit(document.getElementById('dm-chat-form'));
+    await screen.findByText('dec(ENC-LOST) [failed]');
+
+    // An older message of ours with the same text doesn't count; one saved since does.
+    await act(async () => {
+      dmListeners.newDm[dmListeners.newDm.length - 1]({ id: 30, sender_id: 1, recipient_id: 2, content: 'ENC-LOST', timestamp: 1 });
+    });
+    expect(screen.getByText('dec(ENC-LOST) [failed]')).toBeInTheDocument();
+    await act(async () => {
+      dmListeners.newDm[dmListeners.newDm.length - 1]({ id: 41, sender_id: 1, recipient_id: 2, content: 'ENC-LOST', timestamp: 3000 });
+    });
+    await waitFor(() => expect(screen.queryByText('dec(ENC-LOST) [failed]')).not.toBeInTheDocument());
+    expect(screen.getAllByText('dec(ENC-LOST) [sent]')).toHaveLength(2);
+  });
+
+  it('deletes a message that could not be sent without asking the server', async () => {
+    sendMessageToUser.mockRejectedValueOnce(new Error('Network Error'));
+    renderDm({ path: '/dm/2', users: [chatUserFull] });
+    await screen.findByText('No messages yet. Start the conversation!');
+    setBoxText('never mind');
+    fireEvent.submit(document.getElementById('dm-chat-form'));
+    await screen.findByText('never mind [failed]');
+
+    fireEvent.click(screen.getByTestId('discard'));
+    expect(await screen.findByText('No messages yet. Start the conversation!')).toBeInTheDocument();
+    expect(deleteMessage).not.toHaveBeenCalled();
   });
 
   it('appends an incoming new_dm websocket event for the active conversation', async () => {
@@ -550,7 +614,7 @@ describe('Dm attachments', () => {
 
     expect(await screen.findByText(`hi ![cat.png](${finalUrl}) [sent]`)).toBeInTheDocument();
     expect(encryptMessage).toHaveBeenCalledWith(`hi ![cat.png](${finalUrl})`, 'shared-key', 'ctx:1->2');
-    expect(sendMessageToUser).toHaveBeenCalledWith(2, `enc(hi ![cat.png](${finalUrl}))`, null, ['abc.bin']);
+    expect(sendMessageToUser).toHaveBeenCalledWith(2, `enc(hi ![cat.png](${finalUrl}))`, null, ['abc.bin'], expect.any(String));
   });
 
   it('sends image dimensions with the upload so receivers can reserve space', async () => {

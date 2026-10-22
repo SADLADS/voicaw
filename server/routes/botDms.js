@@ -4,6 +4,7 @@ const config = require('../config');
 const { authenticateJWT } = require('../auth');
 const { createLimiter } = require('../rateLimit');
 const botDms = require('../botDms');
+const { deduplicated } = require('../sendNonces');
 
 // Bot DMs for the app (botDms.js; bots use the bot API's DM channel routes). Not end-to-end
 // encrypted: the server stores and reads these messages, and the app says so.
@@ -54,7 +55,8 @@ router.get('/bot-dms/:dmId/messages', authenticateJWT, ownDm, async (req, res) =
 });
 
 // The person's plain-text message: { content }.
-router.post('/bot-dms/:dmId/messages', authenticateJWT, ownDm, async (req, res) => {
+// A retry with the same nonce gets the message already saved (sendNonces.js).
+router.post('/bot-dms/:dmId/messages', authenticateJWT, ownDm, deduplicated('bot', findSent, async (req, res) => {
   if (config.rateLimitsEnabled && !sendLimiter.hit(String(req.user.id)).allowed) {
     return res.status(429).json({ error: 'You are sending messages too quickly' });
   }
@@ -63,10 +65,16 @@ router.post('/bot-dms/:dmId/messages', authenticateJWT, ownDm, async (req, res) 
   try {
     const row = await botDms.createMessage(req.dm, req.user.id, { content });
     res.status(201).json(botDms.appMessage(row));
+    return row.id;
   } catch (err) {
     fail(res, err);
   }
-});
+}));
+
+async function findSent(req, id) {
+  const row = await botDms.getMessage(req.dm.id, id);
+  return row ? botDms.appMessage(row) : null;
+}
 
 // Loads req.message: one of the caller's own messages in req.dm.
 async function ownMessage(req, res, next) {

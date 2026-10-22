@@ -384,6 +384,8 @@ const MessageRow = memo(function MessageRow({
   handleEdit,
   handleDelete,
   handleReply,
+  // Sends a message that couldn't be sent again (ChatPane).
+  onRetrySend,
   // Being edited in place, starting from `editingMessageContent`.
   editing = false,
   editingMessageContent,
@@ -546,14 +548,16 @@ const MessageRow = memo(function MessageRow({
             </button>
           )}
           {/* A closed poll and a voice message can't be edited. */}
-          {msg.sender_id === user.id && !(poll && pollEnded(poll, msg.timestamp)) && !isVoiceMessage(msg.plaintext) && (
+          {sent && msg.sender_id === user.id && !(poll && pollEnded(poll, msg.timestamp)) && !isVoiceMessage(msg.plaintext) && (
             <button className="icon-button" onClick={() => handleEdit(msg)}>
               <Icon icon={faEdit} title={t('common.edit')} />
             </button>
           )}
-          <button className="icon-button" onClick={() => handleReply(msg)}>
-            <Icon icon={faReply} title={t('common.reply')} />
-          </button>
+          {sent && (
+            <button className="icon-button" onClick={() => handleReply(msg)}>
+              <Icon icon={faReply} title={t('common.reply')} />
+            </button>
+          )}
           {(msg.sender_id === user.id || canModerate) && (
             <button
               className="icon-button trash-button"
@@ -697,6 +701,15 @@ const MessageRow = memo(function MessageRow({
 
         {msg.thread && msg.system == null && <ThreadSummary thread={msg.thread} />}
 
+        {/* Couldn't be sent (kept by ChatPane's useUnsentMessages until it's sent or deleted). */}
+        {msg.status === 'failed' && onRetrySend && (
+          <div className="message-unsent" role="status">
+            <span>{t('chat.message.notSent')}</span>
+            <button type="button" onClick={(e) => { e.stopPropagation(); onRetrySend(msg); }}>{t('chat.message.retry')}</button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); handleDelete(msg, e); }}>{t('common.delete')}</button>
+          </div>
+        )}
+
         {canReact && (
           <MessageReactions
             reactions={msg.reactions}
@@ -772,6 +785,7 @@ export default function MessageList({
   handleEdit,
   handleDelete,
   handleReply,
+  onRetrySend,
   editingMessageId,
   editingMessageContent,
   setEditingMessageContent,
@@ -899,7 +913,7 @@ export default function MessageList({
     setHoveredMsgId, handleEdit, handleDelete, handleReply, setEditingMessageContent, setEditingMessageId,
     handleSaveEdit, onToggleReaction, onOpenReactionPicker, onVote, onAddPollAnswer, onRemovePollAnswer,
     onEndPoll, onJumpToMessage, onOpenActions, onOpenMenu, onTogglePin, onShowEdits, canRemovePreviews,
-    onRemovePreviews,
+    onRemovePreviews, onRetrySend,
   };
   const latestHandlers = useRef(handlers);
   latestHandlers.current = handlers;

@@ -45,8 +45,8 @@ export async function fetchGroupMessageRanges(groupId, ranges) {
 }
 
 // `uploads`: the names of the files it shows (uploadNamesIn).
-export async function sendGroupMessage(groupId, epoch, content, replyTo = null, uploads = []) {
-  return (await api.post(`/group-dms/${groupId}/messages`, { epoch, content, replyTo, uploads })).data;
+export async function sendGroupMessage(groupId, epoch, content, replyTo = null, uploads = [], nonce = undefined) {
+  return (await api.post(`/group-dms/${groupId}/messages`, { epoch, content, replyTo, uploads, nonce })).data;
 }
 
 export async function editGroupMessage(messageId, content, uploads = []) {

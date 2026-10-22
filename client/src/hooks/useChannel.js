@@ -176,8 +176,8 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
   }), []);
 
   // Same contract as useConversation's sendMessage.
-  async function sendMessage({ text, replyTo = null, localAttachments = {}, resolveText }) {
-    const tempId = `temp-${Date.now()}`;
+  async function sendMessage({ text, replyTo = null, localAttachments = {}, resolveText, nonce }) {
+    const tempId = `temp-${nonce ?? Date.now()}`;
     const tempMessage = {
       id: tempId,
       channel_id: channelId,
@@ -200,7 +200,7 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
       const finalText = resolveText ? await resolveText() : text;
       if (finalText !== text) updateMessage(tempId, () => ({ plaintext: finalText }));
 
-      const saved = toChatMessage(await sendChannelMessage(channelId, finalText, replyTo?.id ?? null, documentId));
+      const saved = toChatMessage(await sendChannelMessage(channelId, finalText, replyTo?.id ?? null, documentId, nonce));
       setMessages((prev) => {
         // The websocket echo may already have replaced it (then it has the real id).
         if (prev.some((m) => m.id === saved.id)) return prev.filter((m) => m.id !== tempId);
@@ -209,7 +209,7 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
       return saved;
     } catch (err) {
       console.error('Error sending message:', err);
-      updateMessage(tempId, () => ({ status: 'failed' }));
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       throw err;
     }
   }

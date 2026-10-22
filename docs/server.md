@@ -65,6 +65,8 @@ unexpected errors. The rest:
 - `messageRanges.js`: per id range, how many DM or group DM messages there are and their latest
   edit, for the device's search copy (`POST /dm-messages/:id/ranges`,
   `/group-dms/:id/messages/ranges`; see Search in encrypted chats in docs/messages.md).
+- `sendNonces.js`: the four message send routes save a message once per sender and `nonce`, so
+  the app's Retry can't make a copy (see Messages that couldn't be sent in docs/messages.md).
 - `polls.js`: reading guild polls, when they close, and what an edit may change (see Polls).
 - `accounts.js`: deleting an account (see Deleting an account).
 - `sessions.js`: listing and ending login sessions (see Login sessions and Settings → Devices).

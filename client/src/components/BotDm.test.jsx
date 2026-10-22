@@ -82,7 +82,7 @@ describe('BotDm', () => {
     const editor = editorFor(document.getElementById('dm-input'));
     act(() => editor.setText('On it'));
     fireEvent.submit(document.getElementById('dm-chat-form'));
-    await waitFor(() => expect(sendBotDmMessage).toHaveBeenCalledWith(7, 'On it'));
+    await waitFor(() => expect(sendBotDmMessage).toHaveBeenCalledWith(7, 'On it', expect.any(String)));
     expect(await screen.findByText('On it [sent]')).toBeInTheDocument();
   });
 

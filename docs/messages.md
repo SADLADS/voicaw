@@ -577,6 +577,35 @@ aren't kept: they're dropped on leaving the conversation (`useAttachmentDrafts`)
 placeholders are taken out of the saved text. A reply being set up isn't kept either.
 `e2e/drafts.mjs` checks it in the browser.
 
+## Messages that couldn't be sent
+
+Built 2026-10-22, after a friend of the user lost messages to a dropped connection: the
+composer is emptied when you send, and a failed message used to vanish with the chat's state.
+Now a message (text, attachments, GIF, voice message, poll) that couldn't be sent stays at the
+end of its chat, in red, with "Not sent." and **Retry** / **Delete** (no question: nothing on
+the server to lose), as Discord does. The composer's error line still says why. Every chat
+kind: DMs, notes, group DMs, guild channels and threads, bot DMs.
+
+- **Kept** by `ChatPane` (`hooks/useUnsentMessages.js`, which wraps the chat hook's
+  `sendMessage`; the chat hooks take their pending row out when a send throws) in
+  `services/unsentStore.js`, by `chatId`, so it's still there after another chat, Settings or a
+  guild. Only in memory, like drafts: closing or reloading forgets it, logging out clears it.
+  Attachments keep their local files, and ones already uploaded aren't uploaded again.
+- **Sent once.** Each message has a random `nonce`, the same on every retry; the four send
+  routes (`/dm-send`, `/group-dms/:id/messages`, `/channels/:id/messages`,
+  `/bot-dms/:id/messages`) go through `server/sendNonces.js`, which remembers (in memory, an
+  hour, per sender) which message a nonce made and answers a repeat with it. So when the
+  connection dropped after the request left, Retry can't make a second copy. A server restart
+  forgets the nonces.
+- **Found by itself.** A message of yours with the same text, newer than everything the chat
+  had when the failed one was sent (our own websocket echo, or the chat catching up once the
+  connection is back), means it arrived (or you sent it again by hand): it stops being unsent.
+- Menus offer only Copy on it; no replies, edits, reactions or pins.
+- **Not done yet:** sending by itself when the connection comes back, keeping unsent messages
+  over a reload.
+
+`e2e/unsent.mjs` checks it in the browser.
+
 ## Search in encrypted chats
 
 DMs, group DMs and notes are searched **on the device** (built 2026-10-09): the server only has

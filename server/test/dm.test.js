@@ -37,6 +37,29 @@ describe('direct messages', () => {
     expect(res.body.sender_username).toBe('dm-alice');
   });
 
+  it('saves a message once when it is sent again with the same nonce', async () => {
+    const alice = await makeAuthedUser('dm-nonce-alice', 'pw-alice-123');
+    const bob = await makeAuthedUser('dm-nonce-bob', 'pw-bob-123');
+    const send = (content, nonce) => request(app).post('/api/dm-send').set(authed(alice.token))
+      .send({ recipient_id: bob.id, content, nonce });
+
+    // A refused try doesn't use the nonce up.
+    expect((await request(app).post('/api/dm-send').set(authed(alice.token)).send({ recipient_id: 999999, content: 'x', nonce: 'nonce-dm-1' })).status).toBe(404);
+    // Two at once (the first still being saved) make one message too.
+    const [first, again] = await Promise.all([send('ciphertext-a', 'nonce-dm-1'), send('ciphertext-b', 'nonce-dm-1')]);
+    expect(first.status).toBe(201);
+    expect(again.status).toBe(201);
+    expect(again.body.id).toBe(first.body.id);
+    const later = await send('ciphertext-c', 'nonce-dm-1');
+    expect(later.body).toMatchObject({ id: first.body.id, content: first.body.content });
+    const other = await send('ciphertext-d', 'nonce-dm-2');
+    expect(other.body.id).not.toBe(first.body.id);
+
+    const history = await request(app).get(`/api/dm-messages/${bob.id}`).set(authed(alice.token));
+    expect(history.body.map((m) => m.id).filter((id) => id === first.body.id)).toHaveLength(1);
+    expect(history.body).toHaveLength(2);
+  });
+
   it('rejects dm-send with missing recipient or content', async () => {
     const alice = await makeAuthedUser('dm-alice2', 'pw-alice-123');
 

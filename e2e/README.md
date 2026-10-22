@@ -168,6 +168,7 @@ node e2e/scrollbars.mjs [dir] # scrollbars: styled with a mouse, overlay only (n
 node e2e/sidebar.mjs [dir] # one sidebar width (DM list, channels, Settings), headers line up, drag/keys/reset, kept; phone untouched
 node e2e/focus.mjs [dir] # opening a chat focuses its box on a computer (DM by link and from the list, guild channel, thread beside it), not another text box's focus, not on a phone
 node e2e/drafts.mjs [dir] # unsent messages: back after another DM, Settings, a guild; no typing event; sent = gone; reload forgets; phone
+node e2e/unsent.mjs [dir] # messages that couldn't be sent: "Not sent." with Retry/Delete, kept after another DM and Settings, Retry delivers once; answer lost after the server saved it (offline a moment): found, no copy; Retry after a lost answer (own socket events dropped): still once; Delete; guild channel; phone
 node e2e/typing.mjs [dir] # typing indicator: DM (dots, cleared on send, clear of the last message), two typers in a guild channel on a phone, timeout, Privacy off
 node e2e/colours.mjs [dir] # screenshots for colour changes: login, DM (mention, link), guild + rail, menu, Settings, list, poll, voice Join / Connecting…, incoming call; every theme (THEMES=…), desktop + phone (fresh serve.mjs per run)
 node e2e/themes.mjs [dir] # light/dark: Settings → Appearance, at once, kept per device, no dark flash, Match system, color-scheme, phone

@@ -16,6 +16,7 @@ const { reactionIdsFor, pollReactionsFor } = require('../polls');
 const { removePollRows } = require('../pollTimers');
 const { listedKeys, linkListed, releaseUploads } = require('../uploads');
 const { parseRanges, countRanges } = require('../messageRanges');
+const { deduplicated } = require('../sendNonces');
 
 // Group DMs (see groupDms.js): creating one, its membership log (add, remove, leave), key
 // epochs, and its messages and reactions (all ciphertext). Everything 404s for non-members.
@@ -283,7 +284,8 @@ router.post('/group-dms/:groupId/messages/ranges', member, async (req, res) => {
 // Send: { epoch, content, replyTo, uploads }. The epoch must be the newest, for the current
 // members: otherwise 409 `{ code: 'stale_epoch' }` (make the next one first). `uploads`: the
 // files it shows (uploads.js).
-router.post('/group-dms/:groupId/messages', member, async (req, res) => {
+// A retry with the same nonce gets the message already saved (sendNonces.js).
+router.post('/group-dms/:groupId/messages', member, deduplicated('group', (req, id) => messageFor(req.user.id, id), async (req, res) => {
   const { state } = req;
   const groupId = state.group.id;
   const { epoch, content, replyTo } = req.body ?? {};
@@ -329,7 +331,8 @@ router.post('/group-dms/:groupId/messages', member, async (req, res) => {
     }
   }
   res.status(201).json(await messageFor(req.user.id, lastID));
-});
+  return lastID;
+}));
 
 // The message, if it's in a group the caller is in and they can read it.
 async function findMessage(req, res, next) {

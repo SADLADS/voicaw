@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import EmojiPicker from './EmojiPicker';
 import MessageList from './MessageList';
 import Composer from './Composer';
@@ -14,6 +14,7 @@ import { ChannelMentionContext, ConfigContext, InteractionContext, ThreadContext
 import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
 import { useReactions } from '../hooks/useReactions';
 import { useNewDivider } from '../hooks/useNewDivider';
+import { useUnsentMessages } from '../hooks/useUnsentMessages';
 import { isVoiceMessage, summarizeAttachments } from '../utils/attachmentMarkup';
 import { customEmojiToText } from '../emoji/customEmoji';
 import { useEmojiIndex } from '../emoji/emojiContext';
@@ -115,7 +116,14 @@ export default function ChatPane({
   const threadFrom = (msg) => (threads?.createThread && !msg.thread && !msg.system && Number.isInteger(msg.id)
     ? () => threads.createThread(msg)
     : undefined);
-  const { messages } = conversation;
+  // Messages that couldn't be sent stay at the end, with Retry and Delete (useUnsentMessages).
+  const { rows: unsentRows, send: sendKeepingUnsent, retry: retryUnsent, discard: discardUnsentId } = useUnsentMessages({
+    chatId, user, sendMessage: conversation.sendMessage, messages: conversation.messages,
+  });
+  const messages = useMemo(
+    () => (unsentRows.length ? [...conversation.messages, ...unsentRows] : conversation.messages),
+    [conversation.messages, unsentRows]
+  );
   const newFrom = useNewDivider({ chatId, firstUnread: conversation.firstUnread, isLoading: conversation.isLoading, messages, userId: user?.id });
   // A guild channel or thread (not encrypted, chat id "channel-<id>"): its bots' commands, for
   // the "/" list (Composer) and the message menus' Apps.
@@ -305,14 +313,30 @@ export default function ChatPane({
   async function sendPoll({ poll, replyTo }) {
     const text = pollMarkup(poll);
     if (text.length > maxPlaintextLength) throw new Error(t('chat.pane.pollTooLong'));
-    const saved = await conversation.sendMessage({ text, replyTo });
-    try {
-      await registerPollTimer(pollKind, saved.id, poll.duration);
-    } catch (err) {
-      console.error('Failed to register the poll', err);
-      setComposerError(t('chat.pane.pollTimerFailed'));
-    }
+    // Also after a retry (it's kept if it can't be sent).
+    await sendKeepingUnsent({ text, replyTo }, {
+      onSent: async (saved) => {
+        try {
+          await registerPollTimer(pollKind, saved.id, poll.duration);
+        } catch (err) {
+          console.error('Failed to register the poll', err);
+          setComposerError(t('chat.pane.pollTimerFailed'));
+        }
+      },
+    });
   }
+
+  // A message that couldn't be sent (useUnsentMessages): Retry sends it again, Delete forgets it.
+  const isUnsent = (msg) => msg.status === 'failed';
+  const retrySend = useCallback(async (msg) => {
+    setComposerError(null);
+    try {
+      await retryUnsent(msg.id);
+    } catch (err) {
+      setComposerError(t('chat.composer.sendFailed', { error: err.message }));
+    }
+  }, [retryUnsent]);
+  const discardUnsent = useCallback((msg) => discardUnsentId(msg.id), [discardUnsentId]);
 
   // The author ends their poll now: an edit that stamps the time (see pollMarkup's endPoll),
   // so it's closed for everyone at once, then the server posts its "poll ended" row.
@@ -324,6 +348,10 @@ export default function ChatPane({
   }
 
   async function handleDelete(msg) {
+    if (isUnsent(msg)) {
+      discardUnsent(msg);
+      return;
+    }
     try {
       await conversation.deleteMessage(msg.id);
     } catch (err) {
@@ -334,7 +362,8 @@ export default function ChatPane({
   // The hover and right-click menus' delete: asks first (with the message shown), unless Shift is held. (The
   // mobile action sheet asks in its own way.)
   function requestDelete(msg, event) {
-    if (event?.shiftKey) handleDelete(msg);
+    // Nothing on the server to lose: no question.
+    if (event?.shiftKey || isUnsent(msg)) handleDelete(msg);
     else setConfirmingDelete(msg);
   }
 
@@ -436,6 +465,7 @@ export default function ChatPane({
             handleEdit={handleEdit}
             handleDelete={requestDelete}
             handleReply={handleReply}
+            onRetrySend={readOnly ? undefined : retrySend}
             editingMessageId={isMobile ? null : editingMessageId}
             editingMessageContent={editingMessageContent}
             setEditingMessageContent={setEditingMessageContent}
@@ -506,7 +536,7 @@ export default function ChatPane({
         showEmojiPicker={showEmojiPicker}
         setShowEmojiPicker={setShowEmojiPicker}
         onInputFocus={reactions.closePicker}
-        onSend={conversation.sendMessage}
+        onSend={sendKeepingUnsent}
         onSendPoll={sendPoll}
         onStartThread={threads?.startThread ?? null}
         people={people}
