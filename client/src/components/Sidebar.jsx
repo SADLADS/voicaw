@@ -29,10 +29,11 @@ import { lastDm } from '../utils/lastChat';
 // grey, or green when you're in one there (this device counts as soon as it connects). Guilds can be dragged into a
 // new order (hold, then drag, on touch screens); `onReorderGuilds(ids)` saves it. Right-clicking
 // a guild (touch, hold and lift on a phone) opens its menu (GuildMenu), whose dialogs live here.
-// `newestUnread` ({ userId, path }) is the newest unread DM, group or bot DM message: the DM button
-// shows its sender's picture instead of the bird until that's read (as in Discord), and opens
-// that chat.
-export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guilds = [], unreadGuildIds = new Set(), guildMentions = {}, guildVoice = {}, onReorderGuilds }) {
+// `unreadChats` (utils/latestUnread.js unreadChats: [{ key, userId, path, count }], newest first)
+// are the DMs, groups and bot DMs with unread messages: each gets its newest sender's picture
+// under the bird, with how many are unread, opening that chat (as in Discord); the separator
+// moves down under them.
+export default function Sidebar({ user, hasUnreadDms, unreadChats = [], guilds = [], unreadGuildIds = new Set(), guildMentions = {}, guildVoice = {}, onReorderGuilds }) {
   const location = useLocation();
   const { guildList } = useContext(LayoutContext) ?? {};
   const { isMobile } = useContext(InteractionContext);
@@ -82,24 +83,29 @@ export default function Sidebar({ user, hasUnreadDms, newestUnread = null, guild
     >
       <div className={`nav-item ${inDms ? 'active' : ''}`}>
       <span className={`dot${hasUnreadDms ? ' visible' : ''}`}></span>
-        {newestUnread != null ? (
+        {/* Back to the DM page last open (utils/lastChat.js), checked as a reopened chat is. */}
+        <NavLink to={lastDm() ?? '/dm'} state={{ restoredChat: true }} className="rail-bird" onClick={clickBird} aria-label={t('app.sidebar.directMessages')} title={t('app.sidebar.directMessages')}>
+          {/* The bird drawn as a mask in the theme's --vc-logo colour (voicaw.css). */}
+          <span className={`rail-logo${encrypted ? '' : ' turned'}`} />
+        </NavLink>
+      </div>
+
+      {unreadChats.map((chat) => (
+        <div key={chat.key} className="nav-item rail-unread-chat">
           <NavLink
-            to={newestUnread.path}
+            to={chat.path}
             className="nav-icon rail-dm-unread"
             onClick={showContent}
-            aria-label={t('app.sidebar.unreadFrom', { name: displayName(newestUnread.userId) })}
-            title={t('app.sidebar.unreadFrom', { name: displayName(newestUnread.userId) })}
+            aria-label={t('app.sidebar.unreadFrom', { name: displayName(chat.userId) })}
+            title={t('app.sidebar.unreadFrom', { name: displayName(chat.userId) })}
           >
-            <Avatar userId={newestUnread.userId} />
+            <Avatar userId={chat.userId} />
           </NavLink>
-        ) : (
-          // Back to the DM page last open (utils/lastChat.js), checked as a reopened chat is.
-          <NavLink to={lastDm() ?? '/dm'} state={{ restoredChat: true }} className="rail-bird" onClick={clickBird} aria-label={t('app.sidebar.directMessages')} title={t('app.sidebar.directMessages')}>
-            {/* The bird drawn as a mask in the theme's --vc-logo colour (voicaw.css). */}
-            <span className={`rail-logo${encrypted ? '' : ' turned'}`} />
-          </NavLink>
-        )}
-      </div>
+          <span className="mention-badge rail-mention-badge" aria-label={t('app.sidebar.unreadCount', { count: chat.count })}>
+            {chat.count > 9 ? '9+' : chat.count}
+          </span>
+        </div>
+      ))}
 
       {guilds.length > 0 && <div className="rail-separator" />}
 

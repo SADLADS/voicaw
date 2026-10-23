@@ -1,8 +1,9 @@
 // The rail's bird is the DM button. It faces left in encrypted chats and turns round (a flip
 // about its upright axis, smooth: sampled every frame, no jumps) to face right in a guild and
 // back; a click from a guild opens the DMs, one while there goes nowhere; both pop the link
-// (×1.12 and back) without cutting the flip short. An unread DM puts its sender's picture over
-// the bird, and opening it brings the bird back. Reduced motion: no flip, just the change.
+// (×1.12 and back) without cutting the flip short. An unread DM adds its sender's picture under
+// the bird (which stays), and opening it turns the bird to face left. Reduced motion: no flip,
+// just the change.
 // Desktop and phone.
 //   node e2e/serve.mjs &   then   node e2e/birdbutton.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
@@ -124,20 +125,21 @@ try {
   check(r.navs.length === 0 && (await path(a)) === here && here === dmPath, `desktop: the bird in a DM stays (${JSON.stringify(r.navs)})`);
   check(peakScale(r.frames) > 1.08 && r.frames.every((f) => f[1] > 0.99), 'desktop: popped, still facing left');
 
-  // An unread DM from Carol, while in the guild: her picture covers the bird; opening it brings
-  // the bird back.
+  // An unread DM from Carol, while in the guild: her picture under the bird, which stays;
+  // opening it turns the bird to face left.
   await a.getByRole('link', { name: 'One', exact: true }).click();
   await a.waitForTimeout(700);
   await openChat(carol.page, alice.id);
   await send(carol.page, 'hi alice');
   const picture = a.getByRole('link', { name: /^Direct Messages: new message from/ });
   await picture.waitFor({ timeout: 10000 });
-  check(await a.locator('.rail-logo').count() === 0 && await picture.locator('img').count() === 1, 'desktop: an unread DM shows its sender\'s picture instead of the bird');
+  check(await a.locator('.rail-logo').count() === 1 && await picture.locator('img').count() === 1, 'desktop: an unread DM adds its sender\'s picture under the bird');
   await shot(a, 'desktop-unread');
   await picture.click();
   await a.waitForURL(`**/dm/${carol.id}`);
-  await a.waitForSelector('.rail-logo');
-  check(await facing(a) > 0.99, 'desktop: opening it brings the bird back, facing left');
+  await picture.waitFor({ state: 'detached', timeout: 10000 });
+  await a.waitForTimeout(500);
+  check(await facing(a) > 0.99, 'desktop: opening it takes the picture away, the bird facing left');
 
   // Reduced motion: the change happens with no turn.
   await a.emulateMedia({ reducedMotion: 'reduce' });

@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { latestUnread } from './latestUnread';
+import { latestUnread, unreadChats } from './latestUnread';
+
+describe('unreadChats', () => {
+  it('lists every chat with unread messages, newest first, with its count', () => {
+    const unreadDms = [{ from_user_id: 2, count: 1, last_timestamp: 100 }, { from_user_id: 3, count: 0, last_timestamp: 900 }];
+    const groups = [{ id: 'g', unread: 4, last_unread_sender_id: 7, last_unread_timestamp: 400 }, { id: 'x', unread: 2, last_unread_sender_id: null }];
+    const botDms = [{ id: 5, unread: 120, last_unread_sender_id: 8, last_unread_timestamp: 300 }];
+    expect(unreadChats({ unreadDms, groups, botDms })).toEqual([
+      { key: '/dm/g/g', userId: 7, path: '/dm/g/g', count: 4 },
+      { key: '/dm/b/5', userId: 8, path: '/dm/b/5', count: 120 },
+      { key: '/dm/2', userId: 2, path: '/dm/2', count: 1 },
+    ]);
+    expect(unreadChats({})).toEqual([]);
+  });
+});
 
 describe('latestUnread', () => {
   it('is null when nothing is unread', () => {

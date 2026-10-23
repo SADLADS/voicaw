@@ -593,6 +593,19 @@ textarea,
 .rail-logo.turned {
   transform: perspective(200px) rotateY(180deg);
 }
+/* The DM button's slot, first on the rail, is as tall as the headers beside it, the bird in its
+   middle, so it lines up with their tops. The chats with unread messages follow under it, each
+   a picture like a guild's with its count, then the short separator. */
+.sidebar > .nav-item:first-child {
+  height: var(--vc-header-height);
+  margin: 0;
+  align-items: center;
+}
+
+.sidebar > .nav-item:first-child .rail-bird {
+  width: 38px;
+  height: 38px;
+}
 @media (prefers-reduced-motion: reduce) {
   .rail-logo {
     transition: none;
